@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from typing import Callable, List, Optional, Set, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Set, Tuple, Union
 
 from .bisection_planner import GapBisectionPlanner
 
@@ -101,6 +101,10 @@ class DispatchAdvisor:
     # The advisor JSON layer relabels them so the model is asked "did the
     # suspect commit introduce this failing test?".
     is_born_red: bool = False
+    # Quorum target: how many advisor runs should exist for this signal.
+    # execute_advisor (signal_actions) dispatches `target_total - already_dispatched`
+    # more, so raising this is what lets the quorum keep expanding.
+    target_total: int = 2
 
 
 @dataclass
@@ -136,6 +140,40 @@ class Ineligible:
     reason: IneligibleReason
     message: str = ""
     advisor: Optional[DispatchAdvisor] = None
+
+
+class AdvisorDecision(Enum):
+    """Quorum decision over the advisor verdicts collected for one signal.
+
+    - REVERT: enough confident revertish votes to act.
+    - BLOCK: a confident veto verdict (not_related / infra_issue / garbage)
+      forbids autorevert for this signal.
+    - ABSTAIN: no actionable quorum yet — fall through to heuristics and keep
+      collecting votes.
+    """
+
+    REVERT = "revert"
+    BLOCK = "block"
+    ABSTAIN = "abstain"
+
+
+@dataclass(frozen=True)
+class QuorumResult:
+    """Outcome of resolving advisor verdicts for one (suspect, signal).
+
+    - decision: what to do (revert / block / abstain).
+    - dispatch_target: how many advisor runs SHOULD exist — 3 once the votes
+      disagree (>=2 votes spanning >=2 verdict classes), else 2. Independent of
+      confidence, so agreement data keeps accruing even after a veto decides.
+    - representative: the vote driving an actionable decision (the acting
+      revertish vote or the blocking veto), else None.
+    - block_reason: the IneligibleReason for a BLOCK decision, else None.
+    """
+
+    decision: AdvisorDecision
+    dispatch_target: int
+    representative: Optional[AIAdvisorResult]
+    block_reason: Optional[IneligibleReason]
 
 
 class SignalEvent:
@@ -187,6 +225,7 @@ class SignalCommit:
         timestamp: datetime,
         events: List[SignalEvent],
         advisor_result: Optional[AIAdvisorResult] = None,
+        advisor_verdicts: Tuple[AIAdvisorResult, ...] = (),
     ):
         self.head_sha = head_sha
         self.timestamp = timestamp
@@ -200,6 +239,11 @@ class SignalCommit:
             self.statuses[e.status] = self.statuses.get(e.status, 0) + 1
         # Optional AI advisor result for this (commit, signal) pair
         self.advisor_result = advisor_result
+        # All advisor verdicts for this (commit, signal), one per advisor run,
+        # already deduped by run_id upstream. `advisor_result` is the single
+        # latest of these (kept for the HUD / state logger); the quorum
+        # resolver consumes this full list.
+        self.advisor_verdicts = advisor_verdicts
 
     def replace(self, **changes) -> "SignalCommit":
         """Return a copy with selected fields replaced (`dataclasses.replace`-style).
@@ -212,6 +256,7 @@ class SignalCommit:
             "timestamp": changes.pop("timestamp", self.timestamp),
             "events": changes.pop("events", self.events),
             "advisor_result": changes.pop("advisor_result", self.advisor_result),
+            "advisor_verdicts": changes.pop("advisor_verdicts", self.advisor_verdicts),
         }
         if changes:
             raise TypeError(
@@ -605,64 +650,88 @@ class Signal:
             advisor_verdict=advisor_result,
         )
 
+    def _advisor_quorum(self, partition: "PartitionedCommits") -> "QuorumResult":
+        """Resolve the advisor quorum from the suspect commit's votes.
+
+        Reads every verdict attached to the suspect (partition.failed[-1]) that
+        matches this signal's key and delegates the decision to the pure
+        `resolve_advisor_quorum` resolver.
+        """
+        suspect = partition.failed[-1]
+        votes = [v for v in suspect.advisor_verdicts if v.signal_key == self.key]
+        return resolve_advisor_quorum(votes, datetime.now(timezone.utc))
+
+    def _build_dispatch_advisor(
+        self,
+        partition: "PartitionedCommits",
+        target_total: int,
+        *,
+        is_born_red: bool,
+    ) -> DispatchAdvisor:
+        """Build a DispatchAdvisor for the current partition with a quorum target."""
+        return DispatchAdvisor(
+            suspect_commit=partition.failed[-1].head_sha,
+            failed_commits=tuple(c.head_sha for c in partition.failed),
+            successful_commits=tuple(c.head_sha for c in partition.successful),
+            is_born_red=is_born_red,
+            target_total=target_total,
+        )
+
     def _check_advisor_verdict(
-        self, partition: "PartitionedCommits"
+        self,
+        partition: "PartitionedCommits",
+        quorum: "QuorumResult",
+        *,
+        is_born_red: bool,
     ) -> Optional[Union[AutorevertPattern, Ineligible]]:
-        """Check if an AI advisor verdict is available for the suspect commit.
+        """Map a resolved advisor quorum to an actionable outcome.
 
         Returns:
-            - AutorevertPattern if advisor says "revert" or "related" with sufficient confidence
-            - Ineligible if advisor says "not_related"/"infra_issue", or "garbage" (within 2h window)
-            - None if no verdict, verdict is "unsure", or confidence below threshold
+            - AutorevertPattern on REVERT (representative verdict recorded so the
+              PR comment / state logger keep working).
+            - Ineligible on BLOCK, carrying a DispatchAdvisor so the quorum keeps
+              running (2nd, and 3rd on disagreement) to collect agreement data
+              even while blocked.
+            - None on ABSTAIN — the caller falls through / (re)dispatches.
+
+        `infra_issue` is kept distinct from `not_related` (same "not the
+        suspect's fault" effect, faithful reason). `garbage` only blocks inside
+        its 2h window; the resolver already enforced that, so a BLOCK here is
+        always a live veto.
         """
-        suspected = partition.failed[-1]
-        result = suspected.advisor_result
-        if result is None:
-            return None
-
-        # Only act on the verdict if it matches this signal
-        if result.signal_key != self.key:
-            return None
-
-        # Ignore low-confidence verdicts
-        if result.confidence < self.ADVISOR_CONFIDENCE_THRESHOLD:
-            return None
-
-        if result.verdict in (AdvisorVerdict.REVERT, AdvisorVerdict.RELATED):
-            return self._build_autorevert_pattern(partition, advisor_result=result)
-
-        # `infra_issue` (CI environment failed before producing a real
-        # code-level outcome) is not the suspect's fault, so it is handled
-        # exactly like `not_related`: block this signal from autorevert. Kept as
-        # a distinct IneligibleReason so the cause is recorded.
-        if result.verdict in (AdvisorVerdict.NOT_RELATED, AdvisorVerdict.INFRA_ISSUE):
-            if result.verdict == AdvisorVerdict.INFRA_ISSUE:
-                reason, label = IneligibleReason.ADVISOR_INFRA_ISSUE, "infra issue"
-            else:
-                reason, label = IneligibleReason.ADVISOR_NOT_RELATED, "not related"
-            return Ineligible(
-                reason,
-                f"AI advisor says {label} (confidence={result.confidence:.2f})",
+        if quorum.decision == AdvisorDecision.REVERT:
+            return self._build_autorevert_pattern(
+                partition, advisor_result=quorum.representative
             )
 
-        if result.verdict == AdvisorVerdict.GARBAGE:
-            # Garbage (invalid/corrupt signal) blocks the signal for 2 hours
-            # since the verdict timestamp, then falls through so a fresh run can
-            # re-confirm.
-            from datetime import timezone
-
-            now = datetime.now(timezone.utc)
-            verdict_age = now - result.timestamp.replace(tzinfo=timezone.utc)
-            if verdict_age.total_seconds() < 2 * 3600:
-                return Ineligible(
-                    IneligibleReason.ADVISOR_GARBAGE,
+        if quorum.decision == AdvisorDecision.BLOCK:
+            block_reason = quorum.block_reason
+            # The resolver always pairs a BLOCK decision with a block_reason.
+            assert block_reason is not None
+            rep = quorum.representative
+            confidence = rep.confidence if rep is not None else 0.0
+            if block_reason == IneligibleReason.ADVISOR_GARBAGE:
+                age_min = 0
+                if rep is not None:
+                    age = datetime.now(timezone.utc) - _as_utc(rep.timestamp)
+                    age_min = int(age.total_seconds() / 60)
+                message = (
                     f"AI advisor says garbage signal, suppressed for 2h "
-                    f"(confidence={result.confidence:.2f}, "
-                    f"age={int(verdict_age.total_seconds() / 60)}min)",
+                    f"(confidence={confidence:.2f}, age={age_min}min)"
                 )
-            # Garbage window expired — fall through to normal processing
+            elif block_reason == IneligibleReason.ADVISOR_INFRA_ISSUE:
+                message = f"AI advisor says infra issue (confidence={confidence:.2f})"
+            else:
+                message = f"AI advisor says not related (confidence={confidence:.2f})"
+            return Ineligible(
+                block_reason,
+                message,
+                advisor=self._build_dispatch_advisor(
+                    partition, quorum.dispatch_target, is_born_red=is_born_red
+                ),
+            )
 
-        # "unsure" or expired garbage → continue normally
+        # ABSTAIN (includes no votes yet) → caller handles fall-through/dispatch.
         return None
 
     def _handle_no_successes(self) -> Union[AutorevertPattern, Ineligible]:
@@ -703,19 +772,20 @@ class Signal:
                 f"{len(born_red.failed)})",
             )
 
-        # If the advisor already weighed in on the suspect, use that verdict.
-        advisor_decision = self._check_advisor_verdict(born_red)
+        # If the advisor quorum already reached a decision (revert/block), act
+        # on it; otherwise fall through to (re)dispatch and keep collecting.
+        quorum = self._advisor_quorum(born_red)
+        advisor_decision = self._check_advisor_verdict(
+            born_red, quorum, is_born_red=True
+        )
         if advisor_decision is not None:
             return advisor_decision
 
-        # No verdict yet — request one. `successful_commits` carry the implicit
-        # baseline (commits where the signal didn't exist); `is_born_red=True`
-        # tells the advisor JSON builder to relabel them accordingly.
-        advisor = DispatchAdvisor(
-            suspect_commit=born_red.failed[-1].head_sha,
-            failed_commits=tuple(c.head_sha for c in born_red.failed),
-            successful_commits=tuple(c.head_sha for c in born_red.successful),
-            is_born_red=True,
+        # No actionable quorum yet — request the next run. `successful_commits`
+        # carry the implicit baseline (commits where the signal didn't exist);
+        # `is_born_red=True` tells the advisor JSON builder to relabel them.
+        advisor = self._build_dispatch_advisor(
+            born_red, quorum.dispatch_target, is_born_red=True
         )
         return Ineligible(
             IneligibleReason.NO_SUCCESSES,
@@ -752,25 +822,28 @@ class Signal:
                 "insufficient history to form failed/unknown/successful partitions",
             )
 
-        # --- AI advisor verdict check (before flakiness and other heuristics) ---
-        advisor_decision = self._check_advisor_verdict(partition)
+        # --- AI advisor quorum check (before flakiness and other heuristics) ---
+        quorum = self._advisor_quorum(partition)
+        advisor_decision = self._check_advisor_verdict(
+            partition, quorum, is_born_red=False
+        )
         if advisor_decision is not None:
             return advisor_decision
 
         # Advisor dispatch eligibility: partition exists with sufficient data and
         # no unknown commits between failed and successful partitions.
         # Unknown commits mean the partition boundary is uncertain —
-        # wait for restarts to resolve before dispatching advisor.
+        # wait for restarts to resolve before dispatching advisor. The quorum's
+        # dispatch_target lets the pair widen to 3 once the collected votes
+        # disagree.
         advisor = None
         if (
             partition.failure_events_count() >= 2
             and partition.success_events_count() >= 1
             and not partition.unknown
         ):
-            advisor = DispatchAdvisor(
-                suspect_commit=partition.failed[-1].head_sha,
-                failed_commits=tuple(c.head_sha for c in partition.failed),
-                successful_commits=tuple(c.head_sha for c in partition.successful),
+            advisor = self._build_dispatch_advisor(
+                partition, quorum.dispatch_target, is_born_red=False
             )
 
         # Flakiness check — placed after advisor check/dispatch so that
@@ -878,3 +951,95 @@ class Signal:
 
         # all invariants validated, confirmed not infra, pattern exists
         return self._build_autorevert_pattern(partition)
+
+
+def _verdict_class(verdict: AdvisorVerdict) -> object:
+    """Agreement class for a verdict.
+
+    REVERT and RELATED collapse into one "revertish" class (the lambda treats
+    them identically on trunk); every other verdict is its own class. Used only
+    to observe agreement/disagreement, never to decide the action.
+    """
+    if verdict in (AdvisorVerdict.REVERT, AdvisorVerdict.RELATED):
+        return "revertish"
+    return verdict
+
+
+def _as_utc(dt: datetime) -> datetime:
+    """Interpret a naive datetime as UTC; leave aware datetimes unchanged."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+def resolve_advisor_quorum(
+    votes: Sequence[AIAdvisorResult], now: datetime
+) -> QuorumResult:
+    """Resolve advisor verdicts into a quorum decision (single source of truth).
+
+    Precondition: `votes` is already deduped by run_id (one vote per advisor
+    run); this function does NOT dedup. Robust to any vote count (0..N) —
+    never raises, never indexes blindly.
+
+    dispatch_target (confidence-independent agreement observation): 3 when the
+    votes disagree (>=2 votes spanning >=2 verdict classes), else 2.
+
+    decision (asymmetric single-vote veto):
+      1. A single confident veto blocks — priority not_related > infra_issue >
+         garbage (garbage only inside its 2h window).
+      2. Else >=2 confident revertish votes revert.
+      3. Else abstain.
+    Confident = confidence >= Signal.ADVISOR_CONFIDENCE_THRESHOLD.
+    """
+    threshold = Signal.ADVISOR_CONFIDENCE_THRESHOLD
+
+    # Agreement observation over ALL votes, regardless of confidence.
+    classes = {_verdict_class(v.verdict) for v in votes}
+    dispatch_target = 3 if (len(votes) >= 2 and len(classes) >= 2) else 2
+
+    confident = [v for v in votes if v.confidence >= threshold]
+
+    def pick(candidates: List[AIAdvisorResult]) -> AIAdvisorResult:
+        # Highest confidence, tie-break latest timestamp.
+        return max(candidates, key=lambda v: (v.confidence, _as_utc(v.timestamp)))
+
+    def block(
+        reason: IneligibleReason, candidates: List[AIAdvisorResult]
+    ) -> QuorumResult:
+        return QuorumResult(
+            decision=AdvisorDecision.BLOCK,
+            dispatch_target=dispatch_target,
+            representative=pick(candidates),
+            block_reason=reason,
+        )
+
+    not_related = [v for v in confident if v.verdict == AdvisorVerdict.NOT_RELATED]
+    if not_related:
+        return block(IneligibleReason.ADVISOR_NOT_RELATED, not_related)
+
+    infra = [v for v in confident if v.verdict == AdvisorVerdict.INFRA_ISSUE]
+    if infra:
+        return block(IneligibleReason.ADVISOR_INFRA_ISSUE, infra)
+
+    garbage = [
+        v
+        for v in confident
+        if v.verdict == AdvisorVerdict.GARBAGE
+        and (_as_utc(now) - _as_utc(v.timestamp)).total_seconds() < 2 * 3600
+    ]
+    if garbage:
+        return block(IneligibleReason.ADVISOR_GARBAGE, garbage)
+
+    r_plus = [v for v in confident if _verdict_class(v.verdict) == "revertish"]
+    if len(r_plus) >= 2:
+        return QuorumResult(
+            decision=AdvisorDecision.REVERT,
+            dispatch_target=dispatch_target,
+            representative=pick(r_plus),
+            block_reason=None,
+        )
+
+    return QuorumResult(
+        decision=AdvisorDecision.ABSTAIN,
+        dispatch_target=dispatch_target,
+        representative=None,
+        block_reason=None,
+    )

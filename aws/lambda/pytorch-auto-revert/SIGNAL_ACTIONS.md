@@ -18,7 +18,7 @@ This document specifies the Actions layer that consumes extracted Signals with t
 
 Immutable run-scoped metadata shared by all actions in the same run:
 
-- `ts`: DateTime captured at run start; identical across all rows inserted for the run
+- `ts`: DateTime captured at run start; shared by all `revert`/`restart` rows inserted for the run. `advisor` dispatch rows are the exception: each carries a per-dispatch (second-offset) timestamp so a same-tick quorum does not collapse under the `autorevert_events_v2` ReplacingMergeTree sort key.
 - `repo_full_name`: e.g., `pytorch/pytorch`
 - `workflows`: list of workflow display names
 - `lookback_hours`: window used for extraction
@@ -45,7 +45,7 @@ Immutable run-scoped metadata shared by all actions in the same run:
 
 ## ClickHouse Logging
 
-Two tables, sharing the same `ts` per CLI/lambda run.
+Two tables, sharing the same `ts` per CLI/lambda run — except `advisor` dispatch rows in `autorevert_events_v2`, which use per-dispatch timestamps.
 
 ### `autorevert_events_v2`
 
@@ -64,7 +64,7 @@ Two tables, sharing the same `ts` per CLI/lambda run.
 
 - Purpose: persist the HUD-like state for the whole run for auditability
 - Notable columns:
-  - `ts` DateTime — run timestamp (matches `autorevert_events_v2.ts`)
+  - `ts` DateTime — run timestamp (matches the per-run `ts` on `autorevert_events_v2` `revert`/`restart` rows; `advisor` dispatch rows there use per-dispatch timestamps)
   - `state` String — JSON-encoded model of the HUD grid and outcomes
   - `params` String DEFAULT '' — optional, free-form
   - `dry_run` UInt8 — run-level convenience flag; 1 when the run performed no side effects

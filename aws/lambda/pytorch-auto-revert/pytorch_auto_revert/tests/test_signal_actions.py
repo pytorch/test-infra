@@ -469,18 +469,63 @@ class TestCommentIssueRevert(unittest.TestCase):
         )
 
 
-class FakeLoggerWithAdvisorDedup(FakeLogger):
-    """FakeLogger that tracks advisor dedup checks."""
+class TestAdvisorCountQueries(unittest.TestCase):
+    """The two advisor-count queries handle failed dispatches asymmetrically.
 
-    def __init__(self, *, advisor_exists: bool = False, advisor_count: int = 0):
+    - Signal-level quorum count excludes failed dispatches (`failed = 0`): a
+      failed workflow_dispatch POST is logged (failed=1, dry_run=0) but launches
+      no advisor run, so counting it would permanently consume a quorum slot the
+      born-red path has no heuristic backstop to recover from. Filtering it out
+      means the failed attempt is retried on a later tick.
+    - Per-(commit, workflow) cost cap counts ALL attempts (including failed) so a
+      storm of failing POSTs still bounds cost.
+    """
+
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    def test_signal_count_filters_failed_zero(self, mock_ch_factory):
+        mock_client = Mock()
+        mock_client.query.return_value = Mock(result_rows=[[3]])
+        mock_ch_factory.return_value.client = mock_client
+
+        count = ActionLogger().advisor_count_for_signal(
+            repo="pytorch/pytorch", commit_sha="deadbeef", signal_key="k"
+        )
+        self.assertEqual(count, 3)
+        query = mock_client.query.call_args[0][0]
+        self.assertIn("failed = 0", query)
+
+    @patch("pytorch_auto_revert.signal_actions.CHCliFactory")
+    def test_commit_cap_count_includes_failed(self, mock_ch_factory):
+        mock_client = Mock()
+        mock_client.query.return_value = Mock(result_rows=[[5]])
+        mock_ch_factory.return_value.client = mock_client
+
+        count = ActionLogger().advisor_count_for_commit(
+            repo="pytorch/pytorch", commit_sha="deadbeef", workflow="trunk"
+        )
+        self.assertEqual(count, 5)
+        query = mock_client.query.call_args[0][0]
+        self.assertNotIn("failed = 0", query)
+
+
+class FakeLoggerWithAdvisorDedup(FakeLogger):
+    """FakeLogger stubbing the advisor count lookups used by execute_advisor.
+
+    - signal_count: prior non-dry-run advisor rows for this (commit, signal),
+      which drives the quorum delta.
+    - advisor_count: prior advisor rows for this (commit, workflow), which
+      drives the cost cap.
+    """
+
+    def __init__(self, *, signal_count: int = 0, advisor_count: int = 0):
         super().__init__()
-        self._advisor_exists = advisor_exists
+        self._signal_count = signal_count
         self._advisor_count = advisor_count
 
-    def prior_advisor_exists(
+    def advisor_count_for_signal(
         self, *, repo: str, commit_sha: str, signal_key: str
-    ) -> bool:
-        return self._advisor_exists
+    ) -> int:
+        return self._signal_count
 
     def advisor_count_for_commit(
         self, *, repo: str, commit_sha: str, workflow: str
@@ -491,7 +536,7 @@ class FakeLoggerWithAdvisorDedup(FakeLogger):
 class TestExecuteAdvisor(unittest.TestCase):
     """Tests for SignalActionProcessor.execute_advisor."""
 
-    def _make_signal_and_advisor(self):
+    def _make_signal_and_advisor(self, *, target_total: int = 2):
         from datetime import datetime
 
         from pytorch_auto_revert.signal import (
@@ -529,6 +574,7 @@ class TestExecuteAdvisor(unittest.TestCase):
             suspect_commit="sha_fail",
             failed_commits=("sha_fail",),
             successful_commits=("sha_base",),
+            target_total=target_total,
         )
         return signal, advisor
 
@@ -568,10 +614,12 @@ class TestExecuteAdvisor(unittest.TestCase):
         self.assertFalse(result)
         self.assertEqual(len(proc._logger.insert_calls), 0)
 
-    def test_skip_when_prior_advisor_exists(self):
+    def test_skip_when_target_already_met(self):
+        # target_total=2 with 2 prior dispatches → delta is 0, fire nothing
+        # (idempotent once the quorum target is satisfied).
         proc = SignalActionProcessor()
-        proc._logger = FakeLoggerWithAdvisorDedup(advisor_exists=True)
-        signal, advisor = self._make_signal_and_advisor()
+        proc._logger = FakeLoggerWithAdvisorDedup(signal_count=2)
+        signal, advisor = self._make_signal_and_advisor(target_total=2)
         ctx = RunContext(
             ts=datetime.now(timezone.utc),
             notify_issue_number=123456,
@@ -604,12 +652,14 @@ class TestExecuteAdvisor(unittest.TestCase):
         )
         result = proc.execute_advisor(signal=signal, dispatch_advisor=advisor, ctx=ctx)
         self.assertTrue(result)
-        self.assertEqual(len(proc._logger.insert_calls), 1)
-        call = proc._logger.insert_calls[0]
-        # call is (repo, ts, action, commit_sha, workflows, signal_keys, dry_run, failed, notes)
-        self.assertEqual(call[2], "advisor")  # action
-        self.assertEqual(call[3], "sha_fail")  # commit_sha
-        self.assertTrue(call[6])  # dry_run=True for LOG mode
+        # LOG mode counts only dry_run=0 rows, so it re-intends the full target
+        # each tick: target_total=2 → 2 dry-run rows, no GitHub dispatch.
+        self.assertEqual(len(proc._logger.insert_calls), 2)
+        for call in proc._logger.insert_calls:
+            # call is (repo, ts, action, commit_sha, workflows, signal_keys, dry_run, failed, notes)
+            self.assertEqual(call[2], "advisor")  # action
+            self.assertEqual(call[3], "sha_fail")  # commit_sha
+            self.assertTrue(call[6])  # dry_run=True for LOG mode
         # No GitHub dispatch should have been called
         mock_gh_factory.assert_not_called()
 
@@ -640,19 +690,137 @@ class TestExecuteAdvisor(unittest.TestCase):
         )
         result = proc.execute_advisor(signal=signal, dispatch_advisor=advisor, ctx=ctx)
         self.assertTrue(result)
-        # Verify dispatch was called
-        mock_dispatch.assert_called_once()
+        # target_total=2 with none prior → 2 dispatches + 2 CH rows this tick.
+        self.assertEqual(mock_dispatch.call_count, 2)
         dispatch_args = mock_dispatch.call_args
         self.assertEqual(dispatch_args[1]["ref"], "main")
         inputs = dispatch_args[1]["inputs"]
         self.assertEqual(inputs["suspect_commit"], "sha_fail")
         self.assertEqual(inputs["pr_number"], "42")
         self.assertIn("signal_key", inputs["signal_pattern"])
-        # Verify CH event logged
+        # Verify CH events logged (one per fired run)
+        self.assertEqual(len(proc._logger.insert_calls), 2)
+        for call in proc._logger.insert_calls:
+            self.assertEqual(call[2], "advisor")
+            self.assertFalse(call[6])  # dry_run=False for RUN mode
+
+    def _run_ctx(self, advisor_action):
+        return RunContext(
+            ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
+            repo_full_name="pytorch/pytorch",
+            workflows=["trunk"],
+            lookback_hours=24,
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.SKIP,
+            advisor_action=advisor_action,
+        )
+
+    @patch("pytorch_auto_revert.signal_actions.proper_workflow_create_dispatch")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_fires_full_target_when_none_dispatched(
+        self, mock_gh_factory, mock_dispatch
+    ):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(signal_count=0)
+        proc._find_pr_by_sha = Mock(return_value=None)
+        signal, advisor = self._make_signal_and_advisor(target_total=2)
+        result = proc.execute_advisor(
+            signal=signal,
+            dispatch_advisor=advisor,
+            ctx=self._run_ctx(AdvisorAction.RUN),
+        )
+        self.assertTrue(result)
+        self.assertEqual(mock_dispatch.call_count, 2)
+        self.assertEqual(len(proc._logger.insert_calls), 2)
+
+    @patch("pytorch_auto_revert.signal_actions.proper_workflow_create_dispatch")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_fires_delta_when_partially_dispatched(
+        self, mock_gh_factory, mock_dispatch
+    ):
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(signal_count=1)
+        proc._find_pr_by_sha = Mock(return_value=None)
+        signal, advisor = self._make_signal_and_advisor(target_total=2)
+        result = proc.execute_advisor(
+            signal=signal,
+            dispatch_advisor=advisor,
+            ctx=self._run_ctx(AdvisorAction.RUN),
+        )
+        self.assertTrue(result)
+        self.assertEqual(mock_dispatch.call_count, 1)
         self.assertEqual(len(proc._logger.insert_calls), 1)
-        call = proc._logger.insert_calls[0]
-        self.assertEqual(call[2], "advisor")
-        self.assertFalse(call[6])  # dry_run=False for RUN mode
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_idempotent_when_target_already_met(self, mock_gh_factory):
+        # target=2 with 2 prior dispatches → fire nothing; no GitHub calls.
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(signal_count=2)
+        signal, advisor = self._make_signal_and_advisor(target_total=2)
+        result = proc.execute_advisor(
+            signal=signal,
+            dispatch_advisor=advisor,
+            ctx=self._run_ctx(AdvisorAction.RUN),
+        )
+        self.assertFalse(result)
+        self.assertEqual(len(proc._logger.insert_calls), 0)
+        mock_gh_factory.assert_not_called()
+
+    @patch("pytorch_auto_revert.signal_actions.proper_workflow_create_dispatch")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_widened_target_fires_remaining(self, mock_gh_factory, mock_dispatch):
+        # Quorum widened to 3 (votes disagreed) with 2 already dispatched → 1 more.
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(signal_count=2)
+        proc._find_pr_by_sha = Mock(return_value=None)
+        signal, advisor = self._make_signal_and_advisor(target_total=3)
+        result = proc.execute_advisor(
+            signal=signal,
+            dispatch_advisor=advisor,
+            ctx=self._run_ctx(AdvisorAction.RUN),
+        )
+        self.assertTrue(result)
+        self.assertEqual(mock_dispatch.call_count, 1)
+        self.assertEqual(len(proc._logger.insert_calls), 1)
+
+    @patch("pytorch_auto_revert.signal_actions.proper_workflow_create_dispatch")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_cap_clamps_delta(self, mock_gh_factory, mock_dispatch):
+        # target wants 2 but only 1 slot remains under the per-(commit, workflow)
+        # cap of 8 (7 already) → clamp the delta to 1.
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(signal_count=0, advisor_count=7)
+        proc._find_pr_by_sha = Mock(return_value=None)
+        signal, advisor = self._make_signal_and_advisor(target_total=2)
+        result = proc.execute_advisor(
+            signal=signal,
+            dispatch_advisor=advisor,
+            ctx=self._run_ctx(AdvisorAction.RUN),
+        )
+        self.assertTrue(result)
+        self.assertEqual(mock_dispatch.call_count, 1)
+        self.assertEqual(len(proc._logger.insert_calls), 1)
+
+    @patch("pytorch_auto_revert.signal_actions.proper_workflow_create_dispatch")
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_each_fired_event_has_distinct_ts(self, mock_gh_factory, mock_dispatch):
+        # Ledger is a ReplacingMergeTree keyed (repo, commit_sha, action, ts) at
+        # second resolution: same-tick rows must not share a ts or they collapse.
+        proc = SignalActionProcessor()
+        proc._logger = FakeLoggerWithAdvisorDedup(signal_count=0)
+        proc._find_pr_by_sha = Mock(return_value=None)
+        signal, advisor = self._make_signal_and_advisor(target_total=2)
+        proc.execute_advisor(
+            signal=signal,
+            dispatch_advisor=advisor,
+            ctx=self._run_ctx(AdvisorAction.RUN),
+        )
+        self.assertEqual(len(proc._logger.insert_calls), 2)
+        ts0 = proc._logger.insert_calls[0][1]
+        ts1 = proc._logger.insert_calls[1][1]
+        self.assertNotEqual(ts0, ts1)
+        self.assertEqual(ts1 - ts0, timedelta(seconds=1))
 
 
 class TestBuildSignalPatternJson(unittest.TestCase):
@@ -1400,7 +1568,7 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
         # Mock datasource to return a verdict for (sha_aaa, test_key)
         extractor._datasource = Mock()
         extractor._datasource.fetch_advisor_verdicts.return_value = {
-            ("sha_aaa", "test_key"): ("revert", 0.95, t0),
+            ("sha_aaa", "test_key"): [("revert", 0.95, t0)],
         }
 
         commits = [(Sha("sha_aaa"), t0), (Sha("sha_bbb"), t0)]
@@ -1518,7 +1686,7 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
         extractor = SignalExtractor(workflows=["wf"], lookback_hours=16)
         extractor._datasource = Mock()
         extractor._datasource.fetch_advisor_verdicts.return_value = {
-            ("sha_aaa", "k"): ("bogus_verdict", 0.5, t0),
+            ("sha_aaa", "k"): [("bogus_verdict", 0.5, t0)],
         }
 
         result = extractor._attach_advisor_verdicts([signal], [(Sha("sha_aaa"), t0)])
@@ -1559,7 +1727,7 @@ class TestAttachAdvisorVerdicts(unittest.TestCase):
         extractor = SignalExtractor(workflows=["trunk"], lookback_hours=16)
         extractor._datasource = Mock()
         extractor._datasource.fetch_advisor_verdicts.return_value = {
-            ("sha_aaa", "test/foo.py::test_bar"): ("revert", 0.95, t0),
+            ("sha_aaa", "test/foo.py::test_bar"): [("revert", 0.95, t0)],
         }
         out = extractor._attach_advisor_verdicts([signal], [(Sha("sha_aaa"), t0)])
         self.assertEqual(out[0].test_file, "test/foo.py")
