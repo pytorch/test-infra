@@ -39,6 +39,15 @@ on:
         description: "Build with XPU?"
         default: "disable"
         type: string
+      runner-fleet:
+        description: |
+          Which runner fleet each row's validation_runner should name: "ec2"
+          (default) or "osdc". On osdc the Linux rows get ARC labels, release
+          isolated on the refs a wheel is published from and regular otherwise;
+          Windows and macOS rows are unchanged, having no OSDC equivalent.
+        default: "ec2"
+        required: false
+        type: string
       use-only-dl-pytorch-org:
         description: "Use only download.pytorch.org when generating wheel install command?"
         default: "false"
@@ -92,6 +101,7 @@ jobs:
           WITH_ROCM: ${{ inputs.with-rocm }}
           WITH_CPU: ${{ inputs.with-cpu }}
           WITH_XPU: ${{ inputs.with-xpu }}
+          RUNNER_FLEET: ${{ inputs.runner-fleet }}
           # limit pull request builds to one version of python unless ciflow/binaries/all is applied to the workflow
           # should not affect builds that are from events that are not the pull_request event
           LIMIT_PR_BUILDS: ${{ github.event_name == 'pull_request' && !contains( github.event.pull_request.labels.*.name, 'ciflow/binaries/all') }}
