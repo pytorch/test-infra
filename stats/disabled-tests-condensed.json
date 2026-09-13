@@ -926,6 +926,13 @@
       "dynamo"
     ]
   ],
+  "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
+    "196899",
+    "https://github.com/pytorch/pytorch/issues/196899",
+    [
+      "xpu"
+    ]
+  ],
   "test_nested_dict_partial_load (__main__.TestCheckpointer)": [
     "189221",
     "https://github.com/pytorch/pytorch/issues/189221",
