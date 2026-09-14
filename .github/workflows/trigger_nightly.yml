@@ -42,13 +42,13 @@ jobs:
             repository: pytorch/audio
             ref: main
           - domain: data
-            repository: pytorch/data
+            repository: meta-pytorch/data
             ref: main
           - domain: vision
             repository: pytorch/vision
             ref: main
           - domain: torchrec
-            repository: pytorch/torchrec
+            repository: meta-pytorch/torchrec
             ref: main
           - domain: tensorrt
             repository: pytorch/tensorrt
@@ -63,7 +63,7 @@ jobs:
             repository: pytorch/executorch
             ref: viable/strict
           - domain: torchtune
-            repository: pytorch/torchtune
+            repository: meta-pytorch/torchtune
             ref: main
           - domain: torchcodec
             repository: meta-pytorch/torchcodec
