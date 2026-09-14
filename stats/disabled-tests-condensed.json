@@ -634,6 +634,14 @@
     "https://github.com/pytorch/pytorch/issues/188677",
     []
   ],
+  "test_graph_two_successive (__main__.TestCuda)": [
+    "159113",
+    "https://github.com/pytorch/pytorch/issues/159113",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_index_add_bfloat16_deterministic (__main__.CudaReproTests)": [
     "195558",
     "https://github.com/pytorch/pytorch/issues/195558",
