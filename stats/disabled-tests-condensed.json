@@ -641,13 +641,6 @@
     "https://github.com/pytorch/pytorch/issues/188677",
     []
   ],
-  "test_graph_two_successive (__main__.TestCuda)": [
-    "159113",
-    "https://github.com/pytorch/pytorch/issues/159113",
-    [
-      "linux"
-    ]
-  ],
   "test_index_add_bfloat16_deterministic (__main__.CudaReproTests)": [
     "195558",
     "https://github.com/pytorch/pytorch/issues/195558",
@@ -806,6 +799,11 @@
     "https://github.com/pytorch/pytorch/issues/188712",
     []
   ],
+  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188713",
+    "https://github.com/pytorch/pytorch/issues/188713",
+    []
+  ],
   "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188714",
     "https://github.com/pytorch/pytorch/issues/188714",
@@ -840,6 +838,13 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_max_autotune_cuda (__main__.TestFlexDecodingCUDA)": [
+    "190142",
+    "https://github.com/pytorch/pytorch/issues/190142",
+    [
+      "linux"
     ]
   ],
   "test_max_autotune_remote_caching_dynamic_False (__main__.TestMaxAutotuneRemoteCache)": [
@@ -1155,16 +1160,6 @@
     "https://github.com/pytorch/pytorch/issues/188705",
     []
   ],
-  "test_reentrant_parent_error_on_cpu_cuda (__main__.TestAutogradDeviceTypeCUDA)": [
-    "86735",
-    "https://github.com/pytorch/pytorch/issues/86735",
-    [
-      "linux",
-      "rocm",
-      "win",
-      "windows"
-    ]
-  ],
   "test_regional_codegen_only_config_cpp_wrapper_xpu (__main__.GPUTests)": [
     "195875",
     "https://github.com/pytorch/pytorch/issues/195875",
@@ -1436,16 +1431,6 @@
     [
       "asan",
       "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
-    "124152",
-    "https://github.com/pytorch/pytorch/issues/124152",
-    [
-      "asan",
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
