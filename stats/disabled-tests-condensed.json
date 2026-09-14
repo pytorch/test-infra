@@ -510,13 +510,6 @@
       "xpu"
     ]
   ],
-  "test_fallback_kernel_with_symexpr_output_xpu (__main__.AOTInductorTestDualWrapper)": [
-    "190295",
-    "https://github.com/pytorch/pytorch/issues/190295",
-    [
-      "xpu"
-    ]
-  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -1331,20 +1324,6 @@
       "inductor",
       "linux",
       "rocm"
-    ]
-  ],
-  "test_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
-    "194837",
-    "https://github.com/pytorch/pytorch/issues/194837",
-    [
-      "linux"
-    ]
-  ],
-  "test_stream_with_mutation_cuda (__main__.TestStreamsCUDA)": [
-    "195001",
-    "https://github.com/pytorch/pytorch/issues/195001",
-    [
-      "linux"
     ]
   ],
   "test_streaming_backwards_multiple_streams (__main__.TestCuda)": [
