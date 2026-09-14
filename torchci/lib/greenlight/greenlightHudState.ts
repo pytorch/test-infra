@@ -14,6 +14,7 @@ import {
 import {
   GREENLIGHT_MESSAGE_CAP,
   GREENLIGHT_STATUS_LAND,
+  GREENLIGHT_STATUS_NO_LAND,
 } from "lib/greenlight/greenlightRender";
 
 /** One `misc.greenlight_pr_state` row. Saved queries are untyped, so this is the cast target. */
@@ -41,6 +42,37 @@ export function isGreenlightApproved(
   status: string | undefined | null
 ): boolean {
   return (status ?? "").trim() === GREENLIGHT_STATUS_LAND;
+}
+
+/**
+ * Only NO_LAND means Green Light looked at the commit and refused it. The other
+ * non-LAND statuses are absences, not refusals -- CANCELLED and FAILED mean no
+ * verdict was reached, REVERTED means the PR was excluded from review rather
+ * than judged, and the in-flight ones mean the review has not finished. Marking
+ * any of those as rejected would attribute a judgement that was never made.
+ */
+export function isGreenlightRejected(
+  status: string | undefined | null
+): boolean {
+  return (status ?? "").trim() === GREENLIGHT_STATUS_NO_LAND;
+}
+
+/**
+ * Whether the HUD puts a Green Light mark on a commit.
+ *
+ * Approvals are always marked. Refusals are opt-in and off by default: most of
+ * trunk was never approved by Green Light, so marking every refusal turns a
+ * sparse signal into a column of red that says little about the commit the
+ * reader is looking at. `showRejected` is the reader's own choice to see them.
+ */
+export function shouldShowGreenlightStatus(
+  status: string | undefined | null,
+  showRejected: boolean
+): boolean {
+  return (
+    isGreenlightApproved(status) ||
+    (showRejected && isGreenlightRejected(status))
+  );
 }
 
 /**

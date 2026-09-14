@@ -1,17 +1,15 @@
 import { Box, Stack, Tooltip, Typography } from "@mui/material";
 import CopyLink from "components/common/CopyLink";
-import FlakyTrunkControls from "components/flakyTrunk/FlakyTrunkControls";
-import FlakyTrunkGraph from "components/flakyTrunk/FlakyTrunkGraph";
-import FlakyTrunkHelp from "components/flakyTrunk/FlakyTrunkHelp";
-import FlakyTrunkRunsTable from "components/flakyTrunk/FlakyTrunkRunsTable";
-import FlakyTrunkTable from "components/flakyTrunk/FlakyTrunkTable";
-import FlakyTrunkTiles from "components/flakyTrunk/FlakyTrunkTiles";
 import {
-  BucketRange,
   CLICKHOUSE_TIME_FORMAT,
   DEFAULT_TIME_RANGE,
-  DenominatorKey,
   LARGE_WINDOW_DAYS,
+  snapStopToGranularity,
+  snapToGranularity,
+} from "components/common/timeWindow";
+import {
+  BucketRange,
+  DenominatorKey,
   parseDate,
   parseDenominator,
   parseGranularity,
@@ -19,9 +17,13 @@ import {
   parseTimeRange,
   parseViableStrictOnly,
   SelectedEntity,
-  snapStopToGranularity,
-  snapToGranularity,
 } from "components/flakyTrunk/common";
+import FlakyTrunkControls from "components/flakyTrunk/FlakyTrunkControls";
+import FlakyTrunkGraph from "components/flakyTrunk/FlakyTrunkGraph";
+import FlakyTrunkHelp from "components/flakyTrunk/FlakyTrunkHelp";
+import FlakyTrunkRunsTable from "components/flakyTrunk/FlakyTrunkRunsTable";
+import FlakyTrunkTable from "components/flakyTrunk/FlakyTrunkTable";
+import FlakyTrunkTiles from "components/flakyTrunk/FlakyTrunkTiles";
 import { FLAKY_TRUNK_TABLES } from "components/flakyTrunk/tableConfigs";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";

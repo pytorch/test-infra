@@ -47,7 +47,6 @@ class TestEligible(unittest.TestCase):
         self.assertTrue(eligible(cause(routing=" PyTorch/PyTorch ")))
 
     def test_low_classification_confidence_is_skipped(self):
-        self.assertFalse(eligible(cause(classification_confidence="medium")))
         self.assertFalse(eligible(cause(classification_confidence="low")))
 
     def test_known_variant_is_skipped_but_medium_is_filed(self):
@@ -64,8 +63,6 @@ class TestEligible(unittest.TestCase):
         self.assertEqual(
             classification_confidence({"classification_confidence": "MED"}), "medium"
         )
-        # "med" classification is below the bar in either spelling.
-        self.assertFalse(eligible(cause(classification_confidence="med")))
 
     def test_legacy_confidence_field_still_gates(self):
         # Pre-rename findings.json: one `confidence`, no new_failure_confidence.

@@ -24,9 +24,15 @@ fetch anything. Your tools are `Read`, `Glob`, `Grep`, `Write`; there is no Pyth
 execution and no Buildkite / ClickHouse access. Read what is on disk in the triage input
 dir:
 
-- `report.md` — the A/B summary and the regressed clusters (see Step 2).
-- `report.json` — the same, structured: `torch_nightly_build`, `baseline_build`,
-  `commit`, and the `regressed` / `both` job lists.
+- `report.md` — a concise, human-readable A/B summary and regressed clusters. Its
+  **Test-set regressions** list deliberately renders each new failed test only as
+  ``<test_id> — <pytest_exception_class>``; it does not include tracebacks.
+- `report.json` — the structured companion: `torch_nightly_build`,
+  `baseline_build`, `commit`, the `regressed` / `both` job lists, and
+  `regressed_tests`. Each `regressed_tests.new_failures` entry is a complete
+  `FailedTest` signature (`test_id`, `pytest_exception_class`,
+  `exception_chain`, `inline_message`, `test_is_infra`). Each shared failure has
+  complete `torch_nightly` and `baseline` `FailedTest` entries.
 - `cluster-logs/*.log` — one representative log per regressed cluster, ANSI-stripped.
    This is your primary root-cause material.
 
@@ -46,7 +52,7 @@ Every file opens with a header:
 
 ```
 ## tests/kernels/test_deepgemm.py::test_gemm
-exception_class: RuntimeError
+pytest_exception_class: RuntimeError
 test_is_infra: false
 
 def test_gemm():
@@ -56,12 +62,16 @@ test_deepgemm.py:42: RuntimeError
 ```
 
 - `## <test_id>` — pytest node ID.
-- `exception_class` — exception type from the FAILURES section.
+- `pytest_exception_class` — exception type pytest named on its inline
+  `FAILED`/`ERROR` summary line. This is the `FailedTest.pytest_exception_class`
+  field in `report.json`; it can be empty when pytest did not provide a class.
 - `test_is_infra` — per-test transient-infra tag (CUDA-init, `exit status 137`,
-  `Free memory … less than desired`, …).
+  `Free memory … less than desired`, …). This is the `FailedTest.test_is_infra`
+  field in `report.json`.
 - Everything after the blank line is the **raw section body** (the traceback): source
   lines, `E` error lines, file refs, chained-exception connectors. This is the
-  `exception_chain` Step 3 refers to — your primary content for root cause.
+  `FailedTest.exception_chain` that Step 3 refers to — your primary content for
+  root cause.
 
 **Fallback form** — no pytest failures were parsed (a build/crash before pytest ran,
 an empty parse, or the parser raising). The header is followed by:

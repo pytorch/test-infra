@@ -33,7 +33,7 @@ import sys
 import urllib.error
 import urllib.request
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from torchci.clickhouse import get_clickhouse_client
@@ -395,7 +395,9 @@ def render_regressed_tests_section(regressed_tests: List[Dict]) -> List[str]:
         )
         out.append(f"- [{entry['name']}]({entry['url']}) — `{entry['state']}`")
         for failure in new_failures:
-            out.append(f"  - `{failure['test_id']}` — `{failure['exception_class']}`")
+            out.append(
+                f"  - `{failure['test_id']}` — `{failure['pytest_exception_class']}`"
+            )
         out.append("\n</details>")
     return out
 
@@ -514,6 +516,10 @@ def _render_shared_section(shared_failures: List[Tuple[FailedTest, FailedTest]])
         sections.append(
             f"pytest_exception_class: {torch_nightly_side.pytest_exception_class}"
         )
+        sections.append(
+            f"torch_nightly_test_is_infra: {torch_nightly_side.test_is_infra}"
+        )
+        sections.append(f"baseline_test_is_infra: {baseline_side.test_is_infra}")
         sections.append("")
         sections.append("### torch_nightly_exception_chain")
         sections.append(torch_nightly_side.exception_chain)
@@ -628,14 +634,6 @@ def _http_error_hint(exc: urllib.error.HTTPError) -> str:
     return ""
 
 
-def _failure_dict(failure: FailedTest) -> Dict[str, str]:
-    return {
-        "test_id": failure.test_id,
-        "exception_class": failure.pytest_exception_class,
-        "torch_nightly_exception_chain": failure.exception_chain,
-    }
-
-
 def _build_regressed_entry(cluster: str, rep: Dict, diff: DiffResult) -> Dict:
     """Build the regressed_tests entry for one `both`-cluster with new failures.
 
@@ -654,13 +652,12 @@ def _build_regressed_entry(cluster: str, rep: Dict, diff: DiffResult) -> Dict:
         "baseline_url": rep.get("baseline_url"),
         "state": rep["state"],
         "baseline_state": rep["baseline_state"],
-        "new_failures": [_failure_dict(failure) for failure in diff.new_failures],
+        "new_failures": [asdict(failure) for failure in diff.new_failures],
         "shared_failures": [
             {
                 "test_id": torch_nightly_side.test_id,
-                "exception_class": torch_nightly_side.pytest_exception_class,
-                "torch_nightly_exception_chain": torch_nightly_side.exception_chain,
-                "baseline_exception_chain": baseline_side.exception_chain,
+                "torch_nightly": asdict(torch_nightly_side),
+                "baseline": asdict(baseline_side),
             }
             for torch_nightly_side, baseline_side in diff.shared_failures
         ],

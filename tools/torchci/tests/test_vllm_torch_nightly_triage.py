@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 import torchci.vllm_torch_nightly_triage as triage
-from torchci.vllm_log_parser import parse_log
+from torchci.vllm_log_parser import FailedTest, parse_log
 from torchci.vllm_torch_nightly_triage import diff_failing_tests
 
 
@@ -230,6 +230,19 @@ class TestDiffBothClusters(unittest.TestCase):
         self.assertEqual(entry["baseline_url"], "base#job")
         new_ids = [nf["test_id"] for nf in entry["new_failures"]]
         self.assertEqual(new_ids, ["tests/test_b.py::test_bar"])
+        self.assertEqual(
+            entry["new_failures"][0],
+            {
+                "test_id": "tests/test_b.py::test_bar",
+                "pytest_exception_class": "ValueError",
+                "exception_chain": "ValueError: new failure",
+                "inline_message": "new failure",
+                "test_is_infra": False,
+            },
+        )
+        self.assertEqual(
+            entry["shared_failures"][0]["torch_nightly"]["test_is_infra"], False
+        )
 
     def test_no_new_failures_dropped(self) -> None:
         rep = _both_job("Job A", "tn#job", "base#job")
@@ -237,6 +250,32 @@ class TestDiffBothClusters(unittest.TestCase):
             [("tests/test_a.py::test_foo", "AssertionError", "shared boom")]
         )
         self.assertEqual(triage.diff_both_clusters([("Job A", rep, body, body)]), [])
+
+    def test_entry_preserves_an_infrastructure_failure_signature(self) -> None:
+        failure = FailedTest(
+            test_id="tests/test_infra.py::test_cuda",
+            pytest_exception_class="RuntimeError",
+            exception_chain="RuntimeError: CUDA driver initialization failed",
+            inline_message="CUDA driver initialization failed",
+            test_is_infra=True,
+        )
+        entry = triage._build_regressed_entry(
+            "Job A",
+            _both_job("Job A", "tn#job", "base#job"),
+            triage.DiffResult(new_failures=[failure]),
+        )
+        self.assertEqual(
+            entry["new_failures"],
+            [
+                {
+                    "test_id": "tests/test_infra.py::test_cuda",
+                    "pytest_exception_class": "RuntimeError",
+                    "exception_chain": "RuntimeError: CUDA driver initialization failed",
+                    "inline_message": "CUDA driver initialization failed",
+                    "test_is_infra": True,
+                }
+            ],
+        )
 
 
 class TestWriteBothArtifacts(unittest.TestCase):
@@ -289,16 +328,29 @@ def _regressed_entry():
         "new_failures": [
             {
                 "test_id": "tests/test_b.py::test_bar",
-                "exception_class": "ValueError",
-                "torch_nightly_exception_chain": "ValueError: new-failure-marker",
+                "pytest_exception_class": "ValueError",
+                "exception_chain": "ValueError: new-failure-marker",
+                "inline_message": "new-failure-marker",
+                "test_is_infra": False,
             }
         ],
         "shared_failures": [
             {
                 "test_id": "tests/test_a.py::test_foo",
-                "exception_class": "AssertionError",
-                "torch_nightly_exception_chain": "AssertionError: shared",
-                "baseline_exception_chain": "AssertionError: shared",
+                "torch_nightly": {
+                    "test_id": "tests/test_a.py::test_foo",
+                    "pytest_exception_class": "AssertionError",
+                    "exception_chain": "AssertionError: shared",
+                    "inline_message": "shared",
+                    "test_is_infra": False,
+                },
+                "baseline": {
+                    "test_id": "tests/test_a.py::test_foo",
+                    "pytest_exception_class": "AssertionError",
+                    "exception_chain": "AssertionError: shared",
+                    "inline_message": "shared",
+                    "test_is_infra": False,
+                },
             }
         ],
     }
@@ -334,6 +386,8 @@ class TestRenderRegressedTests(unittest.TestCase):
         self.assertIn("Test-set regressions", out)
         self.assertIn("tests/test_b.py::test_bar", out)
         self.assertIn("ValueError", out)
+        self.assertNotIn("new-failure-marker", out)
+        self.assertNotIn("exception_chain", out)
         # The shared count rides along as context.
         self.assertIn("1 shared", out)
 

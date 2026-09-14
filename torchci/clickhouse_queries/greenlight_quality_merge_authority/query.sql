@@ -1,0 +1,300 @@
+-- Of the PRs GreenLight evaluated and that then landed, how many carried a GreenLight LAND
+-- and no human approval at all.
+--
+-- Two denominators, because the narrow one is a screenshot hazard on its own: pct_gl_only is
+-- the share of GreenLight-evaluated merges, pct_of_all_merges the share of every merge in the
+-- window. Only the second answers "how much of the repo does GreenLight authorise". Both rates
+-- are NULL rather than zero when their denominator is empty, so the UI can tell "nothing merged"
+-- apart from "nothing merged on GreenLight's authority"; the counts they divide are returned
+-- alongside them for the same reason.
+--
+-- window_end clamps down to now: the page snaps stopTime up to the end of the next bucket, so it
+-- is always in the future, and a far-future value overflows the DateTime64 comparison against
+-- head_commit.timestamp outright. window_start clamps up to the ledger's first row, because
+-- GreenLight cannot hold a verdict from before its ledger existed. ledger_start falls back to now
+-- for a repo with no ledger rows at all: min() over an empty set returns the epoch rather than
+-- NULL, and an epoch window_start unbounds the default.push scan.
+--
+-- Merges come from main-branch commit titles rather than default.merges: a ghstack stack lands
+-- as a single push whose non-final commits appear only in `commits`, and those stack members
+-- have no row in default.merges at all.
+--
+-- The approval gate is the moment mergebot was told to merge, not the merge commit's timestamp,
+-- and it bounds GreenLight's verdict exactly as it bounds a human approval. A commit timestamp is
+-- written when the rebase finishes, minutes to hours after mergebot read the approvals, so
+-- anything arriving inside that gap gets credited with authorising a merge it could not have
+-- influenced. default.merges carries no timestamp of its own, hence the hop through the mergebot
+-- comment.
+--
+-- The gate takes the LAST command at or before the merge, not the first: a PR that was reverted
+-- and re-landed has several successful default.merges rows, and its earliest one belongs to a
+-- merge that is not the one being scored here. Stack members have no default.merges row at all
+-- and fall back to the commit timestamp, as does any merge whose command predates the window.
+--
+-- A verdict also has to be the one issued on the commit that merged. misc.greenlight_pr_state
+-- keys on the PR head SHA, so a verdict matched on pr_number alone is the newest LAND before the
+-- merge rather than a LAND on what merged: a PR that earned a LAND, was pushed to again and then
+-- landed the newer commit carries a verdict that never saw the code being counted.
+--
+-- The merged head is recovered the way clickhouse_queries/greenlight_quality_reverts recovers it,
+-- from default.merges.last_commit_sha, keyed on both PR number and merge commit SHA: a ghstack
+-- stack writes the same merge_commit_sha against every member while each member keeps its own
+-- last_commit_sha, so matching on the commit alone attaches a sibling's head. Failed and dry-run
+-- attempts are excluded because they record a head that was attempted, not one that landed.
+--
+-- A merge whose head does not resolve -- a stack member that never carried the merge command --
+-- scores no verdict and leaves merged_evaluated_prs, rather than falling back to the temporal
+-- match. That fallback is the reading this query is wrong under, and the tile overstating what
+-- GreenLight authorised is the failure that matters. merged_prs_total still counts the merge, so
+-- the exclusion cannot flatter pct_of_all_merges.
+--
+-- Do not simplify this to the ARRAY JOIN clause: under sqlfluff 3.3.0's clickhouse dialect a
+-- following WHERE/GROUP BY/LIMIT is swallowed as its alias, costing this file all lint coverage.
+--
+-- merged_prs is read exactly once on purpose. A named subquery is re-executed at every reference
+-- rather than materialised, and this one is the push scan that dominates the query, so narrowing
+-- the review, merge-command or merge-head reads to the merged set would cost more than the rows
+-- it saves: all three are filtered to the repo only, and the LEFT JOINs discard whatever does not
+-- belong.
+--
+-- Bots are excluded by login, not by review.user.type: pytorchbot approves as type 'User', so
+-- the type field misses the account that matters. The list mirrors BOT_LOGINS in
+-- greenlight/src/greenlight/pr_hash.py; the trailing-'[bot]' test covers the GitHub App
+-- accounts, GreenLight's own pytorchgreenlight[bot] among them.
+--
+-- shadowMode selects the population -- 'enforcing', 'shadow', or any other value for both -- and
+-- filters terminal_verdicts rather than anything downstream, so the LEFT JOIN onto gated_merges
+-- stays a LEFT JOIN and a merge GreenLight did not evaluate under the selected mode keeps its row
+-- with an empty verdict. Attribution is per PR and head SHA, by a window max over that pair's
+-- terminal rows, and not per row: a pair carrying one verdict of each kind would otherwise be
+-- counted once under each mode, and the modes have to partition merged_evaluated_prs exactly. The
+-- pair is the grain because it is the grain a verdict is read at -- attributing per PR would push
+-- a PR whose earlier commit was evaluated in shadow out of the enforcing population, though the
+-- verdict that authorised its merge was an enforcing one. An unrecognised value selects both,
+-- because nothing between here and the caller validates it.
+--
+-- merged_prs_total is deliberately left whole. It counts every merge in the window, GreenLight's or
+-- not, and no merge carries a shadow dimension to filter on; scoping it to the selected population
+-- would collapse it onto merged_evaluated_prs and lose the second denominator this query exists to
+-- report. pct_of_all_merges therefore keeps one fixed denominator across all three modes. A shadow
+-- LAND withholds the approving review and so cannot produce a GreenLight-alone merge, which is what
+-- makes 'shadow' read as 0 of the repo rather than as a ratio over a population of its own.
+WITH
+(
+    SELECT if(min(version) > toDateTime64(0, 3), min(version), now64(3))
+    FROM misc.greenlight_pr_state
+    WHERE repo = {repo: String}
+) AS ledger_start,
+greatest({startTime: DateTime64(3)}, ledger_start) AS window_start,
+least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
+[
+    'pytorchbot',
+    'pytorch-bot',
+    'pytorchmergebot',
+    'pytorchupdatebot',
+    'github-actions',
+    'dependabot',
+    'facebook-github-bot',
+    'facebook-github-tools',
+    'meta-codesync',
+    'codecov',
+    'codecov-commenter',
+    'linux-foundation-easycla'
+] AS bot_logins,
+
+merged_prs AS (
+    SELECT
+        toInt64OrZero(
+            extract(splitByChar('\n', message)[1], '\\(#(\\d+)\\)\\s*$')
+        ) AS pr_number,
+        min(committed_at) AS merged_at,
+        argMin(sha, committed_at) AS merged_sha
+    FROM (
+        SELECT
+            tupleElement(c, 1) AS sha,
+            tupleElement(c, 2) AS message,
+            toDateTime64(tupleElement(c, 3), 3) AS committed_at
+        FROM (
+            SELECT
+                arrayJoin(
+                    arrayZip(commits.id, commits.message, commits.timestamp)
+                ) AS c
+            FROM default.push
+            WHERE
+                push.ref IN ('refs/heads/main', 'refs/heads/master')
+                AND push.repository.full_name = {repo: String}
+                AND push.head_commit.timestamp >= window_start
+                AND push.head_commit.timestamp < window_end + toIntervalDay(1)
+        )
+    )
+    WHERE
+        committed_at >= window_start
+        AND committed_at < window_end
+        AND message NOT LIKE 'Revert %'
+        AND message NOT LIKE 'Back out%'
+        AND match(splitByChar('\n', message)[1], '\\(#\\d+\\)\\s*$')
+    GROUP BY pr_number
+),
+
+merge_commands AS (
+    SELECT
+        m.pr_num AS pr_number,
+        ic.created_at AS commanded_at
+    FROM default.merges AS m
+    INNER JOIN (
+        SELECT
+            id,
+            created_at
+        FROM default.issue_comment
+        WHERE
+            created_at >= window_start - toIntervalDay(30)
+            AND created_at < window_end + toIntervalDay(1)
+    ) AS ic ON m.comment_id = ic.id
+    WHERE
+        m.owner = splitByChar('/', {repo: String})[1]
+        AND m.project = splitByChar('/', {repo: String})[2]
+        AND NOT m.is_failed
+        AND NOT m.dry_run
+),
+
+merge_heads AS (
+    SELECT
+        pr_num,
+        merge_commit_sha,
+        argMax(last_commit_sha, comment_id) AS head_sha
+    FROM default.merges
+    WHERE
+        owner = splitByChar('/', {repo: String})[1]
+        AND project = splitByChar('/', {repo: String})[2]
+        AND NOT is_failed
+        AND NOT dry_run
+        AND merge_commit_sha != ''
+    GROUP BY pr_num, merge_commit_sha
+),
+
+terminal_verdicts AS (
+    SELECT
+        pr_number,
+        status,
+        head_sha,
+        version
+    FROM (
+        SELECT
+            pr_number,
+            status,
+            head_sha,
+            version,
+            max(shadow) OVER (
+                PARTITION BY pr_number, head_sha
+            ) AS is_shadow
+        FROM misc.greenlight_pr_state
+        WHERE repo = {repo: String} AND status IN ('LAND', 'NO_LAND')
+    )
+    WHERE
+        (
+            ({shadowMode: String} = 'enforcing' AND NOT is_shadow)
+            OR ({shadowMode: String} = 'shadow' AND is_shadow)
+            OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
+        )
+),
+
+gated_merges AS (
+    SELECT
+        m.pr_number AS pr_number,
+        any(mh.head_sha) AS merged_head,
+        maxIf(
+            d.commanded_at, d.commanded_at <= m.merged_at
+        ) AS commanded_at,
+        if(
+            commanded_at > toDateTime64(0, 3), commanded_at, m.merged_at
+        ) AS approval_cutoff
+    FROM merged_prs AS m
+    LEFT JOIN merge_commands AS d ON m.pr_number = d.pr_number
+    LEFT JOIN merge_heads AS mh
+        ON m.pr_number = mh.pr_num AND m.merged_sha = mh.merge_commit_sha
+    GROUP BY m.pr_number, m.merged_at
+),
+
+scored_merges AS (
+    SELECT
+        e.pr_number AS pr_number,
+        e.approval_cutoff AS approval_cutoff,
+        argMaxIf(
+            v.status,
+            v.version,
+            v.version <= e.approval_cutoff
+            AND e.merged_head != ''
+            AND v.head_sha = e.merged_head
+        ) AS verdict
+    FROM gated_merges AS e
+    LEFT JOIN terminal_verdicts AS v ON e.pr_number = v.pr_number
+    GROUP BY e.pr_number, e.approval_cutoff
+),
+
+reviews AS (
+    SELECT
+        pull_request.number AS pr_number,
+        review.id AS review_id,
+        min(review.submitted_at) AS submitted_at,
+        max(action = 'dismissed') AS dismissed,
+        max(
+            action = 'submitted' AND review.state = 'approved'
+        ) AS is_approval,
+        max(
+            lower(review.user.login) IN bot_logins
+            OR endsWith(lower(review.user.login), '[bot]')
+        ) AS is_bot
+    FROM default.pull_request_review
+    WHERE
+        pull_request_review.repository.full_name = {repo: String}
+    GROUP BY pull_request.number, review.id
+),
+
+human_approvals AS (
+    SELECT
+        pr_number,
+        submitted_at
+    FROM reviews
+    WHERE is_approval AND NOT dismissed AND NOT is_bot
+),
+
+scored AS (
+    SELECT
+        s.pr_number AS pr_number,
+        any(s.verdict) AS verdict,
+        max(
+            a.submitted_at > toDateTime64(0, 3)
+            AND a.submitted_at <= s.approval_cutoff
+        ) AS has_human_approval
+    FROM scored_merges AS s
+    LEFT JOIN human_approvals AS a ON s.pr_number = a.pr_number
+    GROUP BY s.pr_number
+)
+
+SELECT
+    merged_evaluated_prs,
+    gl_only,
+    if(
+        merged_evaluated_prs = 0,
+        NULL,
+        round(100. * gl_only / merged_evaluated_prs, 2)
+    ) AS pct_gl_only,
+    human_approved,
+    no_approval,
+    merged_prs_total,
+    if(
+        merged_prs_total = 0,
+        NULL,
+        round(100. * gl_only / merged_prs_total, 2)
+    ) AS pct_of_all_merges
+FROM (
+    SELECT
+        countIf(verdict != '') AS merged_evaluated_prs,
+        countIf(verdict = 'LAND' AND NOT has_human_approval) AS gl_only,
+        countIf(verdict != '' AND has_human_approval) AS human_approved,
+        countIf(
+            verdict != '' AND verdict != 'LAND' AND NOT has_human_approval
+        ) AS no_approval,
+        count() AS merged_prs_total
+    FROM scored
+)
