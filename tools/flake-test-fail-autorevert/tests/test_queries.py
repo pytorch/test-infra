@@ -2,8 +2,11 @@ from typing import Any, Dict, List, Tuple
 
 from flake_test_fail_autorevert.queries import (
     fetch_advisor_verdicts,
+    fetch_failing_configs,
     fetch_flaky_for_day,
+    fetch_pull_runs,
     fetch_regressions,
+    parse_build_env_test_config,
 )
 
 
@@ -119,3 +122,81 @@ def test_fetch_flaky_for_day_emits_workflow_signal_commit_and_filters():
     )
     found = fetch_flaky_for_day(client, REPO, _dt(1), _dt(2))
     assert found == {("trunk", "f.py::t", "a" * 40)}
+
+
+def test_fetch_pull_runs_returns_id_attempt_pairs_and_binds_head():
+    client = FakeClient([(100, 1), (200, 2)])
+    runs = fetch_pull_runs(client, "h" * 40)
+    assert runs == [(100, 1), (200, 2)]
+    assert client.calls == [{"head_sha": "h" * 40}]
+
+
+# --- parse_build_env_test_config ---
+
+
+def test_parse_build_env_test_config_full_job_name():
+    assert parse_build_env_test_config(
+        "linux-jammy-py3.10-gcc11 / test (distributed, 1, 8, mt-l-x86iamx-8-64)"
+    ) == ("linux-jammy-py3.10-gcc11", "distributed")
+
+
+def test_parse_build_env_test_config_single_shard_no_comma():
+    assert parse_build_env_test_config("env-x / test (default)") == ("env-x", "default")
+
+
+def test_parse_build_env_test_config_non_test_job_is_none():
+    assert parse_build_env_test_config("linux-jammy-py3.10-gcc11 / build") is None
+    assert parse_build_env_test_config("garbage") is None
+
+
+# --- fetch_failing_configs (two scripted queries) ---
+
+
+class RoutedClient:
+    """Serves MAIN_JOBS_SQL and MAIN_FAILING_TESTS_SQL distinct rows, keyed by table name."""
+
+    def __init__(
+        self, jobs: List[Tuple[Any, ...]], failing: List[Tuple[Any, ...]]
+    ) -> None:
+        self._jobs = jobs
+        self._failing = failing
+        self.calls: List[str] = []
+
+    def query(self, query: str, parameters: Dict[str, Any] = None) -> _Result:  # type: ignore[assignment]
+        self.calls.append(query)
+        if "default.workflow_job" in query:
+            return _Result(self._jobs)
+        return _Result(self._failing)
+
+
+def test_fetch_failing_configs_maps_job_ids_to_configs():
+    jobs = [
+        (10, "linux-jammy-py3.10-gcc11 / test (default, 1, 3, r)"),
+        (11, "linux-jammy-cuda13.0-py3.10-gcc11 / test (distributed, 1, 2, r)"),
+        (12, "linux-jammy-py3.10-gcc11 / build"),  # unparseable -> dropped
+    ]
+    failing = [
+        (10, "test_a.py", "TestX::t1"),
+        (11, "test_a.py", "TestX::t1"),
+        (11, "test_b.py", "TestY::t2"),
+        (999, "test_c.py", "z"),  # job_id absent from the map -> ignored
+    ]
+    client = RoutedClient(jobs, failing)
+    fc = fetch_failing_configs(client, "M" * 40, _dt(1), _dt(2), _dt(1))
+    assert fc == {
+        ("test_a.py", "TestX::t1"): {
+            ("linux-jammy-py3.10-gcc11", "default"),
+            ("linux-jammy-cuda13.0-py3.10-gcc11", "distributed"),
+        },
+        ("test_b.py", "TestY::t2"): {
+            ("linux-jammy-cuda13.0-py3.10-gcc11", "distributed")
+        },
+    }
+
+
+def test_fetch_failing_configs_skips_second_query_when_no_parseable_jobs():
+    client = RoutedClient([(1, "env / build")], [(1, "f.py", "n")])
+    fc = fetch_failing_configs(client, "M" * 40, _dt(1), _dt(2), _dt(1))
+    assert fc == {}
+    # With no parseable test jobs, the failing-tests query must NOT run.
+    assert all("tests.all_test_runs" not in q for q in client.calls)

@@ -2,85 +2,40 @@ from collections import Counter
 from dataclasses import dataclass, replace
 from typing import Dict, List, Set, Tuple
 
+from ..premerge_status import (
+    KNOWN_STATUSES,
+    PREMERGE_STATUS_ERROR,
+    PREMERGE_STATUS_FORCE_MERGE,
+    PREMERGE_STATUS_NO_MERGE_RECORD,
+    PREMERGE_STATUS_NOT_IN_MATRIX,
+    PREMERGE_STATUS_RUN_FAILED,
+    PREMERGE_STATUS_RUN_SUCCEEDED,
+    PREMERGE_STATUS_SKIPPED,
+    PREMERGE_STATUS_TD_EXCLUDED,
+    PREMERGE_STATUS_TD_UNKNOWN,
+    PREMERGE_STATUS_TEST_ABSENT,
+)
 from .load import Record
 
 
 CATEGORY_REGRESSION = "regression"
 CATEGORY_FLAKY = "flaky"
 
-PREMERGE_STATUS_TD_DESELECTED = "NOT_RUN:td_deselected"
-PREMERGE_STATUS_RUN_SUCCEEDED = "RUN_SUCCEEDED"
-PREMERGE_STATUS_RUN_FAILED = "RUN_FAILED"
-PREMERGE_STATUS_FORCE_MERGE = "NOT_RUN:force_merge"
-PREMERGE_STATUS_NO_MERGE_RECORD = "NOT_RUN:no_merge_record"
-PREMERGE_STATUS_ERROR = "ERROR"
-PREMERGE_STATUS_SKIPPED = "NOT_RUN:skipped"
-PREMERGE_STATUS_NOT_IN_MATRIX = "NOT_RUN:not_in_matrix"
-
-# Report-only remap: a test that reports "skipped" on the pre-merge head is often
-# skipped only because the pre-merge matrix ran a config that excludes it (e.g. the
-# 'slow' shard's fast-skip, or a platform guard) while the config that actually
-# executes it was absent - i.e. effectively a matrix-coverage gap, not a genuine
-# opt-out. The generator keeps the precise status; the report folds skipped into
-# not_in_matrix so the funnel/breakdown don't overstate genuine skips.
-_REPORT_STATUS_REMAP = {PREMERGE_STATUS_SKIPPED: PREMERGE_STATUS_NOT_IN_MATRIX}
-
-# Plain-language explanations of every pre-merge status, keyed once here so the
-# breakdown rows, totals cards, and table headings all share one source of
-# truth. Written for readers with no CI jargon; ASCII-only so they escape
-# cleanly into HTML title attributes.
-PREMERGE_STATUS_TOOLTIPS: Dict[str, str] = {
-    PREMERGE_STATUS_RUN_SUCCEEDED: (
-        "This test ran while the change was still a pull request and passed "
-        "there. It only started failing after the change landed on main - "
-        "usually a 'landrace': the change was fine on its own but broke when "
-        "combined with another change that merged around the same time."
-    ),
-    "RUN_FAILED": (
-        "This test already failed while the change was still a pull request, "
-        "yet it was merged anyway. The breakage was visible in CI before it "
-        "landed."
-    ),
-    "NOT_RUN:force_merge": (
-        "The change was merged without waiting for the required CI checks (a "
-        "force-merge / '-f'), so this test never ran before it landed."
-    ),
-    "NOT_RUN:skipped": (
-        "The test was present in the pre-merge run but was explicitly skipped, "
-        "so it produced no pass/fail result before merge."
-    ),
-    PREMERGE_STATUS_TD_DESELECTED: (
-        "The test's file ran before merge, but this specific test wasn't "
-        "selected - PyTorch skips tests it predicts are unaffected by the "
-        "change (or the test was renamed/removed). No pre-merge result exists "
-        "for it."
-    ),
-    "NOT_RUN:not_in_matrix": (
-        "The test's job/configuration didn't run before merge at all - it "
-        "wasn't part of this pull request's checks, even though other checks "
-        "did run."
-    ),
-    PREMERGE_STATUS_NO_MERGE_RECORD: (
-        "We couldn't identify which pre-merge version to check for this commit "
-        "- e.g. a stacked-PR commit that isn't the top of its stack, a revert, "
-        "or a direct push. Pre-merge status is unknown."
-    ),
-    PREMERGE_STATUS_ERROR: (
-        "The query that determines pre-merge status failed, so the status is "
-        "unknown for this row."
-    ),
+# Report-side status remaps applied to every input row before bucketing:
+#  - skipped -> not_in_matrix: a report-layer simplification. A pre-merge
+#    "skipped" test and a config that never ran in the pull matrix both leave no
+#    usable pre-merge pass/fail signal for the test, so the report folds them
+#    into a single "no signal" outcome instead of reporting skipped on its own.
+#  - legacy td_deselected -> test_absent: only old CSVs carry td_deselected, and
+#    there it always meant "the file ran but this test left no result" (today's
+#    test_absent). The current generator emits td_excluded for real TD
+#    exclusion, so a td_deselected value can only be the old inference; the fold
+#    is unconditional (never in KNOWN_STATUSES, so it cannot be a real status).
+_LEGACY_TD_DESELECTED = "NOT_RUN:td_deselected"
+_REPORT_STATUS_REMAP = {
+    PREMERGE_STATUS_SKIPPED: PREMERGE_STATUS_NOT_IN_MATRIX,
+    _LEGACY_TD_DESELECTED: PREMERGE_STATUS_TEST_ABSENT,
 }
-
-# Grouped explanations for the two totals cards that combine several statuses.
-# Kept here so cards stay single-sourced alongside the per-status tooltips.
-PREMERGE_TOOLTIP_UNDETERMINED = (
-    "Pre-merge status couldn't be determined: either no pre-merge version "
-    "could be identified, or the lookup failed."
-)
-PREMERGE_TOOLTIP_OTHER = (
-    "All remaining outcomes: the test failed before merge, was force-merged, "
-    "was skipped, or its job wasn't in the pre-merge checks."
-)
 
 
 @dataclass(frozen=True)
@@ -99,14 +54,23 @@ class PremergeStatusCount:
 
 @dataclass(frozen=True)
 class PremergeBuckets:
-    td_deselected: int
+    td_excluded: int
+    test_absent: int
+    td_unknown: int
     run_succeeded: int
     undetermined: int
     other: int
 
     @property
     def total(self) -> int:
-        return self.td_deselected + self.run_succeeded + self.undetermined + self.other
+        return (
+            self.td_excluded
+            + self.test_absent
+            + self.td_unknown
+            + self.run_succeeded
+            + self.undetermined
+            + self.other
+        )
 
 
 @dataclass(frozen=True)
@@ -125,9 +89,9 @@ class PremergeData:
     buckets: PremergeBuckets
     breakdown: List[PremergeStatusCount]
     run_succeeded_rows: List[PremergeRow]
-    td_deselected_rows: List[PremergeRow]
+    td_excluded_rows: List[PremergeRow]
     green_would_be_red_commits: int
-    td_deselected_commits: int
+    td_excluded_commits: int
 
 
 @dataclass(frozen=True)
@@ -251,29 +215,36 @@ def _premerge_eligible(records: List[Record]) -> List[Record]:
 
 def _premerge_buckets(eligible: List[Record]) -> PremergeBuckets:
     counts: Counter = Counter(r.premerge_status for r in eligible)
-    td_deselected = counts.get(PREMERGE_STATUS_TD_DESELECTED, 0)
+    unknown = set(counts) - KNOWN_STATUSES
+    if unknown:
+        raise ValueError(
+            "premerge rows carry status(es) outside KNOWN_STATUSES "
+            f"(would land silently in 'other'): {sorted(unknown)}"
+        )
+    td_excluded = counts.get(PREMERGE_STATUS_TD_EXCLUDED, 0)
+    test_absent = counts.get(PREMERGE_STATUS_TEST_ABSENT, 0)
+    td_unknown = counts.get(PREMERGE_STATUS_TD_UNKNOWN, 0)
     run_succeeded = counts.get(PREMERGE_STATUS_RUN_SUCCEEDED, 0)
     undetermined = counts.get(PREMERGE_STATUS_NO_MERGE_RECORD, 0) + counts.get(
         PREMERGE_STATUS_ERROR, 0
     )
-    other = len(eligible) - td_deselected - run_succeeded - undetermined
-    buckets = PremergeBuckets(
-        td_deselected=td_deselected,
+    accounted = td_excluded + test_absent + td_unknown + run_succeeded + undetermined
+    return PremergeBuckets(
+        td_excluded=td_excluded,
+        test_absent=test_absent,
+        td_unknown=td_unknown,
         run_succeeded=run_succeeded,
         undetermined=undetermined,
-        other=other,
+        other=len(eligible) - accounted,
     )
-    assert buckets.total == len(eligible), (
-        "premerge buckets must partition the eligible rows: "
-        f"{buckets.total} != {len(eligible)}"
-    )
-    return buckets
 
 
 _COMMIT_STATUS_PRIORITY = {
-    PREMERGE_STATUS_TD_DESELECTED: 6,
-    PREMERGE_STATUS_RUN_FAILED: 5,
-    PREMERGE_STATUS_RUN_SUCCEEDED: 4,
+    PREMERGE_STATUS_TD_EXCLUDED: 8,
+    PREMERGE_STATUS_RUN_FAILED: 7,
+    PREMERGE_STATUS_RUN_SUCCEEDED: 6,
+    PREMERGE_STATUS_TEST_ABSENT: 5,
+    PREMERGE_STATUS_TD_UNKNOWN: 4,
     PREMERGE_STATUS_NOT_IN_MATRIX: 3,
     PREMERGE_STATUS_FORCE_MERGE: 2,
     PREMERGE_STATUS_NO_MERGE_RECORD: 1,
@@ -333,7 +304,7 @@ def _premerge_td_commit_counts(eligible: List[Record]) -> Tuple[int, int]:
     td_commits = 0
     green_would_be_red = 0
     for statuses in by_commit.values():
-        if PREMERGE_STATUS_TD_DESELECTED not in statuses:
+        if PREMERGE_STATUS_TD_EXCLUDED not in statuses:
             continue
         td_commits += 1
         if PREMERGE_STATUS_RUN_FAILED not in statuses:
@@ -346,20 +317,16 @@ def _build_premerge(records: List[Record]) -> PremergeData:
     winner = _commit_winning_status(eligible)
     total_eligible_commits = len({r.commit_sha for r in eligible})
     breakdown = _premerge_breakdown(eligible, winner)
-    assert sum(row.commits for row in breakdown) == total_eligible_commits, (
-        "premerge breakdown commits must partition the eligible commits: "
-        f"{sum(row.commits for row in breakdown)} != {total_eligible_commits}"
-    )
-    green_would_be_red, td_deselected_commits = _premerge_td_commit_counts(eligible)
+    green_would_be_red, td_excluded_commits = _premerge_td_commit_counts(eligible)
     return PremergeData(
         total_eligible=len(eligible),
         total_eligible_commits=total_eligible_commits,
         buckets=_premerge_buckets(eligible),
         breakdown=breakdown,
         run_succeeded_rows=_premerge_rows(eligible, PREMERGE_STATUS_RUN_SUCCEEDED),
-        td_deselected_rows=_premerge_rows(eligible, PREMERGE_STATUS_TD_DESELECTED),
+        td_excluded_rows=_premerge_rows(eligible, PREMERGE_STATUS_TD_EXCLUDED),
         green_would_be_red_commits=green_would_be_red,
-        td_deselected_commits=td_deselected_commits,
+        td_excluded_commits=td_excluded_commits,
     )
 
 
