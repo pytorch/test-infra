@@ -530,69 +530,63 @@ def _render_shared_section(shared_failures: List[Tuple[FailedTest, FailedTest]])
     return "\n".join(sections)
 
 
-def _render_cluster_artifact(
-    body: str,
-    cluster_key: str,
-    representative: Dict,
-    tail_lines: int,
-    shared_failures: Optional[List[Tuple[FailedTest, FailedTest]]] = None,
-) -> str:
-    """Serialize one cluster's representative log for the root-cause agent.
-    parse_log extracts per-test signatures (test id, exception class, the raw
-    traceback body) from anywhere in the log, so a failure far from the end of a
-    huge log is still captured. When there are no pytest failures -- a build/crash
-    before pytest ran, an empty parse, or the parser raising on its own invariant --
-    fall back to the raw tail this script has always emitted.
-    """
+def _artifact_header(cluster_key: str, representative: Dict) -> str:
+    """Render the metadata shared by all cluster-log artifacts."""
     header = (
         f"# cluster: {cluster_key}\n"
         f"# job: {representative['name']}\n"
         f"# url: {representative['url']}\n"
         f"# state: {representative['state']} exit_status: {representative['exit_status']}\n"
     )
+    return header
 
-    parse_error = ""
-    parsed = None
-    try:
-        parsed = parse_log(body)
-    except Exception as exc:  # parser asserts an invariant; never abort the run
-        parse_error = str(exc)
 
-    test_failures = (
-        [
-            failure
-            for result in parsed.pytest_results
-            for failure in result.test_failures
-        ]
-        if parsed
-        else []
-    )
+def render_nightly_failure_tail(
+    body: str,
+    cluster_key: str,
+    representative: Dict,
+    tail_lines: int,
+) -> str:
+    """Serialize a nightly-only cluster as cleaned raw failure context.
 
-    if test_failures:
-        sections = [header, f"# parsed {len(test_failures)} failing test(s)\n"]
-        for failure in test_failures:
-            sections.append(f"## {failure.test_id}")
-            sections.append(f"pytest_exception_class: {failure.pytest_exception_class}")
-            sections.append(f"test_is_infra: {failure.test_is_infra}")
-            sections.append("")
-            sections.append(failure.exception_chain)
-            sections.append("")
-        if shared_failures:
-            sections.append(_render_shared_section(shared_failures))
-        return "\n".join(sections)
-
+    This path deliberately does not parse pytest output. A job in the regressed
+    bucket is already known to have passed on baseline, so its artifact is raw
+    context for root-cause analysis rather than a pytest failure report.
+    """
     cleaned_lines = strip_markers(body).splitlines()
-    job_is_infra = parsed.job_is_infra if parsed else False
-    fallback_notes = (
-        "# parse_fallback: true (raw tail; scan upward for the real error)\n"
+    shown_lines = min(tail_lines, len(cleaned_lines))
+    capture_notes = (
+        "# capture_mode: nightly_failure_context\n"
+        f"# raw_tail: last {shown_lines} of {len(cleaned_lines)} lines\n\n"
     )
-    if parse_error:
-        fallback_notes += f"# parse_error: {parse_error}\n"
-    fallback_notes += (
-        f"# job_is_infra: {job_is_infra}\n"
-        f"# showing last {tail_lines} of {len(cleaned_lines)} lines\n\n"
+    return (
+        _artifact_header(cluster_key, representative)
+        + capture_notes
+        + "\n".join(cleaned_lines[-tail_lines:])
     )
-    return header + fallback_notes + "\n".join(cleaned_lines[-tail_lines:])
+
+
+def render_both_pytest_diff(
+    cluster_key: str,
+    representative: Dict,
+    diff: DiffResult,
+) -> str:
+    """Serialize the already-computed pytest A/B diff for a surfaced cluster."""
+    sections = [
+        _artifact_header(cluster_key, representative),
+        "# capture_mode: both_pytest_diff\n",
+        f"# parsed {len(diff.new_failures)} nightly-only failing test(s)\n",
+    ]
+    for failure in diff.new_failures:
+        sections.append(f"## {failure.test_id}")
+        sections.append(f"pytest_exception_class: {failure.pytest_exception_class}")
+        sections.append(f"test_is_infra: {failure.test_is_infra}")
+        sections.append("")
+        sections.append(failure.exception_chain)
+        sections.append("")
+    if diff.shared_failures:
+        sections.append(_render_shared_section(diff.shared_failures))
+    return "\n".join(sections)
 
 
 def _fetch_job_log(job_url: str, token: str, timeout: int = 120) -> Optional[str]:
@@ -671,7 +665,7 @@ class BothClusterDiff:
     Attributes:
         cluster: Cluster name.
         rep: Representative job for the cluster.
-        torch_nightly_body: Raw nightly log, kept for the artifact.
+        torch_nightly_body: Fetched nightly log retained for callers that need it.
         diff: The failing-test diff; new_failures is non-empty.
     """
 
@@ -761,19 +755,17 @@ def _write_both_artifacts(
     Args:
         cluster_diffs: Surfaced both-cluster diffs.
         pathlib_dir: Directory to write artifacts into.
-        tail_lines: Lines of raw tail kept in the fallback.
+        tail_lines: Unused compatibility parameter for the artifact-writing API.
 
     Returns:
         Paths of the artifacts written.
     """
     written: List[str] = []
     for cluster_diff in cluster_diffs:
-        artifact = _render_cluster_artifact(
-            cluster_diff.torch_nightly_body,
+        artifact = render_both_pytest_diff(
             cluster_diff.cluster,
             cluster_diff.rep,
-            tail_lines,
-            shared_failures=cluster_diff.diff.shared_failures,
+            cluster_diff.diff,
         )
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", cluster_diff.cluster)[:80]
         dest = pathlib_dir / f"both_{safe}.log"
@@ -791,16 +783,17 @@ def fetch_cluster_logs(
     torch_versions: Optional[List[str]] = None,
     regressed_tests: Optional[List[Dict]] = None,
 ) -> List[str]:
-    """Download one representative log per cluster, cleaned and tail-trimmed.
+    """Download one representative artifact per surfaced cluster.
 
-    One per cluster rather than one per job: a cluster is most likely a single root
-    cause, and only the tail is kept since the failure and traceback are at the end.
+    Nightly-only clusters get a cleaned raw tail. Surfaced `both` clusters get their
+    already-computed pytest A/B diff. There is one artifact per cluster rather than
+    one per job because a cluster is most likely a single root cause.
 
     Args:
         buckets: The compare() buckets.
         logs_dir: Directory to write artifacts into.
         token: Buildkite API token.
-        tail_lines: Lines of raw tail kept in the fallback.
+        tail_lines: Lines of raw tail kept for nightly-only clusters.
         torch_versions: Optional output list; a detected torch version per log is
             appended here.
         regressed_tests: Optional output list; when provided, the `both`-bucket
@@ -839,7 +832,7 @@ def fetch_cluster_logs(
             if found:
                 torch_versions.append(found.group(1))
 
-        artifact = _render_cluster_artifact(body, key, rep, tail_lines)
+        artifact = render_nightly_failure_tail(body, key, rep, tail_lines)
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", key)[:80]
         dest = pathlib_dir / f"{safe}.log"
         with open(dest, "w") as f:

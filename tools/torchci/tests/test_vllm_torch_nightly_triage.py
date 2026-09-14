@@ -307,9 +307,11 @@ class TestWriteBothArtifacts(unittest.TestCase):
 
         self.assertEqual(len(written), 1)
         artifact = contents[0]
+        self.assertIn("# capture_mode: both_pytest_diff", artifact)
         self.assertIn("red on both sides", artifact)
         self.assertIn("tests/test_b.py::test_bar", artifact)  # the new failure
         self.assertIn("new-failure-marker", artifact)
+        self.assertIn("shared boom", artifact)
         # The shared section records the baseline chain, not just the nightly one.
         self.assertIn("baseline-only-marker", artifact)
 
