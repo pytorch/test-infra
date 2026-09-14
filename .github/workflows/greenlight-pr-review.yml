@@ -227,7 +227,11 @@ jobs:
           # head) so the reviewed change is deterministic even if the PR moved since eval.
           base_ref=$(gh pr view "$PR_NUMBER" --repo pytorch/pytorch --json baseRefName --jq .baseRefName)
           echo "Base ref: $base_ref   Head SHA: $HEAD_SHA"
+          # gh >= 2.97.0 refuses a non-JSON body containing ESC (0x1B) even when stdout is
+          # redirected (CVE-2026-64654). The sink here is a file read by the model as data,
+          # so the sequences it guards against reach no interactive terminal.
           gh api \
+            --allow-escape-sequences \
             -H "Accept: application/vnd.github.diff" \
             "repos/pytorch/pytorch/compare/${base_ref}...${HEAD_SHA}" \
             >/tmp/greenlight-pr.diff
