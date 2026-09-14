@@ -147,6 +147,42 @@ WIN_CPU_RUNNER = "windows.4xlarge"
 WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
+# OSDC (ARC) equivalents, selected by the runner-fleet input. Release-isolated
+# rel- runners on the refs a wheel is published from, regular ones otherwise, so
+# a pull request build does not sit in the release fleet. Only Linux has OSDC
+# runners; Windows and macOS keep the labels above either way.
+EC2 = "ec2"
+OSDC = "osdc"
+
+OSDC_LINUX_CPU_RUNNER = "mt-l-x86iavx512-8-64"
+OSDC_LINUX_GPU_RUNNER = "mt-l-x86aavx2-29-113-a10g"
+OSDC_LINUX_AARCH64_RUNNER = "mt-l-arm64g4-16-62"
+OSDC_REL_LINUX_CPU_RUNNER = "mt-rel-l-x86iavx512-44-340"
+OSDC_REL_LINUX_GPU_RUNNER = "mt-rel-l-x86aavx2-29-113-l4"
+OSDC_REL_LINUX_AARCH64_RUNNER = "mt-rel-l-arm64g3-44-340"
+
+# aarch64 has no OSDC GPU runner, which matches the EC2 label it replaces:
+# linux.arm64.m7g.4xlarge has no device either, so a cuda-aarch64 row's smoke
+# test skips its device checks there today.
+OSDC_RUNNERS = {
+    (LINUX, CUDA): (OSDC_LINUX_GPU_RUNNER, OSDC_REL_LINUX_GPU_RUNNER),
+    (LINUX, CPU): (OSDC_LINUX_CPU_RUNNER, OSDC_REL_LINUX_CPU_RUNNER),
+    (LINUX_AARCH64, CUDA_AARCH64): (
+        OSDC_LINUX_AARCH64_RUNNER,
+        OSDC_REL_LINUX_AARCH64_RUNNER,
+    ),
+    (LINUX_AARCH64, CPU): (OSDC_LINUX_AARCH64_RUNNER, OSDC_REL_LINUX_AARCH64_RUNNER),
+}
+
+# The refs a wheel is published from, matching pytorch/pytorch's
+# _select-release-runner.yml.
+RELEASE_REF_PREFIXES = (
+    "refs/heads/main",
+    "refs/heads/nightly",
+    "refs/heads/release/",
+    "refs/tags/v",
+)
+
 PACKAGES_TO_INSTALL_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
@@ -176,7 +212,34 @@ def arch_type(arch_version: str) -> str:
         return CPU
 
 
+def runner_fleet() -> str:
+    """Which runner fleet the matrix should name. Module level because
+    validation_runner()'s `os` parameter shadows the os module."""
+    return os.getenv("RUNNER_FLEET", EC2).strip().lower()
+
+
+def github_ref() -> str:
+    return os.getenv("GITHUB_REF", "")
+
+
+def is_release_ref(ref: str) -> bool:
+    return any(ref.startswith(prefix) for prefix in RELEASE_REF_PREFIXES)
+
+
+def osdc_validation_runner(arch_type: str, os: str, ref: str) -> Optional[str]:
+    """The OSDC label for a row, or None where OSDC has no equivalent."""
+    key = (os, arch_type if arch_type in (CUDA, CUDA_AARCH64) else CPU)
+    labels = OSDC_RUNNERS.get(key)
+    if labels is None:
+        return None
+    return labels[1] if is_release_ref(ref) else labels[0]
+
+
 def validation_runner(arch_type: str, os: str) -> str:
+    if runner_fleet() == OSDC:
+        osdc = osdc_validation_runner(arch_type, os, github_ref())
+        if osdc is not None:
+            return osdc
     if os == LINUX:
         if arch_type == CUDA:
             return LINUX_GPU_RUNNER

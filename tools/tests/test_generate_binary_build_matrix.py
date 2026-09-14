@@ -8,6 +8,7 @@ from tools.scripts.generate_binary_build_matrix import (
     generate_build_matrix,
     parse_version,
     ROCM_ARCHES_DICT,
+    validation_runner,
 )
 
 
@@ -360,6 +361,64 @@ def parse_args():
         help="Update reference files with the generated output",
     )
     return parser.parse_known_args()
+
+
+class TestRunnerFleet(TestCase):
+    def tearDown(self) -> None:
+        os.environ.pop("RUNNER_FLEET", None)
+        os.environ.pop("GITHUB_REF", None)
+
+    def test_ec2_is_the_default(self) -> None:
+        self.assertEqual(validation_runner("cpu", "linux"), "linux.2xlarge")
+        self.assertEqual(
+            validation_runner("cuda", "linux"),
+            "linux.g5.4xlarge.nvidia.gpu",
+        )
+
+    def test_osdc_off_a_release_ref(self) -> None:
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/pull/1/merge"
+        self.assertEqual(
+            validation_runner("cpu", "linux"),
+            "mt-l-x86iavx512-8-64",
+        )
+        self.assertEqual(
+            validation_runner("cuda", "linux"),
+            "mt-l-x86aavx2-29-113-a10g",
+        )
+
+    def test_osdc_on_a_release_ref(self) -> None:
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/tags/v0.29.0-rc1"
+        self.assertEqual(
+            validation_runner("cpu", "linux"),
+            "mt-rel-l-x86iavx512-44-340",
+        )
+        self.assertEqual(
+            validation_runner("cuda", "linux"),
+            "mt-rel-l-x86aavx2-29-113-l4",
+        )
+
+    def test_aarch64_has_no_gpu_runner(self) -> None:
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/heads/nightly"
+        for arch in ("cpu", "cuda-aarch64"):
+            self.assertEqual(
+                validation_runner(arch, "linux-aarch64"),
+                "mt-rel-l-arm64g3-44-340",
+            )
+
+    def test_windows_and_macos_are_unchanged(self) -> None:
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/heads/nightly"
+        self.assertEqual(
+            validation_runner("cuda", "windows"),
+            "windows.g4dn.xlarge",
+        )
+        self.assertEqual(
+            validation_runner("cpu", "macos-arm64"),
+            "macos-m1-stable",
+        )
 
 
 if __name__ == "__main__":
