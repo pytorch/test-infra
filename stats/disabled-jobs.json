@@ -23,12 +23,12 @@
     "_composable",
     "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
   ],
-  "rocm / linux-jammy-rocm-py3_10-gfx1100 / test (default)": [
+  "rocm-navi31 / linux-jammy-rocm-py3.10-navi31 / test (default)": [
     "jithunnair-amd",
     "165040",
     "https://github.com/pytorch/pytorch/issues/165040",
-    "rocm",
-    "linux-jammy-rocm-py3_10-gfx1100",
+    "rocm-navi31",
+    "linux-jammy-rocm-py3.10-navi31",
     "test (default)"
   ],
   "testAssertNotRegex (__main__.CPythonTest_Assertions)": [
