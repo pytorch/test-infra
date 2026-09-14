@@ -192,11 +192,18 @@ just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
 The greenlight-review skill asks the model for a short markdown outline — a few topic bullets,
 each with a few detail bullets. Nothing enforces that shape. The Stop hook and the `verdict`
 command both check `status`, `reason` and a non-empty `message` and no more, so a message written
-as a paragraph is as valid as one written as an outline and renders correctly either way. Two
+as a paragraph is as valid as one written as an outline and renders correctly either way. Three
 surfaces render it: `comment_format` builds greenlight's own comment as the verdict is recorded,
-and `torchci/lib/greenlight/greenlightRender.ts` rebuilds Dr. CI's Green Light section from the
-stored row on every sweep. Two render paths are live, chosen per message rather than per
-deployment:
+`torchci/lib/greenlight/greenlightRender.ts` rebuilds Dr. CI's Green Light section from the stored
+row on every sweep, and `torchci/components/greenlight/GreenLightSection.tsx` shows that same row
+in the HUD's Green Light panel. The two comment surfaces emit markup, held by the raw HTML block
+described below. The panel emits none. `selectMessageView` in
+`torchci/lib/greenlight/greenlightHudState.ts` picks which of the two paths below a message takes,
+and `torchci/components/greenlight/GreenLightOutline.tsx` draws the list from the same parse the
+serializer reads — `parseOutline` in `torchci/lib/greenlight/greenlightOutline.ts`, which
+`renderOutlineHtml` serializes. A string handed to React as a child becomes a text node rather
+than markup, and that is the containment there, in place of the block. Two render paths are live,
+chosen per message rather than per deployment:
 
 - **Outline** — a message carrying at least two bullets with text after their markers becomes a
   raw HTML `<ul><li>` block, every leaf HTML-escaped. Two rather than one because a paragraph
@@ -233,6 +240,57 @@ and this section is one part of that body. What ceiling GitHub enforces on it is
 Dr. CI comments well past 65,536 characters are live on `pytorch/pytorch` today. The 12,000 is a
 bound greenlight puts on its own contribution, not a measured limit.
 
+Four of those five act on the outline's structure rather than on finished markup, so every surface
+carries them. The block budget is not: it measures finished markup, and the panel produces none.
+Two things follow from that, and only the second is a change of shape. Where the budget stops a
+later item, the comments drop the topics behind it and mark the cut, while the panel shows them all
+and marks nothing for that reason — though a message heavy enough to reach the budget may
+separately have run past the 4,000-character cap or the twelve-topic clamp, either of which puts a
+`(truncated)` entry on the panel's list anyway, standing for what those clamps cut rather than for
+the topics the budget dropped. Where the first item alone overruns it, `renderOutlineHtml` produces
+nothing and the comments fall through to the fence, while the panel still shows a bullet list — a
+difference in shape, not just a missing marker.
+
+Neither is reachable by an ordinary verdict, and how close one comes depends on its shape as much
+as its length, so every figure below states the shape it was measured on. The largest message the
+reviewer skill's own format admits — four topics of three details, every bullet at its
+200-character ceiling, a 27-character backticked path and a 10-character backticked symbol in each
+— is 3,271 characters and renders 3,769 of markup. Filling the 4,000-character cap takes a shape
+the skill never asks for, and buys little: the widest list the clamps allow, twelve topics of eight
+details, renders 4,658 in plain prose, because escaping is what inflates text sixfold and ordinary
+prose has almost nothing to escape. Density is what moves this number rather than length — two
+ten-character code spans in each of those 108 bullets, three quarters of a line only thirty-two
+characters long, render 7,034 out of the same 4,000 characters.
+
+Crossing 12,000 takes a density no verdict has reason to reach, and how far past depends on which
+character inflates. Only `"` and `'` escape to six characters: on that twelve-by-eight shape the
+renderer first drops an item when 1,471 of the 4,000 characters are one of those two; `&` escapes
+to five and needs 1,838, and `<` and `>` escape to four and need 2,451. Each of those is a floor
+rather than a fixed point, because twelve topics of eight details is the layout that starts from
+the most markup of any that fills the cap — every other one needs more of the character to get
+there. Twelve topics of no details, also filled to the cap, needs 1,569. Below about ten bullets no
+single figure is worth quoting: a cap-filled message gives each leaf more than 400 characters, so
+the leaf cap clips every one of them, and how many of the substituted characters fall inside the
+surviving prefix rather than the discarded tail depends on where the word breaks land — enough to
+move the floor by a couple of hundred between constructions that answer to the same description.
+
+The other route holds none of the five escaped characters at all — one-character code spans, where
+`<code>x</code>` turns three characters into fourteen, each separated from the next by a non-space
+character. The separator is load-bearing: the backticks between two adjacent spans form a single
+maximal run, so ``` `a``b` ``` leaves an odd run count and the whole leaf goes out as literal text
+with its backticks showing, while ``` `a``b``c` ``` renders `a` and `c` as spans and `b` as prose
+between them. Filled that way, twelve topics of eight details reach 14,162 measured with the budget
+lifted — against the 11,828 the renderer actually emits, being ten topics and the marker — and a
+single topic with seven details, each filled to the 400-character leaf cap, reaches 12,097, enough
+that `renderOutlineHtml` returns nothing at all and the message goes out fenced.
+
+The panel's message block sits outside its status switch, while `greenlightRender.ts` renders a
+message only for `LAND` and `NO_LAND`. Nothing reaches the panel through that gap, because no other
+status can carry a message: `verdict` returns an empty reason and message for every marker status,
+whether the status came from the CLI or from a verdict file, and the scan's own `REVERTED` and
+`AI_REVIEW_DISPATCHED` rows are emitted with the field hardcoded empty. The outline path therefore
+runs on the panel for exactly the two statuses it runs on in the comments.
+
 Neither path lets a verdict ping a person or issue a bot command, but they arrive there
 differently. The fence replaces every `@` unconditionally, and that one replacement stops both.
 The outline guards `@` in text segments only, deliberately skipping code spans: `code` is in
@@ -247,14 +305,30 @@ renderer breaks, on both paths, the literals its own re-render sweep greps the c
 verdict that merely mentions a pending job count would otherwise pin its PR into every sweep
 forever.
 
+The panel applies none of that, because none of those consumers reach it: it is a web page rather
+than a comment body, so GitHub's filters never see it, `cliParser.ts` never parses it, and the
+sweep greps neither it nor the table it reads. Dropping the guards there is a correctness gain and
+not a shortcut. Every one of them works by splicing an invisible zero-width space into the token
+it defuses — after each `@`, after a `#` or `gh-` that precedes a digit, after the opening colon
+of anything shortcode-shaped, which catches every `file.py:1234` written outside a code span — and
+it splits each 40-hex sha in two at column 20. All of that survives a copy, on a page whose whole
+job is showing commits and the paths they touch.
+
+One divergence runs the other way. The panel draws the `(truncated)` marker a clamp leaves behind
+in italic and a dimmer colour, so a leaf the model wrote reading `(truncated)` cannot pass for one
+the renderer added: the model authors text, never a presentation. In both comments that marker is
+an ordinary `<li>` and the two are indistinguishable. The panel and the comments therefore render
+one row deliberately differently, and nothing should assert the two agree.
+
 The escaper is written twice — `verdict_outline.py` and
-`torchci/lib/greenlight/greenlightOutline.ts` — because one stored row is rendered by a Python
-surface and a TypeScript one that have to agree character for character. Python is the source of
-truth, and three gates hold the mirror together: `greenlight/tests/outline_parity_cases.json`, a
-shared corpus both test suites assert identical output against; a literal scrape in
-`greenlight/tests/test_verdict_outline.py`, which also fails either implementation for using `\s`,
-`\d`, `\w` or `\b`, since each matches a different set of characters in the two languages; and
-`greenlight/tests/test_render_sync.py`, which fails when either side stops routing both formats.
+`torchci/lib/greenlight/greenlightOutline.ts` — because one stored row is rendered into a comment
+by a Python surface and a TypeScript one that have to agree character for character. Python is the
+source of truth, and three gates hold the mirror together:
+`greenlight/tests/outline_parity_cases.json`, a shared corpus both test suites assert identical
+output against; a literal scrape in `greenlight/tests/test_verdict_outline.py`, which also fails
+either implementation for using `\s`, `\d`, `\w` or `\b`, since each matches a different set of
+characters in the two languages; and `greenlight/tests/test_render_sync.py`, which fails when
+either side stops routing both formats.
 
 ### Who posts the status comment
 
