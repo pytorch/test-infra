@@ -44,6 +44,14 @@
       "rocm"
     ]
   ],
+  "test_annotate_returns_with_schema (__main__.TestFXExperimental)": [
+    "196980",
+    "https://github.com/pytorch/pytorch/issues/196980",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "149080",
     "https://github.com/pytorch/pytorch/issues/149080",
@@ -233,6 +241,13 @@
       "linux"
     ]
   ],
+  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
+    "187202",
+    "https://github.com/pytorch/pytorch/issues/187202",
+    [
+      "linux"
+    ]
+  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
@@ -270,6 +285,13 @@
     "https://github.com/pytorch/pytorch/issues/173341",
     [
       "xpu"
+    ]
+  ],
+  "test_cond_in_NN (__main__.TestControlFlowNNCUDA)": [
+    "196982",
+    "https://github.com/pytorch/pytorch/issues/196982",
+    [
+      "linux"
     ]
   ],
   "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
@@ -338,6 +360,16 @@
     "https://github.com/pytorch/pytorch/issues/195656",
     [
       "linux"
+    ]
+  ],
+  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
+    "127536",
+    "https://github.com/pytorch/pytorch/issues/127536",
+    [
+      "dynamo",
+      "inductor",
+      "linux",
+      "slow"
     ]
   ],
   "test_del_attr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
@@ -558,14 +590,6 @@
       "rocm"
     ]
   ],
-  "test_generic_stream_basic (__main__.TestGenericStreamCompile)": [
-    "189988",
-    "https://github.com/pytorch/pytorch/issues/189988",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_generic_stream_multiple (__main__.TestGenericStreamCompile)": [
     "190330",
     "https://github.com/pytorch/pytorch/issues/190330",
@@ -639,6 +663,13 @@
     "https://github.com/pytorch/pytorch/issues/159113",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
+    "192735",
+    "https://github.com/pytorch/pytorch/issues/192735",
+    [
       "rocm"
     ]
   ],
@@ -1205,6 +1236,14 @@
       "slow"
     ]
   ],
+  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_amp (__main__.DeterministicTest)": [
+    "196983",
+    "https://github.com/pytorch/pytorch/issues/196983",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_bfloat16 (__main__.DeterministicTest)": [
     "196057",
     "https://github.com/pytorch/pytorch/issues/196057",
@@ -1244,6 +1283,13 @@
   "test_sdpa_rewriter_16_fp32_mask_gpu (__main__.SDPAPatternRewriterGpuTests)": [
     "196406",
     "https://github.com/pytorch/pytorch/issues/196406",
+    [
+      "rocm"
+    ]
+  ],
+  "test_sdpa_rewriter_16_gpu (__main__.SDPAPatternRewriterGpuTests)": [
+    "196981",
+    "https://github.com/pytorch/pytorch/issues/196981",
     [
       "rocm"
     ]
@@ -1356,13 +1402,6 @@
       "linux"
     ]
   ],
-  "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
-    "192461",
-    "https://github.com/pytorch/pytorch/issues/192461",
-    [
-      "linux"
-    ]
-  ],
   "test_to_float64_after_init (__main__.TestFullyShardCastAfterInit)": [
     "193470",
     "https://github.com/pytorch/pytorch/issues/193470",
@@ -1415,6 +1454,25 @@
   "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
     "152632",
     "https://github.com/pytorch/pytorch/issues/152632",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
+    "124152",
+    "https://github.com/pytorch/pytorch/issues/124152",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
+    "182095",
+    "https://github.com/pytorch/pytorch/issues/182095",
     [
       "asan",
       "linux",
