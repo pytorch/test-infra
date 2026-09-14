@@ -558,5 +558,50 @@ class TestGetProtectedBranches(TestCase):
         )
 
 
+class TestRunnerFleetIsAReleaseSignal(TestCase):
+    """A wheel workflow names no rel- label: it passes runner-fleet: osdc to the
+    matrix generator, which resolves the labels per row."""
+
+    def test_runner_fleet_osdc_counts(self) -> None:
+        self.assertTrue(m.uses_release_label("      runner-fleet: osdc\n"))
+
+    def test_quoted_forms_count(self) -> None:
+        self.assertTrue(m.uses_release_label('      runner-fleet: "osdc"\n'))
+        self.assertTrue(m.uses_release_label("      runner-fleet: 'osdc'\n"))
+
+    def test_ec2_does_not_count(self) -> None:
+        self.assertFalse(m.uses_release_label("      runner-fleet: ec2\n"))
+
+    def test_a_similarly_named_input_does_not_count(self) -> None:
+        self.assertFalse(m.uses_release_label("      runner-fleet-override: osdcx\n"))
+
+    def test_a_caller_is_discovered_through_it(self) -> None:
+        files = {
+            ".github/workflows/build-wheels-linux.yml": m.WorkflowFile(
+                raw=(
+                    "jobs:\n"
+                    "  generate-matrix:\n"
+                    "    uses: pytorch/test-infra/.github/workflows/"
+                    "generate_binary_build_matrix.yml@main\n"
+                    "    with:\n"
+                    "      runner-fleet: osdc\n"
+                ),
+                doc={
+                    "jobs": {
+                        "generate-matrix": {
+                            "uses": "pytorch/test-infra/.github/workflows/"
+                            "generate_binary_build_matrix.yml@main",
+                            "with": {"runner-fleet": "osdc"},
+                        }
+                    }
+                },
+            )
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files),
+            {".github/workflows/build-wheels-linux.yml"},
+        )
+
+
 if __name__ == "__main__":
     main()
