@@ -64,6 +64,12 @@ RELEASE_BRANCH_RE = re.compile(r"^release/(\d+)\.(\d+)$")
 # such a label runs on the release runner groups.
 RELEASE_LABEL_RE = re.compile(r"\brel-[a-z0-9]")
 
+# A wheel workflow names no label at all: it passes runner-fleet: osdc to
+# generate_binary_build_matrix.yml, which resolves each row's validation_runner
+# to a rel- runner on the refs a wheel is published from. The release-runner
+# signal is that input rather than a label in the file.
+RUNNER_FLEET_RE = re.compile(r"\brunner-fleet:\s*[\"']?osdc\b")
+
 
 def log(message: str) -> None:
     print(message, flush=True)
@@ -298,7 +304,15 @@ def get_target_refs(client: GitHubClient, repo: str) -> List[str]:
 
 
 def uses_release_label(text: str) -> bool:
-    return RELEASE_LABEL_RE.search(text) is not None
+    """Whether this text marks a job or workflow as running on release runners.
+
+    Either it names a rel- label directly, or it asks the binary build matrix
+    generator for the osdc fleet, which resolves the labels for it.
+    """
+    return (
+        RELEASE_LABEL_RE.search(text) is not None
+        or RUNNER_FLEET_RE.search(text) is not None
+    )
 
 
 def local_uses(job: Any) -> Optional[str]:
