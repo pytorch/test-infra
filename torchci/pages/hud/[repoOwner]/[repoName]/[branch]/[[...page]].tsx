@@ -36,8 +36,8 @@ import {
 import {
   buildStatusByTrunkSha,
   GreenlightTrunkStatusRow,
-  isGreenlightApproved,
   normalizeSha,
+  shouldShowGreenlightStatus,
 } from "lib/greenlight/greenlightHudState";
 import {
   getGroupingData,
@@ -69,6 +69,7 @@ import {
   useHideNonViableStrictPreference,
   useMonsterFailuresPreference,
   usePreference,
+  useShowGreenlightRejectedPreference,
 } from "lib/useGroupingPreference";
 import useHudData from "lib/useHudData";
 import useTableFilter from "lib/useTableFilter";
@@ -209,6 +210,7 @@ function HudRow({
   const greenlightStatus = useContext(GreenlightStatusesContext).get(
     normalizeSha(sha)
   );
+  const [showGreenlightRejected] = useContext(ShowGreenlightRejectedContext);
 
   let rowStyle = "";
   if (pinnedId.sha == sha) {
@@ -269,11 +271,12 @@ function HudRow({
                 <div>#{rowData.prNum}</div>
               )}
             </a>
-            {/* LAND only: every other status is a refusal or the absence
-            of one. */}
-            {isGreenlightApproved(greenlightStatus) && (
-              <GreenLightIcon status={greenlightStatus} size={14} />
-            )}
+            {/* LAND always; NO_LAND only when the reader has opted in. Every
+            other status is the absence of a verdict, never shown here. */}
+            {shouldShowGreenlightStatus(
+              greenlightStatus,
+              showGreenlightRejected
+            ) && <GreenLightIcon status={greenlightStatus} size={14} />}
           </div>
         )}
       </td>
@@ -421,6 +424,9 @@ function FiltersAndSettings({}: {}) {
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
   const [mergeOSDC, setMergeOSDC] = useContext(MergeOSDCContext);
+  const [showGreenlightRejected, setShowGreenlightRejected] = useContext(
+    ShowGreenlightRejectedContext
+  );
   const [autorevertView, setAutorevertView] = useContext(AutorevertViewContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
@@ -441,6 +447,10 @@ function FiltersAndSettings({}: {}) {
   // The viable/strict concept (and thus this filter) only exists for
   // pytorch/pytorch, so the toggle is a no-op for any other repo.
   const isPyTorchRepo = isPyTorchPyTorchRepo(params);
+
+  // No other repo is evaluated by Green Light, so there is nothing for the
+  // toggle to reveal there.
+  const isGreenlight = isGreenlightRepo(params.repoOwner, params.repoName);
 
   return (
     <div className={styles.hudControlsRow}>
@@ -467,6 +477,19 @@ function FiltersAndSettings({}: {}) {
                   labelText={"Use grouped view"}
                 />,
                 <MonsterFailuresCheckbox key="monsterFailures" />,
+                <CheckBoxSelector
+                  value={showGreenlightRejected}
+                  setValue={(value) => setShowGreenlightRejected(value)}
+                  checkBoxName="showGreenlightRejected"
+                  key="showGreenlightRejected"
+                  labelText={"Show Green Light rejections"}
+                  disabled={!isGreenlight}
+                  title={
+                    isGreenlight
+                      ? "Also mark PRs Green Light declined to approve"
+                      : "Only applies to repos Green Light reviews"
+                  }
+                />,
               ],
               "Filter Options": [
                 <CheckBoxSelector
@@ -552,6 +575,13 @@ export const AdvisorVerdictsContext = createContext<
 export const GreenlightStatusesContext = createContext<Map<string, string>>(
   new Map()
 );
+
+// Whether the rows also mark commits GreenLight refused. The default matches
+// useShowGreenlightRejectedPreference's: off, so a row rendered outside the
+// provider shows approvals only rather than every refusal.
+export const ShowGreenlightRejectedContext = createContext<
+  [boolean, (_value: boolean) => void]
+>([false, (_) => {}]);
 
 export const GroupingContext = createContext<{
   groupNameMapping: Map<string, Array<string>>;
@@ -643,6 +673,8 @@ export default function Hud() {
     /*override*/ undefined,
     /*default*/ false
   );
+  const [showGreenlightRejected, setShowGreenlightRejected] =
+    useShowGreenlightRejectedPreference();
   const [autorevertView, setAutorevertView] = useState(() =>
     isAutorevertActive(router.query)
   );
@@ -702,39 +734,43 @@ export default function Hud() {
             value={[mergeEphemeralLF, setMergeEphemeralLF]}
           >
             <MergeOSDCContext.Provider value={[mergeOSDC, setMergeOSDC]}>
-              <AutorevertViewContext.Provider
-                value={[autorevertView, setAutorevertView]}
+              <ShowGreenlightRejectedContext.Provider
+                value={[showGreenlightRejected, setShowGreenlightRejected]}
               >
-                {params.branch !== undefined && (
-                  <div onClick={handleClick}>
-                    <div style={{ display: "flex", alignItems: "flex-end" }}>
-                      <HudHeader params={params} />
-                      <CopyPermanentLink
-                        params={params}
-                        style={{ marginLeft: "10px" }}
-                        autorevertView={autorevertView}
-                      />
-                    </div>
-                    <div style={{ position: "relative", clear: "both" }}>
-                      <FiltersAndSettings />
-                      {autorevertView ? (
-                        <AutorevertView />
-                      ) : (
-                        <GroupedHudTable params={params} />
+                <AutorevertViewContext.Provider
+                  value={[autorevertView, setAutorevertView]}
+                >
+                  {params.branch !== undefined && (
+                    <div onClick={handleClick}>
+                      <div style={{ display: "flex", alignItems: "flex-end" }}>
+                        <HudHeader params={params} />
+                        <CopyPermanentLink
+                          params={params}
+                          style={{ marginLeft: "10px" }}
+                          autorevertView={autorevertView}
+                        />
+                      </div>
+                      <div style={{ position: "relative", clear: "both" }}>
+                        <FiltersAndSettings />
+                        {autorevertView ? (
+                          <AutorevertView />
+                        ) : (
+                          <GroupedHudTable params={params} />
+                        )}
+                      </div>
+                      {!autorevertView && (
+                        <>
+                          <PageSelector params={params} baseUrl="hud" />
+                          <br />
+                          <div>
+                            <em>This page automatically updates.</em>
+                          </div>
+                        </>
                       )}
                     </div>
-                    {!autorevertView && (
-                      <>
-                        <PageSelector params={params} baseUrl="hud" />
-                        <br />
-                        <div>
-                          <em>This page automatically updates.</em>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </AutorevertViewContext.Provider>
+                  )}
+                </AutorevertViewContext.Provider>
+              </ShowGreenlightRejectedContext.Provider>
             </MergeOSDCContext.Provider>
           </MergeLFContext.Provider>
         </MonsterFailuresProvider>

@@ -90,6 +90,20 @@ export function useHideNonViableStrictPreference(): [
   return [state, setState];
 }
 
+// Off by default: approvals are the sparse signal worth surfacing on trunk,
+// while most commits carry no Green Light approval at all.
+export function useShowGreenlightRejectedPreference(): [
+  boolean,
+  (_showGreenlightRejectedValue: boolean) => void
+] {
+  const [state, setState] = usePreference(
+    "showGreenlightRejected",
+    /*override*/ undefined,
+    /*default*/ false
+  );
+  return [state, setState];
+}
+
 export function useHideAlwaysSkippedPreference(): [
   boolean,
   (_hideAlwaysSkippedValue: boolean) => void
