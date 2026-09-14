@@ -38,9 +38,7 @@ function formatMeasured(row: CriterionRow): string {
   if (row.measured == null) return "–";
   switch (row.format) {
     case "days":
-      return row.detail
-        ? `${row.measured.toFixed(0)} days (${row.detail})`
-        : `${row.measured.toFixed(0)} days`;
+      return `${row.measured.toFixed(0)} days`;
     case "duration":
       return durationDisplay(Math.round(row.measured));
     case "percent":
