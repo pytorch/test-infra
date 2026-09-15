@@ -326,13 +326,6 @@
       "linux"
     ]
   ],
-  "test_ctc_loss_error_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "195581",
-    "https://github.com/pytorch/pytorch/issues/195581",
-    [
-      "linux"
-    ]
-  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -1527,13 +1520,6 @@
     [
       "inductor",
       "rocm"
-    ]
-  ],
-  "test_unbacked_bindings_for_divisible_u_symint_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
-    "192918",
-    "https://github.com/pytorch/pytorch/issues/192918",
-    [
-      "linux"
     ]
   ],
   "test_unbacked_bindings_for_divisible_u_symint_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
