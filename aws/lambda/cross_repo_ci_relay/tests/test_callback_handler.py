@@ -589,6 +589,115 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
         self.assertEqual(result, {"ok": True, "status": "completed"})
 
 
+class TestCallbackTriageVerdict(unittest.TestCase):
+    """The optional triage verdict is validated before anything consumes it."""
+
+    def setUp(self):
+        self.patcher_allowlist = patch("callback.callback_handler.load_allowlist")
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        mock_map.needs_check_run.return_value = True
+        self.patcher_allowlist.start().return_value = mock_map
+
+        self.patcher_redis = patch("callback.callback_handler.redis_helper")
+        self.mock_redis = self.patcher_redis.start()
+        self.mock_redis.record_workflow_started.side_effect = lambda *a, **kw: (
+            a[5],
+            True,
+        )
+
+        def _get_state(
+            cfg,
+            delivery_id,
+            repo,
+            run_id_arg,
+            run_attempt_arg,
+            client=None,
+            job_name=None,
+        ):
+            if run_id_arg == DISPATCH_RUN_ID:
+                return CallbackStateRecord(CallbackState.DISPATCHED, 1000.0, {})
+            return CallbackStateRecord(CallbackState.IN_PROGRESS, 1030.0, {})
+
+        self.mock_redis.get_callback_state.side_effect = _get_state
+
+        self.patcher_rate = patch("callback.callback_handler.check_rate_limit")
+        self.patcher_rate.start().return_value = True
+
+        self.patcher_hud = patch("callback.callback_handler.forward_to_hud")
+        self.mock_hud = self.patcher_hud.start()
+
+        self.patcher_gh = patch("callback.callback_handler.gh_helper")
+        self.mock_gh = self.patcher_gh.start()
+        self.mock_gh.get_repo_access_token.return_value = "tok"
+        self.mock_gh.create_check_run.return_value = 888
+
+    def tearDown(self):
+        for patcher in (
+            self.patcher_allowlist,
+            self.patcher_redis,
+            self.patcher_rate,
+            self.patcher_hud,
+            self.patcher_gh,
+        ):
+            patcher.stop()
+
+    def _body_with(self, verdict):
+        body = _body(status="completed", job_name="build-npu")
+        body["workflow"]["triage_verdict"] = verdict
+        return body
+
+    def _valid(self, **overrides):
+        verdict = {
+            "schema_version": 1,
+            "category": "upstream",
+            "confidence": "high",
+            "summary": "aten::foo lost its out= overload.",
+        }
+        verdict.update(overrides)
+        return verdict
+
+    def _forwarded_workflow(self):
+        _, _, untrusted = self.mock_hud.call_args[0]
+        return untrusted["callback_payload"]["workflow"]
+
+    def test_valid_verdict_reaches_hud(self):
+        handle(_cfg(), self._body_with(self._valid()), verified_repo="org/repo")
+
+        self.assertEqual(self._forwarded_workflow()["triage_verdict"], self._valid())
+
+    def test_verdict_is_normalized_before_being_forwarded(self):
+        # HUD must never see the raw object: unknown keys and over-long values
+        # are what the size caps here exist to keep out of its records.
+        body = self._body_with(
+            self._valid(summary="s" * 5000, undeclared_field="x" * 5000)
+        )
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        forwarded = self._forwarded_workflow()["triage_verdict"]
+        self.assertNotIn("undeclared_field", forwarded)
+        self.assertEqual(len(forwarded["summary"]), 1000)
+
+    def test_invalid_verdict_is_dropped_and_the_callback_still_succeeds(self):
+        result = handle(
+            _cfg(),
+            self._body_with(self._valid(category="cosmic-rays")),
+            verified_repo="org/repo",
+        )
+
+        self.assertEqual(result, {"ok": True, "status": "completed"})
+        self.assertNotIn("triage_verdict", self._forwarded_workflow())
+
+    def test_no_verdict_leaves_the_payload_untouched(self):
+        handle(
+            _cfg(),
+            _body(status="completed", job_name="build"),
+            verified_repo="org/repo",
+        )
+
+        self.assertNotIn("triage_verdict", self._forwarded_workflow())
+
+
 class TestNightlyCallback(unittest.TestCase):
     """Nightly/periodic callbacks bypass the state machine entirely."""
 
@@ -698,6 +807,30 @@ class TestNightlyCallback(unittest.TestCase):
         with self.assertRaises(HTTPException) as ctx:
             handle(_cfg(), body, verified_repo="org/repo")
         self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_nightly_verdict_is_validated_before_forwarding(self):
+        body = self._nightly_body(conclusion="failure")
+        body["workflow"]["triage_verdict"] = {
+            "schema_version": 1,
+            "category": "infra",
+            "confidence": "medium",
+            "summary": "device allocation timed out",
+            "undeclared_field": "x",
+        }
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        _, _, untrusted = self.mock_hud.call_args[0]
+        forwarded = untrusted["callback_payload"]["workflow"]["triage_verdict"]
+        self.assertNotIn("undeclared_field", forwarded)
+        self.assertEqual(forwarded["category"], "infra")
+
+    def test_nightly_invalid_verdict_is_dropped(self):
+        body = self._nightly_body()
+        body["workflow"]["triage_verdict"] = {"category": "upstream"}
+        handle(_cfg(), body, verified_repo="org/repo")
+
+        _, _, untrusted = self.mock_hud.call_args[0]
+        self.assertNotIn("triage_verdict", untrusted["callback_payload"]["workflow"])
 
     def test_nightly_failure_conclusion_forwards(self):
         body = self._nightly_body()

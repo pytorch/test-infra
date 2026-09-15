@@ -113,7 +113,21 @@ The HUD request looks like (two top-level namespaces: `trusted` and `untrusted`)
         "started_at": "2026-05-04T20:48:28Z", // when status == in_progress, else None
         "completed_at": "2026-05-04T21:23:45Z", // when status == completed, else None
         "test_results": { "passed": 42, "failed": 3, "skipped": 5 },
-        "artifact_url": "https://github.com/org/repo/actions/runs/123/artifacts"
+        "artifact_url": "https://github.com/org/repo/actions/runs/123/artifacts",
+        "triage_verdict": {     // optional, validated and normalized by the relay
+          "schema_version": 1,
+          "category": "upstream",  // upstream | backend | infra | flake | unknown
+          "confidence": "high",    // high | medium | low
+          "summary": "aten::foo lost its out= overload in #194610.",
+          "suspected_upstream": { "pr": 194610, "commit": "0e797b5a6acf",
+                                  "reason": "signature change to aten::foo" },
+          "evidence": [{ "job": "build-npu", "test": "test_foo_out_variant",
+                         "log_url": "https://.../job/123#step:5:2007",
+                         "excerpt": "error: no matching function ..." }],
+          "reproduced_on_retry": false,
+          "analyzer": { "name": "ascend-ci-triage", "version": "0.3.1" },
+          "analyzed_at": "2026-08-24T14:22:10Z"
+        }
       }
     }
   }
@@ -130,6 +144,11 @@ Trust boundaries inside `untrusted.callback_payload`:
   trusted at dispatch time, but not re-verified on the callback.
 - `untrusted.callback_payload.workflow` is **self-reported by the downstream CI** and is not
   authenticated.  Only `verified_repo` carries a cryptographic identity.
+- `untrusted.callback_payload.workflow.triage_verdict` is the one self-reported field the relay
+  rewrites rather than forwarding verbatim: it is enum-, type- and size-validated
+  (`utils/triage_verdict.py`) and the *whole* object is dropped on any structural violation, so HUD
+  either sees a normalized verdict or none at all.  It is advisory — it never gates a merge, never
+  changes a conclusion, and never adjusts the raw pass rate.
 
 ### Error propagation back to the downstream workflow
 
