@@ -3,44 +3,51 @@ WITH recent_prs AS (
     FROM default.crcr_workflow_job FINAL
     WHERE
         downstream_repo = 'pytorch/crcr-test'
-        AND status = 'completed'
         AND pr_number > 0
     GROUP BY pr_number
     ORDER BY max(started_at) DESC
     LIMIT {count: UInt64}
+),
+
+latest_jobs AS (
+    SELECT
+        pr_number,
+        run_id,
+        job_name,
+        status,
+        conclusion,
+        started_at,
+        ROW_NUMBER() OVER (
+            PARTITION BY run_id, job_name
+            ORDER BY run_attempt DESC
+        ) AS rn
+    FROM default.crcr_workflow_job FINAL
+    WHERE
+        downstream_repo = 'pytorch/crcr-test'
+        AND pr_number > 0
+        AND pr_number IN (SELECT pr_number FROM recent_prs)
 )
 
 SELECT
     pr_number,
     max(started_at) AS last_run,
     countIf(
-        conclusion = 'success'
-        OR (job_name LIKE '%xfail%' AND conclusion = 'failure')
-        OR (job_name LIKE '%xcancel%' AND conclusion = 'cancelled')
-        OR (job_name LIKE '%xtimeout%' AND conclusion = 'timed_out')
+        status = 'completed'
+        AND (
+            conclusion = 'success'
+            OR (job_name LIKE '%xfail%' AND conclusion = 'failure')
+            OR (job_name LIKE '%xcancel%' AND conclusion = 'cancelled')
+            OR (job_name LIKE '%xtimeout%' AND conclusion = 'timed_out')
+        )
     ) AS successes,
-    count() AS total,
-    if(total > 0, successes / total, 0) AS pass_rate
-FROM
-    (
-        SELECT
-            pr_number,
-            run_id,
-            job_name,
-            started_at,
-            conclusion,
-            ROW_NUMBER() OVER (
-                PARTITION BY run_id, job_name
-                ORDER BY run_attempt DESC
-            ) AS rn
-        FROM
-            default.crcr_workflow_job FINAL
-        WHERE
-            downstream_repo = 'pytorch/crcr-test'
-            AND status = 'completed'
-            AND pr_number > 0
-            AND pr_number IN (SELECT pr_number FROM recent_prs)
-    )
+    countIf(status = 'completed') AS total,
+    countIf(status = 'in_progress') AS in_progress,
+    countIf(
+        status = 'in_progress'
+        AND started_at < now() - INTERVAL {stale_after_minutes: UInt64} MINUTE
+    ) AS overdue_in_progress,
+    if(total > 0, successes / total, NULL) AS pass_rate
+FROM latest_jobs
 WHERE
     rn = 1
 GROUP BY
