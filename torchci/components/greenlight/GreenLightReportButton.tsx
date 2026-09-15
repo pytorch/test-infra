@@ -205,7 +205,6 @@ export default function GreenLightReportButton({
                 minRows={5}
                 fullWidth
                 label="What did Green Light get wrong?"
-                placeholder="e.g. this only touches a test file that is already skipped on this platform, so it should have been approved."
                 value={comment}
                 disabled={submitting}
                 onChange={(e) => setComment(e.target.value)}
