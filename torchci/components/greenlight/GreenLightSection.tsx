@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import GreenLightIcon from "components/greenlight/GreenLightIcon";
 import GreenLightOutline from "components/greenlight/GreenLightOutline";
+import GreenLightReportButton from "components/greenlight/GreenLightReportButton";
 import {
   isGreenlightApproved,
   normalizeSha,
@@ -48,6 +49,7 @@ import {
   GREENLIGHT_STATUS_NO_LAND,
   GREENLIGHT_STATUS_REVERTED,
 } from "lib/greenlight/greenlightRender";
+import { isReportableStatus } from "lib/greenlight/greenlightReport";
 import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 import { useGreenlightPrHistory } from "lib/greenlight/useGreenlightPrHistory";
 
@@ -242,6 +244,24 @@ export default function GreenLightSection({
               Inference job
             </Link>
           )}
+          {/* Offered on the two statuses that are a judgement, and on the row's
+          own status rather than described.iconStatus: a stale in-flight row is
+          PRESENTED as one that did not complete, and there is no verdict behind
+          it to dispute. prNumber is re-checked because the panel also renders on
+          commit pages, where a commit may have no PR. */}
+          {isReportableStatus(state.status) &&
+            prNumber != null &&
+            prNumber > 0 && (
+              <GreenLightReportButton
+                repoOwner={repoOwner}
+                repoName={repoName}
+                prNumber={prNumber}
+                // The reviewed commit, never the sha in the URL: on a landed
+                // commit the two differ, and this is the one the verdict is about.
+                sha={state.head_sha}
+                status={state.status.trim()}
+              />
+            )}
         </Stack>
       </AccordionDetails>
     </Accordion>
