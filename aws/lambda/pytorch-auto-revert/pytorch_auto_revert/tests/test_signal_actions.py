@@ -48,11 +48,17 @@ def setup_gh_mocks(
     return mock_pr, mock_issue
 
 
-def make_ctx(*, revert_action, restart_action=RestartAction.SKIP):
+def make_ctx(
+    *,
+    revert_action,
+    restart_action=RestartAction.SKIP,
+    ts=None,
+    repo_full_name="pytorch/pytorch",
+):
     return RunContext(
-        ts=datetime.now(timezone.utc),
+        ts=ts or datetime.now(timezone.utc),
         notify_issue_number=123456,
-        repo_full_name="pytorch/pytorch",
+        repo_full_name=repo_full_name,
         workflows=["trunk"],
         lookback_hours=24,
         revert_action=revert_action,
@@ -76,6 +82,20 @@ def make_source(
         wf_run_id=wf_run_id,
         job_id=job_id,
     )
+
+
+# Revert-event timestamp the comment tests pin, so the permalink they assert on
+# (which embeds ctx.ts) is deterministic.
+REVERT_EVENT_TS = datetime(2026, 9, 15, 0, 2, 34, tzinfo=timezone.utc)
+
+# Trailing dashboard permalink for a comment built from REVERT_EVENT_TS, commit
+# "abc123", and a single trunk/test_signal source.
+DASHBOARD_LINK_LINE = (
+    "\n[Autorevert dashboard around this decision]"
+    "(https://hud.pytorch.org/hud/pytorch/pytorch/main/autorevert"
+    "?ar_ts=2026-09-15T00%3A02%3A34Z&ar_sha=abc123&ar_focus=1"
+    "&ar_wf=trunk&ar_sf=trunk%3Atest_signal)\n"
+)
 
 
 def set_find_pr_to_merge(proc: SignalActionProcessor, pr):
@@ -287,7 +307,7 @@ class TestCommentIssueRevert(unittest.TestCase):
         self.fake_logger = FakeLogger()
         self.proc._logger = self.fake_logger  # type: ignore[attr-defined]
         self.ctx = RunContext(
-            ts=datetime.now(timezone.utc),
+            ts=REVERT_EVENT_TS,
             notify_issue_number=123456,
             repo_full_name="pytorch/pytorch",
             workflows=["trunk"],
@@ -336,7 +356,8 @@ class TestCommentIssueRevert(unittest.TestCase):
         # Check that job link is in the comment
         self.assertEqual(
             comment_text,
-            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
+            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n"
+            + DASHBOARD_LINK_LINE,
         )
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
@@ -358,7 +379,8 @@ class TestCommentIssueRevert(unittest.TestCase):
         # Check that job link is in the comment
         self.assertEqual(
             comment_text,
-            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890)\n",
+            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890)\n"
+            + DASHBOARD_LINK_LINE,
         )
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
@@ -467,6 +489,50 @@ class TestCommentIssueRevert(unittest.TestCase):
             "- inductor: test_inductor ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20inductor&mergeEphemeralLF=true))\n",
             comment_text,
         )
+
+        # The permalink carries every implicated workflow, and each signal keeps
+        # its own workflow so "inductor:test_signal_1" cannot match.
+        self.assertIn(
+            "?ar_ts=2026-09-15T00%3A02%3A34Z&ar_sha=abc123&ar_focus=1"
+            "&ar_wf=inductor%2Ctrunk"
+            "&ar_sf=inductor%3Atest_inductor"
+            "%7Ctrunk%3Atest_signal_1%7Ctrunk%3Atest_signal_2)",
+            comment_text,
+        )
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_comment_omits_dashboard_link_off_pytorch_pytorch(self, mock_gh_factory):
+        """The dashboard only renders pytorch/pytorch state — no canary links."""
+        mock_pr, mock_issue = setup_gh_mocks(mock_gh_factory, pr_number=12345)
+        set_find_pr_to_merge(self.proc, mock_pr)
+
+        ctx = make_ctx(
+            revert_action=RevertAction.RUN_NOTIFY,
+            ts=REVERT_EVENT_TS,
+            repo_full_name="pytorch/pytorch-canary",
+        )
+
+        self.proc._comment_issue_pr_revert("abc123", [make_source()], ctx)
+
+        comment_text = mock_issue.create_comment.call_args[0][0]
+        self.assertNotIn("autorevert?ar_ts", comment_text)
+        self.assertIn(
+            "This PR is attributed to have caused regression in:", comment_text
+        )
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_revert_comment_carries_dashboard_link(self, mock_gh_factory):
+        """The pytorchbot revert comment carries the permalink too, not just the issue."""
+        mock_pr, _ = setup_gh_mocks(mock_gh_factory, pr_number=12345, state="closed")
+        set_find_pr_to_merge(self.proc, mock_pr)
+
+        ctx = make_ctx(revert_action=RevertAction.RUN_REVERT, ts=REVERT_EVENT_TS)
+
+        result = self.proc._comment_issue_pr_revert("abc123", [make_source()], ctx)
+
+        self.assertTrue(result)
+        mock_pr.create_issue_comment.assert_called_once()
+        self.assertIn(DASHBOARD_LINK_LINE, mock_pr.create_issue_comment.call_args[0][0])
 
 
 class FakeLoggerWithAdvisorDedup(FakeLogger):

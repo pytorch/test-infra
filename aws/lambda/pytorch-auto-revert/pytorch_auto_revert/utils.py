@@ -3,7 +3,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Iterable, Optional
 
 import github
 
@@ -175,6 +175,77 @@ def build_pytorch_hud_url(
         f"https://hud.pytorch.org/hud/{repo_full_name}/{top_sha}/1?"
         f"per_page={num_commits}&name_filter={encoded_name}&mergeEphemeralLF=true"
     )
+
+
+# URL length past which the ar_sf term list — the only unbounded part — is
+# dropped. ar_wf and ar_focus still narrow the grid, so the link stays useful.
+_DASHBOARD_SIGNAL_FILTER_CUTOFF = 1500
+
+
+def build_autorevert_dashboard_url(
+    *,
+    repo_full_name: str,
+    ts: datetime,
+    commit_sha: str,
+    workflows: Iterable[str] = (),
+    signal_ids: Iterable[str] = (),
+    branch: str = "main",
+) -> str:
+    """Build a permalink to the autorevert signal grid for one revert event.
+
+    The grid renders the most recent state snapshot at or before ``ar_ts``, so
+    passing the run's own ``ctx.ts`` lands on the snapshot that run wrote and the
+    link keeps showing what autorevert saw when it decided, not today's state.
+
+    Args:
+        repo_full_name: Repository in format "owner/repo"
+        ts: Timestamp of the revert event (naive values are read as UTC)
+        commit_sha: Suspect commit — highlighted, with its summary panel opened
+        workflows: Workflow filter (``ar_wf``); empty leaves the grid default
+        signal_ids: Signal filter (``ar_sf``) as "workflow:key" terms; empty
+            leaves the grid unfiltered. Dropped whole if any term carries the
+            "|" separator, or if the URL would get too long.
+        branch: Branch segment of the HUD route
+
+    Returns:
+        URL to the autorevert dashboard
+    """
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    ts = ts.astimezone(timezone.utc)
+    # Truncate to match what the snapshot writer stores: misc.autorevert_state.ts
+    # is a second-precision DateTime and clickhouse_connect writes it as
+    # int(ts.timestamp()). Both sides floor the same instant, so `ts <= target`
+    # lands on this run's own snapshot rather than the one before it.
+    ts = ts.replace(microsecond=0)
+    params = [
+        ("ar_ts", ts.strftime("%Y-%m-%dT%H:%M:%SZ")),
+        ("ar_sha", commit_sha),
+        # Narrow the columns to signals that actually produced a revert.
+        ("ar_focus", "1"),
+    ]
+    workflow_list = [w for w in workflows if w]
+    if workflow_list:
+        params.append(("ar_wf", ",".join(workflow_list)))
+    # "|" is the ar_sf term separator: signal ids contain both commas and
+    # spaces. An id carrying one cannot be expressed, and dropping just that id
+    # would silently hide a contributing signal — so drop the whole filter.
+    id_list = [s for s in signal_ids if s]
+    if any("|" in s for s in id_list):
+        id_list = []
+    base = (
+        f"https://hud.pytorch.org/hud/{repo_full_name}/"
+        f"{urllib.parse.quote(branch, safe='')}/autorevert?"
+    )
+
+    def _url(pairs) -> str:
+        return base + urllib.parse.urlencode(pairs, quote_via=urllib.parse.quote)
+
+    if id_list:
+        with_filter = _url(params + [("ar_sf", "|".join(id_list))])
+        if len(with_filter) <= _DASHBOARD_SIGNAL_FILTER_CUTOFF:
+            return with_filter
+    return _url(params)
 
 
 def proper_workflow_create_dispatch(

@@ -22,6 +22,7 @@ from .signal import (
 )
 from .signal_extraction_types import RunContext
 from .utils import (
+    build_autorevert_dashboard_url,
     build_job_pytorch_url,
     build_pytorch_hud_url,
     proper_workflow_create_dispatch,
@@ -61,6 +62,10 @@ _BORN_RED_PATTERN_CONTEXT = (
     "`not_related` because the suspect did not cause the test to fail, "
     "only made it observable."
 )
+
+
+# Only repo whose state the autorevert dashboard renders.
+_DASHBOARD_REPO = "pytorch/pytorch"
 
 
 class CommitPRSourceAction(Enum):
@@ -1142,6 +1147,22 @@ class SignalActionProcessor:
 
             all_signals = ", ".join(all_signals_urls)
             breaking_notification_msg += f"- {workflow_name}: {all_signals}\n"
+
+        # The dashboard queries pytorch/pytorch state regardless of the URL's
+        # repo segment (torchci AutorevertView hardcodes it), so a canary link
+        # would show production data under a canary URL. Link only where the
+        # page shows this run's own state.
+        if ctx.repo_full_name == _DASHBOARD_REPO:
+            dashboard_url = build_autorevert_dashboard_url(
+                repo_full_name=ctx.repo_full_name,
+                ts=ctx.ts,
+                commit_sha=commit_sha,
+                workflows=sorted(workflow_groups),
+                signal_ids=sorted(f"{s.workflow_name}:{s.key}" for s in sources),
+            )
+            breaking_notification_msg += (
+                f"\n[Autorevert dashboard around this decision]({dashboard_url})\n"
+            )
 
         # Add AI advisor info if any signal was advisor-accelerated
         advisor_summaries = [s.advisor_summary for s in sources if s.advisor_summary]
