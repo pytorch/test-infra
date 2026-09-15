@@ -287,9 +287,7 @@ class TestWriteBothArtifacts(unittest.TestCase):
             [("Job A", rep, torch_nightly_body, baseline_body)]
         )
         with tempfile.TemporaryDirectory() as tmp:
-            written = triage._write_both_artifacts(
-                cluster_diffs, Path(tmp), tail_lines=50
-            )
+            written = triage._write_both_artifacts(cluster_diffs, Path(tmp))
             contents = [Path(path).read_text() for path in written]
         return written, contents
 
@@ -316,7 +314,7 @@ class TestWriteBothArtifacts(unittest.TestCase):
         self.assertIn("baseline-only-marker", artifact)
 
     def test_no_surfaced_clusters_writes_nothing(self) -> None:
-        self.assertEqual(triage._write_both_artifacts([], Path("/nonexistent"), 50), [])
+        self.assertEqual(triage._write_both_artifacts([], Path("/nonexistent")), [])
 
 
 def _regressed_entry():

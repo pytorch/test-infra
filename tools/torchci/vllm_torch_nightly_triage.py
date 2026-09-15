@@ -748,14 +748,13 @@ def diff_both_clusters(
 
 
 def _write_both_artifacts(
-    cluster_diffs: List[BothClusterDiff], pathlib_dir: Any, tail_lines: int
+    cluster_diffs: List[BothClusterDiff], pathlib_dir: Any
 ) -> List[str]:
     """Write one `both_*.log` artifact per surfaced cluster.
 
     Args:
         cluster_diffs: Surfaced both-cluster diffs.
         pathlib_dir: Directory to write artifacts into.
-        tail_lines: Unused compatibility parameter for the artifact-writing API.
 
     Returns:
         Paths of the artifacts written.
@@ -844,7 +843,7 @@ def fetch_cluster_logs(
         regressed_tests.extend(
             _build_regressed_entry(cd.cluster, cd.rep, cd.diff) for cd in cluster_diffs
         )
-        written.extend(_write_both_artifacts(cluster_diffs, pathlib_dir, tail_lines))
+        written.extend(_write_both_artifacts(cluster_diffs, pathlib_dir))
 
     return written
 
