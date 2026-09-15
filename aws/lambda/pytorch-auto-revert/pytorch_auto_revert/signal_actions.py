@@ -1159,11 +1159,6 @@ class SignalActionProcessor:
                 ts=ctx.ts,
                 commit_sha=commit_sha,
                 workflows=sorted(workflow_groups),
-                # Deduplicated: a revert group routinely holds the same
-                # (workflow, key) several times — 3 of the 13 real reverts in
-                # the 21 days to 2026-09-15 did, one of them six times — and a
-                # repeated ar_sf term only lengthens the URL.
-                signal_ids=sorted({f"{s.workflow_name}:{s.key}" for s in sources}),
             )
             # Name the anchor. The grid shows the newest snapshot at or before
             # it, and state logging is best-effort, so a reader who lands on an
