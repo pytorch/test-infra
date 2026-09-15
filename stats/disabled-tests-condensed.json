@@ -813,11 +813,6 @@
     "https://github.com/pytorch/pytorch/issues/188706",
     []
   ],
-  "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188707",
-    "https://github.com/pytorch/pytorch/issues/188707",
-    []
-  ],
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
     "188708",
     "https://github.com/pytorch/pytorch/issues/188708",
