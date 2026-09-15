@@ -603,5 +603,52 @@ class TestRunnerFleetIsAReleaseSignal(TestCase):
         )
 
 
+class TestSelfAllow(TestCase):
+    """A reusable workflow whose callers live in other repositories is invisible
+    to discovery here, so it is named explicitly."""
+
+    def test_builds_one_reference_per_ref(self) -> None:
+        self.assertEqual(
+            m.build_self_allowed(
+                "pytorch/test-infra",
+                [".github/workflows/build_wheels_linux.yml"],
+                ["refs/heads/main", "refs/heads/release/2.14"],
+            ),
+            {
+                "pytorch/test-infra/.github/workflows/build_wheels_linux.yml"
+                "@refs/heads/main",
+                "pytorch/test-infra/.github/workflows/build_wheels_linux.yml"
+                "@refs/heads/release/2.14",
+            },
+        )
+
+    def test_reusable_refs_are_main_then_releases_numerically(self) -> None:
+        class C(m.GitHubClient):
+            def __init__(self) -> None:
+                pass
+
+            def request(self, method: str, path: str, **kwargs: Any) -> Any:
+                class R:
+                    def json(self_inner):
+                        return [
+                            {"ref": "refs/heads/release/2.9"},
+                            {"ref": "refs/heads/release/2.10"},
+                            {"ref": "refs/heads/release/2.1"},
+                            {"ref": "refs/heads/release/2.14-rc"},
+                        ]
+
+                return R()
+
+        self.assertEqual(
+            m.get_reusable_refs(C(), "pytorch/test-infra"),
+            [
+                "refs/heads/main",
+                "refs/heads/release/2.1",
+                "refs/heads/release/2.9",
+                "refs/heads/release/2.10",
+            ],
+        )
+
+
 if __name__ == "__main__":
     main()
