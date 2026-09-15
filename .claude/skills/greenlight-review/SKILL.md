@@ -174,24 +174,23 @@ intended behavior and the code does something else, that is a bug report, not a 
 **Additive tests** — new tests or assertions under `test/`, touching no production file.
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
 
-**Newly added type annotations** — an annotation added to a parameter or return that
-carried none; deleting a checker suppression is the same change and is in the class.
+**Type annotations** — an annotation added where there was none, or `Any` replaced by a
+narrower type; deleting a checker suppression is the same change and is in the class.
 Where the symbol lives does not decide it: the question is whether the annotation reaches
 the behavior of an API practitioners rely on, and the exclusions below are its routes.
 The checker being quiet is evidence about the checker, not about the code.
-Not when any of these hold, checked against the changed file and a search for the
-symbol's callers:
+Not when any of these hold, checked against the changed file and the symbol's callers:
 
-- The diff removes an annotation — an unannotated parameter defaults to `Tensor` under
-  TorchScript — or changes an existing one, or adds a checker suppression.
+- The diff widens a concrete annotation, adds a checker suppression, or removes an
+  annotation — an unannotated parameter defaults to `Tensor` under TorchScript.
 - The file is a stub.
-- The annotation sits in a class body, where it may create a field.
+- The diff adds an annotation to a name in a class body, where it may create a field.
 - The symbol is a method of an `nn.Module`: scripting is invoked by callers this
   repository does not contain.
-- The function, its class, or any call site registers it — a custom op, a scripted
-  function, an overload, an argument validator, or a scripting or schema-inference call.
-- The function already carries a `# type:` comment, which a real annotation silently
-  replaces.
+- Anything reads the annotation at runtime — a custom op, scripting, an overload, schema
+  inference, an argument validator, a config module, DataPipes, `get_type_hints`, or fx
+  tracing the annotated function.
+- The function already carries a `# type:` comment, which a real annotation replaces.
 - Any other parameter of the same function remains unannotated, since annotating one
   retypes the rest. `self` and `cls` do not count as unannotated parameters.
 
@@ -203,11 +202,12 @@ the move changes the import path of anything reachable from a serialized object.
 
 **CI and build configuration** — shard counts, timeouts, matrix entries, experiment
 toggles.
-Not when it touches permissions, secrets, OIDC roles, `pull_request_target`, release or
-publish paths, generated workflows or the scripts that generate them, runner trust
-boundaries, the command a job runs, a Dockerfile, or a script under `.ci/`; and not when
-it removes coverage or hides failure — a matrix entry dropped, a lint-exclude glob or
-test blocklist widened, a timeout lowered so a real failure reads as infra noise.
+Not when it touches secrets, tokens, permissions, OIDC roles, `pull_request_target`,
+release or publish paths, generated workflows or the scripts that generate them, or
+runner trust boundaries; not when a step runs outside the build container or a `uses:`
+points outside the `pytorch` org; and not when it removes coverage or hides failure — a
+matrix entry dropped, a lint-exclude glob or blocklist widened, a timeout lowered so a
+real failure reads as infra noise.
 
 **Single-cause bugfix** — one root cause, one fix, and a test in the diff exercising the
 fixed path. Without that test the class fits only when the changed lines both state the
