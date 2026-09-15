@@ -91,7 +91,7 @@ REVERT_EVENT_TS = datetime(2026, 9, 15, 0, 2, 34, tzinfo=timezone.utc)
 # Trailing dashboard permalink for a comment built from REVERT_EVENT_TS, commit
 # "abc123", and a single trunk/test_signal source.
 DASHBOARD_LINK_LINE = (
-    "\n[Autorevert dashboard around this decision]"
+    "\n[Autorevert dashboard as of 2026-09-15 00:02:34 UTC]"
     "(https://hud.pytorch.org/hud/pytorch/pytorch/main/autorevert"
     "?ar_ts=2026-09-15T00%3A02%3A34Z&ar_sha=abc123&ar_focus=1"
     "&ar_wf=trunk&ar_sf=trunk%3Atest_signal)\n"
@@ -499,6 +499,17 @@ class TestCommentIssueRevert(unittest.TestCase):
             "%7Ctrunk%3Atest_signal_1%7Ctrunk%3Atest_signal_2)",
             comment_text,
         )
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_repeated_sources_produce_one_filter_term(self, mock_gh_factory):
+        """Revert groups really do repeat a (workflow, key) — seen 6x in prod."""
+        mock_pr, mock_issue = setup_gh_mocks(mock_gh_factory, pr_number=12345)
+        set_find_pr_to_merge(self.proc, mock_pr)
+
+        self.proc._comment_issue_pr_revert("abc123", [make_source()] * 6, self.ctx)
+
+        comment_text = mock_issue.create_comment.call_args[0][0]
+        self.assertIn("&ar_sf=trunk%3Atest_signal)", comment_text)
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
     def test_comment_omits_dashboard_link_off_pytorch_pytorch(self, mock_gh_factory):

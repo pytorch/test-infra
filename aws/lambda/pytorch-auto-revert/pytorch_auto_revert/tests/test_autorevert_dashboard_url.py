@@ -1,10 +1,27 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from pytorch_auto_revert.utils import build_autorevert_dashboard_url
+from pytorch_auto_revert.utils import (
+    build_autorevert_dashboard_url,
+    dashboard_anchor_ts,
+)
 
 
 TS = datetime(2026, 9, 15, 0, 2, 34, tzinfo=timezone.utc)
+
+
+class DashboardAnchorTsTests(unittest.TestCase):
+    """The comment prints this instant and the URL resolves on it — one source."""
+
+    def test_naive_is_utc_and_sub_second_is_truncated(self):
+        self.assertEqual(
+            dashboard_anchor_ts(TS.replace(tzinfo=None, microsecond=999999)), TS
+        )
+
+    def test_offset_aware_input_keeps_its_instant(self):
+        self.assertEqual(
+            dashboard_anchor_ts(TS.astimezone(timezone(timedelta(hours=-7)))), TS
+        )
 
 
 class BuildAutorevertDashboardUrlTests(unittest.TestCase):

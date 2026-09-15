@@ -182,6 +182,20 @@ def build_pytorch_hud_url(
 _DASHBOARD_SIGNAL_FILTER_CUTOFF = 1500
 
 
+def dashboard_anchor_ts(ts: datetime) -> datetime:
+    """Normalize a run timestamp to the instant the dashboard resolves on.
+
+    Naive values are read as UTC, and the result is truncated to the second to
+    match what the snapshot writer stores: ``misc.autorevert_state.ts`` is a
+    second-precision ``DateTime`` and clickhouse_connect writes it as
+    ``int(ts.timestamp())``. Both sides floor the same instant, so the grid's
+    ``ts <= target`` lands on this run's own snapshot, not the one before it.
+    """
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(timezone.utc).replace(microsecond=0)
+
+
 def build_autorevert_dashboard_url(
     *,
     repo_full_name: str,
@@ -210,14 +224,7 @@ def build_autorevert_dashboard_url(
     Returns:
         URL to the autorevert dashboard
     """
-    if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
-    ts = ts.astimezone(timezone.utc)
-    # Truncate to match what the snapshot writer stores: misc.autorevert_state.ts
-    # is a second-precision DateTime and clickhouse_connect writes it as
-    # int(ts.timestamp()). Both sides floor the same instant, so `ts <= target`
-    # lands on this run's own snapshot rather than the one before it.
-    ts = ts.replace(microsecond=0)
+    ts = dashboard_anchor_ts(ts)
     params = [
         ("ar_ts", ts.strftime("%Y-%m-%dT%H:%M:%SZ")),
         ("ar_sha", commit_sha),
