@@ -813,11 +813,6 @@
     "https://github.com/pytorch/pytorch/issues/188706",
     []
   ],
-  "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188707",
-    "https://github.com/pytorch/pytorch/issues/188707",
-    []
-  ],
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
     "188708",
     "https://github.com/pytorch/pytorch/issues/188708",
@@ -1245,6 +1240,14 @@
       "slow"
     ]
   ],
+  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_float32 (__main__.DeterministicTest)": [
+    "197045",
+    "https://github.com/pytorch/pytorch/issues/197045",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_save_with_kwargs (__main__.TestCheckpointer)": [
     "190613",
     "https://github.com/pytorch/pytorch/issues/190613",
@@ -1271,6 +1274,14 @@
     "https://github.com/pytorch/pytorch/issues/190088",
     [
       "linux"
+    ]
+  ],
+  "test_sdpa_rewriter_11_gpu (__main__.SDPAPatternRewriterGpuTests)": [
+    "179213",
+    "https://github.com/pytorch/pytorch/issues/179213",
+    [
+      "rocm",
+      "xpu"
     ]
   ],
   "test_sdpa_rewriter_16_fp32_mask_gpu (__main__.SDPAPatternRewriterGpuTests)": [
