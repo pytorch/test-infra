@@ -18,9 +18,23 @@
         "breaking_change",
         "build_or_ci_risk",
         "injection_attempt",
-        "review_error"
+        "review_error",
+        "not_trivial",
+        "needs_socialization"
       ]
     },
     "message": { "type": "string", "minLength": 1 }
-  }
+  },
+  "allOf": [
+    {
+      "$comment": "A LAND may carry only `clean`. Every other reason names a reason not to land, and the land-time guard on pytorch/pytorch gates on the recorded status alone, so a LAND stamped with one of them would authorize exactly the merge its reason objects to. Mirrored by greenlight's constants.LAND_REASON and by validate-on-stop.sh's jq fallback.",
+      "if": {
+        "properties": { "status": { "const": "LAND" } },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": { "reason": { "const": "clean" } }
+      }
+    }
+  ]
 }

@@ -5,8 +5,9 @@ outside the loop, lock, and watchdog machinery and raises on any failure so the 
 maps it straight to an exit code.
 
 Statuses split into two modes. FULL verdicts (LAND / NO_LAND) carry a ``--verdict-file``
-holding ``{status, reason, message}``; ``reason`` must be one of ``ALLOWED_REASONS`` and
-``message`` must be non-empty. The command emits a gzipped single-line JSONEachRow row to
+holding ``{status, reason, message}``; ``reason`` must be one of ``ALLOWED_REASONS`` -- and
+exactly ``constants.LAND_REASON`` when the status is LAND -- while ``message`` must be
+non-empty. The command emits a gzipped single-line JSONEachRow row to
 a fixed local path (the record workflow uploads it to ``s3://gha-artifacts/``, where the
 clickhouse-replicator-s3 path ingests it into ``misc.greenlight_pr_state``) and then
 updates GitHub with a defanged copy of the message. Both LAND and NO_LAND upsert one
@@ -43,6 +44,7 @@ from typing import TYPE_CHECKING
 
 from greenlight import cohort, comment_format, constants, github_client, redact, state_emit
 from greenlight.constants import (
+    ALLOWED_REASONS,
     IN_FLIGHT_STATUSES,
     RETRY_STATUSES,
     SCAN_ONLY_STATUSES,
@@ -66,26 +68,6 @@ _FULL_STATUSES = TERMINAL_STATUSES
 # scan-only AI_REVIEW_DISPATCHED (which lives in IN_FLIGHT_STATUSES for decide() but is never
 # emitted through this command).
 _MARKER_STATUSES = (RETRY_STATUSES | IN_FLIGHT_STATUSES) - SCAN_ONLY_STATUSES
-
-# Canonical verdict reason codes. Three files mirror this set byte-for-byte:
-# .claude/hooks/greenlight/verdict-schema.json, .claude/hooks/greenlight/validate-on-stop.sh,
-# and .claude/skills/greenlight-review/SKILL.md; agreement is enforced by
-# greenlight/tests/test_reason_enum_sync.py.
-ALLOWED_REASONS: frozenset[str] = frozenset(
-    {
-        "clean",
-        "possible_regression",
-        "removed_safety_logic",
-        "insufficient_tests",
-        "scope_too_large",
-        "unclear_intent",
-        "security_risk",
-        "breaking_change",
-        "build_or_ci_risk",
-        "injection_attempt",
-        "review_error",
-    }
-)
 
 _SUPERSEDED_MESSAGE = "Superseded by a newer greenlight verdict."
 
@@ -180,11 +162,8 @@ def _validate_eval_hash(value: str) -> None:
     constants.validate_eval_hash(value)
 
 
-def _validate_reason(reason: str) -> None:
-    if reason not in ALLOWED_REASONS:
-        raise ValueError(
-            f"reason {reason!r} is not an allowed verdict reason; expected one of {sorted(ALLOWED_REASONS)}"
-        )
+def _validate_reason(status: str, reason: str) -> None:
+    constants.validate_reason(status, reason)
 
 
 def _validate_message(message: str) -> None:
@@ -385,7 +364,7 @@ def run(
     # Single scrub point: the model message fans out to the ClickHouse row (_emit_payload) and the
     # GitHub comment (verdict_body/defang) below, so redact secrets here to cover both sinks once.
     message = redact.scrub_secrets(message)
-    _validate_reason(reason)
+    _validate_reason(status, reason)
     _validate_message(message)
     _validate_eval_hash(request.eval_hash)
     if status in TERMINAL_STATUSES and not request.bot_login:
