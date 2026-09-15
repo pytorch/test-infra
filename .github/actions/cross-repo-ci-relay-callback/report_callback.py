@@ -24,6 +24,7 @@ Optional env vars:
     EVENT_TYPE_OVERRIDE     "nightly" or "periodic" (self-report)
     CHECK_RUN_ID            GitHub check run ID (falls back to RUN_ID-RUN_ATTEMPT)
     TEST_RESULTS            JSON string with test result summary
+    TRIAGE_VERDICT          JSON object with a triage verdict for this job
     ARTIFACT_URL            URL to downstream artifacts
     MAX_TIME                curl --max-time (default 10)
 """
@@ -121,6 +122,20 @@ def build_payload() -> str:
             workflow["failed_tests_detail"] = parsed[:1000]
         except json.JSONDecodeError as exc:
             sys.exit(f"Error: FAILED_TESTS_DETAIL is not valid JSON: {exc}")
+
+    triage_verdict = os.environ.get("TRIAGE_VERDICT", "").strip()
+    if triage_verdict:
+        try:
+            parsed = json.loads(triage_verdict)
+        except json.JSONDecodeError as exc:
+            sys.exit(f"Error: TRIAGE_VERDICT is not valid JSON: {exc}")
+        if not isinstance(parsed, dict):
+            sys.exit("Error: TRIAGE_VERDICT must be a JSON object")
+        # Only the shape is checked here, so a typo in the triage step fails
+        # loudly in the repo that owns it.  The relay is what enum- and
+        # size-validates the contents, and silently drops the verdict if it
+        # does not hold up -- this action must not decide that for it.
+        workflow["triage_verdict"] = parsed
 
     artifact_url = os.environ.get("ARTIFACT_URL", "").strip()
     if artifact_url:
