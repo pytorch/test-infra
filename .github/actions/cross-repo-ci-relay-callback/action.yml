@@ -56,6 +56,48 @@ inputs:
       Example: [{"name":"test_foo","classname":"TestBar","message":"AssertionError"}]
     required: false
     default: ''
+  triage-verdict:
+    description: >
+      Optional JSON object with a triage verdict for this job, explaining *why*
+      it failed — most importantly whether the cause was the upstream
+      pytorch/pytorch change under test rather than the backend itself.  A repo
+      that runs its own log-triage step (agent-based or not) passes that step's
+      output here; leaving it unset keeps today's behaviour exactly.
+
+      Advisory only: the verdict never gates a merge and never replaces the raw
+      conclusion.  Today the relay validates it and forwards it to the HUD
+      backend; surfacing it on the HUD and in the on-call PR comment is being
+      added separately, so attaching one now is safe but not yet visible
+      anywhere.
+
+      Shape (schema_version 1) — `category`, `confidence` and `summary` are
+      required, everything else optional:
+        {
+          "schema_version": 1,
+          "category": "upstream",        // upstream | backend | infra | flake | unknown
+          "confidence": "high",          // high | medium | low
+          "summary": "aten::foo lost its out= overload in #194610.",
+          "suspected_upstream": {        // ONLY valid for category "upstream"
+            "pr": 194610, "commit": "0e797b5a6acf",
+            "reason": "signature change to aten::foo"
+          },
+          "evidence": [{"job": "build-npu", "test": "test_foo_out_variant",
+                        "log_url": "https://.../job/123#step:5:2007",
+                        "excerpt": "error: no matching function ..."}],
+          "reproduced_on_retry": false,
+          "analyzer": {"name": "ascend-ci-triage", "version": "0.3.1",
+                       "model": "claude-haiku-4-5", "prompt_version": "2026-08-20"},
+          "analyzed_at": "2026-08-24T14:22:10Z"
+        }
+
+      The relay enum-, type- and size-validates every field and drops the WHOLE
+      verdict on any structural violation (unknown enum value, wrong type,
+      unrecognized schema_version), falling back to today's plain result — so a
+      broken triage tool degrades to no verdict, never to a half-rendered one.
+      Oversized values are truncated rather than rejected: summary 1 KB,
+      evidence 10 entries with 1 KB excerpts, 16 KB for the object as a whole.
+    required: false
+    default: ''
   callback-url:
     description: >
       Base URL of the result callback server.
@@ -131,6 +173,7 @@ runs:
         WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         TEST_RESULTS: ${{ inputs.test-results }}
         FAILED_TESTS_DETAIL: ${{ inputs.failed-tests-detail }}
+        TRIAGE_VERDICT: ${{ inputs.triage-verdict }}
         CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         CALLBACK_URL: ${{ inputs.callback-url }}
