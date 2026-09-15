@@ -34,7 +34,7 @@ import {
   GREENLIGHT_REPORT_PROJECT_URL,
   GREENLIGHT_REPORT_REPO,
 } from "lib/greenlight/greenlightReport";
-import { useSession } from "next-auth/react";
+import { useHasWritePermissions } from "lib/useHasWritePermissions";
 import { useState } from "react";
 
 type Phase =
@@ -76,11 +76,10 @@ export default function GreenLightReportButton({
   prNumber: number;
   /** The commit whose verdict is on screen -- reviewed head or trunk commit. */
   sha: string;
-  /** Shown in the dialog so the reporter can see what they are disputing. */
+  /** Named in the tooltip so the reporter can see what they are disputing. */
   status: string;
 }) {
-  const session = useSession();
-  const loggedIn = session.status === "authenticated" && session.data !== null;
+  const writeAccess = useHasWritePermissions();
 
   const [open, setOpen] = useState(false);
   const [comment, setComment] = useState("");
@@ -88,7 +87,10 @@ export default function GreenLightReportButton({
 
   const submitting = phase.kind === "submitting";
   const trimmed = comment.trim();
-  const overCap = comment.length > GREENLIGHT_REPORT_COMMENT_CAP;
+  // By code point, because that is what the server caps by. Counting UTF-16
+  // units instead would refuse a comment of emoji the route would have accepted.
+  const commentLength = Array.from(comment).length;
+  const overCap = commentLength > GREENLIGHT_REPORT_COMMENT_CAP;
 
   function close() {
     if (submitting) {
@@ -134,29 +136,30 @@ export default function GreenLightReportButton({
     }
   }
 
+  // Offered only to the people the route will actually accept a report from.
+  // Showing it to every signed-in reader would let someone write a paragraph and
+  // learn at submit that they cannot file it. The gate is enforced server-side
+  // and this is presentation only -- "unknown" covers both signed-out and the
+  // answer still being in flight, and neither is an invitation to start typing.
+  if (writeAccess !== "yes") {
+    return null;
+  }
+
   return (
     <>
       <Tooltip
-        title={
-          loggedIn
-            ? `Disagree with this ${status}? File a policy issue on ${GREENLIGHT_REPORT_OWNER}/${GREENLIGHT_REPORT_REPO} for the team to triage.`
-            : "Log in to report a wrong Green Light verdict"
-        }
+        title={`Disagree with this ${status}? File a policy issue on ${GREENLIGHT_REPORT_OWNER}/${GREENLIGHT_REPORT_REPO} for the team to triage.`}
       >
-        {/* A disabled Button swallows the events Tooltip listens for. */}
-        <span>
-          <Button
-            size="small"
-            variant="outlined"
-            color="inherit"
-            disabled={!loggedIn}
-            startIcon={<BugReportOutlinedIcon fontSize="small" />}
-            onClick={() => setOpen(true)}
-            sx={{ alignSelf: "flex-start", textTransform: "none" }}
-          >
-            Report wrong verdict
-          </Button>
-        </span>
+        <Button
+          size="small"
+          variant="outlined"
+          color="inherit"
+          startIcon={<BugReportOutlinedIcon fontSize="small" />}
+          onClick={() => setOpen(true)}
+          sx={{ alignSelf: "flex-start", textTransform: "none" }}
+        >
+          Report wrong verdict
+        </Button>
       </Tooltip>
 
       <Dialog open={open} onClose={close} fullWidth maxWidth="sm">
@@ -211,7 +214,7 @@ export default function GreenLightReportButton({
                 error={overCap}
                 helperText={
                   overCap
-                    ? `${comment.length} / ${GREENLIGHT_REPORT_COMMENT_CAP} characters`
+                    ? `${commentLength} / ${GREENLIGHT_REPORT_COMMENT_CAP} characters`
                     : " "
                 }
               />
