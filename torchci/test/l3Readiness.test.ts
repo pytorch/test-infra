@@ -10,10 +10,15 @@ import {
 } from "../lib/crcr/l3Readiness";
 import { evaluateL3Threshold, L3_THRESHOLDS } from "../lib/crcr/l3Thresholds";
 
+// Matches the real shape ClickHouse's DateTime64(9) + date_time_output_format
+// "iso" returns for an unmatched minIf/maxIf.
+const EPOCH = "1970-01-01T00:00:00.000000000Z";
+
 function repoTenure(overrides: Partial<RepoTenure>): RepoTenure {
   return {
     current_level: "L2",
     level_since: "2026-01-01T00:00:00Z",
+    l2_since: "2026-01-01T00:00:00Z",
     first_seen: "2026-01-01T00:00:00Z",
     last_seen: "2026-08-30T00:00:00Z",
     ...overrides,
@@ -26,21 +31,30 @@ describe("tenureInfoFromRow", () => {
     expect(tenureInfoFromRow(null)).toBeNull();
   });
 
-  it("returns null when the repo has no current level", () => {
-    expect(tenureInfoFromRow(repoTenure({ current_level: "" }))).toBeNull();
+  it("returns null when the repo was never seen at L2", () => {
+    expect(tenureInfoFromRow(repoTenure({ l2_since: EPOCH }))).toBeNull();
   });
 
-  it("carries the current level and computes tenure days from level_since", () => {
+  it("computes tenure from l2_since regardless of current level", () => {
     const tenure = tenureInfoFromRow(
       repoTenure({
         current_level: "L2",
-        level_since: new Date(
-          Date.now() - 60 * 24 * 60 * 60 * 1000
-        ).toISOString(),
+        l2_since: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
       })
     );
-    expect(tenure?.currentLevel).toBe("L2");
     expect(tenure?.tenureDays).toBeCloseTo(60, 0);
+  });
+
+  it("keeps counting up through later promotions instead of resetting", () => {
+    // 14 days at L2, then 10 at L3, then 10 at L4 should read as 34 days —
+    // cumulative since first reaching L2, not reset by each promotion.
+    const tenure = tenureInfoFromRow(
+      repoTenure({
+        current_level: "L4",
+        l2_since: new Date(Date.now() - 34 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+    );
+    expect(tenure?.tenureDays).toBeCloseTo(34, 0);
   });
 });
 
@@ -83,7 +97,6 @@ function summaryRow(overrides: Partial<L3SummaryRow>): L3SummaryRow {
 }
 
 const goodTenure: TenureInfo = {
-  currentLevel: "L2",
   tenureDays: 60,
 };
 

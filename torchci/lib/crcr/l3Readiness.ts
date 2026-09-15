@@ -36,25 +36,26 @@ export interface L3SummaryRow extends L3Metrics {
 export interface RepoTenure {
   current_level: string;
   level_since: string;
+  l2_since: string;
   first_seen: string;
   last_seen: string;
 }
 
 export interface TenureInfo {
-  currentLevel: string;
   tenureDays: number;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// "Time at L2" is cumulative from when the repo first reached L2, not reset
+// by later promotions.
 export function tenureInfoFromRow(
   row: RepoTenure | null | undefined
 ): TenureInfo | null {
-  if (!row || !row.current_level) return null;
-  return {
-    currentLevel: row.current_level,
-    tenureDays: (Date.now() - new Date(row.level_since).getTime()) / MS_PER_DAY,
-  };
+  if (!row) return null;
+  const l2Since = new Date(row.l2_since).getTime();
+  if (!(l2Since > 0)) return null;
+  return { tenureDays: (Date.now() - l2Since) / MS_PER_DAY };
 }
 
 // Same crcr_repo_tenure query + params used by the per-repo panel, the
@@ -79,7 +80,6 @@ export interface CriterionRow {
   criterion: string;
   measured: number | null;
   format: L3MeasuredFormat;
-  detail?: string;
   targetLabel: string;
   verdict: boolean | null;
   provisional: boolean;
@@ -88,15 +88,13 @@ export interface CriterionRow {
 function buildRow(
   threshold: (typeof L3_THRESHOLDS)[keyof typeof L3_THRESHOLDS],
   measured: number | null,
-  format: L3MeasuredFormat,
-  detail?: string
+  format: L3MeasuredFormat
 ): CriterionRow {
   return {
     key: threshold.key,
     criterion: threshold.label,
     measured,
     format,
-    detail,
     targetLabel: threshold.targetLabel,
     verdict: evaluateL3Threshold(threshold, measured),
     provisional: threshold.provisional,
@@ -143,12 +141,7 @@ export function buildCriteriaRows(
   tenure: TenureInfo | null
 ): CriterionRow[] {
   return [
-    buildRow(
-      L3_THRESHOLDS.tenureAtL2Days,
-      tenure?.tenureDays ?? null,
-      "days",
-      tenure?.currentLevel
-    ),
+    buildRow(L3_THRESHOLDS.tenureAtL2Days, tenure?.tenureDays ?? null, "days"),
     ...METRICS.map((m) =>
       buildRow(m.threshold, m.getMeasured(summary), m.format)
     ),
