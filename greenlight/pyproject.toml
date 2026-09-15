@@ -16,7 +16,19 @@ build-backend = "hatchling.build"
 packages = ["src/greenlight"]
 
 [dependency-groups]
-dev = ["ruff", "mypy", "pytest", "pytest-cov", "pytest-xdist", "yamllint", "types-PyYAML"]
+# jsonschema validates verdict-schema.json, which declares draft 2020-12; support for that draft
+# starts at jsonschema 4.
+dev = [
+  "ruff",
+  "mypy",
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+  "yamllint",
+  "types-PyYAML",
+  "jsonschema>=4",
+  "types-jsonschema",
+]
 
 [tool.uv]
 python-preference = "only-system"
