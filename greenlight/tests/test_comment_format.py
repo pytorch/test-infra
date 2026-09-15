@@ -421,3 +421,63 @@ def test_recheck_refusal_marker_is_distinct_from_verdict_marker():
     assert comment_format.RECHECK_REFUSAL_MARKER != comment_format.COMMENT_MARKER
     body = comment_format.recheck_changes_requested_body("changes requested by octocat")
     assert comment_format.COMMENT_MARKER not in body
+
+
+_GOOD_SHA = "a" * 40
+
+
+def test_report_url_selects_the_disputed_commit_and_asks_the_panel_to_open():
+    assert comment_format.report_url("pytorch/pytorch", 123, _GOOD_SHA) == (
+        f"https://hud.pytorch.org/pytorch/pytorch/pull/123?sha={_GOOD_SHA}&greenlightReport=1"
+    )
+
+
+def test_report_url_folds_the_repo_and_the_sha():
+    built = comment_format.report_url("PyTorch/PyTorch", 123, _GOOD_SHA.upper())
+    assert built == comment_format.report_url("pytorch/pytorch", 123, _GOOD_SHA)
+
+
+@pytest.mark.parametrize(
+    ("repo", "pr_number", "head_sha"),
+    [
+        ("", 123, _GOOD_SHA),
+        ("pytorch", 123, _GOOD_SHA),
+        ("pytorch/pytorch?x=1", 123, _GOOD_SHA),
+        ("pytorch/pytorch)[click](javascript:alert(1)", 123, _GOOD_SHA),
+        ("pytorch/pytorch", 0, _GOOD_SHA),
+        ("pytorch/pytorch", -1, _GOOD_SHA),
+        ("pytorch/pytorch", 123, ""),
+        ("pytorch/pytorch", 123, "a" * 39),
+        ("pytorch/pytorch", 123, f"{_GOOD_SHA} evil"),
+    ],
+)
+def test_report_url_emits_nothing_rather_than_a_half_built_target(repo, pr_number, head_sha):
+    # Each of these reaches a `[text](url)` in a comment this bot authors.
+    assert comment_format.report_url(repo, pr_number, head_sha) == ""
+
+
+def test_verdict_body_carries_the_report_link_below_the_job_link():
+    body = comment_format.verdict_body("NO_LAND", "reason", "why", "https://example.invalid/job", None, "https://x/y")
+    assert "[Inference job](https://example.invalid/job)" in body
+    assert "[Report a wrong verdict](https://x/y)" in body
+    assert body.index("[Report a wrong verdict]") > body.index("[Inference job]")
+    assert body.rstrip().endswith("</details>")
+
+
+def test_verdict_body_omits_the_report_link_when_it_could_not_be_built():
+    body = comment_format.verdict_body("LAND", "clean", "why", "", None, "")
+    assert "Report a wrong verdict" not in body
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        comment_format.reviewing_body("https://example.invalid/job", None),
+        comment_format.incomplete_body("cancelled", "https://example.invalid/job", None),
+        comment_format.marker_body("FAILED", "https://example.invalid/job", None),
+        comment_format.recheck_changes_requested_body("someone"),
+    ],
+)
+def test_only_a_judgement_offers_a_report_link(body):
+    # The other bodies describe the absence of a verdict, so there is nothing to dispute.
+    assert "Report a wrong verdict" not in body

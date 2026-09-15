@@ -26,8 +26,12 @@ interface GreenlightStateRow {
   version: string;
 }
 
-function toGreenlightState(row: GreenlightStateRow): GreenlightState {
+function toGreenlightState(
+  row: GreenlightStateRow,
+  repo: string
+): GreenlightState {
   return {
+    repo,
     prNumber: row.pr_number,
     status: row.status,
     reason: row.reason,
@@ -61,8 +65,12 @@ export async function buildGreenlightSections(
   // The same folded key the gate above matched on. Rows are written under the
   // canonical spelling, so querying the caller's raw one matches nothing and the
   // section renders empty instead of failing.
+  // The same folded key the rows are stored under, reused as the repo the report
+  // link names: the HUD resolves owner/name case-insensitively, and a link built
+  // from the caller's raw spelling would differ per caller for no reason.
+  const repoKey = greenlightRepoKey(owner, repo);
   const rows = (await queryClickhouseSaved("greenlight_pr_states", {
-    repo: greenlightRepoKey(owner, repo),
+    repo: repoKey,
     prNumbers,
   })) as GreenlightStateRow[];
 
@@ -76,7 +84,7 @@ export async function buildGreenlightSections(
     // scrubbed on its way into the comment and not on its way into a log.
     try {
       const rendered = renderGreenlightSection(
-        toGreenlightState(row),
+        toGreenlightState(row, repoKey),
         now,
         headShaByPr.get(row.pr_number) ?? ""
       );

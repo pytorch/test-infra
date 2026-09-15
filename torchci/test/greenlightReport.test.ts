@@ -23,6 +23,7 @@ import {
   parseReportRequest,
   reportMarker,
 } from "lib/greenlight/greenlightReport";
+import { greenlightReportUrl } from "lib/greenlight/greenlightReportLink";
 
 const HEAD_SHA = "a".repeat(40);
 const MERGE_SHA = "b".repeat(40);
@@ -297,6 +298,38 @@ describe("buildReportBody", () => {
     expect(written).not.toContain(
       "x".repeat(GREENLIGHT_REPORT_COMMENT_CAP + 1)
     );
+  });
+});
+
+describe("greenlightReportUrl", () => {
+  test("selects the disputed commit and asks the panel to open", () => {
+    expect(greenlightReportUrl("pytorch/pytorch", 1234, HEAD_SHA)).toBe(
+      `https://hud.pytorch.org/pytorch/pytorch/pull/1234?sha=${HEAD_SHA}&greenlightReport=1`
+    );
+  });
+
+  test("lowercases the sha so the link matches the panel's own key", () => {
+    expect(
+      greenlightReportUrl("pytorch/pytorch", 1234, HEAD_SHA.toUpperCase())
+    ).toContain(`?sha=${HEAD_SHA}&`);
+  });
+
+  test("returns nothing rather than a half-built link target", () => {
+    // Every one of these reaches a `[text](url)` in a bot-authored comment.
+    for (const [repo, prNumber, sha] of [
+      ["", 1234, HEAD_SHA],
+      ["pytorch", 1234, HEAD_SHA],
+      ["pytorch/pytorch?x=1", 1234, HEAD_SHA],
+      ["pytorch/pytorch)[click](javascript:alert(1)", 1234, HEAD_SHA],
+      ["pytorch/pytorch", 0, HEAD_SHA],
+      ["pytorch/pytorch", -1, HEAD_SHA],
+      ["pytorch/pytorch", 1.5, HEAD_SHA],
+      ["pytorch/pytorch", 1234, ""],
+      ["pytorch/pytorch", 1234, "a".repeat(39)],
+      ["pytorch/pytorch", 1234, `${HEAD_SHA} evil`],
+    ] as [string, number, string][]) {
+      expect(greenlightReportUrl(repo, prNumber, sha)).toBe("");
+    }
   });
 });
 

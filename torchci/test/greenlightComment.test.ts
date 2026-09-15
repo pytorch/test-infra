@@ -169,6 +169,9 @@ describe("buildGreenlightSections", () => {
 
     expect(render).toHaveBeenCalledWith(
       {
+        // Not a column: the row does not carry the repo, so the sweep's own
+        // folded key is what the renderer builds the report link from.
+        repo: "pytorch/pytorch",
         prNumber: LAND_ROW.pr_number,
         status: LAND_ROW.status,
         reason: LAND_ROW.reason,

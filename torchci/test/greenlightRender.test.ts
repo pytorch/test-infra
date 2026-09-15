@@ -138,6 +138,7 @@ const BOT_COMMAND_PROSE = [
 
 function state(overrides: Partial<GreenlightState> = {}): GreenlightState {
   return {
+    repo: "pytorch/pytorch",
     prNumber: 123,
     status: "LAND",
     reason: "clean",
@@ -553,6 +554,66 @@ describe("renderGreenlightSection statuses", () => {
       );
     }
     expect(render(state(), FRESH_NOW)).toContain(`[Inference job](${JOB_URL})`);
+  });
+
+  it("offers the report link on both judgements, pointing at the reviewed commit", () => {
+    for (const status of ["LAND", "NO_LAND"]) {
+      expect(render(state({ status }), FRESH_NOW)).toContain(
+        `[Report a wrong verdict](https://hud.pytorch.org/pytorch/pytorch/pull/123` +
+          `?sha=${REVIEWED_SHA}&greenlightReport=1)`
+      );
+    }
+  });
+
+  it("points the report link at the reviewed commit, not the PR's head", () => {
+    // An outdated verdict is the case that separates the two, and the reader is
+    // disputing the verdict, which was reached on the commit that is no longer
+    // the head.
+    const out = render(state(), FRESH_NOW, OTHER_SHA);
+
+    expect(out).toContain(`?sha=${REVIEWED_SHA}&greenlightReport=1)`);
+    expect(out).not.toContain(OTHER_SHA);
+  });
+
+  it("offers no report link on a status that is not a judgement", () => {
+    for (const status of [
+      "REVERTED",
+      "CANCELLED",
+      "FAILED",
+      "AI_REVIEW_STARTED",
+      "AI_REVIEW_DISPATCHED",
+    ]) {
+      expect(render(state({ status }), FRESH_NOW)).not.toContain(
+        "[Report a wrong verdict]"
+      );
+    }
+    // Including a stalled in-flight row, which is presented as one that did not
+    // complete and has no verdict behind it.
+    expect(
+      render(state({ status: "AI_REVIEW_STARTED" }), STALE_NOW)
+    ).not.toContain("[Report a wrong verdict]");
+  });
+
+  it("omits the report link rather than emit an unguarded link target", () => {
+    // Each of these is a value the URL is assembled from failing its guard. The
+    // comment is authored by a bot, so a half-built target is worse than none.
+    const broken = [
+      state({ headSha: "" }),
+      state({ headSha: "notasha" }),
+      state({ headSha: `${REVIEWED_SHA})[click](javascript:alert(1)` }),
+      state({ repo: "" }),
+      state({ repo: "pytorch/pytorch?evil=1" }),
+      state({ prNumber: 0 }),
+      state({ prNumber: -1 }),
+    ];
+
+    for (const s of broken) {
+      const out = render(s, FRESH_NOW, s.headSha);
+      expect(out).not.toContain("[Report a wrong verdict]");
+      expect(out).not.toContain("javascript:");
+      // The rest of the section still renders; the link is the only casualty.
+      expect(out).toContain("reason: `clean`");
+    }
   });
 
   it("renders an empty message as a bare fence, keeping reason and sha", () => {

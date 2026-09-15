@@ -21,6 +21,7 @@ import {
   isOutline,
   renderOutlineHtml,
 } from "lib/greenlight/greenlightOutline";
+import { greenlightReportUrl } from "lib/greenlight/greenlightReportLink";
 import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 import {
   defuseSweepSentinels,
@@ -91,6 +92,8 @@ const GREENLIGHT_PENDING_MARKER = `<!-- greenlight ${GREENLIGHT_PENDING_ALT_ATTR
 const SAFE_JOB_URL_RE = /^https:\/\/github\.com\/[^\s()<>"'\\]+$/;
 
 export interface GreenlightState {
+  /** `owner/name`, which the row does not carry; the sweep's caller supplies it. */
+  repo: string;
   prNumber: number;
   status: string;
   reason: string;
@@ -225,11 +228,23 @@ function renderSection(
   bodyLines: string[],
   evalJob: string,
   inProgress: boolean,
-  outdated: boolean
+  outdated: boolean,
+  // "" for every status that is not a judgement, and for a row whose repo, PR or
+  // sha failed a guard in greenlightReportUrl. Only LAND and NO_LAND have a
+  // verdict to dispute; the rest are an absence of one, and offering to report
+  // them would send the reader to a dialog the API route refuses.
+  reportUrl: string = ""
 ): string {
   const lines = [...bodyLines];
   if (SAFE_JOB_URL_RE.test(evalJob)) {
     lines.push("", `[Inference job](${evalJob})`);
+  }
+  // The label is spelled literally, like "Inference job" above it:
+  // test_render_sync.py reads the labels out of this source and pins them to the
+  // ones Python renders, and an interpolated constant would give it the name of
+  // the constant instead of the words a reader sees.
+  if (reportUrl) {
+    lines.push("", `[Report a wrong verdict](${reportUrl})`);
   }
   const marker = inProgress ? `${GREENLIGHT_PENDING_MARKER}\n` : "";
   // The section renders closed, so the <summary> is all a reader sees without
@@ -274,7 +289,10 @@ export function renderGreenlightSection(
       [message, "", reasonLine(state.reason), ...commitLines],
       evalJob,
       false,
-      outdated
+      outdated,
+      // The reviewed commit, not currentHeadSha: the link has to select the
+      // commit this verdict is about, which on an outdated one is not the head.
+      greenlightReportUrl(state.repo, state.prNumber, state.headSha)
     );
   }
 
