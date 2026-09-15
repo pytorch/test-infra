@@ -53,7 +53,9 @@ interface HealthPrRow {
   last_run: string;
   successes: number;
   total: number;
-  pass_rate: number;
+  in_progress: number;
+  overdue_in_progress: number;
+  pass_rate: number | null;
 }
 
 interface CrcrJobRow {
@@ -488,6 +490,7 @@ function NightlySummaryCards({
 // ---- Relay Health Card (for pytorch/crcr-test) ----
 
 const HEALTH_COUNT = 5;
+const HEALTH_STALE_AFTER_MINUTES = 24 * 60 + 15;
 
 function RelayHealthCard({
   healthPrs,
@@ -495,10 +498,35 @@ function RelayHealthCard({
   healthPrs: HealthPrRow[] | undefined;
 }) {
   if (!healthPrs || healthPrs.length === 0) return null;
-  const allPassed = healthPrs.every((pr) => pr.pass_rate >= 1.0);
-  const passedCount = healthPrs.filter((pr) => pr.pass_rate >= 1.0).length;
-  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
-  const label = allPassed ? "Healthy" : "Degraded";
+  const pending = healthPrs.reduce((sum, pr) => sum + pr.in_progress, 0);
+  const overdue = healthPrs.reduce(
+    (sum, pr) => sum + pr.overdue_in_progress,
+    0
+  );
+  const passedCount = healthPrs.filter(
+    (pr) => pr.total > 0 && pr.pass_rate === 1.0 && pr.in_progress === 0
+  ).length;
+  const hasFailures = healthPrs.some(
+    (pr) => pr.total > 0 && (pr.pass_rate ?? 0) < 1.0
+  );
+  const isDegraded = hasFailures || overdue > 0;
+  const isAwaitingSweep = !isDegraded && pending > 0;
+  const borderColor = isDegraded
+    ? "#ed6c02"
+    : isAwaitingSweep
+    ? "#0288d1"
+    : "#2e7d32";
+  const label = isDegraded
+    ? "Degraded"
+    : isAwaitingSweep
+    ? "Awaiting sweep"
+    : "Healthy";
+  const detail =
+    isDegraded && overdue > 0
+      ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
+      : isAwaitingSweep
+      ? `${pending} job${pending === 1 ? "" : "s"} awaiting sweep`
+      : `${passedCount}/${healthPrs.length} of last ${healthPrs.length} PRs passed`;
   return (
     <Paper
       elevation={1}
@@ -517,7 +545,7 @@ function RelayHealthCard({
         {label}
       </Typography>
       <Typography variant="caption" color="text.secondary">
-        {passedCount}/{healthPrs.length} of last {healthPrs.length} PRs passed
+        {detail}
       </Typography>
     </Paper>
   );
@@ -1555,7 +1583,10 @@ export default function CrcrBackendPage() {
   const healthUrl =
     isCrcrTest && !isNightly
       ? `/api/clickhouse/crcr_health_last_prs?parameters=${encodeURIComponent(
-          JSON.stringify({ count: String(HEALTH_COUNT) })
+          JSON.stringify({
+            count: String(HEALTH_COUNT),
+            stale_after_minutes: String(HEALTH_STALE_AFTER_MINUTES),
+          })
         )}`
       : null;
   const { data: healthPrs } = useSWR<HealthPrRow[]>(
