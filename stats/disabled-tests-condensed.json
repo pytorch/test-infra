@@ -341,13 +341,6 @@
       "linux"
     ]
   ],
-  "test_cudnn_rnn_cuda_bfloat16 (__main__.TestNNDeviceTypeCUDA)": [
-    "195619",
-    "https://github.com/pytorch/pytorch/issues/195619",
-    [
-      "linux"
-    ]
-  ],
   "test_cudnn_rnn_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
     "195656",
     "https://github.com/pytorch/pytorch/issues/195656",
@@ -1458,15 +1451,6 @@
       "asan",
       "linux",
       "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
-    "152632",
-    "https://github.com/pytorch/pytorch/issues/152632",
-    [
-      "asan",
-      "linux",
       "slow"
     ]
   ],
