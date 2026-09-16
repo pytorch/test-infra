@@ -152,12 +152,19 @@ class TestFingerprint(unittest.TestCase):
 
     def test_different_exceptions_stay_distinct(self):
         self.assertNotEqual(
-            fingerprint("pytorch/test-infra", self._cause("AssertionError: assert 2 == 0")),
-            fingerprint("pytorch/test-infra", self._cause("AssertionError: assert 3 == 0")),
+            fingerprint(
+                "pytorch/test-infra", self._cause("AssertionError: assert 2 == 0")
+            ),
+            fingerprint(
+                "pytorch/test-infra", self._cause("AssertionError: assert 3 == 0")
+            ),
         )
 
     def test_same_exception_in_a_different_job_stays_distinct(self):
-        a = {"signature": self.SIG_BARE, "clusters": [":nvidia: (L4) PyTorch Compilation Passes"]}
+        a = {
+            "signature": self.SIG_BARE,
+            "clusters": [":nvidia: (L4) PyTorch Compilation Passes"],
+        }
         b = {"signature": self.SIG_BARE, "clusters": [":nvidia: (B200) Distributed"]}
         self.assertNotEqual(
             fingerprint("pytorch/test-infra", a), fingerprint("pytorch/test-infra", b)
