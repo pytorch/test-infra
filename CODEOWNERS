@@ -1,7 +1,6 @@
-# GitHub uses the LAST matching pattern for a path, and an unanchored pattern matches at
-# any depth. Several unrelated directories in this repo are also named `greenlight` (under
-# `.claude/hooks/` and under `torchci/`), so every pattern here is root-anchored to keep
-# one area's owners off the others.
+# Every pattern here is root-anchored. Unrelated directories under `torchci/` are also
+# named `greenlight`, and an unanchored pattern matches at any depth, so dropping a leading
+# slash would hand those directories to these owners.
 
 /.claude/hooks/greenlight/          @jeanschmidt @ezyang @drisspg @albanD
 /.claude/skills/greenlight-review/  @jeanschmidt @ezyang @drisspg @albanD
