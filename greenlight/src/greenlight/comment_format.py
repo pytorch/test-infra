@@ -27,10 +27,17 @@ the only defence an ``@`` inside a code span gets.
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from greenlight import github_client
-from greenlight.constants import STATUS_AI_REVIEW_STARTED, STATUS_LAND
+from greenlight.constants import (
+    HEAD_SHA_RE,
+    HUD_BASE_URL,
+    STATUS_AI_REVIEW_STARTED,
+    STATUS_LAND,
+    normalize_repo,
+)
 from greenlight.verdict_outline import is_outline, render_outline_html
 
 if TYPE_CHECKING:
@@ -54,6 +61,26 @@ INCOMPLETE_HEADLINE = "Green Light review did not complete"
 # can never overwrite (or be overwritten by) a LAND/NO_LAND verdict comment on the same PR.
 RECHECK_REFUSAL_MARKER = "<!-- greenlight-recheck-refusal -->"
 RECHECK_REFUSAL_HEADLINE = "Green Light will not re-review this PR"
+
+# The HUD's verdict panel opens its report dialog when it sees this. ``sha`` is separate because it
+# is the PR page's own commit picker parameter, and the panel has to be showing the verdict under
+# dispute before there is anything to report.
+REPORT_PARAM = "greenlightReport"
+_REPO_RE = re.compile(r"[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}")
+
+
+def report_url(repo: str, pr_number: int, head_sha: str) -> str:
+    """HUD deep link for disputing the verdict on ``head_sha``, or ``""`` if any part fails a guard.
+
+    Every value is checked whole before anything is emitted: the result goes inside a ``[text](url)``
+    in a comment this bot authors, where an unchecked value is a link target someone else chose.
+    Mirrored by ``greenlightReportUrl`` in ``torchci/lib/greenlight/greenlightReportLink.ts``; the two
+    render into the same reader's view of one verdict, so they must agree.
+    """
+    folded = normalize_repo(repo)
+    if not _REPO_RE.fullmatch(folded) or pr_number <= 0 or not HEAD_SHA_RE.fullmatch(head_sha):
+        return ""
+    return f"{HUD_BASE_URL}/{folded}/pull/{pr_number}?sha={head_sha.lower()}&{REPORT_PARAM}=1"
 
 
 def defang(text: str) -> str:
@@ -103,6 +130,7 @@ def _details_comment(
     summary: str,
     body_lines: Iterable[str],
     job_url: str,
+    report_link: str = "",
 ) -> str:
     parts = [COMMENT_MARKER]
     if run_id is not None:
@@ -111,11 +139,18 @@ def _details_comment(
     parts += list(body_lines)
     if job_url:
         parts += ["", f"[Inference job]({job_url})"]
+    if report_link:
+        parts += ["", f"[:bug: Report a wrong verdict]({report_link})"]
     parts.append("</details>")
     return "\n".join(parts)
 
 
-def verdict_body(status: str, reason: str, message: str, job_url: str, run_id: int | None) -> str:
+def verdict_body(
+    status: str, reason: str, message: str, job_url: str, run_id: int | None, report_link: str = ""
+) -> str:
+    """``report_link`` is offered only here: LAND and NO_LAND are the only statuses that are a
+    judgement, and the other bodies describe the absence of one, where there is nothing to dispute.
+    """
     headline = LAND_HEADLINE if status == STATUS_LAND else NO_LAND_HEADLINE
     return _details_comment(
         run_id=run_id,
@@ -123,6 +158,7 @@ def verdict_body(status: str, reason: str, message: str, job_url: str, run_id: i
         summary="Why",
         body_lines=[_message_block(message), "", f"reason: `{reason}`"],
         job_url=job_url,
+        report_link=report_link,
     )
 
 

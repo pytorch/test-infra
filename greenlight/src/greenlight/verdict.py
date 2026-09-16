@@ -343,7 +343,14 @@ def _run_full(
     key = _emit_payload(request, status, reason, message, shadow=shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url
-    body = comment_format.verdict_body(status, reason, message, job_url, request.run_id)
+    body = comment_format.verdict_body(
+        status,
+        reason,
+        message,
+        job_url,
+        request.run_id,
+        comment_format.report_url(request.repo, request.pr_number, request.head_sha),
+    )
     if status == STATUS_LAND:
         if shadow:
             logger.info(
