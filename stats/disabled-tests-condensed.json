@@ -341,13 +341,6 @@
       "linux"
     ]
   ],
-  "test_cudnn_rnn_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
-    "195656",
-    "https://github.com/pytorch/pytorch/issues/195656",
-    [
-      "linux"
-    ]
-  ],
   "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
     "127536",
     "https://github.com/pytorch/pytorch/issues/127536",
@@ -776,6 +769,14 @@
   "test_linalg_batched_lu_stability_large_inputs_cuda_complex128 (__main__.TestLinalgCUDA)": [
     "196672",
     "https://github.com/pytorch/pytorch/issues/196672",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_linalg_batched_lu_stability_large_inputs_cuda_float32 (__main__.TestLinalgCUDA)": [
+    "197180",
+    "https://github.com/pytorch/pytorch/issues/197180",
     [
       "linux",
       "slow"
@@ -1522,6 +1523,13 @@
       "mac",
       "macos",
       "rocm"
+    ]
+  ],
+  "test_update_weights (__main__.TestAOTInductorPackage_xpu)": [
+    "194562",
+    "https://github.com/pytorch/pytorch/issues/194562",
+    [
+      "xpu"
     ]
   ],
   "test_upper_bound_i64_cuda (__main__.AOTInductorTestDualWrapper)": [
