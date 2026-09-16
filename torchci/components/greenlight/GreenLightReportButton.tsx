@@ -34,8 +34,10 @@ import {
   GREENLIGHT_REPORT_PROJECT_URL,
   GREENLIGHT_REPORT_REPO,
 } from "lib/greenlight/greenlightReport";
+import { GREENLIGHT_REPORT_PARAM } from "lib/greenlight/greenlightReportLink";
 import { useHasWritePermissions } from "lib/useHasWritePermissions";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 
 type Phase =
   | { kind: "editing" }
@@ -80,10 +82,35 @@ export default function GreenLightReportButton({
   status: string;
 }) {
   const writeAccess = useHasWritePermissions();
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "editing" });
+
+  // The Dr.CI comment and greenlight's own comment link here with
+  // ?sha=<reviewed>&greenlightReport=1, so a reader disputing a verdict lands on
+  // the dialog rather than on a page with a button somewhere in it. The `sha` is
+  // the PR page's own picker parameter and has already chosen which verdict this
+  // panel is showing, so by the time this runs the flag needs no target of its own.
+  //
+  // The flag is stripped as it is honoured. Without that, closing the dialog and
+  // then hitting anything that remounts this component -- an SWR refresh that
+  // changes the row's status, which is part of the panel's key -- would reopen it
+  // over and over, and the URL would still say "open" long after the reader
+  // decided not to.
+  const wantsReport = router.query[GREENLIGHT_REPORT_PARAM] !== undefined;
+  useEffect(() => {
+    if (!wantsReport || writeAccess !== "yes") {
+      return;
+    }
+    setOpen(true);
+    const { [GREENLIGHT_REPORT_PARAM]: _flag, ...rest } = router.query;
+    router.replace({ query: rest }, undefined, { shallow: true });
+    // router is excluded deliberately: it is a new object on every navigation,
+    // so depending on it would re-run this the moment the replace lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsReport, writeAccess]);
 
   const submitting = phase.kind === "submitting";
   const trimmed = comment.trim();
