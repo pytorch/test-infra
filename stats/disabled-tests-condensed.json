@@ -387,13 +387,6 @@
       "rocm"
     ]
   ],
-  "test_dlpack_exchange_api_cuda (__main__.TestTorchDlPackCUDA)": [
-    "195757",
-    "https://github.com/pytorch/pytorch/issues/195757",
-    [
-      "linux"
-    ]
-  ],
   "test_dtensor_op_db_linalg_cond_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
     "190141",
     "https://github.com/pytorch/pytorch/issues/190141",
@@ -953,6 +946,15 @@
       "dynamo"
     ]
   ],
+  "test_mutation_rename (__main__.TestMaxAutotune)": [
+    "154218",
+    "https://github.com/pytorch/pytorch/issues/154218",
+    [
+      "inductor",
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
     "196899",
     "https://github.com/pytorch/pytorch/issues/196899",
@@ -1084,13 +1086,6 @@
     "https://github.com/pytorch/pytorch/issues/193150",
     [
       "linux"
-    ]
-  ],
-  "test_philox_state_advances_default_generator (__main__.TestCuda)": [
-    "195755",
-    "https://github.com/pytorch/pytorch/issues/195755",
-    [
-      "rocm"
     ]
   ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
