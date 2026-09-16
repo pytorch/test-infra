@@ -69,7 +69,7 @@ jobs:
     # PR to inject code that executes when a maintainer comments.
     # See: https://github.com/orgs/community/discussions/55940#discussioncomment-5950832
     if: |
-      contains(fromJSON('["pytorch","meta-pytorch"]'), github.repository_owner) &&
+      contains(fromJSON('["pytorch","meta-pytorch","metainternal"]'), github.repository_owner) &&
       (
         (github.event_name != 'issues' && contains(github.event.comment.body, '@claude')) ||
         (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
