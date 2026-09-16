@@ -496,7 +496,8 @@
     "195554",
     "https://github.com/pytorch/pytorch/issues/195554",
     [
-      "inductor"
+      "inductor",
+      "rocm"
     ]
   ],
   "test_extend_nccl_pg_timeout_backend0 (__main__.ProcessGroupNCCLGroupTest)": [
