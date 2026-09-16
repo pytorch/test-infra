@@ -348,6 +348,55 @@ export async function hasWritePermissions(
   return permissions === "admin" || permissions === "write";
 }
 
+// Answers "did we VERIFY this user as an active member of org/teamSlug?" —
+// a false is "not verified", which is weaker than "not a member".
+//
+// Fails closed. The call needs the app's `members:read` org permission, and
+// GitHub can answer 404 for a genuine non-member, for a team that does not
+// exist, and for one the token cannot read alike. Every non-success — a 404, a
+// 403 from a missing grant, a transport error — resolves to false, so a broken
+// lookup can never widen access. Callers must word their own logs and
+// user-facing messages as "could not verify" rather than "is not a member".
+export async function isOrgTeamMember(
+  ctx: any,
+  org: string,
+  teamSlug: string,
+  username: string
+): Promise<boolean> {
+  try {
+    const res = await ctx.octokit.teams.getMembershipForUserInOrg({
+      org,
+      team_slug: teamSlug,
+      username,
+    });
+    return res?.data?.state === "active";
+  } catch (error) {
+    // Log, but never let logging decide the answer: a throw from here would
+    // escape the catch and skip the caller's enforcement entirely.
+    try {
+      if ((error as any)?.status === 404) {
+        // A 404 here is ambiguous — not a member, no such team, or a team this
+        // token cannot read — and nothing at this call site can tell them
+        // apart. Log it anyway so the ambiguity is visible: repeated 404s for
+        // people independently known to be on the team are a reason to check
+        // the team slug and the installation's access, not proof of either.
+        ctx.log?.info?.(
+          { org, teamSlug, username },
+          "team membership lookup returned 404: not a member, no such team, or the team is not readable with this token"
+        );
+      } else {
+        ctx.log?.error?.(
+          { org, teamSlug, username, err: error },
+          "team membership lookup failed, denying the exemption"
+        );
+      }
+    } catch {
+      // Logging is best effort.
+    }
+    return false;
+  }
+}
+
 export async function hasApprovedPullRuns(
   octokit: Octokit,
   owner: string,

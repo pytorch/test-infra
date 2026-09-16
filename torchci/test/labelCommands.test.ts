@@ -319,7 +319,7 @@ describe("label-bot", () => {
     handleScope(scope);
   });
 
-  test("bot-managed labels cannot be added with the label command", async () => {
+  function botManagedLabelCommandEvent() {
     const event = JSON.parse(
       JSON.stringify(require("./fixtures/pull_request_comment.json"))
     );
@@ -327,22 +327,33 @@ describe("label-bot", () => {
     event.payload.repository.owner.login = "pytorch";
     event.payload.repository.name = "pytorch";
     event.payload.repository.full_name = "pytorch/pytorch";
+    return event;
+  }
 
+  const botManagedRepoLabels = () => [
+    ...existingRepoLabelsResponse,
+    {
+      name: "in progress",
+      color: "ededed",
+      description: "PR implementation is in progress",
+    },
+  ];
+
+  function mockDevInfraMembership(login: string, status: number, body?: any) {
+    return nock("https://api.github.com")
+      .get(`/orgs/pytorch/teams/pytorch-dev-infra/memberships/${login}`)
+      .reply(status, body);
+  }
+
+  test("bot-managed labels cannot be added with the label command", async () => {
+    const event = botManagedLabelCommandEvent();
     const owner = event.payload.repository.owner.login;
     const repo = event.payload.repository.name;
     const prNumber = event.payload.issue.number;
-    const repoLabels = [
-      ...existingRepoLabelsResponse,
-      {
-        name: "in progress",
-        color: "ededed",
-        description: "PR implementation is in progress",
-      },
-    ];
 
     const scope = nock("https://api.github.com")
       .get(`/repos/${owner}/${repo}/labels?per_page=100`)
-      .reply(200, repoLabels)
+      .reply(200, botManagedRepoLabels())
       .post(`/repos/${owner}/${repo}/issues/${prNumber}/comments`, (body) => {
         expect(body.body).toContain(
           "lifecycle labels are managed automatically by pytorch-bot"
@@ -351,9 +362,161 @@ describe("label-bot", () => {
         return true;
       })
       .reply(200, {});
+    const membership = mockDevInfraMembership(
+      event.payload.comment.user.login,
+      404
+    );
 
     await probot.receive(event);
 
+    handleScope(membership);
+    handleScope(scope);
+  });
+
+  test("dev infra members can add bot-managed labels with the label command", async () => {
+    const event = botManagedLabelCommandEvent();
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const prNumber = event.payload.issue.number;
+    const commentId = event.payload.comment.id;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
+      .reply(200, botManagedRepoLabels())
+      .post(`/repos/${owner}/${repo}/issues/${prNumber}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`{"labels":["in progress"]}`);
+        return true;
+      })
+      .reply(200, {})
+      .post(
+        `/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`,
+        (body) => {
+          expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+          return true;
+        }
+      )
+      .reply(200, {});
+    const membership = mockDevInfraMembership(
+      event.payload.comment.user.login,
+      200,
+      { state: "active" }
+    );
+
+    await probot.receive(event);
+
+    handleScope(membership);
+    handleScope(scope);
+  });
+
+  test("bot-managed labels stay refused when the team lookup fails", async () => {
+    const event = botManagedLabelCommandEvent();
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const prNumber = event.payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
+      .reply(200, botManagedRepoLabels())
+      .post(`/repos/${owner}/${repo}/issues/${prNumber}/comments`, (body) => {
+        expect(body.body).toContain(
+          "lifecycle labels are managed automatically by pytorch-bot"
+        );
+        return true;
+      })
+      .reply(200, {});
+    const membership = mockDevInfraMembership(
+      event.payload.comment.user.login,
+      403,
+      { message: "Forbidden" }
+    );
+
+    await probot.receive(event);
+
+    handleScope(membership);
+    handleScope(scope);
+  });
+
+  // On the pull_request_review path the handler's `login` is the PR AUTHOR, not
+  // the reviewer who typed the command. These two pin the exemption to the
+  // reviewer, so an author on the team cannot lend their exemption out.
+  function botManagedLabelReviewEvent(
+    reviewerLogin: string,
+    prAuthorLogin: string
+  ) {
+    const event = JSON.parse(
+      JSON.stringify(require("./fixtures/pull_request_review.json"))
+    );
+    event.payload.review.body = "@pytorchbot label 'in progress'";
+    event.payload.review.user = { login: reviewerLogin };
+    event.payload.pull_request.user = { login: prAuthorLogin };
+    event.payload.repository.owner.login = "pytorch";
+    event.payload.repository.name = "pytorch";
+    event.payload.repository.full_name = "pytorch/pytorch";
+    return event;
+  }
+
+  test("a non-member reviewer cannot borrow a dev infra PR author's exemption", async () => {
+    const event = botManagedLabelReviewEvent(
+      "outside-reviewer",
+      "dev-infra-pr-author"
+    );
+    const prNumber = event.payload.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/pytorch/pytorch/labels?per_page=100`)
+      .reply(200, botManagedRepoLabels())
+      .post(`/repos/pytorch/pytorch/issues/${prNumber}/comments`, (body) => {
+        expect(body.body).toContain(
+          "lifecycle labels are managed automatically by pytorch-bot"
+        );
+        return true;
+      })
+      .reply(200, {});
+    // Membership is asked about the REVIEWER. If the code used `this.login`
+    // instead, this interceptor would go unconsumed and the author's mock below
+    // would answer "active", letting the label through.
+    const reviewerMembership = mockDevInfraMembership("outside-reviewer", 404);
+    const authorMembership = mockDevInfraMembership(
+      "dev-infra-pr-author",
+      200,
+      { state: "active" }
+    );
+
+    await probot.receive(event);
+
+    expect(authorMembership.isDone()).toBe(false);
+    handleScope(reviewerMembership);
+    handleScope(scope);
+  });
+
+  test("a dev infra reviewer can add bot-managed labels from a review body", async () => {
+    const event = botManagedLabelReviewEvent(
+      "dev-infra-reviewer",
+      "someone-else"
+    );
+    const prNumber = event.payload.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/pytorch/pytorch/labels?per_page=100`)
+      .reply(200, botManagedRepoLabels())
+      .post(`/repos/pytorch/pytorch/issues/${prNumber}/labels`, (body) => {
+        expect(JSON.stringify(body)).toContain(`{"labels":["in progress"]}`);
+        return true;
+      })
+      .reply(200, {})
+      // useReactions is false on the review path, so the ack is a comment.
+      .post(`/repos/pytorch/pytorch/issues/${prNumber}/comments`, (body) => {
+        expect(body.body).toContain("+1");
+        return true;
+      })
+      .reply(200, {});
+    const membership = mockDevInfraMembership("dev-infra-reviewer", 200, {
+      state: "active",
+    });
+
+    await probot.receive(event);
+
+    handleScope(membership);
     handleScope(scope);
   });
 
