@@ -1171,6 +1171,34 @@
       "rocm"
     ]
   ],
+  "test_redispatch_scatter_xpu_float8_e4m3fn (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197334",
+    "https://github.com/pytorch/pytorch/issues/197334",
+    [
+      "xpu"
+    ]
+  ],
+  "test_redispatch_scatter_xpu_float8_e4m3fnuz (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197335",
+    "https://github.com/pytorch/pytorch/issues/197335",
+    [
+      "xpu"
+    ]
+  ],
+  "test_redispatch_scatter_xpu_float8_e5m2 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197336",
+    "https://github.com/pytorch/pytorch/issues/197336",
+    [
+      "xpu"
+    ]
+  ],
+  "test_redispatch_scatter_xpu_float8_e5m2fnuz (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197337",
+    "https://github.com/pytorch/pytorch/issues/197337",
+    [
+      "xpu"
+    ]
+  ],
   "test_reduction_not_fused (__main__.TestNVUniversalGemmEpilogueFusion)": [
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
