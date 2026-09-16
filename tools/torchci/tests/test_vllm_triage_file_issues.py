@@ -13,7 +13,10 @@ import unittest
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
     eligible,
+    fingerprint,
+    legacy_fingerprint,
     new_failure_confidence,
+    normalize_signature,
 )
 
 
@@ -102,6 +105,74 @@ class TestEligible(unittest.TestCase):
         self.assertEqual([eligible(c) for c in observed], [False, False])
         self.assertEqual(
             [classification_confidence(c) for c in observed], ["high", "medium"]
+        )
+
+
+class TestFingerprint(unittest.TestCase):
+    """The key must identify the cause, not the log excerpt it arrived in."""
+
+    # Verbatim from test-infra#8761 and #8783: one bug, two issues. Same test,
+    # same assertion, same cluster -- but #8761's signature kept pytest's
+    # continuation line and #8783's did not, so the raw-text hash differed and
+    # the recurrence check filed a second issue two days later.
+    SIG_WITH_TAIL = (
+        "AssertionError: assert 2 == 0\n"
+        " +  where 2 = op_count(<OpOverload(op='aten.slice_scatter', "
+        "overload='default')>)"
+    )
+    SIG_BARE = "AssertionError: assert 2 == 0"
+    CLUSTERS = [":nvidia: (L4) PyTorch Compilation Passes"]
+
+    def _cause(self, signature):
+        return {"signature": signature, "clusters": list(self.CLUSTERS)}
+
+    def test_truncated_pytest_tail_does_not_split_a_cause(self):
+        self.assertEqual(
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_WITH_TAIL)),
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_BARE)),
+        )
+
+    def test_legacy_key_reproduces_the_issues_actually_filed(self):
+        # Guards the migration path: these are the keys in the live issue
+        # bodies, so a lookup fallback on them must keep matching.
+        self.assertEqual(
+            legacy_fingerprint("pytorch/test-infra", self._cause(self.SIG_WITH_TAIL)),
+            "7c92bb1993d0f853",
+        )
+        self.assertEqual(
+            legacy_fingerprint("pytorch/test-infra", self._cause(self.SIG_BARE)),
+            "982efc048a4aed36",
+        )
+
+    def test_whitespace_and_blank_lines_are_not_identity(self):
+        self.assertEqual(
+            fingerprint("pytorch/test-infra", self._cause("RuntimeError:  boom")),
+            fingerprint("pytorch/test-infra", self._cause("\nRuntimeError: boom  \n")),
+        )
+
+    def test_different_exceptions_stay_distinct(self):
+        self.assertNotEqual(
+            fingerprint(
+                "pytorch/test-infra", self._cause("AssertionError: assert 2 == 0")
+            ),
+            fingerprint(
+                "pytorch/test-infra", self._cause("AssertionError: assert 3 == 0")
+            ),
+        )
+
+    def test_same_exception_in_a_different_job_stays_distinct(self):
+        a = {
+            "signature": self.SIG_BARE,
+            "clusters": [":nvidia: (L4) PyTorch Compilation Passes"],
+        }
+        b = {"signature": self.SIG_BARE, "clusters": [":nvidia: (B200) Distributed"]}
+        self.assertNotEqual(
+            fingerprint("pytorch/test-infra", a), fingerprint("pytorch/test-infra", b)
+        )
+
+    def test_normalize_keeps_the_assertion_drops_the_explanation(self):
+        self.assertEqual(
+            normalize_signature(self.SIG_WITH_TAIL), "AssertionError: assert 2 == 0"
         )
 
 
