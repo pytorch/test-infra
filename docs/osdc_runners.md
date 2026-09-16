@@ -48,7 +48,7 @@ automatically:
   my-gpu-test:
     uses: pytorch/test-infra/.github/workflows/linux_job_v3.yml@main
     with:
-      runner: mt-l-x86aavx2-29-113-a10g            # 1× A10G
+      runner: mt-l-x86aavx2-11-41-a10g             # 1× A10G
       gpu-arch-type: cuda
       gpu-arch-version: "12.4"
       docker-image: ghcr.io/pytorch/my-cuda-image:latest
@@ -108,7 +108,7 @@ Labels you write in a workflow look like this:
   a count when there is more than one.
 - A `b` before the architecture means bare metal, so the job gets a whole node to itself.
 
-For example, `mt-l-x86aavx2-29-113-a10g` is a Linux x86 AMD-ISA AVX2 runner with 29 vCPU, 113 GiB and one
+For example, `mt-l-x86aavx2-11-41-a10g` is a Linux x86 AMD-ISA AVX2 runner with 11 vCPU, 41 GiB and one
 A10G. The full grammar, including prefixes used by other fleets, is in
 [`runner_naming_convention.md`](https://github.com/pytorch/ci-infra/blob/main/osdc/docs/runner_naming_convention.md).
 
@@ -127,7 +127,7 @@ Common mappings, with the full list in `arc.yaml`:
 | `linux.4xlarge` | `mt-l-x86iavx512-16-128` | 15 vCPU / 116Gi / 300G |
 | `linux.12xlarge` | `mt-l-x86iavx512-48-384` | 46 vCPU / 350Gi / 600G |
 | `linux.arm64.m7g.4xlarge` | `mt-l-arm64g3-16-62` | 15 vCPU / 56Gi / 256G |
-| `linux.g5.4xlarge.nvidia.gpu` | `mt-l-x86aavx2-29-113-a10g` | 1× A10G, 29 vCPU / 113Gi |
+| `linux.g5.4xlarge.nvidia.gpu` | `mt-l-x86aavx2-11-41-a10g` | 1× A10G, 11 vCPU / 41Gi |
 | `linux.aws.h100` | `mt-l-x86iamx-22-225-h100` | 1× H100, 22 vCPU / 225Gi |
 
 ### Special cases
