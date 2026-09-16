@@ -47,6 +47,3 @@ export function greenlightReportUrl(
   }
   return `${HUD_BASE_URL}/${repo}/pull/${prNumber}?sha=${sha.toLowerCase()}&${GREENLIGHT_REPORT_PARAM}=1`;
 }
-
-/** The HUD origin, for the plain links that are not this deep link. */
-export { HUD_BASE_URL as GREENLIGHT_HUD_BASE_URL };

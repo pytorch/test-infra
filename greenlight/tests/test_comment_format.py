@@ -459,8 +459,8 @@ def test_report_url_emits_nothing_rather_than_a_half_built_target(repo, pr_numbe
 def test_verdict_body_carries_the_report_link_below_the_job_link():
     body = comment_format.verdict_body("NO_LAND", "reason", "why", "https://example.invalid/job", None, "https://x/y")
     assert "[Inference job](https://example.invalid/job)" in body
-    assert "[Report a wrong verdict](https://x/y)" in body
-    assert body.index("[Report a wrong verdict]") > body.index("[Inference job]")
+    assert "[:bug: Report a wrong verdict](https://x/y)" in body
+    assert body.index("[:bug: Report a wrong verdict]") > body.index("[Inference job]")
     assert body.rstrip().endswith("</details>")
 
 

@@ -244,7 +244,7 @@ function renderSection(
   // ones Python renders, and an interpolated constant would give it the name of
   // the constant instead of the words a reader sees.
   if (reportUrl) {
-    lines.push("", `[Report a wrong verdict](${reportUrl})`);
+    lines.push("", `[:bug: Report a wrong verdict](${reportUrl})`);
   }
   const marker = inProgress ? `${GREENLIGHT_PENDING_MARKER}\n` : "";
   // The section renders closed, so the <summary> is all a reader sees without

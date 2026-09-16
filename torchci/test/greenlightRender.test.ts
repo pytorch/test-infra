@@ -559,7 +559,7 @@ describe("renderGreenlightSection statuses", () => {
   it("offers the report link on both judgements, pointing at the reviewed commit", () => {
     for (const status of ["LAND", "NO_LAND"]) {
       expect(render(state({ status }), FRESH_NOW)).toContain(
-        `[Report a wrong verdict](https://hud.pytorch.org/pytorch/pytorch/pull/123` +
+        `[:bug: Report a wrong verdict](https://hud.pytorch.org/pytorch/pytorch/pull/123` +
           `?sha=${REVIEWED_SHA}&greenlightReport=1)`
       );
     }
@@ -584,14 +584,14 @@ describe("renderGreenlightSection statuses", () => {
       "AI_REVIEW_DISPATCHED",
     ]) {
       expect(render(state({ status }), FRESH_NOW)).not.toContain(
-        "[Report a wrong verdict]"
+        "Report a wrong verdict"
       );
     }
     // Including a stalled in-flight row, which is presented as one that did not
     // complete and has no verdict behind it.
     expect(
       render(state({ status: "AI_REVIEW_STARTED" }), STALE_NOW)
-    ).not.toContain("[Report a wrong verdict]");
+    ).not.toContain("Report a wrong verdict");
   });
 
   it("omits the report link rather than emit an unguarded link target", () => {
@@ -609,7 +609,7 @@ describe("renderGreenlightSection statuses", () => {
 
     for (const s of broken) {
       const out = render(s, FRESH_NOW, s.headSha);
-      expect(out).not.toContain("[Report a wrong verdict]");
+      expect(out).not.toContain("Report a wrong verdict");
       expect(out).not.toContain("javascript:");
       // The rest of the section still renders; the link is the only casualty.
       expect(out).toContain("reason: `clean`");

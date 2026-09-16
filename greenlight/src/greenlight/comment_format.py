@@ -140,7 +140,7 @@ def _details_comment(
     if job_url:
         parts += ["", f"[Inference job]({job_url})"]
     if report_link:
-        parts += ["", f"[Report a wrong verdict]({report_link})"]
+        parts += ["", f"[:bug: Report a wrong verdict]({report_link})"]
     parts.append("</details>")
     return "\n".join(parts)
 

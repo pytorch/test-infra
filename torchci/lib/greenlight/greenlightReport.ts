@@ -30,7 +30,6 @@ import {
   GREENLIGHT_STATUS_LAND,
   GREENLIGHT_STATUS_NO_LAND,
 } from "lib/greenlight/greenlightRender";
-import { GREENLIGHT_HUD_BASE_URL } from "lib/greenlight/greenlightReportLink";
 
 /** Where the reports land. Not configurable: the triage board is pinned to it. */
 export const GREENLIGHT_REPORT_OWNER = "pytorch";
@@ -63,6 +62,8 @@ export const GREENLIGHT_REPORT_COMMENT_CAP = 4000;
 
 /** GitHub rejects a longer title outright. */
 export const GREENLIGHT_REPORT_TITLE_CAP = 256;
+
+const HUD_BASE_URL = "https://hud.pytorch.org";
 
 const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
 const FULL_SHA_RE = /^[0-9a-fA-F]{40}$/;
@@ -231,8 +232,8 @@ function factLines(subject: GreenlightReportSubject): string[] {
     lines.push(`- **Recorded at:** ${inlineCode(version)}`);
   }
   lines.push(
-    `- **HUD:** ${GREENLIGHT_HUD_BASE_URL}/${repo}/pull/${subject.prNumber}`,
-    `- **Commit page:** ${GREENLIGHT_HUD_BASE_URL}/${repo}/commit/${headSha}`
+    `- **HUD:** ${HUD_BASE_URL}/${repo}/pull/${subject.prNumber}`,
+    `- **Commit page:** ${HUD_BASE_URL}/${repo}/commit/${headSha}`
   );
   // Bare, never `[text](url)`: the guard proves the URL is a github.com one, not
   // that it is free of the characters that would break out of a link target.
