@@ -195,6 +195,10 @@ on, in whatever words fit it.
 
 As a community project, many documentation changes not only reflect relevant contextual information about the code, but document and communicate official policies, organizational dynamics, project priorities, project-level decisions and adding/removing new rules or restrictions. Those **require** humans to reach an agreement before they are widely communicated and embedded in the project.
 
+### New Jobs in Blocking Workflows
+
+Test jobs added to the `viable/strict` blocking workflows (`pull.yml`, `trunk.yml`) gate every PR merge and the progression of `viable/strict`, so their cost falls on all contributors. Such jobs should provide essential coverage, and should run reliably without regressing overall workflow runtime — neither of which the diff alone shows. These changes **require** a human. Other edits to these workflows — retuned shard counts, runner label changes, version or OS bumps — are ordinary changes; judge them on the criteria above.
+
 ## Time budget
 
 A standard review should land under **20 minutes**; the verdict is due by **33**. You
