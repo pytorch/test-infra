@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -44,6 +45,48 @@ def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any
         return json.loads(resp.read() or "null")
 
 
+# pytest prints an assertion, then explains it on continuation lines:
+#
+#     AssertionError: assert 2 == 0
+#      +  where 2 = op_count(<OpOverload(op='aten.slice_scatter', ...)>)
+#
+# How much of that tail reaches `signature` depends on where the agent cut the
+# log, so the same failure can arrive with or without the `+` lines. Hashing
+# them split one cause across two issues (#8761 and #8783: same test, same
+# `assert 2 == 0`, same cluster, two keys). They are derived from the assertion
+# above them, so they carry no identity of their own -- drop them.
+_PYTEST_CONTINUATION = re.compile(r"^(?:E\s+)?\+")
+
+
+def normalize_signature(signature: str) -> str:
+    """Reduce a signature to the part that identifies the cause.
+
+    Whitespace is collapsed and pytest's assertion-introspection lines are
+    dropped, so a signature truncated at a different point still fingerprints
+    the same. Deliberately conservative: nothing that could distinguish two
+    genuine causes (exception type, message text, numbers) is touched, because
+    over-normalizing silently merges distinct regressions, which is worse than
+    filing a duplicate.
+    """
+    lines = []
+    for raw in (signature or "").splitlines():
+        line = " ".join(raw.split())
+        if not line or _PYTEST_CONTINUATION.match(line):
+            continue
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _basis(repo: str, cause: Dict[str, Any], signature: str) -> str:
+    return "\n".join(
+        [
+            repo,
+            signature,
+            *sorted(c.strip() for c in cause.get("clusters") or []),
+        ]
+    )
+
+
 def fingerprint(repo: str, cause: Dict[str, Any]) -> str:
     """Stable across runs: the cause identity, not the build it was seen in.
 
@@ -51,14 +94,21 @@ def fingerprint(repo: str, cause: Dict[str, Any]) -> str:
     usually a different bug; build numbers and dates are excluded so a recurrence
     matches rather than files anew.
     """
-    basis = "\n".join(
-        [
-            repo,
-            (cause.get("signature") or cause.get("title") or "").strip(),
-            *sorted(c.strip() for c in cause.get("clusters") or []),
-        ]
-    )
-    return hashlib.sha256(basis.encode()).hexdigest()[:16]
+    raw = cause.get("signature") or cause.get("title") or ""
+    return hashlib.sha256(
+        _basis(repo, cause, normalize_signature(raw)).encode()
+    ).hexdigest()[:16]
+
+
+def legacy_fingerprint(repo: str, cause: Dict[str, Any]) -> str:
+    """The pre-normalization key, for issues filed before that change.
+
+    Without this every open child issue would miss its lookup on the next run
+    and be re-filed as new. Looked up only as a fallback; a hit is migrated to
+    the current key so the fallback stops being needed.
+    """
+    raw = (cause.get("signature") or cause.get("title") or "").strip()
+    return hashlib.sha256(_basis(repo, cause, raw).encode()).hexdigest()[:16]
 
 
 def search_issue_by_key(token: str, repo: str, key: str) -> Optional[Dict]:
@@ -321,6 +371,24 @@ def main() -> int:
     for c in selected:
         key = fingerprint(args.repo, c)
         existing = search_issue_by_key(token, args.repo, key)
+        if existing is None:
+            legacy = legacy_fingerprint(args.repo, c)
+            if legacy != key:
+                existing = search_issue_by_key(token, args.repo, legacy)
+                if existing:
+                    # Rewrite the stored key so this issue is found directly
+                    # next run and the legacy lookup can eventually be removed.
+                    _req(
+                        "PATCH",
+                        f"/repos/{args.repo}/issues/{existing['number']}",
+                        token,
+                        {
+                            "body": (existing.get("body") or "").replace(
+                                f"{KEY_PREFIX}: {legacy}", f"{KEY_PREFIX}: {key}"
+                            )
+                        },
+                    )
+                    print(f"  migrated key {legacy} -> {key}")
         if existing:
             _req(
                 "POST",
