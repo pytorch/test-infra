@@ -81,3 +81,6 @@ aws/tools/cleanup-ssm/**/*.rs.bk
 
 # Remove the python version file from pyenv
 .python-version
+
+# Default output of tools/torchci/greenlight_decisions, which lands in the cwd
+greenlight_decisions_*.csv
