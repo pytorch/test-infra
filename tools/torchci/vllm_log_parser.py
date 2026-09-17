@@ -9,6 +9,7 @@ far from the end of a huge log is still captured.
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -82,6 +83,40 @@ INFRA_PATTERNS = [
 ]
 
 
+_HIGH_SIGNAL_RE = re.compile(
+    r"(?:Assertion\s+failed:|device[- ]side\s+assert(?:ion)?(?:\s+triggered)?|"
+    r"CUDA\s+kernel\s+errors\s+might\s+be\s+asynchronously\s+reported|"
+    r"Fatal\s+Python\s+error|Segmentation\s+fault|SIGSEGV|SIGABRT|SIGKILL|"
+    r"ProcessExitedException|undefined\s+symbol|cannot\s+open\s+shared\s+object\s+file|"
+    r"\b(?:ImportError|ModuleNotFoundError)\s*:\s+\S+|"
+    r"(?:ValueError|AttributeError|TypeError|AssertionError|OSError|"
+    r"KeyError|MemoryError|CalledProcessError|SystemExit)\s*:\s+\S+|"
+    r"\bCUDA\s+(?:error|failure|exception):|CUDA\s+(?:out\s+of\s+memory|OOM)|"
+    r"\bNCCL\s+(?:error|fatal|watchdog|peer|failure)\b|"
+    r"free\s+memory\s+on\s+device\s+cuda:\d+.*less\s+than\s+desired|"
+    r"out\s+of\s+memory)",
+    re.IGNORECASE,
+)
+_MEDIUM_SIGNAL_RE = re.compile(
+    r"(?:RuntimeError\s*:\s+\S+|EngineCore\s+failed\s+to\s+start|"
+    r"Engine\s+core\s+initialization\s+failed|"
+    r"\b(?:Process\s+)?EngineCore\b.*(?:Traceback|failed|fatal|exception|died|exited)|"
+    r"\b(?:worker|WorkerProc|RayWorkerWrapper|Ray\s+worker)\b.*"
+    r"(?:failed|fatal|error|exception|traceback|exited|died|crashed)|"
+    r"\b(?:API|HTTP)\s+server\b.*(?:failed|fatal|error|exception|exited|died)|"
+    r"Server\s+exited\s+unexpectedly|"
+    r"(?:GPU\s+)?coredump|coredump\s+(?:collection|generation)|"
+    r"\b(?:child|subprocess|process)\b.*(?:exit|terminated|killed|died)|"
+    r"Traceback\s+\(most\s+recent\s+call\s+last\):)",
+    re.IGNORECASE,
+)
+_COMMAND_SIGNAL_RE = re.compile(
+    r"(?:\b(?:The\s+)?command\s+(?:exited|failed)\s+with\s+(?:status|code)\s+\d+|"
+    r"\buser\s+command\s+error\b|"
+    r"\bplugin\b.*\b(?:command|hook)\b.*\b(?:exited|failed)\s+with\s+(?:status|code)\s+\d+|"
+    r"(?:^|\s)(?:FAILED|ERROR)\s+\S*(?:\.py|::)\S*)",
+    re.IGNORECASE,
+)
 def get_test_signature(failed_test: "FailedTest") -> tuple[str, str]:
     """Build the diff key for a failing test.
 
@@ -108,6 +143,149 @@ def strip_markers(text: str) -> str:
     ansi_regex = re.compile(r"\x1b\[[0-9;?]*[a-zA-Z]")
     osc_regex = re.compile(r"\x1b[\]_][^\x07]*\x07")
     return osc_regex.sub("", ansi_regex.sub("", text))
+
+
+def clean_failure_context_lines(text: str) -> list[str]:
+    """Return display lines with only transport/presentation noise removed."""
+    # Buildkite output occasionally contains an extra carriage return before a
+    # newline (and progress output can contain several).  Remove only those
+    # terminal carriage returns so visible content is retained and does not turn
+    # one logical line into a run of artificial blank lines.
+    cleaned = re.sub(r"\r+(?=\n|$)", "", strip_markers(text))
+    return [TIMESTAMP_RE.sub("", line) for line in cleaned.splitlines()]
+
+
+def _signal_score(line: str) -> int:
+    """Rank only; the downstream agent assigns the failure category."""
+    if _HIGH_SIGNAL_RE.search(line):
+        return 9
+    if _MEDIUM_SIGNAL_RE.search(line):
+        return 6
+    if _COMMAND_SIGNAL_RE.search(line):
+        return 4
+    return 0
+
+
+def _failure_candidates(lines: list[str]) -> list[tuple[int, int]]:
+    candidates: list[tuple[int, int]] = []
+    for index, line in enumerate(lines):
+        score = _signal_score(line)
+        if score > 0:
+            candidates.append((score, index))
+    return candidates
+
+
+def _merge_candidate_windows(
+    candidates: list[tuple[int, int]],
+    line_count: int,
+    context_before_lines: int,
+    context_after_lines: int,
+) -> list[tuple[int, int, int]]:
+    """Build and merge chronological candidate windows in one pass.
+
+    Each tuple is ``(highest_score, start, end)`` with zero-based,
+    end-exclusive bounds. Candidates arrive in log order, so only the window at
+    the top of the stack can intersect the next candidate window.
+    """
+    merged: list[tuple[int, int, int]] = []
+    for score, anchor_index in candidates:
+        start = max(0, anchor_index - context_before_lines)
+        end = min(line_count, anchor_index + context_after_lines)
+        if end <= start:
+            continue
+
+        if merged and start < merged[-1][2]:
+            previous_score, previous_start, previous_end = merged[-1]
+            merged[-1] = (
+                max(previous_score, score),
+                previous_start,
+                max(previous_end, end),
+            )
+        else:
+            merged.append((score, start, end))
+    return merged
+
+
+def extract_failure_context(
+    text: str,
+    failure_window_context_before_lines: int,
+    failure_window_context_after_lines: int,
+    max_lines: int = 450,
+) -> dict[str, Any]:
+    """Extract bounded, structured failure context from a complete Buildkite log.
+
+    The complete cleaned log is scanned for scored candidate signals. Intersecting
+    candidate windows are merged in chronological order before the highest-priority
+    merged windows are selected within a fixed line budget. Failure categorization
+    is intentionally left to the downstream agent.
+    """
+    if max_lines < 0:
+        raise ValueError("max_lines must not be negative")
+    if failure_window_context_before_lines < 0:
+        raise ValueError("failure_window_context_before_lines must not be negative")
+    if failure_window_context_after_lines < 0:
+        raise ValueError("failure_window_context_after_lines must not be negative")
+
+    lines = clean_failure_context_lines(text)
+    candidates = _failure_candidates(lines)
+    # Merge while candidates are still chronological. Otherwise repeated signal
+    # lines from one traceback each consume a full window from the line budget
+    # before the overlap is discovered.
+    merged_candidates = _merge_candidate_windows(
+        candidates,
+        len(lines),
+        failure_window_context_before_lines,
+        failure_window_context_after_lines,
+    )
+    ranked = sorted(merged_candidates, key=lambda item: (-item[0], item[1]))[:20]
+    selected_windows: list[tuple[int, int]] = []
+    used_lines = 0
+    clipped_window = False
+    for _score, start, end in ranked:
+        if used_lines >= max_lines:
+            break
+        width = end - start
+        if used_lines + width > max_lines:
+            end = start + max_lines - used_lines
+            width = end - start
+            clipped_window = True
+        if width <= 0:
+            continue
+        selected_windows.append((start, end))
+        used_lines += width
+
+    # Ranking determines selection; artifacts remain easy to read by presenting
+    # the selected, already-disjoint windows in log order.
+    selected_windows.sort()
+    emitted_windows = [
+        {
+            "window_type": "ranked",
+            "start_line": start + 1,
+            "end_line": end,
+            "text": "\n".join(lines[start:end]),
+        }
+        for start, end in selected_windows
+    ]
+    failure_windows = [
+        {
+            "window_type": "ranked",
+            "matched_candidate_count": len(candidates),
+            "matched_instance_count": len(candidates),
+            "emitted_instance_count": len(emitted_windows),
+            "instances_truncated": (
+                len(merged_candidates) > len(ranked)
+                or len(selected_windows) < len(ranked)
+                or clipped_window
+            ),
+        }
+    ]
+    return {
+        "line_count": len(lines),
+        "failure_window_context_before_lines": failure_window_context_before_lines,
+        "failure_window_context_after_lines": failure_window_context_after_lines,
+        "failure_windows": failure_windows,
+        "windows_in_chronological_order": emitted_windows,
+    }
 
 
 def parse_log(text: str) -> ParsedLog:
