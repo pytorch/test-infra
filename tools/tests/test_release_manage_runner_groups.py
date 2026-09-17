@@ -6,7 +6,7 @@ Run from the repo root with either:
 """
 
 from typing import Any, List, Tuple
-from unittest import main, TestCase
+from unittest import main, mock, TestCase
 
 import requests
 
@@ -489,9 +489,20 @@ class TestVersionAnchor(TestCase):
         )
         self.assertEqual(anchor, (1, 10))
 
-    def test_no_release_branch_is_a_clear_error(self) -> None:
-        with self.assertRaises(SystemExit):
-            m.get_test_version_anchor("pytorch/executorch", ["main", "nightly"])
+    def test_no_release_branch_falls_back_to_the_newest_tag(self) -> None:
+        # FBGEMM publishes from tags and has no release/X.Y branch at all.
+        with mock.patch.object(
+            m, "get_release_tag_versions", return_value=[(1, 8), (1, 9)]
+        ):
+            self.assertEqual(
+                m.get_test_version_anchor("pytorch/FBGEMM", ["main", "nightly"]),
+                (1, 9),
+            )
+
+    def test_no_release_branch_and_no_tag_is_a_clear_error(self) -> None:
+        with mock.patch.object(m, "get_release_tag_versions", return_value=[]):
+            with self.assertRaises(SystemExit):
+                m.get_test_version_anchor("pytorch/executorch", ["main", "nightly"])
 
 
 class BranchClient(m.GitHubClient):

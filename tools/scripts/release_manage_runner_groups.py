@@ -58,6 +58,8 @@ GROUP_NAME_RE = re.compile(r"-prod-.*-release-runners$")
 NUM_RELEASE_BRANCHES = 2
 
 RELEASE_BRANCH_RE = re.compile(r"^release/(\d+)\.(\d+)$")
+# Repos without release branches anchor on their newest vX.Y.Z[-rcN] tag.
+RELEASE_TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.\d+")
 
 # Marker for a release runner label as it appears in a workflow's runs-on, e.g.
 # rel-l-x86iavx512-44-340 or the mt-rel-... variant. A workflow that references
@@ -136,7 +138,10 @@ def get_test_version_anchor(repo: str, branch_names: Iterable[str]) -> Tuple[int
     candidate).
 
     Other repos do not publish that constant, so they anchor on their newest
-    protected release/X.Y branch.
+    protected release/X.Y branch, falling back to their newest vX.Y.Z tag. Not
+    every repo cuts release branches -- FBGEMM publishes straight from tags and
+    its one release/ branch is release/pytorch-1.5, which is a different naming
+    scheme entirely -- and a repo with no anchor at all cannot be reconciled.
     """
     if repo == DEFAULT_REPO:
         import generate_binary_build_matrix as gbm
@@ -145,9 +150,28 @@ def get_test_version_anchor(repo: str, branch_names: Iterable[str]) -> Tuple[int
         return int(major), int(minor)
 
     releases = [n for n in branch_names if RELEASE_BRANCH_RE.match(n)]
-    if not releases:
-        raise SystemExit(f"{repo} has no protected release/X.Y branch to anchor on")
-    return max(release_version(n) for n in releases)
+    if releases:
+        return max(release_version(n) for n in releases)
+
+    tags = get_release_tag_versions(repo)
+    if tags:
+        return max(tags)
+
+    raise SystemExit(
+        f"{repo} has no protected release/X.Y branch and no vX.Y.Z tag to anchor on"
+    )
+
+
+def get_release_tag_versions(repo: str) -> List[Tuple[int, int]]:
+    """Every (major, minor) this repo has published a vX.Y.Z tag for."""
+    client = GitHubClient(os.environ["GITHUB_TOKEN"])
+    refs = client.request("GET", f"/repos/{repo}/git/matching-refs/tags/v").json()
+    versions = []
+    for ref in refs:
+        match = RELEASE_TAG_RE.match(ref["ref"].removeprefix("refs/tags/"))
+        if match:
+            versions.append((int(match.group(1)), int(match.group(2))))
+    return versions
 
 
 def release_version(branch: str) -> Tuple[int, int]:
