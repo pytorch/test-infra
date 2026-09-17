@@ -386,6 +386,7 @@ def flat_schema_columns(schema) -> List[str]:
 
 MERGES_SCHEMA = """
     `_id` String,
+    `ai_not_related_checks` Array(Array(String)),
     `author` String,
     `broken_trunk_checks` Array(Array(String)),
     `comment_id` Int64,
@@ -409,12 +410,11 @@ MERGES_SCHEMA = """
 
 
 def merges_adapter(table, bucket, key) -> None:
-    # Named columns so `ai_not_related_checks` (pytorch/pytorch#195503) can be
-    # ALTERed into default.merges before MERGES_SCHEMA declares it: the insert
-    # does not mention the new column, so it takes its default. The names the
-    # derivation is expected to produce are pinned in
-    # aws/lambda/tests/test_clickhouse_replicator_s3.py, so a bug in it shows
-    # up as a test failure rather than as data in the wrong column.
+    # Named columns, so ALTER a column into default.merges before declaring it
+    # here: an omitted column takes its default, a named column the table lacks
+    # fails the insert. The derived names are pinned in
+    # aws/lambda/tests/test_clickhouse_replicator_s3.py, so a derivation bug
+    # shows up as a test failure rather than as data in the wrong column.
     general_adapter(
         table,
         bucket,

@@ -1,15 +1,15 @@
 """Checks on the one insert in the S3 replicator that names its target columns.
 
-`general_adapter` inserts positionally by default. `merges_adapter` opts out by
-passing `columns`, so `ai_not_related_checks` can be ALTERed into
-`default.merges` before the schema string declares it.
+`general_adapter` inserts positionally by default; `merges_adapter` opts out via
+`use_named_columns`. Hence the ordering rule: ALTER a column into
+`default.merges` before `MERGES_SCHEMA` declares it. An omitted column takes its
+default; a named column the table lacks fails the insert.
 
-`MERGES_COLUMNS` is derived from `MERGES_SCHEMA`, so the risk that buys is a
-derivation bug: a name that is not a column on the table would fail every merge
-insert silently -- `general_adapter` routes the exception to `errors.gen_errors`
-and nothing reads that table -- and a wrong ORDER would not fail at all, it
-would write into the wrong column. Hence `EXPECTED_MERGES_COLUMNS` below, which
-states the answer independently instead of recomputing it.
+The names are derived from `MERGES_SCHEMA`, so the risk is a derivation bug. A
+name that is not a column fails every merge insert silently -- `general_adapter`
+routes the exception to `errors.gen_errors`, which nothing reads -- and a wrong
+order can write into the wrong column without failing at all. Hence
+`EXPECTED_MERGES_COLUMNS` below.
 
 Lives here rather than beside the lambda so the existing "Test aws lambda" job
 in tests.yml picks it up on every pull request. The lambda's own directory name
@@ -63,18 +63,14 @@ def captured_query(call, *args, **kwargs):
     return queries[0]
 
 
-# The insert projection merges_adapter is expected to write: the destination
-# names, in the order its SELECT produces them. Written out on purpose --
-# the lambda derives them from MERGES_SCHEMA, so without an independent
-# statement of the answer the derivation would only be compared against itself.
-# Each name was confirmed to be a column of default.merges against
-# system.columns on 2026-09-10; it is NOT a snapshot of the whole table, and
-# after `ai_not_related_checks` is ALTERed in it deliberately will not name it.
-# What has to hold is that these agree with the SELECT's expressions, so a
-# wrong ORDER is the dangerous failure: several of these share a type, and
-# mismatched names would write into the wrong column without failing.
+# The projection merges_adapter must write: destination names in the order its
+# SELECT produces them, stated here rather than derived so the derivation is
+# not compared against itself. Every name must be a column of default.merges.
+# Order is the dangerous axis -- several share a type, so a mismatch can write
+# into the wrong column without failing.
 EXPECTED_MERGES_COLUMNS = [
     "`_id`",
+    "`ai_not_related_checks`",
     "`author`",
     "`broken_trunk_checks`",
     "`comment_id`",
