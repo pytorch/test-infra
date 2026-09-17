@@ -768,6 +768,14 @@
       "slow"
     ]
   ],
+  "test_linalg_batched_lu_stability_large_inputs_cuda_float64 (__main__.TestLinalgCUDA)": [
+    "197394",
+    "https://github.com/pytorch/pytorch/issues/197394",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_load_with_map_location (__main__.TestCheckpointer)": [
     "187156",
     "https://github.com/pytorch/pytorch/issues/187156",
@@ -1232,14 +1240,6 @@
       "xpu"
     ]
   ],
-  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_bfloat16 (__main__.DeterministicTest)": [
-    "195816",
-    "https://github.com/pytorch/pytorch/issues/195816",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
     "196006",
     "https://github.com/pytorch/pytorch/issues/196006",
@@ -1515,6 +1515,13 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_inception_v3 (__main__.TestVisionTracing)": [
+    "197393",
+    "https://github.com/pytorch/pytorch/issues/197393",
+    [
+      "linux"
+    ]
+  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
@@ -1565,13 +1572,6 @@
       "inductor"
     ]
   ],
-  "test_var_mean_tile_reduction_True_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
-    "149016",
-    "https://github.com/pytorch/pytorch/issues/149016",
-    [
-      "rocm"
-    ]
-  ],
   "test_view_ops (__main__.TestViewOpsWithLocalTensor)": [
     "187561",
     "https://github.com/pytorch/pytorch/issues/187561",
@@ -1589,6 +1589,14 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_zero_strided_emits_fill_kernel_cuda (__main__.TestTorchDeviceTypeCUDA)": [
+    "197392",
+    "https://github.com/pytorch/pytorch/issues/197392",
+    [
+      "inductor",
+      "rocm"
     ]
   ]
 }
