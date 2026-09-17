@@ -30,6 +30,31 @@ jobs:
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
         python3 -c 'import torch'
+  # Regression test for the permissions ceiling. A reusable workflow's own
+  # permissions intersect with the caller's, so declaring contents: read inside
+  # linux_job_v3 silently capped callers that asked for write -- executorch's
+  # doc publish job requested contents: write and still got a 403 on push.
+  # git push --dry-run writes nothing but still needs push access: the
+  # git-receive-pack discovery it performs is rejected with 403 for a read-only
+  # token, so this fails if the ceiling ever comes back.
+  test-caller-can-request-contents-write:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: write
+    with:
+      job-name: "caller-can-request-contents-write"
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      checkout-mode: "treeless"
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      script: |
+        set -euo pipefail
+        git push --dry-run origin HEAD:refs/heads/ci-contents-write-probe
+        echo "OK: the caller's contents: write reached the token"
+
   test-cpu-arm64:
     uses: ./.github/workflows/linux_job_v3.yml
     permissions:
