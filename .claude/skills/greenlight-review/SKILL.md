@@ -217,6 +217,13 @@ a step out of the build container; and not when it removes coverage or hides fai
 Dropping a matrix entry, widening a lint-exclude glob or a blocklist, and lowering a
 timeout are the usual shapes of that — judge whether coverage or signal is really lost,
 rather than matching the shape.
+Not when it adds a test job to `pull.yml` or `trunk.yml`: those gate PR merges and the
+progression of `viable/strict`, so a new job's cost falls on every contributor, and
+whether it earns that — essential coverage, running reliably, no regression to overall
+workflow runtime — is not in the diff. A human decides that one. A new top-level test
+job, or a `config:` value new to the `test-matrix` it lands in, is a new job; more shards
+of a config already there is a retune. Retuned shard counts, runner label changes, and
+version or OS bumps stay ordinary — judge them on the criteria above.
 
 **Single-cause bugfix** — one root cause, one fix, and a test in the diff exercising the
 fixed path. Without that test the class fits only when the changed lines both state the

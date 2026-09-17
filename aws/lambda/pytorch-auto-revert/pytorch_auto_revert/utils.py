@@ -3,7 +3,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Optional
+from typing import Iterable, Optional
 
 import github
 
@@ -174,6 +174,70 @@ def build_pytorch_hud_url(
     return (
         f"https://hud.pytorch.org/hud/{repo_full_name}/{top_sha}/1?"
         f"per_page={num_commits}&name_filter={encoded_name}&mergeEphemeralLF=true"
+    )
+
+
+def dashboard_anchor_ts(ts: datetime) -> datetime:
+    """Normalize a run timestamp to the instant the dashboard resolves on.
+
+    Naive values are read as UTC, and the result is truncated to the second to
+    match what the snapshot writer stores: ``misc.autorevert_state.ts`` is a
+    second-precision ``DateTime`` and clickhouse_connect writes it as
+    ``int(ts.timestamp())``. Both sides floor the same instant, so the grid's
+    ``ts <= target`` lands on this run's own snapshot, not the one before it.
+    """
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(timezone.utc).replace(microsecond=0)
+
+
+def build_autorevert_dashboard_url(
+    *,
+    repo_full_name: str,
+    ts: datetime,
+    commit_sha: str,
+    workflows: Iterable[str] = (),
+    branch: str = "main",
+) -> str:
+    """Build a permalink to the autorevert signal grid for one revert event.
+
+    The grid renders the most recent state snapshot at or before ``ar_ts``, so
+    passing the run's own ``ctx.ts`` keeps the link showing what autorevert saw
+    around its decision rather than today's state. It is not a guarantee of that
+    run's own snapshot: state logging is best-effort and runs after the comment
+    is posted, so a missing one leaves an older snapshot on screen. The page's
+    "Snapshot at" header names what it actually rendered.
+
+    No per-signal filter is passed: ``ar_focus`` narrows the columns to signals
+    with a revert outcome or an AI ``revert`` verdict within the chosen
+    workflows, and ``ar_sha`` highlights this event's suspect. That is a
+    slightly wider view than the event's own signals — the snapshot can hold
+    such columns for another suspect — and the wider view is what the
+    dashboard's owner asked for.
+
+    Args:
+        repo_full_name: Repository in format "owner/repo"
+        ts: Timestamp of the revert event (naive values are read as UTC)
+        commit_sha: Suspect commit — highlighted, with its summary panel opened
+        workflows: Workflow filter (``ar_wf``); empty leaves the grid default
+        branch: Branch segment of the HUD route
+
+    Returns:
+        URL to the autorevert dashboard
+    """
+    params = [
+        ("ar_ts", dashboard_anchor_ts(ts).strftime("%Y-%m-%dT%H:%M:%SZ")),
+        ("ar_sha", commit_sha),
+        # Narrow the columns to signals with a revert outcome or verdict.
+        ("ar_focus", "1"),
+    ]
+    workflow_list = [w for w in workflows if w]
+    if workflow_list:
+        params.append(("ar_wf", ",".join(workflow_list)))
+    return (
+        f"https://hud.pytorch.org/hud/{repo_full_name}/"
+        f"{urllib.parse.quote(branch, safe='')}/autorevert?"
+        + urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
     )
 
 

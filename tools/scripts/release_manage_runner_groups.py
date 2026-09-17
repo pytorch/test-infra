@@ -64,6 +64,12 @@ RELEASE_BRANCH_RE = re.compile(r"^release/(\d+)\.(\d+)$")
 # such a label runs on the release runner groups.
 RELEASE_LABEL_RE = re.compile(r"\brel-[a-z0-9]")
 
+# A wheel workflow names no label at all: it passes runner-fleet: osdc to
+# generate_binary_build_matrix.yml, which resolves each row's validation_runner
+# to a rel- runner on the refs a wheel is published from. The release-runner
+# signal is that input rather than a label in the file.
+RUNNER_FLEET_RE = re.compile(r"\brunner-fleet:\s*[\"']?osdc\b")
+
 
 def log(message: str) -> None:
     print(message, flush=True)
@@ -276,8 +282,55 @@ def get_protected_branches(client: GitHubClient, repo: str) -> List[str]:
     return fixed + releases
 
 
-def get_target_refs(client: GitHubClient, repo: str) -> List[str]:
+def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
+    """main plus every release/X.Y branch of ``repo``.
+
+    Deliberately not filtered by branch protection, unlike get_target_refs: on
+    pytorch/test-infra only main is protected, so that filter would drop
+    release/2.10 through release/2.14 and cover a single ref.
+    """
+    refs = client.request(
+        "GET", f"/repos/{repo}/git/matching-refs/heads/release/"
+    ).json()
+    releases = sorted(
+        (
+            name
+            for name in (str(r["ref"]).removeprefix("refs/heads/") for r in refs)
+            if RELEASE_BRANCH_RE.match(name)
+        ),
+        key=release_version,
+    )
+    return [f"refs/heads/{name}" for name in ["main", *releases]]
+
+
+def build_self_allowed(
+    repo: str, paths: Iterable[str], refs: Iterable[str]
+) -> Set[str]:
+    """Allow-list references for workflows this repo owns but does not itself run.
+
+    A reusable workflow declares the job that ends up on the runner, and GitHub
+    matches the allow-list against the workflow that declares it, not the caller
+    -- pytorch/pytorch's own entries list _binary-build-linux.yml alongside the
+    generated callers for the same reason. A reusable named by callers in other
+    repositories is invisible to discovery here, so it is passed in explicitly.
+    """
+    return {f"{repo}/{path}@{ref}" for path in paths for ref in refs}
+
+
+def get_target_refs(
+    client: GitHubClient, repo: str, optional: bool = False
+) -> List[str]:
+    """The refs to discover release workflows at.
+
+    ``optional`` tolerates a repo with no protected release line, which is the
+    case for a repo that only owns reusable workflows (pytorch/test-infra has
+    release branches but leaves them unprotected). Discovery there finds nothing
+    anyway; the entries come from --self-allow instead.
+    """
     branches = get_protected_branches(client, repo)
+    if optional and not any(RELEASE_BRANCH_RE.match(b) for b in branches):
+        log(f"{repo} has no protected release line; skipping discovery")
+        return []
     anchor = get_test_version_anchor(repo, branches)
     log(f"Test-channel version anchor: release/{anchor[0]}.{anchor[1]}")
     refs = select_target_refs(branches, anchor)
@@ -298,7 +351,15 @@ def get_target_refs(client: GitHubClient, repo: str) -> List[str]:
 
 
 def uses_release_label(text: str) -> bool:
-    return RELEASE_LABEL_RE.search(text) is not None
+    """Whether this text marks a job or workflow as running on release runners.
+
+    Either it names a rel- label directly, or it asks the binary build matrix
+    generator for the osdc fleet, which resolves the labels for it.
+    """
+    return (
+        RELEASE_LABEL_RE.search(text) is not None
+        or RUNNER_FLEET_RE.search(text) is not None
+    )
 
 
 def local_uses(job: Any) -> Optional[str]:
@@ -623,6 +684,18 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--self-allow",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help=(
+            "Workflow path in --repo to allow-list at main and every release/X.Y "
+            "branch, on top of whatever discovery finds. For a reusable workflow "
+            "whose callers live in other repositories, which discovery here "
+            "cannot see. Repeatable."
+        ),
+    )
+    parser.add_argument(
         "--apply",
         action="store_true",
         help="Apply changes. Without it the script only prints the diff (dry-run)",
@@ -638,10 +711,15 @@ def main() -> None:
         )
     client = GitHubClient(args.token)
 
-    refs = get_target_refs(client, args.repo)
+    refs = get_target_refs(client, args.repo, optional=bool(args.self_allow))
     log(f"Target refs: {refs}")
     paths_by_ref = discover_release_workflows(client, refs, args.repo)
     desired = build_desired_workflows(paths_by_ref, args.repo)
+
+    if args.self_allow:
+        reusable_refs = get_reusable_refs(client, args.repo)
+        log(f"Self-allowed refs: {reusable_refs}")
+        desired |= build_self_allowed(args.repo, args.self_allow, reusable_refs)
     log(f"Desired allow-list ({len(desired)} references):")
     for entry in sorted(desired):
         log(f"  {entry}")

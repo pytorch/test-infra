@@ -132,9 +132,19 @@ export default function WorkflowDispatcher({
   jobs: JobData[];
 }) {
   const session = useSession();
+  // `== null`, not `=== null`: SessionProvider is mounted without a `session`
+  // prop (pages/_app.tsx), so useSession().data is UNDEFINED for the whole
+  // window before /api/auth/session answers -- not null, which is the settled
+  // "signed out" value. A strict null check leaves that window falling through
+  // to the index below and throwing "Cannot read properties of undefined
+  // (reading 'accessToken')", which takes the commit page down with it. It only
+  // shows when this renders before the session lands, so it is intermittent and
+  // a reload usually hides it. SingleWorkflowDispatcher below already guards
+  // with `!session.data`.
+  if (session === undefined || session.data == null) {
+    return <></>;
+  }
   if (
-    session === undefined ||
-    session.data === null ||
     session.data["accessToken"] === undefined ||
     session.data["user"] == undefined
   ) {

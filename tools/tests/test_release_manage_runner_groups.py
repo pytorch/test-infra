@@ -558,5 +558,97 @@ class TestGetProtectedBranches(TestCase):
         )
 
 
+class TestRunnerFleetIsAReleaseSignal(TestCase):
+    """A wheel workflow names no rel- label: it passes runner-fleet: osdc to the
+    matrix generator, which resolves the labels per row."""
+
+    def test_runner_fleet_osdc_counts(self) -> None:
+        self.assertTrue(m.uses_release_label("      runner-fleet: osdc\n"))
+
+    def test_quoted_forms_count(self) -> None:
+        self.assertTrue(m.uses_release_label('      runner-fleet: "osdc"\n'))
+        self.assertTrue(m.uses_release_label("      runner-fleet: 'osdc'\n"))
+
+    def test_ec2_does_not_count(self) -> None:
+        self.assertFalse(m.uses_release_label("      runner-fleet: ec2\n"))
+
+    def test_a_similarly_named_input_does_not_count(self) -> None:
+        self.assertFalse(m.uses_release_label("      runner-fleet-override: osdcx\n"))
+
+    def test_a_caller_is_discovered_through_it(self) -> None:
+        files = {
+            ".github/workflows/build-wheels-linux.yml": m.WorkflowFile(
+                raw=(
+                    "jobs:\n"
+                    "  generate-matrix:\n"
+                    "    uses: pytorch/test-infra/.github/workflows/"
+                    "generate_binary_build_matrix.yml@main\n"
+                    "    with:\n"
+                    "      runner-fleet: osdc\n"
+                ),
+                doc={
+                    "jobs": {
+                        "generate-matrix": {
+                            "uses": "pytorch/test-infra/.github/workflows/"
+                            "generate_binary_build_matrix.yml@main",
+                            "with": {"runner-fleet": "osdc"},
+                        }
+                    }
+                },
+            )
+        }
+        self.assertEqual(
+            m.collect_release_workflow_paths(files),
+            {".github/workflows/build-wheels-linux.yml"},
+        )
+
+
+class TestSelfAllow(TestCase):
+    """A reusable workflow whose callers live in other repositories is invisible
+    to discovery here, so it is named explicitly."""
+
+    def test_builds_one_reference_per_ref(self) -> None:
+        self.assertEqual(
+            m.build_self_allowed(
+                "pytorch/test-infra",
+                [".github/workflows/build_wheels_linux.yml"],
+                ["refs/heads/main", "refs/heads/release/2.14"],
+            ),
+            {
+                "pytorch/test-infra/.github/workflows/build_wheels_linux.yml"
+                "@refs/heads/main",
+                "pytorch/test-infra/.github/workflows/build_wheels_linux.yml"
+                "@refs/heads/release/2.14",
+            },
+        )
+
+    def test_reusable_refs_are_main_then_releases_numerically(self) -> None:
+        class C(m.GitHubClient):
+            def __init__(self) -> None:
+                pass
+
+            def request(self, method: str, path: str, **kwargs: Any) -> Any:
+                class R:
+                    def json(self_inner):
+                        return [
+                            {"ref": "refs/heads/release/2.9"},
+                            {"ref": "refs/heads/release/2.10"},
+                            {"ref": "refs/heads/release/2.1"},
+                            {"ref": "refs/heads/release/2.14-rc"},
+                        ]
+
+                return R()
+
+        self.assertEqual(
+            m.get_reusable_refs(C(), "pytorch/test-infra"),
+            [
+                "refs/heads/main",
+                "refs/heads/release/2.1",
+                "refs/heads/release/2.9",
+                "refs/heads/release/2.10",
+            ],
+        )
+
+
 if __name__ == "__main__":
     main()

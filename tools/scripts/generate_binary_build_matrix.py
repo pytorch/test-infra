@@ -155,10 +155,10 @@ EC2 = "ec2"
 OSDC = "osdc"
 
 OSDC_LINUX_CPU_RUNNER = "mt-l-x86iavx512-8-64"
-OSDC_LINUX_GPU_RUNNER = "mt-l-x86aavx2-29-113-a10g"
+OSDC_LINUX_GPU_RUNNER = "mt-l-x86aavx2-11-41-a10g"
 OSDC_LINUX_AARCH64_RUNNER = "mt-l-arm64g4-16-62"
 OSDC_REL_LINUX_CPU_RUNNER = "mt-rel-l-x86iavx512-44-340"
-OSDC_REL_LINUX_GPU_RUNNER = "mt-rel-l-x86aavx2-29-113-l4"
+OSDC_REL_LINUX_GPU_RUNNER = "mt-rel-l-x86aavx2-11-41-l4"
 OSDC_REL_LINUX_AARCH64_RUNNER = "mt-rel-l-arm64g3-44-340"
 
 # aarch64 has no OSDC GPU runner, which matches the EC2 label it replaces:

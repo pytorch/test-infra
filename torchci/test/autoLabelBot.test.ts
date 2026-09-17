@@ -1882,7 +1882,7 @@ describe("auto-label-bot: label restrictions", () => {
     handleScope(scope);
   });
 
-  test("remove in progress label when added manually", async () => {
+  function botManagedLabelPayload() {
     const payload = requireDeepCopy("./fixtures/pull_request.labeled");
     payload["label"] = { name: "in progress" };
     payload["pull_request"]["labels"] = [{ name: "in progress" }];
@@ -1892,6 +1892,35 @@ describe("auto-label-bot: label restrictions", () => {
       login: "pytorch-bot[bot]",
       type: "Bot",
     };
+    return payload;
+  }
+
+  function mockDevInfraMembership(login: string, status: number, body?: any) {
+    return nock("https://api.github.com")
+      .get(`/orgs/seemethere/teams/pytorch-dev-infra/memberships/${login}`)
+      .reply(status, body);
+  }
+
+  // Two SEPARATE single-interceptor scopes on purpose. A combined scope's
+  // `isDone()` is false as soon as either half is unconsumed, so the keep-tests
+  // below could not tell "nothing happened" from "the label was deleted and
+  // only the comment was skipped".
+  function mockBotManagedLabelRemoval() {
+    const deletion = nock("https://api.github.com")
+      .delete("/repos/seemethere/test-repo/issues/20/labels/in%20progress")
+      .reply(200);
+    const comment = nock("https://api.github.com")
+      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
+        expect(body.body).toContain("managed automatically by pytorch-bot");
+        expect(body.body).toContain("has been removed");
+        return true;
+      })
+      .reply(200);
+    return { deletion, comment };
+  }
+
+  test("remove in progress label when added manually", async () => {
+    const payload = botManagedLabelPayload();
 
     const scope = nock("https://api.github.com")
       .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
@@ -1901,18 +1930,103 @@ describe("auto-label-bot: label restrictions", () => {
           label: { name: "in progress" },
           actor: { id: 1700823, login: "seemethere" },
         },
-      ])
-      .delete("/repos/seemethere/test-repo/issues/20/labels/in%20progress")
+      ]);
+    const membership = mockDevInfraMembership("seemethere", 404);
+    const removal = mockBotManagedLabelRemoval();
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(membership);
+    handleScope([removal.deletion, removal.comment]);
+    handleScope(scope);
+  });
+
+  test("keep in progress label when its last applier is on the dev infra team", async () => {
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 1700823, login: "seemethere" },
+        },
+      ]);
+    const membership = mockDevInfraMembership("seemethere", 200, {
+      state: "active",
+    });
+    const removal = mockBotManagedLabelRemoval();
+    // The two above match one exact path each, so on their own they would also
+    // stay unconsumed if the bot deleted a DIFFERENT label or commented on a
+    // different issue. These catch-alls close that: any write of either shape,
+    // anywhere in the repo, consumes one and fails the assertion below.
+    const anyWrite = nock("https://api.github.com")
+      .delete(/.*/)
       .reply(200)
-      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
-        expect(body.body).toContain("managed automatically by pytorch-bot");
-        expect(body.body).toContain("has been removed");
-        return true;
-      })
+      .post(/.*/)
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
 
+    // Asserted per-interceptor rather than left to nock to reject an unmocked
+    // call: the label must survive, so nothing is written at all. A combined
+    // scope would have passed with only one of the two unused.
+    expect(removal.deletion.isDone()).toBe(false);
+    expect(removal.comment.isDone()).toBe(false);
+    expect(anyWrite.pendingMocks()).toHaveLength(2);
+    handleScope(membership);
+    handleScope(scope);
+  });
+
+  test("remove in progress label when the last applier's team membership is pending", async () => {
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 1700823, login: "seemethere" },
+        },
+      ]);
+    const membership = mockDevInfraMembership("seemethere", 200, {
+      state: "pending",
+    });
+    const removal = mockBotManagedLabelRemoval();
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(membership);
+    handleScope([removal.deletion, removal.comment]);
+    handleScope(scope);
+  });
+
+  test("remove in progress label when the team membership lookup is forbidden", async () => {
+    // The app may not hold the org `members:read` permission. Membership is
+    // then unverified, which must deny the exemption rather than quietly
+    // disabling the guard.
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 1700823, login: "seemethere" },
+        },
+      ]);
+    const membership = mockDevInfraMembership("seemethere", 403, {
+      message: "Forbidden",
+    });
+    const removal = mockBotManagedLabelRemoval();
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(membership);
+    handleScope([removal.deletion, removal.comment]);
     handleScope(scope);
   });
 
@@ -1920,6 +2034,7 @@ describe("auto-label-bot: label restrictions", () => {
     const payload = requireDeepCopy("./fixtures/pull_request.labeled");
     payload["label"] = { name: "in progress" };
     payload["pull_request"]["labels"] = [{ name: "in progress" }];
+    const teamLookup = jest.spyOn(botUtils, "isOrgTeamMember");
 
     const scope = nock("https://api.github.com")
       .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
@@ -1933,6 +2048,37 @@ describe("auto-label-bot: label restrictions", () => {
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
 
+    // pytorch-bot short-circuits: no membership call is spent on it.
+    expect(teamLookup).not.toHaveBeenCalled();
+    handleScope(scope);
+  });
+
+  test("remove in progress label from a non-pytorch-bot bot without asking about membership", async () => {
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 311227100, login: "pytorchgreenlight[bot]" },
+        },
+      ]);
+    // Matches any membership path, not a literal one: an interceptor pinned to
+    // an exact login or org goes unconsumed whenever the request differs in any
+    // way, which would pass this test without proving the call was skipped.
+    const membership = nock("https://api.github.com")
+      .get(/\/memberships\//)
+      .reply(404);
+    const removal = mockBotManagedLabelRemoval();
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    // The lookup would 404 anyway; skipping it saves the round trip and the
+    // removal below shows the skip still denies.
+    expect(membership.isDone()).toBe(false);
+    handleScope([removal.deletion, removal.comment]);
     handleScope(scope);
   });
 });

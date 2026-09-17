@@ -90,7 +90,8 @@ DEFAULT_TIMEOUT_MINUTES = 45
 
 MERGE_RULES_PATH = ".github/merge_rules.yaml"
 
-DRCI_ENDPOINT = "https://hud.pytorch.org/api/drci/drci"
+HUD_BASE_URL = "https://hud.pytorch.org"
+DRCI_ENDPOINT = f"{HUD_BASE_URL}/api/drci/drci"
 
 
 def normalize_repo(repo: str) -> str:

@@ -1,0 +1,9 @@
+# GitHub uses the LAST matching pattern for a path, and an unanchored pattern matches at
+# any depth. Several unrelated directories in this repo are also named `greenlight` (under
+# `.claude/hooks/` and under `torchci/`), so every pattern here is root-anchored to keep
+# one area's owners off the others.
+
+/.claude/hooks/greenlight/          @jeanschmidt @ezyang @drisspg @albanD
+/.claude/skills/greenlight-review/  @jeanschmidt @ezyang @drisspg @albanD
+
+/greenlight/                        @jeanschmidt @ezyang @drisspg @albanD @huydhn @izaitsevfb @jathu

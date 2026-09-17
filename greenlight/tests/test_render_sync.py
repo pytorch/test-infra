@@ -22,6 +22,7 @@ from tests import ts_source
 _TS_RENDER = "torchci/lib/greenlight/greenlightRender.ts"
 _TS_SWEEP = "torchci/lib/greenlight/greenlightSweep.ts"
 _TS_CONFIG = "torchci/lib/greenlight/greenlightConfig.ts"
+_TS_REPORT_LINK = "torchci/lib/greenlight/greenlightReportLink.ts"
 _PY_RENDER = "greenlight/src/greenlight/comment_format.py"
 _PY_CONSTANTS = "greenlight/src/greenlight/constants.py"
 _PY_OUTLINE = "greenlight/src/greenlight/verdict_outline.py"
@@ -29,6 +30,7 @@ _PY_OUTLINE = "greenlight/src/greenlight/verdict_outline.py"
 assert (ts_source.ROOT / _TS_RENDER).is_file()
 assert (ts_source.ROOT / _TS_SWEEP).is_file()
 assert (ts_source.ROOT / _TS_CONFIG).is_file()
+assert (ts_source.ROOT / _TS_REPORT_LINK).is_file()
 
 _TS_STATUS_RE = re.compile(r'^export const GREENLIGHT_STATUS_(\w+) =\s*"([^"]*)";$', re.MULTILINE)
 _TS_REPOS_RE = re.compile(r"^export const GREENLIGHT_REPOS: string\[\] =\s*\[([^\]]*)\]", re.MULTILINE)
@@ -37,6 +39,7 @@ _TS_JOB_LINK_RE = re.compile(r"\[([^\]]+)\]\(\$\{\w+\}\)")
 _TS_REASON_PREFIX_RE = re.compile(r"`([^`$]*)\$\{inlineCode\(")
 
 _PROBE_JOB_URL = "https://example.invalid/probe-job"
+_PROBE_REPORT_URL = "https://example.invalid/probe-report"
 _PROBE_REASON = "probe-reason"
 
 
@@ -77,7 +80,7 @@ def _ts_repos() -> frozenset[str]:
     return repos
 
 
-def _ts_job_link_labels() -> set[str]:
+def _ts_link_labels() -> set[str]:
     labels: set[str] = set(_TS_JOB_LINK_RE.findall(ts_source.read(_TS_RENDER)))
     assert labels, f"no `[label](${{url}})` markdown link in {_TS_RENDER}: {ts_source.RESTRUCTURED}"
     return labels
@@ -89,11 +92,18 @@ def _ts_reason_prefixes() -> set[str]:
     return prefixes
 
 
-def _py_job_link_label() -> str:
-    rendered = comment_format.reviewing_body(_PROBE_JOB_URL, None)
-    m = re.search(rf"^\[([^\]]+)\]\({re.escape(_PROBE_JOB_URL)}\)$", rendered, re.MULTILINE)
-    assert m is not None, f"{_PY_RENDER} no longer renders a job link: {rendered!r}"
-    return m.group(1)
+def _py_link_labels() -> set[str]:
+    """Every `[label](url)` Python renders, taken from the one body that carries both.
+
+    ``verdict_body`` is the only body offered a report link -- the other statuses are the absence of a
+    verdict, and there is nothing there to dispute -- so it is the body that shows the full set.
+    """
+    rendered = comment_format.verdict_body(
+        constants.STATUS_NO_LAND, _PROBE_REASON, "why", _PROBE_JOB_URL, None, _PROBE_REPORT_URL
+    )
+    labels = set(re.findall(r"^\[([^\]]+)\]\(\S+\)$", rendered, re.MULTILINE))
+    assert labels, f"{_PY_RENDER} no longer renders a markdown link: {rendered!r}"
+    return labels
 
 
 def _py_reason_prefix() -> str:
@@ -220,12 +230,28 @@ def test_both_renderers_still_route_both_message_formats(route: str, names: tupl
     )
 
 
-def test_job_link_label_matches_python() -> None:
-    extracted = _ts_job_link_labels()
-    canonical = _py_job_link_label()
-    assert extracted == {canonical}, ts_source.drift(
-        _TS_RENDER, _PY_RENDER, f"job link labels are {sorted(extracted)}, Python renders {canonical!r}"
+def test_link_labels_match_python() -> None:
+    extracted = _ts_link_labels()
+    canonical = _py_link_labels()
+    assert extracted == canonical, ts_source.drift(
+        _TS_RENDER, _PY_RENDER, f"link labels are {sorted(extracted)}, Python renders {sorted(canonical)}"
     )
+
+
+def test_report_link_shape_matches_python() -> None:
+    """The deep link is one URL a reader follows from either comment, so both must build it alike.
+
+    Pinned by its literal parts rather than by rendering the TypeScript: the query parameter is what
+    the HUD panel keys its dialog off, and `sha` is what selects the commit whose verdict is being
+    disputed. Either one drifting leaves the link landing on a page that does nothing.
+    """
+    built = comment_format.report_url(constants.TARGET_REPO, 123, "a" * 40)
+    assert built, "comment_format.report_url no longer builds a URL for a well-formed verdict"
+    source = ts_source.read(_TS_REPORT_LINK)
+    for part in (constants.HUD_BASE_URL, "/pull/", "?sha=", comment_format.REPORT_PARAM):
+        assert part in source, ts_source.drift(
+            _TS_REPORT_LINK, _PY_RENDER, f"report link is missing {part!r}; Python builds {built!r}"
+        )
 
 
 def test_reason_prefix_matches_python() -> None:

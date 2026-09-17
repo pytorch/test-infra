@@ -1,5 +1,6 @@
 -- level_since = earliest started_at at the repo's current level; floors at ~100 days due to crcr_workflow_job's TTL.
 -- current_level uses argMax to deterministically pick the level as of the most recent started_at.
+-- l2_since = earliest started_at at L2 specifically, independent of current_level.
 -- first_seen/last_seen span all levels, for the "2 weeks of recent data" L3 promotion prerequisite.
 -- started_at > 0 excludes rows with an epoch (1970-01-01) timestamp.
 WITH (
@@ -10,6 +11,7 @@ WITH (
 SELECT
     current_level,
     minIf(started_at, downstream_repo_level = current_level) AS level_since,
+    minIf(started_at, downstream_repo_level = 'L2') AS l2_since,
     min(started_at) AS first_seen,
     max(started_at) AS last_seen
 FROM

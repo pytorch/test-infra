@@ -45,12 +45,12 @@ export const EC2_TO_ARC_RUNNER_MAPPING: Readonly<Record<string, string>> = {
   "linux.g4dn.metal.nvidia.gpu": "l-bx86iavx512-94-344-t4-8",
 
   // x86 GPU — A10G (g5 family)
-  "linux.g5.4xlarge.nvidia.gpu": "l-x86aavx2-29-113-a10g",
+  "linux.g5.4xlarge.nvidia.gpu": "l-x86aavx2-11-41-a10g",
   "linux.g5.12xlarge.nvidia.gpu": "l-x86aavx2-45-167-a10g-4",
   "linux.g5.48xlarge.nvidia.gpu": "l-x86aavx2-189-704-a10g-8",
 
   // x86 GPU — L4 (g6 family)
-  "linux.g6.4xlarge.experimental.nvidia.gpu": "l-x86aavx2-29-113-l4",
+  "linux.g6.4xlarge.experimental.nvidia.gpu": "l-x86aavx2-11-41-l4",
   "linux.g6.12xlarge.nvidia.gpu": "l-x86aavx2-45-172-l4-4",
 
   // ARM64 — Graviton

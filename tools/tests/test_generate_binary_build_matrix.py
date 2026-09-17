@@ -384,7 +384,7 @@ class TestRunnerFleet(TestCase):
         )
         self.assertEqual(
             validation_runner("cuda", "linux"),
-            "mt-l-x86aavx2-29-113-a10g",
+            "mt-l-x86aavx2-11-41-a10g",
         )
 
     def test_osdc_on_a_release_ref(self) -> None:
@@ -396,7 +396,7 @@ class TestRunnerFleet(TestCase):
         )
         self.assertEqual(
             validation_runner("cuda", "linux"),
-            "mt-rel-l-x86aavx2-29-113-l4",
+            "mt-rel-l-x86aavx2-11-41-l4",
         )
 
     def test_aarch64_has_no_gpu_runner(self) -> None:

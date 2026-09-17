@@ -5,7 +5,11 @@ import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import { getHelp, getParser } from "./cliParser";
-import { BOT_MANAGED_PR_LABELS, cherryPickClassifications } from "./Constants";
+import {
+  BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
+  BOT_MANAGED_PR_LABELS,
+  cherryPickClassifications,
+} from "./Constants";
 import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
@@ -14,6 +18,7 @@ import {
   CachedConfigTracker,
   hasApprovedPullRuns,
   isFirstTimeContributor,
+  isOrgTeamMember,
   isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
   reactOnComment,
@@ -461,6 +466,27 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     );
   }
 
+  // May the person who typed this command hand-apply BOT_MANAGED_PR_LABELS?
+  //
+  // Deliberately not `this.login`: on the pull_request_review path that holds
+  // the PR author, not the reviewer who typed the command, so a reviewer who is
+  // not on the team could borrow the exemption of an author who is. Fails
+  // closed when the payload carries no author at all.
+  async mayApplyBotManagedLabels(): Promise<boolean> {
+    const commandAuthor =
+      this.ctx.payload?.comment?.user?.login ??
+      this.ctx.payload?.review?.user?.login;
+    if (!commandAuthor) {
+      return false;
+    }
+    return await isOrgTeamMember(
+      this.ctx,
+      this.owner,
+      BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
+      commandAuthor
+    );
+  }
+
   async handleLabel(labels: string[], is_pr_comment: boolean = true) {
     await this.logger.log("label", { labels });
     const { ctx } = this;
@@ -474,29 +500,28 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     // remove unnecessary spaces from labels
     const labelsToAdd = labels.map((s: string) => s.trim());
 
-    const botManagedLabels = labelsToAdd.filter(
+    // Bot-managed labels are refused on PRs, except for the dev infra team, who
+    // own the automation those labels drive. This mirrors the exemption
+    // autoLabelBot applies when the same label arrives through the GitHub UI;
+    // the two enforcement points have to agree or the label is reachable
+    // through whichever one is laxer.
+    const botManagedRequests = labelsToAdd.filter(
       (l: string) =>
         is_pr_comment &&
         isPyTorchPyTorch(this.owner, this.repo) &&
         BOT_MANAGED_PR_LABELS.has(l)
     );
+    const botManagedLabels =
+      botManagedRequests.length > 0 && (await this.mayApplyBotManagedLabels())
+        ? []
+        : botManagedRequests;
+    const isRefusedBotManagedLabel = (l: string) =>
+      botManagedLabels.includes(l);
     const filteredLabels = labelsToAdd.filter(
-      (l: string) =>
-        repoLabels.has(l) &&
-        !(
-          is_pr_comment &&
-          isPyTorchPyTorch(this.owner, this.repo) &&
-          BOT_MANAGED_PR_LABELS.has(l)
-        )
+      (l: string) => repoLabels.has(l) && !isRefusedBotManagedLabel(l)
     );
     const invalidLabels = labelsToAdd.filter(
-      (l: string) =>
-        !repoLabels.has(l) &&
-        !(
-          is_pr_comment &&
-          isPyTorchPyTorch(this.owner, this.repo) &&
-          BOT_MANAGED_PR_LABELS.has(l)
-        )
+      (l: string) => !repoLabels.has(l) && !isRefusedBotManagedLabel(l)
     );
     const ciflowLabels = labelsToAdd.filter((l: string) =>
       l.startsWith("ciflow/")
@@ -511,7 +536,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (botManagedLabels.length > 0) {
       await this.addComment(
         "These pull request lifecycle labels are managed automatically by " +
-          "pytorch-bot and cannot be added manually: " +
+          "pytorch-bot. Applying them by hand is limited to the `" +
+          BOT_MANAGED_PR_LABEL_EXEMPT_TEAM +
+          "` team, which could not be verified for you: " +
           botManagedLabels.join(", ") +
           "."
       );

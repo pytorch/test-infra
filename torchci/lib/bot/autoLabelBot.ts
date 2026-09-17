@@ -4,7 +4,10 @@ import {
   hasRequiredLabels,
   isBotAuthor,
 } from "./checkLabelsUtils";
-import { BOT_MANAGED_PR_LABELS } from "./Constants";
+import {
+  BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
+  BOT_MANAGED_PR_LABELS,
+} from "./Constants";
 import {
   getDraftGatedLabelsToRemove,
   getLabelsFromLabelerConfig,
@@ -16,6 +19,7 @@ import {
   getFilesChangedByPrCached,
   hasApprovedPullRuns,
   hasWritePermissions,
+  isOrgTeamMember,
   isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
   LabelToLabelConfigTracker,
@@ -32,6 +36,28 @@ function isPytorchBotActor(actor: LabelActor): boolean {
   return (
     actor?.id === PYTORCH_BOT_USER_ID ||
     (actor?.login !== undefined && PYTORCH_BOT_LOGINS.has(actor.login))
+  );
+}
+
+// Who is allowed to leave a bot-managed label in place: pytorch-bot itself, and
+// the dev infra team, who own the automation those labels drive.
+async function mayApplyBotManagedLabel(
+  context: Context,
+  org: string,
+  actor: LabelActor
+): Promise<boolean> {
+  if (isPytorchBotActor(actor)) {
+    return true;
+  }
+  const login = actor?.login;
+  if (!login) {
+    return false;
+  }
+  return await isOrgTeamMember(
+    context,
+    org,
+    BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
+    login
   );
 }
 
@@ -362,7 +388,7 @@ async function getLabelsLastAppliedBy(
   context: Context,
   issueNumber: number,
   labelNames: string[],
-  matchesActor: (actor: LabelActor) => boolean
+  matchesActor: (actor: LabelActor) => boolean | Promise<boolean>
 ): Promise<Set<string>> {
   if (labelNames.length === 0) {
     return new Set();
@@ -382,7 +408,7 @@ async function getLabelsLastAppliedBy(
   }
   const matchingLabels = new Set<string>();
   for (const label of labelNames) {
-    if (matchesActor(lastLabeledBy.get(label))) {
+    if (await matchesActor(lastLabeledBy.get(label))) {
       matchingLabels.add(label);
     }
   }
@@ -709,17 +735,17 @@ function myBot(app: Probot): void {
       isPyTorchPyTorch(owner, repo) &&
       BOT_MANAGED_PR_LABELS.has(addedLabel)
     ) {
-      const labelsLastAppliedByPytorchBot = await getLabelsLastAppliedBy(
+      const allowedLabels = await getLabelsLastAppliedBy(
         context,
         context.payload.pull_request.number,
         [addedLabel],
-        isPytorchBotActor
+        (actor) => mayApplyBotManagedLabel(context, owner, actor)
       );
-      if (labelsLastAppliedByPytorchBot.has(addedLabel)) {
+      if (allowedLabels.has(addedLabel)) {
         return;
       }
       context.log(
-        `Removing bot-managed label "${addedLabel}" from ${owner}/${repo}#${context.payload.pull_request.number} because its latest labeled event was not created by pytorch-bot`
+        `Removing bot-managed label "${addedLabel}" from ${owner}/${repo}#${context.payload.pull_request.number} because its latest label actor could not be verified as pytorch-bot or an active ${BOT_MANAGED_PR_LABEL_EXEMPT_TEAM} member`
       );
       await context.octokit.issues.removeLabel(
         context.repo({
@@ -730,7 +756,7 @@ function myBot(app: Probot): void {
       await context.octokit.issues.createComment(
         context.repo({
           issue_number: context.payload.pull_request.number,
-          body: `The \`${addedLabel}\` label is managed automatically by pytorch-bot and cannot be added manually, so it has been removed.`,
+          body: `The \`${addedLabel}\` label is managed automatically by pytorch-bot. Applying it by hand is limited to the \`${BOT_MANAGED_PR_LABEL_EXEMPT_TEAM}\` team, which could not be verified for the account that added it, so it has been removed.`,
         })
       );
       return;
