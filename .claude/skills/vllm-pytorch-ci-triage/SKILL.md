@@ -35,8 +35,6 @@ dir:
   complete `torch_nightly` and `baseline` `FailedTest` entries.
 - `cluster-logs/<safe-cluster-name>.log` — bounded failure windows plus an unconditional
   cleaned raw tail for each job-state `regressed` cluster.
-- `cluster-logs/both_*.log` — parsed pytest failures unique to torch nightly for each
-  surfaced `regressed_tests` cluster; shared records remain in `report.json`.
 - `both-cluster-logs/nightly_*.log` — supplementary lossy raw nightly context for
   surfaced `regressed_tests` clusters. No baseline raw-context artifact is produced.
 
@@ -57,27 +55,8 @@ an unconditional cleaned `## raw_tail`. Window counts report candidates, emitted
 windows, and truncation. These are lossy evidence, not root-cause classifications or
 proof that a window belongs to a particular test.
 
-**Surfaced both form** — `cluster-logs/both_*.log` uses
-`capture_mode: both_pytest_diff` and contains only the pytest failures unique to
-torch nightly. The header is followed by `# parsed N nightly-only failing test(s)`
-and one block per test:
-
-```
-## tests/kernels/test_deepgemm.py::test_gemm
-pytest_exception_class: RuntimeError
-test_is_infra: false
-
-def test_gemm():
->       run_gemm()
-E       RuntimeError: CUDA driver init failed
-test_deepgemm.py:42: RuntimeError
-```
-
-- `## <test_id>` is the pytest node ID. `pytest_exception_class` and
-  `test_is_infra` are the corresponding fields in `report.json`; the body is the
-  parsed failure's `exception_chain`.
-- Complete `new_failures` and shared nightly/baseline records are in
-  `report.json.regressed_tests`.
+Parsed pytest records for surfaced `regressed_tests` clusters, including complete
+nightly-only and shared nightly/baseline failures, are in `report.json.regressed_tests`.
 
 `both-cluster-logs/nightly_*.log` uses `capture_mode: both_failure_context` and is
 supplementary lossy raw nightly context for the same surfaced clusters. No
@@ -111,9 +90,9 @@ grouped into 10 root causes.
 For job-state `regressed` clusters, use the selected windows and raw tail; do not
 expect pytest IDs or `exception_chain`. Scan upward from wrappers such as
 `Engine core initialization failed. See root cause above.` to find the real exception.
-For surfaced `regressed_tests`, use the complete records in `report.json` and the
-unique-failure blocks in `cluster-logs/both_*.log`; here `exception_chain` is the
-primary parsed pytest traceback. Shared records are comparison context.
+For surfaced `regressed_tests`, use the complete nightly-only and shared records in
+`report.json`; here `exception_chain` is the primary parsed pytest traceback. Shared
+records are comparison context.
 
 Rate `shared_root_cause_confidence` (high/med/low) per member as you assign it to a group.
 

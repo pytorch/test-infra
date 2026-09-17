@@ -603,27 +603,6 @@ def render_failure_context(
     return "\n".join(sections)
 
 
-def render_both_pytest_diff(
-    cluster_key: str,
-    representative: Dict,
-    diff: DiffResult,
-) -> str:
-    """Serialize the already-computed nightly-only failures for a surfaced cluster."""
-    sections = [
-        _artifact_header(cluster_key, representative),
-        "# capture_mode: both_pytest_diff\n",
-        f"# parsed {len(diff.new_failures)} nightly-only failing test(s)\n",
-    ]
-    for failure in diff.new_failures:
-        sections.append(f"## {failure.test_id}")
-        sections.append(f"pytest_exception_class: {failure.pytest_exception_class}")
-        sections.append(f"test_is_infra: {failure.test_is_infra}")
-        sections.append("")
-        sections.append(failure.exception_chain)
-        sections.append("")
-    return "\n".join(sections)
-
-
 def _fetch_job_log(job_url: str, token: str, timeout: int = 120) -> Optional[str]:
     """GET one Buildkite job's raw log body.
 
@@ -789,14 +768,14 @@ def diff_both_clusters(
     return surfaced
 
 
-def _write_both_artifacts(
+def _write_both_context_artifacts(
     cluster_diffs: List[BothClusterDiff],
     pathlib_dir: Any,
     tail_lines: int,
     failure_window_context_before_lines: int,
     failure_window_context_after_lines: int,
 ) -> List[str]:
-    """Write the pytest diff and bounded nightly context per cluster.
+    """Write bounded nightly context for each surfaced both-cluster.
 
     Args:
         cluster_diffs: Surfaced both-cluster diffs.
@@ -816,17 +795,7 @@ def _write_both_artifacts(
         both_context_dir.mkdir(parents=True, exist_ok=True)
 
     for cluster_diff in cluster_diffs:
-        artifact = render_both_pytest_diff(
-            cluster_diff.cluster,
-            cluster_diff.rep,
-            cluster_diff.diff,
-        )
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", cluster_diff.cluster)[:80]
-        dest = pathlib_dir / f"both_{safe}.log"
-        with open(dest, "w") as f:
-            f.write(artifact)
-        written.append(str(dest))
-
         nightly_dest = both_context_dir / f"nightly_{safe}.log"
         nightly_context = render_failure_context(
             cluster_diff.torch_nightly_body,
@@ -856,9 +825,8 @@ def fetch_cluster_logs(
     """Download one representative artifact per surfaced cluster.
 
     Nightly-only clusters get bounded failure windows followed by a cleaned raw tail.
-    Surfaced `both` clusters get their already-computed pytest A/B diff plus one
-    bounded nightly raw-context file. There is one artifact set per cluster rather
-    than one per job because a cluster is most likely a single root cause.
+    Surfaced `both` clusters get one bounded nightly raw-context file. Their parsed
+    pytest A/B diff is retained in report.json rather than written as a log artifact.
 
     Args:
         buckets: The compare() buckets.
@@ -927,7 +895,7 @@ def fetch_cluster_logs(
             _build_regressed_entry(cd.cluster, cd.rep, cd.diff) for cd in cluster_diffs
         )
         written.extend(
-            _write_both_artifacts(
+            _write_both_context_artifacts(
                 cluster_diffs,
                 pathlib_dir,
                 tail_lines,

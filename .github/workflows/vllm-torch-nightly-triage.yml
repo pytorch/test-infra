@@ -85,7 +85,7 @@ jobs:
           else
             echo "has_report=false" >> "${GITHUB_OUTPUT}"
           fi
-          echo "log_count=$(find "${RUNNER_TEMP}/cluster-logs" -name '*.log' 2>/dev/null | wc -l)" \
+          echo "log_count=$(find "${RUNNER_TEMP}/cluster-logs" "${RUNNER_TEMP}/both-cluster-logs" -name '*.log' 2>/dev/null | wc -l)" \
             >> "${GITHUB_OUTPUT}"
 
       - name: Print report
@@ -164,18 +164,12 @@ jobs:
 
             Inputs, all under ${{ runner.temp }}/triage:
               - report.md   the torch-nightly vs baseline A/B, with clusters
-              - report.json the same data structured
+              - report.json the same data structured, including complete parsed
+                nightly-only and shared failure records under regressed_tests
               - cluster-logs/<safe-cluster-name>.log  one representative Buildkite
                 context artifact per nightly-only cluster, with bounded failure
                 windows followed by a cleaned raw tail. The first lines of each file
                 give the cluster name, job name, job URL, state and exit status.
-              - cluster-logs/both_*.log  the pytest A/B diff for each surfaced `both`
-                cluster. These are red-on-both-twins clusters (see report.json
-                "regressed_tests"): the job fails on both the torch-nightly and
-                baseline build, but has pytest failures unique to torch nightly. These
-                files contain only those torch-nightly-only failures. The complete
-                shared nightly/baseline failure records are in
-                report.json.regressed_tests[].shared_failures.
               - both-cluster-logs/nightly_*.log  bounded raw nightly Buildkite context
                 for those surfaced `both` clusters. This is evidence only; a failure
                 window is not proof that it belongs to a particular unique pytest

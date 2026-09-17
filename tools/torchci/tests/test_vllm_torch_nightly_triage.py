@@ -278,7 +278,7 @@ class TestDiffBothClusters(unittest.TestCase):
         )
 
 
-class TestWriteBothArtifacts(unittest.TestCase):
+class TestWriteBothContextArtifacts(unittest.TestCase):
     """The write stage emits nightly root-cause context for surfaced clusters."""
 
     def _artifacts_for(self, torch_nightly_body, baseline_body):
@@ -289,7 +289,7 @@ class TestWriteBothArtifacts(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             logs_dir = Path(tmp) / "cluster-logs"
             logs_dir.mkdir()
-            written = triage._write_both_artifacts(
+            written = triage._write_both_context_artifacts(
                 cluster_diffs,
                 logs_dir,
                 tail_lines=50,
@@ -299,7 +299,7 @@ class TestWriteBothArtifacts(unittest.TestCase):
             contents = [Path(path).read_text() for path in written]
         return written, contents
 
-    def test_new_failures_write_artifact_with_shared_chains(self) -> None:
+    def test_new_failures_write_nightly_context(self) -> None:
         torch_nightly_body = make_pytest_body(
             [
                 ("tests/test_a.py::test_foo", "AssertionError", "shared boom"),
@@ -311,18 +311,10 @@ class TestWriteBothArtifacts(unittest.TestCase):
         )
         written, contents = self._artifacts_for(torch_nightly_body, baseline_body)
 
-        self.assertEqual(len(written), 2)
-        artifact = next(
-            content for content in contents if "both_pytest_diff" in content
-        )
-        nightly_context = next(
-            content for content in contents if "# capture_mode: both_failure_context" in content
-        )
-        self.assertIn("# capture_mode: both_pytest_diff", artifact)
-        self.assertIn("tests/test_b.py::test_bar", artifact)  # the new failure
-        self.assertIn("new-failure-marker", artifact)
-        self.assertNotIn("shared boom", artifact)
-        self.assertNotIn("baseline-only-marker", artifact)
+        self.assertEqual(len(written), 1)
+        self.assertNotIn("cluster-logs/both_", written[0])
+        nightly_context = contents[0]
+        self.assertIn("# capture_mode: both_failure_context", nightly_context)
         self.assertIn("## raw_tail", nightly_context)
         self.assertIn("# url: tn#job", nightly_context)
         self.assertIn("# state: failed", nightly_context)
@@ -335,7 +327,7 @@ class TestWriteBothArtifacts(unittest.TestCase):
 
     def test_no_surfaced_clusters_writes_nothing(self) -> None:
         self.assertEqual(
-            triage._write_both_artifacts(
+            triage._write_both_context_artifacts(
                 [],
                 Path("/nonexistent"),
                 tail_lines=400,
