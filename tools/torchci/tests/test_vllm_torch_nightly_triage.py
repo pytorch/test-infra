@@ -363,6 +363,7 @@ class TestNightlyFailureContext(unittest.TestCase):
         self.assertIn("EngineCore failed to start", artifact)
         self.assertIn("tail", artifact)
 
+
 def _regressed_entry():
     return {
         "name": "Job A",

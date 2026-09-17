@@ -117,6 +117,8 @@ _COMMAND_SIGNAL_RE = re.compile(
     r"(?:^|\s)(?:FAILED|ERROR)\s+\S*(?:\.py|::)\S*)",
     re.IGNORECASE,
 )
+
+
 def get_test_signature(failed_test: "FailedTest") -> tuple[str, str]:
     """Build the diff key for a failing test.
 

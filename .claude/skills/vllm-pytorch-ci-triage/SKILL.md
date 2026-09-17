@@ -87,12 +87,10 @@ Only genuinely new failures reach this step.
 ONE group per root cause, not per job. From real data: 22 failing jobs
 grouped into 10 root causes.
 
-For job-state `regressed` clusters, use the selected windows and raw tail; do not
-expect pytest IDs or `exception_chain`. Scan upward from wrappers such as
+For failed clusters, use the selected windows and raw tail. Scan upward from wrappers such as
 `Engine core initialization failed. See root cause above.` to find the real exception.
 For surfaced `regressed_tests`, use the complete nightly-only and shared records in
-`report.json`; here `exception_chain` is the primary parsed pytest traceback. Shared
-records are comparison context.
+`report.json` in combination with the both-cluster-logs/nightly_*.log.
 
 Rate `shared_root_cause_confidence` (high/med/low) per member as you assign it to a group.
 

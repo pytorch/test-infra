@@ -39,9 +39,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from torchci.clickhouse import get_clickhouse_client
 from torchci.vllm_log_parser import (
-    FailedTest,
     clean_failure_context_lines,
     extract_failure_context,
+    FailedTest,
     get_test_signature,
     parse_log,
 )
@@ -584,9 +584,7 @@ def render_failure_context(
         body, tail_lines
     )
     raw_tail = {
-        "start_line": (
-            cleaned_log_lines - raw_tail_count + 1 if raw_tail_count else 0
-        ),
+        "start_line": (cleaned_log_lines - raw_tail_count + 1 if raw_tail_count else 0),
         "end_line": cleaned_log_lines if raw_tail_count else 0,
         "line_count": raw_tail_count,
         "text": raw_tail_text,
@@ -597,7 +595,7 @@ def render_failure_context(
             f"# lines {raw_tail['start_line']}-{raw_tail['end_line']} "
             f"({raw_tail['line_count']} lines)",
             "",
-            raw_tail["text"],
+            raw_tail["text"],  # type: ignore[list-item]
         ]
     )
     return "\n".join(sections)
