@@ -9,6 +9,10 @@ export const revertClassifications = {
 
 export const BOT_MANAGED_PR_LABELS = new Set(["in progress"]);
 
+// Members of this pytorch org team may still apply BOT_MANAGED_PR_LABELS by
+// hand, so they can drive and test the automation those labels gate.
+export const BOT_MANAGED_PR_LABEL_EXEMPT_TEAM = "pytorch-dev-infra";
+
 interface CherryPickClassification {
   help: string;
   requiresIssue: boolean;
