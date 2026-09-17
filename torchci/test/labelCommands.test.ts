@@ -373,6 +373,36 @@ describe("label-bot", () => {
     handleScope(scope);
   });
 
+  test("a bot command author is refused without asking about membership", async () => {
+    const event = botManagedLabelCommandEvent();
+    event.payload.comment.user = { login: "pytorchgreenlight[bot]" };
+    const owner = event.payload.repository.owner.login;
+    const repo = event.payload.repository.name;
+    const prNumber = event.payload.issue.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/labels?per_page=100`)
+      .reply(200, botManagedRepoLabels())
+      .post(`/repos/${owner}/${repo}/issues/${prNumber}/comments`, (body) => {
+        expect(body.body).toContain(
+          "lifecycle labels are managed automatically by pytorch-bot"
+        );
+        return true;
+      })
+      .reply(200, {});
+    // Matches any membership path, not a literal one: an interceptor pinned to
+    // an exact login or org goes unconsumed whenever the request differs in any
+    // way, which would pass this test without proving the call was skipped.
+    const membership = nock("https://api.github.com")
+      .get(/\/memberships\//)
+      .reply(404);
+
+    await probot.receive(event);
+
+    expect(membership.isDone()).toBe(false);
+    handleScope(scope);
+  });
+
   test("dev infra members can add bot-managed labels with the label command", async () => {
     const event = botManagedLabelCommandEvent();
     const owner = event.payload.repository.owner.login;

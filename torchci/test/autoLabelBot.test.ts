@@ -2052,6 +2052,35 @@ describe("auto-label-bot: label restrictions", () => {
     expect(teamLookup).not.toHaveBeenCalled();
     handleScope(scope);
   });
+
+  test("remove in progress label from a non-pytorch-bot bot without asking about membership", async () => {
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 311227100, login: "pytorchgreenlight[bot]" },
+        },
+      ]);
+    // Matches any membership path, not a literal one: an interceptor pinned to
+    // an exact login or org goes unconsumed whenever the request differs in any
+    // way, which would pass this test without proving the call was skipped.
+    const membership = nock("https://api.github.com")
+      .get(/\/memberships\//)
+      .reply(404);
+    const removal = mockBotManagedLabelRemoval();
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    // The lookup would 404 anyway; skipping it saves the round trip and the
+    // removal below shows the skip still denies.
+    expect(membership.isDone()).toBe(false);
+    handleScope([removal.deletion, removal.comment]);
+    handleScope(scope);
+  });
 });
 
 describe("auto-label-bot: check-labels integration", () => {

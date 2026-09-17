@@ -363,6 +363,13 @@ export async function isOrgTeamMember(
   teamSlug: string,
   username: string
 ): Promise<boolean> {
+  // App principals are not org members, and the memberships endpoint 404s for
+  // a `[bot]` login, so the call can only answer false for them. The falsy
+  // check keeps `.endsWith` from throwing past the try below, where a throw
+  // would skip the caller's enforcement instead of denying.
+  if (!username || username.endsWith("[bot]")) {
+    return false;
+  }
   try {
     const res = await ctx.octokit.teams.getMembershipForUserInOrg({
       org,
