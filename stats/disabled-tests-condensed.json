@@ -171,14 +171,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive___rpow___cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "165296",
-    "https://github.com/pytorch/pytorch/issues/165296",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "152893",
     "https://github.com/pytorch/pytorch/issues/152893",
