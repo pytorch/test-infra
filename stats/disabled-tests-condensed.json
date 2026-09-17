@@ -205,13 +205,6 @@
       "rocm"
     ]
   ],
-  "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
-    "194171",
-    "https://github.com/pytorch/pytorch/issues/194171",
-    [
-      "linux"
-    ]
-  ],
   "test_codegen_per_stream_alignment_copy_one_per_stream (__main__.TestUserStreamCompile)": [
     "192283",
     "https://github.com/pytorch/pytorch/issues/192283",
@@ -552,14 +545,6 @@
     "https://github.com/pytorch/pytorch/issues/196438",
     [
       "linux"
-    ]
-  ],
-  "test_generic_event_record_on_stream (__main__.TestGenericStreamCompile)": [
-    "186907",
-    "https://github.com/pytorch/pytorch/issues/186907",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_generic_stream_basic (__main__.TestGenericStreamCompile)": [
