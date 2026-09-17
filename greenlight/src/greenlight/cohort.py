@@ -18,17 +18,18 @@ __all__ = ["GREENLIGHT_APP_SLUG", "TRUSTED_AUTHORS", "evaluation_cohort", "is_sh
 
 TRUSTED_AUTHORS: frozenset[str] = frozenset(
     {
-        "albanD",  # Alban Desmaison
-        "jathu",  # Jathu Satkunarajah
-        "atalman",  # Andrey Talman
-        "huydhn",  # Huy Do
-        "izaitsevfb",  # Ivan Zaitsev
-        "georgehong",  # George Hong
-        "jeanschmidt",  # Jean Schmidt
-        "ezyang",  # Edward Yang
-        "drisspg",  # Driss Guessous
-        "janeyx99",  # Jane Xu
-        "bobrenjc93",  # Bob Ren
+        "albanD",
+        "jathu",
+        "atalman",
+        "huydhn",
+        "izaitsevfb",
+        "georgehong",
+        "jeanschmidt",
+        "ezyang",
+        "drisspg",
+        "janeyx99",
+        "bobrenjc93",
+        "aorenste",
     }
 )
 
