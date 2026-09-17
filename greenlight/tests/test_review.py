@@ -2148,7 +2148,7 @@ def test_listing_scans_the_evaluation_cohort_not_the_trusted_author_set(make_con
     scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=authorized)
 
     # What reaches list_open_prs_by_authors is the resolved merge_rules approver set minus bots and
-    # greenlight itself -- not the eleven trusted authors, who no longer bound what is evaluated.
+    # greenlight itself -- not the trusted authors, who bound authority rather than what is evaluated.
     assert scan.listed_authors == [frozenset({"alice", "bob"})]
     assert scan.listed_authors[0].isdisjoint({login.lower() for login in cohort.TRUSTED_AUTHORS})
 
