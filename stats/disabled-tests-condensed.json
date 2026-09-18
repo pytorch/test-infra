@@ -56,6 +56,14 @@
     "https://github.com/pytorch/pytorch/issues/188688",
     []
   ],
+  "test_backward_choices_hook_preserves_captured_grad_mutations_cuda (__main__.TestFlexAttentionCUDA)": [
+    "196671",
+    "https://github.com/pytorch/pytorch/issues/196671",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_backward_ddp_outside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "103625",
     "https://github.com/pytorch/pytorch/issues/103625",
@@ -117,6 +125,15 @@
     "https://github.com/pytorch/pytorch/issues/69179",
     [
       "mac"
+    ]
+  ],
+  "test_call_count_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186872",
+    "https://github.com/pytorch/pytorch/issues/186872",
+    [
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
@@ -410,6 +427,13 @@
     "https://github.com/pytorch/pytorch/issues/188676",
     []
   ],
+  "test_fn_grad_nn_functional_interpolate_linear_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "197512",
+    "https://github.com/pytorch/pytorch/issues/197512",
+    [
+      "linux"
+    ]
+  ],
   "test_fully_shard_training_overlap (__main__.TestFullyShardOverlap)": [
     "134139",
     "https://github.com/pytorch/pytorch/issues/134139",
@@ -499,6 +523,14 @@
     "188677",
     "https://github.com/pytorch/pytorch/issues/188677",
     []
+  ],
+  "test_graph_two_successive (__main__.TestCuda)": [
+    "159113",
+    "https://github.com/pytorch/pytorch/issues/159113",
+    [
+      "linux",
+      "rocm"
+    ]
   ],
   "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
     "192735",
@@ -771,6 +803,13 @@
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
     []
+  ],
+  "test_mm_submatrix_offline_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
+    "186873",
+    "https://github.com/pytorch/pytorch/issues/186873",
+    [
+      "rocm"
+    ]
   ],
   "test_multi_kernel_nesting_and_global_constexpr (__main__.FxGraphRunnableTest)": [
     "196392",
@@ -1351,6 +1390,14 @@
     "https://github.com/pytorch/pytorch/issues/187000",
     [
       "inductor"
+    ]
+  ],
+  "test_variant_consistency_jit_nn_functional_grid_sample_cuda_float32 (__main__.TestJitCUDA)": [
+    "197511",
+    "https://github.com/pytorch/pytorch/issues/197511",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
