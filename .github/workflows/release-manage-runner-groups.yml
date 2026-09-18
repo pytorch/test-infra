@@ -1,20 +1,29 @@
 name: Release manage runner groups
 
 on:
-  # The desired state only changes at release milestones, so run on demand and
-  # when the test-channel version is advanced (the go-live bump), rather than on
-  # a cron.
   workflow_dispatch:
     inputs:
       apply:
         description: "Apply changes (otherwise dry-run)"
         type: boolean
         default: false
+  schedule:
+    # The allow-list pins the newest RC per release line, and RC tags are cut in
+    # pytorch/pytorch -- which cannot trigger anything in this repo. So the only
+    # way to notice a new RC is to poll. Without this the allow-list goes stale
+    # the moment a tag is cut and every release build queues indefinitely, since
+    # GitHub matches selected_workflows on the exact ref. Off the hour to dodge
+    # the top-of-hour scheduling backlog.
+    - cron: "23 * * * *"
   push:
     branches:
       - main
     paths:
       - tools/scripts/generate_binary_build_matrix.py
+      # This workflow and its script must redeploy themselves; a change to the
+      # reconcile logic that never runs is not deployed.
+      - tools/scripts/release_manage_runner_groups.py
+      - .github/workflows/release-manage-runner-groups.yml
   pull_request:
     paths:
       - .github/workflows/release-manage-runner-groups.yml
@@ -26,8 +35,12 @@ permissions:
   contents: read
 
 concurrency:
+  # Not cancel-in-progress: the applying run mutates runner-group config, and
+  # now that a schedule fires hourly it can collide with a release-time manual
+  # dispatch. Killing that mid-apply would leave the allow-list half-written.
+  # Runs are short API calls, so queueing them costs little.
   group: release-manage-runner-groups
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   reconcile:
@@ -49,10 +62,11 @@ jobs:
           # read-only discovery on PRs.
           RUNNER_GROUP_TOKEN: ${{ secrets.RUNNER_GROUP_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
-          # Apply only from main, and only for the go-live push (matrix version
-          # bump) or an explicit dispatch with apply=true. Everything else is a
-          # dry-run.
-          SHOULD_APPLY: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.apply) }}
+          # Apply only from main, and only for a push (matrix or reconcile-logic
+          # change), the schedule, or an explicit dispatch with apply=true.
+          # Everything else is a dry-run. The schedule must apply or it would
+          # poll forever and never act on the new RC it just discovered.
+          SHOULD_APPLY: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'schedule' || inputs.apply) }}
         run: |
           SCRIPT=tools/scripts/release_manage_runner_groups.py
           if [ "${SHOULD_APPLY}" = "true" ]; then
