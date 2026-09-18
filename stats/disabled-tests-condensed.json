@@ -1020,36 +1020,6 @@
       "xpu"
     ]
   ],
-  "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
-    "186259",
-    "https://github.com/pytorch/pytorch/issues/186259",
-    [
-      "linux"
-    ]
-  ],
-  "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
-    "196629",
-    "https://github.com/pytorch/pytorch/issues/196629",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_redispatch_nn_functional_linear_cross_entropy_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
-    "186203",
-    "https://github.com/pytorch/pytorch/issues/186203",
-    [
-      "linux"
-    ]
-  ],
-  "test_redispatch_nn_functional_linear_cross_entropy_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
-    "196585",
-    "https://github.com/pytorch/pytorch/issues/196585",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_redispatch_scatter_xpu_float8_e4m3fn (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
     "197334",
     "https://github.com/pytorch/pytorch/issues/197334",
