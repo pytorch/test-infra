@@ -408,13 +408,6 @@
       "dynamo"
     ]
   ],
-  "test_flash_attention_vs_math_ref_grads_batch_size_8_seq_len_q_2048_seq_len_k_2048_head_dim_8_is_causal_False_dropout_p_0_48_bfloat16_scale_l1_enable_gqa_True_n_heads0_sdpa_backend_ck_cuda_bfloat16 (__main__.TestSDPAAcceleratorCUDA)": [
-    "196586",
-    "https://github.com/pytorch/pytorch/issues/196586",
-    [
-      "rocm"
-    ]
-  ],
   "test_float8_e4m3fn_uint8_decode_codegen_cuda (__main__.TestFP8TypesCUDA)": [
     "188676",
     "https://github.com/pytorch/pytorch/issues/188676",
@@ -1028,13 +1021,6 @@
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
     []
-  ],
-  "test_regional_codegen_only_config_cpp_wrapper_xpu (__main__.GPUTests)": [
-    "195875",
-    "https://github.com/pytorch/pytorch/issues/195875",
-    [
-      "xpu"
-    ]
   ],
   "test_regional_fallback_by_default_invoke_subgraph_xpu (__main__.GPUTests)": [
     "195876",
