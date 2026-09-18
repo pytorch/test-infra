@@ -20,6 +20,7 @@ _PINNED_TRUSTED_AUTHORS = {
     "janeyx99",
     "bobrenjc93",
     "aorenste",
+    "d4l3k",
 }
 
 

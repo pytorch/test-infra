@@ -30,6 +30,7 @@ TRUSTED_AUTHORS: frozenset[str] = frozenset(
         "janeyx99",
         "bobrenjc93",
         "aorenste",
+        "d4l3k",
     }
 )
 
