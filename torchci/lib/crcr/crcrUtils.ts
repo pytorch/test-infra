@@ -22,6 +22,7 @@ export interface RelayWorkflow {
   name: string;
   url: string;
   job_name?: string;
+  // Required except on nightly/periodic callbacks, which have no check run.
   check_run_id?: string;
   run_id?: string;
   run_attempt?: number | string;
@@ -110,6 +111,10 @@ export function validatePayloadSize(bodyString: string): void {
 // trailing path segment.
 const CIFLOW_TRUNK_REF_RE = /\/ciflow\/trunk\/(\d+)$/;
 
+// Event types that self-report a finished run in one callback, with no
+// upstream check run behind them (see _handle_nightly_callback in the relay).
+const NIGHTLY_EVENT_TYPES = new Set(["nightly", "periodic"]);
+
 // Returns (prNumber, headSha) for a callback's payload. Prefers the
 // pull_request shape. Falls back to a push event: PR number is recovered
 // only from a ciflow/trunk/<pr> ref, head SHA from payload.after. A push to
@@ -142,11 +147,17 @@ export function extractDynamoRecord(
   if (!wf.job_name) {
     throw new ApiError(400, "Missing required field: workflow.job_name");
   }
-  if (wf.check_run_id == null) {
+  // check_run_id identifies the upstream check run the relay created to mirror
+  // this job. Nightly/periodic callbacks never get one -- they are a single
+  // self-report with no check run -- so demanding it rejected every Buildkite
+  // nightly job with a 400 that read like a malformed payload. They are still
+  // uniquely keyed: a nightly delivery_id is per-job, not per-run.
+  const isNightly = NIGHTLY_EVENT_TYPES.has(cb.event_type);
+  if (wf.check_run_id == null && !isNightly) {
     throw new ApiError(400, "Missing required field: workflow.check_run_id");
   }
   const jobName = wf.job_name;
-  const checkRunId = String(wf.check_run_id);
+  const checkRunId = wf.check_run_id == null ? "" : String(wf.check_run_id);
   const runAttempt = Number(wf.run_attempt ?? 1) || 1;
   const dynamoKey = `${trusted.verified_repo}/${cb.delivery_id}/${wf.name}/${jobName}/${checkRunId}`;
 

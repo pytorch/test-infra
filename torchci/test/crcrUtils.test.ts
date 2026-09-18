@@ -330,6 +330,55 @@ describe("extractDynamoRecord", () => {
       expect(e.message).toContain("check_run_id");
     }
   });
+
+  // A nightly/periodic self-report has no upstream check run to point at, so
+  // requiring check_run_id 400s every job in the build. The existing nightly
+  // tests above all inherit check_run_id from makePayload's base workflow,
+  // which is why this went unnoticed -- these drop it explicitly.
+  test.each(["nightly", "periodic"])(
+    "accepts a %s callback with no check_run_id",
+    (eventType) => {
+      const record = extractDynamoRecord(
+        makePayload({
+          callback: { event_type: eventType },
+          workflow: { check_run_id: undefined },
+        })
+      );
+      expect(record.check_run_id).toBe("");
+      expect(record.event_type).toBe(eventType);
+    }
+  );
+
+  test("still requires check_run_id for non-nightly callbacks", () => {
+    try {
+      extractDynamoRecord(
+        makePayload({
+          callback: { event_type: "workflow_job" },
+          workflow: { check_run_id: undefined },
+        })
+      );
+      throw new Error("expected extractDynamoRecord to throw");
+    } catch (e: any) {
+      expect(e).toBeInstanceOf(ApiError);
+      expect(e.statusCode).toBe(400);
+      expect(e.message).toContain("check_run_id");
+    }
+  });
+
+  test("keeps nightly rows distinct without a check_run_id", () => {
+    // delivery_id is per-job for a Buildkite nightly, so it carries the
+    // uniqueness that check_run_id carries on the GitHub Actions path.
+    const keyFor = (deliveryId: string) =>
+      extractDynamoRecord(
+        makePayload({
+          callback: { event_type: "nightly", delivery_id: deliveryId },
+          workflow: { check_run_id: undefined },
+        })
+      ).dynamoKey;
+    expect(keyFor("buildkite-89891-jobA")).not.toBe(
+      keyFor("buildkite-89891-jobB")
+    );
+  });
 });
 
 describe("validatePayloadSize", () => {
