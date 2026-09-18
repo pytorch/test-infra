@@ -109,8 +109,12 @@ export default async function handler(
   }>
 ) {
   const authorization = req.headers.authorization;
+  const botKey = process.env.DRCI_BOT_KEY;
 
-  if (authorization == process.env.DRCI_BOT_KEY) {
+  // `botKey &&` matters: without it an unset DRCI_BOT_KEY makes the comparison
+  // undefined == undefined for a caller that sent no header, and every
+  // anonymous request is admitted as the bot.
+  if (botKey && authorization === botKey) {
     // Dr. CI bot key is used to update the comment, probably called from the
     // update Dr. CI workflow
   } else if (authorization) {
@@ -121,14 +125,47 @@ export default async function handler(
       res.status(403).end();
       return;
     }
-    // Check if they exceed the rate limit
-    const userOctokit = await getOctokitWithUserToken(authorization as string);
-    const user = await userOctokit.rest.users.getAuthenticated();
-    if (await drCIRateLimitExceeded(user.data.login)) {
-      res.status(429).end();
+    // Resolving the caller talks to GitHub and to the rate limiter, either of
+    // which can throw. Uncaught, that leaves the function with no response and
+    // the platform answers 500, which names no cause -- and trymerge reads any
+    // failure of this endpoint as "no classifications", so it degrades quietly.
+    // Answer a status that says which half failed.
+    try {
+      // Check if they exceed the rate limit
+      const userOctokit = await getOctokitWithUserToken(
+        authorization as string
+      );
+      const user = await userOctokit.rest.users.getAuthenticated();
+      if (await drCIRateLimitExceeded(user.data.login)) {
+        res.status(429).end();
+        return;
+      }
+      // This insert IS the per-user limit, so a failed one must refuse rather
+      // than serve: reads and writes use separate ClickHouse credentials, so a
+      // lost INSERT permission can persist while the read above keeps
+      // answering, and every authenticated user would drive unbounded work
+      // under the service's own bot credentials without consuming quota. The
+      // bot-key path never reaches this limiter, so refusing here does not
+      // touch the scheduled comment updates.
+      await incrementDrCIRateLimit(user.data.login);
+    } catch (error) {
+      // Only GitHub saying the credential is bad is an auth failure. A
+      // ClickHouse or network fault means this endpoint could not reach its
+      // dependencies, which is ours, not the caller's. Messages are fixed --
+      // dependency exception text can name backends, hosts and queries -- and
+      // the detail stays in the server log.
+      if ((error as { status?: number }).status === 401) {
+        console.error("Dr.CI rejected the caller's credential:", error);
+        res.setHeader("WWW-Authenticate", "Bearer");
+        res.status(401).json({ error: "Invalid credentials" } as any);
+      } else {
+        console.error("Dr.CI could not resolve the caller:", error);
+        res
+          .status(503)
+          .json({ error: "Authentication service unavailable" } as any);
+      }
       return;
     }
-    incrementDrCIRateLimit(user.data.login);
   } else {
     // No authorization provided, return 403
     res.status(403).end();
