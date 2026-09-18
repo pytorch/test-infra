@@ -490,7 +490,9 @@ function NightlySummaryCards({
 // ---- Relay Health Card (for pytorch/crcr-test) ----
 
 const HEALTH_COUNT = 5;
-const HEALTH_STALE_AFTER_MINUTES = 24 * 60 + 15;
+// ci-infra leaves ZOMBIE_TIMEOUT_SECONDS unset, so the callback default is 6h.
+// The 15-minute grace covers its 10-minute EventBridge sweep interval.
+const HEALTH_STALE_AFTER_MINUTES = 6 * 60 + 15;
 
 function RelayHealthCard({
   healthPrs,

@@ -6,7 +6,7 @@
   "tests": [
     {
       "count": "5",
-      "stale_after_minutes": "1455"
+      "stale_after_minutes": "375"
     }
   ]
 }
