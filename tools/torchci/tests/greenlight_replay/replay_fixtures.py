@@ -20,7 +20,10 @@ from types import SimpleNamespace
 from unittest import mock
 
 import torchci.greenlight_replay.__main__ as cli
-from torchci.greenlight_replay import sweep as sweep_module
+from torchci.greenlight_replay import (
+    preflight as preflight_module,
+    sweep as sweep_module,
+)
 from torchci.greenlight_replay.checkout import WorktreePool
 from torchci.greenlight_replay.frame import (
     CANNED_TOO_LARGE_MESSAGES,
@@ -179,12 +182,21 @@ class Fakes:
             "materialize_trusted_skills": self.materialize_trusted_skills,
             "WorktreePool": PoolFactory(self.pools),
             "build_inputs": self.build_inputs,
-            "check_binaries": lambda path=None: None,
             "assert_hooks_present": self.assert_hooks_present,
             "run_review": self.run_review,
             "append_checkpoint": self.append_checkpoint,
         }
-        for module, names in ((cli, entry_point), (sweep_module, machinery)):
+        # No network and no reviewer binary requirement in a unit test; both are
+        # covered directly against preflight instead.
+        gates = {
+            "check_binaries": lambda path=None: None,
+            "check_policy_ref": lambda ref, repo=None: None,
+        }
+        for module, names in (
+            (cli, entry_point),
+            (sweep_module, machinery),
+            (preflight_module, gates),
+        ):
             for name, replacement in names.items():
                 stack.enter_context(mock.patch.object(module, name, replacement))
         return self

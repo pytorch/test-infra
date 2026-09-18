@@ -17,7 +17,6 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-import shutil
 import signal
 import threading
 from collections.abc import Iterator, Mapping, Sequence
@@ -29,18 +28,15 @@ from typing import Any
 from torchci.greenlight_decisions.__main__ import parse_as_of
 from torchci.greenlight_replay.checkout import materialize_trusted_skills, WorktreePool
 from torchci.greenlight_replay.emit import append_checkpoint
-from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.inputs import build_inputs
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
+from torchci.greenlight_replay.preflight import preflight
 from torchci.greenlight_replay.runner import (
-    CLAUDE_BIN,
     DEFAULT_MODEL,
     Outcome,
     run_review,
     RunResult,
     schema_support_violation,
-    SUBPROCESS_PATH,
-    TIMEOUT_BIN,
 )
 from torchci.greenlight_replay.settings import assert_hooks_present
 from torchci.greenlight_replay.workspace import install_policy_half, sanitize_checkout
@@ -130,7 +126,7 @@ def open_sweep(
     one an unrecognised profile stops the sweep here, before the clone and
     before anything is spent.
     """
-    preflight(workdir)
+    preflight(workdir, policy_ref)
     policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
     check_schema(policy)
     # A hook that cannot exec does not deny, it silently does not run.
@@ -176,31 +172,6 @@ def local_model(profile: str) -> str:
         ) from None
 
 
-def preflight(workdir: Path) -> None:
-    """Everything that can be refused before a sweep touches the network."""
-    check_workdir(workdir)
-    check_binaries()
-
-
-def check_binaries(path: str = SUBPROCESS_PATH) -> None:
-    """Refuse a sweep the reviewer's own PATH could not launch.
-
-    The reviewer's environment is replaced wholesale with a pinned PATH rather
-    than inherited, so a binary on the operator's PATH is not necessarily on the
-    one the subprocess is given.
-    """
-    missing = [
-        name
-        for name in (CLAUDE_BIN, TIMEOUT_BIN)
-        if shutil.which(name, path=path) is None
-    ]
-    if missing:
-        raise FileNotFoundError(
-            f"{', '.join(missing)} is not on the reviewer's PATH ({path}); "
-            "every run would fail to launch"
-        )
-
-
 def check_schema(policy: Policy) -> None:
     """Refuse a verdict schema the runner could not read or could not interpret.
 
@@ -216,21 +187,6 @@ def check_schema(policy: Policy) -> None:
     unsupported = schema_support_violation(schema)
     if unsupported is not None:
         raise ValueError(f"{policy.schema_path} cannot be interpreted: {unsupported}")
-
-
-def check_workdir(workdir: Path) -> None:
-    """Refuse a scratch root outside the read sandbox's own allowlist.
-
-    Defence in depth rather than load-bearing today: the PreToolUse hooks judge
-    the un-remapped ``/tmp/greenlight-*`` path, which is always allowed, so reads
-    succeed wherever the run directory lives. It keeps the design correct against
-    a CLI that chains ``updatedInput``, where a directory outside the prefix
-    would instead deny every read. ``remap.run_dir_violation`` refuses one
-    outright, so checking here turns a per-pull-request failure into a startup one.
-    """
-    violation = remap.run_dir_violation(str((workdir / RUNS_DIRNAME).resolve()))
-    if violation is not None:
-        raise ValueError(f"--workdir {workdir} is unusable: {violation}")
 
 
 def run_sweep(

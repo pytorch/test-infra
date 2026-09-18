@@ -21,7 +21,11 @@ from pathlib import Path
 
 import torchci.greenlight_replay.__main__ as cli
 from replay_fixtures import Fakes, read_csv, replay_row, run_replay
-from torchci.greenlight_replay import options, sweep as sweep_module
+from torchci.greenlight_replay import (
+    options,
+    preflight as preflight_module,
+    sweep as sweep_module,
+)
 
 
 SUBPROCESS_TIMEOUT_SECONDS = 60
@@ -145,7 +149,7 @@ class TestArgumentParsing(unittest.TestCase):
         # the metadata, and the reviewer answers about a pull request it never saw.
         runs = Path(options.DEFAULT_WORKDIR) / "pr-1" / sweep_module.RUNS_DIRNAME
         self.assertIsNone(
-            sweep_module.remap.run_dir_violation(str(runs.resolve())),
+            preflight_module.remap.run_dir_violation(str(runs.resolve())),
             f"{options.DEFAULT_WORKDIR} is outside the read sandbox's scratch prefix",
         )
 

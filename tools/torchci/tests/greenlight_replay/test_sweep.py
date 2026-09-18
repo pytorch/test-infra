@@ -24,6 +24,7 @@ from unittest import mock
 import torchci.greenlight_replay.__main__ as cli
 from replay_fixtures import Fakes, POLICY_MODEL, replay_row, run_replay, SCRATCH_PREFIX
 from torchci.greenlight_replay import (
+    preflight as preflight_module,
     sweep as sweep_module,
     workspace as workspace_module,
 )
@@ -47,12 +48,12 @@ class TestScratchRoot(unittest.TestCase):
     def test_a_workdir_outside_the_prefix_is_refused(self):
         with tempfile.TemporaryDirectory() as elsewhere:
             with self.assertRaises(ValueError) as caught:
-                sweep_module.check_workdir(Path(elsewhere))
+                preflight_module.check_workdir(Path(elsewhere))
             self.assertIn("scratch prefix", str(caught.exception))
 
     def test_a_workdir_inside_the_prefix_is_accepted(self):
         with tempfile.TemporaryDirectory(prefix=SCRATCH_PREFIX, dir="/tmp") as inside:
-            sweep_module.check_workdir(Path(inside))
+            preflight_module.check_workdir(Path(inside))
 
     def test_the_run_directories_are_siblings_of_the_policy_tree(self):
         # Nested under it they would be inside the reviewer's workspace root,
@@ -63,9 +64,9 @@ class TestScratchRoot(unittest.TestCase):
             run_dir = fakes.run_dirs[0]
             workspace = fakes.workspaces[0]
             self.assertFalse(run_dir.is_relative_to(workspace))
-            self.assertEqual(run_dir.parent.name, sweep_module.RUNS_DIRNAME)
+            self.assertEqual(run_dir.parent.name, preflight_module.RUNS_DIRNAME)
             self.assertIsNone(
-                sweep_module.remap.run_dir_violation(str(run_dir.resolve()))
+                preflight_module.remap.run_dir_violation(str(run_dir.resolve()))
             )
 
 
@@ -303,10 +304,31 @@ class TestGuardedDelete(unittest.TestCase):
 class TestStartupChecks(unittest.TestCase):
     """Faults that are free to find before the network is touched, found there."""
 
+    def test_a_policy_ref_the_remote_does_not_have_is_named(self):
+        # The likeliest way to start a sweep wrong, and the one thing a dry run
+        # could not catch before: it prices a plan that cannot run.
+        completed = SimpleNamespace(returncode=2, stdout=b"", stderr=b"")
+        with mock.patch.object(
+            preflight_module.subprocess, "run", return_value=completed
+        ):
+            with self.assertRaises(ValueError) as caught:
+                preflight_module.check_policy_ref("8830")
+        self.assertIn("refs/pull/8830/head", str(caught.exception))
+        self.assertIn("pytorch/test-infra", str(caught.exception))
+
+    def test_a_bare_number_resolves_the_way_materialize_fetches_it(self):
+        # If these two disagree the check validates a ref the sweep never asks for.
+        self.assertEqual(
+            preflight_module.resolve_refspec("8830"), "refs/pull/8830/head"
+        )
+        self.assertEqual(preflight_module.resolve_refspec("main"), "main")
+        with self.assertRaises(ValueError):
+            preflight_module.resolve_refspec("../etc/passwd")
+
     def test_a_missing_reviewer_binary_is_named(self):
         with tempfile.TemporaryDirectory() as empty:
             with self.assertRaises(FileNotFoundError) as caught:
-                sweep_module.check_binaries(path=empty)
+                preflight_module.check_binaries(path=empty)
             self.assertIn("claude", str(caught.exception))
 
     def test_a_schema_keyword_the_validator_cannot_read_is_refused(self):
@@ -340,7 +362,7 @@ class TestStartupChecks(unittest.TestCase):
         fakes = Fakes([replay_row(194379)])
         with tempfile.TemporaryDirectory() as elsewhere:
             with mock.patch.object(
-                sweep_module, "check_workdir", side_effect=ValueError("bad root")
+                preflight_module, "check_workdir", side_effect=ValueError("bad root")
             ):
                 with run_replay(fakes, ["--dry-run"]) as (code, _):
                     self.assertEqual(code, cli.EXIT_FAILED)

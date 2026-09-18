@@ -38,10 +38,28 @@ __all__ = [
 
 _WRITE_TOOL = "Write"
 
+# The keywords this module implements, at EVERY schema level -- a subschema under ``allOf``
+# or ``if``/``then``/``else`` is checked against the same set as the root. Anything outside
+# it aborts the sweep rather than being skipped: a keyword we ignore is a policy constraint
+# silently not enforced, which is the one failure worse than refusing to run.
 _SUPPORTED_SCHEMA_KEYS = frozenset(
-    {"$schema", "$comment", "type", "required", "additionalProperties", "properties"}
+    {
+        "$schema",
+        "$comment",
+        "type",
+        "required",
+        "additionalProperties",
+        "properties",
+        "allOf",
+        "if",
+        "then",
+        "else",
+    }
 )
-_SUPPORTED_PROPERTY_KEYS = frozenset({"$comment", "enum", "type", "minLength"})
+_SUPPORTED_PROPERTY_KEYS = frozenset({"$comment", "enum", "type", "minLength", "const"})
+
+# Every keyword whose value is itself a schema, so support checking recurses into it.
+_BRANCH_KEYS = ("if", "then", "else")
 
 
 def verdict_path(run_dir: Path) -> Path:
@@ -130,17 +148,32 @@ def schema_support_violation(schema: Mapping[str, Any]) -> str | None:
 
     Callers check this once up front, before any money is spent.
     """
+    if not isinstance(schema, Mapping):
+        return f"verdict schema has a non-object subschema: {schema!r}"
     unknown = set(schema) - _SUPPORTED_SCHEMA_KEYS
     if unknown:
         return f"verdict schema uses unsupported keywords {sorted(unknown)}"
     for name, spec in (schema.get("properties") or {}).items():
+        if not isinstance(spec, Mapping):
+            return f"verdict schema property {name!r} is not an object: {spec!r}"
         unknown = set(spec) - _SUPPORTED_PROPERTY_KEYS
         if unknown:
             return (
                 f"verdict schema property {name!r} uses unsupported keywords "
                 f"{sorted(unknown)}"
             )
+    for subschema in _subschemas(schema):
+        violation = schema_support_violation(subschema)
+        if violation is not None:
+            return violation
     return None
+
+
+def _subschemas(schema: Mapping[str, Any]) -> list[Any]:
+    """Every nested schema, so neither support checking nor validation stops at the root."""
+    nested: list[Any] = list(schema.get("allOf") or [])
+    nested.extend(schema[key] for key in _BRANCH_KEYS if key in schema)
+    return nested
 
 
 def verdict_violation(
@@ -151,8 +184,16 @@ def verdict_violation(
     Reads the schema file rather than mirroring it, so a policy PR that widens the reason
     enum is honoured. Assumes ``schema_support_violation`` already passed: this function
     judges the reviewer's answer, never the schema.
+
+    Applied recursively, because the constraints that matter most are conditional. The
+    policy expresses "a LAND may carry only the reason ``clean``" as an ``if``/``then``
+    under ``allOf`` -- and a LAND stamped with a reason objecting to landing would authorise
+    the very merge its reason objects to, since the land-time guard reads only the status.
+    Parsing that constraint without evaluating it would be worse than refusing the schema.
     """
     properties = schema.get("properties") or {}
+    if schema.get("type") == "object" and not isinstance(verdict, Mapping):
+        return f"verdict must be an object, got {type(verdict).__name__}"
     for name in schema.get("required") or []:
         if name not in verdict:
             return f"verdict is missing required field {name!r}"
@@ -164,13 +205,40 @@ def verdict_violation(
         if name not in verdict:
             continue
         value = verdict[name]
+        if "const" in spec and value != spec["const"]:
+            return f"verdict {name}={value!r} must be {spec['const']!r}"
         if "enum" in spec and value not in spec["enum"]:
             return f"verdict {name}={value!r} is not one of {spec['enum']}"
         if spec.get("type") == "string" and not isinstance(value, str):
             return f"verdict {name} must be a string, got {type(value).__name__}"
         if "minLength" in spec and len(value or "") < spec["minLength"]:
             return f"verdict {name} is shorter than the required {spec['minLength']} characters"
-    return None
+    for index, subschema in enumerate(schema.get("allOf") or []):
+        violation = verdict_violation(subschema, verdict)
+        if violation is not None:
+            return f"verdict fails allOf[{index}]: {violation}"
+    return _conditional_violation(schema, verdict)
+
+
+def _conditional_violation(
+    schema: Mapping[str, Any], verdict: Mapping[str, Any]
+) -> str | None:
+    """Apply ``then`` when ``if`` matches and ``else`` when it does not.
+
+    The ``if`` subschema is a CONDITION, not an assertion: a verdict that fails it has not
+    done anything wrong, it has merely selected the other branch. An absent branch passes.
+    """
+    condition = schema.get("if")
+    if condition is None:
+        return None
+    branch = "then" if verdict_violation(condition, verdict) is None else "else"
+    applied = schema.get(branch)
+    if applied is None:
+        return None
+    violation = verdict_violation(applied, verdict)
+    if violation is None:
+        return None
+    return f"verdict fails the schema's {branch} branch: {violation}"
 
 
 def _same_path(candidate: Any, wanted: set[str]) -> bool:

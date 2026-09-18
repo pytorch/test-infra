@@ -42,7 +42,10 @@ from typing import Any
 
 from torchci.greenlight_decisions.loc import _REPO_PATTERN
 from torchci.greenlight_replay.checkout import SCRUBBED_GIT_VARS
-from torchci.greenlight_replay.transcript import _schema_violation
+from torchci.greenlight_replay.verdict import (
+    schema_support_violation,
+    verdict_violation,
+)
 from torchci.greenlight_replay.workflow import (
     claude_args,
     diff_caps,
@@ -60,6 +63,7 @@ __all__ = [
     "Policy",
     "WORKFLOW_RELPATH",
     "materialize",
+    "refspec",
     "render_prompt",
 ]
 
@@ -131,7 +135,7 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
     in full is not a policy this harness can claim to have replayed.
     """
     root = Path(workdir)
-    _checkout(repo, _refspec(ref), root)
+    _checkout(repo, refspec(ref), root)
 
     workflow_path = root / WORKFLOW_RELPATH
     document = load(workflow_path)
@@ -140,6 +144,13 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
     hooks_dir = root / HOOKS_RELPATH
     schema_path = _require_file(hooks_dir / SCHEMA_FILENAME)
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    # Once per sweep, before anything is spent. An unsupported keyword is a property
+    # of the policy, identical for every pull request in the corpus, so discovering it
+    # per review would fail and retry the whole run for one unreadable schema.
+    # verdict_violation assumes this has passed and judges answers, never the schema.
+    unsupported = schema_support_violation(schema)
+    if unsupported:
+        raise ValueError(f"{schema_path}: {unsupported}")
 
     return Policy(
         root=root,
@@ -206,7 +217,19 @@ def _reject_unclosed(template: str) -> None:
             )
 
 
-def _refspec(ref: str) -> str:
+def refspec(ref: str) -> str:
+    """The refspec to fetch for a bare pull request number, a ref name or a SHA.
+
+    Public because the preflight check must ask the remote about the *same* refspec the
+    real run will fetch. Resolving it separately there would let a dry run bless a ref
+    the run never asks for, which is the exact failure the check exists to catch, so
+    this is the single source for both.
+
+    A bare number resolves to that PR's ``head`` -- never its ``merge``; the reason is
+    in the module docstring. Anything else must be a ref name or SHA that
+    ``GIT_REF_PATTERN`` accepts, so a value that would read as a git option or forge a
+    second endpoint raises rather than reaching a command line.
+    """
     if ref.isascii() and ref.isdigit():
         return f"refs/pull/{ref}/head"
     if not GIT_REF_PATTERN.fullmatch(ref):
@@ -348,7 +371,7 @@ def _too_large_verdict(path: Path, schema: Mapping[str, Any]) -> dict[str, str]:
     verdict = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(verdict, dict):
         raise ValueError(f"{path} did not parse as an object")
-    violation = _schema_violation(schema, verdict)
+    violation = verdict_violation(schema, verdict)
     if violation:
         raise ValueError(f"{path}: {violation}")
     return dict(verdict)

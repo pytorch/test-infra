@@ -53,13 +53,13 @@ from torchci.greenlight_replay.frame import (
     sample_rows,
 )
 from torchci.greenlight_replay.options import build_parser
+from torchci.greenlight_replay.preflight import preflight
 from torchci.greenlight_replay.sweep import (
     ESTIMATED_COST_USD,
     ESTIMATED_MINUTES,
     interrupt_guard,
     open_sweep,
     pr_number,
-    preflight,
     run_sweep,
     runs_are_trustworthy,
     Sweep,
@@ -115,7 +115,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         sample, framed_total, funnel = select_sample(args)
     except Exception as exc:
-        logger.error("could not build the sample: %s", exc, exc_info=True)
+        logger.error(
+            "could not build the sample: %s",
+            exc,
+            exc_info=logger.isEnabledFor(logging.DEBUG),
+        )
         return EXIT_FAILED
     logger.info("frame: %s", _format_counts(funnel, by_count=False))
     logger.info(
@@ -147,9 +151,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.dry_run:
         try:
-            preflight(workdir)
+            preflight(workdir, policy_ref)
         except Exception as exc:
-            logger.error("a real sweep would not start: %s", exc, exc_info=True)
+            logger.error(
+                "a real sweep would not start: %s",
+                exc,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
             return EXIT_FAILED
         log_plan(sample, pending, policy_ref, args)
         return EXIT_OK
@@ -174,7 +182,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 interrupted=interrupted,
             )
         except Exception as exc:
-            logger.error("could not prepare the sweep: %s", exc, exc_info=True)
+            logger.error(
+                "could not prepare the sweep: %s",
+                exc,
+                exc_info=logger.isEnabledFor(logging.DEBUG),
+            )
             return EXIT_FAILED
         try:
             run_sweep(sweep, pending, args.parallelism)
@@ -196,7 +208,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         written = write_replay_csv(output, rows)
     except Exception as exc:
-        logger.error("could not write %s: %s", output, exc, exc_info=True)
+        logger.error(
+            "could not write %s: %s",
+            output,
+            exc,
+            exc_info=logger.isEnabledFor(logging.DEBUG),
+        )
         return EXIT_FAILED
 
     log_summary(output, written, sample, results, sweep, time.monotonic() - started)
@@ -275,10 +292,12 @@ def log_plan(
     policy_ref: str,
     args: argparse.Namespace,
 ) -> None:
+    logger.info("dry run: no model is invoked and nothing is written")
+    logger.info("  checked: scratch root, reviewer binaries, policy ref exists")
     logger.info(
-        "dry run: no model is invoked and nothing is written. The scratch root "
-        "and the reviewer's binaries are checked; the policy is not fetched, so "
-        "nothing here says it parses or which model it resolves to"
+        "  not checked: policy contents, verdict schema, hook scripts, model "
+        "mapping -- all of them need the policy tree, which a dry run does not "
+        "materialize because a real run afterwards has to find the directory empty"
     )
     logger.info(
         "policy %s, model %s",

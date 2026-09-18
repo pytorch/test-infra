@@ -25,6 +25,17 @@ python3 -m torchci.greenlight_replay \
 Start with `--dry-run` every time. A real sweep of 30 pull requests costs around
 $40 and runs for over an hour at the default parallelism.
 
+The dry run prints what it checked and what it did not, and the distinction
+matters. It confirms the scratch root is usable, the reviewer's binaries are on
+the PATH the reviewer will get, and **the policy ref actually exists on the
+remote** — a mistyped `--policy-pr` is the likeliest way to start a sweep wrong,
+and it is the one the dry run used to miss. It does not fetch the policy, so it
+cannot tell you the workflow parses, the verdict schema is one the harness can
+interpret, the hook scripts resolve, or which model the policy's inference
+profile maps to. Those are checked at the start of a real run, before the clone
+and before anything is billed; they are skipped here because materializing the
+policy would leave the directory that a subsequent real run has to find empty.
+
 Runtime requirements:
 
 - `CLICKHOUSE_ENDPOINT`, `CLICKHOUSE_USERNAME`, `CLICKHOUSE_PASSWORD`. If your
@@ -61,7 +72,7 @@ under `--workdir` and to `--output`.
 | `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to |
 | `--model` | whatever the policy's profile maps to | model id for the local CLI |
 | `--context-window` | `1000000` | window that model must report; pair it with `--model` |
-| `--dry-run` | off | resolve the frame and sample, print the bill, invoke no model |
+| `--dry-run` | off | resolve the frame and sample, check the invocation, print the bill |
 
 `.gitignore` covers `greenlight_replay_*.csv`, but pointing `--output` somewhere
 outside the checkout is tidier.

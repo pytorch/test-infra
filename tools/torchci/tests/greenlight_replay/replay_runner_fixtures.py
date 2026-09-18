@@ -11,6 +11,7 @@ drift onto different ideas of what the CLI returns or what a policy looks like. 
 needed fixing.
 """
 
+import copy
 import json
 import tempfile
 import unittest
@@ -183,3 +184,26 @@ def replay_policy(root, **overrides):
     }
     fields.update(overrides)
     return Policy(**fields)
+
+
+# The conditional constraint pytorch/test-infra#8814 adds to verdict-schema.json: a LAND may
+# carry only the reason "clean". Kept as a fixture because it is the first real policy PR to
+# use a keyword the harness did not support, and the shape is what the validator must cover.
+LAND_MUST_BE_CLEAN = {
+    "if": {"properties": {"status": {"const": "LAND"}}, "required": ["status"]},
+    "then": {"properties": {"reason": {"const": "clean"}}},
+}
+
+NEW_REASONS = ("not_trivial", "needs_socialization")
+
+
+def conditional_schema():
+    """This repository's schema plus #8814's two new reasons and its LAND/clean rule.
+
+    Deep-copied: tests mutate the result to plant unsupported keywords, and a shared
+    subschema would leak those between them.
+    """
+    schema = json.loads(REAL_SCHEMA.read_text())
+    schema["properties"]["reason"]["enum"].extend(NEW_REASONS)
+    schema["allOf"] = [copy.deepcopy(LAND_MUST_BE_CLEAN)]
+    return schema

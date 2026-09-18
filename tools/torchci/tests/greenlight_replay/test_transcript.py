@@ -13,6 +13,7 @@ from pathlib import Path
 
 from replay_runner_fixtures import (
     ABSENT,
+    conditional_schema,
     DEFAULT_CONTEXT_WINDOW,
     DEFAULT_MODEL,
     envelope,
@@ -327,9 +328,9 @@ class TestSchemaSupport(ClassifyTestCase):
 
     def test_an_unreadable_top_level_keyword_is_named(self):
         violation = transcript.schema_support_violation(
-            {**self.schema, "allOf": [{"required": ["status"]}]}
+            {**self.schema, "oneOf": [{"required": ["status"]}]}
         )
-        self.assertIn("allOf", violation)
+        self.assertIn("oneOf", violation)
 
     def test_an_unreadable_property_keyword_is_named(self):
         schema = json.loads(REAL_SCHEMA.read_text())
@@ -344,15 +345,124 @@ class TestSchemaSupport(ClassifyTestCase):
                 0,
                 envelope(result_element()),
                 GOOD_VERDICT,
-                schema={**self.schema, "allOf": []},
+                schema={**self.schema, "oneOf": []},
             )
-        self.assertIn("allOf", str(caught.exception))
+        self.assertIn("oneOf", str(caught.exception))
 
     def test_a_widened_enum_stays_supported_because_only_keywords_are_checked(self):
         # Widening a value the harness already reads must stay a policy change, not a fault.
         schema = json.loads(REAL_SCHEMA.read_text())
         schema["properties"]["reason"]["enum"].append("policy_specific_new_reason")
         self.assertIsNone(transcript.schema_support_violation(schema))
+
+
+class TestConditionalSchema(ClassifyTestCase):
+    """The constraint pytorch/test-infra#8814 adds has to be ENFORCED, not merely parsed.
+
+    A LAND may carry only ``clean``. The land-time guard on pytorch/pytorch reads the
+    recorded status alone, so a LAND stamped with a reason that objects to landing would
+    authorise exactly the merge its reason objects to. A validator that accepted the
+    keyword and skipped the check would be worse than one that refused the schema, because
+    the sweep would run and the rows would look fine.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.schema = conditional_schema()
+
+    def verdict(self, status, reason):
+        return {"status": status, "reason": reason, "message": "- Change\n  - detail"}
+
+    def test_the_schema_is_now_interpretable(self):
+        self.assertIsNone(transcript.schema_support_violation(self.schema))
+
+    def test_a_land_carrying_a_reason_that_objects_to_landing_is_rejected(self):
+        result = self.classify(
+            0,
+            envelope(result_element()),
+            self.verdict("LAND", "not_trivial"),
+            schema=self.schema,
+        )
+        self.assertEqual(result.outcome, transcript.Outcome.SCHEMA_INVALID)
+        self.assertIn("not_trivial", result.error)
+        self.assertIn("clean", result.error)
+
+    def test_every_non_clean_reason_is_rejected_on_a_land(self):
+        for reason in self.schema["properties"]["reason"]["enum"]:
+            if reason == "clean":
+                continue
+            self.assertIsNotNone(
+                transcript.verdict_violation(self.schema, self.verdict("LAND", reason)),
+                f"LAND/{reason} was accepted",
+            )
+
+    def test_a_clean_land_still_passes(self):
+        result = self.classify(
+            0,
+            envelope(result_element()),
+            self.verdict("LAND", "clean"),
+            schema=self.schema,
+        )
+        self.assertEqual(result.outcome, transcript.Outcome.SUCCESS)
+
+    def test_the_rule_does_not_fire_on_a_no_land(self):
+        # The `if` is a condition, not an assertion: failing it selects the other branch.
+        for reason in ("not_trivial", "needs_socialization", "clean", "security_risk"):
+            self.assertIsNone(
+                transcript.verdict_violation(
+                    self.schema, self.verdict("NO_LAND", reason)
+                ),
+                f"NO_LAND/{reason} was rejected",
+            )
+
+    def test_the_two_new_reasons_need_no_code_change(self):
+        # The enum comes from the policy tree, so widening it must stay a policy change.
+        for reason in ("not_trivial", "needs_socialization"):
+            self.assertIsNone(
+                transcript.verdict_violation(
+                    self.schema, self.verdict("NO_LAND", reason)
+                )
+            )
+
+    def test_a_missing_status_is_still_caught_before_the_conditional(self):
+        violation = transcript.verdict_violation(
+            self.schema, {"reason": "clean", "message": "- x"}
+        )
+        self.assertIn("status", violation)
+
+
+class TestSchemaSupportRecursion(ClassifyTestCase):
+    """Widening the subset must not become "ignore what we do not recognise".
+
+    The support check recurses, so a keyword hidden inside a subschema aborts the sweep just
+    as a top-level one does. Without that, ``allOf`` would become a place to smuggle
+    unenforced constraints past the harness.
+    """
+
+    def test_an_unknown_keyword_inside_all_of_is_refused(self):
+        schema = conditional_schema()
+        schema["allOf"].append({"oneOf": []})
+        self.assertIn("oneOf", transcript.schema_support_violation(schema))
+
+    def test_an_unknown_keyword_inside_a_then_branch_is_refused(self):
+        schema = conditional_schema()
+        schema["allOf"][0]["then"]["patternProperties"] = {}
+        self.assertIn("patternProperties", transcript.schema_support_violation(schema))
+
+    def test_an_unknown_property_keyword_inside_an_if_branch_is_refused(self):
+        schema = conditional_schema()
+        schema["allOf"][0]["if"]["properties"]["status"]["pattern"] = "^L"
+        self.assertIn("pattern", transcript.schema_support_violation(schema))
+
+    def test_an_unknown_top_level_keyword_is_still_refused(self):
+        schema = conditional_schema()
+        schema["dependentRequired"] = {}
+        self.assertIn("dependentRequired", transcript.schema_support_violation(schema))
+
+    def test_a_subschema_that_is_not_an_object_is_refused(self):
+        schema = conditional_schema()
+        schema["allOf"].append(True)
+        self.assertIsNotNone(transcript.schema_support_violation(schema))
 
 
 class TestReExports(unittest.TestCase):

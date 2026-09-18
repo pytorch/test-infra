@@ -23,7 +23,7 @@ import yaml
 from torchci.greenlight_replay import (
     checkout as checkout_mod,
     policy as policy_mod,
-    transcript as transcript_mod,
+    verdict as verdict_mod,
     workflow as workflow_mod,
 )
 from torchci.greenlight_replay.checkout import SCRUBBED_GIT_VARS
@@ -343,8 +343,20 @@ class CannedVerdictTest(PolicyTreeTestCase):
             result = materialize("8829", self.root)
         self.assertEqual(result.too_large_verdict["reason"], "diff_unreadable")
 
-    def test_the_validator_is_transcripts_rather_than_a_second_copy(self):
-        self.assertIs(policy_mod._schema_violation, transcript_mod._schema_violation)
+    def test_the_validator_is_the_shared_one_rather_than_a_second_copy(self):
+        self.assertIs(policy_mod.verdict_violation, verdict_mod.verdict_violation)
+
+    def test_a_schema_the_harness_cannot_interpret_aborts_before_any_spend(self):
+        # Patched rather than pinned to a keyword: which ones are supported is the
+        # verdict module's business and moves, while this wiring is ours and must not.
+        write_tree(self.root, [action_step(), sizecheck_step()])
+        with mock.patch.object(policy_mod, CHECKOUT_SEAM):
+            with mock.patch.object(
+                policy_mod, "schema_support_violation", return_value="uses allOf"
+            ):
+                with self.assertRaises(ValueError) as caught:
+                    materialize("8829", self.root)
+        self.assertIn("uses allOf", str(caught.exception))
 
 
 class UnclosedInterpolationTest(unittest.TestCase):
@@ -449,15 +461,15 @@ class RefspecTest(unittest.TestCase):
 
     def test_a_leading_dash_is_refused(self):
         with self.assertRaises(ValueError):
-            policy_mod._refspec("--upload-pack=touch /tmp/pwned")
+            policy_mod.refspec("--upload-pack=touch /tmp/pwned")
 
     def test_a_ref_with_parent_traversal_is_refused(self):
         with self.assertRaises(ValueError):
-            policy_mod._refspec("refs/../../etc/passwd")
+            policy_mod.refspec("refs/../../etc/passwd")
 
     def test_a_ghstack_base_ref_is_accepted(self):
         self.assertEqual(
-            policy_mod._refspec("gh/jeanschmidt/42/base"), "gh/jeanschmidt/42/base"
+            policy_mod.refspec("gh/jeanschmidt/42/base"), "gh/jeanschmidt/42/base"
         )
 
 
