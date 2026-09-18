@@ -52,6 +52,9 @@ const OTHER_SHA = "def4567890def4567890def4567890def4567890";
 // live reviews and must render identically.
 const IN_FLIGHT_STATUSES = ["AI_REVIEW_STARTED", "AI_REVIEW_DISPATCHED"];
 const TERMINAL_STATUSES = ["LAND", "NO_LAND", "CANCELLED", "FAILED"];
+// Every lamp the renderer can emit, so pinning one status to its lamp can also
+// rule out the three it must not show.
+const ALL_LAMPS = ["🟢", "🟡", "⏳", "⚪"];
 // The shortest text the sweep's third predicate, the regex `\d Pending`, matches.
 const SHORTEST_PENDING_MATCH = "0 Pending";
 // One payload per sweep predicate, each the shortest text that trips it: what an
@@ -448,7 +451,8 @@ describe("renderGreenlightSection statuses", () => {
   it("renders LAND with headline, message, reason, sha and job link", () => {
     const out = render(state(), FRESH_NOW);
 
-    expect(out).toContain("<details><summary><b>GREEN LIGHT</b>");
+    expect(out).toContain("<details><summary>🟢 <b>GREEN LIGHT</b>");
+    expect(summaryLine(out)).not.toContain("🟡");
     expect(out).toContain(GREENLIGHT_LAND_HEADLINE);
     expect(out).toContain("Looks good.");
     expect(out).toContain("reason: `clean`");
@@ -476,6 +480,8 @@ describe("renderGreenlightSection statuses", () => {
       FRESH_NOW
     );
 
+    expect(out).toContain("<summary>🟡 <b>GREEN LIGHT</b>");
+    expect(summaryLine(out)).not.toContain("🟢");
     expect(out).toContain(GREENLIGHT_NO_LAND_HEADLINE);
     expect(out).not.toContain(GREENLIGHT_LAND_HEADLINE);
     expect(out).toContain("reason: `scope_too_large`");
@@ -485,6 +491,8 @@ describe("renderGreenlightSection statuses", () => {
     for (const status of IN_FLIGHT_STATUSES) {
       const out = render(state({ status }), FRESH_NOW);
 
+      // The whole prefix, so exactly one lamp and exactly one space are pinned.
+      expect(out).toContain("<summary>⏳ <b>GREEN LIGHT</b>");
       expect(out).toContain(GREENLIGHT_REVIEWING_HEADLINE);
       expect(out).toContain("Green Light is reviewing this PR.");
       expect(out).toContain("Reviewed commit: `abc1234`");
@@ -495,8 +503,10 @@ describe("renderGreenlightSection statuses", () => {
     const cancelled = render(state({ status: "CANCELLED" }), FRESH_NOW);
     const failed = render(state({ status: "FAILED" }), FRESH_NOW);
 
+    expect(cancelled).toContain("<summary>⚪ <b>GREEN LIGHT</b>");
     expect(cancelled).toContain(GREENLIGHT_INCOMPLETE_HEADLINE);
     expect(cancelled).toContain("reason: `cancelled`");
+    expect(failed).toContain("<summary>⚪ <b>GREEN LIGHT</b>");
     expect(failed).toContain(GREENLIGHT_INCOMPLETE_HEADLINE);
     expect(failed).toContain("reason: `failed`");
   });
@@ -510,6 +520,11 @@ describe("renderGreenlightSection statuses", () => {
       FRESH_NOW
     );
 
+    // A revert is not a verdict on the author, so it shows NO_LAND's lamp rather
+    // than a blame colour of its own -- and never the no-verdict one.
+    expect(out).toContain("<summary>🟡 <b>GREEN LIGHT</b>");
+    expect(summaryLine(out)).not.toContain("🟢");
+    expect(summaryLine(out)).not.toContain("⚪");
     expect(summaryLine(out)).toContain(GREENLIGHT_REVERTED_HEADLINE);
     expect(out).toContain(GREENLIGHT_REVERTED_BODY);
     expect(out).not.toContain(GREENLIGHT_LAND_HEADLINE);
@@ -519,6 +534,40 @@ describe("renderGreenlightSection statuses", () => {
     // The row says nothing about a dismissal having happened, and is written for
     // PRs Green Light never approved, so the body may not assert one.
     expect(GREENLIGHT_REVERTED_BODY).not.toMatch(/dismiss/i);
+  });
+
+  // The lamp tracks the headline, so two statuses sharing a headline share a
+  // lamp. One table, so the whole mapping reads in one place.
+  it("leads each status with the lamp its headline calls for", () => {
+    const lamps = [
+      ["LAND", "🟢"],
+      ["NO_LAND", "🟡"],
+      ["REVERTED", "🟡"],
+      ["AI_REVIEW_STARTED", "⏳"],
+      ["AI_REVIEW_DISPATCHED", "⏳"],
+      ["CANCELLED", "⚪"],
+      ["FAILED", "⚪"],
+    ];
+
+    for (const [status, lamp] of lamps) {
+      const out = render(state({ status }), FRESH_NOW);
+
+      expect(out).toContain(`<summary>${lamp} <b>GREEN LIGHT</b>`);
+      for (const other of ALL_LAMPS.filter((l) => l !== lamp)) {
+        expect(summaryLine(out)).not.toContain(other);
+      }
+    }
+  });
+
+  // Green is the only lamp that says no human is needed, so it is the expensive
+  // one to get wrong. The table above pins it across the fresh statuses; these
+  // are the two states it never constructs.
+  it("keeps green on an outdated LAND and off a stalled row", () => {
+    const outdated = render(state(), FRESH_NOW, OTHER_SHA);
+    const stalled = render(state({ status: "AI_REVIEW_STARTED" }), STALE_NOW);
+
+    expect(summaryLine(outdated)).toContain("🟢");
+    expect(summaryLine(stalled)).not.toContain("🟢");
   });
 
   it("returns empty for statuses it cannot render", () => {
@@ -645,6 +694,25 @@ describe("renderGreenlightSection staleness cutoff", () => {
       expect(render(state({ status }), exactly)).toContain(
         GREENLIGHT_INCOMPLETE_HEADLINE
       );
+    }
+  });
+
+  // The hourglass says work is still happening. A stalled row is one whose
+  // terminal row never arrived, so it has left the in-progress branch and must
+  // leave the hourglass with it -- the lamp has to cross the cutoff too, not just
+  // the headline.
+  it("drops the hourglass once an in-flight row goes stale", () => {
+    const versionMs = Date.parse("2026-08-24T12:00:00Z");
+    const justUnder = new Date(versionMs + GREENLIGHT_IN_PROGRESS_STALE_MS - 1);
+    const exactly = new Date(versionMs + GREENLIGHT_IN_PROGRESS_STALE_MS);
+
+    for (const status of IN_FLIGHT_STATUSES) {
+      const fresh = render(state({ status }), justUnder);
+      const stale = render(state({ status }), exactly);
+
+      expect(fresh).toContain("<summary>⏳ <b>GREEN LIGHT</b>");
+      expect(stale).toContain("<summary>⚪ <b>GREEN LIGHT</b>");
+      expect(summaryLine(stale)).not.toContain("⏳");
     }
   });
 
@@ -1042,7 +1110,7 @@ describe("renderGreenlightSection message format", () => {
   it("keeps an outline verdict collapsed behind the headline", () => {
     const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
 
-    expect(out).toContain("<details><summary><b>GREEN LIGHT</b>");
+    expect(out).toContain("<details><summary>🟢 <b>GREEN LIGHT</b>");
     expect(summaryLine(out)).toContain(GREENLIGHT_LAND_HEADLINE);
     expect(summaryLine(out)).not.toContain("<ul>");
     expect(summaryLine(out)).not.toContain("Scope is small");

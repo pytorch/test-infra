@@ -52,6 +52,14 @@ export const GREENLIGHT_REVIEWING_BODY = "Green Light is reviewing this PR.";
 export const GREENLIGHT_REVERTED_BODY =
   "Green Light will not review this PR again, on this or any later commit; re-landing it needs a human approval.";
 
+// One lamp per outcome, tracking the headline it leads. Unicode has no gray
+// circle, so the neutral lamp is U+26AA. REVERTED shares NO_LAND's: a revert is
+// not a verdict on the author, only a statement that re-landing needs a human.
+const GREENLIGHT_APPROVED_EMOJI = "🟢";
+const GREENLIGHT_NEEDS_HUMAN_EMOJI = "🟡";
+const GREENLIGHT_IN_PROGRESS_EMOJI = "⏳";
+const GREENLIGHT_NO_VERDICT_EMOJI = "⚪";
+
 // Leads the summary line whenever the verdict was reached on a commit that is no
 // longer the PR's head. The scan writes no new row once a human has decided,
 // once the PR ages out of the review window, or once it is labelled Stale, so
@@ -225,6 +233,8 @@ function reasonLine(reason: string): string {
 
 function renderSection(
   headline: string,
+  // No default: a new status has to choose a lamp rather than inherit one.
+  emoji: string,
   bodyLines: string[],
   evalJob: string,
   inProgress: boolean,
@@ -255,7 +265,7 @@ function renderSection(
   // Two newlines after <p> so the markdown body below is parsed as markdown
   // rather than raw HTML, matching constructResultsJobsSections in drci.ts.
   return (
-    `\n${marker}<details><summary><b>${GREENLIGHT_SECTION_HEADER}</b> - ${summary}:</summary><p>\n\n` +
+    `\n${marker}<details><summary>${emoji} <b>${GREENLIGHT_SECTION_HEADER}</b> - ${summary}:</summary><p>\n\n` +
     `${lines.join("\n")}\n\n` +
     `</p></details>`
   );
@@ -283,9 +293,14 @@ export function renderGreenlightSection(
       status === GREENLIGHT_STATUS_LAND
         ? GREENLIGHT_LAND_HEADLINE
         : GREENLIGHT_NO_LAND_HEADLINE;
+    const emoji =
+      status === GREENLIGHT_STATUS_LAND
+        ? GREENLIGHT_APPROVED_EMOJI
+        : GREENLIGHT_NEEDS_HUMAN_EMOJI;
     const message = renderVerdictMessage(state.message, state.prNumber);
     return renderSection(
       headline,
+      emoji,
       [message, "", reasonLine(state.reason), ...commitLines],
       evalJob,
       false,
@@ -304,6 +319,7 @@ export function renderGreenlightSection(
   if (status === GREENLIGHT_STATUS_REVERTED) {
     return renderSection(
       GREENLIGHT_REVERTED_HEADLINE,
+      GREENLIGHT_NEEDS_HUMAN_EMOJI,
       [GREENLIGHT_REVERTED_BODY],
       evalJob,
       false,
@@ -321,6 +337,7 @@ export function renderGreenlightSection(
     if (isInProgressStale(state.version, now)) {
       return renderSection(
         GREENLIGHT_INCOMPLETE_HEADLINE,
+        GREENLIGHT_NO_VERDICT_EMOJI,
         [reasonLine(GREENLIGHT_STALLED_REASON), ...commitLines],
         evalJob,
         false,
@@ -329,6 +346,7 @@ export function renderGreenlightSection(
     }
     return renderSection(
       GREENLIGHT_REVIEWING_HEADLINE,
+      GREENLIGHT_IN_PROGRESS_EMOJI,
       [GREENLIGHT_REVIEWING_BODY, ...commitLines],
       evalJob,
       true,
@@ -344,6 +362,7 @@ export function renderGreenlightSection(
   ) {
     return renderSection(
       GREENLIGHT_INCOMPLETE_HEADLINE,
+      GREENLIGHT_NO_VERDICT_EMOJI,
       [reasonLine(status.toLowerCase()), ...commitLines],
       evalJob,
       false,
