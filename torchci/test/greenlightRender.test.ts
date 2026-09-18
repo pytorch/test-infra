@@ -448,7 +448,8 @@ describe("renderGreenlightSection statuses", () => {
   it("renders LAND with headline, message, reason, sha and job link", () => {
     const out = render(state(), FRESH_NOW);
 
-    expect(out).toContain("<details><summary><b>GREEN LIGHT</b>");
+    expect(out).toContain("<details><summary>🟢 <b>GREEN LIGHT</b>");
+    expect(summaryLine(out)).not.toContain("🟡");
     expect(out).toContain(GREENLIGHT_LAND_HEADLINE);
     expect(out).toContain("Looks good.");
     expect(out).toContain("reason: `clean`");
@@ -476,6 +477,8 @@ describe("renderGreenlightSection statuses", () => {
       FRESH_NOW
     );
 
+    expect(out).toContain("<summary>🟡 <b>GREEN LIGHT</b>");
+    expect(summaryLine(out)).not.toContain("🟢");
     expect(out).toContain(GREENLIGHT_NO_LAND_HEADLINE);
     expect(out).not.toContain(GREENLIGHT_LAND_HEADLINE);
     expect(out).toContain("reason: `scope_too_large`");
@@ -485,6 +488,8 @@ describe("renderGreenlightSection statuses", () => {
     for (const status of IN_FLIGHT_STATUSES) {
       const out = render(state({ status }), FRESH_NOW);
 
+      // No verdict yet, so no lamp -- and no space left where one would sit.
+      expect(out).toContain("<summary><b>GREEN LIGHT</b>");
       expect(out).toContain(GREENLIGHT_REVIEWING_HEADLINE);
       expect(out).toContain("Green Light is reviewing this PR.");
       expect(out).toContain("Reviewed commit: `abc1234`");
@@ -510,6 +515,7 @@ describe("renderGreenlightSection statuses", () => {
       FRESH_NOW
     );
 
+    expect(out).toContain("<summary><b>GREEN LIGHT</b>");
     expect(summaryLine(out)).toContain(GREENLIGHT_REVERTED_HEADLINE);
     expect(out).toContain(GREENLIGHT_REVERTED_BODY);
     expect(out).not.toContain(GREENLIGHT_LAND_HEADLINE);
@@ -1042,7 +1048,7 @@ describe("renderGreenlightSection message format", () => {
   it("keeps an outline verdict collapsed behind the headline", () => {
     const out = render(state({ message: OUTLINE_MESSAGE }), FRESH_NOW);
 
-    expect(out).toContain("<details><summary><b>GREEN LIGHT</b>");
+    expect(out).toContain("<details><summary>🟢 <b>GREEN LIGHT</b>");
     expect(summaryLine(out)).toContain(GREENLIGHT_LAND_HEADLINE);
     expect(summaryLine(out)).not.toContain("<ul>");
     expect(summaryLine(out)).not.toContain("Scope is small");
