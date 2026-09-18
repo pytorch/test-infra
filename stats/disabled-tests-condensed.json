@@ -999,6 +999,34 @@
       "linux"
     ]
   ],
+  "test_redispatch_nn_functional_grid_sample_xpu_bfloat16 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197521",
+    "https://github.com/pytorch/pytorch/issues/197521",
+    [
+      "xpu"
+    ]
+  ],
+  "test_redispatch_nn_functional_grid_sample_xpu_float16 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197522",
+    "https://github.com/pytorch/pytorch/issues/197522",
+    [
+      "xpu"
+    ]
+  ],
+  "test_redispatch_nn_functional_grid_sample_xpu_float32 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197523",
+    "https://github.com/pytorch/pytorch/issues/197523",
+    [
+      "xpu"
+    ]
+  ],
+  "test_redispatch_nn_functional_grid_sample_xpu_float64 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
+    "197524",
+    "https://github.com/pytorch/pytorch/issues/197524",
+    [
+      "xpu"
+    ]
+  ],
   "test_redispatch_nn_functional_linear_cross_entropy_chunked_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
     "186259",
     "https://github.com/pytorch/pytorch/issues/186259",
