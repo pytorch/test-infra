@@ -404,10 +404,10 @@ class TestCsvSafeAnchoring(unittest.TestCase):
 
 
 class TestWriteCsvEdges(unittest.TestCase):
-    def _write(self, rows):
+    def _write(self, rows, **kwargs):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "out.csv"
-            write_csv(str(path), rows)
+            write_csv(str(path), rows, **kwargs)
             return path.read_bytes().decode("utf-8-sig")
 
     def test_a_zero_row_export_still_carries_the_header(self):
@@ -417,6 +417,57 @@ class TestWriteCsvEdges(unittest.TestCase):
         row = {**build_row(DECIDED, MEASURED, "s"), "not_a_column": "junk"}
         [parsed] = list(csv.DictReader(self._write([row]).splitlines()))
         self.assertEqual(set(parsed), set(COLUMNS))
+
+    def test_the_column_list_defaults_to_the_export_shape(self):
+        # The parameter below exists for a downstream file; passing nothing has
+        # to keep writing this one, byte for byte.
+        rows = [build_row(DECIDED, MEASURED, "s")]
+        self.assertEqual(self._write(rows), self._write(rows, columns=COLUMNS))
+
+    def test_a_supplied_superset_writes_the_extra_columns(self):
+        extra = [*COLUMNS, "new_decision"]
+        row = {**build_row(DECIDED, MEASURED, "s"), "new_decision": "NO_LAND"}
+        text = self._write([row], columns=extra)
+        [parsed] = list(csv.DictReader(text.splitlines()))
+        self.assertEqual(list(parsed), extra)
+        self.assertEqual(parsed["new_decision"], "NO_LAND")
+        self.assertEqual(parsed["decision"], "LAND")
+
+    def test_an_unknown_key_is_dropped_against_the_supplied_list_too(self):
+        # A caller-supplied list takes over the guard rather than removing it:
+        # the row below carries a key neither list names, and it must still be
+        # dropped rather than shifting every cell after it.
+        extra = [*COLUMNS, "new_decision"]
+        row = {
+            **build_row(DECIDED, MEASURED, "s"),
+            "new_decision": "NO_LAND",
+            "not_a_column": "junk",
+        }
+        [parsed] = list(csv.DictReader(self._write([row], columns=extra).splitlines()))
+        self.assertEqual(set(parsed), set(extra))
+        self.assertNotIn("junk", self._write([row], columns=extra))
+
+    def test_a_supplied_column_no_row_carries_writes_blank(self):
+        extra = [*COLUMNS, "new_decision"]
+        [parsed] = list(
+            csv.DictReader(
+                self._write(
+                    [build_row(DECIDED, MEASURED, "s")], columns=extra
+                ).splitlines()
+            )
+        )
+        self.assertEqual(parsed["new_decision"], "")
+
+    def test_the_injection_guard_covers_the_supplied_columns(self):
+        # The guard is the reason to reuse this function rather than fork it, so
+        # it has to reach the columns the caller added, not just the export's.
+        extra = [*COLUMNS, "new_decision_message"]
+        row = {
+            **build_row(DECIDED, MEASURED, "s"),
+            "new_decision_message": "- bullet led prose",
+        }
+        [parsed] = list(csv.DictReader(self._write([row], columns=extra).splitlines()))
+        self.assertEqual(parsed["new_decision_message"], "'- bullet led prose")
 
 
 if __name__ == "__main__":

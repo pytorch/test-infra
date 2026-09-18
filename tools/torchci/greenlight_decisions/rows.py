@@ -1,7 +1,11 @@
 """Row assembly and CSV emission for the greenlight decision export.
 
-``COLUMNS`` is the single source of the output's shape: ``build_row`` fills
-exactly those keys and ``write_csv`` emits exactly those keys, in that order.
+``COLUMNS`` is the single source of this export's shape: ``build_row`` fills
+exactly those keys, and ``write_csv`` emits exactly those keys, in that order,
+unless a caller names its own list. That parameter exists so a tool writing a
+superset of this file -- the replay harness, which appends its own verdict
+columns -- reuses the BOM, the atomic replace and the injection guard instead of
+forking them; the shape of *this* export is still ``COLUMNS`` and nothing else.
 """
 
 from __future__ import annotations
@@ -11,7 +15,7 @@ import csv
 import os
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 from torchci.greenlight_decisions.sql import MULTI_VALUE_SEPARATOR
 
@@ -173,12 +177,19 @@ def csv_safe(value: Any) -> str:
     return text
 
 
-def write_csv(path: str, rows: Iterable[Mapping[str, Any]]) -> int:
+def write_csv(
+    path: str, rows: Iterable[Mapping[str, Any]], columns: Sequence[str] = COLUMNS
+) -> int:
     """Write ``rows`` to ``path`` and return the number of data rows written.
 
     The file is built beside its destination and moved into place, so an
     interrupted or failing run can neither destroy an existing export nor leave
     a truncated one that still parses as valid CSV.
+
+    ``columns`` names the fields written, in order, and defaults to ``COLUMNS``.
+    Whatever list is in force is the whole of the output: a key a row carries
+    and the list does not is dropped rather than shifting every cell after it,
+    and a column no row carries is written blank.
     """
     tmp_path = f"{path}.tmp"
     written = 0
@@ -186,11 +197,11 @@ def write_csv(path: str, rows: Iterable[Mapping[str, Any]]) -> int:
         # The BOM is what makes Excel on Windows read the file as UTF-8; without
         # it the em-dashes in decision_message render as mojibake.
         with open(tmp_path, "w", newline="", encoding="utf-8-sig") as handle:
-            writer = csv.DictWriter(handle, fieldnames=COLUMNS)
+            writer = csv.DictWriter(handle, fieldnames=columns)
             writer.writeheader()
             for row in rows:
                 writer.writerow(
-                    {column: csv_safe(row.get(column)) for column in COLUMNS}
+                    {column: csv_safe(row.get(column)) for column in columns}
                 )
                 written += 1
         os.replace(tmp_path, path)

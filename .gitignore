@@ -84,3 +84,6 @@ aws/tools/cleanup-ssm/**/*.rs.bk
 
 # Default output of tools/torchci/greenlight_decisions, which lands in the cwd
 greenlight_decisions_*.csv
+
+# Default output of tools/torchci/greenlight_replay, which lands in the cwd
+greenlight_replay_*.csv

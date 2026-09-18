@@ -6,3 +6,4 @@ clickhouse-connect==0.8.14
 prettytable
 tqdm
 python-dotenv
+PyYAML
