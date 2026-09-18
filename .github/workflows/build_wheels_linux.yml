@@ -78,6 +78,11 @@ on:
         required: false
         type: boolean
         default: true
+      run-smoke-test:
+        description: Set to true if smoke test is needed
+        required: false
+        type: boolean
+        default: true
       build-platform:
         description: Platform to build wheels, choose from 'python-build-package' or 'setup-py'
         required: false
