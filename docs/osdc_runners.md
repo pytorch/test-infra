@@ -275,11 +275,51 @@ floating one.
    command running in the container gives "path not found" for a file you just created. Use the
    `$RUNNER_TEMP` and `$GITHUB_WORKSPACE` environment variables instead, or write the path to a step
    output and reference that.
-8. **`container.image` cannot read `secrets` or `env`.** Only `github`, `needs`, `strategy`, `matrix`,
+8. **Never `rm -rf "$GITHUB_WORKSPACE"`.** The EC2 idiom of clearing the workspace by removing the
+   directory does not survive here, and the symptom depends on the image's user. An image running as
+   root succeeds and detaches the workspace, so every later step fails with `getcwd: cannot access
+   parent directories` and local paths stop resolving. An image running as a non-root user fails
+   outright with `rm: cannot remove '/__w/<org>/<repo>': Permission denied`, because the ARC hook
+   creates the workspace as uid 1001
+   ([actions/runner-images#10936](https://github.com/actions/runner-images/issues/10936)) and the
+   image's own user cannot remove it. A pod is ephemeral, so there is nothing to clean: fix
+   permissions with `sudo chmod -R 777 "$GITHUB_WORKSPACE" 2>/dev/null || true`, or clear the contents
+   with `find "$GITHUB_WORKSPACE" -mindepth 1 -delete`, but do not remove the directory itself.
+   `linux_job_v3` does this for you; a native `runs-on:` job must do it itself.
+9. **The vendor letter in a label names the ISA, not the silicon.** `mt-l-x86iavx512-*` runs on AMD
+   EPYC (r7a) and `mt-l-x86iamx-*` on Intel (r7i), so a job moving off a `c5`/`r5` EC2 label silently
+   changes CPU vendor. That breaks vendor-sensitive software: `torch.backends.mkldnn` guards that only
+   fire on AMD, and toolchains whose licence keys are derived per vendor. If a build works on EC2 and
+   fails on OSDC with no obvious cause, try the other vendor's label before digging further.
+10. **`container.image` cannot read `secrets` or `env`.** Only `github`, `needs`, `strategy`, `matrix`,
    `vars` and `inputs` are allowed there, so `image: ${{ inputs.docker-image }}` works but
    `image: ${{ secrets.X }}` fails at startup with "context not available". For a private image, put the
    credentials in `container.credentials`, which does allow `secrets`. Likewise `uses:` is always
    literal: you cannot template the action or its `@ref`.
+11. **A reusable workflow's `permissions:` is a ceiling, not a request.** The effective token is the
+   intersection of what the calling job grants and what the called workflow declares, and naming any
+   one permission key drops every key you did not name to `none`. So a job that needs to push must
+   declare `contents: write` on the `uses:` job *and* the called workflow must not declare something
+   narrower. `linux_job_v3` used to pin `contents: read` on its own job, which silently capped every
+   caller: executorch's docs job asked for `contents: write`, saw `Contents: read` in the token, and
+   failed the gh-pages push with a 403 for weeks. Fixed in
+   [#8824](https://github.com/pytorch/test-infra/pull/8824), but check the callee before assuming your
+   grant survived.
+12. **Your image needs `tar` and `find`.** The k8s hook streams the workspace into the job container
+   as a tar and extracts it there, then hash-verifies the result, so both binaries have to exist
+   inside your image — the same constraint `kubectl cp` has. On EC2 the copy was a `docker cp`, where
+   the tar work happened host-side, so a minimal image got away without them. Missing `tar` shows up
+   as `execCpToPod: exec timed out after 300000ms` retried thirty times; missing `find` as
+   `sh: line 1: find: command not found` followed by `prepare-job script failed with exit code 1`.
+   Neither is fixable from a step, because `prepare-job` runs before your first one. Practically
+   every distro image is fine; the Amazon Linux family is the one that is not:
+
+   | image | `tar` | `find` |
+   |---|---|---|
+   | `ubuntu:22.04`, `debian:bookworm-slim`, `almalinux:9` | yes | yes |
+   | `quay.io/pypa/manylinux_2_28_x86_64`, `pytorch/manylinux2_28-builder` | yes | yes |
+   | `amazonlinux:2` | **no** | yes |
+   | `amazonlinux:2023` | **no** | **no** |
 
 ---
 
