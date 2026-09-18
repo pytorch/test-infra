@@ -61,6 +61,7 @@ The callback endpoint validates incoming callbacks and forwards them to HUD for 
 #### Relay's responsibilities:
 
 - **Identity**: the `Authorization: Bearer <oidc-token>` header is verified against GitHub's JWKS.  The OIDC `repository` claim is a trusted identity for the caller and is used for the L2+ allowlist check. Relay forwards this trusted value to HUD as a top-level `verified_repo` field; HUD should prefer it over anything self-reported in `callback_payload`.
+  - Non-GitHub issuers (currently Buildkite) have no `repository` claim, so the relay resolves one from the immutable `organization_id`/`pipeline_id` pair using the mappings in [`config/ci_providers.yml`](config/ci_providers.yml). That file is fetched at runtime from `CI_PROVIDERS_URL` (a GitHub blob URL) and cached in Redis for `ALLOWLIST_TTL_SECONDS`, so registering a new pipeline is a config change rather than a redeployment. `CI_PROVIDERS_URL` defaults to the copy on `pytorch/test-infra` `main`; point it elsewhere to test a mapping before landing it. An unresolvable pipeline gets a `403`.
 - **Repo level**: Relay determines the downstream repository's allowlist level (L1–L4) and forwards it to HUD as `downstream_repo_level`. This authoritative level information is determined once by the relay, ensuring HUD doesn't need to recompute it and avoiding synchronization/timing issues if tiering information becomes dynamic.
 - **Schema validation**: Relay validates that required fields (`delivery_id` and `workflow.status`) are present in the callback body.  Missing fields result in a `400` error to signal contract violations to the caller.  HUD receives validated data and does not need to perform schema checks.
 - **State machine**: Relay maintains a **unified state machine** in Redis to validate callback lifecycles, compute timing metrics, and support per-job tracking:
@@ -355,6 +356,10 @@ make clean
    UPSTREAM_REPO=<owner/repo>
    ALLOWLIST_URL=https://github.com/<owner>/<repo>/blob/main/allowlist.yaml
    MAX_DISPATCH_WORKERS=32
+
+   # Buildkite pipeline-to-repo mappings; defaults to the copy on
+   # pytorch/test-infra main, override to test an unlanded mapping
+   CI_PROVIDERS_URL=https://github.com/<owner>/test-infra/blob/<branch>/aws/lambda/cross_repo_ci_relay/config/ci_providers.yml
 
    # Redis (local, no TLS)
    REDIS_ENDPOINT=localhost:6379
