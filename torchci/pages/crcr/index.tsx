@@ -111,7 +111,9 @@ const LEVEL_META: Record<
 
 const LEVELS_ORDERED: Level[] = ["L4", "L3", "L2", "L1"];
 const CRCR_HEALTH_REPO = "pytorch/crcr-test";
-const CRCR_HEALTH_STALE_AFTER_MINUTES = 24 * 60 + 15;
+// ci-infra leaves ZOMBIE_TIMEOUT_SECONDS unset, so the callback default is 6h.
+// The 15-minute grace covers its 10-minute EventBridge sweep interval.
+const CRCR_HEALTH_STALE_AFTER_MINUTES = 6 * 60 + 15;
 
 function PassRateChip({ rate }: { rate: number }) {
   const pct = (rate * 100).toFixed(1) + "%";
