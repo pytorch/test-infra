@@ -1,7 +1,9 @@
 -- Match the nightly dashboard: include complete runs that touch the window
 -- and retain only the latest attempt for each job.
 WITH eligible_runs AS (
-    SELECT DISTINCT downstream_repo, run_id
+    SELECT DISTINCT
+        downstream_repo,
+        run_id
     FROM default.crcr_workflow_job FINAL
     WHERE
         started_at > now() - INTERVAL {days: UInt64} DAY
@@ -18,7 +20,10 @@ latest_attempts AS (
     WHERE
         event_type = 'nightly'
         AND (downstream_repo, run_id) IN (
-            SELECT downstream_repo, run_id FROM eligible_runs
+            SELECT
+                downstream_repo,
+                run_id
+            FROM eligible_runs
         )
     GROUP BY downstream_repo, run_id, job_name
 )
@@ -39,7 +44,11 @@ WHERE
     status = 'completed'
     AND event_type = 'nightly'
     AND (downstream_repo, run_id, job_name, run_attempt) IN (
-        SELECT downstream_repo, run_id, job_name, max_attempt
+        SELECT
+            downstream_repo,
+            run_id,
+            job_name,
+            max_attempt
         FROM latest_attempts
     )
 GROUP BY
