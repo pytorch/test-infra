@@ -820,6 +820,7 @@ export default function Page() {
               }
               queryParams={timeParams}
               badThreshold={(value) => value > 2.0} // 2.0 average retries
+              href="/metrics/merge_analysis"
             />
             <ScalarPanel
               title={"PR landing time (avg)"}

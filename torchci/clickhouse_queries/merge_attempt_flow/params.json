@@ -1,0 +1,12 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "startTime": { "from_now": -30 },
+      "stopTime": { "from_now": 0 }
+    }
+  ]
+}
