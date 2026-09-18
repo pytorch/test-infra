@@ -41,6 +41,7 @@ EXPECTED_COLUMNS = [
     "landed",
     "base_ref",
     "reverted",
+    "is_shadow",
     "decision",
     "decision_reason",
     "decision_summary",
@@ -347,6 +348,33 @@ class TestRevertedIsIndependentOfDecision(unittest.TestCase):
         row = build_row({**UNDECIDED, "reverted": True}, None)
         self.assertIs(row["reverted"], True)
         self.assertEqual(row["verdict_staleness"], STALENESS_NO_VERDICT)
+
+
+class TestShadowIsIndependentOfTheVerdict(unittest.TestCase):
+    """A PR that never reached a verdict still carries the flag, so the two have
+    to travel separately all the way to the row: the cell stays populated where
+    the verdict columns go blank. That the flag is an OR over every state row
+    rather than a reading off the selected verdict is a property of the query,
+    locked in test_query.py."""
+
+    def test_a_pr_with_no_verdict_still_reports_a_real_value(self):
+        row = build_row(UNDECIDED, None)
+        self.assertIs(row["is_shadow"], True)
+        self.assertEqual(row["verdict_staleness"], STALENESS_NO_VERDICT)
+
+    def test_the_cell_reads_true_or_false_like_the_other_flags(self):
+        # Asserted on the rendered cell, not the bool: copied through instead of
+        # coerced, a raw 1 reaches the spreadsheet as "1" while landed, reverted
+        # and verdict_flipped in the columns beside it read "true".
+        for raw, expected in (
+            (1, "true"),
+            (0, "false"),
+            ("0", "false"),
+            (None, "false"),
+        ):
+            with self.subTest(raw=raw):
+                row = build_row({**DECIDED, "is_shadow": raw}, MEASURED)
+                self.assertEqual(csv_safe(row["is_shadow"]), expected)
 
 
 class TestUnmeasuredLocRendersBlank(unittest.TestCase):

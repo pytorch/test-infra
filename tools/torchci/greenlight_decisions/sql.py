@@ -1,6 +1,6 @@
 """The ClickHouse query behind the greenlight decision export, and the patterns it takes.
 
-Four properties of the underlying tables shape ``SQL_DECISIONS`` and are easy to get wrong:
+Five properties of the underlying tables shape ``SQL_DECISIONS`` and are easy to get wrong:
 
 ``default.pull_request`` is a ``SharedReplacingMergeTree`` keyed ``(number, dynamoKey)`` with no
 version column, and its merges are asynchronous, so any number of snapshot rows per PR can be
@@ -23,7 +23,18 @@ collapses and the authoritative row per PR is chosen at read time. ``last_attemp
 selection ``greenlight/src/greenlight/state.py`` makes; ``decision_row`` deliberately departs from
 it, for the reason recorded at that CTE.
 
-That same table is not a revert history and must not be read as one: its ``REVERTED`` rows exist
+``misc.greenlight_pr_state.shadow`` marks a row whose evaluation carried no authority: greenlight
+fingerprints, dispatches and records the PR as usual but posts no approving review, and both
+Dr. CI and the land-time merge gate drop such rows. The export reports it per PR rather than per
+verdict, because a PR greenlight never reached a verdict on still carries the flag and reading it
+off the selected verdict row would report every one of those as authoritative. The aggregate is
+folded into ``corpus`` rather than joined in from a CTE of its own to avoid a redundant join, not
+to make the column total: a separate CTE over the same ``gl_rows`` would cover exactly the same
+PRs. The cost is one error direction -- a PR whose author joins ``TRUSTED_AUTHORS`` mid-review
+holds rows of both kinds and reads shadow, though the verdict that applies to it carried
+authority.
+
+That table is not a revert history and must not be read as one: its ``REVERTED`` rows exist
 only for PRs that were still open when a scan listed them, so a PR reverted after it closed never
 receives one. ``landed`` and ``reverted`` both come from the trailers mergebot writes on
 ``refs/heads/main``, which records every landing and every revert whatever state the PR ended in.
@@ -65,7 +76,8 @@ gl_rows AS (
         message,
         lower(head_sha) AS head_sha,
         run_id,
-        version
+        version,
+        shadow
     FROM misc.greenlight_pr_state
     WHERE repo = {repo:String}
       AND pr_number != {synthetic_pr:Int64}
@@ -75,8 +87,13 @@ gl_rows AS (
       -- so a bound datetime silently floors the cutoff to the second and hides whole verdicts.
       AND version <= toDateTime64({as_of:String}, 3, 'UTC')
 ),
+-- One PR's rows can disagree: the scan derives shadow from the PR's author (review.py) while the
+-- verdict CLI takes the caller's --shadow flag, ORed with its own author lookup on a terminal
+-- verdict (verdict.py). max() resolves that toward shadow -- the same attribution that
+-- torchci/clickhouse_queries/greenlight_quality_coverage and greenlight_quality_reverts make per
+-- pr_number, so this export and those tiles bucket a PR alike.
 corpus AS (
-    SELECT DISTINCT pr_number FROM gl_rows
+    SELECT pr_number, max(shadow) AS is_shadow FROM gl_rows GROUP BY pr_number
 ),
 pr_meta AS (
     SELECT
@@ -242,6 +259,7 @@ SELECT
         'unknown'
     ) AS lifecycle_status,
     c.pr_number IN (SELECT pr_number FROM reverted_prs) AS reverted,
+    c.is_shadow AS is_shadow,
     tc.n_terminal_decisions AS n_terminal_decisions,
     tc.verdict_flipped AS verdict_flipped,
     r.human_approvals AS human_approvals,

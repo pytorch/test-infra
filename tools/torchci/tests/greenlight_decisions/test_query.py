@@ -128,6 +128,16 @@ class TestSqlGuards(unittest.TestCase):
         self.assertNotIn("reverted", cte("decision_row"))
         self.assertIn("reverted_prs", SQL_DECISIONS)
 
+    def test_shadow_is_independent_of_the_selected_verdict(self) -> None:
+        # A PR greenlight never reached a verdict on still carries the flag, so
+        # reading it off decision_row reports the whole verdict-less shadow
+        # population as enforcing. The aggregate has to be the OR: min() reads
+        # identically until one PR holds rows of both kinds, and then answers
+        # the wrong way on exactly the PR the distinction exists for.
+        self.assertIn("max(shadow)", cte("corpus"))
+        self.assertNotIn("shadow", cte("decision_row"))
+        self.assertIn("c.is_shadow AS is_shadow", SQL_DECISIONS)
+
     def test_terminal_selection_keeps_land_and_no_land_only(self) -> None:
         self.assertIn("g.status IN ('LAND', 'NO_LAND')", cte("terminal_rows"))
 
@@ -169,6 +179,7 @@ class TestFetchDecisions(unittest.TestCase):
                 "reverted": 1,
                 "landed": 1,
                 "verdict_flipped": 0,
+                "is_shadow": 0,
                 "decision_run_id": "17654321",
                 "decision_version": datetime(
                     2026, 8, 14, 9, 12, 33, tzinfo=timezone.utc
@@ -200,6 +211,14 @@ class TestFetchDecisions(unittest.TestCase):
         [kept], _ = self.fetch([self.raw_row(reverted=0)])
         self.assertIs(reverted["reverted"], True)
         self.assertIs(kept["reverted"], False)
+
+    def test_is_shadow_coerces_to_bool(self) -> None:
+        # A per-PR max() over the state rows, so unlike the run id below it has
+        # no missing case: every PR in the corpus has one and gets a real answer.
+        [shadow], _ = self.fetch([self.raw_row(is_shadow=1)])
+        [enforcing], _ = self.fetch([self.raw_row(is_shadow=0)])
+        self.assertIs(shadow["is_shadow"], True)
+        self.assertIs(enforcing["is_shadow"], False)
 
     def test_missing_run_id_stays_none(self) -> None:
         [row], _ = self.fetch([self.raw_row(decision_run_id=None)])

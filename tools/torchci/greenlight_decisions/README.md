@@ -31,7 +31,7 @@ Everything the tool does is read-only.
 | flag | default | effect |
 | --- | --- | --- |
 | `--repo` | `pytorch/pytorch` | repository to export |
-| `--as-of` | now | bound **greenlight's verdicts** to this ISO-8601 instant. Bounds nothing else — see misreading 2 |
+| `--as-of` | now | bound **what greenlight recorded** to this ISO-8601 instant. Bounds nothing else — see misreading 2 |
 | `--output` | `greenlight_decisions_<as-of>.csv` | destination |
 | `--skip-loc` | off | skip every GitHub call and leave the LOC columns blank |
 
@@ -53,7 +53,7 @@ The output file is built beside its destination and moved into place, so a
 failed or interrupted run never leaves a truncated CSV or destroys a previous
 one.
 
-## Four ways to misread this file
+## Five ways to misread this file
 
 **1. `loc` is the size of what greenlight judged, not the size of what shipped.**
 The diff is measured at `decision_head_sha`, the head the verdict covers. For PR
@@ -62,8 +62,13 @@ does not give "lines greenlight approved into main"; it gives the size of the
 diffs it looked at, which is a different number. `pr_loc` is the other question —
 the PR's own current size — and the two are deliberately separate columns.
 
-**2. `--as-of` bounds greenlight's verdicts and nothing else.** It applies
-`version <= as_of` to `misc.greenlight_pr_state`. It does **not** bound:
+**2. `--as-of` bounds what greenlight recorded, and nothing else.** It applies
+`version <= as_of` to `misc.greenlight_pr_state`, so every column read off that
+table moves with the cutoff — the verdict, `n_terminal_decisions`,
+`lifecycle_status`, and `is_shadow`, which aggregates the rows the cutoff
+admitted and nothing later. Replay with an `--as-of` before
+`2026-09-10T00:52:30Z` and every row reads `is_shadow = false`, because no
+shadow row existed yet. It does **not** bound:
 
 - `pr_status` — the latest value in the `default.pull_request` mirror
 - `landed` — derived from main's current history
@@ -98,6 +103,44 @@ shipped.** PR 194741 matched exactly, and mergebot's rebase still dropped half
 the change because a sibling PR had bumped the same pin minutes earlier. The
 comparison is between the judged head and the final head of *this* PR; a landrace
 against a sibling is invisible to it. This tool cannot detect that class at all.
+
+**5. `is_shadow = false` over the older half of the file is a default, not a
+measurement.** `misc.greenlight_pr_state` starts 2026-07-31; its `shadow` column
+was added later, with `DEFAULT false` backfilling every row that already
+existed. The first row recording a real shadow evaluation is
+`2026-09-10T00:52:30Z`. Before that instant no `false` can be told apart from
+its backfill, and it would carry no information either way, because greenlight
+was still listing only PRs from trusted authors. The two halves are different
+populations. Split on that instant by each PR's earliest state row, as of
+2026-09-17: 203 PRs before it, 0 shadow; 162 after it, 82 shadow. So a shadow
+rate over the whole file is 82/365 — 22% — and over the half where the question
+exists, 51%. The 22% is not wrong about the rows it counts, only about what it
+is a rate of.
+
+Those figures come from `misc.greenlight_pr_state` and cannot be reproduced from
+the CSV. No column carries a PR's earliest state row; `decision_version`, the
+nearest thing, timestamps the *selected* verdict and is blank on the 31 rows
+that never reached one. Split on it instead and you get 188 before and 146
+after, 57 shadow, a rate of 39%, and 31 rows you cannot place at all.
+
+Both rates also count PRs greenlight never looked at. 25 of the 82 hold one
+state row and no more: the `REVERTED` exclusion the scan's revert guard writes
+for a PR already reverted when it was listed. No review ran and no verdict
+exists, so the flag there is a statement about the author rather than about an
+evaluation — a correct one, every such author is outside `TRUSTED_AUTHORS`.
+Those 25 are exactly the after-half rows reading
+`lifecycle_status = never-reviewed`; excluding them puts the 51% at 57/137, or
+41.6%.
+
+The shadow half may be a sample rather than a census besides.
+`PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` admits a stable sha256-keyed fraction of the
+non-trusted authors' PRs to the fingerprint fan-out, and a held-out PR is never
+evaluated — though it still reaches the revert guard, so it can enter this file
+carrying a `REVERTED` row and nothing else. **The deployed value is not in this
+repo: `config.py` defaults it to `1.0`, and each scan logs the value it ran
+with.** At `1.0` the denominator is the whole evaluation cohort; below it, only
+what the dial admitted. That bounds who reaches this file; it is not a property
+of the column.
 
 ## How the verdict is chosen
 
@@ -134,6 +177,45 @@ got.
   history and independent of which verdict the row selected. Every reverted PR
   is also `landed`. A `LAND` with `reverted = true` is a false approval, not a
   success.
+- `is_shadow` — whether greenlight's evaluation of this PR carried no authority.
+  A shadow run is not a dry run: greenlight fingerprints the PR, dispatches the
+  reviewer and records the verdict exactly as it would otherwise. What it
+  withholds is force — no approving review, any standing greenlight approval
+  dismissed, and nothing the land-time merge gate sees, which reads the ledger
+  over `shadow = false`. On `pytorch/pytorch` it withholds visibility too, and
+  that is the whole of it: the repo is in `constants.DRCI_STATUS_COMMENT_REPOS`,
+  so greenlight posts no status comment of its own and Dr. CI renders the
+  recorded row instead — behind the same `shadow = false`. Nothing on the pull
+  request shows a shadow evaluation happened; it exists only in the ledger this
+  export and the HUD quality dashboard read. On a repo Dr. CI does not render,
+  greenlight does post the comment, and it is identical to an enforcing one.
+
+  Authority is decided per row, and the author is what normally decides it: a
+  terminal verdict ORs the caller's `--shadow` against a fresh lookup of the
+  author, while a marker row (`AI_REVIEW_STARTED`, `CANCELLED`, `FAILED`) takes
+  `--shadow` verbatim and never looks the author up. **The set that carries
+  authority is `cohort.TRUSTED_AUTHORS` in the greenlight service; read that
+  frozenset rather than a list of logins here, which goes stale.** Everyone
+  outside it is shadow by default, and `--shadow` — a CLI flag, and a
+  `workflow_dispatch` input on the reviewer workflow — makes anyone shadow on
+  demand.
+
+  This describes the PR rather than the selected verdict: it is an OR over every
+  state row the PR has, markers and `REVERTED` exclusions included. It answers
+  "was this PR evaluated in shadow", which is a different question from "did the
+  verdict in *this row* carry authority". The two diverge on any PR holding rows
+  of both kinds — an author joining the trusted set mid-review, or one
+  `--shadow` dispatch against a trusted author's PR. Neither has happened: as of
+  2026-09-17 every PR's rows agree, and the set's three additions, the last on
+  2026-09-01, all predate the first recorded shadow row. **No column in this
+  file bounds that risk, and `n_terminal_decisions` in particular does not**: it
+  counts `LAND`/`NO_LAND` rows only, while the OR runs over all of them, so 61
+  of today's 82 shadow PRs are flagged by rows the count cannot see and carry at
+  most one terminal decision. Checking it means going back to the ledger.
+
+  Never blank — it aggregates the rows that define the corpus, so a PR that
+  never reached a verdict still carries a real value, and 25 of today's 82 are
+  exactly that. Before computing a rate from it, see misreading 5.
 
 ### The verdict
 

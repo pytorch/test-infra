@@ -24,6 +24,7 @@ COLUMNS: List[str] = [
     "landed",
     "base_ref",
     "reverted",
+    "is_shadow",
     "decision",
     "decision_reason",
     "decision_summary",
@@ -68,6 +69,7 @@ DERIVED_COLUMNS: List[str] = [
 BOOL_COLUMNS: List[str] = [
     "landed",
     "reverted",
+    "is_shadow",
     "verdict_flipped",
 ]
 

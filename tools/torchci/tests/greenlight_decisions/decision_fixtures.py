@@ -28,6 +28,7 @@ DECIDED = {
     "base_sha": "c" * 40,
     "lifecycle_status": "decided",
     "reverted": False,
+    "is_shadow": False,
     "n_terminal_decisions": 1,
     "human_approvals": 1,
     "human_approvers": "jeanschmidt",
@@ -50,6 +51,7 @@ UNDECIDED = {
     "decision_version": None,
     "lifecycle_status": "in-flight",
     "n_terminal_decisions": 0,
+    "is_shadow": True,
 }
 
 MEASURED = {

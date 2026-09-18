@@ -57,6 +57,7 @@ FIELDS = (
     "base_sha",
     "lifecycle_status",
     "reverted",
+    "is_shadow",
     "n_terminal_decisions",
     "verdict_flipped",
     "human_approvals",
@@ -79,7 +80,7 @@ _INT_FIELDS = (
     "changed_files",
 )
 
-_BOOL_FIELDS = ("landed", "reverted", "verdict_flipped")
+_BOOL_FIELDS = ("landed", "reverted", "is_shadow", "verdict_flipped")
 
 
 def _as_utc(value: datetime) -> datetime:
