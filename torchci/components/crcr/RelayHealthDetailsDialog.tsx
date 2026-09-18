@@ -84,9 +84,13 @@ export default function RelayHealthDetailsDialog({
             Unable to load health details. Please try again.
           </Typography>
         ) : loading ? (
-          <Typography color="text.secondary">Loading health details…</Typography>
+          <Typography color="text.secondary">
+            Loading health details…
+          </Typography>
         ) : runs.length === 0 ? (
-          <Typography color="text.secondary">No health details found.</Typography>
+          <Typography color="text.secondary">
+            No health details found.
+          </Typography>
         ) : (
           <Stack divider={<Divider flexItem />} spacing={1.5}>
             {runs.map((run) => {
@@ -108,7 +112,9 @@ export default function RelayHealthDetailsDialog({
                     jobsNeedingAttention.map((job) => {
                       const url = workflowJobUrl(job);
                       const timestamp = job.completedAt ?? job.startedAt;
-                      const text = `${job.jobName}: ${jobState(job)} · ${timestamp}`;
+                      const text = `${job.jobName}: ${jobState(
+                        job
+                      )} · ${timestamp}`;
                       const color =
                         job.status === "in_progress" && !job.isOverdue
                           ? "warning.main"
