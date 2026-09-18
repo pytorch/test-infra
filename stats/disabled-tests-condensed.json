@@ -235,13 +235,6 @@
       "rocm"
     ]
   ],
-  "test_ctc_loss_cudnn_tensor_cuda_cuda (__main__.TestNNDeviceTypeCUDA)": [
-    "195555",
-    "https://github.com/pytorch/pytorch/issues/195555",
-    [
-      "linux"
-    ]
-  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -473,13 +466,6 @@
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
-    [
-      "linux"
-    ]
-  ],
-  "test_graph_capture_error_releases_reserved_segments (__main__.TestCuda)": [
-    "190647",
-    "https://github.com/pytorch/pytorch/issues/190647",
     [
       "linux"
     ]
@@ -961,15 +947,6 @@
       "slow"
     ]
   ],
-  "test_range_based_static_shape_no_cond_dispatch (__main__.TestCustomOpAutoTune)": [
-    "187424",
-    "https://github.com/pytorch/pytorch/issues/187424",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_reconfigure_scale_down_up (__main__.GlooFaultToleranceTest)": [
     "188767",
     "https://github.com/pytorch/pytorch/issues/188767",
@@ -1196,6 +1173,13 @@
   "test_sdpa_rewriter_16_gpu (__main__.SDPAPatternRewriterGpuTests)": [
     "196981",
     "https://github.com/pytorch/pytorch/issues/196981",
+    [
+      "rocm"
+    ]
+  ],
+  "test_shared_memory_pruning_mm_bfloat16_mat1_transposed_True_mat2_transposed_False_use_tma_False (__main__.TestTemplateConfigPruning)": [
+    "197545",
+    "https://github.com/pytorch/pytorch/issues/197545",
     [
       "rocm"
     ]
