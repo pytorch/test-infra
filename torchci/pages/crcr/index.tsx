@@ -24,12 +24,12 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
-import RelayHealthDetailsDialog, {
-  isHealthJobPassing,
-} from "components/crcr/RelayHealthDetailsDialog";
 import type {
   RelayHealthJob,
   RelayHealthRun,
+} from "components/crcr/RelayHealthDetailsDialog";
+import RelayHealthDetailsDialog, {
+  isHealthJobPassing,
 } from "components/crcr/RelayHealthDetailsDialog";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import {
@@ -599,11 +599,13 @@ function CrcrTestHealthCard({
     }
     return Array.from(runs.entries())
       .sort(([, a], [, b]) => b.latestTime - a.latestTime)
-      .map(([prNumber, run]): RelayHealthRun => ({
-        label: `PR #${prNumber}`,
-        url: `https://github.com/pytorch/pytorch/pull/${prNumber}`,
-        jobs: run.jobs,
-      }));
+      .map(
+        ([prNumber, run]): RelayHealthRun => ({
+          label: `PR #${prNumber}`,
+          url: `https://github.com/pytorch/pytorch/pull/${prNumber}`,
+          jobs: run.jobs,
+        })
+      );
   }, [healthJobDetails]);
 
   if (!healthPrs || healthPrs.length === 0) return null;
