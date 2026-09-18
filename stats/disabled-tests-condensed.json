@@ -446,13 +446,6 @@
       "rocm"
     ]
   ],
-  "test_generic_stream_multiple (__main__.TestGenericStreamCompile)": [
-    "190330",
-    "https://github.com/pytorch/pytorch/issues/190330",
-    [
-      "linux"
-    ]
-  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -735,6 +728,22 @@
     "https://github.com/pytorch/pytorch/issues/190142",
     [
       "linux"
+    ]
+  ],
+  "test_max_autotune_remote_caching_dynamic_False (__main__.TestMaxAutotuneRemoteCache)": [
+    "145361",
+    "https://github.com/pytorch/pytorch/issues/145361",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
+    "190748",
+    "https://github.com/pytorch/pytorch/issues/190748",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_memory_aware_partition_count (__main__.TestPartitionedScatterOpt)": [
