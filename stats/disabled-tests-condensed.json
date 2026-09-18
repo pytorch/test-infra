@@ -43,6 +43,14 @@
       "rocm"
     ]
   ],
+  "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "149080",
+    "https://github.com/pytorch/pytorch/issues/149080",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
@@ -186,6 +194,14 @@
     "https://github.com/pytorch/pytorch/issues/187202",
     [
       "linux"
+    ]
+  ],
+  "test_complex_half_reference_testing_fft_ifft_cuda_complex32 (__main__.TestCommonCUDA)": [
+    "120071",
+    "https://github.com/pytorch/pytorch/issues/120071",
+    [
+      "inductor",
+      "rocm"
     ]
   ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -1095,25 +1111,9 @@
       "xpu"
     ]
   ],
-  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
-    "196006",
-    "https://github.com/pytorch/pytorch/issues/196006",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_amp (__main__.DeterministicTest)": [
     "196983",
     "https://github.com/pytorch/pytorch/issues/196983",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_bfloat16 (__main__.DeterministicTest)": [
-    "196057",
-    "https://github.com/pytorch/pytorch/issues/196057",
     [
       "linux",
       "slow"
@@ -1177,9 +1177,23 @@
       "rocm"
     ]
   ],
+  "test_shared_memory_pruning_mm_bfloat16_mat1_transposed_False_mat2_transposed_True_use_tma_False (__main__.TestTemplateConfigPruning)": [
+    "197578",
+    "https://github.com/pytorch/pytorch/issues/197578",
+    [
+      "rocm"
+    ]
+  ],
   "test_shared_memory_pruning_mm_bfloat16_mat1_transposed_True_mat2_transposed_False_use_tma_False (__main__.TestTemplateConfigPruning)": [
     "197545",
     "https://github.com/pytorch/pytorch/issues/197545",
+    [
+      "rocm"
+    ]
+  ],
+  "test_shared_memory_pruning_mm_bfloat16_mat1_transposed_True_mat2_transposed_True_use_tma_False (__main__.TestTemplateConfigPruning)": [
+    "197579",
+    "https://github.com/pytorch/pytorch/issues/197579",
     [
       "rocm"
     ]
