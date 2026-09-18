@@ -39,7 +39,7 @@ SELECT
     workflow_run_url,
     check_run_id,
     status = 'in_progress'
-        AND started_at < now() - INTERVAL {stale_after_minutes: UInt64} MINUTE
+    AND started_at < now() - INTERVAL {stale_after_minutes: UInt64} MINUTE
         AS is_overdue
 FROM latest_jobs
 WHERE rn = 1
