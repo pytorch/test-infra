@@ -1,9 +1,9 @@
+import type { RelayHealthJob } from "components/crcr/RelayHealthDetailsDialog";
 import {
   isExpectedHealthOutcome,
   isHealthJobPassing,
   workflowJobUrl,
 } from "components/crcr/RelayHealthDetailsDialog";
-import type { RelayHealthJob } from "components/crcr/RelayHealthDetailsDialog";
 
 function job(overrides: Partial<RelayHealthJob> = {}): RelayHealthJob {
   return {
