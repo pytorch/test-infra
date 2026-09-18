@@ -114,6 +114,11 @@ def load_ci_provider_mappings(raw: dict) -> None:
             "Loaded %d Buildkite repo mapping(s) from ci_providers",
             len(BUILDKITE_REPO_MAP),
         )
+    else:
+        logger.warning(
+            "ci_providers supplied no Buildkite repo mappings; every Buildkite "
+            "OIDC callback will be rejected with 403"
+        )
 
 
 def _fetch_github_file(url: str) -> str:
@@ -139,6 +144,9 @@ def _fetch_github_file(url: str) -> str:
 def load_ci_providers(config) -> None:
     """Load CI provider config from the configured URL, with Redis caching."""
     if not config.ci_providers_url:
+        logger.warning(
+            "ci_providers_url is empty; skipping Buildkite repo mapping load"
+        )
         return
 
     from utils import redis_helper
@@ -182,6 +190,17 @@ def _extract_repo_buildkite(claims: dict) -> str:
         )
     entry = BUILDKITE_REPO_MAP.get((org_id, pipeline_id))
     if not entry:
+        if not BUILDKITE_REPO_MAP:
+            # Distinguish "this pipeline is not in the config" from "no config
+            # reached the relay at all".  Both used to report the former, which
+            # sends whoever is debugging to ci_providers.yml when the file is
+            # fine and CI_PROVIDERS_URL or the fetch is what is broken.
+            raise HTTPException(
+                403,
+                "CRCR has no Buildkite pipeline mappings loaded, so "
+                f"{org_id}/{pipeline_id} cannot be resolved -- check "
+                "CI_PROVIDERS_URL on the relay",
+            )
         raise HTTPException(
             403,
             f"Buildkite pipeline {org_id}/{pipeline_id} is not registered with CRCR",

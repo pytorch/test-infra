@@ -179,6 +179,17 @@ class TestVerifyBuildkiteOIDC(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 403)
         self.assertIn("not registered", ctx.exception.detail)
 
+    def test_no_mappings_loaded_names_the_config_source(self):
+        # A relay that loaded no mappings at all is a deployment problem, not a
+        # missing ci_providers.yml entry; the 403 has to say which one it is.
+        BUILDKITE_REPO_MAP.clear()
+        self.mock_decode.return_value = _fake_buildkite_claims()
+        with self.assertRaises(HTTPException) as ctx:
+            verify_oidc_token("bk.oidc.token")
+        self.assertEqual(ctx.exception.status_code, 403)
+        self.assertIn("CI_PROVIDERS_URL", ctx.exception.detail)
+        self.assertNotIn("not registered", ctx.exception.detail)
+
     def test_missing_org_id_raises_401(self):
         self.mock_decode.return_value = _fake_buildkite_claims(organization_id="")
         with self.assertRaises(HTTPException) as ctx:

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from utils.config import RelayConfig, RelaySecrets
+from utils.config import DEFAULT_CI_PROVIDERS_URL, RelayConfig, RelaySecrets
 
 
 _ENV = {
@@ -21,6 +21,22 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(cfg.github_app_id, "123")
         self.assertEqual(cfg.upstream_repo, "pytorch/pytorch")
         self.assertEqual(cfg.redis_login, "local-pass")
+
+    @patch.dict("os.environ", _ENV, clear=True)
+    def test_ci_providers_url_defaults_to_canonical_config(self):
+        # Unset must not mean "no Buildkite mappings" -- that rejects every
+        # registered pipeline with an opaque 403.
+        cfg = RelayConfig.from_env()
+        self.assertEqual(cfg.ci_providers_url, DEFAULT_CI_PROVIDERS_URL)
+
+    @patch.dict(
+        "os.environ",
+        {**_ENV, "CI_PROVIDERS_URL": "https://github.com/o/r/blob/dev/p.yml"},
+        clear=True,
+    )
+    def test_ci_providers_url_env_overrides_default(self):
+        cfg = RelayConfig.from_env()
+        self.assertEqual(cfg.ci_providers_url, "https://github.com/o/r/blob/dev/p.yml")
 
     @patch.dict("os.environ", {}, clear=True)
     def test_missing_vars_raises(self):

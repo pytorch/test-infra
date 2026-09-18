@@ -6,6 +6,16 @@ import boto3
 from botocore.config import Config
 
 
+# Buildkite pipeline-to-repo mappings live alongside this Lambda's source and
+# are fetched at runtime.  The canonical copy is the default so that a
+# deployment which never sets CI_PROVIDERS_URL still authorizes the pipelines
+# that are checked in, rather than silently rejecting all of them.
+DEFAULT_CI_PROVIDERS_URL = (
+    "https://github.com/pytorch/test-infra/blob/main/"
+    "aws/lambda/cross_repo_ci_relay/config/ci_providers.yml"
+)
+
+
 @dataclass(frozen=True)
 class RelaySecrets:
     github_app_secret: str = ""
@@ -195,7 +205,7 @@ class RelayConfig:
             zombie_timeout_seconds=zombie_timeout_seconds,
             max_cleanup_workers=max_cleanup_workers,
             in_progress_warn_threshold=in_progress_warn_threshold,
-            ci_providers_url=os.getenv("CI_PROVIDERS_URL", ""),
+            ci_providers_url=os.getenv("CI_PROVIDERS_URL", DEFAULT_CI_PROVIDERS_URL),
         )
 
 
