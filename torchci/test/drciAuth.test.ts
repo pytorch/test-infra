@@ -2,10 +2,10 @@
  * The Dr. CI endpoint's authorization block, which runs before the handler's
  * own try/catch.
  *
- * A throw here leaves the function with no response and the platform answers
- * 500. trymerge reads any failure of this call as "no classifications" and
- * falls back to the Dr. CI check-run summary, so a fault here degrades merges
- * quietly instead of reporting itself.
+ * Every fault here must still produce a response. One that escapes leaves the
+ * function with none and the platform answers 500, and trymerge reads any
+ * failure of this call as "no classifications" -- so an escaping fault
+ * degrades merges quietly instead of reporting itself.
  */
 
 import { NextApiRequest } from "next";
