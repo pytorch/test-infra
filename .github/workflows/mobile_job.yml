@@ -402,7 +402,7 @@ jobs:
           fi
 
       - name: Upload artifacts to S3
-        uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
+        uses: ./test-infra/.github/actions/upload-artifact-s3
         if: always()
         with:
           retention-days: 14
