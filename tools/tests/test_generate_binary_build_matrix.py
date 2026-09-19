@@ -6,6 +6,7 @@ from unittest import main, TestCase
 
 from tools.scripts.generate_binary_build_matrix import (
     generate_build_matrix,
+    OSDC_RUNNERS,
     parse_version,
     ROCM_ARCHES_DICT,
     validation_runner,
@@ -396,7 +397,7 @@ class TestRunnerFleet(TestCase):
         )
         self.assertEqual(
             validation_runner("cuda", "linux"),
-            "mt-rel-l-x86aavx2-11-41-l4",
+            "mt-rel-l-x86aavx2-11-41-a10g",
         )
 
     def test_aarch64_has_no_gpu_runner(self) -> None:
@@ -425,3 +426,31 @@ if __name__ == "__main__":
     args, unittest_args = parse_args()
     GenerateBuildMatrixTest.update_reference_files = args.update_reference_files
     main(argv=[sys.argv[0]] + unittest_args)
+
+
+class TestOSDCRunnerPairs(TestCase):
+    """A release runner must match its non-release counterpart's architecture."""
+
+    @staticmethod
+    def _arch(label: str) -> tuple:
+        # mt-[rel-]l-<arch><vendor><features>-<vcpu>-<memory>[-<gpu>[-<count>]]
+        parts = label.split("-")
+        assert parts[0] == "mt", label
+        parts = parts[1:]
+        if parts[0] == "rel":
+            parts = parts[1:]
+        assert parts[0] == "l", label
+        arch = parts[1]
+        gpu = tuple(parts[4:])  # vcpu and memory are allowed to differ
+        return (arch, gpu)
+
+    def test_osdc_release_runners_match_their_arch(self) -> None:
+        for key, (regular, release) in OSDC_RUNNERS.items():
+            with self.subTest(key=key):
+                self.assertEqual(
+                    self._arch(regular),
+                    self._arch(release),
+                    f"{regular} and {release} build the same rows but differ in "
+                    "architecture, so a pull request cannot validate what the "
+                    "published build actually runs on",
+                )
