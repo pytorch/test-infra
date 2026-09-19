@@ -124,8 +124,9 @@ def poke(
     if status in _SUCCESS_STATUSES:
         logger.info("poked Dr. CI for %s#%d (HTTP %d)", repo, pr_number, status)
     else:
-        # An auth failure answers 500, not 403 -- the endpoint's auth branch sits outside its
-        # try/catch -- so the status code cannot classify the failure. Log it and move on.
+        # The status classifies the failure: 401 a rejected credential, 403 a request the
+        # endpoint refuses, 429 the per-user limit, 503 a dependency it could not reach.
+        # Nothing here acts on the distinction, so log it and move on.
         logger.error("Dr. CI poke for %s#%d returned HTTP %d", repo, pr_number, status)
 
 
