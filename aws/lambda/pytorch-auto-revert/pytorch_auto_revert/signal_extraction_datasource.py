@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .clickhouse_client_helper import CHCliFactory
 from .signal_extraction_types import (
@@ -320,32 +320,40 @@ class SignalExtractionDatasource:
         head_shas: List[Sha],
         signal_keys: List[str],
         lookback_hours: int,
-    ) -> Dict[tuple[str, str], tuple[str, float, datetime]]:
+    ) -> Dict[Tuple[str, str], List[Tuple[str, float, datetime]]]:
         """Fetch AI advisor verdicts from misc.autorevert_advisor_verdicts.
 
         Queries by both commit SHAs AND signal keys to minimize data transferred.
 
-        Returns a dict keyed by (commit_sha, signal_key) → (verdict, confidence, timestamp).
-        When multiple verdicts exist for the same (commit, signal), the most recent is used.
+        Returns a dict keyed by (commit_sha, signal_key) → list of
+        (verdict, confidence, timestamp), one entry per distinct advisor run in
+        the window. Rows are deduped by run_id — a run_attempt retry counts as a
+        single vote, represented by its highest-run_attempt row — and each list
+        is ordered by timestamp ascending.
         """
         if not head_shas or not signal_keys:
             return {}
 
         log = logging.getLogger(__name__)
         t0 = time.perf_counter()
+        # `run_id` is the GitHub Actions run id written by the external
+        # claude-autorevert-advisor.yml workflow (pytorch/pytorch): unique per
+        # advisor run, so the quorum counts exactly one vote per distinct run_id.
         query = """
         SELECT
             toString(suspect_commit) AS suspect_commit,
             signal_key,
             verdict,
             confidence,
-            timestamp
+            timestamp,
+            run_id,
+            run_attempt
         FROM misc.autorevert_advisor_verdicts
         WHERE repo = {repo:String}
           AND suspect_commit IN {shas:Array(String)}
           AND signal_key IN {keys:Array(String)}
           AND timestamp > now() - INTERVAL {hours:UInt32} HOUR
-        ORDER BY suspect_commit, signal_key, timestamp DESC
+        ORDER BY suspect_commit, signal_key, run_id, run_attempt
         """
         params = {
             "repo": repo_full_name,
@@ -353,18 +361,40 @@ class SignalExtractionDatasource:
             "keys": signal_keys,
             "hours": lookback_hours,
         }
-        results: Dict[tuple[str, str], tuple[str, float, datetime]] = {}
+        results: Dict[Tuple[str, str], List[Tuple[str, float, datetime]]] = {}
         for attempt in RetryWithBackoff():
             with attempt:
                 res = CHCliFactory().client.query(query, parameters=params)
+                # Collapse run_attempt retries: one advisor run (run_id) is a
+                # single vote, represented by its highest-run_attempt row.
+                latest_by_run: Dict[
+                    Tuple[str, str, int], Tuple[int, Tuple[str, float, datetime]]
+                ] = {}
                 for r in res.result_rows:
-                    key = (str(r[0]).strip(), str(r[1]))
-                    if key not in results:  # keep most recent (ORDER BY ... DESC)
-                        results[key] = (str(r[2]), float(r[3]), r[4])
+                    sha = str(r[0]).strip()
+                    signal_key = str(r[1])
+                    run_id = int(r[5])
+                    run_attempt = int(r[6])
+                    run_key = (sha, signal_key, run_id)
+                    prev = latest_by_run.get(run_key)
+                    if prev is None or run_attempt > prev[0]:
+                        latest_by_run[run_key] = (
+                            run_attempt,
+                            (str(r[2]), float(r[3]), r[4]),
+                        )
+                results = {}
+                for (sha, signal_key, _run_id), (
+                    _run_attempt,
+                    vote,
+                ) in latest_by_run.items():
+                    results.setdefault((sha, signal_key), []).append(vote)
+                for votes in results.values():
+                    votes.sort(key=lambda v: v[2])
 
         dt = time.perf_counter() - t0
         log.info(
-            "[extract] Advisor verdicts fetched: %d for %d commits in %.2fs",
+            "[extract] Advisor verdicts fetched: %d across %d keys for %d commits in %.2fs",
+            sum(len(v) for v in results.values()),
             len(results),
             len(head_shas),
             dt,
