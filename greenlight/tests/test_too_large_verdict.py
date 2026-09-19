@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import pytest
 
 from greenlight.verdict import ALLOWED_REASONS
@@ -109,5 +110,4 @@ def test_matches_schema_shape():
 
 
 def test_validates_against_jsonschema():
-    jsonschema = pytest.importorskip("jsonschema")
     jsonschema.validate(instance=_load(_VERDICT_FILE), schema=_load(_SCHEMA_FILE))

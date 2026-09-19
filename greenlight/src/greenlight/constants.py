@@ -1,4 +1,4 @@
-"""Shared constants for the greenlight service: verdict statuses, storage keys, and dispatch targets."""
+"""Shared constants for the greenlight service: verdict statuses and reasons, storage keys, and dispatch targets."""
 
 from __future__ import annotations
 
@@ -27,6 +27,34 @@ RETRY_STATUSES: frozenset[str] = frozenset({STATUS_CANCELLED, STATUS_FAILED})
 # verdict status, so it is subtracted out of the emittable set the verdict CLI validates against.
 SCAN_ONLY_STATUSES: frozenset[str] = frozenset({STATUS_AI_REVIEW_DISPATCHED})
 VERDICT_STATUSES: frozenset[str] = (TERMINAL_STATUSES | IN_FLIGHT_STATUSES | RETRY_STATUSES) - SCAN_ONLY_STATUSES
+
+# Canonical verdict reason codes. Three files mirror this set byte-for-byte:
+# .claude/hooks/greenlight/verdict-schema.json, .claude/hooks/greenlight/validate-on-stop.sh,
+# and .claude/skills/greenlight-review/SKILL.md; agreement is enforced by
+# greenlight/tests/test_reason_enum_sync.py.
+ALLOWED_REASONS: frozenset[str] = frozenset(
+    {
+        "clean",
+        "possible_regression",
+        "removed_safety_logic",
+        "insufficient_tests",
+        "scope_too_large",
+        "unclear_intent",
+        "security_risk",
+        "breaking_change",
+        "build_or_ci_risk",
+        "injection_attempt",
+        "review_error",
+        "not_trivial",
+        "needs_socialization",
+    }
+)
+
+# The only reason a LAND may carry. Every other code names a reason not to land, and the
+# pytorch-side land guard (.github/scripts/greenlight_guard.py) gates on the recorded status alone,
+# so a LAND stamped with one of them would authorize exactly the merge its reason objects to. The
+# same pairing is rejected by verdict-schema.json's if/then and by validate-on-stop.sh.
+LAND_REASON = "clean"
 
 # GitHub labels are case-sensitive; pytorch's stale.yml both applies and case-sensitively tests
 # the exact name "Stale", so folding it here would diverge from the bot this filter tracks.
@@ -104,6 +132,18 @@ def delegates_status_comment_to_drci(repo: str) -> bool:
     The whole suppression gate: greenlight posts no status comment of its own on these repos.
     """
     return normalize_repo(repo) in DRCI_STATUS_COMMENT_REPOS
+
+
+def validate_reason(status: str, reason: str) -> None:
+    if reason not in ALLOWED_REASONS:
+        raise ValueError(
+            f"reason {reason!r} is not an allowed verdict reason; expected one of {sorted(ALLOWED_REASONS)}"
+        )
+    if status == STATUS_LAND and reason != LAND_REASON:
+        raise ValueError(
+            f"a {STATUS_LAND} verdict must carry reason {LAND_REASON!r}, got {reason!r}; "
+            f"every other reason names a reason not to land"
+        )
 
 
 def validate_eval_hash(value: str) -> None:

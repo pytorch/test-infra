@@ -16,7 +16,13 @@ SCHEMA_FILE="$(dirname "$0")/verdict-schema.json"
 # Allowed reason codes for the jq fallback below. When check-jsonschema is present
 # it enforces the enum via SCHEMA_FILE instead; keep this list in sync with that
 # schema's reason enum and greenlight's ALLOWED_REASONS (the canonical source).
-ALLOWED_REASONS=(clean possible_regression removed_safety_logic insufficient_tests scope_too_large unclear_intent security_risk breaking_change build_or_ci_risk injection_attempt review_error)
+ALLOWED_REASONS=(clean possible_regression removed_safety_logic insufficient_tests scope_too_large unclear_intent security_risk breaking_change build_or_ci_risk injection_attempt review_error not_trivial needs_socialization)
+
+# The only reason a LAND may carry. Every other code names a reason not to land, and the land-time
+# guard on pytorch/pytorch gates on the recorded status alone, so a LAND stamped with one of them
+# would authorize exactly the merge its reason objects to. Mirrors the if/then in SCHEMA_FILE,
+# which enforces the same pairing on the check-jsonschema path, and greenlight's constants.LAND_REASON.
+LAND_REASON=clean
 
 input=$(cat)
 stop_hook_active=$(echo "$input" | jq -r '.stop_hook_active // false')
@@ -70,6 +76,9 @@ for r in "${ALLOWED_REASONS[@]}"; do
 done
 if [[ "$reason_ok" != "true" ]]; then
   fail "ERROR: 'reason' must be one of: ${ALLOWED_REASONS[*]} (got: '${reason:-<missing>}')."
+fi
+if [[ "$status" == "LAND" && "$reason" != "$LAND_REASON" ]]; then
+  fail "ERROR: a LAND verdict must have reason '$LAND_REASON' (got: '$reason'); every other reason names a reason not to land, so use NO_LAND with it."
 fi
 if [[ -z "$message" ]]; then
   fail "ERROR: 'message' is required and must be a non-empty string."
