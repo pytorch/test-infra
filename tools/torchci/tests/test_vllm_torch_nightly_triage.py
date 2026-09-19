@@ -278,8 +278,8 @@ class TestDiffBothClusters(unittest.TestCase):
         )
 
 
-class TestWriteBothArtifacts(unittest.TestCase):
-    """The write stage emits one artifact per surfaced cluster with shared chains."""
+class TestWriteBothContextArtifacts(unittest.TestCase):
+    """The write stage emits nightly root-cause context for surfaced clusters."""
 
     def _artifacts_for(self, torch_nightly_body, baseline_body):
         rep = _both_job("Job A", "tn#job", "base#job")
@@ -287,13 +287,19 @@ class TestWriteBothArtifacts(unittest.TestCase):
             [("Job A", rep, torch_nightly_body, baseline_body)]
         )
         with tempfile.TemporaryDirectory() as tmp:
-            written = triage._write_both_artifacts(
-                cluster_diffs, Path(tmp), tail_lines=50
+            logs_dir = Path(tmp) / "cluster-logs"
+            logs_dir.mkdir()
+            written = triage._write_both_context_artifacts(
+                cluster_diffs,
+                logs_dir,
+                tail_lines=50,
+                failure_window_context_before_lines=10,
+                failure_window_context_after_lines=50,
             )
             contents = [Path(path).read_text() for path in written]
         return written, contents
 
-    def test_new_failures_write_artifact_with_shared_chains(self) -> None:
+    def test_new_failures_write_nightly_context(self) -> None:
         torch_nightly_body = make_pytest_body(
             [
                 ("tests/test_a.py::test_foo", "AssertionError", "shared boom"),
@@ -306,15 +312,56 @@ class TestWriteBothArtifacts(unittest.TestCase):
         written, contents = self._artifacts_for(torch_nightly_body, baseline_body)
 
         self.assertEqual(len(written), 1)
-        artifact = contents[0]
-        self.assertIn("red on both sides", artifact)
-        self.assertIn("tests/test_b.py::test_bar", artifact)  # the new failure
-        self.assertIn("new-failure-marker", artifact)
-        # The shared section records the baseline chain, not just the nightly one.
-        self.assertIn("baseline-only-marker", artifact)
+        self.assertNotIn("cluster-logs/both_", written[0])
+        nightly_context = contents[0]
+        self.assertIn("# capture_mode: both_failure_context", nightly_context)
+        self.assertIn("## raw_tail", nightly_context)
+        self.assertIn("# url: tn#job", nightly_context)
+        self.assertIn("# state: failed", nightly_context)
+        self.assertTrue(
+            any("both-cluster-logs/nightly_Job_A.log" in path for path in written)
+        )
+        self.assertFalse(
+            any("both-cluster-logs/baseline_Job_A.log" in path for path in written)
+        )
 
     def test_no_surfaced_clusters_writes_nothing(self) -> None:
-        self.assertEqual(triage._write_both_artifacts([], Path("/nonexistent"), 50), [])
+        self.assertEqual(
+            triage._write_both_context_artifacts(
+                [],
+                Path("/nonexistent"),
+                tail_lines=400,
+                failure_window_context_before_lines=10,
+                failure_window_context_after_lines=50,
+            ),
+            [],
+        )
+
+
+class TestNightlyFailureContext(unittest.TestCase):
+    def test_nightly_context_does_not_parse_pytest(self) -> None:
+        representative = {
+            "name": "Job A",
+            "url": "tn#job",
+            "state": "failed",
+            "exit_status": 1,
+        }
+        body = "(EngineCore pid=7) EngineCore failed to start\n" + "tail\n" * 3
+        with mock.patch.object(
+            triage, "parse_log", side_effect=AssertionError("pytest is forbidden")
+        ):
+            artifact = triage.render_failure_context(
+                body,
+                "Job A",
+                representative,
+                tail_lines=2,
+                failure_window_context_before_lines=10,
+                failure_window_context_after_lines=50,
+                capture_mode="nightly_failure_context",
+            )
+        self.assertIn("# capture_mode: nightly_failure_context", artifact)
+        self.assertIn("EngineCore failed to start", artifact)
+        self.assertIn("tail", artifact)
 
 
 def _regressed_entry():
@@ -449,6 +496,8 @@ class TestReportJsonWiring(unittest.TestCase):
             logs_dir,
             token,
             tail_lines,
+            failure_window_context_before_lines,
+            failure_window_context_after_lines,
             torch_versions=None,
             regressed_tests=None,
         ):
@@ -489,6 +538,19 @@ class TestReportJsonWiring(unittest.TestCase):
                 report = json.load(f)
         self.assertIn("regressed_tests", report)
         self.assertEqual(len(report["regressed_tests"]), 1)
+        self.assertEqual(
+            set(report),
+            {
+                "torch_nightly_build",
+                "baseline_build",
+                "commit",
+                "torch_version",
+                "torch_version_minor",
+                "regressed",
+                "both",
+                "regressed_tests",
+            },
+        )
         self.assertEqual(
             report["regressed_tests"][0]["new_failures"][0]["test_id"],
             "tests/test_b.py::test_bar",

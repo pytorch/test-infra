@@ -7,7 +7,13 @@ raw_log_snippet.bin has ANSI + BKT markers for strip testing.
 import unittest
 from pathlib import Path
 
-from torchci.vllm_log_parser import get_test_signature, parse_log, strip_markers
+from torchci.vllm_log_parser import (
+    clean_failure_context_lines,
+    extract_failure_context,
+    get_test_signature,
+    parse_log,
+    strip_markers,
+)
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -80,6 +86,12 @@ class TestStripMarkers(unittest.TestCase):
         cleaned = strip_markers(raw)
         self.assertNotIn("\x1b", cleaned)
         self.assertEqual(cleaned.strip("\r"), "")
+
+    def test_normalizes_repeated_terminal_carriage_returns(self) -> None:
+        self.assertEqual(
+            clean_failure_context_lines("first\r\r\nsecond\r\n"),
+            ["first", "second"],
+        )
 
     def test_real_raw_snippet(self) -> None:
         raw_log_snippet = read_fixture_bytes("raw_log_snippet.bin")
@@ -906,6 +918,75 @@ class TestGetTestSignature(unittest.TestCase):
         log = "FAILED tests/test_a.py::test_one\n= 1 failed in 1.00s ="
         failure = parse_log(log).pytest_results[0].test_failures[0]
         self.assertEqual(get_test_signature(failure), ("tests/test_a.py::test_one", ""))
+
+
+class TestFailureContext(unittest.TestCase):
+    def _summary(self, context):
+        return context["failure_windows"][0]
+
+    def _windows(self, context):
+        return context["windows_in_chronological_order"]
+
+    def test_engine_window_keeps_early_cause(self) -> None:
+        lines = [f"noise-{index}" for index in range(1427)]
+        lines[321] = (
+            "[2026-07-13T19:32:43Z] (EngineCore pid=1289) ERROR "
+            "ValueError: Free memory on device cuda:0 (13.05/16.0 GiB) "
+            "on startup is less than desired GPU memory utilization (0.92, 14.72 GiB)."
+        )
+        lines[1426] = "tail-final-marker"
+        context = extract_failure_context(
+            "\n".join(lines),
+            failure_window_context_before_lines=10,
+            failure_window_context_after_lines=50,
+        )
+
+        windows = self._windows(context)
+        self.assertEqual(windows[0]["start_line"], 312)
+        self.assertEqual(windows[0]["end_line"], 371)
+        self.assertIn("13.05/16.0 GiB", windows[0]["text"])
+        self.assertEqual(context["line_count"], 1427)
+
+    def test_nonintersecting_windows_remain_separate(self) -> None:
+        body = "\n".join(
+            [
+                "EngineCore failed to start",
+                "noise-1",
+                "noise-2",
+                "EngineCore failed to start",
+            ]
+        )
+        context = extract_failure_context(
+            body,
+            failure_window_context_before_lines=0,
+            failure_window_context_after_lines=1,
+        )
+
+        self.assertEqual(self._summary(context)["emitted_instance_count"], 2)
+
+    def test_overlapping_candidates_share_one_budgeted_window(self) -> None:
+        lines = [f"noise-{index}" for index in range(1000)]
+        for index in range(8):
+            lines[100 + index] = f"ValueError: repeated traceback signal {index}"
+        lines[500] = "ValueError: distinct later root cause"
+
+        context = extract_failure_context(
+            "\n".join(lines),
+            failure_window_context_before_lines=10,
+            failure_window_context_after_lines=50,
+            max_lines=450,
+        )
+
+        summary = self._summary(context)
+        self.assertEqual(summary["matched_candidate_count"], 9)
+        self.assertEqual(summary["emitted_instance_count"], 2)
+        self.assertFalse(summary["instances_truncated"])
+        self.assertTrue(
+            any(
+                "distinct later root cause" in window["text"]
+                for window in self._windows(context)
+            )
+        )
 
 
 if __name__ == "__main__":
