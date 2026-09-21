@@ -981,13 +981,6 @@
       "slow"
     ]
   ],
-  "test_runtime_follows_current_device_not_input (__main__.TestCompileOnOneRankDeviceAsParameter)": [
-    "197453",
-    "https://github.com/pytorch/pytorch/issues/197453",
-    [
-      "rocm"
-    ]
-  ],
   "test_saved_tensor_hooks_extra_enter_during_bw_no_leak (__main__.TestAutograd)": [
     "190499",
     "https://github.com/pytorch/pytorch/issues/190499",
