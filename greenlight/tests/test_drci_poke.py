@@ -170,14 +170,14 @@ def test_poke_logs_success_for_2xx(status, poke_config, caplog):
     assert any(f"poked Dr. CI for pytorch/pytorch#5 (HTTP {status})" in r.getMessage() for r in caplog.records)
 
 
-@pytest.mark.parametrize("status", [300, 400, 403, 500, 502])
+@pytest.mark.parametrize("status", [300, 400, 401, 403, 429, 500, 502, 503])
 def test_poke_swallows_non_2xx_and_logs_the_code(status, poke_config, caplog):
     rec = _Recorder()
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         drci_poke.poke("pytorch/pytorch", 5, poke_config(), sleep=_FakeSleep(rec), post=_FakePost(rec, status))
 
-    # An auth failure answers 500, so a non-2xx cannot be classified -- but it must never raise.
+    # A poke is best-effort: whatever the endpoint answers, log the code and never raise.
     assert any(f"returned HTTP {status}" in record.getMessage() for record in caplog.records)
 
 
