@@ -3,6 +3,10 @@ import { Octokit } from "octokit";
 
 // Mirror of the Python AllowlistLevel enum in aws/lambda/cross_repo_ci_relay/utils/allowlist.py
 export type AllowlistLevel = "L1" | "L2" | "L3" | "L4";
+export type CrcrEvent = "pull_request" | "nightly";
+
+const DEFAULT_CRCR_EVENTS: CrcrEvent[] = ["pull_request", "nightly"];
+const CRCR_EVENTS = new Set<CrcrEvent>(DEFAULT_CRCR_EVENTS);
 
 const LEVEL_ORDER: Record<AllowlistLevel, number> = {
   L1: 0,
@@ -16,6 +20,85 @@ export interface CrcrRepoEntry {
   level: AllowlistLevel;
   device: string; // L3 only: suffix of ciflow/crcr/{device} label
   oncalls: string[];
+  events: CrcrEvent[];
+}
+
+function parseOncalls(rawOncalls: unknown, context: string): string[] {
+  if (rawOncalls === undefined || rawOncalls === null) return [];
+  if (typeof rawOncalls === "string") {
+    return rawOncalls
+      .split(",")
+      .map((oncall) => oncall.trim())
+      .filter(Boolean);
+  }
+  if (Array.isArray(rawOncalls)) {
+    return rawOncalls.map((oncall) => String(oncall).trim()).filter(Boolean);
+  }
+  throw new Error(
+    `Invalid allowlist: ${context}.oncalls must be a string or list`
+  );
+}
+
+function parseEvents(rawEvents: unknown, context: string): CrcrEvent[] {
+  if (rawEvents === undefined || rawEvents === null) {
+    return [...DEFAULT_CRCR_EVENTS];
+  }
+  if (!Array.isArray(rawEvents) || rawEvents.length === 0) {
+    throw new Error(
+      `Invalid allowlist: ${context}.events must be a non-empty list`
+    );
+  }
+
+  const events: CrcrEvent[] = [];
+  for (const rawEvent of rawEvents) {
+    if (typeof rawEvent !== "string") {
+      throw new Error(
+        `Invalid allowlist: ${context}.events entries must be strings`
+      );
+    }
+    const event = rawEvent.trim() as CrcrEvent;
+    if (!CRCR_EVENTS.has(event)) {
+      throw new Error(
+        `Invalid allowlist: ${context}.events has unsupported event ${rawEvent}`
+      );
+    }
+    if (events.includes(event)) {
+      throw new Error(
+        `Invalid allowlist: ${context}.events contains duplicate ${event}`
+      );
+    }
+    events.push(event);
+  }
+  return events;
+}
+
+function parseMetadata(
+  rawMetadata: unknown,
+  context: string
+): Pick<CrcrRepoEntry, "oncalls" | "events"> {
+  if (
+    typeof rawMetadata === "object" &&
+    rawMetadata !== null &&
+    !Array.isArray(rawMetadata)
+  ) {
+    const metadata = rawMetadata as Record<string, unknown>;
+    const unknownFields = Object.keys(metadata).filter(
+      (key) => key !== "oncalls" && key !== "events"
+    );
+    if (unknownFields.length > 0) {
+      throw new Error(
+        `Invalid allowlist: ${context} has unsupported metadata field(s): ${unknownFields.join(", ")}`
+      );
+    }
+    return {
+      oncalls: parseOncalls(metadata.oncalls, context),
+      events: parseEvents(metadata.events, context),
+    };
+  }
+  return {
+    oncalls: parseOncalls(rawMetadata, context),
+    events: [...DEFAULT_CRCR_EVENTS],
+  };
 }
 
 /**
@@ -31,6 +114,9 @@ export interface CrcrRepoEntry {
  *       org3/device1-repo: [oncall1, oncall2]
  *   L4:
  *     - org5/repo5: oncall1, oncall2
+ *
+ * Entries may specify `events: [pull_request, nightly]`; omitted events retain
+ * the legacy behavior of participating in both.
  */
 export class CrcrAllowlist {
   private repoMap: Map<string, CrcrRepoEntry>;
@@ -55,6 +141,10 @@ export class CrcrAllowlist {
   getDeviceForRepo(repo: string): string | null {
     const entry = this.repoMap.get(repo.toLowerCase());
     return entry?.device || null;
+  }
+
+  getEventsForRepo(repo: string): CrcrEvent[] {
+    return this.repoMap.get(repo.toLowerCase())?.events ?? [];
   }
 
   /** True when a failed check run for this repo should block PR merge (L4 only). */
@@ -120,7 +210,7 @@ export class CrcrAllowlist {
             );
           }
           const repoMap = reposRaw as Record<string, unknown>;
-          for (const [repoRaw, oncallsRaw] of Object.entries(repoMap)) {
+          for (const [repoRaw, metadataRaw] of Object.entries(repoMap)) {
             const repo = String(repoRaw)
               .trim()
               .replace(/^\/|\/$/g, "");
@@ -134,14 +224,16 @@ export class CrcrAllowlist {
             }
             seenRepos.add(repo.toLowerCase());
 
-            const oncalls: string[] = [];
-            if (Array.isArray(oncallsRaw)) {
-              for (const o of oncallsRaw) {
-                const trimmed = String(o).trim();
-                if (trimmed) oncalls.push(trimmed);
-              }
-            }
-            entries.push({ repo, level, device: trimmedDevice, oncalls });
+            const metadata = parseMetadata(
+              metadataRaw,
+              `L3.${trimmedDevice}.${repo}`
+            );
+            entries.push({
+              repo,
+              level,
+              device: trimmedDevice,
+              ...metadata,
+            });
           }
         }
       } else {
@@ -152,12 +244,18 @@ export class CrcrAllowlist {
             `Invalid allowlist: ${level} must be a list, got ${typeof rawEntries}`
           );
         }
-        for (const rawEntry of rawEntries as unknown[]) {
+        for (const [idx, rawEntry] of (
+          rawEntries as unknown[]
+        ).entries()) {
           let repo: string;
-          let oncalls: string[] = [];
+          let metadata: Pick<CrcrRepoEntry, "oncalls" | "events">;
 
           if (typeof rawEntry === "string") {
             repo = rawEntry.trim();
+            metadata = {
+              oncalls: [],
+              events: [...DEFAULT_CRCR_EVENTS],
+            };
           } else if (typeof rawEntry === "object" && rawEntry !== null) {
             const keys = Object.keys(rawEntry);
             if (keys.length !== 1) {
@@ -166,17 +264,10 @@ export class CrcrAllowlist {
               );
             }
             repo = keys[0].trim();
-            const rawOncalls = (rawEntry as Record<string, unknown>)[keys[0]];
-            if (typeof rawOncalls === "string") {
-              oncalls = rawOncalls
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean);
-            } else if (Array.isArray(rawOncalls)) {
-              oncalls = (rawOncalls as unknown[])
-                .map((s) => String(s).trim())
-                .filter(Boolean);
-            }
+            metadata = parseMetadata(
+              (rawEntry as Record<string, unknown>)[keys[0]],
+              `${level}[${idx}]`
+            );
           } else {
             continue;
           }
@@ -185,7 +276,7 @@ export class CrcrAllowlist {
             throw new Error(`Invalid allowlist: duplicate repo ${repo}`);
           }
           seenRepos.add(repo.toLowerCase());
-          entries.push({ repo, level, device: "", oncalls });
+          entries.push({ repo, level, device: "", ...metadata });
         }
       }
     }

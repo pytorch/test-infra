@@ -56,6 +56,38 @@ describe("CrcrAllowlist", () => {
       expect(al.getDeviceForRepo("org2/repo2")).toBeNull();
     });
 
+    test("legacy entries default to pull request and nightly events", () => {
+      const al = CrcrAllowlist.fromYaml(VALID_YAML);
+      expect(al.getEventsForRepo("org1/repo1")).toEqual([
+        "pull_request",
+        "nightly",
+      ]);
+      expect(al.getEventsForRepo("org3/device1-repo")).toEqual([
+        "pull_request",
+        "nightly",
+      ]);
+    });
+
+    test("parses event metadata with oncalls", () => {
+      const al = CrcrAllowlist.fromYaml(`
+L2:
+  - nightly/repo:
+      events: [nightly]
+      oncalls: [nightly-oncall]
+L3:
+  device:
+    pr/repo:
+      events: [pull_request]
+      oncalls: pr-oncall
+`);
+      expect(al.getEventsForRepo("nightly/repo")).toEqual(["nightly"]);
+      expect(al.getOncallsForRepo("nightly/repo")).toEqual([
+        "nightly-oncall",
+      ]);
+      expect(al.getEventsForRepo("pr/repo")).toEqual(["pull_request"]);
+      expect(al.getOncallsForRepo("pr/repo")).toEqual(["pr-oncall"]);
+    });
+
     test("unknown repo returns null level and empty oncalls", () => {
       const al = CrcrAllowlist.fromYaml(VALID_YAML);
       expect(al.getLevelForRepo("unknown/repo")).toBeNull();
@@ -147,6 +179,23 @@ L3:
     org/repo: []
 `)
       ).toThrow(/device name must not be empty/);
+    });
+
+    test("invalid event metadata raises", () => {
+      expect(() =>
+        CrcrAllowlist.fromYaml(`
+L2:
+  - org/repo:
+      events: [push]
+`)
+      ).toThrow(/unsupported event/);
+      expect(() =>
+        CrcrAllowlist.fromYaml(`
+L2:
+  - org/repo:
+      owner: team
+`)
+      ).toThrow(/unsupported metadata/);
     });
   });
 });

@@ -1,4 +1,8 @@
-import { CRCR_ALLOWLIST_CACHE_TTL_MS, CrcrAllowlist } from "lib/crcrAllowlist";
+import {
+  CRCR_ALLOWLIST_CACHE_TTL_MS,
+  CrcrAllowlist,
+  type CrcrEvent,
+} from "lib/crcrAllowlist";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const ALLOWLIST_RAW_URL =
@@ -7,6 +11,7 @@ const ALLOWLIST_RAW_URL =
 export interface AllowlistEntry {
   repo: string;
   oncalls: string[];
+  events: CrcrEvent[];
 }
 
 export interface AllowlistResponse {
@@ -25,6 +30,7 @@ function toResponse(allowlist: CrcrAllowlist): AllowlistResponse {
     result[entry.level].push({
       repo: entry.repo,
       oncalls: entry.oncalls,
+      events: entry.events,
     });
   }
   return result;
