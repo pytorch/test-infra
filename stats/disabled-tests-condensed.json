@@ -1254,6 +1254,13 @@
       "slow"
     ]
   ],
+  "test_triton_template_generated_code_caching_bmm (__main__.TestMaxAutotune)": [
+    "198012",
+    "https://github.com/pytorch/pytorch/issues/198012",
+    [
+      "inductor"
+    ]
+  ],
   "test_unbacked_bindings_for_divisible_u_symint_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
     "190882",
     "https://github.com/pytorch/pytorch/issues/190882",
