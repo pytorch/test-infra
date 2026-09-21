@@ -81,9 +81,7 @@ L3:
       oncalls: pr-oncall
 `);
       expect(al.getEventsForRepo("nightly/repo")).toEqual(["nightly"]);
-      expect(al.getOncallsForRepo("nightly/repo")).toEqual([
-        "nightly-oncall",
-      ]);
+      expect(al.getOncallsForRepo("nightly/repo")).toEqual(["nightly-oncall"]);
       expect(al.getEventsForRepo("pr/repo")).toEqual(["pull_request"]);
       expect(al.getOncallsForRepo("pr/repo")).toEqual(["pr-oncall"]);
     });

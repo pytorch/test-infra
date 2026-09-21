@@ -70,7 +70,9 @@ class TestAllowlistMap(unittest.TestCase):
         self.assertEqual(amap.get_repo_events("pr/repo"), {CrcrEvent.PULL_REQUEST})
         _, oncalls = amap.get_level(AllowlistLevel.L2)
         self.assertEqual(oncalls, ["nightly-oncall"])
-        self.assertEqual(amap.get_repos_for_device("device"), (["pr/repo"], ["pr-oncall"]))
+        self.assertEqual(
+            amap.get_repos_for_device("device"), (["pr/repo"], ["pr-oncall"])
+        )
 
     def test_invalid_event_metadata_raises(self):
         with self.assertRaisesRegex(RuntimeError, "unsupported event"):

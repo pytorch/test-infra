@@ -47,18 +47,20 @@ class AllowlistEntry:
     repo: str
     oncalls: list[str] = field(default_factory=list)
     device: str = ""  # L3 only: suffix of the ciflow/crcr/{device} label
-    events: frozenset[CrcrEvent] = field(
-        default_factory=lambda: DEFAULT_CRCR_EVENTS
-    )
+    events: frozenset[CrcrEvent] = field(default_factory=lambda: DEFAULT_CRCR_EVENTS)
 
     @staticmethod
     def _parse_oncalls(raw_oncalls, context: str) -> list[str]:
         if raw_oncalls is None:
             return []
         if isinstance(raw_oncalls, str):
-            return [oncall.strip() for oncall in raw_oncalls.split(",") if oncall.strip()]
+            return [
+                oncall.strip() for oncall in raw_oncalls.split(",") if oncall.strip()
+            ]
         if isinstance(raw_oncalls, list):
-            return [str(oncall).strip() for oncall in raw_oncalls if str(oncall).strip()]
+            return [
+                str(oncall).strip() for oncall in raw_oncalls if str(oncall).strip()
+            ]
         raise RuntimeError(
             f"Invalid allowlist: {context}.oncalls must be a string or list"
         )
@@ -135,9 +137,7 @@ class AllowlistEntry:
                 raise RuntimeError(
                     f"Invalid allowlist: {level}[{idx}] must be in owner/repo format, got {repo_raw!r}"
                 )
-            oncalls, events = cls._metadata_from_raw(
-                oncalls_raw, f"{level}[{idx}]"
-            )
+            oncalls, events = cls._metadata_from_raw(oncalls_raw, f"{level}[{idx}]")
             return cls(repo=repo, oncalls=oncalls, events=events)
 
         raise RuntimeError(

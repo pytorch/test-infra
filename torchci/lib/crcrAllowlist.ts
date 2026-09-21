@@ -87,7 +87,9 @@ function parseMetadata(
     );
     if (unknownFields.length > 0) {
       throw new Error(
-        `Invalid allowlist: ${context} has unsupported metadata field(s): ${unknownFields.join(", ")}`
+        `Invalid allowlist: ${context} has unsupported metadata field(s): ${unknownFields.join(
+          ", "
+        )}`
       );
     }
     return {
@@ -244,9 +246,7 @@ export class CrcrAllowlist {
             `Invalid allowlist: ${level} must be a list, got ${typeof rawEntries}`
           );
         }
-        for (const [idx, rawEntry] of (
-          rawEntries as unknown[]
-        ).entries()) {
+        for (const [idx, rawEntry] of (rawEntries as unknown[]).entries()) {
           let repo: string;
           let metadata: Pick<CrcrRepoEntry, "oncalls" | "events">;
 
