@@ -283,6 +283,7 @@ def extract_failure_context(
     ]
     return {
         "line_count": len(lines),
+        "job_is_infra": _matches_infra("\n".join(lines)),
         "failure_window_context_before_lines": failure_window_context_before_lines,
         "failure_window_context_after_lines": failure_window_context_after_lines,
         "failure_windows": failure_windows,

@@ -52,8 +52,10 @@ Every file opens with a header:
 **Job-state form** — `cluster-logs/<safe-cluster-name>.log` uses
 `capture_mode: nightly_failure_context` and contains ranked failure windows followed by
 an unconditional cleaned `## raw_tail`. Window counts report candidates, emitted
-windows, and truncation. These are lossy evidence, not root-cause classifications or
-proof that a window belongs to a particular test.
+windows, and truncation. The header also includes `job_is_infra: true|false`; when it is
+true, treat the cluster as transient infrastructure rather than a torch regression.
+These are lossy evidence, not root-cause classifications or proof that a window belongs
+to a particular test.
 
 Parsed pytest records for surfaced `regressed_tests` clusters, including complete
 nightly-only and shared nightly/baseline failures, are in `report.json.regressed_tests`.
@@ -62,8 +64,10 @@ nightly-only and shared nightly/baseline failures, are in `report.json.regressed
 supplementary lossy raw nightly context for the same surfaced clusters. No
 `baseline_*.log` artifact is produced.
 
-**Infra is not a torch regression.** A surfaced pytest failure tagged
-`test_is_infra: true` is transient infrastructure evidence; call it out as infra.
+**Infra is not a torch regression.** A job artifact tagged `job_is_infra: true` or a
+surfaced pytest failure tagged `test_is_infra: true` is transient infrastructure
+evidence; call it out as infra. Do not let a high-scoring infra message such as a
+low-GPU-memory startup failure override the explicit infra tag.
 
 ## Step 2: NEW vs pre-existing
 

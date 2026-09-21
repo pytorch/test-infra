@@ -360,8 +360,33 @@ class TestNightlyFailureContext(unittest.TestCase):
                 capture_mode="nightly_failure_context",
             )
         self.assertIn("# capture_mode: nightly_failure_context", artifact)
+        self.assertIn("# job_is_infra: False", artifact)
         self.assertIn("EngineCore failed to start", artifact)
         self.assertIn("tail", artifact)
+
+    def test_nightly_failure_context_marks_transient_infra(self) -> None:
+        representative = {
+            "name": "Job A",
+            "url": "tn#job",
+            "state": "failed",
+            "exit_status": 1,
+        }
+        body = (
+            "ValueError: Free memory on device cuda:0 (13.05/16.0 GiB) "
+            "on startup is less than desired GPU memory utilization\n"
+        )
+
+        artifact = triage.render_failure_context(
+            body,
+            "Job A",
+            representative,
+            tail_lines=2,
+            failure_window_context_before_lines=10,
+            failure_window_context_after_lines=50,
+            capture_mode="nightly_failure_context",
+        )
+
+        self.assertIn("# job_is_infra: True", artifact)
 
 
 def _regressed_entry():

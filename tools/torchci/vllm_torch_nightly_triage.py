@@ -556,6 +556,7 @@ def render_failure_context(
         _artifact_header(cluster_key, representative),
         f"# capture_mode: {capture_mode}\n",
         f"# cleaned_log_lines: {context['line_count']}\n",
+        f"# job_is_infra: {context['job_is_infra']}\n",
         "# failure_window_counts:",
     ]
     for summary in context["failure_windows"]:

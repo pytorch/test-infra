@@ -946,6 +946,16 @@ class TestFailureContext(unittest.TestCase):
         self.assertEqual(windows[0]["end_line"], 371)
         self.assertIn("13.05/16.0 GiB", windows[0]["text"])
         self.assertEqual(context["line_count"], 1427)
+        self.assertTrue(context["job_is_infra"])
+
+    def test_non_infra_failure_context_is_not_tagged(self) -> None:
+        context = extract_failure_context(
+            "ValueError: distinct application failure\n",
+            failure_window_context_before_lines=0,
+            failure_window_context_after_lines=1,
+        )
+
+        self.assertFalse(context["job_is_infra"])
 
     def test_nonintersecting_windows_remain_separate(self) -> None:
         body = "\n".join(
