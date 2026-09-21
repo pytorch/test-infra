@@ -167,11 +167,44 @@ jobs:
         if: inputs.setup_script != ''
         run: ${{ inputs.setup_script }}
 
+      # The AWS session has to outlive the job. When it does not, the model step
+      # keeps working until the credentials expire and then dies with
+      # "403 The security token included in the request is expired", having
+      # burned the whole session first and produced no review. Deriving the
+      # session length from timeout_minutes keeps the two lifetimes from
+      # drifting: they used to be set independently, which left pytorch/pytorch
+      # running a 120-minute job on 60-minute credentials for 12 days.
+      - name: Resolve AWS session duration
+        id: aws_session
+        env:
+          TIMEOUT_MINUTES: ${{ inputs.timeout_minutes }}
+        run: |
+          set -euo pipefail
+          # MaxSessionDuration on gha_workflow_claude_code. Asking for more than
+          # the role allows fails AssumeRoleWithWebIdentity outright, so clamp
+          # and warn rather than trading a late failure for an instant one.
+          role_max=7200
+          # configure-aws-credentials rejects anything under 15 minutes.
+          aws_min=900
+
+          requested=$(( TIMEOUT_MINUTES * 60 ))
+          duration="${requested}"
+
+          if [ "${duration}" -gt "${role_max}" ]; then
+            duration="${role_max}"
+            echo "::warning title=AWS credentials expire before the job timeout::timeout_minutes=${TIMEOUT_MINUTES} needs a ${requested}s session but gha_workflow_claude_code caps sessions at ${role_max}s. Credentials will expire $(( role_max / 60 )) minutes in and the job will fail with an expired-token 403. Raise MaxSessionDuration on the role, or lower timeout_minutes."
+          elif [ "${duration}" -lt "${aws_min}" ]; then
+            duration="${aws_min}"
+          fi
+
+          echo "duration=${duration}" >> "$GITHUB_OUTPUT"
+
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
           aws-region: us-east-1
+          role-duration-seconds: ${{ steps.aws_session.outputs.duration }}
 
       - name: Set commit author to invoking user
         uses: actions/github-script@v7
