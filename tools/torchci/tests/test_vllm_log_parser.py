@@ -998,6 +998,26 @@ class TestFailureContext(unittest.TestCase):
             )
         )
 
+    def test_late_anchor_survives_merged_retry_loop(self) -> None:
+        lines = [f"noise-{index}" for index in range(6000)]
+        for index in range(0, 2000, 20):
+            lines[index] = "Traceback (most recent call last):"
+        lines[4999] = "RuntimeError: genuine late root cause"
+
+        context = extract_failure_context(
+            "\n".join(lines),
+            failure_window_context_before_lines=10,
+            failure_window_context_after_lines=50,
+            max_lines=450,
+        )
+
+        windows = self._windows(context)
+        self.assertEqual(len(windows), 2)
+        self.assertTrue(
+            any("genuine late root cause" in window["text"] for window in windows)
+        )
+        self.assertTrue(self._summary(context)["instances_truncated"])
+
 
 if __name__ == "__main__":
     unittest.main()

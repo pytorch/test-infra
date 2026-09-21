@@ -218,8 +218,9 @@ def extract_failure_context(
 
     The complete cleaned log is scanned for scored candidate signals. Intersecting
     candidate windows are merged in chronological order before the highest-priority
-    merged windows are selected within a fixed line budget. Failure categorization
-    is intentionally left to the downstream agent.
+    merged windows are selected within a fixed line budget. Ties prefer later anchors
+    so a long retry loop cannot hide a later root cause with the same signal score.
+    Failure categorization is intentionally left to the downstream agent.
     """
     if max_lines < 0:
         raise ValueError("max_lines must not be negative")
@@ -239,7 +240,9 @@ def extract_failure_context(
         failure_window_context_before_lines,
         failure_window_context_after_lines,
     )
-    ranked = sorted(merged_candidates, key=lambda item: (-item[0], item[1]))[:20]
+    # Prefer later anchors within a score tier so repeated early retry signals do not
+    # starve a later exception from the fixed line budget.
+    ranked = sorted(merged_candidates, key=lambda item: (-item[0], -item[1]))[:20]
     selected_windows: list[tuple[int, int]] = []
     used_lines = 0
     clipped_window = False
