@@ -825,7 +825,11 @@ export default function CrcrSummaryPage() {
         if (seen.has(row.repo) || row.repo === CRCR_HEALTH_REPO) continue;
         const level = (row.downstream_repo_level || "L2") as Level;
         if (level in result) {
-          result[level].push({ repo: row.repo, oncalls: [] });
+          result[level].push({
+            repo: row.repo,
+            oncalls: [],
+            events: ["pull_request", "nightly"],
+          });
           seen.add(row.repo);
         }
       }
