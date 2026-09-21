@@ -64,6 +64,16 @@ describe("commitDataFromResponse", () => {
     expect(commitDataFromResponse(response("Plain subject")).prNum).toBeNull();
   });
 
+  test("a reland subject ending in two suffixes takes the last", () => {
+    // Observed on pytorch/pytorch 82b29a21: "... (#197275) (#197977)", where the
+    // first number is the PR this relands and the second is this one. The anchor
+    // is the whole difference -- an unanchored match reads the earlier number and
+    // attributes the commit to a PR it is not.
+    const subject =
+      "[precompile] Add the frame converter that compiles package frames (#197275) (#197977)";
+    expect(commitDataFromResponse(response(subject)).prNum).toBe(197977);
+  });
+
   test("the trailer wins over a suffix naming a different PR", () => {
     const message = [
       "A title borrowed from somewhere else (#111)",

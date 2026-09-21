@@ -719,3 +719,102 @@ describe("greenlight_trunk_commit_states query.sql, head resolution", () => {
     expect(sql).not.toContain("head.sha");
   });
 });
+
+// The commit page runs the same recovery, in the same silent failure mode: a
+// ghstack stack member whose head cannot be recovered renders no panel at all,
+// which looks exactly like a commit GreenLight never reviewed.
+describe("greenlight_pr_state_history query.sql, head recovery", () => {
+  const sql = readFileSync(
+    path.resolve(
+      __dirname,
+      "..",
+      "clickhouse_queries",
+      "greenlight_pr_state_history",
+      "query.sql"
+    ),
+    "utf-8"
+  ).replace(/--.*$/gm, "");
+
+  test("recovers a head the merge record never mentions", () => {
+    expect(sql).toContain("FROM default.push");
+    expect(sql).toMatch(/branch_heads AS\s*\(/);
+  });
+
+  test("resolves once for the viewed commit, then tags the row it names", () => {
+    // The push data answers "which head became this commit" and not the reverse,
+    // so the recovery runs forward once and its result selects a row -- rather
+    // than each row being asked which commit it became, which it cannot answer.
+    expect(sql).toMatch(
+      /reviewed\.head_sha = \(SELECT head_sha FROM viewed_head\)/
+    );
+    expect(sql).toMatch(/argMax\(head_sha, pushed_at\)/);
+  });
+
+  test("mergebot's own record stays ahead of the recovered head", () => {
+    // A row merges already accounts for keeps its value: that one needs no timing
+    // assumption, and the recovery is only there for the rows merges never saw.
+    const coalesced = sql.slice(sql.indexOf("coalesce("));
+    expect(coalesced.indexOf("landed.merge_commit_sha")).toBeGreaterThan(-1);
+    expect(coalesced.indexOf("landed.merge_commit_sha")).toBeLessThan(
+      coalesced.indexOf("{sha: String}")
+    );
+  });
+
+  test("a push at or after the viewed commit is never selected", () => {
+    // `<=` would take the landing push itself, which belongs to no revision of
+    // the PR, and dropping the bound would take whatever was pushed afterwards.
+    const window = sql.slice(sql.indexOf("branch_heads AS"));
+    const bound = window.match(
+      /tupleElement\(head_commit, 'timestamp'\)\s*<=?\s*\(SELECT committed_at FROM viewed\)/g
+    );
+    expect(bound).toHaveLength(1);
+    expect(bound![0]).not.toContain("<=");
+  });
+
+  test("the head ref is taken from the PR, and only when it lives in this repo", () => {
+    expect(sql).toContain("concat('refs/heads/', head.ref)");
+    expect(sql).toContain("head.repo.full_name = {repo: String}");
+  });
+
+  test("never reads pull_request.head.sha", () => {
+    expect(sql).not.toContain("head.sha");
+  });
+
+  test("parses the viewed date with the form that cannot throw", () => {
+    // The parameters reach ClickHouse from the caller, and the throwing form
+    // raises on an empty string -- which is exactly what the PR page sends.
+    expect(sql).toContain("parseDateTime64BestEffortOrNull(");
+    expect(sql).not.toMatch(/parseDateTime64BestEffort\(/);
+  });
+
+  test("detects the merges miss in a way that survives join_use_nulls", () => {
+    // A LEFT JOIN miss reads as '' under 0 and NULL under 1. Testing only one
+    // either never falls through to the recovery or never prefers mergebot.
+    expect(sql).toContain("nullIf(landed.merge_commit_sha, '')");
+  });
+
+  test("refuses the tag where merges already claims the viewed commit", () => {
+    // The coalesce is per row, so on its own it keeps mergebot's value on the
+    // row that has one and then tags a second row with the same trunk sha --
+    // and selectStateForSha is an Array.find over a query with no ORDER BY, so
+    // which of the two renders is decided by nothing. Observed on PR 197583,
+    // where the head that landed has no row in default.push at all and the
+    // recovery reaches for an earlier one.
+    expect(sql).toMatch(
+      /SELECT count\(\)\s*FROM landed\s*WHERE merge_commit_sha = \{sha: String\}\s*\) = 0/
+    );
+  });
+
+  test("refuses the tag when no head was recovered", () => {
+    // argMax over no rows returns '', and without this the tag condition reads
+    // `reviewed.head_sha = ''` -- harmless only for as long as no ledger row
+    // carries an empty head.
+    expect(sql).toContain("(SELECT head_sha FROM viewed_head) != ''");
+  });
+
+  test("the PR lookup is gated on the date, like the push read", () => {
+    // Cheap in granules but not free: default.pull_request is wide, and the PR
+    // page repeats this every 60 seconds without ever using the answer.
+    expect(sql).toContain("(SELECT isNotNull(committed_at) FROM viewed)");
+  });
+});

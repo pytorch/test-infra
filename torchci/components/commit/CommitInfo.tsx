@@ -57,12 +57,18 @@ export function CommitInfo({
     <div>
       {isCommitPage && <h2>{commit.commitTitle}</h2>}
       {/* Above the job grid: a reader who has scrolled past every workflow box
-      has stopped looking for a verdict. */}
+      has stopped looking for a verdict.
+
+      committedAt only on the commit page, which is the one that views trunk
+      commits -- the PR page selects branch commits, which match the reviewed
+      head directly. Withholding it there is also what keeps this read on the
+      same SWR key as that page's commit picker. */}
       <GreenLightSection
         repoOwner={repoOwner}
         repoName={repoName}
         prNumber={prNumber ?? commit.prNum}
         sha={sha}
+        committedAt={isCommitPage ? commit.time : undefined}
       />
       <CommitStatus
         repoOwner={repoOwner}

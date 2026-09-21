@@ -15,7 +15,16 @@ import { GreenlightPrStateRow } from "lib/greenlight/greenlightHudState";
 export function useGreenlightPrHistory(
   repoOwner: string | undefined,
   repoName: string | undefined,
-  prNumber: number | null | undefined
+  prNumber: number | null | undefined,
+  /**
+   * The trunk commit being viewed and its committer date, which let the query
+   * recover the head that landed as it. Supplied only by the commit page.
+   *
+   * Leaving it out is what keeps the PR page's panel and its commit picker on
+   * one SWR key: neither has a trunk commit to name, both send the same empty
+   * pair, and the two reads stay the single request they share today.
+   */
+  trunkCommit?: { sha: string; committedAt: string }
 ) {
   const enabled =
     repoOwner !== undefined &&
@@ -36,6 +45,8 @@ export function useGreenlightPrHistory(
       owner: enabled ? repoOwner : "",
       project: enabled ? repoName : "",
       prNumber: enabled ? prNumber : 0,
+      sha: trunkCommit?.sha ?? "",
+      committedAt: trunkCommit?.committedAt ?? "",
     },
     enabled,
     { refreshInterval: 60 * 1000 }

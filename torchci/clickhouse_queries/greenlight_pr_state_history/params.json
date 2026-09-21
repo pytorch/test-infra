@@ -3,7 +3,13 @@
     "repo": "String",
     "owner": "String",
     "project": "String",
-    "prNumber": "Int64"
+    "prNumber": "Int64",
+    "sha": "String",
+    "committedAt": "String"
+  },
+  "defaults": {
+    "sha": "",
+    "committedAt": ""
   },
   "tests": [
     {
@@ -11,6 +17,14 @@
       "owner": "pytorch",
       "project": "pytorch",
       "prNumber": 196176
+    },
+    {
+      "repo": "pytorch/pytorch",
+      "owner": "pytorch",
+      "project": "pytorch",
+      "prNumber": 197977,
+      "sha": "82b29a21c4095bc78784e2eb5bd6b664132c45d1",
+      "committedAt": "2026-09-21T18:07:03Z"
     }
   ]
 }
