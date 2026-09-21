@@ -34,7 +34,10 @@ import {
   L3_DEMOTION_WINDOW_DAYS,
   L3_PROMOTION_WINDOW_DAYS,
 } from "lib/crcr/l3Thresholds";
-import { DEFAULT_CRCR_EVENTS } from "lib/crcrAllowlist";
+import {
+  DEFAULT_CRCR_EVENTS,
+  filterCrcrEntriesByEvent,
+} from "lib/crcrAllowlist";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -848,6 +851,27 @@ export default function CrcrSummaryPage() {
     return result;
   }, [allowlist, ciData, metricsMap]);
 
+  const pullRequestReposByLevel = useMemo(() => {
+    const result: Record<Level, AllowlistEntry[]> = {
+      L1: [],
+      L2: [],
+      L3: [],
+      L4: [],
+    };
+    for (const level of LEVELS_ORDERED) {
+      result[level] = filterCrcrEntriesByEvent(
+        reposByLevel[level],
+        "pull_request"
+      );
+    }
+    return result;
+  }, [reposByLevel]);
+
+  const pullRequestRepoCount = LEVELS_ORDERED.reduce(
+    (count, level) => count + pullRequestReposByLevel[level].length,
+    0
+  );
+
   const stats = useMemo(() => {
     if (!ciData || ciData.length === 0) return null;
     const ct = metricsMap.get(CRCR_HEALTH_REPO);
@@ -993,10 +1017,7 @@ export default function CrcrSummaryPage() {
                 Pull Requests
                 <Chip
                   label={
-                    LEVELS_ORDERED.reduce(
-                      (n, l) => n + reposByLevel[l].length,
-                      0
-                    ) || "–"
+                    pullRequestRepoCount || "–"
                   }
                   size="small"
                   variant="outlined"
@@ -1030,7 +1051,7 @@ export default function CrcrSummaryPage() {
             </Typography>
 
             {LEVELS_ORDERED.map((level) => {
-              const repos = reposByLevel[level];
+              const repos = pullRequestReposByLevel[level];
               if (repos.length === 0) return null;
               const meta = LEVEL_META[level];
 
@@ -1055,7 +1076,9 @@ export default function CrcrSummaryPage() {
             })}
 
             {!isLoading &&
-              LEVELS_ORDERED.every((l) => reposByLevel[l].length === 0) && (
+              LEVELS_ORDERED.every(
+                (level) => pullRequestReposByLevel[level].length === 0
+              ) && (
                 <Typography
                   color="text.secondary"
                   sx={{ py: 4, textAlign: "center" }}

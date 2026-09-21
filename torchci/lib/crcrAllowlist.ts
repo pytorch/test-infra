@@ -26,6 +26,12 @@ export interface CrcrRepoEntry {
   events: CrcrEvent[];
 }
 
+export function filterCrcrEntriesByEvent<
+  T extends Pick<CrcrRepoEntry, "events">
+>(entries: readonly T[], event: CrcrEvent): T[] {
+  return entries.filter((entry) => entry.events.includes(event));
+}
+
 function parseOncalls(rawOncalls: unknown, context: string): string[] {
   if (rawOncalls === undefined || rawOncalls === null) return [];
   if (typeof rawOncalls === "string") {

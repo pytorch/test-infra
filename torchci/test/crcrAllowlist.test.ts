@@ -2,6 +2,7 @@ import {
   CrcrAllowlist,
   DEFAULT_CRCR_EVENTS,
   clearAllowlistCache,
+  filterCrcrEntriesByEvent,
 } from "../lib/crcrAllowlist";
 
 const VALID_YAML = `
@@ -71,6 +72,9 @@ describe("CrcrAllowlist", () => {
         "pull_request",
         "nightly",
       ]);
+      expect(
+        filterCrcrEntriesByEvent(al.getEntries(), "pull_request")
+      ).toHaveLength(5);
     });
 
     test("parses event metadata with oncalls", () => {
@@ -89,6 +93,11 @@ L3:
       expect(al.getOncallsForRepo("nightly/repo")).toEqual(["nightly-oncall"]);
       expect(al.getEventsForRepo("pr/repo")).toEqual(["pull_request"]);
       expect(al.getOncallsForRepo("pr/repo")).toEqual(["pr-oncall"]);
+      expect(
+        filterCrcrEntriesByEvent(al.getEntries(), "pull_request").map(
+          (entry) => entry.repo
+        )
+      ).toEqual(["pr/repo"]);
     });
 
     test("unknown repo returns null level and empty oncalls", () => {
