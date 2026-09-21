@@ -1008,6 +1008,14 @@
       "xpu"
     ]
   ],
+  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
+    "196006",
+    "https://github.com/pytorch/pytorch/issues/196006",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_amp (__main__.DeterministicTest)": [
     "196983",
     "https://github.com/pytorch/pytorch/issues/196983",
