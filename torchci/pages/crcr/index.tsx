@@ -23,11 +23,12 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
-import { fetcherHandleError } from "lib/GeneralUtils";
+import { buildDemotionStatuses } from "lib/crcr/demotionStatus";
 import {
   buildCriteriaRows,
   buildDemotionRows,
   L3SummaryRow,
+  useL3SummaryMap,
   useTenure,
 } from "lib/crcr/l3Readiness";
 import {
@@ -38,9 +39,10 @@ import {
   DEFAULT_CRCR_EVENTS,
   filterCrcrEntriesByEvent,
 } from "lib/crcrAllowlist";
+import { fetcherHandleError } from "lib/GeneralUtils";
 import Head from "next/head";
 import NextLink from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import useSWR from "swr";
 
 import type { AllowlistEntry, AllowlistResponse } from "../api/crcr/allowlist";
@@ -144,25 +146,6 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-// crcr_l3_summary, keyed by repo — the all-repo query the promotion and
-// demotion at-a-glance columns share (fixed windows).
-function useL3SummaryMap(days: number): Map<string, L3SummaryRow> {
-  const url =
-    `/api/clickhouse/crcr_l3_summary?parameters=` +
-    encodeURIComponent(JSON.stringify({ days: String(days) }));
-  const { data } = useSWR<L3SummaryRow[]>(url, fetcherHandleError, {
-    refreshInterval: 60_000,
-  });
-  return useMemo(() => {
-    const map = new Map<string, L3SummaryRow>();
-    if (!data) return map;
-    for (const row of data) {
-      map.set(row.repo, row);
-    }
-    return map;
-  }, [data]);
-}
-
 function ReadinessChip({
   repo,
   l3SummaryMap,
@@ -199,12 +182,17 @@ function CiHealthTable({
   metricsMap,
   l3SummaryMap,
   l3SummaryMapDemotion,
+  activeDotColor = "success.main",
 }: {
   level: Level;
   repos: AllowlistEntry[];
   metricsMap: Map<string, CiMetricsRow>;
   l3SummaryMap: Map<string, L3SummaryRow>;
   l3SummaryMapDemotion: Map<string, L3SummaryRow>;
+  // Red for the Temporary Demotion section — every row there is already
+  // flagged at-risk, so the usual "active and reporting" green would read
+  // backwards. Rows with no data at all stay grey either way.
+  activeDotColor?: string;
 }) {
   return (
     <TableContainer component={Paper} elevation={1}>
@@ -260,7 +248,7 @@ function CiHealthTable({
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      bgcolor: hasData ? "success.main" : "grey.400",
+                      bgcolor: hasData ? activeDotColor : "grey.400",
                       display: "inline-block",
                     }}
                     title={hasData ? "Active" : "No data"}
@@ -791,8 +779,10 @@ export default function CrcrSummaryPage() {
 
   // L3 readiness — fixed promotion/demotion windows, independent of the
   // Time Range selector above.
-  const l3SummaryMap = useL3SummaryMap(L3_PROMOTION_WINDOW_DAYS);
-  const l3SummaryMapDemotion = useL3SummaryMap(L3_DEMOTION_WINDOW_DAYS);
+  const { map: l3SummaryMap } = useL3SummaryMap(L3_PROMOTION_WINDOW_DAYS);
+  const { map: l3SummaryMapDemotion } = useL3SummaryMap(
+    L3_DEMOTION_WINDOW_DAYS
+  );
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, CiMetricsRow>();
@@ -871,6 +861,27 @@ export default function CrcrSummaryPage() {
     (count, level) => count + pullRequestReposByLevel[level].length,
     0
   );
+  // L3 repos currently meeting the demotion criteria — the same
+  // "on temporary demotion" check the per-repo page's Demotion column uses.
+  // This is also what files the L3 -> L2 PR (see docs/crcr), not just a
+  // display filter.
+  // A repo on temporary demotion is shown once, in that section — not also
+  // in the regular L3 table below it.
+  const { activeL3Repos, pendingDemotionRepos } = useMemo(() => {
+    const onTemporaryDemotion = new Set(
+      buildDemotionStatuses(l3SummaryMapDemotion)
+        .filter((s) => s.onTemporaryDemotion)
+        .map((s) => s.repo)
+    );
+    return {
+      activeL3Repos: reposByLevel.L3.filter(
+        (entry) => !onTemporaryDemotion.has(entry.repo)
+      ),
+      pendingDemotionRepos: reposByLevel.L3.filter((entry) =>
+        onTemporaryDemotion.has(entry.repo)
+      ),
+    };
+  }, [reposByLevel, l3SummaryMapDemotion]);
 
   const stats = useMemo(() => {
     if (!ciData || ciData.length === 0) return null;
@@ -1049,27 +1060,56 @@ export default function CrcrSummaryPage() {
             </Typography>
 
             {LEVELS_ORDERED.map((level) => {
-              const repos = pullRequestReposByLevel[level];
-              if (repos.length === 0) return null;
+              // Repos on temporary demotion are pulled out of the regular L3
+              // table below — shown once, in the demotion section only.
+              const repos =
+                level === "L3" ? activeL3Repos : reposByLevel[level];
+              const showDemotionSection =
+                level === "L3" && pendingDemotionRepos.length > 0;
+              if (repos.length === 0 && !showDemotionSection) return null;
               const meta = LEVEL_META[level];
 
               return (
-                <Box key={level}>
-                  <Divider sx={{ mb: 2 }}>
-                    <Typography variant="h6">{meta.label}</Typography>
-                  </Divider>
-                  {level === "L1" ? (
-                    <L1Section repos={repos} />
-                  ) : (
-                    <CiHealthTable
-                      level={level}
-                      repos={repos}
-                      metricsMap={metricsMap}
-                      l3SummaryMap={l3SummaryMap}
-                      l3SummaryMapDemotion={l3SummaryMapDemotion}
-                    />
+                <Fragment key={level}>
+                  {repos.length > 0 && (
+                    <Box>
+                      <Divider sx={{ mb: 2 }}>
+                        <Typography variant="h6">{meta.label}</Typography>
+                      </Divider>
+                      {level === "L1" ? (
+                        <L1Section repos={repos} />
+                      ) : (
+                        <CiHealthTable
+                          level={level}
+                          repos={repos}
+                          metricsMap={metricsMap}
+                          l3SummaryMap={l3SummaryMap}
+                          l3SummaryMapDemotion={l3SummaryMapDemotion}
+                        />
+                      )}
+                    </Box>
                   )}
-                </Box>
+                  {showDemotionSection && (
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        L3 backends currently meeting all demotion criteria over
+                        the last {L3_DEMOTION_WINDOW_DAYS} days.
+                      </Typography>
+                      <CiHealthTable
+                        level="L3"
+                        repos={pendingDemotionRepos}
+                        metricsMap={metricsMap}
+                        l3SummaryMap={l3SummaryMap}
+                        l3SummaryMapDemotion={l3SummaryMapDemotion}
+                        activeDotColor="error.main"
+                      />
+                    </Box>
+                  )}
+                </Fragment>
               );
             })}
 
