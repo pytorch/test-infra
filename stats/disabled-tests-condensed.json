@@ -14,13 +14,6 @@
       "macos"
     ]
   ],
-  "test_all_gather_fp32 (__main__.TestFullyShardCollectiveOps)": [
-    "195655",
-    "https://github.com/pytorch/pytorch/issues/195655",
-    [
-      "rocm"
-    ]
-  ],
   "test_alloc_rendezvous_on_current_stream (__main__.SymmetricMemoryTest)": [
     "192616",
     "https://github.com/pytorch/pytorch/issues/192616",
@@ -204,14 +197,6 @@
       "linux"
     ]
   ],
-  "test_control_deps_passthrough_creates_ordering_barrier (__main__.TestControlDeps)": [
-    "188627",
-    "https://github.com/pytorch/pytorch/issues/188627",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -328,13 +313,6 @@
     "https://github.com/pytorch/pytorch/issues/190141",
     [
       "linux"
-    ]
-  ],
-  "test_dynamo_trace_allgather_coalesced (__main__.TestCollectivesInductor)": [
-    "195095",
-    "https://github.com/pytorch/pytorch/issues/195095",
-    [
-      "rocm"
     ]
   ],
   "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
@@ -822,13 +800,6 @@
       "macos"
     ]
   ],
-  "test_ordering_barrier_is_nop (__main__.TestControlDeps)": [
-    "190331",
-    "https://github.com/pytorch/pytorch/issues/190331",
-    [
-      "linux"
-    ]
-  ],
   "test_out_of_memory_retry (__main__.TestCuda)": [
     "187045",
     "https://github.com/pytorch/pytorch/issues/187045",
@@ -850,22 +821,6 @@
     "https://github.com/pytorch/pytorch/issues/197144",
     [
       "xpu"
-    ]
-  ],
-  "test_pending_fusion_pro_and_epi_use_async_compile_False (__main__.TestPrologueFusion)": [
-    "189151",
-    "https://github.com/pytorch/pytorch/issues/189151",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
-  "test_pending_fusion_pro_and_epi_use_async_compile_True (__main__.TestPrologueFusion)": [
-    "189986",
-    "https://github.com/pytorch/pytorch/issues/189986",
-    [
-      "inductor",
-      "rocm"
     ]
   ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
