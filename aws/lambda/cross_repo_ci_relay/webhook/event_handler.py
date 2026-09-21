@@ -6,7 +6,7 @@ import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
 from utils import gh_helper, redis_helper
-from utils.allowlist import AllowlistLevel, load_allowlist
+from utils.allowlist import AllowlistLevel, CrcrEvent, load_allowlist
 from utils.config import RelayConfig
 from utils.misc import (
     CallbackState,
@@ -82,7 +82,16 @@ def _dispatch_to_allowlist(
         logger.info("allowlist is empty, nothing to dispatch")
         return [], []
 
-    targets = sorted(backends)
+    # Push webhooks carry ciflow triggers; scheduled nightly results report through
+    # the callback path and are not dispatched by the relay.
+    targets = sorted(
+        backend
+        for backend in backends
+        if CrcrEvent.PULL_REQUEST in allowlist.get_repo_events(backend)
+    )
+    if not targets:
+        logger.info("no backends participate in pull_request events")
+        return [], []
 
     # Labels from the dispatch payload, used to record a per-commit check-run
     # trigger for L3 repos whose ciflow/crcr label is already on the PR (so the
@@ -146,6 +155,11 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
 
     allowlist = load_allowlist(config)
     l3_repos, _ = allowlist.get_repos_for_device(device)
+    l3_repos = [
+        repo
+        for repo in l3_repos
+        if CrcrEvent.PULL_REQUEST in allowlist.get_repo_events(repo)
+    ]
     if not l3_repos:
         return {"ok": True, "created_check_runs": []}
 
