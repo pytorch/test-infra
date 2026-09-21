@@ -16,6 +16,7 @@ import {
   GREENLIGHT_STATUS_LAND,
   GREENLIGHT_STATUS_NO_LAND,
 } from "lib/greenlight/greenlightRender";
+import { CommitData } from "lib/types";
 
 /** One `misc.greenlight_pr_state` row. Saved queries are untyped, so this is the cast target. */
 export interface GreenlightPrStateRow {
@@ -88,6 +89,41 @@ export function supersedes(
     return candidate.run_id > incumbent.run_id;
   }
   return candidate.version > incumbent.version;
+}
+
+/** The commits `greenlight_trunk_commit_states` reads, as arrays it zips by position. */
+export interface GreenlightCommitParams {
+  shas: string[];
+  prNumbers: number[];
+  committedAts: string[];
+}
+
+/**
+ * Build the query's input from the commits the grid is drawing.
+ *
+ * One pass over the rows, so the three arrays cannot fall out of step: the
+ * query zips them positionally, and a misaligned triple would resolve one
+ * commit's head against another commit's PR.
+ *
+ * A row with no PR number is dropped. Neither source the query resolves a
+ * reviewed head from is reachable without one, and the mark hangs off the PR
+ * cell, which such a row does not render.
+ */
+export function buildGreenlightCommitParams(
+  rows: Pick<CommitData, "sha" | "prNum" | "time">[] | undefined
+): GreenlightCommitParams {
+  const shas: string[] = [];
+  const prNumbers: number[] = [];
+  const committedAts: string[] = [];
+  for (const row of rows ?? []) {
+    if (row.prNum == null || row.prNum <= 0) {
+      continue;
+    }
+    shas.push(row.sha);
+    prNumbers.push(row.prNum);
+    committedAts.push(row.time);
+  }
+  return { shas, prNumbers, committedAts };
 }
 
 /** Index `greenlight_trunk_commit_states` rows by trunk sha. */

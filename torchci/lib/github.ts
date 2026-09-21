@@ -71,13 +71,21 @@ export async function getOctokitWithUserToken(token: string): Promise<Octokit> {
 }
 
 const PR_REGEX = /Pull Request resolved: .*?(\d+)/;
+// The trailer above is a ghstack artifact. A squash merge leaves nothing behind
+// but the number GitHub appends to the subject line, so both have to be read or
+// every squash-merged commit arrives with no PR attached at all.
+const PR_TITLE_SUFFIX_REGEX = /\(#(\d+)\)$/;
 const PHAB_REGEX = /Differential Revision: (D.*)/;
 const EXPORTED_PHAB_REGEX = /Differential Revision: \[(.*)\]/;
 
 // Turns a JSON response from octokit into our CommitData type.
 export function commitDataFromResponse(data: any): CommitData {
   const message = data.commit.message;
-  const prMatch = message.match(PR_REGEX);
+  const title = message.split("\n")[0];
+  // The trailer wins: mergebot writes it deliberately, where the suffix is
+  // whatever happens to be left in the subject line.
+  const prMatch =
+    message.match(PR_REGEX) ?? title.trim().match(PR_TITLE_SUFFIX_REGEX);
   let prNum = null;
   if (prMatch) {
     prNum = parseInt(prMatch[1]);
@@ -102,7 +110,7 @@ export function commitDataFromResponse(data: any): CommitData {
     time: data.commit.committer!.date as string,
     sha: data.sha,
     commitUrl: data.html_url,
-    commitTitle: data.commit.message.split("\n")[0],
+    commitTitle: title,
     commitMessageBody: data.commit.message,
     prNum,
     diffNum,

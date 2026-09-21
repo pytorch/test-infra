@@ -146,13 +146,25 @@ export default function GreenLightSection({
   repoName,
   prNumber,
   sha,
+  committedAt,
 }: {
   repoOwner: string;
   repoName: string;
   prNumber: number | null | undefined;
   sha: string;
+  /**
+   * `sha`'s committer date, supplied only where `sha` is a trunk commit. It is
+   * what lets the query recover the reviewed head a ghstack stack member landed
+   * from; without it that member's page matches nothing and shows no panel.
+   */
+  committedAt?: string;
 }) {
-  const { data: rows } = useGreenlightPrHistory(repoOwner, repoName, prNumber);
+  const { data: rows } = useGreenlightPrHistory(
+    repoOwner,
+    repoName,
+    prNumber,
+    committedAt ? { sha, committedAt } : undefined
+  );
   const state = selectStateForSha(rows, sha);
   if (state === undefined) {
     return null;
