@@ -19,6 +19,11 @@ import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
+import {
+  buildNightlyMatrix,
+  isRealCommitSha,
+  NightlyRow,
+} from "lib/crcr/nightlyMatrix";
 import { Highlight } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
@@ -408,7 +413,7 @@ function NightlySummaryCards({
   rows,
   repoFullName,
 }: {
-  rows: NightlyRow[];
+  rows: NightlyRow<CrcrJobRow>[];
   repoFullName: string;
 }) {
   const isCrcrTest = repoFullName === "pytorch/crcr-test";
@@ -1293,50 +1298,6 @@ function CrcrMatrix({
 
 // ---- Nightly Matrix Table ----
 
-interface NightlyRow {
-  sha: string;
-  upstreamRepo: string;
-  latestTime: string;
-  jobs: Map<string, CrcrJobRow>;
-}
-
-function buildNightlyMatrix(data: CrcrJobRow[]): {
-  jobNames: string[];
-  rows: NightlyRow[];
-} {
-  const jobNamesSet = new Set<string>();
-  const shaMap = new Map<string, NightlyRow>();
-
-  for (const job of data) {
-    jobNamesSet.add(job.job_name);
-    const sha = job.pytorch_head_sha || "unknown";
-    let row = shaMap.get(sha);
-    if (!row) {
-      row = {
-        sha,
-        upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
-        latestTime: job.started_at,
-        jobs: new Map(),
-      };
-      shaMap.set(sha, row);
-    }
-    if (job.started_at > row.latestTime) {
-      row.latestTime = job.started_at;
-    }
-    const existing = row.jobs.get(job.job_name);
-    if (!existing || job.run_attempt > existing.run_attempt) {
-      row.jobs.set(job.job_name, job);
-    }
-  }
-
-  const jobNames = Array.from(jobNamesSet).sort();
-  const rows = Array.from(shaMap.values()).sort(
-    (a, b) =>
-      new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
-  );
-  return { jobNames, rows };
-}
-
 function CrcrNightlyMatrix({
   repoFullName,
   days,
@@ -1361,8 +1322,10 @@ function CrcrNightlyMatrix({
   }, [data]);
 
   const upstreamRepo = matrix?.rows[0]?.upstreamRepo ?? "pytorch/pytorch";
+  // Only ask GitHub about values that are actually commits; a reporter that
+  // sends no upstream SHA leaves a delivery_id here, which would just 404.
   const nightlyShas = useMemo(
-    () => (matrix?.rows ?? []).map((r) => r.sha),
+    () => (matrix?.rows ?? []).map((r) => r.sha).filter(isRealCommitSha),
     [matrix]
   );
   const commitInfoMap = useCommitInfo(upstreamRepo, nightlyShas);
@@ -1438,13 +1401,20 @@ function CrcrNightlyMatrix({
           <tbody>
             {matrix.rows.map((row) => {
               const commit = commitInfoMap.get(row.sha);
+              // Without a real upstream commit there is nothing to name the
+              // run after and nothing to link to, so fall back to the run id
+              // rather than rendering a truncated delivery_id over a 404.
+              const hasCommit = isRealCommitSha(row.sha);
               const commitTitle =
-                commit?.title || `nightly (${row.sha.substring(0, 12)})`;
+                commit?.title ||
+                (hasCommit
+                  ? `nightly (${row.sha.substring(0, 12)})`
+                  : `nightly run ${row.runId}`);
               const isRowHighlighted = pinnedId.sha === row.sha;
               const rowClass = isRowHighlighted ? hudStyles.highlight : "";
               return (
                 <tr
-                  key={row.sha}
+                  key={row.key}
                   className={rowClass}
                   onClick={(e) => {
                     if (
@@ -1463,25 +1433,35 @@ function CrcrNightlyMatrix({
                   </td>
                   <td className={hudStyles.jobMetadata}>
                     <span className={hudStyles.mono}>
-                      <a
-                        href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {row.sha.substring(0, 7)}
-                      </a>
+                      {hasCommit ? (
+                        <a
+                          href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {row.sha.substring(0, 7)}
+                        </a>
+                      ) : (
+                        <Tooltip title="This nightly reported no upstream commit">
+                          <span>–</span>
+                        </Tooltip>
+                      )}
                     </span>
                   </td>
                   <td className={hudStyles.jobMetadata}>
                     <div className={hudStyles.jobMetadataTruncated}>
-                      <a
-                        href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={commitTitle}
-                      >
-                        {commitTitle}
-                      </a>
+                      {hasCommit ? (
+                        <a
+                          href={`https://github.com/${row.upstreamRepo}/commit/${row.sha}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={commitTitle}
+                        >
+                          {commitTitle}
+                        </a>
+                      ) : (
+                        <span title={commitTitle}>{commitTitle}</span>
+                      )}
                     </div>
                   </td>
                   {columns.map((col) => {
@@ -1715,7 +1695,7 @@ export default function CrcrBackendPage() {
 
             <Typography variant="body2" color="text.secondary">
               {isNightly
-                ? "Rows = nightly CI runs (one per SHA), columns = build & test stages. Click a cell to pin its tooltip, click a column header to highlight the column, or click a row to highlight it. Press Escape to dismiss."
+                ? "Rows = nightly CI runs (one per run), columns = build & test stages. Click a cell to pin its tooltip, click a column header to highlight the column, or click a row to highlight it. Press Escape to dismiss."
                 : "Rows = PyTorch PRs (50 per page), columns = downstream CI jobs. Click a cell to pin its tooltip, click a column header to highlight the column, or click a row to highlight it. Press Escape to dismiss."}
             </Typography>
 
