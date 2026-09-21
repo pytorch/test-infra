@@ -81,7 +81,7 @@ def make_policy(max_diff_lines=2000, max_diff_bytes=500000) -> Policy:
 class FakeGh:
     """A ``_run`` stand-in that answers the two commands this module issues."""
 
-    def __init__(self, diff=DIFF, payload=None, pr_returncode=0):
+    def __init__(self, diff=DIFF, payload=None, pr_returncode=0) -> None:
         self.diff = diff
         self.payload = pr_payload() if payload is None else payload
         self.pr_returncode = pr_returncode
