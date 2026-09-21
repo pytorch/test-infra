@@ -25,16 +25,21 @@ python3 -m torchci.greenlight_replay \
 Start with `--dry-run` every time. A real sweep of 30 pull requests costs around
 $40 and runs for over an hour at the default parallelism.
 
-The dry run prints what it checked and what it did not, and the distinction
-matters. It confirms the scratch root is usable, the reviewer's binaries are on
-the PATH the reviewer will get, and **the policy ref actually exists on the
-remote** — a mistyped `--policy-pr` is the likeliest way to start a sweep wrong,
-and it is the one the dry run used to miss. It does not fetch the policy, so it
-cannot tell you the workflow parses, the verdict schema is one the harness can
-interpret, the hook scripts resolve, or which model the policy's inference
-profile maps to. Those are checked at the start of a real run, before the clone
-and before anything is billed; they are skipped here because materializing the
-policy would leave the directory that a subsequent real run has to find empty.
+The dry run makes every check a real run makes short of invoking a model, and
+prints what it checked and what it did not. It confirms the scratch root is
+usable, the reviewer's binaries are on the PATH the reviewer will get, the policy
+ref exists on the remote, and then it fetches the policy and checks it: the
+workflow parses, the diff caps and canned verdict are readable, the verdict
+schema uses only keywords the harness implements, every hook script resolves, and
+the inference profile maps to a local model. That costs a few seconds and about
+34 MB. Fetching twice is safe — materializing clears its destination and
+re-extracts — so a dry run does not spoil the real run after it.
+
+What it does not do is the per-run work: the blobless pytorch clone, the worktree
+slots, and each pull request's diff and metadata. Those are gigabytes and one
+GitHub round trip per pull request, and nothing they could tell you is a property
+of the policy. Everything that fails identically for every pull request in the
+sweep is caught here.
 
 Runtime requirements:
 

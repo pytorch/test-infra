@@ -313,17 +313,10 @@ class TestStartupChecks(unittest.TestCase):
         ):
             with self.assertRaises(ValueError) as caught:
                 preflight_module.check_policy_ref("8830")
+        # Names the refspec policy.refspec resolved, which is what proves the
+        # check asked the remote about the ref the real fetch will use.
         self.assertIn("refs/pull/8830/head", str(caught.exception))
         self.assertIn("pytorch/test-infra", str(caught.exception))
-
-    def test_a_bare_number_resolves_the_way_materialize_fetches_it(self):
-        # If these two disagree the check validates a ref the sweep never asks for.
-        self.assertEqual(
-            preflight_module.resolve_refspec("8830"), "refs/pull/8830/head"
-        )
-        self.assertEqual(preflight_module.resolve_refspec("main"), "main")
-        with self.assertRaises(ValueError):
-            preflight_module.resolve_refspec("../etc/passwd")
 
     def test_a_missing_reviewer_binary_is_named(self):
         with tempfile.TemporaryDirectory() as empty:

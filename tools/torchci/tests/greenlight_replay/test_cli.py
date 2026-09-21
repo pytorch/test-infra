@@ -160,14 +160,36 @@ class TestDryRun(unittest.TestCase):
     It resolves the frame and the sample -- that is the point of it -- but must
     not materialize a policy, clone anything, or invoke a model."""
 
-    def test_no_model_is_invoked_and_nothing_is_written(self):
+    def test_no_model_is_invoked_and_no_output_is_written(self):
         fakes = Fakes([replay_row(n) for n in (194379, 194772, 194773)])
         with run_replay(fakes, ["--dry-run"]) as (code, output):
             self.assertEqual(code, cli.EXIT_OK)
             self.assertFalse(output.exists())
         self.assertEqual(fakes.reviewed, [])
-        self.assertEqual(fakes.pools, [])
         self.assertEqual(fakes.written, [])
+        # The policy is cheap and is fetched; the pytorch clone is not.
+        self.assertEqual(len(fakes.materialized), 1)
+        self.assertEqual(fakes.pools, [])
+
+    def test_a_schema_the_validator_cannot_read_fails_the_dry_run(self):
+        # The shape that priced a clean plan and then aborted the real run: a
+        # policy PR whose verdict-schema.json uses a keyword the harness has not
+        # implemented. The cheapest check has to catch the likeliest fault.
+        fakes = Fakes(
+            [replay_row(194379)], policy_schema='{"type": "object", "maxLength": 3}'
+        )
+        with run_replay(fakes, ["--dry-run"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_FAILED)
+
+    def test_an_unrunnable_hook_fails_the_dry_run(self):
+        fakes = Fakes([replay_row(194379)], hooks_missing=True)
+        with run_replay(fakes, ["--dry-run"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_FAILED)
+
+    def test_an_unmapped_model_profile_fails_the_dry_run(self):
+        fakes = Fakes([replay_row(194379)], policy_model="global.anthropic.nope")
+        with run_replay(fakes, ["--dry-run"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_FAILED)
 
     def test_an_empty_frame_is_a_failure_not_an_empty_sweep(self):
         with run_replay(Fakes([]), ["--dry-run"]) as (code, _):

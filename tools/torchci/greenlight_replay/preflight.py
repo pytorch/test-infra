@@ -18,7 +18,7 @@ import subprocess
 from pathlib import Path
 
 from torchci.greenlight_replay.hooks import remap
-from torchci.greenlight_replay.policy import DEFAULT_POLICY_REPO, GIT_REF_PATTERN
+from torchci.greenlight_replay.policy import DEFAULT_POLICY_REPO, refspec
 from torchci.greenlight_replay.runner import CLAUDE_BIN, SUBPROCESS_PATH, TIMEOUT_BIN
 
 
@@ -42,33 +42,21 @@ def check_policy_ref(ref: str, repo: str = DEFAULT_POLICY_REPO) -> None:
     and materializing the policy is what would otherwise catch it -- which a dry
     run deliberately does not do, so the dry run would price a plan that cannot
     run. ``ls-remote`` asks the same question with no clone, no fetch and no
-    scratch directory.
+    scratch directory, against the refspec ``policy.refspec`` resolves -- the same
+    one the real fetch will use, which is the whole value of asking.
     """
-    refspec = resolve_refspec(ref)
+    wanted = refspec(ref)
     completed = subprocess.run(
-        ["git", "ls-remote", "--exit-code", _clone_url(repo), refspec],
+        ["git", "ls-remote", "--exit-code", _clone_url(repo), wanted],
         capture_output=True,
         check=False,
         timeout=LS_REMOTE_TIMEOUT_S,
     )
     if completed.returncode != 0:
         raise ValueError(
-            f"{repo} has no {refspec}. Check the policy pull request number"
+            f"{repo} has no {wanted}. Check the policy pull request number"
         )
-    logger.info("%s has %s", repo, refspec)
-
-
-def resolve_refspec(ref: str) -> str:
-    """The refspec a bare pull request number names, or the ref itself.
-
-    Mirrors what ``policy.materialize`` will fetch. The two agreeing is the whole
-    value of the check above: resolving differently here would validate a ref the
-    sweep is not going to ask for.
-    """
-    refspec = f"refs/pull/{ref}/head" if ref.isascii() and ref.isdigit() else ref
-    if not GIT_REF_PATTERN.fullmatch(refspec):
-        raise ValueError(f"refusing to look up refspec {refspec!r}")
-    return refspec
+    logger.info("%s has %s", repo, wanted)
 
 
 def check_binaries(path: str = SUBPROCESS_PATH) -> None:

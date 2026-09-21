@@ -60,6 +60,7 @@ from torchci.greenlight_replay.sweep import (
     interrupt_guard,
     open_sweep,
     pr_number,
+    prepare_policy,
     run_sweep,
     runs_are_trustworthy,
     Sweep,
@@ -150,8 +151,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     if args.dry_run:
+        workdir.mkdir(parents=True, exist_ok=True)
         try:
             preflight(workdir, policy_ref)
+            prepare_policy(policy_ref, workdir, args.model)
         except Exception as exc:
             logger.error(
                 "a real sweep would not start: %s",
@@ -292,12 +295,14 @@ def log_plan(
     policy_ref: str,
     args: argparse.Namespace,
 ) -> None:
-    logger.info("dry run: no model is invoked and nothing is written")
-    logger.info("  checked: scratch root, reviewer binaries, policy ref exists")
+    logger.info("dry run: no model is invoked and no output is written")
     logger.info(
-        "  not checked: policy contents, verdict schema, hook scripts, model "
-        "mapping -- all of them need the policy tree, which a dry run does not "
-        "materialize because a real run afterwards has to find the directory empty"
+        "  checked: scratch root, reviewer binaries, policy ref, workflow, diff "
+        "caps, verdict schema, hook scripts, model mapping"
+    )
+    logger.info(
+        "  not checked: the pytorch clone and each pull request's diff and "
+        "metadata, which are per-run work this deliberately does not do"
     )
     logger.info(
         "policy %s, model %s",

@@ -155,6 +155,7 @@ class Fakes:
         self.on_review = on_review
         self.checkpoint = {}
         self.pools = []
+        self.materialized = []
         self.workspaces = []
         self.reviewed = []
         self.comment_cutoffs = []
@@ -237,6 +238,7 @@ class Fakes:
 
     def materialize_policy(self, ref, workdir, **kwargs):
         root = Path(workdir)
+        self.materialized.append(root)
         for name in self.policy_claude:
             (root / ".claude" / name).mkdir(parents=True, exist_ok=True)
         (root / POLICY_MARKER).write_text(ref, encoding="utf-8")

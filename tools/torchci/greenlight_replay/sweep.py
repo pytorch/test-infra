@@ -127,14 +127,7 @@ def open_sweep(
     before anything is spent.
     """
     preflight(workdir, policy_ref)
-    policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
-    check_schema(policy)
-    # A hook that cannot exec does not deny, it silently does not run.
-    assert_hooks_present(policy)
-    model = model or local_model(policy.model)
-    logger.info(
-        "policy %s asks for %s; running %s locally", policy_ref, policy.model, model
-    )
+    policy, model = prepare_policy(policy_ref, workdir, model)
     pool = WorktreePool(
         workdir / BARE_CLONE_DIRNAME,
         parallelism,
@@ -153,6 +146,27 @@ def open_sweep(
         timeout_s=timeout_s,
         interrupted=interrupted,
     )
+
+
+def prepare_policy(
+    policy_ref: str, workdir: Path, model: str | None
+) -> tuple[Policy, str]:
+    """Materialize the policy and refuse anything about it a sweep cannot survive.
+
+    Every fault found here is a property of the policy rather than of any pull
+    request, so each would otherwise fail every review in the sweep identically.
+    Safe to run twice: ``materialize`` clears its destination and re-extracts, so
+    a dry run doing this does not spoil the real run that follows it.
+    """
+    policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
+    check_schema(policy)
+    # A hook that cannot exec does not deny, it silently does not run.
+    assert_hooks_present(policy)
+    model = model or local_model(policy.model)
+    logger.info(
+        "policy %s asks for %s; running %s locally", policy_ref, policy.model, model
+    )
+    return policy, model
 
 
 def local_model(profile: str) -> str:
