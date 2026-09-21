@@ -784,13 +784,6 @@
       "linux"
     ]
   ],
-  "test_no_xpu_device_query_on_inductor_import (__main__.TestXpu)": [
-    "195878",
-    "https://github.com/pytorch/pytorch/issues/195878",
-    [
-      "xpu"
-    ]
-  ],
   "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
     "195219",
     "https://github.com/pytorch/pytorch/issues/195219",
