@@ -1,0 +1,18 @@
+[
+ {
+  "filename": "buckbuild.bzl",
+  "status": "modified",
+  "additions": 1,
+  "deletions": 1,
+  "changes": 2,
+  "patch": "@@ -156,7 +156,7 @@ ROOT = \"//\" if IS_OSS else \"//xplat/caffe2\"\n # for targets in subfolders\n ROOT_PATH = \"//\" if IS_OSS else \"//xplat/caffe2/\"\n \n-C10 = \"//c10:c10\" if IS_OSS else \"//xplat/caffe2/c10:c10\"\n+C10 = \"//c10:c10\" if IS_OSS else (\"//xplat/caffe2/c10:c10_ovrsource\" if is_arvr_mode() else \"//xplat/caffe2/c10:c10\")\n \n # a dictionary maps third party library name to fbsource and oss target\n THIRD_PARTY_LIBS = {"
+ },
+ {
+  "filename": "c10/ovrsource_defs.bzl",
+  "status": "modified",
+  "additions": 15,
+  "deletions": 3,
+  "changes": 18,
+  "patch": "@@ -16,11 +16,21 @@ cuda_supported_platforms = [\n     \"ovr_config//os:windows-cuda\",\n ]\n \n+# rocktenn apparently has its own copy of glog that comes with libmp.dll, so we\n+# had better not try to use glog from c10 lest the glog symbols not be eliminated.\n+C10_USE_GLOG = native.read_config(\"c10\", \"use_glog\", \"1\") == \"1\"\n+\n+# If you don't use any functionality that relies on static initializer in c10 (the\n+# most notable ones are the allocators), you can turn off link_whole this way.\n+# In practice, this is only used by rocktenn as well.\n+C10_LINK_WHOLE = native.read_config(\"c10\", \"link_whole\", \"1\") == \"1\"\n+\n def define_c10_ovrsource(name, is_mobile):\n+    pp_flags = []\n     if is_mobile:\n-        pp_flags = [\"-DC10_MOBILE=1\"]\n-    else:\n-        pp_flags = []\n+        pp_flags.append(\"-DC10_MOBILE=1\")\n+    if C10_USE_GLOG:\n+        pp_flags.append(\"-DC10_USE_GLOG\")\n \n     oxx_static_library(\n         name = name,\n@@ -31,6 +41,7 @@ def define_c10_ovrsource(name, is_mobile):\n             \"util/*.cpp\",\n         ]),\n         compatible_with = cpu_supported_platforms,\n+        link_whole = C10_LINK_WHOLE,\n         compiler_flags = select({\n             \"DEFAULT\": [],\n             \"ovr_config//compiler:cl\": [\n@@ -77,6 +88,7 @@ def define_c10_ovrsource(name, is_mobile):\n             \"//arvr/third-party/gflags:gflags\",\n             \"//third-party/cpuinfo:cpuinfo\",\n             \"//third-party/fmt:fmt\",\n+            # For some godforsaken reason, this is always required even when not C10_USE_GLOG\n             \"//third-party/glog:glog\",\n         ],\n     )"
+ }
+]
