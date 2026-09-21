@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
-from greenlight import cohort, comment_format, github_client, verdict
+from greenlight import cohort, comment_format, constants, github_client, verdict
 from greenlight.verdict import VerdictRequest
 
 if TYPE_CHECKING:
@@ -1201,6 +1201,19 @@ def test_full_rejects_reason_not_in_allowlist(make_config, tmp_path):
         )
 
 
+def test_full_rejects_a_land_carrying_another_reason(make_config, tmp_path):
+    # The record job is the layer that matters: the Stop hook that rejects the same pairing runs in
+    # the untrusted review job, and the row this raise prevents is what the merge gate reads. The
+    # request is otherwise complete, so the reason pairing is the only thing refusing it.
+    vf = _write_verdict(tmp_path, status="LAND", reason="not_trivial", message="m")
+    req = VerdictRequest(repo="r", pr_number=5, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT)
+
+    with pytest.raises(ValueError, match="must carry reason"):
+        verdict.run(
+            req, make_config(github_token="tok"), build_github=_boom_build_github, emit=_boom_emit, now=lambda: _FIXED
+        )
+
+
 def test_full_rejects_empty_message(make_config, tmp_path):
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="   ")
     req = VerdictRequest(repo="r", pr_number=5, head_sha="h", eval_hash=_HASH, verdict_file=vf)
@@ -1490,13 +1503,28 @@ def test_validate_eval_hash_rejects(bad):
 
 @pytest.mark.parametrize("reason", sorted(verdict.ALLOWED_REASONS))
 def test_validate_reason_accepts_every_canonical_reason(reason: str) -> None:
-    verdict._validate_reason(reason)
+    verdict._validate_reason("NO_LAND", reason)
 
 
 @pytest.mark.parametrize("bad", ["", "looks_good", "CLEAN"])
 def test_validate_reason_rejects(bad):
     with pytest.raises(ValueError, match="not an allowed verdict reason"):
-        verdict._validate_reason(bad)
+        verdict._validate_reason("NO_LAND", bad)
+
+
+@pytest.mark.parametrize("reason", sorted(verdict.ALLOWED_REASONS - {constants.LAND_REASON}))
+def test_validate_reason_rejects_every_other_reason_beside_land(reason: str) -> None:
+    # Every reason but `clean` names a reason not to land, and the pytorch-side land guard gates on
+    # the recorded status alone, so a LAND carrying one authorizes exactly the merge it objects to.
+    # The same reason under NO_LAND must stay acceptable: the guard is the pairing, not the code.
+    with pytest.raises(ValueError, match="must carry reason"):
+        verdict._validate_reason("LAND", reason)
+    verdict._validate_reason("NO_LAND", reason)
+
+
+def test_validate_reason_accepts_the_land_reason_on_both_statuses() -> None:
+    verdict._validate_reason("LAND", constants.LAND_REASON)
+    verdict._validate_reason("NO_LAND", constants.LAND_REASON)
 
 
 def test_validate_message_accepts_non_blank():
