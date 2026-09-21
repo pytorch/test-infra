@@ -33,8 +33,9 @@ dir:
   `FailedTest` signature (`test_id`, `pytest_exception_class`,
   `exception_chain`, `inline_message`, `test_is_infra`). Each shared failure has
   complete `torch_nightly` and `baseline` `FailedTest` entries.
-- `cluster-logs/<safe-cluster-name>.log` — bounded failure windows plus an unconditional
-  cleaned raw tail for each job-state `regressed` cluster.
+- `cluster-logs/<safe-cluster-name>.log` — parsed pytest failures when available,
+  bounded failure windows, plus an unconditional cleaned raw tail for each job-state
+  `regressed` cluster.
 - `both-cluster-logs/nightly_*.log` — supplementary lossy raw nightly context for
   surfaced `regressed_tests` clusters. No baseline raw-context artifact is produced.
 
@@ -51,11 +52,13 @@ Every file opens with a header:
 
 **Job-state form** — `cluster-logs/<safe-cluster-name>.log` uses
 `capture_mode: nightly_failure_context` and contains ranked failure windows followed by
-an unconditional cleaned `## raw_tail`. Window counts report candidates, emitted
+an unconditional cleaned `## raw_tail`. When pytest parsing succeeds, a `# parsed N
+failing test(s)` section lists every failure's test ID, exception class, infra tag, and
+parsed exception chain before the windows. Window counts report candidates, emitted
 windows, and truncation. The header also includes `job_is_infra: true|false`; when it is
 true, treat the cluster as transient infrastructure rather than a torch regression.
-These are lossy evidence, not root-cause classifications or proof that a window belongs
-to a particular test.
+The windows are lossy evidence, not root-cause classifications or proof that a window
+belongs to a particular test.
 
 Parsed pytest records for surfaced `regressed_tests` clusters, including complete
 nightly-only and shared nightly/baseline failures, are in `report.json.regressed_tests`.

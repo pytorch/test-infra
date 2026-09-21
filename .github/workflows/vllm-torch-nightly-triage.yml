@@ -167,9 +167,11 @@ jobs:
               - report.json the same data structured, including complete parsed
                 nightly-only and shared failure records under regressed_tests
               - cluster-logs/<safe-cluster-name>.log  one representative Buildkite
-                context artifact per nightly-only cluster, with bounded failure
-                windows followed by a cleaned raw tail. The first lines of each file
-                give the cluster name, job name, job URL, state and exit status.
+                context artifact per nightly-only cluster. When pytest parsing
+                succeeds it includes every parsed failing test and exception chain,
+                followed by bounded failure windows and a cleaned raw tail. The first
+                lines of each file give the cluster name, job name, job URL, state and
+                exit status.
               - both-cluster-logs/nightly_*.log  bounded raw nightly Buildkite context
                 for those surfaced `both` clusters. This is evidence only; a failure
                 window is not proof that it belongs to a particular unique pytest

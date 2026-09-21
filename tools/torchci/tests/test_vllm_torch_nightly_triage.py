@@ -388,6 +388,71 @@ class TestNightlyFailureContext(unittest.TestCase):
 
         self.assertIn("# job_is_infra: True", artifact)
 
+    def test_nightly_failure_context_includes_parsed_failures(self) -> None:
+        representative = {
+            "name": "Job A",
+            "url": "tn#job",
+            "state": "failed",
+            "exit_status": 1,
+        }
+        parsed_failure = FailedTest(
+            test_id="tests/test_a.py::test_foo",
+            pytest_exception_class="ValueError",
+            exception_chain="E   ValueError: parsed root cause",
+            inline_message="parsed root cause",
+        )
+
+        artifact = triage.render_failure_context(
+            "FAILED tests/test_a.py::test_foo - ValueError: parsed root cause\n",
+            "Job A",
+            representative,
+            tail_lines=2,
+            failure_window_context_before_lines=10,
+            failure_window_context_after_lines=50,
+            capture_mode="nightly_failure_context",
+            parsed_failures=[parsed_failure],
+        )
+
+        self.assertIn("# parsed 1 failing test(s)", artifact)
+        self.assertIn("## tests/test_a.py::test_foo", artifact)
+        self.assertIn("E   ValueError: parsed root cause", artifact)
+
+
+class TestFetchClusterLogs(unittest.TestCase):
+    def test_nightly_artifact_receives_parsed_failures(self) -> None:
+        body = make_pytest_body(
+            [("tests/test_a.py::test_foo", "ValueError", "parsed root cause")]
+        )
+        buckets = {
+            "regressed": [
+                {
+                    "name": "Job A",
+                    "url": "tn#job",
+                    "state": "failed",
+                    "exit_status": 1,
+                }
+            ],
+            "both": [],
+            "baseline_only": [],
+            "unclassified": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            triage, "_fetch_job_log", return_value=body
+        ):
+            written = triage.fetch_cluster_logs(
+                buckets,
+                tmp,
+                token="tok",
+                tail_lines=50,
+                failure_window_context_before_lines=10,
+                failure_window_context_after_lines=50,
+            )
+            artifact = Path(written[0]).read_text()
+
+        self.assertIn("# parsed 1 failing test(s)", artifact)
+        self.assertIn("## tests/test_a.py::test_foo", artifact)
+        self.assertIn("ValueError", artifact)
+
 
 def _regressed_entry():
     return {

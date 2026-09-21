@@ -544,8 +544,9 @@ def render_failure_context(
     failure_window_context_before_lines: int,
     failure_window_context_after_lines: int,
     capture_mode: str = "failure_context",
+    parsed_failures: Optional[List[FailedTest]] = None,
 ) -> str:
-    """Render bounded windows followed by the configured raw tail."""
+    """Render parsed pytest records, bounded windows, and the configured raw tail."""
     context = extract_failure_context(
         body,
         failure_window_context_before_lines=failure_window_context_before_lines,
@@ -567,6 +568,20 @@ def render_failure_context(
             f"truncated={summary['instances_truncated']}"
         )
     sections.append("")
+
+    if parsed_failures:
+        sections.append(f"# parsed {len(parsed_failures)} failing test(s)")
+        for failure in parsed_failures:
+            sections.extend(
+                [
+                    f"## {failure.test_id}",
+                    f"pytest_exception_class: {failure.pytest_exception_class}",
+                    f"test_is_infra: {failure.test_is_infra}",
+                    "",
+                    failure.exception_chain,
+                    "",
+                ]
+            )
 
     # Instances are serialized in chronological order. The per-type counts above
     # retain observability without grouping the displayed windows by type.
@@ -873,6 +888,12 @@ def fetch_cluster_logs(
             if found:
                 torch_versions.append(found.group(1))
 
+        parsed_failures: Optional[List[FailedTest]] = None
+        try:
+            parsed_failures = all_failures(parse_log(body))
+        except Exception as exc:  # parser asserts an invariant; windows still work
+            print(f"warning {key}: pytest parse unavailable: {exc}", file=sys.stderr)
+
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", key)[:80]
         dest = pathlib_dir / f"{safe}.log"
         artifact = render_failure_context(
@@ -883,6 +904,7 @@ def fetch_cluster_logs(
             failure_window_context_before_lines,
             failure_window_context_after_lines,
             "nightly_failure_context",
+            parsed_failures=parsed_failures,
         )
         with open(dest, "w") as f:
             f.write(artifact)
