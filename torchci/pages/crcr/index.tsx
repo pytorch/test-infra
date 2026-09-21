@@ -1016,9 +1016,7 @@ export default function CrcrSummaryPage() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 Pull Requests
                 <Chip
-                  label={
-                    pullRequestRepoCount || "–"
-                  }
+                  label={pullRequestRepoCount || "–"}
                   size="small"
                   variant="outlined"
                   sx={{ height: 20, fontSize: "0.75rem" }}
