@@ -3,7 +3,9 @@
     "repo": "String",
     "owner": "String",
     "project": "String",
-    "shas": "Array(String)"
+    "shas": "Array(String)",
+    "prNumbers": "Array(Int64)",
+    "committedAts": "Array(String)"
   },
   "tests": [
     {
@@ -12,7 +14,16 @@
       "project": "pytorch",
       "shas": [
         "55448714fb1bf93b4946225675aa1c6f70cfe3e4",
-        "2e2b1371931ea2a080c423ee3bc15c4fc59787a6"
+        "2e2b1371931ea2a080c423ee3bc15c4fc59787a6",
+        "9abb740cdcbd65d99c4045a797be11047357d8b7",
+        "82c1f1e90cf0493f92d2afef5b2991f77c686b60"
+      ],
+      "prNumbers": [196176, 196249, 197274, 196818],
+      "committedAts": [
+        "2026-09-07T14:06:04Z",
+        "2026-09-08T02:35:07Z",
+        "2026-09-20T16:31:20Z",
+        "2026-09-14T23:09:12Z"
       ]
     }
   ]

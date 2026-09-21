@@ -34,6 +34,7 @@ import {
   isGreenlightRepo,
 } from "lib/greenlight/greenlightConfig";
 import {
+  buildGreenlightCommitParams,
   buildStatusByTrunkSha,
   GreenlightTrunkStatusRow,
   normalizeSha,
@@ -929,8 +930,13 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   );
 
   // Lazy-load GreenLight verdicts for commits on screen, keyed by trunk sha so a
-  // PR that landed more than once is marked per landing.
+  // PR that landed more than once is marked per landing. The PR number and the
+  // commit's own time are what recover the head GreenLight reviewed.
   const isGreenlight = isGreenlightRepo(params.repoOwner, params.repoName);
+  const greenlightCommits = useMemo(
+    () => buildGreenlightCommitParams(data),
+    [data]
+  );
   const { data: greenlightRows } =
     useClickHouseAPIImmutable<GreenlightTrunkStatusRow>(
       "greenlight_trunk_commit_states",
@@ -938,9 +944,9 @@ function GroupedHudTable({ params }: { params: HudParams }) {
         repo: greenlightRepoKey(params.repoOwner, params.repoName),
         owner: params.repoOwner,
         project: params.repoName,
-        shas: shas,
+        ...greenlightCommits,
       },
-      isGreenlight && shas.length > 0
+      isGreenlight && greenlightCommits.shas.length > 0
     );
   const greenlightStatusBySha = useMemo(
     () => buildStatusByTrunkSha(greenlightRows),

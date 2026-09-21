@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import {
+  buildGreenlightCommitParams,
   buildStateBySha,
   buildStatusByTrunkSha,
   GreenlightPrStateRow,
@@ -25,6 +26,7 @@ import {
   GREENLIGHT_STATUS_REVERTED,
 } from "lib/greenlight/greenlightRender";
 import { ZERO_WIDTH_SPACE } from "lib/greenlight/greenlightSweep";
+import { CommitData } from "lib/types";
 import path from "path";
 import { format } from "util";
 
@@ -206,6 +208,78 @@ describe("buildStatusByTrunkSha", () => {
   test("undefined and empty input give an empty map", () => {
     expect(buildStatusByTrunkSha(undefined).size).toBe(0);
     expect(buildStatusByTrunkSha([]).size).toBe(0);
+  });
+});
+
+describe("buildGreenlightCommitParams", () => {
+  const TRUNK_A = "1".repeat(40);
+  const TRUNK_B = "2".repeat(40);
+  const TRUNK_C = "3".repeat(40);
+
+  function commit(
+    sha: string,
+    prNum: number | null,
+    time: string
+  ): Pick<CommitData, "sha" | "prNum" | "time"> {
+    return { sha, prNum, time };
+  }
+
+  test("emits the three arrays aligned by position", () => {
+    expect(
+      buildGreenlightCommitParams([
+        commit(TRUNK_A, 100, "2026-09-20T16:31:19Z"),
+        commit(TRUNK_B, 200, "2026-09-20T16:31:20Z"),
+      ])
+    ).toEqual({
+      shas: [TRUNK_A, TRUNK_B],
+      prNumbers: [100, 200],
+      committedAts: ["2026-09-20T16:31:19Z", "2026-09-20T16:31:20Z"],
+    });
+  });
+
+  test("dropping a row drops its whole triple, not just its sha", () => {
+    // The failure this guards is silent: three independent passes would leave
+    // the arrays a different length, and the query zips by position, so every
+    // commit after the gap would be resolved against the next one's PR.
+    const params = buildGreenlightCommitParams([
+      commit(TRUNK_A, 100, "2026-09-20T16:31:19Z"),
+      commit(TRUNK_B, null, "2026-09-20T16:31:20Z"),
+      commit(TRUNK_C, 300, "2026-09-20T16:31:21Z"),
+    ]);
+    expect(params).toEqual({
+      shas: [TRUNK_A, TRUNK_C],
+      prNumbers: [100, 300],
+      committedAts: ["2026-09-20T16:31:19Z", "2026-09-20T16:31:21Z"],
+    });
+  });
+
+  test("a non-positive PR number is not a PR number", () => {
+    expect(
+      buildGreenlightCommitParams([
+        commit(TRUNK_A, 0, "2026-09-20T16:31:19Z"),
+        commit(TRUNK_B, -1, "2026-09-20T16:31:20Z"),
+      ]).shas
+    ).toEqual([]);
+  });
+
+  test("two landings of one PR stay separate rows with their own times", () => {
+    // Nothing collapses on PR number: the second landing's later timestamp is
+    // the only thing that tells the query which head each commit was cut from.
+    const params = buildGreenlightCommitParams([
+      commit(TRUNK_A, 100, "2026-09-18T01:00:00Z"),
+      commit(TRUNK_B, 100, "2026-09-20T01:00:00Z"),
+    ]);
+    expect(params.prNumbers).toEqual([100, 100]);
+    expect(params.committedAts).toEqual([
+      "2026-09-18T01:00:00Z",
+      "2026-09-20T01:00:00Z",
+    ]);
+  });
+
+  test("undefined and empty input give three empty arrays", () => {
+    const empty = { shas: [], prNumbers: [], committedAts: [] };
+    expect(buildGreenlightCommitParams(undefined)).toEqual(empty);
+    expect(buildGreenlightCommitParams([])).toEqual(empty);
   });
 });
 
@@ -500,10 +574,16 @@ describe("selectMessageView", () => {
 // Comments are stripped because each header names both `shadow` and `LIMIT 1 BY` while
 // explaining why they sit in that order, and these assertions are about the statement.
 //
-// Both files declare a second CTE with its own WHERE / ORDER BY / LIMIT 1 BY, so a bare
-// indexOf would land in whichever one is written first. Slicing to `reviewed` is what
-// makes the ordering assertions about the CTE that reads misc.greenlight_pr_state rather
-// than about declaration order.
+// Every CTE in these files has its own WHERE / ORDER BY / LIMIT 1 BY, so a bare indexOf
+// would land in whichever one is written first. The slice below is the `reviewed` CTE and
+// nothing else, which is what makes the ordering assertions about the CTE that reads
+// misc.greenlight_pr_state rather than about declaration order.
+//
+// It closes on `reviewed`'s own bracket rather than on the name of whichever CTE follows.
+// One of these files declares five more between `reviewed` and `landed`, and a slice run
+// to the next name would pull their clauses inside these indexOf assertions and stretch
+// the "exactly one mention of shadow" pin across statements it says nothing about --
+// passing today, and failing with a misleading message the day one of them says `shadow`.
 function reviewedCte(queryName: string): string {
   const sql = readFileSync(
     path.resolve(__dirname, "..", "clickhouse_queries", queryName, "query.sql"),
@@ -511,13 +591,22 @@ function reviewedCte(queryName: string): string {
   ).replace(/--.*$/gm, "");
 
   const start = sql.indexOf("reviewed AS");
-  const end = sql.indexOf("landed AS");
-  if (start < 0 || end <= start) {
-    throw new Error(
-      `${queryName}: expected a \`reviewed\` CTE declared ahead of \`landed\``
-    );
+  const open = sql.indexOf("(", start);
+  if (start < 0 || open < 0) {
+    throw new Error(`${queryName}: expected a \`reviewed\` CTE`);
   }
-  return sql.slice(start, end);
+  let depth = 0;
+  for (let i = open; i < sql.length; i++) {
+    if (sql[i] === "(") {
+      depth += 1;
+    } else if (sql[i] === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return sql.slice(start, i + 1);
+      }
+    }
+  }
+  throw new Error(`${queryName}: \`reviewed\` CTE is never closed`);
 }
 
 describe.each([
@@ -546,5 +635,87 @@ describe.each([
     // second mention placed after the collapse satisfies every check above, so pin that
     // there is exactly one.
     expect(cte.lastIndexOf("shadow")).toBe(shadow);
+  });
+});
+
+// Every landing mergebot recorded is also reachable through default.merges, so a
+// regression in the fallback shows up as a missing mark on the stack members that
+// merges never recorded -- silent, and invisible to any test that only fetches rows.
+// These pin the statement instead.
+describe("greenlight_trunk_commit_states query.sql, head resolution", () => {
+  const sql = readFileSync(
+    path.resolve(
+      __dirname,
+      "..",
+      "clickhouse_queries",
+      "greenlight_trunk_commit_states",
+      "query.sql"
+    ),
+    "utf-8"
+  ).replace(/--.*$/gm, "");
+
+  test("resolves a head the merge record never mentions", () => {
+    // A ghstack stack lands as one push and mergebot writes a single merges row, so
+    // every member below the one that carried the command has no merge_commit_sha to
+    // join on. default.push is where those heads are recoverable at all.
+    expect(sql).toContain("FROM default.push");
+    expect(sql).toMatch(/branch_heads AS\s*\(/);
+  });
+
+  test("mergebot's own record stays ahead of the temporal fallback", () => {
+    // merges names the merged head outright; the push scan infers it from ordering.
+    // Reversed, a push landing between review and merge would outrank the fact.
+    const coalesced = sql.slice(sql.indexOf("coalesce("));
+    expect(coalesced.indexOf("mh.head_sha")).toBeGreaterThan(-1);
+    expect(coalesced.indexOf("mh.head_sha")).toBeLessThan(
+      coalesced.indexOf("b.head_sha")
+    );
+  });
+
+  test("the fallback reads each commit's own timestamp", () => {
+    // Anchoring on anything shared across the PR -- its merge time, the newest
+    // commit on the page -- gives both landings of a re-landed PR the same head,
+    // which is the bug the per-commit keying exists to avoid.
+    expect(sql).toContain("b.pushed_at < c.committed_at");
+  });
+
+  // Where merges also resolves, it wins and a wrong branch head is harmless.
+  // For the commits only the branch fallback can resolve there is no second
+  // source to check it against, and picking the wrong push puts this commit's
+  // mark on a different revision of the same PR. Pushes to one head ref, against
+  // a landing at 12:00:
+  //
+  //   09:00  aaa  reviewed, then superseded
+  //   11:30  bbb  the revision that landed
+  //   12:00  ccc  the landing push itself
+  //   14:00  ddd  the next revision, pushed after the landing
+  //
+  // bbb is the only correct answer. Nothing in the repo runs a saved query, so
+  // the two properties of the statement that decide it are pinned instead.
+  test("a push at or after the landing is never selected", () => {
+    const landed = sql.slice(sql.indexOf("landed AS"));
+    // Exactly one comparison between the two, and it is strict: `<=` takes ccc,
+    // and dropping the bound entirely takes ddd.
+    expect(landed.match(/b\.pushed_at\s*<=?\s*c\.committed_at/g)).toEqual([
+      "b.pushed_at < c.committed_at",
+    ]);
+  });
+
+  test("among the pushes that qualify, the last one wins", () => {
+    // argMax on pushed_at is what takes bbb over aaa. argMin, or maximising on
+    // anything else, silently returns a stale head that still carries a verdict.
+    expect(sql).toMatch(/argMaxIf\(\s*b\.head_sha,\s*b\.pushed_at,/);
+  });
+
+  test("the head ref is taken from the PR, and only when it lives in this repo", () => {
+    expect(sql).toContain("concat('refs/heads/', head.ref)");
+    expect(sql).toContain("head.repo.full_name = {repo: String}");
+  });
+
+  test("never reads pull_request.head.sha", () => {
+    // default.pull_request collapses with no version column, so the surviving row
+    // carries whichever head the PR has now. On a reverted and re-pushed PR that is
+    // a SHA no commit on the page was ever cut from, and it resolves silently.
+    expect(sql).not.toContain("head.sha");
   });
 });
