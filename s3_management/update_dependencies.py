@@ -810,7 +810,14 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "onemkl-sycl-rng": [{"project": "torch_xpu", "target": "xpu"}],
     "onemkl-license": [{"project": "torch_xpu", "target": "xpu"}],
     "mkl": [{"project": "torch_xpu", "target": "xpu"}],
-    "pyelftools": [{"project": "torch_xpu", "target": "xpu"}],
+    # cu134 entry is transitive: cupti-python requires pyelftools, and torch is
+    # installed from this index alone (--index-url, not --extra-index-url), so a
+    # dependency of a dependency has to be mirrored too or the install cannot
+    # resolve. Same cu134 scope as cupti-python, the only thing that pulls it in.
+    "pyelftools": [
+        {"project": "torch_xpu", "target": "xpu"},
+        {"project": "torch", "target": "cu134"},
+    ],
     "pyzes": [{"project": "torch_xpu", "target": "xpu"}],
     # vLLM
     "ninja": [{"project": "vllm"}],
