@@ -290,6 +290,7 @@ PACKAGE_ALLOW_LIST = {
         "cuda_python",
         "cuda_bindings",
         "cupti_python",
+        "pyelftools",
         "cuda_pathfinder",
         "cuda_toolkit",
         "pynvml",
