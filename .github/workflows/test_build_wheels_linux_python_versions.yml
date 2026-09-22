@@ -25,7 +25,7 @@ jobs:
       with-cuda: disable
       with-rocm: disable
       build-python-only: enable
-      python-versions: '["3.10", "3.11"]'
+      python-versions: '["3.11", "3.12"]'
   test:
     needs: generate-matrix
     strategy:

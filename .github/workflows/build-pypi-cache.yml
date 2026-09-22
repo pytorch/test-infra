@@ -29,6 +29,9 @@ permissions:
 
 env:
   CUDA_VERSIONS: "12.6.3 12.8.1 13.0.2"
+  # Keeps 3.10 while the test and release channels still build it (2.14.0
+  # publishes cp310). Drop it here together with those channels in
+  # tools/scripts/generate_binary_build_matrix.py, not before.
   PYTHON_VERSIONS: "3.10 3.11 3.12 3.13 3.14 3.14t"
   S3_BUCKET: "pytorch-pypi-wheel-cache"
   S3_REGION: "us-east-2"
