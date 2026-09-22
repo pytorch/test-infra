@@ -287,11 +287,9 @@ class TestWriteBothContextArtifacts(unittest.TestCase):
             [("Job A", rep, torch_nightly_body, baseline_body)]
         )
         with tempfile.TemporaryDirectory() as tmp:
-            logs_dir = Path(tmp) / "cluster-logs"
-            logs_dir.mkdir()
             written = triage._write_both_context_artifacts(
                 cluster_diffs,
-                logs_dir,
+                Path(tmp) / "both-cluster-logs",
                 tail_lines=50,
                 failure_window_context_before_lines=10,
                 failure_window_context_after_lines=50,
@@ -329,7 +327,7 @@ class TestWriteBothContextArtifacts(unittest.TestCase):
         self.assertEqual(
             triage._write_both_context_artifacts(
                 [],
-                Path("/nonexistent"),
+                Path("/nonexistent/both-cluster-logs"),
                 tail_lines=400,
                 failure_window_context_before_lines=10,
                 failure_window_context_after_lines=50,

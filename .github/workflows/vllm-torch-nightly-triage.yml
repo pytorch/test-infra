@@ -78,7 +78,7 @@ jobs:
             --output "${RUNNER_TEMP}/report.md" \
             --json-output "${RUNNER_TEMP}/report.json" \
             --compare-rows-output "${RUNNER_TEMP}/compare-rows.json" \
-            --logs-dir "${RUNNER_TEMP}/cluster-logs"
+            --logs-dir "${RUNNER_TEMP}"
           # No torch-nightly build with a same-commit baseline => no report written.
           if [[ -s "${RUNNER_TEMP}/report.md" ]]; then
             echo "has_report=true" >> "${GITHUB_OUTPUT}"

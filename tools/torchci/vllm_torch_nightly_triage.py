@@ -784,7 +784,7 @@ def diff_both_clusters(
 
 def _write_both_context_artifacts(
     cluster_diffs: List[BothClusterDiff],
-    pathlib_dir: Any,
+    both_context_dir: Path,
     tail_lines: int,
     failure_window_context_before_lines: int,
     failure_window_context_after_lines: int,
@@ -793,19 +793,14 @@ def _write_both_context_artifacts(
 
     Args:
         cluster_diffs: Surfaced both-cluster diffs.
-        pathlib_dir: Directory to write artifacts into.
+        both_context_dir: Directory to write nightly context artifacts into.
         tail_lines: Lines of raw tail kept in the nightly context file.
 
     Returns:
         Paths of the artifacts written.
     """
     written: List[str] = []
-    # `pathlib_dir` is the cluster-logs/ directory. Keep nightly context in a
-    # sibling directory so the workflow can upload and download it independently.
-    both_context_dir = (
-        pathlib_dir.parent / "both-cluster-logs" if cluster_diffs else None
-    )
-    if both_context_dir is not None:
+    if cluster_diffs:
         both_context_dir.mkdir(parents=True, exist_ok=True)
 
     for cluster_diff in cluster_diffs:
@@ -844,7 +839,8 @@ def fetch_cluster_logs(
 
     Args:
         buckets: The compare() buckets.
-        logs_dir: Directory to write artifacts into.
+        logs_dir: Artifact root containing the cluster-logs/ and both-cluster-logs/
+            directories.
         token: Buildkite API token.
         tail_lines: Lines of raw tail kept for nightly-only clusters.
         torch_versions: Optional output list; a detected torch version per log is
@@ -862,8 +858,10 @@ def fetch_cluster_logs(
     for job in buckets["regressed"]:
         clusters[cluster_key(job["name"])].append(job)
 
-    pathlib_dir = Path(logs_dir)
-    pathlib_dir.mkdir(parents=True, exist_ok=True)
+    artifact_root = Path(logs_dir)
+    cluster_logs_dir = artifact_root / "cluster-logs"
+    both_context_dir = artifact_root / "both-cluster-logs"
+    cluster_logs_dir.mkdir(parents=True, exist_ok=True)
     written: List[str] = []
 
     for key, jobs in sorted(clusters.items(), key=lambda kv: (-len(kv[1]), kv[0])):
@@ -895,7 +893,7 @@ def fetch_cluster_logs(
             print(f"warning {key}: pytest parse unavailable: {exc}", file=sys.stderr)
 
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", key)[:80]
-        dest = pathlib_dir / f"{safe}.log"
+        dest = cluster_logs_dir / f"{safe}.log"
         artifact = render_failure_context(
             body,
             key,
@@ -918,7 +916,7 @@ def fetch_cluster_logs(
         written.extend(
             _write_both_context_artifacts(
                 cluster_diffs,
-                pathlib_dir,
+                both_context_dir,
                 tail_lines,
                 failure_window_context_before_lines,
                 failure_window_context_after_lines,
@@ -940,7 +938,7 @@ def argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--logs-dir",
-        help="fetch one representative Buildkite log per cluster into this directory "
+        help="artifact root for cluster-logs/ and both-cluster-logs/ "
         "(requires BUILDKITE_TOKEN)",
     )
     parser.add_argument(
