@@ -148,19 +148,9 @@ jobs:
           # the 30-min model timeout plus setup.
           role-duration-seconds: 3600
 
-      - name: Install Claude Code 2.1.280
-        run: |
-          curl --fail --silent --show-error --location --retry 3 \
-            https://downloads.claude.ai/claude-code-releases/2.1.280/linux-x64/claude \
-            --output "$RUNNER_TEMP/claude-code-2.1.280"
-          echo "1e08503dbdf3c2cb0d706d32f3408277388d1c76ef108673e8fe42c1b322925b  $RUNNER_TEMP/claude-code-2.1.280" | sha256sum --check
-          chmod +x "$RUNNER_TEMP/claude-code-2.1.280"
-          "$RUNNER_TEMP/claude-code-2.1.280" --version
-
       - name: Root-cause analysis
-        uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
+        uses: anthropics/claude-code-action@9ca9355b36297178e28d37c799d1c9c8a28e6507 # Claude Code 2.1.280
         with:
-          path_to_claude_code_executable: ${{ runner.temp }}/claude-code-2.1.280
           use_bedrock: "true"
           show_full_output: "true"
           claude_args: >-
