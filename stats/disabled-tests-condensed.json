@@ -969,6 +969,13 @@
       "slow"
     ]
   ],
+  "test_raw_amdsmi_device_uuids (__main__.TestCudaAllocator)": [
+    "180227",
+    "https://github.com/pytorch/pytorch/issues/180227",
+    [
+      "rocm"
+    ]
+  ],
   "test_reconfigure_scale_down_up (__main__.GlooFaultToleranceTest)": [
     "188767",
     "https://github.com/pytorch/pytorch/issues/188767",
@@ -1469,6 +1476,13 @@
     "https://github.com/pytorch/pytorch/issues/187000",
     [
       "inductor"
+    ]
+  ],
+  "test_uuid_visible_devices (__main__.TestCudaAllocator)": [
+    "180123",
+    "https://github.com/pytorch/pytorch/issues/180123",
+    [
+      "rocm"
     ]
   ],
   "test_variant_consistency_jit_nn_functional_grid_sample_cuda_float32 (__main__.TestJitCUDA)": [
