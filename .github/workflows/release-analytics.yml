@@ -1,9 +1,9 @@
-name: GitHub Analytics Daily
+name: Release Analytics
 
 on:
   pull_request:
     paths:
-      - .github/workflows/github-analytics-daily.yml
+      - .github/workflows/release-analytics.yml
       - tools/analytics/github_analyze.py
   workflow_call:
     inputs:

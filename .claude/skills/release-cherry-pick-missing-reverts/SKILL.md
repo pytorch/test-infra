@@ -1,6 +1,6 @@
 ---
 name: release-cherry-pick-missing-reverts
-description: Find reverts that landed on pytorch/pytorch main but are missing from a release branch (release/X.Y) because the reverted commit was already shipped in a release candidate, and open one cherry-pick PR per missing revert against the release branch (on a fork branch, never pushing to release/X.Y directly), optionally posting a cherry-pick nomination comment for each on the release tracker issue. Driven by tools/analytics/github_analyze.py --analyze-missing-reverts-from-branch (the "GitHub Analytics Daily" workflow). Triggered by "missing reverts", "analyze reverts for release", "cherry-pick missing reverts", "reverts not in release/X.Y", or pointing at a GitHub Analytics Daily run and asking to cherry-pick the flagged reverts.
+description: Find reverts that landed on pytorch/pytorch main but are missing from a release branch (release/X.Y) because the reverted commit was already shipped in a release candidate, and open one cherry-pick PR per missing revert against the release branch (on a fork branch, never pushing to release/X.Y directly), optionally posting a cherry-pick nomination comment for each on the release tracker issue. Driven by tools/analytics/github_analyze.py --analyze-missing-reverts-from-branch (the "Release Analytics" workflow). Triggered by "missing reverts", "analyze reverts for release", "cherry-pick missing reverts", "reverts not in release/X.Y", or pointing at a Release Analytics run and asking to cherry-pick the flagged reverts.
 ---
 
 # Release: Cherry-pick missing reverts
@@ -14,8 +14,8 @@ This skill finds those missing reverts and opens **one cherry-pick PR per
 revert** against `pytorch/pytorch:release/X.Y`, each on its own branch in the
 user's fork. It never pushes to `release/X.Y` directly.
 
-The detector is `tools/analytics/github_analyze.py` (run daily by the
-`GitHub Analytics Daily` workflow). It is the same script this skill lives
+The detector is `tools/analytics/github_analyze.py` (run on demand by the
+`Release Analytics` workflow). It is the same script this skill lives
 next to in **test-infra**, but the cherry-picks operate on a **pytorch/pytorch**
 checkout.
 
@@ -24,7 +24,7 @@ checkout.
 | Input | Required | Example | Notes |
 |-------|----------|---------|-------|
 | **Release branch** | yes | `release/2.13` | The branch to cherry-pick reverts onto. |
-| **Source** | one of | a GHA run URL, or "run the analyzer" | Either a `GitHub Analytics Daily` run URL/ID whose log already has the analysis, or run the analyzer locally for fresh data. |
+| **Source** | one of | a GHA run URL, or "run the analyzer" | Either a `Release Analytics` run URL/ID whose log already has the analysis, or run the analyzer locally for fresh data. |
 | **pytorch/pytorch path** | yes (for cherry-pick) | `~/pytorch` | A checkout with `upstream` → `pytorch/pytorch` and `origin` → the user's fork. |
 | **Fork remote** | defaults to `origin` | `origin` | Where the cherry-pick branches are pushed. |
 | **Tracker issue** | optional | `186934` | The `[vX.Y.Z] Release Tracker` issue. When given, post one cherry-pick nomination comment per opened PR (see Step 4). |
@@ -39,7 +39,7 @@ with the tracker's version (e.g. issue `[v2.13.0] Release Tracker` →
 Use when the user asks to:
 - Find / list **missing reverts** for a release branch
 - Cherry-pick the reverts flagged by the analytics run to `release/X.Y`
-- Act on a `GitHub Analytics Daily` run that printed
+- Act on a `Release Analytics` run that printed
   `🔴 WARNING: This is possibly a revert of a commit that was included in a release candidate`
 
 ## Background: what "missing revert" means and how it is flagged
@@ -83,7 +83,7 @@ the reverted commit.
 ## Step 1 — Get the list of missing reverts
 
 **Option A — from a referenced run** (when the user points at a
-`GitHub Analytics Daily` run):
+`Release Analytics` run):
 
 ```bash
 # Find the github-analyze job id for the run, then fetch its log.
@@ -167,7 +167,7 @@ The reverted commit <reverted_sha> (#<PR>) shipped in a release candidate
 main. This cherry-picks the revert so release/X.Y matches main.
 
 Detected by tools/analytics/github_analyze.py --analyze-missing-reverts-from-branch
-(GitHub Analytics Daily). Cherry-pick (-x): (cherry picked from commit <revert_sha>).
+(Release Analytics). Cherry-pick (-x): (cherry picked from commit <revert_sha>).
 
 This PR was authored with the assistance of an AI coding agent.
 ```
