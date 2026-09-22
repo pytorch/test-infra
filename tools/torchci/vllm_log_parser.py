@@ -183,10 +183,7 @@ def _deduplicate_candidates(
     latest_by_anchor: dict[str, tuple[int, int]] = {}
     for score, index in candidates:
         latest_by_anchor[lines[index]] = (index, score)
-    return [
-        (score, index)
-        for index, score in sorted(latest_by_anchor.values())
-    ]
+    return [(score, index) for index, score in sorted(latest_by_anchor.values())]
 
 
 def _merge_candidate_windows(
