@@ -943,10 +943,23 @@ class TestFailureContext(unittest.TestCase):
 
         windows = self._windows(context)
         self.assertEqual(windows[0]["start_line"], 312)
-        self.assertEqual(windows[0]["end_line"], 371)
+        self.assertEqual(windows[0]["end_line"], 372)
         self.assertIn("13.05/16.0 GiB", windows[0]["text"])
         self.assertEqual(context["line_count"], 1427)
         self.assertTrue(context["job_is_infra"])
+
+    def test_zero_after_context_keeps_matched_line(self) -> None:
+        context = extract_failure_context(
+            "ValueError: distinct application failure\n",
+            failure_window_context_before_lines=0,
+            failure_window_context_after_lines=0,
+        )
+
+        self.assertEqual(self._summary(context)["emitted_instance_count"], 1)
+        self.assertFalse(self._summary(context)["instances_truncated"])
+        self.assertIn(
+            "ValueError: distinct application failure", self._windows(context)[0]["text"]
+        )
 
     def test_non_infra_failure_context_is_not_tagged(self) -> None:
         context = extract_failure_context(

@@ -192,7 +192,7 @@ def _merge_candidate_windows(
     merged: list[tuple[int, int, int]] = []
     for score, anchor_index in candidates:
         start = max(0, anchor_index - context_before_lines)
-        end = min(line_count, anchor_index + context_after_lines)
+        end = min(line_count, anchor_index + context_after_lines + 1)
         if end <= start:
             continue
 
