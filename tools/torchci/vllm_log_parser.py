@@ -177,6 +177,19 @@ def _failure_candidates(lines: list[str]) -> list[tuple[int, int]]:
     return candidates
 
 
+def _deduplicate_candidates(
+    lines: list[str], candidates: list[tuple[int, int]]
+) -> list[tuple[int, int]]:
+    """Keep only the latest candidate for each exact cleaned anchor line."""
+    latest_by_anchor: dict[str, tuple[int, int]] = {}
+    for score, index in candidates:
+        latest_by_anchor[lines[index]] = (index, score)
+    return [
+        (score, index)
+        for index, score in sorted(latest_by_anchor.values())
+    ]
+
+
 def _merge_candidate_windows(
     candidates: list[tuple[int, int]],
     line_count: int,
@@ -249,7 +262,7 @@ def extract_failure_context(
     if failure_window_context_after_lines < 0:
         raise ValueError("failure_window_context_after_lines must not be negative")
 
-    candidates = _failure_candidates(lines)
+    candidates = _deduplicate_candidates(lines, _failure_candidates(lines))
     # Merge while candidates are still chronological. Otherwise repeated signal
     # lines from one traceback each consume a full window from the line budget
     # before the overlap is discovered.
