@@ -802,7 +802,10 @@
     "https://github.com/pytorch/pytorch/issues/198148",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_cpp_serdes (__main__.CppSerdesTestExport)": [
@@ -810,7 +813,10 @@
     "https://github.com/pytorch/pytorch/issues/198149",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_retraceability_nonstrict (__main__.RetraceExportNonStrictTestExport)": [
@@ -818,7 +824,10 @@
     "https://github.com/pytorch/pytorch/issues/198143",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_retraceability_strict (__main__.RetraceExportTestExport)": [
@@ -826,7 +835,10 @@
     "https://github.com/pytorch/pytorch/issues/198144",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
@@ -834,7 +846,10 @@
     "https://github.com/pytorch/pytorch/issues/198145",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_serdes_strict (__main__.SerDesExportTestExport)": [
@@ -842,7 +857,10 @@
     "https://github.com/pytorch/pytorch/issues/198146",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_strict (__main__.StrictExportTestExport)": [
@@ -850,7 +868,10 @@
     "https://github.com/pytorch/pytorch/issues/198150",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_strict_export_v2 (__main__.StrictExportV2TestExport)": [
@@ -858,7 +879,10 @@
     "https://github.com/pytorch/pytorch/issues/198147",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
@@ -866,7 +890,10 @@
     "https://github.com/pytorch/pytorch/issues/198151",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_non_strict_export_distribution_validation_training_ir_to_decomp_strict (__main__.TrainingIRToRunDecompExportTestExport)": [
@@ -874,7 +901,10 @@
     "https://github.com/pytorch/pytorch/issues/198152",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos",
+      "rocm"
     ]
   ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
