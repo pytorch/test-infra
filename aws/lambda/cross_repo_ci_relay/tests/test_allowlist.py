@@ -1,6 +1,12 @@
 import unittest
 
-from utils.allowlist import AllowlistLevel, AllowlistMap, CrcrEvent
+from utils.allowlist import (
+    DEFAULT_CRCR_EVENTS,
+    SUPPORTED_CRCR_EVENTS,
+    AllowlistLevel,
+    AllowlistMap,
+    CrcrEvent,
+)
 
 
 class TestAllowlistMap(unittest.TestCase):
@@ -37,7 +43,10 @@ class TestAllowlistMap(unittest.TestCase):
         self.assertEqual(amap.get_repo_device("b/device2-repo"), "device2")
         self.assertIsNone(amap.get_repo_device("a/1"))
 
-    def test_legacy_entries_default_to_all_events(self):
+    def test_default_events_are_supported(self):
+        self.assertTrue(DEFAULT_CRCR_EVENTS <= SUPPORTED_CRCR_EVENTS)
+
+    def test_legacy_entries_default_to_pull_request_and_nightly(self):
         amap = AllowlistMap._parse(self._raw())
         for repo in ("a/1", "b/device1-repo", "c/3"):
             self.assertEqual(

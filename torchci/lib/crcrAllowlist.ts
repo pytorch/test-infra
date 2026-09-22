@@ -5,8 +5,11 @@ import { Octokit } from "octokit";
 export type AllowlistLevel = "L1" | "L2" | "L3" | "L4";
 export type CrcrEvent = "pull_request" | "nightly";
 
-const DEFAULT_CRCR_EVENTS: CrcrEvent[] = ["pull_request", "nightly"];
-const CRCR_EVENTS = new Set<CrcrEvent>(DEFAULT_CRCR_EVENTS);
+export const DEFAULT_CRCR_EVENTS = [
+  "pull_request",
+  "nightly",
+] as const satisfies readonly CrcrEvent[];
+const CRCR_EVENTS = new Set<CrcrEvent>(["pull_request", "nightly"]);
 
 const LEVEL_ORDER: Record<AllowlistLevel, number> = {
   L1: 0,

@@ -39,7 +39,8 @@ class CrcrEvent(str, Enum):
     NIGHTLY = "nightly"
 
 
-DEFAULT_CRCR_EVENTS = frozenset(CrcrEvent)
+SUPPORTED_CRCR_EVENTS = frozenset(CrcrEvent)
+DEFAULT_CRCR_EVENTS = frozenset({CrcrEvent.PULL_REQUEST, CrcrEvent.NIGHTLY})
 
 
 @dataclass

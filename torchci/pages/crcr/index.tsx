@@ -24,6 +24,7 @@ import {
 import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import { DEFAULT_CRCR_EVENTS } from "lib/crcrAllowlist";
 import {
   buildCriteriaRows,
   buildDemotionRows,
@@ -828,7 +829,7 @@ export default function CrcrSummaryPage() {
           result[level].push({
             repo: row.repo,
             oncalls: [],
-            events: ["pull_request", "nightly"],
+            events: [...DEFAULT_CRCR_EVENTS],
           });
           seen.add(row.repo);
         }

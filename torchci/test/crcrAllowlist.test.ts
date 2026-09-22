@@ -1,4 +1,8 @@
-import { CrcrAllowlist, clearAllowlistCache } from "../lib/crcrAllowlist";
+import {
+  CrcrAllowlist,
+  DEFAULT_CRCR_EVENTS,
+  clearAllowlistCache,
+} from "../lib/crcrAllowlist";
 
 const VALID_YAML = `
 L1:
@@ -58,6 +62,7 @@ describe("CrcrAllowlist", () => {
 
     test("legacy entries default to pull request and nightly events", () => {
       const al = CrcrAllowlist.fromYaml(VALID_YAML);
+      expect(DEFAULT_CRCR_EVENTS).toEqual(["pull_request", "nightly"]);
       expect(al.getEventsForRepo("org1/repo1")).toEqual([
         "pull_request",
         "nightly",
