@@ -24,7 +24,6 @@ import {
 import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
 import { fetcherHandleError } from "lib/GeneralUtils";
-import { DEFAULT_CRCR_EVENTS } from "lib/crcrAllowlist";
 import {
   buildCriteriaRows,
   buildDemotionRows,
@@ -35,6 +34,7 @@ import {
   L3_DEMOTION_WINDOW_DAYS,
   L3_PROMOTION_WINDOW_DAYS,
 } from "lib/crcr/l3Thresholds";
+import { DEFAULT_CRCR_EVENTS } from "lib/crcrAllowlist";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
