@@ -9,6 +9,7 @@ far from the end of a huge log is still captured.
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -47,6 +48,8 @@ class ParsedLog:
 
 
 TIMESTAMP_RE = re.compile(r"^\[[\d\-T:Z]+\]\s*")
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[a-zA-Z]")
+OSC_ESCAPE_RE = re.compile(r"\x1b[\]_][^\x07]*\x07")
 FAILED_TEST_RE = re.compile(r"^(?:FAILED|ERROR)\s+(\S+/\S*\.py\S*)")
 PYTEST_SUMMARY_RE = re.compile(
     r"=+\s+.*\d+\s+(?:failed|error|passed|skipped|warning|deselected).*\bin\s+\d.*=+"
@@ -82,6 +85,41 @@ INFRA_PATTERNS = [
 ]
 
 
+_HIGH_SIGNAL_RE = re.compile(
+    r"(?:Assertion\s+failed:|device[- ]side\s+assert(?:ion)?(?:\s+triggered)?|"
+    r"CUDA\s+kernel\s+errors\s+might\s+be\s+asynchronously\s+reported|"
+    r"Fatal\s+Python\s+error|Segmentation\s+fault|SIGSEGV|SIGABRT|SIGKILL|"
+    r"ProcessExitedException|undefined\s+symbol|cannot\s+open\s+shared\s+object\s+file|"
+    r"\b(?:ImportError|ModuleNotFoundError)\s*:\s+\S+|"
+    r"(?:ValueError|AttributeError|TypeError|AssertionError|OSError|"
+    r"KeyError|MemoryError|CalledProcessError|SystemExit)\s*:\s+\S+|"
+    r"\bCUDA\s+(?:error|failure|exception):|CUDA\s+(?:out\s+of\s+memory|OOM)|"
+    r"\bNCCL\s+(?:error|fatal|watchdog|peer|failure)\b|"
+    r"out\s+of\s+memory)",
+    re.IGNORECASE,
+)
+_MEDIUM_SIGNAL_RE = re.compile(
+    r"(?:RuntimeError\s*:\s+\S+|EngineCore\s+failed\s+to\s+start|"
+    r"Engine\s+core\s+initialization\s+failed|"
+    r"\b(?:Process\s+)?EngineCore\b.*(?:Traceback|failed|fatal|exception|died|exited)|"
+    r"\b(?:worker|WorkerProc|RayWorkerWrapper|Ray\s+worker)\b.*"
+    r"(?:failed|fatal|error|exception|traceback|exited|died|crashed)|"
+    r"\b(?:API|HTTP)\s+server\b.*(?:failed|fatal|error|exception|exited|died)|"
+    r"Server\s+exited\s+unexpectedly|"
+    r"(?:GPU\s+)?coredump|coredump\s+(?:collection|generation)|"
+    r"\b(?:child|subprocess|process)\b.*(?:exit|terminated|killed|died)|"
+    r"Traceback\s+\(most\s+recent\s+call\s+last\):)",
+    re.IGNORECASE,
+)
+_COMMAND_SIGNAL_RE = re.compile(
+    r"(?:\b(?:The\s+)?command\s+(?:exited|failed)\s+with\s+(?:status|code)\s+\d+|"
+    r"\buser\s+command\s+error\b|"
+    r"\bplugin\b.*\b(?:command|hook)\b.*\b(?:exited|failed)\s+with\s+(?:status|code)\s+\d+|"
+    r"(?:^|\s)(?:FAILED|ERROR)\s+\S*(?:\.py|::)\S*)",
+    re.IGNORECASE,
+)
+
+
 def get_test_signature(failed_test: "FailedTest") -> tuple[str, str]:
     """Build the diff key for a failing test.
 
@@ -105,9 +143,192 @@ def strip_markers(text: str) -> str:
         - BKT timestamp markers (\\x1b_bk;t=<ms>\\x07)
         - OSC sequences (\\x1b]...\\x07): inline images (1338), hyperlinks (1339)
     """
-    ansi_regex = re.compile(r"\x1b\[[0-9;?]*[a-zA-Z]")
-    osc_regex = re.compile(r"\x1b[\]_][^\x07]*\x07")
-    return osc_regex.sub("", ansi_regex.sub("", text))
+    return OSC_ESCAPE_RE.sub("", ANSI_ESCAPE_RE.sub("", text))
+
+
+def clean_failure_context_lines(text: str) -> list[str]:
+    """Return display lines with only transport/presentation noise removed."""
+    # Buildkite output occasionally contains an extra carriage return before a
+    # newline (and progress output can contain several).  Remove only those
+    # terminal carriage returns so visible content is retained and does not turn
+    # one logical line into a run of artificial blank lines.
+    cleaned = re.sub(r"\r+(?=\n|$)", "", strip_markers(text))
+    return [TIMESTAMP_RE.sub("", line) for line in cleaned.splitlines()]
+
+
+def _signal_score(line: str) -> int:
+    """Rank only; the downstream agent assigns the failure category."""
+    if _HIGH_SIGNAL_RE.search(line):
+        return 9
+    if _MEDIUM_SIGNAL_RE.search(line):
+        return 6
+    if _COMMAND_SIGNAL_RE.search(line):
+        return 4
+    return 0
+
+
+def _failure_candidates(lines: list[str]) -> list[tuple[int, int]]:
+    candidates: list[tuple[int, int]] = []
+    for index, line in enumerate(lines):
+        score = _signal_score(line)
+        if score > 0:
+            candidates.append((score, index))
+    return candidates
+
+
+def _deduplicate_candidates(
+    lines: list[str], candidates: list[tuple[int, int]]
+) -> list[tuple[int, int]]:
+    """Keep only the latest candidate for each exact cleaned anchor line."""
+    latest_by_anchor: dict[str, tuple[int, int]] = {}
+    for score, index in candidates:
+        latest_by_anchor[lines[index]] = (index, score)
+    return [(score, index) for index, score in sorted(latest_by_anchor.values())]
+
+
+def _merge_candidate_windows(
+    candidates: list[tuple[int, int]],
+    line_count: int,
+    context_before_lines: int,
+    context_after_lines: int,
+) -> list[tuple[int, int, int]]:
+    """Build and merge chronological candidate windows in one pass.
+
+    Each tuple is ``(highest_score, start, end)`` with zero-based,
+    end-exclusive bounds. Candidates arrive in log order, so only the window at
+    the top of the stack can intersect the next candidate window.
+    """
+    merged: list[tuple[int, int, int]] = []
+    for score, anchor_index in candidates:
+        start = max(0, anchor_index - context_before_lines)
+        end = min(line_count, anchor_index + context_after_lines + 1)
+        if end <= start:
+            continue
+
+        if merged and start < merged[-1][2]:
+            previous_score, previous_start, previous_end = merged[-1]
+            merged[-1] = (
+                max(previous_score, score),
+                previous_start,
+                max(previous_end, end),
+            )
+        else:
+            merged.append((score, start, end))
+    return merged
+
+
+def extract_failure_context(
+    lines: list[str],
+    failure_window_context_before_lines: int,
+    failure_window_context_after_lines: int,
+    max_lines: int = 450,
+    max_window_lines: int = 100,
+) -> dict[str, Any]:
+    """Extract bounded, structured failure context from cleaned log lines.
+
+    Candidate windows are merged in chronological order before the highest-priority
+    windows are selected within a fixed line budget. Each selected window is trimmed
+    to its final ``max_window_lines`` before consuming that budget. Ties prefer later
+    anchors so a long retry loop cannot hide a later root cause with the same signal
+    score. Failure categorization is intentionally left to the downstream agent.
+
+    Args:
+        lines: Complete log lines after transport and presentation cleanup.
+        failure_window_context_before_lines: Lines to include before each candidate
+            anchor.
+        failure_window_context_after_lines: End offset used to form each candidate
+            window after its anchor.
+        max_lines: Total number of lines allowed across emitted failure windows.
+        max_window_lines: Maximum number of lines retained from any emitted window.
+
+    Returns:
+        Structured failure-window context, including the cleaned line count,
+        infrastructure classification, window counts, and emitted windows.
+
+    Raises:
+        ValueError: If a line-budget argument is negative.
+    """
+
+    if max_lines < 0:
+        raise ValueError("max_lines must not be negative")
+    if max_window_lines < 0:
+        raise ValueError("max_window_lines must not be negative")
+    if failure_window_context_before_lines < 0:
+        raise ValueError("failure_window_context_before_lines must not be negative")
+    if failure_window_context_after_lines < 0:
+        raise ValueError("failure_window_context_after_lines must not be negative")
+
+    candidates = _deduplicate_candidates(lines, _failure_candidates(lines))
+    # Merge while candidates are still chronological. Otherwise repeated signal
+    # lines from one traceback each consume a full window from the line budget
+    # before the overlap is discovered.
+    merged_candidates = _merge_candidate_windows(
+        candidates,
+        len(lines),
+        failure_window_context_before_lines,
+        failure_window_context_after_lines,
+    )
+    # Prefer later anchors within a score tier so repeated early retry signals do not
+    # starve a later exception from the fixed line budget.
+    ranked = sorted(merged_candidates, key=lambda item: (-item[0], -item[1]))[:20]
+    selected_windows: list[tuple[int, int, bool]] = []
+    used_lines = 0
+    clipped_window = False
+    for _score, start, end in ranked:
+        if used_lines >= max_lines:
+            break
+        window_trimmed = False
+        if end - start > max_window_lines:
+            start = end - max_window_lines
+            window_trimmed = True
+        width = end - start
+        if used_lines + width > max_lines:
+            end = start + max_lines - used_lines
+            width = end - start
+            clipped_window = True
+        if width <= 0:
+            continue
+        selected_windows.append((start, end, window_trimmed))
+        used_lines += width
+
+    # Ranking determines selection; artifacts remain easy to read by presenting
+    # the selected, already-disjoint windows in log order.
+    selected_windows.sort()
+    emitted_windows = [
+        {
+            "window_type": "ranked",
+            "start_line": start + 1,
+            "end_line": end,
+            "trimmed": window_trimmed,
+            "text": "\n".join(lines[start:end]),
+        }
+        for start, end, window_trimmed in selected_windows
+    ]
+    trimmed_window_count = sum(
+        window_trimmed for _, _, window_trimmed in selected_windows
+    )
+    failure_windows = [
+        {
+            "window_type": "ranked",
+            "matched_instance_count": len(candidates),
+            "emitted_instance_count": len(emitted_windows),
+            "trimmed_window_count": trimmed_window_count,
+            "instances_truncated": (
+                len(merged_candidates) > len(ranked)
+                or len(selected_windows) < len(ranked)
+                or clipped_window
+                or trimmed_window_count > 0
+            ),
+        }
+    ]
+    return {
+        "line_count": len(lines),
+        "job_is_infra": _matches_infra("\n".join(lines)),
+        "failure_window_context_before_lines": failure_window_context_before_lines,
+        "failure_window_context_after_lines": failure_window_context_after_lines,
+        "failure_windows": failure_windows,
+        "windows_in_chronological_order": emitted_windows,
+    }
 
 
 def parse_log(text: str) -> ParsedLog:

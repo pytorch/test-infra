@@ -33,8 +33,11 @@ dir:
   `FailedTest` signature (`test_id`, `pytest_exception_class`,
   `exception_chain`, `inline_message`, `test_is_infra`). Each shared failure has
   complete `torch_nightly` and `baseline` `FailedTest` entries.
-- `cluster-logs/*.log` — one representative log per regressed cluster, ANSI-stripped.
-   This is your primary root-cause material.
+- `cluster-logs/<safe-cluster-name>.log` — parsed pytest failures when available,
+  bounded failure windows, plus an unconditional cleaned raw tail for each job-state
+  `regressed` cluster.
+- `both-cluster-logs/nightly_*.log` — supplementary lossy raw nightly context for
+  surfaced `regressed_tests` clusters. No baseline raw-context artifact is produced.
 
 ### Cluster-log artifact format
 
@@ -47,59 +50,27 @@ Every file opens with a header:
 # state: <state> exit_status: <n>
 ```
 
-**Parsed form** — pytest failures were extracted. The header is followed by
-`# parsed N failing test(s)` and one block per test:
+**Job-state form** — `cluster-logs/<safe-cluster-name>.log` uses
+`capture_mode: nightly_failure_context` and contains ranked failure windows followed by
+an unconditional cleaned `## raw_tail`. When pytest parsing succeeds, a `# parsed N
+failing test(s)` section lists every failure's test ID, exception class, infra tag, and
+parsed exception chain before the windows. Window counts report candidates, emitted
+windows, and truncation. The header also includes `job_is_infra: true|false`; when it is
+true, treat the cluster as transient infrastructure rather than a torch regression.
+The windows are lossy evidence, not root-cause classifications or proof that a window
+belongs to a particular test.
 
-```
-## tests/kernels/test_deepgemm.py::test_gemm
-pytest_exception_class: RuntimeError
-test_is_infra: false
+Parsed pytest records for surfaced `regressed_tests` clusters, including complete
+nightly-only and shared nightly/baseline failures, are in `report.json.regressed_tests`.
 
-def test_gemm():
->       run_gemm()
-E       RuntimeError: CUDA driver init failed
-test_deepgemm.py:42: RuntimeError
-```
+`both-cluster-logs/nightly_*.log` uses `capture_mode: both_failure_context` and is
+supplementary lossy raw nightly context for the same surfaced clusters. No
+`baseline_*.log` artifact is produced.
 
-- `## <test_id>` — pytest node ID.
-- `pytest_exception_class` — exception type pytest named on its inline
-  `FAILED`/`ERROR` summary line. This is the `FailedTest.pytest_exception_class`
-  field in `report.json`; it can be empty when pytest did not provide a class.
-- `test_is_infra` — per-test transient-infra tag (CUDA-init, `exit status 137`,
-  `Free memory … less than desired`, …). This is the `FailedTest.test_is_infra`
-  field in `report.json`.
-- Everything after the blank line is the **raw section body** (the traceback): source
-  lines, `E` error lines, file refs, chained-exception connectors. This is the
-  `FailedTest.exception_chain` that Step 3 refers to — your primary content for
-  root cause.
-
-**Fallback form** — no pytest failures were parsed (a build/crash before pytest ran,
-an empty parse, or the parser raising). The header is followed by:
-
-```
-# parse_fallback: true (raw tail; scan upward for the real error)
-# parse_error: <message>        # only present if the parser raised
-# job_is_infra: <bool>
-# showing last <k> of <n> lines
-
-<the last k lines of the cleaned log>
-```
-
-- `job_is_infra` — the fallback's job-level equivalent of `test_is_infra`.
-- The tail is the end of the whole cleaned log; the real error is usually a few lines
-  above the bottom. Scan **upward** past wrappers like
-  `Engine core initialization failed. See root cause above.` — that line is never the
-  root cause.
-
-A fallback file is the old "non-pytest failure" case: Docker image build failure,
-compile error, import-time segfault. It has no pytest node ID — refer to it by its
-cluster / job name, and treat it as novel (baseline comparison already happened upstream
-at the job level).
-
-**Infra is not a torch regression.** A cluster whose failures are all
-`test_is_infra: true` (or `job_is_infra: true`) is still present in the input; do not
-root-cause it as a regression — call it out as infra. The agent files nothing and reruns
-nothing.
+**Infra is not a torch regression.** A job artifact tagged `job_is_infra: true` or a
+surfaced pytest failure tagged `test_is_infra: true` is transient infrastructure
+evidence; call it out as infra. Do not let a high-scoring infra message such as a
+low-GPU-memory startup failure override the explicit infra tag.
 
 ## Step 2: NEW vs pre-existing
 
@@ -107,7 +78,9 @@ Classification is decided **upstream** by the torch-nightly vs same-commit-basel
 A/B. Each job is already bucketed in the report:
 
 - `regressed` — fails on torch nightly, passes on the baseline → new, torch-attributable.
-- `both` — fails on both → `PRE_EXISTING`, not torch. No root-cause analysis needed.
+- ordinary `both` entries — fail on both and remain pre-existing; ignore them.
+- `regressed_tests` — surfaced `both` clusters with a torch-nightly-only pytest
+  failure; analyze them as new test-set regressions. Shared failures are context.
 - `baseline_only` — fails only on the baseline → ignore.
 
 Rate `new_failure_confidence` (high/med/low) per group from its bucket plus the infra /
@@ -121,9 +94,10 @@ Only genuinely new failures reach this step.
 ONE group per root cause, not per job. From real data: 22 failing jobs
 grouped into 10 root causes.
 
-Use `exception_chain` (the raw traceback) as your primary source for root cause
-analysis. Use `exception_class` as a quick identifier.
-Same root cause across jobs = same group.
+For failed clusters, use the selected windows and raw tail. Scan upward from wrappers such as
+`Engine core initialization failed. See root cause above.` to find the real exception.
+For surfaced `regressed_tests`, use the complete nightly-only and shared records in
+`report.json` in combination with the both-cluster-logs/nightly_*.log.
 
 Rate `shared_root_cause_confidence` (high/med/low) per member as you assign it to a group.
 

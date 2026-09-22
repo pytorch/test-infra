@@ -7,7 +7,12 @@ raw_log_snippet.bin has ANSI + BKT markers for strip testing.
 import unittest
 from pathlib import Path
 
-from torchci.vllm_log_parser import get_test_signature, parse_log, strip_markers
+from torchci.vllm_log_parser import (
+    clean_failure_context_lines,
+    get_test_signature,
+    parse_log,
+    strip_markers,
+)
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -80,6 +85,12 @@ class TestStripMarkers(unittest.TestCase):
         cleaned = strip_markers(raw)
         self.assertNotIn("\x1b", cleaned)
         self.assertEqual(cleaned.strip("\r"), "")
+
+    def test_normalizes_repeated_terminal_carriage_returns(self) -> None:
+        self.assertEqual(
+            clean_failure_context_lines("first\r\r\nsecond\r\n"),
+            ["first", "second"],
+        )
 
     def test_real_raw_snippet(self) -> None:
         raw_log_snippet = read_fixture_bytes("raw_log_snippet.bin")
