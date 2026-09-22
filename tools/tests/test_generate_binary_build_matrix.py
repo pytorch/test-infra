@@ -206,12 +206,16 @@ class GenerateBuildMatrixTest(TestCase):
     def test_python_abi3_keeps_oldest_and_free_threaded(self):
         # A single abi3 wheel covers every later CPython, but free-threaded
         # interpreters reject abi3 wheels and still need one wheel each.
+        # The oldest interpreter differs per channel while release still ships
+        # 3.10: nightly's abi3 wheel is built against 3.11, release's against
+        # 3.10. These two expectations converge again once 3.10 leaves the
+        # release channel.
         for operating_system in ("linux", "linux-aarch64", "windows"):
             self.assertEqual(
                 self._test_channel_python_versions(
                     operating_system, channel="nightly", python_abi3=True
                 ),
-                {"3.10", "3.14t", "3.15t"},
+                {"3.11", "3.14t", "3.15t"},
             )
             self.assertEqual(
                 self._test_channel_python_versions(
@@ -225,14 +229,32 @@ class GenerateBuildMatrixTest(TestCase):
             self._test_channel_python_versions(
                 "macos-arm64", channel="nightly", python_abi3=True
             ),
+            {"3.11.14", "3.14t", "3.15t"},
+        )
+        self.assertEqual(
+            self._test_channel_python_versions(
+                "macos-arm64", channel="release", python_abi3=True
+            ),
             {"3.10.19", "3.14t", "3.15t"},
         )
 
     def test_python_abi3_disabled_by_default(self):
         self.assertEqual(
             self._test_channel_python_versions("linux", channel="nightly"),
-            {"3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"},
+            {"3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"},
         )
+
+    def test_python_310_dropped_from_nightly_only(self):
+        # 2.14.0 publishes cp310 wheels, so test and release must keep
+        # validating them; only nightly (2.15) drops 3.10.
+        self.assertNotIn(
+            "3.10", self._test_channel_python_versions("linux", channel="nightly")
+        )
+        for channel in ("test", "release"):
+            self.assertIn(
+                "3.10",
+                self._test_channel_python_versions("linux", channel=channel),
+            )
 
     def test_torch_only_install_command_for_torch_only_arches(self):
         out = generate_build_matrix(

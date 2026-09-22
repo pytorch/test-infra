@@ -16,7 +16,7 @@ jobs:
       id-token: write
       contents: read
     with:
-      job-name: "linux-py3.10-cpu"
+      job-name: "linux-py3.11-cpu"
       runner: mt-l-x86iavx512-8-64
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -25,7 +25,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        conda create --yes --quiet -n test python=3.10
+        conda create --yes --quiet -n test python=3.11
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
@@ -82,7 +82,7 @@ jobs:
       matrix:
         runner_type: ["mt-l-x86aavx2-11-41-l4"]
     with:
-      job-name: "linux-py3.10-cu128"
+      job-name: "linux-py3.11-cu128"
       runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -93,7 +93,7 @@ jobs:
       script: |
         nvidia-smi
         nvcc --version | grep "cuda_12.8"
-        conda create --yes --quiet -n test python=3.10
+        conda create --yes --quiet -n test python=3.11
         conda activate test
 
         # Pre-install torch's pure-python deps from the in-cluster pypi-cache for speed.
@@ -138,7 +138,7 @@ jobs:
       runner: mt-l-x86iavx512-8-64
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      docker-image: ghcr.io/pytorch/ci-image:pytorch-linux-jammy-py3.10-clang21
+      docker-image: ghcr.io/pytorch/ci-image:pytorch-linux-jammy-py3.11-clang21
       script: |
         [[ "$(id -u)" -ne 0 ]] || { echo "expected a non-root default user"; exit 1; }
         # Reaching the script at all proves the cleanup and the checkout worked;
@@ -241,7 +241,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python_version: ["3.10", "3.11", "3.12", "3.13"]
+        python_version: ["3.11", "3.12", "3.13"]
     with:
       runner: mt-l-x86iavx512-8-64
       test-infra-repository: ${{ github.repository }}

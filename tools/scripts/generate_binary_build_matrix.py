@@ -21,8 +21,12 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
+# 3.11 is the minimum for nightly: 2.15 does not build 3.10. test and release
+# keep it because 2.14.0 publishes cp310 wheels, and dropping it here would
+# stop validating binaries users can still install. Remove it from those two
+# once 2.15 is the stable version.
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
+    "nightly": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
 }

@@ -15,7 +15,7 @@ jobs:
     permissions:
       id-token: write
     with:
-      job-name: "linux-py3.10-cpu"
+      job-name: "linux-py3.11-cpu"
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -24,7 +24,7 @@ jobs:
       gpu-arch-type: cpu
       gpu-arch-version: ""
       script: |
-        conda create --yes --quiet -n test python=3.10
+        conda create --yes --quiet -n test python=3.11
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
         # Can import pytorch
@@ -37,7 +37,7 @@ jobs:
       matrix:
         runner_type: ["linux.g5.4xlarge.nvidia.gpu"]
     with:
-      job-name: "linux-py3.10-cu128"
+      job-name: "linux-py3.11-cu128"
       runner: ${{ matrix.runner_type }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
@@ -48,7 +48,7 @@ jobs:
       script: |
         nvidia-smi
         nvcc --version | grep "cuda_12.8"
-        conda create --yes --quiet -n test python=3.10
+        conda create --yes --quiet -n test python=3.11
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu128 --pre torch
         # Can import pytorch, cuda is available
@@ -154,7 +154,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        python_version: ["3.10", "3.11", "3.12", "3.13"]
+        python_version: ["3.11", "3.12", "3.13"]
     with:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
