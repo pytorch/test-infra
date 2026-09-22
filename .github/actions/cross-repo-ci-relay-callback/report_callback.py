@@ -127,15 +127,11 @@ def build_payload() -> str:
     if triage_verdict:
         try:
             parsed = json.loads(triage_verdict)
-        except json.JSONDecodeError as exc:
-            sys.exit(f"Error: TRIAGE_VERDICT is not valid JSON: {exc}")
-        if not isinstance(parsed, dict):
-            sys.exit("Error: TRIAGE_VERDICT must be a JSON object")
-        # Only the shape is checked here, so a typo in the triage step fails
-        # loudly in the repo that owns it.  The relay is what enum- and
-        # size-validates the contents, and silently drops the verdict if it
-        # does not hold up -- this action must not decide that for it.
-        workflow["triage_verdict"] = parsed
+            if not isinstance(parsed, dict):
+                raise ValueError("TRIAGE_VERDICT must be a JSON object")
+            workflow["triage_verdict"] = parsed
+        except (json.JSONDecodeError, ValueError) as exc:
+            print(f"Warning: ignoring invalid TRIAGE_VERDICT: {exc}", file=sys.stderr)
 
     artifact_url = os.environ.get("ARTIFACT_URL", "").strip()
     if artifact_url:

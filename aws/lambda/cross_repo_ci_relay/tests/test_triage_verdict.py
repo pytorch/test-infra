@@ -73,6 +73,7 @@ class TestValidateTriageVerdict(unittest.TestCase):
         for name, raw in [
             ("not an object", "upstream"),
             ("unknown schema_version", _verdict(schema_version=2)),
+            ("bool schema_version", _verdict(schema_version=True)),
             (
                 "missing schema_version",
                 {k: v for k, v in _verdict().items() if k != "schema_version"},
@@ -135,6 +136,25 @@ class TestValidateTriageVerdict(unittest.TestCase):
                 _verdict(evidence=[{"log_url": "javascript:alert(1)"}])
             )
         )
+
+    def test_malicious_log_url_shapes_drop_the_verdict(self):
+        for name, log_url in [
+            ("userinfo spoofing", "https://github.com@evil.com/log"),
+            (
+                "embedded newline and markdown link",
+                "https://ok.com\n\n[Click to approve](https://evil.com)",
+            ),
+            (
+                "embedded space before scheme-like text",
+                "https://ok.com/ javascript:alert(1)",
+            ),
+            ("space after scheme", "https:// evil.com"),
+            ("no host", "https://"),
+        ]:
+            with self.subTest(name):
+                self.assertIsNone(
+                    validate_triage_verdict(_verdict(evidence=[{"log_url": log_url}]))
+                )
 
     def test_long_summary_is_truncated_not_rejected(self):
         result = validate_triage_verdict(

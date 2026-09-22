@@ -28,6 +28,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from urllib.parse import urlparse
 
 
 logger = logging.getLogger(__name__)
@@ -145,11 +146,20 @@ def _parse_evidence(value: object) -> list[dict]:
             MAX_URL_LEN,
         )
         if log_url is not None:
-            # Anything else (javascript:, data:, a relative path) would be
-            # rendered as a link into a pytorch/pytorch PR comment.
+            # Anything else (javascript:, data:, a relative path, userinfo
+            # spoofing like https://github.com@evil.com, embedded control
+            # characters smuggling a second Markdown link) would be rendered
+            # as a link into a pytorch/pytorch PR comment.
+            try:
+                parsed_url = urlparse(log_url)
+            except ValueError as exc:
+                raise _Invalid(f"evidence[{index}].log_url is malformed") from exc
             _require(
-                log_url.startswith("https://") or log_url.startswith("http://"),
-                f"evidence[{index}].log_url must be http(s)",
+                parsed_url.scheme in ("http", "https")
+                and parsed_url.netloc != ""
+                and "@" not in parsed_url.netloc
+                and not any(c.isspace() or ord(c) < 0x20 for c in log_url),
+                f"evidence[{index}].log_url must be a plain http(s) URL",
             )
             entry["log_url"] = log_url
 
@@ -207,7 +217,9 @@ def validate_triage_verdict(raw: object) -> dict | None:
         if isinstance(version, str) and version.strip().isdigit():
             version = int(version.strip())
         _require(
-            version == SCHEMA_VERSION,
+            isinstance(version, int)
+            and not isinstance(version, bool)
+            and version == SCHEMA_VERSION,
             f"unsupported triage_verdict schema_version {raw_dict.get('schema_version')!r}",
         )
 
