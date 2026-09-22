@@ -95,7 +95,6 @@ _HIGH_SIGNAL_RE = re.compile(
     r"KeyError|MemoryError|CalledProcessError|SystemExit)\s*:\s+\S+|"
     r"\bCUDA\s+(?:error|failure|exception):|CUDA\s+(?:out\s+of\s+memory|OOM)|"
     r"\bNCCL\s+(?:error|fatal|watchdog|peer|failure)\b|"
-    r"free\s+memory\s+on\s+device\s+cuda:\d+.*less\s+than\s+desired|"
     r"out\s+of\s+memory)",
     re.IGNORECASE,
 )
