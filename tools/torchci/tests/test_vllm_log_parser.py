@@ -988,7 +988,7 @@ class TestFailureContext(unittest.TestCase):
         )
 
         summary = self._summary(context)
-        self.assertEqual(summary["matched_candidate_count"], 9)
+        self.assertEqual(summary["matched_instance_count"], 9)
         self.assertEqual(summary["emitted_instance_count"], 2)
         self.assertFalse(summary["instances_truncated"])
         self.assertTrue(
@@ -1017,6 +1017,13 @@ class TestFailureContext(unittest.TestCase):
             any("genuine late root cause" in window["text"] for window in windows)
         )
         self.assertTrue(self._summary(context)["instances_truncated"])
+        self.assertTrue(
+            all(
+                window["end_line"] - window["start_line"] + 1 <= 100
+                for window in windows
+            )
+        )
+        self.assertGreaterEqual(self._summary(context)["trimmed_window_count"], 1)
 
 
 if __name__ == "__main__":

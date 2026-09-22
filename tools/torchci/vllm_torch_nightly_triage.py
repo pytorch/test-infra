@@ -562,9 +562,9 @@ def render_failure_context(
     ]
     for summary in context["failure_windows"]:
         sections.append(
-            f"#   {summary['window_type']}: candidates={summary.get('matched_candidate_count', summary['matched_instance_count'])} "
-            f"matched={summary['matched_instance_count']} "
+            f"#   {summary['window_type']}: matched={summary['matched_instance_count']} "
             f"emitted={summary['emitted_instance_count']} "
+            f"trimmed={summary.get('trimmed_window_count', 0)} "
             f"truncated={summary['instances_truncated']}"
         )
     sections.append("")

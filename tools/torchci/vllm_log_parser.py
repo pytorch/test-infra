@@ -213,17 +213,38 @@ def extract_failure_context(
     failure_window_context_before_lines: int,
     failure_window_context_after_lines: int,
     max_lines: int = 450,
+    max_window_lines: int = 100,
 ) -> dict[str, Any]:
     """Extract bounded, structured failure context from a complete Buildkite log.
 
     The complete cleaned log is scanned for scored candidate signals. Intersecting
     candidate windows are merged in chronological order before the highest-priority
-    merged windows are selected within a fixed line budget. Ties prefer later anchors
-    so a long retry loop cannot hide a later root cause with the same signal score.
-    Failure categorization is intentionally left to the downstream agent.
+    merged windows are selected within a fixed line budget. Each selected window is
+    trimmed to its final ``max_window_lines`` before consuming that budget. Ties
+    prefer later anchors so a long retry loop cannot hide a later root cause with the
+    same signal score. Failure categorization is intentionally left to the downstream
+    agent.
+
+    Args:
+        text: Complete raw Buildkite log text.
+        failure_window_context_before_lines: Lines to include before each candidate
+            anchor.
+        failure_window_context_after_lines: End offset used to form each candidate
+            window after its anchor.
+        max_lines: Total number of lines allowed across emitted failure windows.
+        max_window_lines: Maximum number of lines retained from any emitted window.
+
+    Returns:
+        Structured failure-window context, including the cleaned line count,
+        infrastructure classification, window counts, and emitted windows.
+
+    Raises:
+        ValueError: If a line-budget argument is negative.
     """
     if max_lines < 0:
         raise ValueError("max_lines must not be negative")
+    if max_window_lines < 0:
+        raise ValueError("max_window_lines must not be negative")
     if failure_window_context_before_lines < 0:
         raise ValueError("failure_window_context_before_lines must not be negative")
     if failure_window_context_after_lines < 0:
@@ -243,12 +264,16 @@ def extract_failure_context(
     # Prefer later anchors within a score tier so repeated early retry signals do not
     # starve a later exception from the fixed line budget.
     ranked = sorted(merged_candidates, key=lambda item: (-item[0], -item[1]))[:20]
-    selected_windows: list[tuple[int, int]] = []
+    selected_windows: list[tuple[int, int, bool]] = []
     used_lines = 0
     clipped_window = False
     for _score, start, end in ranked:
         if used_lines >= max_lines:
             break
+        window_trimmed = False
+        if end - start > max_window_lines:
+            start = end - max_window_lines
+            window_trimmed = True
         width = end - start
         if used_lines + width > max_lines:
             end = start + max_lines - used_lines
@@ -256,7 +281,7 @@ def extract_failure_context(
             clipped_window = True
         if width <= 0:
             continue
-        selected_windows.append((start, end))
+        selected_windows.append((start, end, window_trimmed))
         used_lines += width
 
     # Ranking determines selection; artifacts remain easy to read by presenting
@@ -267,20 +292,25 @@ def extract_failure_context(
             "window_type": "ranked",
             "start_line": start + 1,
             "end_line": end,
+            "trimmed": window_trimmed,
             "text": "\n".join(lines[start:end]),
         }
-        for start, end in selected_windows
+        for start, end, window_trimmed in selected_windows
     ]
+    trimmed_window_count = sum(
+        window_trimmed for _, _, window_trimmed in selected_windows
+    )
     failure_windows = [
         {
             "window_type": "ranked",
-            "matched_candidate_count": len(candidates),
             "matched_instance_count": len(candidates),
             "emitted_instance_count": len(emitted_windows),
+            "trimmed_window_count": trimmed_window_count,
             "instances_truncated": (
                 len(merged_candidates) > len(ranked)
                 or len(selected_windows) < len(ranked)
                 or clipped_window
+                or trimmed_window_count > 0
             ),
         }
     ]
