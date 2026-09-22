@@ -34,11 +34,88 @@ class AllowlistLevel(str, Enum):
     L4 = "L4"
 
 
+class CrcrEvent(str, Enum):
+    PULL_REQUEST = "pull_request"
+    NIGHTLY = "nightly"
+
+
+SUPPORTED_CRCR_EVENTS = frozenset(CrcrEvent)
+DEFAULT_CRCR_EVENTS = frozenset({CrcrEvent.PULL_REQUEST, CrcrEvent.NIGHTLY})
+
+
 @dataclass
 class AllowlistEntry:
     repo: str
     oncalls: list[str] = field(default_factory=list)
     device: str = ""  # L3 only: suffix of the ciflow/crcr/{device} label
+    events: frozenset[CrcrEvent] = field(default_factory=lambda: DEFAULT_CRCR_EVENTS)
+
+    @staticmethod
+    def _parse_oncalls(raw_oncalls, context: str) -> list[str]:
+        if raw_oncalls is None:
+            return []
+        if isinstance(raw_oncalls, str):
+            return [
+                oncall.strip() for oncall in raw_oncalls.split(",") if oncall.strip()
+            ]
+        if isinstance(raw_oncalls, list):
+            return [
+                str(oncall).strip() for oncall in raw_oncalls if str(oncall).strip()
+            ]
+        raise RuntimeError(
+            f"Invalid allowlist: {context}.oncalls must be a string or list"
+        )
+
+    @staticmethod
+    def _parse_events(raw_events, context: str) -> frozenset[CrcrEvent]:
+        if raw_events is None:
+            return DEFAULT_CRCR_EVENTS
+        if not isinstance(raw_events, list) or not raw_events:
+            raise RuntimeError(
+                f"Invalid allowlist: {context}.events must be a non-empty list"
+            )
+
+        events: set[CrcrEvent] = set()
+        for raw_event in raw_events:
+            if not isinstance(raw_event, str):
+                raise RuntimeError(
+                    f"Invalid allowlist: {context}.events entries must be strings"
+                )
+            try:
+                event = CrcrEvent(raw_event.strip())
+            except ValueError as exc:
+                supported = ", ".join(event.value for event in CrcrEvent)
+                raise RuntimeError(
+                    f"Invalid allowlist: {context}.events has unsupported event "
+                    f"{raw_event!r}; expected one of {supported}"
+                ) from exc
+            if event in events:
+                raise RuntimeError(
+                    f"Invalid allowlist: {context}.events contains duplicate {event.value!r}"
+                )
+            events.add(event)
+        return frozenset(events)
+
+    @classmethod
+    def _metadata_from_raw(
+        cls, raw_metadata, context: str
+    ) -> tuple[list[str], frozenset[CrcrEvent]]:
+        if isinstance(raw_metadata, dict):
+            unknown_fields = set(raw_metadata) - {"oncalls", "events"}
+            if unknown_fields:
+                unknown = ", ".join(sorted(map(str, unknown_fields)))
+                raise RuntimeError(
+                    f"Invalid allowlist: {context} has unsupported metadata field(s): {unknown}"
+                )
+            raw_oncalls = raw_metadata.get("oncalls")
+            raw_events = raw_metadata.get("events")
+        else:
+            raw_oncalls = raw_metadata
+            raw_events = None
+        return (
+            cls._parse_oncalls(raw_oncalls, context),
+            cls._parse_events(raw_events, context),
+        )
 
     @classmethod
     def _from_raw(cls, raw_entry, level: AllowlistLevel, idx: int) -> "AllowlistEntry":
@@ -61,12 +138,8 @@ class AllowlistEntry:
                 raise RuntimeError(
                     f"Invalid allowlist: {level}[{idx}] must be in owner/repo format, got {repo_raw!r}"
                 )
-            oncalls = (
-                [o.strip() for o in str(oncalls_raw).split(",") if o.strip()]
-                if oncalls_raw
-                else []
-            )
-            return cls(repo=repo, oncalls=oncalls)
+            oncalls, events = cls._metadata_from_raw(oncalls_raw, f"{level}[{idx}]")
+            return cls(repo=repo, oncalls=oncalls, events=events)
 
         raise RuntimeError(
             f"Invalid allowlist: {level}[{idx}] must be a string or mapping, got {type(raw_entry).__name__}"
@@ -127,6 +200,14 @@ class AllowlistMap:
                     return level
         return None
 
+    def get_repo_events(self, repo: str) -> frozenset[CrcrEvent]:
+        """Return configured logical CRCR events for a repo, or an empty set if unknown."""
+        for entries in self._levels.values():
+            for entry in entries:
+                if entry.repo == repo:
+                    return entry.events
+        return frozenset()
+
     def needs_check_run(self, repo: str, pr_labels: set[str]) -> bool:
         """Return True when an upstream check run should be created for this repo.
 
@@ -171,7 +252,7 @@ class AllowlistMap:
                             f"Invalid allowlist: L3.{device} must be a repo mapping, "
                             f"got {type(repos_raw).__name__}"
                         )
-                    for repo_raw, oncalls_raw in repos_raw.items():
+                    for repo_raw, metadata_raw in repos_raw.items():
                         repo = str(repo_raw).strip().strip("/")
                         if not repo or "/" not in repo:
                             raise RuntimeError(
@@ -182,17 +263,16 @@ class AllowlistMap:
                                 f"Invalid allowlist: duplicate repo {repo!r}"
                             )
                         seen_repos.add(repo)
-                        oncalls = (
-                            [
-                                str(o).strip()
-                                for o in (oncalls_raw or [])
-                                if str(o).strip()
-                            ]
-                            if oncalls_raw
-                            else []
+                        oncalls, events = AllowlistEntry._metadata_from_raw(
+                            metadata_raw, f"L3.{device}.{repo}"
                         )
                         entries.append(
-                            AllowlistEntry(repo=repo, oncalls=oncalls, device=device)
+                            AllowlistEntry(
+                                repo=repo,
+                                oncalls=oncalls,
+                                device=device,
+                                events=events,
+                            )
                         )
             else:
                 raw_entries = raw.get(level) or []

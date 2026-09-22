@@ -34,6 +34,7 @@ import {
   L3_DEMOTION_WINDOW_DAYS,
   L3_PROMOTION_WINDOW_DAYS,
 } from "lib/crcr/l3Thresholds";
+import { DEFAULT_CRCR_EVENTS } from "lib/crcrAllowlist";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -825,7 +826,11 @@ export default function CrcrSummaryPage() {
         if (seen.has(row.repo) || row.repo === CRCR_HEALTH_REPO) continue;
         const level = (row.downstream_repo_level || "L2") as Level;
         if (level in result) {
-          result[level].push({ repo: row.repo, oncalls: [] });
+          result[level].push({
+            repo: row.repo,
+            oncalls: [],
+            events: [...DEFAULT_CRCR_EVENTS],
+          });
           seen.add(row.repo);
         }
       }

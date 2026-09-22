@@ -1,6 +1,12 @@
 import unittest
 
-from utils.allowlist import AllowlistLevel, AllowlistMap
+from utils.allowlist import (
+    AllowlistLevel,
+    AllowlistMap,
+    CrcrEvent,
+    DEFAULT_CRCR_EVENTS,
+    SUPPORTED_CRCR_EVENTS,
+)
 
 
 class TestAllowlistMap(unittest.TestCase):
@@ -36,6 +42,52 @@ class TestAllowlistMap(unittest.TestCase):
         self.assertEqual(amap.get_repo_device("b/device1-repo"), "device1")
         self.assertEqual(amap.get_repo_device("b/device2-repo"), "device2")
         self.assertIsNone(amap.get_repo_device("a/1"))
+
+    def test_default_events_are_supported(self):
+        self.assertTrue(DEFAULT_CRCR_EVENTS <= SUPPORTED_CRCR_EVENTS)
+
+    def test_legacy_entries_default_to_pull_request_and_nightly(self):
+        amap = AllowlistMap._parse(self._raw())
+        for repo in ("a/1", "b/device1-repo", "c/3"):
+            self.assertEqual(
+                amap.get_repo_events(repo),
+                frozenset({CrcrEvent.PULL_REQUEST, CrcrEvent.NIGHTLY}),
+            )
+
+    def test_parse_entry_metadata(self):
+        amap = AllowlistMap._parse(
+            {
+                "L2": [
+                    {
+                        "nightly/repo": {
+                            "events": ["nightly"],
+                            "oncalls": ["nightly-oncall"],
+                        }
+                    }
+                ],
+                "L3": {
+                    "device": {
+                        "pr/repo": {
+                            "events": ["pull_request"],
+                            "oncalls": "pr-oncall",
+                        }
+                    }
+                },
+            }
+        )
+        self.assertEqual(amap.get_repo_events("nightly/repo"), {CrcrEvent.NIGHTLY})
+        self.assertEqual(amap.get_repo_events("pr/repo"), {CrcrEvent.PULL_REQUEST})
+        _, oncalls = amap.get_level(AllowlistLevel.L2)
+        self.assertEqual(oncalls, ["nightly-oncall"])
+        self.assertEqual(
+            amap.get_repos_for_device("device"), (["pr/repo"], ["pr-oncall"])
+        )
+
+    def test_invalid_event_metadata_raises(self):
+        with self.assertRaisesRegex(RuntimeError, "unsupported event"):
+            AllowlistMap._parse({"L2": [{"org/repo": {"events": ["push"]}}]})
+        with self.assertRaisesRegex(RuntimeError, "unsupported metadata"):
+            AllowlistMap._parse({"L2": [{"org/repo": {"owner": "team"}}]})
 
     def test_duplicate_repo_raises(self):
         with self.assertRaises(RuntimeError):
