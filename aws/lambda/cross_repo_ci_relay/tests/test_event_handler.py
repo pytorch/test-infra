@@ -2,7 +2,7 @@ import unittest
 import unittest.mock
 from unittest.mock import MagicMock, patch
 
-from utils.allowlist import AllowlistLevel
+from utils.allowlist import AllowlistLevel, CrcrEvent
 from webhook.event_handler import handle
 
 
@@ -46,6 +46,10 @@ def _push_payload(ref="refs/tags/ciflow/trunk/42", after="def456"):
     }
 
 
+def _all_events(_repo):
+    return frozenset(CrcrEvent)
+
+
 class TestEventHandler(unittest.TestCase):
     def test_ignored_action(self):
         self.assertEqual(
@@ -61,6 +65,7 @@ class TestEventHandler(unittest.TestCase):
     def test_dispatch_success(self, mock_load, _tok, mock_dispatch, _state, _trig):
         mock_map = MagicMock()
         mock_map.get_repos_at_or_above_level.return_value = (["org/a"], [])
+        mock_map.get_repo_events.side_effect = _all_events
         mock_load.return_value = mock_map
         result = handle(_cfg(), _payload(action="opened"), "pull_request", "delivery-1")
         self.assertTrue(result["ok"])
@@ -82,6 +87,7 @@ class TestEventHandler(unittest.TestCase):
             ["org1/repo", "pytorch/repo"],
             [],
         )
+        mock_map.get_repo_events.side_effect = _all_events
         mock_load.return_value = mock_map
 
         result = handle(_cfg(), _payload(action="opened"), "pull_request", "delivery-2")
@@ -92,6 +98,42 @@ class TestEventHandler(unittest.TestCase):
         mock_get_repo_access_token.assert_any_call("12345", "fake-key", "org1/repo")
         mock_get_repo_access_token.assert_any_call("12345", "fake-key", "pytorch/repo")
         self.assertEqual(mock_dispatch.call_count, 2)
+
+    @patch("webhook.event_handler.redis_helper.mark_check_run_wanted")
+    @patch("webhook.event_handler.redis_helper.set_callback_state")
+    @patch("webhook.event_handler.gh_helper.create_repository_dispatch")
+    @patch("webhook.event_handler.gh_helper.get_repo_access_token", return_value="tok")
+    @patch("webhook.event_handler.load_allowlist")
+    def test_nightly_only_backends_do_not_receive_pr_or_push_dispatches(
+        self, mock_load, _tok, mock_dispatch, _state, _mark_wanted
+    ):
+        mock_map = MagicMock()
+        mock_map.get_repos_at_or_above_level.return_value = (
+            ["org/pr", "org/nightly"],
+            [],
+        )
+        mock_map.get_repo_events.side_effect = lambda repo: (
+            frozenset({CrcrEvent.NIGHTLY})
+            if repo == "org/nightly"
+            else frozenset({CrcrEvent.PULL_REQUEST})
+        )
+        mock_load.return_value = mock_map
+
+        for event_type, payload in (
+            ("pull_request", _payload(action="opened")),
+            ("push", _push_payload()),
+        ):
+            with self.subTest(event_type=event_type):
+                result = handle(_cfg(), payload, event_type, f"delivery-{event_type}")
+                self.assertEqual(result["dispatched"], [{"repo": "org/pr"}])
+
+        self.assertEqual(mock_dispatch.call_count, 2)
+        self.assertTrue(
+            all(
+                call.kwargs["repo_full_name"] == "org/pr"
+                for call in mock_dispatch.call_args_list
+            )
+        )
 
 
 class TestDispatchCheckRunCreation(unittest.TestCase):
@@ -109,6 +151,7 @@ class TestDispatchCheckRunCreation(unittest.TestCase):
         """L3 with a matching label does not create a CR at dispatch; the in_progress callback does."""
         mock_map = MagicMock()
         mock_map.get_repos_at_or_above_level.return_value = (["org/repo"], [])
+        mock_map.get_repo_events.side_effect = _all_events
         mock_load.return_value = mock_map
 
         handle(
@@ -132,6 +175,7 @@ class TestDispatchCheckRunCreation(unittest.TestCase):
         """L4 does not create a CR at dispatch; the in_progress callback does."""
         mock_map = MagicMock()
         mock_map.get_repos_at_or_above_level.return_value = (["org/repo"], [])
+        mock_map.get_repo_events.side_effect = _all_events
         mock_load.return_value = mock_map
 
         handle(_cfg(), _payload(), "pull_request", "del-2")
@@ -150,6 +194,7 @@ class TestDispatchCheckRunCreation(unittest.TestCase):
         extract_pr_context, so the check-run-wanted marker still gets set."""
         mock_map = MagicMock()
         mock_map.get_repos_at_or_above_level.return_value = (["org/repo"], [])
+        mock_map.get_repo_events.side_effect = _all_events
         mock_load.return_value = mock_map
 
         handle(_cfg(), _push_payload(), "push", "del-3")
@@ -186,6 +231,7 @@ class TestPrLabeledHandler(unittest.TestCase):
         self.mock_load = self.patcher_load.start()
         mock_map = MagicMock()
         mock_map.get_repos_for_device.return_value = (["org/l3repo"], [])
+        mock_map.get_repo_events.side_effect = _all_events
         self.mock_load.return_value = mock_map
 
     def tearDown(self):
@@ -290,6 +336,18 @@ class TestPrLabeledHandler(unittest.TestCase):
         self.mock_redis.mark_check_run_wanted.assert_called_once_with(
             unittest.mock.ANY, "abc123", "org/l3repo"
         )
+
+    def test_nightly_only_backend_does_not_backfill_check_runs(self):
+        self.mock_load.return_value.get_repo_events.side_effect = None
+        self.mock_load.return_value.get_repo_events.return_value = frozenset(
+            {CrcrEvent.NIGHTLY}
+        )
+
+        result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
+
+        self.assertEqual(result, {"ok": True, "created_check_runs": []})
+        self.mock_redis.mark_check_run_wanted.assert_not_called()
+        self.mock_gh.create_check_run.assert_not_called()
 
     def test_non_crcr_label_is_ignored(self):
         result = handle(
