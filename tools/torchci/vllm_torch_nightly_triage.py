@@ -527,9 +527,8 @@ def _artifact_header(cluster_key: str, representative: Dict) -> str:
     )
 
 
-def _render_raw_tail(body: str, tail_lines: int) -> tuple[str, int, int]:
-    """Return a bounded cleaned tail."""
-    cleaned_lines = clean_failure_context_lines(body)
+def _render_raw_tail(cleaned_lines: list[str], tail_lines: int) -> tuple[str, int, int]:
+    """Return a bounded tail from already-cleaned lines."""
     bounded_tail_lines = max(0, tail_lines)
     shown_lines = min(bounded_tail_lines, len(cleaned_lines))
     tail = "\n".join(cleaned_lines[-shown_lines:]) if shown_lines else ""
@@ -547,8 +546,9 @@ def render_failure_context(
     parsed_failures: Optional[List[FailedTest]] = None,
 ) -> str:
     """Render parsed pytest records, bounded windows, and the configured raw tail."""
+    cleaned_lines = clean_failure_context_lines(body)
     context = extract_failure_context(
-        body,
+        cleaned_lines,
         failure_window_context_before_lines=failure_window_context_before_lines,
         failure_window_context_after_lines=failure_window_context_after_lines,
     )
@@ -597,7 +597,7 @@ def render_failure_context(
         sections.append("")
 
     raw_tail_text, raw_tail_count, cleaned_log_lines = _render_raw_tail(
-        body, tail_lines
+        cleaned_lines, tail_lines
     )
     raw_tail = {
         "start_line": (cleaned_log_lines - raw_tail_count + 1 if raw_tail_count else 0),

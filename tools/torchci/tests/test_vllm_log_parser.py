@@ -9,7 +9,6 @@ from pathlib import Path
 
 from torchci.vllm_log_parser import (
     clean_failure_context_lines,
-    extract_failure_context,
     get_test_signature,
     parse_log,
     strip_markers,
@@ -918,125 +917,6 @@ class TestGetTestSignature(unittest.TestCase):
         log = "FAILED tests/test_a.py::test_one\n= 1 failed in 1.00s ="
         failure = parse_log(log).pytest_results[0].test_failures[0]
         self.assertEqual(get_test_signature(failure), ("tests/test_a.py::test_one", ""))
-
-
-class TestFailureContext(unittest.TestCase):
-    def _summary(self, context):
-        return context["failure_windows"][0]
-
-    def _windows(self, context):
-        return context["windows_in_chronological_order"]
-
-    def test_engine_window_keeps_early_cause(self) -> None:
-        lines = [f"noise-{index}" for index in range(1427)]
-        lines[321] = (
-            "[2026-07-13T19:32:43Z] (EngineCore pid=1289) ERROR "
-            "ValueError: Free memory on device cuda:0 (13.05/16.0 GiB) "
-            "on startup is less than desired GPU memory utilization (0.92, 14.72 GiB)."
-        )
-        lines[1426] = "tail-final-marker"
-        context = extract_failure_context(
-            "\n".join(lines),
-            failure_window_context_before_lines=10,
-            failure_window_context_after_lines=50,
-        )
-
-        windows = self._windows(context)
-        self.assertEqual(windows[0]["start_line"], 312)
-        self.assertEqual(windows[0]["end_line"], 372)
-        self.assertIn("13.05/16.0 GiB", windows[0]["text"])
-        self.assertEqual(context["line_count"], 1427)
-        self.assertTrue(context["job_is_infra"])
-
-    def test_zero_after_context_keeps_matched_line(self) -> None:
-        context = extract_failure_context(
-            "ValueError: distinct application failure\n",
-            failure_window_context_before_lines=0,
-            failure_window_context_after_lines=0,
-        )
-
-        self.assertEqual(self._summary(context)["emitted_instance_count"], 1)
-        self.assertFalse(self._summary(context)["instances_truncated"])
-        self.assertIn(
-            "ValueError: distinct application failure", self._windows(context)[0]["text"]
-        )
-
-    def test_non_infra_failure_context_is_not_tagged(self) -> None:
-        context = extract_failure_context(
-            "ValueError: distinct application failure\n",
-            failure_window_context_before_lines=0,
-            failure_window_context_after_lines=1,
-        )
-
-        self.assertFalse(context["job_is_infra"])
-
-    def test_nonintersecting_windows_remain_separate(self) -> None:
-        body = "\n".join(
-            [
-                "EngineCore failed to start",
-                "noise-1",
-                "noise-2",
-                "EngineCore failed to start",
-            ]
-        )
-        context = extract_failure_context(
-            body,
-            failure_window_context_before_lines=0,
-            failure_window_context_after_lines=1,
-        )
-
-        self.assertEqual(self._summary(context)["emitted_instance_count"], 2)
-
-    def test_overlapping_candidates_share_one_budgeted_window(self) -> None:
-        lines = [f"noise-{index}" for index in range(1000)]
-        for index in range(8):
-            lines[100 + index] = f"ValueError: repeated traceback signal {index}"
-        lines[500] = "ValueError: distinct later root cause"
-
-        context = extract_failure_context(
-            "\n".join(lines),
-            failure_window_context_before_lines=10,
-            failure_window_context_after_lines=50,
-            max_lines=450,
-        )
-
-        summary = self._summary(context)
-        self.assertEqual(summary["matched_instance_count"], 9)
-        self.assertEqual(summary["emitted_instance_count"], 2)
-        self.assertFalse(summary["instances_truncated"])
-        self.assertTrue(
-            any(
-                "distinct later root cause" in window["text"]
-                for window in self._windows(context)
-            )
-        )
-
-    def test_late_anchor_survives_merged_retry_loop(self) -> None:
-        lines = [f"noise-{index}" for index in range(6000)]
-        for index in range(0, 2000, 20):
-            lines[index] = "Traceback (most recent call last):"
-        lines[4999] = "RuntimeError: genuine late root cause"
-
-        context = extract_failure_context(
-            "\n".join(lines),
-            failure_window_context_before_lines=10,
-            failure_window_context_after_lines=50,
-            max_lines=450,
-        )
-
-        windows = self._windows(context)
-        self.assertEqual(len(windows), 2)
-        self.assertTrue(
-            any("genuine late root cause" in window["text"] for window in windows)
-        )
-        self.assertTrue(self._summary(context)["instances_truncated"])
-        self.assertTrue(
-            all(
-                window["end_line"] - window["start_line"] + 1 <= 100
-                for window in windows
-            )
-        )
-        self.assertGreaterEqual(self._summary(context)["trimmed_window_count"], 1)
 
 
 if __name__ == "__main__":

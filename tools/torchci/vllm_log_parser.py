@@ -48,6 +48,8 @@ class ParsedLog:
 
 
 TIMESTAMP_RE = re.compile(r"^\[[\d\-T:Z]+\]\s*")
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[a-zA-Z]")
+OSC_ESCAPE_RE = re.compile(r"\x1b[\]_][^\x07]*\x07")
 FAILED_TEST_RE = re.compile(r"^(?:FAILED|ERROR)\s+(\S+/\S*\.py\S*)")
 PYTEST_SUMMARY_RE = re.compile(
     r"=+\s+.*\d+\s+(?:failed|error|passed|skipped|warning|deselected).*\bin\s+\d.*=+"
@@ -142,9 +144,7 @@ def strip_markers(text: str) -> str:
         - BKT timestamp markers (\\x1b_bk;t=<ms>\\x07)
         - OSC sequences (\\x1b]...\\x07): inline images (1338), hyperlinks (1339)
     """
-    ansi_regex = re.compile(r"\x1b\[[0-9;?]*[a-zA-Z]")
-    osc_regex = re.compile(r"\x1b[\]_][^\x07]*\x07")
-    return osc_regex.sub("", ansi_regex.sub("", text))
+    return OSC_ESCAPE_RE.sub("", ANSI_ESCAPE_RE.sub("", text))
 
 
 def clean_failure_context_lines(text: str) -> list[str]:
@@ -209,24 +209,22 @@ def _merge_candidate_windows(
 
 
 def extract_failure_context(
-    text: str,
+    lines: list[str],
     failure_window_context_before_lines: int,
     failure_window_context_after_lines: int,
     max_lines: int = 450,
     max_window_lines: int = 100,
 ) -> dict[str, Any]:
-    """Extract bounded, structured failure context from a complete Buildkite log.
+    """Extract bounded, structured failure context from cleaned log lines.
 
-    The complete cleaned log is scanned for scored candidate signals. Intersecting
-    candidate windows are merged in chronological order before the highest-priority
-    merged windows are selected within a fixed line budget. Each selected window is
-    trimmed to its final ``max_window_lines`` before consuming that budget. Ties
-    prefer later anchors so a long retry loop cannot hide a later root cause with the
-    same signal score. Failure categorization is intentionally left to the downstream
-    agent.
+    Candidate windows are merged in chronological order before the highest-priority
+    windows are selected within a fixed line budget. Each selected window is trimmed
+    to its final ``max_window_lines`` before consuming that budget. Ties prefer later
+    anchors so a long retry loop cannot hide a later root cause with the same signal
+    score. Failure categorization is intentionally left to the downstream agent.
 
     Args:
-        text: Complete raw Buildkite log text.
+        lines: Complete log lines after transport and presentation cleanup.
         failure_window_context_before_lines: Lines to include before each candidate
             anchor.
         failure_window_context_after_lines: End offset used to form each candidate
@@ -241,6 +239,7 @@ def extract_failure_context(
     Raises:
         ValueError: If a line-budget argument is negative.
     """
+
     if max_lines < 0:
         raise ValueError("max_lines must not be negative")
     if max_window_lines < 0:
@@ -250,7 +249,6 @@ def extract_failure_context(
     if failure_window_context_after_lines < 0:
         raise ValueError("failure_window_context_after_lines must not be negative")
 
-    lines = clean_failure_context_lines(text)
     candidates = _failure_candidates(lines)
     # Merge while candidates are still chronological. Otherwise repeated signal
     # lines from one traceback each consume a full window from the line budget
