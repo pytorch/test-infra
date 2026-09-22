@@ -154,7 +154,7 @@ jobs:
           use_bedrock: "true"
           show_full_output: "true"
           claude_args: >-
-            --model global.anthropic.claude-opus-5
+            --model global.anthropic.claude-opus-5-5
             --effort high
             --allowedTools "Read,Glob,Grep,Write"
           prompt: |

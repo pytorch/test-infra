@@ -513,7 +513,7 @@ jobs:
           # written above, so it cannot disturb the hook registrations there.
           settings: '{"outputStyle": "Concise"}'
           claude_args: >-
-            --model global.anthropic.claude-opus-5
+            --model global.anthropic.claude-opus-5-5
             --effort high
             --allowedTools "Read,Glob,Grep,Write"
           prompt: |
