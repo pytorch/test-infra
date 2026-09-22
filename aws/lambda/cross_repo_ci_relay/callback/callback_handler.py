@@ -19,11 +19,36 @@ from utils.misc import (
     HTTPException,
 )
 from utils.redis_helper import check_rate_limit
+from utils.triage_verdict import validate_triage_verdict
 
 
 logger = logging.getLogger(__name__)
 
 _NIGHTLY_EVENT_TYPES = frozenset({"nightly", "periodic"})
+
+
+def _sanitize_triage_verdict(body: dict, verified_repo: str) -> None:
+    """Validate ``workflow.triage_verdict`` IN PLACE.
+
+    The callback body is forwarded to HUD verbatim as untrusted input, so the
+    raw verdict is *replaced* with the validated one (and deleted outright when
+    it does not validate).
+    """
+    workflow = body.get("workflow")
+    if not isinstance(workflow, dict) or "triage_verdict" not in workflow:
+        return
+
+    verdict = validate_triage_verdict(workflow.get("triage_verdict"))
+    if verdict is None:
+        # Advisory only: a bad verdict must never fail the callback.  Drop it
+        # and let everything downstream behave as if none had been attached.
+        logger.info(
+            "dropped invalid triage_verdict from repo=%s",
+            verified_repo,
+        )
+        workflow.pop("triage_verdict", None)
+    else:
+        workflow["triage_verdict"] = verdict
 
 
 def _build_trusted(
@@ -314,6 +339,8 @@ def _handle_nightly_callback(
             f"nightly/periodic callbacks must have status 'completed', got {status!r}",
         )
 
+    _sanitize_triage_verdict(body, verified_repo)
+
     trusted = _build_trusted(verified_repo, repo_level)
     untrusted = {"callback_payload": body}
 
@@ -376,6 +403,10 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     delivery_id, status, run_id, run_attempt, workflow_name, job_name = (
         _parse_callback_body(body)
     )
+
+    # Before the body is cached or forwarded to HUD -- both consumers must see
+    # the validated verdict, never the raw one.
+    _sanitize_triage_verdict(body, verified_repo)
 
     dispatch_record = redis_helper.get_callback_state(
         config, delivery_id, verified_repo, DISPATCH_RUN_ID, DISPATCH_RUN_ATTEMPT

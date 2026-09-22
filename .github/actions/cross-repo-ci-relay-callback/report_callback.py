@@ -24,6 +24,7 @@ Optional env vars:
     EVENT_TYPE_OVERRIDE     "nightly" or "periodic" (self-report)
     CHECK_RUN_ID            GitHub check run ID (falls back to RUN_ID-RUN_ATTEMPT)
     TEST_RESULTS            JSON string with test result summary
+    TRIAGE_VERDICT          JSON object with a triage verdict for this job
     ARTIFACT_URL            URL to downstream artifacts
     MAX_TIME                curl --max-time (default 10)
 """
@@ -121,6 +122,16 @@ def build_payload() -> str:
             workflow["failed_tests_detail"] = parsed[:1000]
         except json.JSONDecodeError as exc:
             sys.exit(f"Error: FAILED_TESTS_DETAIL is not valid JSON: {exc}")
+
+    triage_verdict = os.environ.get("TRIAGE_VERDICT", "").strip()
+    if triage_verdict:
+        try:
+            parsed = json.loads(triage_verdict)
+            if not isinstance(parsed, dict):
+                raise ValueError("TRIAGE_VERDICT must be a JSON object")
+            workflow["triage_verdict"] = parsed
+        except (json.JSONDecodeError, ValueError) as exc:
+            print(f"Warning: ignoring invalid TRIAGE_VERDICT: {exc}", file=sys.stderr)
 
     artifact_url = os.environ.get("ARTIFACT_URL", "").strip()
     if artifact_url:
