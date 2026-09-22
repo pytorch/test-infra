@@ -1,11 +1,11 @@
 import unittest
 
 from utils.allowlist import (
-    DEFAULT_CRCR_EVENTS,
-    SUPPORTED_CRCR_EVENTS,
     AllowlistLevel,
     AllowlistMap,
     CrcrEvent,
+    DEFAULT_CRCR_EVENTS,
+    SUPPORTED_CRCR_EVENTS,
 )
 
 
