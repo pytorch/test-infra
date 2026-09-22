@@ -497,7 +497,7 @@ jobs:
       - name: Run Green Light review
         if: steps.sizecheck.outputs.too_large != 'true'
         timeout-minutes: 37
-        uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707  # v1.0.141
+        uses: anthropics/claude-code-action@9ca9355b36297178e28d37c799d1c9c8a28e6507 # Claude Code 2.1.280
         with:
           # Passing github_token skips the action's OIDC app-token exchange, which
           # requires a default-branch match and otherwise silently skips the agent.
@@ -513,7 +513,7 @@ jobs:
           # written above, so it cannot disturb the hook registrations there.
           settings: '{"outputStyle": "Concise"}'
           claude_args: >-
-            --model global.anthropic.claude-opus-5
+            --model global.anthropic.claude-opus-5-5
             --effort high
             --allowedTools "Read,Glob,Grep,Write"
           prompt: |
