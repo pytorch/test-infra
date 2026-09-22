@@ -41,8 +41,7 @@
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
     [
-      "inductor",
-      "rocm"
+      "inductor"
     ]
   ],
   "test_backend_simple (__main__.PrivateUse1BackendTest)": [
@@ -1175,7 +1174,6 @@
     "179213",
     "https://github.com/pytorch/pytorch/issues/179213",
     [
-      "rocm",
       "xpu"
     ]
   ],
