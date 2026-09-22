@@ -67,19 +67,17 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "spmd-types": [{"project": "torch"}],
     "nvidia-cudnn-cu11": [{"project": "torch"}],
     "typing-extensions": [{"project": "torch"}],
+    # Only torch's 13.4 dependency list pins cupti-python, so mirror it for
+    # cu134 alone. NB the target must be explicit: cupti-python does not match
+    # the nvidia-/cuda- prefix in is_nvidia_package, so a target-less entry
+    # would also mirror it into the CPU, ROCm and XPU channels.
+    "cupti-python": [
+        {
+            "project": "torch",
+            "target": "cu134",
+        },
+    ],
     "cuda-bindings": [
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
         {
             "project": "torch",
             "target": "cu130",
@@ -99,18 +97,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "cuda-toolkit": [
         {
             "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
-        {
-            "project": "torch",
             "target": "cu130",
         },
         {
@@ -125,18 +111,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-cuda-nvrtc-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cuda-nvrtc": [
@@ -160,18 +134,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cuda-runtime": [
         {
@@ -193,18 +155,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-cuda-cupti-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cuda-cupti": [
@@ -228,18 +178,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cudnn-cu13": [
         {
@@ -261,18 +199,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-cublas-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cublas": [
@@ -296,18 +222,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cufft": [
         {
@@ -329,18 +243,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-curand-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-curand": [
@@ -364,18 +266,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cusolver": [
         {
@@ -397,18 +287,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-cusparse-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cusparse": [
@@ -432,18 +310,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cusparselt-cu13": [
         {
@@ -465,18 +331,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-nccl-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-nccl-cu13": [
@@ -500,18 +354,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-nvshmem-cu13": [
         {
@@ -533,18 +375,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-cuda-cccl-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cuda-cccl": [
@@ -568,18 +398,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-nvtx": [
         {
@@ -602,18 +420,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch",
         },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-nvjitlink": [
         {
@@ -635,18 +441,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "nvidia-cufile-cu12": [
         {
             "project": "torch",
-        },
-        {
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cufile": [
@@ -1024,18 +818,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "cuda-pathfinder": [
         {
             "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "project": "torch",
-            "target": "cu129",
-        },
-        {
-            "project": "torch",
             "target": "cu130",
         },
         {
@@ -1146,6 +928,11 @@ PYPI_HOSTED_NVIDIA_PACKAGES = {
     "cuda-bindings",
     "cuda-pathfinder",
     "cuda-python",
+    # Not matched by the nvidia-/cuda- prefix today, so it already resolves to
+    # PyPI. Listed anyway because it is an NVIDIA package absent from
+    # pypi.nvidia.com (404), so widening that prefix later must not silently
+    # repoint it at an index that does not carry it.
+    "cupti-python",
     "nvidia-ml-py",
 }
 
