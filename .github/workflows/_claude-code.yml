@@ -190,9 +190,19 @@ jobs:
             core.exportVariable('GIT_AUTHOR_EMAIL', email);
             console.log(`Set commit author to: ${name} <${email}>`);
 
+      - name: Install Claude Code 2.1.280
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            https://downloads.claude.ai/claude-code-releases/2.1.280/linux-x64/claude \
+            --output "$RUNNER_TEMP/claude-code-2.1.280"
+          echo "1e08503dbdf3c2cb0d706d32f3408277388d1c76ef108673e8fe42c1b322925b  $RUNNER_TEMP/claude-code-2.1.280" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/claude-code-2.1.280"
+          "$RUNNER_TEMP/claude-code-2.1.280" --version
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@593d7a5c4e0073569f74772c2b7b64c30ec14707 # v1.0.141
         with:
+          path_to_claude_code_executable: ${{ runner.temp }}/claude-code-2.1.280
           allowed_bots: "*"
           use_bedrock: "true"
           claude_args: "--model ${{ inputs.model }} ${{ inputs.additional_claude_args }} ${{ steps.ghstack-check.outputs.extra_claude_args }}"
