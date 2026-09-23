@@ -64,6 +64,13 @@ _PYTEST_CONTINUATION = re.compile(r"^(?:E\s+)?\+")
 # that introduces pytest's introspection keywords, wherever it appears.
 _PYTEST_INLINE_TAIL = re.compile(r"\s\+\s+(?=where\b|and\b|assert\b)")
 
+# ...and sometimes without the `+` at all, having rewritten the tail in its own
+# words: #8875 wrote "assert 2 == 0 where 2 = op_count(aten.slice_scatter.default)"
+# for what #8761 logged as "assert 2 == 0\n +  where 2 = op_count(<OpOverload(
+# op='aten.slice_scatter', overload='default')>)". Anchored on an assertion so a
+# message that merely contains the word "where" keeps it.
+_BARE_WHERE_TAIL = re.compile(r"(\bassert\b.*?)\s+where\b.*$")
+
 
 def normalize_signature(signature: str) -> str:
     """Reduce a signature to the part that identifies the cause.
@@ -82,6 +89,7 @@ def normalize_signature(signature: str) -> str:
         if not line or _PYTEST_CONTINUATION.match(line):
             continue
         line = _PYTEST_INLINE_TAIL.split(line, 1)[0].strip()
+        line = _BARE_WHERE_TAIL.sub(r"\1", line).strip()
         if line:
             lines.append(line)
     return "\n".join(lines)

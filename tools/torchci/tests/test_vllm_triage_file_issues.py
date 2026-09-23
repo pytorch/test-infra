@@ -229,6 +229,30 @@ class TestFingerprint(unittest.TestCase):
             fingerprint("pytorch/test-infra", self._cause(self.SIG_BARE)),
         )
 
+    # test-infra#8875 rewrote #8761's tail without pytest's `+` marker and with
+    # the OpOverload repr collapsed.
+    SIG_BARE_WHERE = (
+        "AssertionError: assert 2 == 0 where 2 = "
+        "op_count(aten.slice_scatter.default)"
+    )
+
+    def test_tail_without_the_plus_marker_does_not_split_a_cause(self):
+        self.assertEqual(
+            normalize_signature(self.SIG_BARE_WHERE), "AssertionError: assert 2 == 0"
+        )
+        self.assertEqual(
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_BARE_WHERE)),
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_WITH_TAIL)),
+        )
+
+    def test_where_outside_an_assertion_is_kept(self):
+        # Only pytest's introspection tail is noise; "where" in a message is
+        # part of the identity.
+        self.assertEqual(
+            normalize_signature("RuntimeError: cannot tell where the graph broke"),
+            "RuntimeError: cannot tell where the graph broke",
+        )
+
     def test_a_plus_that_is_not_pytest_introspection_is_kept(self):
         # Only the ` + where|and|assert ` form is pytest's; arithmetic in a
         # message is part of the identity.
