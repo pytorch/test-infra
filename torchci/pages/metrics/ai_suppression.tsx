@@ -38,7 +38,7 @@ const REVERT_WINDOW_DAYS = 7;
 const REPO = "pytorch/pytorch";
 
 // [name, url, verdict, confidence, summary, conclusion on merge commit,
-//  conclusion on merge base]
+//  conclusion on the main commit just before the merge]
 type ClearedCheck = [string, string, string, number, string, string, string];
 
 interface MergeRow {
@@ -195,7 +195,7 @@ function Tiles({ totals }: { totals: MergeRow | undefined }) {
         <Tile
           title="Newly red on trunk"
           value={t?.cleared_trunk_red_total}
-          tooltip="Merges where a cleared job failed on the merge commit on main while it passed on the merge base. A leading indicator: it shows up hours before a revert, and also catches misses that were forward-fixed."
+          tooltip="Merges where a cleared job failed on the merge commit on main while it passed on main just before the merge landed. A leading indicator: it shows up hours before a revert, and also catches misses that were forward-fixed."
         />
       </Grid>
     </Grid>
@@ -266,7 +266,7 @@ function WeeklyChart({
 function CheckChip({ check }: { check: ClearedCheck }) {
   const [name, url, verdict, confidence, summary, onMerge, onBase] = check;
   const trunk = onMerge
-    ? `on main: ${onMerge} (merge base: ${onBase || "not run"})`
+    ? `on main: ${onMerge} (before merge: ${onBase || "not run"})`
     : "not run on the merge commit";
   const newlyRed = FAILED_CONCLUSIONS.includes(onMerge) && onBase === "success";
   return (

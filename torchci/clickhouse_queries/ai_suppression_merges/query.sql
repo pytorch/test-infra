@@ -15,7 +15,8 @@
 --     on a job-level signal matching a cleared job, or a human reverted it with
 --     `-c ignoredsignal`. Everything else is unattributed, not clean.
 --   * trunk_red: a cleared job failed on the merge commit on main while the same job passed on
---     the merge base. A job already red on the base is pre-existing breakage, not a miss.
+--     the commit main was at just before the merge landed (the push's `before`). A job already red
+--     there is pre-existing breakage, not a miss.
 --
 -- The *_total columns are window totals, identical on every row and computed before the row
 -- limit, which sits far above any plausible volume; the page says so if it is ever reached.
@@ -38,7 +39,6 @@ merge_rows AS (
         merge_commit_sha,
         argMax(author, comment_id) AS author,
         argMax(last_commit_sha, comment_id) AS head_sha,
-        argMax(merge_base_sha, comment_id) AS base_sha,
         argMax(ai_not_related_checks, comment_id) AS ai_checks
     FROM default.merges
     WHERE
@@ -67,6 +67,9 @@ main_pushes AS (
         replaceRegexpOne(
             splitByChar('\n', head_commit.message)[1], '\\s*\\(#\\d+\\)\\s*$', ''
         ) AS head_title,
+        -- Where main stood immediately before this push landed: the true pre-merge state.
+        -- merges.merge_base_sha is the PR's GitHub merge base instead, which can be far older.
+        before AS before_sha,
         commits.id AS commit_shas
     FROM default.push
     WHERE
@@ -83,7 +86,7 @@ landed AS (
         p.head_title AS title,
         m.merge_commit_sha AS merged_sha,
         m.head_sha AS head_sha,
-        m.base_sha AS base_sha,
+        p.before_sha AS base_sha,
         m.ai_checks AS ai_checks,
         length(m.ai_checks) > 0 AS cleared,
         p.pushed_at AS merged_at,
@@ -218,7 +221,7 @@ verdicts AS (
     WHERE v.timestamp <= c.merged_at
     GROUP BY c.merged_sha, c.check_name
 ),
--- A cleared job as it ran on main: on the merge commit, and on the merge base for comparison.
+-- A cleared job as it ran on main: on the merge commit, and on the commit before it for comparison.
 -- Job ids grow over time, including across re-runs, so the highest id among completed attempts is
 -- the latest result; an attempt still running has no conclusion and does not displace it. The
 -- latest result is deliberate: a failure that passes when re-run on the same commit is flaky, not
