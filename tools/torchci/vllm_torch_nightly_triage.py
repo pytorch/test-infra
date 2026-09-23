@@ -1060,9 +1060,7 @@ def main() -> int:
                     "torch_version_minor": torch_version_minor,
                     "regressed": buckets["regressed"],
                     "both": buckets["both"],
-                    "passed": sorted(
-                        {j["name"] for j in buckets.get("passed", [])}
-                    ),
+                    "passed": sorted({j["name"] for j in buckets.get("passed", [])}),
                     "regressed_tests": regressed_tests,
                 },
                 f,

@@ -200,7 +200,16 @@ class TestComparePassedBucket(unittest.TestCase):
 
     def _row(self, name, shard, tn_state, base_state):
         return (
-            name, shard, tn_state, 0, "tn#job", "agent-1", base_state, "b#job", 1, 1
+            name,
+            shard,
+            tn_state,
+            0,
+            "tn#job",
+            "agent-1",
+            base_state,
+            "b#job",
+            1,
+            1,
         )
 
     def test_passing_nightly_job_is_recorded(self) -> None:

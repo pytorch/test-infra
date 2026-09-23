@@ -12,6 +12,7 @@ import unittest
 from unittest import mock
 
 from torchci import vllm_triage_file_issues as vtfi
+
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
     cluster_fingerprint,
@@ -232,8 +233,7 @@ class TestFingerprint(unittest.TestCase):
     # test-infra#8875 rewrote #8761's tail without pytest's `+` marker and with
     # the OpOverload repr collapsed.
     SIG_BARE_WHERE = (
-        "AssertionError: assert 2 == 0 where 2 = "
-        "op_count(aten.slice_scatter.default)"
+        "AssertionError: assert 2 == 0 where 2 = op_count(aten.slice_scatter.default)"
     )
 
     def test_tail_without_the_plus_marker_does_not_split_a_cause(self):
@@ -461,8 +461,10 @@ class TestReportSilences(unittest.TestCase):
         def fake_req(method, path, token, body=None):
             if method == "GET" and "/comments" in path:
                 return [
-                    {"body": f"<!-- {vtfi.SILENT_PREFIX}: "
-                             f"{vtfi.SILENT_COMMENT_LIMIT} -->"}
+                    {
+                        "body": f"<!-- {vtfi.SILENT_PREFIX}: "
+                        f"{vtfi.SILENT_COMMENT_LIMIT} -->"
+                    }
                 ]
             posted.append((method, path, body))
             return {}
