@@ -6,6 +6,8 @@ import nock from "nock";
 import * as commitUtils from "../lib/commitUtils";
 import * as drciUtils from "../lib/drciUtils";
 import {
+  DRCI_COMMENT_START,
+  formDrciComment,
   getSuppressedLabels,
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
@@ -14,8 +16,14 @@ import {
   isInfraFlakyJob,
   isLogClassifierFailed,
   MAX_SEARCH_HOURS_FOR_QUERYING_SIMILAR_FAILURES,
+  upsertPrStatusSection,
 } from "../lib/drciUtils";
 import * as jobUtils from "../lib/jobUtils";
+import {
+  extractPrStatusSection,
+  renderPrStatusSection,
+  splicePrStatusSection,
+} from "../lib/prStatus";
 import * as searchUtils from "../lib/searchUtils";
 import { getDummyJob } from "./utils";
 
@@ -580,5 +588,192 @@ describe("Test various utils used by Dr.CI", () => {
     expect(hasSimilarFailuresInSamePR(job, failures)?.name).toEqual(
       "another different job name"
     );
+  });
+});
+
+// The load-bearing property of the two-path design: the Dr.CI sweep rebuilds the
+// whole comment via formDrciComment while the label/review webhooks splice into
+// the existing one, and the two must land on byte-identical bodies for the same
+// logical state. If they ever drift, the sweep's `body === comment` early return
+// stops firing and every sweep rewrites every comment -- an invisible failure
+// that shows up only as GitHub API churn.
+//
+// This drives the REAL formDrciComment rather than a hand-rolled template, so
+// reordering its pieces or dropping a newline fails here instead of in prod.
+describe("splice and full render agree", () => {
+  const sections = [
+    renderPrStatusSection({
+      labels: ["triaged"],
+      isApproved: false,
+      assignedReviewers: ["alice"],
+    }),
+    renderPrStatusSection({
+      labels: ["in progress"],
+      isApproved: false,
+      assignedReviewers: [],
+    }),
+    renderPrStatusSection({
+      labels: [],
+      isApproved: true,
+      assignedReviewers: [],
+    }),
+    "", // no stage
+  ];
+
+  const bare = formDrciComment(123, "pytorch", "pytorch", "results", "sevs");
+
+  test.each(sections)("splicing %j onto a bare comment matches", (section) => {
+    const full = formDrciComment(
+      123,
+      "pytorch",
+      "pytorch",
+      "results",
+      "sevs",
+      section
+    );
+    expect(splicePrStatusSection(bare, section, DRCI_COMMENT_START)).toBe(full);
+  });
+
+  test.each(sections)(
+    "splicing %j away restores the bare comment",
+    (section) => {
+      const full = formDrciComment(
+        123,
+        "pytorch",
+        "pytorch",
+        "results",
+        "sevs",
+        section
+      );
+      expect(splicePrStatusSection(full, "", DRCI_COMMENT_START)).toBe(bare);
+    }
+  );
+
+  test("extract round-trips through the full render", () => {
+    for (const section of sections) {
+      const full = formDrciComment(
+        123,
+        "pytorch",
+        "pytorch",
+        "results",
+        "sevs",
+        section
+      );
+      expect(extractPrStatusSection(full)).toBe(section);
+    }
+  });
+});
+
+describe("upsertPrStatusSection", () => {
+  test("is disabled outside pytorch/pytorch", async () => {
+    const octokit = {
+      rest: {
+        issues: {
+          listComments: jest.fn(),
+          updateComment: jest.fn(),
+        },
+      },
+    } as any;
+
+    await upsertPrStatusSection(
+      octokit,
+      "pytorch",
+      "vision",
+      123,
+      ["triaged"],
+      "author"
+    );
+
+    expect(octokit.rest.issues.listComments).not.toHaveBeenCalled();
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  test("leaves the existing section untouched when reviews are unavailable", async () => {
+    const existing = formDrciComment(
+      123,
+      "pytorch",
+      "pytorch",
+      "results",
+      "",
+      renderPrStatusSection({
+        labels: [],
+        isApproved: true,
+        assignedReviewers: [],
+      })
+    );
+    const octokit = {
+      paginate: jest.fn().mockRejectedValue(new Error("reviews unavailable")),
+      rest: {
+        issues: {
+          listComments: jest.fn().mockResolvedValue({
+            data: [
+              {
+                id: 456,
+                body: existing,
+                user: { login: "pytorch-bot[bot]" },
+              },
+            ],
+          }),
+          updateComment: jest.fn(),
+        },
+        pulls: {
+          listReviews: jest.fn(),
+          get: jest.fn(),
+        },
+      },
+    } as any;
+
+    await upsertPrStatusSection(
+      octokit,
+      "pytorch",
+      "pytorch",
+      123,
+      ["in progress"],
+      "author"
+    );
+
+    expect(octokit.rest.issues.updateComment).not.toHaveBeenCalled();
+  });
+
+  test("fetches status inputs before reading the Dr.CI comment", async () => {
+    const apiCallOrder: string[] = [];
+    const octokit = {
+      paginate: jest.fn(async () => {
+        apiCallOrder.push("fetch status inputs");
+        return [];
+      }),
+      rest: {
+        issues: {
+          listComments: jest.fn(async () => {
+            apiCallOrder.push("read Dr.CI comment");
+            return {
+              data: [
+                {
+                  id: 456,
+                  body: formDrciComment(123, "pytorch", "pytorch"),
+                  user: { login: "pytorch-bot[bot]" },
+                },
+              ],
+            };
+          }),
+          updateComment: jest.fn(),
+        },
+        pulls: {
+          listReviews: jest.fn(),
+          get: jest.fn(),
+        },
+      },
+    } as any;
+
+    await upsertPrStatusSection(
+      octokit,
+      "pytorch",
+      "pytorch",
+      123,
+      ["in progress"],
+      "author"
+    );
+
+    expect(apiCallOrder).toEqual(["fetch status inputs", "read Dr.CI comment"]);
   });
 });
