@@ -1079,6 +1079,13 @@
       "mac"
     ]
   ],
+  "test_ring_attention_sdpa (__main__.RingAttentionTest)": [
+    "198319",
+    "https://github.com/pytorch/pytorch/issues/198319",
+    [
+      "rocm"
+    ]
+  ],
   "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTests)": [
     "194896",
     "https://github.com/pytorch/pytorch/issues/194896",
