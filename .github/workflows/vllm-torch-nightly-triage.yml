@@ -211,9 +211,16 @@ jobs:
 
             Only use confidence "high" when the log shows the failing test and the
             exception outright. A cause you inferred, or one that could plausibly be
-            infrastructure, is at most "medium". title/signature/clusters are the
-            deduplication key across runs: keep them stable for a recurring cause and
-            free of anything build-specific, or every run files a duplicate.
+            infrastructure, is at most "medium".
+
+            `signature` is the deduplication key across runs. Quote the exception
+            line verbatim from the log and keep it free of anything build-specific
+            (numbers that vary per run, paths, dates), or a recurring cause is filed
+            again as new. Do not paraphrase it between runs -- wording drift is what
+            filed #8808 and #8817 as two issues for one bug. `clusters` is not part
+            of the key: list every cluster you saw the cause on and the filer
+            accumulates them onto the existing issue, so one cause reaching a second
+            accelerator extends that issue rather than opening another.
 
             You are not done until both findings.md and findings.json exist on
             disk. Write them yourself before you end your turn -- do not finish by

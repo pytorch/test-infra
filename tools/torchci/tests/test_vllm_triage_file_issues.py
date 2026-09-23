@@ -12,9 +12,13 @@ import unittest
 
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
+    cluster_fingerprint,
     eligible,
     fingerprint,
+    issue_clusters,
     legacy_fingerprint,
+    merge_clusters,
+    near_duplicate,
     new_failure_confidence,
     normalize_signature,
 )
@@ -160,20 +164,162 @@ class TestFingerprint(unittest.TestCase):
             ),
         )
 
-    def test_same_exception_in_a_different_job_stays_distinct(self):
+    # Verbatim from test-infra#8786 (MI355) and #8839 (B200): byte-identical
+    # GSM8K assertion on two accelerators, filed twice because the cluster name
+    # was part of the key. One cause, so one issue with both clusters on it.
+    def test_same_exception_in_a_different_cluster_is_one_cause(self):
         a = {
             "signature": self.SIG_BARE,
             "clusters": [":nvidia: (L4) PyTorch Compilation Passes"],
         }
         b = {"signature": self.SIG_BARE, "clusters": [":nvidia: (B200) Distributed"]}
-        self.assertNotEqual(
+        self.assertEqual(
             fingerprint("pytorch/test-infra", a), fingerprint("pytorch/test-infra", b)
+        )
+
+    def test_cluster_key_reproduces_the_issues_actually_filed(self):
+        # The keys in the live issue bodies of #8808 and #8786. The fallback
+        # lookup must keep matching them or every open child is re-filed once.
+        self.assertEqual(
+            cluster_fingerprint(
+                "pytorch/test-infra",
+                {
+                    "signature": "RuntimeError: DeepEPv2 communicator properties "
+                    "query failed; networking capability could not be determined.",
+                    "clusters": [
+                        ":nvidia: (B200) Distributed",
+                        ":nvidia: (B200) FusedMoE Layer Kernels",
+                    ],
+                },
+            ),
+            "a693ee5560dce401",
+        )
+        self.assertEqual(
+            cluster_fingerprint(
+                "pytorch/test-infra",
+                {
+                    "signature": "AssertionError: GSM8K metric too low: "
+                    "0.0000 < 0.9200 - 0.0800 = 0.8400",
+                    "clusters": [":amd: (MI355) LM Eval Spec Decode"],
+                },
+            ),
+            "15ba5aedfb5c45d1",
         )
 
     def test_normalize_keeps_the_assertion_drops_the_explanation(self):
         self.assertEqual(
             normalize_signature(self.SIG_WITH_TAIL), "AssertionError: assert 2 == 0"
         )
+
+    # test-infra#8838 quoted the same failure as #8761 with the introspection
+    # tail folded onto the assertion line, which the `^`-anchored strip missed.
+    SIG_INLINE_TAIL = (
+        "AssertionError: assert 2 == 0 +  where 2 = "
+        "op_count(<OpOverload(op='aten.slice_scatter', overload='default')>)"
+    )
+
+    def test_inline_pytest_tail_does_not_split_a_cause(self):
+        self.assertEqual(
+            normalize_signature(self.SIG_INLINE_TAIL), "AssertionError: assert 2 == 0"
+        )
+        self.assertEqual(
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_INLINE_TAIL)),
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_BARE)),
+        )
+
+    def test_a_plus_that_is_not_pytest_introspection_is_kept(self):
+        # Only the ` + where|and|assert ` form is pytest's; arithmetic in a
+        # message is part of the identity.
+        self.assertEqual(
+            normalize_signature("AssertionError: 1 + 2 != 4"),
+            "AssertionError: 1 + 2 != 4",
+        )
+
+
+class TestNearDuplicate(unittest.TestCase):
+    """The rewording case the key cannot catch, from #8808 and #8817."""
+
+    B200 = [":nvidia: (B200) Distributed", ":nvidia: (B200) FusedMoE Layer Kernels"]
+
+    def _issue(self, number, signature, clusters):
+        body = (
+            f"## Signature\n\n```\n{signature}\n```\n\n"
+            "## Affected job clusters\n\n"
+            + "\n".join(f"- `{c}`" for c in clusters)
+            + "\n\n## Suggested routing\n\npytorch/pytorch\n"
+        )
+        return {"number": number, "body": body}
+
+    def test_reworded_same_cause_is_matched(self):
+        child = self._issue(
+            8808,
+            "RuntimeError: DeepEPv2 communicator properties query failed; "
+            "networking capability could not be determined.",
+            self.B200,
+        )
+        cause = {
+            "signature": "RuntimeError: Failed to determine NCCL GIN support",
+            "clusters": list(reversed(self.B200)),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 8808)
+
+    def test_different_exception_type_is_not_a_duplicate(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {"signature": "AssertionError: boom", "clusters": list(self.B200)}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_disjoint_clusters_are_not_a_duplicate(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {
+            "signature": "RuntimeError: something else",
+            "clusters": [":amd: (MI355) LM Eval Spec Decode"],
+        }
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_a_single_shared_cluster_out_of_many_is_not_enough(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {
+            "signature": "RuntimeError: unrelated",
+            "clusters": [
+                ":nvidia: (B200) Distributed",
+                ":amd: (MI355) LM Eval Spec Decode",
+                ":nvidia: (L4) PyTorch Compilation Passes",
+                ":nvidia: (H100) Fusion E2E Quick",
+            ],
+        }
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_signature_without_an_exception_type_never_matches(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {"signature": "something went wrong", "clusters": list(self.B200)}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+
+class TestMergeClusters(unittest.TestCase):
+    BODY = (
+        "## Signature\n\n```\nRuntimeError: boom\n```\n\n"
+        "## Affected job clusters\n\n- `:nvidia: (B200) Distributed`\n\n"
+        "## Suggested routing\n\npytorch/pytorch\n"
+    )
+
+    def test_new_cluster_is_appended_and_reported(self):
+        merged, added = merge_clusters(
+            self.BODY,
+            [":nvidia: (B200) Distributed", ":amd: (MI355) LM Eval Spec Decode"],
+        )
+        self.assertEqual(added, [":amd: (MI355) LM Eval Spec Decode"])
+        self.assertEqual(
+            issue_clusters(merged),
+            [":nvidia: (B200) Distributed", ":amd: (MI355) LM Eval Spec Decode"],
+        )
+        # The surrounding template must survive the rewrite.
+        self.assertIn("## Suggested routing", merged)
+        self.assertIn("RuntimeError: boom", merged)
+
+    def test_known_cluster_is_a_no_op(self):
+        merged, added = merge_clusters(self.BODY, [":nvidia: (B200) Distributed"])
+        self.assertEqual(added, [])
+        self.assertEqual(merged, self.BODY)
 
 
 if __name__ == "__main__":
