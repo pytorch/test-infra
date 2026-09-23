@@ -189,7 +189,7 @@ function Tiles({ totals }: { totals: MergeRow | undefined }) {
         <Tile
           title="Attributed escapes"
           value={t?.cleared_attributed_total}
-          tooltip="Reverts that plausibly came from a cleared signal: autorevert reverted on a job matching a cleared job, or a human reverted with -c ignoredsignal. This is the closest measure of an AI miss; other reverts are unattributed, not clean. Counted as soon as they happen, including merges whose revert window is still open."
+          tooltip="Reverts that plausibly came from a cleared signal: autorevert reverted on a job matching a cleared job, or a human reverted with -c ignoredsignal. This is the closest measure of an AI miss; other reverts are unattributed, not clean. autorevert names a test-level signal by its test id, not a job, so a revert decided only on test-level signals is unattributed even if the test ran in a cleared job. Counted as soon as they happen, including merges whose revert window is still open."
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
@@ -302,7 +302,9 @@ function revertLabel(row: MergeRow): string {
     return row.window_closed ? "no" : "no (window open)";
   }
   const by =
-    row.reverter === "pytorch-auto-revert" ? "autorevert" : row.reverter;
+    row.reverter === "pytorch-auto-revert"
+      ? "autorevert"
+      : row.reverter || "unknown";
   const cls = row.revert_classification ? `, ${row.revert_classification}` : "";
   const days = dayjs(row.reverted_at).diff(dayjs(row.merged_at), "hour") / 24;
   return `${by}${cls}, after ${days.toFixed(1)}d`;
@@ -352,7 +354,7 @@ function MergesTable({ rows }: { rows: MergeRow[] | undefined }) {
               <TableCell>
                 <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
                   {row.checks.map((check) => (
-                    <CheckChip key={check[0]} check={check} />
+                    <CheckChip key={`${check[0]}|${check[1]}`} check={check} />
                   ))}
                 </Stack>
               </TableCell>
@@ -418,8 +420,9 @@ export default function Page() {
       : undefined;
   const okData = Array.isArray(data) ? data : undefined;
 
-  // The query always returns at least one row carrying the window totals; a
-  // row with no merged_sha is only that carrier.
+  // Whenever anything landed, the query returns at least one row carrying the
+  // window totals, and a row with no merged_sha is only that carrier; a window
+  // where nothing landed returns no rows and falls back to ZERO_TOTALS.
   const totals = okData && (okData[0] ?? ZERO_TOTALS);
   const rows = okData?.filter((row) => row.merged_sha !== "");
 

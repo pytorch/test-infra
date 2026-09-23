@@ -13,7 +13,9 @@
 --     rollback, not a CI verdict, so it is reported (ghfirst_reverted) but never counts here.
 --   * attributed: the revert plausibly came from a cleared signal. Either autorevert reverted it
 --     on a job-level signal matching a cleared job, or a human reverted it with
---     `-c ignoredsignal`. Everything else is unattributed, not clean.
+--     `-c ignoredsignal`. Everything else is unattributed, not clean. autorevert records a
+--     test-level signal by its test id, which names no job, so a revert decided only on
+--     test-level signals is unattributed even when the failing test ran in a cleared job.
 --   * trunk_red: a cleared job failed on the merge commit on main while the same job passed on
 --     the commit main was at just before the merge landed (the push's `before`). A job already red
 --     there is pre-existing breakage, not a miss.
@@ -26,8 +28,11 @@
 -- merges still returns one row (merged_sha = '') carrying the totals, as long as anything landed;
 -- callers drop it from tables.
 --
--- default.merges has no timestamp, so merge time and title come from the head commit of the
--- main-branch push whose head is merge_commit_sha.
+-- The grain is one landing push. default.merges has no timestamp, so merge time comes from the
+-- push itself (repository.pushed_at) and the title from the head commit of the main-branch push
+-- whose head is merge_commit_sha. Rarely (89 of 43,833 pytorch/pytorch merge commits as of
+-- 2026-09-23) two merge commands record the same merge_commit_sha; their rows are folded into
+-- one landing, so it counts once.
 WITH
     {startTime: DateTime64(3)} AS window_start,
     least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
@@ -39,30 +44,42 @@ WITH
 -- bounded, identical results).
 merge_rows AS (
     SELECT
-        pr_num,
         merge_commit_sha,
-        argMax(author, comment_id) AS author,
-        argMax(last_commit_sha, comment_id) AS head_sha,
-        argMax(ai_not_related_checks, comment_id) AS ai_checks
-    FROM default.merges
-    WHERE
-        owner = splitByChar('/', {repo: String})[1]
-        AND project = splitByChar('/', {repo: String})[2]
-        AND NOT is_failed
-        AND NOT dry_run
-        AND NOT skip_mandatory_checks
-        AND merge_commit_sha != ''
-    GROUP BY pr_num, merge_commit_sha
+        argMax(pr_num, last_comment_id) AS pr_num,
+        argMax(author, last_comment_id) AS author,
+        -- Each cleared check as (name, url, PR head it was cleared on).
+        arrayFlatten(groupArray(ai_checks)) AS ai_checks
+    FROM (
+        -- Latest record per PR and landing, then folded per landing.
+        SELECT
+            pr_num,
+            merge_commit_sha,
+            max(comment_id) AS last_comment_id,
+            argMax(author, comment_id) AS author,
+            argMax(last_commit_sha, comment_id) AS head_sha,
+            arrayMap(c -> (c[1], c[2], head_sha), argMax(ai_not_related_checks, comment_id))
+                AS ai_checks
+        FROM default.merges
+        WHERE
+            owner = splitByChar('/', {repo: String})[1]
+            AND project = splitByChar('/', {repo: String})[2]
+            AND NOT is_failed
+            AND NOT dry_run
+            AND NOT skip_mandatory_checks
+            AND merge_commit_sha != ''
+        GROUP BY pr_num, merge_commit_sha
+    )
+    GROUP BY merge_commit_sha
 ),
 main_pushes AS (
     SELECT
         head_commit.id AS push_head,
         -- The push's own time, not a commit timestamp: a commit can be authored or prepared
-        -- long before it lands. The scan is bounded on the head commit timestamp, widened by
-        -- push_slack so a push near either edge is not lost, and the window itself is then
-        -- enforced on pushed_at. Over 8,750 pytorch/pytorch main pushes in the 180 days to
-        -- 2026-09-22 the head commit preceded its push by at most 129 s (p99.9 17 s), so an hour
-        -- of slack loses nothing. The bound is spelled tupleElement(head_commit, 'timestamp')
+        -- long before it lands. The scan is bounded on the head commit timestamp and the window
+        -- is then enforced on pushed_at. Over 8,750 pytorch/pytorch main pushes in the 180 days
+        -- to 2026-09-22 the head commit preceded its push by 0 to 129 s (p99.9 17 s), never
+        -- followed it: so the lower bound is widened by push_slack (an hour, far past 129 s) and
+        -- the upper bound needs none. The bound is spelled tupleElement(head_commit, 'timestamp')
         -- because that is the sorting key expression verbatim: the subcolumn form is not
         -- recognised by the key condition and reads every granule (measured 2026-09-23 over a
         -- 21-day window: 2.45M rows as a subcolumn, 80k as tupleElement).
@@ -83,7 +100,7 @@ main_pushes AS (
     WHERE
         push.repository.full_name = {repo: String}
         AND tupleElement(head_commit, 'timestamp') >= window_start - push_slack
-        AND tupleElement(head_commit, 'timestamp') < window_end + push_slack
+        AND tupleElement(head_commit, 'timestamp') < window_end
     LIMIT 1 BY push_head
 ),
 landed AS (
@@ -92,7 +109,6 @@ landed AS (
         m.author AS author,
         p.head_title AS title,
         m.merge_commit_sha AS merged_sha,
-        m.head_sha AS head_sha,
         p.before_sha AS base_sha,
         m.ai_checks AS ai_checks,
         length(m.ai_checks) > 0 AS cleared,
@@ -130,7 +146,7 @@ reverts AS (
         WHERE
             push.repository.full_name = {repo: String}
             AND tupleElement(head_commit, 'timestamp') >= window_start - push_slack
-            AND tupleElement(head_commit, 'timestamp') < window_end + revert_window + push_slack
+            AND tupleElement(head_commit, 'timestamp') < window_end + revert_window
     )
     WHERE
         (tupleElement(c, 2) LIKE 'Revert %' OR tupleElement(c, 2) LIKE 'Back out%')
@@ -188,7 +204,11 @@ autoreverts AS (
         AND action = 'revert'
         AND dry_run = 0
         AND failed = 0
-        AND commit_sha IN (SELECT reverted_sha FROM member_reverts)
+        -- A time bound, not `commit_sha IN (SELECT ... FROM member_reverts)`: that would evaluate
+        -- member_reverts (and the push and issue_comment reads under it) a second time. The
+        -- table is partitioned by month of ts, and the LEFT JOIN in revert_outcomes restricts.
+        AND ts >= toDateTime(window_start)
+        AND ts < toDateTime(window_end) + revert_window
 ),
 -- One row per cleared check. job_key is the check name in autorevert's signal shape, mirroring
 -- JobRow.base_name in aws/lambda/pytorch-auto-revert/pytorch_auto_revert/signal_extraction_types.py:
@@ -196,17 +216,17 @@ autoreverts AS (
 -- token before a comma inside any parenthetical), e.g. "macos-py3-arm64 / test (default)".
 --
 -- ClickHouse inlines a CTE at every reference, so each reference below re-runs this one (and
--- `landed` under it): verdicts (twice), trunk_requests and checks_detail. Keep what it reads cheap
--- and count before adding a reference.
+-- `landed` under it): verdicts (twice), trunk_requests, checks_detail and merge_job_keys. Keep
+-- what it reads cheap and count before adding a reference.
 cleared_checks AS (
     SELECT
         merged_sha,
         merged_at,
-        head_sha,
         base_sha,
-        check[1] AS check_name,
-        check[2] AS check_url,
-        replaceRegexpOne(check[1], '^[^/]+ / ', '') AS job_name,
+        check.1 AS check_name,
+        check.2 AS check_url,
+        check.3 AS head_sha,
+        replaceRegexpOne(check_name, '^[^/]+ / ', '') AS job_name,
         trimBoth(extract(job_name, '\\(([^,()]+),')) AS job_config,
         concat(
             trimBoth(replaceRegexpAll(replaceRegexpAll(job_name, '\\s*\\([^()]*\\)', ''), '\\s+', ' ')),
@@ -216,12 +236,20 @@ cleared_checks AS (
     ARRAY JOIN ai_checks AS check
     WHERE cleared
 ),
+-- The cleared job keys per landing, for revert attribution. Kept apart from checks_detail so
+-- revert_outcomes does not re-run the verdict and workflow_job reads just to get these names.
+merge_job_keys AS (
+    SELECT merged_sha, groupArray(job_key) AS job_keys
+    FROM cleared_checks
+    GROUP BY merged_sha
+),
 -- The advisor verdict that was live when the merge landed; a later re-run of the advisor on the
 -- same head must not rewrite the explanation of a decision already taken.
 verdicts AS (
     SELECT
         c.merged_sha AS merged_sha,
         c.check_name AS check_name,
+        c.head_sha AS head_sha,
         argMax(v.verdict, v.timestamp) AS verdict,
         argMax(v.confidence, v.timestamp) AS confidence,
         argMax(v.summary, v.timestamp) AS summary
@@ -235,11 +263,13 @@ verdicts AS (
             AND suspect_commit IN (SELECT head_sha FROM cleared_checks)
     ) AS v ON v.suspect_commit = c.head_sha AND v.signal_key = concat('dr_ci_', c.check_name)
     WHERE v.timestamp <= c.merged_at
-    GROUP BY c.merged_sha, c.check_name
+    GROUP BY c.merged_sha, c.check_name, c.head_sha
 ),
 -- A cleared job as it ran on main: on the merge commit, and on the commit before it for comparison.
 -- Job ids grow over time, including across re-runs, so the highest id among completed attempts is
--- the latest result; an attempt still running has no conclusion and does not displace it. The
+-- the latest result; an attempt still running does not displace it. The filter is on status, not
+-- on an empty conclusion: conclusion_kg (keep-going) can already read 'failure' while the job is
+-- still in progress. The
 -- latest result is deliberate: a failure that passes when re-run on the same commit is flaky, not
 -- breakage the AI missed, so it must not count as newly red.
 trunk_requests AS (
@@ -251,14 +281,15 @@ trunk_status AS (
     SELECT
         r.merged_sha AS merged_sha,
         r.check_name AS check_name,
-        argMaxIf(j.conclusion, j.id, r.role = 'merge' AND j.conclusion != '') AS merge_conclusion,
-        argMaxIf(j.conclusion, j.id, r.role = 'base' AND j.conclusion != '') AS base_conclusion
+        argMaxIf(j.conclusion, j.id, r.role = 'merge' AND j.status = 'completed') AS merge_conclusion,
+        argMaxIf(j.conclusion, j.id, r.role = 'base' AND j.status = 'completed') AS base_conclusion
     FROM trunk_requests AS r
     INNER JOIN (
         SELECT
             job.id AS id,
             job.head_sha AS head_sha,
             concat(job.workflow_name, ' / ', job.name) AS check_name,
+            job.status AS status,
             job.conclusion_kg AS conclusion
         FROM default.workflow_job AS job FINAL
         WHERE
@@ -285,13 +316,12 @@ checks_detail AS (
                 t.base_conclusion
             )
         ) AS checks,
-        groupArray(c.job_key) AS job_keys,
         countIf(
             t.merge_conclusion IN ('failure', 'timed_out') AND t.base_conclusion = 'success'
         ) > 0 AS trunk_red
     FROM cleared_checks AS c
     LEFT JOIN verdicts AS v
-        ON c.merged_sha = v.merged_sha AND c.check_name = v.check_name
+        ON c.merged_sha = v.merged_sha AND c.check_name = v.check_name AND c.head_sha = v.head_sha
     LEFT JOIN trunk_status AS t
         ON c.merged_sha = t.merged_sha AND c.check_name = t.check_name
     GROUP BY c.merged_sha
@@ -318,7 +348,7 @@ revert_outcomes AS (
                 ) > 0
             ) AS attributed
     FROM member_reverts AS mr
-    LEFT JOIN checks_detail AS d ON mr.merged_sha = d.merged_sha
+    LEFT JOIN merge_job_keys AS d ON mr.merged_sha = d.merged_sha
     LEFT JOIN autoreverts AS ar ON mr.reverted_sha = ar.commit_sha
     GROUP BY mr.merged_sha, mr.revert_sha, mr.reverted_at, mr.reverter, mr.classification
 ),
