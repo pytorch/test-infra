@@ -33,6 +33,10 @@ WITH
     least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
     toIntervalDay({revertWindowDays: UInt32}) AS revert_window,
     toIntervalHour(1) AS push_slack,
+-- Deliberately not bounded to the window: default.merges holds ~70k rows in all, and bounding it
+-- by `merge_commit_sha IN (SELECT push_head FROM main_pushes)` adds a default.push read to every
+-- inlined evaluation (measured 2026-09-23, 21-day window: 2.07M rows read unbounded, 3.11M
+-- bounded, identical results).
 merge_rows AS (
     SELECT
         pr_num,
@@ -54,11 +58,14 @@ main_pushes AS (
     SELECT
         head_commit.id AS push_head,
         -- The push's own time, not a commit timestamp: a commit can be authored or prepared
-        -- long before it lands. The scan is bounded on the head commit timestamp because that is
-        -- the sort key, widened by push_slack so a push near either edge is not lost, and the
-        -- window itself is then enforced on pushed_at. Over 8,750 pytorch/pytorch main pushes in
-        -- the 180 days to 2026-09-22 the head commit preceded its push by at most 129 s (p99.9
-        -- 17 s), so an hour of slack loses nothing.
+        -- long before it lands. The scan is bounded on the head commit timestamp, widened by
+        -- push_slack so a push near either edge is not lost, and the window itself is then
+        -- enforced on pushed_at. Over 8,750 pytorch/pytorch main pushes in the 180 days to
+        -- 2026-09-22 the head commit preceded its push by at most 129 s (p99.9 17 s), so an hour
+        -- of slack loses nothing. The bound is spelled tupleElement(head_commit, 'timestamp')
+        -- because that is the sorting key expression verbatim: the subcolumn form is not
+        -- recognised by the key condition and reads every granule (measured 2026-09-23 over a
+        -- 21-day window: 2.45M rows as a subcolumn, 80k as tupleElement).
         if(
             repository.pushed_at > 0,
             toDateTime64(repository.pushed_at, 3),
@@ -72,11 +79,11 @@ main_pushes AS (
         before AS before_sha,
         commits.id AS commit_shas
     FROM default.push
+    PREWHERE push.ref IN ('refs/heads/main', 'refs/heads/master')
     WHERE
-        push.ref IN ('refs/heads/main', 'refs/heads/master')
-        AND push.repository.full_name = {repo: String}
-        AND push.head_commit.timestamp >= window_start - push_slack
-        AND push.head_commit.timestamp < window_end + push_slack
+        push.repository.full_name = {repo: String}
+        AND tupleElement(head_commit, 'timestamp') >= window_start - push_slack
+        AND tupleElement(head_commit, 'timestamp') < window_end + push_slack
     LIMIT 1 BY push_head
 ),
 landed AS (
@@ -119,11 +126,11 @@ reverts AS (
                 toDateTime64(head_commit.timestamp, 3)
             ) AS pushed
         FROM default.push
+        PREWHERE push.ref IN ('refs/heads/main', 'refs/heads/master')
         WHERE
-            push.ref IN ('refs/heads/main', 'refs/heads/master')
-            AND push.repository.full_name = {repo: String}
-            AND push.head_commit.timestamp >= window_start - push_slack
-            AND push.head_commit.timestamp < window_end + revert_window + push_slack
+            push.repository.full_name = {repo: String}
+            AND tupleElement(head_commit, 'timestamp') >= window_start - push_slack
+            AND tupleElement(head_commit, 'timestamp') < window_end + revert_window + push_slack
     )
     WHERE
         (tupleElement(c, 2) LIKE 'Revert %' OR tupleElement(c, 2) LIKE 'Back out%')
@@ -135,7 +142,7 @@ revert_classes AS (
         extract(
             replaceRegexpOne(
                 argMax(body, updated_at),
-                '(?s)(?:-m|--message)[\\s =]+(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\')',
+                '(?s)(?:-m|--message)[\\s =]+(?:"(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|“[^”]*”)',
                 ' '
             ),
             '(?s)@pytorch(?:merge|)bot\\s+revert.*?(?:-c|--classification)[\\s =]+["\']?'
@@ -183,8 +190,14 @@ autoreverts AS (
         AND failed = 0
         AND commit_sha IN (SELECT reverted_sha FROM member_reverts)
 ),
--- One row per cleared check. job_key is the check name in autorevert's signal shape: the
--- workflow prefix and the shard suffix removed, e.g. "macos-py3-arm64 / test (default)".
+-- One row per cleared check. job_key is the check name in autorevert's signal shape, mirroring
+-- JobRow.base_name in aws/lambda/pytorch-auto-revert/pytorch_auto_revert/signal_extraction_types.py:
+-- drop the workflow prefix, drop every parenthetical group, then re-append the config (the first
+-- token before a comma inside any parenthetical), e.g. "macos-py3-arm64 / test (default)".
+--
+-- ClickHouse inlines a CTE at every reference, so each reference below re-runs this one (and
+-- `landed` under it): verdicts (twice), trunk_requests and checks_detail. Keep what it reads cheap
+-- and count before adding a reference.
 cleared_checks AS (
     SELECT
         merged_sha,
@@ -193,8 +206,11 @@ cleared_checks AS (
         base_sha,
         check[1] AS check_name,
         check[2] AS check_url,
-        replaceRegexpOne(
-            replaceRegexpOne(check[1], '^[^/]+ / ', ''), ', [0-9]+, [0-9]+, .+\\)$', ')'
+        replaceRegexpOne(check[1], '^[^/]+ / ', '') AS job_name,
+        trimBoth(extract(job_name, '\\(([^,()]+),')) AS job_config,
+        concat(
+            trimBoth(replaceRegexpAll(replaceRegexpAll(job_name, '\\s*\\([^()]*\\)', ''), '\\s+', ' ')),
+            if(job_config = '', '', concat(' (', job_config, ')'))
         ) AS job_key
     FROM landed
     ARRAY JOIN ai_checks AS check
@@ -227,9 +243,9 @@ verdicts AS (
 -- latest result is deliberate: a failure that passes when re-run on the same commit is flaky, not
 -- breakage the AI missed, so it must not count as newly red.
 trunk_requests AS (
-    SELECT merged_sha, check_name, merged_sha AS sha, 'merge' AS role FROM cleared_checks
-    UNION ALL
-    SELECT merged_sha, check_name, base_sha AS sha, 'base' AS role FROM cleared_checks
+    SELECT merged_sha, check_name, request.1 AS role, request.2 AS sha
+    FROM cleared_checks
+    ARRAY JOIN [('merge', merged_sha), ('base', base_sha)] AS request
 ),
 trunk_status AS (
     SELECT

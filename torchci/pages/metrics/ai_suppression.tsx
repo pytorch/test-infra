@@ -17,6 +17,7 @@ import {
 import {
   CLICKHOUSE_TIME_FORMAT,
   DEFAULT_TIME_RANGE,
+  LARGE_WINDOW_DAYS,
   snapStopToGranularity,
   snapToGranularity,
 } from "components/common/timeWindow";
@@ -149,7 +150,7 @@ function Tiles({ totals }: { totals: MergeRow | undefined }) {
               t.merges_total
             } bot merges`
           }
-          tooltip="Landed, non-force merges that would have been blocked without the AI: at least one failed check was cleared only by an advisor not_related verdict."
+          tooltip="Landed, non-force merges that would have been blocked without the AI: at least one failed check was cleared only by a high-confidence advisor verdict of not_related, infra_issue or garbage (Dr.CI's AI_NOT_RELATED bucket)."
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
@@ -398,14 +399,29 @@ export default function Page() {
   const url = `/api/clickhouse/ai_suppression_merges?parameters=${encodeURIComponent(
     JSON.stringify(params)
   )}`;
-  const { data } = useSWR<MergeRow[]>(url, fetcher, {
-    refreshInterval: 15 * 60 * 1000,
+  // A wide window re-runs a heavy query for data that barely moves, so only
+  // narrow windows poll.
+  const autoRefresh = stopTime.diff(startTime, "day") <= LARGE_WINDOW_DAYS;
+  const { data, error } = useSWR<MergeRow[]>(url, fetcher, {
+    refreshInterval: autoRefresh ? 15 * 60 * 1000 : 0,
+    revalidateOnFocus: false,
   });
+
+  // The API route has no error handling: a failing query answers with an HTML
+  // error page, so fetcher rejects, or with a JSON error object. Either must
+  // name the failure rather than leave the page on skeletons.
+  const failure =
+    error !== undefined
+      ? `${error?.message ?? error}`
+      : data !== undefined && !Array.isArray(data)
+      ? `${(data as any)?.error ?? "unexpected query response"}`
+      : undefined;
+  const okData = Array.isArray(data) ? data : undefined;
 
   // The query always returns at least one row carrying the window totals; a
   // row with no merged_sha is only that carrier.
-  const totals = data && (data[0] ?? ZERO_TOTALS);
-  const rows = data?.filter((row) => row.merged_sha !== "");
+  const totals = okData && (okData[0] ?? ZERO_TOTALS);
+  const rows = okData?.filter((row) => row.merged_sha !== "");
 
   return (
     <Stack spacing={3}>
@@ -426,6 +442,11 @@ export default function Page() {
         timeRange={timeRange}
         setTimeRange={setTimeRange}
       />
+      {failure !== undefined && (
+        <Typography variant="body2" color="error.main" role="alert">
+          ai_suppression_merges failed: {failure}
+        </Typography>
+      )}
       <Tiles totals={totals} />
       {totals !== undefined &&
         rows !== undefined &&
