@@ -195,6 +195,33 @@ class TestCompareCarriesBaselineUrl(unittest.TestCase):
         self.assertEqual(both_job["baseline_state"], "failed")
 
 
+class TestComparePassedBucket(unittest.TestCase):
+    """`passed` lets the filer tell a fixed cause from an unrun one."""
+
+    def _row(self, name, shard, tn_state, base_state):
+        return (
+            name, shard, tn_state, 0, "tn#job", "agent-1", base_state, "b#job", 1, 1
+        )
+
+    def test_passing_nightly_job_is_recorded(self) -> None:
+        buckets = triage.compare(rows=[self._row("Job A", 0, "passed", "passed")])
+        self.assertEqual([j["name"] for j in buckets["passed"]], ["Job A"])
+        # ...and is not mistaken for a failure.
+        self.assertEqual(buckets["regressed"], [])
+        self.assertEqual(buckets["both"], [])
+
+    def test_failing_nightly_job_is_not_recorded_as_passed(self) -> None:
+        buckets = triage.compare(rows=[self._row("Job A", 0, "failed", "passed")])
+        self.assertEqual(buckets["passed"], [])
+        self.assertEqual(len(buckets["regressed"]), 1)
+
+    def test_shard_suffix_is_stripped(self) -> None:
+        # Child issues list the cluster, not the shard, so the name recorded
+        # here has to match that form or nothing ever compares equal.
+        buckets = triage.compare(rows=[self._row("Job A", 3, "passed", "passed")])
+        self.assertEqual([j["name"] for j in buckets["passed"]], ["Job A"])
+
+
 def _superset_fetched(cluster="Job A"):
     """A fetched cluster whose nightly failing set is a superset of baseline's."""
     rep = _both_job(cluster, "tn#job", "base#job")
@@ -636,6 +663,9 @@ class TestReportJsonWiring(unittest.TestCase):
                 "torch_version_minor",
                 "regressed",
                 "both",
+                # Consumed by the filer to tell a cause that stopped
+                # reproducing from one whose job simply did not run.
+                "passed",
                 "regressed_tests",
             },
         )

@@ -333,6 +333,12 @@ def compare(rows: List[Tuple]) -> Dict[str, List[Dict]]:
         "both": [],
         "baseline_only": [],
         "unclassified": [],
+        # Ran on torch nightly and passed. Only the failing buckets matter for
+        # the report itself, but a tracked cause going quiet cannot be read off
+        # absence: a cluster missing from every failing bucket either passed or
+        # never ran, and reporting the second as "fixed" is how a job killed by
+        # infrastructure gets mistaken for a resolved regression.
+        "passed": [],
     }
     for (
         name,
@@ -360,6 +366,10 @@ def compare(rows: List[Tuple]) -> Dict[str, List[Dict]]:
             "baseline_state": base_state,
             "baseline_url": base_url,
         }
+        if tn_state == "passed":
+            # Recorded under the unsharded name, which is what a child issue
+            # lists as its cluster.
+            buckets["passed"].append({"name": name})
         tn_bad = tn_state in BAD_STATES
         if tn_bad and base_state in BAD_STATES:
             buckets["both"].append(job)
@@ -1050,6 +1060,9 @@ def main() -> int:
                     "torch_version_minor": torch_version_minor,
                     "regressed": buckets["regressed"],
                     "both": buckets["both"],
+                    "passed": sorted(
+                        {j["name"] for j in buckets.get("passed", [])}
+                    ),
                     "regressed_tests": regressed_tests,
                 },
                 f,

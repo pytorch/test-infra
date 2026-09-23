@@ -9,7 +9,9 @@ pins one field of that contract.
 """
 
 import unittest
+from unittest import mock
 
+from torchci import vllm_triage_file_issues as vtfi
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
     cluster_fingerprint,
@@ -320,6 +322,156 @@ class TestMergeClusters(unittest.TestCase):
         merged, added = merge_clusters(self.BODY, [":nvidia: (B200) Distributed"])
         self.assertEqual(added, [])
         self.assertEqual(merged, self.BODY)
+
+
+class TestReportSilences(unittest.TestCase):
+    """A cause is only called quiet when its clusters actually ran and passed."""
+
+    MINOR = "2.15"
+
+    def _child(self, number, clusters):
+        body = (
+            "## Signature\n\n```\nRuntimeError: boom\n```\n\n"
+            "## Affected job clusters\n\n"
+            + "\n".join(f"- `{c}`" for c in clusters)
+            + "\n"
+        )
+        return {
+            "number": number,
+            "title": f"[vllm][torch {self.MINOR}] something broke",
+            "body": body,
+        }
+
+    def _run(self, report, children, matched=frozenset()):
+        posted = []
+
+        def fake_req(method, path, token, body=None):
+            if method == "GET" and "/comments" in path:
+                return []
+            posted.append((method, path, body))
+            return {}
+
+        with mock.patch.object(vtfi, "_req", side_effect=fake_req):
+            vtfi.report_silences(
+                "t", "pytorch/test-infra", report, children, set(matched), self.MINOR
+            )
+        return posted
+
+    def test_all_clusters_passed_is_reported(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+        )
+        self.assertEqual(len(posted), 1)
+        body = posted[0][2]["body"]
+        self.assertIn("Did not reproduce", body)
+        self.assertIn("First quiet run", body)
+        self.assertIn(f"<!-- {vtfi.SILENT_PREFIX}: 1 -->", body)
+
+    def test_a_cluster_that_did_not_run_is_not_a_fix(self):
+        # The regression-vs-missing-coverage trap: absence from the failing
+        # buckets is not evidence of a pass.
+        child = self._child(
+            8784,
+            [":nvidia: (B200) Distributed", ":amd: (MI355) LM Eval Spec Decode"],
+        )
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+        )
+        self.assertEqual(posted, [])
+
+    def test_a_cause_that_reproduced_is_not_reported_quiet(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+            matched={8784},
+        )
+        self.assertEqual(posted, [])
+
+    def test_other_torch_versions_are_left_alone(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        child["title"] = "[vllm][torch 2.14] something broke"
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+        )
+        self.assertEqual(posted, [])
+
+    def test_a_report_without_passed_data_says_nothing(self):
+        # An older report.json predating the `passed` field must not be read
+        # as "every tracked cause is fixed".
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        posted = self._run(
+            {"torch_nightly_build": 90640, "baseline_build": 90589}, [child]
+        )
+        self.assertEqual(posted, [])
+
+    def test_streak_stops_repeating_past_the_limit(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        report = {
+            "torch_nightly_build": 90640,
+            "baseline_build": 90589,
+            "passed": [":nvidia: (B200) Distributed"],
+        }
+        posted = []
+
+        def fake_req(method, path, token, body=None):
+            if method == "GET" and "/comments" in path:
+                return [
+                    {"body": f"<!-- {vtfi.SILENT_PREFIX}: "
+                             f"{vtfi.SILENT_COMMENT_LIMIT} -->"}
+                ]
+            posted.append((method, path, body))
+            return {}
+
+        with mock.patch.object(vtfi, "_req", side_effect=fake_req):
+            vtfi.report_silences(
+                "t", "pytorch/test-infra", report, [child], set(), self.MINOR
+            )
+        self.assertEqual(posted, [])
+
+    def test_a_recurrence_resets_the_streak(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        report = {
+            "torch_nightly_build": 90640,
+            "baseline_build": 90589,
+            "passed": [":nvidia: (B200) Distributed"],
+        }
+        posted = []
+
+        def fake_req(method, path, token, body=None):
+            if method == "GET" and "/comments" in path:
+                return [
+                    {"body": f"<!-- {vtfi.SILENT_PREFIX}: 2 -->"},
+                    {"body": "Still reproducing on torch-nightly build [#1](x)."},
+                ]
+            posted.append((method, path, body))
+            return {}
+
+        with mock.patch.object(vtfi, "_req", side_effect=fake_req):
+            vtfi.report_silences(
+                "t", "pytorch/test-infra", report, [child], set(), self.MINOR
+            )
+        self.assertIn(f"<!-- {vtfi.SILENT_PREFIX}: 1 -->", posted[0][2]["body"])
 
 
 if __name__ == "__main__":

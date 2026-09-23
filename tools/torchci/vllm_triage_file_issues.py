@@ -384,6 +384,110 @@ def recurrence_comment(
     return "\n".join(out)
 
 
+SILENT_PREFIX = "vllm-triage-silent"
+# Stop repeating after this many consecutive quiet runs. By then the issue says
+# what it needs to; further runs would just add a comment a week.
+SILENT_COMMENT_LIMIT = 3
+
+
+def silent_streak(token: str, repo: str, number: int) -> int:
+    """How many consecutive runs this cause has already been quiet for.
+
+    Read back off the issue rather than held in state: the workflow keeps
+    nothing between runs, and a comment that survives an edit to the body is
+    the only durable record. A recurrence comment resets the count, so a cause
+    that comes back and goes quiet again is announced again.
+    """
+    streak = 0
+    try:
+        comments = _req(
+            "GET", f"/repos/{repo}/issues/{number}/comments?per_page=100", token
+        )
+    except urllib.error.URLError:
+        return 0
+    for c in comments or []:
+        body = c.get("body") or ""
+        m = re.search(rf"<!-- {SILENT_PREFIX}: (\d+) -->", body)
+        if m:
+            streak = int(m.group(1))
+        elif "Still reproducing on torch-nightly build" in body:
+            streak = 0
+    return streak
+
+
+def silence_comment(report: Dict[str, Any], clusters: List[str], streak: int) -> str:
+    """Told the cause did not reproduce, and how far that is from proof."""
+    build = report.get("torch_nightly_build")
+    base = report.get("baseline_build")
+    out = [
+        f"Did not reproduce on torch-nightly build "
+        f"[#{build}](https://buildkite.com/vllm/ci/builds/{build})"
+        f" (baseline [#{base}](https://buildkite.com/vllm/ci/builds/{base})).",
+        "",
+        "Every cluster on this issue ran and passed on the nightly build:",
+        "",
+        *(f"- `{c}`" for c in clusters),
+        "",
+    ]
+    if streak == 1:
+        out.append(
+            "First quiet run. Not closing yet -- one pass is also what a "
+            "flaky cause looks like."
+        )
+    else:
+        out.append(
+            f"Quiet for {streak} consecutive runs. Candidate for closing; "
+            "reopen automatically if the signature returns."
+        )
+    out += ["", f"<!-- {SILENT_PREFIX}: {streak} -->"]
+    return "\n".join(out)
+
+
+def report_silences(
+    token: str,
+    repo: str,
+    report: Dict[str, Any],
+    children: List[Dict],
+    matched: set,
+    minor: str,
+) -> None:
+    """Comment on tracked causes that did not come back this run.
+
+    Silence is only reported when every cluster the issue names is in the
+    run's ``passed`` set. A cluster that appears in no bucket at all did not
+    run -- infrastructure killed it, or the pipeline dropped it -- and saying
+    "did not reproduce" there would turn missing coverage into a false fix.
+    """
+    passed = {c.strip() for c in report.get("passed") or []}
+    if not passed:
+        print("  no passed-cluster data in report.json; skipping silence check")
+        return
+    for child in children:
+        number = child["number"]
+        if number in matched:
+            continue
+        if f"[torch {minor}]" not in (child.get("title") or ""):
+            continue
+        clusters = issue_clusters(child.get("body") or "")
+        if not clusters:
+            continue
+        missing = [c for c in clusters if c not in passed]
+        if missing:
+            print(f"  #{number}: no coverage for {len(missing)} cluster(s); silent")
+            continue
+        streak = silent_streak(token, repo, number) + 1
+        if streak > SILENT_COMMENT_LIMIT:
+            print(f"  #{number}: quiet for {streak} runs, already said so")
+            continue
+        _req(
+            "POST",
+            f"/repos/{repo}/issues/{number}/comments",
+            token,
+            {"body": silence_comment(report, clusters, streak)},
+        )
+        print(f"  not reproducing -> #{number} (run {streak} of quiet)")
+
+
 def _level(value: Any) -> str:
     """Normalise a confidence level. ``med`` and ``medium`` are both in use."""
     level = str(value or "").strip().lower()
@@ -537,6 +641,7 @@ def main() -> int:
     # search API is not read-your-writes, so two causes that normalize to one
     # key in a single run would otherwise both be filed.
     filed_this_run: Dict[str, Dict] = {}
+    matched: set = set()
 
     for c in selected:
         key = fingerprint(args.repo, c)
@@ -600,6 +705,7 @@ def main() -> int:
                     )
                 },
             )
+            matched.add(existing["number"])
             print(f"  recurrence -> #{existing['number']} ({matched_by})")
             continue
         issue = _req(
@@ -616,12 +722,15 @@ def main() -> int:
         # Visible to the rest of this run, by key and to the near-duplicate scan.
         filed_this_run[key] = issue
         children.append(issue)
+        matched.add(issue["number"])
         append_to_umbrella(
             token,
             args.repo,
             umbrella,
             f"- [ ] #{issue['number']} - {c.get('title')}",
         )
+
+    report_silences(token, args.repo, report, children, matched, minor)
     return 0
 
 
