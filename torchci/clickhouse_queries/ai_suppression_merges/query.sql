@@ -18,8 +18,10 @@
 --     the merge base. A job already red on the base is pre-existing breakage, not a miss.
 --
 -- The *_total columns are window totals, identical on every row and computed before the row
--- limit, which sits far above any plausible volume; the page says so if it is ever reached. Revert rates are taken over merges whose revert window has closed, for the cohort and for
--- every other landed merge alike, so the two rates are comparable. A window with no cleared
+-- limit, which sits far above any plausible volume; the page says so if it is ever reached.
+-- Revert rates are taken over merges whose revert window has closed, for the cohort and for
+-- every other landed merge alike, so the two rates are comparable. The *_incl_ghfirst_total
+-- variants also count merges whose only revert was `-c ghfirst`. A window with no cleared
 -- merges still returns one row (merged_sha = '') carrying the totals, as long as anything landed;
 -- callers drop it from tables.
 --
@@ -345,10 +347,14 @@ windowed AS (
         sumIf(length(checks), cleared) OVER () AS cleared_checks_total,
         countIf(cleared AND window_closed) OVER () AS cleared_closed_total,
         countIf(cleared AND window_closed AND reverted) OVER () AS cleared_reverted_total,
+        countIf(cleared AND window_closed AND (reverted OR ghfirst_reverted)) OVER ()
+            AS cleared_reverted_incl_ghfirst_total,
         countIf(cleared AND attributed) OVER () AS cleared_attributed_total,
         countIf(cleared AND trunk_red) OVER () AS cleared_trunk_red_total,
         countIf(NOT cleared AND window_closed) OVER () AS other_closed_total,
-        countIf(NOT cleared AND window_closed AND reverted) OVER () AS other_reverted_total
+        countIf(NOT cleared AND window_closed AND reverted) OVER () AS other_reverted_total,
+        countIf(NOT cleared AND window_closed AND (reverted OR ghfirst_reverted)) OVER ()
+            AS other_reverted_incl_ghfirst_total
     FROM merge_outcomes
 )
 
@@ -373,10 +379,12 @@ SELECT
     cleared_checks_total,
     cleared_closed_total,
     cleared_reverted_total,
+    cleared_reverted_incl_ghfirst_total,
     cleared_attributed_total,
     cleared_trunk_red_total,
     other_closed_total,
-    other_reverted_total
+    other_reverted_total,
+    other_reverted_incl_ghfirst_total
 FROM windowed
 WHERE cleared OR (cleared_merges_total = 0 AND rn = 1)
 ORDER BY merged_at DESC, pr_number ASC

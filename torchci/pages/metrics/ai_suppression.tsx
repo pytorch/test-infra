@@ -62,10 +62,12 @@ interface MergeRow {
   cleared_checks_total: number;
   cleared_closed_total: number;
   cleared_reverted_total: number;
+  cleared_reverted_incl_ghfirst_total: number;
   cleared_attributed_total: number;
   cleared_trunk_red_total: number;
   other_closed_total: number;
   other_reverted_total: number;
+  other_reverted_incl_ghfirst_total: number;
 }
 
 const FAILED_CONCLUSIONS = ["failure", "timed_out"];
@@ -78,10 +80,12 @@ const ZERO_TOTALS = {
   cleared_checks_total: 0,
   cleared_closed_total: 0,
   cleared_reverted_total: 0,
+  cleared_reverted_incl_ghfirst_total: 0,
   cleared_attributed_total: 0,
   cleared_trunk_red_total: 0,
   other_closed_total: 0,
   other_reverted_total: 0,
+  other_reverted_incl_ghfirst_total: 0,
 } as MergeRow;
 
 function pct(numerator: number, denominator: number): string {
@@ -120,6 +124,7 @@ function Tile({
               variant="caption"
               color="text.secondary"
               textAlign="center"
+              sx={{ whiteSpace: "pre-line" }}
             >
               {detail}
             </Typography>
@@ -165,9 +170,18 @@ function Tiles({ totals }: { totals: MergeRow | undefined }) {
             } · baseline ${pct(
               t.other_reverted_total,
               t.other_closed_total
-            )} (${t.other_reverted_total}/${t.other_closed_total})`
+            )} (${t.other_reverted_total}/${t.other_closed_total})\n` +
+              `incl. ghfirst: ${pct(
+                t.cleared_reverted_incl_ghfirst_total,
+                t.cleared_closed_total
+              )} (${t.cleared_reverted_incl_ghfirst_total}/${
+                t.cleared_closed_total
+              }) · baseline ${pct(
+                t.other_reverted_incl_ghfirst_total,
+                t.other_closed_total
+              )}`
           }
-          tooltip={`Share of AI-cleared merges reverted within ${REVERT_WINDOW_DAYS} days, beside the same rate for every other bot merge. Both count only merges whose ${REVERT_WINDOW_DAYS}-day window has closed, and neither counts -c ghfirst reverts. The baseline is an unadjusted comparison, not a target: the two populations differ in more than the AI's call.`}
+          tooltip={`Share of AI-cleared merges reverted within ${REVERT_WINDOW_DAYS} days, beside the same rate for every other bot merge. Both count only merges whose ${REVERT_WINDOW_DAYS}-day window has closed, and neither counts -c ghfirst reverts in the headline; the second line counts them too. The baseline is an unadjusted comparison, not a target: the two populations differ in more than the AI's call.`}
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
