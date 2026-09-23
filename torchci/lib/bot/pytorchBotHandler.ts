@@ -22,6 +22,7 @@ import {
   addLabels,
   CachedConfigTracker,
   hasApprovedPullRuns,
+  hasVerifiedHumanWritePermissions,
   isFirstTimeContributor,
   isOrgTeamMember,
   isPyTorchbotSupportedOrg,
@@ -399,11 +400,14 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (!commandAuthor) {
       return false;
     }
-    return await isOrgTeamMember(
-      this.ctx,
-      this.owner,
-      BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
-      commandAuthor
+    return (
+      (await hasVerifiedHumanWritePermissions(this.ctx, commandAuthor)) ||
+      (await isOrgTeamMember(
+        this.ctx,
+        this.owner,
+        BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
+        commandAuthor
+      ))
     );
   }
 
@@ -420,8 +424,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     // remove unnecessary spaces from labels
     const labelsToAdd = labels.map((s: string) => s.trim());
 
-    // Bot-managed labels are refused on PRs, except for the dev infra team, who
-    // own the automation those labels drive. This mirrors the exemption
+    // Bot-managed labels are refused on PRs, except for people with write
+    // access and the dev infra team, who own the automation those labels drive. This mirrors the exemption
     // autoLabelBot applies when the same label arrives through the GitHub UI;
     // the two enforcement points have to agree or the label is reachable
     // through whichever one is laxer.
@@ -456,9 +460,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (botManagedLabels.length > 0) {
       await this.addComment(
         "These pull request lifecycle labels are managed automatically by " +
-          "pytorch-bot. Applying them by hand is limited to the `" +
+          "pytorch-bot. Applying them by hand is limited to people with " +
+          "write access and the `" +
           BOT_MANAGED_PR_LABEL_EXEMPT_TEAM +
-          "` team, which could not be verified for you: " +
+          "` team, and neither could be verified for you: " +
           botManagedLabels.join(", ") +
           "."
       );
