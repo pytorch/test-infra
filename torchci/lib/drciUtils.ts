@@ -61,6 +61,18 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "check labels",
 ];
 export const EXCLUDED_FROM_BROKEN_TRUNK = ["lint"];
+// PR-state gates. They check the PR's ghstack branches, size or labels, not
+// what its code does, so the AI CI Advisor's question -- did this change cause
+// the failure? -- does not apply: a stack that is out of sync answers "not
+// related" and must still block. Dr.CI neither dispatches the advisor on these
+// nor renders or acts on a verdict for them.
+export const EXCLUDED_FROM_ADVISOR = [
+  "ghstack-mergeability-check",
+  // The same check when Dr.CI reports only the workflow name
+  "check mergeability of ghstack pr",
+  "pr-sanity-checks",
+  "check labels",
+];
 // If the base commit is too old, don't query for similar failures because
 // it increases the risk of getting misclassification. This guardrail can
 // be relaxed once we achieve better accuracy from the log classifier. This
@@ -503,6 +515,10 @@ export function isExcludedFromBrokenTrunk(job: RecentWorkflowsData): boolean {
 
 export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
   return isExcluded(job, EXCLUDED_FROM_FLAKINESS);
+}
+
+export function isExcludedFromAdvisor(job: RecentWorkflowsData): boolean {
+  return isExcluded(job, EXCLUDED_FROM_ADVISOR);
 }
 
 export async function fetchPRLabels(
