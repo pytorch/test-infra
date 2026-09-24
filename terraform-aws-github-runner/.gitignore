@@ -1,5 +1,7 @@
-# Terraform lock files
-*.lock.hcl
+# Terraform lock files — *.lock.hcl is intentionally NOT ignored here.
+# .terraform.lock.hcl must be committed to version control so that
+# `tofu init -lockfile=readonly` can enforce provider hash integrity in CI.
+# See: https://opentofu.org/docs/language/files/dependency-lock/
 
 # state
 *.tfstate*
