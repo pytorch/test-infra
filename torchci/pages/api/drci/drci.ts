@@ -15,6 +15,7 @@ import {
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
+import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
   CANCELLED_STEP_ERROR,
   DRCI_COMMENT_AUTHOR,
@@ -249,6 +250,15 @@ export async function updateDrciComments(
     console.error("greenlight section build threw for", owner, repo, e);
     return new Map<number, string>();
   });
+  // Used to gate which CRCR L3 results are PR-visible (see classifyCrcrJobs)
+  // by the same ciflow/crcr/<device> label the relay itself requires before
+  // creating an upstream check run. Started early alongside the greenlight
+  // fetch; a failure here degrades to "show no CRCR L3 results" rather than
+  // breaking the whole comment.
+  const crcrAllowlistPromise = fetchCrcrAllowlist(octokit).catch((e) => {
+    console.error("CRCR allowlist fetch failed for", owner, repo, e);
+    return null;
+  });
 
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, owner, repo, head, workflowsByPR);
@@ -277,6 +287,7 @@ export async function updateDrciComments(
   );
 
   const greenlightSections = await greenlightSectionsPromise;
+  const crcrAllowlist = await crcrAllowlistPromise;
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -440,20 +451,19 @@ export async function updateDrciComments(
       // Classify CRCR downstream CI jobs (L3 = non-blocking, L4 = blocking).
       // These jobs live in oot_workflow_job, not workflow_job, so they are fetched
       // separately and classified based on their downstream_repo_level.
-      const crcrL3Jobs: RecentWorkflowsData[] = [];
+      let crcrL3Jobs: RecentWorkflowsData[] = [];
       try {
         const crcrWorkflows = await fetchCrcrWorkflows(`${owner}/${repo}`, [
           pr_info.pr_number,
         ]);
-        for (const job of crcrWorkflows) {
-          const level = job.downstreamLevel || "";
-          if (level === "L3") {
-            crcrL3Jobs.push(job);
-          } else if (level === "L4") {
-            // L4 failures are blocking — merge them into failedJobs
-            failedJobs.push(job);
-          }
-        }
+        const classified = classifyCrcrJobs(
+          crcrWorkflows,
+          labels || [],
+          crcrAllowlist
+        );
+        crcrL3Jobs = classified.crcrL3Jobs;
+        // L4 failures are blocking — merge them into failedJobs
+        failedJobs.push(...classified.crcrL4Jobs);
       } catch (err) {
         // If CRCR fetch fails, log and proceed — don't block the Dr.CI update
         console.error("Failed to fetch CRCR workflows:", err);
@@ -1368,6 +1378,42 @@ function getTrunkFailure(
 
 function isPending(job: RecentWorkflowsData): boolean {
   return job.conclusion === "" && isTime0(job.completed_at);
+}
+
+/**
+ * Split CRCR downstream job results (from fetchCrcrWorkflows) into the
+ * PR-visible L3 bucket and the always-blocking L4 bucket.
+ *
+ * L3 is opt-in: the relay (allowlist.py's needs_check_run) only creates an
+ * upstream check run for an L3 repo when the PR carries that repo's
+ * ciflow/crcr/<device> label. But every L1+ repo participating in
+ * pull_request events is dispatched -- and forwarded to HUD -- on every PR
+ * regardless of labels (shadow observation for L1/L2, plus e.g. crcr-test's
+ * own post-merge self-tests, which deliberately run on landed PRs that never
+ * carried its label). Without re-applying the same label gate here, every one
+ * of those unlabeled shadow runs would resurface on the PR comment even
+ * though the PR never opted in and no check run was ever created for it.
+ * L4 has no such gate: it always blocks, regardless of labels.
+ */
+export function classifyCrcrJobs(
+  crcrWorkflows: RecentWorkflowsData[],
+  labels: string[],
+  crcrAllowlist: CrcrAllowlist | null
+): { crcrL3Jobs: RecentWorkflowsData[]; crcrL4Jobs: RecentWorkflowsData[] } {
+  const crcrL3Jobs: RecentWorkflowsData[] = [];
+  const crcrL4Jobs: RecentWorkflowsData[] = [];
+  for (const job of crcrWorkflows) {
+    const level = job.downstreamLevel || "";
+    if (level === "L3") {
+      const device = crcrAllowlist?.getDeviceForRepo(job.downstreamRepo || "");
+      if (device && labels.includes(`ciflow/crcr/${device}`)) {
+        crcrL3Jobs.push(job);
+      }
+    } else if (level === "L4") {
+      crcrL4Jobs.push(job);
+    }
+  }
+  return { crcrL3Jobs, crcrL4Jobs };
 }
 
 export async function getWorkflowJobsStatuses(

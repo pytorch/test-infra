@@ -120,6 +120,8 @@ export interface RecentWorkflowsData extends BasicJobData {
   failure_context: string[];
   /** CRCR downstream repo level ("L3" or "L4") — set by fetchCrcrWorkflows. */
   downstreamLevel?: string;
+  /** CRCR downstream repo ("org/repo") — set by fetchCrcrWorkflows. */
+  downstreamRepo?: string;
 }
 
 export interface Artifact {
