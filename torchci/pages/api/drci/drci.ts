@@ -30,6 +30,7 @@ import {
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
   HUD_URL,
+  isExcludedFromAdvisor,
   isExcludedFromBrokenTrunk,
   isExcludedFromFlakiness,
   isExcludedFromSimilarityPostProcessing,
@@ -364,8 +365,11 @@ export async function updateDrciComments(
         );
       }
 
-      // The failures either advisor consumer can say anything about.
-      const advisorJobs = [...failedJobs, ...unknownJobs];
+      // The failures either advisor consumer can say anything about. PR-state
+      // gates are left out, so no verdict line renders beside one.
+      const advisorJobs = [...failedJobs, ...unknownJobs].filter(
+        (job) => !isExcludedFromAdvisor(job)
+      );
 
       // One read of this PR's advisor verdicts, shared by the inline "AI
       // verdict:" line and the suppression gate below. Reading per consumer

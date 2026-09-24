@@ -137,6 +137,20 @@ describe("isSuppressible", () => {
     expect(isSuppressible(job(), [])).toBe(false);
   });
 
+  // pytorch/pytorch#198500: a stack out of sync got a `not_related` verdict,
+  // which is true of the code and still no reason to merge.
+  test.each([
+    "Check mergeability of ghstack PR / ghstack-mergeability-check",
+    "Lint / pr-sanity-checks",
+    "Check Labels / Check labels",
+  ])("a confident verdict on PR-state gate %s keeps it blocking", (name) => {
+    expect(
+      isSuppressible(job({ name }), [
+        row({ signal_key: `dr_ci_${name}`, confidence: 0.97 }),
+      ])
+    ).toBe(false);
+  });
+
   test.each(["related", "revert", "unsure"])(
     "%s keeps the job blocking",
     (verdict) => {
