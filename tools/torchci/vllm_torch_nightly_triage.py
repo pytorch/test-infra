@@ -386,6 +386,31 @@ def compare(rows: List[Tuple]) -> Dict[str, List[Dict]]:
     return buckets
 
 
+def _unsharded(name: str) -> str:
+    return name.split(" [shard ")[0]
+
+
+def passed_clusters(buckets: Dict[str, List[Dict]]) -> List[str]:
+    """Clusters that ran on torch nightly with no shard failing.
+
+    Shards of one cluster routinely disagree -- see the note in get_rows() -- and
+    a failing shard is recorded under its sharded name while a passing one is
+    recorded under the bare cluster name. Taking the passing set alone would
+    therefore report a cluster as green while one of its shards is red, which is
+    exactly the false "did not reproduce" this field exists to prevent. Subtract
+    anything that failed on nightly, comparing on the unsharded name.
+
+    ``baseline_only`` is not subtracted: those passed on nightly and failed only
+    on the baseline, which is a pass for this purpose.
+    """
+    failing = {
+        _unsharded(j["name"])
+        for key in ("regressed", "both", "unclassified")
+        for j in buckets.get(key, [])
+    }
+    return sorted({_unsharded(j["name"]) for j in buckets.get("passed", [])} - failing)
+
+
 def agent_concentration(regressed: List[Dict]) -> List[Tuple[str, int]]:
     """Failures piled onto one host usually mean a sick agent, not a regression."""
     counts: Dict[str, int] = defaultdict(int)
@@ -1060,7 +1085,7 @@ def main() -> int:
                     "torch_version_minor": torch_version_minor,
                     "regressed": buckets["regressed"],
                     "both": buckets["both"],
-                    "passed": sorted({j["name"] for j in buckets.get("passed", [])}),
+                    "passed": passed_clusters(buckets),
                     "regressed_tests": regressed_tests,
                 },
                 f,

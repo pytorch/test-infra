@@ -315,6 +315,22 @@ class TestNearDuplicate(unittest.TestCase):
         }
         self.assertIsNone(near_duplicate(cause, [child]))
 
+    def test_children_are_scoped_to_one_torch_minor(self):
+        # A cause from the current cycle must not land on last cycle's issue.
+        # near_duplicate() matches on exception type and clusters alone, so the
+        # scoping has to happen when the candidates are fetched.
+        items = [
+            {"number": 8000, "title": "[vllm][torch 2.14] older cause", "body": ""},
+            {"number": 8900, "title": "[vllm][torch 2.15] current cause", "body": ""},
+        ]
+        with mock.patch.object(vtfi, "_req", return_value={"items": items}):
+            self.assertEqual(
+                [i["number"] for i in vtfi.open_children("t", "r", "2.15")], [8900]
+            )
+            self.assertEqual(
+                [i["number"] for i in vtfi.open_children("t", "r")], [8000, 8900]
+            )
+
     def test_signature_without_an_exception_type_never_matches(self):
         child = self._issue(8808, "RuntimeError: boom", self.B200)
         cause = {"signature": "something went wrong", "clusters": list(self.B200)}

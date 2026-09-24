@@ -209,10 +209,21 @@ def merge_clusters(body: str, clusters: List[str]) -> tuple:
     return _CLUSTERS_SECTION.sub(lambda m: m.group(1) + listing, body, count=1), added
 
 
-def open_children(token: str, repo: str) -> List[Dict]:
+def open_children(token: str, repo: str, minor: str = "") -> List[Dict]:
+    """Open child issues, restricted to one torch minor when given.
+
+    Children of a previous cycle stay open for a while after the version turns
+    over, and near_duplicate() matches on exception type and cluster overlap
+    alone -- enough for a fresh cause to land on last version's issue and never
+    reach the current umbrella. Scope the candidates instead of teaching every
+    matcher about versions.
+    """
     q = urllib.parse.quote(f"repo:{repo} is:issue is:open label:{CHILD_LABEL}")
     res = _req("GET", f"/search/issues?q={q}&per_page=100", token)
-    return res.get("items", [])
+    items = res.get("items", [])
+    if not minor:
+        return items
+    return [i for i in items if f"[torch {minor}]" in (i.get("title") or "")]
 
 
 def near_duplicate(cause: Dict[str, Any], children: List[Dict]) -> Optional[Dict]:
@@ -643,7 +654,7 @@ def main() -> int:
     else:
         print(f"reusing umbrella #{umbrella['number']}")
 
-    children = open_children(token, args.repo)
+    children = open_children(token, args.repo, minor)
 
     # Keyed by fingerprint, for causes filed earlier in this same run. The
     # search API is not read-your-writes, so two causes that normalize to one
