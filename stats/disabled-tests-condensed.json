@@ -803,6 +803,14 @@
       "linux"
     ]
   ],
+  "test_non_blocking_d2h_event_sync_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsCUDA)": [
+    "198524",
+    "https://github.com/pytorch/pytorch/issues/198524",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_non_blocking_d2h_event_sync_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
     "195552",
     "https://github.com/pytorch/pytorch/issues/195552",
@@ -951,27 +959,12 @@
       "macos"
     ]
   ],
-  "test_out_of_memory_retry (__main__.TestCuda)": [
-    "187045",
-    "https://github.com/pytorch/pytorch/issues/187045",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
     "188985",
     "https://github.com/pytorch/pytorch/issues/188985",
     [
       "mac",
       "macos"
-    ]
-  ],
-  "test_package_keeps_a_loaded_device_a_recompile_does_not_name (__main__.TestPackage)": [
-    "197144",
-    "https://github.com/pytorch/pytorch/issues/197144",
-    [
-      "xpu"
     ]
   ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
