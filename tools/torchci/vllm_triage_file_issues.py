@@ -29,7 +29,20 @@ from typing import Any, Dict, List, Optional
 API = "https://api.github.com"
 UMBRELLA_LABEL = "vllm-torch-nightly-umbrella"
 CHILD_LABEL = "vllm-torch-nightly"
+# Extra label on causes whose fix belongs in vLLM, so they can be listed or
+# filtered apart from the torch regressions without reading each body.
+VLLM_SIDE_LABEL = "vllm-side"
 KEY_PREFIX = "vllm-triage-key"
+
+TORCH_ROUTING = "pytorch/pytorch"
+VLLM_ROUTING = "vllm-project/vllm"
+FILED_ROUTINGS = (TORCH_ROUTING, VLLM_ROUTING)
+
+# Umbrella section each routing is listed under.
+SECTIONS = {
+    TORCH_ROUTING: "### Confirmed regressions",
+    VLLM_ROUTING: "### Regression on vLLM side",
+}
 
 
 def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any:
@@ -301,22 +314,44 @@ def umbrella_body(minor: str, report: Dict[str, Any]) -> str:
         f"[#{report.get('baseline_build')}]"
         f"(https://buildkite.com/vllm/ci/builds/{report.get('baseline_build')})"
         f" on commit `{str(report.get('commit') or '')[:12]}`.\n\n"
-        "### Confirmed regressions\n\n"
+        f"{SECTIONS[VLLM_ROUTING]}\n\n"
+        "<!-- Causes whose fix belongs in vLLM, not torch. Filed here so the\n"
+        "     failing jobs are not re-triaged every run; link the upstream\n"
+        "     vllm-project/vllm issue, or promote to pytorch/pytorch, by hand. -->\n\n"
+        f"{SECTIONS[TORCH_ROUTING]}\n\n"
         "<!-- checklist: appended automatically, one entry per root cause -->\n"
     )
 
 
-def append_to_umbrella(token: str, repo: str, umbrella: Dict, line: str) -> None:
+def insert_in_section(body: str, section: str, line: str) -> str:
+    """Put ``line`` at the end of ``section``, creating the section if absent.
+
+    Appending to the end of the body would file everything under whichever
+    section happens to be last, which is how a vLLM-side cause would end up
+    listed as a confirmed torch regression.
+    """
+    if line.strip() in body:
+        return body
+    if section not in body:
+        return body.rstrip() + f"\n\n{section}\n\n{line}\n"
+    head, _, rest = body.partition(section)
+    # The section runs until the next heading of the same level.
+    nxt = re.search(r"^### ", rest, re.M)
+    if nxt:
+        inner, tail = rest[: nxt.start()], rest[nxt.start() :]
+        return head + section + inner.rstrip() + "\n" + line + "\n\n" + tail
+    return head + section + rest.rstrip() + "\n" + line + "\n"
+
+
+def append_to_umbrella(
+    token: str, repo: str, umbrella: Dict, line: str, section: str
+) -> None:
     fresh = _req("GET", f"/repos/{repo}/issues/{umbrella['number']}", token)
     body = fresh.get("body") or ""
-    if line.strip() in body:
+    new = insert_in_section(body, section, line)
+    if new == body:
         return
-    _req(
-        "PATCH",
-        f"/repos/{repo}/issues/{umbrella['number']}",
-        token,
-        {"body": body.rstrip() + "\n" + line + "\n"},
-    )
+    _req("PATCH", f"/repos/{repo}/issues/{umbrella['number']}", token, {"body": new})
 
 
 def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
@@ -341,12 +376,22 @@ def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
     ]
     if jobs:
         sections.append(f"## Representative jobs\n\n{jobs}")
+    routing = cause.get("routing", "undetermined")
     sections.append(
-        f"## Suggested routing\n\n{cause.get('routing', 'undetermined')} "
+        f"## Suggested routing\n\n{routing} "
         f"(agent confidence: classification "
         f"{classification_confidence(cause) or 'unknown'}, new-failure "
         f"{new_failure_confidence(cause) or 'unknown'})"
     )
+    if routing_of(cause) == VLLM_ROUTING:
+        sections.append(
+            "The fix for this one looks like it belongs in vLLM rather than "
+            "torch. It is tracked here so the failing jobs are not re-triaged "
+            "every run -- **the next step is a human one**: link the upstream "
+            "`vllm-project/vllm` issue if it exists, open one if it does not, "
+            "or re-route to `pytorch/pytorch` if this turns out to be a torch "
+            "regression after all."
+        )
     sections.append(
         "---\n\n"
         "Filed automatically by the vLLM torch-nightly triage workflow. The root "
@@ -532,8 +577,12 @@ def new_failure_confidence(cause: Dict[str, Any]) -> str:
     return _level(cause.get("new_failure_confidence"))
 
 
+def routing_of(cause: Dict[str, Any]) -> str:
+    return str(cause.get("routing", "")).strip().lower()
+
+
 def eligible(cause: Dict[str, Any]) -> bool:
-    """Medium-confidence torch/triton causes only.
+    """Medium-confidence causes with a repo to fix them in.
 
     Infra-looking clusters and anything the agent could not root-cause stay out of
     the tracker: at three runs a week, filing uncertain causes would bury the real
@@ -541,13 +590,21 @@ def eligible(cause: Dict[str, Any]) -> bool:
 
     ``new_failure_confidence: low`` means "likely a variant of an existing known
     issue", so filing it would duplicate a child issue that already exists.
+
+    Routing selects the umbrella section, not whether to file. It used to gate
+    filing on ``pytorch/pytorch``, which silently dropped every vLLM-side cause
+    however well evidenced -- the cuda-bindings 13.4 ``cudaIpcMemHandle_t``
+    breakage was emitted with ``new_failure_confidence: high`` on three
+    consecutive runs and discarded each time, and was eventually filed by hand as
+    vllm-project/vllm#58599. Routing is a destination; confidence is the quality
+    bar, and the fields above already carry it.
     """
     return (
         bool(cause.get("determined"))  # type: ignore[return-value]
         and classification_confidence(cause) != "low"
         and classification_confidence(cause)
         and new_failure_confidence(cause) != "low"
-        and str(cause.get("routing", "")).strip().lower() == "pytorch/pytorch"
+        and routing_of(cause) in FILED_ROUTINGS
     )
 
 
@@ -635,7 +692,10 @@ def main() -> int:
         print("\n=== DRY RUN (pass --execute to file) ===")
         print(f"umbrella: [torch {minor}] vLLM CI failures - torch nightly triage")
         for c in selected:
-            print(f"  child: {c.get('title')}  key={fingerprint(args.repo, c)}")
+            print(
+                f"  child [{routing_of(c)}]: {c.get('title')}  "
+                f"key={fingerprint(args.repo, c)}"
+            )
         return 0
 
     umbrella = find_umbrella(token, args.repo, minor)
@@ -727,17 +787,21 @@ def main() -> int:
             matched.add(existing["number"])
             print(f"  recurrence -> #{existing['number']} ({matched_by})")
             continue
+        routing = routing_of(c)
+        vllm_side = routing == VLLM_ROUTING
+        labels = [CHILD_LABEL] + ([VLLM_SIDE_LABEL] if vllm_side else [])
+        prefix = "[vllm-side]" if vllm_side else ""
         issue = _req(
             "POST",
             f"/repos/{args.repo}/issues",
             token,
             {
-                "title": f"[vllm][torch {minor}] {c.get('title')}",
+                "title": f"[vllm][torch {minor}]{prefix} {c.get('title')}",
                 "body": child_body(c, report, key),
-                "labels": [CHILD_LABEL],
+                "labels": labels,
             },
         )
-        print(f"  created #{issue['number']}: {c.get('title')}")
+        print(f"  created #{issue['number']} [{routing}]: {c.get('title')}")
         # Visible to the rest of this run, by key and to the near-duplicate scan.
         filed_this_run[key] = issue
         children.append(issue)
@@ -747,6 +811,7 @@ def main() -> int:
             args.repo,
             umbrella,
             f"- [ ] #{issue['number']} - {c.get('title')}",
+            SECTIONS[routing],
         )
 
     report_silences(token, args.repo, report, children, matched, minor)
