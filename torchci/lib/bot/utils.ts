@@ -404,6 +404,32 @@ export async function isOrgTeamMember(
   }
 }
 
+// Answers "did we VERIFY that this human has write or admin access to the
+// event's repo?" Unlike hasWritePermissions, it fails closed: a lookup error
+// resolves to false instead of throwing, and `[bot]` logins are always false,
+// so no app inherits the facebook-github-tools / meta-codesync allowance.
+export async function hasVerifiedHumanWritePermissions(
+  ctx: any,
+  username: string
+): Promise<boolean> {
+  if (!username || username.endsWith("[bot]")) {
+    return false;
+  }
+  try {
+    return await hasWritePermissions(ctx, username);
+  } catch (error) {
+    try {
+      ctx.log?.error?.(
+        { username, err: error },
+        "collaborator permission lookup failed, denying write access"
+      );
+    } catch {
+      // Logging is best effort.
+    }
+    return false;
+  }
+}
+
 export async function hasApprovedPullRuns(
   octokit: Octokit,
   owner: string,
