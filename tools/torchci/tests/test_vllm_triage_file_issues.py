@@ -8,6 +8,7 @@ invisible to the other -- exactly how ``confidence`` ->
 pins one field of that contract.
 """
 
+import re
 import unittest
 from unittest import mock
 
@@ -49,12 +50,16 @@ class TestEligible(unittest.TestCase):
     def test_undetermined_cause_is_skipped(self):
         self.assertFalse(eligible(cause(determined=False)))
 
-    def test_non_torch_routing_is_skipped(self):
-        self.assertFalse(eligible(cause(routing="vllm-project/vllm")))
+    def test_unroutable_causes_are_skipped(self):
+        # `vllm-project/vllm` used to be skipped here too. It is filed now --
+        # see TestRoutingIsNotAFilingGate -- because routing says which repo
+        # fixes the bug, not whether the bug is worth tracking.
         self.assertFalse(eligible(cause(routing="infra")))
+        self.assertFalse(eligible(cause(routing="")))
 
     def test_routing_is_matched_case_and_space_insensitively(self):
         self.assertTrue(eligible(cause(routing=" PyTorch/PyTorch ")))
+        self.assertTrue(eligible(cause(routing=" VLLM-Project/vLLM ")))
 
     def test_low_classification_confidence_is_skipped(self):
         self.assertFalse(eligible(cause(classification_confidence="low")))
@@ -91,8 +96,11 @@ class TestEligible(unittest.TestCase):
         self.assertEqual(new_failure_confidence(no_conf), "")
 
     def test_current_agent_schema_is_understood(self):
-        # Shape emitted by run 33008738638, which filed nothing: the gate must
-        # skip these on routing alone, not because it cannot read the fields.
+        # Shape emitted by run 33008738638. The point of the case is that the
+        # gate reads the fields rather than failing closed on an unknown schema.
+        # The nixl_ep entry is now filed -- it is a well-evidenced cause whose
+        # fix happens to live in vLLM, and dropping it is what this change
+        # stopped doing; the infra entry is still skipped.
         observed = [
             {
                 "title": "torch-nightly cpu and arm64 CI images missing from ECR",
@@ -109,7 +117,7 @@ class TestEligible(unittest.TestCase):
                 "determined": True,
             },
         ]
-        self.assertEqual([eligible(c) for c in observed], [False, False])
+        self.assertEqual([eligible(c) for c in observed], [False, True])
         self.assertEqual(
             [classification_confidence(c) for c in observed], ["high", "medium"]
         )
@@ -260,6 +268,93 @@ class TestFingerprint(unittest.TestCase):
             normalize_signature("AssertionError: 1 + 2 != 4"),
             "AssertionError: 1 + 2 != 4",
         )
+
+
+class TestRoutingIsNotAFilingGate(unittest.TestCase):
+    """A vLLM-side cause is filed too; routing picks the umbrella section."""
+
+    def test_vllm_routed_cause_is_eligible(self):
+        # Verbatim shape of the cuda-bindings 13.4 cudaIpcMemHandle_t finding,
+        # emitted on three consecutive runs and dropped each time.
+        c = cause(routing="vllm-project/vllm", new_failure_confidence="high")
+        self.assertTrue(eligible(c))
+
+    def test_torch_routed_cause_is_still_eligible(self):
+        self.assertTrue(eligible(cause(routing="pytorch/pytorch")))
+
+    def test_infra_and_undetermined_routings_are_still_skipped(self):
+        for r in ("infra", "", "undetermined"):
+            self.assertFalse(eligible(cause(routing=r)), r)
+
+    def test_each_routing_has_a_section(self):
+        for r in vtfi.FILED_ROUTINGS:
+            self.assertIn(r, vtfi.SECTIONS)
+
+
+class TestInsertInSection(unittest.TestCase):
+    # The live #8610 body: the vLLM section precedes the torch one, so
+    # appending at the end of the body files everything as a torch regression.
+    BODY = (
+        "## torch 2.15 nightly - vLLM CI regressions\n\n"
+        "### Method\n\nsome prose\n\n"
+        "### Regression on vLLM side\n\n"
+        "- [ ]  https://github.com/vllm-project/vllm/issues/58599\n\n"
+        "### Confirmed regressions\n\n"
+        "- [ ] #8745 - qk-norm+rope fusion pass matches zero times\n"
+    )
+
+    def _lines_under(self, body, section):
+        rest = body.partition(section)[2]
+        nxt = re.search(r"^### ", rest, re.M)
+        chunk = rest[: nxt.start()] if nxt else rest
+        return [ln for ln in chunk.splitlines() if ln.startswith("- [")]
+
+    def test_vllm_entry_lands_in_the_vllm_section(self):
+        out = vtfi.insert_in_section(
+            self.BODY, vtfi.SECTIONS["vllm-project/vllm"], "- [ ] #9001 - minimax"
+        )
+        self.assertIn(
+            "- [ ] #9001 - minimax",
+            self._lines_under(out, "### Regression on vLLM side"),
+        )
+        # ...and did not leak into the torch list.
+        self.assertEqual(
+            self._lines_under(out, "### Confirmed regressions"),
+            ["- [ ] #8745 - qk-norm+rope fusion pass matches zero times"],
+        )
+
+    def test_torch_entry_lands_in_the_torch_section(self):
+        out = vtfi.insert_in_section(
+            self.BODY, vtfi.SECTIONS["pytorch/pytorch"], "- [ ] #9002 - inductor"
+        )
+        self.assertEqual(
+            self._lines_under(out, "### Confirmed regressions"),
+            [
+                "- [ ] #8745 - qk-norm+rope fusion pass matches zero times",
+                "- [ ] #9002 - inductor",
+            ],
+        )
+        self.assertEqual(len(self._lines_under(out, "### Regression on vLLM side")), 1)
+
+    def test_existing_entry_is_not_duplicated(self):
+        line = "- [ ] #8745 - qk-norm+rope fusion pass matches zero times"
+        self.assertEqual(
+            vtfi.insert_in_section(self.BODY, vtfi.SECTIONS["pytorch/pytorch"], line),
+            self.BODY,
+        )
+
+    def test_missing_section_is_created(self):
+        body = "## title\n\n### Confirmed regressions\n\n- [ ] #1 - a\n"
+        out = vtfi.insert_in_section(
+            body, vtfi.SECTIONS["vllm-project/vllm"], "- [ ] #2 - b"
+        )
+        self.assertIn("### Regression on vLLM side", out)
+        self.assertIn("- [ ] #2 - b", self._lines_under(out, "### Regression on vLLM"))
+
+    def test_the_template_ships_both_sections(self):
+        body = vtfi.umbrella_body("2.15", {})
+        for s in vtfi.SECTIONS.values():
+            self.assertIn(s, body)
 
 
 class TestNearDuplicate(unittest.TestCase):
