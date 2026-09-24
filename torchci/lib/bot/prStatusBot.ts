@@ -8,6 +8,7 @@ import {
   PR_STATUS_LABELS,
 } from "lib/prStatus";
 import { Context, Probot } from "probot";
+import { isInPreReview, markInProgressIfAccepted } from "./preReviewUtils";
 import { isPyTorchPyTorch } from "./utils";
 
 async function handle(
@@ -59,6 +60,25 @@ async function handle(
     labels,
     pullRequest.user?.login
   );
+
+  // Removing a pending reviewer, or assigning one who already commented an
+  // accept, can complete agreement without a reaction or accept command. This
+  // runs after the upsert so the labeled webhook renders the newer status.
+  if (
+    (payload.action === "review_requested" ||
+      payload.action === "review_request_removed") &&
+    pullRequest.user?.login &&
+    isInPreReview(pullRequest)
+  ) {
+    await markInProgressIfAccepted(
+      context.octokit as any,
+      owner,
+      repo,
+      pullRequest.number,
+      labels,
+      pullRequest.user.login
+    );
+  }
 }
 
 export default function prStatusBot(app: Probot): void {
