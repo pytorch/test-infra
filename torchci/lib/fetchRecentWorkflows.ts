@@ -56,6 +56,7 @@ export async function fetchCrcrWorkflows(
     failure_lines: [],
     failure_context: [],
     downstreamLevel: row.downstream_repo_level || "",
+    downstreamRepo: row.downstream_repo || "",
   }));
 }
 

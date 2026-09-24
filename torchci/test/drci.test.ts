@@ -1,4 +1,5 @@
 import { TIME_0 } from "lib/bot/utils";
+import { CrcrAllowlist } from "lib/crcrAllowlist";
 import * as drciUtils from "lib/drciUtils";
 import {
   DOCS_URL,
@@ -1139,5 +1140,80 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(0);
     expect(unstableJobs.length).toBe(0);
+  });
+});
+
+describe("classifyCrcrJobs", () => {
+  // Mirrors the shape of pytorch/pytorch's real .github/allowlist.yml.
+  const allowlist = CrcrAllowlist.fromYaml(`
+L3:
+  crcr-test:
+    pytorch/crcr-test: [oncall1]
+  npu:
+    Ascend/pytorch: [oncall2]
+L4:
+  - org/l4-repo: oncall3
+`);
+
+  function crcrJob(
+    overrides: Partial<RecentWorkflowsData>
+  ): RecentWorkflowsData {
+    return getDummyJob({
+      name: "crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-xfail-checkrun-creation",
+      downstreamLevel: "L3",
+      downstreamRepo: "pytorch/crcr-test",
+      conclusion: "failure",
+      ...overrides,
+    });
+  }
+
+  // Regression test for pytorch/test-infra#8879: crcr-test dispatches on
+  // every PR (shadow traffic) and even self-tests post-merge on PRs that
+  // never carried its label, but none of that should resurface on a PR whose
+  // labels never opted into ciflow/crcr/crcr-test.
+  test("drops an L3 job when the PR lacks the matching ciflow/crcr/<device> label", () => {
+    const job = crcrJob({});
+    const { crcrL3Jobs, crcrL4Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      ["ciflow/crcr/npu"], // a different device's label, not crcr-test's
+      allowlist
+    );
+    expect(crcrL3Jobs).toEqual([]);
+    expect(crcrL4Jobs).toEqual([]);
+  });
+
+  test("keeps an L3 job when the PR carries the matching ciflow/crcr/<device> label", () => {
+    const job = crcrJob({});
+    const { crcrL3Jobs, crcrL4Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      ["ciflow/crcr/crcr-test"],
+      allowlist
+    );
+    expect(crcrL3Jobs).toEqual([job]);
+    expect(crcrL4Jobs).toEqual([]);
+  });
+
+  test("always keeps L4 jobs regardless of labels", () => {
+    const job = crcrJob({
+      downstreamLevel: "L4",
+      downstreamRepo: "org/l4-repo",
+    });
+    const { crcrL3Jobs, crcrL4Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      [],
+      allowlist
+    );
+    expect(crcrL3Jobs).toEqual([]);
+    expect(crcrL4Jobs).toEqual([job]);
+  });
+
+  test("drops L3 jobs when the allowlist failed to load", () => {
+    const job = crcrJob({});
+    const { crcrL3Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      ["ciflow/crcr/crcr-test"],
+      null
+    );
+    expect(crcrL3Jobs).toEqual([]);
   });
 });
