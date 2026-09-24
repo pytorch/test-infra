@@ -36,6 +36,7 @@ PREFIXES = [
     "whl",
     "whl/nightly",
     "whl/test",
+    "whl/test/variant",
     "libtorch",
     "libtorch/nightly",
     "whl/test/variant",
