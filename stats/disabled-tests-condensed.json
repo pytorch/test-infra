@@ -522,6 +522,13 @@
       "dynamo"
     ]
   ],
+  "test_kernel_metadata_field_types (__main__.TestMetadataJsonFormat)": [
+    "198442",
+    "https://github.com/pytorch/pytorch/issues/198442",
+    [
+      "rocm"
+    ]
+  ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
     "186911",
     "https://github.com/pytorch/pytorch/issues/186911",
@@ -1079,6 +1086,14 @@
       "mac"
     ]
   ],
+  "test_restore_external_objects_before_backward (__main__.TestStreamExternalObjectRestore)": [
+    "198443",
+    "https://github.com/pytorch/pytorch/issues/198443",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_ring_attention_sdpa (__main__.RingAttentionTest)": [
     "198319",
     "https://github.com/pytorch/pytorch/issues/198319",
@@ -1096,6 +1111,14 @@
   "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_bfloat16 (__main__.DeterministicTest)": [
     "195816",
     "https://github.com/pytorch/pytorch/issues/195816",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_bfloat16 (__main__.DeterministicTest)": [
+    "198441",
+    "https://github.com/pytorch/pytorch/issues/198441",
     [
       "linux",
       "slow"
