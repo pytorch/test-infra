@@ -5,15 +5,10 @@ import {
   Paper,
   Skeleton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
   Typography,
 } from "@mui/material";
+import { GridColDef } from "@mui/x-data-grid";
 import {
   CLICKHOUSE_TIME_FORMAT,
   DEFAULT_TIME_RANGE,
@@ -21,6 +16,7 @@ import {
   snapStopToGranularity,
   snapToGranularity,
 } from "components/common/timeWindow";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { EChartsOption } from "echarts";
@@ -28,7 +24,7 @@ import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import { fetcher } from "lib/GeneralUtils";
 import { TimeRangePicker } from "pages/metrics";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 
 dayjs.extend(utc);
@@ -213,46 +209,56 @@ function WeeklyChart({
   stopTime: string;
 }) {
   const { darkMode } = useDarkMode();
-  if (rows === undefined) {
+  // Memoised: the time picker re-renders the page every few minutes, and the
+  // chart should only rebuild when its inputs change.
+  const options = useMemo((): EChartsOption | undefined => {
+    if (rows === undefined) {
+      return undefined;
+    }
+    // [not reverted, reverted unattributed, reverted attributed] per week
+    // (Sunday), with every week of the window present so quiet weeks show as 0.
+    const weeks = new Map<string, [number, number, number]>();
+    const lastWeek = dayjs.utc(stopTime).startOf("week");
+    for (
+      let week = dayjs.utc(startTime).startOf("week");
+      !week.isAfter(lastWeek);
+      week = week.add(1, "week")
+    ) {
+      weeks.set(week.format("YYYY-MM-DD"), [0, 0, 0]);
+    }
+    for (const row of rows) {
+      const week = dayjs
+        .utc(row.merged_at)
+        .startOf("week")
+        .format("YYYY-MM-DD");
+      const counts = weeks.get(week) ?? [0, 0, 0];
+      counts[row.attributed ? 2 : row.reverted ? 1 : 0] += 1;
+      weeks.set(week, counts);
+    }
+    const labels = Array.from(weeks.keys()).sort();
+    const series = (name: string, index: number) => ({
+      name,
+      type: "bar" as const,
+      stack: "merges",
+      data: labels.map((week) => weeks.get(week)![index]),
+    });
+    return {
+      title: { text: "AI-cleared merges per week" },
+      tooltip: { trigger: "axis" },
+      legend: { top: 30 },
+      grid: { top: 80, right: 20, bottom: 40, left: 50 },
+      xAxis: { type: "category", data: labels },
+      yAxis: { type: "value", minInterval: 1 },
+      series: [
+        series("Not reverted", 0),
+        series("Reverted, unattributed", 1),
+        series("Reverted, attributed", 2),
+      ],
+    };
+  }, [rows, startTime, stopTime]);
+  if (options === undefined) {
     return <Skeleton variant="rectangular" height={360} />;
   }
-  // [not reverted, reverted unattributed, reverted attributed] per week
-  // (Sunday), with every week of the window present so quiet weeks show as 0.
-  const weeks = new Map<string, [number, number, number]>();
-  const lastWeek = dayjs.utc(stopTime).startOf("week");
-  for (
-    let week = dayjs.utc(startTime).startOf("week");
-    !week.isAfter(lastWeek);
-    week = week.add(1, "week")
-  ) {
-    weeks.set(week.format("YYYY-MM-DD"), [0, 0, 0]);
-  }
-  for (const row of rows) {
-    const week = dayjs.utc(row.merged_at).startOf("week").format("YYYY-MM-DD");
-    const counts = weeks.get(week) ?? [0, 0, 0];
-    counts[row.attributed ? 2 : row.reverted ? 1 : 0] += 1;
-    weeks.set(week, counts);
-  }
-  const labels = Array.from(weeks.keys()).sort();
-  const series = (name: string, index: number) => ({
-    name,
-    type: "bar" as const,
-    stack: "merges",
-    data: labels.map((week) => weeks.get(week)![index]),
-  });
-  const options: EChartsOption = {
-    title: { text: "AI-cleared merges per week" },
-    tooltip: { trigger: "axis" },
-    legend: { top: 30 },
-    grid: { top: 80, right: 20, bottom: 40, left: 50 },
-    xAxis: { type: "category", data: labels },
-    yAxis: { type: "value", minInterval: 1 },
-    series: [
-      series("Not reverted", 0),
-      series("Reverted, unattributed", 1),
-      series("Reverted, attributed", 2),
-    ],
-  };
   return (
     <Paper sx={{ p: 2, height: 380 }} elevation={3}>
       <ReactECharts
@@ -288,6 +294,7 @@ function CheckChip({ check }: { check: ClearedCheck }) {
         component="a"
         href={url}
         target="_blank"
+        rel="noopener noreferrer"
         clickable
         color={newlyRed ? "error" : "default"}
         label={name}
@@ -310,72 +317,97 @@ function revertLabel(row: MergeRow): string {
   return `${by}${cls}, after ${days.toFixed(1)}d`;
 }
 
+const MERGE_COLUMNS: GridColDef[] = [
+  {
+    field: "pr_number",
+    headerName: "PR",
+    flex: 3,
+    minWidth: 260,
+    renderCell: (params: any) => (
+      <span>
+        <Link
+          href={`https://github.com/${REPO}/pull/${params.row.pr_number}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          #{params.row.pr_number}
+        </Link>{" "}
+        {params.row.title}
+        <Typography variant="caption" display="block">
+          {params.row.author.split(" <")[0]}
+        </Typography>
+      </span>
+    ),
+  },
+  {
+    field: "merged_at",
+    headerName: "Merged (UTC)",
+    width: 150,
+    valueFormatter: (value: any) => dayjs.utc(value).format("YYYY-MM-DD HH:mm"),
+  },
+  {
+    field: "checks",
+    headerName: "Cleared checks",
+    flex: 4,
+    minWidth: 300,
+    sortable: false,
+    renderCell: (params: any) => (
+      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+        {(params.row.checks as ClearedCheck[]).map((check) => (
+          <CheckChip key={`${check[0]}|${check[1]}`} check={check} />
+        ))}
+      </Stack>
+    ),
+  },
+  {
+    field: "reverted",
+    headerName: "Reverted",
+    flex: 2,
+    minWidth: 180,
+    sortable: false,
+    renderCell: (params: any) =>
+      params.row.revert_sha ? (
+        <Link
+          href={`https://github.com/${REPO}/commit/${params.row.revert_sha}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {revertLabel(params.row)}
+        </Link>
+      ) : (
+        revertLabel(params.row)
+      ),
+  },
+  {
+    field: "attributed",
+    headerName: "Attributed",
+    width: 100,
+    valueFormatter: (value: any) => (value ? "yes" : ""),
+  },
+];
+
+// A virtualized grid: a wide window can return thousands of merges, and only
+// the visible rows are mounted.
 function MergesTable({ rows }: { rows: MergeRow[] | undefined }) {
-  if (rows === undefined) {
-    return <Skeleton variant="rectangular" height={300} />;
-  }
-  if (rows.length === 0) {
-    return (
-      <Typography color="text.secondary">
-        No AI-cleared merges in this window.
-      </Typography>
-    );
-  }
   return (
-    <TableContainer component={Paper} elevation={3}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>PR</TableCell>
-            <TableCell>Merged (UTC)</TableCell>
-            <TableCell>Cleared checks</TableCell>
-            <TableCell>Reverted</TableCell>
-            <TableCell>Attributed</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.merged_sha}>
-              <TableCell sx={{ maxWidth: 360 }}>
-                <Link
-                  href={`https://github.com/${REPO}/pull/${row.pr_number}`}
-                  target="_blank"
-                >
-                  #{row.pr_number}
-                </Link>{" "}
-                {row.title}
-                <Typography variant="caption" display="block">
-                  {row.author.split(" <")[0]}
-                </Typography>
-              </TableCell>
-              <TableCell sx={{ whiteSpace: "nowrap" }}>
-                {dayjs.utc(row.merged_at).format("YYYY-MM-DD HH:mm")}
-              </TableCell>
-              <TableCell>
-                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                  {row.checks.map((check) => (
-                    <CheckChip key={`${check[0]}|${check[1]}`} check={check} />
-                  ))}
-                </Stack>
-              </TableCell>
-              <TableCell>
-                {row.revert_sha ? (
-                  <Link
-                    href={`https://github.com/${REPO}/commit/${row.revert_sha}`}
-                    target="_blank"
-                  >
-                    {revertLabel(row)}
-                  </Link>
-                ) : (
-                  revertLabel(row)
-                )}
-              </TableCell>
-              <TableCell>{row.attributed ? "yes" : ""}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Grid container>
+      <Grid size={{ xs: 12 }} height={520}>
+        <TablePanelWithData
+          title="AI-cleared merges"
+          data={rows}
+          columns={MERGE_COLUMNS}
+          showFooter={true}
+          dataGridProps={{
+            getRowId: (row: MergeRow) => row.merged_sha,
+            getRowHeight: () => "auto",
+            localeText: { noRowsLabel: "No AI-cleared merges in this window." },
+            initialState: {
+              sorting: { sortModel: [{ field: "merged_at", sort: "desc" }] },
+            },
+          }}
+        />
+      </Grid>
+    </Grid>
   );
 }
 
@@ -424,7 +456,11 @@ export default function Page() {
   // window totals, and a row with no merged_sha is only that carrier; a window
   // where nothing landed returns no rows and falls back to ZERO_TOTALS.
   const totals = okData && (okData[0] ?? ZERO_TOTALS);
-  const rows = okData?.filter((row) => row.merged_sha !== "");
+  // Memoised so the grid and chart keep a stable row array between renders.
+  const rows = useMemo(
+    () => okData?.filter((row) => row.merged_sha !== ""),
+    [okData]
+  );
 
   return (
     <Stack spacing={3}>

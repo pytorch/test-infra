@@ -171,7 +171,8 @@ revert_classes AS (
             FROM reverts
             WHERE reverted_pr > 0
         )
-        AND id IN (SELECT trigger_comment_id FROM reverts WHERE trigger_comment_id > 0)
+    -- No `id IN (... FROM reverts)` pushdown: it would re-run `reverts` (a push scan) to trim a
+    -- few hundred comments, and the LEFT JOIN in member_reverts already picks the trigger comment.
     GROUP BY id
 ),
 member_reverts AS (
@@ -216,8 +217,9 @@ autoreverts AS (
 -- token before a comma inside any parenthetical), e.g. "macos-py3-arm64 / test (default)".
 --
 -- ClickHouse inlines a CTE at every reference, so each reference below re-runs this one (and
--- `landed` under it): verdicts (twice), trunk_requests, checks_detail and merge_job_keys. Keep
--- what it reads cheap and count before adding a reference.
+-- `landed` under it): six evaluations today -- verdicts (twice), trunk_requests (which
+-- trunk_status reads twice), checks_detail and merge_job_keys. Keep what it reads cheap and
+-- count before adding a reference.
 cleared_checks AS (
     SELECT
         merged_sha,
@@ -277,6 +279,11 @@ trunk_requests AS (
     FROM cleared_checks
     ARRAY JOIN [('merge', merged_sha), ('base', base_sha)] AS request
 ),
+-- The job read is not narrowed to the cleared check names in its WHERE: that needs another
+-- reference to trunk_requests, and measured on 2026-09-23 it read more rows than it saved at every
+-- window tried (21-day stand-in cohort 12.44M vs 12.59M rows; 365 days 8.63M vs 9.37M), because
+-- the MV id lookup reads whole granules either way. Revisit if the cohort grows by an order of
+-- magnitude.
 trunk_status AS (
     SELECT
         r.merged_sha AS merged_sha,
