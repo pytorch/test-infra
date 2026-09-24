@@ -211,9 +211,30 @@ jobs:
 
             Only use confidence "high" when the log shows the failing test and the
             exception outright. A cause you inferred, or one that could plausibly be
-            infrastructure, is at most "medium". title/signature/clusters are the
-            deduplication key across runs: keep them stable for a recurring cause and
-            free of anything build-specific, or every run files a duplicate.
+            infrastructure, is at most "medium".
+
+            `signature` is the deduplication key across runs, so copy the exception
+            line out of the log **verbatim** -- byte for byte, as a single line.
+
+            Do not tidy it up. Specifically, do not replace numbers with `N` or any
+            other placeholder, do not abbreviate a list with `...`, do not shorten a
+            repr, and do not reword the message. Two runs did exactly that four
+            hours apart and filed the same three causes twice: `expected: [6]` came
+            back as `expected: [N]`, `found: [0, 0, 8, 8]` as `found: [0, 0, ...]`,
+            and `op_count(<OpOverload(op='aten.slice_scatter', overload='default')>)`
+            as `op_count(aten.slice_scatter.default)` (#8869/#8873, #8870/#8874,
+            #8761/#8875). A varying number in the signature is fine and is what the
+            normalizer is for; a placeholder you invented is not, because the next
+            run invents a different one.
+
+            Build numbers, dates, agent names and file paths do not belong in the
+            signature -- but they do not appear in an exception line either, so
+            copying verbatim gets this right on its own.
+
+            `clusters` is not part of the key: list every cluster you saw the cause
+            on and the filer accumulates them onto the existing issue, so one cause
+            reaching a second accelerator extends that issue rather than opening
+            another.
 
             You are not done until both findings.md and findings.json exist on
             disk. Write them yourself before you end your turn -- do not finish by

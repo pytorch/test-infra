@@ -195,6 +195,85 @@ class TestCompareCarriesBaselineUrl(unittest.TestCase):
         self.assertEqual(both_job["baseline_state"], "failed")
 
 
+class TestComparePassedBucket(unittest.TestCase):
+    """`passed` lets the filer tell a fixed cause from an unrun one."""
+
+    def _row(self, name, shard, tn_state, base_state):
+        return (
+            name,
+            shard,
+            tn_state,
+            0,
+            "tn#job",
+            "agent-1",
+            base_state,
+            "b#job",
+            1,
+            1,
+        )
+
+    def test_passing_nightly_job_is_recorded(self) -> None:
+        buckets = triage.compare(rows=[self._row("Job A", 0, "passed", "passed")])
+        self.assertEqual([j["name"] for j in buckets["passed"]], ["Job A"])
+        # ...and is not mistaken for a failure.
+        self.assertEqual(buckets["regressed"], [])
+        self.assertEqual(buckets["both"], [])
+
+    def test_failing_nightly_job_is_not_recorded_as_passed(self) -> None:
+        buckets = triage.compare(rows=[self._row("Job A", 0, "failed", "passed")])
+        self.assertEqual(buckets["passed"], [])
+        self.assertEqual(len(buckets["regressed"]), 1)
+
+    def test_shard_suffix_is_stripped(self) -> None:
+        # Child issues list the cluster, not the shard, so the name recorded
+        # here has to match that form or nothing ever compares equal.
+        buckets = triage.compare(rows=[self._row("Job A", 3, "passed", "passed")])
+        self.assertEqual([j["name"] for j in buckets["passed"]], ["Job A"])
+
+    def test_a_cluster_with_one_failing_shard_is_not_passed(self) -> None:
+        # get_rows() measured "Kernels Core Operation Test" as
+        # passed,passed,failed across three shards. Stripping the suffix is
+        # necessary to compare with a child issue's cluster, but on its own it
+        # conflates all-shards-green with some-shards-green -- and the filer
+        # would report the cause fixed while a shard is red.
+        buckets = triage.compare(
+            rows=[
+                self._row("Kernels Core Operation Test", 1, "passed", "passed"),
+                self._row("Kernels Core Operation Test", 2, "passed", "passed"),
+                self._row("Kernels Core Operation Test", 3, "failed", "passed"),
+            ]
+        )
+        self.assertEqual(
+            [j["name"] for j in buckets["regressed"]],
+            ["Kernels Core Operation Test [shard 3]"],
+        )
+        self.assertEqual(triage.passed_clusters(buckets), [])
+
+    def test_a_cluster_with_every_shard_green_is_passed(self) -> None:
+        buckets = triage.compare(
+            rows=[
+                self._row("Job A", 1, "passed", "passed"),
+                self._row("Job A", 2, "passed", "passed"),
+            ]
+        )
+        self.assertEqual(triage.passed_clusters(buckets), ["Job A"])
+
+    def test_a_shard_failing_on_both_also_suppresses(self) -> None:
+        buckets = triage.compare(
+            rows=[
+                self._row("Job A", 1, "passed", "passed"),
+                self._row("Job A", 2, "failed", "failed"),
+            ]
+        )
+        self.assertEqual([j["name"] for j in buckets["both"]], ["Job A [shard 2]"])
+        self.assertEqual(triage.passed_clusters(buckets), [])
+
+    def test_failing_only_on_the_baseline_still_counts_as_passed(self) -> None:
+        # Green on nightly, red on the baseline: a pass for silence purposes.
+        buckets = triage.compare(rows=[self._row("Job A", 1, "passed", "failed")])
+        self.assertEqual(triage.passed_clusters(buckets), ["Job A"])
+
+
 def _superset_fetched(cluster="Job A"):
     """A fetched cluster whose nightly failing set is a superset of baseline's."""
     rep = _both_job(cluster, "tn#job", "base#job")
@@ -636,6 +715,9 @@ class TestReportJsonWiring(unittest.TestCase):
                 "torch_version_minor",
                 "regressed",
                 "both",
+                # Consumed by the filer to tell a cause that stopped
+                # reproducing from one whose job simply did not run.
+                "passed",
                 "regressed_tests",
             },
         )

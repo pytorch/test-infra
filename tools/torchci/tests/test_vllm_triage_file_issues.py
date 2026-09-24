@@ -9,12 +9,19 @@ pins one field of that contract.
 """
 
 import unittest
+from unittest import mock
+
+from torchci import vllm_triage_file_issues as vtfi
 
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
+    cluster_fingerprint,
     eligible,
     fingerprint,
+    issue_clusters,
     legacy_fingerprint,
+    merge_clusters,
+    near_duplicate,
     new_failure_confidence,
     normalize_signature,
 )
@@ -160,20 +167,353 @@ class TestFingerprint(unittest.TestCase):
             ),
         )
 
-    def test_same_exception_in_a_different_job_stays_distinct(self):
+    # Verbatim from test-infra#8786 (MI355) and #8839 (B200): byte-identical
+    # GSM8K assertion on two accelerators, filed twice because the cluster name
+    # was part of the key. One cause, so one issue with both clusters on it.
+    def test_same_exception_in_a_different_cluster_is_one_cause(self):
         a = {
             "signature": self.SIG_BARE,
             "clusters": [":nvidia: (L4) PyTorch Compilation Passes"],
         }
         b = {"signature": self.SIG_BARE, "clusters": [":nvidia: (B200) Distributed"]}
-        self.assertNotEqual(
+        self.assertEqual(
             fingerprint("pytorch/test-infra", a), fingerprint("pytorch/test-infra", b)
+        )
+
+    def test_cluster_key_reproduces_the_issues_actually_filed(self):
+        # The keys in the live issue bodies of #8808 and #8786. The fallback
+        # lookup must keep matching them or every open child is re-filed once.
+        self.assertEqual(
+            cluster_fingerprint(
+                "pytorch/test-infra",
+                {
+                    "signature": "RuntimeError: DeepEPv2 communicator properties "
+                    "query failed; networking capability could not be determined.",
+                    "clusters": [
+                        ":nvidia: (B200) Distributed",
+                        ":nvidia: (B200) FusedMoE Layer Kernels",
+                    ],
+                },
+            ),
+            "a693ee5560dce401",
+        )
+        self.assertEqual(
+            cluster_fingerprint(
+                "pytorch/test-infra",
+                {
+                    "signature": "AssertionError: GSM8K metric too low: "
+                    "0.0000 < 0.9200 - 0.0800 = 0.8400",
+                    "clusters": [":amd: (MI355) LM Eval Spec Decode"],
+                },
+            ),
+            "15ba5aedfb5c45d1",
         )
 
     def test_normalize_keeps_the_assertion_drops_the_explanation(self):
         self.assertEqual(
             normalize_signature(self.SIG_WITH_TAIL), "AssertionError: assert 2 == 0"
         )
+
+    # test-infra#8838 quoted the same failure as #8761 with the introspection
+    # tail folded onto the assertion line, which the `^`-anchored strip missed.
+    SIG_INLINE_TAIL = (
+        "AssertionError: assert 2 == 0 +  where 2 = "
+        "op_count(<OpOverload(op='aten.slice_scatter', overload='default')>)"
+    )
+
+    def test_inline_pytest_tail_does_not_split_a_cause(self):
+        self.assertEqual(
+            normalize_signature(self.SIG_INLINE_TAIL), "AssertionError: assert 2 == 0"
+        )
+        self.assertEqual(
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_INLINE_TAIL)),
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_BARE)),
+        )
+
+    # test-infra#8875 rewrote #8761's tail without pytest's `+` marker and with
+    # the OpOverload repr collapsed.
+    SIG_BARE_WHERE = (
+        "AssertionError: assert 2 == 0 where 2 = op_count(aten.slice_scatter.default)"
+    )
+
+    def test_tail_without_the_plus_marker_does_not_split_a_cause(self):
+        self.assertEqual(
+            normalize_signature(self.SIG_BARE_WHERE), "AssertionError: assert 2 == 0"
+        )
+        self.assertEqual(
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_BARE_WHERE)),
+            fingerprint("pytorch/test-infra", self._cause(self.SIG_WITH_TAIL)),
+        )
+
+    def test_where_outside_an_assertion_is_kept(self):
+        # Only pytest's introspection tail is noise; "where" in a message is
+        # part of the identity.
+        self.assertEqual(
+            normalize_signature("RuntimeError: cannot tell where the graph broke"),
+            "RuntimeError: cannot tell where the graph broke",
+        )
+
+    def test_a_plus_that_is_not_pytest_introspection_is_kept(self):
+        # Only the ` + where|and|assert ` form is pytest's; arithmetic in a
+        # message is part of the identity.
+        self.assertEqual(
+            normalize_signature("AssertionError: 1 + 2 != 4"),
+            "AssertionError: 1 + 2 != 4",
+        )
+
+
+class TestNearDuplicate(unittest.TestCase):
+    """The rewording case the key cannot catch, from #8808 and #8817."""
+
+    B200 = [":nvidia: (B200) Distributed", ":nvidia: (B200) FusedMoE Layer Kernels"]
+
+    def _issue(self, number, signature, clusters):
+        body = (
+            f"## Signature\n\n```\n{signature}\n```\n\n"
+            "## Affected job clusters\n\n"
+            + "\n".join(f"- `{c}`" for c in clusters)
+            + "\n\n## Suggested routing\n\npytorch/pytorch\n"
+        )
+        return {"number": number, "body": body}
+
+    def test_reworded_same_cause_is_matched(self):
+        child = self._issue(
+            8808,
+            "RuntimeError: DeepEPv2 communicator properties query failed; "
+            "networking capability could not be determined.",
+            self.B200,
+        )
+        cause = {
+            "signature": "RuntimeError: Failed to determine NCCL GIN support",
+            "clusters": list(reversed(self.B200)),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 8808)
+
+    def test_different_exception_type_is_not_a_duplicate(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {"signature": "AssertionError: boom", "clusters": list(self.B200)}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_disjoint_clusters_are_not_a_duplicate(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {
+            "signature": "RuntimeError: something else",
+            "clusters": [":amd: (MI355) LM Eval Spec Decode"],
+        }
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_a_single_shared_cluster_out_of_many_is_not_enough(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {
+            "signature": "RuntimeError: unrelated",
+            "clusters": [
+                ":nvidia: (B200) Distributed",
+                ":amd: (MI355) LM Eval Spec Decode",
+                ":nvidia: (L4) PyTorch Compilation Passes",
+                ":nvidia: (H100) Fusion E2E Quick",
+            ],
+        }
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_children_are_scoped_to_one_torch_minor(self):
+        # A cause from the current cycle must not land on last cycle's issue.
+        # near_duplicate() matches on exception type and clusters alone, so the
+        # scoping has to happen when the candidates are fetched.
+        items = [
+            {"number": 8000, "title": "[vllm][torch 2.14] older cause", "body": ""},
+            {"number": 8900, "title": "[vllm][torch 2.15] current cause", "body": ""},
+        ]
+        with mock.patch.object(vtfi, "_req", return_value={"items": items}):
+            self.assertEqual(
+                [i["number"] for i in vtfi.open_children("t", "r", "2.15")], [8900]
+            )
+            self.assertEqual(
+                [i["number"] for i in vtfi.open_children("t", "r")], [8000, 8900]
+            )
+
+    def test_signature_without_an_exception_type_never_matches(self):
+        child = self._issue(8808, "RuntimeError: boom", self.B200)
+        cause = {"signature": "something went wrong", "clusters": list(self.B200)}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+
+class TestMergeClusters(unittest.TestCase):
+    BODY = (
+        "## Signature\n\n```\nRuntimeError: boom\n```\n\n"
+        "## Affected job clusters\n\n- `:nvidia: (B200) Distributed`\n\n"
+        "## Suggested routing\n\npytorch/pytorch\n"
+    )
+
+    def test_new_cluster_is_appended_and_reported(self):
+        merged, added = merge_clusters(
+            self.BODY,
+            [":nvidia: (B200) Distributed", ":amd: (MI355) LM Eval Spec Decode"],
+        )
+        self.assertEqual(added, [":amd: (MI355) LM Eval Spec Decode"])
+        self.assertEqual(
+            issue_clusters(merged),
+            [":nvidia: (B200) Distributed", ":amd: (MI355) LM Eval Spec Decode"],
+        )
+        # The surrounding template must survive the rewrite.
+        self.assertIn("## Suggested routing", merged)
+        self.assertIn("RuntimeError: boom", merged)
+
+    def test_known_cluster_is_a_no_op(self):
+        merged, added = merge_clusters(self.BODY, [":nvidia: (B200) Distributed"])
+        self.assertEqual(added, [])
+        self.assertEqual(merged, self.BODY)
+
+
+class TestReportSilences(unittest.TestCase):
+    """A cause is only called quiet when its clusters actually ran and passed."""
+
+    MINOR = "2.15"
+
+    def _child(self, number, clusters):
+        body = (
+            "## Signature\n\n```\nRuntimeError: boom\n```\n\n"
+            "## Affected job clusters\n\n"
+            + "\n".join(f"- `{c}`" for c in clusters)
+            + "\n"
+        )
+        return {
+            "number": number,
+            "title": f"[vllm][torch {self.MINOR}] something broke",
+            "body": body,
+        }
+
+    def _run(self, report, children, matched=frozenset()):
+        posted = []
+
+        def fake_req(method, path, token, body=None):
+            if method == "GET" and "/comments" in path:
+                return []
+            posted.append((method, path, body))
+            return {}
+
+        with mock.patch.object(vtfi, "_req", side_effect=fake_req):
+            vtfi.report_silences(
+                "t", "pytorch/test-infra", report, children, set(matched), self.MINOR
+            )
+        return posted
+
+    def test_all_clusters_passed_is_reported(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+        )
+        self.assertEqual(len(posted), 1)
+        body = posted[0][2]["body"]
+        self.assertIn("Did not reproduce", body)
+        self.assertIn("First quiet run", body)
+        self.assertIn(f"<!-- {vtfi.SILENT_PREFIX}: 1 -->", body)
+
+    def test_a_cluster_that_did_not_run_is_not_a_fix(self):
+        # The regression-vs-missing-coverage trap: absence from the failing
+        # buckets is not evidence of a pass.
+        child = self._child(
+            8784,
+            [":nvidia: (B200) Distributed", ":amd: (MI355) LM Eval Spec Decode"],
+        )
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+        )
+        self.assertEqual(posted, [])
+
+    def test_a_cause_that_reproduced_is_not_reported_quiet(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+            matched={8784},
+        )
+        self.assertEqual(posted, [])
+
+    def test_other_torch_versions_are_left_alone(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        child["title"] = "[vllm][torch 2.14] something broke"
+        posted = self._run(
+            {
+                "torch_nightly_build": 90640,
+                "baseline_build": 90589,
+                "passed": [":nvidia: (B200) Distributed"],
+            },
+            [child],
+        )
+        self.assertEqual(posted, [])
+
+    def test_a_report_without_passed_data_says_nothing(self):
+        # An older report.json predating the `passed` field must not be read
+        # as "every tracked cause is fixed".
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        posted = self._run(
+            {"torch_nightly_build": 90640, "baseline_build": 90589}, [child]
+        )
+        self.assertEqual(posted, [])
+
+    def test_streak_stops_repeating_past_the_limit(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        report = {
+            "torch_nightly_build": 90640,
+            "baseline_build": 90589,
+            "passed": [":nvidia: (B200) Distributed"],
+        }
+        posted = []
+
+        def fake_req(method, path, token, body=None):
+            if method == "GET" and "/comments" in path:
+                return [
+                    {
+                        "body": f"<!-- {vtfi.SILENT_PREFIX}: "
+                        f"{vtfi.SILENT_COMMENT_LIMIT} -->"
+                    }
+                ]
+            posted.append((method, path, body))
+            return {}
+
+        with mock.patch.object(vtfi, "_req", side_effect=fake_req):
+            vtfi.report_silences(
+                "t", "pytorch/test-infra", report, [child], set(), self.MINOR
+            )
+        self.assertEqual(posted, [])
+
+    def test_a_recurrence_resets_the_streak(self):
+        child = self._child(8784, [":nvidia: (B200) Distributed"])
+        report = {
+            "torch_nightly_build": 90640,
+            "baseline_build": 90589,
+            "passed": [":nvidia: (B200) Distributed"],
+        }
+        posted = []
+
+        def fake_req(method, path, token, body=None):
+            if method == "GET" and "/comments" in path:
+                return [
+                    {"body": f"<!-- {vtfi.SILENT_PREFIX}: 2 -->"},
+                    {"body": "Still reproducing on torch-nightly build [#1](x)."},
+                ]
+            posted.append((method, path, body))
+            return {}
+
+        with mock.patch.object(vtfi, "_req", side_effect=fake_req):
+            vtfi.report_silences(
+                "t", "pytorch/test-infra", report, [child], set(), self.MINOR
+            )
+        self.assertIn(f"<!-- {vtfi.SILENT_PREFIX}: 1 -->", posted[0][2]["body"])
 
 
 if __name__ == "__main__":

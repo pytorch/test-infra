@@ -333,6 +333,12 @@ def compare(rows: List[Tuple]) -> Dict[str, List[Dict]]:
         "both": [],
         "baseline_only": [],
         "unclassified": [],
+        # Ran on torch nightly and passed. Only the failing buckets matter for
+        # the report itself, but a tracked cause going quiet cannot be read off
+        # absence: a cluster missing from every failing bucket either passed or
+        # never ran, and reporting the second as "fixed" is how a job killed by
+        # infrastructure gets mistaken for a resolved regression.
+        "passed": [],
     }
     for (
         name,
@@ -360,6 +366,10 @@ def compare(rows: List[Tuple]) -> Dict[str, List[Dict]]:
             "baseline_state": base_state,
             "baseline_url": base_url,
         }
+        if tn_state == "passed":
+            # Recorded under the unsharded name, which is what a child issue
+            # lists as its cluster.
+            buckets["passed"].append({"name": name})
         tn_bad = tn_state in BAD_STATES
         if tn_bad and base_state in BAD_STATES:
             buckets["both"].append(job)
@@ -374,6 +384,31 @@ def compare(rows: List[Tuple]) -> Dict[str, List[Dict]]:
             # Fails on nightly, but the baseline neither passed nor failed
             buckets["unclassified"].append(job)
     return buckets
+
+
+def _unsharded(name: str) -> str:
+    return name.split(" [shard ")[0]
+
+
+def passed_clusters(buckets: Dict[str, List[Dict]]) -> List[str]:
+    """Clusters that ran on torch nightly with no shard failing.
+
+    Shards of one cluster routinely disagree -- see the note in get_rows() -- and
+    a failing shard is recorded under its sharded name while a passing one is
+    recorded under the bare cluster name. Taking the passing set alone would
+    therefore report a cluster as green while one of its shards is red, which is
+    exactly the false "did not reproduce" this field exists to prevent. Subtract
+    anything that failed on nightly, comparing on the unsharded name.
+
+    ``baseline_only`` is not subtracted: those passed on nightly and failed only
+    on the baseline, which is a pass for this purpose.
+    """
+    failing = {
+        _unsharded(j["name"])
+        for key in ("regressed", "both", "unclassified")
+        for j in buckets.get(key, [])
+    }
+    return sorted({_unsharded(j["name"]) for j in buckets.get("passed", [])} - failing)
 
 
 def agent_concentration(regressed: List[Dict]) -> List[Tuple[str, int]]:
@@ -1050,6 +1085,7 @@ def main() -> int:
                     "torch_version_minor": torch_version_minor,
                     "regressed": buckets["regressed"],
                     "both": buckets["both"],
+                    "passed": passed_clusters(buckets),
                     "regressed_tests": regressed_tests,
                 },
                 f,

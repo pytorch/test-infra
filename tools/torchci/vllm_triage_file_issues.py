@@ -57,14 +57,29 @@ def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any
 # above them, so they carry no identity of their own -- drop them.
 _PYTEST_CONTINUATION = re.compile(r"^(?:E\s+)?\+")
 
+# The same tail also arrives folded onto the assertion line, because the agent
+# quotes the log with its own line breaks. Anchoring on `^` alone missed that
+# and split one cause again (#8761 kept the tail on its own line, #8838 joined
+# it onto the assert -- same test, same cluster, two keys). Cut at the ` + `
+# that introduces pytest's introspection keywords, wherever it appears.
+_PYTEST_INLINE_TAIL = re.compile(r"\s\+\s+(?=where\b|and\b|assert\b)")
+
+# ...and sometimes without the `+` at all, having rewritten the tail in its own
+# words: #8875 wrote "assert 2 == 0 where 2 = op_count(aten.slice_scatter.default)"
+# for what #8761 logged as "assert 2 == 0\n +  where 2 = op_count(<OpOverload(
+# op='aten.slice_scatter', overload='default')>)". Anchored on an assertion so a
+# message that merely contains the word "where" keeps it.
+_BARE_WHERE_TAIL = re.compile(r"(\bassert\b.*?)\s+where\b.*$")
+
 
 def normalize_signature(signature: str) -> str:
     """Reduce a signature to the part that identifies the cause.
 
-    Whitespace is collapsed and pytest's assertion-introspection lines are
-    dropped, so a signature truncated at a different point still fingerprints
-    the same. Deliberately conservative: nothing that could distinguish two
-    genuine causes (exception type, message text, numbers) is touched, because
+    Whitespace is collapsed and pytest's assertion-introspection tail is
+    dropped -- whether on its own line or folded onto the assertion -- so a
+    signature truncated at a different point still fingerprints the same.
+    Deliberately conservative: nothing that could distinguish two genuine
+    causes (exception type, message text, numbers) is touched, because
     over-normalizing silently merges distinct regressions, which is worse than
     filing a duplicate.
     """
@@ -73,7 +88,10 @@ def normalize_signature(signature: str) -> str:
         line = " ".join(raw.split())
         if not line or _PYTEST_CONTINUATION.match(line):
             continue
-        lines.append(line)
+        line = _PYTEST_INLINE_TAIL.split(line, 1)[0].strip()
+        line = _BARE_WHERE_TAIL.sub(r"\1", line).strip()
+        if line:
+            lines.append(line)
     return "\n".join(lines)
 
 
@@ -90,9 +108,29 @@ def _basis(repo: str, cause: Dict[str, Any], signature: str) -> str:
 def fingerprint(repo: str, cause: Dict[str, Any]) -> str:
     """Stable across runs: the cause identity, not the build it was seen in.
 
-    Cluster names are included because the same exception in a different job is
-    usually a different bug; build numbers and dates are excluded so a recurrence
-    matches rather than files anew.
+    Keyed on the normalized signature alone. Cluster names used to be part of
+    the key, on the theory that the same exception in a different job is
+    usually a different bug. In practice the opposite dominated: one cause
+    reaching a second accelerator minted a second issue (#8786 on MI355 and
+    #8839 on B200 -- byte-identical GSM8K assertion, two issues), as did a
+    cause whose cluster list simply grew (#8745 at three clusters, #8869 at
+    four). Clusters are accumulated onto the matched issue instead, which is
+    also the more useful record: it shows the spread.
+
+    Build numbers and dates stay out so a recurrence matches rather than files
+    anew.
+    """
+    raw = cause.get("signature") or cause.get("title") or ""
+    return hashlib.sha256(
+        "\n".join([repo, normalize_signature(raw)]).encode()
+    ).hexdigest()[:16]
+
+
+def cluster_fingerprint(repo: str, cause: Dict[str, Any]) -> str:
+    """The signature+clusters key, for issues filed before clusters were dropped.
+
+    Every child issue currently open carries one of these. Looked up as a
+    fallback so they keep matching; a hit is migrated to the current key.
     """
     raw = cause.get("signature") or cause.get("title") or ""
     return hashlib.sha256(
@@ -118,6 +156,104 @@ def search_issue_by_key(token: str, repo: str, key: str) -> Optional[Dict]:
         if f"{KEY_PREFIX}: {key}" in (item.get("body") or ""):
             return item
     return None
+
+
+# Parsers for the child-issue template written by child_body(), so a later run
+# can read back what an earlier one recorded.
+_CLUSTERS_SECTION = re.compile(r"(## Affected job clusters\n\n)(.*?)(?=\n## |\Z)", re.S)
+_SIGNATURE_SECTION = re.compile(r"## Signature\n\n```\n(.*?)\n```", re.S)
+_EXCEPTION_TYPE = re.compile(r"([A-Za-z_][\w.]*(?:Error|Exception|Warning|Failure))\b")
+
+# Cluster overlap at or above this, with a matching exception type, is treated
+# as one cause. 0.5 keeps a two-cluster issue matching when it gains a third,
+# while a single shared cluster out of four stays distinct.
+NEAR_DUP_JACCARD = 0.5
+
+
+def issue_signature(body: str) -> str:
+    m = _SIGNATURE_SECTION.search(body or "")
+    return m.group(1).strip() if m else ""
+
+
+def issue_clusters(body: str) -> List[str]:
+    m = _CLUSTERS_SECTION.search(body or "")
+    return re.findall(r"^- `([^`]+)`", m.group(2), re.M) if m else []
+
+
+def exception_type(signature: str) -> str:
+    """The exception class a signature reports, or "" if it names none.
+
+    Only the first line is considered: that is where the raised type appears,
+    and later lines may quote unrelated types from a traceback.
+    """
+    first = (normalize_signature(signature).splitlines() or [""])[0]
+    m = _EXCEPTION_TYPE.search(first)
+    return m.group(1) if m else ""
+
+
+def jaccard(a: List[str], b: List[str]) -> float:
+    sa, sb = {x.strip() for x in a}, {x.strip() for x in b}
+    union = sa | sb
+    return len(sa & sb) / len(union) if union else 0.0
+
+
+def merge_clusters(body: str, clusters: List[str]) -> tuple:
+    """Add unseen clusters to the issue's list. Returns (new_body, added)."""
+    if not _CLUSTERS_SECTION.search(body or ""):
+        return body, []
+    existing = issue_clusters(body)
+    added = [c.strip() for c in clusters if c.strip() and c.strip() not in existing]
+    if not added:
+        return body, []
+    listing = "\n".join(f"- `{c}`" for c in existing + added)
+    return _CLUSTERS_SECTION.sub(lambda m: m.group(1) + listing, body, count=1), added
+
+
+def open_children(token: str, repo: str, minor: str = "") -> List[Dict]:
+    """Open child issues, restricted to one torch minor when given.
+
+    Children of a previous cycle stay open for a while after the version turns
+    over, and near_duplicate() matches on exception type and cluster overlap
+    alone -- enough for a fresh cause to land on last version's issue and never
+    reach the current umbrella. Scope the candidates instead of teaching every
+    matcher about versions.
+    """
+    q = urllib.parse.quote(f"repo:{repo} is:issue is:open label:{CHILD_LABEL}")
+    res = _req("GET", f"/search/issues?q={q}&per_page=100", token)
+    items = res.get("items", [])
+    if not minor:
+        return items
+    return [i for i in items if f"[torch {minor}]" in (i.get("title") or "")]
+
+
+def near_duplicate(cause: Dict[str, Any], children: List[Dict]) -> Optional[Dict]:
+    """An open child that is the same cause described in different words.
+
+    The key cannot catch this: the agent re-words a cause between runs and the
+    hash moves with it. #8808 called it "DeepEPv2 communicator properties query
+    failed", #8817 called it "Failed to determine NCCL GIN support" -- the same
+    two B200 clusters, one bug, two issues.
+
+    Matching is on exception type plus cluster overlap, deliberately not on
+    message text: those two strings share only "RuntimeError" and "failed", so
+    any text-similarity threshold loose enough to pair them would pair most
+    unrelated RuntimeErrors too.
+
+    Returns the best-overlapping match, or None.
+    """
+    et = exception_type(cause.get("signature") or "")
+    mine = [c.strip() for c in cause.get("clusters") or [] if c.strip()]
+    if not et or not mine:
+        return None
+    best, best_j = None, 0.0
+    for child in children:
+        body = child.get("body") or ""
+        if exception_type(issue_signature(body)) != et:
+            continue
+        j = jaccard(mine, issue_clusters(body))
+        if j >= NEAR_DUP_JACCARD and j > best_j:
+            best, best_j = child, j
+    return best
 
 
 def find_umbrella(token: str, repo: str, minor: str) -> Optional[Dict]:
@@ -219,6 +355,156 @@ def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
         f"<!-- {KEY_PREFIX}: {key} -->"
     )
     return "\n\n".join(sections) + "\n"
+
+
+def recurrence_comment(
+    report: Dict[str, Any],
+    cause: Dict[str, Any],
+    added: List[str],
+    all_clusters: List[str],
+    matched_by: str,
+) -> str:
+    """The comment left on an already-filed cause.
+
+    Says which clusters are new, because that is the part a reader cannot get
+    from the issue body: the body shows the accumulated list, not that this run
+    extended it. A cause spreading to a second accelerator or a second job
+    family is evidence about the cause -- it rules out anything vendor- or
+    job-specific -- so it is worth stating rather than silently merging.
+    """
+    build = report.get("torch_nightly_build")
+    out = [
+        f"Still reproducing on torch-nightly build "
+        f"[#{build}](https://buildkite.com/vllm/ci/builds/{build})."
+    ]
+    if added:
+        out += [
+            "",
+            "**Same signature on a new cluster.** This cause is not specific to "
+            "the clusters already listed; newly seen on:",
+            "",
+            *(f"- `{c}`" for c in added),
+            "",
+            f"Affected job clusters in the body updated to {len(all_clusters)}.",
+        ]
+    if matched_by == "near-duplicate":
+        out += [
+            "",
+            "Matched to this issue by exception type and overlapping clusters "
+            "rather than by signature text -- this run's wording was:",
+            "",
+            "```",
+            (cause.get("signature") or "").strip(),
+            "```",
+            "",
+            "Filed here instead of as a new issue. If this is in fact a "
+            "different cause, split it and the next run will track them apart.",
+        ]
+    return "\n".join(out)
+
+
+SILENT_PREFIX = "vllm-triage-silent"
+# Stop repeating after this many consecutive quiet runs. By then the issue says
+# what it needs to; further runs would just add a comment a week.
+SILENT_COMMENT_LIMIT = 3
+
+
+def silent_streak(token: str, repo: str, number: int) -> int:
+    """How many consecutive runs this cause has already been quiet for.
+
+    Read back off the issue rather than held in state: the workflow keeps
+    nothing between runs, and a comment that survives an edit to the body is
+    the only durable record. A recurrence comment resets the count, so a cause
+    that comes back and goes quiet again is announced again.
+    """
+    streak = 0
+    try:
+        comments = _req(
+            "GET", f"/repos/{repo}/issues/{number}/comments?per_page=100", token
+        )
+    except urllib.error.URLError:
+        return 0
+    for c in comments or []:
+        body = c.get("body") or ""
+        m = re.search(rf"<!-- {SILENT_PREFIX}: (\d+) -->", body)
+        if m:
+            streak = int(m.group(1))
+        elif "Still reproducing on torch-nightly build" in body:
+            streak = 0
+    return streak
+
+
+def silence_comment(report: Dict[str, Any], clusters: List[str], streak: int) -> str:
+    """Told the cause did not reproduce, and how far that is from proof."""
+    build = report.get("torch_nightly_build")
+    base = report.get("baseline_build")
+    out = [
+        f"Did not reproduce on torch-nightly build "
+        f"[#{build}](https://buildkite.com/vllm/ci/builds/{build})"
+        f" (baseline [#{base}](https://buildkite.com/vllm/ci/builds/{base})).",
+        "",
+        "Every cluster on this issue ran and passed on the nightly build:",
+        "",
+        *(f"- `{c}`" for c in clusters),
+        "",
+    ]
+    if streak == 1:
+        out.append(
+            "First quiet run. Not closing yet -- one pass is also what a "
+            "flaky cause looks like."
+        )
+    else:
+        out.append(
+            f"Quiet for {streak} consecutive runs. Candidate for closing; "
+            "reopen automatically if the signature returns."
+        )
+    out += ["", f"<!-- {SILENT_PREFIX}: {streak} -->"]
+    return "\n".join(out)
+
+
+def report_silences(
+    token: str,
+    repo: str,
+    report: Dict[str, Any],
+    children: List[Dict],
+    matched: set,
+    minor: str,
+) -> None:
+    """Comment on tracked causes that did not come back this run.
+
+    Silence is only reported when every cluster the issue names is in the
+    run's ``passed`` set. A cluster that appears in no bucket at all did not
+    run -- infrastructure killed it, or the pipeline dropped it -- and saying
+    "did not reproduce" there would turn missing coverage into a false fix.
+    """
+    passed = {c.strip() for c in report.get("passed") or []}
+    if not passed:
+        print("  no passed-cluster data in report.json; skipping silence check")
+        return
+    for child in children:
+        number = child["number"]
+        if number in matched:
+            continue
+        if f"[torch {minor}]" not in (child.get("title") or ""):
+            continue
+        clusters = issue_clusters(child.get("body") or "")
+        if not clusters:
+            continue
+        missing = [c for c in clusters if c not in passed]
+        if missing:
+            print(f"  #{number}: no coverage for {len(missing)} cluster(s); silent")
+            continue
+        streak = silent_streak(token, repo, number) + 1
+        if streak > SILENT_COMMENT_LIMIT:
+            print(f"  #{number}: quiet for {streak} runs, already said so")
+            continue
+        _req(
+            "POST",
+            f"/repos/{repo}/issues/{number}/comments",
+            token,
+            {"body": silence_comment(report, clusters, streak)},
+        )
+        print(f"  not reproducing -> #{number} (run {streak} of quiet)")
 
 
 def _level(value: Any) -> str:
@@ -368,40 +654,78 @@ def main() -> int:
     else:
         print(f"reusing umbrella #{umbrella['number']}")
 
+    children = open_children(token, args.repo, minor)
+
+    # Keyed by fingerprint, for causes filed earlier in this same run. The
+    # search API is not read-your-writes, so two causes that normalize to one
+    # key in a single run would otherwise both be filed.
+    filed_this_run: Dict[str, Dict] = {}
+    matched: set = set()
+
     for c in selected:
         key = fingerprint(args.repo, c)
-        existing = search_issue_by_key(token, args.repo, key)
+        existing = filed_this_run.get(key) or search_issue_by_key(token, args.repo, key)
+        matched_by = "key"
         if existing is None:
-            legacy = legacy_fingerprint(args.repo, c)
-            if legacy != key:
-                existing = search_issue_by_key(token, args.repo, legacy)
+            # Older keys, newest scheme first. A hit is rewritten to the
+            # current key so the fallback stops being needed.
+            for stale in (
+                cluster_fingerprint(args.repo, c),
+                legacy_fingerprint(args.repo, c),
+            ):
+                if stale == key:
+                    continue
+                existing = search_issue_by_key(token, args.repo, stale)
                 if existing:
-                    # Rewrite the stored key so this issue is found directly
-                    # next run and the legacy lookup can eventually be removed.
                     _req(
                         "PATCH",
                         f"/repos/{args.repo}/issues/{existing['number']}",
                         token,
                         {
                             "body": (existing.get("body") or "").replace(
-                                f"{KEY_PREFIX}: {legacy}", f"{KEY_PREFIX}: {key}"
+                                f"{KEY_PREFIX}: {stale}", f"{KEY_PREFIX}: {key}"
                             )
                         },
                     )
-                    print(f"  migrated key {legacy} -> {key}")
+                    print(f"  migrated key {stale} -> {key}")
+                    break
+        if existing is None:
+            candidate = near_duplicate(c, children)
+            if candidate is not None:
+                existing = _req(
+                    "GET", f"/repos/{args.repo}/issues/{candidate['number']}", token
+                )
+                matched_by = "near-duplicate"
+                print(
+                    f"  near-duplicate of #{existing['number']} "
+                    f"(same {exception_type(c.get('signature') or '')}, "
+                    f"overlapping clusters): commenting instead of filing"
+                )
         if existing:
+            fresh = _req(
+                "GET", f"/repos/{args.repo}/issues/{existing['number']}", token
+            )
+            body = fresh.get("body") or ""
+            merged, added = merge_clusters(body, c.get("clusters") or [])
+            if added:
+                _req(
+                    "PATCH",
+                    f"/repos/{args.repo}/issues/{existing['number']}",
+                    token,
+                    {"body": merged},
+                )
             _req(
                 "POST",
                 f"/repos/{args.repo}/issues/{existing['number']}/comments",
                 token,
                 {
-                    "body": f"Still reproducing on torch-nightly build "
-                    f"[#{report.get('torch_nightly_build')}]"
-                    f"(https://buildkite.com/vllm/ci/builds/"
-                    f"{report.get('torch_nightly_build')})."
+                    "body": recurrence_comment(
+                        report, c, added, issue_clusters(merged), matched_by
+                    )
                 },
             )
-            print(f"  recurrence -> #{existing['number']}")
+            matched.add(existing["number"])
+            print(f"  recurrence -> #{existing['number']} ({matched_by})")
             continue
         issue = _req(
             "POST",
@@ -414,12 +738,18 @@ def main() -> int:
             },
         )
         print(f"  created #{issue['number']}: {c.get('title')}")
+        # Visible to the rest of this run, by key and to the near-duplicate scan.
+        filed_this_run[key] = issue
+        children.append(issue)
+        matched.add(issue["number"])
         append_to_umbrella(
             token,
             args.repo,
             umbrella,
             f"- [ ] #{issue['number']} - {c.get('title')}",
         )
+
+    report_silences(token, args.repo, report, children, matched, minor)
     return 0
 
 
