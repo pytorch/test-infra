@@ -682,11 +682,6 @@
     "https://github.com/pytorch/pytorch/issues/188716",
     []
   ],
-  "test_main_loop_scaling_shape2_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188717",
-    "https://github.com/pytorch/pytorch/issues/188717",
-    []
-  ],
   "test_main_loop_scaling_shape2_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188704",
     "https://github.com/pytorch/pytorch/issues/188704",
@@ -1141,6 +1136,14 @@
   "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
     "196006",
     "https://github.com/pytorch/pytorch/issues/196006",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float32 (__main__.DeterministicTest)": [
+    "198491",
+    "https://github.com/pytorch/pytorch/issues/198491",
     [
       "linux",
       "slow"
