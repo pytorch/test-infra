@@ -508,6 +508,13 @@
       "inductor"
     ]
   ],
+  "test_inductor_offload (__main__.ActivationOffloadingTests)": [
+    "198445",
+    "https://github.com/pytorch/pytorch/issues/198445",
+    [
+      "rocm"
+    ]
+  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
