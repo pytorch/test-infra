@@ -46,6 +46,18 @@ jobs:
       fail-fast: false
     name: ${{ matrix.cuda }}-cudnn${{ matrix.cudnn_version }}-${{ matrix.image_type }}
     steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@6c439dc8bdf86240f7f3b9d8e5c8d3e9cf7af60c # v2.12.1
+        with:
+          egress-policy: audit
+          disable-sudo: true
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            ghcr.io:443
+            registry.hub.docker.com:443
+            auth.docker.io:443
+            index.docker.io:443
       - name: Skip non-CUDA images
         if: matrix.cuda == 'cpu'
         run: |
