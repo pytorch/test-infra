@@ -47,7 +47,7 @@ describe("auto-cc-bot", () => {
     await probot.receive({ name: "issues", payload, id: "2" });
   });
 
-  test("add a cc when issue is labeled(skipping self)", async () => {
+  test("add an auto-cc when issue is labeled(skipping self)", async () => {
     mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -67,7 +67,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "Arf arf\n\ncc @malfet",
+            body: "Arf arf\n\nauto-cc @malfet",
           });
           return true;
         }
@@ -78,7 +78,7 @@ Some header text
 
     scope.done();
   });
-  test("add a cc to issue with empty body", async () => {
+  test("add an auto-cc to issue with empty body", async () => {
     mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -98,7 +98,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "cc @malfet",
+            body: "auto-cc @malfet",
           });
           return true;
         }
@@ -110,7 +110,7 @@ Some header text
     scope.done();
   });
 
-  test("add a cc when PR is labeled", async () => {
+  test("add an auto-cc when PR is labeled", async () => {
     mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -131,7 +131,7 @@ Some header text
     const scope = nock("https://api.github.com")
       .patch("/repos/seemethere/test-repo/pulls/20", (body: any) => {
         expect(body).toMatchObject({
-          body: "Arf arf\n\ncc @ezyang",
+          body: "Arf arf\n\nauto-cc @ezyang",
         });
         return true;
       })
@@ -142,7 +142,7 @@ Some header text
     scope.done();
   });
 
-  test("update an existing cc when issue is labeled", async () => {
+  test("leave existing cc alone and add auto-cc when issue is labeled", async () => {
     mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -162,7 +162,7 @@ Some header text
         "/repos/ezyang/testing-ideal-computing-machine/issues/5",
         (body: any) => {
           expect(body).toMatchObject({
-            body: "Arf arf\n\ncc @malfet @moo @foo/bar @mar\nxxxx",
+            body: "Arf arf\n\ncc @moo @foo/bar @mar\nxxxx\n\nauto-cc @malfet",
           });
           return true;
         }
@@ -174,7 +174,39 @@ Some header text
     scope.done();
   });
 
-  test("mkldnn update bug", async () => {
+  test("update an existing auto-cc when issue is labeled", async () => {
+    mockIsPytorchbotSupportedOrg(true);
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    nockTracker(`
+Some header text
+
+* testlabel @malfet @ezyang
+`);
+
+    const payload = require("./fixtures/issues.labeled");
+    payload["issue"]["body"] = "Arf arf\n\nauto-cc @moo @mar\nxxxx";
+
+    const scope = nock("https://api.github.com")
+      .patch(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5",
+        (body: any) => {
+          expect(body).toMatchObject({
+            body: "Arf arf\n\nauto-cc @malfet\nxxxx",
+          });
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({ name: "issues", payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("omit explicit cc users from auto-cc", async () => {
     mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -199,7 +231,42 @@ cc @ezyang`;
           expect(body).toMatchObject({
             body: `its from master branch, seems related with mklml. any idea?
 
-cc @gujinghui @PenghuiCheng @XiaobingSuper @ezyang`,
+cc @ezyang
+
+auto-cc @gujinghui @PenghuiCheng @XiaobingSuper`,
+          });
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({ name: "issues", payload, id: "2" });
+
+    scope.done();
+  });
+
+  test("remove auto-cc when all subscription users are explicit cc", async () => {
+    mockIsPytorchbotSupportedOrg(true);
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    nockTracker(`
+Some header text
+
+* testlabel @malfet
+`);
+
+    const payload = require("./fixtures/issues.labeled");
+    payload["issue"]["labels"] = [{ name: "testlabel" }];
+    payload["issue"]["body"] = "Arf arf\n\ncc @malfet\n\nauto-cc @malfet";
+
+    const scope = nock("https://api.github.com")
+      .patch(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5",
+        (body: any) => {
+          expect(body).toMatchObject({
+            body: "Arf arf\n\ncc @malfet",
           });
           return true;
         }
