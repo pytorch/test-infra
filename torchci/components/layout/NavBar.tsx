@@ -118,6 +118,10 @@ function NavBar() {
       name: "GreenLight Quality",
       href: "/greenlight_quality",
     },
+    {
+      name: "AI Suppression Quality",
+      href: "/metrics/ai_suppression",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,

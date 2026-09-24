@@ -1,0 +1,507 @@
+import {
+  Chip,
+  Grid,
+  Link,
+  Paper,
+  Skeleton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { GridColDef } from "@mui/x-data-grid";
+import {
+  CLICKHOUSE_TIME_FORMAT,
+  DEFAULT_TIME_RANGE,
+  LARGE_WINDOW_DAYS,
+  snapStopToGranularity,
+  snapToGranularity,
+} from "components/common/timeWindow";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import { EChartsOption } from "echarts";
+import ReactECharts from "echarts-for-react";
+import { useDarkMode } from "lib/DarkModeContext";
+import { fetcher } from "lib/GeneralUtils";
+import { TimeRangePicker } from "pages/metrics";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
+
+dayjs.extend(utc);
+
+// A revert this long after the merge still counts against it. Fixed rather than
+// user-selectable so the cohort's rate and the baseline are always comparable.
+const REVERT_WINDOW_DAYS = 7;
+const REPO = "pytorch/pytorch";
+
+// [name, url, verdict, confidence, summary, conclusion on merge commit,
+//  conclusion on the main commit just before the merge]
+type ClearedCheck = [string, string, string, number, string, string, string];
+
+interface MergeRow {
+  pr_number: number;
+  title: string;
+  author: string;
+  merged_sha: string;
+  merged_at: string | null;
+  checks: ClearedCheck[];
+  trunk_red: number;
+  window_closed: number;
+  reverted: number;
+  ghfirst_reverted: number;
+  revert_sha: string;
+  reverted_at: string | null;
+  reverter: string;
+  revert_classification: string;
+  attributed: number;
+  merges_total: number;
+  cleared_merges_total: number;
+  cleared_checks_total: number;
+  cleared_closed_total: number;
+  cleared_reverted_total: number;
+  cleared_reverted_incl_ghfirst_total: number;
+  cleared_attributed_total: number;
+  cleared_trunk_red_total: number;
+  other_closed_total: number;
+  other_reverted_total: number;
+  other_reverted_incl_ghfirst_total: number;
+}
+
+const FAILED_CONCLUSIONS = ["failure", "timed_out"];
+
+// The query returns no rows at all only when nothing landed in the window, so
+// every count is a known zero rather than missing.
+const ZERO_TOTALS = {
+  merges_total: 0,
+  cleared_merges_total: 0,
+  cleared_checks_total: 0,
+  cleared_closed_total: 0,
+  cleared_reverted_total: 0,
+  cleared_reverted_incl_ghfirst_total: 0,
+  cleared_attributed_total: 0,
+  cleared_trunk_red_total: 0,
+  other_closed_total: 0,
+  other_reverted_total: 0,
+  other_reverted_incl_ghfirst_total: 0,
+} as MergeRow;
+
+function pct(numerator: number, denominator: number): string {
+  return denominator > 0
+    ? `${((100 * numerator) / denominator).toFixed(1)}%`
+    : "-";
+}
+
+function Tile({
+  title,
+  value,
+  detail,
+  tooltip,
+}: {
+  title: string;
+  value: string | number | undefined;
+  detail?: string;
+  tooltip: string;
+}) {
+  return (
+    <Paper sx={{ p: 2, height: "100%", minHeight: 110 }} elevation={3}>
+      <Tooltip title={tooltip} arrow>
+        <Stack spacing={1} alignItems="center" justifyContent="center">
+          <Typography
+            variant="subtitle2"
+            color="text.secondary"
+            textAlign="center"
+          >
+            {title}
+          </Typography>
+          <Typography variant="h4" fontWeight="bold" textAlign="center">
+            {value === undefined ? "-" : value}
+          </Typography>
+          {detail && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              textAlign="center"
+              sx={{ whiteSpace: "pre-line" }}
+            >
+              {detail}
+            </Typography>
+          )}
+        </Stack>
+      </Tooltip>
+    </Paper>
+  );
+}
+
+function Tiles({ totals }: { totals: MergeRow | undefined }) {
+  const t = totals;
+  return (
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Tile
+          title="AI-cleared merges"
+          value={t?.cleared_merges_total}
+          detail={
+            t &&
+            `${pct(t.cleared_merges_total, t.merges_total)} of ${
+              t.merges_total
+            } bot merges`
+          }
+          tooltip="Landed, non-force merges that would have been blocked without the AI: at least one failed check was cleared only by a high-confidence advisor verdict of not_related, infra_issue or garbage (Dr.CI's AI_NOT_RELATED bucket)."
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Tile
+          title="Checks cleared"
+          value={t?.cleared_checks_total}
+          tooltip="Failed checks the AI cleared across those merges."
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Tile
+          title={`Reverted within ${REVERT_WINDOW_DAYS}d`}
+          value={t && pct(t.cleared_reverted_total, t.cleared_closed_total)}
+          detail={
+            t &&
+            `${t.cleared_reverted_total}/${
+              t.cleared_closed_total
+            } · baseline ${pct(
+              t.other_reverted_total,
+              t.other_closed_total
+            )} (${t.other_reverted_total}/${t.other_closed_total})\n` +
+              `incl. ghfirst: ${pct(
+                t.cleared_reverted_incl_ghfirst_total,
+                t.cleared_closed_total
+              )} (${t.cleared_reverted_incl_ghfirst_total}/${
+                t.cleared_closed_total
+              }) · baseline ${pct(
+                t.other_reverted_incl_ghfirst_total,
+                t.other_closed_total
+              )}`
+          }
+          tooltip={`Share of AI-cleared merges reverted within ${REVERT_WINDOW_DAYS} days, beside the same rate for every other bot merge. Both count only merges whose ${REVERT_WINDOW_DAYS}-day window has closed, and neither counts -c ghfirst reverts in the headline; the second line counts them too. The baseline is an unadjusted comparison, not a target: the two populations differ in more than the AI's call.`}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Tile
+          title="Attributed escapes"
+          value={t?.cleared_attributed_total}
+          tooltip="Reverts that plausibly came from a cleared signal: autorevert reverted on a job matching a cleared job, or a human reverted with -c ignoredsignal. This is the closest measure of an AI miss; other reverts are unattributed, not clean. autorevert names a test-level signal by its test id, not a job, so a revert decided only on test-level signals is unattributed even if the test ran in a cleared job. Counted as soon as they happen, including merges whose revert window is still open."
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+        <Tile
+          title="Newly red on trunk"
+          value={t?.cleared_trunk_red_total}
+          tooltip="Merges where a cleared job failed on the merge commit on main while it passed on main just before the merge landed. A leading indicator: it shows up hours before a revert, and also catches misses that were forward-fixed."
+        />
+      </Grid>
+    </Grid>
+  );
+}
+
+function WeeklyChart({
+  rows,
+  startTime,
+  stopTime,
+}: {
+  rows: MergeRow[] | undefined;
+  startTime: string;
+  stopTime: string;
+}) {
+  const { darkMode } = useDarkMode();
+  // Memoised: the time picker re-renders the page every few minutes, and the
+  // chart should only rebuild when its inputs change.
+  const options = useMemo((): EChartsOption | undefined => {
+    if (rows === undefined) {
+      return undefined;
+    }
+    // [not reverted, reverted unattributed, reverted attributed] per week
+    // (Sunday), with every week of the window present so quiet weeks show as 0.
+    const weeks = new Map<string, [number, number, number]>();
+    const lastWeek = dayjs.utc(stopTime).startOf("week");
+    for (
+      let week = dayjs.utc(startTime).startOf("week");
+      !week.isAfter(lastWeek);
+      week = week.add(1, "week")
+    ) {
+      weeks.set(week.format("YYYY-MM-DD"), [0, 0, 0]);
+    }
+    for (const row of rows) {
+      const week = dayjs
+        .utc(row.merged_at)
+        .startOf("week")
+        .format("YYYY-MM-DD");
+      const counts = weeks.get(week) ?? [0, 0, 0];
+      counts[row.attributed ? 2 : row.reverted ? 1 : 0] += 1;
+      weeks.set(week, counts);
+    }
+    const labels = Array.from(weeks.keys()).sort();
+    const series = (name: string, index: number) => ({
+      name,
+      type: "bar" as const,
+      stack: "merges",
+      data: labels.map((week) => weeks.get(week)![index]),
+    });
+    return {
+      title: { text: "AI-cleared merges per week" },
+      tooltip: { trigger: "axis" },
+      legend: { top: 30 },
+      grid: { top: 80, right: 20, bottom: 40, left: 50 },
+      xAxis: { type: "category", data: labels },
+      yAxis: { type: "value", minInterval: 1 },
+      series: [
+        series("Not reverted", 0),
+        series("Reverted, unattributed", 1),
+        series("Reverted, attributed", 2),
+      ],
+    };
+  }, [rows, startTime, stopTime]);
+  if (options === undefined) {
+    return <Skeleton variant="rectangular" height={360} />;
+  }
+  return (
+    <Paper sx={{ p: 2, height: 380 }} elevation={3}>
+      <ReactECharts
+        theme={darkMode ? "dark-hud" : undefined}
+        style={{ height: "100%", width: "100%" }}
+        option={options}
+      />
+    </Paper>
+  );
+}
+
+function CheckChip({ check }: { check: ClearedCheck }) {
+  const [name, url, verdict, confidence, summary, onMerge, onBase] = check;
+  const trunk = onMerge
+    ? `on main: ${onMerge} (before merge: ${onBase || "not run"})`
+    : "not run on the merge commit";
+  const newlyRed = FAILED_CONCLUSIONS.includes(onMerge) && onBase === "success";
+  return (
+    <Tooltip
+      arrow
+      title={
+        <span>
+          {verdict
+            ? `${verdict} @ ${confidence.toFixed(2)}: ${summary}`
+            : "No advisor verdict row found for this check."}
+          <br />
+          {trunk}
+        </span>
+      }
+    >
+      <Chip
+        size="small"
+        component="a"
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        clickable
+        color={newlyRed ? "error" : "default"}
+        label={name}
+        sx={{ maxWidth: 480 }}
+      />
+    </Tooltip>
+  );
+}
+
+function revertLabel(row: MergeRow): string {
+  if (!row.revert_sha) {
+    return row.window_closed ? "no" : "no (window open)";
+  }
+  const by =
+    row.reverter === "pytorch-auto-revert"
+      ? "autorevert"
+      : row.reverter || "unknown";
+  const cls = row.revert_classification ? `, ${row.revert_classification}` : "";
+  const days = dayjs(row.reverted_at).diff(dayjs(row.merged_at), "hour") / 24;
+  return `${by}${cls}, after ${days.toFixed(1)}d`;
+}
+
+const MERGE_COLUMNS: GridColDef[] = [
+  {
+    field: "pr_number",
+    headerName: "PR",
+    flex: 3,
+    minWidth: 260,
+    renderCell: (params: any) => (
+      <span>
+        <Link
+          href={`https://github.com/${REPO}/pull/${params.row.pr_number}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          #{params.row.pr_number}
+        </Link>{" "}
+        {params.row.title}
+        <Typography variant="caption" display="block">
+          {params.row.author.split(" <")[0]}
+        </Typography>
+      </span>
+    ),
+  },
+  {
+    field: "merged_at",
+    headerName: "Merged (UTC)",
+    width: 150,
+    valueFormatter: (value: any) => dayjs.utc(value).format("YYYY-MM-DD HH:mm"),
+  },
+  {
+    field: "checks",
+    headerName: "Cleared checks",
+    flex: 4,
+    minWidth: 300,
+    sortable: false,
+    renderCell: (params: any) => (
+      <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+        {(params.row.checks as ClearedCheck[]).map((check) => (
+          <CheckChip key={`${check[0]}|${check[1]}`} check={check} />
+        ))}
+      </Stack>
+    ),
+  },
+  {
+    field: "reverted",
+    headerName: "Reverted",
+    flex: 2,
+    minWidth: 180,
+    sortable: false,
+    renderCell: (params: any) =>
+      params.row.revert_sha ? (
+        <Link
+          href={`https://github.com/${REPO}/commit/${params.row.revert_sha}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {revertLabel(params.row)}
+        </Link>
+      ) : (
+        revertLabel(params.row)
+      ),
+  },
+  {
+    field: "attributed",
+    headerName: "Attributed",
+    width: 100,
+    valueFormatter: (value: any) => (value ? "yes" : ""),
+  },
+];
+
+// A virtualized grid: a wide window can return thousands of merges, and only
+// the visible rows are mounted.
+function MergesTable({ rows }: { rows: MergeRow[] | undefined }) {
+  return (
+    <Grid container>
+      <Grid size={{ xs: 12 }} height={520}>
+        <TablePanelWithData
+          title="AI-cleared merges"
+          data={rows}
+          columns={MERGE_COLUMNS}
+          showFooter={true}
+          dataGridProps={{
+            getRowId: (row: MergeRow) => row.merged_sha,
+            getRowHeight: () => "auto",
+            localeText: { noRowsLabel: "No AI-cleared merges in this window." },
+            initialState: {
+              sorting: { sortModel: [{ field: "merged_at", sort: "desc" }] },
+            },
+          }}
+        />
+      </Grid>
+    </Grid>
+  );
+}
+
+export default function Page() {
+  const [timeRange, setTimeRange] = useState(DEFAULT_TIME_RANGE);
+  const [startTime, setStartTime] = useState(
+    dayjs().subtract(DEFAULT_TIME_RANGE, "day")
+  );
+  const [stopTime, setStopTime] = useState(dayjs());
+
+  // Snapped to the hour so the SWR key, and so the query, stays stable while
+  // the picker re-derives "now".
+  const params = {
+    startTime: snapToGranularity(startTime, "hour").format(
+      CLICKHOUSE_TIME_FORMAT
+    ),
+    stopTime: snapStopToGranularity(stopTime, "hour").format(
+      CLICKHOUSE_TIME_FORMAT
+    ),
+    repo: REPO,
+    revertWindowDays: REVERT_WINDOW_DAYS,
+  };
+  const url = `/api/clickhouse/ai_suppression_merges?parameters=${encodeURIComponent(
+    JSON.stringify(params)
+  )}`;
+  // A wide window re-runs a heavy query for data that barely moves, so only
+  // narrow windows poll.
+  const autoRefresh = stopTime.diff(startTime, "day") <= LARGE_WINDOW_DAYS;
+  const { data, error } = useSWR<MergeRow[]>(url, fetcher, {
+    refreshInterval: autoRefresh ? 15 * 60 * 1000 : 0,
+    revalidateOnFocus: false,
+  });
+
+  // The API route has no error handling: a failing query answers with an HTML
+  // error page, so fetcher rejects, or with a JSON error object. Either must
+  // name the failure rather than leave the page on skeletons.
+  const failure =
+    error !== undefined
+      ? `${error?.message ?? error}`
+      : data !== undefined && !Array.isArray(data)
+      ? `${(data as any)?.error ?? "unexpected query response"}`
+      : undefined;
+  const okData = Array.isArray(data) ? data : undefined;
+
+  // Whenever anything landed, the query returns at least one row carrying the
+  // window totals, and a row with no merged_sha is only that carrier; a window
+  // where nothing landed returns no rows and falls back to ZERO_TOTALS.
+  const totals = okData && (okData[0] ?? ZERO_TOTALS);
+  // Memoised so the grid and chart keep a stable row array between renders.
+  const rows = useMemo(
+    () => okData?.filter((row) => row.merged_sha !== ""),
+    [okData]
+  );
+
+  return (
+    <Stack spacing={3}>
+      <Typography fontSize="2rem" fontWeight="bold">
+        AI Suppression Quality
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Merges that landed only because the AI advisor cleared their failures
+        (Dr.CI <code>AI_NOT_RELATED</code>), and what happened to them next:
+        reverted within {REVERT_WINDOW_DAYS} days, the revert attributable to a
+        cleared signal, or a cleared job newly failing on trunk.
+      </Typography>
+      <TimeRangePicker
+        startTime={startTime}
+        setStartTime={setStartTime}
+        stopTime={stopTime}
+        setStopTime={setStopTime}
+        timeRange={timeRange}
+        setTimeRange={setTimeRange}
+      />
+      {failure !== undefined && (
+        <Typography variant="body2" color="error.main" role="alert">
+          ai_suppression_merges failed: {failure}
+        </Typography>
+      )}
+      <Tiles totals={totals} />
+      {totals !== undefined &&
+        rows !== undefined &&
+        totals.cleared_merges_total > rows.length && (
+          <Typography variant="body2" color="warning.main">
+            The chart and table show the {rows.length} most recent of{" "}
+            {totals.cleared_merges_total} AI-cleared merges; the tiles cover all
+            of them. Narrow the time range to see the rest.
+          </Typography>
+        )}
+      <WeeklyChart
+        rows={rows}
+        startTime={params.startTime}
+        stopTime={params.stopTime}
+      />
+      <MergesTable rows={rows} />
+    </Stack>
+  );
+}
