@@ -640,11 +640,6 @@
     "https://github.com/pytorch/pytorch/issues/188708",
     []
   ],
-  "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188709",
-    "https://github.com/pytorch/pytorch/issues/188709",
-    []
-  ],
   "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188710",
     "https://github.com/pytorch/pytorch/issues/188710",
@@ -653,6 +648,11 @@
   "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188712",
     "https://github.com/pytorch/pytorch/issues/188712",
+    []
+  ],
+  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188713",
+    "https://github.com/pytorch/pytorch/issues/188713",
     []
   ],
   "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
