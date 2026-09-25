@@ -1,5 +1,6 @@
 import {
   Box,
+  ButtonBase,
   Chip,
   Divider,
   FormControl,
@@ -23,6 +24,13 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
+import type {
+  RelayHealthJob,
+  RelayHealthRun,
+} from "components/crcr/RelayHealthDetailsDialog";
+import RelayHealthDetailsDialog, {
+  isHealthJobPassing,
+} from "components/crcr/RelayHealthDetailsDialog";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import {
   CRCR_HEALTH_STALE_AFTER_MINUTES,
@@ -84,6 +92,18 @@ interface HealthPrRow {
   pending: number;
   overdue_in_progress: number;
   pass_rate: number | null;
+}
+
+interface HealthPrDetailRow {
+  pr_number: number;
+  job_name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string;
+  completed_at: string | null;
+  workflow_run_url: string | null;
+  check_run_id: string | null;
+  is_overdue: number;
 }
 
 type EventTab = "pr" | "nightly";
@@ -539,6 +559,55 @@ function CrcrTestHealthCard({
 }: {
   healthPrs: HealthPrRow[] | undefined;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsUrl = detailsOpen
+    ? `/api/clickhouse/crcr_health_pr_job_details?parameters=${encodeURIComponent(
+        JSON.stringify({
+          window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+          stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
+        })
+      )}`
+    : null;
+  const { data: healthJobDetails, error: healthJobDetailsError } = useSWR<
+    HealthPrDetailRow[]
+  >(detailsUrl, fetcherHandleError);
+  const healthRuns = useMemo(() => {
+    const runs = new Map<
+      number,
+      { jobs: RelayHealthJob[]; latestTime: number }
+    >();
+    for (const job of healthJobDetails ?? []) {
+      const current = runs.get(job.pr_number) ?? {
+        jobs: [],
+        latestTime: 0,
+      };
+      current.jobs.push({
+        jobName: job.job_name,
+        status: job.status,
+        conclusion: job.conclusion,
+        startedAt: job.started_at,
+        completedAt: job.completed_at,
+        workflowRunUrl: job.workflow_run_url,
+        checkRunId: job.check_run_id,
+        isOverdue: job.is_overdue === 1,
+      });
+      current.latestTime = Math.max(
+        current.latestTime,
+        new Date(job.started_at).getTime()
+      );
+      runs.set(job.pr_number, current);
+    }
+    return Array.from(runs.entries())
+      .sort(([, a], [, b]) => b.latestTime - a.latestTime)
+      .map(
+        ([prNumber, run]): RelayHealthRun => ({
+          label: `PR #${prNumber}`,
+          url: `https://github.com/pytorch/pytorch/pull/${prNumber}`,
+          jobs: run.jobs,
+        })
+      );
+  }, [healthJobDetails]);
+
   if (!healthPrs || healthPrs.length === 0) return null;
   const { pending, overdue, passedCount, state } =
     summarizeCrcrHealth(healthPrs);
@@ -551,33 +620,45 @@ function CrcrTestHealthCard({
       ? `${pending} job${pending === 1 ? "" : "s"} pending`
       : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
   return (
-    <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
-      <Paper
-        component="a"
-        elevation={2}
-        sx={{
-          p: 2,
-          flex: 1,
-          minWidth: 160,
-          textAlign: "center",
-          borderLeft: `4px solid ${borderColor}`,
-          textDecoration: "none",
-          color: "inherit",
-          cursor: "pointer",
-          "&:hover": { bgcolor: "action.hover" },
-        }}
+    <>
+      <ButtonBase
+        onClick={() => setDetailsOpen(true)}
+        aria-label="View CRCR pull request health details"
+        sx={{ flex: 1, minWidth: 160, textAlign: "initial", borderRadius: 1 }}
       >
-        <Typography variant="caption" color="text.secondary">
-          CRCR Relay Health
-        </Typography>
-        <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
-          {label}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {detail} · pytorch/crcr-test
-        </Typography>
-      </Paper>
-    </NextLink>
+        <Paper
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            width: "100%",
+            textAlign: "center",
+            borderLeft: `4px solid ${borderColor}`,
+            color: "inherit",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+            {label}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {detail} · pytorch/crcr-test
+          </Typography>
+        </Paper>
+      </ButtonBase>
+      <RelayHealthDetailsDialog
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="CRCR Relay Health — pull requests"
+        runs={healthRuns}
+        fullPageHref="/crcr/pytorch/crcr-test"
+        loading={detailsOpen && !healthJobDetails && !healthJobDetailsError}
+        error={!!healthJobDetailsError}
+      />
+    </>
   );
 }
 
@@ -587,28 +668,23 @@ interface NightlyJobRow {
   status: string;
   conclusion: string;
   started_at: string;
+  completed_at: string | null;
+  workflow_run_url: string | null;
+  check_run_id: string | null;
 }
 
 const NIGHTLY_HEALTH_COUNT = 5;
 
-function isExpectedNightlyOutcome(job: NightlyJobRow): boolean {
-  const name = job.job_name ?? "";
-  return (
-    (name.includes("xfail") && job.conclusion === "failure") ||
-    (name.includes("xcancel") && job.conclusion === "cancelled") ||
-    (name.includes("xtimeout") && job.conclusion === "timed_out")
-  );
-}
-
 function isNightlyJobPassing(job: NightlyJobRow): boolean {
-  if (
-    job.status === "in_progress" &&
-    (job.job_name.includes("xfail") || job.job_name.includes("xtimeout"))
-  ) {
-    return true;
-  }
-  if (job.status !== "completed") return false;
-  return job.conclusion === "success" || isExpectedNightlyOutcome(job);
+  return isHealthJobPassing({
+    jobName: job.job_name,
+    status: job.status,
+    conclusion: job.conclusion,
+    startedAt: job.started_at,
+    completedAt: job.completed_at,
+    workflowRunUrl: job.workflow_run_url,
+    checkRunId: job.check_run_id,
+  });
 }
 
 function CrcrNightlyHealthCard({
@@ -616,6 +692,7 @@ function CrcrNightlyHealthCard({
 }: {
   nightlyJobs: NightlyJobRow[] | undefined;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   if (!nightlyJobs || nightlyJobs.length === 0) {
     const staleColor = "#9e9e9e";
     return (
@@ -717,39 +794,58 @@ function CrcrNightlyHealthCard({
   ).length;
   const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
   const label = allPassed ? "Healthy" : "Degraded";
+  const healthRuns: RelayHealthRun[] = shasByTime.map(({ sha, jobs }) => ({
+    label: `SHA ${sha.slice(0, 7)}`,
+    url: `https://github.com/pytorch/pytorch/commit/${sha}`,
+    jobs: jobs.map((job) => ({
+      jobName: job.job_name,
+      status: job.status,
+      conclusion: job.conclusion,
+      startedAt: job.started_at,
+      completedAt: job.completed_at,
+      workflowRunUrl: job.workflow_run_url,
+      checkRunId: job.check_run_id,
+    })),
+  }));
 
   return (
-    <NextLink
-      href="/crcr/pytorch/crcr-test?event=nightly"
-      passHref
-      legacyBehavior
-    >
-      <Paper
-        component="a"
-        elevation={2}
-        sx={{
-          p: 2,
-          flex: 1,
-          minWidth: 160,
-          textAlign: "center",
-          borderLeft: `4px solid ${borderColor}`,
-          textDecoration: "none",
-          color: "inherit",
-          cursor: "pointer",
-          "&:hover": { bgcolor: "action.hover" },
-        }}
+    <>
+      <ButtonBase
+        onClick={() => setDetailsOpen(true)}
+        aria-label="View CRCR nightly health details"
+        sx={{ flex: 1, minWidth: 160, textAlign: "initial", borderRadius: 1 }}
       >
-        <Typography variant="caption" color="text.secondary">
-          CRCR Relay Health - Nightly
-        </Typography>
-        <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
-          {label}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {passedCount}/{shasByTime.length} recent nightlies passed
-        </Typography>
-      </Paper>
-    </NextLink>
+        <Paper
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            width: "100%",
+            textAlign: "center",
+            borderLeft: `4px solid ${borderColor}`,
+            color: "inherit",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health - Nightly
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+            {label}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {passedCount}/{shasByTime.length} recent nightlies passed
+          </Typography>
+        </Paper>
+      </ButtonBase>
+      <RelayHealthDetailsDialog
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="CRCR Relay Health — nightlies"
+        runs={healthRuns}
+        fullPageHref="/crcr/pytorch/crcr-test?event=nightly"
+      />
+    </>
   );
 }
 
