@@ -81,7 +81,7 @@ export function useL3SummaryMap(days: number) {
   const url =
     `/api/clickhouse/crcr_l3_summary?parameters=` +
     encodeURIComponent(JSON.stringify({ days: String(days) }));
-  const { data, error } = useSWR<L3SummaryRow[]>(url, fetcherHandleError, {
+  const { data } = useSWR<L3SummaryRow[]>(url, fetcherHandleError, {
     refreshInterval: 60_000,
   });
   const map = useMemo(() => {
@@ -91,7 +91,10 @@ export function useL3SummaryMap(days: number) {
     }
     return byRepo;
   }, [data]);
-  return { map, loaded: !!data || !!error, error };
+  // `hasResult`: a query has succeeded at least once, so `map` reflects real
+  // data rather than an empty placeholder. SWR keeps the last good `data`
+  // when a later refresh fails, so this stays true through a transient error.
+  return { map, hasResult: data !== undefined };
 }
 
 export type L3MeasuredFormat = "days" | "duration" | "percent";

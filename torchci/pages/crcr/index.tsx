@@ -183,6 +183,7 @@ function CiHealthTable({
   l3SummaryMap,
   l3SummaryMapDemotion,
   activeDotColor = "success.main",
+  activeDotLabel = "Active",
 }: {
   level: Level;
   repos: AllowlistEntry[];
@@ -193,6 +194,9 @@ function CiHealthTable({
   // flagged at-risk, so the usual "active and reporting" green would read
   // backwards. Rows with no data at all stay grey either way.
   activeDotColor?: string;
+  // Travels with activeDotColor: a red dot tooltipped "Active" reads as a
+  // contradiction, so the caller recolouring the dot renames it too.
+  activeDotLabel?: string;
 }) {
   return (
     <TableContainer component={Paper} elevation={1}>
@@ -251,7 +255,7 @@ function CiHealthTable({
                       bgcolor: hasData ? activeDotColor : "grey.400",
                       display: "inline-block",
                     }}
-                    title={hasData ? "Active" : "No data"}
+                    title={hasData ? activeDotLabel : "No data"}
                   />
                 </TableCell>
                 <TableCell>
@@ -780,9 +784,8 @@ export default function CrcrSummaryPage() {
   // L3 readiness — fixed promotion/demotion windows, independent of the
   // Time Range selector above.
   const { map: l3SummaryMap } = useL3SummaryMap(L3_PROMOTION_WINDOW_DAYS);
-  const { map: l3SummaryMapDemotion } = useL3SummaryMap(
-    L3_DEMOTION_WINDOW_DAYS
-  );
+  const { map: l3SummaryMapDemotion, hasResult: l3SummaryDemotionHasResult } =
+    useL3SummaryMap(L3_DEMOTION_WINDOW_DAYS);
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, CiMetricsRow>();
@@ -861,27 +864,39 @@ export default function CrcrSummaryPage() {
     (count, level) => count + pullRequestReposByLevel[level].length,
     0
   );
-  // L3 repos currently meeting the demotion criteria — the same
-  // "on temporary demotion" check the per-repo page's Demotion column uses.
-  // This is also what files the L3 -> L2 PR (see docs/crcr), not just a
-  // display filter.
+  // L3 repos failing at least one demotion criterion, or reporting no jobs at
+  // all over the window (see lib/crcr/demotionStatus.ts).
   // A repo on temporary demotion is shown once, in that section — not also
   // in the regular L3 table below it.
   const { activeL3Repos, pendingDemotionRepos } = useMemo(() => {
+    // Only a successful summary can say a repo had no jobs; before the first
+    // one arrives (loading, or the very first request failed), a missing row
+    // is unknown, not silence. A later failed refresh keeps the last good
+    // result rather than emptying the section.
+    const demotionMetrics = l3SummaryDemotionHasResult
+      ? l3SummaryMapDemotion
+      : null;
     const onTemporaryDemotion = new Set(
-      buildDemotionStatuses(l3SummaryMapDemotion)
+      buildDemotionStatuses(
+        pullRequestReposByLevel.L3.map((entry) => entry.repo),
+        demotionMetrics
+      )
         .filter((s) => s.onTemporaryDemotion)
         .map((s) => s.repo)
     );
     return {
-      activeL3Repos: reposByLevel.L3.filter(
+      activeL3Repos: pullRequestReposByLevel.L3.filter(
         (entry) => !onTemporaryDemotion.has(entry.repo)
       ),
-      pendingDemotionRepos: reposByLevel.L3.filter((entry) =>
+      pendingDemotionRepos: pullRequestReposByLevel.L3.filter((entry) =>
         onTemporaryDemotion.has(entry.repo)
       ),
     };
-  }, [reposByLevel, l3SummaryMapDemotion]);
+  }, [
+    pullRequestReposByLevel,
+    l3SummaryMapDemotion,
+    l3SummaryDemotionHasResult,
+  ]);
 
   const stats = useMemo(() => {
     if (!ciData || ciData.length === 0) return null;
@@ -1063,7 +1078,7 @@ export default function CrcrSummaryPage() {
               // Repos on temporary demotion are pulled out of the regular L3
               // table below — shown once, in the demotion section only.
               const repos =
-                level === "L3" ? activeL3Repos : reposByLevel[level];
+                level === "L3" ? activeL3Repos : pullRequestReposByLevel[level];
               const showDemotionSection =
                 level === "L3" && pendingDemotionRepos.length > 0;
               if (repos.length === 0 && !showDemotionSection) return null;
@@ -1071,12 +1086,14 @@ export default function CrcrSummaryPage() {
 
               return (
                 <Fragment key={level}>
-                  {repos.length > 0 && (
-                    <Box>
-                      <Divider sx={{ mb: 2 }}>
-                        <Typography variant="h6">{meta.label}</Typography>
-                      </Divider>
-                      {level === "L1" ? (
+                  {/* The level heading renders even when every L3 repo is on
+                      temporary demotion. */}
+                  <Box>
+                    <Divider sx={{ mb: 2 }}>
+                      <Typography variant="h6">{meta.label}</Typography>
+                    </Divider>
+                    {repos.length > 0 &&
+                      (level === "L1" ? (
                         <L1Section repos={repos} />
                       ) : (
                         <CiHealthTable
@@ -1086,9 +1103,8 @@ export default function CrcrSummaryPage() {
                           l3SummaryMap={l3SummaryMap}
                           l3SummaryMapDemotion={l3SummaryMapDemotion}
                         />
-                      )}
-                    </Box>
-                  )}
+                      ))}
+                  </Box>
                   {showDemotionSection && (
                     <Box>
                       <Typography
@@ -1096,8 +1112,9 @@ export default function CrcrSummaryPage() {
                         color="text.secondary"
                         sx={{ mb: 1 }}
                       >
-                        L3 backends currently meeting all demotion criteria over
-                        the last {L3_DEMOTION_WINDOW_DAYS} days.
+                        L3 backends meeting any of the demotion criteria, or
+                        reporting no jobs at all, over the last{" "}
+                        {L3_DEMOTION_WINDOW_DAYS} days.
                       </Typography>
                       <CiHealthTable
                         level="L3"
@@ -1106,6 +1123,7 @@ export default function CrcrSummaryPage() {
                         l3SummaryMap={l3SummaryMap}
                         l3SummaryMapDemotion={l3SummaryMapDemotion}
                         activeDotColor="error.main"
+                        activeDotLabel="On temporary demotion"
                       />
                     </Box>
                   )}

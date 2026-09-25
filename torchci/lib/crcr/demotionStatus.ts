@@ -3,51 +3,47 @@ import {
   CriterionRow,
   L3Metrics,
   L3SummaryRow,
-  useL3SummaryMap,
 } from "lib/crcr/l3Readiness";
-import { L3_DEMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
-import { useMemo } from "react";
 
 export interface RepoDemotionStatus {
   repo: string;
-  /** Meets the demotion criteria over the window — lands on the page and files the PR. */
+  /** Meets at least one demotion criterion, or reported no jobs at all. */
   onTemporaryDemotion: boolean;
+  /** No jobs at all in the window -- on the list for silence, not a metric. */
+  noData: boolean;
   /** Criteria rows, so the page can show what is triggering. */
   rows: CriterionRow[];
 }
 
 function isViolating(metrics: L3Metrics | null): boolean {
   if (!metrics) return false;
-  // `verdict === false` is "fails the criterion"; null means no data to judge,
-  // which is deliberately not a violation.
+  // Demotion is triggered when any of the following conditions are
+  // observed.
   return buildDemotionRows(metrics).some((r) => r.verdict === false);
 }
 
 /**
  * Per-repo demotion status over the single L3_DEMOTION_WINDOW_DAYS window.
  *
- * A violation here both lists the repo under "L3 Temporary Demotion" and
- * files the L3 -> L2 PR — there is no separate, longer confirmation window.
- * Auto-filing a PR isn't the same as merging one: a human still reviews it,
- * so a repo that recovers right after a bad week just gets its PR closed
- * rather than being stuck waiting for stale data to age out of an aggregate.
+ * Display only: a violation here lists the repo under the /crcr temporary
+ * demotion section.
+ *
+ * A repo with zero jobs in the window has no summary row, and iterating the
+ * map alone would never see it. Such a repo is put on temporary demotion
+ * too.
  */
 export function buildDemotionStatuses(
-  metricsMap: Map<string, L3SummaryRow>
+  repos: string[],
+  metricsMap: Map<string, L3SummaryRow> | null
 ): RepoDemotionStatus[] {
-  const statuses: RepoDemotionStatus[] = [];
-  for (const [repo, metrics] of metricsMap) {
-    statuses.push({
+  return repos.map((repo) => {
+    const metrics = metricsMap?.get(repo) ?? null;
+    const noData = metricsMap !== null && metrics === null;
+    return {
       repo,
-      onTemporaryDemotion: isViolating(metrics),
+      onTemporaryDemotion: noData || isViolating(metrics),
+      noData,
       rows: buildDemotionRows(metrics),
-    });
-  }
-  return statuses;
-}
-
-export function useDemotionStatuses() {
-  const { map, loaded, error } = useL3SummaryMap(L3_DEMOTION_WINDOW_DAYS);
-  const statuses = useMemo(() => buildDemotionStatuses(map), [map]);
-  return { statuses, loaded, error };
+    };
+  });
 }
