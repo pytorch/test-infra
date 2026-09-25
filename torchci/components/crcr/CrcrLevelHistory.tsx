@@ -73,7 +73,9 @@ export default function CrcrLevelHistory({
             />
           </Stack>
           <Chip
-            label={`${events.length} observed change${events.length === 1 ? "" : "s"}`}
+            label={`${events.length} observed change${
+              events.length === 1 ? "" : "s"
+            }`}
             size="small"
             variant="outlined"
           />
@@ -82,15 +84,14 @@ export default function CrcrLevelHistory({
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Stack spacing={1.5}>
             <Typography variant="caption" color="text.secondary">
-              Observed from CRCR dispatch records retained by the HUD. Manual
-              PR links and automated-decision criteria will be added with the
+              Observed from CRCR dispatch records retained by the HUD. Manual PR
+              links and automated-decision criteria will be added with the
               dedicated audit ledger.
             </Typography>
 
             {events.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No level changes were observed in the retained dispatch
-                history.
+                No level changes were observed in the retained dispatch history.
               </Typography>
             ) : (
               <Stack spacing={0}>
