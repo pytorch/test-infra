@@ -122,6 +122,13 @@
       "slow"
     ]
   ],
+  "test_case (__main__.FilterTestCase)": [
+    "198597",
+    "https://github.com/pytorch/pytorch/issues/198597",
+    [
+      "dynamo"
+    ]
+  ],
   "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
     "100074",
     "https://github.com/pytorch/pytorch/issues/100074",
@@ -1088,6 +1095,14 @@
       "xpu"
     ]
   ],
+  "test_reduced_type_float_copy_emits_vectorized_kernel_cuda_float16 (__main__.TestTorchCUDACUDA)": [
+    "198594",
+    "https://github.com/pytorch/pytorch/issues/198594",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_reduction_not_fused (__main__.TestNVUniversalGemmEpilogueFusion)": [
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
@@ -1105,6 +1120,24 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_rerun_then_pass (__main__.TestJunitOutcomes)": [
+    "198595",
+    "https://github.com/pytorch/pytorch/issues/198595",
+    [
+      "dynamo",
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_rerun_then_pass (test.junit_xml_testdata.pytest_suite.TestJunitOutcomes)": [
+    "198596",
+    "https://github.com/pytorch/pytorch/issues/198596",
+    [
+      "dynamo",
+      "inductor",
+      "rocm"
     ]
   ],
   "test_restore_external_objects_before_backward (__main__.TestStreamExternalObjectRestore)": [
