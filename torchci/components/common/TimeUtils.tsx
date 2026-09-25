@@ -11,7 +11,9 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
   // So we defer this computation to the client, where we have the right
   // timezone info.
   useEffect(() => {
-    const time = dayjs(timestamp).local();
+    // ClickHouse emits ISO-shaped UTC timestamps without a zone designator.
+    // Parsing through utc() preserves their instant before local display.
+    const time = dayjs.utc(timestamp).local();
     if (dayjs().isSame(time, "day")) {
       setTime(time.format("h:mm a"));
     } else if (dayjs().subtract(7, "days").isBefore(time, "day")) {
@@ -22,7 +24,7 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
   }, [timestamp]);
   return (
     <span
-      title={`${durationDisplay(dayjs().diff(timestamp, "seconds"))} ago`}
+      title={`${durationDisplay(dayjs().diff(dayjs.utc(timestamp), "seconds"))} ago`}
       data-toggle="tooltip"
     >
       {time}
