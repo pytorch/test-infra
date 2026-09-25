@@ -1269,6 +1269,14 @@
       "linux"
     ]
   ],
+  "test_sdpa_export_repeat_interleave_unbacked_causal_seq_len_cuda (__main__.TestSDPAGenericCUDA)": [
+    "198671",
+    "https://github.com/pytorch/pytorch/issues/198671",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_sdpa_rewriter_11_gpu (__main__.SDPAPatternRewriterGpuTests)": [
     "179213",
     "https://github.com/pytorch/pytorch/issues/179213",
