@@ -949,6 +949,13 @@
       "rocm"
     ]
   ],
+  "test_oom_retry_message_logged_at_info (__main__.TestCuda)": [
+    "198574",
+    "https://github.com/pytorch/pytorch/issues/198574",
+    [
+      "rocm"
+    ]
+  ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
@@ -965,6 +972,13 @@
     [
       "mac",
       "macos"
+    ]
+  ],
+  "test_package_keeps_a_loaded_device_a_recompile_does_not_name (__main__.TestPackage)": [
+    "197144",
+    "https://github.com/pytorch/pytorch/issues/197144",
+    [
+      "xpu"
     ]
   ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
@@ -1226,6 +1240,14 @@
     "198142",
     "https://github.com/pytorch/pytorch/issues/198142",
     [
+      "rocm"
+    ]
+  ],
+  "test_serialization_array_with_empty (__main__.TestCuda)": [
+    "134966",
+    "https://github.com/pytorch/pytorch/issues/134966",
+    [
+      "linux",
       "rocm"
     ]
   ],
