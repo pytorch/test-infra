@@ -24,7 +24,9 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
   }, [timestamp]);
   return (
     <span
-      title={`${durationDisplay(dayjs().diff(dayjs.utc(timestamp), "seconds"))} ago`}
+      title={`${durationDisplay(
+        dayjs().diff(dayjs.utc(timestamp), "seconds")
+      )} ago`}
       data-toggle="tooltip"
     >
       {time}
