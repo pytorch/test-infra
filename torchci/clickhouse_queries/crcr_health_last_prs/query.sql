@@ -4,9 +4,8 @@ WITH recent_prs AS (
     WHERE
         downstream_repo = 'pytorch/crcr-test'
         AND pr_number > 0
+        AND started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE
     GROUP BY pr_number
-    ORDER BY max(started_at) DESC
-    LIMIT {count: UInt64}
 ),
 
 latest_jobs AS (
@@ -41,7 +40,10 @@ SELECT
         )
     ) AS successes,
     countIf(status = 'completed') AS total,
-    countIf(status = 'in_progress') AS in_progress,
+    countIf(
+        status = 'in_progress'
+        AND job_name NOT LIKE '%xtimeout%'
+    ) AS pending,
     countIf(
         status = 'in_progress'
         AND started_at < now() - INTERVAL {stale_after_minutes: UInt64} MINUTE

@@ -38,6 +38,12 @@ import {
   DEFAULT_CRCR_EVENTS,
   filterCrcrEntriesByEvent,
 } from "lib/crcrAllowlist";
+import {
+  CRCR_HEALTH_STALE_AFTER_MINUTES,
+  CRCR_HEALTH_WINDOW_LABEL,
+  CRCR_HEALTH_WINDOW_MINUTES,
+  summarizeCrcrHealth,
+} from "lib/crcr/healthProbe";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -75,7 +81,7 @@ interface HealthPrRow {
   last_run: string;
   successes: number;
   total: number;
-  in_progress: number;
+  pending: number;
   overdue_in_progress: number;
   pass_rate: number | null;
 }
@@ -115,9 +121,6 @@ const LEVEL_META: Record<
 
 const LEVELS_ORDERED: Level[] = ["L4", "L3", "L2", "L1"];
 const CRCR_HEALTH_REPO = "pytorch/crcr-test";
-// ci-infra leaves ZOMBIE_TIMEOUT_SECONDS unset, so the callback default is 6h.
-// The 15-minute grace covers its 10-minute EventBridge sweep interval.
-const CRCR_HEALTH_STALE_AFTER_MINUTES = 6 * 60 + 15;
 
 function PassRateChip({ rate }: { rate: number }) {
   const pct = (rate * 100).toFixed(1) + "%";
@@ -537,35 +540,23 @@ function CrcrTestHealthCard({
   healthPrs: HealthPrRow[] | undefined;
 }) {
   if (!healthPrs || healthPrs.length === 0) return null;
-  const pending = healthPrs.reduce((sum, pr) => sum + pr.in_progress, 0);
-  const overdue = healthPrs.reduce(
-    (sum, pr) => sum + pr.overdue_in_progress,
-    0
-  );
-  const passedCount = healthPrs.filter(
-    (pr) => pr.total > 0 && pr.pass_rate === 1.0 && pr.in_progress === 0
-  ).length;
-  const hasFailures = healthPrs.some(
-    (pr) => pr.total > 0 && (pr.pass_rate ?? 0) < 1.0
-  );
-  const isDegraded = hasFailures || overdue > 0;
-  const isAwaitingSweep = !isDegraded && pending > 0;
-  const borderColor = isDegraded
+  const { pending, overdue, passedCount, state } = summarizeCrcrHealth(healthPrs);
+  const borderColor = state === "degraded"
     ? "#ed6c02"
-    : isAwaitingSweep
+    : state === "awaiting_sweep"
     ? "#0288d1"
     : "#2e7d32";
-  const label = isDegraded
+  const label = state === "degraded"
     ? "Degraded"
-    : isAwaitingSweep
+    : state === "awaiting_sweep"
     ? "Awaiting sweep"
     : "Healthy";
   const detail =
-    isDegraded && overdue > 0
+    state === "degraded" && overdue > 0
       ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
-      : isAwaitingSweep
+      : state === "awaiting_sweep"
       ? `${pending} job${pending === 1 ? "" : "s"} awaiting sweep`
-      : `${passedCount}/${healthPrs.length} recent PRs passed`;
+      : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
   return (
     <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
       <Paper
@@ -792,7 +783,7 @@ export default function CrcrSummaryPage() {
     `/api/clickhouse/crcr_health_last_prs?parameters=` +
     encodeURIComponent(
       JSON.stringify({
-        count: "5",
+        window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
         stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
       })
     );

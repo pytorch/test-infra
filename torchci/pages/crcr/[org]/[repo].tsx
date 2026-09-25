@@ -20,6 +20,12 @@ import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import {
+  CRCR_HEALTH_STALE_AFTER_MINUTES,
+  CRCR_HEALTH_WINDOW_LABEL,
+  CRCR_HEALTH_WINDOW_MINUTES,
+  summarizeCrcrHealth,
+} from "lib/crcr/healthProbe";
+import {
   buildNightlyMatrix,
   isRealCommitSha,
   NightlyRow,
@@ -53,7 +59,7 @@ interface HealthPrRow {
   last_run: string;
   successes: number;
   total: number;
-  in_progress: number;
+  pending: number;
   overdue_in_progress: number;
   pass_rate: number | null;
 }
@@ -489,46 +495,29 @@ function NightlySummaryCards({
 
 // ---- Relay Health Card (for pytorch/crcr-test) ----
 
-const HEALTH_COUNT = 5;
-// ci-infra leaves ZOMBIE_TIMEOUT_SECONDS unset, so the callback default is 6h.
-// The 15-minute grace covers its 10-minute EventBridge sweep interval.
-const HEALTH_STALE_AFTER_MINUTES = 6 * 60 + 15;
-
 function RelayHealthCard({
   healthPrs,
 }: {
   healthPrs: HealthPrRow[] | undefined;
 }) {
   if (!healthPrs || healthPrs.length === 0) return null;
-  const pending = healthPrs.reduce((sum, pr) => sum + pr.in_progress, 0);
-  const overdue = healthPrs.reduce(
-    (sum, pr) => sum + pr.overdue_in_progress,
-    0
-  );
-  const passedCount = healthPrs.filter(
-    (pr) => pr.total > 0 && pr.pass_rate === 1.0 && pr.in_progress === 0
-  ).length;
-  const hasFailures = healthPrs.some(
-    (pr) => pr.total > 0 && (pr.pass_rate ?? 0) < 1.0
-  );
-  const isDegraded = hasFailures || overdue > 0;
-  const isAwaitingSweep = !isDegraded && pending > 0;
-  const borderColor = isDegraded
+  const { pending, overdue, passedCount, state } = summarizeCrcrHealth(healthPrs);
+  const borderColor = state === "degraded"
     ? "#ed6c02"
-    : isAwaitingSweep
+    : state === "awaiting_sweep"
     ? "#0288d1"
     : "#2e7d32";
-  const label = isDegraded
+  const label = state === "degraded"
     ? "Degraded"
-    : isAwaitingSweep
+    : state === "awaiting_sweep"
     ? "Awaiting sweep"
     : "Healthy";
   const detail =
-    isDegraded && overdue > 0
+    state === "degraded" && overdue > 0
       ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
-      : isAwaitingSweep
+      : state === "awaiting_sweep"
       ? `${pending} job${pending === 1 ? "" : "s"} awaiting sweep`
-      : `${passedCount}/${healthPrs.length} of last ${healthPrs.length} PRs passed`;
+      : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
   return (
     <Paper
       elevation={1}
@@ -1586,8 +1575,8 @@ export default function CrcrBackendPage() {
     isCrcrTest && !isNightly
       ? `/api/clickhouse/crcr_health_last_prs?parameters=${encodeURIComponent(
           JSON.stringify({
-            count: String(HEALTH_COUNT),
-            stale_after_minutes: String(HEALTH_STALE_AFTER_MINUTES),
+            window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+            stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
           })
         )}`
       : null;
