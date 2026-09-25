@@ -25,6 +25,12 @@ import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import {
+  CRCR_HEALTH_STALE_AFTER_MINUTES,
+  CRCR_HEALTH_WINDOW_LABEL,
+  CRCR_HEALTH_WINDOW_MINUTES,
+  summarizeCrcrHealth,
+} from "lib/crcr/healthProbe";
+import {
   buildCriteriaRows,
   buildDemotionRows,
   L3SummaryRow,
@@ -38,12 +44,6 @@ import {
   DEFAULT_CRCR_EVENTS,
   filterCrcrEntriesByEvent,
 } from "lib/crcrAllowlist";
-import {
-  CRCR_HEALTH_STALE_AFTER_MINUTES,
-  CRCR_HEALTH_WINDOW_LABEL,
-  CRCR_HEALTH_WINDOW_MINUTES,
-  summarizeCrcrHealth,
-} from "lib/crcr/healthProbe";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -540,17 +540,20 @@ function CrcrTestHealthCard({
   healthPrs: HealthPrRow[] | undefined;
 }) {
   if (!healthPrs || healthPrs.length === 0) return null;
-  const { pending, overdue, passedCount, state } = summarizeCrcrHealth(healthPrs);
-  const borderColor = state === "degraded"
-    ? "#ed6c02"
-    : state === "awaiting_sweep"
-    ? "#0288d1"
-    : "#2e7d32";
-  const label = state === "degraded"
-    ? "Degraded"
-    : state === "awaiting_sweep"
-    ? "Awaiting sweep"
-    : "Healthy";
+  const { pending, overdue, passedCount, state } =
+    summarizeCrcrHealth(healthPrs);
+  const borderColor =
+    state === "degraded"
+      ? "#ed6c02"
+      : state === "awaiting_sweep"
+      ? "#0288d1"
+      : "#2e7d32";
+  const label =
+    state === "degraded"
+      ? "Degraded"
+      : state === "awaiting_sweep"
+      ? "Awaiting sweep"
+      : "Healthy";
   const detail =
     state === "degraded" && overdue > 0
       ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`

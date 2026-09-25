@@ -25,10 +25,7 @@ export function summarizeCrcrHealth(rows: CrcrHealthProbeRow[]): {
   state: CrcrHealthState;
 } {
   const pending = rows.reduce((sum, row) => sum + row.pending, 0);
-  const overdue = rows.reduce(
-    (sum, row) => sum + row.overdue_in_progress,
-    0
-  );
+  const overdue = rows.reduce((sum, row) => sum + row.overdue_in_progress, 0);
   const passedCount = rows.filter(
     (row) => row.total > 0 && row.pass_rate === 1.0 && row.pending === 0
   ).length;

@@ -18,13 +18,13 @@ import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
 import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
-import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import {
   CRCR_HEALTH_STALE_AFTER_MINUTES,
   CRCR_HEALTH_WINDOW_LABEL,
   CRCR_HEALTH_WINDOW_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
+import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import {
   buildNightlyMatrix,
   isRealCommitSha,
@@ -501,17 +501,20 @@ function RelayHealthCard({
   healthPrs: HealthPrRow[] | undefined;
 }) {
   if (!healthPrs || healthPrs.length === 0) return null;
-  const { pending, overdue, passedCount, state } = summarizeCrcrHealth(healthPrs);
-  const borderColor = state === "degraded"
-    ? "#ed6c02"
-    : state === "awaiting_sweep"
-    ? "#0288d1"
-    : "#2e7d32";
-  const label = state === "degraded"
-    ? "Degraded"
-    : state === "awaiting_sweep"
-    ? "Awaiting sweep"
-    : "Healthy";
+  const { pending, overdue, passedCount, state } =
+    summarizeCrcrHealth(healthPrs);
+  const borderColor =
+    state === "degraded"
+      ? "#ed6c02"
+      : state === "awaiting_sweep"
+      ? "#0288d1"
+      : "#2e7d32";
+  const label =
+    state === "degraded"
+      ? "Degraded"
+      : state === "awaiting_sweep"
+      ? "Awaiting sweep"
+      : "Healthy";
   const detail =
     state === "degraded" && overdue > 0
       ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
