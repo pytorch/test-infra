@@ -61,16 +61,24 @@ describe("CRCR health details", () => {
     });
   });
 
-  test("keeps in-progress xfail probes healthy", () => {
-    expect(
-      isHealthJobPassing(
-        job({
-          jobName: "xfail",
-          status: "in_progress",
-          conclusion: null,
-        })
-      )
-    ).toBe(true);
+  test("keeps in-progress expected probes healthy", () => {
+    const expectedJobs = [
+      job({
+        jobName: "xfail",
+        status: "in_progress",
+        conclusion: null,
+      }),
+      job({
+        jobName: "xtimeout",
+        status: "in_progress",
+        conclusion: null,
+        isOverdue: true,
+      }),
+    ];
+
+    expectedJobs.forEach((expectedJob) => {
+      expect(isHealthJobPassing(expectedJob)).toBe(true);
+    });
   });
 
   test("treats unfinished probe jobs as needing attention", () => {
