@@ -15,8 +15,8 @@ import {
 } from "@mui/material";
 import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
-import CrcrLevelHistory from "components/crcr/CrcrLevelHistory";
 import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
+import CrcrLevelHistory from "components/crcr/CrcrLevelHistory";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import {

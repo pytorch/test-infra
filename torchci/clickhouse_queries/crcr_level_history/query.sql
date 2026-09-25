@@ -11,6 +11,7 @@ WITH runs AS (
         AND started_at > 0
     GROUP BY run_id
 ),
+
 observed_changes AS (
     SELECT
         observed_at AS changed_at,
@@ -21,6 +22,7 @@ observed_changes AS (
         new_level
     FROM runs
 ),
+
 recent_changes AS (
     SELECT
         changed_at,
@@ -33,6 +35,7 @@ recent_changes AS (
     ORDER BY changed_at DESC
     LIMIT {limit: UInt32}
 )
+
 SELECT
     changed_at,
     previous_level,
