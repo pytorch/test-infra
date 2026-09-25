@@ -20,14 +20,22 @@ observed_changes AS (
         ) AS previous_level,
         new_level
     FROM runs
+),
+recent_changes AS (
+    SELECT
+        changed_at,
+        previous_level,
+        new_level
+    FROM observed_changes
+    WHERE
+        previous_level != ''
+        AND previous_level != new_level
+    ORDER BY changed_at DESC
+    LIMIT {limit: UInt32}
 )
 SELECT
     changed_at,
     previous_level,
     new_level
-FROM observed_changes
-WHERE
-    previous_level != ''
-    AND previous_level != new_level
+FROM recent_changes
 ORDER BY changed_at ASC
-LIMIT {limit: UInt32}
