@@ -48,14 +48,29 @@ describe("CRCR health details", () => {
     );
   });
 
-  test("keeps expected probe failures out of triage failures", () => {
-    const expectedFailure = job({
-      jobName: "xtimeout",
-      conclusion: "timed_out",
-    });
+  test("accepts expected terminal probe outcomes", () => {
+    const expectedJobs = [
+      job({ jobName: "xfail", conclusion: "failure" }),
+      job({ jobName: "xcancel", conclusion: "cancelled" }),
+      job({ jobName: "xtimeout", conclusion: "timed_out" }),
+    ];
 
-    expect(isExpectedHealthOutcome(expectedFailure)).toBe(true);
-    expect(isHealthJobPassing(expectedFailure)).toBe(true);
+    expectedJobs.forEach((expectedJob) => {
+      expect(isExpectedHealthOutcome(expectedJob)).toBe(true);
+      expect(isHealthJobPassing(expectedJob)).toBe(true);
+    });
+  });
+
+  test("keeps in-progress xfail probes healthy", () => {
+    expect(
+      isHealthJobPassing(
+        job({
+          jobName: "xfail",
+          status: "in_progress",
+          conclusion: null,
+        })
+      )
+    ).toBe(true);
   });
 
   test("treats unfinished probe jobs as needing attention", () => {
