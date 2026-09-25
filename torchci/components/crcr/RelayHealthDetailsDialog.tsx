@@ -67,6 +67,7 @@ export default function RelayHealthDetailsDialog({
   runs,
   loading = false,
   error = false,
+  fullPageHref,
 }: {
   open: boolean;
   onClose: () => void;
@@ -74,6 +75,7 @@ export default function RelayHealthDetailsDialog({
   runs: RelayHealthRun[];
   loading?: boolean;
   error?: boolean;
+  fullPageHref?: string;
 }) {
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -148,6 +150,7 @@ export default function RelayHealthDetailsDialog({
         )}
       </DialogContent>
       <DialogActions>
+        {fullPageHref && <Button href={fullPageHref}>View full page</Button>}
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
     </Dialog>
