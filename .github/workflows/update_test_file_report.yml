@@ -15,7 +15,7 @@ jobs:
       (github.event_name == 'workflow_dispatch')
     permissions:
       issues: write
-    runs-on: linux.2xlarge
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -64,7 +64,7 @@ jobs:
       (github.event_name == 'workflow_dispatch')
     permissions:
       issues: write
-    runs-on: linux.2xlarge
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
