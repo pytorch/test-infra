@@ -13,7 +13,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { durationDisplay } from "components/common/TimeUtils";
+import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
 import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
 import hudStyles from "components/hud.module.css";
@@ -894,37 +894,6 @@ function buildMatrix(data: CrcrJobRow[]): {
   return { jobNames, rows };
 }
 
-// ---- Time display (matching main HUD: "h:mm a" style) ----
-
-function LocalTimeDisplay({ timestamp }: { timestamp: string }) {
-  const [display, setDisplay] = useState<string | null>(null);
-  useEffect(() => {
-    const d = new Date(timestamp);
-    const now = new Date();
-    const diffDays = Math.floor(
-      (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const timeStr = d.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-    if (diffDays === 0) {
-      setDisplay(timeStr);
-    } else if (diffDays < 7) {
-      const day = d.toLocaleDateString("en-US", { weekday: "short" });
-      setDisplay(`${day} ${timeStr}`);
-    } else {
-      const dateStr = d.toLocaleDateString("en-US", {
-        month: "numeric",
-        day: "numeric",
-      });
-      setDisplay(`${dateStr} ${timeStr}`);
-    }
-  }, [timestamp]);
-  return <>{display ?? ""}</>;
-}
-
 // ---- Pagination ----
 
 const PER_PAGE = 50;
@@ -1194,7 +1163,7 @@ function CrcrMatrix({
                   style={{ cursor: "pointer" }}
                 >
                   <td className={hudStyles.jobMetadata}>
-                    <LocalTimeDisplay timestamp={row.latestTime} />
+                    <LocalTimeHuman timestamp={row.latestTime} />
                   </td>
                   <td className={hudStyles.jobMetadata}>
                     <span className={hudStyles.mono}>
@@ -1429,7 +1398,7 @@ function CrcrNightlyMatrix({
                   style={{ cursor: "pointer" }}
                 >
                   <td className={hudStyles.jobMetadata}>
-                    <LocalTimeDisplay timestamp={row.latestTime} />
+                    <LocalTimeHuman timestamp={row.latestTime} />
                   </td>
                   <td className={hudStyles.jobMetadata}>
                     <span className={hudStyles.mono}>
