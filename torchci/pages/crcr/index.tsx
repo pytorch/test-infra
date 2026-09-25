@@ -25,6 +25,12 @@ import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import {
+  CRCR_HEALTH_STALE_AFTER_MINUTES,
+  CRCR_HEALTH_WINDOW_LABEL,
+  CRCR_HEALTH_WINDOW_MINUTES,
+  summarizeCrcrHealth,
+} from "lib/crcr/healthProbe";
+import {
   buildCriteriaRows,
   buildDemotionRows,
   L3SummaryRow,
@@ -75,7 +81,9 @@ interface HealthPrRow {
   last_run: string;
   successes: number;
   total: number;
-  pass_rate: number;
+  pending: number;
+  overdue_in_progress: number;
+  pass_rate: number | null;
 }
 
 type EventTab = "pr" | "nightly";
@@ -532,10 +540,16 @@ function CrcrTestHealthCard({
   healthPrs: HealthPrRow[] | undefined;
 }) {
   if (!healthPrs || healthPrs.length === 0) return null;
-  const allPassed = healthPrs.every((pr) => pr.pass_rate >= 1.0);
-  const passedCount = healthPrs.filter((pr) => pr.pass_rate >= 1.0).length;
-  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
-  const label = allPassed ? "Healthy" : "Degraded";
+  const { pending, overdue, passedCount, state } =
+    summarizeCrcrHealth(healthPrs);
+  const borderColor = state === "degraded" ? "#ed6c02" : "#2e7d32";
+  const label = state === "degraded" ? "Degraded" : "Healthy";
+  const detail =
+    state === "degraded" && overdue > 0
+      ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
+      : pending > 0
+      ? `${pending} job${pending === 1 ? "" : "s"} pending`
+      : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
   return (
     <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
       <Paper
@@ -560,7 +574,7 @@ function CrcrTestHealthCard({
           {label}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {passedCount}/{healthPrs.length} recent PRs passed · pytorch/crcr-test
+          {detail} · pytorch/crcr-test
         </Typography>
       </Paper>
     </NextLink>
@@ -587,6 +601,12 @@ function isExpectedNightlyOutcome(job: NightlyJobRow): boolean {
 }
 
 function isNightlyJobPassing(job: NightlyJobRow): boolean {
+  if (
+    job.status === "in_progress" &&
+    (job.job_name.includes("xfail") || job.job_name.includes("xtimeout"))
+  ) {
+    return true;
+  }
   if (job.status !== "completed") return false;
   return job.conclusion === "success" || isExpectedNightlyOutcome(job);
 }
@@ -760,7 +780,12 @@ export default function CrcrSummaryPage() {
 
   const healthUrl =
     `/api/clickhouse/crcr_health_last_prs?parameters=` +
-    encodeURIComponent(JSON.stringify({ count: "5" }));
+    encodeURIComponent(
+      JSON.stringify({
+        window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+        stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
+      })
+    );
   const { data: healthPrs, error: healthError } = useSWR<HealthPrRow[]>(
     healthUrl,
     fetcherHandleError,
