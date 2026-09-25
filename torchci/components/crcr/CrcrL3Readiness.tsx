@@ -15,13 +15,13 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import {
   buildCriteriaRows,
   buildDemotionRows,
   CriterionRow,
+  formatMeasured,
   L3Metrics,
   mergeCriteriaRows,
   useTenure,
@@ -33,18 +33,6 @@ import {
 } from "lib/crcr/l3Thresholds";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-
-function formatMeasured(row: CriterionRow): string {
-  if (row.measured == null) return "–";
-  switch (row.format) {
-    case "days":
-      return `${row.measured.toFixed(0)} days`;
-    case "duration":
-      return durationDisplay(Math.round(row.measured));
-    case "percent":
-      return `${(row.measured * 100).toFixed(1)}%`;
-  }
-}
 
 // Measured value colored by verdict — the value itself carries the signal,
 // no separate checkmark column needed. Each column only highlights the

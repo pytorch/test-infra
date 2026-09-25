@@ -1,3 +1,4 @@
+import { durationDisplay } from "components/common/TimeUtils";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import { evaluateL3Threshold, L3_THRESHOLDS } from "lib/crcr/l3Thresholds";
 import { useMemo } from "react";
@@ -73,6 +74,29 @@ export function useTenure(repoFullName: string) {
   return { tenure, loaded: !!data || !!error };
 }
 
+// crcr_l3_summary keyed by repo, for views that judge every repo at once.
+// `days` is the fixed L3 evaluation window the caller is judging over, never
+// a user-facing Time Range selector.
+export function useL3SummaryMap(days: number) {
+  const url =
+    `/api/clickhouse/crcr_l3_summary?parameters=` +
+    encodeURIComponent(JSON.stringify({ days: String(days) }));
+  const { data } = useSWR<L3SummaryRow[]>(url, fetcherHandleError, {
+    refreshInterval: 60_000,
+  });
+  const map = useMemo(() => {
+    const byRepo = new Map<string, L3SummaryRow>();
+    for (const row of data ?? []) {
+      byRepo.set(row.repo, row);
+    }
+    return byRepo;
+  }, [data]);
+  // `hasResult`: a query has succeeded at least once, so `map` reflects real
+  // data rather than an empty placeholder. SWR keeps the last good `data`
+  // when a later refresh fails, so this stays true through a transient error.
+  return { map, hasResult: data !== undefined };
+}
+
 export type L3MeasuredFormat = "days" | "duration" | "percent";
 
 export interface CriterionRow {
@@ -83,6 +107,19 @@ export interface CriterionRow {
   targetLabel: string;
   verdict: boolean | null;
   provisional: boolean;
+}
+
+/** Renders a row's measured value in the unit its criterion is judged in. */
+export function formatMeasured(row: CriterionRow): string {
+  if (row.measured == null) return "–";
+  switch (row.format) {
+    case "days":
+      return `${row.measured.toFixed(0)} days`;
+    case "duration":
+      return durationDisplay(Math.round(row.measured));
+    case "percent":
+      return `${(row.measured * 100).toFixed(1)}%`;
+  }
 }
 
 function buildRow(
