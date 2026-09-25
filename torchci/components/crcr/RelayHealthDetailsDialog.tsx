@@ -37,6 +37,9 @@ export function isExpectedHealthOutcome(job: RelayHealthJob): boolean {
 }
 
 export function isHealthJobPassing(job: RelayHealthJob): boolean {
+  if (job.jobName.includes("xfail") && job.status === "in_progress") {
+    return true;
+  }
   return (
     job.status === "completed" &&
     (job.conclusion === "success" || isExpectedHealthOutcome(job))
