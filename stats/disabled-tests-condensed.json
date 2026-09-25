@@ -233,6 +233,13 @@
       "slow"
     ]
   ],
+  "test_copy_transpose_tiled_small_case_at_cuda_bool (__main__.TestTorchDeviceTypeCUDA)": [
+    "198632",
+    "https://github.com/pytorch/pytorch/issues/198632",
+    [
+      "rocm"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -1276,6 +1283,13 @@
       "rocm"
     ]
   ],
+  "test_sep (__main__.FilterTestCase)": [
+    "198633",
+    "https://github.com/pytorch/pytorch/issues/198633",
+    [
+      "dynamo"
+    ]
+  ],
   "test_serialization_array_with_empty (__main__.TestCuda)": [
     "134966",
     "https://github.com/pytorch/pytorch/issues/134966",
@@ -1433,13 +1447,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_synchronize_event_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
-    "191746",
-    "https://github.com/pytorch/pytorch/issues/191746",
-    [
-      "linux"
     ]
   ],
   "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
