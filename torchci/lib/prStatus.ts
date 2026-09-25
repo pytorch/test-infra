@@ -30,6 +30,9 @@ export const PR_STATUS_LABELS = [
   PR_STATUS_LABEL_READY_FOR_REVIEW,
 ];
 
+// Set to the rollout date
+export const PRE_REVIEW_START_DATE: string | null = null;
+
 // Delimiters around the rendered section. The full-sweep render in drci.ts
 // rebuilds the whole comment and does not need them, but the label-event path
 // (lib/bot/prStatusBot.ts) splices this section into an existing comment in
@@ -66,6 +69,9 @@ export interface PrStatusState {
   // emits no webhook for reactions, so a list defined that way could stay wrong
   // indefinitely. See the note above fetchPrStatusState.
   assignedReviewers: string[];
+  // True when the PR lookup failed, so assignedReviewers only has people who
+  // already reviewed.
+  reviewerLookupFailed?: boolean;
 }
 
 // Approval outranks every label: it is a statement about the PR made by a
@@ -314,5 +320,10 @@ export async function fetchPrStatusState(
         )
       : [];
 
-  return { labels, isApproved, assignedReviewers };
+  return {
+    labels,
+    isApproved,
+    assignedReviewers,
+    reviewerLookupFailed: pullResult.status === "rejected",
+  };
 }

@@ -16,6 +16,7 @@ import {
   cherryPickClassifications,
 } from "./Constants";
 import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
+import { isInPreReview, markInProgressIfAccepted } from "./preReviewUtils";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,
@@ -387,16 +388,21 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     );
   }
 
+  // Deliberately not `this.login`: on the pull_request_review path that holds
+  // the PR author, not the reviewer who typed the command.
+  getCommandAuthor(): string | undefined {
+    return (
+      this.ctx.payload?.comment?.user?.login ??
+      this.ctx.payload?.review?.user?.login
+    );
+  }
+
   // May the person who typed this command hand-apply BOT_MANAGED_PR_LABELS?
   //
-  // Deliberately not `this.login`: on the pull_request_review path that holds
-  // the PR author, not the reviewer who typed the command, so a reviewer who is
-  // not on the team could borrow the exemption of an author who is. Fails
-  // closed when the payload carries no author at all.
+  // A reviewer who is not on the team must not borrow the exemption of an
+  // author who is. Fails closed when the payload carries no author at all.
   async mayApplyBotManagedLabels(): Promise<boolean> {
-    const commandAuthor =
-      this.ctx.payload?.comment?.user?.login ??
-      this.ctx.payload?.review?.user?.login;
+    const commandAuthor = this.getCommandAuthor();
     if (!commandAuthor) {
       return false;
     }
@@ -535,6 +541,45 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await updateDrciComments(ctx.octokit, owner, repo, [prNum]);
   }
 
+  async handlePreReviewAccept() {
+    await this.logger.log("pre-review accept");
+    const { ctx, owner, repo, prNum } = this;
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return;
+    }
+
+    const login = this.getCommandAuthor();
+    const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
+    if (!login || !pr?.user?.login || !isInPreReview(pr)) {
+      return;
+    }
+    // The scheduled run only checks PRs with a thumbs-up, so this lets it retry
+    // accepts that don't complete agreement now, such as a failed check or a
+    // reviewer who is removed or triaged added later
+    await ctx.octokit.rest.reactions.createForIssue({
+      owner,
+      repo,
+      issue_number: prNum,
+      content: "+1",
+    });
+    // Only acknowledge accepts that count toward the in progress label
+    if (
+      (
+        await markInProgressIfAccepted(
+          ctx.octokit,
+          owner,
+          repo,
+          prNum,
+          pr.labels.map((label: any) => label.name),
+          pr.user.login,
+          [login]
+        )
+      ).countedFrom.includes(login)
+    ) {
+      await this.ackComment();
+    }
+  }
+
   async handleLint(login: string) {
     await this.logger.log("lint");
     if (!(await this.hasWritePermissions(login))) {
@@ -619,6 +664,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         case "drci": {
           return await this.handleDrCI();
+        }
+        case "pre-review": {
+          return await this.handlePreReviewAccept();
         }
         case "lint":
         case "fix-lint":

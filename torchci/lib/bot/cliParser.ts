@@ -147,6 +147,25 @@ drCi.add_argument("-h", "--help", {
   help: SUPPRESS,
 });
 
+// Pre-review
+const preReview = commands.add_parser("pre-review", {
+  help: "Accept a PR in pre-review",
+  description:
+    "Agree, as an assigned reviewer, that this PR is worth pursuing. This counts the\n" +
+    "same as reacting with a thumbs-up to the PR description. Once every assigned\n" +
+    "reviewer agrees, the PR is marked 'in progress'.",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+preReview.add_argument("action", {
+  choices: ["accept"],
+  help: "Only 'accept' is supported",
+});
+preReview.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
+
 // lint (also accepts fix-lint and apply-lint)
 const lint = commands.add_parser("lint", {
   help: "Apply lint fixes to a PR",
@@ -237,6 +256,9 @@ ${label.format_help()}\`\`\`
 ## Dr CI
 \`\`\`
 ${drCi.format_help()}\`\`\`
+## Pre-review
+\`\`\`
+${preReview.format_help()}\`\`\`
 ## Lint
 \`\`\`
 ${lint.format_help()}\`\`\`
