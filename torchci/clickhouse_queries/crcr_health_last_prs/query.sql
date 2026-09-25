@@ -42,10 +42,12 @@ SELECT
     countIf(status = 'completed') AS total,
     countIf(
         status = 'in_progress'
+        AND job_name NOT LIKE '%xfail%'
         AND job_name NOT LIKE '%xtimeout%'
     ) AS pending,
     countIf(
         status = 'in_progress'
+        AND job_name NOT LIKE '%xfail%'
         AND started_at < now() - INTERVAL {stale_after_minutes: UInt64} MINUTE
     ) AS overdue_in_progress,
     if(total > 0, successes / total, NULL) AS pass_rate

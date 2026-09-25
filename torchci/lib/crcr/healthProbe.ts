@@ -16,7 +16,7 @@ export interface CrcrHealthProbeRow {
   overdue_in_progress: number;
 }
 
-export type CrcrHealthState = "healthy" | "awaiting_sweep" | "degraded";
+export type CrcrHealthState = "healthy" | "degraded";
 
 export function summarizeCrcrHealth(rows: CrcrHealthProbeRow[]): {
   pending: number;
@@ -37,11 +37,6 @@ export function summarizeCrcrHealth(rows: CrcrHealthProbeRow[]): {
     pending,
     overdue,
     passedCount,
-    state:
-      hasFailures || overdue > 0
-        ? "degraded"
-        : pending > 0
-        ? "awaiting_sweep"
-        : "healthy",
+    state: hasFailures || overdue > 0 ? "degraded" : "healthy",
   };
 }

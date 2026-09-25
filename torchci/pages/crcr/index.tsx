@@ -542,23 +542,13 @@ function CrcrTestHealthCard({
   if (!healthPrs || healthPrs.length === 0) return null;
   const { pending, overdue, passedCount, state } =
     summarizeCrcrHealth(healthPrs);
-  const borderColor =
-    state === "degraded"
-      ? "#ed6c02"
-      : state === "awaiting_sweep"
-      ? "#0288d1"
-      : "#2e7d32";
-  const label =
-    state === "degraded"
-      ? "Degraded"
-      : state === "awaiting_sweep"
-      ? "Awaiting sweep"
-      : "Healthy";
+  const borderColor = state === "degraded" ? "#ed6c02" : "#2e7d32";
+  const label = state === "degraded" ? "Degraded" : "Healthy";
   const detail =
     state === "degraded" && overdue > 0
       ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
-      : state === "awaiting_sweep"
-      ? `${pending} job${pending === 1 ? "" : "s"} awaiting sweep`
+      : pending > 0
+      ? `${pending} job${pending === 1 ? "" : "s"} pending`
       : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
   return (
     <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
@@ -611,6 +601,9 @@ function isExpectedNightlyOutcome(job: NightlyJobRow): boolean {
 }
 
 function isNightlyJobPassing(job: NightlyJobRow): boolean {
+  if (job.job_name.includes("xfail") && job.status === "in_progress") {
+    return true;
+  }
   if (job.status !== "completed") return false;
   return job.conclusion === "success" || isExpectedNightlyOutcome(job);
 }
