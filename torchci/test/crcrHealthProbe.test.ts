@@ -30,12 +30,12 @@ describe("CRCR relay health probe", () => {
     );
   });
 
-  test("keeps in-progress xfail jobs out of pending and overdue counts", () => {
+  test("keeps expected in-progress probes out of pending and overdue counts", () => {
     expect(normalizedQuery).toContain(
       "countIf( status = 'in_progress' AND job_name NOT LIKE '%xfail%' AND job_name NOT LIKE '%xtimeout%' ) AS pending"
     );
     expect(normalizedQuery).toContain(
-      "countIf( status = 'in_progress' AND job_name NOT LIKE '%xfail%' AND started_at < now() - INTERVAL {stale_after_minutes: UInt64} MINUTE ) AS overdue_in_progress"
+      "countIf( status = 'in_progress' AND job_name NOT LIKE '%xfail%' AND job_name NOT LIKE '%xtimeout%' AND started_at < now() - INTERVAL {stale_after_minutes: UInt64} MINUTE ) AS overdue_in_progress"
     );
   });
 
@@ -65,13 +65,13 @@ describe("CRCR relay health probe", () => {
     ).toMatchObject({ state: "healthy", passedCount: 1 });
   });
 
-  test("degrades when an overdue timeout probe remains in progress", () => {
+  test("degrades when an ordinary probe job remains overdue", () => {
     expect(
       summarizeCrcrHealth([
         {
           total: 24,
           pass_rate: 1,
-          pending: 0,
+          pending: 1,
           overdue_in_progress: 1,
         },
       ])

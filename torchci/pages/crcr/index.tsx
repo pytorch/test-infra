@@ -601,7 +601,10 @@ function isExpectedNightlyOutcome(job: NightlyJobRow): boolean {
 }
 
 function isNightlyJobPassing(job: NightlyJobRow): boolean {
-  if (job.job_name.includes("xfail") && job.status === "in_progress") {
+  if (
+    job.status === "in_progress" &&
+    (job.job_name.includes("xfail") || job.job_name.includes("xtimeout"))
+  ) {
     return true;
   }
   if (job.status !== "completed") return false;
