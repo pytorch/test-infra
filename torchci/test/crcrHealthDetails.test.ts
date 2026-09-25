@@ -1,10 +1,10 @@
-import { readFileSync } from "fs";
 import type { RelayHealthJob } from "components/crcr/RelayHealthDetailsDialog";
 import {
   isExpectedHealthOutcome,
   isHealthJobPassing,
   workflowJobUrl,
 } from "components/crcr/RelayHealthDetailsDialog";
+import { readFileSync } from "fs";
 import {
   CRCR_HEALTH_STALE_AFTER_MINUTES,
   CRCR_HEALTH_WINDOW_MINUTES,
