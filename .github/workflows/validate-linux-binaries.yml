@@ -117,6 +117,7 @@ jobs:
     with:
       package-type: wheel,libtorch
       os: linux
+      runner-fleet: osdc
       channel: ${{ inputs.channel }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       with-xpu: enable
@@ -126,7 +127,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
@@ -164,10 +165,10 @@ jobs:
 
   linux-poetry:
     if: ${{ inputs.channel == 'release' }}
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     name: poetry-test
     with:
-      runner: "linux.g5.4xlarge.nvidia.gpu"
+      runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
       ref: main
       test-infra-ref: ${{ inputs.test-infra-ref }}
@@ -194,10 +195,10 @@ jobs:
         source ../../test-infra/.github/scripts/validate_poetry.sh
 
   linux-amazon-2023:
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     name: amazon-linux-2023-test
     with:
-      runner: "linux.g5.4xlarge.nvidia.gpu"
+      runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
       ref: main
       test-infra-ref: ${{ inputs.test-infra-ref }}
