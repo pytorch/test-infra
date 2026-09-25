@@ -1024,21 +1024,6 @@
       "rocm"
     ]
   ],
-  "test_redispatch_nn_functional_conv_transpose3d_cuda_bfloat16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
-    "188684",
-    "https://github.com/pytorch/pytorch/issues/188684",
-    []
-  ],
-  "test_redispatch_nn_functional_conv_transpose3d_cuda_complex32 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
-    "188686",
-    "https://github.com/pytorch/pytorch/issues/188686",
-    []
-  ],
-  "test_redispatch_nn_functional_conv_transpose3d_cuda_float16 (__main__.TestTorchFunctionRedispatchOpsCUDA)": [
-    "188678",
-    "https://github.com/pytorch/pytorch/issues/188678",
-    []
-  ],
   "test_redispatch_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
     "196627",
     "https://github.com/pytorch/pytorch/issues/196627",
