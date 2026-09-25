@@ -555,7 +555,7 @@ function CrcrTestHealthCard({
   const detailsUrl = detailsOpen
     ? `/api/clickhouse/crcr_health_pr_job_details?parameters=${encodeURIComponent(
         JSON.stringify({
-          count: "5",
+          window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
           stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
         })
       )}`
@@ -646,6 +646,7 @@ function CrcrTestHealthCard({
         onClose={() => setDetailsOpen(false)}
         title="CRCR Relay Health — pull requests"
         runs={healthRuns}
+        fullPageHref="/crcr/pytorch/crcr-test"
         loading={detailsOpen && !healthJobDetails && !healthJobDetailsError}
         error={!!healthJobDetailsError}
       />
@@ -834,6 +835,7 @@ function CrcrNightlyHealthCard({
         onClose={() => setDetailsOpen(false)}
         title="CRCR Relay Health — nightlies"
         runs={healthRuns}
+        fullPageHref="/crcr/pytorch/crcr-test?event=nightly"
       />
     </>
   );

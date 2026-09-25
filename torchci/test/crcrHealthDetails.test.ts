@@ -1,9 +1,30 @@
+import { readFileSync } from "fs";
 import type { RelayHealthJob } from "components/crcr/RelayHealthDetailsDialog";
 import {
   isExpectedHealthOutcome,
   isHealthJobPassing,
   workflowJobUrl,
 } from "components/crcr/RelayHealthDetailsDialog";
+import {
+  CRCR_HEALTH_STALE_AFTER_MINUTES,
+  CRCR_HEALTH_WINDOW_MINUTES,
+} from "lib/crcr/healthProbe";
+import path from "path";
+
+const detailsQuery = readFileSync(
+  path.resolve(
+    __dirname,
+    "..",
+    "clickhouse_queries",
+    "crcr_health_pr_job_details",
+    "query.sql"
+  ),
+  "utf-8"
+);
+const detailsRecentPrs = detailsQuery.slice(
+  0,
+  detailsQuery.indexOf("latest_jobs AS")
+);
 
 function job(overrides: Partial<RelayHealthJob> = {}): RelayHealthJob {
   return {
@@ -18,6 +39,15 @@ function job(overrides: Partial<RelayHealthJob> = {}): RelayHealthJob {
 }
 
 describe("CRCR health details", () => {
+  test("uses the health card's time window and stale threshold", () => {
+    expect(detailsRecentPrs).toContain(
+      "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
+    );
+    expect(CRCR_HEALTH_WINDOW_MINUTES).toBeGreaterThan(
+      CRCR_HEALTH_STALE_AFTER_MINUTES
+    );
+  });
+
   test("keeps expected probe failures out of triage failures", () => {
     const expectedFailure = job({
       jobName: "xtimeout",

@@ -1,12 +1,12 @@
 {
   "params": {
-    "count": "UInt64",
+    "window_minutes": "UInt64",
     "stale_after_minutes": "UInt64"
   },
   "tests": [
     {
-      "count": "5",
-      "stale_after_minutes": "375"
+      "window_minutes": "720",
+      "stale_after_minutes": "385"
     }
   ]
 }
