@@ -320,6 +320,21 @@ floating one.
    | `quay.io/pypa/manylinux_2_28_x86_64`, `pytorch/manylinux2_28-builder` | yes | yes |
    | `amazonlinux:2` | **no** | yes |
    | `amazonlinux:2023` | **no** | **no** |
+13. **A step that prints hundreds of MB kills the runner, not the pod.** Somewhere around 200–250 MB of
+   output the runner side dies and takes the job with it. The tell is a log that stops mid-sentence,
+   with no error of its own — no compiler `error:`, no `exit code 137` — followed by
+   `Executing the custom container implementation failed`. The
+   `Step cannot start: workflow pod still has a prior step in flight` line that often follows is a
+   consequence of the kill, not the cause. Two components can fail this way and they look different:
+   the .NET agent raises `System.OutOfMemoryException`, while the k8s hook logs
+   `[runner-container-hooks] FATAL` and nothing else, so **the absence of an OOM message does not rule
+   this out**. Because it correlates with heavy jobs it is easy to misread as memory or disk; it is
+   not, and a bigger label will not fix it. Confirm by measuring the job log
+   (`gh api repos/<org>/<repo>/actions/jobs/<id>/logs | wc -c`) and compare against a passing sibling.
+   The fix is always to emit less: pytorch/executorch#22581 added `--show-capture=no` to drop a few
+   hundred thousand lines of captured pytest output, and pytorch/FBGEMM#6321 suppressed one noisy
+   warning that accounted for 89% of a 222 MB build log. EC2 tolerated over 1 GB, so a job can hit this
+   purely by moving here, with no change of its own.
 
 ---
 
