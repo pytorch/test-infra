@@ -24,6 +24,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/release-runner-groups-refresh.yml
+      - tools/scripts/release_manage_runner_groups.py
+      - tools/tests/test_release_manage_runner_groups.py
 
 permissions:
   contents: read
