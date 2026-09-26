@@ -1,0 +1,16 @@
+{
+  "params": {
+    "repo": "String",
+    "days": "Int64"
+  },
+  "defaults": {
+    "repo": "pytorch/pytorch",
+    "days": 7
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "days": 7
+    }
+  ]
+}

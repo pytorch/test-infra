@@ -76,6 +76,10 @@ function NavBar() {
       href: "/tests/fileReport",
     },
     {
+      name: "viable/strict Tests",
+      href: "/viablestrict",
+    },
+    {
       name: "CUDA Trunk test stats",
       href: "/cuda_test_stats",
     },
