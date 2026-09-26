@@ -18,11 +18,11 @@ jobs:
     runs-on: linux.2xlarge
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           path: test-infra
       - name: Checkout pytorch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           repository: pytorch/pytorch
@@ -67,7 +67,7 @@ jobs:
     runs-on: linux.2xlarge
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       - name: Install dependencies
         run: |
           python3 -mpip install -r tools/torchci/requirements.txt
