@@ -25,6 +25,7 @@ latest_jobs AS (
     FROM default.crcr_workflow_job FINAL
     WHERE
         downstream_repo = 'pytorch/crcr-test'
+        AND started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE
         AND pr_number IN (SELECT pr_number FROM recent_prs)
 )
 
