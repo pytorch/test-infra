@@ -26,11 +26,24 @@ export default function CrcrLevelHistory({
 }: {
   repoFullName: string;
 }) {
-  const { events, loaded } = useLevelHistory(repoFullName);
+  const { events, error, loaded } = useLevelHistory(repoFullName);
   const [expanded, setExpanded] = useState(false);
 
   if (!loaded) {
     return <Skeleton variant="rectangular" height={80} />;
+  }
+
+  if (error) {
+    return (
+      <Paper elevation={1} sx={{ p: 2 }}>
+        <Stack spacing={0.5}>
+          <Typography variant="h6">Level History</Typography>
+          <Typography variant="body2" color="error">
+            Level history is temporarily unavailable. Please try again later.
+          </Typography>
+        </Stack>
+      </Paper>
+    );
   }
 
   return (
