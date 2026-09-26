@@ -19,6 +19,10 @@ function NavBar() {
       href: "/queue_time_analysis",
     },
     {
+      name: "Target Determination",
+      href: "/target_determination",
+    },
+    {
       name: "Nightly Branch",
       href: "/hud/pytorch/pytorch/nightly",
     },
