@@ -1,0 +1,32 @@
+[project]
+name = "rpc-server-dev"
+version = "0.0.0"
+requires-python = ">=3.9"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "pytest>=8",
+    "pytest-cov>=6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+
+[tool.coverage.run]
+branch = true
+include = ["src/k8s/rpc-server.py"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+exclude_lines = [
+    "if __name__",
+]

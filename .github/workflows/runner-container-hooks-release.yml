@@ -1,0 +1,147 @@
+name: Release runner-container-hooks
+
+# Publishes the zips that pytorch/ci-infra's hooks-warmer DaemonSet downloads.
+# Tags are namespaced (runner-container-hooks-vX.Y.Z) so they never collide with
+# this repo's timestamped lambda release tags. The asset filenames keep the
+# upstream shape, because the warmer URL templates on them.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build and check the zips without publishing a release"
+        type: boolean
+        default: true
+
+defaults:
+  run:
+    working-directory: runner-container-hooks
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: runner-container-hooks/package-lock.json
+
+      # packages/k8s prebuild cross-compiles the in-pod RPC server to static
+      # musl binaries and embeds them, so the release build needs Rust too.
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: runner-container-hooks/packages/k8s/rpc-server
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bootstrap the packages
+        run: npm run bootstrap
+
+      - name: Build packages
+        run: npm run build-all
+
+      - name: Resolve version
+        id: version
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "tag=runner-container-hooks-v${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Refuse to reuse an existing tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "::error::${TAG} already exists. Bump version in runner-container-hooks/package.json."
+            exit 1
+          fi
+
+      - name: Zip up releases
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          zip -r -j "actions-runner-hooks-docker-${VERSION}.zip" packages/docker/dist
+          zip -r -j "actions-runner-hooks-k8s-${VERSION}.zip" packages/k8s/dist
+          # The warmer hard-fails if dist/index.js is missing after unzip, so
+          # catch a changed zip layout here rather than on every node.
+          unzip -l "actions-runner-hooks-k8s-${VERSION}.zip" | grep -q ' index.js$'
+
+      - name: Calculate SHA
+        id: sha
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          {
+            echo "docker-sha=$(sha256sum "actions-runner-hooks-docker-${VERSION}.zip" | awk '{print $1}')"
+            echo "k8s-sha=$(sha256sum "actions-runner-hooks-k8s-${VERSION}.zip" | awk '{print $1}')"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Summarize
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          K8S_SHA: ${{ steps.sha.outputs.k8s-sha }}
+          DOCKER_SHA: ${{ steps.sha.outputs.docker-sha }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### runner-container-hooks ${VERSION}"
+            echo ""
+            echo "dry_run: \`${DRY_RUN}\`  tag: \`${TAG}\`"
+            echo ""
+            echo '```'
+            echo "k8s    sha256 ${K8S_SHA}"
+            echo "docker sha256 ${DOCKER_SHA}"
+            echo '```'
+            echo ""
+            echo "hooks-warmer URL:"
+            echo '```'
+            echo "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/actions-runner-hooks-k8s-${VERSION}.zip"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Create release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          K8S_SHA: ${{ steps.sha.outputs.k8s-sha }}
+          DOCKER_SHA: ${{ steps.sha.outputs.docker-sha }}
+        run: |
+          set -euo pipefail
+          notes="$(mktemp)"
+          {
+            echo "runner-container-hooks ${VERSION}, built from \`runner-container-hooks/\` in this repo."
+            echo ""
+            echo "| asset | sha256 |"
+            echo "| --- | --- |"
+            echo "| actions-runner-hooks-k8s-${VERSION}.zip | \`${K8S_SHA}\` |"
+            echo "| actions-runner-hooks-docker-${VERSION}.zip | \`${DOCKER_SHA}\` |"
+          } > "${notes}"
+          # --latest=false: this repo's "latest" release is the lambda one.
+          gh release create "${TAG}" \
+            --title "runner-container-hooks ${VERSION}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --notes-file "${notes}" \
+            --latest=false \
+            "actions-runner-hooks-k8s-${VERSION}.zip" \
+            "actions-runner-hooks-docker-${VERSION}.zip"

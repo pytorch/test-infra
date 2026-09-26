@@ -147,6 +147,7 @@ exclude_patterns=[
     '.github/actions/checkout/dist/index.js',
     'tools/clang-tidy-checks/*-patches/**',
     'greenlight/**',
+    'runner-container-hooks/**',
 ]
 command = [
     'python3',
@@ -171,6 +172,7 @@ exclude_patterns = [
     '.github/actions/checkout/dist/index.js',
     '.github/actions/checkout/.licenses/**/*.yml',
     'greenlight/**',
+    'runner-container-hooks/**',
 ]
 command = [
     'python3',
@@ -203,6 +205,7 @@ exclude_patterns = [
     'terraform-aws-github-runner/**',
     'aws/ami/windows/**',
     'greenlight/**',
+    'runner-container-hooks/**',
 ]
 command = [
     'python3',
@@ -271,6 +274,7 @@ exclude_patterns = [
     "tools/stronghold/bin/build-check-api-compatibility",
     "tools/hud-cli/hud",
     'greenlight/**',
+    'runner-container-hooks/**',
 ]
 command = [
     'python3',
@@ -334,7 +338,12 @@ is_formatter = true
 [[linter]]
 code = 'COPYRIGHT'
 include_patterns = ['**']
-exclude_patterns = ['.lintrunner.toml', '**/fixtures/**', 'greenlight/**']
+exclude_patterns = [
+    '.lintrunner.toml',
+    '**/fixtures/**',
+    'greenlight/**',
+    'runner-container-hooks/**',
+]
 command = [
     'python3',
     'tools/linter/adapters/grep_linter.py',
@@ -418,6 +427,11 @@ is_formatter = false
 [[linter]]
 code = 'RUSTFMT'
 include_patterns = ['**/*.rs']
+exclude_patterns = [
+    # Vendored upstream; formatted by its own cargo fmt in
+    # runner-container-hooks-build.yml, not this repo's rustfmt.toml.
+    'runner-container-hooks/**',
+]
 command = [
     'python',
     'tools/linter/adapters/rustfmt_linter.py',
