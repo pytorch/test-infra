@@ -198,7 +198,9 @@ Not when a skip's condition is wider than its guard, or the diff reaches past th
 a test body, or any file but the skipped tests' own.
 
 **Type annotations** — an annotation added where there was none, or `Any` replaced by a
-narrower type; deleting a checker suppression is the same change and is in the class.
+narrower type, or by `object` anywhere but a public function's return; deleting a checker
+suppression is the same change and is in the class. Any other edit to an existing
+annotation is outside it, even on a symbol nothing calls.
 Where the symbol lives does not decide it: the question is whether the annotation reaches
 the behavior of an API practitioners rely on, and the exclusions below are its routes.
 The checker being quiet is evidence about the checker, not about the code.
