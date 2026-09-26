@@ -159,10 +159,10 @@ These override the classes below: matching one means not trivial, whatever class
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
   changes something others depend on.
 - **Inert additions.** Something the diff adds outside test files for other code to use —
-  an input, parameter, option, or function — that nothing else in the checkout sets or
-  calls, tests aside; code that reads every option at once, such as a cache key, is not a
-  caller. Its purpose arrives in a later PR, where its design gets reviewed; dead code
-  does not land on its own.
+  an input, parameter, option, or function — that no code outside tests sets to anything
+  but its default, or calls; look in the diff, where a new name's only uses can be. Its
+  purpose arrives in a later PR, where its design gets reviewed; dead code does not land
+  on its own.
 
 **Generated artifacts** are a caution, not a shape: read the generator edit and spot-check
 the expansion for anything it would not mechanically produce, then clear it if nothing is.
