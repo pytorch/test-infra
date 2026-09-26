@@ -18,5 +18,5 @@ export function useLevelHistory(repoFullName: string) {
   const { data, error } = useSWR<LevelHistoryEvent[]>(url, fetcherHandleError, {
     refreshInterval: 60_000,
   });
-  return { events: data ?? [], loaded: !!data || !!error };
+  return { events: data ?? [], error, loaded: data !== undefined || !!error };
 }
