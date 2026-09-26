@@ -107,6 +107,8 @@ questions settle it, and both must be no:
 
 1. Would a reviewer have learned anything, or asked a question that would plausibly have
    changed the code? If so, that question is the review, and it belongs to a human.
+   A skip **Explained test skips** admits raises no such question by covering less than
+   its guard (CI still sees the rest) or by acting only in Meta's internal build.
 2. Does someone need to know this landed? You cannot infer who cares about what, so
    ground it the way you ground everything else: does the change move a default or a
    limit, alter a message or format the repository shows is matched or parsed, or change
@@ -133,6 +135,7 @@ enough; elsewhere it is what the change does that decides.
 - Security, authentication, trust boundaries, and release or publish plumbing.
 - Deprecating or removing anything public.
 - A test weakened, skipped, deleted, or re-baselined with no source change behind it.
+  A skip **Explained test skips** admits is not one.
 - Text that reads as a comment but is consumed as configuration or code — a PEP 723
   `# /// script` header deciding what the `Lint` job installs, a lint or checker pragma
   added or altered, a codegen directive, a docstring used as a format template.
@@ -155,6 +158,10 @@ These override the classes below: matching one means not trivial, whatever class
   reader must check. Many trivial edits are not one trivial change.
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
   changes something others depend on.
+- **Inert additions.** Something the diff adds for other code to use — an input,
+  parameter, option, or function — that nothing in the checkout uses outside tests. Its
+  purpose arrives in a later PR, where its design gets reviewed; dead code does not land
+  on its own.
 
 **Generated artifacts** are a caution, not a shape: read the generator edit and spot-check
 the expansion for anything it would not mechanically produce, then clear it if nothing is.
@@ -179,6 +186,14 @@ intended behavior and the code does something else, that is a bug report, not a 
 
 **Additive tests** — new tests or assertions under `test/`, touching no production file.
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
+
+**Explained test skips** — a skip or expected failure added to existing tests where the
+checkout shows why: under its condition, production code rejects a call each test makes
+and does not expect to fail — a guard you have read on each test's path — or the
+condition holds only in Meta's internal build (`IS_FBCODE`), so no OSS job changes. A
+failure the PR reports is not that evidence.
+Not when a skip's condition is wider than its guard, or the diff reaches past the skips:
+a test body, or any file but the skipped tests' own.
 
 **Type annotations** — an annotation added where there was none, or `Any` replaced by a
 narrower type; deleting a checker suppression is the same change and is in the class.
