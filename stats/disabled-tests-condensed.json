@@ -1009,6 +1009,27 @@
       "linux"
     ]
   ],
+  "test_pointwise_query_producer_head_dims0_xpu (__main__.TestFlexDecodingXPU)": [
+    "198712",
+    "https://github.com/pytorch/pytorch/issues/198712",
+    [
+      "xpu"
+    ]
+  ],
+  "test_pointwise_query_producer_head_dims1_xpu (__main__.TestFlexDecodingXPU)": [
+    "198713",
+    "https://github.com/pytorch/pytorch/issues/198713",
+    [
+      "xpu"
+    ]
+  ],
+  "test_pointwise_query_producer_head_dims2_xpu (__main__.TestFlexDecodingXPU)": [
+    "198714",
+    "https://github.com/pytorch/pytorch/issues/198714",
+    [
+      "xpu"
+    ]
+  ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
     "189067",
     "https://github.com/pytorch/pytorch/issues/189067",
