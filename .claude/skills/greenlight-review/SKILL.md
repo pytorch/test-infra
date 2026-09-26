@@ -201,12 +201,13 @@ defect, a test body changes, or the diff touches a file other than the skipped t
 own — code under `torch/testing/_internal/`, OpInfos included, `run_test.py`, and a
 `conftest.py` never are.
 
-**Type annotations** — an annotation added where there was none, or `Any` replaced by a
-narrower type, or by `object` anywhere but a public function's return; deleting a checker
-suppression is the same change and is in the class. Any other edit to an existing
+**Type annotations** — an annotation added where there was none, or `Any` — written,
+inside `X | None`, or implied by a bare generic such as `tuple` — replaced by a narrower
+type; `object`, added or substituted, counts only outside the public API. Deleting a
+checker suppression is the same change and is in the class. Any other edit to an existing
 annotation is outside it, even on a symbol nothing calls.
-Where the symbol lives does not decide it: the question is whether the annotation reaches
-the behavior of an API practitioners rely on, and the exclusions below are its routes.
+A private location does not clear it: the exclusions below are the routes by which an
+annotation reaches behavior practitioners rely on.
 The checker being quiet is evidence about the checker, not about the code.
 Not when any of these hold, checked against the changed file and the symbol's callers:
 
