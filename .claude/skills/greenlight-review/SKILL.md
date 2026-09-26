@@ -200,12 +200,13 @@ the skip, the PR is stacked on unlanded PRs, or the diff touches a file other th
 skipped tests' own; code under `torch/testing/_internal/` (OpInfos included),
 `run_test.py`, and a `conftest.py` never count as their own.
 
-**Type annotations** — an annotation added where there was none, or `Any` — written,
-inside `X | None`, or implied by a bare generic such as `tuple` — replaced by a narrower
-type; `object`, added or substituted, counts only outside the public API. Deleting a
-checker suppression is the same change and is in the class. Any other edit to an existing
-annotation is outside it, even on a symbol nothing calls.
-A private location does not clear it: the exclusions below are the routes by which an
+**Type annotations** — an annotation added where there was none, or `Any` replaced by a
+narrower type or by `object`; `Any` counts wherever it is written, a whole `Any | None`
+included, and where a bare generic such as `tuple` implies it. `object`, added or
+substituted, counts only outside the public API, wherever its names are defined. Deleting
+a checker suppression is the same change and is in the class. Any other edit to an
+existing annotation is outside it, even on a symbol nothing calls.
+A private location clears none of the exclusions below: they are the routes by which an
 annotation reaches behavior practitioners rely on.
 The checker being quiet is evidence about the checker, not about the code.
 Not when any of these hold, checked against the changed file and the symbol's callers:
