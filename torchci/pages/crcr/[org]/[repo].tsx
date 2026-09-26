@@ -16,6 +16,7 @@ import {
 import { durationDisplay } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
 import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
+import CrcrLevelHistory from "components/crcr/CrcrLevelHistory";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
@@ -1675,6 +1676,8 @@ export default function CrcrBackendPage() {
             </Box>
 
             {!isNightly && <CrcrL3Readiness repoFullName={repoFullName} />}
+
+            {!isNightly && <CrcrLevelHistory repoFullName={repoFullName} />}
 
             {!isNightly && (
               <>
