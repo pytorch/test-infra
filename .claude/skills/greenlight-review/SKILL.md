@@ -107,8 +107,8 @@ questions settle it, and both must be no:
 
 1. Would a reviewer have learned anything, or asked a question that would plausibly have
    changed the code? If so, that question is the review, and it belongs to a human.
-   A skip or expected failure that fits **Explained test skips** raises no such question
-   by covering less than its guard, or by acting only in Meta's internal build.
+   For a skip or expected failure that fits **Explained test skips**, being narrower than
+   its guard or acting only in Meta's internal build raises no such question.
 2. Does someone need to know this landed? You cannot infer who cares about what, so
    ground it the way you ground everything else: does the change move a default or a
    limit, alter a message or format the repository shows is matched or parsed, or change
@@ -169,8 +169,7 @@ the expansion for anything it would not mechanically produce, then clear it if n
 
 ### Trivial change classes
 
-Reach here only once both lists above are clear; a bullet there that names a class is
-clear when the change fits that class. A change outside every class is not
+Reach here only once both lists above are clear. A change outside every class is not
 trivial however correct it is; every part of the change must fall in some class; and the
 exclusions of every class any part lands in bind the whole change — cumulative, never
 alternatives, and never escaped by filing a hunk under a class that does not name them.
@@ -190,16 +189,16 @@ intended behavior and the code does something else, that is a bug report, not a 
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
 
 **Explained test skips** — a skip or expected failure added to existing tests where the
-checkout shows why. Either production code rejects, for that platform or build, an
-argument each skipped test passes, visible in its file, and does not expect to fail on —
-a guard you found by searching for that argument and have read — or the condition holds
-only in Meta's internal build (`IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`, imported,
-not redefined), so no OSS job changes; `skip_but_pass_in_sandcastle` skips in OSS and is
-not one.
-Not when the skip is unconditional or wider than its guard, the guard may itself be the
-defect, a test body changes, or the diff touches a file other than the skipped tests'
-own — code under `torch/testing/_internal/`, OpInfos included, `run_test.py`, and a
-`conftest.py` never are.
+checkout shows why. Either production code rejects, on the platform or build the skip
+targets, an argument each skipped test passes in its own file without expecting the
+rejection — a guard on the test's call path that states the limitation, found by one
+search for that argument and read — or the skip applies only in Meta's internal build
+(`IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`, each imported, not redefined), so no OSS
+job changes; `skip_but_pass_in_sandcastle` skips in OSS and does not qualify.
+Not when the skip is unconditional or wider than its guard, a test body changes beyond
+the skip, the PR is stacked on unlanded PRs, or the diff touches a file other than the
+skipped tests' own; code under `torch/testing/_internal/` (OpInfos included),
+`run_test.py`, and a `conftest.py` never count as their own.
 
 **Type annotations** — an annotation added where there was none, or `Any` — written,
 inside `X | None`, or implied by a bare generic such as `tuple` — replaced by a narrower
