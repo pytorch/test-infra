@@ -157,7 +157,9 @@ These override the classes below: matching one means not trivial, whatever class
   Count sites, not lines: reviewability is bounded by how many independent places a
   reader must check. Many trivial edits are not one trivial change.
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
-  changes something others depend on.
+  changes something others depend on. Turning an error into a lesser success — a value
+  dropped or substituted, a warning in its place — that no documented contract requires
+  is one: how to fail is a decision.
 - **Inert additions.** Something the diff adds for other code to use — an input,
   parameter, option, or function — that nothing in the checkout uses outside tests. Its
   purpose arrives in a later PR, where its design gets reviewed; dead code does not land
