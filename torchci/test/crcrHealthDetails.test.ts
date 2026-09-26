@@ -25,6 +25,9 @@ const detailsRecentPrs = detailsQuery.slice(
   0,
   detailsQuery.indexOf("latest_jobs AS")
 );
+const detailsLatestJobs = detailsQuery.slice(
+  detailsQuery.indexOf("latest_jobs AS")
+);
 
 function job(overrides: Partial<RelayHealthJob> = {}): RelayHealthJob {
   return {
@@ -39,8 +42,11 @@ function job(overrides: Partial<RelayHealthJob> = {}): RelayHealthJob {
 }
 
 describe("CRCR health details", () => {
-  test("uses the health card's time window and stale threshold", () => {
+  test("limits PRs and jobs to the health card window", () => {
     expect(detailsRecentPrs).toContain(
+      "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
+    );
+    expect(detailsLatestJobs).toContain(
       "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
     );
     expect(CRCR_HEALTH_WINDOW_MINUTES).toBeGreaterThan(
