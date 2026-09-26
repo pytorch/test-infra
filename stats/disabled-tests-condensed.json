@@ -632,6 +632,13 @@
       "slow"
     ]
   ],
+  "test_load_then_compile_survives_baked_in_global_collision (__main__.TestAOTCompile)": [
+    "198709",
+    "https://github.com/pytorch/pytorch/issues/198709",
+    [
+      "xpu"
+    ]
+  ],
   "test_local_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
     "195130",
     "https://github.com/pytorch/pytorch/issues/195130",
