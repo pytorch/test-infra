@@ -17,10 +17,10 @@ jobs:
   test-tools:
     name: Test tools
     if: ${{ github.repository == 'pytorch/test-infra' }}
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     with:
       docker-image: python:3.11.0-slim-bullseye
-      runner: linux.large
+      runner: mt-l-x86iavx512-8-64
       script: |
         # Environment setup
         echo ::group::setup Python environment
@@ -38,10 +38,10 @@ jobs:
   test-aws-lambda:
     name: Test aws lambda
     if: ${{ github.repository == 'pytorch/test-infra' }}
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     with:
       docker-image: python:3.11-slim-bullseye
-      runner: linux.large
+      runner: mt-l-x86iavx512-8-64
       script: |
         # Environment setup
         echo ::group::setup Python environment
