@@ -89,7 +89,7 @@
     "@types/uuid": "^8.3.4",
     "argparse": "^2.0.1",
     "colors": "^1.4.0",
-    "diff": "^5.0.0",
+    "diff": "^5.2.2",
     "dotenv": "^16.0.0",
     "eslint": "8.13.0",
     "eslint-config-next": "12.1.5",
