@@ -107,8 +107,8 @@ questions settle it, and both must be no:
 
 1. Would a reviewer have learned anything, or asked a question that would plausibly have
    changed the code? If so, that question is the review, and it belongs to a human.
-   A skip **Explained test skips** admits raises no such question by covering less than
-   its guard (CI still sees the rest) or by acting only in Meta's internal build.
+   A skip or expected failure that fits **Explained test skips** raises no such question
+   by covering less than its guard, or by acting only in Meta's internal build.
 2. Does someone need to know this landed? You cannot infer who cares about what, so
    ground it the way you ground everything else: does the change move a default or a
    limit, alter a message or format the repository shows is matched or parsed, or change
@@ -135,7 +135,7 @@ enough; elsewhere it is what the change does that decides.
 - Security, authentication, trust boundaries, and release or publish plumbing.
 - Deprecating or removing anything public.
 - A test weakened, skipped, deleted, or re-baselined with no source change behind it.
-  A skip **Explained test skips** admits is not one.
+  A skip or expected failure that fits **Explained test skips** is not one.
 - Text that reads as a comment but is consumed as configuration or code — a PEP 723
   `# /// script` header deciding what the `Lint` job installs, a lint or checker pragma
   added or altered, a codegen directive, a docstring used as a format template.
@@ -170,7 +170,8 @@ the expansion for anything it would not mechanically produce, then clear it if n
 
 ### Trivial change classes
 
-Reach here only once both lists above are clear. A change outside every class is not
+Reach here only once both lists above are clear; a bullet there that names a class is
+clear when the change fits that class. A change outside every class is not
 trivial however correct it is; every part of the change must fall in some class; and the
 exclusions of every class any part lands in bind the whole change — cumulative, never
 alternatives, and never escaped by filing a hunk under a class that does not name them.
@@ -190,12 +191,16 @@ intended behavior and the code does something else, that is a bug report, not a 
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
 
 **Explained test skips** — a skip or expected failure added to existing tests where the
-checkout shows why: under its condition, production code rejects a call each test makes
-and does not expect to fail — a guard you have read on each test's path — or the
-condition holds only in Meta's internal build (`IS_FBCODE`), so no OSS job changes. A
-failure the PR reports is not that evidence.
-Not when a skip's condition is wider than its guard, or the diff reaches past the skips:
-a test body, or any file but the skipped tests' own.
+checkout shows why. Either production code rejects, for that platform or build, an
+argument each skipped test passes, visible in its file, and does not expect to fail on —
+a guard you found by searching for that argument and have read — or the condition holds
+only in Meta's internal build (`IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`, imported,
+not redefined), so no OSS job changes; `skip_but_pass_in_sandcastle` skips in OSS and is
+not one.
+Not when the skip is unconditional or wider than its guard, the guard may itself be the
+defect, a test body changes, or the diff touches a file other than the skipped tests'
+own — code under `torch/testing/_internal/`, OpInfos included, `run_test.py`, and a
+`conftest.py` never are.
 
 **Type annotations** — an annotation added where there was none, or `Any` replaced by a
 narrower type, or by `object` anywhere but a public function's return; deleting a checker
