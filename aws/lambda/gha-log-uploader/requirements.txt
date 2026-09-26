@@ -1,4 +1,4 @@
 boto3==1.24.59
-requests==2.32.2
+requests==2.33.0
 # Mints the app installation token. Same version cross_repo_ci_relay uses.
 PyGithub==2.9.0
