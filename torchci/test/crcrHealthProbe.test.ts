@@ -18,14 +18,18 @@ const query = readFileSync(
 );
 
 const recentPrs = query.slice(0, query.indexOf("latest_jobs AS"));
+const latestJobs = query.slice(query.indexOf("latest_jobs AS"));
 const normalizedQuery = query.replace(/\s+/g, " ");
 
 describe("CRCR relay health probe", () => {
-  test("uses a time window that outlasts the sweep deadline", () => {
+  test("limits PRs and jobs to a window that outlasts the sweep deadline", () => {
     expect(CRCR_HEALTH_WINDOW_MINUTES).toBeGreaterThan(
       CRCR_HEALTH_STALE_AFTER_MINUTES
     );
     expect(recentPrs).toContain(
+      "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
+    );
+    expect(latestJobs).toContain(
       "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
     );
   });
