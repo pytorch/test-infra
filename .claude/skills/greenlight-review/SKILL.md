@@ -107,6 +107,8 @@ questions settle it, and both must be no:
 
 1. Would a reviewer have learned anything, or asked a question that would plausibly have
    changed the code? If so, that question is the review, and it belongs to a human.
+   A skip or expected failure that fits **Explained test skips** raises no such question
+   by covering less than its guard, or by acting only in Meta's internal build.
 2. Does someone need to know this landed? You cannot infer who cares about what, so
    ground it the way you ground everything else: does the change move a default or a
    limit, alter a message or format the repository shows is matched or parsed, or change
@@ -133,6 +135,7 @@ enough; elsewhere it is what the change does that decides.
 - Security, authentication, trust boundaries, and release or publish plumbing.
 - Deprecating or removing anything public.
 - A test weakened, skipped, deleted, or re-baselined with no source change behind it.
+  A skip or expected failure that fits **Explained test skips** is not one.
 - Text that reads as a comment but is consumed as configuration or code — a PEP 723
   `# /// script` header deciding what the `Lint` job installs, a lint or checker pragma
   added or altered, a codegen directive, a docstring used as a format template.
@@ -155,13 +158,19 @@ These override the classes below: matching one means not trivial, whatever class
   reader must check. Many trivial edits are not one trivial change.
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
   changes something others depend on.
+- **Inert additions.** Something the diff adds outside test files for other code to use —
+  an input, parameter, option, or function — that nothing else in the checkout sets or
+  calls, tests aside; code that reads every option at once, such as a cache key, is not a
+  caller. Its purpose arrives in a later PR, where its design gets reviewed; dead code
+  does not land on its own.
 
 **Generated artifacts** are a caution, not a shape: read the generator edit and spot-check
 the expansion for anything it would not mechanically produce, then clear it if nothing is.
 
 ### Trivial change classes
 
-Reach here only once both lists above are clear. A change outside every class is not
+Reach here only once both lists above are clear; a bullet there that names a class is
+clear when the change fits that class. A change outside every class is not
 trivial however correct it is; every part of the change must fall in some class; and the
 exclusions of every class any part lands in bind the whole change — cumulative, never
 alternatives, and never escaped by filing a hunk under a class that does not name them.
@@ -180,8 +189,22 @@ intended behavior and the code does something else, that is a bug report, not a 
 **Additive tests** — new tests or assertions under `test/`, touching no production file.
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
 
+**Explained test skips** — a skip or expected failure added to existing tests where the
+checkout shows why. Either production code rejects, for that platform or build, an
+argument each skipped test passes, visible in its file, and does not expect to fail on —
+a guard you found by searching for that argument and have read — or the condition holds
+only in Meta's internal build (`IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`, imported,
+not redefined), so no OSS job changes; `skip_but_pass_in_sandcastle` skips in OSS and is
+not one.
+Not when the skip is unconditional or wider than its guard, the guard may itself be the
+defect, a test body changes, or the diff touches a file other than the skipped tests'
+own — code under `torch/testing/_internal/`, OpInfos included, `run_test.py`, and a
+`conftest.py` never are.
+
 **Type annotations** — an annotation added where there was none, or `Any` replaced by a
-narrower type; deleting a checker suppression is the same change and is in the class.
+narrower type, or by `object` anywhere but a public function's return; deleting a checker
+suppression is the same change and is in the class. Any other edit to an existing
+annotation is outside it, even on a symbol nothing calls.
 Where the symbol lives does not decide it: the question is whether the annotation reaches
 the behavior of an API practitioners rely on, and the exclusions below are its routes.
 The checker being quiet is evidence about the checker, not about the code.
@@ -231,7 +254,10 @@ invariant and produce nothing that outlives them: no cache key, no serialized ar
 no value shared across configurations that differ. You cannot run anything: rather than
 claiming a test fails before and passes after, read it and the pre-change code and
 satisfy yourself the old code would not have passed. If you cannot, not the class.
-Not when: behavior changes beyond the bug, or a user-facing expectation moves.
+Not when: behavior changes beyond the bug, a user-facing expectation moves, or the fix
+turns an error that reached the user into a lesser success — a value dropped or
+substituted, a warning in the error's place — that the function's documentation did not
+already promise before this diff: how to fail is the review.
 
 ## Decision
 
