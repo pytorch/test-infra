@@ -157,9 +157,7 @@ These override the classes below: matching one means not trivial, whatever class
   Count sites, not lines: reviewability is bounded by how many independent places a
   reader must check. Many trivial edits are not one trivial change.
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
-  changes something others depend on. Turning an error into a lesser success — a value
-  dropped or substituted, a warning in its place — that no documented contract requires
-  is one: how to fail is a decision.
+  changes something others depend on.
 - **Inert additions.** Something the diff adds outside test files for other code to use —
   an input, parameter, option, or function — that nothing else in the checkout sets or
   calls, tests aside; code that reads every option at once, such as a cache key, is not a
@@ -256,7 +254,10 @@ invariant and produce nothing that outlives them: no cache key, no serialized ar
 no value shared across configurations that differ. You cannot run anything: rather than
 claiming a test fails before and passes after, read it and the pre-change code and
 satisfy yourself the old code would not have passed. If you cannot, not the class.
-Not when: behavior changes beyond the bug, or a user-facing expectation moves.
+Not when: behavior changes beyond the bug, a user-facing expectation moves, or the fix
+turns an error that reached the user into a lesser success — a value dropped or
+substituted, a warning in the error's place — that the function's documentation did not
+already promise before this diff: how to fail is the review.
 
 ## Decision
 
