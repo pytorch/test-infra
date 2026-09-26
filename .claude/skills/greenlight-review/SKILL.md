@@ -251,7 +251,10 @@ invariant and produce nothing that outlives them: no cache key, no serialized ar
 no value shared across configurations that differ. You cannot run anything: rather than
 claiming a test fails before and passes after, read it and the pre-change code and
 satisfy yourself the old code would not have passed. If you cannot, not the class.
-Not when: behavior changes beyond the bug, or a user-facing expectation moves.
+Not when: behavior changes beyond the bug, a user-facing expectation moves, or the fix
+turns an error into a lesser success the function's documentation did not promise before
+this diff — a value dropped or substituted, a warning in the error's place. How to fail
+is the review.
 
 ## Decision
 
