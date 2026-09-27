@@ -107,6 +107,8 @@ questions settle it, and both must be no:
 
 1. Would a reviewer have learned anything, or asked a question that would plausibly have
    changed the code? If so, that question is the review, and it belongs to a human.
+   For a change that fits **Explained test changes**, being narrower than its guard
+   raises no such question.
 2. Does someone need to know this landed? You cannot infer who cares about what, so
    ground it the way you ground everything else: does the change move a default or a
    limit, alter a message or format the repository shows is matched or parsed, or change
@@ -133,6 +135,7 @@ enough; elsewhere it is what the change does that decides.
 - Security, authentication, trust boundaries, and release or publish plumbing.
 - Deprecating or removing anything public.
 - A test weakened, skipped, deleted, or re-baselined with no source change behind it.
+  A change that fits **Explained test changes** is not one.
 - Text that reads as a comment but is consumed as configuration or code — a PEP 723
   `# /// script` header deciding what the `Lint` job installs, a lint or checker pragma
   added or altered, a codegen directive, a docstring used as a format template.
@@ -155,6 +158,10 @@ These override the classes below: matching one means not trivial, whatever class
   reader must check. Many trivial edits are not one trivial change.
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
   changes something others depend on.
+- **Inert additions.** Something the diff adds outside test files for other code to use —
+  an input, parameter, option, or function — that no non-test code sets or calls, in the
+  diff or in a PR above it in the same stack. Its design is reviewed with its first use;
+  dead code does not land on its own.
 
 **Generated artifacts** are a caution, not a shape: read the generator edit and spot-check
 the expansion for anything it would not mechanically produce, then clear it if nothing is.
@@ -180,10 +187,25 @@ intended behavior and the code does something else, that is a bug report, not a 
 **Additive tests** — new tests or assertions under `test/`, touching no production file.
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
 
-**Type annotations** — an annotation added where there was none, or `Any` replaced by a
-narrower type; deleting a checker suppression is the same change and is in the class.
-Where the symbol lives does not decide it: the question is whether the annotation reaches
-the behavior of an API practitioners rely on, and the exclusions below are its routes.
+**Explained test changes** — a change that touches only the tests' own files (shared
+helpers, OpInfos, `run_test.py` and `conftest.py` are not theirs) and adds a skip or
+expected failure to existing tests, or updates a test's expected error message, where the
+checkout shows why. For a skip or expected failure: production code rejects what the test
+does on the platform or build it targets, and the guard says why (a test that expects the
+rejection is not explained by it). For a message: production code already raises the new
+message, the pattern still pins that message, and the test still expects the same
+exception type.
+Not when the skip or expected failure is unconditional or wider than its guard, or a
+test's code changes beyond the skip, expected failure, or expected message (comments and
+docstrings are fine).
+
+**Type annotations** — an annotation added where there was none, or `Any` (including
+`Any | None` and a bare generic such as `tuple`) replaced by a narrower type or by
+`object`; `object`, added or substituted, counts only outside the public API. Deleting a
+checker suppression is the same change and is in the class. Any other edit to an existing
+annotation is outside it, even on a symbol nothing calls.
+A private location clears none of the exclusions below: they are the routes by which an
+annotation reaches behavior practitioners rely on.
 The checker being quiet is evidence about the checker, not about the code.
 Not when any of these hold, checked against the changed file and the symbol's callers:
 
@@ -231,7 +253,9 @@ invariant and produce nothing that outlives them: no cache key, no serialized ar
 no value shared across configurations that differ. You cannot run anything: rather than
 claiming a test fails before and passes after, read it and the pre-change code and
 satisfy yourself the old code would not have passed. If you cannot, not the class.
-Not when: behavior changes beyond the bug, or a user-facing expectation moves.
+Not when: behavior changes beyond the bug, a user-facing expectation moves, or the fix
+turns an error into a quieter outcome — a warning, or a dropped or substituted value —
+that the function's documentation did not already promise. How to fail is a human's call.
 
 ## Decision
 
