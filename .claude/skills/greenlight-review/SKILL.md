@@ -107,8 +107,8 @@ questions settle it, and both must be no:
 
 1. Would a reviewer have learned anything, or asked a question that would plausibly have
    changed the code? If so, that question is the review, and it belongs to a human.
-   For a skip or expected failure that fits **Explained test skips**, being narrower than
-   its guard or acting only in Meta's internal build raises no such question.
+   For a change that fits **Explained test changes**, being narrower than its guard
+   raises no such question.
 2. Does someone need to know this landed? You cannot infer who cares about what, so
    ground it the way you ground everything else: does the change move a default or a
    limit, alter a message or format the repository shows is matched or parsed, or change
@@ -135,7 +135,7 @@ enough; elsewhere it is what the change does that decides.
 - Security, authentication, trust boundaries, and release or publish plumbing.
 - Deprecating or removing anything public.
 - A test weakened, skipped, deleted, or re-baselined with no source change behind it.
-  A skip or expected failure that fits **Explained test skips** is not one.
+  A change that fits **Explained test changes** is not one.
 - Text that reads as a comment but is consumed as configuration or code — a PEP 723
   `# /// script` header deciding what the `Lint` job installs, a lint or checker pragma
   added or altered, a codegen directive, a docstring used as a format template.
@@ -159,10 +159,9 @@ These override the classes below: matching one means not trivial, whatever class
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
   changes something others depend on.
 - **Inert additions.** Something the diff adds outside test files for other code to use —
-  an input, parameter, option, or function — that no code outside tests sets to anything
-  but its default, or calls; look in the diff, where a new name's only uses can be. Its
-  purpose arrives in a later PR, where its design gets reviewed; dead code does not land
-  on its own.
+  an input, parameter, option, or function — that no non-test code sets or calls, in the
+  diff or in a PR above it in the same stack. Its design is reviewed with its first use;
+  dead code does not land on its own.
 
 **Generated artifacts** are a caution, not a shape: read the generator edit and spot-check
 the expansion for anything it would not mechanically produce, then clear it if nothing is.
@@ -188,17 +187,17 @@ intended behavior and the code does something else, that is a bug report, not a 
 **Additive tests** — new tests or assertions under `test/`, touching no production file.
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
 
-**Explained test skips** — a skip or expected failure added to existing tests where the
-checkout shows why. Either production code rejects, on the platform or build the skip
-targets, an argument each skipped test passes in its own file without expecting the
-rejection — a guard on the test's call path that states the limitation, found by one
-search for that argument and read — or the skip applies only in Meta's internal build
-(`IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`, each imported, not redefined), so no OSS
-job changes; `skip_but_pass_in_sandcastle` skips in OSS and does not qualify.
-Not when the skip is unconditional or wider than its guard, a test body changes beyond
-the skip, the PR is stacked on unlanded PRs, or the diff touches a file other than the
-skipped tests' own; code under `torch/testing/_internal/` (OpInfos included),
-`run_test.py`, and a `conftest.py` never count as their own.
+**Explained test changes** — a change that touches only the tests' own files (shared
+helpers, OpInfos, `run_test.py` and `conftest.py` are not theirs) and adds a skip or
+expected failure to existing tests, or updates a test's expected error message, where the
+checkout shows why. For a skip or expected failure: production code rejects what the test
+does on the platform or build it targets, and the guard says why (a test that expects the
+rejection is not explained by it). For a message: production code already raises the new
+message, the pattern still pins that message, and the test still expects the same
+exception type.
+Not when the skip or expected failure is unconditional or wider than its guard, or a
+test's code changes beyond the skip, expected failure, or expected message (comments and
+docstrings are fine).
 
 **Type annotations** — an annotation added where there was none, or `Any` replaced by a
 narrower type; deleting a checker suppression is the same change and is in the class.
@@ -252,9 +251,8 @@ no value shared across configurations that differ. You cannot run anything: rath
 claiming a test fails before and passes after, read it and the pre-change code and
 satisfy yourself the old code would not have passed. If you cannot, not the class.
 Not when: behavior changes beyond the bug, a user-facing expectation moves, or the fix
-turns an error into a lesser success the function's documentation did not promise before
-this diff — a value dropped or substituted, a warning in the error's place. How to fail
-is the review.
+turns an error into a quieter outcome — a warning, or a dropped or substituted value —
+that the function's documentation did not already promise. How to fail is a human's call.
 
 ## Decision
 
