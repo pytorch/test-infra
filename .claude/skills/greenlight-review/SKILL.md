@@ -238,6 +238,11 @@ Not when: you cannot state the invariant — for all inputs, before equals after
 X — or a signature visible outside the module changes, or evaluation order changes, or
 the move changes the import path of anything reachable from a serialized object.
 
+**Behavior-neutral tweaks** — a small local change that cannot alter any result, such as
+a `reserve()` capacity hint.
+Not when something observable can differ: an order a consumer relies on, a hash or cache
+key, a pointer a caller holds, or whether it can throw.
+
 **CI and build configuration** — shard counts, timeouts, matrix entries, experiment
 toggles.
 Not when it touches secrets, tokens, permissions, OIDC roles, `pull_request_target`,
