@@ -1,0 +1,178 @@
+"""Tests for the vLLM upstream review artifact and query helper."""
+
+import dataclasses
+import json
+import tempfile
+import unittest
+import urllib.error
+from pathlib import Path
+from typing import Any
+from unittest import mock
+
+from torchci import vllm_triage_upstream_issues as upstream
+
+
+def make_check(index, status, count=1, issues=None, error=None):
+    search = upstream.IssueSearchResult(
+        'repo:vllm-project/vllm is:issue "agent query"',
+        count,
+        list(issues or []),
+        error,
+    )
+    return upstream.CauseUpstreamCheck(
+        index,
+        f"cause-{index}",
+        upstream.UpstreamStatus(status),
+        [search],
+    )
+
+
+class TestQueryInterface(unittest.TestCase):
+    def test_agent_query_is_scoped_and_returns_raw_issue_details(self):
+        payload = {
+            "total_count": 1,
+            "items": [
+                {
+                    "html_url": "https://github.com/vllm-project/vllm/issues/123",
+                    "title": "NIXL issue",
+                    "state": "open",
+                    "body": "Details for the agent to review.",
+                }
+            ],
+        }
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(
+                self, exc_type: Any, exc_value: Any, traceback: Any
+            ) -> bool:
+                return False
+
+            def read(self):
+                return json.dumps(payload).encode()
+
+        with mock.patch.object(
+            upstream.urllib.request, "urlopen", return_value=Response()
+        ) as request:
+            result = upstream.query_upstream_issues('"nixl_ep"', "token")
+
+        request.assert_called_once()
+        sent_request = request.call_args.args[0]
+        self.assertIn(
+            "repo%3Avllm-project%2Fvllm+is%3Aissue+%22nixl_ep%22",
+            sent_request.full_url,
+        )
+        self.assertEqual(sent_request.get_header("Authorization"), "Bearer token")
+        self.assertEqual(result, payload)
+        self.assertEqual(result["items"][0]["body"], "Details for the agent to review.")
+
+    def test_bad_query_and_request_fail_immediately(self):
+        with self.assertRaises(ValueError):
+            upstream.scope_upstream_query("  ")
+
+        with mock.patch.object(
+            upstream.urllib.request,
+            "urlopen",
+            side_effect=urllib.error.URLError("rate limited"),
+        ):
+            with self.assertRaises(urllib.error.URLError):
+                upstream.query_upstream_issues("nixl_ep", "token")
+
+
+class TestAgentReviewResults(unittest.TestCase):
+    def test_agent_can_record_hit_no_hit_and_incomplete_reviews(self):
+        issue = upstream.UpstreamIssueHit(
+            "https://github.com/vllm-project/vllm/issues/123",
+            "Related NIXL issue",
+            "open",
+            "The issue describes the same NIXL extension failure.",
+        )
+        artifact = upstream.build_upstream_checks(
+            [
+                make_check(
+                    5,
+                    "upstream_candidates",
+                    count=20,
+                    issues=[issue],
+                ),
+                make_check(6, "no_hits", count=20),
+                make_check(7, "search_incomplete", count=None, error="rate limited"),
+            ]
+        )
+
+        self.assertEqual(
+            [check.status for check in artifact.checks],
+            [
+                upstream.UpstreamStatus.UPSTREAM_CANDIDATES,
+                upstream.UpstreamStatus.NO_HITS,
+                upstream.UpstreamStatus.SEARCH_INCOMPLETE,
+            ],
+        )
+        self.assertEqual(artifact.checks[0].searches[0].issues[0].reason, issue.reason)
+
+
+class TestArtifactConversion(unittest.TestCase):
+    def test_file_round_trip_builds_nested_dataclasses(self):
+        issue = upstream.UpstreamIssueHit(
+            "https://github.com/vllm-project/vllm/issues/123",
+            "Related NIXL issue",
+            "open",
+            "The issue describes the same NIXL extension failure.",
+        )
+        artifact = upstream.build_upstream_checks(
+            [make_check(5, "upstream_candidates", issues=[issue])]
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "upstream-checks.json"
+            upstream.write_upstream_checks(path, artifact)
+            loaded = upstream.read_upstream_checks(path)
+
+        self.assertEqual(loaded, artifact)
+
+    def test_invalid_nested_artifact_data_fails(self):
+        raw = {
+            "checks": [
+                {
+                    "finding_index": 0,
+                    "cause_key": "cause-0",
+                    "status": "upstream_candidates",
+                    "searches": [
+                        {
+                            "query": "agent query",
+                            "total_count": 1,
+                            "issues": [
+                                {
+                                    "url": "https://github.com/vllm-project/vllm/pull/1",
+                                    "title": "not an issue",
+                                    "state": "open",
+                                    "reason": "The issue describes the same failure.",
+                                }
+                            ],
+                            "error": None,
+                        }
+                    ],
+                }
+            ]
+        }
+
+        with self.assertRaises(ValueError):
+            upstream.UpstreamChecksArtifact.from_dict(raw)
+
+
+class TestArtifactInvariants(unittest.TestCase):
+    def test_finding_indices_must_be_unique(self):
+        check = make_check(5, "no_hits")
+        with self.assertRaisesRegex(ValueError, "unique"):
+            upstream.build_upstream_checks([check, dataclasses.replace(check)])
+
+    def test_failed_review_cannot_be_written_as_no_hits(self):
+        check = make_check(5, "search_incomplete", count=None, error="rate limited")
+        with self.assertRaises(ValueError):
+            dataclasses.replace(check, status=upstream.UpstreamStatus.NO_HITS)
+
+
+if __name__ == "__main__":
+    unittest.main()
