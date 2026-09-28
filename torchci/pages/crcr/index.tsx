@@ -30,6 +30,7 @@ import {
   CRCR_HEALTH_WINDOW_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   buildCriteriaRows,
   buildDemotionRows,
@@ -978,9 +979,11 @@ export default function CrcrSummaryPage() {
                 setDays(Number(e.target.value))
               }
             >
-              <MenuItem value={1}>Last 24h</MenuItem>
-              <MenuItem value={7}>Last 7 days</MenuItem>
-              <MenuItem value={30}>Last 30 days</MenuItem>
+              {CRCR_TIME_RANGES.map(({ days: rangeDays, label }) => (
+                <MenuItem key={rangeDays} value={rangeDays}>
+                  {label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Box>

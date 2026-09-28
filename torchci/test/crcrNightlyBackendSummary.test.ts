@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 
 const queryDir = path.resolve(
   __dirname,
@@ -30,6 +31,14 @@ const successRateQuery = fs.readFileSync(
 );
 const backendPage = fs.readFileSync(
   path.resolve(__dirname, "..", "pages", "crcr", "[org]", "[repo].tsx"),
+  "utf8"
+);
+const crcrSummaryPage = fs.readFileSync(
+  path.resolve(__dirname, "..", "pages", "crcr", "index.tsx"),
+  "utf8"
+);
+const metricsPage = fs.readFileSync(
+  path.resolve(__dirname, "..", "pages", "crcr", "metrics.tsx"),
   "utf8"
 );
 
@@ -74,5 +83,14 @@ describe("crcr_nightly_backend_summary", () => {
     expect(successRateQuery).toContain(
       "INNER JOIN run_dates USING (downstream_repo, run_id)"
     );
+  });
+
+  test("shares one set of range options across CRCR views", () => {
+    expect(CRCR_TIME_RANGES.map(({ days }) => days)).toEqual([
+      1, 7, 14, 30, 90,
+    ]);
+    for (const page of [backendPage, crcrSummaryPage, metricsPage]) {
+      expect(page).toContain("CRCR_TIME_RANGES.map");
+    }
   });
 });

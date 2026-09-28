@@ -19,6 +19,7 @@ import {
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -271,10 +272,11 @@ export default function CrcrMetricsPage() {
                 setDays(Number(e.target.value))
               }
             >
-              <MenuItem value={7}>Last 7 days</MenuItem>
-              <MenuItem value={14}>Last 14 days</MenuItem>
-              <MenuItem value={30}>Last 30 days</MenuItem>
-              <MenuItem value={90}>Last 90 days</MenuItem>
+              {CRCR_TIME_RANGES.map(({ days: rangeDays, label }) => (
+                <MenuItem key={rangeDays} value={rangeDays}>
+                  {label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Box>

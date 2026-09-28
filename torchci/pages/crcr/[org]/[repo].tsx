@@ -25,6 +25,7 @@ import {
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   buildNightlyMatrix,
   isRealCommitSha,
@@ -1518,7 +1519,7 @@ export default function CrcrBackendPage() {
   const { org, repo } = router.query;
 
   const page = parseInt(router.query.page as string) || 1;
-  const days = parseInt(router.query.days as string) || 7;
+  const days = parseInt(router.query.days as string) || 30;
   const eventType = (router.query.event as string) || "pr";
   const isNightly = eventType === "nightly";
 
@@ -1682,10 +1683,11 @@ export default function CrcrBackendPage() {
                       updateQuery({ days: Number(e.target.value), page: 1 })
                     }
                   >
-                    <MenuItem value={1}>Last 24h</MenuItem>
-                    <MenuItem value={7}>Last 7 days</MenuItem>
-                    <MenuItem value={14}>Last 14 days</MenuItem>
-                    <MenuItem value={30}>Last 30 days</MenuItem>
+                    {CRCR_TIME_RANGES.map(({ days: rangeDays, label }) => (
+                      <MenuItem key={rangeDays} value={rangeDays}>
+                        {label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Stack>
