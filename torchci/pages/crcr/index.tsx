@@ -30,7 +30,6 @@ import {
   CRCR_HEALTH_WINDOW_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
-import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   buildCriteriaRows,
   buildDemotionRows,
@@ -42,6 +41,7 @@ import {
   L3_DEMOTION_WINDOW_DAYS,
   L3_PROMOTION_WINDOW_DAYS,
 } from "lib/crcr/l3Thresholds";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   DEFAULT_CRCR_EVENTS,
   filterCrcrEntriesByEvent,

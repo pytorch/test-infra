@@ -25,12 +25,12 @@ import {
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
-import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   buildNightlyMatrix,
   isRealCommitSha,
   NightlyRow,
 } from "lib/crcr/nightlyMatrix";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import { Highlight } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";

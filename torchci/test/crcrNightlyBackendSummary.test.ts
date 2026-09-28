@@ -1,6 +1,6 @@
 import fs from "fs";
-import path from "path";
 import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
+import path from "path";
 
 const queryDir = path.resolve(
   __dirname,
