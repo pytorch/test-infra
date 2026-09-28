@@ -240,6 +240,14 @@
       "rocm"
     ]
   ],
+  "test_copy_transpose_tiled_small_case_at_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "198911",
+    "https://github.com/pytorch/pytorch/issues/198911",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -705,6 +713,20 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_max_autotune_addmm_standalone_x_shape_4096x1_bfloat16 (__main__.TestCKBackend)": [
+    "198909",
+    "https://github.com/pytorch/pytorch/issues/198909",
+    [
+      "rocm"
+    ]
+  ],
+  "test_max_autotune_addmm_standalone_x_shape_4096x2048_bfloat16 (__main__.TestCKBackend)": [
+    "198910",
+    "https://github.com/pytorch/pytorch/issues/198910",
+    [
+      "rocm"
     ]
   ],
   "test_max_autotune_remote_caching_dynamic_False (__main__.TestMaxAutotuneRemoteCache)": [
@@ -1487,6 +1509,16 @@
     [
       "asan",
       "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
+    "124152",
+    "https://github.com/pytorch/pytorch/issues/124152",
+    [
+      "asan",
+      "linux",
+      "rocm",
       "slow"
     ]
   ],
