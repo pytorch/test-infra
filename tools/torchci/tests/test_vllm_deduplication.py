@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import urllib.error
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from unittest import mock
 
 from torchci import vllm_deduplication
@@ -45,7 +45,7 @@ class TestQueryInterface(unittest.TestCase):
 
             def __exit__(
                 self, exc_type: Any, exc_value: Any, traceback: Any
-            ) -> bool:
+            ) -> Literal[False]:
                 return False
 
             def read(self):
@@ -56,9 +56,7 @@ class TestQueryInterface(unittest.TestCase):
             "urlopen",
             return_value=Response(),
         ) as request:
-            result = vllm_deduplication.query_upstream_issues(
-                '"nixl_ep"', "token"
-            )
+            result = vllm_deduplication.query_upstream_issues('"nixl_ep"', "token")
 
         request.assert_called_once()
         sent_request = request.call_args.args[0]
@@ -80,9 +78,7 @@ class TestQueryInterface(unittest.TestCase):
             side_effect=urllib.error.URLError("rate limited"),
         ):
             with self.assertRaises(urllib.error.URLError):
-                vllm_deduplication.query_upstream_issues(
-                    "nixl_ep", "token"
-                )
+                vllm_deduplication.query_upstream_issues("nixl_ep", "token")
 
 
 class TestAgentReviewResults(unittest.TestCase):
@@ -142,7 +138,7 @@ class TestArtifactConversion(unittest.TestCase):
 
     def test_invalid_nested_artifact_data_fails(self):
         raw = {
-                "checks": [
+            "checks": [
                 {
                     "cause_signature": "cause-1",
                     "status": "upstream_candidates",

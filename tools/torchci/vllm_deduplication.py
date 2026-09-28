@@ -32,6 +32,7 @@ class UpstreamStatus(StrEnum):
 
 # Agent review artifact.
 
+
 @dataclass
 class UpstreamIssueHit:
     """An issue selected by the agent as semantically related.
@@ -67,9 +68,7 @@ class UpstreamIssueHit:
         """Validate the selected issue."""
 
         if not ISSUE_URL.fullmatch(self.url):
-            raise ValueError(
-                f"invalid canonical issue URL: {self.url!r}"
-            )
+            raise ValueError(f"invalid canonical issue URL: {self.url!r}")
         if not self.title:
             raise ValueError("issue title must be non-empty")
         if self.state not in {"open", "closed"}:
@@ -134,9 +133,7 @@ class IssueSearchResult:
         if self.total_count is not None and self.total_count < 0:
             raise ValueError("search count must be non-negative")
         if self.total_count == 0 and self.issues:
-            raise ValueError(
-                "zero-count search contains selected issues"
-            )
+            raise ValueError("zero-count search contains selected issues")
 
 
 @dataclass
@@ -225,6 +222,7 @@ class UpstreamChecksArtifact:
         if len(signatures) != len(set(signatures)):
             raise ValueError("cause_signature values must be unique")
 
+
 def status_for_searches(searches: Sequence[IssueSearchResult]) -> UpstreamStatus:
     """Return the status represented by agent-reviewed searches.
 
@@ -282,7 +280,9 @@ def write_upstream_checks(
         artifact: Agent-produced artifact to write.
     """
 
-    Path(path).write_text(json.dumps(asdict(artifact), indent=2) + "\n", encoding="utf-8")
+    Path(path).write_text(
+        json.dumps(asdict(artifact), indent=2) + "\n", encoding="utf-8"
+    )
 
 
 # Read-only query interface for the upstream-review agent.

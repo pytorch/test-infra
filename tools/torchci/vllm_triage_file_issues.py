@@ -26,9 +26,9 @@ import urllib.request
 from typing import Any, Dict, List, Optional
 
 from torchci.vllm_deduplication import (
+    read_upstream_checks,
     UpstreamChecksArtifact,
     UpstreamStatus,
-    read_upstream_checks,
 )
 
 
@@ -629,8 +629,7 @@ def eligible_for_filing(
     """
 
     return eligible(cause) and (
-        routing_of(cause) != VLLM_ROUTING
-        or upstream_status == UpstreamStatus.NO_HITS
+        routing_of(cause) != VLLM_ROUTING or upstream_status == UpstreamStatus.NO_HITS
     )
 
 

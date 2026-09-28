@@ -13,8 +13,8 @@ import unittest
 from unittest import mock
 
 from torchci import vllm_triage_file_issues as vtfi
-from torchci.vllm_deduplication import UpstreamStatus
 
+from torchci.vllm_deduplication import UpstreamStatus
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
     cluster_fingerprint,
@@ -617,12 +617,8 @@ class TestFilingEligibility(unittest.TestCase):
     def test_vllm_requires_a_no_hits_check(self):
         vllm = cause(routing="vllm-project/vllm")
 
-        self.assertFalse(
-            eligible_for_filing(vllm, UpstreamStatus.UPSTREAM_CANDIDATES)
-        )
-        self.assertFalse(
-            eligible_for_filing(vllm, UpstreamStatus.SEARCH_INCOMPLETE)
-        )
+        self.assertFalse(eligible_for_filing(vllm, UpstreamStatus.UPSTREAM_CANDIDATES))
+        self.assertFalse(eligible_for_filing(vllm, UpstreamStatus.SEARCH_INCOMPLETE))
         self.assertFalse(eligible_for_filing(vllm, None))
         self.assertTrue(eligible_for_filing(vllm, UpstreamStatus.NO_HITS))
 
