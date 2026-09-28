@@ -425,13 +425,6 @@
       "rocm"
     ]
   ],
-  "test_fused_attention_empty_batch_xpu (__main__.TestSDPAAcceleratorXPU)": [
-    "196748",
-    "https://github.com/pytorch/pytorch/issues/196748",
-    [
-      "xpu"
-    ]
-  ],
   "test_fused_sdp_priority_order_use_compile_False_cuda (__main__.TestSDPAAcceleratorCUDA)": [
     "197006",
     "https://github.com/pytorch/pytorch/issues/197006",
@@ -988,13 +981,6 @@
       "macos"
     ]
   ],
-  "test_package_keeps_a_loaded_device_a_recompile_does_not_name (__main__.TestPackage)": [
-    "197144",
-    "https://github.com/pytorch/pytorch/issues/197144",
-    [
-      "xpu"
-    ]
-  ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
     "193150",
     "https://github.com/pytorch/pytorch/issues/193150",
@@ -1076,34 +1062,6 @@
   "test_redispatch_nn_functional_grid_sample_xpu_float64 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
     "197524",
     "https://github.com/pytorch/pytorch/issues/197524",
-    [
-      "xpu"
-    ]
-  ],
-  "test_redispatch_scatter_xpu_float8_e4m3fn (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197334",
-    "https://github.com/pytorch/pytorch/issues/197334",
-    [
-      "xpu"
-    ]
-  ],
-  "test_redispatch_scatter_xpu_float8_e4m3fnuz (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197335",
-    "https://github.com/pytorch/pytorch/issues/197335",
-    [
-      "xpu"
-    ]
-  ],
-  "test_redispatch_scatter_xpu_float8_e5m2 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197336",
-    "https://github.com/pytorch/pytorch/issues/197336",
-    [
-      "xpu"
-    ]
-  ],
-  "test_redispatch_scatter_xpu_float8_e5m2fnuz (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197337",
-    "https://github.com/pytorch/pytorch/issues/197337",
     [
       "xpu"
     ]
