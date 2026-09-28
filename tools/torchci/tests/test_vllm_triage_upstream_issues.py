@@ -1,6 +1,5 @@
 """Tests for the vLLM upstream review artifact and query helper."""
 
-import dataclasses
 import json
 import tempfile
 import unittest
@@ -12,7 +11,7 @@ from unittest import mock
 from torchci import vllm_triage_upstream_issues as upstream
 
 
-def make_check(index, status, count=1, issues=None, error=None):
+def make_check(signature, status, count=1, issues=None, error=None):
     search = upstream.IssueSearchResult(
         'repo:vllm-project/vllm is:issue "agent query"',
         count,
@@ -20,8 +19,7 @@ def make_check(index, status, count=1, issues=None, error=None):
         error,
     )
     return upstream.CauseUpstreamCheck(
-        index,
-        f"cause-{index}",
+        signature,
         upstream.UpstreamStatus(status),
         [search],
     )
@@ -92,13 +90,15 @@ class TestAgentReviewResults(unittest.TestCase):
         artifact = upstream.build_upstream_checks(
             [
                 make_check(
-                    5,
+                    "cause-1",
                     "upstream_candidates",
                     count=20,
                     issues=[issue],
                 ),
-                make_check(6, "no_hits", count=20),
-                make_check(7, "search_incomplete", count=None, error="rate limited"),
+                make_check("cause-2", "no_hits", count=20),
+                make_check(
+                    "cause-3", "search_incomplete", count=None, error="rate limited"
+                ),
             ]
         )
 
@@ -122,22 +122,23 @@ class TestArtifactConversion(unittest.TestCase):
             "The issue describes the same NIXL extension failure.",
         )
         artifact = upstream.build_upstream_checks(
-            [make_check(5, "upstream_candidates", issues=[issue])]
+            [make_check("cause-1", "upstream_candidates", issues=[issue])]
         )
 
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "upstream-checks.json"
             upstream.write_upstream_checks(path, artifact)
+            encoded = json.loads(path.read_text())
             loaded = upstream.read_upstream_checks(path)
 
+        self.assertNotIn("cause_key", encoded["checks"][0])
         self.assertEqual(loaded, artifact)
 
     def test_invalid_nested_artifact_data_fails(self):
         raw = {
-            "checks": [
+                "checks": [
                 {
-                    "finding_index": 0,
-                    "cause_key": "cause-0",
+                    "cause_signature": "cause-1",
                     "status": "upstream_candidates",
                     "searches": [
                         {
@@ -163,15 +164,21 @@ class TestArtifactConversion(unittest.TestCase):
 
 
 class TestArtifactInvariants(unittest.TestCase):
-    def test_finding_indices_must_be_unique(self):
-        check = make_check(5, "no_hits")
-        with self.assertRaisesRegex(ValueError, "unique"):
-            upstream.build_upstream_checks([check, dataclasses.replace(check)])
+    def test_cause_signatures_must_be_unique(self):
+        check = make_check("cause-1", "no_hits")
+        with self.assertRaisesRegex(ValueError, "cause_signature"):
+            upstream.build_upstream_checks([check, check])
 
     def test_failed_review_cannot_be_written_as_no_hits(self):
-        check = make_check(5, "search_incomplete", count=None, error="rate limited")
+        check = make_check(
+            "cause-1", "search_incomplete", count=None, error="rate limited"
+        )
         with self.assertRaises(ValueError):
-            dataclasses.replace(check, status=upstream.UpstreamStatus.NO_HITS)
+            upstream.CauseUpstreamCheck(
+                check.cause_signature,
+                upstream.UpstreamStatus.NO_HITS,
+                check.searches,
+            )
 
 
 if __name__ == "__main__":

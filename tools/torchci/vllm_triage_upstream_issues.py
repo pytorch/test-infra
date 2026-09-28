@@ -141,17 +141,15 @@ class IssueSearchResult:
 
 @dataclass
 class CauseUpstreamCheck:
-    """The agent's upstream review for one root cause.
+    """The agent's upstream review for one vLLM-routed cause.
 
     Attributes:
-        finding_index: Index of the finding in the source report.
-        cause_key: Stable key for the cause.
+        cause_signature: Verbatim signature from the root-cause finding.
         status: Aggregate review status.
         searches: Query reviews for the cause.
     """
 
-    finding_index: int
-    cause_key: str
+    cause_signature: str
     status: UpstreamStatus
     searches: List[IssueSearchResult]
 
@@ -161,24 +159,22 @@ class CauseUpstreamCheck:
 
         try:
             raw_searches = data["searches"]
-            finding_index = data["finding_index"]
-            cause_key = data["cause_key"]
+            cause_signature = data["cause_signature"]
             raw_status = data["status"]
         except KeyError as error:
             raise ValueError("check is missing a required field") from error
         if not isinstance(raw_searches, list):
             raise ValueError("searches must be a list")
-        if isinstance(finding_index, bool) or not isinstance(finding_index, int):
-            raise ValueError("finding_index must be an integer")
-        if not isinstance(cause_key, str) or not isinstance(raw_status, str):
-            raise ValueError("cause_key and status must be strings")
+        if not isinstance(cause_signature, str):
+            raise ValueError("cause_signature must be a string")
+        if not isinstance(raw_status, str):
+            raise ValueError("status must be a string")
         try:
             status = UpstreamStatus(raw_status)
         except ValueError as error:
             raise ValueError(f"invalid status: {raw_status!r}") from error
         return cls(
-            finding_index,
-            cause_key,
+            cause_signature,
             status,
             [IssueSearchResult.from_dict(search) for search in raw_searches],
         )
@@ -186,10 +182,8 @@ class CauseUpstreamCheck:
     def __post_init__(self) -> None:
         """Validate the cause review."""
 
-        if self.finding_index < 0:
-            raise ValueError("finding_index must be non-negative")
-        if not self.cause_key:
-            raise ValueError("cause_key must be non-empty")
+        if not self.cause_signature:
+            raise ValueError("cause_signature must be non-empty")
         if not isinstance(self.status, UpstreamStatus):
             raise ValueError("status must be an UpstreamStatus")
         if not self.searches:
@@ -206,7 +200,8 @@ class UpstreamChecksArtifact:
     """Persisted upstream reviews for a triage run.
 
     Attributes:
-        checks: Upstream reviews for vLLM-routed findings.
+        checks: Upstream reviews for vLLM-routed findings keyed by their root
+            cause signatures.
     """
 
     checks: List[CauseUpstreamCheck]
@@ -226,10 +221,9 @@ class UpstreamChecksArtifact:
     def __post_init__(self) -> None:
         """Validate artifact-local invariants."""
 
-        indexes = [check.finding_index for check in self.checks]
-        if len(indexes) != len(set(indexes)):
-            raise ValueError("finding_index values must be unique")
-
+        signatures = [check.cause_signature for check in self.checks]
+        if len(signatures) != len(set(signatures)):
+            raise ValueError("cause_signature values must be unique")
 
 def status_for_searches(searches: Sequence[IssueSearchResult]) -> UpstreamStatus:
     """Return the status represented by agent-reviewed searches.

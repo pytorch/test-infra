@@ -25,6 +25,12 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
+from torchci.vllm_triage_upstream_issues import (
+    UpstreamChecksArtifact,
+    UpstreamStatus,
+    read_upstream_checks,
+)
+
 
 API = "https://api.github.com"
 UMBRELLA_LABEL = "vllm-torch-nightly-umbrella"
@@ -608,12 +614,37 @@ def eligible(cause: Dict[str, Any]) -> bool:
     )
 
 
+def eligible_for_filing(
+    cause: Dict[str, Any], upstream_status: Optional[UpstreamStatus]
+) -> bool:
+    """Return whether a cause passes the filing and upstream gates.
+
+    Args:
+        cause: Root cause being considered for filing.
+        upstream_status: Review status for this cause, or None for a non-vLLM
+            cause or missing review.
+
+    Returns:
+        Whether the cause is eligible to enter the filing path.
+    """
+
+    return eligible(cause) and (
+        routing_of(cause) != VLLM_ROUTING
+        or upstream_status == UpstreamStatus.NO_HITS
+    )
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--findings", required=True, help="findings.json from the agent")
     p.add_argument("--report", required=True, help="report.json from the triage job")
     p.add_argument("--repo", default="pytorch/test-infra")
     p.add_argument("--max-issues", type=int, default=5)
+    p.add_argument(
+        "--upstream-checks",
+        default="",
+        help="validated upstream-checks.json; vLLM filing is disabled when absent",
+    )
     p.add_argument(
         "--torch-version-override",
         default="",
@@ -634,6 +665,17 @@ def main() -> int:
     report = json.load(open(args.report))
     findings = json.load(open(args.findings))
     causes = findings.get("causes") or []
+
+    upstream_checks = UpstreamChecksArtifact(checks=[])
+    if args.upstream_checks:
+        try:
+            upstream_checks = read_upstream_checks(args.upstream_checks)
+        except (OSError, TypeError, ValueError) as exc:
+            print(
+                "WARNING: upstream checks are missing or invalid; all vLLM "
+                f"filing is disabled ({type(exc).__name__}: {exc})",
+                file=sys.stderr,
+            )
 
     minor = (
         args.torch_version_override.strip()
@@ -670,8 +712,19 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    selected = [c for c in causes if eligible(c)]
-    skipped = [c for c in causes if not eligible(c)]
+    upstream_statuses = {
+        check.cause_signature: check.status for check in upstream_checks.checks
+    }
+    selected = [
+        cause
+        for cause in causes
+        if eligible_for_filing(
+            cause,
+            upstream_statuses.get(str(cause.get("signature") or "")),
+        )
+    ]
+    skipped = [c for c in causes if c not in selected]
+
     print(f"{len(causes)} cause(s): {len(selected)} eligible, {len(skipped)} skipped")
     for c in skipped:
         print(
