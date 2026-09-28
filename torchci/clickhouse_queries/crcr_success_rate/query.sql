@@ -21,7 +21,9 @@ latest_attempts AS (
     WHERE
         event_type = {event_type: String}
         AND (downstream_repo, run_id) IN (
-            SELECT downstream_repo, run_id
+            SELECT
+                downstream_repo,
+                run_id
             FROM eligible_runs
         )
     GROUP BY downstream_repo, run_id, job_name
@@ -39,7 +41,11 @@ latest_jobs AS (
         event_type = {event_type: String}
         AND status = 'completed'
         AND (downstream_repo, run_id, job_name, run_attempt) IN (
-            SELECT downstream_repo, run_id, job_name, max_attempt
+            SELECT
+                downstream_repo,
+                run_id,
+                job_name,
+                max_attempt
             FROM latest_attempts
         )
 ),
@@ -62,8 +68,14 @@ SELECT
             jobs.downstream_repo = 'pytorch/crcr-test'
             AND (
                 (jobs.job_name LIKE '%xfail%' AND jobs.conclusion = 'failure')
-                OR (jobs.job_name LIKE '%xcancel%' AND jobs.conclusion = 'cancelled')
-                OR (jobs.job_name LIKE '%xtimeout%' AND jobs.conclusion = 'timed_out')
+                OR (
+                    jobs.job_name LIKE '%xcancel%'
+                    AND jobs.conclusion = 'cancelled'
+                )
+                OR (
+                    jobs.job_name LIKE '%xtimeout%'
+                    AND jobs.conclusion = 'timed_out'
+                )
             )
         )
     ) AS successes,

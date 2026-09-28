@@ -464,7 +464,7 @@ function NightlySummaryCards({
       )}
       <StatCard
         label="Nightly Runs"
-        value={stats.uniqueShas}
+        value={rows.length}
         sub="unique SHAs tested"
       />
       <StatCard
