@@ -25,7 +25,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from torchci.vllm_triage_upstream_issues import (
+from torchci.vllm_deduplication import (
     UpstreamChecksArtifact,
     UpstreamStatus,
     read_upstream_checks,

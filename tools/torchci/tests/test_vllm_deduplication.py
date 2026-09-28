@@ -8,19 +8,19 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-from torchci import vllm_triage_upstream_issues as upstream
+from torchci import vllm_deduplication
 
 
 def make_check(signature, status, count=1, issues=None, error=None):
-    search = upstream.IssueSearchResult(
+    search = vllm_deduplication.IssueSearchResult(
         'repo:vllm-project/vllm is:issue "agent query"',
         count,
         list(issues or []),
         error,
     )
-    return upstream.CauseUpstreamCheck(
+    return vllm_deduplication.CauseUpstreamCheck(
         signature,
-        upstream.UpstreamStatus(status),
+        vllm_deduplication.UpstreamStatus(status),
         [search],
     )
 
@@ -52,9 +52,13 @@ class TestQueryInterface(unittest.TestCase):
                 return json.dumps(payload).encode()
 
         with mock.patch.object(
-            upstream.urllib.request, "urlopen", return_value=Response()
+            vllm_deduplication.urllib.request,
+            "urlopen",
+            return_value=Response(),
         ) as request:
-            result = upstream.query_upstream_issues('"nixl_ep"', "token")
+            result = vllm_deduplication.query_upstream_issues(
+                '"nixl_ep"', "token"
+            )
 
         request.assert_called_once()
         sent_request = request.call_args.args[0]
@@ -68,26 +72,28 @@ class TestQueryInterface(unittest.TestCase):
 
     def test_bad_query_and_request_fail_immediately(self):
         with self.assertRaises(ValueError):
-            upstream.scope_upstream_query("  ")
+            vllm_deduplication.scope_upstream_query("  ")
 
         with mock.patch.object(
-            upstream.urllib.request,
+            vllm_deduplication.urllib.request,
             "urlopen",
             side_effect=urllib.error.URLError("rate limited"),
         ):
             with self.assertRaises(urllib.error.URLError):
-                upstream.query_upstream_issues("nixl_ep", "token")
+                vllm_deduplication.query_upstream_issues(
+                    "nixl_ep", "token"
+                )
 
 
 class TestAgentReviewResults(unittest.TestCase):
     def test_agent_can_record_hit_no_hit_and_incomplete_reviews(self):
-        issue = upstream.UpstreamIssueHit(
+        issue = vllm_deduplication.UpstreamIssueHit(
             "https://github.com/vllm-project/vllm/issues/123",
             "Related NIXL issue",
             "open",
             "The issue describes the same NIXL extension failure.",
         )
-        artifact = upstream.build_upstream_checks(
+        artifact = vllm_deduplication.build_upstream_checks(
             [
                 make_check(
                     "cause-1",
@@ -105,9 +111,9 @@ class TestAgentReviewResults(unittest.TestCase):
         self.assertEqual(
             [check.status for check in artifact.checks],
             [
-                upstream.UpstreamStatus.UPSTREAM_CANDIDATES,
-                upstream.UpstreamStatus.NO_HITS,
-                upstream.UpstreamStatus.SEARCH_INCOMPLETE,
+                vllm_deduplication.UpstreamStatus.UPSTREAM_CANDIDATES,
+                vllm_deduplication.UpstreamStatus.NO_HITS,
+                vllm_deduplication.UpstreamStatus.SEARCH_INCOMPLETE,
             ],
         )
         self.assertEqual(artifact.checks[0].searches[0].issues[0].reason, issue.reason)
@@ -115,21 +121,21 @@ class TestAgentReviewResults(unittest.TestCase):
 
 class TestArtifactConversion(unittest.TestCase):
     def test_file_round_trip_builds_nested_dataclasses(self):
-        issue = upstream.UpstreamIssueHit(
+        issue = vllm_deduplication.UpstreamIssueHit(
             "https://github.com/vllm-project/vllm/issues/123",
             "Related NIXL issue",
             "open",
             "The issue describes the same NIXL extension failure.",
         )
-        artifact = upstream.build_upstream_checks(
+        artifact = vllm_deduplication.build_upstream_checks(
             [make_check("cause-1", "upstream_candidates", issues=[issue])]
         )
 
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "upstream-checks.json"
-            upstream.write_upstream_checks(path, artifact)
+            vllm_deduplication.write_upstream_checks(path, artifact)
             encoded = json.loads(path.read_text())
-            loaded = upstream.read_upstream_checks(path)
+            loaded = vllm_deduplication.read_upstream_checks(path)
 
         self.assertNotIn("cause_key", encoded["checks"][0])
         self.assertEqual(loaded, artifact)
@@ -160,23 +166,23 @@ class TestArtifactConversion(unittest.TestCase):
         }
 
         with self.assertRaises(ValueError):
-            upstream.UpstreamChecksArtifact.from_dict(raw)
+            vllm_deduplication.UpstreamChecksArtifact.from_dict(raw)
 
 
 class TestArtifactInvariants(unittest.TestCase):
     def test_cause_signatures_must_be_unique(self):
         check = make_check("cause-1", "no_hits")
         with self.assertRaisesRegex(ValueError, "cause_signature"):
-            upstream.build_upstream_checks([check, check])
+            vllm_deduplication.build_upstream_checks([check, check])
 
     def test_failed_review_cannot_be_written_as_no_hits(self):
         check = make_check(
             "cause-1", "search_incomplete", count=None, error="rate limited"
         )
         with self.assertRaises(ValueError):
-            upstream.CauseUpstreamCheck(
+            vllm_deduplication.CauseUpstreamCheck(
                 check.cause_signature,
-                upstream.UpstreamStatus.NO_HITS,
+                vllm_deduplication.UpstreamStatus.NO_HITS,
                 check.searches,
             )
 
