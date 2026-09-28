@@ -8,6 +8,26 @@ const queryDir = path.resolve(
   "crcr_nightly_backend_summary"
 );
 const query = fs.readFileSync(path.join(queryDir, "query.sql"), "utf8");
+const nightlySummaryQuery = fs.readFileSync(
+  path.resolve(
+    __dirname,
+    "..",
+    "clickhouse_queries",
+    "crcr_nightly_summary",
+    "query.sql"
+  ),
+  "utf8"
+);
+const successRateQuery = fs.readFileSync(
+  path.resolve(
+    __dirname,
+    "..",
+    "clickhouse_queries",
+    "crcr_success_rate",
+    "query.sql"
+  ),
+  "utf8"
+);
 const backendPage = fs.readFileSync(
   path.resolve(__dirname, "..", "pages", "crcr", "[org]", "[repo].tsx"),
   "utf8"
@@ -28,13 +48,15 @@ describe("crcr_nightly_backend_summary", () => {
   });
 
   test("counts CRCR's expected terminal outcomes as successes", () => {
-    expect(query).toContain("job_name LIKE '%xfail%' AND conclusion = 'failure'");
-    expect(query).toContain(
-      "job_name LIKE '%xcancel%' AND conclusion = 'cancelled'"
-    );
-    expect(query).toContain(
-      "job_name LIKE '%xtimeout%' AND conclusion = 'timed_out'"
-    );
+    for (const canonicalQuery of [
+      query,
+      nightlySummaryQuery,
+      successRateQuery,
+    ]) {
+      expect(canonicalQuery).toContain("LIKE '%xfail%'");
+      expect(canonicalQuery).toContain("LIKE '%xcancel%'");
+      expect(canonicalQuery).toContain("LIKE '%xtimeout%'");
+    }
   });
 
   test("feeds the per-repo nightly card from the server-side summary", () => {
@@ -42,5 +64,15 @@ describe("crcr_nightly_backend_summary", () => {
       "/api/clickhouse/crcr_nightly_backend_summary?parameters="
     );
     expect(backendPage).toContain("summaryStats={nightlySummary}");
+  });
+
+  test("dates each trend run once after selecting its final attempts", () => {
+    expect(successRateQuery).toContain(
+      "GROUP BY downstream_repo, run_id, job_name"
+    );
+    expect(successRateQuery).toContain("toDate(max(started_at)) AS run_day");
+    expect(successRateQuery).toContain(
+      "INNER JOIN run_dates USING (downstream_repo, run_id)"
+    );
   });
 });

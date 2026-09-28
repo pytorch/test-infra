@@ -118,7 +118,7 @@ function FailuresChart({
   );
 }
 
-function TotalRunsChart({
+function TotalJobsChart({
   data,
   days,
 }: {
@@ -147,10 +147,10 @@ function TotalRunsChart({
       <TimeSeriesPanelWithData
         data={data}
         series={series}
-        title="Total Runs Over Time"
+        title="Total Jobs Over Time"
         groupByFieldName="repo"
         yAxisRenderer={(v: number) => String(Math.round(v))}
-        yAxisLabel="Total Runs"
+        yAxisLabel="Total Jobs"
         useUTC
       />
     </Box>
@@ -194,7 +194,7 @@ function MetricsCharts({
         <Stack spacing={3}>
           <PassRateChart data={data} days={days} />
           <FailuresChart data={data} days={days} />
-          <TotalRunsChart data={data} days={days} />
+          <TotalJobsChart data={data} days={days} />
         </Stack>
       )}
 
