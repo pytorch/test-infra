@@ -19,7 +19,6 @@ from torchci.vllm_triage_file_issues import (
     classification_confidence,
     cluster_fingerprint,
     eligible,
-    eligible_for_filing,
     fingerprint,
     issue_clusters,
     legacy_fingerprint,
@@ -123,6 +122,18 @@ class TestEligible(unittest.TestCase):
         self.assertEqual(
             [classification_confidence(c) for c in observed], ["high", "medium"]
         )
+
+    def test_vllm_requires_a_no_hits_check(self):
+        vllm = cause(routing="vllm-project/vllm")
+
+        self.assertFalse(eligible(vllm, UpstreamStatus.UPSTREAM_CANDIDATES, True))
+        self.assertFalse(eligible(vllm, UpstreamStatus.SEARCH_INCOMPLETE, True))
+        with self.assertRaises(AssertionError):
+            eligible(vllm, None, True)
+        self.assertTrue(eligible(vllm, UpstreamStatus.NO_HITS, True))
+
+    def test_pytorch_does_not_require_upstream_clearance(self):
+        self.assertTrue(eligible(cause(), None))
 
 
 class TestFingerprint(unittest.TestCase):
@@ -611,19 +622,6 @@ class TestReportSilences(unittest.TestCase):
                 "t", "pytorch/test-infra", report, [child], set(), self.MINOR
             )
         self.assertIn(f"<!-- {vtfi.SILENT_PREFIX}: 1 -->", posted[0][2]["body"])
-
-
-class TestFilingEligibility(unittest.TestCase):
-    def test_vllm_requires_a_no_hits_check(self):
-        vllm = cause(routing="vllm-project/vllm")
-
-        self.assertFalse(eligible_for_filing(vllm, UpstreamStatus.UPSTREAM_CANDIDATES))
-        self.assertFalse(eligible_for_filing(vllm, UpstreamStatus.SEARCH_INCOMPLETE))
-        self.assertFalse(eligible_for_filing(vllm, None))
-        self.assertTrue(eligible_for_filing(vllm, UpstreamStatus.NO_HITS))
-
-    def test_pytorch_does_not_require_upstream_clearance(self):
-        self.assertTrue(eligible_for_filing(cause(), None))
 
 
 if __name__ == "__main__":

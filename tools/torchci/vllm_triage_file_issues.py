@@ -587,7 +587,11 @@ def routing_of(cause: Dict[str, Any]) -> str:
     return str(cause.get("routing", "")).strip().lower()
 
 
-def eligible(cause: Dict[str, Any]) -> bool:
+def eligible(
+    cause: Dict[str, Any],
+    upstream_status: Optional[UpstreamStatus] = None,
+    upstream_checks: bool = False,
+) -> bool:
     """Medium-confidence causes with a repo to fix them in.
 
     Infra-looking clusters and anything the agent could not root-cause stay out of
@@ -605,32 +609,17 @@ def eligible(cause: Dict[str, Any]) -> bool:
     vllm-project/vllm#58599. Routing is a destination; confidence is the quality
     bar, and the fields above already carry it.
     """
-    return (
+    base_eligible = (
         bool(cause.get("determined"))  # type: ignore[return-value]
         and classification_confidence(cause) != "low"
-        and classification_confidence(cause)
+        and bool(classification_confidence(cause))
         and new_failure_confidence(cause) != "low"
         and routing_of(cause) in FILED_ROUTINGS
     )
-
-
-def eligible_for_filing(
-    cause: Dict[str, Any], upstream_status: Optional[UpstreamStatus]
-) -> bool:
-    """Return whether a cause passes the filing and upstream gates.
-
-    Args:
-        cause: Root cause being considered for filing.
-        upstream_status: Review status for this cause, or None for a non-vLLM
-            cause or missing review.
-
-    Returns:
-        Whether the cause is eligible to enter the filing path.
-    """
-
-    return eligible(cause) and (
-        routing_of(cause) != VLLM_ROUTING or upstream_status == UpstreamStatus.NO_HITS
-    )
+    if not upstream_checks or routing_of(cause) != VLLM_ROUTING:
+        return base_eligible
+    assert upstream_status is not None
+    return base_eligible and upstream_status == UpstreamStatus.NO_HITS
 
 
 def main() -> int:
@@ -642,7 +631,13 @@ def main() -> int:
     p.add_argument(
         "--upstream-checks",
         default="",
-        help="validated upstream-checks.json; vLLM filing is disabled when absent",
+        help="validated upstream-checks.json used by --check-vllm-upstream",
+    )
+    p.add_argument(
+        "--check-vllm-upstream",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="require an upstream NO_HITS review before filing vLLM causes",
     )
     p.add_argument(
         "--torch-version-override",
@@ -666,6 +661,7 @@ def main() -> int:
     causes = findings.get("causes") or []
 
     upstream_checks = UpstreamChecksArtifact(checks=[])
+    upstream_checks_enabled = args.check_vllm_upstream
     if args.upstream_checks:
         try:
             upstream_checks = read_upstream_checks(args.upstream_checks)
@@ -714,15 +710,17 @@ def main() -> int:
     upstream_statuses = {
         check.cause_signature: check.status for check in upstream_checks.checks
     }
-    selected = [
-        cause
-        for cause in causes
-        if eligible_for_filing(
+    selected = []
+    skipped = []
+    for cause in causes:
+        if eligible(
             cause,
             upstream_statuses.get(str(cause.get("signature") or "")),
-        )
-    ]
-    skipped = [c for c in causes if c not in selected]
+            upstream_checks_enabled,
+        ):
+            selected.append(cause)
+        else:
+            skipped.append(cause)
 
     print(f"{len(causes)} cause(s): {len(selected)} eligible, {len(skipped)} skipped")
     for c in skipped:

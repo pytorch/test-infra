@@ -1,12 +1,10 @@
-"""Provide upstream queries and persist the agent's review results."""
+"""Persist and validate the agent's upstream review results."""
 
 from __future__ import annotations
 
 import json
 import os
 import re
-import urllib.parse
-import urllib.request
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -14,9 +12,6 @@ from typing import Any, List, Mapping, Optional, Sequence
 
 
 UPSTREAM_REPO = "vllm-project/vllm"
-GITHUB_API = "https://api.github.com"
-SEARCH_PREFIX = f"repo:{UPSTREAM_REPO} is:issue"
-MAX_ISSUES = 10
 ISSUE_URL = re.compile(
     rf"^https://github\.com/{re.escape(UPSTREAM_REPO)}/issues/[1-9][0-9]*$"
 )
@@ -283,50 +278,3 @@ def write_upstream_checks(
     Path(path).write_text(
         json.dumps(asdict(artifact), indent=2) + "\n", encoding="utf-8"
     )
-
-
-# Read-only query interface for the upstream-review agent.
-
-
-def scope_upstream_query(query: str) -> str:
-    """Scope an agent query to upstream vLLM issues.
-
-    Args:
-        query: Search expression chosen by the agent.
-
-    Returns:
-        The scoped GitHub search expression.
-    """
-
-    query = query.strip()
-    if not query:
-        raise ValueError("query must not be empty")
-    if query.startswith(SEARCH_PREFIX):
-        return query
-    return f"{SEARCH_PREFIX} {query}"
-
-
-def query_upstream_issues(query: str, token: str) -> Any:
-    """Run one read-only GitHub issue search.
-
-    Args:
-        query: Search expression chosen by the agent.
-        token: Read-only GitHub token.
-
-    Returns:
-        The decoded GitHub response, including issue details for review.
-    """
-
-    params = urllib.parse.urlencode(
-        {"q": scope_upstream_query(query), "per_page": MAX_ISSUES}
-    )
-    request = urllib.request.Request(
-        f"{GITHUB_API}/search/issues?{params}",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            **({"Authorization": f"Bearer {token}"} if token else {}),
-        },
-    )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.loads(response.read())

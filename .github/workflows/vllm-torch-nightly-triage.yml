@@ -275,7 +275,7 @@ jobs:
         uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
 
   # Reviews vLLM-routed causes against existing upstream issues before the filer
-  # creates a test-infra child. This action has read-only GitHub access and writes
+  # creates a test-infra child. This action searches public GitHub issues and writes
   # only the checks artifact; it does not file or modify issues.
   check-vllm-upstream-issues:
     needs: [triage, root-cause]
@@ -308,10 +308,6 @@ jobs:
 
       - name: Upstream vLLM issue review
         uses: anthropics/claude-code-action@9ca9355b36297178e28d37c799d1c9c8a28e6507 # Claude Code 2.1.280
-        env:
-          # Used only by the read-only query helper. The action has no issues:write
-          # permission and must never use this token to mutate upstream issues.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           use_bedrock: "true"
           show_full_output: "true"
@@ -334,11 +330,8 @@ jobs:
             including causes that would not pass the downstream filing confidence
             gate. Do not review or emit checks for other routings.
 
-            The only upstream search boundary is the read-only helper described by
-            the skill. The Python invocation in the skill is a guiding example for
-            using the Bash tool; do not use gh, curl, or any other GitHub API path.
-            The helper's GITHUB_TOKEN is already in the environment and must not be
-            copied into files or output.
+            Use curl exactly as described by the skill for public GitHub issue
+            searches. Do not use gh or any other GitHub API path.
 
             Write the complete serialized artifact to:
               ${{ runner.temp }}/upstream-checks.json
@@ -423,8 +416,9 @@ jobs:
           upstream_args=()
           upstream_checks="${RUNNER_TEMP}/upstream-checks/upstream-checks.json"
           if [[ -s "${upstream_checks}" ]]; then
-            upstream_args+=(--upstream-checks "${upstream_checks}")
+            upstream_args+=(--check-vllm-upstream --upstream-checks "${upstream_checks}")
           else
+            upstream_args+=(--no-check-vllm-upstream)
             echo "No valid upstream checks artifact; vLLM filing is disabled." \
               | tee -a "${GITHUB_STEP_SUMMARY}"
           fi

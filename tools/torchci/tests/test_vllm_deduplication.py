@@ -1,19 +1,16 @@
-"""Tests for the vLLM upstream review artifact and query helper."""
+"""Tests for the vLLM upstream review artifact."""
 
 import json
 import tempfile
 import unittest
-import urllib.error
 from pathlib import Path
-from typing import Any, Literal
-from unittest import mock
 
 from torchci import vllm_deduplication
 
 
 def make_check(signature, status, count=1, issues=None, error=None):
     search = vllm_deduplication.IssueSearchResult(
-        'repo:vllm-project/vllm is:issue "agent query"',
+        '"agent query"',
         count,
         list(issues or []),
         error,
@@ -23,62 +20,6 @@ def make_check(signature, status, count=1, issues=None, error=None):
         vllm_deduplication.UpstreamStatus(status),
         [search],
     )
-
-
-class TestQueryInterface(unittest.TestCase):
-    def test_agent_query_is_scoped_and_returns_raw_issue_details(self):
-        payload = {
-            "total_count": 1,
-            "items": [
-                {
-                    "html_url": "https://github.com/vllm-project/vllm/issues/123",
-                    "title": "NIXL issue",
-                    "state": "open",
-                    "body": "Details for the agent to review.",
-                }
-            ],
-        }
-
-        class Response:
-            def __enter__(self):
-                return self
-
-            def __exit__(
-                self, exc_type: Any, exc_value: Any, traceback: Any
-            ) -> Literal[False]:
-                return False
-
-            def read(self):
-                return json.dumps(payload).encode()
-
-        with mock.patch.object(
-            vllm_deduplication.urllib.request,
-            "urlopen",
-            return_value=Response(),
-        ) as request:
-            result = vllm_deduplication.query_upstream_issues('"nixl_ep"', "token")
-
-        request.assert_called_once()
-        sent_request = request.call_args.args[0]
-        self.assertIn(
-            "repo%3Avllm-project%2Fvllm+is%3Aissue+%22nixl_ep%22",
-            sent_request.full_url,
-        )
-        self.assertEqual(sent_request.get_header("Authorization"), "Bearer token")
-        self.assertEqual(result, payload)
-        self.assertEqual(result["items"][0]["body"], "Details for the agent to review.")
-
-    def test_bad_query_and_request_fail_immediately(self):
-        with self.assertRaises(ValueError):
-            vllm_deduplication.scope_upstream_query("  ")
-
-        with mock.patch.object(
-            vllm_deduplication.urllib.request,
-            "urlopen",
-            side_effect=urllib.error.URLError("rate limited"),
-        ):
-            with self.assertRaises(urllib.error.URLError):
-                vllm_deduplication.query_upstream_issues("nixl_ep", "token")
 
 
 class TestAgentReviewResults(unittest.TestCase):
