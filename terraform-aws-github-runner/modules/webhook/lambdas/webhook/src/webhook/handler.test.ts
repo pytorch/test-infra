@@ -51,9 +51,9 @@ describe('handler', () => {
     console.error = originalError;
   });
 
-  it('returns 500 if no signature available', async () => {
+  it('returns 401 if no signature available', async () => {
     const resp = await handle({}, '');
-    expect(resp).toBe(500);
+    expect(resp).toBe(401);
   });
 
   // Positive control: proves the actionable path really does fire when the signature is valid,
@@ -175,6 +175,7 @@ describe('handler', () => {
     expect(resp).toBe(500);
     expect(sendActionRequest).not.toBeCalled();
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('KMS unavailable'));
+    expect(console.error).toHaveBeenCalledTimes(1);
   });
 
   describe('signature check logging', () => {
@@ -219,6 +220,18 @@ describe('handler', () => {
       expect(checks()).toEqual([expect.objectContaining({ signature_check: 'no_secret', action: 'rejected' })]);
     });
 
+    it.each(['enforce', 'warn'])('rejects a decryption failure in %s mode and logs one decrypt_error', async (mode) => {
+      process.env.WEBHOOK_SIGNATURE_MODE = mode;
+      (decrypt as jest.Mock).mockRejectedValueOnce(new Error('ThrottlingException'));
+      const resp = await handle(signedHeaders(queuedWorkflowJob, 'workflow_job'), queuedWorkflowJob);
+      expect(resp).toBe(500);
+      expect(sendActionRequest).not.toBeCalled();
+      expect(console.error).toHaveBeenCalledTimes(1);
+      expect(checks()).toEqual([
+        expect.objectContaining({ signature_check: 'decrypt_error', mode, action: 'rejected' }),
+      ]);
+    });
+
     it('logs a rejected check for a missing signature', async () => {
       await handle({ 'X-GitHub-Event': 'push' }, queuedWorkflowJob);
       expect(checks()).toEqual([expect.objectContaining({ signature_check: 'missing', action: 'rejected' })]);
@@ -253,10 +266,10 @@ describe('handler', () => {
       info.mockRestore();
     });
 
-    it('still returns 500 for a missing signature in warn mode', async () => {
+    it('still rejects a missing signature with 401 in warn mode', async () => {
       process.env.WEBHOOK_SIGNATURE_MODE = 'warn';
       const resp = await handle({ 'X-GitHub-Event': 'workflow_job' }, queuedWorkflowJob);
-      expect(resp).toBe(500);
+      expect(resp).toBe(401);
       expect(sendActionRequest).not.toBeCalled();
     });
 

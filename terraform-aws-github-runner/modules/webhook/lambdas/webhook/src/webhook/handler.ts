@@ -6,10 +6,11 @@ import { decrypt } from '../kms';
 
 const DEFAULT_PATTERNS = [/windows-.*/, /ubuntu-.*/, /macos-.*/];
 
-type SignatureResult = 'valid' | 'invalid' | 'error' | 'missing' | 'no_secret';
+type SignatureResult = 'valid' | 'invalid' | 'error' | 'missing' | 'no_secret' | 'decrypt_error';
 
-// WEBHOOK_SIGNATURE_MODE=warn logs signature failures but still processes the event, so enforcement
+// WEBHOOK_SIGNATURE_MODE=warn logs a failed verification but still processes the event, so enforcement
 // can be rolled out and rolled back without a code change. Unset or any other value enforces.
+// A delivery with no signature header is rejected with a 401 in both modes.
 export function signatureMode(): 'enforce' | 'warn' {
   const raw = (process.env.WEBHOOK_SIGNATURE_MODE ?? '').trim().toLowerCase();
   if (raw === 'warn') {
@@ -51,7 +52,8 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
   if (!signature) {
     console.error("Github event doesn't have signature. This webhook requires a secret to be configured.");
     logCheck('missing', 'rejected');
-    return 500;
+    // 4xx rather than 5xx, so a sender that retries server errors does not replay it.
+    return 401;
   }
 
   let secret: string | undefined;
@@ -63,10 +65,12 @@ export const handle = async (headers: IncomingHttpHeaders, payload: any): Promis
     );
   } catch (e) {
     console.error(`Cannot decrypt secret: ${e}`);
+    logCheck('decrypt_error', 'rejected');
+    return 500;
   }
   // A missing or blank secret is a deployment problem, not a bad signature, so it must not surface as a 401.
   if (secret === undefined || secret.trim() === '') {
-    console.error('Cannot decrypt secret.');
+    console.error('Webhook secret is not configured.');
     logCheck('no_secret', 'rejected');
     return 500;
   }
