@@ -240,6 +240,13 @@
       "rocm"
     ]
   ],
+  "test_copy_transpose_tiled_small_case_at_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199016",
+    "https://github.com/pytorch/pytorch/issues/199016",
+    [
+      "rocm"
+    ]
+  ],
   "test_copy_transpose_tiled_small_case_at_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "198911",
     "https://github.com/pytorch/pytorch/issues/198911",
@@ -490,6 +497,22 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
+    "186866",
+    "https://github.com/pytorch/pytorch/issues/186866",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_group_norm_backward_large_input_float16_trigger_32bit_overflow_True_mps_float16 (__main__.TestConsistencyMPS)": [
+    "186867",
+    "https://github.com/pytorch/pytorch/issues/186867",
+    [
+      "mac",
+      "macos"
     ]
   ],
   "test_grouped_gemm_rocm_ck_flag_cuda (__main__.TestMatmulCudaCUDA)": [
@@ -1507,31 +1530,12 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
-    "182418",
-    "https://github.com/pytorch/pytorch/issues/182418",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
     "182397",
     "https://github.com/pytorch/pytorch/issues/182397",
     [
       "asan",
       "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b7 (__main__.TestVisionTracing)": [
-    "123890",
-    "https://github.com/pytorch/pytorch/issues/123890",
-    [
-      "asan",
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
