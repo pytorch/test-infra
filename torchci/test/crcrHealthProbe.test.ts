@@ -1,7 +1,6 @@
 import { readFileSync } from "fs";
 import {
   CRCR_HEALTH_PR_COUNT,
-  CRCR_HEALTH_STALE_AFTER_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
 import path from "path";
