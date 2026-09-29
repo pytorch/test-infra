@@ -39,22 +39,6 @@
     "",
     ""
   ],
-  "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape1 (__main__.TestCKBackend)": [
-    "pytorch-bot",
-    "167297",
-    "https://github.com/pytorch/pytorch/issues/167297",
-    "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape1 (__main__.TestCKBackend)",
-    "",
-    ""
-  ],
-  "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)": [
-    "pytorch-bot",
-    "167272",
-    "https://github.com/pytorch/pytorch/issues/167272",
-    "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)",
-    "",
-    ""
-  ],
   "trunk-rocm-sandbox / linux-noble-rocm-py3.11-mi350 / test": [
     "jithunnair-amd",
     "167849",
