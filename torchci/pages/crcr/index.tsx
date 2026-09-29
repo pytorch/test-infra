@@ -33,9 +33,8 @@ import RelayHealthDetailsDialog, {
 } from "components/crcr/RelayHealthDetailsDialog";
 import { buildDemotionStatuses } from "lib/crcr/demotionStatus";
 import {
+  CRCR_HEALTH_PR_COUNT,
   CRCR_HEALTH_STALE_AFTER_MINUTES,
-  CRCR_HEALTH_WINDOW_LABEL,
-  CRCR_HEALTH_WINDOW_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
 import {
@@ -555,7 +554,7 @@ function CrcrTestHealthCard({
   const detailsUrl = detailsOpen
     ? `/api/clickhouse/crcr_health_pr_job_details?parameters=${encodeURIComponent(
         JSON.stringify({
-          window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+          count: String(CRCR_HEALTH_PR_COUNT),
           stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
         })
       )}`
@@ -610,7 +609,7 @@ function CrcrTestHealthCard({
       ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
       : pending > 0
       ? `${pending} job${pending === 1 ? "" : "s"} pending`
-      : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
+      : `${passedCount}/${healthPrs.length} recent probe PRs passed`;
   return (
     <>
       <ButtonBase
@@ -870,7 +869,7 @@ export default function CrcrSummaryPage() {
     `/api/clickhouse/crcr_health_last_prs?parameters=` +
     encodeURIComponent(
       JSON.stringify({
-        window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+        count: String(CRCR_HEALTH_PR_COUNT),
         stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
       })
     );

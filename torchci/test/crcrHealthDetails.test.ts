@@ -5,10 +5,7 @@ import {
   workflowJobUrl,
 } from "components/crcr/RelayHealthDetailsDialog";
 import { readFileSync } from "fs";
-import {
-  CRCR_HEALTH_STALE_AFTER_MINUTES,
-  CRCR_HEALTH_WINDOW_MINUTES,
-} from "lib/crcr/healthProbe";
+import { CRCR_HEALTH_PR_COUNT } from "lib/crcr/healthProbe";
 import path from "path";
 
 const detailsQuery = readFileSync(
@@ -42,16 +39,12 @@ function job(overrides: Partial<RelayHealthJob> = {}): RelayHealthJob {
 }
 
 describe("CRCR health details", () => {
-  test("limits PRs and jobs to the health card window", () => {
-    expect(detailsRecentPrs).toContain(
-      "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
-    );
-    expect(detailsLatestJobs).toContain(
-      "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
-    );
-    expect(CRCR_HEALTH_WINDOW_MINUTES).toBeGreaterThan(
-      CRCR_HEALTH_STALE_AFTER_MINUTES
-    );
+  test("uses the same latest-five-PR selection as the health card", () => {
+    expect(CRCR_HEALTH_PR_COUNT).toBe(5);
+    expect(detailsRecentPrs).toContain("ORDER BY max(started_at) DESC");
+    expect(detailsRecentPrs).toContain("LIMIT {count: UInt64}");
+    expect(detailsRecentPrs).not.toContain("started_at >= now()");
+    expect(detailsLatestJobs).not.toContain("started_at >= now()");
   });
 
   test("accepts expected terminal probe outcomes", () => {

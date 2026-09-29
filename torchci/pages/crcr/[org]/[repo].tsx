@@ -19,9 +19,8 @@ import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import {
+  CRCR_HEALTH_PR_COUNT,
   CRCR_HEALTH_STALE_AFTER_MINUTES,
-  CRCR_HEALTH_WINDOW_LABEL,
-  CRCR_HEALTH_WINDOW_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
@@ -516,7 +515,7 @@ function RelayHealthCard({
       ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
       : pending > 0
       ? `${pending} job${pending === 1 ? "" : "s"} pending`
-      : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
+      : `${passedCount}/${healthPrs.length} recent probe PRs passed`;
   return (
     <Paper
       elevation={1}
@@ -1543,7 +1542,7 @@ export default function CrcrBackendPage() {
     isCrcrTest && !isNightly
       ? `/api/clickhouse/crcr_health_last_prs?parameters=${encodeURIComponent(
           JSON.stringify({
-            window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+            count: String(CRCR_HEALTH_PR_COUNT),
             stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
           })
         )}`

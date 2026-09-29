@@ -4,8 +4,9 @@ WITH recent_prs AS (
     WHERE
         downstream_repo = 'pytorch/crcr-test'
         AND pr_number > 0
-        AND started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE
     GROUP BY pr_number
+    ORDER BY max(started_at) DESC
+    LIMIT {count: UInt64}
 ),
 
 latest_jobs AS (
@@ -24,7 +25,6 @@ latest_jobs AS (
     WHERE
         downstream_repo = 'pytorch/crcr-test'
         AND pr_number > 0
-        AND started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE
         AND pr_number IN (SELECT pr_number FROM recent_prs)
 )
 

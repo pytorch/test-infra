@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import {
+  CRCR_HEALTH_PR_COUNT,
   CRCR_HEALTH_STALE_AFTER_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
@@ -22,6 +23,7 @@ const normalizedQuery = query.replace(/\s+/g, " ");
 
 describe("CRCR relay health probe", () => {
   test("evaluates the latest five probe PRs instead of a time window", () => {
+    expect(CRCR_HEALTH_PR_COUNT).toBe(5);
     expect(recentPrs).toContain("ORDER BY max(started_at) DESC");
     expect(recentPrs).toContain("LIMIT {count: UInt64}");
     expect(recentPrs).not.toContain("started_at >= now()");

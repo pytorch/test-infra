@@ -1,6 +1,5 @@
+export const CRCR_HEALTH_PR_COUNT = 5;
 // ci-infra uses the callback's six-hour default and invokes the sweeper every ten minutes.
-export const CRCR_HEALTH_WINDOW_MINUTES = 12 * 60;
-export const CRCR_HEALTH_WINDOW_LABEL = "12h";
 export const CRCR_HEALTH_TIMEOUT_MINUTES = 6 * 60;
 export const CRCR_HEALTH_SWEEPER_INTERVAL_MINUTES = 10;
 export const CRCR_HEALTH_SWEEP_GRACE_MINUTES = 15;
