@@ -486,11 +486,6 @@
       "xpu"
     ]
   ],
-  "test_graph_partition_view_fallback (__main__.CudaGraphTreeTests)": [
-    "188677",
-    "https://github.com/pytorch/pytorch/issues/188677",
-    []
-  ],
   "test_graph_two_successive (__main__.TestCuda)": [
     "159113",
     "https://github.com/pytorch/pytorch/issues/159113",
