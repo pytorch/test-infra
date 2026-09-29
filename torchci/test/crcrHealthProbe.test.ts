@@ -1,7 +1,6 @@
 import { readFileSync } from "fs";
 import {
   CRCR_HEALTH_STALE_AFTER_MINUTES,
-  CRCR_HEALTH_WINDOW_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
 import path from "path";
@@ -22,16 +21,11 @@ const latestJobs = query.slice(query.indexOf("latest_jobs AS"));
 const normalizedQuery = query.replace(/\s+/g, " ");
 
 describe("CRCR relay health probe", () => {
-  test("limits PRs and jobs to a window that outlasts the sweep deadline", () => {
-    expect(CRCR_HEALTH_WINDOW_MINUTES).toBeGreaterThan(
-      CRCR_HEALTH_STALE_AFTER_MINUTES
-    );
-    expect(recentPrs).toContain(
-      "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
-    );
-    expect(latestJobs).toContain(
-      "started_at >= now() - INTERVAL {window_minutes: UInt64} MINUTE"
-    );
+  test("evaluates the latest five probe PRs instead of a time window", () => {
+    expect(recentPrs).toContain("ORDER BY max(started_at) DESC");
+    expect(recentPrs).toContain("LIMIT {count: UInt64}");
+    expect(recentPrs).not.toContain("started_at >= now()");
+    expect(latestJobs).not.toContain("started_at >= now()");
   });
 
   test("keeps expected in-progress probes out of pending and overdue counts", () => {
