@@ -1268,6 +1268,20 @@
       "rocm"
     ]
   ],
+  "test_sdpa_rewriter_stacked_layers_with_mask_gpu (__main__.SDPAPatternRewriterGpuDynamicTests)": [
+    "198998",
+    "https://github.com/pytorch/pytorch/issues/198998",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sdpa_rewriter_stacked_layers_with_mask_gpu (__main__.SDPAPatternRewriterGpuTests)": [
+    "198997",
+    "https://github.com/pytorch/pytorch/issues/198997",
+    [
+      "xpu"
+    ]
+  ],
   "test_sep (__main__.FilterTestCase)": [
     "198633",
     "https://github.com/pytorch/pytorch/issues/198633",
