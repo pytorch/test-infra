@@ -867,6 +867,13 @@
       "linux"
     ]
   ],
+  "test_non_contig_byte_cpu_float16 (__main__.TestUnaryUfuncsCPU)": [
+    "199039",
+    "https://github.com/pytorch/pytorch/issues/199039",
+    [
+      "macos"
+    ]
+  ],
   "test_non_strict_export_distribution_validation (__main__.TestExport)": [
     "198148",
     "https://github.com/pytorch/pytorch/issues/198148",
