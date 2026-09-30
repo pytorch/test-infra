@@ -95,7 +95,7 @@ CUDA_ARCHES_NO_WINDOWS = ["13.4"]
 # in pytorch/pytorch.github.io publishes an install selector for a CUDA version
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
-CUDA_ARCHES_NO_GETTING_STARTED = ["13.4"]
+CUDA_ARCHES_NO_GETTING_STARTED: List[str] = []
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
