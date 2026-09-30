@@ -438,12 +438,19 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
         self.mock_gh = self.patcher_gh.start()
         self.mock_gh.get_repo_access_token.return_value = "tok"
 
+        # Not on temporary demotion unless a test says so.
+        self.patcher_since = patch(
+            "utils.redis_helper.get_demotion_since", return_value=None
+        )
+        self.mock_since = self.patcher_since.start()
+
     def tearDown(self):
         self.patcher_allowlist.stop()
         self.patcher_redis.stop()
         self.patcher_rate.stop()
         self.patcher_hud.stop()
         self.patcher_gh.stop()
+        self.patcher_since.stop()
 
     def test_completed_callback_creates_check_run(self):
         self.mock_gh.create_check_run.return_value = 888
@@ -582,6 +589,34 @@ class TestCallbackCheckRunUpdate(unittest.TestCase):
         self.mock_redis.is_check_run_wanted.assert_called_once_with(
             unittest.mock.ANY, "abc123", "org/repo"
         )
+
+    def _l3(self):
+        mock_map = MagicMock()
+        mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        mock_map.needs_check_run.return_value = True
+        self.mock_load.return_value = mock_map
+
+    def test_l3_new_job_gets_no_check_run_while_its_demotion_pr_is_open(self):
+        self._l3()
+        self.mock_since.return_value = 500.0
+        # run 12345 has no earlier record: a job that starts now.
+        body = _body(status="in_progress", run_id=12345)
+
+        result = handle(_cfg(), body, verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_not_called()
+        # It still reports to HUD as before.
+        self.assertEqual(result, {"ok": True, "status": "in_progress"})
+
+    def test_l3_job_started_before_the_demotion_still_gets_its_check_run(self):
+        """Its check run may already show in progress, so it has to be finished."""
+        self._l3()
+        # The in-progress record says this job started at 1030.0.
+        self.mock_since.return_value = 2000.0
+
+        handle(_cfg(), _body(status="completed"), verified_repo="org/repo")
+
+        self.mock_gh.create_check_run.assert_called_once()
 
     def test_l2_completed_does_not_create_check_run(self):
         mock_map = MagicMock()
