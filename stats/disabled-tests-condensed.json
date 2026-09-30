@@ -1686,6 +1686,34 @@
       "rocm"
     ]
   ],
+  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsXPU)": [
+    "199142",
+    "https://github.com/pytorch/pytorch/issues/199142",
+    [
+      "xpu"
+    ]
+  ],
+  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes (__main__._cls)": [
+    "199141",
+    "https://github.com/pytorch/pytorch/issues/199141",
+    [
+      "xpu"
+    ]
+  ],
+  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "199143",
+    "https://github.com/pytorch/pytorch/issues/199143",
+    [
+      "xpu"
+    ]
+  ],
+  "test_weight_norm_1d_and_reduced_dtypes_xpu (__main__.GPUTests)": [
+    "199140",
+    "https://github.com/pytorch/pytorch/issues/199140",
+    [
+      "xpu"
+    ]
+  ],
   "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
     "188674",
     "https://github.com/pytorch/pytorch/issues/188674",
