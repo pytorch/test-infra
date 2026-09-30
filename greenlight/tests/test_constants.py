@@ -115,6 +115,11 @@ def test_merge_rules_constants_values():
     assert constants.MERGE_RULES_PATH == ".github/merge_rules.yaml"
 
 
+def test_target_branch_value():
+    # A path-scoped author is eligible only on this base: the one trymerge requires of a non-ghstack PR.
+    assert constants.TARGET_BRANCH == "main"
+
+
 def test_drci_endpoint_value():
     assert constants.DRCI_ENDPOINT == "https://hud.pytorch.org/api/drci/drci"
 

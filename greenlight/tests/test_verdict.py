@@ -3,13 +3,18 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import textwrap
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, NoReturn
 
 import pytest
+from github import UnknownObjectException
 
-from greenlight import cohort, comment_format, constants, github_client, verdict
-from greenlight.verdict import VerdictRequest
+from greenlight import comment_format, constants, github_client, verdict, verdict_input
+
+# has_covering_rule is imported rather than read off the module: conftest swaps the module attribute
+# for a refusing guard in every test, while this name keeps the real function for the fake clients.
+from greenlight.verdict import VerdictRequest, has_covering_rule
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -21,13 +26,15 @@ _VERSION = "2026-07-30 12:00:00.000"
 _VERSION_COMPACT = "20260730T120000_000"
 _EMIT_ID = "e" * 32
 
-# The trusted side must be a real member of cohort.TRUSTED_AUTHORS: the approval gate reads the
-# author through cohort.is_shadow, so a made-up "trusted" name would silently turn every LAND test
-# into a shadow test that asserts nothing. The shadow side carries no such requirement -- is_shadow
-# is just "not trusted", so any login outside the set serves. test_cohort_fixtures_are_real pins
-# each to its own side.
+# The eligibility fake installed below answers True for _TRUSTED_AUTHOR alone, and _FakePR defaults
+# to that author, so every LAND test approves unless it names another author or asks for shadow.
 _TRUSTED_AUTHOR = "albanD"
 _SHADOW_AUTHOR = "some-newcomer"
+
+
+@pytest.fixture(autouse=True)
+def eligibility(set_eligible):
+    return set_eligible(_TRUSTED_AUTHOR)
 
 
 class _Recorder:
@@ -66,8 +73,14 @@ class _FakeReview:
 
 
 class _FakeHead:
-    def __init__(self, sha: str) -> None:
+    def __init__(self, sha: str, ref: str = "feature") -> None:
         self.sha = sha
+        self.ref = ref
+
+
+class _FakeRef:
+    def __init__(self, ref: str) -> None:
+        self.ref = ref
 
 
 class _FakeComment:
@@ -81,6 +94,11 @@ class _FakeComment:
         self._rec.events.append("edit")
 
 
+class _FakeFile:
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
+
+
 class _FakePR:
     def __init__(
         self,
@@ -91,6 +109,7 @@ class _FakePR:
         author: str | None = _TRUSTED_AUTHOR,
     ) -> None:
         self.head = _FakeHead(head_sha)
+        self.base = _FakeRef(constants.TARGET_BRANCH)
         self.user = _FakeUser(author) if author is not None else None
         self._rec = rec
         self._reviews = reviews or []
@@ -113,6 +132,9 @@ class _FakePR:
 
     def get_reviews(self) -> list[_FakeReview]:
         return self._reviews
+
+    def get_files(self) -> list[_FakeFile]:
+        return []
 
 
 class _FakeRepo:
@@ -248,7 +270,7 @@ def test_full_no_land_on_delegating_repo_dismisses_without_commenting(make_confi
         )
 
     # The dismissal is the merge gate and must survive the comment gate untouched.
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
     assert pr.comments == []
     assert any("skipping upsert" in record.getMessage() for record in caplog.records)
@@ -450,7 +472,7 @@ def test_verdict_run_rejects_scan_only_dispatched_status(make_config):
     assert "AI_REVIEW_DISPATCHED" not in verdict.VERDICT_STATUSES
 
 
-def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_path):
+def test_full_no_land_dismisses_then_emits_payload_then_comments(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
     reviews = [
@@ -479,7 +501,7 @@ def test_full_no_land_emits_payload_dismisses_then_comments(make_config, tmp_pat
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["emit", "dismiss:1", "comment"]
+    assert rec.events == ["dismiss:1", "emit", "comment"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
     payload = _decode(emit.row_gzip)
     # The stored message is scrubbed of secrets but otherwise verbatim -- not @-defanged like the
@@ -556,7 +578,7 @@ def test_full_no_land_upserts_existing_marked_comment(make_config, tmp_path):
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     # NO_LAND dismisses the prior approval, then edits the same comment in place.
-    assert rec.events == ["emit", "dismiss:1", "edit"]
+    assert rec.events == ["dismiss:1", "emit", "edit"]
     assert pr.comments == []
     assert f"**{comment_format.NO_LAND_HEADLINE}**" in existing.body
     assert "needs work" in existing.body
@@ -580,6 +602,33 @@ def test_mismatched_head_land_still_records_and_approves(make_config, tmp_path):
     assert pr.created_reviews[0][0] == "APPROVE"
 
 
+def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing(make_config, tmp_path, monkeypatch):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _ReviewBoomPR("pushed-after-review", rec, reviews=reviews)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=62, head_sha="reviewed", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    # Stands in for a path-scoped author's lookup, which answers only while the live head is the one
+    # it was handed.
+    def eligible_on_the_live_head_only(
+        token: str, repo: str, pr_number: int, head_sha: str, author: str | None
+    ) -> bool:
+        return head_sha == pr.head.sha
+
+    monkeypatch.setattr(verdict, "has_covering_rule", eligible_on_the_live_head_only)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert pr.created_reviews == []
+    assert rec.events == ["emit", "dismiss:1"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
 def test_mismatched_head_no_land_still_records_and_comments(make_config, tmp_path):
     rec = _Recorder()
     emit = _FakeEmit(rec)
@@ -593,7 +642,7 @@ def test_mismatched_head_no_land_still_records_and_comments(make_config, tmp_pat
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["emit", "dismiss:1", "comment"]
+    assert rec.events == ["dismiss:1", "emit", "comment"]
     assert _decode(emit.row_gzip)["head_sha"] == "expected-sha"  # the INPUT head_sha is stored verbatim
 
 
@@ -945,14 +994,6 @@ def test_full_land_post_review_failure_is_fatal(make_config, tmp_path):
     assert pr.created_reviews == []
 
 
-def test_cohort_fixtures_are_real():
-    # Every shadow assertion below is only meaningful while these two logins really sit on opposite
-    # sides of the trusted set. A change to cohort.TRUSTED_AUTHORS must fail here rather than
-    # quietly turn the LAND tests into shadow tests that assert nothing.
-    assert cohort.is_trusted(_TRUSTED_AUTHOR)
-    assert cohort.is_shadow(_SHADOW_AUTHOR)
-
-
 def test_shadow_land_posts_no_approval(make_config, tmp_path, caplog):
     # THE load-bearing invariant of shadow mode. pytorch/pytorch's merge_rules.yaml gives the
     # "Greenlight Review Bot" rule patterns ['*'], so one greenlight approval authorizes a merge of
@@ -1014,7 +1055,7 @@ def test_land_withholds_approval_and_stamps_row_when_either_source_says_shadow(
     assert _decode(emit.row_gzip)["shadow"] is True
 
 
-def test_non_shadow_land_approves_and_stamps_the_row_authoritative(make_config, tmp_path):
+def test_non_shadow_land_approves_and_stamps_the_row_authoritative(make_config, tmp_path, eligibility):
     rec = _Recorder()
     emit = _FakeEmit(rec)
     pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
@@ -1030,6 +1071,7 @@ def test_non_shadow_land_approves_and_stamps_the_row_authoritative(make_config, 
     assert pr.created_reviews == [("APPROVE", "")]
     assert rec.events == ["emit", "review:APPROVE"]
     assert _decode(emit.row_gzip)["shadow"] is False
+    assert eligibility.calls == [("tok", "pytorch/pytorch", 52, "h", _TRUSTED_AUTHOR)]
 
 
 def test_shadow_land_dismisses_the_prior_approval_a_demoted_author_still_holds(make_config, tmp_path):
@@ -1089,9 +1131,56 @@ def test_shadow_no_land_still_dismisses_prior_approval(make_config, tmp_path):
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
     assert _decode(emit.row_gzip)["shadow"] is True
+
+
+def test_shadow_request_never_resolves_eligibility(make_config, tmp_path, eligibility):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _ReviewBoomPR("h", rec, author=_TRUSTED_AUTHOR)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="m")
+    req = VerdictRequest(
+        repo="pytorch/pytorch",
+        pr_number=58,
+        head_sha="h",
+        eval_hash=_HASH,
+        verdict_file=vf,
+        bot_login=_BOT,
+        shadow=True,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert eligibility.calls == []
+    assert rec.events == ["emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
+def test_no_land_dismisses_before_a_failing_eligibility_lookup_and_records_nothing(make_config, tmp_path, monkeypatch):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _FakePR("h", rec, reviews=reviews)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
+    req = VerdictRequest(
+        repo="pytorch/vision", pr_number=59, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    def failing_lookup(token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> NoReturn:
+        rec.events.append("lookup")
+        raise RuntimeError("merge rules unreadable")
+
+    monkeypatch.setattr(verdict, "has_covering_rule", failing_lookup)
+
+    with pytest.raises(RuntimeError, match="merge rules unreadable"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["dismiss:1", "lookup"]
+    assert emit.row_gzip is None
 
 
 @pytest.mark.parametrize(
@@ -1150,7 +1239,7 @@ def test_full_no_land_comment_failure_is_best_effort_and_still_dismisses(make_co
         verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     # The dismissal (security action) ran and the row emitted; the failed comment did not raise.
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
     assert emit.row_gzip is not None
     assert any("Failed to upsert verdict comment" in record.getMessage() for record in caplog.records)
@@ -1365,20 +1454,20 @@ def test_resolve_cli_status_overrides_file(tmp_path):
     vf = _write_verdict(tmp_path, status="NO_LAND", reason="r", message="m")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="LAND", verdict_file=vf)
 
-    assert verdict._resolve_verdict(req) == ("LAND", "r", "m")
+    assert verdict_input._resolve_verdict(req) == ("LAND", "r", "m")
 
 
 def test_resolve_status_from_file_is_normalized(tmp_path):
     vf = _write_verdict(tmp_path, status="land", reason="r", message="m")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=vf)
 
-    assert verdict._resolve_verdict(req) == ("LAND", "r", "m")
+    assert verdict_input._resolve_verdict(req) == ("LAND", "r", "m")
 
 
 def test_resolve_cli_marker_needs_no_file():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="cancelled")
 
-    assert verdict._resolve_verdict(req) == ("CANCELLED", "", "")
+    assert verdict_input._resolve_verdict(req) == ("CANCELLED", "", "")
 
 
 def test_resolve_cli_marker_ignores_a_supplied_file(tmp_path):
@@ -1386,28 +1475,28 @@ def test_resolve_cli_marker_ignores_a_supplied_file(tmp_path):
     missing = str(tmp_path / "nope.json")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="CANCELLED", verdict_file=missing)
 
-    assert verdict._resolve_verdict(req) == ("CANCELLED", "", "")
+    assert verdict_input._resolve_verdict(req) == ("CANCELLED", "", "")
 
 
 def test_resolve_file_marker_drops_reason_and_message(tmp_path):
     vf = _write_verdict(tmp_path, status="FAILED", reason="ignored", message="ignored")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=vf)
 
-    assert verdict._resolve_verdict(req) == ("FAILED", "", "")
+    assert verdict_input._resolve_verdict(req) == ("FAILED", "", "")
 
 
 def test_resolve_full_status_without_file_raises():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="LAND")
 
     with pytest.raises(ValueError, match="requires --verdict-file"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_resolve_no_status_anywhere_raises():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h")
 
     with pytest.raises(ValueError, match="verdict status is required"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_resolve_unknown_status_raises(tmp_path):
@@ -1415,7 +1504,7 @@ def test_resolve_unknown_status_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=vf)
 
     with pytest.raises(ValueError, match="unknown verdict status"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_resolve_rejects_scan_only_dispatched_status():
@@ -1424,9 +1513,9 @@ def test_resolve_rejects_scan_only_dispatched_status():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="AI_REVIEW_DISPATCHED")
 
     with pytest.raises(ValueError, match="unknown verdict status 'AI_REVIEW_DISPATCHED'"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
-    assert "AI_REVIEW_DISPATCHED" not in verdict._MARKER_STATUSES
+    assert "AI_REVIEW_DISPATCHED" not in verdict_input._MARKER_STATUSES
 
 
 def test_load_bad_json_raises(tmp_path):
@@ -1435,14 +1524,14 @@ def test_load_bad_json_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="not valid JSON"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_missing_file_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(tmp_path / "nope.json"))
 
     with pytest.raises(ValueError, match="cannot read verdict file"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_non_object_json_raises(tmp_path):
@@ -1451,7 +1540,7 @@ def test_load_non_object_json_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="must contain a JSON object"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_non_string_reason_raises(tmp_path):
@@ -1460,7 +1549,7 @@ def test_load_non_string_reason_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="field 'reason' must be a string"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_non_string_status_raises(tmp_path):
@@ -1469,13 +1558,13 @@ def test_load_non_string_status_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="field 'status' must be a string"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_verdict_file_returns_the_parsed_document(tmp_path):
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
 
-    doc = verdict._load_verdict_file(vf)
+    doc = verdict_input._load_verdict_file(vf)
 
     assert (doc.status, doc.reason, doc.message) == ("LAND", "clean", "LGTM")
 
@@ -1486,30 +1575,30 @@ def test_load_verdict_file_defaults_absent_fields(tmp_path):
     path = tmp_path / "v.json"
     path.write_text("{}", encoding="utf-8")
 
-    doc = verdict._load_verdict_file(str(path))
+    doc = verdict_input._load_verdict_file(str(path))
 
     assert (doc.status, doc.reason, doc.message) == (None, "", "")
 
 
 def test_validate_eval_hash_accepts_64_lowercase_hex():
-    verdict._validate_eval_hash("0123456789abcdef" * 4)
+    verdict_input._validate_eval_hash("0123456789abcdef" * 4)
 
 
 @pytest.mark.parametrize("bad", ["", "abc", "A" * 64, "g" * 64, "a" * 63, "a" * 65])
 def test_validate_eval_hash_rejects(bad):
     with pytest.raises(ValueError, match="eval_hash"):
-        verdict._validate_eval_hash(bad)
+        verdict_input._validate_eval_hash(bad)
 
 
 @pytest.mark.parametrize("reason", sorted(verdict.ALLOWED_REASONS))
 def test_validate_reason_accepts_every_canonical_reason(reason: str) -> None:
-    verdict._validate_reason("NO_LAND", reason)
+    verdict_input._validate_reason("NO_LAND", reason)
 
 
 @pytest.mark.parametrize("bad", ["", "looks_good", "CLEAN"])
 def test_validate_reason_rejects(bad):
     with pytest.raises(ValueError, match="not an allowed verdict reason"):
-        verdict._validate_reason("NO_LAND", bad)
+        verdict_input._validate_reason("NO_LAND", bad)
 
 
 @pytest.mark.parametrize("reason", sorted(verdict.ALLOWED_REASONS - {constants.LAND_REASON}))
@@ -1518,20 +1607,150 @@ def test_validate_reason_rejects_every_other_reason_beside_land(reason: str) -> 
     # the recorded status alone, so a LAND carrying one authorizes exactly the merge it objects to.
     # The same reason under NO_LAND must stay acceptable: the guard is the pairing, not the code.
     with pytest.raises(ValueError, match="must carry reason"):
-        verdict._validate_reason("LAND", reason)
-    verdict._validate_reason("NO_LAND", reason)
+        verdict_input._validate_reason("LAND", reason)
+    verdict_input._validate_reason("NO_LAND", reason)
 
 
 def test_validate_reason_accepts_the_land_reason_on_both_statuses() -> None:
-    verdict._validate_reason("LAND", constants.LAND_REASON)
-    verdict._validate_reason("NO_LAND", constants.LAND_REASON)
+    verdict_input._validate_reason("LAND", constants.LAND_REASON)
+    verdict_input._validate_reason("NO_LAND", constants.LAND_REASON)
 
 
 def test_validate_message_accepts_non_blank():
-    verdict._validate_message("needs work")
+    verdict_input._validate_message("needs work")
 
 
 @pytest.mark.parametrize("bad", ["", "   ", "\n\t"])
 def test_validate_message_rejects_blank(bad):
     with pytest.raises(ValueError, match="non-empty message"):
-        verdict._validate_message(bad)
+        verdict_input._validate_message(bad)
+
+
+_REVIEWED = "b" * 40
+_MERGE_RULES = textwrap.dedent(
+    """
+    - name: Superusers
+      patterns: ["*"]
+      approved_by: [CatchAll]
+    - name: Docs Maintainers
+      patterns: ["docs/**"]
+      approved_by: [Scoped, pytorch/doc-writers]
+    """
+)
+_UNEXPECTED_PR_READ = AssertionError("the PR was read")
+
+
+class _FakeContent:
+    def __init__(self, text: str) -> None:
+        self.decoded_content = text.encode("utf-8")
+
+
+class _FakeMember:
+    def __init__(self, login: str) -> None:
+        self.login = login
+
+
+class _FakeTeam:
+    def get_members(self) -> list[_FakeMember]:
+        return [_FakeMember("TeamMember"), _FakeMember("Concealed")]
+
+
+class _FakeOrg:
+    def get_team_by_slug(self, slug: str) -> _FakeTeam:
+        return _FakeTeam()
+
+
+class _FakeFilesPR:
+    def __init__(self, client: _FakeRulesClient, files: list[str]) -> None:
+        self._files = files
+        self.head = _FakeHead(client.live_heads.pop(0), client.head_ref)
+        self.base = _FakeRef(client.live_bases.pop(0))
+
+    def get_files(self) -> list[_FakeFile]:
+        return [_FakeFile(name) for name in self._files]
+
+
+class _FakeRulesClient:
+    """Serves merge_rules.yaml, one team and PR #7, whose head and base at each read are ``live_*``."""
+
+    def __init__(
+        self,
+        *,
+        merge_rules: str | Exception = _MERGE_RULES,
+        files: list[str] | Exception = _UNEXPECTED_PR_READ,
+        live_heads: tuple[str, ...] = (_REVIEWED, _REVIEWED),
+        live_bases: tuple[str, ...] = (constants.TARGET_BRANCH, constants.TARGET_BRANCH),
+        head_ref: str = "feature",
+    ) -> None:
+        self.merge_rules = merge_rules
+        self.files = files
+        self.live_heads = list(live_heads)
+        self.live_bases = list(live_bases)
+        self.head_ref = head_ref
+
+    def get_repo(self, full_name_or_id: str) -> _FakeRulesClient:
+        return self
+
+    def get_contents(self, path: str) -> _FakeContent:
+        if isinstance(self.merge_rules, Exception):
+            raise self.merge_rules
+        return _FakeContent(self.merge_rules)
+
+    def get_pull(self, number: int) -> _FakeFilesPR:
+        if isinstance(self.files, Exception):
+            raise self.files
+        return _FakeFilesPR(self, self.files)
+
+    def get_organization(self, login: str) -> _FakeOrg:
+        return _FakeOrg()
+
+
+@pytest.fixture
+def covers(monkeypatch):
+    def check(client: _FakeRulesClient, author: str | None) -> bool:
+        monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
+        return has_covering_rule("tok", constants.TARGET_REPO, 7, _REVIEWED, author)
+
+    return check
+
+
+def test_has_covering_rule_passes_a_catch_all_author_without_reading_the_pr(covers):
+    assert covers(_FakeRulesClient(), "CatchAll") is True
+
+
+@pytest.mark.parametrize("author", ["Scoped", "TeamMember"])
+def test_has_covering_rule_passes_a_path_scoped_author_whose_rule_covers_every_file(covers, author):
+    assert covers(_FakeRulesClient(files=["docs/index.md"]), author) is True
+
+
+def test_has_covering_rule_refuses_a_path_scoped_author_whose_rule_misses_a_file(covers):
+    assert covers(_FakeRulesClient(files=["docs/index.md", "setup.py"]), "Scoped") is False
+
+
+@pytest.mark.parametrize(
+    "pr",
+    [
+        pytest.param({"head_ref": "gh/scoped/1/head"}, id="ghstack-head"),
+        pytest.param({"live_bases": ("release/2.9",)}, id="release-base"),
+        pytest.param({"live_heads": ("c" * 40,)}, id="head-moved"),
+        pytest.param({"live_heads": (_REVIEWED, "c" * 40)}, id="head-moved-during-the-listing"),
+        pytest.param({"live_bases": (constants.TARGET_BRANCH, "release/2.9")}, id="base-moved-during-the-listing"),
+    ],
+)
+def test_has_covering_rule_refuses_a_path_scoped_author_whose_files_cannot_bound_the_reviewed_commit(covers, pr):
+    assert covers(_FakeRulesClient(files=["docs/index.md"], **pr), "Scoped") is False
+
+
+def test_has_covering_rule_raises_a_read_failure(covers):
+    with pytest.raises(UnknownObjectException):
+        covers(_FakeRulesClient(merge_rules=UnknownObjectException(404)), "Scoped")
+
+
+def test_has_covering_rule_logs_its_decision_without_naming_a_rule_or_a_team_member(covers, caplog):
+    with caplog.at_level(logging.DEBUG, logger="greenlight"):
+        assert covers(_FakeRulesClient(files=["docs/index.md"]), "TeamMember") is True
+
+    # The record job's log is public: a rule name can imply a team membership, and Concealed reaches
+    # greenlight through the team alone.
+    assert "merge-rule eligibility" in caplog.text
+    assert not [word for word in ("Superusers", "Docs Maintainers", "Concealed") if word in caplog.text]
