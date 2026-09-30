@@ -862,6 +862,13 @@
       "linux"
     ]
   ],
+  "test_nextafter_noncontiguous_False_xpu_float32 (__main__.TestInductorNextafterXPU)": [
+    "199213",
+    "https://github.com/pytorch/pytorch/issues/199213",
+    [
+      "xpu"
+    ]
+  ],
   "test_nextafter_noncontiguous_False_xpu_float64 (__main__.TestInductorNextafterXPU)": [
     "199175",
     "https://github.com/pytorch/pytorch/issues/199175",
