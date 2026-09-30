@@ -112,6 +112,7 @@ interface NightlySummaryStats {
   failures: number;
   timed_out: number;
   total: number;
+  nightly_runs: number;
   pass_rate: number;
 }
 
@@ -464,8 +465,8 @@ function NightlySummaryCards({
       )}
       <StatCard
         label="Nightly Runs"
-        value={rows.length}
-        sub="unique SHAs tested"
+        value={stats?.nightly_runs ?? "–"}
+        sub="completed runs in range"
       />
       <StatCard
         label="Failures"

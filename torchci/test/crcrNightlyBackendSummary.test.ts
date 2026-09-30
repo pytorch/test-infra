@@ -54,6 +54,7 @@ describe("crcr_nightly_backend_summary", () => {
   test("does not collapse distinct runs that share a PyTorch SHA", () => {
     expect(query).not.toContain("pytorch_head_sha");
     expect(query).toContain("count() AS total");
+    expect(query).toContain("uniqExact(run_id) AS nightly_runs");
   });
 
   test("counts CRCR's expected terminal outcomes as successes", () => {
@@ -73,6 +74,7 @@ describe("crcr_nightly_backend_summary", () => {
       "/api/clickhouse/crcr_nightly_backend_summary?parameters="
     );
     expect(backendPage).toContain("summaryStats={nightlySummary}");
+    expect(backendPage).toContain('value={stats?.nightly_runs ?? "–"}');
   });
 
   test("keeps the per-repo CRCR view on its established seven-day default", () => {

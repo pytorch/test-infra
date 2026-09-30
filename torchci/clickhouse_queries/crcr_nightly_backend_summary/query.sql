@@ -49,6 +49,7 @@ SELECT
         )
     ) AS timed_out,
     count() AS total,
+    uniqExact(run_id) AS nightly_runs,
     if(total > 0, successes / total, 0) AS pass_rate
 FROM default.crcr_workflow_job FINAL
 WHERE
