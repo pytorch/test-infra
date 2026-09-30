@@ -51,8 +51,8 @@ PyTorch Green Light has one unit of work — the `review` phase:
 - `review.run()` — scans the open PRs from the evaluation cohort in `pytorch/pytorch`
   (`cohort.evaluation_cohort`: every `approved_by` login in `merge_rules.yaml`, team refs
   expanded, minus bots and minus greenlight itself — that cohort is the match rule, unless
-  `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` is exactly `0.0`, which narrows the listing to
-  `cohort.TRUSTED_AUTHORS`); for each PR
+  `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` is exactly `0.0`, which narrows the listing to the logins
+  the trusted-authors issue lists, minus bots and greenlight); for each PR
   it computes the fingerprint (`eval_hash`), reads the PR's latest state from
   `misc.greenlight_pr_state`,
   and dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`)
@@ -68,21 +68,25 @@ PyTorch Green Light has one unit of work — the `review` phase:
   Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (PR write, for the revocation), `BOT_LOGIN`, and
   `CLICKHOUSE_*` read access.
 
-`cohort.TRUSTED_AUTHORS` is a separate, much narrower set and answers a different question:
-whose evaluation carries authority. A PR from an author outside it is evaluated in **shadow** —
+`cohort.assess` answers a different question, per PR: whose evaluation carries authority. The author
+must be listed in the trusted-authors issue and named by a merge rule that covers every file the PR
+changes, a path-scoped rule only on a non-ghstack PR based on `main`; the verdict re-checks the
+merge rules only (`verdict.has_covering_rule`). Any other PR is evaluated in **shadow** —
 dispatched, reviewed and recorded exactly as any other, but the row is stamped `shadow`, so it is
-never approved, always dismisses any prior greenlight approval, is filtered out of both HUD
-readers (Dr. CI's render and the land-time ledger route), and triggers no Dr. CI poke. The two
-authorization gates — the `--pr` target author and the `--requester` login — are bound to
-`TRUSTED_AUTHORS`, not to the cohort: the cohort widens who greenlight looks at on its own
+never approved, always dismisses any prior greenlight approval, is filtered out of both HUD readers
+(Dr. CI's render and the land-time ledger route), and triggers no Dr. CI poke. The one exception is
+a `REVERTED` row, which can only deny: a PR that already has a recorded row gets a non-shadow one
+when its author is currently listed. The two authorization gates (`authz_gates`) are narrower than
+the cohort: the `--requester` login must be listed and in the evaluation cohort, and the `--pr`
+target's author must be eligible for that PR. The cohort widens who greenlight looks at on its own
 schedule, never who can point it at a PR.
 
 `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` (default `1.0`) sizes that shadow experiment.
 `candidate_filter.rollout_filter` keeps a stable sha256-keyed fraction of the **fingerprint
 candidates** — after `revert_guard` and the state read, so a held-out PR still loses a stale
-approval and still gets its `REVERTED` row — exempting every trusted author's PR. It gates cohort
-membership and nothing else: it must never reach `cohort.is_shadow`/`is_trusted`, which stay
-parameterless, and never the `--pr` path.
+approval and still gets its `REVERTED` row — exempting every authoritative PR. It gates cohort
+membership and nothing else: it must never become an input to `cohort.assess` or the scan's
+`authority` lookup, and never reach the `--pr` path.
 
 Approving or rejecting a PR lives in the dispatched reviewer workflow (through `verdict`),
 not in the `review` scan itself.
