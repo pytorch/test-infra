@@ -841,15 +841,6 @@
       "dynamo"
     ]
   ],
-  "test_mutation_rename (__main__.TestMaxAutotune)": [
-    "154218",
-    "https://github.com/pytorch/pytorch/issues/154218",
-    [
-      "inductor",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
     "196899",
     "https://github.com/pytorch/pytorch/issues/196899",
@@ -862,6 +853,27 @@
     "https://github.com/pytorch/pytorch/issues/195723",
     [
       "linux"
+    ]
+  ],
+  "test_nextafter_noncontiguous_False_xpu_float64 (__main__.TestInductorNextafterXPU)": [
+    "199175",
+    "https://github.com/pytorch/pytorch/issues/199175",
+    [
+      "xpu"
+    ]
+  ],
+  "test_nextafter_noncontiguous_True_xpu_float32 (__main__.TestInductorNextafterXPU)": [
+    "199176",
+    "https://github.com/pytorch/pytorch/issues/199176",
+    [
+      "xpu"
+    ]
+  ],
+  "test_nextafter_noncontiguous_True_xpu_float64 (__main__.TestInductorNextafterXPU)": [
+    "199177",
+    "https://github.com/pytorch/pytorch/issues/199177",
+    [
+      "xpu"
     ]
   ],
   "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
