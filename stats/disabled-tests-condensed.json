@@ -233,6 +233,21 @@
       "slow"
     ]
   ],
+  "test_converting_copy_emits_vectorized_kernel_bool_int64_cuda (__main__.TestTorchCUDACUDA)": [
+    "199096",
+    "https://github.com/pytorch/pytorch/issues/199096",
+    [
+      "rocm"
+    ]
+  ],
+  "test_converting_copy_emits_vectorized_kernel_int32_int64_cuda (__main__.TestTorchCUDACUDA)": [
+    "199097",
+    "https://github.com/pytorch/pytorch/issues/199097",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_copy_transpose_tiled_small_case_at_cuda_bool (__main__.TestTorchDeviceTypeCUDA)": [
     "198632",
     "https://github.com/pytorch/pytorch/issues/198632",
@@ -268,6 +283,14 @@
     "https://github.com/pytorch/pytorch/issues/191702",
     [
       "linux"
+    ]
+  ],
+  "test_del_attr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195525",
+    "https://github.com/pytorch/pytorch/issues/195525",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
@@ -1498,6 +1521,13 @@
       "slow"
     ]
   ],
+  "test_synchronize_event_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
+    "191746",
+    "https://github.com/pytorch/pytorch/issues/191746",
+    [
+      "linux"
+    ]
+  ],
   "test_tiny_half_norm_ (__main__.TestCuda)": [
     "94897",
     "https://github.com/pytorch/pytorch/issues/94897",
@@ -1519,6 +1549,15 @@
     [
       "asan",
       "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b1 (__main__.TestVisionTracing)": [
+    "123889",
+    "https://github.com/pytorch/pytorch/issues/123889",
+    [
+      "linux",
+      "rocm",
       "slow"
     ]
   ],
