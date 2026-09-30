@@ -517,6 +517,14 @@
       "rocm"
     ]
   ],
+  "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
+    "186604",
+    "https://github.com/pytorch/pytorch/issues/186604",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186866",
     "https://github.com/pytorch/pytorch/issues/186866",
