@@ -362,5 +362,5 @@ def test_cache_swallows_client_close_error(caplog):
         assert cache.get() == frozenset({"alice"})
 
     assert client.closed == 1
-    assert "failed to close merge-authorization client" in caplog.text
+    assert "failed to close GitHub client" in caplog.text
     assert any(record.exc_info is not None for record in caplog.records)

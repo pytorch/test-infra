@@ -78,16 +78,6 @@ if TYPE_CHECKING:
     class _ScanRepo(Protocol):
         def get_pull(self, number: int) -> _FingerprintPR: ...
 
-    class _AuthorPR(Protocol):
-        @property
-        def user(self) -> _PRUser | None: ...
-
-    class _AuthorRepo(Protocol):
-        def get_pull(self, number: int) -> _AuthorPR: ...
-
-    class _AuthorClient(Protocol):
-        def get_repo(self, full_name_or_id: str) -> _AuthorRepo: ...
-
     class _VerdictReview(Protocol):
         @property
         def id(self) -> int: ...
