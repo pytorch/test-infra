@@ -233,6 +233,14 @@
       "slow"
     ]
   ],
+  "test_converting_copy_emits_vectorized_kernel_bool_float64_cuda (__main__.TestTorchCUDACUDA)": [
+    "199137",
+    "https://github.com/pytorch/pytorch/issues/199137",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_converting_copy_emits_vectorized_kernel_bool_int64_cuda (__main__.TestTorchCUDACUDA)": [
     "199096",
     "https://github.com/pytorch/pytorch/issues/199096",
@@ -403,14 +411,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_even_k_k_15_dynamic_True (__main__.TestMaxAutotune)": [
-    "195554",
-    "https://github.com/pytorch/pytorch/issues/195554",
-    [
-      "inductor",
-      "rocm"
     ]
   ],
   "test_extend_nccl_pg_timeout_backend0 (__main__.ProcessGroupNCCLGroupTest)": [
@@ -1039,6 +1039,13 @@
       "linux",
       "mac",
       "macos"
+    ]
+  ],
+  "test_opcheck_unbacked_stride_cpu (__main__.TestCustomOpTestingCPU)": [
+    "199138",
+    "https://github.com/pytorch/pytorch/issues/199138",
+    [
+      "dynamo"
     ]
   ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
