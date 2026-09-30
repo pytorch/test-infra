@@ -115,6 +115,17 @@ def test_merge_rules_constants_values():
     assert constants.MERGE_RULES_PATH == ".github/merge_rules.yaml"
 
 
+def test_target_branch_value():
+    # A path-scoped author is eligible only on this base: the one trymerge requires of a non-ghstack PR.
+    assert constants.TARGET_BRANCH == "main"
+
+
+def test_trusted_authors_issue_reference():
+    # Whoever can edit this issue can grant greenlight authority, so moving it is a trust change.
+    assert constants.TRUSTED_AUTHORS_ISSUE_REPO == "pytorch/test-infra"
+    assert constants.TRUSTED_AUTHORS_ISSUE_NUMBER == 8945
+
+
 def test_drci_endpoint_value():
     assert constants.DRCI_ENDPOINT == "https://hud.pytorch.org/api/drci/drci"
 

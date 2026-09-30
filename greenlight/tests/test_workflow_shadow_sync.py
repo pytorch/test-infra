@@ -1,14 +1,13 @@
 """Pins the shadow wiring in the reviewer workflow, which nothing at run time holds together.
 
 ``greenlight verdict`` takes ``--shadow`` as a bare flag, so leaving it off means ``shadow=False``
-and nothing fails. What that costs depends on the call site, and only one of the four is defended
-in Python: the terminal verdict recomputes ``request.shadow or cohort.is_shadow(author)``, so a
-forgotten flag there is caught by the OR. The three marker calls take ``request.shadow`` verbatim
--- deliberately, since deriving a marker fail-closed would hide a trusted author's in-flight
-review from a reader that filters shadow out. A marker written without the flag therefore records
-a shadow PR as an ordinary one, and Dr. CI renders it: greenlight state shown on a PR whose
-evaluation carries no authority. The approval itself is not at stake, because the verdict path
-withholds and dismisses off its own derivation rather than off the flag.
+and nothing fails. The terminal verdict ORs ``request.shadow`` with its own ``has_covering_rule``
+check, but that catches a forgotten flag only for an author no merge rule covers: for one a rule
+covers, listed or not, the flag alone withholds the approval. The three marker calls take
+``request.shadow`` verbatim -- deliberately, since deriving a marker fail-closed would hide a trusted
+author's in-flight review from a reader that filters shadow out. A marker written without the flag
+therefore records a shadow PR as an ordinary one, and Dr. CI renders it: greenlight state shown on
+a PR whose evaluation carries no authority. So every one of the four call sites is pinned.
 
 The four call sites in ``.github/workflows/greenlight-pr-review.yml`` are separate shell bodies
 with nothing linking them, and one added later inherits the same silent default. These tests are
@@ -18,6 +17,10 @@ stops matching the others.
 The workflow's own end of the wire is pinned against ``greenlight.dispatch``: the literals its
 validator branches on are probed out of ``dispatch_review`` rather than restated here, because a
 validator that accepts spellings the dispatcher never sends aborts every real run.
+
+The App tokens those jobs mint are pinned as well. The terminal verdict's lookup needs the record
+token to read pytorch's merge rules and expand their teams; a token that writes pull requests gets
+nothing beyond that, and no repository beyond pytorch/pytorch.
 """
 
 from __future__ import annotations
@@ -283,4 +286,38 @@ def test_shadow_input_defaults_to_not_shadow() -> None:
         f"the `shadow` input declares default {declared.get('default')!r}. A dispatcher that omits the "
         f"input gets this value, so `true` silently shadows every review, and a boolean input with no "
         f"default makes the REST API reject the dispatch outright."
+    )
+
+
+_TOKEN_ACTION = "actions/create-github-app-token@"
+_TOKEN_OWNER = "pytorch"
+_TOKEN_REPOSITORIES = "pytorch"
+_TOKEN_PERMISSIONS = {
+    "announce_start": {"permission-pull-requests": "write"},
+    # The terminal verdict's eligibility lookup reads merge_rules.yaml and expands its team refs.
+    "record": {"permission-pull-requests": "write", "permission-contents": "read", "permission-members": "read"},
+}
+
+
+def _token_inputs(job: str) -> dict[str, Any]:
+    minting = [step for step in _steps(job) if _field(step, "uses").startswith(_TOKEN_ACTION)]
+    assert len(minting) == 1, _drift(f"job {job} has {len(minting)} `{_TOKEN_ACTION}` steps, expected exactly one.")
+    inputs = minting[0]["with"]
+    assert isinstance(inputs, dict)
+    return inputs
+
+
+@pytest.mark.parametrize("job", sorted(_TOKEN_PERMISSIONS))
+def test_app_token_scope_is_pinned(job: str) -> None:
+    inputs = _token_inputs(job)
+    assert (inputs.get("owner"), inputs.get("repositories")) == (_TOKEN_OWNER, _TOKEN_REPOSITORIES), _drift(
+        f"job {job} mints its App token for owner {inputs.get('owner')!r} and repositories "
+        f"{inputs.get('repositories')!r}. The token writes pull requests, so any repository added here is one "
+        f"more it can approve on."
+    )
+    permissions = {key: value for key, value in inputs.items() if key.startswith("permission-")}
+    assert permissions == _TOKEN_PERMISSIONS[job], _drift(
+        f"job {job} mints its App token with {permissions}, expected {_TOKEN_PERMISSIONS[job]}. Anything wider is "
+        f"privilege on a job that holds the App key; anything narrower breaks the job's own verdict calls, and on "
+        f"the record job the merge-rule check that every authoritative review depends on."
     )

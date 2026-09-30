@@ -662,6 +662,8 @@ jobs:
         if: always()
         id: app-token
         continue-on-error: true
+        # contents:read and members:read let the verdict's merge-rule check read pytorch's
+        # merge_rules.yaml and expand its team refs.
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
         with:
           app-id: ${{ secrets.GREENLIGHT_APP_ID }}
@@ -669,6 +671,8 @@ jobs:
           owner: pytorch
           repositories: pytorch
           permission-pull-requests: write
+          permission-members: read
+          permission-contents: read
 
       - name: Record verdict
         if: ${{ needs.review.result == 'success' }}

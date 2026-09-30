@@ -68,6 +68,12 @@ if TYPE_CHECKING:
         @property
         def sha(self) -> str: ...
 
+    class _PRRef(Protocol):
+        @property
+        def ref(self) -> str: ...
+
+    class _PRHead(_PRBase, _PRRef, Protocol): ...
+
     class _FingerprintPR(Protocol):
         @property
         def head(self) -> _PRBase: ...
@@ -77,16 +83,6 @@ if TYPE_CHECKING:
 
     class _ScanRepo(Protocol):
         def get_pull(self, number: int) -> _FingerprintPR: ...
-
-    class _AuthorPR(Protocol):
-        @property
-        def user(self) -> _PRUser | None: ...
-
-    class _AuthorRepo(Protocol):
-        def get_pull(self, number: int) -> _AuthorPR: ...
-
-    class _AuthorClient(Protocol):
-        def get_repo(self, full_name_or_id: str) -> _AuthorRepo: ...
 
     class _VerdictReview(Protocol):
         @property
@@ -103,6 +99,17 @@ if TYPE_CHECKING:
         @property
         def user(self) -> _PRUser | None: ...
         def edit(self, body: str) -> None: ...
+
+    class _PRFile(Protocol):
+        @property
+        def filename(self) -> str: ...
+
+    class _FilesPR(Protocol):
+        @property
+        def head(self) -> _PRHead: ...
+        @property
+        def base(self) -> _PRRef: ...
+        def get_files(self) -> Iterable[_PRFile]: ...
 
     class VerdictPR(Protocol):
         @property

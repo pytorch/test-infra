@@ -83,12 +83,16 @@ EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 HEAD_SHA_RE = re.compile(r"[0-9a-fA-F]{40}")
 
 TARGET_REPO = "pytorch/pytorch"
+TARGET_BRANCH = "main"
 DISPATCH_REPO = "pytorch/test-infra"
 WORKFLOW_FILE = "greenlight-pr-review.yml"
 DEFAULT_DISPATCH_REF = "main"
 DEFAULT_TIMEOUT_MINUTES = 45
 
 MERGE_RULES_PATH = ".github/merge_rules.yaml"
+
+TRUSTED_AUTHORS_ISSUE_REPO = DISPATCH_REPO
+TRUSTED_AUTHORS_ISSUE_NUMBER = 8945
 
 HUD_BASE_URL = "https://hud.pytorch.org"
 DRCI_ENDPOINT = f"{HUD_BASE_URL}/api/drci/drci"

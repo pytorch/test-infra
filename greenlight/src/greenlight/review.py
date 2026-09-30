@@ -91,7 +91,8 @@ def _default_fetch(client: Github, authors: frozenset[str]) -> list[OpenPR]:
 
 
 def _default_fetch_author(client: Github, pr_number: int) -> str | None:
-    return github_client.get_pr_author(client, TARGET_REPO, pr_number)
+    user = github_client.get_pr(client, TARGET_REPO, pr_number).user
+    return user.login if user is not None else None
 
 
 def _default_fingerprint(
@@ -107,15 +108,6 @@ def _default_fingerprint(
         allow_skip=True,
         skip_on_approval=skip_on_approval,
     )
-
-
-def _close_client(client: Github) -> None:
-    close = getattr(client, "close", None)
-    if callable(close):
-        try:
-            close()
-        except Exception:
-            logger.exception("failed to close GitHub client")
 
 
 def _candidate_numbers(
@@ -192,7 +184,7 @@ def run(
         logger.info("review requested by trusted author %s", requester)
     with contextlib.ExitStack() as clients:
         client = build_github(token)
-        clients.callback(_close_client, client)
+        clients.callback(github_client.close_client, client)
         # Target-author gate: --pr names an arbitrary PR, so its author MUST be trusted or greenlight
         # would review/approve any PR on request. Bound to TRUSTED_AUTHORS, NOT to the (far wider)
         # evaluation cohort the listing scans: the cohort decides who is evaluated, this decides whose
@@ -319,7 +311,7 @@ def run(
         client_pool: queue.Queue[Github] = queue.Queue()
         for _ in range(worker_count):
             worker_client = build_github(token, seconds_between_requests=_FINGERPRINT_SECONDS_BETWEEN_REQUESTS)
-            clients.callback(_close_client, worker_client)
+            clients.callback(github_client.close_client, worker_client)
             client_pool.put(worker_client)
         if max_dispatches is None:
             pending = scan_runner._fingerprint_all(
