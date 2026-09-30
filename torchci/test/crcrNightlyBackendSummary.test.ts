@@ -75,6 +75,12 @@ describe("crcr_nightly_backend_summary", () => {
     expect(backendPage).toContain("summaryStats={nightlySummary}");
   });
 
+  test("keeps the per-repo CRCR view on its established seven-day default", () => {
+    expect(backendPage).toContain(
+      'const days = parseInt(router.query.days as string) || 7;'
+    );
+  });
+
   test("dates each trend run once after selecting its final attempts", () => {
     expect(successRateQuery).toContain(
       "GROUP BY downstream_repo, run_id, job_name"

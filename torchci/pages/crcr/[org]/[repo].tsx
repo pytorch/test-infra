@@ -1519,7 +1519,7 @@ export default function CrcrBackendPage() {
   const { org, repo } = router.query;
 
   const page = parseInt(router.query.page as string) || 1;
-  const days = parseInt(router.query.days as string) || 30;
+  const days = parseInt(router.query.days as string) || 7;
   const eventType = (router.query.event as string) || "pr";
   const isNightly = eventType === "nightly";
 
