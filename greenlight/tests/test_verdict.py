@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 
-from greenlight import cohort, comment_format, constants, github_client, verdict
+from greenlight import cohort, comment_format, constants, github_client, verdict, verdict_input
 from greenlight.verdict import VerdictRequest
 
 if TYPE_CHECKING:
@@ -1365,20 +1365,20 @@ def test_resolve_cli_status_overrides_file(tmp_path):
     vf = _write_verdict(tmp_path, status="NO_LAND", reason="r", message="m")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="LAND", verdict_file=vf)
 
-    assert verdict._resolve_verdict(req) == ("LAND", "r", "m")
+    assert verdict_input._resolve_verdict(req) == ("LAND", "r", "m")
 
 
 def test_resolve_status_from_file_is_normalized(tmp_path):
     vf = _write_verdict(tmp_path, status="land", reason="r", message="m")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=vf)
 
-    assert verdict._resolve_verdict(req) == ("LAND", "r", "m")
+    assert verdict_input._resolve_verdict(req) == ("LAND", "r", "m")
 
 
 def test_resolve_cli_marker_needs_no_file():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="cancelled")
 
-    assert verdict._resolve_verdict(req) == ("CANCELLED", "", "")
+    assert verdict_input._resolve_verdict(req) == ("CANCELLED", "", "")
 
 
 def test_resolve_cli_marker_ignores_a_supplied_file(tmp_path):
@@ -1386,28 +1386,28 @@ def test_resolve_cli_marker_ignores_a_supplied_file(tmp_path):
     missing = str(tmp_path / "nope.json")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="CANCELLED", verdict_file=missing)
 
-    assert verdict._resolve_verdict(req) == ("CANCELLED", "", "")
+    assert verdict_input._resolve_verdict(req) == ("CANCELLED", "", "")
 
 
 def test_resolve_file_marker_drops_reason_and_message(tmp_path):
     vf = _write_verdict(tmp_path, status="FAILED", reason="ignored", message="ignored")
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=vf)
 
-    assert verdict._resolve_verdict(req) == ("FAILED", "", "")
+    assert verdict_input._resolve_verdict(req) == ("FAILED", "", "")
 
 
 def test_resolve_full_status_without_file_raises():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="LAND")
 
     with pytest.raises(ValueError, match="requires --verdict-file"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_resolve_no_status_anywhere_raises():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h")
 
     with pytest.raises(ValueError, match="verdict status is required"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_resolve_unknown_status_raises(tmp_path):
@@ -1415,7 +1415,7 @@ def test_resolve_unknown_status_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=vf)
 
     with pytest.raises(ValueError, match="unknown verdict status"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_resolve_rejects_scan_only_dispatched_status():
@@ -1424,9 +1424,9 @@ def test_resolve_rejects_scan_only_dispatched_status():
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", status="AI_REVIEW_DISPATCHED")
 
     with pytest.raises(ValueError, match="unknown verdict status 'AI_REVIEW_DISPATCHED'"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
-    assert "AI_REVIEW_DISPATCHED" not in verdict._MARKER_STATUSES
+    assert "AI_REVIEW_DISPATCHED" not in verdict_input._MARKER_STATUSES
 
 
 def test_load_bad_json_raises(tmp_path):
@@ -1435,14 +1435,14 @@ def test_load_bad_json_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="not valid JSON"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_missing_file_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(tmp_path / "nope.json"))
 
     with pytest.raises(ValueError, match="cannot read verdict file"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_non_object_json_raises(tmp_path):
@@ -1451,7 +1451,7 @@ def test_load_non_object_json_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="must contain a JSON object"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_non_string_reason_raises(tmp_path):
@@ -1460,7 +1460,7 @@ def test_load_non_string_reason_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="field 'reason' must be a string"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_non_string_status_raises(tmp_path):
@@ -1469,13 +1469,13 @@ def test_load_non_string_status_raises(tmp_path):
     req = VerdictRequest(repo="x", pr_number=1, head_sha="h", verdict_file=str(path))
 
     with pytest.raises(ValueError, match="field 'status' must be a string"):
-        verdict._resolve_verdict(req)
+        verdict_input._resolve_verdict(req)
 
 
 def test_load_verdict_file_returns_the_parsed_document(tmp_path):
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
 
-    doc = verdict._load_verdict_file(vf)
+    doc = verdict_input._load_verdict_file(vf)
 
     assert (doc.status, doc.reason, doc.message) == ("LAND", "clean", "LGTM")
 
@@ -1486,30 +1486,30 @@ def test_load_verdict_file_defaults_absent_fields(tmp_path):
     path = tmp_path / "v.json"
     path.write_text("{}", encoding="utf-8")
 
-    doc = verdict._load_verdict_file(str(path))
+    doc = verdict_input._load_verdict_file(str(path))
 
     assert (doc.status, doc.reason, doc.message) == (None, "", "")
 
 
 def test_validate_eval_hash_accepts_64_lowercase_hex():
-    verdict._validate_eval_hash("0123456789abcdef" * 4)
+    verdict_input._validate_eval_hash("0123456789abcdef" * 4)
 
 
 @pytest.mark.parametrize("bad", ["", "abc", "A" * 64, "g" * 64, "a" * 63, "a" * 65])
 def test_validate_eval_hash_rejects(bad):
     with pytest.raises(ValueError, match="eval_hash"):
-        verdict._validate_eval_hash(bad)
+        verdict_input._validate_eval_hash(bad)
 
 
 @pytest.mark.parametrize("reason", sorted(verdict.ALLOWED_REASONS))
 def test_validate_reason_accepts_every_canonical_reason(reason: str) -> None:
-    verdict._validate_reason("NO_LAND", reason)
+    verdict_input._validate_reason("NO_LAND", reason)
 
 
 @pytest.mark.parametrize("bad", ["", "looks_good", "CLEAN"])
 def test_validate_reason_rejects(bad):
     with pytest.raises(ValueError, match="not an allowed verdict reason"):
-        verdict._validate_reason("NO_LAND", bad)
+        verdict_input._validate_reason("NO_LAND", bad)
 
 
 @pytest.mark.parametrize("reason", sorted(verdict.ALLOWED_REASONS - {constants.LAND_REASON}))
@@ -1518,20 +1518,20 @@ def test_validate_reason_rejects_every_other_reason_beside_land(reason: str) -> 
     # the recorded status alone, so a LAND carrying one authorizes exactly the merge it objects to.
     # The same reason under NO_LAND must stay acceptable: the guard is the pairing, not the code.
     with pytest.raises(ValueError, match="must carry reason"):
-        verdict._validate_reason("LAND", reason)
-    verdict._validate_reason("NO_LAND", reason)
+        verdict_input._validate_reason("LAND", reason)
+    verdict_input._validate_reason("NO_LAND", reason)
 
 
 def test_validate_reason_accepts_the_land_reason_on_both_statuses() -> None:
-    verdict._validate_reason("LAND", constants.LAND_REASON)
-    verdict._validate_reason("NO_LAND", constants.LAND_REASON)
+    verdict_input._validate_reason("LAND", constants.LAND_REASON)
+    verdict_input._validate_reason("NO_LAND", constants.LAND_REASON)
 
 
 def test_validate_message_accepts_non_blank():
-    verdict._validate_message("needs work")
+    verdict_input._validate_message("needs work")
 
 
 @pytest.mark.parametrize("bad", ["", "   ", "\n\t"])
 def test_validate_message_rejects_blank(bad):
     with pytest.raises(ValueError, match="non-empty message"):
-        verdict._validate_message(bad)
+        verdict_input._validate_message(bad)
