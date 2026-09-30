@@ -79,7 +79,7 @@ describe("crcr_nightly_backend_summary", () => {
 
   test("keeps the per-repo CRCR view on its established seven-day default", () => {
     expect(backendPage).toContain(
-      'const days = parseInt(router.query.days as string) || 7;'
+      "const days = parseInt(router.query.days as string) || 7;"
     );
   });
 
