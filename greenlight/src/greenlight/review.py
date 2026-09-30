@@ -2,33 +2,40 @@
 
 Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules approvers),
 fingerprints each one, reads its latest recorded state from ClickHouse, and asks
-``decision.decide`` whether to dispatch a review, skip it, or wait. An author outside
-``cohort.TRUSTED_AUTHORS`` is evaluated in shadow: the run is dispatched and recorded, but the
-row is stamped ``shadow`` so it is never approved and never rendered, and Dr. CI is not poked for
-it. State is re-read from ClickHouse every scan, so the one-shot and ``--loop`` paths behave
-identically -- nothing is remembered in memory between scans. All GitHub, ClickHouse, and
-dispatch I/O sits behind injectable keyword seams so the loop is testable without any of them.
+``decision.decide`` whether to dispatch a review, skip it, or wait. A PR is evaluated in shadow
+unless its author is listed in the trusted-authors issue and named by a merge rule covering every
+file it changes; a path-scoped rule also needs a non-ghstack PR based on ``main`` (see ``authority``
+and TRUSTED_AUTHORS.md). A shadow run is dispatched and recorded, but the row is stamped ``shadow``
+so it is never approved and never rendered, and Dr. CI is not poked for it. Only a REVERTED row is
+stamped non-shadow on a PR with a recorded row whose author is currently listed: it must deny. State
+is re-read from ClickHouse every scan, so the one-shot and ``--loop`` paths behave identically --
+nothing is remembered in memory between scans. All GitHub, ClickHouse, and dispatch I/O sits behind
+injectable keyword seams so the loop is testable without any of them.
 
-Both authz gates -- the ``--pr`` target author and the ``@greenlight recheck`` requester -- stay
-bound to ``cohort.TRUSTED_AUTHORS``, not to the cohort: the cohort widens who greenlight looks at
-on its own schedule, never who can point it at a PR.
+The issue is read first, and an unreadable one fails the pass before any other GitHub read. Both
+authz gates (``authz_gates``) run once the issue and the merge rules resolve.
 
-``PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`` sizes that shadow traffic. A trusted author's PR is always
-evaluated; every other listed PR joins only if a stable hash of its number falls under the dial, so
-the holdout is the same group from one scan to the next. At exactly ``0.0`` the listing narrows back
-to ``cohort.TRUSTED_AUTHORS`` and the shadow machinery goes inert at the source, needing no
-counterpart downstream. The dial gates which listed PRs are fingerprinted and nothing else: both
-authz gates, the merge-authorized login set, and whether a verdict carries authority behave
-identically at every setting.
+``PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`` sizes that shadow traffic. An authoritative PR is always
+evaluated; every other PR from the listing joins only if a stable hash of its number falls under the
+dial, so the holdout is the same group from one scan to the next. At exactly ``0.0`` the listing
+narrows to the logins the issue lists, minus bots and greenlight, whether or not a merge rule names
+them; their shadow PRs still reach the revert guard, but are never fingerprinted or dispatched. The
+dial gates which PRs from the listing are fingerprinted and nothing else: both authz gates, the
+merge-authorized login set, and whether a verdict carries authority behave identically at every
+setting.
 
-Reverted PRs are excluded before any of that, on both the listing and ``--pr`` paths: greenlight
-revokes its own approval, records the exclusion, and drops the PR (see ``revert_guard``).
+Reverted PRs are excluded before any of that on the listing path, and on the ``--pr`` path once its
+gate admits the target or refuses a listed author's (an unlisted author's refused target never reaches
+the revert guard): greenlight revokes its own approval, records the exclusion, and drops the PR (see
+``revert_guard``). A refused target is never fingerprinted or dispatched.
 
 The fingerprint step can also short-circuit: when a human has already decided a PR (an
 approval from a merge-authorized login, or changes requested by anyone), the scan skips
 its fingerprint and dispatch. On the listing path an approval or changes-requested skips;
 on the ``--pr`` recheck path an approval is ignored (reviewed anyway) and changes-requested
-is refused with a comment instead of a dispatch.
+is refused with a comment instead of a dispatch. A candidate fingerprinted at a head other than
+the one its authority was read at is deferred to the next pass; a deferred ``--pr`` recheck exits 0
+without dispatching.
 """
 
 from __future__ import annotations
@@ -44,6 +51,8 @@ from typing import TYPE_CHECKING
 
 from greenlight import candidate_filter, cohort, drci_poke, github_client, revert_guard, scan_runner, state, state_emit
 from greenlight import dispatch as dispatch_module
+from greenlight.authority import Authority, Target, log_unnamed_listed
+from greenlight.authz_gates import admit_target, requester_allowed
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
@@ -60,6 +69,7 @@ if TYPE_CHECKING:
     from greenlight.config import Config
     from greenlight.github_client import OpenPR
     from greenlight.github_types import VerdictPR
+    from greenlight.merge_authz import MergeRulesSnapshot
     from greenlight.review_gate import ReviewSkip
     from greenlight.scan_runner import DispatchFn, FingerprintFn
     from greenlight.state import PRState
@@ -90,10 +100,6 @@ def _default_fetch(client: Github, authors: frozenset[str]) -> list[OpenPR]:
     return github_client.list_open_prs_by_authors(client, TARGET_REPO, authors)
 
 
-def _default_fetch_author(client: Github, pr_number: int) -> str | None:
-    return github_client.get_pr_author(client, TARGET_REPO, pr_number)
-
-
 def _default_fingerprint(
     client: Github, pr_number: int, authorized_logins: frozenset[str], skip_on_approval: bool
 ) -> tuple[str, str] | ReviewSkip:
@@ -109,34 +115,22 @@ def _default_fingerprint(
     )
 
 
-def _close_client(client: Github) -> None:
-    close = getattr(client, "close", None)
-    if callable(close):
-        try:
-            close()
-        except Exception:
-            logger.exception("failed to close GitHub client")
-
-
 def _candidate_numbers(
     client: Github,
     *,
     pr: int | None,
-    target_author: str | None,
     fetch: Callable[[Github, frozenset[str]], list[OpenPR]],
     authors: frozenset[str],
-) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, bool]]:
-    """Return the candidate PR numbers with their ``updated_at``, labels, and shadow flag.
+) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, str]]:
+    """Return the candidate PR numbers with their ``updated_at``, labels, and author.
 
-    Shadow is decided here, once, off the author the listing already carries -- every row the scan
-    writes and every Dr. CI poke it makes keys off this one answer, so no later step re-derives it.
-    The ``--pr`` path has no listing to read labels from, so it returns none and leaves the one
-    caller that needs them (``revert_guard``) to fetch that single PR's; its author is the one the
-    target-author gate resolved, and is ``None`` only when GitHub could not name it.
+    The ``--pr`` path has no listing to read labels or an author from, so it returns neither: the one
+    caller that needs labels (``revert_guard``) fetches that single PR's, and the PR's author and
+    authority come from its gate.
     """
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
-        return [pr], {}, {}, {pr: cohort.is_shadow(target_author)}
+        return [pr], {}, {}, {}
     open_prs = fetch(client, authors)
     logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(authors), TARGET_REPO)
     for open_pr in open_prs:
@@ -145,7 +139,7 @@ def _candidate_numbers(
         [open_pr.number for open_pr in open_prs],
         {open_pr.number: open_pr.updated_at for open_pr in open_prs},
         {open_pr.number: open_pr.labels for open_pr in open_prs},
-        {open_pr.number: cohort.is_shadow(open_pr.author) for open_pr in open_prs},
+        {open_pr.number: open_pr.author for open_pr in open_prs},
     )
 
 
@@ -162,7 +156,6 @@ def run(
     bot_login: str = "",
     build_github: _BuildClient = github_client.build_client,
     fetch: Callable[[Github, frozenset[str]], list[OpenPR]] = _default_fetch,
-    fetch_author: Callable[[Github, int], str | None] = _default_fetch_author,
     fetch_labels: Callable[[Github, str, int], tuple[str, ...]] = revert_guard.fetch_pr_labels,
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
@@ -174,7 +167,8 @@ def run(
     get_pr: Callable[[Github, str, int], VerdictPR] = github_client.get_pr,
     dismiss_approvals: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
     upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
-    resolve_authorized: Callable[[], frozenset[str]],
+    resolve_listed: Callable[[], frozenset[str]],
+    resolve_merge_rules: Callable[[], MergeRulesSnapshot],
     now: Callable[[], datetime] = _utcnow,
 ) -> None:
     logger.info("reviewing evaluation-cohort PRs in %s", TARGET_REPO)
@@ -182,71 +176,48 @@ def run(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-    # Requester gate (recheck path): an untrusted requester is rejected before any network work,
-    # so a spammed @greenlight recheck from an untrusted login costs nothing. A policy refusal is
-    # not a failure -- return cleanly rather than raising (no non-zero exit, no daemon backoff).
-    if requester is not None:
-        if not cohort.is_trusted(requester):
-            logger.warning("refusing review: requester %r is not a trusted author", requester)
-            return
-        logger.info("review requested by trusted author %s", requester)
+    listed = resolve_listed()
+    # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
+    # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
+    snapshot = resolve_merge_rules()
+    authorized_logins = snapshot.authorized
+    evaluable = cohort.evaluation_cohort(authorized_logins)
+    log_unnamed_listed(listed, snapshot.rules)
+    if requester is not None and not requester_allowed(requester, listed, evaluable):
+        return
     with contextlib.ExitStack() as clients:
         client = build_github(token)
-        clients.callback(_close_client, client)
-        # Target-author gate: --pr names an arbitrary PR, so its author MUST be trusted or greenlight
-        # would review/approve any PR on request. Bound to TRUSTED_AUTHORS, NOT to the (far wider)
-        # evaluation cohort the listing scans: the cohort decides who is evaluated, this decides whose
-        # PR a human may point greenlight at.
-        # allow_untrusted_author (local iteration; never a workflow input) waives ONLY the refusal,
-        # never the lookup: shadow keys off this author and a shadow LAND dismisses greenlight's live
-        # approval, so leaving the author unresolved would let a local flag revoke a production
-        # approval on a trusted author's PR.
-        target_author: str | None = None
+        clients.callback(github_client.close_client, client)
+        target: Target | None = None
         if pr is not None:
-            target_author = fetch_author(client, pr)
-            if not cohort.is_trusted(target_author):
-                if not allow_untrusted_author:
-                    logger.warning("refusing --pr %d: author %r is not a trusted author", pr, target_author)
-                    return
-                logger.warning(
-                    "--allow-untrusted-author: reviewing --pr %d despite untrusted author %r; shadow",
-                    pr,
-                    target_author,
-                )
-        # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
-        # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
-        authorized_logins = resolve_authorized()
+            target = admit_target(
+                client,
+                pr,
+                listed=listed,
+                rules=snapshot.rules,
+                get_pr=get_pr,
+                allow_untrusted_author=allow_untrusted_author,
+            )
+            if target is None:
+                return
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
         # The dial sizes the shadow experiment and decides nothing about authority. At exactly 0.0
-        # the listing narrows to the trusted authors, so no listed author is shadow and the shadow
-        # machinery goes inert at the source -- a state no fractional dial reaches, since each of
-        # those still lists the wide cohort and only thins the fingerprint set below.
+        # the listing narrows to the logins the issue lists -- a state no fractional dial reaches, since
+        # each of those still lists the wide cohort and only thins the fingerprint set below. A listed
+        # login no merge rule names stays listed, so its reverted PRs are still revoked.
         # authorized_logins stays resolved and threaded at every setting: the fingerprint and the
         # human-review skip both read it to spot an approval from someone who could have merged the
         # PR themselves, which is a separate question from whose PRs get listed.
         wide_listing = config.shadow_rollout > 0.0
-        listing_authors = (
-            cohort.evaluation_cohort(authorized_logins)
-            if wide_listing
-            else frozenset(author.lower() for author in cohort.TRUSTED_AUTHORS)
-        )
+        listing_authors = evaluable if wide_listing else cohort.evaluation_cohort(listed)
         logger.info(
             "scan cohort: %s (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=%g)",
             "full evaluation cohort" if wide_listing else "trusted authors only",
             config.shadow_rollout,
         )
-        pr_numbers, updated_at_by_number, labels_by_number, shadow_by_number = _candidate_numbers(
-            client,
-            pr=pr,
-            target_author=target_author,
-            fetch=fetch,
-            authors=listing_authors,
+        pr_numbers, updated_at_by_number, labels_by_number, authors_by_number = _candidate_numbers(
+            client, pr=pr, fetch=fetch, authors=listing_authors
         )
-
-        def shadow_for_pr(number: int) -> bool:
-            # A number absent from the listing fails closed to shadow, matching cohort.is_shadow(None).
-            return shadow_by_number.get(number, True)
-
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
         timeout = timedelta(minutes=timeout_minutes)
@@ -258,6 +229,16 @@ def run(
         # is broader than a non-empty `abandoned` -- a rate limit on the last task leaves nothing to
         # cancel (abandoned stays empty) yet must still skip dispatch.
         cancel_event = threading.Event()
+        authority = Authority(
+            listed=listed,
+            rules=snapshot.rules,
+            authors=authors_by_number,
+            fetch_pr=lambda number: get_pr(client, TARGET_REPO, number),
+            failed=failed,
+            cancel_event=cancel_event,
+            recorded=states.keys(),
+            target=target,
+        )
         # drci_poke's configured delay covers the verdict path's gap between writing the row to /tmp
         # and a later workflow step uploading it. Both emits below have already PUT the object to S3
         # before returning, so the wait buys nothing here and one such sleep per PR would multiply
@@ -282,11 +263,12 @@ def run(
             dismiss=dismiss_approvals,
             emit=emit_reverted,
             poke=poke,
-            shadow_for_pr=shadow_for_pr,
+            shadow_for_pr=authority.reverted_shadow,
             failed=failed,
             cancel_event=cancel_event,
         )
-        pr_numbers = [number for number in pr_numbers if number not in excluded]
+        refused = target is not None and target.refused
+        pr_numbers = [] if refused else [number for number in pr_numbers if number not in excluded]
         # A human approval skips only the listing scan; on --pr the recheck reviews anyway (an
         # approval must never suppress a manual recheck). Changes-requested still skips on both.
         skip_on_approval = pr is None
@@ -302,16 +284,18 @@ def run(
                 now=evaluated_at,
                 window=timedelta(hours=config.review_window_hours),
             )
-            # A trusted author's PR is exempt from the dial: sampling one out would not shrink the
-            # experiment, it would withhold the live service greenlight already gives that author.
+            # An authoritative PR is exempt from the dial: sampling one out would not shrink the
+            # experiment, it would withhold the live service greenlight already gives its author.
             fingerprint_numbers = candidate_filter.rollout_filter(
                 recent,
-                frozenset(number for number in recent if not shadow_for_pr(number)),
+                frozenset(number for number in recent if not authority.shadow(number)),
                 repo=TARGET_REPO,
                 rollout=config.shadow_rollout,
             )
         else:
             fingerprint_numbers = pr_numbers
+        undetermined = authority.undetermined
+        fingerprint_numbers = [number for number in fingerprint_numbers if number not in undetermined]
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
         # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
@@ -319,7 +303,7 @@ def run(
         client_pool: queue.Queue[Github] = queue.Queue()
         for _ in range(worker_count):
             worker_client = build_github(token, seconds_between_requests=_FINGERPRINT_SECONDS_BETWEEN_REQUESTS)
-            clients.callback(_close_client, worker_client)
+            clients.callback(github_client.close_client, worker_client)
             client_pool.put(worker_client)
         if max_dispatches is None:
             pending = scan_runner._fingerprint_all(
@@ -356,6 +340,7 @@ def run(
                 force=force,
                 cancel_event=cancel_event,
             )
+        pending = authority.dispatchable(pending)
         dispatch_failed: list[int] = []
         if cancel_event.is_set():
             # A rate limit tripped the fan-out. The completed candidates are deferred, not lost: no
@@ -378,7 +363,7 @@ def run(
                 dispatch=dispatch,
                 emit_dispatched=emit_dispatched,
                 poke=poke,
-                shadow_for_pr=shadow_for_pr,
+                shadow_for_pr=authority.shadow,
             )
         # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
         # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),
@@ -387,12 +372,15 @@ def run(
             scan_runner.post_refusals(
                 client, TARGET_REPO, skips, bot_login=bot_login, get_pr=get_pr, upsert_comment=upsert_comment
             )
-        if failed or dispatch_failed or abandoned:
+        # A PR can land in failed twice (lookup and revert guard) and in failed and abandoned both.
+        failed_prs = sorted(set(failed))
+        abandoned_prs = sorted(set(abandoned).union(authority.abandoned).difference(failed))
+        if failed_prs or dispatch_failed or abandoned_prs:
             errors: list[str] = []
-            if failed:
-                errors.append(f"{len(failed)} PR(s) failed during scan: {sorted(failed)}")
+            if failed_prs:
+                errors.append(f"{len(failed_prs)} PR(s) failed during scan: {failed_prs}")
             if dispatch_failed:
                 errors.append(f"failed to dispatch {len(dispatch_failed)} PR(s): {sorted(dispatch_failed)}")
-            if abandoned:
-                errors.append(f"{len(abandoned)} PR(s) abandoned due to rate limit: {sorted(abandoned)}")
+            if abandoned_prs:
+                errors.append(f"{len(abandoned_prs)} PR(s) abandoned due to rate limit: {abandoned_prs}")
             raise RuntimeError("; ".join(errors))

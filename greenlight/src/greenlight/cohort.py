@@ -1,10 +1,10 @@
 """Who greenlight evaluates, and whose evaluation carries authority.
 
-Two independent questions, single-sourced here so the scan, the verdict path and the state
-writers cannot drift apart on either. ``evaluation_cohort`` answers the first: pytorch/pytorch's
-merge_rules approver set, minus bots and minus greenlight itself. ``is_trusted`` / ``is_shadow``
-answer the second: a shadow author's PR is still fingerprinted, dispatched and recorded, but is
-never approved and never rendered by Dr. CI.
+``evaluation_cohort`` answers the first: pytorch/pytorch's merge_rules approver set, minus bots and
+greenlight itself. ``assess_rules`` answers the second for the verdict: one merge rule must name the
+author and cover every file the PR changes. The scan's ``assess`` also requires the author to be
+listed in the trusted-authors issue. Every other evaluation is shadow: recorded as usual, but never
+approved and never rendered by Dr. CI.
 
 ``pr_hash`` is the only greenlight import, and deliberately so -- its ``is_bot`` is the one bot
 predicate the fingerprint already relies on, and a second list here would drift from it.
@@ -12,32 +12,14 @@ predicate the fingerprint already relies on, and a second list here would drift 
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, NamedTuple, Protocol
+
 from greenlight.pr_hash import is_bot
 
-__all__ = ["GREENLIGHT_APP_SLUG", "TRUSTED_AUTHORS", "evaluation_cohort", "is_shadow", "is_trusted"]
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
 
-TRUSTED_AUTHORS: frozenset[str] = frozenset(
-    {
-        "albanD",
-        "jathu",
-        "atalman",
-        "huydhn",
-        "izaitsevfb",
-        "georgehong",
-        "jeanschmidt",
-        "ezyang",
-        "drisspg",
-        "janeyx99",
-        "bobrenjc93",
-        "aorenste",
-        "d4l3k",
-        "ngimel",
-    }
-)
-
-# Case-insensitive membership for the two authz gates (target-PR author and recheck requester);
-# GitHub logins are case-insensitive, so gate on the lowercased login against this derived set.
-_TRUSTED_LOWER: frozenset[str] = frozenset(author.lower() for author in TRUSTED_AUTHORS)
+__all__ = ["GREENLIGHT_APP_SLUG", "Eligibility", "EligibilityRule", "assess", "assess_rules", "evaluation_cohort"]
 
 # greenlight's own App slug. merge_rules.yaml names bare logins, so an entry for greenlight
 # resolves to this bare form -- which ``is_bot`` does not match: it is absent from BOT_LOGINS and
@@ -46,24 +28,80 @@ _TRUSTED_LOWER: frozenset[str] = frozenset(author.lower() for author in TRUSTED_
 GREENLIGHT_APP_SLUG = "pytorchgreenlight"
 
 
-def is_trusted(login: str | None) -> bool:
-    return login is not None and login.lower() in _TRUSTED_LOWER
-
-
-def is_shadow(login: str | None) -> bool:
-    """True when ``login``'s evaluation carries no authority: no approval, no Dr. CI render.
-
-    An unidentified author (``None``) is shadow. Shadow is the safe answer under uncertainty:
-    getting it wrong withholds an approval, whereas defaulting to non-shadow would let a failed
-    author lookup authorize a merge on behalf of someone greenlight could not name.
-    """
-    return not is_trusted(login)
+def _is_evaluable(login: str) -> bool:
+    return bool(login) and not is_bot(login) and login.lower() != GREENLIGHT_APP_SLUG
 
 
 def evaluation_cohort(authorized_logins: frozenset[str]) -> frozenset[str]:
     """Lowercase the merge-authorized logins greenlight evaluates: approvers, minus bots and itself."""
-    return frozenset(
-        login.lower()
-        for login in authorized_logins
-        if login and not is_bot(login) and login.lower() != GREENLIGHT_APP_SLUG
-    )
+    return frozenset(login.lower() for login in authorized_logins if _is_evaluable(login))
+
+
+class EligibilityRule(Protocol):
+    """Structural merge rule for ``assess_rules``; ``merge_authz.MergeRule`` satisfies it."""
+
+    @property
+    def approvers(self) -> frozenset[str]: ...
+    @property
+    def covers_all(self) -> bool: ...
+    def covers(self, files: Iterable[str]) -> bool: ...
+
+
+class Eligibility(NamedTuple):
+    rule: EligibilityRule | None
+    reason: str
+
+
+def assess(
+    login: str | None,
+    listed: frozenset[str],
+    rules: Sequence[EligibilityRule],
+    files: Callable[[], Sequence[str] | None],
+) -> Eligibility:
+    """``assess_rules`` for an author the trusted-authors issue lists; ``listed`` holds lowercased logins."""
+    if login and _is_evaluable(login) and login.lower() not in listed:
+        return Eligibility(None, "not listed")
+    return assess_rules(login, rules, files)
+
+
+def assess_rules(
+    login: str | None,
+    rules: Sequence[EligibilityRule],
+    files: Callable[[], Sequence[str] | None],
+) -> Eligibility:
+    """Return the merge rule that gives ``login``'s evaluation authority, or None, with a reason.
+
+    Rule membership is exact-case, as trymerge compares approvers. ``files`` is called at most once,
+    and only when some rule names ``login`` but none has ``covers_all``; None from it means the
+    changed files are unknown. An unknown author or unknown files is never eligible: a wrong None
+    only withholds an approval, whereas a wrong rule would let a failed lookup authorize a merge. The
+    reason names no rule and no file, and an eligible one is plain "eligible": the kind of rule that
+    matched could reveal a concealed team membership.
+    """
+    if not login:
+        return Eligibility(None, "no author")
+    if not _is_evaluable(login):
+        return Eligibility(None, "excluded (bot or greenlight)")
+    naming = [rule for rule in rules if login in rule.approvers]
+    if not naming:
+        return Eligibility(None, _unnamed_reason(login, rules))
+    for rule in naming:
+        if rule.covers_all:
+            return Eligibility(rule, "eligible")
+    changed = files()
+    if changed is None:
+        return Eligibility(None, "file listing unavailable")
+    for rule in naming:
+        if rule.covers(changed):
+            return Eligibility(rule, "eligible")
+    return Eligibility(None, f"no single merge rule naming this login covers all changed files ({len(changed)})")
+
+
+def _unnamed_reason(login: str, rules: Sequence[EligibilityRule]) -> str:
+    reason = f"no merge rule names {login!r} in exact case"
+    lowered = login.lower()
+    variants = {approver for rule in rules for approver in rule.approvers if approver.lower() == lowered}
+    if variants:
+        # min(): approvers are frozensets, whose iteration order changes from one process to the next.
+        reason += f"; a rule names {min(variants)!r}"
+    return reason

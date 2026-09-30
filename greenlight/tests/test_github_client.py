@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 
 import pytest
@@ -310,48 +311,6 @@ def test_list_open_prs_by_authors_propagates_errors():
         github_client.list_open_prs_by_authors(client, "pytorch/pytorch", ["alice"])
 
 
-class _FakeAuthorPull:
-    def __init__(self, user: _FakeUser | None) -> None:
-        self.user = user
-
-
-class _FakeAuthorRepo:
-    def __init__(self, pull: _FakeAuthorPull) -> None:
-        self._pull = pull
-        self.get_pull_numbers: list[int] = []
-
-    def get_pull(self, number: int) -> _FakeAuthorPull:
-        self.get_pull_numbers.append(number)
-        return self._pull
-
-
-class _FakeAuthorClient:
-    def __init__(self, repo: _FakeAuthorRepo) -> None:
-        self._repo = repo
-        self.get_repo_names: list[str] = []
-
-    def get_repo(self, full_name_or_id: str) -> _FakeAuthorRepo:
-        self.get_repo_names.append(full_name_or_id)
-        return self._repo
-
-
-def test_get_pr_author_returns_login():
-    repo = _FakeAuthorRepo(_FakeAuthorPull(_FakeUser("albanD")))
-    client = _FakeAuthorClient(repo)
-
-    author = github_client.get_pr_author(client, "pytorch/pytorch", 42)
-
-    assert author == "albanD"
-    assert client.get_repo_names == ["pytorch/pytorch"]
-    assert repo.get_pull_numbers == [42]
-
-
-def test_get_pr_author_returns_none_when_user_missing():
-    client = _FakeAuthorClient(_FakeAuthorRepo(_FakeAuthorPull(None)))
-
-    assert github_client.get_pr_author(client, "pytorch/pytorch", 7) is None
-
-
 def test_build_client_returns_github_instance_with_per_page_100():
     client = github_client.build_client("x")
 
@@ -498,6 +457,26 @@ def test_authz_retry_differs_from_scan_retry_on_rate_limit_handling():
     assert authz.respect_retry_after_header is True
     assert 429 not in scan.status_forcelist
     assert scan.respect_retry_after_header is False
+
+
+class _FailingCloseClient:
+    def __init__(self) -> None:
+        self.closed = 0
+
+    def close(self) -> None:
+        self.closed += 1
+        raise RuntimeError("close boom")
+
+
+def test_close_client_logs_and_swallows_a_failing_close(caplog):
+    # A failing close must never raise, or it would mask the outcome of the work the client did.
+    client = _FailingCloseClient()
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        github_client.close_client(client)
+    assert client.closed == 1
+    [record] = caplog.records
+    assert record.levelno == logging.WARNING
+    assert record.exc_info is not None
 
 
 def test_is_rate_limit_error_true_for_rate_limit_exceeded_exception():
@@ -1024,6 +1003,17 @@ class _FakeVerdictComment:
         self.edited_with = body
 
 
+class _FakeVerdictFile:
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
+
+
+class _FakePRPart:
+    def __init__(self, ref: str, sha: str) -> None:
+        self.ref = ref
+        self.sha = sha
+
+
 class _FakeVerdictPR:
     def __init__(
         self,
@@ -1032,7 +1022,8 @@ class _FakeVerdictPR:
         existing_comments: list[_FakeVerdictComment] | None = None,
         author: str | None = "albanD",
     ) -> None:
-        self.head = _FakeBase(head_sha)
+        self.head = _FakePRPart("feature", head_sha)
+        self.base = _FakePRPart("main", "base")
         self.user = _FakeActor(author) if author is not None else None
         self._reviews = reviews or []
         self._existing_comments = existing_comments or []
@@ -1052,6 +1043,9 @@ class _FakeVerdictPR:
 
     def get_reviews(self) -> list[_FakeVerdictReview]:
         return self._reviews
+
+    def get_files(self) -> list[_FakeVerdictFile]:
+        return []
 
 
 class _FakeVerdictRepo:

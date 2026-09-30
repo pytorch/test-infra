@@ -1,86 +1,17 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
 import pytest
 
 from greenlight import cohort
 from greenlight.pr_hash import BOT_LOGINS
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 _HUMAN = "ezyang"
-
-# The approval authority boundary: everyone outside it is evaluated in shadow. Pinned here so
-# widening it is a deliberate two-place edit rather than a typo.
-_PINNED_TRUSTED_AUTHORS = {
-    "albanD",
-    "jathu",
-    "atalman",
-    "huydhn",
-    "izaitsevfb",
-    "georgehong",
-    "jeanschmidt",
-    "ezyang",
-    "drisspg",
-    "janeyx99",
-    "bobrenjc93",
-    "aorenste",
-    "d4l3k",
-    "ngimel",
-}
-
-
-def test_trusted_authors_membership_is_pinned():
-    assert cohort.TRUSTED_AUTHORS == _PINNED_TRUSTED_AUTHORS
-
-
-def test_trusted_authors_is_immutable():
-    # _TRUSTED_LOWER snapshots this set at import time, so a post-import mutation would never
-    # reach is_trusted: it could widen the gates' source, or revoke from it, without moving the
-    # gates themselves, with nothing anywhere raising.
-    assert isinstance(cohort.TRUSTED_AUTHORS, frozenset)
-
-
-def test_trusted_lower_is_lowercase_and_collision_free():
-    # A pair of authors differing only in case would silently shrink the gate by one.
-    assert all(login == login.lower() for login in cohort._TRUSTED_LOWER)
-    assert len(cohort._TRUSTED_LOWER) == len(cohort.TRUSTED_AUTHORS)
-
-
-@pytest.mark.parametrize(
-    ("login", "expected"),
-    [
-        pytest.param("ezyang", True, id="exact-login"),
-        pytest.param("EZYANG", True, id="uppercased"),
-        pytest.param("albanD", True, id="canonical-mixed-case"),
-        pytest.param("aLBAnd", True, id="mixed-case-login-cased-differently"),
-        pytest.param("octocat", False, id="stranger"),
-        pytest.param("", False, id="empty"),
-        pytest.param(None, False, id="absent"),
-    ],
-)
-def test_is_trusted(login: str | None, expected: bool) -> None:
-    assert cohort.is_trusted(login) is expected
-
-
-@pytest.mark.parametrize(
-    ("login", "expected"),
-    [
-        pytest.param("ezyang", False, id="trusted-author"),
-        pytest.param("EZYANG", False, id="trusted-author-uppercased"),
-        pytest.param("octocat", True, id="stranger"),
-        pytest.param("", True, id="empty"),
-        pytest.param(None, True, id="absent-fails-closed"),
-    ],
-)
-def test_is_shadow(login: str | None, expected: bool) -> None:
-    assert cohort.is_shadow(login) is expected
-
-
-def test_is_shadow_is_the_complement_of_is_trusted():
-    for login in (*cohort.TRUSTED_AUTHORS, "octocat", "", None):
-        assert cohort.is_shadow(login) is not cohort.is_trusted(login)
-
-
-def test_every_trusted_author_is_non_shadow():
-    # Why narrowing the scan listing to TRUSTED_AUTHORS needs no counterpart downstream: every
-    # author left listed is trusted, so no shadow row can be produced in the first place.
-    assert not any(cohort.is_shadow(login) for login in cohort.TRUSTED_AUTHORS)
 
 
 def test_evaluation_cohort_keeps_humans_and_lowercases():
@@ -123,9 +54,47 @@ def test_evaluation_cohort_of_an_empty_set_is_empty():
     assert cohort.evaluation_cohort(frozenset()) == frozenset()
 
 
-def test_evaluation_cohort_membership_is_independent_of_trust():
-    # A cohort member is evaluated; whether that evaluation has authority is is_shadow's answer.
+_AUTHOR = "albanD"
+_TORCH = "torch/nn/functional.py"
+_DOCS = "docs/source/nn.rst"
+
+
+@dataclass(frozen=True)
+class _Rule:
+    approvers: frozenset[str]
+    covers_all: bool = False
+    paths: frozenset[str] = frozenset()
+
+    def covers(self, files: Iterable[str]) -> bool:
+        return set(files) <= self.paths
+
+
+def test_evaluation_cohort_membership_is_independent_of_eligibility():
+    # A cohort member is evaluated; whether that evaluation has authority is assess's answer.
     resolved = cohort.evaluation_cohort(frozenset({_HUMAN, "octocat"}))
     assert resolved == frozenset({_HUMAN, "octocat"})
-    assert cohort.is_shadow("octocat") is True
-    assert cohort.is_shadow(_HUMAN) is False
+    rule = _Rule(frozenset({_HUMAN, "octocat"}), covers_all=True)
+    assert cohort.assess("octocat", frozenset({_HUMAN}), (rule,), lambda: None).rule is None
+    assert cohort.assess(_HUMAN, frozenset({_HUMAN}), (rule,), lambda: None).rule is rule
+
+
+def test_assess_rules_refuses_greenlight_itself_although_a_catch_all_rule_names_it():
+    greenlight_review_bot = _Rule(frozenset({cohort.GREENLIGHT_APP_SLUG}), covers_all=True)
+    assert cohort.assess_rules(cohort.GREENLIGHT_APP_SLUG, (greenlight_review_bot,), lambda: None).rule is None
+
+
+def test_assess_rules_matches_approvers_in_exact_case():
+    miscased = _Rule(frozenset({"alband"}), covers_all=True)
+    exact = _Rule(frozenset({_AUTHOR}), covers_all=True)
+
+    assert cohort.assess_rules(_AUTHOR, (miscased,), lambda: None).rule is None
+    assert cohort.assess_rules(_AUTHOR, (miscased, exact), lambda: None).rule is exact
+
+
+def test_assess_rules_needs_one_naming_rule_that_covers_every_changed_file():
+    torch_only = _Rule(frozenset({_AUTHOR}), paths=frozenset({_TORCH}))
+    docs_only = _Rule(frozenset({_AUTHOR}), paths=frozenset({_DOCS}))
+    both = _Rule(frozenset({_AUTHOR}), paths=frozenset({_TORCH, _DOCS}))
+
+    assert cohort.assess_rules(_AUTHOR, (torch_only, docs_only), lambda: (_TORCH, _DOCS)).rule is None
+    assert cohort.assess_rules(_AUTHOR, (torch_only, docs_only, both), lambda: (_TORCH, _DOCS)).rule is both
