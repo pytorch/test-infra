@@ -85,6 +85,13 @@
       "xpu"
     ]
   ],
+  "test_bincount_int32_overflow (__main__.TestCuda)": [
+    "199198",
+    "https://github.com/pytorch/pytorch/issues/199198",
+    [
+      "rocm"
+    ]
+  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
