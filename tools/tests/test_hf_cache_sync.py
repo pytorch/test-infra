@@ -73,9 +73,26 @@ class TestCacheDir(TestCase):
     def test_leading_and_trailing_slashes_tolerated(self) -> None:
         self.assertEqual(m.cache_dir("/Qwen/Qwen3-0.6B/"), "models--Qwen--Qwen3-0.6B")
 
-    def test_rejects_bare_name(self) -> None:
+    def test_bare_name_is_a_legacy_un_namespaced_repo(self) -> None:
+        # gpt2, t5-base and albert-base-v2 really are repo ids, and torchbench
+        # asks for them in that form.
+        for spec in ("gpt2", "t5-base", "albert-base-v2"):
+            self.assertEqual(m.cache_dir(spec), f"models--{spec}")
+
+    def test_bare_name_is_not_the_namespaced_repo(self) -> None:
+        # A cache holding one still misses a job that asks for the other, which
+        # is the whole reason the bare form has to be addressable.
+        self.assertNotEqual(m.cache_dir("gpt2"), m.cache_dir("openai-community/gpt2"))
+
+    def test_rejects_bare_dataset_name(self) -> None:
+        # No namespace to copy from, so this is a typo rather than a legacy id.
         with self.assertRaises(ValueError):
-            m.cache_dir("Qwen3-0.6B")
+            m.cache_dir("datasets/alpha")
+
+    def test_rejects_empty(self) -> None:
+        for spec in ("", "/"):
+            with self.assertRaises(ValueError):
+                m.cache_dir(spec)
 
     def test_rejects_too_many_segments(self) -> None:
         with self.assertRaises(ValueError):

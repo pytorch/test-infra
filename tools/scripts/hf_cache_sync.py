@@ -101,7 +101,14 @@ def cache_dir(repo: str) -> str:
     """Repo id -> the directory name HuggingFace gives it in the hub cache.
 
     Accepts ``org/name`` (a model), ``datasets/org/name`` or ``dataset/org/name``
-    (a dataset), and passes an already-encoded ``models--org--name`` through.
+    (a dataset), a bare ``name`` for the legacy un-namespaced repos (``gpt2``,
+    ``t5-base``, ``albert-base-v2``), and passes an already-encoded
+    ``models--org--name`` through.
+
+    The bare form is not a synonym for the namespaced one: ``gpt2`` caches as
+    ``models--gpt2`` while ``openai-community/gpt2`` caches as
+    ``models--openai-community--gpt2``, so a cache holding one still misses a
+    job that asks for the other.
     """
     if repo.startswith(("models--", "datasets--", "spaces--")):
         return repo.rstrip("/")
@@ -109,9 +116,12 @@ def cache_dir(repo: str) -> str:
     kind = "models"
     if parts[0] in ("datasets", "dataset"):
         kind, parts = "datasets", parts[1:]
+    if len(parts) == 1 and kind == "models" and parts[0]:
+        return f"{kind}--{parts[0]}"
     if len(parts) != 2:
         raise ValueError(
-            f"cannot parse repo id {repo!r}; expected org/name or datasets/org/name"
+            f"cannot parse repo id {repo!r}; expected org/name, a bare name, "
+            "or datasets/org/name"
         )
     return f"{kind}--{parts[0]}--{parts[1]}"
 
@@ -216,10 +226,13 @@ def download_from_hub(repo_dir: str, dest_dir: str) -> str:
     except ImportError:
         sys.exit("--from-hub needs huggingface_hub: pip install huggingface_hub")
 
-    kind, org, name = repo_dir.split("--", 2)
+    kind, rest = repo_dir.split("--", 1)
     repo_type = {"models": "model", "datasets": "dataset", "spaces": "space"}[kind]
-    print(f"  downloading {org}/{name} ({repo_type}) from HuggingFace")
-    snapshot_download(repo_id=f"{org}/{name}", repo_type=repo_type, cache_dir=dest_dir)
+    # A legacy un-namespaced model is one segment ("models--gpt2"), everything
+    # else is two ("models--openai--clip-vit-base-patch32").
+    repo_id = rest.replace("--", "/", 1)
+    print(f"  downloading {repo_id} ({repo_type}) from HuggingFace")
+    snapshot_download(repo_id=repo_id, repo_type=repo_type, cache_dir=dest_dir)
     return os.path.join(dest_dir, repo_dir)
 
 
