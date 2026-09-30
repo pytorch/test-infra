@@ -2,9 +2,9 @@
 
 ``evaluation_cohort`` answers the first: pytorch/pytorch's merge_rules approver set, minus bots and
 greenlight itself. ``assess_rules`` answers the second for the verdict: one merge rule must name the
-author and cover every file the PR changes. The scan answers it with ``is_trusted`` / ``is_shadow``,
-from the hardcoded ``TRUSTED_AUTHORS``. A shadow evaluation is recorded as usual, but never approved
-and never rendered by Dr. CI.
+author and cover every file the PR changes. The scan's ``assess`` also requires the author to be
+listed in the trusted-authors issue. Every other evaluation is shadow: recorded as usual, but never
+approved and never rendered by Dr. CI.
 
 ``pr_hash`` is the only greenlight import, and deliberately so -- its ``is_bot`` is the one bot
 predicate the fingerprint already relies on, and a second list here would drift from it.
@@ -19,59 +19,13 @@ from greenlight.pr_hash import is_bot
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
-__all__ = [
-    "GREENLIGHT_APP_SLUG",
-    "TRUSTED_AUTHORS",
-    "Eligibility",
-    "EligibilityRule",
-    "assess_rules",
-    "evaluation_cohort",
-    "is_shadow",
-    "is_trusted",
-]
-
-TRUSTED_AUTHORS: frozenset[str] = frozenset(
-    {
-        "albanD",
-        "jathu",
-        "atalman",
-        "huydhn",
-        "izaitsevfb",
-        "georgehong",
-        "jeanschmidt",
-        "ezyang",
-        "drisspg",
-        "janeyx99",
-        "bobrenjc93",
-        "aorenste",
-        "d4l3k",
-        "ngimel",
-    }
-)
-
-# Case-insensitive membership for the two authz gates (target-PR author and recheck requester);
-# GitHub logins are case-insensitive, so gate on the lowercased login against this derived set.
-_TRUSTED_LOWER: frozenset[str] = frozenset(author.lower() for author in TRUSTED_AUTHORS)
+__all__ = ["GREENLIGHT_APP_SLUG", "Eligibility", "EligibilityRule", "assess", "assess_rules", "evaluation_cohort"]
 
 # greenlight's own App slug. merge_rules.yaml names bare logins, so an entry for greenlight
 # resolves to this bare form -- which ``is_bot`` does not match: it is absent from BOT_LOGINS and
 # carries no ``[bot]`` suffix. Only the REST-side ``pytorchgreenlight[bot]`` login is bot-shaped,
 # so without this guard greenlight enters its own cohort and reviews its own pull requests.
 GREENLIGHT_APP_SLUG = "pytorchgreenlight"
-
-
-def is_trusted(login: str | None) -> bool:
-    return login is not None and login.lower() in _TRUSTED_LOWER
-
-
-def is_shadow(login: str | None) -> bool:
-    """True when ``login``'s evaluation carries no authority: no approval, no Dr. CI render.
-
-    An unidentified author (``None``) is shadow. Shadow is the safe answer under uncertainty:
-    getting it wrong withholds an approval, whereas defaulting to non-shadow would let a failed
-    author lookup authorize a merge on behalf of someone greenlight could not name.
-    """
-    return not is_trusted(login)
 
 
 def _is_evaluable(login: str) -> bool:
@@ -96,6 +50,18 @@ class EligibilityRule(Protocol):
 class Eligibility(NamedTuple):
     rule: EligibilityRule | None
     reason: str
+
+
+def assess(
+    login: str | None,
+    listed: frozenset[str],
+    rules: Sequence[EligibilityRule],
+    files: Callable[[], Sequence[str] | None],
+) -> Eligibility:
+    """``assess_rules`` for an author the trusted-authors issue lists; ``listed`` holds lowercased logins."""
+    if login and _is_evaluable(login) and login.lower() not in listed:
+        return Eligibility(None, "not listed")
+    return assess_rules(login, rules, files)
 
 
 def assess_rules(

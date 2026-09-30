@@ -5,20 +5,21 @@ name: Green Light Scan
 # `@greenlight recheck` entry point: dispatched by filename from a pytorch/pytorch trigger (or run
 # by hand), it runs the same greenlight scanner (`greenlight review`) — lists the open
 # pytorch/pytorch PRs from the evaluation cohort (every merge_rules.yaml approver, minus bots and
-# greenlight itself) and dispatches greenlight-pr-review.yml for each new or changed PR. A PR whose
-# author is outside the trusted-author set is dispatched in shadow: reviewed and recorded, never
-# approved. Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
+# greenlight itself) and dispatches greenlight-pr-review.yml for each new or changed PR. A PR is
+# dispatched in shadow — reviewed and recorded, never approved — unless its author is eligible for
+# it (greenlight/TRUSTED_AUTHORS.md), and a run fails while the trusted-authors issue is unreadable.
+# Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
 
 on:
   workflow_dispatch:
     inputs:
       pr:
-        description: "Single PR number to scan; its author must be a trusted author (empty = whole evaluation cohort)"
+        description: "Single PR number to scan; its author must be eligible for it, as greenlight/TRUSTED_AUTHORS.md defines (empty = whole evaluation cohort)"
         required: false
         default: ""
         type: string
       requester:
-        description: "Login that requested this review (@greenlight recheck); must be a trusted author"
+        description: "Login that requested this review (@greenlight recheck); must be listed in the trusted-authors issue and in the evaluation cohort"
         required: false
         default: ""
         type: string

@@ -428,23 +428,6 @@ def test_cache_default_fetch_resolves_from_merge_rules():
     assert cache.snapshot().authorized == frozenset({"alice"})
 
 
-def test_cache_get_and_snapshot_share_one_fetch():
-    fetched = _snapshot("alice")
-    fetch_calls: list[int] = []
-
-    def fetch(_client):
-        fetch_calls.append(1)
-        return fetched
-
-    cache = merge_authz.AuthorizedLoginsCache(
-        lambda: _FakeAuthzClient(), ttl_seconds=600, monotonic=lambda: 0.0, fetch=fetch
-    )
-
-    assert cache.snapshot() is fetched
-    assert cache.get() is fetched.authorized
-    assert len(fetch_calls) == 1
-
-
 class _ClosableAuthzClient(_FakeAuthzClient):
     def __init__(self, *, close_error: bool = False) -> None:
         super().__init__()

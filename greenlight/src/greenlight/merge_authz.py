@@ -244,8 +244,7 @@ class AuthorizedLoginsCache:
     ``monotonic`` is the injected float clock (defaults to ``time.monotonic``);
     ``build_client`` is a thunk so each refresh builds its own client, closed as soon as
     the fetch returns. Not thread-safe by design: it is read once per scan from the main
-    thread, and the immutable result is what fans out to the fingerprint workers. ``get``
-    is ``snapshot().authorized``, so one refresh serves both views.
+    thread, and the immutable result is what fans out to the fingerprint workers.
     """
 
     def __init__(
@@ -267,9 +266,6 @@ class AuthorizedLoginsCache:
 
     def _is_fresh(self) -> bool:
         return self._monotonic() - self._fetched_at < self._ttl_seconds
-
-    def get(self) -> frozenset[str]:
-        return self.snapshot().authorized
 
     def snapshot(self) -> MergeRulesSnapshot:
         if self._cached is not None and self._is_fresh():

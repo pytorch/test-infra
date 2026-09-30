@@ -1003,6 +1003,17 @@ class _FakeVerdictComment:
         self.edited_with = body
 
 
+class _FakeVerdictFile:
+    def __init__(self, filename: str) -> None:
+        self.filename = filename
+
+
+class _FakePRPart:
+    def __init__(self, ref: str, sha: str) -> None:
+        self.ref = ref
+        self.sha = sha
+
+
 class _FakeVerdictPR:
     def __init__(
         self,
@@ -1011,7 +1022,8 @@ class _FakeVerdictPR:
         existing_comments: list[_FakeVerdictComment] | None = None,
         author: str | None = "albanD",
     ) -> None:
-        self.head = _FakeBase(head_sha)
+        self.head = _FakePRPart("feature", head_sha)
+        self.base = _FakePRPart("main", "base")
         self.user = _FakeActor(author) if author is not None else None
         self._reviews = reviews or []
         self._existing_comments = existing_comments or []
@@ -1031,6 +1043,9 @@ class _FakeVerdictPR:
 
     def get_reviews(self) -> list[_FakeVerdictReview]:
         return self._reviews
+
+    def get_files(self) -> list[_FakeVerdictFile]:
+        return []
 
 
 class _FakeVerdictRepo:
