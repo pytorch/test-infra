@@ -83,6 +83,7 @@ EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 HEAD_SHA_RE = re.compile(r"[0-9a-fA-F]{40}")
 
 TARGET_REPO = "pytorch/pytorch"
+TARGET_BRANCH = "main"
 DISPATCH_REPO = "pytorch/test-infra"
 WORKFLOW_FILE = "greenlight-pr-review.yml"
 DEFAULT_DISPATCH_REF = "main"
