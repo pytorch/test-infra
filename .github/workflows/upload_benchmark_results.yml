@@ -38,7 +38,7 @@ on:
 jobs:
   job:
     name: Uploading ${{ inputs.benchmark-artifact }}
-    runs-on: linux.2xlarge
+    runs-on: ubuntu-24.04
     # Keep this in case we need to use OIDC later on, so the permission is there
     permissions:
       id-token: write

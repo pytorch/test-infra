@@ -3,7 +3,8 @@ import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
   approvedRevertRows,
   revertRows,
-  staleVerdictNote,
+  stalenessCounts,
+  staleVerdictNoteOf,
 } from "lib/greenlight/qualityFigures";
 import {
   GREENLIGHT_QUALITY_REPO,
@@ -11,15 +12,15 @@ import {
   ShadowMode,
   useQualityQuery,
 } from "lib/greenlight/qualityQuery";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import InfoTooltip from "./InfoTooltip";
 import { REVERTED_TABLE } from "./tableConfigs";
 
 const TABLE_HEIGHT = 460;
 
 // Shares the reverts SWR key with the revert tile; this view narrows the same
-// rows to the ones GreenLight actually approved.
-export default function RevertedTable({
+// rows to the ones carrying a GreenLight LAND, less the stale ones.
+function RevertedTable({
   startTime,
   stopTime,
   shadowMode,
@@ -41,24 +42,36 @@ export default function RevertedTable({
   // A fresh array identity on every render would remount the grid's rows, and
   // a wide window returns reverts in the thousands.
   const rows = useMemo(() => approvedRevertRows(reverts.rows), [reverts.rows]);
-  const staleness = useMemo(() => staleVerdictNote(rows), [rows]);
+  // The unfiltered rows, as the tile's note uses: `rows` has already dropped the
+  // stale reverts these count.
+  const staleCounts = useMemo(
+    () => stalenessCounts(reverts.rows),
+    [reverts.rows]
+  );
+  const staleness = staleVerdictNoteOf(staleCounts);
 
-  // Counted here rather than inside the slots memo below, which depends on this
-  // number and must not depend on the row array: a memo keyed on rows.length alone
-  // would hold a stale message whenever the rows change without changing count.
+  // Counted here rather than inside the slots memo below, which depends on these
+  // numbers and must not depend on the row array: a memo keyed on rows.length
+  // alone would hold an outdated message whenever the rows change without
+  // changing count.
   const revertCount = useMemo(
     () => revertRows(reverts.rows).length,
     [reverts.rows]
   );
+  const staleCount = staleCounts.stale;
 
-  // The grid's stock "No rows" reads the same for a window that held no reverts
-  // and for one whose reverts GreenLight never approved. The second is the
-  // result this table exists to report, and it must not look like missing data.
-  // Memoised because a fresh slot component identity remounts the overlay.
+  // The grid's stock "No rows" reads the same for a window that held no reverts,
+  // one whose reverts GreenLight never approved, and one whose reverts carrying a
+  // GreenLight LAND were all stale. The second is the result this table exists to
+  // report, and it must not look like missing data; the third must not pass for
+  // the second. Memoised because a fresh slot component identity remounts the
+  // overlay.
   const slots = useMemo(() => {
     const message =
       revertCount === 0
         ? "No reverts in this window."
+        : staleCount > 0
+        ? "Every revert carrying a GreenLight LAND in this window was excluded as stale."
         : "No GreenLight-approved reverts in this window.";
     return {
       noRowsOverlay: () => (
@@ -69,7 +82,7 @@ export default function RevertedTable({
         </Stack>
       ),
     };
-  }, [revertCount]);
+  }, [revertCount, staleCount]);
 
   return (
     <Grid container spacing={2}>
@@ -128,3 +141,7 @@ export default function RevertedTable({
     </Grid>
   );
 }
+
+// Every prop is a primitive, and the page re-renders for state this table does
+// not read, so a shallow comparison spares the grid those renders.
+export default memo(RevertedTable);
