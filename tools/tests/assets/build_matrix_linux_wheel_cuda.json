@@ -12,21 +12,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
-    },
-    {
-      "python_version": "3.11",
-      "gpu_arch_type": "cuda",
-      "gpu_arch_version": "13.0",
-      "desired_cuda": "cu130",
-      "container_image": "pytorch/manylinux2_28-builder:cuda13.0",
-      "package_type": "manywheel",
-      "build_name": "manywheel-py3_11-cuda13_0",
-      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
-      "channel": "nightly",
-      "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.11",
@@ -40,7 +26,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.11",
@@ -54,7 +40,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.11",
@@ -68,7 +54,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.11",
@@ -82,7 +68,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.12",
@@ -96,21 +82,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
-    },
-    {
-      "python_version": "3.12",
-      "gpu_arch_type": "cuda",
-      "gpu_arch_version": "13.0",
-      "desired_cuda": "cu130",
-      "container_image": "pytorch/manylinux2_28-builder:cuda13.0",
-      "package_type": "manywheel",
-      "build_name": "manywheel-py3_12-cuda13_0",
-      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
-      "channel": "nightly",
-      "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.12",
@@ -124,7 +96,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.12",
@@ -138,7 +110,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.12",
@@ -152,7 +124,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.12",
@@ -166,7 +138,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.13",
@@ -180,21 +152,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
-    },
-    {
-      "python_version": "3.13",
-      "gpu_arch_type": "cuda",
-      "gpu_arch_version": "13.0",
-      "desired_cuda": "cu130",
-      "container_image": "pytorch/manylinux2_28-builder:cuda13.0",
-      "package_type": "manywheel",
-      "build_name": "manywheel-py3_13-cuda13_0",
-      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
-      "channel": "nightly",
-      "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.13",
@@ -208,7 +166,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.13",
@@ -222,7 +180,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.13",
@@ -236,7 +194,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.13",
@@ -250,7 +208,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14",
@@ -264,21 +222,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
-    },
-    {
-      "python_version": "3.14",
-      "gpu_arch_type": "cuda",
-      "gpu_arch_version": "13.0",
-      "desired_cuda": "cu130",
-      "container_image": "pytorch/manylinux2_28-builder:cuda13.0",
-      "package_type": "manywheel",
-      "build_name": "manywheel-py3_14-cuda13_0",
-      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
-      "channel": "nightly",
-      "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14",
@@ -292,7 +236,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14",
@@ -306,7 +250,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14",
@@ -320,7 +264,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14",
@@ -334,7 +278,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14t",
@@ -348,21 +292,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
-    },
-    {
-      "python_version": "3.14t",
-      "gpu_arch_type": "cuda",
-      "gpu_arch_version": "13.0",
-      "desired_cuda": "cu130",
-      "container_image": "pytorch/manylinux2_28-builder:cuda13.0",
-      "package_type": "manywheel",
-      "build_name": "manywheel-py3_14t-cuda13_0",
-      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
-      "channel": "nightly",
-      "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14t",
@@ -376,7 +306,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14t",
@@ -390,7 +320,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14t",
@@ -404,7 +334,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.14",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.14t",
@@ -418,7 +348,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15",
@@ -432,21 +362,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
-    },
-    {
-      "python_version": "3.15",
-      "gpu_arch_type": "cuda",
-      "gpu_arch_version": "13.0",
-      "desired_cuda": "cu130",
-      "container_image": "pytorch/manylinux2_28-builder:cuda13.0",
-      "package_type": "manywheel",
-      "build_name": "manywheel-py3_15-cuda13_0",
-      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu130",
-      "channel": "nightly",
-      "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15",
@@ -460,7 +376,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15",
@@ -474,7 +390,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15",
@@ -488,7 +404,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm7.14",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15",
@@ -502,7 +418,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15t",
@@ -516,21 +432,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
-    },
-    {
-      "python_version": "3.15t",
-      "gpu_arch_type": "cuda",
-      "gpu_arch_version": "13.0",
-      "desired_cuda": "cu130",
-      "container_image": "pytorch/manylinux2_28-builder:cuda13.0",
-      "package_type": "manywheel",
-      "build_name": "manywheel-py3_15t-cuda13_0",
-      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu130",
-      "channel": "nightly",
-      "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15t",
@@ -544,7 +446,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15t",
@@ -558,7 +460,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15t",
@@ -572,7 +474,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm7.14",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     },
     {
       "python_version": "3.15t",
@@ -586,7 +488,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.0"
+      "stable_version": "2.14.1"
     }
   ]
 }
