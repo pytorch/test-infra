@@ -1577,13 +1577,6 @@
       "rocm"
     ]
   ],
-  "test_to_r_to_c_cpu (__main__.TestAutogradDeviceTypeCPU)": [
-    "190500",
-    "https://github.com/pytorch/pytorch/issues/190500",
-    [
-      "dynamo"
-    ]
-  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
