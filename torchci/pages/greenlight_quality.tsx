@@ -14,14 +14,23 @@ import {
   snapStopToGranularity,
   snapToGranularity,
 } from "components/common/timeWindow";
+import { QualityChartKey } from "components/greenlight/quality/chartConfigs";
 import CoverageTiles from "components/greenlight/quality/CoverageTiles";
 import InfoTooltip from "components/greenlight/quality/InfoTooltip";
 import LatencyPanels from "components/greenlight/quality/LatencyPanels";
+import QualityCharts from "components/greenlight/quality/QualityCharts";
 import RevertedTable from "components/greenlight/quality/RevertedTable";
 import ReviewRunPanels from "components/greenlight/quality/ReviewRunPanels";
 import TrustPanels from "components/greenlight/quality/TrustPanels";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import {
+  ChartGranularity,
+  clearsGranularityOverride,
+  defaultGranularity,
+  pickedRangeDays,
+  PickerChange,
+} from "lib/greenlight/qualityCharts";
 import { isEmptyWindow } from "lib/greenlight/qualityFigures";
 import {
   DEFAULT_SHADOW_MODE,
@@ -38,7 +47,7 @@ dayjs.extend(utc);
 
 // TimeRangePicker re-derives "now" every 5 minutes. Snapping the window to a
 // fixed bucket keeps the query timestamps — and so every SWR key on the page —
-// stable within the bucket instead of re-running five queries on a timer. The
+// stable within the bucket instead of re-running every query on a timer. The
 // bucket is deliberately not user-selectable: it is the analysis window every
 // statistic on the page is computed over, and exposing it as a control invites
 // it being read as a display setting.
@@ -83,6 +92,43 @@ export default function Page() {
   );
   const [stopTime, setStopTime] = useState(dayjs());
   const [shadowMode, setShadowMode] = useState<ShadowMode>(DEFAULT_SHADOW_MODE);
+  const [openCharts, setOpenCharts] = useState<ReadonlySet<QualityChartKey>>(
+    () => new Set()
+  );
+  const [granularityOverride, setGranularityOverride] =
+    useState<ChartGranularity>();
+
+  const toggleChart = (key: QualityChartKey) =>
+    setOpenCharts((open) => {
+      const next = new Set(open);
+      if (!next.delete(key)) {
+        next.add(key);
+      }
+      return next;
+    });
+
+  // The charts' bucket size (day or week) defaults from the range the user
+  // picked, not from the clamped window.
+  const granularity =
+    granularityOverride ??
+    defaultGranularity(pickedRangeDays(timeRange, startTime, stopTime));
+  const pickerChanged = (change: PickerChange) => {
+    if (clearsGranularityOverride(change, timeRange)) {
+      setGranularityOverride(undefined);
+    }
+  };
+  const changeTimeRange = (value: number) => {
+    setTimeRange(value);
+    pickerChanged("range");
+  };
+  const changeStartTime = (value: dayjs.Dayjs) => {
+    setStartTime(value);
+    pickerChanged("bound");
+  };
+  const changeStopTime = (value: dayjs.Dayjs) => {
+    setStopTime(value);
+    pickerChanged("bound");
+  };
 
   const windowStart = snapToGranularity(startTime, WINDOW_BUCKET).format(
     CLICKHOUSE_TIME_FORMAT
@@ -93,7 +139,7 @@ export default function Page() {
 
   // Coverage is the page's cheapest query and the only one that reports the
   // clamped window, so it is fetched here and always polls: its answer is what
-  // decides whether the four expensive queries below poll at all.
+  // decides whether every other query on the page polls at all.
   const coverage = useQualityQuery(
     QUALITY_QUERIES.coverage,
     windowStart,
@@ -118,11 +164,11 @@ export default function Page() {
       >
         <TimeRangePicker
           startTime={startTime}
-          setStartTime={setStartTime}
+          setStartTime={changeStartTime}
           stopTime={stopTime}
-          setStopTime={setStopTime}
+          setStopTime={changeStopTime}
           timeRange={timeRange}
-          setTimeRange={setTimeRange}
+          setTimeRange={changeTimeRange}
         />
         <ToggleButtonGroup
           exclusive
@@ -156,26 +202,49 @@ export default function Page() {
         {/* One container for every tile, so they reflow as a single run and
             pack as many per row as the viewport allows. */}
         <Grid container spacing={2}>
-          <CoverageTiles coverage={coverage} />
+          <CoverageTiles
+            coverage={coverage}
+            openCharts={openCharts}
+            onToggleChart={toggleChart}
+          />
           <LatencyPanels
             startTime={windowStart}
             stopTime={windowStop}
             shadowMode={shadowMode}
             autoRefresh={autoRefresh}
+            openCharts={openCharts}
+            onToggleChart={toggleChart}
           />
           <TrustPanels
             startTime={windowStart}
             stopTime={windowStop}
             shadowMode={shadowMode}
             autoRefresh={autoRefresh}
+            openCharts={openCharts}
+            onToggleChart={toggleChart}
           />
           <ReviewRunPanels
             startTime={windowStart}
             stopTime={windowStop}
             shadowMode={shadowMode}
             autoRefresh={autoRefresh}
+            openCharts={openCharts}
+            onToggleChart={toggleChart}
           />
         </Grid>
+        {/* Below TrustPanels on purpose: the revert chart reads the reverts key
+            without a fetcher, and SWR sends a key's error retries and
+            revalidation to its first subscriber, which has to be the tile's. */}
+        <QualityCharts
+          openCharts={openCharts}
+          granularity={granularity}
+          onGranularityChange={setGranularityOverride}
+          coverage={coverage}
+          startTime={windowStart}
+          stopTime={windowStop}
+          shadowMode={shadowMode}
+          autoRefresh={autoRefresh}
+        />
         <RevertedTable
           startTime={windowStart}
           stopTime={windowStop}

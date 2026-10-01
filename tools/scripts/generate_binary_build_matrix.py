@@ -51,8 +51,8 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["13.0", "13.2", "13.4"],
-    "test": ["12.6", "13.0", "13.2", "13.4"],
+    "nightly": ["13.2", "13.4"],
+    "test": ["13.2", "13.4"],
     "release": ["12.6", "13.0", "13.2"],
 }
 
@@ -81,8 +81,8 @@ CUDA_CUDNN_VERSIONS = {
 }
 
 STABLE_CUDA_VERSIONS = {
-    "nightly": "13.0",
-    "test": "13.0",
+    "nightly": "13.2",
+    "test": "13.2",
     "release": "13.0",
 }
 
@@ -95,7 +95,7 @@ CUDA_ARCHES_NO_WINDOWS = ["13.4"]
 # in pytorch/pytorch.github.io publishes an install selector for a CUDA version
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
-CUDA_ARCHES_NO_GETTING_STARTED = ["13.4"]
+CUDA_ARCHES_NO_GETTING_STARTED: List[str] = []
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
@@ -125,8 +125,8 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.15.0"
-CURRENT_CANDIDATE_VERSION = "2.14.0"
-CURRENT_STABLE_VERSION = "2.14.0"
+CURRENT_CANDIDATE_VERSION = "2.14.1"
+CURRENT_STABLE_VERSION = "2.14.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
