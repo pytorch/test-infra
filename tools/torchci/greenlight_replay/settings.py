@@ -57,7 +57,7 @@ BUDGET_HOOK_TIMEOUT_S = 5
 OUTPUT_STYLE = "Concise"
 
 # Matches restrict-read.py's own coverage. Read and Write are the tools that name the
-# skill's three scratch paths directly; Glob and Grep are here because the read sandbox
+# skill's scratch paths directly; Glob and Grep are here because the read sandbox
 # admits any /tmp/greenlight-* search path, which would otherwise reach the SHARED /tmp
 # rather than this run's directory.
 REMAP_MATCHER = "Read|Write|Glob|Grep"

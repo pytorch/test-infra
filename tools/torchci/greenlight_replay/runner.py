@@ -281,20 +281,39 @@ def _assert_paths_agree(inputs: ReplayInputs, run_dir: Path) -> None:
 
     A mismatch is silent otherwise: the reviewer's read is rewritten to a run-directory
     path that does not exist, it reviews a PR it cannot see, and the verdict looks real.
+    Stack files are refused when no stack was built, because the run directory outlives
+    a sweep: the remap would hand whatever an earlier run left there to a review CI gave
+    no stack.
     """
     violation = remap.run_dir_violation(str(run_dir))
     if violation is not None:
         raise ValueError(violation)
+    run_dir = Path(run_dir)
     placed = [
         (inputs.diff_path, remap.DIFF_BASENAME),
         (inputs.metadata_path, remap.METADATA_BASENAME),
+        (inputs.stack_path, remap.STACK_BASENAME),
     ]
     for actual, basename in placed:
-        expected = Path(run_dir) / basename
+        expected = run_dir / basename
         if actual is not None and Path(actual) != expected:
             raise ValueError(
                 f"{basename} is at {actual}, but the remap points at {expected}"
             )
+    if inputs.stack_path is None:
+        for name in (remap.STACK_BASENAME, remap.STACK_DIRNAME):
+            if os.path.lexists(run_dir / name):
+                raise ValueError(f"{run_dir / name} exists, but no stack was built")
+        return
+    stack = json.loads(Path(inputs.stack_path).read_text(encoding="utf-8"))["stack"]
+    for named in [entry["diff"] for entry in stack if "diff" in entry]:
+        target = remap.remapped_path(str(run_dir), named)
+        if target is None:
+            raise ValueError(
+                f"the stack names {named}, which the remap does not rewrite"
+            )
+        if not os.path.isfile(target):
+            raise ValueError(f"the stack names {named}, but {target} does not exist")
 
 
 def _invoke_cli(
