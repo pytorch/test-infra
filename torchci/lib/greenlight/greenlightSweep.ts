@@ -18,6 +18,11 @@ export const ZERO_WIDTH_SPACE = "\u200b";
 const GREENLIGHT_PENDING_ALT = "Green Light: in progress";
 export const GREENLIGHT_PENDING_ALT_ATTR = `alt="${GREENLIGHT_PENDING_ALT}"`;
 
+// The same sentinel for the automated PR review section (lib/prReview), whose
+// verdict also lands out of band from any workflow event on the PR head.
+const PR_REVIEW_PENDING_ALT = "PR review: in progress";
+export const PR_REVIEW_PENDING_ALT_ATTR = `alt="${PR_REVIEW_PENDING_ALT}"`;
+
 // Every literal getPRsNeedingCommentRefresh (drci.ts) pins a PR into the sweep
 // on. Those predicates run over the RAW comment body, which neither renderer's
 // containment reaches: the fence in defangGreenlightMessage stops the text
@@ -28,6 +33,7 @@ export const GREENLIGHT_PENDING_ALT_ATTR = `alt="${GREENLIGHT_PENDING_ALT}"`;
 export const SWEEP_SENTINELS = [
   GREENLIGHT_PENDING_ALT_ATTR,
   ADVISOR_PENDING_ALT_ATTR,
+  PR_REVIEW_PENDING_ALT_ATTR,
 ];
 // The sweep's third predicate is the regex `\d Pending`, meant to match the
 // comment's own "3 Pending" job count. Text merely describing the PR's CI state
