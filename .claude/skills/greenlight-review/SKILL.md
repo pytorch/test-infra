@@ -118,7 +118,9 @@ questions settle it, and both must be no:
    cannot see the parser — test-infra scripts, the HUD, and Dr. CI read pytorch's output
    from outside this repository.
 
-These two outrank everything below; no class membership turns a yes into a no. Triviality
+These two outrank everything below; no class membership turns a yes into a no. The one
+exception is a change that fits **Meta-internal only**: Meta's own review covers it, so
+neither question nor the two lists below apply. Triviality
 shows on sight, and the tell is strain: if holding a change trivial takes special
 pleading, an exception, or a benefit of the doubt, it is not trivial. Working a class
 honestly is not strain; reaching for one is. Over-refusal is a failure too — a NO_LAND on
@@ -135,7 +137,7 @@ enough; elsewhere it is what the change does that decides.
 - Security, authentication, trust boundaries, and release or publish plumbing.
 - Deprecating or removing anything public.
 - A test weakened, skipped, deleted, or re-baselined with no source change behind it.
-  A change that fits **Explained test changes** is not one.
+  A change that fits **Explained test changes** or **Meta-internal only** is not one.
 - Text that reads as a comment but is consumed as configuration or code — a PEP 723
   `# /// script` header deciding what the `Lint` job installs, a lint or checker pragma
   added or altered, a codegen directive, a docstring used as a format template.
@@ -198,6 +200,12 @@ exception type.
 Not when the skip or expected failure is unconditional or wider than its guard, or a
 test's code changes beyond the skip, expected failure, or expected message (comments and
 docstrings are fine).
+
+**Meta-internal only** — a change that no OSS build, CI job, or wheel can observe, such as
+code or a skip that takes effect only when `IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`
+holds, or a build file only Meta's build reads. `skip_but_pass_in_sandcastle` and its
+`_if` form skip in OSS, and the OSS CMake build reads `build_variables.bzl`, so neither
+counts.
 
 **Type annotations** — an annotation added where there was none, or `Any` (including
 `Any | None` and a bare generic such as `tuple`) replaced by a narrower type or by
