@@ -1,13 +1,15 @@
 """Tests for the per-run scratch-path remap hook.
 
 The hook is what keeps concurrent replays from reading each other's diffs and overwriting
-each other's verdicts, and it has to agree with two things it cannot import: the hook output
-contract Claude Code implements, and the allowlist prefix ``restrict-read.py`` enforces.
-Both agreements are asserted here against the production files rather than against a copy.
+each other's verdicts, and it has to agree with three things it cannot import: the hook
+output contract Claude Code implements, the allowlist prefix ``restrict-read.py`` enforces,
+and the scratch paths the skill and the policy prompt name. All three agreements are
+asserted here against the production files rather than against a copy.
 """
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -15,12 +17,28 @@ import unittest
 from pathlib import Path
 
 from replay_runner_fixtures import ScratchTestCase
+from torchci.greenlight_replay import workflow
 from torchci.greenlight_replay.hooks import remap
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 RESTRICT_READ = REPO_ROOT / ".claude/hooks/greenlight/restrict-read.py"
+SKILL_MD = REPO_ROOT / ".claude/skills/greenlight-review/SKILL.md"
 REMAP_SCRIPT = Path(remap.__file__).resolve()
+
+# Runs to the first space, markup or punctuation character; a sentence's closing period is
+# stripped separately, because a path may contain a period but never ends in one.
+NAMED_SCRATCH_PATH = re.compile(r"/tmp/greenlight-[^\s`'\"()\[\],;:]*")
+PLACEHOLDER = re.compile(r"<[^<>]+>")
+SAMPLE_PR_NUMBER = "195366"
+
+# Stack-directory paths whose '..' climbs out of the directory.
+ESCAPES = (
+    "/tmp/greenlight-stack/..",
+    "/tmp/greenlight-stack/../greenlight-pr.diff",
+    "/tmp/greenlight-stack/../../../etc/passwd",
+    "/tmp/greenlight-stack/a/../../greenlight-verdict.json",
+)
 
 
 def run_hook(event, run_dir):
@@ -36,6 +54,36 @@ def run_hook(event, run_dir):
         check=False,
     )
     return completed
+
+
+def rewritten(event, run_dir, field):
+    """What the hook rewrote ``field`` to, or None when it let the call through as is."""
+    completed = run_hook(event, run_dir)
+    if completed.returncode != 0:
+        raise AssertionError(f"remap exited {completed.returncode}: {completed.stderr}")
+    if not completed.stdout:
+        return None
+    return json.loads(completed.stdout)["hookSpecificOutput"]["updatedInput"][field]
+
+
+def run_restrict_read(event, workspace):
+    """The production read sandbox's decision on ``event``."""
+    return subprocess.run(
+        [sys.executable, str(RESTRICT_READ)],
+        input=json.dumps(event),
+        capture_output=True,
+        text=True,
+        env={**os.environ, "GITHUB_WORKSPACE": str(workspace)},
+        check=False,
+    )
+
+
+def named_scratch_paths(text):
+    """Every ``/tmp/greenlight-*`` path ``text`` names, each placeholder given a value."""
+    return {
+        PLACEHOLDER.sub(SAMPLE_PR_NUMBER, found.rstrip("."))
+        for found in NAMED_SCRATCH_PATH.findall(text)
+    }
 
 
 class TestOutputContract(ScratchTestCase):
@@ -104,12 +152,12 @@ class TestOutputContract(ScratchTestCase):
 
 
 class TestRewrittenPaths(ScratchTestCase):
-    """All three of the skill's hardcoded globals move into the per-run directory."""
+    """Every scratch path the skill hardcodes moves into the per-run directory."""
 
     def setUp(self):
         self.run_dir = self.scratch("greenlight-remap-")
 
-    def test_all_three_skill_paths_are_rewritten(self):
+    def test_every_skill_file_is_rewritten(self):
         for basename in remap.REMAPPED_BASENAMES:
             tool = "Write" if basename == remap.VERDICT_BASENAME else "Read"
             event = {"tool_name": tool, "tool_input": {"file_path": f"/tmp/{basename}"}}
@@ -120,12 +168,33 @@ class TestRewrittenPaths(ScratchTestCase):
                 updated["file_path"], str(self.run_dir.resolve() / basename), basename
             )
 
-    def test_the_three_basenames_are_the_ones_the_skill_names(self):
-        skill = (REPO_ROOT / ".claude/skills/greenlight-review/SKILL.md").read_text()
+    def test_every_remapped_path_is_one_the_skill_names(self):
+        skill = SKILL_MD.read_text()
         for basename in remap.REMAPPED_BASENAMES:
             self.assertIn(f"/tmp/{basename}", skill)
+        self.assertIn(f"/tmp/{remap.STACK_DIRNAME}/", skill)
 
-    def test_a_path_outside_the_three_is_left_for_the_other_hooks_to_judge(self):
+    def test_every_scratch_path_the_skill_and_the_prompt_name_is_remapped(self):
+        # The converse of the test above: that one proves each rule here is one the skill
+        # needs, this one that each path the reviewer is told to use has a rule.
+        workflow_path = REPO_ROOT / workflow.WORKFLOW_RELPATH
+        sources = {
+            "SKILL.md": SKILL_MD.read_text(),
+            "the policy prompt": workflow.prompt(
+                workflow.load(workflow_path), workflow_path
+            ),
+        }
+        inside = str(self.run_dir.resolve()) + os.sep
+        for source, text in sources.items():
+            named = named_scratch_paths(text)
+            self.assertTrue(named, f"{source} names no /tmp/greenlight-* path")
+            for path in sorted(named):
+                with self.subTest(source=source, path=path):
+                    target = remap.remapped_path(str(self.run_dir), path)
+                    self.assertIsNotNone(target)
+                    self.assertTrue(target.startswith(inside), target)
+
+    def test_a_path_outside_the_remap_is_left_for_the_other_hooks_to_judge(self):
         event = {"tool_name": "Read", "tool_input": {"file_path": "/etc/passwd"}}
         completed = run_hook(event, self.run_dir)
         self.assertEqual(completed.returncode, 0)
@@ -136,6 +205,74 @@ class TestRewrittenPaths(ScratchTestCase):
         completed = run_hook(event, self.run_dir)
         self.assertEqual(completed.returncode, 0)
         self.assertEqual(completed.stdout, "")
+
+
+class TestStackDirectory(ScratchTestCase):
+    """The stack directory, and every path beneath it, moves into the run's own copy."""
+
+    def setUp(self):
+        self.run_dir = self.scratch("greenlight-remap-")
+        self.stack_dir = self.run_dir.resolve() / remap.STACK_DIRNAME
+
+    def test_a_read_beneath_the_directory_keeps_its_relative_path(self):
+        for relative in ("195366.diff", "nested/195366.diff"):
+            event = {
+                "tool_name": "Read",
+                "tool_input": {"file_path": f"/tmp/greenlight-stack/{relative}"},
+            }
+            self.assertEqual(
+                rewritten(event, self.run_dir, "file_path"),
+                str(self.stack_dir / relative),
+            )
+
+    def test_a_search_of_the_directory_is_rewritten_with_or_without_a_slash(self):
+        expected = {
+            "/tmp/greenlight-stack": str(self.stack_dir),
+            "/tmp/greenlight-stack/": f"{self.stack_dir}/",
+            "/tmp/greenlight-stack/195366.diff": str(self.stack_dir / "195366.diff"),
+        }
+        for tool in ("Glob", "Grep"):
+            for original, target in expected.items():
+                with self.subTest(tool=tool, path=original):
+                    event = {
+                        "tool_name": tool,
+                        "tool_input": {"pattern": "x", "path": original},
+                    }
+                    self.assertEqual(rewritten(event, self.run_dir, "path"), target)
+
+    def test_a_name_that_only_shares_the_prefix_is_left_alone(self):
+        for original in (
+            "/tmp/greenlight-stackX",
+            "/tmp/greenlight-stackX/195366.diff",
+            "/tmp/greenlight-stacks/195366.diff",
+            "/tmp/greenlight-stack-old/195366.diff",
+            "/tmp/greenlight-stack.json.bak",
+            # Normalizes back into the directory, so only the boundary match refuses it.
+            "/tmp/greenlight-stackX/../greenlight-stack/195366.diff",
+        ):
+            with self.subTest(path=original):
+                read = {"tool_name": "Read", "tool_input": {"file_path": original}}
+                glob = {
+                    "tool_name": "Glob",
+                    "tool_input": {"pattern": "x", "path": original},
+                }
+                self.assertIsNone(rewritten(read, self.run_dir, "file_path"))
+                self.assertIsNone(rewritten(glob, self.run_dir, "path"))
+
+    def test_a_dotdot_that_leaves_the_stack_directory_is_not_rewritten(self):
+        for original in ESCAPES:
+            with self.subTest(path=original):
+                for tool, field in (("Read", "file_path"), ("Grep", "path")):
+                    event = {"tool_name": tool, "tool_input": {field: original}}
+                    self.assertIsNone(rewritten(event, self.run_dir, field))
+
+    def test_a_dotdot_that_stays_inside_is_rewritten_as_written(self):
+        # Normalizing it away would hand a CLI that chains updatedInput a path with no
+        # '..' left for the read sandbox to deny.
+        target = remap.remapped_path(
+            str(self.run_dir), "/tmp/greenlight-stack/nested/../195366.diff"
+        )
+        self.assertEqual(target, f"{self.stack_dir}/nested/../195366.diff")
 
 
 class TestAllowlistAgreement(ScratchTestCase):
@@ -161,17 +298,32 @@ class TestAllowlistAgreement(ScratchTestCase):
         workspace = self.scratch("greenlight-remap-ws-")
         for basename in remap.REMAPPED_BASENAMES:
             target = remap.remapped_path(str(self.run_dir), f"/tmp/{basename}")
-            completed = subprocess.run(
-                [sys.executable, str(RESTRICT_READ)],
-                input=json.dumps(
-                    {"tool_name": "Read", "tool_input": {"file_path": target}}
-                ),
-                capture_output=True,
-                text=True,
-                env={**os.environ, "GITHUB_WORKSPACE": str(workspace)},
-                check=False,
+            completed = run_restrict_read(
+                {"tool_name": "Read", "tool_input": {"file_path": target}}, workspace
             )
             self.assertEqual(completed.returncode, 0, f"{basename}: {completed.stderr}")
+
+    def test_restrict_read_allows_the_remapped_stack_directory_and_its_diffs(self):
+        workspace = self.scratch("greenlight-remap-ws-")
+        for tool, field, original in (
+            ("Read", "file_path", "/tmp/greenlight-stack/195366.diff"),
+            ("Glob", "path", "/tmp/greenlight-stack"),
+            ("Grep", "path", "/tmp/greenlight-stack/"),
+        ):
+            target = remap.remapped_path(str(self.run_dir), original)
+            completed = run_restrict_read(
+                {"tool_name": tool, "tool_input": {field: target}}, workspace
+            )
+            self.assertEqual(completed.returncode, 0, f"{original}: {completed.stderr}")
+
+    def test_restrict_read_denies_every_escape_the_remap_leaves_alone(self):
+        # An escape is left un-rewritten, so the read sandbox is what stops it.
+        workspace = self.scratch("greenlight-remap-ws-")
+        for original in ESCAPES:
+            completed = run_restrict_read(
+                {"tool_name": "Read", "tool_input": {"file_path": original}}, workspace
+            )
+            self.assertEqual(completed.returncode, 2, original)
 
     def test_a_run_directory_the_read_sandbox_would_reject_is_refused_loudly(self):
         outside = self.scratch("replay-")
