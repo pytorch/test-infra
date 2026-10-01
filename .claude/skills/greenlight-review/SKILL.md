@@ -158,6 +158,10 @@ These override the classes below: matching one means not trivial, whatever class
   reader must check. Many trivial edits are not one trivial change.
 - **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
   changes something others depend on.
+- **Inert additions.** Something the diff adds outside test files for other code to use —
+  an input, parameter, option, or function — that no non-test code sets or calls, in the
+  diff or in a PR above it in the same stack. Its design is reviewed with its first use;
+  dead code does not land on its own.
 
 **Generated artifacts** are a caution, not a shape: read the generator edit and spot-check
 the expansion for anything it would not mechanically produce, then clear it if nothing is.
