@@ -3,30 +3,49 @@
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
     "repo": "String",
-    "shadowMode": "String"
+    "shadowMode": "String",
+    "granularity": "String"
   },
   "defaults": {
     "repo": "pytorch/pytorch",
-    "shadowMode": "all"
+    "shadowMode": "all",
+    "granularity": "window"
   },
   "tests": [
     {
       "startTime": "2026-08-01T00:00:00.000",
       "stopTime": "2026-09-02T00:00:00.000",
       "repo": "pytorch/pytorch",
-      "shadowMode": "all"
+      "shadowMode": "all",
+      "granularity": "window"
     },
     {
       "startTime": "2026-08-01T00:00:00.000",
       "stopTime": "2026-09-02T00:00:00.000",
       "repo": "pytorch/pytorch",
-      "shadowMode": "enforcing"
+      "shadowMode": "enforcing",
+      "granularity": "window"
     },
     {
       "startTime": "2026-08-01T00:00:00.000",
       "stopTime": "2026-09-02T00:00:00.000",
       "repo": "pytorch/pytorch",
-      "shadowMode": "shadow"
+      "shadowMode": "shadow",
+      "granularity": "window"
+    },
+    {
+      "startTime": "2026-08-01T00:00:00.000",
+      "stopTime": "2026-09-02T00:00:00.000",
+      "repo": "pytorch/pytorch",
+      "shadowMode": "all",
+      "granularity": "day"
+    },
+    {
+      "startTime": "2026-08-01T00:00:00.000",
+      "stopTime": "2026-09-02T00:00:00.000",
+      "repo": "pytorch/pytorch",
+      "shadowMode": "all",
+      "granularity": "week"
     }
   ]
 }

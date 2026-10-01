@@ -79,6 +79,27 @@
 -- report. pct_of_all_merges therefore keeps one fixed denominator across all three modes. A shadow
 -- LAND withholds the approving review and so cannot produce a GreenLight-alone merge, which is what
 -- makes 'shadow' read as 0 of the repo rather than as a ratio over a population of its own.
+--
+-- granularity 'day' or 'week' returns one row per UTC day or Monday-starting week, each scored as
+-- a window of just that bucket's part of the effective window would be, except that the 30-day
+-- merge-command lookback stays anchored on window_start; any other value, the default 'window'
+-- included, returns the single whole-window row. A PR re-landed after a revert is therefore scored
+-- once per bucket it merged in, on its first merge there, where the whole-window row scores it
+-- once: the counts sum across buckets to the window's only when no PR merged in two of them, and
+-- the shares never do. Buckets come from toStartOfDay and toMonday under multiIf because dateTrunc
+-- rejects 'window' as a unit even in a branch that is never taken.
+--
+-- scored is LEFT JOINed onto a spine of bucket starts because GROUP BY emits no row for a bucket
+-- without merges, nor for an empty window, which still returns its one row with both shares NULL.
+-- Such a bucket joins a single default-filled row: its empty verdict keeps it out of every countIf
+-- on verdict, and merged_prs_total counts only rows whose bucket matched, where count() would count
+-- it as a merge. The spine ends at window_end rounded up to the second: range() stops short of its
+-- end, and a bucket starting inside window_end's last second still belongs to the window.
+--
+-- The day and week spine is built only over a non-empty window. An empty one takes the one-bucket
+-- spine instead, so it returns its one row, bucketed at window_start, at every granularity, and a
+-- startTime past 2106, where toStartOfDay wraps back to 1970, returns that one row rather than
+-- decades of buckets.
 WITH
 (
     SELECT if(min(version) > toDateTime64(0, 3), min(version), now64(3))
@@ -87,6 +108,7 @@ WITH
 ) AS ledger_start,
 greatest({startTime: DateTime64(3)}, ledger_start) AS window_start,
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
+{granularity: String} AS granularity,
 [
     'pytorchbot',
     'pytorch-bot',
@@ -107,6 +129,11 @@ merged_prs AS (
         toInt64OrZero(
             extract(splitByChar('\n', message)[1], '\\(#(\\d+)\\)\\s*$')
         ) AS pr_number,
+        multiIf(
+            granularity = 'day', toStartOfDay(committed_at),
+            granularity = 'week', toMonday(committed_at),
+            window_start
+        ) AS bucket,
         min(committed_at) AS merged_at,
         argMin(sha, committed_at) AS merged_sha
     FROM (
@@ -133,7 +160,7 @@ merged_prs AS (
         AND message NOT LIKE 'Revert %'
         AND message NOT LIKE 'Back out%'
         AND match(splitByChar('\n', message)[1], '\\(#\\d+\\)\\s*$')
-    GROUP BY pr_number
+    GROUP BY pr_number, bucket
 ),
 
 merge_commands AS (
@@ -201,6 +228,7 @@ terminal_verdicts AS (
 gated_merges AS (
     SELECT
         m.pr_number AS pr_number,
+        m.bucket AS bucket,
         any(mh.head_sha) AS merged_head,
         maxIf(
             d.commanded_at, d.commanded_at <= m.merged_at
@@ -212,12 +240,13 @@ gated_merges AS (
     LEFT JOIN merge_commands AS d ON m.pr_number = d.pr_number
     LEFT JOIN merge_heads AS mh
         ON m.pr_number = mh.pr_num AND m.merged_sha = mh.merge_commit_sha
-    GROUP BY m.pr_number, m.merged_at
+    GROUP BY m.pr_number, m.bucket, m.merged_at
 ),
 
 scored_merges AS (
     SELECT
         e.pr_number AS pr_number,
+        e.bucket AS bucket,
         e.approval_cutoff AS approval_cutoff,
         argMaxIf(
             v.status,
@@ -228,7 +257,7 @@ scored_merges AS (
         ) AS verdict
     FROM gated_merges AS e
     LEFT JOIN terminal_verdicts AS v ON e.pr_number = v.pr_number
-    GROUP BY e.pr_number, e.approval_cutoff
+    GROUP BY e.pr_number, e.bucket, e.approval_cutoff
 ),
 
 reviews AS (
@@ -261,6 +290,7 @@ human_approvals AS (
 scored AS (
     SELECT
         s.pr_number AS pr_number,
+        s.bucket AS bucket,
         any(s.verdict) AS verdict,
         max(
             a.submitted_at > toDateTime64(0, 3)
@@ -268,20 +298,23 @@ scored AS (
         ) AS has_human_approval
     FROM scored_merges AS s
     LEFT JOIN human_approvals AS a ON s.pr_number = a.pr_number
-    GROUP BY s.pr_number
+    GROUP BY s.pr_number, s.bucket
 )
 
 SELECT
-    merged_evaluated_prs,
-    gl_only,
+    spine.bucket AS merge_bucket,
+    countIf(verdict != '') AS merged_evaluated_prs,
+    countIf(verdict = 'LAND' AND NOT has_human_approval) AS gl_only,
     if(
         merged_evaluated_prs = 0,
         NULL,
         round(100. * gl_only / merged_evaluated_prs, 2)
     ) AS pct_gl_only,
-    human_approved,
-    no_approval,
-    merged_prs_total,
+    countIf(verdict != '' AND has_human_approval) AS human_approved,
+    countIf(
+        verdict != '' AND verdict != 'LAND' AND NOT has_human_approval
+    ) AS no_approval,
+    countIf(scored.bucket = spine.bucket) AS merged_prs_total,
     if(
         merged_prs_total = 0,
         NULL,
@@ -289,12 +322,27 @@ SELECT
     ) AS pct_of_all_merges
 FROM (
     SELECT
-        countIf(verdict != '') AS merged_evaluated_prs,
-        countIf(verdict = 'LAND' AND NOT has_human_approval) AS gl_only,
-        countIf(verdict != '' AND has_human_approval) AS human_approved,
-        countIf(
-            verdict != '' AND verdict != 'LAND' AND NOT has_human_approval
-        ) AS no_approval,
-        count() AS merged_prs_total
-    FROM scored
-)
+        arrayJoin(
+            if(
+                granularity IN ('day', 'week') AND window_end > window_start,
+                CAST(
+                    range(
+                        toUInt32(
+                            if(
+                                granularity = 'day',
+                                toStartOfDay(window_start),
+                                toMonday(window_start)
+                            )
+                        ),
+                        toUInt32(ceil(toFloat64(window_end))),
+                        if(granularity = 'day', 86400, 604800)
+                    ),
+                    'Array(DateTime)'
+                ),
+                [window_start]
+            )
+        ) AS bucket
+) AS spine
+LEFT JOIN scored ON spine.bucket = scored.bucket
+GROUP BY merge_bucket
+ORDER BY merge_bucket
