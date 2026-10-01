@@ -19,7 +19,7 @@ jobs:
     if: ${{ github.repository == 'pytorch/test-infra' }}
     uses: ./.github/workflows/linux_job_v3.yml
     with:
-      docker-image: python:3.11.0-slim-bullseye
+      docker-image: python:3.11-bullseye
       runner: mt-l-x86iavx512-8-64
       script: |
         # Environment setup
@@ -40,7 +40,7 @@ jobs:
     if: ${{ github.repository == 'pytorch/test-infra' }}
     uses: ./.github/workflows/linux_job_v3.yml
     with:
-      docker-image: python:3.11-slim-bullseye
+      docker-image: python:3.11-bullseye
       runner: mt-l-x86iavx512-8-64
       script: |
         # Environment setup
