@@ -1546,6 +1546,11 @@
       "linux"
     ]
   ],
+  "test_size_with_unbacked_add_expr_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199300",
+    "https://github.com/pytorch/pytorch/issues/199300",
+    []
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
@@ -1739,9 +1744,19 @@
       "xpu"
     ]
   ],
+  "test_while_loop_with_conv_dynamic_False_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199301",
+    "https://github.com/pytorch/pytorch/issues/199301",
+    []
+  ],
   "test_while_loop_with_conv_dynamic_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199288",
     "https://github.com/pytorch/pytorch/issues/199288",
+    []
+  ],
+  "test_while_loop_with_sym_expr_cond_dynamic_False_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199299",
+    "https://github.com/pytorch/pytorch/issues/199299",
     []
   ],
   "test_while_loop_with_sym_expr_cond_dynamic_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
