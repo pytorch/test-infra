@@ -1329,6 +1329,11 @@
       "dynamo"
     ]
   ],
+  "test_scalar_range_asserts_disabled_keeps_equality_asserts_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199320",
+    "https://github.com/pytorch/pytorch/issues/199320",
+    []
+  ],
   "test_scalar_range_asserts_disabled_keeps_unbacked_vs_backed_bound_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199313",
     "https://github.com/pytorch/pytorch/issues/199313",
@@ -1480,6 +1485,11 @@
     [
       "linux"
     ]
+  ],
+  "test_simple_split_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199317",
+    "https://github.com/pytorch/pytorch/issues/199317",
+    []
   ],
   "test_single_dim_strategy_linalg_cond_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
     "190141",
@@ -1690,6 +1700,11 @@
   "test_unbacked_equals_input_size_runtime_assertion_mark_unbacked_False_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199289",
     "https://github.com/pytorch/pytorch/issues/199289",
+    []
+  ],
+  "test_unbacked_equals_input_size_runtime_assertion_mark_unbacked_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199319",
+    "https://github.com/pytorch/pytorch/issues/199319",
     []
   ],
   "test_update_inactive_constant_buffer_with_interleaved_folded_constants_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
