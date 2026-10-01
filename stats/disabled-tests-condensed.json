@@ -1329,6 +1329,11 @@
       "dynamo"
     ]
   ],
+  "test_scalar_range_asserts_disabled_keeps_unbacked_vs_backed_bound_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199313",
+    "https://github.com/pytorch/pytorch/issues/199313",
+    []
+  ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
     "190087",
     "https://github.com/pytorch/pytorch/issues/190087",
@@ -1685,6 +1690,11 @@
   "test_unbacked_equals_input_size_runtime_assertion_mark_unbacked_False_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199289",
     "https://github.com/pytorch/pytorch/issues/199289",
+    []
+  ],
+  "test_update_inactive_constant_buffer_with_interleaved_folded_constants_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199311",
+    "https://github.com/pytorch/pytorch/issues/199311",
     []
   ],
   "test_update_weights (__main__.TestAOTInductorPackage_xpu)": [
