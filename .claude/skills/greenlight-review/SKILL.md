@@ -199,10 +199,13 @@ Not when the skip or expected failure is unconditional or wider than its guard, 
 test's code changes beyond the skip, expected failure, or expected message (comments and
 docstrings are fine).
 
-**Type annotations** — an annotation added where there was none, or `Any` replaced by a
-narrower type; deleting a checker suppression is the same change and is in the class.
-Where the symbol lives does not decide it: the question is whether the annotation reaches
-the behavior of an API practitioners rely on, and the exclusions below are its routes.
+**Type annotations** — an annotation added where there was none, or `Any` (including
+`Any | None` and a bare generic such as `tuple`) replaced by a narrower type or by
+`object`; `object`, added or substituted, counts only outside the public API. Deleting a
+checker suppression is the same change and is in the class. Any other edit to an existing
+annotation is outside it, even on a symbol nothing calls.
+A private location clears none of the exclusions below: they are the routes by which an
+annotation reaches behavior practitioners rely on.
 The checker being quiet is evidence about the checker, not about the code.
 Not when any of these hold, checked against the changed file and the symbol's callers:
 
