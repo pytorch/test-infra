@@ -21,6 +21,7 @@ _PINNED_TRUSTED_AUTHORS = {
     "bobrenjc93",
     "aorenste",
     "d4l3k",
+    "ngimel",
 }
 
 

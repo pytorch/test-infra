@@ -28,7 +28,7 @@
 //
 // The decls and nullability rows cover the interfaces named in ROW_INTERFACES, and
 // registration there is opt-in: an interface absent from it is checked by neither, and
-// CoverageRow is absent deliberately — see that registry for why.
+// CoverageRow and MergeAuthorityRow are absent deliberately — see that registry for why.
 //
 // Each catches a failure the others cannot see. A read of a dropped column renders "-";
 // a declaration of a dropped column renders nothing at all, because a bare interface
@@ -43,9 +43,9 @@
 //
 // The last two rows are not about columns. shadowMode travels as a declared query
 // parameter, so nothing above can see it, and every link in its chain fails while still
-// answering: a missing default is a NULL the server refuses, a half-updated filter falls
-// open and reports the whole population under one mode's name, and a state added to one
-// side alone both compiles and runs.
+// answering: a missing default binds as '' and silently selects the whole population, a
+// half-updated filter falls open and reports the whole population under one mode's name,
+// and a state added to one side alone both compiles and runs.
 //
 // The parsers, readers and floors live in ./greenlightQualityColumnSync.helpers; this file
 // is the assertions. They were split when together they outgrew the 400-line ceiling.
@@ -169,9 +169,10 @@ describe("GreenLight Quality column sync", () => {
   });
 
   // A level below the name checks. Rename one of these server-side and both consumers
-  // degrade silently and differently: the table falls through APPROVAL_LABEL and prints
-  // the raw string, while stalenessCounts scores zero confirmed and zero stale, so the
-  // note announces that no verdict could be placed when every one of them could.
+  // degrade silently. The table prints the raw string where APPROVAL_LABEL has no entry
+  // for it; and a renamed stale value passes approvedRevertRows, so the table lists the
+  // very reverts it exists to drop while stalenessCounts scores none of them stale and
+  // the note reports 0 of M excluded.
   test("merged_version_approved's values are the ones the query can emit", () => {
     const sql = fs.readFileSync(
       path.join(
@@ -231,15 +232,15 @@ describe("GreenLight Quality column sync", () => {
     expect(wrong).toEqual([]);
   });
 
-  // The one guard here standing between an edit and a 500. queryClickhouseSaved builds its
-  // parameter map by iterating params.json's `params` and falling back to `defaults`, so a
-  // parameter declared but left out of both reaches the client as undefined, is formatted
-  // as `\N`, and is refused — ClickHouse takes no NULL for a typed parameter. Nothing else
-  // looks: the SQL_PARAMS linter checks only that the `params` and `tests` keys exist.
+  // queryClickhouseSaved builds its parameter map by iterating params.json's `params` and
+  // falling back to `defaults`, so a parameter declared but left out of both reaches the
+  // client as undefined and is sent as `\N`, which ClickHouse binds to a String parameter
+  // as ''. Every shadow filter falls open on that, so a caller that names no mode reads the
+  // whole population. Nothing else looks: the SQL_PARAMS linter checks only that the
+  // `params` and `tests` keys exist.
   //
-  // A default that merely disagrees is quieter and worse than an absent one. The page
-  // renders one population while every caller that does not name a mode reads another, and
-  // both answer.
+  // A default that disagrees with the page's fallback is worse. The page renders one
+  // population while every caller that does not name a mode reads another, and both answer.
   test("every query defaults shadowMode to the mode the page falls back to", () => {
     const { fallback } = shadowContract();
     const wrong = catalogQueries()
