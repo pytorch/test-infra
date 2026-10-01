@@ -212,12 +212,11 @@ jobs:
       ref: main
       test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: "amazon-linux-2023-test"
-      # Not almalinux/9-base: no RHEL-family base image ships git, and the
-      # v3 test-infra checkout runs inside the container, so checkout falls
-      # back to the REST API and refuses the submodules it is asked for.
-      # This is the builder the two jobs above already use. Note it is EL8,
-      # so this job no longer covers EL9.
-      docker-image: 'pytorch/almalinux-builder:cpu-main'
+      # Not almalinux/9-base: actions/checkout needs git in the container and
+      # no RHEL-family base image ships it. This is the AlmaLinux 9 manylinux
+      # image, so the job still validates on EL9, and it has git and yum for
+      # the Development Tools install below.
+      docker-image: 'quay.io/pypa/manylinux_2_34_x86_64'
       timeout: 180
       script: |
         set -ex
