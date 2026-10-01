@@ -55,10 +55,11 @@ build {
     ]
   }
 
-  # Install sshd_config
+  # Stage sshd_config; Install-SSH.ps1 moves it into C:\ProgramData\ssh after
+  # sshd has created that directory.
   provisioner "file" {
     source      = "${path.root}/configs/sshd_config"
-    destination = "C:\\ProgramData\\ssh\\sshd_config"
+    destination = "C:\\Windows\\Temp\\sshd_config"
   }
 
   # Install ssh server
@@ -134,6 +135,14 @@ build {
     elevated_password = ""
     scripts = [
       "${path.root}/scripts/Helpers/Uninstall-WinDefend.ps1",
+    ]
+  }
+
+  # Runners rely on sshd (SSH debugging, kill_active_ssh_sessions.ps1); don't
+  # capture an image where a later step stopped it.
+  provisioner "powershell" {
+    inline = [
+      "if ((Get-Service sshd).Status -ne 'Running') { throw 'sshd is not running at the end of provisioning' }",
     ]
   }
 }
