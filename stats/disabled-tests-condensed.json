@@ -685,6 +685,11 @@
       "slow"
     ]
   ],
+  "test_linear_freezing_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199331",
+    "https://github.com/pytorch/pytorch/issues/199331",
+    []
+  ],
   "test_load_then_compile_survives_baked_in_global_collision (__main__.TestAOTCompile)": [
     "198709",
     "https://github.com/pytorch/pytorch/issues/198709",
@@ -1321,6 +1326,11 @@
     [
       "rocm"
     ]
+  ],
+  "test_scalar_range_asserts_disabled_drops_inferred_bound_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199332",
+    "https://github.com/pytorch/pytorch/issues/199332",
+    []
   ],
   "test_scalar_range_asserts_disabled_keeps_equality_asserts_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199320",
