@@ -38,13 +38,5 @@
     "testAssertNotRegex (__main__.CPythonTest_Assertions)",
     "",
     ""
-  ],
-  "trunk-rocm-sandbox / linux-noble-rocm-py3.11-mi350 / test": [
-    "jithunnair-amd",
-    "167849",
-    "https://github.com/pytorch/pytorch/issues/167849",
-    "trunk-rocm-sandbox",
-    "linux-noble-rocm-py3.11-mi350",
-    "test"
   ]
 }
