@@ -231,6 +231,11 @@
       "linux"
     ]
   ],
+  "test_constant_folding_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199347",
+    "https://github.com/pytorch/pytorch/issues/199347",
+    []
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -609,6 +614,11 @@
     [
       "rocm"
     ]
+  ],
+  "test_kernel_profile_scatter_fallback_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199346",
+    "https://github.com/pytorch/pytorch/issues/199346",
+    []
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
     "186911",
