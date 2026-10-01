@@ -618,7 +618,6 @@ def eligible(
     )
     if not upstream_checks or routing_of(cause) != VLLM_ROUTING:
         return base_eligible
-    assert upstream_status is not None
     return base_eligible and upstream_status == UpstreamStatus.NO_HITS
 
 
@@ -724,12 +723,16 @@ def main() -> int:
 
     print(f"{len(causes)} cause(s): {len(selected)} eligible, {len(skipped)} skipped")
     for c in skipped:
+        upstream_detail = ""
+        if upstream_checks_enabled and routing_of(c) == VLLM_ROUTING:
+            status = upstream_statuses.get(str(c.get("signature") or ""))
+            upstream_detail = f", upstream_status={status or 'missing check'}"
         print(
             f"  skip: {c.get('title', '<untitled>')!r} "
             f"(determined={c.get('determined')}, "
             f"classification_confidence={classification_confidence(c) or None}, "
             f"new_failure_confidence={new_failure_confidence(c) or None}, "
-            f"routing={c.get('routing')})"
+            f"routing={c.get('routing')}{upstream_detail})"
         )
     if len(selected) > args.max_issues:
         print(

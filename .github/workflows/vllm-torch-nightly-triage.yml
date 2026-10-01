@@ -413,13 +413,12 @@ jobs:
               | tee -a "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
-          upstream_args=()
+          upstream_args=(--check-vllm-upstream)
           upstream_checks="${RUNNER_TEMP}/upstream-checks/upstream-checks.json"
           if [[ -s "${upstream_checks}" ]]; then
-            upstream_args+=(--check-vllm-upstream --upstream-checks "${upstream_checks}")
+            upstream_args+=(--upstream-checks "${upstream_checks}")
           else
-            upstream_args+=(--no-check-vllm-upstream)
-            echo "No valid upstream checks artifact; vLLM filing is disabled." \
+            echo "No non-empty upstream checks artifact; vLLM filing is disabled." \
               | tee -a "${GITHUB_STEP_SUMMARY}"
           fi
           # shellcheck disable=SC2086

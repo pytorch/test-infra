@@ -8,8 +8,15 @@ invisible to the other -- exactly how ``confidence`` ->
 pins one field of that contract.
 """
 
+import contextlib
+import io
+import json
+import os
 import re
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from torchci import vllm_triage_file_issues as vtfi
@@ -128,12 +135,52 @@ class TestEligible(unittest.TestCase):
 
         self.assertFalse(eligible(vllm, UpstreamStatus.UPSTREAM_CANDIDATES, True))
         self.assertFalse(eligible(vllm, UpstreamStatus.SEARCH_INCOMPLETE, True))
-        with self.assertRaises(AssertionError):
-            eligible(vllm, None, True)
+        self.assertFalse(eligible(vllm, None, True))
         self.assertTrue(eligible(vllm, UpstreamStatus.NO_HITS, True))
 
     def test_pytorch_does_not_require_upstream_clearance(self):
-        self.assertTrue(eligible(cause(), None))
+        self.assertTrue(eligible(cause(), None, True))
+
+
+class TestUpstreamFilingRecovery(unittest.TestCase):
+    def test_unavailable_clearance_holds_vllm_and_preserves_torch(self):
+        cases = {
+            "invalid artifact": {"checks": "invalid"},
+            "missing cause check": {"checks": []},
+            "missing artifact": None,
+        }
+        for scenario, artifact in cases.items():
+            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as tmp:
+                findings = Path(tmp) / "findings.json"
+                report = Path(tmp) / "report.json"
+                findings.write_text(
+                    json.dumps({"causes": [cause(), cause(routing=vtfi.VLLM_ROUTING)]})
+                )
+                report.write_text(json.dumps({"torch_version_minor": "2.15"}))
+                argv = [
+                    "filer",
+                    "--findings",
+                    str(findings),
+                    "--report",
+                    str(report),
+                    "--check-vllm-upstream",
+                ]
+                if artifact is not None:
+                    checks = Path(tmp) / "upstream-checks.json"
+                    checks.write_text(json.dumps(artifact))
+                    argv.extend(["--upstream-checks", str(checks)])
+                output = io.StringIO()
+                with (
+                    mock.patch.object(sys, "argv", argv),
+                    mock.patch.dict(os.environ, {"GITHUB_TOKEN": "dry-run-token"}),
+                    mock.patch.object(vtfi, "_req") as req,
+                    contextlib.redirect_stdout(output),
+                    contextlib.redirect_stderr(output),
+                ):
+                    self.assertEqual(vtfi.main(), 0)
+                    req.assert_not_called()
+                self.assertIn("child [pytorch/pytorch]", output.getvalue())
+                self.assertNotIn("child [vllm-project/vllm]", output.getvalue())
 
 
 class TestFingerprint(unittest.TestCase):
