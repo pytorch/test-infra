@@ -29,6 +29,11 @@
       "rocm"
     ]
   ],
+  "test_aoti_debug_printer_codegen_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199367",
+    "https://github.com/pytorch/pytorch/issues/199367",
+    []
+  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "149080",
     "https://github.com/pytorch/pytorch/issues/149080",
@@ -43,6 +48,41 @@
     [
       "inductor"
     ]
+  ],
+  "test_aoti_debug_printer_cpp_kernel_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199368",
+    "https://github.com/pytorch/pytorch/issues/199368",
+    []
+  ],
+  "test_aoti_profiler_enable_kernel_profile_True_enable_kernel_context_guard_False_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199369",
+    "https://github.com/pytorch/pytorch/issues/199369",
+    []
+  ],
+  "test_aoti_profiler_enable_kernel_profile_True_enable_kernel_context_guard_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199370",
+    "https://github.com/pytorch/pytorch/issues/199370",
+    []
+  ],
+  "test_aoti_profiler_input_shapes_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199371",
+    "https://github.com/pytorch/pytorch/issues/199371",
+    []
+  ],
+  "test_aoti_profiler_multi_output_fallback_input_shapes_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199372",
+    "https://github.com/pytorch/pytorch/issues/199372",
+    []
+  ],
+  "test_aoti_profiler_tensor_list_input_shapes_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199373",
+    "https://github.com/pytorch/pytorch/issues/199373",
+    []
+  ],
+  "test_aoti_runtime_asserts_backed_symint_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199374",
+    "https://github.com/pytorch/pytorch/issues/199374",
+    []
   ],
   "test_backend_simple (__main__.PrivateUse1BackendTest)": [
     "188688",
@@ -112,6 +152,11 @@
     [
       "inductor"
     ]
+  ],
+  "test_buffer_mutation_and_force_mmap_weights_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199375",
+    "https://github.com/pytorch/pytorch/issues/199375",
+    []
   ],
   "test_builtin_remote_message_dropped_timeout_to_self (__main__.FaultyFaultyAgentRpcTest)": [
     "69179",
@@ -231,6 +276,26 @@
       "linux"
     ]
   ],
+  "test_cond_nested_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199376",
+    "https://github.com/pytorch/pytorch/issues/199376",
+    []
+  ],
+  "test_cond_unbacked_symint_predicate_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199377",
+    "https://github.com/pytorch/pytorch/issues/199377",
+    []
+  ],
+  "test_cond_with_multiple_outputs_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199378",
+    "https://github.com/pytorch/pytorch/issues/199378",
+    []
+  ],
+  "test_cond_with_parameters_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199380",
+    "https://github.com/pytorch/pytorch/issues/199380",
+    []
+  ],
   "test_const_graph_no_autotune_at_compile_time_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199353",
     "https://github.com/pytorch/pytorch/issues/199353",
@@ -241,6 +306,11 @@
     "https://github.com/pytorch/pytorch/issues/199347",
     []
   ],
+  "test_constant_folding_with_update_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199381",
+    "https://github.com/pytorch/pytorch/issues/199381",
+    []
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -249,6 +319,11 @@
       "linux",
       "slow"
     ]
+  ],
+  "test_conv_freezing_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199382",
+    "https://github.com/pytorch/pytorch/issues/199382",
+    []
   ],
   "test_converting_copy_emits_vectorized_kernel_bool_float64_cuda (__main__.TestTorchCUDACUDA)": [
     "199137",
@@ -309,6 +384,11 @@
     [
       "linux"
     ]
+  ],
+  "test_deconv_freezing_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199383",
+    "https://github.com/pytorch/pytorch/issues/199383",
+    []
   ],
   "test_del_attr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195525",
@@ -468,6 +548,11 @@
       "linux"
     ]
   ],
+  "test_freezing_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199384",
+    "https://github.com/pytorch/pytorch/issues/199384",
+    []
+  ],
   "test_fully_shard_training_overlap (__main__.TestFullyShardOverlap)": [
     "134139",
     "https://github.com/pytorch/pytorch/issues/134139",
@@ -620,9 +705,29 @@
       "rocm"
     ]
   ],
+  "test_kernel_profile_every_kernel_has_context_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199385",
+    "https://github.com/pytorch/pytorch/issues/199385",
+    []
+  ],
+  "test_kernel_profile_index_put_fallback_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199386",
+    "https://github.com/pytorch/pytorch/issues/199386",
+    []
+  ],
+  "test_kernel_profile_scatter_fallback_arg_order_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199387",
+    "https://github.com/pytorch/pytorch/issues/199387",
+    []
+  ],
   "test_kernel_profile_scatter_fallback_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199346",
     "https://github.com/pytorch/pytorch/issues/199346",
+    []
+  ],
+  "test_kernel_profile_template_kernel_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199388",
+    "https://github.com/pytorch/pytorch/issues/199388",
     []
   ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
@@ -1144,6 +1249,11 @@
       "slow"
     ]
   ],
+  "test_quanatized_int8_linear_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199389",
+    "https://github.com/pytorch/pytorch/issues/199389",
+    []
+  ],
   "test_raw_amdsmi_device_uuids (__main__.TestCudaAllocator)": [
     "180227",
     "https://github.com/pytorch/pytorch/issues/180227",
@@ -1255,6 +1365,11 @@
       "linux",
       "rocm"
     ]
+  ],
+  "test_return_view_constant_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199390",
+    "https://github.com/pytorch/pytorch/issues/199390",
+    []
   ],
   "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTests)": [
     "194896",
