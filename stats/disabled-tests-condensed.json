@@ -1733,6 +1733,21 @@
       "xpu"
     ]
   ],
+  "test_while_loop_with_sym_expr_cond_dynamic_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199245",
+    "https://github.com/pytorch/pytorch/issues/199245",
+    []
+  ],
+  "test_while_loop_with_unbacked_symint_closure_dynamic_False_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199244",
+    "https://github.com/pytorch/pytorch/issues/199244",
+    []
+  ],
+  "test_while_loop_with_unbacked_symint_closure_dynamic_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199243",
+    "https://github.com/pytorch/pytorch/issues/199243",
+    []
+  ],
   "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
     "188674",
     "https://github.com/pytorch/pytorch/issues/188674",
