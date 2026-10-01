@@ -1,5 +1,7 @@
 -- Select complete matrix rows before returning their individual jobs. A raw
--- job limit could otherwise cut a many-job nightly in half.
+-- job limit could otherwise cut a many-job nightly in half. The range is
+-- qualified by a completed job, then all siblings of the selected SHA/run are
+-- returned so an in-progress or older-completed sibling is not lost.
 WITH nightly_jobs AS (
     SELECT
         *,
@@ -17,28 +19,31 @@ WITH nightly_jobs AS (
 ),
 
 eligible_matrix_keys AS (
-    SELECT DISTINCT matrix_key
-    FROM nightly_jobs
-    WHERE started_at > now() - INTERVAL {days: UInt64} DAY
-),
-
-selected_matrix_keys AS (
     SELECT matrix_key
-    FROM nightly_jobs
-    WHERE matrix_key IN (SELECT matrix_key FROM eligible_matrix_keys)
-    GROUP BY matrix_key
-    ORDER BY max(started_at) DESC
+    FROM (
+        SELECT
+            matrix_key,
+            max(started_at) AS latest_started_at
+        FROM nightly_jobs
+        WHERE
+            status = 'completed'
+            AND completed_at >= now() - INTERVAL {days: UInt64} DAY
+            AND completed_at < now()
+        GROUP BY matrix_key
+    )
+    ORDER BY latest_started_at DESC, matrix_key DESC
     LIMIT {limit: UInt64} OFFSET {offset: UInt64}
 ),
 
 latest_attempts AS (
     SELECT
+        matrix_key,
         run_id,
         job_name,
         max(run_attempt) AS max_attempt
     FROM nightly_jobs
-    WHERE matrix_key IN (SELECT matrix_key FROM selected_matrix_keys)
-    GROUP BY run_id, job_name
+    WHERE matrix_key IN (SELECT matrix_key FROM eligible_matrix_keys)
+    GROUP BY matrix_key, run_id, job_name
 )
 
 SELECT
@@ -66,9 +71,9 @@ SELECT
 FROM
     nightly_jobs
 WHERE
-    matrix_key IN (SELECT matrix_key FROM selected_matrix_keys)
-    AND (run_id, job_name, run_attempt) IN (
+    (matrix_key, run_id, job_name, run_attempt) IN (
         SELECT
+            matrix_key,
             run_id,
             job_name,
             max_attempt
