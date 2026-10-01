@@ -10,10 +10,12 @@ import {
   useQualityQuery,
 } from "lib/greenlight/qualityQuery";
 import { useMemo } from "react";
+import { chartToggle, ChartToggleProps } from "./chartConfigs";
 import QualityTile, { TILE_SPAN } from "./QualityTile";
 import { qualityColors, tinted } from "./tileColors";
 import {
   MERGE_AUTHORITY_CAVEAT,
+  MERGE_AUTHORITY_LABEL,
   mergeAuthorityShares,
   REVERT_RATE_CAVEAT,
   REVERT_RATE_LABEL,
@@ -27,12 +29,13 @@ export default function TrustPanels({
   stopTime,
   shadowMode,
   autoRefresh,
+  ...toggles
 }: {
   startTime: string;
   stopTime: string;
   shadowMode: ShadowMode;
   autoRefresh: boolean;
-}) {
+} & ChartToggleProps) {
   const authority = useQualityQuery(
     QUALITY_QUERIES.mergeAuthority,
     startTime,
@@ -49,7 +52,7 @@ export default function TrustPanels({
     autoRefresh
   );
 
-  // Both walk every revert row, and a wide window returns them in the
+  // The note walks every revert row, and a wide window returns them in the
   // thousands once the ledger outgrows the picker's clamp.
   const stats = useMemo(() => revertStats(reverts.rows), [reverts.rows]);
   const staleness = useMemo(
@@ -65,7 +68,7 @@ export default function TrustPanels({
     <>
       <Grid size={TILE_SPAN}>
         <QualityTile
-          label="Merged on GreenLight alone"
+          label={MERGE_AUTHORITY_LABEL}
           // Each share and the fraction it was taken over carry one colour, so
           // which denominator produced which percentage can be read off the
           // tile without counting positions.
@@ -92,6 +95,7 @@ export default function TrustPanels({
           // NULL renders as "-" on its own.
           empty={!hasCount(authority.row?.merged_prs_total)}
           error={authority.error}
+          {...chartToggle("mergedGlAlone", toggles)}
         />
       </Grid>
 
@@ -105,7 +109,9 @@ export default function TrustPanels({
                 {tinted(revertSub.count, colors.fault)}
                 {revertSub.rest}
               </div>
-              {revertSub.exclusion !== "" && <div>{revertSub.exclusion}</div>}
+              {revertSub.exclusions.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
             </>
           }
           caveat={REVERT_RATE_CAVEAT}
@@ -118,6 +124,7 @@ export default function TrustPanels({
           // evaluated-PR count at all means there was nothing to measure.
           empty={stats.evaluatedPrs === undefined}
           error={reverts.error}
+          {...chartToggle("approvedReverts", toggles)}
         />
       </Grid>
     </>
