@@ -74,6 +74,10 @@ HUB = "hub"
 # ways that do not obviously point at the cache, so a mirror has to carry it.
 DATASETS = "datasets"
 
+# Inside a repo: refs/<name> is a 40-byte commit sha, so it is the one
+# thing in the cache whose size says nothing about whether it is current.
+REFS = "refs"
+
 MAX_WORKERS = 16
 
 
@@ -171,7 +175,12 @@ def copy_prefix(
         return 0, 0
 
     have = list_objects(dest, prefix)
-    todo = [k for k, size in src_objects.items() if have.get(k) != size]
+    # refs/<name> holds a 40-byte commit sha, so size cannot tell a stale ref
+    # from a current one. Always re-copy those; everything else is content
+    # addressed and size is a sound proxy.
+    todo = [
+        k for k, size in src_objects.items() if have.get(k) != size or f"/{REFS}/" in k
+    ]
     n_bytes = sum(src_objects[k] for k in todo)
 
     if not todo:
@@ -377,18 +386,17 @@ def main() -> None:
     total_objects = total_bytes = 0
 
     for repo_dir in repo_dirs:
-        missing = [c for c in targets if repo_dir not in list_repos(c)]
-        if args.repo and not args.mirror:
-            # An explicit --repo may be a repair of a partial copy, so target
-            # what was asked for rather than only what is wholly absent.
-            missing = targets
-        if not missing:
-            continue
+        # Every target, and let copy_prefix decide per object. Filtering here on
+        # whether the destination already lists the repo would skip one that is
+        # present but only half copied -- the exact state an interrupted run
+        # leaves behind, and the one a re-run exists to repair. It is also the
+        # cheaper call: a narrow per-repo listing instead of a full bucket scan.
+        dests = targets
 
         if args.from_hub:
             with tempfile.TemporaryDirectory() as tmp:
                 local = download_from_hub(repo_dir, tmp)
-                for dest in missing:
+                for dest in dests:
                     n, b = upload_tree(local, dest, repo_dir, args.apply)
                     total_objects, total_bytes = total_objects + n, total_bytes + b
             continue
@@ -402,7 +410,7 @@ def main() -> None:
             continue
         # Identical for every destination, so list it once.
         src_objects = list_objects(source, f"{HUB}/{repo_dir}/")
-        for dest in missing:
+        for dest in dests:
             if dest == source:
                 continue
             n, b = copy_repo(source, dest, repo_dir, args.apply, src_objects)

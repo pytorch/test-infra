@@ -252,6 +252,77 @@ class TestMirrorCoversBothPrefixes(TestCase):
         self.assertEqual(dst.copied, ["datasets/json/a.arrow"])
 
 
+class TestInterruptedMirrorResumes(TestCase):
+    """A mirror that died halfway has to finish on the next run.
+
+    pool.map re-raises the first worker failure, so one throttled object aborts
+    the whole mirror. Seeding a region is exactly when that matters: the repos
+    already written look present, and if presence is what decides, the re-run
+    reports "copied 0 objects" over a half-copied region that was just declared
+    at parity.
+    """
+
+    def _mirror(self, src: FakeS3, dst: FakeS3) -> None:
+        argv = [
+            "hf_cache_sync.py",
+            "--mirror",
+            "--source",
+            "meta-prod-aws-ue1",
+            "--to",
+            "meta-prod-aws-uw2",
+            "--apply",
+        ]
+        clients = {"meta-prod-aws-ue1": src, "meta-prod-aws-uw2": dst}
+        with mock.patch.object(sys, "argv", argv), fake_clients(clients):
+            m.main()
+
+    def test_half_copied_repo_is_finished_not_skipped(self) -> None:
+        src = FakeS3(
+            {
+                "hub/models--a--b/one": 10,
+                "hub/models--a--b/two": 20,
+                "hub/models--a--b/three": 30,
+            }
+        )
+        # What an interrupted run leaves: the repo exists, incompletely.
+        dst = FakeS3({"hub/models--a--b/one": 10})
+        self._mirror(src, dst)
+        self.assertEqual(
+            sorted(dst.copied),
+            ["hub/models--a--b/three", "hub/models--a--b/two"],
+            "the two missing objects must be copied, not skipped as present",
+        )
+
+    def test_complete_repo_still_copies_nothing(self) -> None:
+        """Dropping the presence filter must not make a no-op mirror re-copy."""
+        objects = {"hub/models--a--b/one": 10, "hub/models--a--b/two": 20}
+        src, dst = FakeS3(dict(objects)), FakeS3(dict(objects))
+        self._mirror(src, dst)
+        self.assertEqual(dst.copied, [])
+
+
+class TestStaleRefIsRefreshed(TestCase):
+    """refs/<name> is a 40-byte sha, so size cannot say whether it is current."""
+
+    def test_same_size_ref_is_still_copied(self) -> None:
+        sha = 40
+        src = FakeS3({"hub/models--a--b/refs/main": sha})
+        dst = FakeS3({"hub/models--a--b/refs/main": sha})
+        with fake_clients({"s": src, "d": dst}):
+            n, _ = m.copy_prefix("s", "d", "hub/models--a--b/", "r", apply=True)
+        self.assertEqual(n, 1, "a ref must be re-copied even at identical size")
+        self.assertEqual(dst.copied, ["hub/models--a--b/refs/main"])
+
+    def test_same_size_blob_is_still_skipped(self) -> None:
+        """Only refs are exempt; content-addressed blobs keep the size skip."""
+        src = FakeS3({"hub/models--a--b/blobs/deadbeef": 40})
+        dst = FakeS3({"hub/models--a--b/blobs/deadbeef": 40})
+        with fake_clients({"s": src, "d": dst}):
+            n, _ = m.copy_prefix("s", "d", "hub/models--a--b/", "r", apply=True)
+        self.assertEqual(n, 0)
+        self.assertEqual(dst.copied, [])
+
+
 class TestReviewFixes(TestCase):
     """Regressions for the findings on #8905."""
 
