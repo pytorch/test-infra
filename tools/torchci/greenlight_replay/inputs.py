@@ -1,9 +1,11 @@
-"""The two files the greenlight reviewer reads, rebuilt for one historical decision.
+"""The files the greenlight reviewer reads, rebuilt for one historical decision.
 
 CI hands the model a unified diff at ``/tmp/greenlight-pr.diff`` and, when it can be
 fetched, a small metadata document at ``/tmp/greenlight-pr.json``. This module rebuilds
 both from GitHub for a pull request the reviewer has already judged once, and applies
 the policy's size gate to the diff exactly as the workflow's ``sizecheck`` step does.
+For a ghstack PR, :mod:`.stack` reads the body back to the cutoff the comments are
+filtered to, and rebuilds the stack context under a policy that collects it.
 
 **The compare is against the base REF, not the base SHA.** Roughly 60% of the corpus is
 ghstack, whose pull requests are opened against a synthetic ``gh/<user>/<n>/base``
@@ -36,7 +38,9 @@ reviewer's inputs; it does not improve them.
 Metadata collection is best-effort, as in CI, where the step is ``continue-on-error``
 and the prompt calls the file optional. A metadata failure yields ``metadata_path=None``
 and the review still runs -- degrading it into a failed replay would discard a perfectly
-good diff over a field the reviewer may not even consult.
+good diff over a field the reviewer may not even consult. Reading a ghstack PR back
+to the cutoff is the exception: a fault there raises, for the reasons :mod:`.stack`
+gives.
 """
 
 from __future__ import annotations
@@ -54,6 +58,7 @@ from typing import Any
 from torchci.greenlight_decisions.loc import _REPO_PATTERN, _SHA_PATTERN
 from torchci.greenlight_decisions.rows import to_utc_naive
 from torchci.greenlight_replay.policy import GIT_REF_PATTERN, Policy
+from torchci.greenlight_replay.stack import clear_stack, read_back
 
 
 __all__ = [
@@ -83,7 +88,7 @@ ESCAPE_SEQUENCE_FLAG = "--allow-escape-sequences"
 # unconditionally nor omitting it unconditionally works across both.
 ESCAPE_SEQUENCE_FLAG_MIN_VERSION = (2, 97, 0)
 
-METADATA_FIELDS = "number,title,body,comments"
+METADATA_FIELDS = "number,title,body,comments,headRefName"
 
 BOT_LOGIN_SUFFIX = "[bot]"
 EXCLUDED_LOGINS = frozenset({"pytorchmergebot", "facebook-github-bot"})
@@ -100,6 +105,9 @@ class ReplayInputs:
     ``metadata_path`` is ``None`` when the metadata could not be fetched, written or
     shaped. ``diff_lines`` and ``diff_bytes`` are reported whether or not the gate
     tripped, so a run's log says how far under or over the caps each PR sat.
+
+    ``stack_path`` is the stack JSON when one was written, with the sibling diffs in
+    the directory beside it, and ``None`` whenever CI would have written none.
     """
 
     diff_path: Path
@@ -107,6 +115,7 @@ class ReplayInputs:
     diff_lines: int
     diff_bytes: int
     too_large: bool
+    stack_path: Path | None = None
 
 
 def build_inputs(
@@ -128,7 +137,14 @@ def build_inputs(
 
     A ``too_large`` result means the caller emits ``policy.too_large_verdict`` and runs
     no model, exactly as the workflow copies the canned file and skips the action step.
+
+    A ghstack PR's body is read back to ``comments_before`` under every policy, and its
+    stack context rebuilt under one that collects it, but neither for a declined diff:
+    the canned verdict reads neither, and a fault there would fail a free verdict. An
+    earlier sweep's stack is removed first, so none survives into a failed run or one
+    that should have no stack.
     """
+    clear_stack(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     diff = _fetch_diff(repo, base_ref, head_sha)
@@ -152,13 +168,27 @@ def build_inputs(
         "declining automatically" if too_large else "proceeding with review",
     )
 
-    metadata_path = _write_metadata(repo, pr_number, head_sha, comments_before, run_dir)
+    payload = _fetch_pr(repo, pr_number)
+    body_at_cutoff, stack_path = None, None
+    if not too_large:
+        body_at_cutoff, stack_path = read_back(
+            repo,
+            pr_number,
+            comments_before,
+            run_dir,
+            head_ref=payload.get("headRefName") if payload else None,
+            write_stack=policy.stack_enabled,
+        )
+    metadata_path = _write_metadata(
+        payload, head_sha, comments_before, run_dir, body_at_cutoff
+    )
     return ReplayInputs(
         diff_path=diff_path,
         metadata_path=metadata_path,
         diff_lines=diff_lines,
         diff_bytes=diff_bytes,
         too_large=too_large,
+        stack_path=stack_path,
     )
 
 
@@ -222,15 +252,18 @@ def _gh_version() -> tuple[int, int, int] | None:
 
 
 def _write_metadata(
-    repo: str,
-    pr_number: int,
+    payload: dict[str, Any] | None,
     head_sha: str,
     comments_before: datetime,
     run_dir: Path,
+    body_at_cutoff: str | None,
 ) -> Path | None:
+    if payload is None:
+        return None
     try:
-        payload = _fetch_pr(repo, pr_number)
-        document = _metadata_document(payload, head_sha, comments_before)
+        document = _metadata_document(
+            payload, head_sha, comments_before, body_at_cutoff
+        )
         path = run_dir / METADATA_FILENAME
         # jq's default rendering: two-space indent, UTF-8 rather than \u escapes, and
         # a trailing newline. The file is model context, so matching it costs nothing
@@ -242,6 +275,31 @@ def _write_metadata(
         logger.info("wrote %s (comments: %d)", path, len(document["comments"]))
         return path
     except Exception:
+        logger.exception("could not shape or write the PR metadata; running without it")
+        return None
+
+
+def _fetch_pr(repo: str, pr_number: int) -> dict[str, Any] | None:
+    """``gh pr view``'s payload, or None: it is best-effort, as in CI.
+
+    ``headRefName`` rides along to say whether the PR is ghstack; no document has it.
+    """
+    try:
+        if not _REPO_PATTERN.fullmatch(repo):
+            raise ValueError(f"refusing to read pull request metadata for {repo!r}")
+        argv = ["gh", "pr", "view", str(int(pr_number)), "--repo", repo]
+        completed = _run([*argv, "--json", METADATA_FIELDS])
+        if completed.returncode != 0:
+            stderr = completed.stderr.decode("utf-8", "replace").strip()
+            raise RuntimeError(
+                f"gh pr view {repo}#{pr_number} exited {completed.returncode}: "
+                f"{stderr[:400]}"
+            )
+        payload = json.loads(completed.stdout)
+        if not isinstance(payload, dict):
+            raise ValueError(f"gh pr view {repo}#{pr_number} did not return an object")
+        return payload
+    except Exception:
         logger.exception(
             "could not collect PR metadata for %s#%s; the review runs without it",
             repo,
@@ -250,46 +308,26 @@ def _write_metadata(
         return None
 
 
-def _fetch_pr(repo: str, pr_number: int) -> dict[str, Any]:
-    if not _REPO_PATTERN.fullmatch(repo):
-        raise ValueError(f"refusing to read pull request metadata for repo {repo!r}")
-    completed = _run(
-        [
-            "gh",
-            "pr",
-            "view",
-            str(int(pr_number)),
-            "--repo",
-            repo,
-            "--json",
-            METADATA_FIELDS,
-        ]
-    )
-    if completed.returncode != 0:
-        stderr = completed.stderr.decode("utf-8", "replace").strip()
-        raise RuntimeError(
-            f"gh pr view {repo}#{pr_number} exited {completed.returncode}: "
-            f"{stderr[:400]}"
-        )
-    payload = json.loads(completed.stdout)
-    if not isinstance(payload, dict):
-        raise ValueError(f"gh pr view {repo}#{pr_number} did not return an object")
-    return payload
-
-
 def _metadata_document(
-    payload: dict[str, Any], head_sha: str, comments_before: datetime
+    payload: dict[str, Any],
+    head_sha: str,
+    comments_before: datetime,
+    body_at_cutoff: str | None,
 ) -> dict[str, Any]:
     """The workflow's jq shape, key order included.
 
     ``head_sha`` is the pinned commit the verdict applies to, which is why it is
     injected rather than read from the payload: ``gh pr view`` reports the PR's current
     head, and on a landed PR that is no longer the head that was judged.
+
+    ``body_at_cutoff``, set for every ghstack PR whose diff was not declined, replaces
+    today's body for the same reason: ghstack rewrites its listing as the stack moves.
+    Under every policy, so a control arm and the stack arm show the same body.
     """
     return {
         "number": payload.get("number"),
         "title": payload.get("title"),
-        "body": payload.get("body"),
+        "body": payload.get("body") if body_at_cutoff is None else body_at_cutoff,
         "head_sha": head_sha,
         "comments": _comments(payload.get("comments") or [], comments_before),
     }
