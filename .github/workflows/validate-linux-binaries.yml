@@ -142,6 +142,16 @@ jobs:
       timeout: 180
       script: |
         set -ex
+
+        # The matrix export writes MATRIX_* to this file rather than to
+        # GITHUB_ENV. v2 read it back before running the script; v3 does not,
+        # so validate_binaries.sh would see MATRIX_PACKAGE_TYPE unbound.
+        # GITHUB_WORKFLOW is skipped: its value is unquoted in the file.
+        while read -r line; do
+          if [[ "${line}" != "GITHUB_WORKFLOW="* ]]; then
+            eval "export ${line}"
+          fi
+        done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TORCH_ONLY=${{ inputs.torchonly }}
         export INCLUDE_TEST_OPS=${{ inputs.include-test-ops }}
