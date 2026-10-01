@@ -174,9 +174,7 @@ describe("CRCR nightly dashboard selection", () => {
     expect(normalized).toContain(
       "nightly_key IN (SELECT nightly_key FROM eligible_nightly_keys)"
     );
-    expect(normalized).toContain(
-      "GROUP BY pytorch_head_sha, run_id, job_name"
-    );
+    expect(normalized).toContain("GROUP BY pytorch_head_sha, run_id, job_name");
     expect(normalized).toContain(
       "(pytorch_head_sha, run_id, job_name, run_attempt) IN"
     );
