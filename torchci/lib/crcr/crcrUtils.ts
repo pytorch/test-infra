@@ -42,6 +42,8 @@ export interface RelayWorkflow {
     duration?: number;
   }>;
   artifact_url?: string;
+  // Advisory triage verdict.
+  triage_verdict?: unknown;
 }
 
 export interface RelayCallbackPayload {
@@ -94,6 +96,7 @@ export interface CrcrWorkflowJobRecord {
   artifact_url?: string;
   failed_tests_json?: string;
   environment?: string;
+  triage_verdict_json?: string;
 }
 
 // ---- Validation ----
@@ -255,6 +258,18 @@ export function extractDynamoRecord(
 
       if (entries.length > 0) {
         record.failed_tests_json = JSON.stringify(entries);
+      }
+    }
+
+    // The relay caps the raw verdict at 16 KiB and only shrinks it while
+    // normalizing, so double that never drops a verdict the relay accepted.
+    // Over the cap it is dropped.
+    const MAX_TRIAGE_VERDICT_BYTES = 32 * 1024;
+    const verdict = wf.triage_verdict;
+    if (verdict && typeof verdict === "object" && !Array.isArray(verdict)) {
+      const verdictJson = JSON.stringify(verdict);
+      if (Buffer.byteLength(verdictJson, "utf-8") <= MAX_TRIAGE_VERDICT_BYTES) {
+        record.triage_verdict_json = verdictJson;
       }
     }
   }
