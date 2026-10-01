@@ -1,6 +1,7 @@
 import {
   buildAssignedReviewers,
   extractPrStatusSection,
+  fetchLiveLabels,
   fetchPrStatusState,
   getPrStatusMessage,
   getPrStatusStage,
@@ -8,12 +9,16 @@ import {
   PR_STATUS_END,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
+  PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_START,
   PrStatusState,
   renderPrStatusSection,
   splicePrStatusSection,
 } from "lib/prStatus";
+
+import nock from "nock";
+import { Octokit } from "octokit";
 
 const DRCI_START = "<!-- drci-comment-start -->\n";
 
@@ -100,19 +105,54 @@ describe("getPrStatusMessage", () => {
     );
   });
 
-  test("in progress", () => {
-    expect(
-      getPrStatusMessage(state({ labels: [PR_STATUS_LABEL_IN_PROGRESS] }))
-    ).toBe(
-      "## PR Status: in progress\n\n" +
-        "The overall direction of the change is " +
-        "good. The next step is to ensure the change passes the automated " +
-        "review and CI is green (see status below in this comment).\n\n" +
-        "To minimize iteration time, feel free to run the pr-review " +
-        "skill from the repo locally. If you address comments without " +
-        "pushing, comment `@pytorchbot review` to re-run the automated " +
-        "review. To bypass automated review, please add the “no automated " +
-        "review” label."
+  test("in progress explains maintainer feedback and CI readiness criteria", () => {
+    const message = getPrStatusMessage(
+      state({ labels: [PR_STATUS_LABEL_IN_PROGRESS] })
+    );
+    expect(message).toContain("The overall direction of the change is good.");
+    expect(message).toContain("every maintainer comment must be addressed");
+    expect(message).toContain("a reply explaining why no change is needed");
+    expect(message).toContain(
+      "Dr. CI must classify every failure as unrelated to your PR"
+    );
+    expect(message).toContain(
+      "Workflows waiting for a maintainer to approve their run do not block this"
+    );
+    expect(message).toContain(
+      "If you address comments without pushing, comment `@pytorchbot review`"
+    );
+  });
+
+  test("an outstanding change request explains how to return to maintainer review", () => {
+    const message = getPrStatusMessage(
+      state({
+        labels: [PR_STATUS_LABEL_IN_PROGRESS],
+        hasChangesRequested: true,
+      })
+    );
+    expect(message).toContain(
+      "A maintainer requested changes. Please address their feedback before the PR returns to maintainer review."
+    );
+    expect(message).toContain(
+      "A fresh automated review checks that the feedback has been addressed"
+    );
+    expect(message).toContain("the change must pass automated review");
+    expect(message).not.toContain("The overall direction");
+  });
+
+  test("opted-out ready PRs keep maintainer review guidance after a change request", () => {
+    const message = getPrStatusMessage(
+      state({
+        labels: [
+          PR_STATUS_LABEL_READY_FOR_REVIEW,
+          PR_STATUS_LABEL_REVIEW_OPT_OUT,
+        ],
+        hasChangesRequested: true,
+      })
+    );
+    expect(message).toBe(
+      "## PR Status: ready for maintainer review\n\n" +
+        "Please address comments left by our maintainers until the PR is accepted."
     );
   });
 
@@ -187,9 +227,9 @@ describe("renderPrStatusSection", () => {
     const section = renderPrStatusSection(
       state({ labels: [PR_STATUS_LABEL_IN_PROGRESS] })
     );
-    expect(section).toBe(
-      `${PR_STATUS_START}\n## PR Status: in progress\n\nThe overall direction of the change is good. The next step is to ensure the change passes the automated review and CI is green (see status below in this comment).\n\nTo minimize iteration time, feel free to run the pr-review skill from the repo locally. If you address comments without pushing, comment \`@pytorchbot review\` to re-run the automated review. To bypass automated review, please add the “no automated review” label.\n${PR_STATUS_END}\n`
-    );
+    expect(section.startsWith(`${PR_STATUS_START}\n`)).toBe(true);
+    expect(section.endsWith(`\n${PR_STATUS_END}\n`)).toBe(true);
+    expect(section).toContain("## PR Status: in progress");
   });
 });
 
@@ -436,6 +476,7 @@ describe("fetchPrStatusState", () => {
     ]);
 
     expect(state!.isApproved).toBe(true);
+    expect(state!.hasChangesRequested).toBe(false);
     expect(state!.assignedReviewers).toEqual([]);
     expect(octokit._get).not.toHaveBeenCalled();
   });
@@ -556,6 +597,68 @@ describe("fetchPrStatusState", () => {
       "ready for review",
     ]);
     expect(state!.isApproved).toBe(false);
+    expect(state!.hasChangesRequested).toBe(true);
+  });
+
+  test.each(["APPROVED", "DISMISSED"])(
+    "a later %s review clears the same reviewer's change request",
+    async (reviewState) => {
+      const octokit = octokitStub({
+        reviews: [
+          {
+            ...approvingReview("alice"),
+            state: "CHANGES_REQUESTED",
+          },
+          {
+            ...approvingReview("alice"),
+            state: reviewState,
+            submitted_at: "2026-01-02T00:00:00Z",
+          },
+        ],
+      });
+      const result = await fetchPrStatusState(
+        octokit,
+        "pytorch",
+        "pytorch",
+        1,
+        ["in progress"]
+      );
+      expect(result!.hasChangesRequested).toBe(false);
+      expect(result!.isApproved).toBe(reviewState === "APPROVED");
+    }
+  );
+
+  test("mere comments do not clear an outstanding change request", async () => {
+    const octokit = octokitStub({
+      reviews: [
+        { ...approvingReview("alice"), state: "CHANGES_REQUESTED" },
+        {
+          ...approvingReview("alice"),
+          state: "COMMENTED",
+          submitted_at: "2026-01-02T00:00:00Z",
+        },
+      ],
+    });
+    const result = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
+      "in progress",
+    ]);
+    expect(result!.hasChangesRequested).toBe(true);
+  });
+
+  test("an unauthorized change request does not set the flag", async () => {
+    const octokit = octokitStub({
+      reviews: [
+        {
+          ...approvingReview("drive-by"),
+          state: "CHANGES_REQUESTED",
+          author_association: "NONE",
+        },
+      ],
+    });
+    const result = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
+      "in progress",
+    ]);
+    expect(result!.hasChangesRequested).toBe(false);
   });
 
   test("a failed review lookup returns unknown rather than unapproved", async () => {
@@ -661,5 +764,50 @@ describe("fetchPrStatusState", () => {
         ["in progress"]
       ))!.isApproved
     ).toBe(false);
+  });
+});
+
+describe("fetchLiveLabels", () => {
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  test("includes workflow opt-out labels from later pages", async () => {
+    const labels = Array.from({ length: 100 }, (_, i) => ({
+      name: `module: ${i}`,
+    }));
+    const scope = nock("https://api.github.com")
+      .get("/repos/pytorch/pytorch/issues/1/labels")
+      .query({ per_page: 100 })
+      .reply(200, labels, {
+        link: '<https://api.github.com/repos/pytorch/pytorch/issues/1/labels?per_page=100&page=2>; rel="next"',
+      })
+      .get("/repos/pytorch/pytorch/issues/1/labels")
+      .query({ per_page: 100, page: 2 })
+      .reply(200, [{ name: PR_STATUS_LABEL_REVIEW_OPT_OUT }]);
+
+    const result = await fetchLiveLabels(
+      new Octokit(),
+      "pytorch",
+      "pytorch",
+      1
+    );
+    expect(result).toEqual([
+      ...labels.map((label) => label.name),
+      PR_STATUS_LABEL_REVIEW_OPT_OUT,
+    ]);
+    expect(scope.isDone()).toBe(true);
+  });
+
+  test("propagates label lookup failures so callers can preserve current status", async () => {
+    const scope = nock("https://api.github.com")
+      .get("/repos/pytorch/pytorch/issues/1/labels")
+      .query({ per_page: 100 })
+      .reply(403, { message: "Forbidden" });
+
+    await expect(
+      fetchLiveLabels(new Octokit(), "pytorch", "pytorch", 1)
+    ).rejects.toMatchObject({ status: 403 });
+    expect(scope.isDone()).toBe(true);
   });
 });

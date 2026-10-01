@@ -3,6 +3,7 @@
 
 import { upsertPrStatusSection } from "lib/drciUtils";
 import {
+  fetchLiveLabels,
   hasPrStatusLabel,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -10,9 +11,25 @@ import {
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABELS,
 } from "lib/prStatus";
+import { PR_CHANGES_REQUESTED } from "lib/reviewApproval";
 import { Context, Probot } from "probot";
 import { isInPreReview, markInProgressIfAccepted } from "./preReviewUtils";
-import { isPyTorchPyTorch } from "./utils";
+import { hasVerifiedHumanWritePermissions, isPyTorchPyTorch } from "./utils";
+
+async function removeLabelIfPresent(
+  context: Context<"pull_request" | "pull_request_review">,
+  name: string
+) {
+  try {
+    await context.octokit.issues.removeLabel(context.issue({ name }));
+  } catch (error) {
+    // A concurrent handler or a replay may have already removed it. Other
+    // failures must surface so the delivery can be retried.
+    if ((error as { status?: number }).status !== 404) {
+      throw error;
+    }
+  }
+}
 
 async function handle(
   context: Context<"pull_request" | "pull_request_review">
@@ -30,35 +47,23 @@ async function handle(
     return;
   }
 
-  const labels = pullRequest.labels.map((label) => label.name);
+  let labels = pullRequest.labels.map((label) => label.name);
 
   const payload = context.payload as any;
 
-  // Opting out skips automated review, the only way out of in progress, so
-  // move the PR on, whichever of the two labels arrived second. The label
-  // events this causes refresh the status section.
-  if (
+  const isOptOutLabelEvent =
     payload.action === "labeled" &&
     (payload.label?.name === PR_STATUS_LABEL_REVIEW_OPT_OUT ||
       payload.label?.name === PR_STATUS_LABEL_IN_PROGRESS) &&
     labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT) &&
-    labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
-  ) {
-    await context.octokit.issues.addLabels(
-      context.issue({ labels: [PR_STATUS_LABEL_READY_FOR_REVIEW] })
-    );
-    await context.octokit.issues.removeLabel(
-      context.issue({ name: PR_STATUS_LABEL_IN_PROGRESS })
-    );
-    return;
-  }
+    labels.includes(PR_STATUS_LABEL_IN_PROGRESS);
 
   // Ignore events that cannot change status before spending GitHub API calls.
   if (
     (payload.action === "labeled" || payload.action === "unlabeled") &&
     payload.label
   ) {
-    if (!PR_STATUS_LABELS.includes(payload.label.name)) {
+    if (!PR_STATUS_LABELS.includes(payload.label.name) && !isOptOutLabelEvent) {
       return;
     }
   } else if (
@@ -73,6 +78,73 @@ async function handle(
     // Reviews outside the workflow cannot change status. An unlabeled event
     // without label metadata cannot be identified as workflow-related.
     return;
+  }
+
+  const isChangesRequested =
+    payload.action === "submitted" &&
+    payload.review?.state?.toLowerCase() === PR_CHANGES_REQUESTED;
+
+  // Label webhooks carry mid-transition snapshots and can run concurrently.
+  // Review snapshots can also predate an opt-out. Use live labels for these
+  // decisions and their status refresh. A handler can still read mid-move and
+  // finish last; a later status update may be needed to correct its rendering.
+  if (
+    payload.action === "labeled" ||
+    payload.action === "unlabeled" ||
+    (isChangesRequested && labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW))
+  ) {
+    labels = await fetchLiveLabels(
+      context.octokit as any,
+      owner,
+      repo,
+      pullRequest.number
+    );
+  }
+
+  // Opting out skips the readiness checks, whichever of the two labels
+  // arrived second. Opted-out ready PRs stay ready after a change request.
+  if (
+    isOptOutLabelEvent &&
+    labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT) &&
+    labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
+  ) {
+    await context.octokit.issues.addLabels(
+      context.issue({ labels: [PR_STATUS_LABEL_READY_FOR_REVIEW] })
+    );
+    await removeLabelIfPresent(context, PR_STATUS_LABEL_IN_PROGRESS);
+    labels = await fetchLiveLabels(
+      context.octokit as any,
+      owner,
+      repo,
+      pullRequest.number
+    );
+  }
+
+  // A maintainer requesting changes sends a ready PR back to in progress,
+  // unless automated review is disabled. Labels move before comment refresh,
+  // so a failed refresh cannot block the move. Promotion now requires a fresh
+  // automated review that has considered the maintainer's feedback (see
+  // lib/prReview/readyForReviewPromotion.ts).
+  if (
+    isChangesRequested &&
+    labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW) &&
+    !labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT) &&
+    (await hasVerifiedHumanWritePermissions(context, payload.review.user.login))
+  ) {
+    context.log(
+      `Moving ${owner}/${repo}#${pullRequest.number} back to "${PR_STATUS_LABEL_IN_PROGRESS}", changes requested by ${payload.review.user.login}`
+    );
+    // Add before removing so the PR always carries a status label.
+    await context.octokit.issues.addLabels(
+      context.issue({ labels: [PR_STATUS_LABEL_IN_PROGRESS] })
+    );
+    await removeLabelIfPresent(context, PR_STATUS_LABEL_READY_FOR_REVIEW);
+    labels = await fetchLiveLabels(
+      context.octokit as any,
+      owner,
+      repo,
+      pullRequest.number
+    );
   }
 
   await upsertPrStatusSection(
