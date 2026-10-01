@@ -305,14 +305,14 @@ floating one.
    failed the gh-pages push with a 403 for weeks. Fixed in
    [#8824](https://github.com/pytorch/test-infra/pull/8824), but check the callee before assuming your
    grant survived.
-12. **Your image needs `tar` and `find`.** The k8s hook streams the workspace into the job container
+12. **Your image needs `tar`, `find` and `git`.** The k8s hook streams the workspace into the job container
    as a tar and extracts it there, then hash-verifies the result, so both binaries have to exist
    inside your image — the same constraint `kubectl cp` has. On EC2 the copy was a `docker cp`, where
    the tar work happened host-side, so a minimal image got away without them. Missing `tar` shows up
    as `execCpToPod: exec timed out after 300000ms` retried thirty times; missing `find` as
    `sh: line 1: find: command not found` followed by `prepare-job script failed with exit code 1`.
-   Neither is fixable from a step, because `prepare-job` runs before your first one. Practically
-   every distro image is fine; the Amazon Linux family is the one that is not:
+   Neither is fixable from a step, because `prepare-job` runs before your first one. For these two,
+   practically every distro image is fine; the Amazon Linux family is the one that is not:
 
    | image | `tar` | `find` |
    |---|---|---|
@@ -320,6 +320,25 @@ floating one.
    | `quay.io/pypa/manylinux_2_28_x86_64`, `pytorch/manylinux2_28-builder` | yes | yes |
    | `amazonlinux:2` | **no** | yes |
    | `amazonlinux:2023` | **no** | **no** |
+
+   `git` is needed for the same reason: `actions/checkout` wants **git 2.18 or newer on the PATH
+   inside the container**. Without it it falls back to downloading a tarball over the REST API,
+   which gives you no working repository and refuses some inputs outright:
+
+   ```
+   The repository will be downloaded using the GitHub REST API
+   To create a local Git repository instead, add Git 2.18 or higher to the PATH
+   ```
+
+   On EC2 checkout ran on the host, which always had git, so this is new to OSDC.
+
+   - **No plain distro base ships git.** `ubuntu:22.04`, `debian:bookworm-slim`, `almalinux:9`,
+     `rockylinux:9`, `redhat/ubi9`, `centos:stream9`, `amazonlinux:2`/`2023` — none of them.
+     Builder and toolchain images do.
+   - Cheapest fix is usually to drop `-slim`: `python:3.11-bullseye` has git, `python:3.11-slim-*`
+     does not. Otherwise use a builder, e.g. `pytorch/almalinux-builder`.
+   - `ghcr.io/actions/actions-runner` has git but no `pip` and no `python`, so it fixes checkout and
+     breaks the next line.
 13. **A step that prints hundreds of MB kills the runner, not the pod.** Somewhere around 200–250 MB of
    output the runner side dies and takes the job with it. The tell is a log that stops mid-sentence,
    with no error of its own — no compiler `error:`, no `exit code 137` — followed by
@@ -335,6 +354,16 @@ floating one.
    hundred thousand lines of captured pytest output, and pytorch/FBGEMM#6321 suppressed one noisy
    warning that accounted for 89% of a 222 MB build log. EC2 tolerated over 1 GB, so a job can hit this
    purely by moving here, with no change of its own.
+14. **The HuggingFace cache is read-only, and per-cluster.** Runner nodes mount a shared cache at
+   `/mnt/hf_cache`, and `linux_job_v3` points `HF_HUB_CACHE` at it. Downloading a repo it does not
+   already hold fails with `OSError: [Errno 30] Read-only file system:
+   '/mnt/hf_cache/hub/models--<org>--<name>/...'`. Each cluster has its own bucket, so warming one
+   region leaves the others cold: the usual shape of this bug is a PR that goes green in the region it
+   happened to land in and then breaks main from the region it did not. Seed the missing region with
+   [`tools/scripts/hf_cache_sync.py`](../tools/scripts/hf_cache_sync.py) — `--diff` reports the drift,
+   `--repo <id> --to <cluster> --apply` copies from a region that has it, and `--from-hub` fetches a
+   repo no region has yet. A seeded repo can take up to an hour to appear on nodes that are already
+   running, which cache directory listings for that long; new nodes see it at once.
 
 ---
 
@@ -351,3 +380,4 @@ them rather than re-deriving their contents.
 - Image build action — [`test-infra/.github/actions/docker-build-remote-buildkit`](https://github.com/pytorch/test-infra/tree/main/.github/actions/docker-build-remote-buildkit)
 - EC2 to OSDC label mapping — [`pytorch/pytorch:.github/arc.yaml`](https://github.com/pytorch/pytorch/blob/main/.github/arc.yaml)
 - Reusable workflow — [`test-infra/.github/workflows/linux_job_v3.yml`](https://github.com/pytorch/test-infra/blob/main/.github/workflows/linux_job_v3.yml)
+- Shared HuggingFace cache — [`osdc/modules/hf-cache/README.md`](https://github.com/pytorch/ci-infra/blob/main/osdc/modules/hf-cache/README.md)
