@@ -572,6 +572,74 @@ describe("extractDynamoRecord - failed_tests_detail", () => {
   });
 });
 
+describe("extractDynamoRecord - triage_verdict", () => {
+  // Shape as the relay forwards it: already validated and normalized.
+  const verdict = {
+    schema_version: 1,
+    category: "upstream",
+    confidence: "high",
+    summary: "aten::foo lost its out= overload in #194610.",
+    suspected_upstream: { pr: 194610, commit: "0e797b5a6acf" },
+  };
+
+  test("stores the verdict as JSON on a completed callback", () => {
+    const record = extractDynamoRecord(
+      makePayload({
+        workflow: {
+          status: "completed",
+          conclusion: "failure",
+          triage_verdict: verdict,
+        },
+      })
+    );
+    expect(JSON.parse(record.triage_verdict_json!)).toEqual(verdict);
+  });
+
+  test("does not set triage_verdict_json when the verdict is absent", () => {
+    const record = extractDynamoRecord(
+      makePayload({ workflow: { status: "completed", conclusion: "failure" } })
+    );
+    expect(record.triage_verdict_json).toBeUndefined();
+  });
+
+  test("ignores a verdict on an in_progress callback", () => {
+    const record = extractDynamoRecord(
+      makePayload({ workflow: { triage_verdict: verdict } })
+    );
+    expect(record.triage_verdict_json).toBeUndefined();
+  });
+
+  test.each([
+    ["a string", "upstream"],
+    ["an array", [verdict]],
+    ["null", null],
+  ])("drops a verdict that is %s", (_label, value) => {
+    const record = extractDynamoRecord(
+      makePayload({
+        workflow: {
+          status: "completed",
+          conclusion: "failure",
+          triage_verdict: value,
+        },
+      })
+    );
+    expect(record.triage_verdict_json).toBeUndefined();
+  });
+
+  test("drops an oversized verdict instead of truncating it", () => {
+    const record = extractDynamoRecord(
+      makePayload({
+        workflow: {
+          status: "completed",
+          conclusion: "failure",
+          triage_verdict: { ...verdict, summary: "x".repeat(40 * 1024) },
+        },
+      })
+    );
+    expect(record.triage_verdict_json).toBeUndefined();
+  });
+});
+
 describe("writeToDynamo - write-once guard", () => {
   const baseRecord: CrcrWorkflowJobRecord = {
     dynamoKey: "repo/delivery/wf/job/cr1",

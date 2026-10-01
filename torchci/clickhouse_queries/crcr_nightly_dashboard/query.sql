@@ -62,7 +62,8 @@ SELECT
     artifact_url,
     queue_time,
     execution_time,
-    failed_tests_json
+    failed_tests_json,
+    triage_verdict_json
 FROM
     nightly_jobs
 WHERE
