@@ -174,13 +174,6 @@
       "slow"
     ]
   ],
-  "test_case (__main__.FilterTestCase)": [
-    "198597",
-    "https://github.com/pytorch/pytorch/issues/198597",
-    [
-      "dynamo"
-    ]
-  ],
   "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
     "100074",
     "https://github.com/pytorch/pytorch/issues/100074",
@@ -1525,13 +1518,6 @@
     "https://github.com/pytorch/pytorch/issues/198997",
     [
       "xpu"
-    ]
-  ],
-  "test_sep (__main__.FilterTestCase)": [
-    "198633",
-    "https://github.com/pytorch/pytorch/issues/198633",
-    [
-      "dynamo"
     ]
   ],
   "test_serialization_array_with_empty (__main__.TestCuda)": [
