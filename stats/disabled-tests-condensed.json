@@ -1684,6 +1684,11 @@
       "rocm"
     ]
   ],
+  "test_unbacked_equals_input_size_runtime_assertion_mark_unbacked_False_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199289",
+    "https://github.com/pytorch/pytorch/issues/199289",
+    []
+  ],
   "test_update_weights (__main__.TestAOTInductorPackage_xpu)": [
     "194562",
     "https://github.com/pytorch/pytorch/issues/194562",
@@ -1740,6 +1745,11 @@
     [
       "xpu"
     ]
+  ],
+  "test_while_loop_with_conv_dynamic_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
+    "199288",
+    "https://github.com/pytorch/pytorch/issues/199288",
+    []
   ],
   "test_while_loop_with_sym_expr_cond_dynamic_True_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199245",
