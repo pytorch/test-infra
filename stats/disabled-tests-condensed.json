@@ -1322,13 +1322,6 @@
       "rocm"
     ]
   ],
-  "test_saved_tensor_hooks_extra_enter_during_bw_no_leak (__main__.TestAutograd)": [
-    "190499",
-    "https://github.com/pytorch/pytorch/issues/190499",
-    [
-      "dynamo"
-    ]
-  ],
   "test_scalar_range_asserts_disabled_keeps_equality_asserts_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199320",
     "https://github.com/pytorch/pytorch/issues/199320",
