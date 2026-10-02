@@ -6,6 +6,7 @@ actions: post an approving review, comment, and dismiss greenlight's own prior a
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -26,7 +27,6 @@ if TYPE_CHECKING:
         ScanClient,
         VerdictClient,
         VerdictPR,
-        _AuthorClient,
         _FingerprintPR,
         _PRActor,
         _PRComment,
@@ -34,6 +34,8 @@ if TYPE_CHECKING:
         _RepoClient,
         _VerdictReview,
     )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +129,15 @@ def build_authz_client(token: str) -> Github:
     return build_client(token, retry=_build_authz_retry())
 
 
+def close_client(client: object) -> None:
+    close = getattr(client, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception:
+            logger.warning("failed to close GitHub client", exc_info=True)
+
+
 def is_rate_limit_error(exc: BaseException) -> bool:
     # GitHub delivers a rate limit as 403 (usually -> RateLimitExceededException) or 429 (-> base
     # GithubException); 429 must stay off _build_retry's forcelist or it surfaces as a RetryError.
@@ -174,19 +185,6 @@ def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[s
                 )
             )
     return sorted(prs, key=lambda p: p.number)
-
-
-def get_pr_author(client: _AuthorClient, repo: str, number: int) -> str | None:
-    """Return the login of a single PR's author, or None if it has no resolvable user.
-
-    Used by the ``--pr`` scan path to gate on the target PR's author. The listing path is already
-    filtered to the evaluation cohort, which is wider than the trusted-author set this gate
-    enforces; ``--pr`` names an arbitrary PR and is filtered by nothing, so the caller must verify
-    its author before fingerprinting or dispatching a review.
-    """
-    pr = client.get_repo(repo).get_pull(number)
-    user = pr.user
-    return user.login if user is not None else None
 
 
 def _actor_login(
