@@ -1,5 +1,6 @@
 import logging
 import textwrap
+from collections.abc import Iterable
 
 import pytest
 
@@ -281,13 +282,13 @@ class _FakePRPart:
 
 
 class _FakeFilesPR:
-    def __init__(self, files: list[_FakePRFile], *, head_ref: str = "feature", base_ref: str = "main") -> None:
+    def __init__(self, files: Iterable[_FakePRFile], *, head_ref: str = "feature", base_ref: str = "main") -> None:
         self.head = _FakePRPart(head_ref)
         self.base = _FakePRPart(base_ref)
         self._files = files
         self.get_files_calls = 0
 
-    def get_files(self) -> list[_FakePRFile]:
+    def get_files(self) -> Iterable[_FakePRFile]:
         self.get_files_calls += 1
         return self._files
 
@@ -312,6 +313,25 @@ def test_changed_files_of_a_base_other_than_main_is_none_without_listing():
 
 def test_changed_files_lists_the_filenames_of_a_branch_based_on_main():
     assert merge_authz.changed_files(_files_pr("a.py", "b.py")) == ("a.py", "b.py")
+
+
+def test_changed_files_lists_every_filename_of_a_listing_at_the_file_cap():
+    filenames = [f"f{index}.py" for index in range(constants.MAX_DIFF_FILES)]
+
+    assert merge_authz.changed_files(_files_pr(*filenames)) == tuple(filenames)
+
+
+def test_changed_files_of_a_listing_over_the_file_cap_is_none_after_reading_one_entry_past_it():
+    listing = iter([_FakePRFile(f"f{index}.py") for index in range(3000)])
+
+    assert merge_authz.changed_files(_FakeFilesPR(listing)) is None
+    assert len(list(listing)) == 3000 - constants.MAX_DIFF_FILES - 1
+
+
+def test_changed_files_counts_a_repeated_path_toward_the_file_cap():
+    filenames = [f"f{index}.py" for index in range(constants.MAX_DIFF_FILES)]
+
+    assert merge_authz.changed_files(_files_pr(*filenames, filenames[-1], "a.py")) is None
 
 
 def _snapshot(*logins: str) -> merge_authz.MergeRulesSnapshot:

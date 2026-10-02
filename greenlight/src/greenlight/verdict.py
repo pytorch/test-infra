@@ -211,7 +211,8 @@ def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, auth
 
     ``cohort.assess_rules`` decides. A path-scoped rule's files count only while the PR's head is still
     ``head_sha``, the reviewed commit, and a fresh read after the listing finds the same head and base;
-    ``merge_authz.changed_files`` leaves them unknown for a ghstack head or a base other than main.
+    ``merge_authz.changed_files`` leaves them unknown for a ghstack head, a base other than main, or more
+    than ``constants.MAX_DIFF_FILES`` files.
     """
     client = github_client.build_authz_client(token)
     moved: str | None = None

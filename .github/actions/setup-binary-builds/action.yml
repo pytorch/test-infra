@@ -151,8 +151,8 @@ runs:
           # and rejects a malformed cert in the Windows machine cert store,
           # breaking ssl.create_default_context() with "[ASN1: NOT_ENOUGH_DATA]"
           # at smoke-test time. See https://github.com/pytorch/pytorch/pull/186846
-          # The 3.15 cases below clear this because the 3.15 beta requires
-          # openssl>=3.5.7, so the 3.5.6 pin is unsatisfiable there. NOTE: 3.15
+          # The 3.15 cases below clear this because the 3.15 pre-release requires
+          # openssl>=3.5.8, so the 3.5.6 pin is unsatisfiable there. NOTE: 3.15
           # is no longer Linux-only, so Windows 3.15 builds are exposed to the
           # ASN.1 regression above until openssl ships a fix.
           export OPENSSL_PIN="openssl=3.5.6"
@@ -160,16 +160,16 @@ runs:
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
             3.15t)
-              # 3.15 is a pre-release. conda-forge ships the beta interpreter
-              # under its python_dev label, but that build depends on a
-              # _python_rc marker package that only exists under the python_rc
-              # label, so both labels are required to solve.
-              export PYTHON_VERSION=3.15.0b4
+              # 3.15 is a pre-release. conda-forge ships its betas under the
+              # python_dev label and its release candidates on main, but both
+              # depend on a _python_rc marker package that only exists under
+              # the python_rc label, so that label is required to solve.
+              export PYTHON_VERSION=3.15.0rc2
               export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
               export OPENSSL_PIN=""
               ;;
             3.15)
-              export PYTHON_VERSION=3.15.0b4
+              export PYTHON_VERSION=3.15.0rc2
               export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_dev -c conda-forge/label/python_rc -c conda-forge"
               export OPENSSL_PIN=""
               ;;
