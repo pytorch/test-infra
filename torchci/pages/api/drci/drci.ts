@@ -262,11 +262,10 @@ export async function updateDrciComments(
       pr_info.head_sha,
     ])
   );
-  const greenlightSectionsPromise = buildGreenlightSections(
-    owner,
-    repo,
-    headShaByPr
-  ).catch((e) => {
+  const greenlightSectionsPromise = buildGreenlightSections(owner, repo, {
+    headShaByPr,
+    octokit,
+  }).catch((e) => {
     console.error("greenlight section build threw for", owner, repo, e);
     return new Map<number, string>();
   });

@@ -2,6 +2,7 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
+import { buildGreenlightOpenedLine } from "lib/greenlight/greenlightComment";
 import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
@@ -244,7 +245,7 @@ export async function upsertDrCiComment(
     prNum,
     owner,
     repo,
-    "",
+    await buildGreenlightOpenedLine(owner, repo, context),
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment)
   );

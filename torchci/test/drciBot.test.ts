@@ -1,13 +1,15 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import * as greenlightEligibility from "lib/greenlight/greenlightEligibility";
+import { renderGreenlightEligibility } from "lib/greenlight/greenlightEligibility";
 import * as getS3Client from "lib/s3";
 import nock from "nock";
 import { Probot } from "probot";
 import myProbotApp from "../lib/bot/drciBot";
 import pytorchBot from "../lib/bot/pytorchBot";
 import * as clickhouse from "../lib/clickhouse";
-import { handleScope } from "./common";
+import { handleScope, requireDeepCopy } from "./common";
 import { successfulA } from "./drci.test";
 import * as utils from "./utils";
 
@@ -306,5 +308,85 @@ describe("verify-drci-functionality", () => {
       .reply(200, [{ sha: "MOCK", message: "Anything goes" }]);
     await probot.receive(event);
     handleScope(scope);
+  });
+
+  // The other tests share the cached fixture objects and mutate them, so these copy
+  // them and set every field they depend on.
+  function greenlightPayload(fixture: string) {
+    const payload = requireDeepCopy(fixture)["payload"];
+    payload["pull_request"]["user"]["login"] = "alice";
+    payload["pull_request"]["state"] = "open";
+    payload["pull_request"]["draft"] = false;
+    payload["repository"]["owner"]["login"] = OWNER;
+    payload["repository"]["name"] = REPO;
+    return payload;
+  }
+
+  test("Dr. CI shows the GreenLight eligibility line on an opened PR", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+    jest.spyOn(clickhouse, "queryClickhouse").mockResolvedValue([]);
+
+    let comment = "";
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${OWNER}/${REPO}/issues/31/comments`)
+      .reply(200, [])
+      .get("/repos/pytorch/test-infra/issues/8945")
+      .reply(200, { body: "```\n@alice\n```" })
+      .get(
+        (uri) =>
+          uri.startsWith(`/repos/${OWNER}/${REPO}/contents/`) &&
+          uri.includes("merge_rules.yaml")
+      )
+      .reply(200, {
+        content: Buffer.from(
+          "- patterns: ['*']\n  approved_by: [alice]"
+        ).toString("base64"),
+      })
+      .post(`/repos/${OWNER}/${REPO}/issues/31/comments`, (body) => {
+        comment = body.body;
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({
+      name: "pull_request",
+      payload: greenlightPayload("./fixtures/pull_request.opened"),
+      id: "2",
+    });
+    handleScope(scope);
+
+    expect(comment).toContain(drciUtils.DRCI_COMMENT_START);
+    expect(comment).toContain(renderGreenlightEligibility("waiting"));
+  });
+
+  test("Dr. CI shows no GreenLight line on a synchronized PR", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+    jest.spyOn(clickhouse, "queryClickhouse").mockResolvedValue([]);
+    const gate = jest.spyOn(greenlightEligibility, "greenlightEligibilityGate");
+
+    let comment = "";
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${OWNER}/${REPO}/issues/30/comments`)
+      .reply(200, [])
+      .post(`/repos/${OWNER}/${REPO}/issues/30/comments`, (body) => {
+        comment = body.body;
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({
+      name: "pull_request",
+      payload: greenlightPayload("./fixtures/pull_request.synchronize"),
+      id: "2",
+    });
+    handleScope(scope);
+
+    expect(comment).toContain(drciUtils.DRCI_COMMENT_START);
+    expect(comment).not.toContain("GreenLight");
+    expect(gate).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,348 @@
+// What greenlight's scan would decide for a PR it has recorded no state for yet,
+// read from the same sources it reads. The issue grammar and the merge-rule
+// semantics are ports of greenlight/src/greenlight/trusted_authors.py,
+// merge_authz.py and cohort.assess, and the size caps of the ones in
+// .github/workflows/greenlight-pr-review.yml: they must change together, or this
+// line promises a review the scan will not run.
+
+import yaml from "js-yaml";
+import { getFilesChangedByPr } from "lib/bot/utils";
+import { Octokit } from "octokit";
+
+export type GreenlightEligibility = "too_big" | "merge_rules" | "waiting";
+
+// The fields read from a pulls.get response or a pull_request webhook payload.
+export interface EligibilityPr {
+  number: number;
+  draft?: boolean;
+  user: { login: string } | null;
+  additions: number;
+  deletions: number;
+  changed_files: number;
+  head: { ref: string };
+  base: { ref: string };
+}
+
+export interface MergeRule {
+  logins: string[];
+  teams: string[];
+  // null when the rule's patterns are unusable: it covers nothing.
+  matches: ((_path: string) => boolean) | null;
+  coversAll: boolean;
+}
+
+const TRUSTED_AUTHORS_ISSUE = {
+  owner: "pytorch",
+  repo: "test-infra",
+  issue_number: 8945,
+};
+const MERGE_RULES_FILE = {
+  owner: "pytorch",
+  repo: "pytorch",
+  path: ".github/merge_rules.yaml",
+};
+const TARGET_BRANCH = "main";
+const MAX_DIFF_LINES = 2000;
+const MAX_DIFF_FILES = 200;
+const GHSTACK_HEAD_REF_RE = /^gh\/[^/]+\/[0-9]+\/head$/;
+const TEAM_REF_RE = /^[^/]+\/[^/]+$/;
+
+const OPENING_FENCE_RE = /^ {0,3}```[ \t]*(?:text[ \t]*)?$/i;
+const CLOSING_FENCE_RE = /^ {0,3}```[ \t]*$/;
+const ENTRY_RE = /^@([A-Za-z0-9][A-Za-z0-9-]{0,38})$/;
+// Python's str.strip set. String.prototype.trim differs: it also strips U+FEFF,
+// which would accept a line the Python reader rejects.
+const PY_SPACE =
+  "[\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]";
+const PY_STRIP_RE = new RegExp(`^${PY_SPACE}+|${PY_SPACE}+$`, "g");
+
+const INVALID_PATTERN_CHARS_RE = /[{}()[\]\\]/;
+const GLOB_TOKEN_RE = /\*\*|[*.+]/g;
+const GLOB_TOKEN_REGEX: Record<string, string> = {
+  "**": ".*",
+  "*": "[^/]*",
+  ".": "\\.",
+  "+": "\\+",
+};
+
+const ELIGIBILITY_LAMP: Record<GreenlightEligibility, string> = {
+  too_big: "🟡",
+  merge_rules: "🟡",
+  waiting: "⏳",
+};
+const ELIGIBILITY_STATUS: Record<GreenlightEligibility, string> = {
+  too_big: "changes are too big to review",
+  merge_rules: "changes can't be reviewed due to merge_rules.yaml restrictions",
+  waiting: "waiting for review to start",
+};
+
+function pyStrip(text: string): string {
+  return text.replace(PY_STRIP_RE, "");
+}
+
+function lineError(index: number, line: string, problem: string): Error {
+  return new Error(
+    `trusted-authors issue line ${index + 1}: ${JSON.stringify(
+      line
+    )}: ${problem}`
+  );
+}
+
+export function parseTrustedAuthors(body: unknown): Set<string> {
+  if (typeof body !== "string" || pyStrip(body) === "") {
+    throw new Error(
+      `trusted-authors issue body is empty or not text: ${JSON.stringify(body)}`
+    );
+  }
+  // Markdown ends lines only at \r\n, \r and \n.
+  const lines = body.split(/\r\n|\r|\n/);
+  const start = lines.findIndex((line) => pyStrip(line) !== "");
+  if (!OPENING_FENCE_RE.test(lines[start])) {
+    throw lineError(
+      start,
+      lines[start],
+      "the first non-blank line must open a ``` fence whose info string is empty or text"
+    );
+  }
+  const logins = new Set<string>();
+  for (let i = start + 1; i < lines.length; i++) {
+    if (CLOSING_FENCE_RE.test(lines[i])) {
+      return logins;
+    }
+    const entry = pyStrip(lines[i]);
+    if (entry === "" || entry.startsWith("#")) {
+      continue;
+    }
+    const match = ENTRY_RE.exec(entry);
+    if (match === null) {
+      throw lineError(
+        i,
+        lines[i],
+        "expected '@login', a '#' comment or a blank line"
+      );
+    }
+    logins.add(match[1].toLowerCase());
+  }
+  throw lineError(start, lines[start], "the opening fence is never closed");
+}
+
+function patternsToRegex(patterns: string[]): RegExp {
+  const invalid = patterns.find((p) => INVALID_PATTERN_CHARS_RE.test(p));
+  if (invalid !== undefined) {
+    throw new Error(
+      `pattern contains invalid characters (braces/parens/brackets/backslash): ${JSON.stringify(
+        invalid
+      )}`
+    );
+  }
+  const alternatives = patterns.map((p) =>
+    p.replace(GLOB_TOKEN_RE, (token) => GLOB_TOKEN_REGEX[token])
+  );
+  // Anchored at the start only: trymerge matches with Python's re.match.
+  return new RegExp(`^(${alternatives.join("|")})`);
+}
+
+export function compilePatterns(
+  patterns: string[]
+): (_path: string) => boolean {
+  const include = patternsToRegex(patterns.filter((p) => !p.startsWith("-")));
+  const negative = patterns
+    .filter((p) => p.startsWith("-"))
+    .map((p) => p.slice(1));
+  const exclude = negative.length > 0 ? patternsToRegex(negative) : null;
+  return (path) =>
+    include.test(path) && (exclude === null || !exclude.test(path));
+}
+
+function isMapping(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseRule(rule: unknown): MergeRule {
+  if (!isMapping(rule)) {
+    throw new Error(
+      `merge rule must be a mapping, got ${JSON.stringify(rule)}`
+    );
+  }
+  const approvedBy = rule.approved_by === undefined ? [] : rule.approved_by;
+  if (!Array.isArray(approvedBy)) {
+    throw new Error(
+      `approved_by must be a list, got ${JSON.stringify(approvedBy)}`
+    );
+  }
+  const logins: string[] = [];
+  const teams: string[] = [];
+  for (const entry of approvedBy) {
+    if (typeof entry !== "string" || pyStrip(entry) === "") {
+      throw new Error(
+        `approved_by entry must be a non-empty string, got ${JSON.stringify(
+          entry
+        )}`
+      );
+    }
+    if (!entry.includes("/")) {
+      logins.push(entry);
+    } else if (TEAM_REF_RE.test(entry)) {
+      teams.push(entry);
+    } else {
+      throw new Error(
+        `approved_by team ref must be 'org/team-slug', got ${JSON.stringify(
+          entry
+        )}`
+      );
+    }
+  }
+  const { name, patterns } = rule;
+  if (
+    !Array.isArray(patterns) ||
+    !patterns.every((p) => typeof p === "string")
+  ) {
+    console.error(
+      "merge rule patterns are not a list of strings; it covers nothing:",
+      name
+    );
+    return { logins, teams, matches: null, coversAll: false };
+  }
+  try {
+    return {
+      logins,
+      teams,
+      matches: compilePatterns(patterns),
+      coversAll:
+        patterns.some((p) => p === "*" || p === "**") &&
+        !patterns.some((p) => p.startsWith("-")),
+    };
+  } catch (e) {
+    console.error(
+      "merge rule has an invalid pattern; it covers nothing:",
+      name,
+      e
+    );
+    return { logins, teams, matches: null, coversAll: false };
+  }
+}
+
+export function parseMergeRules(text: string): MergeRule[] {
+  const rules = yaml.load(text);
+  if (!Array.isArray(rules)) {
+    throw new Error(`${MERGE_RULES_FILE.path} must be a list of rules`);
+  }
+  return rules.map((rule) => parseRule(rule));
+}
+
+async function fetchTrustedAuthors(octokit: Octokit): Promise<Set<string>> {
+  const { data } = await octokit.rest.issues.get(TRUSTED_AUTHORS_ISSUE);
+  return parseTrustedAuthors(data.body);
+}
+
+async function fetchMergeRules(octokit: Octokit): Promise<MergeRule[]> {
+  const { data } = await octokit.rest.repos.getContent(MERGE_RULES_FILE);
+  if (!("content" in data)) {
+    throw new Error(`${MERGE_RULES_FILE.path}: unexpected response format`);
+  }
+  return parseMergeRules(Buffer.from(data.content, "base64").toString("utf-8"));
+}
+
+async function fetchTeamMembership(
+  octokit: Octokit,
+  team: string,
+  login: string
+): Promise<boolean> {
+  const [org, teamSlug] = team.split("/");
+  try {
+    const { data } = await octokit.rest.teams.getMembershipForUserInOrg({
+      org,
+      team_slug: teamSlug,
+      username: login,
+    });
+    return data.state === "active";
+  } catch (e) {
+    // GitHub's answer for a login that is not on the team.
+    if ((e as any)?.status === 404) {
+      return false;
+    }
+    throw e;
+  }
+}
+
+// One gate per Dr.CI sweep or webhook event: the issue and the merge rules are
+// each fetched at most once, on first need, and team lookups are memoized. The
+// returned check rejects on any GitHub or parse error rather than guessing.
+export function greenlightEligibilityGate(
+  octokit: Octokit,
+  owner: string,
+  repo: string
+): (_pr: EligibilityPr) => Promise<GreenlightEligibility | null> {
+  let trustedAuthors: Promise<Set<string>> | undefined;
+  let mergeRules: Promise<MergeRule[]> | undefined;
+  const memberships = new Map<string, Promise<boolean>>();
+
+  function isTeamMember(team: string, login: string): Promise<boolean> {
+    const key = `${team}:${login}`;
+    let membership = memberships.get(key);
+    if (membership === undefined) {
+      membership = fetchTeamMembership(octokit, team, login);
+      memberships.set(key, membership);
+    }
+    return membership;
+  }
+
+  async function namesAuthor(rules: MergeRule[], login: string) {
+    for (const rule of rules) {
+      if (rule.logins.includes(login)) {
+        return true;
+      }
+      for (const team of rule.teams) {
+        if (await isTeamMember(team, login)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  return async (pr) => {
+    const login = pr.user?.login;
+    if (pr.draft || !login) {
+      return null;
+    }
+    trustedAuthors ??= fetchTrustedAuthors(octokit);
+    if (!(await trustedAuthors).has(login.toLowerCase())) {
+      return null;
+    }
+    if (
+      pr.additions + pr.deletions > MAX_DIFF_LINES ||
+      pr.changed_files > MAX_DIFF_FILES
+    ) {
+      return "too_big";
+    }
+    mergeRules ??= fetchMergeRules(octokit);
+    const rules = await mergeRules;
+    const catchAll = rules.filter((rule) => rule.coversAll);
+    if (await namesAuthor(catchAll, login)) {
+      return "waiting";
+    }
+    // A ghstack head lands by cherry-picking its orig branch, and a PR on another
+    // base is listed against that base, so neither listing bounds what lands.
+    if (
+      GHSTACK_HEAD_REF_RE.test(pr.head.ref) ||
+      pr.base.ref !== TARGET_BRANCH
+    ) {
+      return "merge_rules";
+    }
+    const files = await getFilesChangedByPr(octokit, owner, repo, pr.number);
+    const covering = rules.filter(
+      (rule) => rule.matches !== null && files.every(rule.matches)
+    );
+    return (await namesAuthor(covering, login)) ? "waiting" : "merge_rules";
+  };
+}
+
+export function renderGreenlightEligibility(
+  eligibility: GreenlightEligibility | null
+): string {
+  if (eligibility === null) {
+    return "";
+  }
+  return `\n${ELIGIBILITY_LAMP[eligibility]} <b>GreenLight</b>: ${ELIGIBILITY_STATUS[eligibility]}`;
+}
