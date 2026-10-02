@@ -1,10 +1,7 @@
 name: Sync the OSDC HF caches
 
-# A ci-refresh-hf-cache run writes only the bucket of the cluster its runner
-# landed in, and a job can land in any of them, so the regional caches drift
-# and a job routed to a cold region fails with a read-only file system error.
-# This brings the clusters below to the union of their contents. It never
-# deletes, and a run with nothing to copy is only the bucket listings.
+# A ci-refresh-hf-cache run only writes its own region's bucket, so copy what
+# each prod cluster is missing from the others.
 
 on:
   schedule:
@@ -16,8 +13,7 @@ on:
       - tools/scripts/hf_cache_sync.py
 
 concurrency:
-  # Never cancel a run mid-copy; a scheduled run that finds one in progress
-  # waits, and the copy it would have made is still there to make.
+  # Never cancel a run mid-copy.
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || 'main' }}
   cancel-in-progress: false
 
@@ -44,12 +40,15 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_hf-cache-write
           aws-region: us-east-1
-          # A cold region can need hundreds of GB copied in one run.
           role-duration-seconds: 18000
 
       - name: Sync the caches
         env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
           # A pull request only reports what a scheduled run would copy.
-          APPLY: ${{ github.event_name != 'pull_request' && '--apply' || '' }}
-        # With no --to, every meta-prod cluster in the script's CLUSTERS table.
-        run: python3 tools/scripts/hf_cache_sync.py --sync ${APPLY}
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            python3 tools/scripts/hf_cache_sync.py --sync
+          else
+            python3 tools/scripts/hf_cache_sync.py --sync --apply
+          fi
