@@ -86,9 +86,18 @@ STABLE_CUDA_VERSIONS = {
     "release": "13.0",
 }
 
-# CUDA versions with no Windows torch build to depend on; see
-# CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch.
-CUDA_ARCHES_NO_WINDOWS = ["13.4"]
+# CUDA versions with no Windows torch build to depend on, per channel.
+# 13.4 Windows wheels are published to nightly but not to test:
+#   whl/nightly/cu134  176 win_amd64 wheels
+#   whl/test/cu134       0 win_amd64 wheels
+# and pytorch/pytorch generates Windows cu134 nightly jobs. A single global
+# list could not express that, so Windows 13.4 was being left out of the
+# nightly validation matrix despite being built.
+CUDA_ARCHES_NO_WINDOWS_DICT = {
+    "nightly": [],
+    "test": ["13.4"],
+    "release": ["13.4"],
+}
 
 # CUDA versions that are built and validated, but must not be advertised on the
 # pytorch.org getting-started page yet. Without this, update-quick-start-module
@@ -475,7 +484,7 @@ def generate_libtorch_matrix(
             arches += [
                 c
                 for c in CUDA_ARCHES
-                if os != WINDOWS or c not in CUDA_ARCHES_NO_WINDOWS
+                if os != WINDOWS or c not in CUDA_ARCHES_NO_WINDOWS_DICT[channel]
             ]
 
         if with_rocm == ENABLE and os == LINUX:
@@ -586,7 +595,11 @@ def generate_wheels_matrix(
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os == WINDOWS:
-                arches += [c for c in CUDA_ARCHES if c not in CUDA_ARCHES_NO_WINDOWS]
+                arches += [
+                    c
+                    for c in CUDA_ARCHES
+                    if c not in CUDA_ARCHES_NO_WINDOWS_DICT[channel]
+                ]
             elif os == LINUX:
                 arches += CUDA_ARCHES
             elif os == LINUX_AARCH64:

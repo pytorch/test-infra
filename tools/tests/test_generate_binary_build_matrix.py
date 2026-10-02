@@ -338,10 +338,17 @@ class GenerateBuildMatrixTest(TestCase):
                     f"{operating_system}/{channel}",
                 )
 
-    def test_getting_started_windows_has_no_cuda_13_4(self):
-        # There is no Windows 13.4 build (CUDA_ARCHES_NO_WINDOWS).
+    def test_getting_started_windows_cuda_13_4_nightly_only(self):
+        # whl/nightly/cu134 carries win_amd64 wheels, whl/test/cu134 does not,
+        # and 13.4 is not in the release channel at all. See
+        # CUDA_ARCHES_NO_WINDOWS_DICT.
         for package_type in ("wheel", "libtorch"):
-            for channel in ("nightly", "test", "release"):
+            self.assertIn(
+                "cu134",
+                self._cuda_versions(package_type, "windows", "nightly", "true"),
+                f"{package_type}/nightly",
+            )
+            for channel in ("test", "release"):
                 self.assertNotIn(
                     "cu134",
                     self._cuda_versions(package_type, "windows", channel, "true"),
