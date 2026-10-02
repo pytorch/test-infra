@@ -559,9 +559,9 @@ both are best-effort defense-in-depth, not guarantees:
   credential-shaped tail.
 
 An oversized diff is also declined before the model runs: the reviewer gates on line count (the
-model's ~2000-line read window) with a byte-size backstop, emitting a `scope_too_large` NO_LAND
-rather than reviewing a change it cannot read in full. That canned verdict is written as an
-outline, so the declined PR shows the same shape of comment a reviewed one does.
+model's ~2000-line read window) with a byte-size backstop, and on a 200-file cap
+(`constants.MAX_DIFF_FILES`), emitting a `scope_too_large` NO_LAND. That canned verdict is written
+as an outline, so the declined PR shows the same shape of comment a reviewed one does.
 
 ### Review time budget
 

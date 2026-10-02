@@ -18,6 +18,7 @@ fetched successfully) has no snapshot to fall back to and propagates.
 
 from __future__ import annotations
 
+import itertools
 import logging
 import re
 import time
@@ -220,10 +221,11 @@ def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
 
 
 def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
-    """Return the PR's changed paths, or None when its listing cannot bound what trymerge lands.
+    """Return the PR's changed paths, or None when its listing is too long or cannot bound what trymerge lands.
 
-    None for a ghstack head or a base other than ``TARGET_BRANCH``. Only ``filename`` (the new path) is
-    read, so, as in trymerge, a rename's source path is never checked.
+    None for a ghstack head or a base other than ``TARGET_BRANCH``, and for more than ``MAX_DIFF_FILES``
+    files, a cap kept below the 3000 at which GitHub's file listing stops silently. Only ``filename`` (the
+    new path) is read, so, as in trymerge, a rename's source path is never checked.
     """
     head_ref = pr.head.ref
     if _GHSTACK_HEAD_REF.match(head_ref):
@@ -235,7 +237,11 @@ def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
             "PR base %r is not %r; its file listing cannot bound what lands", base_ref, constants.TARGET_BRANCH
         )
         return None
-    return tuple(file.filename for file in pr.get_files())
+    files = tuple(file.filename for file in itertools.islice(pr.get_files(), constants.MAX_DIFF_FILES + 1))
+    if len(files) > constants.MAX_DIFF_FILES:
+        logger.warning("PR changes more than %d files; its file listing is not checked", constants.MAX_DIFF_FILES)
+        return None
+    return files
 
 
 class AuthorizedLoginsCache:

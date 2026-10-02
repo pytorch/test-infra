@@ -1727,6 +1727,12 @@ def test_has_covering_rule_refuses_a_path_scoped_author_whose_rule_misses_a_file
     assert covers(_FakeRulesClient(files=["docs/index.md", "setup.py"]), "Scoped") is False
 
 
+def test_has_covering_rule_refuses_a_path_scoped_author_over_the_file_cap_though_its_rule_covers_every_file(covers):
+    files = [f"docs/page{index}.md" for index in range(constants.MAX_DIFF_FILES + 1)]
+
+    assert covers(_FakeRulesClient(files=files), "Scoped") is False
+
+
 @pytest.mark.parametrize(
     "pr",
     [

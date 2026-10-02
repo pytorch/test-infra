@@ -2,7 +2,6 @@ import {
   fetchPrStatusState,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_TRIAGED,
-  PR_STATUS_LABELS,
   PRE_REVIEW_START_DATE,
 } from "lib/prStatus";
 import { Octokit } from "octokit";
@@ -54,13 +53,6 @@ function isPreReviewAcceptCommand(body: string | null | undefined) {
   }
 }
 
-// Returns null until pre-review is rolled out
-function getPreReviewStartDate(): string | null {
-  return PR_STATUS_LABELS.includes(PR_STATUS_LABEL_TRIAGED)
-    ? PRE_REVIEW_START_DATE
-    : null;
-}
-
 // Whether the pre-review accept command applies to a PR, matching the PRs the
 // scheduled run searches for
 export function isInPreReview(pr: {
@@ -68,7 +60,7 @@ export function isInPreReview(pr: {
   draft?: boolean;
   created_at?: string;
 }): boolean {
-  const startDate = getPreReviewStartDate();
+  const startDate = PRE_REVIEW_START_DATE;
   return (
     startDate !== null &&
     pr.state === "open" &&
@@ -258,7 +250,7 @@ export async function updateInProgressLabels(
   owner: string,
   repo: string
 ): Promise<void> {
-  const startDate = getPreReviewStartDate();
+  const startDate = PRE_REVIEW_START_DATE;
   if (startDate === null) {
     return;
   }

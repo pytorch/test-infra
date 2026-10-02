@@ -1,4 +1,4 @@
--- Telemetry for the hardened PR review in pytorch/ciforge. Two rows per review
+-- Telemetry for the hardened PR review (pytorch/pytorch; earlier, pytorch/ciforge). Two rows per review
 -- attempt: `started` from the prepare job, then a terminal row from publish.
 --
 -- Column order must match the schema string in
