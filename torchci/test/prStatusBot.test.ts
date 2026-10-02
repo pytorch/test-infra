@@ -1,10 +1,15 @@
 import prStatusBot from "lib/bot/prStatusBot";
+import { upsertPrStatusSection } from "lib/drciUtils";
 import nock from "nock";
 import { Probot } from "probot";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
 
 nock.disableNetConnect();
+
+// The status refresh is covered elsewhere; here it only shows the event fell
+// through to it.
+jest.mock("lib/drciUtils", () => ({ upsertPrStatusSection: jest.fn() }));
 
 function labeledEvent(label: string, labels: string[]) {
   const payload = requireDeepCopy("./fixtures/pull_request.labeled.json");
@@ -28,28 +33,35 @@ describe("prStatusBot opt-out", () => {
     nock.cleanAll();
   });
 
-  test("moves an in-progress PR to ready for review", async () => {
-    const event = labeledEvent("no automated review", [
-      "in progress",
-      "no automated review",
-    ]);
-    const prNumber = event.payload.pull_request.number;
-    const add = utils.mockAddLabels(
-      ["ready for review"],
-      "pytorch/pytorch",
-      prNumber
-    );
-    // Add before remove, so the PR always has a status label
-    const remove = nock("https://api.github.com")
-      .delete(`/repos/pytorch/pytorch/issues/${prNumber}/labels/in%20progress`)
-      .reply(() => {
-        expect(add.isDone()).toBe(true);
-        return [200, []];
-      });
-    const scope = [add, remove];
+  test.each(["no automated review", "in progress"])(
+    "moves a PR with both labels to ready for review when %s arrives",
+    async (label) => {
+      const event = labeledEvent(label, ["in progress", "no automated review"]);
+      const prNumber = event.payload.pull_request.number;
+      const add = utils.mockAddLabels(
+        ["ready for review"],
+        "pytorch/pytorch",
+        prNumber
+      );
+      // Add before remove, so the PR always has a status label
+      const remove = nock("https://api.github.com")
+        .delete(
+          `/repos/pytorch/pytorch/issues/${prNumber}/labels/in%20progress`
+        )
+        .reply(() => {
+          expect(add.isDone()).toBe(true);
+          return [200, []];
+        });
 
-    await probot.receive(event);
-    handleScope(scope);
+      await probot.receive(event);
+      handleScope([add, remove]);
+    }
+  );
+
+  test("refreshes the status of an in-progress PR that has not opted out", async () => {
+    // Any label write fails the test, since net connect is disabled
+    await probot.receive(labeledEvent("in progress", ["in progress"]));
+    expect(upsertPrStatusSection).toHaveBeenCalled();
   });
 
   test("leaves a PR that is not in progress alone", async () => {

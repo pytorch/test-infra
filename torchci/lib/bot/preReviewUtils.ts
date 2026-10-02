@@ -1,8 +1,6 @@
 import {
   fetchPrStatusState,
   PR_STATUS_LABEL_IN_PROGRESS,
-  PR_STATUS_LABEL_READY_FOR_REVIEW,
-  PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABELS,
   PRE_REVIEW_START_DATE,
@@ -207,9 +205,8 @@ export async function getPreReviewStatus(
   };
 }
 
-// Move a triaged PR to in progress once every assigned reviewer agrees, or to
-// ready for review if it opted out of automated review. The new label is added
-// before triaged is removed so the PR always has a status.
+// Move a triaged PR to in progress once every assigned reviewer agrees. The
+// label is added before triaged is removed so the PR always has a status.
 export async function markInProgressIfAccepted(
   octokit: Octokit,
   owner: string,
@@ -233,11 +230,8 @@ export async function markInProgressIfAccepted(
     labels.includes(PR_STATUS_LABEL_TRIAGED) &&
     !labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
   ) {
-    const next = labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT)
-      ? PR_STATUS_LABEL_READY_FOR_REVIEW
-      : PR_STATUS_LABEL_IN_PROGRESS;
     console.log(
-      `Adding "${next}" to ${owner}/${repo}#${prNumber}, accepted by ${status.agreed.join(
+      `Adding "${PR_STATUS_LABEL_IN_PROGRESS}" to ${owner}/${repo}#${prNumber}, accepted by ${status.agreed.join(
         ", "
       )}`
     );
@@ -245,7 +239,7 @@ export async function markInProgressIfAccepted(
       owner,
       repo,
       issue_number: prNumber,
-      labels: [next],
+      labels: [PR_STATUS_LABEL_IN_PROGRESS],
     });
     await octokit.rest.issues.removeLabel({
       owner,

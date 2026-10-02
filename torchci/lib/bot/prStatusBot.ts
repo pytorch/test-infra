@@ -35,10 +35,13 @@ async function handle(
   const payload = context.payload as any;
 
   // Opting out skips automated review, the only way out of in progress, so
-  // move the PR on. The label events this causes refresh the status section.
+  // move the PR on, whichever of the two labels arrived second. The label
+  // events this causes refresh the status section.
   if (
     payload.action === "labeled" &&
-    payload.label?.name === PR_STATUS_LABEL_REVIEW_OPT_OUT &&
+    (payload.label?.name === PR_STATUS_LABEL_REVIEW_OPT_OUT ||
+      payload.label?.name === PR_STATUS_LABEL_IN_PROGRESS) &&
+    labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT) &&
     labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
   ) {
     await context.octokit.issues.addLabels(

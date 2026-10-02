@@ -239,26 +239,6 @@ describe("markInProgressIfAccepted", () => {
     );
     handleScope(scope);
   });
-
-  test("moves an opted-out PR straight to ready for review", async () => {
-    const scope = [
-      ...mockPr({ requested: ["alice"], reactions: [thumbsUp("alice")] }),
-      utils.mockAddLabels(["ready for review"], "pytorch/pytorch", 1),
-      nock("https://api.github.com")
-        .delete("/repos/pytorch/pytorch/issues/1/labels/triaged")
-        .reply(200, []),
-    ];
-
-    await markInProgressIfAccepted(
-      octokit,
-      "pytorch",
-      "pytorch",
-      1,
-      ["triaged", "no automated review"],
-      AUTHOR
-    );
-    handleScope(scope);
-  });
 });
 
 describe("updateInProgressLabels", () => {
