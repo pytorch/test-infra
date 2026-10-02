@@ -40,6 +40,37 @@ def run_cmd_or_die(cmd):
     return result
 
 
+def load_matrix_env():
+    """Apply the env file export-matrix-variables writes.
+
+    The docker branch below hands this file to `docker run --env-file`, which
+    is the only thing that has ever applied it. A job already running in a
+    container has no docker daemon, takes the other branch, and so never saw
+    MATRIX_* at all -- the binary-matrix input silently did nothing there.
+
+    Existing variables win. On linux_job_v2 the setup-linux action also appends
+    the runner's GITHUB*/CI*/RUNNER* to this file, and those were captured
+    outside the container: letting them overwrite would replace a correct
+    RUNNER_TEMP with a host path. MATRIX_* come from nowhere else, so they are
+    unaffected by that rule.
+    """
+    path = os.path.join(
+        os.environ.get("RUNNER_TEMP", ""),
+        f"github_env_{os.environ.get('GITHUB_RUN_ID', '')}",
+    )
+    if not os.path.isfile(path):
+        return
+
+    with open(path, errors="backslashreplace") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if not line or "=" not in line:
+                continue
+            name, value = line.split("=", 1)
+            if name and name not in os.environ:
+                os.environ[name] = value
+
+
 def main():
     all_secrets = json.loads(os.environ["ALL_SECRETS"])
     secrets_names = [x for x in sys.argv[1].split(" ") if x]
@@ -58,6 +89,7 @@ def main():
 
     docker_path = shutil.which("docker")
     if not docker_path:
+        load_matrix_env()
         run_cmd_or_die(f"bash {os.environ.get('RUNNER_TEMP', '')}/exec_script")
     else:
         container_name = (
