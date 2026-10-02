@@ -2,7 +2,6 @@ import {
   fetchPrStatusState,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_TRIAGED,
-  PR_STATUS_LABELS,
   PRE_REVIEW_START_DATE,
 } from "lib/prStatus";
 import { Octokit } from "octokit";
@@ -54,11 +53,10 @@ function isPreReviewAcceptCommand(body: string | null | undefined) {
   }
 }
 
-// Returns null until pre-review is rolled out
+// Returns null until pre-review is rolled out. This is independent of the
+// triaged label being in PR_STATUS_LABELS, which gates the Dr.CI section only.
 function getPreReviewStartDate(): string | null {
-  return PR_STATUS_LABELS.includes(PR_STATUS_LABEL_TRIAGED)
-    ? PRE_REVIEW_START_DATE
-    : null;
+  return PRE_REVIEW_START_DATE;
 }
 
 // Whether the pre-review accept command applies to a PR, matching the PRs the
