@@ -10,7 +10,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, drci_poke, github_client, merge_authz, review, verdict
+from greenlight import cli, drci_poke, github_client, merge_authz, review, trusted_authors, verdict
 from greenlight.config import Config
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
@@ -25,17 +25,19 @@ def _noop_lock(path):
     yield
 
 
-def _pop_resolve_authorized(kwargs: Mapping[str, object]) -> dict[str, object]:
-    """Assert ``resolve_authorized`` is a shared cache's ``.get`` and return the remaining kwargs.
+def _pop_resolvers(kwargs: Mapping[str, object]) -> dict[str, object]:
+    """Assert both scan resolvers are bound and return the remaining kwargs.
 
-    Every review path must bind the process-wide ``AuthorizedLoginsCache.get`` as the resolver;
-    stripping it here lets the caller compare the rest of the bound scan flags by value.
+    Every review path must bind the process-wide ``AuthorizedLoginsCache.snapshot`` as the merge
+    rules resolver and a trusted-authors issue reader; stripping both here lets the caller compare
+    the rest of the bound scan flags by value.
     """
     remaining = dict(kwargs)
-    resolve = remaining.pop("resolve_authorized")
+    resolve = remaining.pop("resolve_merge_rules")
     assert isinstance(resolve, MethodType)
     assert isinstance(resolve.__self__, merge_authz.AuthorizedLoginsCache)
-    assert resolve.__func__ is merge_authz.AuthorizedLoginsCache.get
+    assert resolve.__func__ is merge_authz.AuthorizedLoginsCache.snapshot
+    assert callable(remaining.pop("resolve_listed"))
     return remaining
 
 
@@ -103,7 +105,7 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
     bound = captured["run"]
     assert isinstance(bound, functools.partial)
     assert bound.func is review.run
-    assert _pop_resolve_authorized(bound.keywords) == {
+    assert _pop_resolvers(bound.keywords) == {
         "pr": None,
         "max_dispatches": None,
         "ref": "main",
@@ -656,7 +658,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
     assert rc == EXIT_OK
     review_mock.assert_called_once()
     assert isinstance(review_mock.call_args.args[0], Config)
-    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
+    assert _pop_resolvers(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": 2,
         "ref": "release/2.9",
@@ -677,7 +679,7 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
     rc = cli.main(["review"])
 
     assert rc == EXIT_OK
-    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
+    assert _pop_resolvers(review_mock.call_args.kwargs) == {
         "pr": None,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
@@ -718,7 +720,7 @@ def test_main_review_force_binds_into_run(monkeypatch):
     rc = cli.main(["review", "--pr", "5", "--force"])
 
     assert rc == EXIT_OK
-    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
+    assert _pop_resolvers(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
@@ -739,7 +741,7 @@ def test_main_review_binds_requester_and_override_into_run(monkeypatch):
     rc = cli.main(["review", "--pr", "5", "--requester", "albanD", "--allow-untrusted-author"])
 
     assert rc == EXIT_OK
-    assert _pop_resolve_authorized(review_mock.call_args.kwargs) == {
+    assert _pop_resolvers(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
@@ -846,7 +848,7 @@ def test_main_review_cache_uses_configured_ttl(monkeypatch):
     captured: dict[str, object] = {}
 
     def fake_run(config, **kwargs):
-        captured["resolve"] = kwargs["resolve_authorized"]
+        captured["resolve"] = kwargs["resolve_merge_rules"]
 
     monkeypatch.setattr(review, "run", fake_run)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
@@ -861,3 +863,51 @@ def test_main_review_cache_uses_configured_ttl(monkeypatch):
     # One process-wide cache, built from config: the configured TTL flows into it.
     assert isinstance(cache, merge_authz.AuthorizedLoginsCache)
     assert cache._ttl_seconds == 123.0
+
+
+class _CloseableClient:
+    def __init__(self) -> None:
+        self.closed = 0
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def test_main_review_reads_the_issue_on_a_fresh_fail_fast_client_each_pass_and_closes_it(monkeypatch):
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_GITHUB_TOKEN", "tok")
+    captured: dict[str, object] = {}
+    built: list[tuple[str, _CloseableClient]] = []
+    read: list[object] = []
+
+    def fake_run(config, **kwargs):
+        captured["resolve_listed"] = kwargs["resolve_listed"]
+
+    def fake_build_client(token):
+        client = _CloseableClient()
+        built.append((token, client))
+        return client
+
+    def fake_fetch_trusted_logins(client):
+        read.append(client)
+        return frozenset({"alice"})
+
+    monkeypatch.setattr(review, "run", fake_run)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    monkeypatch.setattr(github_client, "build_client", fake_build_client)
+    # The scan's own main client is fail-fast, and so is this read: a failure is retried next tick.
+    monkeypatch.setattr(github_client, "build_authz_client", Mock(side_effect=AssertionError("must fail fast")))
+    monkeypatch.setattr(trusted_authors, "fetch_trusted_logins", fake_fetch_trusted_logins)
+
+    assert cli.main(["review"]) == EXIT_OK
+    resolve_listed = captured["resolve_listed"]
+    assert callable(resolve_listed)
+    assert built == []
+
+    assert resolve_listed() == frozenset({"alice"})
+    assert resolve_listed() == frozenset({"alice"})
+
+    # Nothing is read until the scan asks, and nothing is cached: every pass reads the issue anew.
+    assert [token for token, _client in built] == ["tok", "tok"]
+    assert read == [client for _token, client in built]
+    assert [client.closed for _token, client in built] == [1, 1]
