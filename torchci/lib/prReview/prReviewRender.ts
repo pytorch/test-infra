@@ -8,15 +8,25 @@
 // sanitizer defuses links, mentions and HTML but leaves markdown structure alone,
 // so containment is this file's job: every model-written string goes into a code
 // fence after the sweep sentinels are broken (see getPRsNeedingCommentRefresh in
-// drci.ts). Its timing constants and text helpers are its own, not Green Light's,
-// so a change to Green Light cannot change this section. The one thing shared is
-// the sweep-sentinel vocabulary and its defuse, which every renderer writing into
-// the Dr.CI comment must use (lib/greenlight/greenlightSweep.ts).
+// drci.ts). The fence, inline-code and commit-line helpers are Green Light's,
+// reused so there is one implementation of each; the findings budget is derived
+// from Green Light's cap, so it follows any change to it. The in-progress window
+// is this section's own: it depends on this review job's timeout, not Green
+// Light's.
 
+import {
+  isOutdatedVerdict,
+  reviewedCommitLines,
+} from "lib/greenlight/greenlightCommitLine";
+import { inlineCode } from "lib/greenlight/greenlightInlineCode";
+import {
+  defangGreenlightMessage,
+  GREENLIGHT_MESSAGE_CAP,
+  GREENLIGHT_OUTDATED_HEADLINE_PREFIX,
+} from "lib/greenlight/greenlightRender";
 import {
   defuseSweepSentinels,
   PR_REVIEW_PENDING_ALT_ATTR,
-  ZERO_WIDTH_SPACE,
 } from "lib/greenlight/greenlightSweep";
 
 export const PR_REVIEW_SECTION_HEADER = "AUTOMATED REVIEW";
@@ -26,7 +36,6 @@ export const PR_REVIEW_READY_HEADLINE = "Ready for human review";
 export const PR_REVIEW_CHANGES_HEADLINE = "Changes requested";
 export const PR_REVIEW_TOO_LARGE_HEADLINE = "Skipped, PR too large to review";
 export const PR_REVIEW_INCOMPLETE_HEADLINE = "Review did not complete";
-export const PR_REVIEW_OUTDATED_PREFIX = "OUTDATED (earlier commit) - ";
 
 const READY_EMOJI = "✅";
 const CHANGES_EMOJI = "🟡";
@@ -45,11 +54,9 @@ export const PR_REVIEW_IN_PROGRESS_STALE_MS = 2 * 60 * 60 * 1000;
 // `capture` job, which runs on the PR head (the review itself runs on main).
 const PR_REVIEW_PENDING_MARKER = `<!-- pr-review ${PR_REVIEW_PENDING_ALT_ATTR} -->`;
 
-// Code points of model text one fence may carry, and the findings budget below
-// it, so a finding is dropped whole and counted rather than cut mid-message.
-export const PR_REVIEW_MESSAGE_CAP = 4000;
-export const PR_REVIEW_FINDINGS_BUDGET = 3500;
-const WRAP_WIDTH = 100;
+// Room for the findings fence, leaving headroom under the fence's cap so a
+// finding is dropped whole and counted, never cut off mid-message.
+export const PR_REVIEW_FINDINGS_BUDGET = GREENLIGHT_MESSAGE_CAP - 500;
 
 const SEVERITY_ORDER = ["major", "minor", "info"];
 
@@ -99,79 +106,8 @@ export function unescapeSanitized(text: string): string {
   );
 }
 
-// Greedy wrap of one line. Whitespace runs are kept as written except where a
-// break replaces one with a newline, so wrapping never joins text together.
-function wrapLine(line: string): string {
-  if (line.length <= WRAP_WIDTH) {
-    return line;
-  }
-  // Odd indices are whitespace runs, even indices the words between them.
-  const parts = line.split(/(\s+)/);
-  const out: string[] = [];
-  let current = parts[0];
-  for (let i = 1; i < parts.length; i += 2) {
-    const word = parts[i + 1] ?? "";
-    if (
-      current.trim() &&
-      current.length + parts[i].length + word.length > WRAP_WIDTH
-    ) {
-      out.push(current);
-      current = word;
-    } else {
-      current = `${current}${parts[i]}${word}`;
-    }
-  }
-  out.push(current);
-  return out.join("\n");
-}
-
-// Cap, neutralize @-mentions, wrap, and seal in a fence longer than any backtick
-// run the text holds, so it cannot break out. Not HTML-escaped: the fence is the
-// containment, and GitHub escapes a code block's content.
-export function fenceModelText(text: string): string {
-  const capped = Array.from(text || "")
-    .slice(0, PR_REVIEW_MESSAGE_CAP)
-    .join("");
-  const neutralized = capped.split("@").join(`@${ZERO_WIDTH_SPACE}`);
-  // Defused again after the wrap, so no change the wrap makes can matter.
-  const wrapped = defuseSweepSentinels(
-    neutralized.split("\n").map(wrapLine).join("\n")
-  );
-  const runs = wrapped.match(/`+/g);
-  const longest = runs ? Math.max(...runs.map((run) => run.length)) : 0;
-  const fence = "`".repeat(Math.max(3, longest + 1));
-  return `${fence}\n${wrapped}\n${fence}`;
-}
-
 function fence(text: string): string {
-  return fenceModelText(defuseSweepSentinels(unescapeSanitized(text)));
-}
-
-// One inline code span: backticks and line breaks removed so the value cannot
-// end the span or the line.
-function inlineCode(value: string): string {
-  return `\`${(value || "").replace(/[`\r\n]/g, "")}\``;
-}
-
-function isOutdated(reviewedSha: string, currentSha: string): boolean {
-  const reviewed = (reviewedSha || "").trim().toLowerCase();
-  const current = (currentSha || "").trim().toLowerCase();
-  return reviewed !== "" && current !== "" && reviewed !== current;
-}
-
-function commitLines(headSha: string, currentHeadSha: string): string[] {
-  const sha = (headSha || "").trim();
-  if (!sha) {
-    return [];
-  }
-  const line = `Reviewed commit: ${inlineCode(sha.slice(0, 7))}`;
-  return isOutdated(sha, currentHeadSha)
-    ? [
-        `${line} (NOT the current head ${inlineCode(
-          currentHeadSha.slice(0, 7)
-        )})`,
-      ]
-    : [line];
+  return defangGreenlightMessage(defuseSweepSentinels(unescapeSanitized(text)));
 }
 
 // ClickHouse serves DateTime64 zone-less (`2026-10-01 19:50:00.000`); the server
@@ -267,7 +203,7 @@ function findingsLines(row: PrReviewRow): string[] {
     return [
       "",
       `**Findings (${count}):**`,
-      fenceModelText(findingsText(findings, count - findings.length)),
+      defangGreenlightMessage(findingsText(findings, count - findings.length)),
     ];
   }
   if (count > 0) {
@@ -299,14 +235,16 @@ function renderSection(
   const lines = [
     ...bodyLines,
     "",
-    ...commitLines(row.head_sha, currentHeadSha).map(escapeCommentOpeners),
+    ...reviewedCommitLines(row.head_sha, currentHeadSha).map(
+      escapeCommentOpeners
+    ),
   ];
   const runUrl = reviewRunUrl(repo, row.review_run_id);
   if (runUrl) {
     lines.push("", `[Review run](${runUrl})`);
   }
-  const summary = isOutdated(row.head_sha, currentHeadSha)
-    ? `${PR_REVIEW_OUTDATED_PREFIX}${headline}`
+  const summary = isOutdatedVerdict(row.head_sha, currentHeadSha)
+    ? `${GREENLIGHT_OUTDATED_HEADLINE_PREFIX}${headline}`
     : headline;
   // Two newlines after <p> so the body is parsed as markdown, matching the
   // other Dr.CI sections.
