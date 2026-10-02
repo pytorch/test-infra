@@ -550,7 +550,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     const login = this.getCommandAuthor();
     const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
-    if (!login || !pr?.user?.login || !isInPreReview(pr)) {
+    if (!login || !pr?.user?.login) {
+      return;
+    }
+    // Thumbs-down tells the commenter the PR isn't in pre-review, e.g. it is a
+    // draft, closed, or was opened before the rollout
+    if (!isInPreReview(pr)) {
+      if (this.useReactions) {
+        await reactOnComment(ctx, "-1");
+      }
       return;
     }
     // The scheduled run only checks PRs with a thumbs-up, so this lets it retry

@@ -163,7 +163,7 @@ describe("hasPrStatusLabel", () => {
     expect(hasPrStatusLabel([])).toBe(false);
     expect(hasPrStatusLabel(["module: cuda"])).toBe(false);
     expect(hasPrStatusLabel(["module: cuda", PR_STATUS_LABEL_TRIAGED])).toBe(
-      false // change to true after rolling out the triaged label
+      true
     );
     expect(hasPrStatusLabel([PR_STATUS_LABEL_IN_PROGRESS])).toBe(true);
     expect(hasPrStatusLabel([PR_STATUS_LABEL_READY_FOR_REVIEW])).toBe(true);

@@ -15,12 +15,11 @@ import * as utils from "./utils";
 
 nock.disableNetConnect();
 
-// Turn on pre-review as if it has been rolled out
+// Pin the rollout date so the tests don't depend on the deployed one
 jest.mock("lib/prStatus", () => {
   const actual = jest.requireActual("lib/prStatus");
   return {
     ...actual,
-    PR_STATUS_LABELS: [...actual.PR_STATUS_LABELS, "triaged"],
     PRE_REVIEW_START_DATE: "2026-01-01",
   };
 });
@@ -309,12 +308,12 @@ describe("pre-review accept command", () => {
     return event;
   }
 
-  function mockAck(event: any) {
+  function mockAck(event: any, content: string = "+1") {
     return nock("https://api.github.com")
       .post(
         `/repos/pytorch/pytorch/issues/comments/${event.payload.comment.id}/reactions`,
         (body) => {
-          expect(body.content).toBe("+1");
+          expect(body.content).toBe(content);
           return true;
         }
       )
@@ -367,10 +366,19 @@ describe("pre-review accept command", () => {
     handleScope(scope);
   });
 
-  test("ignores accepts on draft PRs", async () => {
+  test("rejects accepts on draft PRs", async () => {
     const event = acceptEvent("alice");
     event.payload.issue.draft = true;
-    const scope = nock("https://api.github.com");
+    const scope = mockAck(event, "-1");
+
+    await bot.receive(event);
+    handleScope(scope);
+  });
+
+  test("rejects accepts on PRs opened before the rollout", async () => {
+    const event = acceptEvent("alice");
+    event.payload.issue.created_at = "2025-12-31T00:00:00Z";
+    const scope = mockAck(event, "-1");
 
     await bot.receive(event);
     handleScope(scope);
