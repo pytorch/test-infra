@@ -51,7 +51,10 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["13.2", "13.4"],
+    # 13.0 is kept on nightly only, for vLLM's torch-nightly lane, which pins
+    # the cu130 index. It is not on test: this is a temporary hold, not a
+    # revival of 13.0 as a shipping arch.
+    "nightly": ["13.0", "13.2", "13.4"],
     "test": ["13.2", "13.4"],
     "release": ["12.6", "13.0", "13.2"],
 }
@@ -87,15 +90,27 @@ STABLE_CUDA_VERSIONS = {
 }
 
 # CUDA versions with no Windows torch build to depend on; see
-# CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch.
-CUDA_ARCHES_NO_WINDOWS = ["13.4"]
+# CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch. Per channel, because 13.0 is held
+# on nightly for vLLM's cu130 lane and that hold is Linux-only, while 13.0 on
+# the release channel does have Windows wheels and must keep being validated.
+CUDA_ARCHES_NO_WINDOWS_DICT = {
+    # 13.0 is the vLLM hold and is Linux-only. 13.4 Windows nightlies do exist
+    # (download.pytorch.org/whl/nightly/cu134 carries win_amd64 wheels), so the
+    # previous blanket 13.4 exclusion was understating the nightly matrix; the
+    # test channel genuinely has none, hence the split.
+    "nightly": ["13.0"],
+    "test": ["13.4"],
+    "release": ["13.4"],
+}
 
 # CUDA versions that are built and validated, but must not be advertised on the
 # pytorch.org getting-started page yet. Without this, update-quick-start-module
 # in pytorch/pytorch.github.io publishes an install selector for a CUDA version
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
-CUDA_ARCHES_NO_GETTING_STARTED: List[str] = []
+# 13.0 is held on nightly for vLLM's cu130 lane only; it must not reappear in
+# the pytorch.org install selector.
+CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0"]
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
@@ -475,7 +490,7 @@ def generate_libtorch_matrix(
             arches += [
                 c
                 for c in CUDA_ARCHES
-                if os != WINDOWS or c not in CUDA_ARCHES_NO_WINDOWS
+                if os != WINDOWS or c not in CUDA_ARCHES_NO_WINDOWS_DICT[channel]
             ]
 
         if with_rocm == ENABLE and os == LINUX:
@@ -586,7 +601,11 @@ def generate_wheels_matrix(
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os == WINDOWS:
-                arches += [c for c in CUDA_ARCHES if c not in CUDA_ARCHES_NO_WINDOWS]
+                arches += [
+                    c
+                    for c in CUDA_ARCHES
+                    if c not in CUDA_ARCHES_NO_WINDOWS_DICT[channel]
+                ]
             elif os == LINUX:
                 arches += CUDA_ARCHES
             elif os == LINUX_AARCH64:
