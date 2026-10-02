@@ -51,7 +51,10 @@ import {
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
-import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
+import {
+  GREENLIGHT_PENDING_ALT_ATTR,
+  PR_REVIEW_PENDING_ALT_ATTR,
+} from "lib/greenlight/greenlightSweep";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
@@ -64,6 +67,7 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
+import { buildPrReviewSections } from "lib/prReview/prReviewComment";
 import {
   extractPrStatusSection,
   fetchPrStatusState,
@@ -266,6 +270,15 @@ export async function updateDrciComments(
     console.error("greenlight section build threw for", owner, repo, e);
     return new Map<number, string>();
   });
+  // The automated PR review verdict is per-PR too, read the same way.
+  const prReviewSectionsPromise = buildPrReviewSections(
+    owner,
+    repo,
+    headShaByPr
+  ).catch((e) => {
+    console.error("pr review section build threw for", owner, repo, e);
+    return new Map<number, string>();
+  });
   // Used to gate which CRCR L3 results are PR-visible (see classifyCrcrJobs)
   // by the same ciflow/crcr/<device> label the relay itself requires before
   // creating an upstream check run. Started early alongside the greenlight
@@ -303,6 +316,7 @@ export async function updateDrciComments(
   );
 
   const greenlightSections = await greenlightSectionsPromise;
+  const prReviewSections = await prReviewSectionsPromise;
   const crcrAllowlist = await crcrAllowlistPromise;
 
   // Return the list of all failed jobs grouped by their classification
@@ -513,7 +527,8 @@ export async function updateDrciComments(
         repo,
         pr_info.pr_number,
         advisorLines,
-        greenlightSections.get(pr_info.pr_number) ?? ""
+        greenlightSections.get(pr_info.pr_number) ?? "",
+        prReviewSections.get(pr_info.pr_number) ?? ""
       );
 
       // Use live labels so a lagging ClickHouse snapshot cannot overwrite a
@@ -652,7 +667,7 @@ function removeFailureContext(failure: {
  * @returns A list of PR numbers
  */
 // PRs whose Dr.CI comment is in a transient state that warrants a re-render
-// even with no recent (< NUM_MINUTES) workflow activity. Three cases:
+// even with no recent (< NUM_MINUTES) workflow activity. Four cases:
 //   - `\d Pending`: the comment still shows pending jobs that may resolve.
 //   - the advisor pending sentinel: a NEW/unclassified failure was dispatched
 //     to the AI advisor but its verdict had not landed at the last render, so
@@ -667,8 +682,10 @@ function removeFailureContext(failure: {
 //     Light verdict, which also lands out of band from any workflow event. Only
 //     an in-flight render emits it and every terminal one omits it, so the PR
 //     self-clears the same way (see GREENLIGHT_PENDING_ALT_ATTR).
-// All three stay gated by the open-PR + 1-month freshness guards below, and by
-// the comment author: the marker and both sentinels are plain text any user can
+//   - the PR review pending sentinel: the same for the automated PR review
+//     section (see PR_REVIEW_PENDING_ALT_ATTR).
+// All four stay gated by the open-PR + 1-month freshness guards below, and by
+// the comment author: the marker and the sentinels are plain text any user can
 // put in a comment body, and a comment Dr.CI does not own is one it cannot
 // refresh -- so without the author filter an arbitrary user could pin a PR into
 // every sweep indefinitely. Qualified as issue_comment.user.login because
@@ -678,7 +695,7 @@ function removeFailureContext(failure: {
 // comment, fenced or HTML-escaped depending on the format the row carries but in
 // neither case with the matched characters removed. Every literal matched here
 // therefore has to be defused on the way in -- see defuseSweepSentinels in
-// lib/greenlight/greenlightSweep.ts, the one pass both of those renderers run
+// lib/greenlight/greenlightSweep.ts, the one pass every one of those renderers runs
 // and which any new predicate added below must also cover.
 async function getPRsNeedingCommentRefresh(repo: String): Promise<number[]> {
   const query = `
@@ -694,6 +711,7 @@ where
         match(body, '\\d Pending')
         or position(body, {pendingAltAttr: String}) > 0
         or position(body, {greenlightPendingAltAttr: String}) > 0
+        or position(body, {prReviewPendingAltAttr: String}) > 0
     )
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String }
@@ -704,6 +722,7 @@ where
     drciCommentAuthor: DRCI_COMMENT_AUTHOR,
     pendingAltAttr: ADVISOR_PENDING_ALT_ATTR,
     greenlightPendingAltAttr: GREENLIGHT_PENDING_ALT_ATTR,
+    prReviewPendingAltAttr: PR_REVIEW_PENDING_ALT_ATTR,
   });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }
@@ -1043,7 +1062,9 @@ export function constructResultsComment(
   advisorLines: Map<number, string> = new Map(),
   // Pre-rendered Green Light section for this PR, already carrying its own
   // leading newline (empty unless greenlight-enabled and this PR has state).
-  greenlightSection: string = ""
+  greenlightSection: string = "",
+  // Pre-rendered automated PR review section, same convention.
+  prReviewSection: string = ""
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
@@ -1156,6 +1177,7 @@ export function constructResultsComment(
   // A verdict on the PR as a whole rather than a job bucket, so it reads before
   // the per-bucket failure lists.
   output += greenlightSection;
+  output += prReviewSection;
 
   if (awaitingApprovalJobs.length) {
     output += constructResultsJobsSections(

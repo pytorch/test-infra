@@ -87,6 +87,12 @@ class PytorchBotHandler {
     }
   }
 
+  async rejectComment() {
+    if (this.useReactions) {
+      await reactOnComment(this.ctx, "-1");
+    }
+  }
+
   async dispatchEvent(event_type: string, payload: any) {
     const { owner, repo, url, ctx, prNum, commentId } = this;
 
@@ -550,8 +556,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     const login = this.getCommandAuthor();
     const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
-    if (!login || !pr?.user?.login || !isInPreReview(pr)) {
+    if (!login || !pr?.user?.login) {
       return;
+    }
+    if (!isInPreReview(pr)) {
+      return await this.rejectComment();
     }
     // The scheduled run only checks PRs with a thumbs-up, so this lets it retry
     // accepts that don't complete agreement now, such as a failed check or a
@@ -577,6 +586,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       ).countedFrom.includes(login)
     ) {
       await this.ackComment();
+    } else {
+      await this.rejectComment();
     }
   }
 
@@ -625,6 +636,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       split_args = shlex.split(inputArgs);
       args = parser.parse_args(split_args);
     } catch (err: any) {
+      if (split_args[0] === "pre-review") {
+        await this.rejectComment();
+      }
       // If the args are invalid, comment with the error + some help.
       await this.addComment(
         "❌ 🤖 pytorchbot command failed: \n```\n" +
