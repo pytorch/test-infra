@@ -51,11 +51,5 @@ jobs:
         env:
           # A pull request only reports what a scheduled run would copy.
           APPLY: ${{ github.event_name != 'pull_request' && '--apply' || '' }}
-        run: |
-          # meta-prod-aws-uw1 is left out: the region is being retired, and
-          # syncing it would copy its ~1 TB of full-weight models everywhere.
-          python3 tools/scripts/hf_cache_sync.py --sync \
-            --to meta-prod-aws-ue1 \
-            --to meta-prod-aws-ue2 \
-            --to meta-prod-aws-uw2 \
-            ${APPLY}
+        # With no --to, every meta-prod cluster in the script's CLUSTERS table.
+        run: python3 tools/scripts/hf_cache_sync.py --sync ${APPLY}
