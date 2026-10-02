@@ -15,11 +15,14 @@ canonical verdict comment -- edited in place across runs, found by a hidden mark
 restricted to greenlight's own account (``bot_login``); LAND additionally posts an approving
 review unless the verdict is shadow or greenlight already holds a live approval on the PR, and
 NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
-A shadow verdict carries no authority, and that is absolute rather than forward-looking: no
-approving review is ever posted for one, any prior greenlight approval is dismissed on the LAND
-path as well as the NO_LAND one, and the row is stamped ``shadow`` so neither Dr. CI nor the merge
-gate reads it. Withholding a new approval would not take back one the author collected before
-leaving the trusted set, and a live approval is authority whatever the row says. The row is
+A LAND or NO_LAND is shadow when ``--shadow`` is passed or ``has_covering_rule`` finds no merge rule
+that names its author and covers every changed file; a failed check fails the command before the
+row is written, after a NO_LAND has already dismissed. A shadow verdict carries no authority, and
+that is absolute rather than forward-looking: no approving review is ever posted for one, any prior
+greenlight approval is dismissed on the LAND path as well as the NO_LAND one, and the row is
+stamped ``shadow`` so neither Dr. CI nor the merge gate reads it. Withholding a new approval would
+not take back one collected while the PR was eligible, and a live approval is authority whatever
+the row says. The row is
 authoritative, so the comment upsert is best-effort on every path (a
 failed write is logged and swallowed); the LAND approving review and the NO_LAND dismissal are the
 merge gate and stay load-bearing -- they raise on failure. MARKER statuses (CANCELLED / FAILED /
@@ -41,8 +44,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import cohort, comment_format, constants, github_client, redact, state_emit, verdict_input
-from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
+from greenlight import cohort, comment_format, constants, github_client, merge_authz, redact, state_emit, verdict_input
+from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, STATUS_NO_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -203,6 +206,49 @@ def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
         logger.info("no prior greenlight approval to dismiss on %s#%d", request.repo, request.pr_number)
 
 
+def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> bool:
+    """True when one merge rule names ``author`` and covers every changed file. Every failure raises.
+
+    ``cohort.assess_rules`` decides. A path-scoped rule's files count only while the PR's head is still
+    ``head_sha``, the reviewed commit, and a fresh read after the listing finds the same head and base;
+    ``merge_authz.changed_files`` leaves them unknown for a ghstack head, a base other than main, or more
+    than ``constants.MAX_DIFF_FILES`` files.
+    """
+    client = github_client.build_authz_client(token)
+    moved: str | None = None
+
+    def files() -> tuple[str, ...] | None:
+        nonlocal moved
+        pull = client.get_repo(repo).get_pull(pr_number)
+        if pull.head.sha != head_sha:
+            moved = "head moved"
+            return None
+        # The head and base come from this one response; the fresh read after the listing catches a
+        # push or a retarget that lands while the files page.
+        listing = merge_authz.changed_files(pull)
+        if listing is None:
+            return None
+        fresh = client.get_repo(repo).get_pull(pr_number)
+        if fresh.head.sha != pull.head.sha or fresh.base.ref != pull.base.ref:
+            moved = "head or base moved"
+            return None
+        return listing
+
+    try:
+        rule, reason = cohort.assess_rules(author, merge_authz.resolve_merge_rules(client).rules, files)
+    finally:
+        github_client.close_client(client)
+    # The record job's log is public: the reason names no rule, team or file, and none may be added.
+    logger.info(
+        "merge-rule eligibility on %s#%d: author %r is %s",
+        repo,
+        pr_number,
+        author,
+        "eligible" if rule is not None else f"not eligible: {moved or reason}",
+    )
+    return rule is not None
+
+
 def _run_full(
     request: VerdictRequest,
     config: Config,
@@ -231,10 +277,18 @@ def _run_full(
     client = build_github(token)
     pr = github_client.get_pr(client, request.repo, request.pr_number)
     author = pr.user.login if pr.user is not None else None
+    if status == STATUS_NO_LAND:
+        # A NO_LAND dismisses whatever the lookup below answers, so it goes first: a lookup that fails
+        # must not leave greenlight's approval standing on a PR the review just rejected.
+        _dismiss_prior_approvals(request, pr)
     # OR, never AND: the caller's value and this one are derived independently, so a disagreement
     # means the approval was withheld. Stamping the row non-shadow anyway would render a LAND in
-    # Dr. CI and offer the merge gate an authorization that no review backs.
-    shadow = request.shadow or cohort.is_shadow(author)
+    # Dr. CI and offer the merge gate an authorization that no review backs. The short circuit also
+    # keeps a shadow request from resolving eligibility at all. The lookup is handed the reviewed
+    # head, not the live one, but its file listing is not pinned to a SHA: a push and a push-back
+    # (A->B->A) inside the listing window, seconds for a large PR, pass both head checks while the
+    # listing may reflect B.
+    shadow = request.shadow or not has_covering_rule(token, request.repo, request.pr_number, request.head_sha, author)
     key = _emit_payload(request, status, reason, message, shadow=shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url
@@ -257,17 +311,14 @@ def _run_full(
             )
             # A shadow PR must never carry a live greenlight approval. Under merge_rules.yaml's
             # wildcard Greenlight Review Bot rule one approval authorizes a merge of any path in
-            # the repo, so an approval held from before the author left the trusted set is still
-            # authority -- withholding a new one does not take the old one back.
+            # the repo, so an approval collected while the PR was eligible is still authority --
+            # withholding a new one does not take the old one back.
             _dismiss_prior_approvals(request, pr)
         elif github_client.has_live_greenlight_approval(pr, bot_login=request.bot_login):
             logger.info("already approved %s#%d; skipping re-approval", request.repo, request.pr_number)
         else:
             github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
             logger.info("approved %s#%d", request.repo, request.pr_number)
-        _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
-        return
-    _dismiss_prior_approvals(request, pr)
     _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
 
 

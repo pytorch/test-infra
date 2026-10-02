@@ -243,40 +243,41 @@ jobs:
           # Literals rather than `vars.*`: the actionlint pinned in .lintrunner.toml
           # is 1.6.21, which predates the `vars` context (added in 1.6.24) and so
           # reports it as an undefined variable. That failure is repo-wide, because
-          # the ACTIONLINT linter checks every workflow rather than only changed
-          # ones. Restore the `vars.PYTORCH_GREENLIGHT_MAX_DIFF_*` lookups once the
-          # pinned binary is bumped -- the step already rejects non-integer values,
-          # so it is safe against a malformed override.
+          # the ACTIONLINT linter checks every workflow rather than only changed ones.
+          # MAX_DIFF_FILES stays a literal equal to greenlight's `constants.MAX_DIFF_FILES`,
+          # which greenlight/tests/test_workflow_shadow_sync.py enforces.
           MAX_DIFF_LINES: "2000"
           MAX_DIFF_BYTES: "500000"
+          MAX_DIFF_FILES: "200"
         run: |
           set -euo pipefail
           # Line count is the primary gate: the model reads only ~2000 lines of the diff, so a
           # longer change could be landed on an unread remainder. Bytes is a backstop for a diff
-          # that is short on lines but huge (e.g. minified / very long lines). On either breach,
-          # decline deterministically: drop the canned NO_LAND verdict in place and skip the model.
+          # that is short on lines but huge (e.g. minified / very long lines). File count is capped
+          # because the merge-rule check refuses a path-scoped author past the cap, and for an
+          # author a catch-all rule names, this gate is the only file cap. On any breach, decline
+          # deterministically: drop the canned NO_LAND verdict in place and skip the model.
           # Validate the thresholds first: a non-integer makes `[ -gt ]` error inside the `if`,
           # which under `set -e` does NOT abort but falls through to else -> gate silently disabled.
-          case "$MAX_DIFF_LINES" in
-            '' | *[!0-9]*)
-              echo "invalid MAX_DIFF_LINES: '$MAX_DIFF_LINES' (expected a non-negative integer)" >&2
-              exit 1
-              ;;
-          esac
-          case "$MAX_DIFF_BYTES" in
-            '' | *[!0-9]*)
-              echo "invalid MAX_DIFF_BYTES: '$MAX_DIFF_BYTES' (expected a non-negative integer)" >&2
-              exit 1
-              ;;
-          esac
+          for cap in MAX_DIFF_LINES MAX_DIFF_BYTES MAX_DIFF_FILES; do
+            case "${!cap-}" in
+              '' | *[!0-9]*)
+                echo "invalid $cap: '${!cap-}' (expected a non-negative integer)" >&2
+                exit 1
+                ;;
+            esac
+          done
           lines=$(wc -l </tmp/greenlight-pr.diff)
           bytes=$(wc -c </tmp/greenlight-pr.diff)
-          if [ "$lines" -gt "$MAX_DIFF_LINES" ] || [ "$bytes" -gt "$MAX_DIFF_BYTES" ]; then
-            echo "Diff is $lines lines / $bytes bytes (caps: $MAX_DIFF_LINES lines, $MAX_DIFF_BYTES bytes); declining automatically."
+          # grep exits 1 on no match (files=0) but 2 on a read error, which must abort rather than
+          # disable the cap; -a keeps a NUL byte from splitting a line.
+          files=$(grep -a -c '^diff --git ' /tmp/greenlight-pr.diff) || [ "$?" -eq 1 ]
+          if [ "$lines" -gt "$MAX_DIFF_LINES" ] || [ "$bytes" -gt "$MAX_DIFF_BYTES" ] || [ "$files" -gt "$MAX_DIFF_FILES" ]; then
+            echo "Diff is $lines lines / $bytes bytes / $files files (caps: $MAX_DIFF_LINES lines, $MAX_DIFF_BYTES bytes, $MAX_DIFF_FILES files); declining automatically."
             cp "$GITHUB_WORKSPACE/.claude/hooks/greenlight/too-large-verdict.json" /tmp/greenlight-verdict.json
             echo "too_large=true" >>"$GITHUB_OUTPUT"
           else
-            echo "Diff is $lines lines / $bytes bytes (caps: $MAX_DIFF_LINES lines, $MAX_DIFF_BYTES bytes); proceeding with review."
+            echo "Diff is $lines lines / $bytes bytes / $files files (caps: $MAX_DIFF_LINES lines, $MAX_DIFF_BYTES bytes, $MAX_DIFF_FILES files); proceeding with review."
             echo "too_large=false" >>"$GITHUB_OUTPUT"
           fi
 
@@ -737,6 +738,8 @@ jobs:
         if: always()
         id: app-token
         continue-on-error: true
+        # contents:read and members:read let the verdict's merge-rule check read pytorch's
+        # merge_rules.yaml and expand its team refs.
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2
         with:
           app-id: ${{ secrets.GREENLIGHT_APP_ID }}
@@ -744,6 +747,8 @@ jobs:
           owner: pytorch
           repositories: pytorch
           permission-pull-requests: write
+          permission-members: read
+          permission-contents: read
 
       - name: Record verdict
         if: ${{ needs.review.result == 'success' }}
