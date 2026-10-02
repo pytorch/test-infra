@@ -61,12 +61,7 @@ function mockPr({
 }
 
 function mockMoveToInProgress(prNumber: number = 1) {
-  return [
-    utils.mockAddLabels(["in progress"], "pytorch/pytorch", prNumber),
-    nock("https://api.github.com")
-      .delete(`/repos/pytorch/pytorch/issues/${prNumber}/labels/triaged`)
-      .reply(200, []),
-  ];
+  return [utils.mockAddLabels(["in progress"], "pytorch/pytorch", prNumber)];
 }
 
 function mockTeam(slug: string, members: string[]) {
