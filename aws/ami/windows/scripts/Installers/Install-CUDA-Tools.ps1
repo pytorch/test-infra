@@ -12,24 +12,15 @@ $ProgressPreference = 'SilentlyContinue'
 # installerArgs
 $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion nvjpeg_$cudaVersion nvjpeg_dev_$cudaVersion cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion thrust_$cudaVersion"
 
-# Switch statement for specfic CUDA versions
-$cudnn_subfolder="cuda"
+# Switch statement for specfic CUDA versions.
+# No defaults are set before the switch: every supported version assigns all
+# three values, and an unrecognised version must fail rather than silently
+# install whatever the defaults happened to be. The previous defaults were the
+# 12.6 toolkit and a cuda12 cuDNN, so dropping 12.x without this would have
+# left an unknown version installing CUDA 12.6.
 $cudnn_lib_folder="lib\x64"
-$cudnn_subfolder="cudnn-windows-x86_64-9.10.2.21_cuda12-archive"
-$toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
 
 Switch ($cudaVersion) {
-  "12.6" {
-    $toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
-  }
-  "12.8" {
-    $toolkitInstaller = "cuda_12.8.1_572.61_windows.exe"
-  }
-  "13.0" {
-    $cudnn_subfolder="cudnn-windows-x86_64-9.20.0.48_cuda13-archive"
-    $toolkitInstaller = "cuda_13.0.0_windows.exe"
-    $installerArgs = ""
-  }
   "13.2" {
     $cudnn_subfolder="cudnn-windows-x86_64-9.26.0.51_cuda13-archive"
     $toolkitInstaller = "cuda_13.2.2_windows.exe"
@@ -39,6 +30,10 @@ Switch ($cudaVersion) {
     $cudnn_subfolder="cudnn-windows-x86_64-9.26.0.51_cuda13-archive"
     $toolkitInstaller = "cuda_13.4.2_windows_x86_64.exe"
     $installerArgs = ""
+  }
+  default {
+    Write-Error "Unsupported CUDA_VERSION '$cudaVersion'. This AMI builds 13.2 and 13.4 only."
+    exit 1
   }
 }
 
