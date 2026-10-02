@@ -37,8 +37,12 @@ source "amazon-ebs" "windows_ebs_builder" {
   winrm_username  = "Administrator"
   skip_create_ami = var.skip_create_ami
   aws_polling {
-    # For some reason the AMIs take a really long time to be ready so just assume it'll take a while
-    max_attempts = 600
+    # Check every minute for up to 30 min for the AMI to become available.
+    # The AWS credentials must outlive provisioning plus this wait (see
+    # role-duration-seconds in build-windows-ami.yml) or packer never gets to
+    # share the AMI.
+    delay_seconds = 60
+    max_attempts  = 30
   }
 }
 
