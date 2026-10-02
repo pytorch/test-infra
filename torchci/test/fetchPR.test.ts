@@ -30,7 +30,12 @@ describe("fetchPR", () => {
 
   test("(a) ClickHouse hit uses CH title/body and does not call pulls.get", async () => {
     queryClickhouse.mockResolvedValue([
-      { title: "CH title", body: "CH body", head_sha: "shaA" },
+      {
+        title: "CH title",
+        body: "CH body",
+        head_sha: "shaA",
+        head_ref: "fix-a",
+      },
     ]);
     queryClickhouseSaved.mockResolvedValue([
       { sha: "shaA", message: "commit a\nsecond line" },
@@ -43,6 +48,7 @@ describe("fetchPR", () => {
       title: "CH title",
       body: "CH body",
       shas: [{ sha: "shaA", title: "commit a" }],
+      headRef: "fix-a",
     });
     expect(get).not.toHaveBeenCalled();
     // CH already has the tip (newest sha === head sha), so no GitHub commits call.
@@ -59,7 +65,11 @@ describe("fetchPR", () => {
     queryClickhouseSaved.mockResolvedValue([]);
     const { octokit, get, paginate } = makeOctokit({
       getResult: {
-        data: { title: "GH title", body: "GH body", head: { sha: "shaGH" } },
+        data: {
+          title: "GH title",
+          body: "GH body",
+          head: { sha: "shaGH", ref: "fix-gh" },
+        },
       },
       paginateResult: [{ sha: "shaGH", commit: { message: "gh commit" } }],
     });
@@ -70,6 +80,7 @@ describe("fetchPR", () => {
       title: "GH title",
       body: "GH body",
       shas: [{ sha: "shaGH", title: "gh commit" }],
+      headRef: "fix-gh",
     });
     expect(get).toHaveBeenCalledTimes(1);
     // No CH commits at all, so GitHub commits are fetched.

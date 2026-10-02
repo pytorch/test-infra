@@ -94,18 +94,31 @@ export const EXCLUDED_FROM_SIMILARITY_POST_PROCESSING = [
 // This error is returned when a step in the job timeout and is cancelled
 export const CANCELLED_STEP_ERROR = "##[error]The operation was canceled.";
 
+// Auto PR Triage runs on pull_request_target, so GitHub does not link a fork
+// PR's runs to the PR; the run list filtered by head branch finds them, even
+// after later pushes. Only plain branch names are linked, so a branch name
+// cannot break or inject Markdown into the comment.
+const AUTO_PR_TRIAGE_RUNS_URL =
+  "https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml";
+const SAFE_BRANCH_RE = /^[A-Za-z0-9._\/-]+$/;
+
 export function formDrciHeader(
   owner: string,
   repo: string,
-  prNum: number
+  prNum: number,
+  headRef: string = ""
 ): string {
   // For PyTorch only
   if (isPyTorchPyTorch(owner, repo)) {
+    const triageQuery = encodeURIComponent(`branch:${headRef}`);
+    const triageLink = SAFE_BRANCH_RE.test(headRef)
+      ? `* :robot: See [Auto PR Triage runs for this PR](${AUTO_PR_TRIAGE_RUNS_URL}?query=${triageQuery})\n`
+      : "";
     return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}/pr/${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${PYTHON_DOCS_PATH})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${CPP_DOCS_PATH})
-* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL})
+${triageLink}* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL})
 
 Note: Links to docs will display an error until the docs builds have been completed.`;
   }
@@ -128,9 +141,10 @@ export function formDrciComment(
   // newline (empty unless the PR is in the contributor workflow). It tells the
   // contributor what stage the PR is at and who owes the next step, so it leads
   // the comment rather than sitting below the CI results.
-  prStatusSection: string = ""
+  prStatusSection: string = "",
+  headRef: string = ""
 ): string {
-  const header = formDrciHeader(owner, repo, pr_num);
+  const header = formDrciHeader(owner, repo, pr_num, headRef);
   const comment = `${DRCI_COMMENT_START}${prStatusSection}
 ${header}
 ${sevs}
@@ -246,7 +260,8 @@ export async function upsertDrCiComment(
     repo,
     "",
     formDrciSevBody(sev),
-    extractPrStatusSection(existingDrciComment)
+    extractPrStatusSection(existingDrciComment),
+    context.payload.pull_request?.head?.ref ?? ""
   );
 
   if (existingDrciComment === drciComment) {
