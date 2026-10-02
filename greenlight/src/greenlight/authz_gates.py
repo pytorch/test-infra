@@ -3,8 +3,9 @@
 Both run once the trusted-authors issue and the merge rules are resolved. The ``@greenlight
 recheck`` requester must be listed in the issue and in the evaluation cohort; the ``--pr`` target's
 author must be eligible for that PR. The cohort widens who greenlight looks at on its own schedule,
-never who can point it at a PR. A refusal is logged and dispatches nothing, but a listed author's
-refused PR still goes through the revert guard, and a failure there fails the pass.
+but cohort membership alone never authorizes a request. A refusal is logged and dispatches nothing,
+but a listed author's refused PR still goes through the revert guard, and a failure there fails
+the pass.
 """
 
 from __future__ import annotations
