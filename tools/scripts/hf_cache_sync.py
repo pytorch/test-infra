@@ -345,15 +345,21 @@ def pick_ref(key: str, have: Dict[str, Entry]) -> str:
     The one matching what HuggingFace serves now: a job asking for the revision
     that finds any other commit tries to rewrite the ref, which fails on the
     read-only mount. If HuggingFace cannot say, or nobody matches, the newest
-    write wins.
+    write wins. A copy that cannot be read is passed over rather than failing
+    the whole run.
     """
     _, repo_dir, _, ref = key.split("/", 3)
     newest_first = sorted(have, key=lambda c: have[c].modified, reverse=True)
     upstream = hf_revision(repo_dir, ref)
     if upstream:
         for c in newest_first:
-            body = client(c).get_object(Bucket=bucket_of(c), Key=key)["Body"].read()
-            if body.decode().strip() == upstream:
+            try:
+                obj = client(c).get_object(Bucket=bucket_of(c), Key=key)
+                body = obj["Body"].read().decode().strip()
+            except Exception as e:
+                print(f"  could not read {key} in {c}: {e}", file=sys.stderr)
+                continue
+            if body == upstream:
                 return c
     return newest_first[0]
 
@@ -361,6 +367,10 @@ def pick_ref(key: str, have: Dict[str, Entry]) -> str:
 def run_sync(clusters: List[str], apply: bool) -> int:
     """Bring clusters to the union of their contents. Returns failed copies."""
     start = time.monotonic()
+    # Build the clients here: client() is unlocked, and boto3 cannot build two
+    # at once from the worker threads.
+    for c in clusters:
+        client(c)
     with concurrent.futures.ThreadPoolExecutor(MAX_WORKERS) as pool:
         futures = {
             (c, p): pool.submit(list_entries, c, f"{p}/")

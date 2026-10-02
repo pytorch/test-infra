@@ -587,6 +587,18 @@ class TestPickRef(TestCase):
         ):
             self.assertEqual(m.pick_ref(REF, have), "y")
 
+    def test_unreadable_copy_is_passed_over(self) -> None:
+        class Broken(FakeS3):
+            def get_object(self, Bucket: str, Key: str) -> Dict[str, Any]:
+                raise RuntimeError("SlowDown")
+
+        good = FakeS3({REF: 40}, bodies={REF: b"a" * 40})
+        have = {"broken": m.Entry(40, '"b"', 2.0), "good": m.Entry(40, '"g"', 1.0)}
+        with fake_clients(
+            {"broken": Broken({REF: 40}), "good": good}
+        ), mock.patch.object(m, "hf_revision", return_value="a" * 40):
+            self.assertEqual(m.pick_ref(REF, have), "good")
+
     def test_branch_names_with_slashes_survive(self) -> None:
         key = "hub/models--a--b/refs/pr/1"
         with mock.patch.object(m, "hf_revision", return_value=None) as rev:
@@ -643,6 +655,23 @@ class TestRunSync(TestCase):
         ):
             self.assertEqual(m.run_sync(["a", "b"], apply=True), 0)
         self.assertEqual((a.copied, b.copied, a.got, b.got), ([], [], [], []))
+
+    def test_clients_are_built_on_the_main_thread(self) -> None:
+        """boto3 cannot build two clients at once from the worker threads."""
+        import threading
+
+        fakes = {"a": FakeS3({BLOB: 7}), "b": FakeS3({BLOB: 7})}
+        built = []
+
+        def client(cluster: str) -> FakeS3:
+            if cluster not in built:
+                built.append(cluster)
+                self.assertIs(threading.current_thread(), threading.main_thread())
+            return fakes[cluster]
+
+        with mock.patch.object(m, "client", client):
+            self.assertEqual(m.run_sync(["a", "b"], apply=True), 0)
+        self.assertEqual(built, ["a", "b"])
 
     def test_dry_run_copies_nothing(self) -> None:
         a, b = FakeS3({BLOB: 7}), FakeS3({})
