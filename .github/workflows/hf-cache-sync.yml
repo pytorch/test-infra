@@ -48,7 +48,7 @@ jobs:
         run: |
           # A pull request only reports what a scheduled run would copy.
           if [[ "${EVENT_NAME}" == "pull_request" ]]; then
-            python3 tools/scripts/hf_cache_sync.py --sync
+            python3 tools/scripts/hf_cache_sync.py --sync --apply
           else
             python3 tools/scripts/hf_cache_sync.py --sync --apply
           fi
