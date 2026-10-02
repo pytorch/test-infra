@@ -11,3 +11,11 @@ In order to create table or grant the permissions/roles in clickhouse, please re
 Each table is declared once as a per-table `schema.sql` (a snapshot of the current
 shape), optionally alongside a `grants.sql` for its permissions. There is no automated
 upstreaming — the SQL here is applied to ClickHouse by hand.
+
+## Database directories
+
+A directory named after a database rather than a table (`fortesting/`) holds
+numbered, forward-only migration files (`000001-create-tables.sql`, `000002-...sql`)
+for every table of one feature, plus a `deploy.py` that runs the files not yet
+recorded in that database's `schema_migrations` table. See
+`fortesting/README.md`.
