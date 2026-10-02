@@ -180,13 +180,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_nn_functional_conv_transpose2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "173341",
-    "https://github.com/pytorch/pytorch/issues/173341",
-    [
-      "xpu"
-    ]
-  ],
   "test_cond_in_NN (__main__.TestControlFlowNNCUDA)": [
     "196982",
     "https://github.com/pytorch/pytorch/issues/196982",
@@ -433,13 +426,6 @@
   "test_forward_ad_nn_functional_grid_sample_xpu_float32 (__main__.TestCompositeComplianceXPU)": [
     "199493",
     "https://github.com/pytorch/pytorch/issues/199493",
-    [
-      "xpu"
-    ]
-  ],
-  "test_forward_mode_AD_nn_functional_grid_sample_xpu_float64 (__main__.TestFwdGradientsXPU)": [
-    "199494",
-    "https://github.com/pytorch/pytorch/issues/199494",
     [
       "xpu"
     ]
@@ -816,13 +802,6 @@
       "dynamo"
     ]
   ],
-  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "199495",
-    "https://github.com/pytorch/pytorch/issues/199495",
-    [
-      "xpu"
-    ]
-  ],
   "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
     "196899",
     "https://github.com/pytorch/pytorch/issues/196899",
@@ -835,27 +814,6 @@
     "https://github.com/pytorch/pytorch/issues/195723",
     [
       "linux"
-    ]
-  ],
-  "test_nextafter_noncontiguous_False_xpu_float32 (__main__.TestInductorNextafterXPU)": [
-    "199213",
-    "https://github.com/pytorch/pytorch/issues/199213",
-    [
-      "xpu"
-    ]
-  ],
-  "test_nextafter_noncontiguous_False_xpu_float64 (__main__.TestInductorNextafterXPU)": [
-    "199175",
-    "https://github.com/pytorch/pytorch/issues/199175",
-    [
-      "xpu"
-    ]
-  ],
-  "test_nextafter_noncontiguous_True_xpu_float32 (__main__.TestInductorNextafterXPU)": [
-    "199176",
-    "https://github.com/pytorch/pytorch/issues/199176",
-    [
-      "xpu"
     ]
   ],
   "test_nextafter_noncontiguous_True_xpu_float64 (__main__.TestInductorNextafterXPU)": [
@@ -878,13 +836,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_non_blocking_d2h_event_sync_dynamic_shapes_cuda (__main__.DynamicShapesCodegenGPUTests)": [
-    "195552",
-    "https://github.com/pytorch/pytorch/issues/195552",
-    [
-      "linux"
     ]
   ],
   "test_non_blocking_d2h_event_sync_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
@@ -1062,27 +1013,6 @@
     "https://github.com/pytorch/pytorch/issues/193150",
     [
       "linux"
-    ]
-  ],
-  "test_pointwise_query_producer_head_dims0_xpu (__main__.TestFlexDecodingXPU)": [
-    "198712",
-    "https://github.com/pytorch/pytorch/issues/198712",
-    [
-      "xpu"
-    ]
-  ],
-  "test_pointwise_query_producer_head_dims1_xpu (__main__.TestFlexDecodingXPU)": [
-    "198713",
-    "https://github.com/pytorch/pytorch/issues/198713",
-    [
-      "xpu"
-    ]
-  ],
-  "test_pointwise_query_producer_head_dims2_xpu (__main__.TestFlexDecodingXPU)": [
-    "198714",
-    "https://github.com/pytorch/pytorch/issues/198714",
-    [
-      "xpu"
     ]
   ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
@@ -1627,13 +1557,6 @@
       "rocm"
     ]
   ],
-  "test_update_weights (__main__.TestAOTInductorPackage_xpu)": [
-    "194562",
-    "https://github.com/pytorch/pytorch/issues/194562",
-    [
-      "xpu"
-    ]
-  ],
   "test_upper_bound_i64_cuda (__main__.AOTInductorTestDualWrapper)": [
     "187000",
     "https://github.com/pytorch/pytorch/issues/187000",
@@ -1656,23 +1579,9 @@
       "rocm"
     ]
   ],
-  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsXPU)": [
-    "199142",
-    "https://github.com/pytorch/pytorch/issues/199142",
-    [
-      "xpu"
-    ]
-  ],
   "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes (__main__._cls)": [
     "199141",
     "https://github.com/pytorch/pytorch/issues/199141",
-    [
-      "xpu"
-    ]
-  ],
-  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "199143",
-    "https://github.com/pytorch/pytorch/issues/199143",
     [
       "xpu"
     ]
@@ -1700,14 +1609,6 @@
     "https://github.com/pytorch/pytorch/issues/199454",
     [
       "inductor"
-    ]
-  ],
-  "test_zero_strided_emits_fill_kernel_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "197392",
-    "https://github.com/pytorch/pytorch/issues/197392",
-    [
-      "inductor",
-      "rocm"
     ]
   ]
 }
