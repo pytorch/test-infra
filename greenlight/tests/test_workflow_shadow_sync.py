@@ -1,14 +1,13 @@
 """Pins the shadow wiring in the reviewer workflow, which nothing at run time holds together.
 
 ``greenlight verdict`` takes ``--shadow`` as a bare flag, so leaving it off means ``shadow=False``
-and nothing fails. What that costs depends on the call site, and only one of the four is defended
-in Python: the terminal verdict recomputes ``request.shadow or cohort.is_shadow(author)``, so a
-forgotten flag there is caught by the OR. The three marker calls take ``request.shadow`` verbatim
--- deliberately, since deriving a marker fail-closed would hide a trusted author's in-flight
-review from a reader that filters shadow out. A marker written without the flag therefore records
-a shadow PR as an ordinary one, and Dr. CI renders it: greenlight state shown on a PR whose
-evaluation carries no authority. The approval itself is not at stake, because the verdict path
-withholds and dismisses off its own derivation rather than off the flag.
+and nothing fails. The terminal verdict ORs ``request.shadow`` with its own ``has_covering_rule``
+check, but that catches a forgotten flag only for an author no merge rule covers: for one a rule
+covers, listed or not, the flag alone withholds the approval. The three marker calls take
+``request.shadow`` verbatim -- deliberately, since deriving a marker fail-closed would hide a trusted
+author's in-flight review from a reader that filters shadow out. A marker written without the flag
+therefore records a shadow PR as an ordinary one, and Dr. CI renders it: greenlight state shown on
+a PR whose evaluation carries no authority. So every one of the four call sites is pinned.
 
 The four call sites in ``.github/workflows/greenlight-pr-review.yml`` are separate shell bodies
 with nothing linking them, and one added later inherits the same silent default. These tests are
@@ -18,18 +17,29 @@ stops matching the others.
 The workflow's own end of the wire is pinned against ``greenlight.dispatch``: the literals its
 validator branches on are probed out of ``dispatch_review`` rather than restated here, because a
 validator that accepts spellings the dispatcher never sends aborts every real run.
+
+The App tokens those jobs mint are pinned as well. The terminal verdict's lookup needs the record
+token to read pytorch's merge rules and expand their teams; a token that writes pull requests gets
+nothing beyond that, and no repository beyond pytorch/pytorch.
+
+The size gate's file cap is pinned to ``constants.MAX_DIFF_FILES`` as well, and the gate's own shell
+is run on diffs either side of it.
 """
 
 from __future__ import annotations
 
+import os
 import re
+import shlex
+import shutil
+import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 import yaml
 
-from greenlight import cli, dispatch
+from greenlight import cli, constants, dispatch
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -284,3 +294,149 @@ def test_shadow_input_defaults_to_not_shadow() -> None:
         f"input gets this value, so `true` silently shadows every review, and a boolean input with no "
         f"default makes the REST API reject the dispatch outright."
     )
+
+
+_TOKEN_ACTION = "actions/create-github-app-token@"
+_TOKEN_OWNER = "pytorch"
+_TOKEN_REPOSITORIES = "pytorch"
+_TOKEN_PERMISSIONS = {
+    "announce_start": {"permission-pull-requests": "write"},
+    # The terminal verdict's eligibility lookup reads merge_rules.yaml and expands its team refs.
+    "record": {"permission-pull-requests": "write", "permission-contents": "read", "permission-members": "read"},
+}
+
+
+def _token_inputs(job: str) -> dict[str, Any]:
+    minting = [step for step in _steps(job) if _field(step, "uses").startswith(_TOKEN_ACTION)]
+    assert len(minting) == 1, _drift(f"job {job} has {len(minting)} `{_TOKEN_ACTION}` steps, expected exactly one.")
+    inputs = minting[0]["with"]
+    assert isinstance(inputs, dict)
+    return inputs
+
+
+@pytest.mark.parametrize("job", sorted(_TOKEN_PERMISSIONS))
+def test_app_token_scope_is_pinned(job: str) -> None:
+    inputs = _token_inputs(job)
+    assert (inputs.get("owner"), inputs.get("repositories")) == (_TOKEN_OWNER, _TOKEN_REPOSITORIES), _drift(
+        f"job {job} mints its App token for owner {inputs.get('owner')!r} and repositories "
+        f"{inputs.get('repositories')!r}. The token writes pull requests, so any repository added here is one "
+        f"more it can approve on."
+    )
+    permissions = {key: value for key, value in inputs.items() if key.startswith("permission-")}
+    assert permissions == _TOKEN_PERMISSIONS[job], _drift(
+        f"job {job} mints its App token with {permissions}, expected {_TOKEN_PERMISSIONS[job]}. Anything wider is "
+        f"privilege on a job that holds the App key; anything narrower breaks the job's own verdict calls, and on "
+        f"the record job the merge-rule check that every authoritative review depends on."
+    )
+
+
+_SIZECHECK_STEP_ID = "sizecheck"
+_FILE_CAP_ENV = "MAX_DIFF_FILES"
+_FILE_CAP_COMPARISON = f'"$files" -gt "${_FILE_CAP_ENV}"'
+_DIFF_PATH = "/tmp/greenlight-pr.diff"  # noqa: S108
+_VERDICT_PATH = "/tmp/greenlight-verdict.json"  # noqa: S108
+_TOO_LARGE_VERDICT = ROOT / ".claude" / "hooks" / "greenlight" / "too-large-verdict.json"
+_BASH = shutil.which("bash") or "/bin/bash"
+
+
+def _file_cap_drift(detail: str) -> str:
+    return f"{_WORKFLOW} drifted from greenlight's file cap: {detail}"
+
+
+def _sizecheck_step() -> dict[str, Any]:
+    gates = [step for job in _JOBS for step in _steps(job) if _field(step, "id") == _SIZECHECK_STEP_ID]
+    assert len(gates) == 1, _file_cap_drift(
+        f"found {len(gates)} steps with id {_SIZECHECK_STEP_ID}, expected exactly one."
+    )
+    return gates[0]
+
+
+def test_size_gate_file_cap_matches_the_merge_rule_check() -> None:
+    gate = _sizecheck_step()
+    cap = gate.get("env", {}).get(_FILE_CAP_ENV)
+    assert str(cap) == str(constants.MAX_DIFF_FILES), _file_cap_drift(
+        f"the {_SIZECHECK_STEP_ID} step sets {_FILE_CAP_ENV} to {cap!r}, but constants.MAX_DIFF_FILES is "
+        f"{constants.MAX_DIFF_FILES}. They are one cap: the merge-rule check refuses a path-scoped author past it, "
+        f"and for an author a catch-all rule names, whose files that check never lists, this gate is the only file cap."
+    )
+    assert _FILE_CAP_COMPARISON in _field(gate, "run"), _file_cap_drift(
+        f"the {_SIZECHECK_STEP_ID} step's run: body no longer contains `{_FILE_CAP_COMPARISON}`, so the cap pinned "
+        f"above may be one the gate never compares against. A rewrite of that comparison must update this test."
+    )
+
+
+class _SizecheckRun(NamedTuple):
+    returncode: int
+    stderr: str
+    output: str
+    verdict: Path
+
+
+def _new_files_diff(count: int) -> str:
+    """A diff adding ``count`` empty files, three lines each, as git writes them."""
+    return "".join(f"diff --git a/f{i} b/f{i}\nnew file mode 100644\nindex 0000000..e69de29\n" for i in range(count))
+
+
+def _run_sizecheck(tmp_path: Path, diff: str, path_prefix: Path | None = None) -> _SizecheckRun:
+    """Run the sizecheck step's own shell on ``diff`` the way the runner does, under ``tmp_path``.
+
+    Both fixed paths move into ``tmp_path``: test_land_reason_guard.py writes
+    /tmp/greenlight-verdict.json from other xdist workers.
+    """
+    gate = _sizecheck_step()
+    run = _field(gate, "run")
+    for literal in (_DIFF_PATH, _VERDICT_PATH):
+        assert literal in run, _file_cap_drift(
+            f"the {_SIZECHECK_STEP_ID} step no longer names {literal}, which this test rewrites to run the step; "
+            f"point the rewrite at the new path."
+        )
+    diff_path = tmp_path / "greenlight-pr.diff"
+    diff_path.write_text(diff, encoding="utf-8")
+    verdict_path = tmp_path / "greenlight-verdict.json"
+    output_path = tmp_path / "github-output"
+    output_path.touch()
+    script = tmp_path / "sizecheck.sh"
+    script.write_text(
+        run.replace(_DIFF_PATH, shlex.quote(str(diff_path))).replace(_VERDICT_PATH, shlex.quote(str(verdict_path))),
+        encoding="utf-8",
+    )
+    path = os.environ["PATH"] if path_prefix is None else f"{path_prefix}{os.pathsep}{os.environ['PATH']}"
+    env = {name: str(value) for name, value in gate["env"].items()}
+    env |= {"GITHUB_WORKSPACE": str(ROOT), "GITHUB_OUTPUT": str(output_path), "PATH": path}
+    # `bash -e` is how the runner invokes a step that sets no `shell:`.
+    result = subprocess.run(  # noqa: S603
+        [_BASH, "-e", str(script)], capture_output=True, text=True, check=False, env=env
+    )
+    return _SizecheckRun(result.returncode, result.stderr, output_path.read_text(encoding="utf-8"), verdict_path)
+
+
+@pytest.mark.parametrize(
+    ("files", "too_large"),
+    [(0, False), (constants.MAX_DIFF_FILES, False), (constants.MAX_DIFF_FILES + 1, True)],
+    ids=["empty-diff", "at-the-cap", "one-over-the-cap"],
+)
+def test_size_gate_declines_a_diff_over_the_file_cap(tmp_path: Path, files: int, too_large: bool) -> None:
+    diff = _new_files_diff(files)
+    caps = _sizecheck_step()["env"]
+    # Inside the line and byte caps, so the file count alone decides.
+    assert diff.count("\n") <= int(caps["MAX_DIFF_LINES"])
+    assert len(diff.encode()) <= int(caps["MAX_DIFF_BYTES"])
+    run = _run_sizecheck(tmp_path, diff)
+    assert run.returncode == 0, f"exit {run.returncode}, stderr: {run.stderr}"
+    assert run.output == f"too_large={'true' if too_large else 'false'}\n", run.stderr
+    if too_large:
+        assert run.verdict.read_bytes() == _TOO_LARGE_VERDICT.read_bytes()
+    else:
+        assert not run.verdict.exists()
+
+
+def test_size_gate_aborts_when_grep_cannot_read_the_diff(tmp_path: Path) -> None:
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    grep = shim / "grep"
+    grep.write_text("#!/bin/sh\necho 'grep: read error' >&2\nexit 2\n", encoding="utf-8")
+    grep.chmod(0o755)
+    run = _run_sizecheck(tmp_path, _new_files_diff(1), path_prefix=shim)
+    assert run.returncode != 0, "the gate kept going without a file count, which disables the cap"
+    assert run.output == "", f"the gate wrote {run.output!r} without a file count"
+    assert not run.verdict.exists()

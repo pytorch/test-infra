@@ -85,13 +85,13 @@ def _build_retry() -> Retry:
 
 
 def _build_authz_retry() -> Retry:
-    # The merge-authz refresh (merge_rules.yaml fetch + team expansion) is all reads and is the
-    # scan's first GitHub call on a cold client, so a 429 here is waited out rather than raised as
-    # the scan retry does. respect_retry_after_header honors a 429/5xx Retry-After, capped at
-    # retry_after_max, bounding the worst-case wait to total x cap (<=120s) -- inside the
-    # per-iteration runtime budget and on the SIGALRM-interruptible main thread. 403 is excluded so
-    # a permission denial is never retried; if the limit outlasts the retries the exhausted-retry
-    # error propagates and merge_authz fails closed (stale set when warm, re-raise when cold).
+    # Serves the scan's merge-rules refresh (merge_rules.yaml + team expansion) and the verdict's
+    # eligibility check (merge rules, PR files): a handful of reads whose failure can cost a
+    # whole pass or verdict, so a 429 is waited out rather than raised as the scan's fail-fast retry does.
+    # respect_retry_after_header honors a 429/5xx Retry-After capped at retry_after_max: at worst
+    # total x cap (<=120s), inside the scan's runtime budget, on the SIGALRM-interruptible main
+    # thread. 403 is excluded so a permission denial is never retried; exhausted retries propagate:
+    # the scan fails closed (stale snapshot when warm, re-raise when cold), the verdict writes no row.
     from urllib3.util.retry import Retry
 
     return Retry(
@@ -124,8 +124,8 @@ def build_client(token: str, *, seconds_between_requests: float = 0.25, retry: R
 
 
 def build_authz_client(token: str) -> Github:
-    # The merge-authorization client rides out a short secondary rate limit on its refresh; every
-    # other client keeps build_client's fail-fast retry. See _build_authz_retry.
+    # Rides out a short secondary rate limit for the scan's merge-rules refresh and the verdict's
+    # eligibility check; every other client keeps build_client's fail-fast retry. See _build_authz_retry.
     return build_client(token, retry=_build_authz_retry())
 
 
