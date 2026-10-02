@@ -4,9 +4,9 @@
 import { upsertPrStatusSection } from "lib/drciUtils";
 import {
   hasPrStatusLabel,
-  PR_OPT_OUT_LABEL,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
+  PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABELS,
 } from "lib/prStatus";
@@ -38,7 +38,7 @@ async function handle(
   // move the PR on. The label events this causes refresh the status section.
   if (
     payload.action === "labeled" &&
-    payload.label?.name === PR_OPT_OUT_LABEL &&
+    payload.label?.name === PR_STATUS_LABEL_REVIEW_OPT_OUT &&
     labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
   ) {
     await context.octokit.issues.addLabels(

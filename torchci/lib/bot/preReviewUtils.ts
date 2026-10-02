@@ -1,8 +1,8 @@
 import {
   fetchPrStatusState,
-  PR_OPT_OUT_LABEL,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
+  PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABELS,
   PRE_REVIEW_START_DATE,
@@ -233,7 +233,7 @@ export async function markInProgressIfAccepted(
     labels.includes(PR_STATUS_LABEL_TRIAGED) &&
     !labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
   ) {
-    const next = labels.includes(PR_OPT_OUT_LABEL)
+    const next = labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT)
       ? PR_STATUS_LABEL_READY_FOR_REVIEW
       : PR_STATUS_LABEL_IN_PROGRESS;
     console.log(

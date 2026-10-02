@@ -24,7 +24,7 @@ export const PR_STATUS_LABEL_IN_PROGRESS = "in progress";
 export const PR_STATUS_LABEL_READY_FOR_REVIEW = "ready for review";
 // Skips automated review, so the PR goes to ready for review instead of in
 // progress.
-export const PR_OPT_OUT_LABEL = "no automated review";
+export const PR_STATUS_LABEL_REVIEW_OPT_OUT = "no automated review";
 
 export const PR_STATUS_LABELS = [
   // Uncomment the following line post-rollout + change ln 166 to true in test
