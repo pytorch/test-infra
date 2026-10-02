@@ -9,8 +9,11 @@ import {
 } from "lib/prReview/prReviewRender";
 
 // Repos whose automated review verdicts are rendered into the Dr.CI comment.
-// Rows are written under this exact spelling (the workflow's github.repository).
-export const PR_REVIEW_REPOS: string[] = ["pytorch/pytorch"];
+// Folded to lower case at construction, like the key below, so an entry in any
+// spelling matches.
+export const PR_REVIEW_REPOS: string[] = ["pytorch/pytorch"].map((name) =>
+  name.trim().toLowerCase()
+);
 
 export function prReviewRepoKey(owner: string, repo: string): string {
   return `${owner}/${repo}`.trim().toLowerCase();

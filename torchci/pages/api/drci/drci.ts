@@ -685,7 +685,7 @@ function removeFailureContext(failure: {
 //   - the PR review pending sentinel: the same for the automated PR review
 //     section (see PR_REVIEW_PENDING_ALT_ATTR).
 // All four stay gated by the open-PR + 1-month freshness guards below, and by
-// the comment author: the marker and both sentinels are plain text any user can
+// the comment author: the marker and the sentinels are plain text any user can
 // put in a comment body, and a comment Dr.CI does not own is one it cannot
 // refresh -- so without the author filter an arbitrary user could pin a PR into
 // every sweep indefinitely. Qualified as issue_comment.user.login because
@@ -695,7 +695,7 @@ function removeFailureContext(failure: {
 // comment, fenced or HTML-escaped depending on the format the row carries but in
 // neither case with the matched characters removed. Every literal matched here
 // therefore has to be defused on the way in -- see defuseSweepSentinels in
-// lib/greenlight/greenlightSweep.ts, the one pass both of those renderers run
+// lib/greenlight/greenlightSweep.ts, the one pass every one of those renderers runs
 // and which any new predicate added below must also cover.
 async function getPRsNeedingCommentRefresh(repo: String): Promise<number[]> {
   const query = `

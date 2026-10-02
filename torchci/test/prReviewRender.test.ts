@@ -83,6 +83,7 @@ describe("renderPrReviewSection", () => {
     const out = render(
       row({
         verdict: "ready_for_human_review",
+        findings_count: 1,
         findings_json: JSON.stringify([MINOR]),
       })
     );
@@ -186,6 +187,35 @@ describe("oversized findings and statuses", () => {
       row({ status: "<!-- pr-status-start -->", verdict: null, summary: "" })
     );
     expect(out).not.toContain("<!--");
+  });
+});
+
+describe("own timing and text rules", () => {
+  it("keeps a 70-minute-old started row in progress", () => {
+    const started = row({
+      status: "started",
+      verdict: null,
+      summary: "",
+      findings_count: 0,
+      findings_json: "",
+      timestamp: "2026-10-01 18:50:00.000",
+    });
+    expect(render(started)).toContain(PR_REVIEW_IN_PROGRESS_HEADLINE);
+  });
+
+  it("counts findings the row reports but could not be parsed", () => {
+    const out = render(
+      row({ findings_count: 3, findings_json: JSON.stringify([MINOR]) })
+    );
+    expect(out).toContain("**Findings (3):**");
+    expect(out).toContain("(2 more not shown, see the review run)");
+  });
+
+  it("does not join text when wrapping a long line", () => {
+    const spaced =
+      "x".repeat(95) + " " + GREENLIGHT_PENDING_ALT_ATTR.replace(" ", "  ");
+    const out = render(row({ summary: spaced, findings_json: "" }));
+    expect(out).not.toContain(GREENLIGHT_PENDING_ALT_ATTR);
   });
 });
 

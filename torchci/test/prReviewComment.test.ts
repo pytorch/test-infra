@@ -1,5 +1,8 @@
 import * as clickhouse from "lib/clickhouse";
-import { buildPrReviewSections } from "lib/prReview/prReviewComment";
+import {
+  buildPrReviewSections,
+  PR_REVIEW_REPOS,
+} from "lib/prReview/prReviewComment";
 import * as prReviewRender from "lib/prReview/prReviewRender";
 
 const ROW = {
@@ -36,6 +39,12 @@ describe("buildPrReviewSections", () => {
     );
     expect(sections.size).toBe(0);
     expect(queryClickhouseSaved).not.toHaveBeenCalled();
+  });
+
+  it("holds every repo entry in lower case", () => {
+    for (const name of PR_REVIEW_REPOS) {
+      expect(name).toBe(name.toLowerCase());
+    }
   });
 
   it("issues no query when no PRs were passed", async () => {

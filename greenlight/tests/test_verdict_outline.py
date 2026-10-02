@@ -961,6 +961,23 @@ def test_greenlight_sentinel_matches_the_sweep_vocabulary() -> None:
     )
 
 
+def test_pr_review_sentinel_matches_the_sweep_vocabulary() -> None:
+    alt = ts_source.ts_string(_TS_SWEEP, "PR_REVIEW_PENDING_ALT")
+    assert f'alt="{alt}"' == verdict_outline.PR_REVIEW_PENDING_ALT_ATTR, _drift(
+        _TS_SWEEP, "the automated review's in-progress sentinel is not the one this module defuses"
+    )
+
+
+def test_the_sweep_lists_the_same_number_of_sentinels() -> None:
+    # Values are pinned one by one above; this catches a sentinel ADDED on one side only.
+    match = re.search(r"export const SWEEP_SENTINELS = \[([^\]]*)\]", ts_source.read(_TS_SWEEP))
+    assert match is not None, f"no SWEEP_SENTINELS array in {_TS_SWEEP}: {ts_source.RESTRUCTURED}"
+    names = [n.strip() for n in match.group(1).split(",") if n.strip()]
+    assert len(names) == len(verdict_outline.SWEEP_SENTINELS), _drift(
+        _TS_SWEEP, f"the sweep lists {names}; this module defuses {len(verdict_outline.SWEEP_SENTINELS)}"
+    )
+
+
 def test_advisor_sentinel_matches_the_badge() -> None:
     prefix = ts_source.ts_string(_TS_ADVISOR, "ADVISOR_ALT_PREFIX")
     pattern = r"^export const ADVISOR_PENDING_ALT = `\$\{ADVISOR_ALT_PREFIX\}([^`]*)`;$"

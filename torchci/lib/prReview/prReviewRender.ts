@@ -1,27 +1,22 @@
 // Pure rendering of the automated PR review section of the Dr.CI comment, from
-// the latest misc.pr_review_verdicts row for a PR. pytorch/pytorch's hardened PR
-// review workflow writes those rows (scripts/pr_review/emit_row.py there).
+// the latest misc.pr_review_verdicts row for a PR. The rows are written by the
+// hardened PR review workflow (scripts/pr_review/emit_row.py), which runs in
+// pytorch/pytorch and, before it, ran in pytorch/ciforge.
 // No ClickHouse / Octokit / server-only imports, so this is unit-testable as-is.
 //
 // `summary` and the findings are model output on untrusted PRs. The workflow's
 // sanitizer defuses links, mentions and HTML but leaves markdown structure alone,
 // so containment is this file's job: every model-written string goes into a code
-// fence through the same defang Green Light uses, after the sweep sentinels are
-// broken (see getPRsNeedingCommentRefresh in drci.ts).
+// fence after the sweep sentinels are broken (see getPRsNeedingCommentRefresh in
+// drci.ts). Its timing constants and text helpers are its own, not Green Light's,
+// so a change to Green Light cannot change this section. The one thing shared is
+// the sweep-sentinel vocabulary and its defuse, which every renderer writing into
+// the Dr.CI comment must use (lib/greenlight/greenlightSweep.ts).
 
-import {
-  isOutdatedVerdict,
-  reviewedCommitLines,
-} from "lib/greenlight/greenlightCommitLine";
-import { inlineCode } from "lib/greenlight/greenlightInlineCode";
-import {
-  defangGreenlightMessage,
-  GREENLIGHT_OUTDATED_HEADLINE_PREFIX,
-} from "lib/greenlight/greenlightRender";
-import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 import {
   defuseSweepSentinels,
   PR_REVIEW_PENDING_ALT_ATTR,
+  ZERO_WIDTH_SPACE,
 } from "lib/greenlight/greenlightSweep";
 
 export const PR_REVIEW_SECTION_HEADER = "AUTOMATED REVIEW";
@@ -31,11 +26,17 @@ export const PR_REVIEW_READY_HEADLINE = "Ready for human review";
 export const PR_REVIEW_CHANGES_HEADLINE = "Changes requested";
 export const PR_REVIEW_TOO_LARGE_HEADLINE = "Skipped, PR too large to review";
 export const PR_REVIEW_INCOMPLETE_HEADLINE = "Review did not complete";
+export const PR_REVIEW_OUTDATED_PREFIX = "OUTDATED (earlier commit) - ";
 
 const READY_EMOJI = "✅";
 const CHANGES_EMOJI = "🟡";
 const IN_PROGRESS_EMOJI = "⏳";
 const NO_VERDICT_EMOJI = "⚪";
+
+// A `started` row older than this renders as "did not complete": the review job
+// is capped at 90 minutes (hardened-pr-review-run.yml), so a run older than that
+// plus slack for queueing will never write its terminal row.
+export const PR_REVIEW_IN_PROGRESS_STALE_MS = 2 * 60 * 60 * 1000;
 
 // Emitted only while a review is live, so Dr.CI keeps re-rendering the PR until
 // the verdict lands or the run goes stale (getPRsNeedingCommentRefresh in
@@ -44,9 +45,11 @@ const NO_VERDICT_EMOJI = "⚪";
 // `capture` job, which runs on the PR head (the review itself runs on main).
 const PR_REVIEW_PENDING_MARKER = `<!-- pr-review ${PR_REVIEW_PENDING_ALT_ATTR} -->`;
 
-// Room for the findings fence, leaving headroom under the defang cap (4000) so a
-// finding is dropped whole and counted, never cut off mid-message.
+// Code points of model text one fence may carry, and the findings budget below
+// it, so a finding is dropped whole and counted rather than cut mid-message.
+export const PR_REVIEW_MESSAGE_CAP = 4000;
 export const PR_REVIEW_FINDINGS_BUDGET = 3500;
+const WRAP_WIDTH = 100;
 
 const SEVERITY_ORDER = ["major", "minor", "info"];
 
@@ -72,28 +75,135 @@ interface Finding {
   message: string;
 }
 
+// The PR status splicer (lib/prStatus.ts) and comment lookups find their
+// sections by raw `<!-- ... -->` markers, so text this section writes must
+// never carry a comment opener: one could make them cut into the section.
+export function escapeCommentOpeners(text: string): string {
+  return text.split("<!--").join("&lt;!--");
+}
+
 // Undo the sanitizer's markdown escapes (`\[`, `\_`, `\#` and the HTML
 // entities). They keep text inert when rendered as markdown, but inside a fence
-// they would show as literal backslashes and `&lt;`. The fence contains the
-// rendering, but not code that edits the RAW body: the PR status splicer
-// (lib/prStatus.ts) and comment lookups find their sections by `<!-- ... -->`
-// markers, so a restored marker could make them cut text out of this section,
-// fence included. Every comment opener therefore stays escaped.
+// they would show as literal backslashes and `&lt;`. Comment openers stay
+// escaped (above).
 export function unescapeSanitized(text: string): string {
-  return (text || "")
-    .replace(/\\([[\]()@#*_])/g, "$1")
-    .split("&lt;")
-    .join("<")
-    .split("&gt;")
-    .join(">")
-    .split("&amp;")
-    .join("&")
-    .split("<!--")
-    .join("&lt;!--");
+  return escapeCommentOpeners(
+    (text || "")
+      .replace(/\\([[\]()@#*_])/g, "$1")
+      .split("&lt;")
+      .join("<")
+      .split("&gt;")
+      .join(">")
+      .split("&amp;")
+      .join("&")
+  );
+}
+
+// Greedy wrap of one line. Whitespace runs are kept as written except where a
+// break replaces one with a newline, so wrapping never joins text together.
+function wrapLine(line: string): string {
+  if (line.length <= WRAP_WIDTH) {
+    return line;
+  }
+  // Odd indices are whitespace runs, even indices the words between them.
+  const parts = line.split(/(\s+)/);
+  const out: string[] = [];
+  let current = parts[0];
+  for (let i = 1; i < parts.length; i += 2) {
+    const word = parts[i + 1] ?? "";
+    if (
+      current.trim() &&
+      current.length + parts[i].length + word.length > WRAP_WIDTH
+    ) {
+      out.push(current);
+      current = word;
+    } else {
+      current = `${current}${parts[i]}${word}`;
+    }
+  }
+  out.push(current);
+  return out.join("\n");
+}
+
+// Cap, neutralize @-mentions, wrap, and seal in a fence longer than any backtick
+// run the text holds, so it cannot break out. Not HTML-escaped: the fence is the
+// containment, and GitHub escapes a code block's content.
+export function fenceModelText(text: string): string {
+  const capped = Array.from(text || "")
+    .slice(0, PR_REVIEW_MESSAGE_CAP)
+    .join("");
+  const neutralized = capped.split("@").join(`@${ZERO_WIDTH_SPACE}`);
+  // Defused again after the wrap, so no change the wrap makes can matter.
+  const wrapped = defuseSweepSentinels(
+    neutralized.split("\n").map(wrapLine).join("\n")
+  );
+  const runs = wrapped.match(/`+/g);
+  const longest = runs ? Math.max(...runs.map((run) => run.length)) : 0;
+  const fence = "`".repeat(Math.max(3, longest + 1));
+  return `${fence}\n${wrapped}\n${fence}`;
 }
 
 function fence(text: string): string {
-  return defangGreenlightMessage(defuseSweepSentinels(unescapeSanitized(text)));
+  return fenceModelText(defuseSweepSentinels(unescapeSanitized(text)));
+}
+
+// One inline code span: backticks and line breaks removed so the value cannot
+// end the span or the line.
+function inlineCode(value: string): string {
+  return `\`${(value || "").replace(/[`\r\n]/g, "")}\``;
+}
+
+function isOutdated(reviewedSha: string, currentSha: string): boolean {
+  const reviewed = (reviewedSha || "").trim().toLowerCase();
+  const current = (currentSha || "").trim().toLowerCase();
+  return reviewed !== "" && current !== "" && reviewed !== current;
+}
+
+function commitLines(headSha: string, currentHeadSha: string): string[] {
+  const sha = (headSha || "").trim();
+  if (!sha) {
+    return [];
+  }
+  const line = `Reviewed commit: ${inlineCode(sha.slice(0, 7))}`;
+  return isOutdated(sha, currentHeadSha)
+    ? [
+        `${line} (NOT the current head ${inlineCode(
+          currentHeadSha.slice(0, 7)
+        )})`,
+      ]
+    : [line];
+}
+
+// ClickHouse serves DateTime64 zone-less (`2026-10-01 19:50:00.000`); the server
+// runs in UTC, so build the epoch explicitly rather than let Date.parse read it
+// as local time. NaN when unparseable.
+function timestampMs(value: string): number {
+  const m =
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?$/.exec(
+      (value || "").trim()
+    );
+  if (!m) {
+    return Date.parse(value);
+  }
+  return Date.UTC(
+    Number(m[1]),
+    Number(m[2]) - 1,
+    Number(m[3]),
+    Number(m[4]),
+    Number(m[5]),
+    Number(m[6]),
+    Number((m[7] ?? "").slice(0, 3).padEnd(3, "0"))
+  );
+}
+
+// A missing or far-future timestamp counts as stale, so a broken row cannot
+// keep the pending sentinel (and the PR in every sweep) alive.
+export function isReviewRunStale(timestamp: string, now: Date): boolean {
+  const ms = timestampMs(timestamp);
+  return (
+    Number.isNaN(ms) ||
+    Math.abs(now.getTime() - ms) >= PR_REVIEW_IN_PROGRESS_STALE_MS
+  );
 }
 
 export function parseFindings(findingsJson: string): Finding[] {
@@ -123,8 +233,9 @@ export function parseFindings(findingsJson: string): Finding[] {
 }
 
 // Measured after unescaping and defusing, which change the length, so what
-// fits the budget is what reaches the fence.
-function findingsText(findings: Finding[]): string {
+// fits the budget is what reaches the fence. `unparsed` counts findings the row
+// reports that could not be shown at all.
+function findingsText(findings: Finding[], unparsed: number): string {
   const blocks: string[] = [];
   let used = 0;
   for (const f of findings) {
@@ -142,7 +253,7 @@ function findingsText(findings: Finding[]): string {
     blocks.push(block);
     used += block.length + 2;
   }
-  const hidden = findings.length - blocks.length;
+  const hidden = findings.length - blocks.length + unparsed;
   if (hidden > 0) {
     blocks.push(`(${hidden} more not shown, see the review run)`);
   }
@@ -151,14 +262,14 @@ function findingsText(findings: Finding[]): string {
 
 function findingsLines(row: PrReviewRow): string[] {
   const findings = parseFindings(row.findings_json);
+  const count = Math.max(Number(row.findings_count) || 0, findings.length);
   if (findings.length > 0) {
     return [
       "",
-      `**Findings (${findings.length}):**`,
-      defangGreenlightMessage(findingsText(findings)),
+      `**Findings (${count}):**`,
+      fenceModelText(findingsText(findings, count - findings.length)),
     ];
   }
-  const count = Number(row.findings_count) || 0;
   if (count > 0) {
     // Rows written before the workflow recorded findings text carry only a count.
     return [
@@ -188,14 +299,14 @@ function renderSection(
   const lines = [
     ...bodyLines,
     "",
-    ...reviewedCommitLines(row.head_sha, currentHeadSha),
+    ...commitLines(row.head_sha, currentHeadSha).map(escapeCommentOpeners),
   ];
   const runUrl = reviewRunUrl(repo, row.review_run_id);
   if (runUrl) {
     lines.push("", `[Review run](${runUrl})`);
   }
-  const summary = isOutdatedVerdict(row.head_sha, currentHeadSha)
-    ? `${GREENLIGHT_OUTDATED_HEADLINE_PREFIX}${headline}`
+  const summary = isOutdated(row.head_sha, currentHeadSha)
+    ? `${PR_REVIEW_OUTDATED_PREFIX}${headline}`
     : headline;
   // Two newlines after <p> so the body is parsed as markdown, matching the
   // other Dr.CI sections.
@@ -219,7 +330,7 @@ export function renderPrReviewSection(
   const verdict = (row.verdict || "").trim();
 
   if (status === "started") {
-    if (isInProgressStale(row.timestamp, now)) {
+    if (isReviewRunStale(row.timestamp, now)) {
       return renderSection(
         NO_VERDICT_EMOJI,
         PR_REVIEW_INCOMPLETE_HEADLINE,
@@ -276,16 +387,15 @@ export function renderPrReviewSection(
   }
   // Every other terminal status is a run that produced no verdict. Its failure
   // detail is not shown: it can quote model output and it is not actionable
-  // for the author.
+  // for the author. The status vocabulary is open-ended, so it gets the same
+  // marker escape as model text.
   return renderSection(
     NO_VERDICT_EMOJI,
     PR_REVIEW_INCOMPLETE_HEADLINE,
-    // The status vocabulary is open-ended, so keep raw-body markers out of it
-    // as for model text.
     [
-      defuseSweepSentinels(`reason: ${inlineCode(status)}`)
-        .split("<!--")
-        .join("&lt;!--"),
+      escapeCommentOpeners(
+        defuseSweepSentinels(`reason: ${inlineCode(status)}`)
+      ),
     ],
     row,
     repo,

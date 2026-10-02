@@ -1,8 +1,9 @@
 // The literals Dr.CI's re-render sweep greps a comment body for, and the single
-// pass that breaks them. Both message renderers write into that one body -- the
-// fence in greenlightRender.ts and the escaped HTML block in greenlightOutline.ts
-// -- and the first of those calls the second, so the vocabulary they share sits
-// below both rather than inside either. A second copy is a copy that can be
+// pass that breaks them. Every renderer of model text writes into that one body
+// -- Green Light's fence in greenlightRender.ts and escaped HTML block in
+// greenlightOutline.ts, and the automated review section in
+// lib/prReview/prReviewRender.ts -- so the vocabulary they share sits below all of
+// them rather than inside any. A second copy is a copy that can be
 // widened alone, and a predicate defused on one route and not the other pins its
 // PR into every sweep for as long as the comment stands.
 
@@ -65,7 +66,7 @@ export const SWEEP_PREDICATE_MIN_LENGTH = Math.min(
 // The outline route also runs this over its code spans: the sweep matches the
 // body, not the rendered HTML, so a predicate inside a `<code>` pins the PR just
 // as hard as one in prose. That route arrives with the text already escaped,
-// where both sentinels are spelled `&quot;` and the loop matches nothing, leaving
+// where the sentinels are spelled `&quot;` and the loop matches nothing, leaving
 // the `Pending` substitution the pass that fires. The loop is what covers a
 // predicate spelled without a quote, and the fenced route, which hands over raw
 // text.
