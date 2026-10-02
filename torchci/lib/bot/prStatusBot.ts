@@ -4,6 +4,9 @@
 import { upsertPrStatusSection } from "lib/drciUtils";
 import {
   hasPrStatusLabel,
+  PR_OPT_OUT_LABEL,
+  PR_STATUS_LABEL_IN_PROGRESS,
+  PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABELS,
 } from "lib/prStatus";
@@ -29,8 +32,25 @@ async function handle(
 
   const labels = pullRequest.labels.map((label) => label.name);
 
-  // Ignore events that cannot change status before spending GitHub API calls.
   const payload = context.payload as any;
+
+  // Opting out skips automated review, the only way out of in progress, so
+  // move the PR on. The label events this causes refresh the status section.
+  if (
+    payload.action === "labeled" &&
+    payload.label?.name === PR_OPT_OUT_LABEL &&
+    labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
+  ) {
+    await context.octokit.issues.addLabels(
+      context.issue({ labels: [PR_STATUS_LABEL_READY_FOR_REVIEW] })
+    );
+    await context.octokit.issues.removeLabel(
+      context.issue({ name: PR_STATUS_LABEL_IN_PROGRESS })
+    );
+    return;
+  }
+
+  // Ignore events that cannot change status before spending GitHub API calls.
   if (
     (payload.action === "labeled" || payload.action === "unlabeled") &&
     payload.label
