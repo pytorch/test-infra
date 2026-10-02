@@ -15,6 +15,10 @@ jobs:
         installation:
           - pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
     with:
+      # Without this the job checks out test-infra@main, so a change to
+      # the export path is never the thing under test.
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
         [[ "${MATRIX_INSTALLATION}" = "${{ matrix.installation }}" ]] || exit 1
@@ -26,6 +30,10 @@ jobs:
         installation:
           - pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
     with:
+      # Without this the job checks out test-infra@main, so a change to
+      # the export path is never the thing under test.
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
         [[ "${MATRIX_INSTALLATION}" = "${{ matrix.installation }}" ]] || exit 1
@@ -37,6 +45,10 @@ jobs:
         installation:
           - pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
     with:
+      # Without this the job checks out test-infra@main, so a change to
+      # the export path is never the thing under test.
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
         [[ "${MATRIX_INSTALLATION}" = "${{ matrix.installation }}" ]] || exit 1
