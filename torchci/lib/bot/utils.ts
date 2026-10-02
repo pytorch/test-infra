@@ -282,7 +282,10 @@ export async function retryRequest(
   }
   return await urllib.request(path);
 }
-export async function reactOnComment(ctx: any, reaction: "+1" | "confused") {
+export async function reactOnComment(
+  ctx: any,
+  reaction: "+1" | "-1" | "confused"
+) {
   ctx.log(
     `Reacting with "${reaction}" to comment ${ctx.payload.comment.html_url}`
   );

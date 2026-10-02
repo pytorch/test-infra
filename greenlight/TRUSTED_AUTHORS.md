@@ -45,9 +45,9 @@ Both log their answer with a reason that names no rule, team or file: the scan
 `... is not eligible: <reason>`. Besides `eligible`, a reason is one of
 `no author`, `excluded (bot or greenlight)`, `no merge rule names '<login>' in exact case`
 (followed by `; a rule names '<Variant>'` when a rule names a case variant),
-`file listing unavailable` (a ghstack head or a base other than `main`), and
-`no single merge rule naming this login covers all changed files (<N>)`; the verdict adds
-`head moved` and `head or base moved`. The scan's lines are in the `greenlight-scan` Lambda's
+`file listing unavailable` (a ghstack head, a base other than `main`, or more than 200 changed
+files), and `no single merge rule naming this login covers all changed files (<N>)`; the verdict
+adds `head moved` and `head or base moved`. The scan's lines are in the `greenlight-scan` Lambda's
 CloudWatch logs; for one PR, a `pytorch/test-infra` writer can dispatch `greenlight-review.yml` with
 its `pr` input and read the run's log.
 
@@ -144,9 +144,10 @@ authorizes a merge.
   the files or the base, so a base change after the review — a retarget, or a push to a ghstack
   base — can still widen what lands beyond what the model reviewed.
 - **A drifted PR keeps its approval.** A PR that drifts out of scope — a push that adds a file its
-  author's rule does not cover — turns shadow. At dial `0`, or whenever the dial holds it out, it
-  gets no shadow review to dismiss the approval greenlight already gave it, so that approval
-  lingers until the land-time gate refuses the moved head SHA.
+  author's rule does not cover, or that takes a path-scoped author's PR past 200 files — turns
+  shadow. At dial `0`, or whenever the dial holds it out, it gets no shadow review to dismiss the
+  approval greenlight already gave it, so that approval lingers until the land-time gate refuses
+  the moved head SHA.
 - **One team fails every verdict.** The verdict resolves the merge rules on every run, so a single
   team whose members cannot be read fails every `LAND` and `NO_LAND` recorded without `--shadow`,
   with no row. It fails closed.
