@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 import queue
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock
 
 import pytest
@@ -15,6 +15,7 @@ from greenlight import (
     cohort,
     drci_poke,
     github_client,
+    merge_authz,
     revert_guard,
     review,
     scan_runner,
@@ -35,6 +36,7 @@ from greenlight.github_client import OpenPR
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
+from greenlight.trusted_authors import TrustedAuthorsError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -49,7 +51,33 @@ _CLIENT = cast("Github", object())
 
 _HASH_A = "a" * 64
 _HASH_B = "b" * 64
-_AUTHORIZED = frozenset({"alband", "alice", "bob"})
+# albanD and huydhn are listed and named by a catch-all rule, so their PRs are authoritative at zero
+# file reads. carol is listed but named only by a docs rule, so her PRs are authoritative only when
+# every changed file is under docs/. alice and bob are merge_rules approvers the issue does not list.
+_SCOPED_AUTHOR = "carol"
+_DOCS_FILE = "docs/source/index.rst"
+_TORCH_FILE = "torch/nn/functional.py"
+_RULES = (
+    merge_authz.compile_rule("superuser", ["*"], frozenset({"albanD", "huydhn"})),
+    merge_authz.compile_rule("docs", ["docs/**"], frozenset({"alice", "bob", _SCOPED_AUTHOR})),
+)
+_LISTED = frozenset({"alband", "huydhn", _SCOPED_AUTHOR})
+
+
+def _snapshot(rules: tuple[merge_authz.MergeRule, ...]) -> merge_authz.MergeRulesSnapshot:
+    # The authorized set is derived from the rules, as merge_authz resolves it, so no test can hand
+    # the scan a cohort the rules could never produce.
+    return merge_authz.MergeRulesSnapshot(
+        authorized=frozenset(approver.lower() for rule in rules for approver in rule.approvers), rules=rules
+    )
+
+
+def _catch_all(*approvers: str) -> tuple[merge_authz.MergeRule, ...]:
+    return (merge_authz.compile_rule("everything", ["*"], frozenset(approvers)),)
+
+
+_SNAPSHOT = _snapshot(_RULES)
+_AUTHORIZED = _SNAPSHOT.authorized
 _NOW = datetime(2026, 7, 31, 12, 0, 0)
 _FRESH = _NOW - timedelta(minutes=10)
 _STALE = _NOW - timedelta(minutes=50)
@@ -81,9 +109,23 @@ def _no_reverted(_repo: str, _numbers: Sequence[int]) -> set[int]:
     return set()
 
 
+def _listed() -> frozenset[str]:
+    return _LISTED
+
+
+def _merge_rules() -> merge_authz.MergeRulesSnapshot:
+    return _SNAPSHOT
+
+
 @dataclass(frozen=True)
 class _FakeHead:
     sha: str
+    ref: str = "feature-branch"
+
+
+@dataclass(frozen=True)
+class _FakeRef:
+    ref: str
 
 
 @dataclass(frozen=True)
@@ -92,10 +134,33 @@ class _FakeUser:
 
 
 @dataclass(frozen=True)
+class _FakeFile:
+    filename: str
+
+
+@dataclass
 class _FakePR:
     number: int
     head: _FakeHead
     user: _FakeUser | None = None
+    files: tuple[str, ...] = ()
+    files_error: Exception | None = None
+    files_read: list[int] = field(default_factory=list)
+    base: _FakeRef = field(default_factory=lambda: _FakeRef("main"))
+
+    def get_files(self) -> list[_FakeFile]:
+        self.files_read.append(self.number)
+        if self.files_error is not None:
+            raise self.files_error
+        return [_FakeFile(name) for name in self.files]
+
+
+def _target_pr(author: str) -> Callable[..., Any]:
+    # Any, not VerdictPR: the fake PR carries only what the scan reads, not the whole protocol.
+    def get_pr(_client, _repo, number):
+        return _FakePR(number, _FakeHead(f"headsha{number}"), _FakeUser(author))
+
+    return get_pr
 
 
 def _state(number: int, status: str, eval_hash: str, version: datetime, run_id: int = 0) -> PRState:
@@ -143,9 +208,11 @@ class _Scan:
     fingerprinted: list[int]
     listed_calls: int
     listed_authors: list[frozenset[str]]
-    resolver_calls: int
+    issue_reads: int
+    rules_reads: int
     authorized_seen: list[frozenset[str]]
-    author_fetched: list[int]
+    pr_fetches: list[int]
+    files_fetched: list[int]
     skip_on_approval_seen: list[bool]
     refusals: list[tuple[int, str, str, str]]
     emitted: list[tuple[str, int, str, str, int]]
@@ -158,6 +225,7 @@ class _Scan:
     dispatch_shadow: list[tuple[int, bool]]
     emit_shadow: list[tuple[int, bool]]
     reverted_shadow: list[tuple[int, bool]]
+    error: Exception | None
 
 
 def _run_scan(
@@ -171,19 +239,30 @@ def _run_scan(
     ref: str = DEFAULT_DISPATCH_REF,
     timeout_minutes: int = DEFAULT_TIMEOUT_MINUTES,
     force: bool = False,
-    authorized: frozenset[str] = _AUTHORIZED,
+    listed_logins: frozenset[str] = _LISTED,
+    rules: tuple[merge_authz.MergeRule, ...] = _RULES,
+    issue_error: Exception | None = None,
     now: datetime = _NOW,
     requester: str | None = None,
     allow_untrusted_author: bool = False,
     author: str | None = "albanD",
+    files: dict[int, tuple[str, ...]] | None = None,
+    files_errors: dict[int, Exception] | None = None,
+    head_refs: dict[int, str] | None = None,
+    base_refs: dict[int, str] | None = None,
     bot_login: str = "",
     config_kwargs: dict[str, object] | None = None,
     reverted: frozenset[int] = frozenset(),
     fetched_labels: dict[int, tuple[str, ...]] | None = None,
     dismissed_ids: dict[int, list[int]] | None = None,
     dismiss_errors: dict[int, Exception] | None = None,
+    raises: type[Exception] | None = None,
 ) -> _Scan:
     states = states or {}
+    files = files or {}
+    files_errors = files_errors or {}
+    head_refs = head_refs or {}
+    base_refs = base_refs or {}
     fetched_labels = fetched_labels or {}
     dismissed_ids = dismissed_ids or {}
     dismiss_errors = dismiss_errors or {}
@@ -192,9 +271,11 @@ def _run_scan(
     fingerprinted: list[int] = []
     listed_calls: list[int] = []
     listed_authors: list[frozenset[str]] = []
-    resolver_calls: list[int] = []
+    issue_reads: list[int] = []
+    rules_reads: list[int] = []
     authorized_seen: list[frozenset[str]] = []
-    author_fetched: list[int] = []
+    pr_fetches: list[int] = []
+    files_fetched: list[int] = []
     skip_on_approval_seen: list[bool] = []
     refusals: list[tuple[int, str, str, str]] = []
     emitted: list[tuple[str, int, str, str, int]] = []
@@ -229,18 +310,30 @@ def _run_scan(
         dispatch_shadow.append((number, shadow))
         events.append(f"dispatch:{number}")
 
-    def fake_resolve_authorized():
-        resolver_calls.append(1)
-        return authorized
+    def fake_resolve_listed():
+        issue_reads.append(1)
+        if issue_error is not None:
+            raise issue_error
+        return listed_logins
 
-    def fake_fetch_author(_client, number):
-        author_fetched.append(number)
-        return author
+    def fake_resolve_merge_rules():
+        rules_reads.append(1)
+        return _snapshot(rules)
 
     def fake_get_pr(_client, _repo, number):
         # The comment upsert and the review dismissal are both faked, so the "PR" object need only
-        # carry back its number and the head_sha the reverted-PR row is written from.
-        return _FakePR(number, _FakeHead(f"headsha{number}"))
+        # carry back its number, the head_sha the reverted-PR row is written from, the author the
+        # --pr gate reads, and the changed files an eligibility check reads.
+        pr_fetches.append(number)
+        return _FakePR(
+            number,
+            _FakeHead(f"headsha{number}", head_refs.get(number, "feature-branch")),
+            _FakeUser(author) if author is not None else None,
+            files=files.get(number, ()),
+            files_error=files_errors.get(number),
+            files_read=files_fetched,
+            base=_FakeRef(base_refs.get(number, "main")),
+        )
 
     def fake_upsert(pr, *, marker, body, author_login, run_id=None):
         refusals.append((pr.number, marker, body, author_login))
@@ -275,42 +368,55 @@ def _run_scan(
         reverted_shadow.append((pr_number, shadow))
         events.append(f"emit_reverted:{pr_number}")
 
-    review.run(
-        make_config(github_token="t", **(config_kwargs or {})),
-        pr=pr,
-        max_dispatches=max_dispatches,
-        ref=ref,
-        timeout_minutes=timeout_minutes,
-        force=force,
-        requester=requester,
-        allow_untrusted_author=allow_untrusted_author,
-        bot_login=bot_login,
-        build_github=lambda _token, **_kwargs: _CLIENT,
-        fetch=fake_fetch,
-        fetch_author=fake_fetch_author,
-        fetch_labels=fake_fetch_labels,
-        fingerprint=fake_fingerprint,
-        read_state=fake_read_state,
-        read_reverted=fake_read_reverted,
-        dispatch=fake_dispatch,
-        emit_dispatched=fake_emit,
-        emit_reverted=fake_emit_reverted,
-        poke_drci=fake_poke,
-        get_pr=fake_get_pr,
-        dismiss_approvals=fake_dismiss,
-        upsert_comment=fake_upsert,
-        resolve_authorized=fake_resolve_authorized,
-        now=lambda: now,
-    )
+    def scan() -> None:
+        review.run(
+            make_config(github_token="t", **(config_kwargs or {})),
+            pr=pr,
+            max_dispatches=max_dispatches,
+            ref=ref,
+            timeout_minutes=timeout_minutes,
+            force=force,
+            requester=requester,
+            allow_untrusted_author=allow_untrusted_author,
+            bot_login=bot_login,
+            build_github=lambda _token, **_kwargs: _CLIENT,
+            fetch=fake_fetch,
+            fetch_labels=fake_fetch_labels,
+            fingerprint=fake_fingerprint,
+            read_state=fake_read_state,
+            read_reverted=fake_read_reverted,
+            dispatch=fake_dispatch,
+            emit_dispatched=fake_emit,
+            emit_reverted=fake_emit_reverted,
+            poke_drci=fake_poke,
+            get_pr=fake_get_pr,
+            dismiss_approvals=fake_dismiss,
+            upsert_comment=fake_upsert,
+            resolve_listed=fake_resolve_listed,
+            resolve_merge_rules=fake_resolve_merge_rules,
+            now=lambda: now,
+        )
+
+    # A pass that must fail is still observed: every fake has recorded into the lists by the time
+    # run raises, and pytest.raises fails the test if it does not.
+    error: Exception | None = None
+    if raises is None:
+        scan()
+    else:
+        with pytest.raises(raises) as excinfo:
+            scan()
+        error = excinfo.value
     return _Scan(
         dispatched=dispatched,
         read_calls=read_calls,
         fingerprinted=fingerprinted,
         listed_calls=len(listed_calls),
         listed_authors=listed_authors,
-        resolver_calls=len(resolver_calls),
+        issue_reads=len(issue_reads),
+        rules_reads=len(rules_reads),
         authorized_seen=authorized_seen,
-        author_fetched=author_fetched,
+        pr_fetches=pr_fetches,
+        files_fetched=files_fetched,
         skip_on_approval_seen=skip_on_approval_seen,
         refusals=refusals,
         emitted=emitted,
@@ -323,6 +429,7 @@ def _run_scan(
         dispatch_shadow=dispatch_shadow,
         emit_shadow=emit_shadow,
         reverted_shadow=reverted_shadow,
+        error=error,
     )
 
 
@@ -944,7 +1051,8 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -987,11 +1095,11 @@ def test_pr_untrusted_target_author_is_refused(make_config, caplog):
 
     # --pr on an untrusted-author PR with no requester (the scan/local path): the target-author gate
     # still applies -- the PR is looked up, refused, and never fingerprinted or dispatched.
-    assert scan.author_fetched == [5]
+    assert scan.pr_fetches == [5]
     assert scan.fingerprinted == []
     assert scan.dispatched == []
-    # A refused --pr does zero merge-rules work: resolve_authorized runs only after the gate.
-    assert scan.resolver_calls == 0
+    # The gate needs the trusted-authors issue and the merge rules, so both resolve before it runs.
+    assert (scan.issue_reads, scan.rules_reads) == (1, 1)
     assert "refusing --pr 5" in caplog.text
 
 
@@ -1007,11 +1115,11 @@ def test_pr_target_author_none_is_refused(make_config, caplog):
     # A PR whose author cannot be resolved (ghost/deleted user) is untrusted by definition: refused.
     assert scan.fingerprinted == []
     assert scan.dispatched == []
-    assert scan.resolver_calls == 0
+    assert scan.files_fetched == []
     assert "refusing --pr 5" in caplog.text
 
 
-def test_requester_untrusted_is_refused_before_any_fetch(make_config, caplog):
+def test_requester_untrusted_is_refused_before_any_pr_fetch(make_config, caplog):
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         scan = _run_scan(
             make_config,
@@ -1021,13 +1129,12 @@ def test_requester_untrusted_is_refused_before_any_fetch(make_config, caplog):
             author="albanD",
         )
 
-    # An untrusted requester is rejected before any network work: the target author is never even
-    # looked up, and nothing is fingerprinted or dispatched.
-    assert scan.author_fetched == []
+    # An untrusted requester is rejected before any PR is touched: the target is never even looked
+    # up, and nothing is fingerprinted or dispatched. The gate itself needs the issue and the rules.
+    assert scan.pr_fetches == []
     assert scan.fingerprinted == []
     assert scan.dispatched == []
-    # An untrusted requester is refused before the ExitStack, so no merge-rules work happens either.
-    assert scan.resolver_calls == 0
+    assert (scan.issue_reads, scan.rules_reads) == (1, 1)
     assert "refusing review: requester 'mallory'" in caplog.text
 
 
@@ -1043,7 +1150,7 @@ def test_requester_and_target_trusted_proceeds(make_config, caplog):
 
     # Both gates pass: the recheck proceeds (never-reviewed PR dispatches) and the requester is
     # logged for audit.
-    assert scan.author_fetched == [5]
+    assert scan.pr_fetches == [5]
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
     assert "review requested by trusted author huydhn" in caplog.text
 
@@ -1071,7 +1178,7 @@ def test_allow_untrusted_author_bypasses_target_check(make_config):
 
     # The local override waives the refusal, not the lookup: the author is still resolved, and the
     # otherwise-untrusted PR is fingerprinted and dispatched instead of being turned away.
-    assert scan.author_fetched == [5]
+    assert scan.pr_fetches == [5]
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
@@ -1103,26 +1210,12 @@ def test_trusted_requester_does_not_bypass_untrusted_target_author(make_config, 
         )
 
     # The core recheck-abuse guard: a TRUSTED requester must NOT bypass the target-author gate. PR 5's
-    # untrusted author is still looked up and refused -- no fingerprint, no dispatch, no merge-rules
-    # work -- so a trusted requester can never get an arbitrary (untrusted-author) PR reviewed/approved.
-    assert scan.author_fetched == [5]
+    # untrusted author is still looked up and refused -- no fingerprint, no dispatch -- so a trusted
+    # requester can never get an arbitrary (untrusted-author) PR reviewed/approved.
+    assert scan.pr_fetches == [5]
     assert scan.fingerprinted == []
     assert scan.dispatched == []
-    assert scan.resolver_calls == 0
     assert "refusing --pr 5" in caplog.text
-
-
-def test_pr_target_author_matched_case_insensitively(make_config):
-    scan = _run_scan(
-        make_config,
-        pr=5,
-        fingerprints={5: ("headsha5", _HASH_A)},
-        requester="huydhn",
-        author="ALBAND",
-    )
-
-    # The target-author gate case-folds too: an uppercase trusted author passes and the PR proceeds.
-    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
 def test_force_dispatches_decided_pr_via_fingerprint_all(make_config, caplog):
@@ -1179,13 +1272,14 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             force=True,
             build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=lambda _client, _authors: [],
-            fetch_author=lambda _client, _number: "albanD",
+            get_pr=_target_pr("albanD"),
             fetch_labels=lambda _client, _repo, _number: (),
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1284,7 +1378,8 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1319,7 +1414,8 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1351,7 +1447,8 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1381,7 +1478,8 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1407,7 +1505,8 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=timeout_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1439,7 +1538,8 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1488,7 +1588,8 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=fake_dispatch,
-        resolve_authorized=lambda: _AUTHORIZED,
+        resolve_listed=_listed,
+        resolve_merge_rules=_merge_rules,
         now=lambda: _NOW,
     )
 
@@ -1531,7 +1632,8 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=fake_dispatch,
-        resolve_authorized=lambda: _AUTHORIZED,
+        resolve_listed=_listed,
+        resolve_merge_rules=_merge_rules,
         now=lambda: _NOW,
     )
 
@@ -1571,7 +1673,8 @@ def test_run_closes_main_and_worker_clients(make_config):
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=lambda *_args, **_kwargs: None,
-        resolve_authorized=lambda: _AUTHORIZED,
+        resolve_listed=_listed,
+        resolve_merge_rules=_merge_rules,
         now=lambda: _NOW,
     )
 
@@ -1640,7 +1743,8 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1688,7 +1792,8 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
             poke_drci=record_poke,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1740,7 +1845,8 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1782,7 +1888,8 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1817,7 +1924,8 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1842,7 +1950,8 @@ def test_fetch_failure_still_closes_main_client(make_config):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=lambda *_args, **_kwargs: None,
-            resolve_authorized=lambda: _AUTHORIZED,
+            resolve_listed=_listed,
+            resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
 
@@ -1889,36 +1998,46 @@ def test_per_pr_listing_detail_is_below_info(make_config, caplog):
             fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A)},
         )
 
-    # One info line per open PR is affordable for the trusted-author set and not for the whole
-    # merge_rules approver cohort, which is an order of magnitude larger and rescanned every few
-    # minutes. The aggregate count stays at info; the per-PR detail is debug-only.
+    # At the default dial the listing covers the whole merge_rules approver cohort -- an order of
+    # magnitude more than the listed authors -- and is rescanned every few minutes, so one info line
+    # per open PR is unaffordable. The aggregate count stays at info; the per-PR detail is debug-only.
     assert "found 2 open PR(s)" in caplog.text
     assert "open PR #" not in caplog.text
 
 
 def test_run_without_token_raises(make_config):
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        review.run(make_config(github_token=None), resolve_authorized=lambda: _AUTHORIZED)
+        review.run(make_config(github_token=None), resolve_listed=_listed, resolve_merge_rules=_merge_rules)
 
 
-def test_run_missing_token_does_not_resolve_authorized(make_config):
-    resolved: list[int] = []
+def test_run_missing_token_resolves_neither_the_issue_nor_the_merge_rules(make_config):
+    resolved: list[str] = []
 
-    def counting_resolve() -> frozenset[str]:
-        resolved.append(1)
-        return _AUTHORIZED
+    def counting_listed() -> frozenset[str]:
+        resolved.append("issue")
+        return _LISTED
+
+    def counting_rules() -> merge_authz.MergeRulesSnapshot:
+        resolved.append("rules")
+        return _SNAPSHOT
 
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        review.run(make_config(github_token=None), resolve_authorized=counting_resolve)
+        review.run(make_config(github_token=None), resolve_listed=counting_listed, resolve_merge_rules=counting_rules)
 
-    # The token check precedes authorization resolution, so a tokenless scan never builds an
-    # authz client -- it fails fast on the cheaper local check.
+    # The token check precedes both resolutions, so a tokenless scan never builds a client -- it
+    # fails fast on the cheaper local check.
     assert resolved == []
 
 
-def test_run_cold_authorized_failure_propagates(make_config):
-    def boom_resolve() -> frozenset[str]:
+def test_run_cold_merge_rules_failure_propagates(make_config):
+    def boom_resolve() -> merge_authz.MergeRulesSnapshot:
         raise RuntimeError("merge_rules unreachable")
+
+    fetched: list[int] = []
+
+    def fetch(_client, _authors):
+        fetched.append(1)
+        return [_open_pr(1)]
 
     # A cold resolver failure must propagate out of run() (the daemon backs off, the one-shot exits
     # non-zero); run never falls back to hashing all human comments.
@@ -1926,28 +2045,27 @@ def test_run_cold_authorized_failure_propagates(make_config):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1)],
+            fetch=fetch,
             fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=lambda *_args, **_kwargs: None,
-            resolve_authorized=boom_resolve,
+            resolve_listed=_listed,
+            resolve_merge_rules=boom_resolve,
             now=lambda: _NOW,
         )
+    assert fetched == []
 
 
-def test_run_resolves_authorized_once_and_threads_to_fingerprints(make_config):
+def test_run_resolves_the_issue_and_the_rules_once_and_threads_the_authorized_set_to_fingerprints(make_config):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1), _open_pr(2), _open_pr(3)],
         fingerprints={1: ("h1", _HASH_A), 2: ("h2", _HASH_A), 3: ("h3", _HASH_A)},
-        authorized=frozenset({"alice", "bob"}),
     )
 
-    # The resolver is called exactly once per scan (not once per PR), and that one resolved set is
-    # threaded into every fingerprint call.
-    assert scan.resolver_calls == 1
-    assert scan.authorized_seen == [frozenset({"alice", "bob"})] * 3
+    assert (scan.issue_reads, scan.rules_reads) == (1, 1)
+    assert scan.authorized_seen == [_AUTHORIZED] * 3
 
 
 def test_default_fetch_forwards_the_cohort_to_list_open_prs(monkeypatch):
@@ -1967,34 +2085,9 @@ def test_default_fetch_forwards_the_cohort_to_list_open_prs(monkeypatch):
     assert result is expected
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
-    # The author set is the caller's, not a module constant: the listing follows the resolved
-    # evaluation cohort, while TRUSTED_AUTHORS stays reserved for the two authz gates.
+    # The author set is the caller's, not a module constant: the listing follows whatever author set
+    # the scan resolved for this pass.
     assert captured["authors"] == {"alice", "bob"}
-
-
-def test_default_fetch_author_reads_the_author_off_get_pr(monkeypatch):
-    captured: dict[str, object] = {}
-
-    def fake_get_pr(client, repo, pr_number):
-        captured["client"] = client
-        captured["repo"] = repo
-        captured["pr_number"] = pr_number
-        return _FakePR(pr_number, _FakeHead("h"), _FakeUser("albanD"))
-
-    monkeypatch.setattr(github_client, "get_pr", fake_get_pr)
-
-    result = review._default_fetch_author(_CLIENT, 7)
-
-    assert result == "albanD"
-    assert captured["client"] is _CLIENT
-    assert captured["repo"] == TARGET_REPO
-    assert captured["pr_number"] == 7
-
-
-def test_default_fetch_author_is_none_for_a_pr_without_a_user(monkeypatch):
-    monkeypatch.setattr(github_client, "get_pr", lambda _client, _repo, number: _FakePR(number, _FakeHead("h")))
-
-    assert review._default_fetch_author(_CLIENT, 7) is None
 
 
 def test_default_fingerprint_forwards_to_fingerprint_pr(monkeypatch):
@@ -2131,69 +2224,49 @@ def test_pr_changes_requested_without_bot_login_logs_and_skips_posting(make_conf
     assert "BOT_LOGIN is required to post" in caplog.text
 
 
-# An approver merge_rules names but the trusted-author set does not: in the evaluation cohort,
-# outside both authz gates, and therefore evaluated in shadow.
+# An approver merge_rules names but the trusted-authors issue does not list: in the evaluation
+# cohort, outside both authz gates, and therefore evaluated in shadow.
 _COHORT_ONLY_AUTHOR = "alice"
 
-_TRUSTED_VS_SHADOW = [
-    pytest.param("albanD", False, id="trusted-author"),
-    pytest.param(_COHORT_ONLY_AUTHOR, True, id="cohort-author-outside-the-trusted-set"),
+_AUTHORITATIVE_VS_SHADOW = [
+    pytest.param(_SCOPED_AUTHOR, (_DOCS_FILE,), False, id="listed-author-whose-rule-covers-the-pr"),
+    pytest.param(_SCOPED_AUTHOR, (_DOCS_FILE, _TORCH_FILE), True, id="listed-author-whose-rule-misses-a-file"),
+    pytest.param(_COHORT_ONLY_AUTHOR, (_DOCS_FILE,), True, id="cohort-author-the-issue-does-not-list"),
 ]
 
 
-def test_listing_scans_the_evaluation_cohort_not_the_trusted_author_set(make_config):
-    authorized = frozenset({"Alice", "bob", "pytorchbot", cohort.GREENLIGHT_APP_SLUG})
-    scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=authorized)
+def test_listing_scans_the_evaluation_cohort_not_the_listed_authors(make_config):
+    rules = _catch_all("Alice", "bob", "pytorchbot", cohort.GREENLIGHT_APP_SLUG)
+    scan = _run_scan(make_config, listed=[], fingerprints={}, rules=rules)
 
     # What reaches list_open_prs_by_authors is the resolved merge_rules approver set minus bots and
-    # greenlight itself -- not the trusted authors, who bound authority rather than what is evaluated.
+    # greenlight itself -- not the listed authors, who bound authority rather than what is evaluated.
     assert scan.listed_authors == [frozenset({"alice", "bob"})]
-    assert scan.listed_authors[0].isdisjoint({login.lower() for login in cohort.TRUSTED_AUTHORS})
+    assert scan.listed_authors[0].isdisjoint(_LISTED)
 
 
 _SCAN_COHORT_MODES = [
     pytest.param(1.0, id="full-cohort"),
     pytest.param(0.5, id="half-rollout"),
-    pytest.param(0.0, id="trusted-authors-only"),
+    pytest.param(0.0, id="listed-authors-only"),
 ]
-
-_TRUSTED_LOWERCASED = frozenset(author.lower() for author in cohort.TRUSTED_AUTHORS)
-
-
-def test_zero_rollout_narrows_the_listing_to_the_trusted_authors(make_config, caplog):
-    with caplog.at_level(logging.INFO, logger="greenlight"):
-        scan = _run_scan(
-            make_config,
-            listed=[],
-            fingerprints={},
-            authorized=frozenset({"Alice", "bob"}),
-            config_kwargs={"shadow_rollout": 0.0},
-        )
-
-    # The kill switch, unchanged by becoming an end of the dial: exactly the trusted authors reach
-    # the listing, so merge_rules approvers outside that set stop being scanned at all -- and since
-    # every remaining author is trusted, no shadow row can be produced and nothing downstream needs
-    # a matching gate.
-    assert scan.listed_authors == [_TRUSTED_LOWERCASED]
-    assert "scan cohort: trusted authors only (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=0)" in caplog.text
 
 
 def test_listing_author_set_has_one_casing_at_every_dial(make_config):
-    wide = _run_scan(make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice", "Bob"}))
-    narrow = _run_scan(
-        make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice"}), config_kwargs={"shadow_rollout": 0.0}
-    )
+    wide = _run_scan(make_config, listed=[], fingerprints={}, rules=_catch_all("Alice", "Bob"))
+    narrow = _run_scan(make_config, listed=[], fingerprints={}, config_kwargs={"shadow_rollout": 0.0})
 
     # Both branches feed the same GitHub call, so both must hand it the same shape. The client
     # lowercases what it is given, but a mixed-case set here reads as if the dial changed the
     # matching rule as well as the membership.
+    assert narrow.listed_authors == [_LISTED]
     for listed in (*wide.listed_authors, *narrow.listed_authors):
         assert listed == frozenset(login.lower() for login in listed)
 
 
 def test_rollout_defaults_to_one_and_lists_the_whole_evaluation_cohort(make_config, caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        scan = _run_scan(make_config, listed=[], fingerprints={}, authorized=frozenset({"Alice", "bob"}))
+        scan = _run_scan(make_config, listed=[], fingerprints={}, rules=_catch_all("Alice", "bob"))
 
     # Unset means everyone: the dial has to be reached for, and the setting is logged at every value
     # so an operator who moves it can confirm from the logs that the next tick picked it up.
@@ -2207,15 +2280,14 @@ def test_authorized_logins_stay_resolved_and_threaded_at_every_dial(make_config,
         make_config,
         listed=[_open_pr(1)],
         fingerprints={1: ("headsha1", _HASH_A)},
-        authorized=frozenset({"alice", "bob"}),
         config_kwargs={"shadow_rollout": shadow_rollout},
     )
 
     # Narrowing the listing must never become "skip the merge_rules fetch". That resolved set is
     # also what decides whether a human with merge rights already approved the PR, so dropping it
     # when narrowed would silently change which PRs the scan skips.
-    assert scan.resolver_calls == 1
-    assert scan.authorized_seen == [frozenset({"alice", "bob"})]
+    assert scan.rules_reads == 1
+    assert scan.authorized_seen == [_AUTHORIZED]
 
 
 def test_requester_gate_is_not_widened_by_the_evaluation_cohort(make_config, caplog):
@@ -2229,9 +2301,9 @@ def test_requester_gate_is_not_widened_by_the_evaluation_cohort(make_config, cap
         )
 
     # Being in the cohort buys evaluation, never the right to command one: a merge_rules approver
-    # outside the trusted set is still refused, before any network work.
+    # the issue does not list is still refused, before any PR is fetched.
     assert _COHORT_ONLY_AUTHOR in cohort.evaluation_cohort(_AUTHORIZED)
-    assert scan.author_fetched == []
+    assert scan.pr_fetches == []
     assert scan.fingerprinted == []
     assert scan.dispatched == []
     assert f"refusing review: requester '{_COHORT_ONLY_AUTHOR}'" in caplog.text
@@ -2239,45 +2311,82 @@ def test_requester_gate_is_not_widened_by_the_evaluation_cohort(make_config, cap
 
 def test_pr_target_author_gate_is_not_widened_by_the_evaluation_cohort(make_config, caplog):
     with caplog.at_level(logging.WARNING, logger="greenlight"):
-        scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=_COHORT_ONLY_AUTHOR)
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            fingerprints={5: ("headsha5", _HASH_A)},
+            author=_COHORT_ONLY_AUTHOR,
+            files={5: (_DOCS_FILE,)},
+        )
 
     # Same boundary from the other side: greenlight reviews this author's PRs on its own schedule,
-    # but nobody may point --pr at one, because that path is what leads to an approval.
+    # and a merge rule even covers this one, but nobody may point --pr at it, because that path is
+    # what leads to an approval. An unlisted author costs no files read.
     assert _COHORT_ONLY_AUTHOR in cohort.evaluation_cohort(_AUTHORIZED)
-    assert scan.author_fetched == [5]
+    assert scan.pr_fetches == [5]
+    assert scan.files_fetched == []
     assert scan.fingerprinted == []
     assert scan.dispatched == []
     assert "refusing --pr 5" in caplog.text
 
 
-@pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
-def test_dispatch_marker_carries_the_authors_shadow_and_gates_the_poke(make_config, author, shadow):
+def test_pr_target_gate_admits_a_path_scoped_author_whose_rule_covers_the_pr(make_config):
+    scan = _run_scan(
+        make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=_SCOPED_AUTHOR, files={5: (_DOCS_FILE,)}
+    )
+
+    # One GET yields the author, head and base, and the files are read once: the gate's answer
+    # seeds the pass, so nothing downstream reads them again.
+    assert scan.pr_fetches == [5]
+    assert scan.files_fetched == [5]
+    assert scan.dispatch_shadow == [(5, False)]
+
+
+def test_pr_target_gate_refuses_a_path_scoped_author_whose_rule_misses_a_file(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author=_SCOPED_AUTHOR,
+        files={5: (_DOCS_FILE, _TORCH_FILE)},
+    )
+
+    # Listed is not enough: trymerge would refuse this author's merge of this PR, so greenlight must
+    # not be pointed at it either.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+
+
+@pytest.mark.parametrize(("author", "changed", "shadow"), _AUTHORITATIVE_VS_SHADOW)
+def test_dispatch_marker_carries_the_prs_shadow_and_gates_the_poke(make_config, author, changed, shadow):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, author=author)],
         fingerprints={1: ("headsha1", _HASH_A)},
+        files={1: changed},
     )
 
-    # The listing already knows the author, so the scan decides once and spends it three ways: the
-    # workflow input that withholds the approval, the row the merge gate reads, and whether Dr. CI
-    # is worth poking at all -- a shadow row is filtered out of the query a rebuild would run.
+    # The scan decides once and spends it three ways: the workflow input that withholds the
+    # approval, the row the merge gate reads, and whether Dr. CI is worth poking at all -- a shadow
+    # row is filtered out of the query a rebuild would run.
     assert scan.dispatch_shadow == [(1, shadow)]
     assert scan.emit_shadow == [(1, shadow)]
     assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
 
 
-@pytest.mark.parametrize(("author", "shadow"), _TRUSTED_VS_SHADOW)
-def test_reverted_row_carries_the_authors_shadow_and_gates_the_poke(make_config, author, shadow):
+@pytest.mark.parametrize(("author", "changed", "shadow"), _AUTHORITATIVE_VS_SHADOW)
+def test_reverted_row_carries_the_prs_shadow_and_gates_the_poke(make_config, author, changed, shadow):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=author)],
         fingerprints={},
+        files={1: changed},
         bot_login="greenlight-app[bot]",
         dismissed_ids={1: [901]},
     )
 
-    # revert_guard writes the scan's other state row, and it has no author of its own -- the same
-    # listing answer is threaded in rather than costing a second GitHub read per reverted PR.
+    # revert_guard writes the scan's other state row, and it has no author of its own -- the scan's
+    # answer for the PR is threaded in, read from the same memo dispatch would use.
     assert scan.reverted_shadow == [(1, shadow)]
     assert scan.reverted_emitted == [(TARGET_REPO, 1, "headsha1", 1)]
     assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
@@ -2301,9 +2410,9 @@ def test_mixed_cohort_batch_stamps_each_pr_independently(make_config):
 def test_pr_recheck_is_never_shadow_because_its_author_gate_already_ran(make_config):
     scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author="albanD")
 
-    # The --pr path has no listing to read an author from, so it reuses the one the target-author
-    # gate already fetched -- which that gate has already required to be trusted.
-    assert scan.author_fetched == [5]
+    # The --pr path has no listing to read an author from, so it reuses the answer the target gate
+    # already reached -- which that gate has already required to be eligible.
+    assert scan.pr_fetches == [5]
     assert scan.dispatch_shadow == [(5, False)]
     assert scan.emit_shadow == [(5, False)]
 
@@ -2317,13 +2426,11 @@ def test_allow_untrusted_author_still_resolves_the_author_so_a_trusted_pr_stays_
         allow_untrusted_author=True,
     )
 
-    # Regression guard for a live-approval revocation. The flag once skipped the only lookup that
-    # names the author, leaving it None -- and cohort.is_shadow(None) is True, so the run recorded a
-    # shadow verdict, whose LAND dismisses greenlight's existing approval. Pointed at a TRUSTED
-    # author's PR, a local convenience flag therefore revoked a production approval. The lookup is
-    # unconditional now, so the flag cannot change what cohort a PR is in -- only whether an
-    # untrusted one is turned away.
-    assert scan.author_fetched == [5]
+    # A shadow verdict's LAND dismisses greenlight's existing approval, so a flag that skipped the
+    # eligibility lookup would, pointed at an eligible author's PR, revoke a production approval. The
+    # lookup is unconditional, so the flag cannot change what cohort a PR is in -- only whether an
+    # ineligible one is turned away.
+    assert scan.pr_fetches == [5]
     assert scan.dispatch_shadow == [(5, False)]
     assert scan.emit_shadow == [(5, False)]
 
@@ -2340,7 +2447,7 @@ def test_allow_untrusted_author_keeps_an_untrusted_pr_shadow(make_config):
     # The other half of that same lookup: waiving the refusal must not waive shadow. The override
     # stays a way to exercise the reviewer, never a way to have an arbitrary PR approved -- and the
     # Dr. CI query drops shadow rows, so there is nothing to poke for.
-    assert scan.author_fetched == [5]
+    assert scan.pr_fetches == [5]
     assert scan.dispatch_shadow == [(5, True)]
     assert scan.emit_shadow == [(5, True)]
     assert scan.poked == []
@@ -2355,10 +2462,10 @@ def test_allow_untrusted_author_with_an_unnameable_author_fails_closed_to_shadow
         allow_untrusted_author=True,
     )
 
-    # An author GitHub cannot name is not trusted, so the flag is what lets this review run at all --
-    # and it still resolves to shadow. Unknown is the one input where the fail-closed answer and the
-    # old skip-the-lookup bug agreed, so pin it explicitly rather than leave it to that coincidence.
-    assert scan.author_fetched == [5]
+    # An author GitHub cannot name is not eligible, so the flag is what lets this review run at all --
+    # and it still resolves to shadow. Pin the unknown author explicitly: it is the one input where a
+    # skipped lookup and the fail-closed answer would agree by coincidence.
+    assert scan.pr_fetches == [5]
     assert scan.dispatch_shadow == [(5, True)]
     assert scan.emit_shadow == [(5, True)]
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
@@ -2410,7 +2517,7 @@ def test_a_held_out_pr_still_reaches_the_revert_guard(make_config):
     assert scan.reverted_emitted == [(TARGET_REPO, _HELD_OUT_PR, f"headsha{_HELD_OUT_PR}", 1)]
 
 
-def test_a_trusted_authors_pr_is_never_held_out_by_the_dial(make_config):
+def test_an_authoritative_pr_is_never_held_out_by_the_dial(make_config):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(_HELD_OUT_PR, author="albanD")],
@@ -2419,8 +2526,8 @@ def test_a_trusted_authors_pr_is_never_held_out_by_the_dial(make_config):
     )
 
     # Same PR number and same dial as the held-out case, opposite answer: the exemption is keyed off
-    # the author. Sampling a trusted author's PR out would not shrink the experiment, it would
-    # withhold the live, authoritative service greenlight already gives that author.
+    # the PR's authority. Sampling an authoritative PR out would not shrink the experiment, it would
+    # withhold the live, authoritative service greenlight already gives its author.
     assert scan.fingerprinted == [_HELD_OUT_PR]
     assert scan.dispatch_shadow == [(_HELD_OUT_PR, False)]
 
@@ -2443,7 +2550,7 @@ def test_pr_target_is_never_held_out_by_the_dial(make_config):
     assert scan.dispatch_shadow == [(_HELD_OUT_PR, True)]
 
 
-def test_zero_rollout_leaves_the_trusted_authors_at_full_service(make_config):
+def test_zero_rollout_leaves_the_authoritative_prs_at_full_service(make_config):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(_HELD_OUT_PR, author="albanD"), _open_pr(_IN_EXPERIMENT_PR, author="huydhn")],
@@ -2454,8 +2561,218 @@ def test_zero_rollout_leaves_the_trusted_authors_at_full_service(make_config):
         config_kwargs={"shadow_rollout": 0.0},
     )
 
-    # 0.0 reproduces the old off switch rather than pausing the service: the trusted authors it
-    # leaves listed are all exempt, so they are evaluated at full strength on both sides of the
-    # bucket boundary, with no shadow traffic anywhere.
+    # 0.0 pauses the shadow experiment, not the service: authoritative PRs are all exempt, so they
+    # are evaluated at full strength on both sides of the bucket boundary.
     assert sorted(scan.fingerprinted) == [_HELD_OUT_PR, _IN_EXPERIMENT_PR]
     assert scan.emit_shadow == [(_HELD_OUT_PR, False), (_IN_EXPERIMENT_PR, False)]
+
+
+@pytest.mark.parametrize(
+    ("pr", "requester"),
+    [
+        pytest.param(None, None, id="listing"),
+        pytest.param(5, None, id="pr"),
+        pytest.param(None, "huydhn", id="requester"),
+    ],
+)
+def test_an_unreadable_issue_fails_every_mode_before_any_other_github_read(make_config, pr, requester):
+    error = TrustedAuthorsError("trusted-authors issue body is empty: None")
+    scan = _run_scan(
+        make_config,
+        pr=pr,
+        requester=requester,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",))],
+        fingerprints={5: ("headsha5", _HASH_A)},
+        fetched_labels={5: ("Reverted",)},
+        bot_login="greenlight-app[bot]",
+        issue_error=error,
+        raises=TrustedAuthorsError,
+    )
+
+    assert scan.error is error
+    assert (scan.rules_reads, scan.listed_calls) == (0, 0)
+    assert scan.pr_fetches == []
+    assert scan.label_fetches == []
+    assert scan.dismissals == []
+
+
+def test_catch_all_authors_cost_no_github_read_for_their_authority(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW), _open_pr(2, updated_at=_NEW, author="huydhn")],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+    )
+
+    assert scan.dispatch_shadow == [(1, False), (2, False)]
+    assert scan.pr_fetches == []
+    assert scan.files_fetched == []
+
+
+def test_a_listed_authors_recorded_reverted_pr_is_revoked_without_reading_its_files(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_SCOPED_AUTHOR)],
+        fingerprints={},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        files={1: (_DOCS_FILE,)},
+        files_errors={1: RuntimeError("files boom")},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={1: [901]},
+    )
+
+    # The author being listed already settles the stamp, so the read -- here one that would fail the
+    # pass -- is never made.
+    assert scan.files_fetched == []
+    assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_shadow == [(1, False)]
+    assert [number for _repo, number, _config in scan.poked] == [1]
+
+
+def test_after_a_rate_limit_files_reads_are_skipped_and_those_prs_are_abandoned_not_failed(make_config):
+    from github import RateLimitExceededException
+
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(1, updated_at=_NEW, labels=("Reverted",)),
+            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(3, updated_at=_NEW),
+        ],
+        fingerprints={3: ("headsha3", _HASH_A)},
+        files={2: (_DOCS_FILE,)},
+        bot_login="greenlight-app[bot]",
+        dismiss_errors={1: RateLimitExceededException(403)},
+        raises=RuntimeError,
+    )
+
+    # PR 1's dismissal hits the rate limit, so PR 2's files are never read on the throttled token: it
+    # is abandoned, like PR 3, whose fingerprint never ran, and neither is dispatched.
+    assert scan.files_fetched == []
+    assert scan.dispatched == []
+    assert str(scan.error) == "1 PR(s) failed during scan: [1]; 2 PR(s) abandoned due to rate limit: [2, 3]"
+
+
+def test_an_unlisted_authors_reverted_pr_with_a_recorded_row_stays_shadow(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_COHORT_ONLY_AUTHOR)],
+        fingerprints={},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={1: [901]},
+    )
+
+    assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_shadow == [(1, True)]
+    assert scan.poked == []
+
+
+def test_a_push_between_the_authority_read_and_the_fingerprint_defers_only_a_pr_whose_files_were_read(
+    make_config,
+):
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(2, updated_at=_NEW),
+            _open_pr(3, updated_at=_NEW, author=_COHORT_ONLY_AUTHOR),
+        ],
+        fingerprints={1: ("pushed1", _HASH_A), 2: ("pushed2", _HASH_A), 3: ("pushed3", _HASH_A)},
+        files={1: (_DOCS_FILE,)},
+    )
+
+    # PR 1's authority was decided on the head its files were read at, and the fingerprint saw a newer
+    # head nobody decided, so it waits for the next pass without failing it. PRs 2 and 3 needed no
+    # read, so a new head changes nothing for them.
+    assert sorted(scan.fingerprinted) == [1, 2, 3]
+    assert scan.dispatch_shadow == [(2, False), (3, True)]
+
+
+@pytest.mark.parametrize(
+    ("head_refs", "base_refs"),
+    [
+        pytest.param({1: "gh/carol/7/head", 2: "gh/albanD/3/head"}, {}, id="ghstack-head-on-main"),
+        pytest.param({}, {1: "release/2.9", 2: "release/2.9"}, id="non-main-base"),
+    ],
+)
+def test_a_ghstack_head_or_a_non_main_base_leaves_a_path_scoped_author_shadow_but_not_a_catch_all_one(
+    make_config, head_refs, base_refs
+):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+        files={1: (_DOCS_FILE,)},
+        head_refs=head_refs,
+        base_refs=base_refs,
+    )
+
+    # trymerge lands a ghstack PR from its orig branch, and any base but main is writable by the author,
+    # so the checked files could not bound what lands: the path-scoped author is shadow, and the files
+    # are never listed. A catch-all author's authority never depends on the files.
+    assert scan.dispatch_shadow == [(1, True), (2, False)]
+    assert scan.files_fetched == []
+
+
+def test_a_refused_pr_target_by_a_listed_author_outside_every_rule_still_has_its_revert_revoked(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        listed_logins=_LISTED | {"dave"},
+        author="Dave",
+        fetched_labels={5: ("Reverted",)},
+        states={5: _state(5, STATUS_LAND, _HASH_A, _NEW, run_id=1)},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={5: [901]},
+    )
+
+    # No rule names Dave, so Dave is outside the cohort the scheduled scan lists, and this --pr is
+    # what revokes greenlight's approval on the reverted PR. The target stays refused: revoked and
+    # recorded, never fingerprinted or dispatched.
+    assert scan.dismissals == [(5, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_emitted == [(TARGET_REPO, 5, "headsha5", 2)]
+    assert scan.reverted_shadow == [(5, False)]
+    assert [number for _repo, number, _config in scan.poked] == [5]
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+
+
+def test_a_refused_pr_target_by_an_unlisted_author_never_reaches_the_revert_guard(make_config):
+    scan = _run_scan(
+        make_config,
+        pr=5,
+        fingerprints={5: ("headsha5", _HASH_A)},
+        author="mallory",
+        fetched_labels={5: ("Reverted",)},
+        states={5: _state(5, STATUS_LAND, _HASH_A, _NEW)},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={5: [901]},
+    )
+
+    assert scan.label_fetches == []
+    assert scan.read_calls == []
+    assert scan.dismissals == []
+    assert scan.reverted_emitted == []
+
+
+def test_zero_rollout_revokes_a_listed_author_outside_every_rule_but_never_fingerprints_their_prs(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(1, updated_at=_NEW, labels=("Reverted",), author="dave"),
+            _open_pr(2, updated_at=_NEW, author="dave"),
+        ],
+        fingerprints={2: ("headsha2", _HASH_A)},
+        listed_logins=_LISTED | {"dave"},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={1: [901]},
+        config_kwargs={"shadow_rollout": 0.0},
+    )
+
+    assert scan.listed_authors == [_LISTED | {"dave"}]
+    assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_shadow == [(1, False)]
+    assert [number for _repo, number, _config in scan.poked] == [1]
+    assert scan.fingerprinted == []
