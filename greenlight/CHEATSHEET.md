@@ -107,8 +107,8 @@ scanner lets a running review finish (or time out and record a verdict) before i
 re-dispatches, rather than cancelling and restarting one that is still running; lower
 `--timeout-minutes` in the deployment if you need a stuck review reclaimed sooner.
 
-`@greenlight recheck` on a `pytorch/pytorch` PR (via the separately deployed trigger) dispatches
-`greenlight-review.yml` with the PR number and commenter as `--pr N --requester <login>`. The scan
+A recheck dispatches `greenlight-review.yml` as `--pr N --requester <login>`, by hand: no
+`pytorch/pytorch` workflow turns an `@greenlight recheck` comment into that dispatch. The scan
 is the sole authorizer: `--pr` refuses unless PR N's author is eligible for it, and `--requester`
 refuses unless the commenter is listed in the trusted-authors issue and in the evaluation cohort,
 matched case-insensitively. A refusal is a clean exit 0, but a listed author's refused PR still goes
@@ -182,7 +182,7 @@ The end-to-end flow, per cohort PR:
 
 1. `review` reads the trusted-authors issue and `merge_rules.yaml`, then scans the open PRs,
    dropping any draft PR from the listing outright — never fingerprinted or dispatched, though
-   `@greenlight recheck` via `--pr` still reviews a draft. It
+   a `--pr` run still reviews a draft. It
    also drops any reverted PR (labeled `Reverted`, or with a `REVERTED` row already recorded),
    first revoking greenlight's own approving review and recording the `REVERTED` row unless it is
    already the PR's latest, then poking Dr. CI if either changed anything. That exclusion is permanent, survives

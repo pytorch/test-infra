@@ -123,13 +123,13 @@ stamped, approved, rendered and poked exactly as it would be at any other settin
 
 ### Rechecking a PR (`@greenlight recheck`)
 
-A trusted author — listed in the trusted-authors issue and in the evaluation cohort — can
-re-trigger a review by commenting `@greenlight recheck` on a `pytorch/pytorch` PR. A thin
-`pytorch/pytorch` workflow (deployed separately) dispatches `greenlight-review.yml` with the PR
-number and the commenter's login, and the scan re-checks that one PR through the `--pr` path.
+`@greenlight recheck` on a `pytorch/pytorch` PR needs a `pytorch/pytorch` workflow to dispatch
+`greenlight-review.yml` with the PR number and the commenter's login. No such workflow exists, so
+the path runs only when a `pytorch/test-infra` writer dispatches it by hand. The scan re-checks
+that one PR through `--pr`, for a requester listed in the issue and in the evaluation cohort.
 
 The scan is the single source of authorization and enforces two gates, both narrower than the
-cohort it scans, which widens who greenlight looks at but never who can point it at a PR.
+cohort it scans: cohort membership alone never authorizes a request.
 
 - **Target-author gate** — `--pr N` fetches PR `N` and refuses (no fingerprint, no dispatch, no
   review) unless its author is eligible for `N`. The listing scan is at least filtered to the
@@ -406,7 +406,7 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard cap on runtime (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
-| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches a resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching. The verdict is outside this cache and re-reads the rules on every run |
+| `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches a resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching. The verdict is outside this cache and re-reads the rules for each `LAND`/`NO_LAND` recorded without `--shadow` |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check |
 | `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` | `1` | How much of the shadow experiment `review`'s listing scan runs, as a fraction in `0`–`1`. An authoritative PR is always evaluated; every other listed PR joins only when a stable sha256 of `repo#number` falls under the dial, so the holdout is the same group from one scan to the next and raising the dial only ever adds PRs. `1` (the default) evaluates the whole evaluation cohort. `0` exactly narrows the listing to the logins the trusted-authors issue lists, minus bots and greenlight, and holds every shadow PR out of the fingerprint fan-out and dispatch; those PRs still reach the revert guard. A tiny non-zero value such as `1e-9` is not the same thing — it still lists the wide cohort, with an empty experiment. Anything outside `0`–`1`, and any non-finite value, is rejected. It thins the fingerprint fan-out and the dispatches, not the listing, which paginates every open PR at every setting. Affects the listing scan alone — `--pr`, `@greenlight recheck`, and both authz gates are never sampled out |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |

@@ -79,7 +79,7 @@ a `REVERTED` row, which can only deny: a PR that already has a recorded row gets
 when its author is currently listed. The two authorization gates (`authz_gates`) are narrower than
 the cohort: the `--requester` login must be listed and in the evaluation cohort, and the `--pr`
 target's author must be eligible for that PR. The cohort widens who greenlight looks at on its own
-schedule, never who can point it at a PR.
+schedule; cohort membership alone never authorizes a request.
 
 `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` (default `1.0`) sizes that shadow experiment.
 `candidate_filter.rollout_filter` keeps a stable sha256-keyed fraction of the **fingerprint

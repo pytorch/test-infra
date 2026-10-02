@@ -228,9 +228,9 @@ got.
     is no longer listed;
   - one `--shadow` dispatch against an authoritative PR.
 
-  None has happened: as of 2026-09-17 every PR's rows agree, and the hardcoded
-  trusted-author set's three additions, the last on 2026-09-01, all predate the
-  first recorded shadow row. **No column in this file bounds that risk, and
+  None had happened as of 2026-09-17, when every PR's rows agreed. The hardcoded
+  trusted-author set also changed after the first recorded shadow row, and those
+  later additions were not checked. **No column in this file bounds that risk, and
   `n_terminal_decisions` in particular does not**: it counts `LAND`/`NO_LAND`
   rows only, while the OR runs over all of them, so 61 of today's 82 shadow PRs
   are flagged by rows the count cannot see and carry at most one terminal
