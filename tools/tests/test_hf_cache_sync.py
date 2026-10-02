@@ -8,9 +8,11 @@ boto3 is deliberately not a test dependency: hf_cache_sync imports it lazily,
 so everything below runs with fake S3 clients.
 """
 
+import io
 import os
 import sys
 import tempfile
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from unittest import main, mock, TestCase
 
@@ -20,11 +22,23 @@ import tools.scripts.hf_cache_sync as m
 class FakeS3:
     """The slice of the boto3 S3 client hf_cache_sync actually uses."""
 
-    def __init__(self, objects: Optional[Dict[str, int]] = None) -> None:
+    def __init__(
+        self,
+        objects: Optional[Dict[str, int]] = None,
+        etags: Optional[Dict[str, str]] = None,
+        mtimes: Optional[Dict[str, float]] = None,
+        bodies: Optional[Dict[str, bytes]] = None,
+    ) -> None:
         # key -> size
         self.objects: Dict[str, int] = dict(objects or {})
+        # Optional per-key ETag, LastModified (epoch) and body; the listing
+        # falls back to a size-derived ETag and the epoch.
+        self.etags: Dict[str, str] = dict(etags or {})
+        self.mtimes: Dict[str, float] = dict(mtimes or {})
+        self.bodies: Dict[str, bytes] = dict(bodies or {})
         self.copied: List[str] = []
         self.uploaded: List[str] = []
+        self.got: List[str] = []
 
     def get_paginator(self, _name: str) -> "FakeS3":
         return self
@@ -38,7 +52,25 @@ class FakeS3:
                 {"/".join(k.split("/")[:depth]) + "/" for k in keys if "/" in k}
             )
             return [{"CommonPrefixes": [{"Prefix": p} for p in common]}]
-        return [{"Contents": [{"Key": k, "Size": self.objects[k]} for k in keys]}]
+        return [
+            {
+                "Contents": [
+                    {
+                        "Key": k,
+                        "Size": self.objects[k],
+                        "ETag": self.etags.get(k, f'"{self.objects[k]}"'),
+                        "LastModified": datetime.fromtimestamp(
+                            self.mtimes.get(k, 0.0), tz=timezone.utc
+                        ),
+                    }
+                    for k in keys
+                ]
+            }
+        ]
+
+    def get_object(self, Bucket: str, Key: str) -> Dict[str, Any]:
+        self.got.append(Key)
+        return {"Body": io.BytesIO(self.bodies[Key])}
 
     def copy(self, _source: Dict[str, str], _bucket: str, key: str, **_kw: Any) -> None:
         self.copied.append(key)
@@ -429,6 +461,239 @@ class TestPickSource(TestCase):
     def test_returns_none_when_nobody_has_it(self) -> None:
         with fake_clients({"a": FakeS3({}), "b": FakeS3({})}):
             self.assertIsNone(m.pick_source("models--a--b", ["a", "b"]))
+
+
+REF = "hub/models--a--b/refs/main"
+BLOB = "hub/models--a--b/blobs/deadbeef"
+
+
+def entries(objects: Dict[str, Any]) -> Dict[str, "m.Entry"]:
+    """key -> Entry from key -> size, or key -> (size, etag, modified)."""
+    out = {}
+    for k, v in objects.items():
+        size, etag, modified = v if isinstance(v, tuple) else (v, f'"{v}"', 0.0)
+        out[k] = m.Entry(size, etag, modified)
+    return out
+
+
+def never_called(key: str, have: Dict[str, Any]) -> str:
+    raise AssertionError(f"pick_ref called for {key}")
+
+
+class TestPlanSync(TestCase):
+    def test_identical_clusters_plan_nothing(self) -> None:
+        same = {REF: (40, '"abc"', 1.0), BLOB: 7, "datasets/x/y.arrow": 3}
+        listings = {"a": entries(same), "b": entries(same), "c": entries(same)}
+        self.assertEqual(m.plan_sync(listings, never_called), [])
+
+    def test_missing_key_is_copied_to_every_cluster_lacking_it(self) -> None:
+        listings = {"a": entries({BLOB: 7}), "b": entries({}), "c": entries({})}
+        self.assertEqual(
+            m.plan_sync(listings, never_called),
+            [m.Copy(BLOB, "a", "b", 7), m.Copy(BLOB, "a", "c", 7)],
+        )
+
+    def test_union_runs_in_every_direction(self) -> None:
+        listings = {
+            "a": entries({BLOB: 7}),
+            "b": entries({"datasets/x/y.arrow": 3}),
+        }
+        self.assertEqual(
+            sorted(m.plan_sync(listings, never_called)),
+            sorted(
+                [
+                    m.Copy(BLOB, "a", "b", 7),
+                    m.Copy("datasets/x/y.arrow", "b", "a", 3),
+                ]
+            ),
+        )
+
+    def test_refs_compare_by_etag_not_size(self) -> None:
+        """Every ref is 40 bytes, so size alone would call two commits equal."""
+        listings = {
+            "a": entries({REF: (40, '"old"', 1.0)}),
+            "b": entries({REF: (40, '"new"', 2.0)}),
+        }
+        asked = []
+
+        def pick(key: str, have: Dict[str, Any]) -> str:
+            asked.append((key, sorted(have)))
+            return "a"
+
+        self.assertEqual(m.plan_sync(listings, pick), [m.Copy(REF, "a", "b", 40)])
+        self.assertEqual(asked, [(REF, ["a", "b"])])
+
+    def test_agreeing_ref_missing_somewhere_skips_pick_ref(self) -> None:
+        listings = {
+            "a": entries({REF: (40, '"x"', 1.0)}),
+            "b": entries({REF: (40, '"x"', 2.0)}),
+            "c": entries({}),
+        }
+        self.assertEqual(
+            m.plan_sync(listings, never_called), [m.Copy(REF, "a", "c", 40)]
+        )
+
+    def test_differing_non_ref_takes_the_newest(self) -> None:
+        listings = {
+            "a": entries({"datasets/x/lock": (0, '"e"', 5.0)}),
+            "b": entries({"datasets/x/lock": (9, '"f"', 1.0)}),
+        }
+        self.assertEqual(
+            m.plan_sync(listings, never_called),
+            [m.Copy("datasets/x/lock", "a", "b", 0)],
+        )
+
+    def test_same_size_blob_with_other_etag_is_equal(self) -> None:
+        """A multipart copy changes the ETag of identical content."""
+        listings = {
+            "a": entries({BLOB: (7, '"md5"', 1.0)}),
+            "b": entries({BLOB: (7, '"md5-2"', 2.0)}),
+        }
+        self.assertEqual(m.plan_sync(listings, never_called), [])
+
+    def test_strays_outside_the_cache_layout_are_ignored(self) -> None:
+        listings = {
+            "a": entries({"hub/blobs/deadbeef": 1, "hub/.locks/x/y.lock": 0}),
+            "b": entries({}),
+        }
+        self.assertEqual(m.plan_sync(listings, never_called), [])
+
+
+class TestPickRef(TestCase):
+    def test_keeps_the_copy_matching_huggingface_even_if_older(self) -> None:
+        old = FakeS3({REF: 40}, bodies={REF: b"a" * 40})
+        new = FakeS3({REF: 40}, bodies={REF: b"b" * 40})
+        have = {
+            "old": m.Entry(40, '"o"', 1.0),
+            "new": m.Entry(40, '"n"', 2.0),
+        }
+        with fake_clients({"old": old, "new": new}), mock.patch.object(
+            m, "hf_revision", return_value="a" * 40
+        ) as rev:
+            self.assertEqual(m.pick_ref(REF, have), "old")
+        rev.assert_called_once_with("models--a--b", "main")
+
+    def test_newest_wins_when_huggingface_cannot_say(self) -> None:
+        have = {"x": m.Entry(40, '"o"', 1.0), "y": m.Entry(40, '"n"', 2.0)}
+        with fake_clients({}), mock.patch.object(m, "hf_revision", return_value=None):
+            self.assertEqual(m.pick_ref(REF, have), "y")
+
+    def test_newest_wins_when_nobody_matches_huggingface(self) -> None:
+        x = FakeS3({REF: 40}, bodies={REF: b"a" * 40})
+        y = FakeS3({REF: 40}, bodies={REF: b"b" * 40})
+        have = {"x": m.Entry(40, '"o"', 1.0), "y": m.Entry(40, '"n"', 2.0)}
+        with fake_clients({"x": x, "y": y}), mock.patch.object(
+            m, "hf_revision", return_value="c" * 40
+        ):
+            self.assertEqual(m.pick_ref(REF, have), "y")
+
+    def test_branch_names_with_slashes_survive(self) -> None:
+        key = "hub/models--a--b/refs/pr/1"
+        with mock.patch.object(m, "hf_revision", return_value=None) as rev:
+            m.pick_ref(key, {"x": m.Entry(40, '"o"', 1.0)})
+        rev.assert_called_once_with("models--a--b", "pr/1")
+
+
+class TestHfRevision(TestCase):
+    def fetch(self, repo_dir: str, ref: str) -> str:
+        seen = []
+
+        class Resp(io.BytesIO):
+            def __enter__(self) -> "Resp":
+                return self
+
+            def __exit__(self, *_: Any) -> None:
+                pass
+
+        def urlopen(req: Any, timeout: float) -> Resp:
+            seen.append(req.full_url)
+            return Resp(b'{"sha": "cafe"}')
+
+        with mock.patch.object(m.urllib.request, "urlopen", urlopen):
+            self.assertEqual(m.hf_revision(repo_dir, ref), "cafe")
+        return seen[0]
+
+    def test_urls(self) -> None:
+        base = "https://huggingface.co/api/"
+        self.assertEqual(
+            self.fetch("models--Qwen--Qwen3-0.6B", "main"),
+            base + "models/Qwen/Qwen3-0.6B/revision/main",
+        )
+        self.assertEqual(
+            self.fetch("models--gpt2", "main"), base + "models/gpt2/revision/main"
+        )
+        self.assertEqual(
+            self.fetch("datasets--org--name", "pr/1"),
+            base + "datasets/org/name/revision/pr%2F1",
+        )
+
+    def test_errors_mean_no_answer(self) -> None:
+        with mock.patch.object(
+            m.urllib.request, "urlopen", side_effect=OSError("offline")
+        ):
+            self.assertIsNone(m.hf_revision("models--a--b", "main"))
+
+
+class TestRunSync(TestCase):
+    def test_in_sync_run_is_listings_only(self) -> None:
+        objs = {REF: 40, BLOB: 7}
+        a, b = FakeS3(objs, bodies={REF: b"x"}), FakeS3(objs, bodies={REF: b"x"})
+        with fake_clients({"a": a, "b": b}), mock.patch.object(
+            m, "hf_revision", side_effect=AssertionError("no HF call")
+        ):
+            self.assertEqual(m.run_sync(["a", "b"], apply=True), 0)
+        self.assertEqual((a.copied, b.copied, a.got, b.got), ([], [], [], []))
+
+    def test_dry_run_copies_nothing(self) -> None:
+        a, b = FakeS3({BLOB: 7}), FakeS3({})
+        with fake_clients({"a": a, "b": b}):
+            self.assertEqual(m.run_sync(["a", "b"], apply=False), 0)
+        self.assertEqual(b.copied, [])
+
+    def test_content_lands_before_refs(self) -> None:
+        """A ref copied first points jobs at a snapshot the cluster lacks."""
+        snap = "hub/models--a--b/snapshots/c0ffee/config.json"
+        a, b = FakeS3({REF: 40, BLOB: 7, snap: 7}), FakeS3({})
+        order = []
+        with fake_clients({"a": a, "b": b}), mock.patch.object(
+            m, "copy_object", lambda s, d, k: order.append(k)
+        ):
+            self.assertEqual(m.run_sync(["a", "b"], apply=True), 0)
+        self.assertEqual(sorted(order[:2]), sorted([BLOB, snap]))
+        self.assertEqual(order[2:], [REF])
+
+    def test_failed_copies_are_counted_not_raised(self) -> None:
+        a, b = FakeS3({BLOB: 7, "datasets/x": 1}), FakeS3({})
+
+        def flaky(_s: str, _d: str, key: str) -> None:
+            if key == BLOB:
+                raise RuntimeError("boom")
+
+        with fake_clients({"a": a, "b": b}), mock.patch.object(m, "copy_object", flaky):
+            self.assertEqual(m.run_sync(["a", "b"], apply=True), 1)
+
+
+class TestSyncArgs(TestCase):
+    def run_main(self, *args: str) -> None:
+        with mock.patch.object(sys, "argv", ["hf_cache_sync.py", *args]):
+            m.main()
+
+    def test_rejects_source(self) -> None:
+        with self.assertRaises(SystemExit):
+            self.run_main("--sync", "--source", "meta-prod-aws-ue1")
+
+    def test_needs_two_clusters(self) -> None:
+        with self.assertRaises(SystemExit):
+            self.run_main(
+                "--sync", "--to", "meta-prod-aws-ue1", "--to", "meta-prod-aws-ue1"
+            )
+
+    def test_defaults_to_prod_and_exits_nonzero_on_failure(self) -> None:
+        with mock.patch.object(m, "run_sync", return_value=2) as run:
+            with self.assertRaises(SystemExit) as cm:
+                self.run_main("--sync", "--apply")
+        run.assert_called_once_with(m.PROD, True)
+        self.assertEqual(cm.exception.code, 1)
 
 
 if __name__ == "__main__":

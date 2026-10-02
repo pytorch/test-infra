@@ -36,6 +36,10 @@ Examples::
     # brand new region needs.
     hf_cache_sync.py --mirror --source meta-prod-aws-ue1 --to meta-prod-aws-uw1 --apply
 
+    # Make several clusters hold the union of what any of them holds. This is
+    # what the scheduled hf-cache-sync workflow runs; it never deletes.
+    hf_cache_sync.py --sync --to meta-prod-aws-ue1 --to meta-prod-aws-ue2 --apply
+
 A seeded repo is not necessarily visible to running jobs right away: the rclone
 mount uses ``--dir-cache-time 1h --poll-interval 0``, so a node that has already
 listed the parent directory keeps its cached listing for up to an hour. Nodes
@@ -45,10 +49,14 @@ that come up after the copy see it immediately.
 import argparse
 import concurrent.futures
 import functools
+import json
 import os
 import sys
 import tempfile
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+import time
+import urllib.parse
+import urllib.request
+from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
 
 
 # Mirrors the clusters carrying the `hf-cache` module in ci-infra
@@ -194,22 +202,20 @@ def copy_prefix(
     if not apply:
         return len(todo), n_bytes
 
-    dest_client = client(dest)
-    src_client = client(source)
-    src_bucket = bucket_of(source)
-
-    def one(key: str) -> None:
-        dest_client.copy(
-            {"Bucket": src_bucket, "Key": key},
-            bucket_of(dest),
-            key,
-            SourceClient=src_client,
-        )
-
     with concurrent.futures.ThreadPoolExecutor(MAX_WORKERS) as pool:
-        for _ in pool.map(one, todo):
+        for _ in pool.map(lambda key: copy_object(source, dest, key), todo):
             pass
     return len(todo), n_bytes
+
+
+def copy_object(source: str, dest: str, key: str) -> None:
+    """Server-side copy of one object between clusters' buckets."""
+    client(dest).copy(
+        {"Bucket": bucket_of(source), "Key": key},
+        bucket_of(dest),
+        key,
+        SourceClient=client(source),
+    )
 
 
 def copy_repo(
@@ -226,6 +232,198 @@ def copy_repo(
 def copy_datasets(source: str, dest: str, apply: bool) -> Tuple[int, int]:
     """Copy the top-level datasets/ cache between clusters."""
     return copy_prefix(source, dest, f"{DATASETS}/", f"{DATASETS}/", apply)
+
+
+class Entry(NamedTuple):
+    size: int
+    etag: str
+    modified: float  # epoch seconds
+
+
+class Copy(NamedTuple):
+    key: str
+    source: str
+    dest: str
+    size: int
+
+
+def list_entries(cluster: str, prefix: str) -> Dict[str, Entry]:
+    """key -> Entry for everything under a prefix, from the listing alone."""
+    paginator = client(cluster).get_paginator("list_objects_v2")
+    out = {}
+    for page in paginator.paginate(Bucket=bucket_of(cluster), Prefix=prefix):
+        for obj in page.get("Contents", []):
+            out[obj["Key"]] = Entry(
+                obj["Size"], obj["ETag"], obj["LastModified"].timestamp()
+            )
+    return out
+
+
+def is_synced(key: str) -> bool:
+    """Whether --sync reconciles a key: the hub repos and the datasets/ cache.
+
+    A top-level hub/blobs or hub/.locks is not part of the hub cache layout
+    (strays from early seeding), and --mirror leaves them behind too.
+    """
+    if key.startswith(f"{DATASETS}/"):
+        return True
+    parts = key.split("/", 2)
+    return (
+        len(parts) == 3
+        and parts[0] == HUB
+        and parts[1].startswith(("models--", "datasets--", "spaces--"))
+    )
+
+
+def is_ref(key: str) -> bool:
+    return key.startswith(f"{HUB}/") and f"/{REFS}/" in key
+
+
+def fingerprint(key: str, entry: Entry) -> object:
+    """What has to match for two clusters' copies of a key to count as equal.
+
+    A ref is always 40 bytes, so only its ETag tells two commits apart; it is a
+    single-part object, so the ETag is the MD5 of its body and survives a copy.
+    Everything else is content addressed and compared by size, as copy_prefix
+    does: a multipart copy need not keep the ETag.
+    """
+    return entry.etag if is_ref(key) else entry.size
+
+
+def plan_sync(
+    listings: Dict[str, Dict[str, Entry]],
+    pick_ref: Callable[[str, Dict[str, Entry]], str],
+) -> List[Copy]:
+    """The copies that leave every cluster holding the union of all of them.
+
+    A key every cluster holds identically costs no S3 call, so a run with
+    nothing to do is only the listings. Where clusters disagree, pick_ref
+    decides a ref and the newest copy wins anything else. Nothing is deleted.
+    """
+    clusters = list(listings)
+    keys = set().union(*listings.values())
+    todo = []
+    for key in sorted(k for k in keys if is_synced(k)):
+        have = {c: listings[c][key] for c in clusters if key in listings[c]}
+        prints = {fingerprint(key, e) for e in have.values()}
+        if len(have) == len(clusters) and len(prints) == 1:
+            continue
+        if len(prints) == 1:
+            winner = next(iter(have))
+        elif is_ref(key):
+            winner = pick_ref(key, have)
+        else:
+            winner = max(have, key=lambda c: have[c].modified)
+        want = fingerprint(key, have[winner])
+        for c in clusters:
+            if c not in have or fingerprint(key, have[c]) != want:
+                todo.append(Copy(key, winner, c, have[winner].size))
+    return todo
+
+
+def hf_revision(repo_dir: str, ref: str) -> Optional[str]:
+    """The commit HuggingFace resolves repo_dir@ref to now, None if it won't say."""
+    kind, rest = repo_dir.split("--", 1)
+    repo_id = rest.replace("--", "/", 1)
+    url = f"https://huggingface.co/api/{kind}/{repo_id}/revision/" + urllib.parse.quote(
+        ref, safe=""
+    )
+    req = urllib.request.Request(url)
+    token = os.environ.get("HF_TOKEN")
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.load(resp).get("sha")
+    except Exception:
+        return None
+
+
+def pick_ref(key: str, have: Dict[str, Entry]) -> str:
+    """Which cluster's copy of a ref the clusters disagree on to keep.
+
+    The one matching what HuggingFace serves now: a job asking for the revision
+    that finds any other commit tries to rewrite the ref, which fails on the
+    read-only mount. If HuggingFace cannot say, or nobody matches, the newest
+    write wins.
+    """
+    _, repo_dir, _, ref = key.split("/", 3)
+    newest_first = sorted(have, key=lambda c: have[c].modified, reverse=True)
+    upstream = hf_revision(repo_dir, ref)
+    if upstream:
+        for c in newest_first:
+            body = client(c).get_object(Bucket=bucket_of(c), Key=key)["Body"].read()
+            if body.decode().strip() == upstream:
+                return c
+    return newest_first[0]
+
+
+def run_sync(clusters: List[str], apply: bool) -> int:
+    """Bring clusters to the union of their contents. Returns failed copies."""
+    start = time.monotonic()
+    with concurrent.futures.ThreadPoolExecutor(MAX_WORKERS) as pool:
+        futures = {
+            (c, p): pool.submit(list_entries, c, f"{p}/")
+            for c in clusters
+            for p in (HUB, DATASETS)
+        }
+        listings = {
+            c: {**futures[(c, HUB)].result(), **futures[(c, DATASETS)].result()}
+            for c in clusters
+        }
+    todo = plan_sync(listings, pick_ref)
+
+    if not todo:
+        n = max(len(v) for v in listings.values())
+        print(
+            f"in sync: {len(clusters)} clusters, {n} objects each "
+            f"({time.monotonic() - start:.1f}s)"
+        )
+        return 0
+
+    groups: Dict[Tuple[str, str, str], List[int]] = {}
+    for cp in todo:
+        parts = cp.key.split("/")
+        label = f"{DATASETS}/" if parts[0] == DATASETS else parts[1]
+        group = groups.setdefault((label, cp.source, cp.dest), [0, 0])
+        group[0] += 1
+        group[1] += cp.size
+    for (label, source, dest), (n, n_bytes) in sorted(groups.items()):
+        print(
+            f"  {label}: {n} objects, {n_bytes / 1e6:.1f} MB {source} -> {dest}"
+            + ("" if apply else "  [dry-run]")
+        )
+    total = sum(cp.size for cp in todo)
+    if not apply:
+        print(f"\nwould copy {len(todo)} objects, {total / 1e6:.1f} MB")
+        print("re-run with --apply to perform the copy")
+        return 0
+
+    # Content before refs: a ref that lands first points jobs at a snapshot the
+    # cluster does not hold yet.
+    failed = 0
+    for batch in (
+        [cp for cp in todo if not is_ref(cp.key)],
+        [cp for cp in todo if is_ref(cp.key)],
+    ):
+        with concurrent.futures.ThreadPoolExecutor(MAX_WORKERS) as pool:
+            futs = {
+                pool.submit(copy_object, cp.source, cp.dest, cp.key): cp for cp in batch
+            }
+            for fut in concurrent.futures.as_completed(futs):
+                if fut.exception() is not None:
+                    cp = futs[fut]
+                    failed += 1
+                    print(
+                        f"  FAILED {cp.key} {cp.source} -> {cp.dest}: "
+                        f"{fut.exception()}",
+                        file=sys.stderr,
+                    )
+    print(
+        f"\ncopied {len(todo) - failed} of {len(todo)} objects, "
+        f"{total / 1e6:.1f} MB planned ({time.monotonic() - start:.1f}s)"
+    )
+    return failed
 
 
 def download_from_hub(repo_dir: str, dest_dir: str) -> str:
@@ -355,6 +553,12 @@ def main() -> None:
         action="store_true",
         help="seed every repo --source holds that a target is missing",
     )
+    parser.add_argument(
+        "--sync",
+        action="store_true",
+        help="make every --to cluster hold the union of all of them "
+        "(default: every prod cluster); never deletes",
+    )
     parser.add_argument("--diff", action="store_true", help="report drift and exit")
     parser.add_argument("--apply", action="store_true", help="copy (default: dry-run)")
     args = parser.parse_args()
@@ -367,8 +571,18 @@ def main() -> None:
         show_diff(args.to or list(CLUSTERS), args.repo or None)
         return
 
+    if args.sync:
+        if args.repo or args.mirror or args.from_hub or args.source:
+            parser.error("--sync takes only --to and --apply")
+        clusters = list(dict.fromkeys(args.to)) or PROD
+        if len(clusters) < 2:
+            parser.error("--sync needs at least two clusters")
+        if run_sync(clusters, args.apply):
+            sys.exit(1)
+        return
+
     if not args.repo and not args.mirror:
-        parser.error("nothing to do: pass --repo, --mirror or --diff")
+        parser.error("nothing to do: pass --repo, --mirror, --sync or --diff")
     if args.mirror and not args.source:
         parser.error("--mirror needs --source")
     if args.from_hub and args.mirror:
