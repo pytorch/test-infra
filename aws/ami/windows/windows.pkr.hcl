@@ -37,8 +37,13 @@ source "amazon-ebs" "windows_ebs_builder" {
   winrm_username  = "Administrator"
   skip_create_ami = var.skip_create_ami
   aws_polling {
-    # For some reason the AMIs take a really long time to be ready so just assume it'll take a while
-    max_attempts = 600
+    # 45 attempts at 60s = a 45 minute ceiling on "waiting for AMI to become
+    # ready". The previous 600 attempts worked out to roughly five hours, which
+    # on top of a ~50 minute build cannot fit inside the GitHub Actions 6 hour
+    # job limit -- every run since April was cancelled at 06:00 rather than
+    # failing, so the waiter never reported why it was stuck.
+    delay_seconds = 60
+    max_attempts  = 45
   }
 }
 
