@@ -623,14 +623,6 @@
       "xpu"
     ]
   ],
-  "test_graph_two_successive (__main__.TestCuda)": [
-    "159113",
-    "https://github.com/pytorch/pytorch/issues/159113",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_False_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186604",
     "https://github.com/pytorch/pytorch/issues/186604",
@@ -1790,6 +1782,15 @@
       "slow"
     ]
   ],
+  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
+    "182095",
+    "https://github.com/pytorch/pytorch/issues/182095",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
@@ -1937,6 +1938,13 @@
       "macos",
       "rocm",
       "win"
+    ]
+  ],
+  "test_zero_strided_emits_fill_kernel_cuda (__main__.TestTorchCUDACUDA)": [
+    "199454",
+    "https://github.com/pytorch/pytorch/issues/199454",
+    [
+      "inductor"
     ]
   ],
   "test_zero_strided_emits_fill_kernel_cuda (__main__.TestTorchDeviceTypeCUDA)": [
