@@ -1,8 +1,14 @@
 import { readFileSync } from "fs";
 import * as clickhouse from "lib/clickhouse";
-import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
+import {
+  buildGreenlightOpenedLine,
+  buildGreenlightSections,
+} from "lib/greenlight/greenlightComment";
+import * as greenlightEligibility from "lib/greenlight/greenlightEligibility";
+import { renderGreenlightEligibility } from "lib/greenlight/greenlightEligibility";
 import * as greenlightRender from "lib/greenlight/greenlightRender";
 import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
+import { Octokit } from "octokit";
 import path from "path";
 import { format } from "util";
 
@@ -44,6 +50,10 @@ const NO_STATE_PR = {
   head_sha: "8c9cd4b0b0e2c7bd4a2b7e1e6d3a9c5f0b1d2e3a",
 };
 
+// A PR whose only state is a shadow evaluation, which the query returns only
+// when the PR has no non-shadow row.
+const SHADOW_ROW = { ...NO_LAND_ROW, pr_number: 194777, shadow: true };
+
 // The head a PR moved to after its verdict was recorded.
 const PUSHED_SHA = "f1e2d3c4b5a6978877665544332211aabbccddee";
 
@@ -76,13 +86,35 @@ function heads(
   return new Map(rows.map((row) => [row.pr_number, row.head_sha]));
 }
 
+function fakeOctokit() {
+  return {
+    rest: {
+      pulls: {
+        get: jest.fn(async ({ pull_number }: { pull_number: number }) => ({
+          data: { number: pull_number },
+        })),
+      },
+    },
+  };
+}
+
 describe("buildGreenlightSections", () => {
   let queryClickhouseSaved: jest.SpyInstance;
+  let octokit: ReturnType<typeof fakeOctokit>;
+  let github: Octokit;
+  let gateFactory: jest.SpyInstance;
+  let check: jest.Mock;
 
   beforeEach(() => {
     queryClickhouseSaved = jest
       .spyOn(clickhouse, "queryClickhouseSaved")
       .mockResolvedValue([]);
+    octokit = fakeOctokit();
+    github = octokit as unknown as Octokit;
+    check = jest.fn().mockResolvedValue(null);
+    gateFactory = jest
+      .spyOn(greenlightEligibility, "greenlightEligibilityGate")
+      .mockReturnValue(check);
   });
 
   afterEach(() => {
@@ -93,18 +125,21 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "vision",
-      heads(LAND_ROW)
+      heads(LAND_ROW),
+      github
     );
 
     expect(sections.size).toBe(0);
     expect(queryClickhouseSaved).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
   });
 
   it("issues no query when no PRs were passed", async () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      new Map()
+      new Map(),
+      github
     );
 
     expect(sections.size).toBe(0);
@@ -117,7 +152,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      heads(LAND_ROW, NO_LAND_ROW, NO_STATE_PR)
+      heads(LAND_ROW, NO_LAND_ROW, NO_STATE_PR),
+      github
     );
 
     expect(queryClickhouseSaved).toHaveBeenCalledTimes(1);
@@ -151,7 +187,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "PyTorch",
       "PyTorch",
-      heads(LAND_ROW)
+      heads(LAND_ROW),
+      github
     );
 
     expect(queryClickhouseSaved).toHaveBeenCalledWith("greenlight_pr_states", {
@@ -165,7 +202,12 @@ describe("buildGreenlightSections", () => {
     queryClickhouseSaved.mockResolvedValue([LAND_ROW]);
     const render = jest.spyOn(greenlightRender, "renderGreenlightSection");
 
-    await buildGreenlightSections("pytorch", "pytorch", heads(LAND_ROW));
+    await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(LAND_ROW),
+      github
+    );
 
     expect(render).toHaveBeenCalledWith(
       {
@@ -191,7 +233,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      new Map([[LAND_ROW.pr_number, PUSHED_SHA]])
+      new Map([[LAND_ROW.pr_number, PUSHED_SHA]]),
+      github
     );
 
     expect(sections.get(LAND_ROW.pr_number)).toContain(
@@ -207,7 +250,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      heads(LAND_ROW)
+      heads(LAND_ROW),
+      github
     );
 
     expect(sections.get(NO_LAND_ROW.pr_number)).not.toContain(
@@ -226,7 +270,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      heads(row)
+      heads(row),
+      github
     );
 
     expect(sections.get(row.pr_number)).toContain(GREENLIGHT_PENDING_ALT_ATTR);
@@ -245,15 +290,21 @@ describe("buildGreenlightSections", () => {
         return "rendered";
       });
     const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+    check.mockResolvedValue("waiting");
 
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      heads(LAND_ROW, NO_LAND_ROW)
+      heads(LAND_ROW, NO_LAND_ROW),
+      github
     );
 
     expect(render).toHaveBeenCalledTimes(2);
     expect([...sections.keys()]).toEqual([NO_LAND_ROW.pr_number]);
+    // A PR with a row of its own never reaches the eligibility gate, even when
+    // that row renders nothing.
+    expect(check).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
     // Enough to find the row, and not the model's text: `message` is scrubbed on
     // its way into the comment and not on its way into a log. The error is a
     // fixed string, as the renderer's own throws are, so rendering the whole call
@@ -268,14 +319,214 @@ describe("buildGreenlightSections", () => {
 
   it("skips rows that render to nothing", async () => {
     queryClickhouseSaved.mockResolvedValue([UNKNOWN_STATUS_ROW, LAND_ROW]);
+    check.mockResolvedValue("waiting");
 
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      heads(UNKNOWN_STATUS_ROW, LAND_ROW)
+      heads(UNKNOWN_STATUS_ROW, LAND_ROW),
+      github
     );
 
     expect([...sections.keys()]).toEqual([LAND_ROW.pr_number]);
+    expect(check).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
+  });
+
+  it("renders the eligibility line for a PR with no state, read with the sweep's Octokit", async () => {
+    queryClickhouseSaved.mockResolvedValue([LAND_ROW]);
+    check.mockResolvedValue("waiting");
+
+    const sections = await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(LAND_ROW, NO_STATE_PR),
+      github
+    );
+
+    expect(gateFactory).toHaveBeenCalledTimes(1);
+    expect(gateFactory).toHaveBeenCalledWith(octokit, "pytorch", "pytorch");
+    expect(octokit.rest.pulls.get).toHaveBeenCalledTimes(1);
+    expect(octokit.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "pytorch",
+      repo: "pytorch",
+      pull_number: NO_STATE_PR.pr_number,
+    });
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(check).toHaveBeenCalledWith({ number: NO_STATE_PR.pr_number });
+    expect(sections.get(NO_STATE_PR.pr_number)).toBe(
+      renderGreenlightEligibility("waiting")
+    );
+    expect(sections.get(LAND_ROW.pr_number)).toContain(LAND_ROW.message);
+  });
+
+  it("renders nothing for a PR whose only state is shadow, and runs no gate for it", async () => {
+    queryClickhouseSaved.mockResolvedValue([SHADOW_ROW]);
+    check.mockResolvedValue("waiting");
+
+    const sections = await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(SHADOW_ROW),
+      github
+    );
+
+    expect(sections.size).toBe(0);
+    expect(check).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
+  });
+
+  it("renders a non-shadow row as before, and runs no gate for it", async () => {
+    const row = { ...LAND_ROW, shadow: false };
+    queryClickhouseSaved.mockResolvedValue([row]);
+
+    const sections = await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(row),
+      github
+    );
+
+    expect(sections.get(row.pr_number)).toBe(
+      greenlightRender.renderGreenlightSection(
+        {
+          repo: "pytorch/pytorch",
+          prNumber: row.pr_number,
+          status: row.status,
+          reason: row.reason,
+          message: row.message,
+          headSha: row.head_sha,
+          evalJob: row.eval_job,
+          version: row.version,
+        },
+        new Date(),
+        row.head_sha
+      )
+    );
+    expect(check).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
+  });
+
+  // drci.ts fails the whole sweep to an empty map on a rejection, so a failed query
+  // renders nothing for any PR -- eligibility lines included.
+  it("propagates a query failure without reading any PR", async () => {
+    queryClickhouseSaved.mockRejectedValue(new Error("clickhouse down"));
+
+    await expect(
+      buildGreenlightSections(
+        "pytorch",
+        "pytorch",
+        heads(LAND_ROW, NO_STATE_PR),
+        github
+      )
+    ).rejects.toThrow("clickhouse down");
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
+    expect(check).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the eligibility check", "check"],
+    ["the PR read", "pulls.get"],
+  ])("drops only the PR whose %s failed, logging it", async (_, failing) => {
+    const other = { pr_number: 194001, head_sha: NO_STATE_PR.head_sha };
+    const thrown = new Error("github unreachable");
+    check.mockImplementation(async (pr: { number: number }) => {
+      if (failing === "check" && pr.number === NO_STATE_PR.pr_number) {
+        throw thrown;
+      }
+      return "too_big";
+    });
+    octokit.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
+      if (failing === "pulls.get" && pull_number === NO_STATE_PR.pr_number) {
+        throw thrown;
+      }
+      return { data: { number: pull_number } };
+    });
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const sections = await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(NO_STATE_PR, other),
+      github
+    );
+
+    expect([...sections.keys()]).toEqual([other.pr_number]);
+    expect(sections.get(other.pr_number)).toBe(
+      renderGreenlightEligibility("too_big")
+    );
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("eligibility check failed"),
+      NO_STATE_PR.pr_number,
+      thrown
+    );
+  });
+});
+
+describe("buildGreenlightOpenedLine", () => {
+  const PAYLOAD_PR = { number: 31, user: { login: "alice" } };
+  let check: jest.Mock;
+  let gateFactory: jest.SpyInstance;
+
+  function context(action: string) {
+    return {
+      octokit: { marker: "probot octokit" },
+      payload: { action, pull_request: PAYLOAD_PR },
+    };
+  }
+
+  beforeEach(() => {
+    check = jest.fn().mockResolvedValue("merge_rules");
+    gateFactory = jest
+      .spyOn(greenlightEligibility, "greenlightEligibilityGate")
+      .mockReturnValue(check);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("checks the payload's PR with the event's Octokit on an opened event", async () => {
+    const ctx = context("opened");
+
+    const line = await buildGreenlightOpenedLine("pytorch", "pytorch", ctx);
+
+    expect(line).toBe(renderGreenlightEligibility("merge_rules"));
+    expect(gateFactory).toHaveBeenCalledWith(ctx.octokit, "pytorch", "pytorch");
+    expect(check).toHaveBeenCalledWith(PAYLOAD_PR);
+  });
+
+  it.each([
+    ["a synchronize event", "synchronize", "pytorch"],
+    ["a repo that is not a greenlight repo", "opened", "vision"],
+  ])("renders nothing and checks nothing for %s", async (_, action, repo) => {
+    const line = await buildGreenlightOpenedLine(
+      "pytorch",
+      repo,
+      context(action)
+    );
+
+    expect(line).toBe("");
+    expect(check).not.toHaveBeenCalled();
+  });
+
+  it("renders nothing and logs when the check fails", async () => {
+    const thrown = new Error("issue unreadable");
+    check.mockRejectedValue(thrown);
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    const line = await buildGreenlightOpenedLine(
+      "pytorch",
+      "pytorch",
+      context("opened")
+    );
+
+    expect(line).toBe("");
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("eligibility check failed"),
+      PAYLOAD_PR.number,
+      thrown
+    );
   });
 });
 
@@ -292,29 +543,30 @@ const RENDER_QUERY_SQL = readFileSync(
   "utf-8"
 );
 
-// The header comment names both `shadow` and `LIMIT 1 BY` while explaining why they sit
-// in that order, and the index assertions below are about the statement, not the prose.
+// The header comment names `shadow` and `LIMIT 1 BY` while explaining them, and the
+// assertions below are about the statement, not the prose.
 const RENDER_QUERY = RENDER_QUERY_SQL.replace(/--.*$/gm, "");
 
+function clause(start: string, end: string): string {
+  return RENDER_QUERY.slice(
+    RENDER_QUERY.indexOf(start),
+    RENDER_QUERY.indexOf(end)
+  );
+}
+
 describe("greenlight_pr_states query.sql", () => {
-  it("excludes shadow rows from the Dr.CI render", () => {
-    expect(RENDER_QUERY).toContain("AND shadow = false");
+  // A PR whose rows are all shadow has to come back as one, or the render cannot
+  // tell it from a PR with no state and shows it the eligibility line.
+  it("keeps shadow rows and selects the shadow column", () => {
+    expect(clause("SELECT", "FROM").split(/[\s,]+/)).toContain("shadow");
+    expect(clause("WHERE", "ORDER BY")).not.toContain("shadow");
   });
 
-  it("filters in WHERE, ahead of the LIMIT 1 BY collapse", () => {
-    const where = RENDER_QUERY.indexOf("WHERE");
-    const shadow = RENDER_QUERY.indexOf("shadow");
-    const order = RENDER_QUERY.indexOf("ORDER BY");
-    const limit = RENDER_QUERY.indexOf("LIMIT 1 BY");
-
-    expect(where).toBeGreaterThan(-1);
-    expect(shadow).toBeGreaterThan(where);
-    expect(shadow).toBeLessThan(order);
-    expect(order).toBeLessThan(limit);
-    // Filtering only after the collapse would let a PR's newest row be a shadow one: it
-    // wins LIMIT 1 BY, then gets dropped, hiding the real verdict underneath it. A
-    // second mention placed after the collapse satisfies every check above, so pin that
-    // there is exactly one.
-    expect(RENDER_QUERY.lastIndexOf("shadow")).toBe(shadow);
+  // false sorts first, so the collapse keeps a PR's newest non-shadow row whenever it
+  // has one, however many newer shadow rows sit above it.
+  it("prefers a non-shadow row in the LIMIT 1 BY collapse", () => {
+    expect(RENDER_QUERY.replace(/\s+/g, " ")).toContain(
+      "ORDER BY pr_number, shadow, run_id DESC, version DESC LIMIT 1 BY pr_number"
+    );
   });
 });

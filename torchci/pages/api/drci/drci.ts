@@ -250,12 +250,12 @@ export async function updateDrciComments(
   // The Green Light verdict is per-PR, not per-job, so it is read for the whole
   // sweep in one batched query. This must stay outside forAllPRs, which fans out
   // concurrently and would multiply the query by the PR count. It needs nothing
-  // but the PR set and their heads, both settled here, so it is started now and
-  // awaited after the serial chain below instead of adding its latency to it --
-  // that chain is on the critical path of every on-demand poke render. The catch
-  // is attached at creation, not at the await, so a rejection landing before then
-  // is never an unhandled one; failing to an empty map keeps a greenlight /
-  // ClickHouse error from breaking the comment.
+  // but the PR set, their heads and the octokit, all settled here, so it is
+  // started now and awaited after the serial chain below instead of adding its
+  // latency to it -- that chain is on the critical path of every on-demand poke
+  // render. The catch is attached at creation, not at the await, so a rejection
+  // landing before then is never an unhandled one; failing to an empty map keeps
+  // a greenlight / ClickHouse error from breaking the comment.
   const headShaByPr = new Map<number, string>(
     Array.from(workflowsByPR.entries()).map(([prNumber, pr_info]) => [
       prNumber,
@@ -265,7 +265,8 @@ export async function updateDrciComments(
   const greenlightSectionsPromise = buildGreenlightSections(
     owner,
     repo,
-    headShaByPr
+    headShaByPr,
+    octokit
   ).catch((e) => {
     console.error("greenlight section build threw for", owner, repo, e);
     return new Map<number, string>();
@@ -1060,8 +1061,8 @@ export function constructResultsComment(
   prNumber: number,
   // job.id -> pre-rendered "AI verdict:" line (empty unless advisor-enabled).
   advisorLines: Map<number, string> = new Map(),
-  // Pre-rendered Green Light section for this PR, already carrying its own
-  // leading newline (empty unless greenlight-enabled and this PR has state).
+  // Pre-rendered Green Light section or eligibility line for this PR, already
+  // carrying its own leading newline (empty when the PR has neither).
   greenlightSection: string = "",
   // Pre-rendered automated PR review section, same convention.
   prReviewSection: string = ""

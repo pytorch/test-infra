@@ -2,6 +2,7 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
+import { buildGreenlightOpenedLine } from "lib/greenlight/greenlightComment";
 import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
@@ -221,6 +222,10 @@ export async function upsertDrCiComment(
     return;
   }
 
+  // Before getDrciComment, so the gate's GitHub calls stay out of the window
+  // between finding no comment and creating one, where a concurrent event can
+  // post a duplicate.
+  const greenlightLine = await buildGreenlightOpenedLine(owner, repo, context);
   const existingDrciData = await getDrciComment(
     context.octokit,
     owner,
@@ -244,7 +249,7 @@ export async function upsertDrCiComment(
     prNum,
     owner,
     repo,
-    "",
+    greenlightLine,
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment)
   );
