@@ -3,6 +3,7 @@ import {
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_TRIAGED,
   PRE_REVIEW_START_DATE,
+  PrStatusState,
 } from "lib/prStatus";
 import { Octokit } from "octokit";
 import shlex from "shlex";
@@ -136,6 +137,7 @@ async function getAgreeingTeamMembers(
  * agrees once any member other than the author does.
  *
  * acceptedBy covers a triggering comment that isn't in the timeline yet.
+ * prState skips refetching the PR status when the caller already has it.
  */
 export async function getPreReviewStatus(
   octokit: Octokit,
@@ -144,10 +146,12 @@ export async function getPreReviewStatus(
   prNumber: number,
   labels: string[],
   authorLogin: string,
-  acceptedBy: string[] = []
+  acceptedBy: string[] = [],
+  prState?: PrStatusState
 ): Promise<PreReviewStatus> {
   const [state, events, reactions] = await Promise.all([
-    fetchPrStatusState(octokit, owner, repo, prNumber, labels, authorLogin),
+    prState ??
+      fetchPrStatusState(octokit, owner, repo, prNumber, labels, authorLogin),
     octokit.paginate(octokit.rest.issues.listEventsForTimeline, {
       owner,
       repo,

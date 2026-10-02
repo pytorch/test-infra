@@ -1,0 +1,19 @@
+name: Update PR notifications manifest
+
+on:
+  schedule:
+    # Daily, ahead of the internal digest send at 9AM ET
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-pr-notifications-manifest:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Write the PR notifications manifest to S3
+        run: |
+          curl --request POST \
+            --url 'https://hud.pytorch.org/api/pr_notifications/manifest' \
+            --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+            --header 'x-hud-internal-bot: ${{ secrets.HUD_API_TOKEN }}' \
+            --silent --show-error --fail
