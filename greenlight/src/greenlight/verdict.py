@@ -36,22 +36,13 @@ dismissal are unaffected on every repo.
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import cohort, comment_format, constants, github_client, redact, state_emit
-from greenlight.constants import (
-    ALLOWED_REASONS,
-    IN_FLIGHT_STATUSES,
-    RETRY_STATUSES,
-    SCAN_ONLY_STATUSES,
-    STATUS_LAND,
-    TERMINAL_STATUSES,
-    VERDICT_STATUSES,
-)
+from greenlight import cohort, comment_format, constants, github_client, redact, state_emit, verdict_input
+from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -59,15 +50,10 @@ if TYPE_CHECKING:
     from greenlight.config import Config
     from greenlight.github_types import VerdictClient, VerdictPR
 
+
 __all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
 
 logger = logging.getLogger(__name__)
-
-_FULL_STATUSES = TERMINAL_STATUSES
-# Marker statuses the verdict CLI accepts: the retry outcomes plus AI_REVIEW_STARTED, minus the
-# scan-only AI_REVIEW_DISPATCHED (which lives in IN_FLIGHT_STATUSES for decide() but is never
-# emitted through this command).
-_MARKER_STATUSES = (RETRY_STATUSES | IN_FLIGHT_STATUSES) - SCAN_ONLY_STATUSES
 
 _SUPERSEDED_MESSAGE = "Superseded by a newer greenlight verdict."
 
@@ -97,78 +83,8 @@ class VerdictRequest:
     dry_run: bool = False
 
 
-@dataclass(frozen=True, slots=True)
-class _VerdictDoc:
-    status: str | None
-    reason: str
-    message: str
-
-
 def _utcnow() -> datetime:
     return datetime.now(UTC)
-
-
-def _str_field(data: dict[str, object], key: str, path: str) -> str:
-    value = data.get(key, "")
-    if not isinstance(value, str):
-        raise ValueError(f"verdict file {path} field {key!r} must be a string")
-    return value
-
-
-def _optional_str_field(data: dict[str, object], key: str, path: str) -> str | None:
-    value = data.get(key)
-    if value is not None and not isinstance(value, str):
-        raise ValueError(f"verdict file {path} field {key!r} must be a string")
-    return value
-
-
-def _load_verdict_file(path: str) -> _VerdictDoc:
-    try:
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
-    except OSError as exc:
-        raise ValueError(f"cannot read verdict file {path}: {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"verdict file {path} is not valid JSON: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ValueError(f"verdict file {path} must contain a JSON object")
-    return _VerdictDoc(
-        status=_optional_str_field(data, "status", path),
-        reason=_str_field(data, "reason", path),
-        message=_str_field(data, "message", path),
-    )
-
-
-def _resolve_verdict(request: VerdictRequest) -> tuple[str, str, str]:
-    cli_status = request.status.strip().upper() if request.status else None
-    # A marker status given on the CLI needs no verdict file at all.
-    if cli_status in _MARKER_STATUSES:
-        return cli_status, "", ""
-    doc = _load_verdict_file(request.verdict_file) if request.verdict_file else None
-    raw_status = cli_status or (doc.status if doc else None)
-    if not raw_status:
-        raise ValueError("a verdict status is required: pass --status or a --verdict-file containing 'status'")
-    status = raw_status.strip().upper()
-    if status in _MARKER_STATUSES:
-        return status, "", ""
-    if status in _FULL_STATUSES:
-        if doc is None:
-            raise ValueError(f"{status} requires --verdict-file for its reason and message")
-        return status, doc.reason, doc.message
-    raise ValueError(f"unknown verdict status {status!r}; expected one of {sorted(VERDICT_STATUSES)}")
-
-
-def _validate_eval_hash(value: str) -> None:
-    constants.validate_eval_hash(value)
-
-
-def _validate_reason(status: str, reason: str) -> None:
-    constants.validate_reason(status, reason)
-
-
-def _validate_message(message: str) -> None:
-    if not message.strip():
-        raise ValueError("a non-empty message is required for a LAND/NO_LAND verdict")
 
 
 def _emit_payload(
@@ -364,16 +280,16 @@ def run(
     now: Callable[[], datetime] = _utcnow,
     new_emit_id: Callable[[], str] = state_emit.default_emit_id,
 ) -> None:
-    status, reason, message = _resolve_verdict(request)
-    if status in _MARKER_STATUSES:
+    status, reason, message = verdict_input._resolve_verdict(request)
+    if status in verdict_input._MARKER_STATUSES:
         _run_marker(request, config, status, build_github=build_github, emit=emit, now=now, new_emit_id=new_emit_id)
         return
     # Single scrub point: the model message fans out to the ClickHouse row (_emit_payload) and the
     # GitHub comment (verdict_body/defang) below, so redact secrets here to cover both sinks once.
     message = redact.scrub_secrets(message)
-    _validate_reason(status, reason)
-    _validate_message(message)
-    _validate_eval_hash(request.eval_hash)
+    verdict_input._validate_reason(status, reason)
+    verdict_input._validate_message(message)
+    verdict_input._validate_eval_hash(request.eval_hash)
     if status in TERMINAL_STATUSES and not request.bot_login:
         raise ValueError(
             "LAND/NO_LAND requires --bot-login (author-scopes the verdict comment upsert; "
