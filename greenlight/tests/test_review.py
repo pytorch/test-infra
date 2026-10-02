@@ -87,9 +87,15 @@ class _FakeHead:
 
 
 @dataclass(frozen=True)
+class _FakeUser:
+    login: str | None
+
+
+@dataclass(frozen=True)
 class _FakePR:
     number: int
     head: _FakeHead
+    user: _FakeUser | None = None
 
 
 def _state(number: int, status: str, eval_hash: str, version: datetime, run_id: int = 0) -> PRState:
@@ -1588,20 +1594,6 @@ def test_fingerprint_throttle_stays_under_burst_limit():
     assert review._FINGERPRINT_WORKERS / review._FINGERPRINT_SECONDS_BETWEEN_REQUESTS <= 8
 
 
-def test_close_client_swallows_close_errors(caplog):
-    class _Boom:
-        def close(self) -> None:
-            raise RuntimeError("close boom")
-
-    with caplog.at_level(logging.ERROR, logger="greenlight"):
-        review._close_client(cast("Github", _Boom()))
-
-    # A failing close must never raise, so it cannot mask the scan's real outcome; it is
-    # logged with exc_info instead.
-    assert "failed to close GitHub client" in caplog.text
-    assert any(record.exc_info is not None for record in caplog.records)
-
-
 def test_fingerprint_task_returns_client_on_exception():
     pool: queue.Queue[Github] = queue.Queue()
     client = cast("Github", object())
@@ -1980,16 +1972,16 @@ def test_default_fetch_forwards_the_cohort_to_list_open_prs(monkeypatch):
     assert captured["authors"] == {"alice", "bob"}
 
 
-def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
+def test_default_fetch_author_reads_the_author_off_get_pr(monkeypatch):
     captured: dict[str, object] = {}
 
-    def fake_get_pr_author(client, repo, pr_number):
+    def fake_get_pr(client, repo, pr_number):
         captured["client"] = client
         captured["repo"] = repo
         captured["pr_number"] = pr_number
-        return "albanD"
+        return _FakePR(pr_number, _FakeHead("h"), _FakeUser("albanD"))
 
-    monkeypatch.setattr(github_client, "get_pr_author", fake_get_pr_author)
+    monkeypatch.setattr(github_client, "get_pr", fake_get_pr)
 
     result = review._default_fetch_author(_CLIENT, 7)
 
@@ -1997,6 +1989,12 @@ def test_default_fetch_author_forwards_to_get_pr_author(monkeypatch):
     assert captured["client"] is _CLIENT
     assert captured["repo"] == TARGET_REPO
     assert captured["pr_number"] == 7
+
+
+def test_default_fetch_author_is_none_for_a_pr_without_a_user(monkeypatch):
+    monkeypatch.setattr(github_client, "get_pr", lambda _client, _repo, number: _FakePR(number, _FakeHead("h")))
+
+    assert review._default_fetch_author(_CLIENT, 7) is None
 
 
 def test_default_fingerprint_forwards_to_fingerprint_pr(monkeypatch):

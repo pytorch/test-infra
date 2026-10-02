@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Protocol
 
 import yaml
 
-from greenlight import constants
+from greenlight import constants, github_client
 from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
@@ -110,15 +110,6 @@ def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
     return frozenset(logins)
 
 
-def _close_client(client: AuthzClient) -> None:
-    close = getattr(client, "close", None)
-    if callable(close):
-        try:
-            close()
-        except Exception:
-            logger.warning("failed to close merge-authorization client", exc_info=True)
-
-
 class AuthorizedLoginsCache:
     """Lazy, TTL-bounded, stale-on-error cache of the merge-authorized login set.
 
@@ -171,7 +162,7 @@ class AuthorizedLoginsCache:
                 return self._cached
             raise
         finally:
-            _close_client(client)
+            github_client.close_client(client)
         self._cached = result
         self._fetched_at = self._monotonic()
         return result
