@@ -42,7 +42,7 @@ source "amazon-ebs" "windows_ebs_builder" {
     # role-duration-seconds in build-windows-ami.yml) or packer never gets to
     # share the AMI.
     delay_seconds = 60
-    max_attempts  = 30
+    max_attempts  = 120
   }
 }
 
