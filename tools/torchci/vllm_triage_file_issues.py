@@ -25,6 +25,12 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
+from torchci.vllm_deduplication import (
+    read_upstream_checks,
+    UpstreamChecksArtifact,
+    UpstreamStatus,
+)
+
 
 API = "https://api.github.com"
 UMBRELLA_LABEL = "vllm-torch-nightly-umbrella"
@@ -581,7 +587,11 @@ def routing_of(cause: Dict[str, Any]) -> str:
     return str(cause.get("routing", "")).strip().lower()
 
 
-def eligible(cause: Dict[str, Any]) -> bool:
+def eligible(
+    cause: Dict[str, Any],
+    upstream_status: Optional[UpstreamStatus] = None,
+    upstream_checks: bool = False,
+) -> bool:
     """Medium-confidence causes with a repo to fix them in.
 
     Infra-looking clusters and anything the agent could not root-cause stay out of
@@ -599,13 +609,16 @@ def eligible(cause: Dict[str, Any]) -> bool:
     vllm-project/vllm#58599. Routing is a destination; confidence is the quality
     bar, and the fields above already carry it.
     """
-    return (
+    base_eligible = (
         bool(cause.get("determined"))  # type: ignore[return-value]
         and classification_confidence(cause) != "low"
-        and classification_confidence(cause)
+        and bool(classification_confidence(cause))
         and new_failure_confidence(cause) != "low"
         and routing_of(cause) in FILED_ROUTINGS
     )
+    if not upstream_checks or routing_of(cause) != VLLM_ROUTING:
+        return base_eligible
+    return base_eligible and upstream_status == UpstreamStatus.NO_HITS
 
 
 def main() -> int:
@@ -614,6 +627,17 @@ def main() -> int:
     p.add_argument("--report", required=True, help="report.json from the triage job")
     p.add_argument("--repo", default="pytorch/test-infra")
     p.add_argument("--max-issues", type=int, default=5)
+    p.add_argument(
+        "--upstream-checks",
+        default="",
+        help="validated upstream-checks.json used by --check-vllm-upstream",
+    )
+    p.add_argument(
+        "--check-vllm-upstream",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="require an upstream NO_HITS review before filing vLLM causes",
+    )
     p.add_argument(
         "--torch-version-override",
         default="",
@@ -634,6 +658,18 @@ def main() -> int:
     report = json.load(open(args.report))
     findings = json.load(open(args.findings))
     causes = findings.get("causes") or []
+
+    upstream_checks = UpstreamChecksArtifact(checks=[])
+    upstream_checks_enabled = args.check_vllm_upstream
+    if args.upstream_checks:
+        try:
+            upstream_checks = read_upstream_checks(args.upstream_checks)
+        except (OSError, TypeError, ValueError) as exc:
+            print(
+                "WARNING: upstream checks are missing or invalid; all vLLM "
+                f"filing is disabled ({type(exc).__name__}: {exc})",
+                file=sys.stderr,
+            )
 
     minor = (
         args.torch_version_override.strip()
@@ -670,16 +706,33 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    selected = [c for c in causes if eligible(c)]
-    skipped = [c for c in causes if not eligible(c)]
+    upstream_statuses = {
+        check.cause_signature: check.status for check in upstream_checks.checks
+    }
+    selected = []
+    skipped = []
+    for cause in causes:
+        if eligible(
+            cause,
+            upstream_statuses.get(str(cause.get("signature") or "")),
+            upstream_checks_enabled,
+        ):
+            selected.append(cause)
+        else:
+            skipped.append(cause)
+
     print(f"{len(causes)} cause(s): {len(selected)} eligible, {len(skipped)} skipped")
     for c in skipped:
+        upstream_detail = ""
+        if upstream_checks_enabled and routing_of(c) == VLLM_ROUTING:
+            status = upstream_statuses.get(str(c.get("signature") or ""))
+            upstream_detail = f", upstream_status={status or 'missing check'}"
         print(
             f"  skip: {c.get('title', '<untitled>')!r} "
             f"(determined={c.get('determined')}, "
             f"classification_confidence={classification_confidence(c) or None}, "
             f"new_failure_confidence={new_failure_confidence(c) or None}, "
-            f"routing={c.get('routing')})"
+            f"routing={c.get('routing')}{upstream_detail})"
         )
     if len(selected) > args.max_issues:
         print(
