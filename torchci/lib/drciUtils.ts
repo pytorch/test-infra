@@ -222,6 +222,10 @@ export async function upsertDrCiComment(
     return;
   }
 
+  // Before getDrciComment, so the gate's GitHub calls stay out of the window
+  // between finding no comment and creating one, where a concurrent event can
+  // post a duplicate.
+  const greenlightLine = await buildGreenlightOpenedLine(owner, repo, context);
   const existingDrciData = await getDrciComment(
     context.octokit,
     owner,
@@ -245,7 +249,7 @@ export async function upsertDrCiComment(
     prNum,
     owner,
     repo,
-    await buildGreenlightOpenedLine(owner, repo, context),
+    greenlightLine,
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment)
   );

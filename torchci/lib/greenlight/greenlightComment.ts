@@ -9,8 +9,8 @@ import {
   isGreenlightRepo,
 } from "lib/greenlight/greenlightConfig";
 import {
+  EligibilityCheck,
   EligibilityPr,
-  GreenlightEligibility,
   greenlightEligibilityGate,
   renderGreenlightEligibility,
 } from "lib/greenlight/greenlightEligibility";
@@ -20,7 +20,7 @@ import {
 } from "lib/greenlight/greenlightRender";
 import { Octokit } from "octokit";
 
-// The columns of a misc.greenlight_pr_state row that the render consumes, as the
+// The columns of a misc.greenlight_pr_state row that this module reads, as the
 // greenlight_pr_states saved query returns them. Saved queries are untyped
 // (any[]), so this is the cast target. run_id is selected there too, but only to
 // order the rows; nothing downstream reads it.
@@ -33,11 +33,6 @@ interface GreenlightStateRow {
   eval_job: string;
   version: string;
   shadow: boolean;
-}
-
-export interface GreenlightSweep {
-  headShaByPr: Map<number, string>;
-  octokit: Octokit;
 }
 
 function toGreenlightState(
@@ -57,7 +52,7 @@ function toGreenlightState(
 }
 
 async function eligibilityLine(
-  check: (_pr: EligibilityPr) => Promise<GreenlightEligibility | null>,
+  check: EligibilityCheck,
   prNumber: number,
   readPr: () => Promise<EligibilityPr>
 ): Promise<string> {
@@ -84,7 +79,8 @@ async function eligibilityLine(
 export async function buildGreenlightSections(
   owner: string,
   repo: string,
-  { headShaByPr, octokit }: GreenlightSweep
+  headShaByPr: Map<number, string>,
+  octokit: Octokit
 ): Promise<Map<number, string>> {
   const sections = new Map<number, string>();
   const prNumbers = Array.from(headShaByPr.keys());

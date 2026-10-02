@@ -101,18 +101,16 @@ function fakeOctokit() {
 describe("buildGreenlightSections", () => {
   let queryClickhouseSaved: jest.SpyInstance;
   let octokit: ReturnType<typeof fakeOctokit>;
+  let github: Octokit;
   let gateFactory: jest.SpyInstance;
   let check: jest.Mock;
-
-  function sweep(headShaByPr: Map<number, string>) {
-    return { headShaByPr, octokit: octokit as unknown as Octokit };
-  }
 
   beforeEach(() => {
     queryClickhouseSaved = jest
       .spyOn(clickhouse, "queryClickhouseSaved")
       .mockResolvedValue([]);
     octokit = fakeOctokit();
+    github = octokit as unknown as Octokit;
     check = jest.fn().mockResolvedValue(null);
     gateFactory = jest
       .spyOn(greenlightEligibility, "greenlightEligibilityGate")
@@ -127,7 +125,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "vision",
-      sweep(heads(LAND_ROW))
+      heads(LAND_ROW),
+      github
     );
 
     expect(sections.size).toBe(0);
@@ -139,7 +138,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(new Map())
+      new Map(),
+      github
     );
 
     expect(sections.size).toBe(0);
@@ -152,7 +152,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(LAND_ROW, NO_LAND_ROW, NO_STATE_PR))
+      heads(LAND_ROW, NO_LAND_ROW, NO_STATE_PR),
+      github
     );
 
     expect(queryClickhouseSaved).toHaveBeenCalledTimes(1);
@@ -186,7 +187,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "PyTorch",
       "PyTorch",
-      sweep(heads(LAND_ROW))
+      heads(LAND_ROW),
+      github
     );
 
     expect(queryClickhouseSaved).toHaveBeenCalledWith("greenlight_pr_states", {
@@ -200,7 +202,12 @@ describe("buildGreenlightSections", () => {
     queryClickhouseSaved.mockResolvedValue([LAND_ROW]);
     const render = jest.spyOn(greenlightRender, "renderGreenlightSection");
 
-    await buildGreenlightSections("pytorch", "pytorch", sweep(heads(LAND_ROW)));
+    await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(LAND_ROW),
+      github
+    );
 
     expect(render).toHaveBeenCalledWith(
       {
@@ -226,7 +233,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(new Map([[LAND_ROW.pr_number, PUSHED_SHA]]))
+      new Map([[LAND_ROW.pr_number, PUSHED_SHA]]),
+      github
     );
 
     expect(sections.get(LAND_ROW.pr_number)).toContain(
@@ -242,7 +250,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(LAND_ROW))
+      heads(LAND_ROW),
+      github
     );
 
     expect(sections.get(NO_LAND_ROW.pr_number)).not.toContain(
@@ -261,7 +270,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(row))
+      heads(row),
+      github
     );
 
     expect(sections.get(row.pr_number)).toContain(GREENLIGHT_PENDING_ALT_ATTR);
@@ -280,15 +290,21 @@ describe("buildGreenlightSections", () => {
         return "rendered";
       });
     const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+    check.mockResolvedValue("waiting");
 
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(LAND_ROW, NO_LAND_ROW))
+      heads(LAND_ROW, NO_LAND_ROW),
+      github
     );
 
     expect(render).toHaveBeenCalledTimes(2);
     expect([...sections.keys()]).toEqual([NO_LAND_ROW.pr_number]);
+    // A PR with a row of its own never reaches the eligibility gate, even when
+    // that row renders nothing.
+    expect(check).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
     // Enough to find the row, and not the model's text: `message` is scrubbed on
     // its way into the comment and not on its way into a log. The error is a
     // fixed string, as the renderer's own throws are, so rendering the whole call
@@ -303,14 +319,18 @@ describe("buildGreenlightSections", () => {
 
   it("skips rows that render to nothing", async () => {
     queryClickhouseSaved.mockResolvedValue([UNKNOWN_STATUS_ROW, LAND_ROW]);
+    check.mockResolvedValue("waiting");
 
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(UNKNOWN_STATUS_ROW, LAND_ROW))
+      heads(UNKNOWN_STATUS_ROW, LAND_ROW),
+      github
     );
 
     expect([...sections.keys()]).toEqual([LAND_ROW.pr_number]);
+    expect(check).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
   });
 
   it("renders the eligibility line for a PR with no state, read with the sweep's Octokit", async () => {
@@ -320,7 +340,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(LAND_ROW, NO_STATE_PR))
+      heads(LAND_ROW, NO_STATE_PR),
+      github
     );
 
     expect(gateFactory).toHaveBeenCalledTimes(1);
@@ -346,7 +367,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(SHADOW_ROW))
+      heads(SHADOW_ROW),
+      github
     );
 
     expect(sections.size).toBe(0);
@@ -361,7 +383,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(row))
+      heads(row),
+      github
     );
 
     expect(sections.get(row.pr_number)).toBe(
@@ -393,7 +416,8 @@ describe("buildGreenlightSections", () => {
       buildGreenlightSections(
         "pytorch",
         "pytorch",
-        sweep(heads(LAND_ROW, NO_STATE_PR))
+        heads(LAND_ROW, NO_STATE_PR),
+        github
       )
     ).rejects.toThrow("clickhouse down");
     expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
@@ -423,7 +447,8 @@ describe("buildGreenlightSections", () => {
     const sections = await buildGreenlightSections(
       "pytorch",
       "pytorch",
-      sweep(heads(NO_STATE_PR, other))
+      heads(NO_STATE_PR, other),
+      github
     );
 
     expect([...sections.keys()]).toEqual([other.pr_number]);

@@ -7,6 +7,10 @@
 
 import yaml from "js-yaml";
 import { getFilesChangedByPr } from "lib/bot/utils";
+import {
+  GREENLIGHT_IN_PROGRESS_EMOJI,
+  GREENLIGHT_NEEDS_HUMAN_EMOJI,
+} from "lib/greenlight/greenlightRender";
 import { Octokit } from "octokit";
 
 export type GreenlightEligibility = "too_big" | "merge_rules" | "waiting";
@@ -23,7 +27,11 @@ export interface EligibilityPr {
   base: { ref: string };
 }
 
-export interface MergeRule {
+export type EligibilityCheck = (
+  _pr: EligibilityPr
+) => Promise<GreenlightEligibility | null>;
+
+interface MergeRule {
   logins: string[];
   teams: string[];
   // null when the rule's patterns are unusable: it covers nothing.
@@ -66,9 +74,9 @@ const GLOB_TOKEN_REGEX: Record<string, string> = {
 };
 
 const ELIGIBILITY_LAMP: Record<GreenlightEligibility, string> = {
-  too_big: "🟡",
-  merge_rules: "🟡",
-  waiting: "⏳",
+  too_big: GREENLIGHT_NEEDS_HUMAN_EMOJI,
+  merge_rules: GREENLIGHT_NEEDS_HUMAN_EMOJI,
+  waiting: GREENLIGHT_IN_PROGRESS_EMOJI,
 };
 const ELIGIBILITY_STATUS: Record<GreenlightEligibility, string> = {
   too_big: "changes are too big to review",
@@ -272,7 +280,7 @@ export function greenlightEligibilityGate(
   octokit: Octokit,
   owner: string,
   repo: string
-): (_pr: EligibilityPr) => Promise<GreenlightEligibility | null> {
+): EligibilityCheck {
   let trustedAuthors: Promise<Set<string>> | undefined;
   let mergeRules: Promise<MergeRule[]> | undefined;
   const memberships = new Map<string, Promise<boolean>>();
