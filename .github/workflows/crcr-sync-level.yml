@@ -1,0 +1,35 @@
+name: CRCR sync level
+
+# Keep the CRCR backend levels in pytorch/pytorch's .github/allowlist.yml in
+# line with HUD's verdicts.
+
+on:
+  schedule:
+    # Once a day: the verdicts cover a whole week, so they move slowly.
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: crcr-sync-level
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync-level:
+    runs-on: ubuntu-24.04
+    # Holds GH_PYTORCHBOT_TOKEN, which opens and closes the PRs.
+    environment: trigger-nightly
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install dependencies
+        run: pip3 install requests==2.32.5 PyYAML==6.0.3 PyGithub==2.9.0
+      - name: Sync levels
+        run: |
+          cd tools
+          python3 -m torchci.crcr_sync_level
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
