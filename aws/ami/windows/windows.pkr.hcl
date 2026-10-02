@@ -1,5 +1,8 @@
 data "amazon-ami" "windows_root_ami" {
   filters = {
+    # Pin the last base AMI whose OpenSSH sshd service starts (used for the
+    # 20260826001402 image); newer ones fail Install-SSH.ps1. Remove to unpin.
+    image-id            = "ami-07fede2e6cf6d7f22"
     name                = "Windows_Server-2019-English-Full-Base-*"
     root-device-type    = "ebs"
     virtualization-type = "hvm"
