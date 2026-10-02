@@ -107,10 +107,10 @@ def assess_rules(
 
     Rule membership is exact-case, as trymerge compares approvers. ``files`` is called at most once,
     and only when some rule names ``login`` but none has ``covers_all``; None from it means the
-    changed files are unknown. An unknown author or unknown files is never eligible: a wrong None
-    only withholds an approval, whereas a wrong rule would let a failed lookup authorize a merge. The
-    reason names no rule and no file, and an eligible one is plain "eligible": the kind of rule that
-    matched could reveal a concealed team membership.
+    changed files are unknown or too many to check. An unknown author or unchecked files is never
+    eligible: a wrong None only withholds an approval, whereas a wrong rule would let a failed lookup
+    authorize a merge. The reason names no rule and no file, and an eligible one is plain "eligible":
+    the kind of rule that matched could reveal a concealed team membership.
     """
     if not login:
         return Eligibility(None, "no author")
