@@ -34,6 +34,7 @@ jobs:
 
         # Test .github/scripts
         (cd .github/scripts && python3 -m unittest -v test_update_commit_hashes)
+        (cd .github/scripts && python3 -m unittest -v test_run_with_env_secrets)
 
   test-aws-lambda:
     name: Test aws lambda
