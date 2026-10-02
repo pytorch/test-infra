@@ -555,6 +555,20 @@
       "linux"
     ]
   ],
+  "test_forward_ad_nn_functional_grid_sample_xpu_float32 (__main__.TestCompositeComplianceXPU)": [
+    "199493",
+    "https://github.com/pytorch/pytorch/issues/199493",
+    [
+      "xpu"
+    ]
+  ],
+  "test_forward_mode_AD_nn_functional_grid_sample_xpu_float64 (__main__.TestFwdGradientsXPU)": [
+    "199494",
+    "https://github.com/pytorch/pytorch/issues/199494",
+    [
+      "xpu"
+    ]
+  ],
   "test_freezing_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
     "199384",
     "https://github.com/pytorch/pytorch/issues/199384",
@@ -960,6 +974,13 @@
     "https://github.com/pytorch/pytorch/issues/150877",
     [
       "dynamo"
+    ]
+  ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "199495",
+    "https://github.com/pytorch/pytorch/issues/199495",
+    [
+      "xpu"
     ]
   ],
   "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
