@@ -30,9 +30,9 @@ verdict, because a PR greenlight never reached a verdict on still carries the fl
 off the selected verdict row would report every one of those as authoritative. The aggregate is
 folded into ``corpus`` rather than joined in from a CTE of its own to avoid a redundant join, not
 to make the column total: a separate CTE over the same ``gl_rows`` would cover exactly the same
-PRs. The cost is one error direction -- a PR whose author joins ``TRUSTED_AUTHORS`` mid-review
-holds rows of both kinds and reads shadow, though the verdict that applies to it carried
-authority.
+PRs. The cost is one error direction -- a PR whose authority changes mid-review (README.md
+lists the ways) holds rows of both kinds and reads shadow, though the verdict that applies to it
+carried authority.
 
 That table is not a revert history and must not be read as one: its ``REVERTED`` rows exist
 only for PRs that were still open when a scan listed them, so a PR reverted after it closed never
