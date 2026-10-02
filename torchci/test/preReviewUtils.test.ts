@@ -20,7 +20,6 @@ jest.mock("lib/prStatus", () => {
   const actual = jest.requireActual("lib/prStatus");
   return {
     ...actual,
-    PR_STATUS_LABELS: [...actual.PR_STATUS_LABELS, "triaged"],
     PRE_REVIEW_START_DATE: "2026-01-01",
   };
 });
@@ -309,16 +308,24 @@ describe("pre-review accept command", () => {
     return event;
   }
 
-  function mockAck(event: any) {
+  function mockReactToComment(event: any, content: "+1" | "-1") {
     return nock("https://api.github.com")
       .post(
         `/repos/pytorch/pytorch/issues/comments/${event.payload.comment.id}/reactions`,
         (body) => {
-          expect(body.content).toBe("+1");
+          expect(body.content).toBe(content);
           return true;
         }
       )
       .reply(200, {});
+  }
+
+  function mockAck(event: any) {
+    return mockReactToComment(event, "+1");
+  }
+
+  function mockReject(event: any) {
+    return mockReactToComment(event, "-1");
   }
 
   // Marks the PR for the scheduled run
@@ -358,19 +365,39 @@ describe("pre-review accept command", () => {
     handleScope(scope);
   });
 
-  test("ignores accepts from non-assigned commenters", async () => {
+  test("rejects accepts from non-assigned commenters", async () => {
     const event = acceptEvent("alice");
-    // An ack or reply would be an unmocked request and fail the test
-    const scope = [mockReactToPr(), ...mockPr({ requested: ["bob"] })];
+    const scope = [
+      mockReactToPr(),
+      ...mockPr({ requested: ["bob"] }),
+      mockReject(event),
+    ];
 
     await bot.receive(event);
     handleScope(scope);
   });
 
-  test("ignores accepts on draft PRs", async () => {
+  test("rejects accepts on draft PRs", async () => {
     const event = acceptEvent("alice");
     event.payload.issue.draft = true;
-    const scope = nock("https://api.github.com");
+    const scope = mockReject(event);
+
+    await bot.receive(event);
+    handleScope(scope);
+  });
+
+  test("rejects an invalid pre-review command", async () => {
+    const event = acceptEvent("alice");
+    event.payload.comment.body = "@pytorchbot pre-review accept now";
+    const scope = [
+      mockReject(event),
+      nock("https://api.github.com")
+        .post("/repos/pytorch/pytorch/issues/1/comments", (body) => {
+          expect(body.body).toContain("pytorchbot command failed");
+          return true;
+        })
+        .reply(200, {}),
+    ];
 
     await bot.receive(event);
     handleScope(scope);

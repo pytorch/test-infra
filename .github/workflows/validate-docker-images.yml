@@ -55,7 +55,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
@@ -63,7 +63,6 @@ jobs:
       job-name: cuda${{ matrix.cuda }}-cudnn${{ matrix.cudnn_version }}-${{ matrix.image_type }}
       binary-matrix: ${{ toJSON(matrix) }}
       docker-image: ${{matrix.docker}}
-      docker-build-dir: "skip-docker-build"
       gpu-arch-type: ${{ matrix.cuda == 'cpu' && 'cpu' || 'cuda' }}
       gpu-arch-version: ${{ matrix.cuda }}
       timeout: 180

@@ -162,10 +162,12 @@ jobs:
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
-          # PyTorch, the primary target for this job template, heavily
-          # relies on submodules. Clone them by default to avoid
-          # surprises.
-          submodules: 'recursive'
+          # Follow the caller rather than forcing 'recursive'. test-infra has
+          # no .gitmodules, so this never had anything to fetch, but asking
+          # for submodules makes actions/checkout refuse its REST API
+          # fallback -- which is the only way to check out in a container
+          # with no git, and no plain distro base ships git.
+          submodules: ${{ inputs.submodules }}
 
       - name: Configure AWS credentials
         id: aws-creds
