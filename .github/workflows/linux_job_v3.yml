@@ -294,6 +294,30 @@ jobs:
             fi
           fi
 
+      # run_with_env_secrets.py runs inside the job container here, where v2
+      # ran it on the EC2 host. That makes a python an image requirement it
+      # never used to be, and bare images like nvidia/cuda:*-devel have none.
+      # Rather than push that onto every caller, fall back to a uv-managed
+      # interpreter, which is only fetched when the image really has nothing.
+      - name: Look for a python to run the job with
+        id: job-python
+        shell: bash
+        run: |
+          set -euo pipefail
+          for candidate in python3 python; do
+            if command -v "${candidate}" > /dev/null 2>&1; then
+              echo "found=true" >> "${GITHUB_OUTPUT}"
+              echo "bin=${candidate}" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          done
+          echo "No python in the image; falling back to uv" >&2
+          echo "found=false" >> "${GITHUB_OUTPUT}"
+
+      - name: Install uv to provide one
+        if: steps.job-python.outputs.found == 'false'
+        uses: pytorch/test-infra/.github/actions/setup-uv@main
+
       - name: Run script
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository || github.repository }}
@@ -321,7 +345,16 @@ jobs:
           chmod +x "${RUNNER_TEMP}/exec_script"
           # Use $GITHUB_WORKSPACE (remapped to the container mount, e.g. /__w/...)
           # rather than the github.workspace expression, which returns the host path.
-          python3 -u "${GITHUB_WORKSPACE}/test-infra/.github/scripts/run_with_env_secrets.py" "${{ inputs.secrets-env }}"
+          helper="${GITHUB_WORKSPACE}/test-infra/.github/scripts/run_with_env_secrets.py"
+          # POSIX test, not [[ ]]: this step declares no shell, so it runs
+          # under whatever the runner picks, which is sh in a plain image.
+          if [ "${{ steps.job-python.outputs.found }}" = "true" ]; then
+            "${{ steps.job-python.outputs.bin }}" -u "${helper}" "${{ inputs.secrets-env }}"
+          else
+            # No version pinned: the helper is stdlib-only, and uv fetches a
+            # managed interpreter when the image has none.
+            uv run --no-project "${helper}" "${{ inputs.secrets-env }}"
+          fi
 
       - name: Surface failing tests
         if: always()
