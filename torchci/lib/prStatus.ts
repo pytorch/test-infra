@@ -22,6 +22,9 @@ import { Octokit } from "octokit";
 export const PR_STATUS_LABEL_TRIAGED = "triaged";
 export const PR_STATUS_LABEL_IN_PROGRESS = "in progress";
 export const PR_STATUS_LABEL_READY_FOR_REVIEW = "ready for review";
+// Skips automated review, so the PR goes to ready for review instead of in
+// progress.
+export const PR_STATUS_LABEL_REVIEW_OPT_OUT = "no automated review";
 
 export const PR_STATUS_LABELS = [
   // Uncomment the following line post-rollout + change ln 166 to true in test
@@ -31,7 +34,7 @@ export const PR_STATUS_LABELS = [
 ];
 
 // Set to the rollout date
-export const PRE_REVIEW_START_DATE: string | null = null;
+export const PRE_REVIEW_START_DATE: string | null = "2026-10-01";
 
 // Delimiters around the rendered section. The full-sweep render in drci.ts
 // rebuilds the whole comment and does not need them, but the label-event path
