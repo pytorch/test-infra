@@ -169,6 +169,26 @@ describe("renderPrReviewSection", () => {
   });
 });
 
+describe("oversized findings and statuses", () => {
+  it("hides a finding bigger than the budget instead of cutting it", () => {
+    const huge = {
+      ...MINOR,
+      message: "y".repeat(PR_REVIEW_FINDINGS_BUDGET + 10),
+    };
+    const out = render(row({ findings_json: JSON.stringify([huge, MAJOR]) }));
+    expect(out).not.toContain("yyyyyyyyyy");
+    expect(out).toContain("[major] torch/optim/lr_scheduler.py:42");
+    expect(out).toContain("(1 more not shown, see the review run)");
+  });
+
+  it("keeps raw-body markers out of an unknown status", () => {
+    const out = render(
+      row({ status: "<!-- pr-status-start -->", verdict: null, summary: "" })
+    );
+    expect(out).not.toContain("<!--");
+  });
+});
+
 describe("parseFindings", () => {
   it("ignores malformed JSON and malformed entries", () => {
     expect(parseFindings("{not json")).toEqual([]);

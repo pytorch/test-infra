@@ -131,7 +131,12 @@ function findingsText(findings: Finding[]): string {
     const block = defuseSweepSentinels(
       unescapeSanitized(`[${f.severity}] ${f.path}:${f.line}\n${f.message}`)
     );
-    if (used + block.length > PR_REVIEW_FINDINGS_BUDGET && blocks.length > 0) {
+    // A block bigger than the whole budget would be cut mid-message by the
+    // fence's cap, taking the "more not shown" line with it: count it as hidden.
+    if (block.length > PR_REVIEW_FINDINGS_BUDGET) {
+      continue;
+    }
+    if (used + block.length > PR_REVIEW_FINDINGS_BUDGET) {
       break;
     }
     blocks.push(block);
@@ -275,7 +280,13 @@ export function renderPrReviewSection(
   return renderSection(
     NO_VERDICT_EMOJI,
     PR_REVIEW_INCOMPLETE_HEADLINE,
-    [defuseSweepSentinels(`reason: ${inlineCode(status)}`)],
+    // The status vocabulary is open-ended, so keep raw-body markers out of it
+    // as for model text.
+    [
+      defuseSweepSentinels(`reason: ${inlineCode(status)}`)
+        .split("<!--")
+        .join("&lt;!--"),
+    ],
     row,
     repo,
     currentHeadSha
