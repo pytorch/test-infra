@@ -52,12 +52,14 @@ jobs:
           SHOULD_APPLY: ${{ github.event_name == 'push' || inputs.apply }}
         run: |
           # --self-allow: this repository runs no release build of its own, so
-          # discovery finds nothing here. The reusable is named explicitly and
+          # discovery finds nothing here. The reusables are named explicitly and
           # allow-listed at main and every release/X.Y branch, because a caller
-          # pins whichever ref it likes.
+          # pins whichever ref it likes. linux_job_v3.yml declares the binary
+          # validation jobs, which run on release runners on main.
           SCRIPT=tools/scripts/release_manage_runner_groups.py
           ARGS=(--repo "${GITHUB_REPOSITORY}"
-                --self-allow .github/workflows/build_wheels_linux.yml)
+                --self-allow .github/workflows/build_wheels_linux.yml
+                --self-allow .github/workflows/linux_job_v3.yml)
           if [ "${SHOULD_APPLY}" = "true" ]; then
             python3 "${SCRIPT}" "${ARGS[@]}" --apply
           else
