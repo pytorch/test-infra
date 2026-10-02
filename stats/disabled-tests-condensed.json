@@ -304,6 +304,20 @@
     "https://github.com/pytorch/pytorch/issues/199381",
     []
   ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "199423",
+    "https://github.com/pytorch/pytorch/issues/199423",
+    [
+      "linux"
+    ]
+  ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "199424",
+    "https://github.com/pytorch/pytorch/issues/199424",
+    [
+      "linux"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -907,22 +921,6 @@
     "https://github.com/pytorch/pytorch/issues/198910",
     [
       "rocm"
-    ]
-  ],
-  "test_max_autotune_remote_caching_dynamic_False (__main__.TestMaxAutotuneRemoteCache)": [
-    "145361",
-    "https://github.com/pytorch/pytorch/issues/145361",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
-  "test_max_autotune_with_captured_cuda (__main__.TestFlexDecodingCUDA)": [
-    "190748",
-    "https://github.com/pytorch/pytorch/issues/190748",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_memory_aware_partition_count (__main__.TestPartitionedScatterOpt)": [
@@ -1721,6 +1719,13 @@
       "linux"
     ]
   ],
+  "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
+    "192461",
+    "https://github.com/pytorch/pytorch/issues/192461",
+    [
+      "linux"
+    ]
+  ],
   "test_tiny_half_norm_ (__main__.TestCuda)": [
     "94897",
     "https://github.com/pytorch/pytorch/issues/94897",
@@ -1760,6 +1765,15 @@
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
     "182397",
     "https://github.com/pytorch/pytorch/issues/182397",
+    [
+      "asan",
+      "linux",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
+    "152632",
+    "https://github.com/pytorch/pytorch/issues/152632",
     [
       "asan",
       "linux",
