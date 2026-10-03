@@ -301,8 +301,8 @@ describe("buildGreenlightSections", () => {
 
     expect(render).toHaveBeenCalledTimes(2);
     expect([...sections.keys()]).toEqual([NO_LAND_ROW.pr_number]);
-    // A PR with a row of its own never reaches the eligibility gate, even when
-    // that row renders nothing.
+    // A PR with a non-shadow row of its own never reaches the eligibility gate,
+    // even when that row renders nothing.
     expect(check).not.toHaveBeenCalled();
     expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
     // Enough to find the row, and not the model's text: `message` is scrubbed on
@@ -360,9 +360,58 @@ describe("buildGreenlightSections", () => {
     expect(sections.get(LAND_ROW.pr_number)).toContain(LAND_ROW.message);
   });
 
-  it("renders nothing for a PR whose only state is shadow, and runs no gate for it", async () => {
+  it.each(["merge_rules", "too_big"] as const)(
+    "renders the %s eligibility line for a PR whose only state is shadow",
+    async (eligibility) => {
+      queryClickhouseSaved.mockResolvedValue([SHADOW_ROW]);
+      check.mockResolvedValue(eligibility);
+
+      const sections = await buildGreenlightSections(
+        "pytorch",
+        "pytorch",
+        heads(SHADOW_ROW),
+        github
+      );
+
+      expect(octokit.rest.pulls.get).toHaveBeenCalledWith({
+        owner: "pytorch",
+        repo: "pytorch",
+        pull_number: SHADOW_ROW.pr_number,
+      });
+      expect(check).toHaveBeenCalledWith({ number: SHADOW_ROW.pr_number });
+      expect([...sections.entries()]).toEqual([
+        [SHADOW_ROW.pr_number, renderGreenlightEligibility(eligibility)],
+      ]);
+    }
+  );
+
+  it("drops the waiting line only for the PR whose only state is shadow, sharing one gate", async () => {
     queryClickhouseSaved.mockResolvedValue([SHADOW_ROW]);
     check.mockResolvedValue("waiting");
+
+    const sections = await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      heads(SHADOW_ROW, NO_STATE_PR),
+      github
+    );
+
+    expect(gateFactory).toHaveBeenCalledTimes(1);
+    expect(octokit.rest.pulls.get).toHaveBeenCalledTimes(2);
+    expect(octokit.rest.pulls.get).toHaveBeenCalledWith({
+      owner: "pytorch",
+      repo: "pytorch",
+      pull_number: SHADOW_ROW.pr_number,
+    });
+    expect(check).toHaveBeenCalledWith({ number: SHADOW_ROW.pr_number });
+    expect([...sections.entries()]).toEqual([
+      [NO_STATE_PR.pr_number, renderGreenlightEligibility("waiting")],
+    ]);
+  });
+
+  it("renders nothing for a PR whose only state is shadow when the gate returns null", async () => {
+    queryClickhouseSaved.mockResolvedValue([SHADOW_ROW]);
+    check.mockResolvedValue(null);
 
     const sections = await buildGreenlightSections(
       "pytorch",
@@ -371,10 +420,47 @@ describe("buildGreenlightSections", () => {
       github
     );
 
+    expect(check).toHaveBeenCalledWith({ number: SHADOW_ROW.pr_number });
     expect(sections.size).toBe(0);
-    expect(check).not.toHaveBeenCalled();
-    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["the eligibility check", "check"],
+    ["the PR read", "pulls.get"],
+  ])(
+    "renders nothing for a PR whose only state is shadow when %s fails, logging it",
+    async (_, failing) => {
+      queryClickhouseSaved.mockResolvedValue([SHADOW_ROW]);
+      const thrown = new Error("github unreachable");
+      check.mockImplementation(async () => {
+        if (failing === "check") {
+          throw thrown;
+        }
+        return "merge_rules";
+      });
+      octokit.rest.pulls.get.mockImplementation(async ({ pull_number }) => {
+        if (failing === "pulls.get") {
+          throw thrown;
+        }
+        return { data: { number: pull_number } };
+      });
+      const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      const sections = await buildGreenlightSections(
+        "pytorch",
+        "pytorch",
+        heads(SHADOW_ROW),
+        github
+      );
+
+      expect(sections.size).toBe(0);
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringContaining("eligibility check failed"),
+        SHADOW_ROW.pr_number,
+        thrown
+      );
+    }
+  );
 
   it("renders a non-shadow row as before, and runs no gate for it", async () => {
     const row = { ...LAND_ROW, shadow: false };
@@ -556,7 +642,7 @@ function clause(start: string, end: string): string {
 
 describe("greenlight_pr_states query.sql", () => {
   // A PR whose rows are all shadow has to come back as one, or the render cannot
-  // tell it from a PR with no state and shows it the eligibility line.
+  // tell it from a PR with no state and shows it "waiting for review to start".
   it("keeps shadow rows and selects the shadow column", () => {
     expect(clause("SELECT", "FROM").split(/[\s,]+/)).toContain("shadow");
     expect(clause("WHERE", "ORDER BY")).not.toContain("shadow");

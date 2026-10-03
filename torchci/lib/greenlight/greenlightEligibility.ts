@@ -1,4 +1,4 @@
-// What greenlight's scan would decide for a PR it has recorded no state for yet,
+// What greenlight's scan would decide for a PR it has no non-shadow state for,
 // read from the same sources it reads. The issue grammar and the merge-rule
 // semantics are ports of greenlight/src/greenlight/trusted_authors.py,
 // merge_authz.py and cohort.assess, and the size caps of the ones in

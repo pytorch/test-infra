@@ -1,7 +1,8 @@
 // Server-side glue for the Green Light section of the Dr.CI comment. Reads the
 // authoritative greenlight state for a whole Dr.CI sweep out of ClickHouse in one
 // batched query, then delegates the (pure) rendering to lib/greenlight/greenlightRender.
-// A PR with no state at all gets the eligibility line from greenlightEligibility.
+// A PR with no state at all gets the eligibility line from greenlightEligibility, and
+// so does a PR whose only state is shadow, unless that line is "waiting".
 
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
@@ -68,13 +69,13 @@ async function eligibilityLine(
  * Build the Green Light section for every PR in a Dr.CI sweep.
  * Takes pr_number -> the PR's head sha at sweep time, which the renderer needs to
  * tell a verdict on the current commit from one left behind by a later push, and
- * the sweep's Octokit, which reads the PRs that have no greenlight state.
+ * the sweep's Octokit, which reads the PRs that have no non-shadow greenlight state.
  * Returns pr_number -> rendered markdown. A PR with no greenlight state gets its
- * eligibility line instead; omitted are PRs whose only state is shadow, those whose
- * state or eligibility renders to nothing, and those whose own render or check
- * threw. Empty (and issues no query) when the repo isn't a greenlight repo or no
- * PRs were passed. The caller wraps this so a ClickHouse error can never break the
- * Dr.CI comment.
+ * eligibility line instead, and so does a PR whose only state is shadow unless that
+ * line is "waiting"; omitted are PRs whose state or eligibility renders to nothing,
+ * and those whose own render or check threw. Empty (and issues no query) when the
+ * repo isn't a greenlight repo or no PRs were passed. The caller wraps this so a
+ * ClickHouse error can never break the Dr.CI comment.
  */
 export async function buildGreenlightSections(
   owner: string,
@@ -100,13 +101,16 @@ export async function buildGreenlightSections(
 
   // One instant for the whole sweep, so age-derived rendering is consistent across PRs.
   const now = new Date();
-  const withState = new Set<number>();
+  const withAuthority = new Set<number>();
+  const shadowOnly = new Set<number>();
   for (const row of rows) {
-    withState.add(row.pr_number);
-    // A shadow evaluation carries no authority, so Dr.CI never renders one.
+    // A shadow evaluation carries no authority, so Dr.CI never renders one; its PR
+    // is checked for eligibility below instead.
     if (row.shadow) {
+      shadowOnly.add(row.pr_number);
       continue;
     }
+    withAuthority.add(row.pr_number);
     // Per row, because the only handler above this one fails the whole sweep to an
     // empty map: without this, one PR whose row the renderer chokes on would strip
     // the section off every other PR in the sweep as well. The log gets the PR
@@ -127,11 +131,18 @@ export async function buildGreenlightSections(
   }
 
   const check = greenlightEligibilityGate(octokit, owner, repo);
+  // A shadow row may record a finished review, which the scan repeats only once
+  // the PR changes, so "waiting" could promise a review that never starts.
+  const shadowCheck: EligibilityCheck = async (pr) => {
+    const eligibility = await check(pr);
+    return eligibility === "waiting" ? null : eligibility;
+  };
   await Promise.all(
     prNumbers
-      .filter((prNumber) => !withState.has(prNumber))
+      .filter((prNumber) => !withAuthority.has(prNumber))
       .map(async (prNumber) => {
-        const line = await eligibilityLine(check, prNumber, async () => {
+        const prCheck = shadowOnly.has(prNumber) ? shadowCheck : check;
+        const line = await eligibilityLine(prCheck, prNumber, async () => {
           const { data } = await octokit.rest.pulls.get({
             owner,
             repo,
