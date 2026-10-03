@@ -7,10 +7,12 @@ import {
   parseTrustedAuthors,
   renderGreenlightEligibility,
 } from "lib/greenlight/greenlightEligibility";
+import { GateReview } from "lib/greenlight/greenlightReviewGate";
 import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import { Octokit } from "octokit";
 
 const FENCE = "```";
+const FILES_ROUTE = "GET /repos/{owner}/{repo}/pulls/{pull_number}/files";
 
 function issueBody(...lines: string[]): string {
   return lines.join("\n");
@@ -42,10 +44,13 @@ function fakeOctokit({
   rules = RULES_YAML,
   files = [] as string[],
   members = {} as Record<string, string[]>,
+  reviews = [] as GateReview[],
 } = {}) {
+  const listReviews = jest.fn();
   return {
     rest: {
       issues: { get: jest.fn().mockResolvedValue({ data: { body } }) },
+      pulls: { listReviews },
       repos: {
         getContent: jest.fn().mockResolvedValue({
           data: { content: Buffer.from(rules).toString("base64") },
@@ -62,9 +67,9 @@ function fakeOctokit({
         ),
       },
     },
-    paginate: jest
-      .fn()
-      .mockResolvedValue(files.map((filename) => ({ filename }))),
+    paginate: jest.fn(async (route: unknown) =>
+      route === listReviews ? reviews : files.map((filename) => ({ filename }))
+    ),
   };
 }
 
@@ -261,8 +266,16 @@ describe("greenlightEligibilityGate", () => {
   const GHSTACK = { head: { ref: "gh/alice/12/head" } };
   const RELEASE = { base: { ref: "release/2.9" } };
   const by = (login: string) => ({ user: { login } });
+  const reviewed = (state: string, login: string) => ({
+    reviews: [{ state, user: { login, type: "User" } }],
+  });
+  const DECIDED = reviewed("CHANGES_REQUESTED", "bob");
+  const SPACED = {
+    rules: `${RULES_YAML}- { patterns: [third_party/**], approved_by: ['  Grace '] }\n`,
+  };
 
-  // [case, fake GitHub, PR fields, outcome, issue reads + rules reads + file listings]
+  // [case, fake GitHub, PR fields, outcome,
+  //  issue reads + rules reads + file listings + review listings]
   const CASES: [
     string,
     Parameters<typeof fakeOctokit>[0],
@@ -270,34 +283,98 @@ describe("greenlightEligibilityGate", () => {
     GreenlightEligibility | null,
     string
   ][] = [
-    ["a draft", {}, { draft: true }, null, "000"],
-    ["no author", {}, { user: null }, null, "000"],
-    ["an unlisted author", {}, by("eve"), null, "100"],
-    ["lines past the cap", DOCS, { additions: 1996 }, "too_big", "100"],
-    ["files past the cap", DOCS, { changed_files: 201 }, "too_big", "100"],
-    ["a PR at both caps", DOCS, AT_CAPS, "waiting", "111"],
-    ["an author a catch-all names", {}, by("root-approver"), "waiting", "110"],
-    ["a catch-all team's member", TEAM, by("team-member"), "waiting", "110"],
-    ["files one naming rule covers", DOCS_TREE, {}, "waiting", "111"],
-    ["files only two rules cover", MIXED, by("dave"), "merge_rules", "111"],
-    ["an approver in another case", DOCS, by("alice"), "merge_rules", "111"],
-    ["a listed author no rule names", FRANK, by("frank"), "merge_rules", "111"],
-    ["a ghstack head", DOCS, GHSTACK, "merge_rules", "110"],
-    ["a base other than main", DOCS, RELEASE, "merge_rules", "110"],
+    ["a draft", {}, { draft: true }, null, "0000"],
+    ["no author", {}, { user: null }, null, "0000"],
+    ["an unlisted author", {}, by("eve"), null, "1000"],
+    ["lines past the cap", DOCS, { additions: 1996 }, "too_big", "1000"],
+    ["files past the cap", DOCS, { changed_files: 201 }, "too_big", "1000"],
+    ["a PR at both caps", DOCS, AT_CAPS, "waiting", "1111"],
+    ["an author a catch-all names", {}, by("root-approver"), "waiting", "1101"],
+    ["a catch-all team's member", TEAM, by("team-member"), "waiting", "1101"],
+    ["files one naming rule covers", DOCS_TREE, {}, "waiting", "1111"],
+    ["files only two rules cover", MIXED, by("dave"), "merge_rules", "1110"],
+    ["an approver in another case", DOCS, by("alice"), "merge_rules", "1110"],
+    [
+      "a listed author no rule names",
+      FRANK,
+      by("frank"),
+      "merge_rules",
+      "1110",
+    ],
+    ["a ghstack head", DOCS, GHSTACK, "merge_rules", "1100"],
+    ["a base other than main", DOCS, RELEASE, "merge_rules", "1100"],
+    [
+      "a catch-all author's decided PR",
+      DECIDED,
+      by("root-approver"),
+      null,
+      "1101",
+    ],
+    [
+      "a covered author's decided PR",
+      { ...DOCS, ...DECIDED },
+      {},
+      null,
+      "1111",
+    ],
+    [
+      "an approval by a padded entry in another case",
+      { ...DOCS, ...SPACED, ...reviewed("APPROVED", "GRACE") },
+      {},
+      null,
+      "1111",
+    ],
+    [
+      "an approval by a rule's approver whatever its patterns",
+      { ...DOCS, ...reviewed("APPROVED", "carol") },
+      {},
+      null,
+      "1111",
+    ],
+    [
+      "an approval by an approving team's member",
+      { ...DOCS, ...TEAM, ...reviewed("APPROVED", "team-member") },
+      {},
+      null,
+      "1111",
+    ],
+    [
+      "an approval by a non-approver",
+      { ...DOCS, ...reviewed("APPROVED", "eve") },
+      {},
+      "waiting",
+      "1111",
+    ],
   ];
 
   it.each(CASES)("decides %s", async (_, options, fields, outcome, reads) => {
     const octokit = fakeOctokit(options);
     expect(await gateFor(octokit)(pr(fields))).toBe(outcome);
-    const { issues, repos } = octokit.rest;
+    const { issues, repos, pulls } = octokit.rest;
+    const routes = octokit.paginate.mock.calls.map(([route]) => route);
     expect(
-      [issues.get, repos.getContent, octokit.paginate]
-        .map((fn) => fn.mock.calls.length)
-        .join("")
+      [
+        issues.get.mock.calls.length,
+        repos.getContent.mock.calls.length,
+        routes.filter((route) => route === FILES_ROUTE).length,
+        routes.filter((route) => route === pulls.listReviews).length,
+      ].join("")
     ).toBe(reads);
   });
 
-  it("reads the author's team membership and the PR's files", async () => {
+  it("counts an approval by an approver only an unusable rule names", async () => {
+    const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+    const octokit = fakeOctokit({
+      ...DOCS,
+      rules: `${RULES_YAML}- { name: Unusable, patterns: ['docs/{a,b}'], approved_by: [heidi] }\n`,
+      ...reviewed("APPROVED", "heidi"),
+    });
+    expect(await gateFor(octokit)(pr())).toBeNull();
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+  });
+
+  it("reads the author's team membership, the PR's files and its reviews", async () => {
     const octokit = fakeOctokit({ ...DOCS, ...TEAM });
     expect(await gateFor(octokit)(pr())).toBe("waiting");
     expect(octokit.rest.teams.getMembershipForUserInOrg).toHaveBeenCalledWith({
@@ -306,12 +383,16 @@ describe("greenlightEligibilityGate", () => {
       username: "Alice",
     });
     expect(octokit.paginate).toHaveBeenCalledWith(
-      "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+      FILES_ROUTE,
       expect.objectContaining({
         owner: "pytorch",
         repo: "pytorch",
         pull_number: 1,
       })
+    );
+    expect(octokit.paginate).toHaveBeenCalledWith(
+      octokit.rest.pulls.listReviews,
+      { owner: "pytorch", repo: "pytorch", pull_number: 1, per_page: 100 }
     );
   });
 
@@ -370,6 +451,13 @@ describe("greenlightEligibilityGate", () => {
     const octokit = fakeOctokit();
     octokit.paginate.mockRejectedValue(new Error("files"));
     await expect(gateFor(octokit)(pr())).rejects.toThrow("files");
+  });
+
+  it("rejects when the reviews cannot be listed", async () => {
+    const octokit = fakeOctokit();
+    octokit.paginate.mockRejectedValue(new Error("reviews"));
+    const input = pr({ user: { login: "root-approver" } });
+    await expect(gateFor(octokit)(input)).rejects.toThrow("reviews");
   });
 });
 
