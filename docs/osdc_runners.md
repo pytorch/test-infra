@@ -363,7 +363,9 @@ floating one.
    [`tools/scripts/hf_cache_sync.py`](../tools/scripts/hf_cache_sync.py) — `--diff` reports the drift,
    `--repo <id> --to <cluster> --apply` copies from a region that has it, and `--from-hub` fetches a
    repo no region has yet. A seeded repo can take up to an hour to appear on nodes that are already
-   running, which cache directory listings for that long; new nodes see it at once.
+   running, which cache directory listings for that long; new nodes see it at once. The
+   [`hf-cache-sync`](../.github/workflows/hf-cache-sync.yml) workflow runs `--sync` every 10 minutes,
+   so a repo refreshed in one of the regions it covers reaches the others without anyone seeding it.
 
 ---
 
