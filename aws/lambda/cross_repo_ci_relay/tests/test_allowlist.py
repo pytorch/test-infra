@@ -1,12 +1,45 @@
 import unittest
+from unittest.mock import MagicMock, patch
 
 from utils.allowlist import (
     AllowlistLevel,
     AllowlistMap,
     CrcrEvent,
     DEFAULT_CRCR_EVENTS,
+    load_allowlist,
+    refresh_allowlist,
     SUPPORTED_CRCR_EVENTS,
 )
+
+
+@patch("utils.allowlist.redis_helper")
+@patch("utils.allowlist._fetch", return_value="L3:\n  npu:\n    org/repo: [a]\n")
+class TestLoadAllowlist(unittest.TestCase):
+    def test_refresh_fetches_and_caches_whatever_the_cache_holds(self, fetch, redis):
+        cfg = MagicMock()
+        redis.get_cached_yaml.return_value = "L2:\n  - stale/repo\n"
+
+        allowlist = refresh_allowlist(cfg)
+
+        fetch.assert_called_once_with(cfg.allowlist_url)
+        redis.set_cached_yaml.assert_called_once_with(cfg, fetch.return_value)
+        self.assertEqual(allowlist.get_repo_level("org/repo"), AllowlistLevel.L3)
+        self.assertIsNone(allowlist.get_repo_level("stale/repo"))
+
+    def test_load_uses_the_cache_and_only_fetches_on_a_miss(self, fetch, redis):
+        cfg = MagicMock()
+        redis.get_cached_yaml.return_value = "L2:\n  - cached/repo\n"
+        self.assertEqual(
+            load_allowlist(cfg).get_repo_level("cached/repo"), AllowlistLevel.L2
+        )
+        fetch.assert_not_called()
+
+        redis.get_cached_yaml.return_value = None
+        self.assertEqual(
+            load_allowlist(cfg).get_repo_level("org/repo"), AllowlistLevel.L3
+        )
+        fetch.assert_called_once()
+        redis.set_cached_yaml.assert_called_once()
 
 
 class TestAllowlistMap(unittest.TestCase):

@@ -9,7 +9,7 @@ still dispatched to it, its results still reach HUD, and it is still stamped L3.
 import logging
 
 from . import gh_helper, redis_helper
-from .allowlist import AllowlistLevel, load_allowlist
+from .allowlist import AllowlistLevel, load_allowlist, refresh_allowlist
 from .config import RelayConfig
 
 
@@ -42,9 +42,12 @@ def reconcile(config: RelayConfig) -> None:
     """Record which L3 repos have an open demotion PR, and forget the rest.
 
     The sweeper is the only caller, so a demotion starts and ends at the next
-    sweep. A repo whose PRs cannot be listed is left as it is. After a merge the
-    allowlist cache can still read L3 for up to ``allowlist_ttl_seconds``; that
-    short window is accepted.
+    sweep. A repo whose PRs cannot be listed is left as it is.
+
+    A demotion ends only after the allowlist has been fetched again: if its PR
+    was merged the repo is L2 now, but the cached allowlist can still say L3, and
+    until that refreshes new jobs would get check runs that nothing finishes. If
+    the fetch fails the demotion stays, and the next sweep tries again.
     """
     repos, _ = load_allowlist(config).get_level(AllowlistLevel.L3)
     if not repos:
@@ -61,8 +64,10 @@ def reconcile(config: RelayConfig) -> None:
                 repo_full_name=config.upstream_repo,
                 head=f"{head_owner}:{DEMOTION_BRANCH_PREFIX}{repo}",
             )
+            if not demoted and redis_helper.get_demotion_since(config, repo):
+                refresh_allowlist(config)
         except Exception:
-            logger.exception("demotion reconcile: could not list the PRs of %s", repo)
+            logger.exception("demotion reconcile: could not update %s", repo)
             continue
         if demoted:
             redis_helper.set_demotion(config, repo)
