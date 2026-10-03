@@ -1600,7 +1600,7 @@
       "rocm"
     ]
   ],
-  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes (__main__._cls)": [
+  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes (__main__.DynamicShapes)": [
     "199141",
     "https://github.com/pytorch/pytorch/issues/199141",
     [
