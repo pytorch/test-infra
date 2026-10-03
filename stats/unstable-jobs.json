@@ -31,6 +31,14 @@
     "Lint URLs",
     "linux-job"
   ],
+  "inductor-pallas / pallas-tpu-py3.12-inductor / test (inductor-pallas-tpu)": [
+    "aorenste",
+    "199662",
+    "https://github.com/pytorch/pytorch/issues/199662",
+    "inductor-pallas",
+    "pallas-tpu-py3.12-inductor",
+    "test (inductor-pallas-tpu)"
+  ],
   "inductor-rocm-mi200 / linux-jammy-rocm-py3.10-mi200 / test": [
     "jithunnair-amd",
     "169966",
