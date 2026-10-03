@@ -210,6 +210,8 @@ export interface PRData {
   title: string;
   body: string;
   shas: { sha: string; title: string }[];
+  // The PR's head branch name, e.g. "fix-foo" for "someone:fix-foo".
+  headRef?: string;
 }
 
 export interface PRandJobs extends PRData {

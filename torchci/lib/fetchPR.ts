@@ -18,6 +18,7 @@ interface PRTitleBody {
   title: string;
   body: string;
   headSha: string;
+  headRef: string;
 }
 
 async function fetchPRTitleBody(
@@ -25,7 +26,7 @@ async function fetchPRTitleBody(
   repo: string,
   prNumber: string
 ): Promise<PRTitleBody | undefined> {
-  // Read the PR's title/body/head sha from the default.pull_request mirror
+  // Read the PR's title/body/head sha/head branch from the default.pull_request mirror
   // instead of the GitHub API. Filter on `number` (the table's sorting key) for
   // an indexed lookup; html_url pins the repo since PR numbers are not unique
   // across repos. FINAL collapses the ReplacingMergeTree to the latest row.
@@ -33,7 +34,8 @@ async function fetchPRTitleBody(
 SELECT
     title,
     body,
-    head.'sha' AS head_sha
+    head.'sha' AS head_sha,
+    head.'ref' AS head_ref
 FROM default.pull_request FINAL
 WHERE
     number = {prNumber: Int64}
@@ -50,6 +52,7 @@ WHERE
     title: rows[0].title,
     body: rows[0].body ?? "",
     headSha: rows[0].head_sha,
+    headRef: rows[0].head_ref,
   };
 }
 
@@ -88,9 +91,11 @@ export default async function fetchPR(
 
   let title: string;
   let body: string;
+  let headRef: string | undefined;
   if (titleBody !== undefined) {
     title = titleBody.title;
     body = titleBody.body;
+    headRef = titleBody.headRef;
   } else {
     // No ClickHouse row (or the query errored): fall back to the GitHub API.
     const pull = await octokit.rest.pulls.get({
@@ -100,6 +105,7 @@ export default async function fetchPR(
     });
     title = pull.data.title;
     body = pull.data.body ?? "";
+    headRef = pull.data.head?.ref;
   }
 
   let historicalCommits: any[] = [];
@@ -129,7 +135,7 @@ export default async function fetchPR(
   // (empty list, or newest sha differs) hit GitHub and reconcile below. Fork PRs
   // return empty from pr_commits, so they naturally fall back.
   if (shas.length !== 0 && newestHistoricalSha === referenceHeadSha) {
-    return { title, body, shas };
+    return { title, body, shas, headRef };
   }
 
   const commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
@@ -147,7 +153,7 @@ export default async function fetchPR(
       return { sha: commit.sha, title: commit.commit.message.split("\n")[0] };
     });
   } else if (commits.length === 0) {
-    return { title, body, shas };
+    return { title, body, shas, headRef };
   } else {
     // For the very last sha, check to see if the shas themselves match as a proxy for detecting any missing commit.
     const lastCommit = commits[commits.length - 1];
@@ -160,5 +166,5 @@ export default async function fetchPR(
     }
   }
 
-  return { title, body, shas };
+  return { title, body, shas, headRef };
 }

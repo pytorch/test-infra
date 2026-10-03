@@ -581,7 +581,8 @@ export async function updateDrciComments(
         repo,
         failureInfo,
         formDrciSevBody(sevs),
-        prStatusSection
+        prStatusSection,
+        pr_info.headRef
       );
 
       const { id, body } =
@@ -1786,6 +1787,7 @@ export async function reorganizeWorkflows(
         let prTitle = "";
         let prBody = "";
         let prShas: { sha: string; title: string }[] = [];
+        let prHeadRef = "";
         // Gate this to PyTorch as disabled tests feature is only available there
         if (octokit && repo === "pytorch") {
           const prData = await fetchPR(
@@ -1798,6 +1800,7 @@ export async function reorganizeWorkflows(
           prTitle = prData.title;
           prBody = prData.body;
           prShas = prData.shas;
+          prHeadRef = prData.headRef ?? "";
         }
 
         return {
@@ -1812,6 +1815,7 @@ export async function reorganizeWorkflows(
           title: prTitle,
           body: prBody,
           shas: prShas,
+          headRef: prHeadRef,
         };
       })
       .value()
