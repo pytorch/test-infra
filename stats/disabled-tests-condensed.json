@@ -430,6 +430,13 @@
       "xpu"
     ]
   ],
+  "test_forward_mode_AD_nn_functional_grid_sample_xpu_float64 (__main__.TestFwdGradientsXPU)": [
+    "199494",
+    "https://github.com/pytorch/pytorch/issues/199494",
+    [
+      "xpu"
+    ]
+  ],
   "test_fully_shard_training_overlap (__main__.TestFullyShardOverlap)": [
     "134139",
     "https://github.com/pytorch/pytorch/issues/134139",
@@ -816,6 +823,13 @@
       "linux"
     ]
   ],
+  "test_nextafter_noncontiguous_False_xpu_float32 (__main__.TestInductorNextafterXPU)": [
+    "199213",
+    "https://github.com/pytorch/pytorch/issues/199213",
+    [
+      "xpu"
+    ]
+  ],
   "test_nextafter_noncontiguous_True_xpu_float64 (__main__.TestInductorNextafterXPU)": [
     "199177",
     "https://github.com/pytorch/pytorch/issues/199177",
@@ -1013,6 +1027,13 @@
     "https://github.com/pytorch/pytorch/issues/193150",
     [
       "linux"
+    ]
+  ],
+  "test_pointwise_query_producer_head_dims0_xpu (__main__.TestFlexDecodingXPU)": [
+    "198712",
+    "https://github.com/pytorch/pytorch/issues/198712",
+    [
+      "xpu"
     ]
   ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
