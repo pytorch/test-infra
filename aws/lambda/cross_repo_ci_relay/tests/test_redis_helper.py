@@ -416,6 +416,41 @@ class TestDispatchJob(unittest.TestCase):
         )
 
 
+class TestDemotion(unittest.TestCase):
+    def test_set_keeps_when_it_began(self):
+        client = MagicMock()
+
+        redis_helper.set_demotion(_cfg(), "org/repo", client=client)
+
+        args, kwargs = client.set.call_args
+        self.assertEqual(args[0], "crcr:demotion:org/repo")
+        # NX: an existing start time is kept.
+        self.assertEqual(kwargs, {"nx": True})
+
+    def test_get_returns_the_start_time_or_none(self):
+        client = MagicMock()
+        client.get.return_value = "1234.5"
+        self.assertEqual(
+            redis_helper.get_demotion_since(_cfg(), "org/repo", client=client), 1234.5
+        )
+
+        client.get.return_value = None
+        self.assertIsNone(
+            redis_helper.get_demotion_since(_cfg(), "org/repo", client=client)
+        )
+
+        # A Redis error reads as not demoted.
+        client.get.side_effect = redis_lib.RedisError("down")
+        self.assertIsNone(
+            redis_helper.get_demotion_since(_cfg(), "org/repo", client=client)
+        )
+
+    def test_clear_deletes_the_key(self):
+        client = MagicMock()
+        redis_helper.clear_demotion(_cfg(), "org/repo", client=client)
+        client.delete.assert_called_once_with("crcr:demotion:org/repo")
+
+
 class TestInProgressTracker(unittest.TestCase):
     def setUp(self):
         redis_helper._cached_client = None

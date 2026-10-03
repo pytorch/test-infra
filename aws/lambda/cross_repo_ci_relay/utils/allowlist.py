@@ -314,6 +314,13 @@ def _fetch(url: str) -> str:
     return gh_helper.get_repo_file(owner, repo, "/".join(file_parts), ref)
 
 
+def refresh_allowlist(config: RelayConfig) -> AllowlistMap:
+    """Fetch the allowlist from GitHub now, whatever the cache holds, and cache it."""
+    yaml_str = _fetch(config.allowlist_url)
+    redis_helper.set_cached_yaml(config, yaml_str)
+    return AllowlistMap._parse(yaml.safe_load(yaml_str) or {})
+
+
 def load_allowlist(config: RelayConfig) -> AllowlistMap:
     # The allowlist source is fetched from GitHub without authentication, so repeated
     # cache misses can run into the unauthenticated 60 requests/hour rate limit.
@@ -322,6 +329,5 @@ def load_allowlist(config: RelayConfig) -> AllowlistMap:
     yaml_str = redis_helper.get_cached_yaml(config)
     if yaml_str is None:
         logger.info("allowlist cache miss - loading from %s", config.allowlist_url)
-        yaml_str = _fetch(config.allowlist_url)
-        redis_helper.set_cached_yaml(config, yaml_str)
+        return refresh_allowlist(config)
     return AllowlistMap._parse(yaml.safe_load(yaml_str) or {})

@@ -23,6 +23,7 @@ _IN_PROGRESS_ZSET = "crcr:in_progress"
 _DISPATCH_JOB_PREFIX = "crcr:dispatch_job:"
 _CHECK_RUN_WANTED_PREFIX = "crcr:check_run_wanted:"
 _WORKFLOW_START_PREFIX = "crcr:workflow_start:"
+_DEMOTION_PREFIX = "crcr:demotion:"
 _cached_client: redis_lib.Redis | None = None
 _cached_client_url: str | None = None
 
@@ -291,6 +292,57 @@ def is_check_run_wanted(
     except RedisError:
         logger.exception("is_check_run_wanted: redis error")
         return False
+
+
+def set_demotion(
+    config: RelayConfig,
+    downstream_repo: str,
+    client: redis_lib.Redis | None = None,
+) -> None:
+    """Record that ``downstream_repo`` is on temporary demotion.
+
+    The value is when it was first recorded (SET NX), so a job can tell whether
+    it started before or after; recording it again changes nothing.
+    """
+    try:
+        if client is None:
+            client = create_client(config)
+        client.set(f"{_DEMOTION_PREFIX}{downstream_repo}", time.time(), nx=True)
+    except RedisError:
+        logger.exception("set_demotion: redis error")
+
+
+def get_demotion_since(
+    config: RelayConfig,
+    downstream_repo: str,
+    client: redis_lib.Redis | None = None,
+) -> float | None:
+    """When ``downstream_repo``'s temporary demotion began, or None.
+
+    A Redis error reads as None: check runs carry on rather than the repo staying
+    silenced because Redis cannot be reached.
+    """
+    try:
+        if client is None:
+            client = create_client(config)
+        value = client.get(f"{_DEMOTION_PREFIX}{downstream_repo}")
+        return None if value is None else float(value)
+    except RedisError:
+        logger.exception("get_demotion_since: redis error")
+        return None
+
+
+def clear_demotion(
+    config: RelayConfig,
+    downstream_repo: str,
+    client: redis_lib.Redis | None = None,
+) -> None:
+    try:
+        if client is None:
+            client = create_client(config)
+        client.delete(f"{_DEMOTION_PREFIX}{downstream_repo}")
+    except RedisError:
+        logger.exception("clear_demotion: redis error")
 
 
 def _run_scope_stem(

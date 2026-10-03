@@ -31,6 +31,28 @@ def _event(
     }
 
 
+class TestSweeper(unittest.TestCase):
+    @patch(
+        "callback.lambda_function.demotion.reconcile",
+        side_effect=RuntimeError("github down"),
+    )
+    @patch(
+        "callback.lambda_function.cleanup_handler.handle",
+        return_value={"ok": True, "cleaned": 2, "errors": 0},
+    )
+    @patch("callback.lambda_function.get_config")
+    def test_sweep_cleans_up_and_reconciles_demotions(
+        self, _config, mock_cleanup, mock_reconcile
+    ):
+        response = lambda_handler({"source": "crcr.sweeper"}, {})
+
+        mock_cleanup.assert_called_once()
+        mock_reconcile.assert_called_once()
+        # A failing reconcile does not fail the sweep.
+        self.assertEqual(response["statusCode"], 200)
+        self.assertEqual(json.loads(response["body"])["cleaned"], 2)
+
+
 class TestCallbackLambdaHandler(unittest.TestCase):
     def setUp(self):
         import utils.config
