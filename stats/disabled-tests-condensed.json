@@ -553,6 +553,13 @@
       "inductor"
     ]
   ],
+  "test_index_put_as_masked_fill_mask_reads_target_by_extern_kernel_cuda (__main__.GPUTests)": [
+    "199672",
+    "https://github.com/pytorch/pytorch/issues/199672",
+    [
+      "rocm"
+    ]
+  ],
   "test_init_from_local_shards (__main__.TestShardedTensorFromLocalShards)": [
     "78068",
     "https://github.com/pytorch/pytorch/issues/78068",
