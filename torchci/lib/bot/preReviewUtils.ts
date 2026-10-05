@@ -197,8 +197,8 @@ export async function getPreReviewStatus(
   };
 }
 
-// Move a triaged PR to in progress once every assigned reviewer agrees. The
-// label is added before triaged is removed so the PR always has a status.
+// Mark a triaged PR in progress once every assigned reviewer agrees. The
+// triaged label is kept.
 export async function markInProgressIfAccepted(
   octokit: Octokit,
   owner: string,
@@ -232,12 +232,6 @@ export async function markInProgressIfAccepted(
       repo,
       issue_number: prNumber,
       labels: [PR_STATUS_LABEL_IN_PROGRESS],
-    });
-    await octokit.rest.issues.removeLabel({
-      owner,
-      repo,
-      issue_number: prNumber,
-      name: PR_STATUS_LABEL_TRIAGED,
     });
   }
   return status;
