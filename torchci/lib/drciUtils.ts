@@ -96,11 +96,11 @@ export const CANCELLED_STEP_ERROR = "##[error]The operation was canceled.";
 
 // Auto PR Triage runs on pull_request_target, so GitHub does not link a fork
 // PR's runs to the PR; the run list filtered by head branch finds them, even
-// after later pushes. Every other label also starts a run that skips, so those
-// are filtered out, and callers only pass the head branch for PRs with the
-// label that starts triage. Only plain branch names are linked, so a branch
-// name cannot break or inject Markdown into the comment.
-export const AUTO_PR_TRIAGE_LABEL = "open source";
+// after later pushes. The link is only shown for PRs with the label that starts
+// triage, and the list leaves out the runs every other label starts and skips.
+// Only plain branch names are linked, so a branch name cannot break or inject
+// Markdown into the comment.
+const AUTO_PR_TRIAGE_LABEL = "open source";
 const AUTO_PR_TRIAGE_RUNS_URL =
   "https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml";
 const SAFE_BRANCH_RE = /^[A-Za-z0-9._\/-]+$/;
@@ -109,16 +109,18 @@ export function formDrciHeader(
   owner: string,
   repo: string,
   prNum: number,
-  headRef: string = ""
+  headRef: string = "",
+  labels: string[] = []
 ): string {
   // For PyTorch only
   if (isPyTorchPyTorch(owner, repo)) {
     const triageQuery = encodeURIComponent(
       `branch:${headRef} -is:skipped -is:cancelled`
     );
-    const triageLink = SAFE_BRANCH_RE.test(headRef)
-      ? `* :robot: See [Auto PR Triage runs for this PR](${AUTO_PR_TRIAGE_RUNS_URL}?query=${triageQuery})\n`
-      : "";
+    const triageLink =
+      labels.includes(AUTO_PR_TRIAGE_LABEL) && SAFE_BRANCH_RE.test(headRef)
+        ? `* :robot: See [Auto PR Triage runs for this PR](${AUTO_PR_TRIAGE_RUNS_URL}?query=${triageQuery})\n`
+        : "";
     return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}/pr/${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${PYTHON_DOCS_PATH})
@@ -147,9 +149,10 @@ export function formDrciComment(
   // contributor what stage the PR is at and who owes the next step, so it leads
   // the comment rather than sitting below the CI results.
   prStatusSection: string = "",
-  headRef: string = ""
+  headRef: string = "",
+  labels: string[] = []
 ): string {
-  const header = formDrciHeader(owner, repo, pr_num, headRef);
+  const header = formDrciHeader(owner, repo, pr_num, headRef, labels);
   const comment = `${DRCI_COMMENT_START}${prStatusSection}
 ${header}
 ${sevs}
@@ -269,9 +272,8 @@ export async function upsertDrCiComment(
     "",
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment),
-    prLabels.includes(AUTO_PR_TRIAGE_LABEL)
-      ? context.payload.pull_request?.head?.ref ?? ""
-      : ""
+    context.payload.pull_request?.head?.ref ?? "",
+    prLabels
   );
 
   if (existingDrciComment === drciComment) {
