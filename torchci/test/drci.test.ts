@@ -842,6 +842,42 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(header.includes("bot commands wiki")).toBeTruthy();
   });
 
+  test("test formDrciHeader links Auto PR Triage runs by head branch", async () => {
+    const header = formDrciHeader("pytorch", "pytorch", 42, "fix/foo-1.2_x", [
+      "open source",
+    ]);
+
+    expect(header).toContain(
+      "* :robot: See [Auto PR Triage runs for this PR](https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml?query=branch%3Afix%2Ffoo-1.2_x%20-is%3Askipped%20-is%3Acancelled)\n"
+    );
+    expect(header).toContain("bot commands wiki");
+  });
+
+  test("test formDrciHeader omits the Auto PR Triage link without the open source label", async () => {
+    for (const labels of [[], ["triaged", "ciflow/trunk"]]) {
+      const header = formDrciHeader(
+        "pytorch",
+        "pytorch",
+        42,
+        "fix-foo",
+        labels
+      );
+      expect(header).not.toContain("Auto PR Triage");
+    }
+  });
+
+  test("test formDrciHeader omits the Auto PR Triage link without a plain head branch", async () => {
+    for (const headRef of ["", "fix)(evil", "a b", "x]\n* injected"]) {
+      const header = formDrciHeader("pytorch", "pytorch", 42, headRef, [
+        "open source",
+      ]);
+      expect(header).not.toContain("Auto PR Triage");
+    }
+    expect(
+      formDrciHeader("pytorch", "vision", 42, "fix-foo", ["open source"])
+    ).not.toContain("Auto PR Triage");
+  });
+
   test("test formDrciHeader for pytorch/vision", async () => {
     const header = formDrciHeader("pytorch", "vision", 42);
 
