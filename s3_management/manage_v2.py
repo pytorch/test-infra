@@ -562,6 +562,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         # project "torch_rocm"). Keep the two lists in sync.
         "rocm",
         "rocm-sdk-core",
+        "rocm-sdk-devel",
         "rocm-sdk-libraries",
         "rocm-sdk-device-gfx1010",
         "rocm-sdk-device-gfx1011",
