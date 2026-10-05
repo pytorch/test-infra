@@ -3,7 +3,7 @@ name: Validate binaries
 # A reusable workflow that triggers a set of jobs that perform a smoke test / validation of pytorch binaries.
 # Optionally restricts validation to the specified OS and channel.
 # For the details about parameter values, see:
-#   pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
+#   pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@release/2.15
 # For an example of the `workflow_call` usage see:
 #   https://github.com/pytorch/builder/pull/1144
 on:
@@ -49,7 +49,7 @@ on:
         type: boolean
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 
@@ -114,7 +114,7 @@ on:
 
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 

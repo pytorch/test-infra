@@ -49,7 +49,7 @@ on:
         type: boolean
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 
@@ -107,7 +107,7 @@ on:
 
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 
@@ -169,7 +169,7 @@ jobs:
 
         # Validate binaries. Poetry-based validation now lives in the
         # standalone linux-poetry job below so Poetry's own ecosystem
-        # churn (it was previously installed from poetry@main) cannot
+        # churn (it was previously installed from poetry@release/2.15) cannot
         # flake the binary matrix.
         source ../../test-infra/.github/scripts/validate_binaries.sh
 

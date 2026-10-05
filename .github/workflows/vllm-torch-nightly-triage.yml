@@ -272,7 +272,7 @@ jobs:
       - name: Upload usage metrics
         if: always()
         continue-on-error: true
-        uses: pytorch/test-infra/.github/actions/upload-claude-usage@main
+        uses: pytorch/test-infra/.github/actions/upload-claude-usage@release/2.15
 
   # Reviews vLLM-routed causes against existing upstream issues before the filer
   # creates a test-infra child. This action searches public GitHub issues and writes
