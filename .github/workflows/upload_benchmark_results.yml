@@ -39,7 +39,6 @@ jobs:
   job:
     name: Uploading ${{ inputs.benchmark-artifact }}
     runs-on: ubuntu-24.04
-    # Keep this in case we need to use OIDC later on, so the permission is there
     permissions:
       id-token: write
       contents: read
@@ -50,6 +49,13 @@ jobs:
           repository: pytorch/test-infra
           ref: main
           path: test-infra
+
+      - name: Configure AWS credentials
+        if: ${{ !inputs.dry-run }}
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_upload-benchmark-results
+          aws-region: us-east-1
 
       - name: Download benchmark artifacts
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
