@@ -1625,17 +1625,6 @@
       "xpu"
     ]
   ],
-  "test_workspace_runtime_integration (__main__.TestNVUniversalGemmEpilogueFusion)": [
-    "188674",
-    "https://github.com/pytorch/pytorch/issues/188674",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win"
-    ]
-  ],
   "test_zero_strided_emits_fill_kernel_cuda (__main__.TestTorchCUDACUDA)": [
     "199454",
     "https://github.com/pytorch/pytorch/issues/199454",
