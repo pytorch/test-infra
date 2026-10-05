@@ -21,13 +21,13 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
-# 3.11 is the minimum for nightly: 2.15 does not build 3.10. test and release
-# keep it because 2.14.0 publishes cp310 wheels, and dropping it here would
-# stop validating binaries users can still install. Remove it from those two
-# once 2.15 is the stable version.
+# 3.11 is the minimum for nightly and test: 2.15 does not build 3.10. release
+# keeps it because 2.14 publishes cp310 wheels, and dropping it here would stop
+# validating binaries users can still install. Remove it from release once 2.15
+# is the stable version.
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
-    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
+    "test": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
 }
 
@@ -51,17 +51,17 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
-    # 13.0 is kept on nightly only, for vLLM's torch-nightly lane, which pins
-    # the cu130 index. It is not on test: this is a temporary hold, not a
-    # revival of 13.0 as a shipping arch.
+    # 13.0 is kept on nightly for vLLM's torch-nightly lane, which pins the
+    # cu130 index. release/2.15 was cut with it, so the 2.15 candidates on the
+    # test channel build it too.
     "nightly": ["13.0", "13.2", "13.4"],
-    "test": ["13.2", "13.4"],
+    "test": ["13.0", "13.2", "13.4"],
     "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
     "nightly": ["7.14", "10.0"],
-    "test": ["7.2", "7.14"],
+    "test": ["7.14", "10.0"],
     "release": ["7.2", "7.14"],
 }
 
@@ -94,12 +94,10 @@ STABLE_CUDA_VERSIONS = {
 # on nightly for vLLM's cu130 lane and that hold is Linux-only, while 13.0 on
 # the release channel does have Windows wheels and must keep being validated.
 CUDA_ARCHES_NO_WINDOWS_DICT = {
-    # 13.0 is the vLLM hold and is Linux-only. 13.4 Windows nightlies do exist
-    # (download.pytorch.org/whl/nightly/cu134 carries win_amd64 wheels), so the
-    # previous blanket 13.4 exclusion was understating the nightly matrix; the
-    # test channel genuinely has none, hence the split.
+    # 13.0 is the vLLM hold and is Linux-only. 13.4 has Windows wheels on
+    # nightly and in the 2.15 candidates; 2.14 releases have none.
     "nightly": ["13.0"],
-    "test": ["13.4"],
+    "test": ["13.0"],
     "release": ["13.4"],
 }
 
@@ -140,7 +138,7 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.15.0"
-CURRENT_CANDIDATE_VERSION = "2.14.1"
+CURRENT_CANDIDATE_VERSION = "2.15.0"
 CURRENT_STABLE_VERSION = "2.14.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
