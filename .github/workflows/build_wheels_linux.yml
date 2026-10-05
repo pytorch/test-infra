@@ -17,7 +17,7 @@ on:
         type: string
       test-infra-ref:
         description: "Test infra reference to use"
-        default: "main"
+        default: "release/2.15"
         type: string
       build-matrix:
         description: "Build matrix to utilize"
@@ -219,14 +219,14 @@ jobs:
           source /opt/conda/etc/profile.d/conda.sh
           conda config --set ssl_verify False
           echo "/opt/conda/bin" >> $GITHUB_PATH
-      - uses: pytorch/test-infra/.github/actions/set-channel@main
+      - uses: pytorch/test-infra/.github/actions/set-channel@release/2.15
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
         run: |
           # When building RC, set the version to be the current candidate version,
           # otherwise, leave it alone so nightly will pick up the latest
           echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
-      - uses: pytorch/test-infra/.github/actions/setup-binary-builds@main
+      - uses: pytorch/test-infra/.github/actions/setup-binary-builds@release/2.15
         env:
           PLATFORM: ${{ inputs.architecture == 'aarch64'  && 'linux-aarch64' || ''}}
         with:
@@ -261,7 +261,7 @@ jobs:
           ${CONDA_RUN} ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
-        uses: pytorch/test-infra/.github/actions/run-script-with-cache@main
+        uses: pytorch/test-infra/.github/actions/run-script-with-cache@release/2.15
         with:
           cache-path: ${{ inputs.cache-path }}
           cache-key: ${{ inputs.cache-key }}
@@ -307,7 +307,7 @@ jobs:
           done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
-        uses: pytorch/test-infra/.github/actions/run-script-with-cache@main
+        uses: pytorch/test-infra/.github/actions/run-script-with-cache@release/2.15
         with:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}

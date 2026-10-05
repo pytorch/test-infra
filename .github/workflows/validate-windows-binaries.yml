@@ -44,7 +44,7 @@ on:
         type: boolean
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 
@@ -97,7 +97,7 @@ on:
 
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 

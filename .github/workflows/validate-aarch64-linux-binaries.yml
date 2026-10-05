@@ -44,7 +44,7 @@ on:
         type: boolean
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 
@@ -97,13 +97,13 @@ on:
 
       test-infra-ref:
         description: "Ref of pytorch/test-infra to source the validation scripts from"
-        default: "main"
+        default: "release/2.15"
         required: false
         type: string
 
 jobs:
   generate-aarch64-linux-matrix:
-    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
+    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@release/2.15
     with:
       package-type: wheel
       os: linux-aarch64
@@ -118,7 +118,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-aarch64-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: pytorch/test-infra/.github/workflows/linux_job_v3.yml@main
+    uses: pytorch/test-infra/.github/workflows/linux_job_v3.yml@release/2.15
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}

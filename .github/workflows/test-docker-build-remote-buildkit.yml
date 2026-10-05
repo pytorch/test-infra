@@ -79,7 +79,7 @@ jobs:
       # Relative `uses: ./…` does NOT work here: the ARC k8s hook copies the
       # workspace into the job container, so the runner process never sees the
       # checkout and can't resolve a local action. Reference it by full path.
-      # TODO: flip the ref to @main when this PR lands.
+      # TODO: flip the ref to @release/2.15 when this PR lands.
       - name: Build and push
         id: build
         uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@osdc-remote-buildkit-action
