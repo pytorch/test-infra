@@ -270,13 +270,6 @@
       "rocm"
     ]
   ],
-  "test_del_subscr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
-    "195166",
-    "https://github.com/pytorch/pytorch/issues/195166",
-    [
-      "linux"
-    ]
-  ],
   "test_dtensor_op_db_linalg_cond_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
     "190141",
     "https://github.com/pytorch/pytorch/issues/190141",
@@ -1165,14 +1158,6 @@
     "https://github.com/pytorch/pytorch/issues/194896",
     [
       "xpu"
-    ]
-  ],
-  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_bfloat16 (__main__.DeterministicTest)": [
-    "195816",
-    "https://github.com/pytorch/pytorch/issues/195816",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_bfloat16 (__main__.DeterministicTest)": [
