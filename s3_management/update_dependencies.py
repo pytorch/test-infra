@@ -469,6 +469,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-core": [
         {
@@ -478,6 +482,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-libraries": [
@@ -489,6 +497,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1010": [
         {
@@ -498,6 +510,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1011": [
@@ -509,6 +525,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1012": [
         {
@@ -518,6 +538,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1030": [
@@ -529,6 +553,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1031": [
         {
@@ -538,6 +566,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1032": [
@@ -549,6 +581,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1033": [
         {
@@ -558,6 +594,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1034": [
@@ -569,6 +609,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1035": [
         {
@@ -578,6 +622,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1036": [
@@ -589,6 +637,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1100": [
         {
@@ -598,6 +650,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1101": [
@@ -609,6 +665,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1102": [
         {
@@ -618,6 +678,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1103": [
@@ -629,6 +693,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1150": [
         {
@@ -638,6 +706,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1151": [
@@ -649,6 +721,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1152": [
         {
@@ -658,6 +734,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1153": [
@@ -669,6 +749,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1200": [
         {
@@ -678,6 +762,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx1201": [
@@ -689,6 +777,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx1250": [
         {
@@ -698,6 +790,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx908": [
@@ -709,6 +805,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx90a": [
         {
@@ -718,6 +818,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "rocm-sdk-device-gfx942": [
@@ -729,6 +833,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch_rocm",
             "target": "rocm10.0",
         },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
     ],
     "rocm-sdk-device-gfx950": [
         {
@@ -738,6 +846,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
         {
             "project": "torch_rocm",
             "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
         },
     ],
     "arpeggio": [{"project": "triton"}],
