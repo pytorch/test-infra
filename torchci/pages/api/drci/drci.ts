@@ -18,6 +18,7 @@ import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
+  AUTO_PR_TRIAGE_LABEL,
   CANCELLED_STEP_ERROR,
   DRCI_COMMENT_AUTHOR,
   fetchPRLabels,
@@ -581,7 +582,7 @@ export async function updateDrciComments(
         failureInfo,
         formDrciSevBody(sevs),
         prStatusSection,
-        pr_info.headRef
+        labels.includes(AUTO_PR_TRIAGE_LABEL) ? pr_info.headRef : ""
       );
 
       const { id, body } =

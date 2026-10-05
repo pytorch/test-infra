@@ -846,7 +846,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     const header = formDrciHeader("pytorch", "pytorch", 42, "fix/foo-1.2_x");
 
     expect(header).toContain(
-      "* :robot: See [Auto PR Triage runs for this PR](https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml?query=branch%3Afix%2Ffoo-1.2_x)\n"
+      "* :robot: See [Auto PR Triage runs for this PR](https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml?query=branch%3Afix%2Ffoo-1.2_x%20-is%3Askipped%20-is%3Acancelled)\n"
     );
     expect(header).toContain("bot commands wiki");
   });

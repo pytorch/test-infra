@@ -96,8 +96,11 @@ export const CANCELLED_STEP_ERROR = "##[error]The operation was canceled.";
 
 // Auto PR Triage runs on pull_request_target, so GitHub does not link a fork
 // PR's runs to the PR; the run list filtered by head branch finds them, even
-// after later pushes. Only plain branch names are linked, so a branch name
-// cannot break or inject Markdown into the comment.
+// after later pushes. Every other label also starts a run that skips, so those
+// are filtered out, and callers only pass the head branch for PRs with the
+// label that starts triage. Only plain branch names are linked, so a branch
+// name cannot break or inject Markdown into the comment.
+export const AUTO_PR_TRIAGE_LABEL = "open source";
 const AUTO_PR_TRIAGE_RUNS_URL =
   "https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml";
 const SAFE_BRANCH_RE = /^[A-Za-z0-9._\/-]+$/;
@@ -110,7 +113,9 @@ export function formDrciHeader(
 ): string {
   // For PyTorch only
   if (isPyTorchPyTorch(owner, repo)) {
-    const triageQuery = encodeURIComponent(`branch:${headRef}`);
+    const triageQuery = encodeURIComponent(
+      `branch:${headRef} -is:skipped -is:cancelled`
+    );
     const triageLink = SAFE_BRANCH_RE.test(headRef)
       ? `* :robot: See [Auto PR Triage runs for this PR](${AUTO_PR_TRIAGE_RUNS_URL}?query=${triageQuery})\n`
       : "";
@@ -252,6 +257,9 @@ export async function upsertDrCiComment(
   const sev = getActiveSEVs(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
+  const prLabels: string[] = (context.payload.pull_request?.labels ?? []).map(
+    (label: { name: string }) => label.name
+  );
   // Open and synchronize events do not recalculate status, so preserve it while
   // rebuilding the rest of the comment.
   const drciComment = formDrciComment(
@@ -261,7 +269,9 @@ export async function upsertDrCiComment(
     "",
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment),
-    context.payload.pull_request?.head?.ref ?? ""
+    prLabels.includes(AUTO_PR_TRIAGE_LABEL)
+      ? context.payload.pull_request?.head?.ref ?? ""
+      : ""
   );
 
   if (existingDrciComment === drciComment) {
