@@ -289,6 +289,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -305,6 +306,15 @@ jobs:
         with:
           name: vllm-torch-nightly-findings
           path: ${{ runner.temp }}/findings
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_claude_code
+          aws-region: us-east-1
+          # Must outlive the whole model step; the role's default 1h session covers
+          # the 30-min model timeout plus setup.
+          role-duration-seconds: 3600
 
       - name: Upstream vLLM issue review
         uses: anthropics/claude-code-action@9ca9355b36297178e28d37c799d1c9c8a28e6507 # Claude Code 2.1.280
