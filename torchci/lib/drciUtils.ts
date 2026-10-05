@@ -151,10 +151,17 @@ export function formDrciComment(
   // the comment rather than sitting below the CI results.
   prStatusSection: string = "",
   headRef: string = "",
-  labels: string[] = []
+  labels: string[] = [],
+  // Pre-rendered automated PR review section, carrying its own leading newline
+  // (empty when the PR has no review). It sits right below the PR Status so a
+  // finished verdict is visible next to the stage it explains.
+  prReviewSection: string = ""
 ): string {
   const header = formDrciHeader(owner, repo, pr_num, headRef, labels);
-  const comment = `${DRCI_COMMENT_START}${prStatusSection}
+  // The section ends in an HTML block, which a blank line must close before the
+  // header's markdown heading.
+  const review = prReviewSection ? `${prReviewSection}\n` : "";
+  const comment = `${DRCI_COMMENT_START}${prStatusSection}${review}
 ${header}
 ${sevs}
 ${pr_results}

@@ -528,8 +528,7 @@ export async function updateDrciComments(
         repo,
         pr_info.pr_number,
         advisorLines,
-        greenlightSections.get(pr_info.pr_number) ?? "",
-        prReviewSections.get(pr_info.pr_number) ?? ""
+        greenlightSections.get(pr_info.pr_number) ?? ""
       );
 
       // Use live labels so a lagging ClickHouse snapshot cannot overwrite a
@@ -583,7 +582,8 @@ export async function updateDrciComments(
         formDrciSevBody(sevs),
         prStatusSection,
         pr_info.headRef,
-        labels
+        labels,
+        prReviewSections.get(pr_info.pr_number) ?? ""
       );
 
       const { id, body } =
@@ -1065,9 +1065,7 @@ export function constructResultsComment(
   advisorLines: Map<number, string> = new Map(),
   // Pre-rendered Green Light section or eligibility line for this PR, already
   // carrying its own leading newline (empty when the PR has neither).
-  greenlightSection: string = "",
-  // Pre-rendered automated PR review section, same convention.
-  prReviewSection: string = ""
+  greenlightSection: string = ""
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
@@ -1180,7 +1178,6 @@ export function constructResultsComment(
   // A verdict on the PR as a whole rather than a job bucket, so it reads before
   // the per-bucket failure lists.
   output += greenlightSection;
-  output += prReviewSection;
 
   if (awaitingApprovalJobs.length) {
     output += constructResultsJobsSections(
