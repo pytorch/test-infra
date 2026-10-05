@@ -415,6 +415,11 @@
       "xpu"
     ]
   ],
+  "test_fully_shard_alloc_from_pg (__main__.TestFullyShardAllocFromPG)": [
+    "199725",
+    "https://github.com/pytorch/pytorch/issues/199725",
+    []
+  ],
   "test_fully_shard_training_overlap (__main__.TestFullyShardOverlap)": [
     "134139",
     "https://github.com/pytorch/pytorch/issues/134139",
