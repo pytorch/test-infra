@@ -202,7 +202,7 @@ describe("CRCR nightly dashboard selection", () => {
       "completed_at >= now() - INTERVAL {days: UInt64} DAY"
     );
     expect(normalized).toContain(
-      "nightly_key IN (SELECT nightly_key FROM eligible_nightly_keys)"
+      ") IN (SELECT nightly_key FROM eligible_nightly_keys)"
     );
     expect(normalized).toContain("deduped AS");
     expect(normalized).toContain("ROW_NUMBER() OVER");
