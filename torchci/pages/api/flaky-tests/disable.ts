@@ -4,10 +4,17 @@ import fetchFlakyTests, {
   fetchFlakyTestsAcrossFileReruns,
 } from "lib/fetchFlakyTests";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import fetchPassingCodeSkips from "lib/fetchPassingCodeSkips";
 import * as aggregateDisableIssue from "lib/flakyBot/aggregateDisableIssue";
+import { handlePassingCodeSkips } from "lib/flakyBot/codeSkipUnskip";
 import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
 import { getOctokit } from "lib/github";
-import { DisabledNonFlakyTestData, FlakyTestData, IssueData } from "lib/types";
+import {
+  DisabledNonFlakyTestData,
+  FlakyTestData,
+  IssueData,
+  PassingCodeSkipRow,
+} from "lib/types";
 import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
@@ -30,18 +37,28 @@ export default async function handler(
 }
 
 async function disableFlakyTestsAndReenableNonFlakyTests() {
+  // A missing code-skip table must not block closing DISABLED issues. The
+  // table is created by hand; until then this query fails and we pass [].
+  const passingCodeSkipsPromise = fetchPassingCodeSkips().catch(
+    (err: unknown) => {
+      console.warn(`code-skip query failed; issue closing still runs. ${err}`);
+      return [] as PassingCodeSkipRow[];
+    }
+  );
   const [
     octokit,
     flakyTests,
     flakyTestsAcrossFileReruns,
     issues,
     disabledNonFlakyTests,
+    passingCodeSkips,
   ] = await Promise.all([
     getOctokit(PYTORCH, PYTORCH),
     fetchFlakyTests(`${NUM_HOURS}`),
     fetchFlakyTestsAcrossFileReruns(`${NUM_HOURS}`),
     fetchIssuesByLabel("skipped"),
     fetchDisabledNonFlakyTests(),
+    passingCodeSkipsPromise,
   ]);
 
   // Separating this out to make it easier to test
@@ -50,7 +67,8 @@ async function disableFlakyTestsAndReenableNonFlakyTests() {
     flakyTests,
     flakyTestsAcrossFileReruns,
     issues,
-    disabledNonFlakyTests
+    disabledNonFlakyTests,
+    passingCodeSkips
   );
 }
 
@@ -59,7 +77,8 @@ async function handleAll(
   flakyTests: FlakyTestData[],
   flakyTestsAcrossFileReruns: FlakyTestData[],
   issues: IssueData[],
-  disabledNonFlakyTests: DisabledNonFlakyTestData[]
+  disabledNonFlakyTests: DisabledNonFlakyTestData[],
+  passingCodeSkips: PassingCodeSkipRow[] = []
 ) {
   const allFlakyTests = flakyTests.concat(flakyTestsAcrossFileReruns);
   allFlakyTests.forEach((test) => {
@@ -83,6 +102,10 @@ async function handleAll(
   );
 
   await handleNoLongerFlakyTests(nonFlakyTests, dedupedIssues, octokit);
+
+  // A passing code skip has no DISABLED issue, so the closer above never sees
+  // it. This opens or updates one draft pull request for the whole set.
+  await handlePassingCodeSkips(octokit, passingCodeSkips);
 }
 
 function filterOutPRFlakyTests(tests: FlakyTestData[]): FlakyTestData[] {
