@@ -53,6 +53,9 @@ type WaitingPr = {
 
 const CONCURRENCY = 10;
 
+// The PR is waiting on its author to link an actionable issue, not on reviewers
+const MISSING_ACTIONABLE_ISSUE_LABEL = "missing actionable issue";
+
 // review-logs/ is the bucket's publicly readable prefix, which the internal job
 // reads through fwdproxy
 export function getManifestKey(generatedAt: Date): string {
@@ -147,6 +150,9 @@ export async function buildPrNotificationsManifest(
     const labels = pr.labels.map((label) =>
       typeof label === "string" ? label : label.name ?? ""
     );
+    if (labels.includes(MISSING_ACTIONABLE_ISSUE_LABEL)) {
+      return null;
+    }
     const state = await fetchPrStatusState(
       octokit,
       owner,

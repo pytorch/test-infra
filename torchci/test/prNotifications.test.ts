@@ -78,7 +78,11 @@ describe("buildPrNotificationsManifest", () => {
         searchItem(2, ["ready for review"]),
         searchItem(3, ["ready for review"]),
       ]),
-      mockSearch('label:"triaged"', [searchItem(1, ["triaged"])]),
+      // PR 6 is skipped without any lookups
+      mockSearch('label:"triaged"', [
+        searchItem(1, ["triaged"]),
+        searchItem(6, ["triaged", "missing actionable issue"]),
+      ]),
 
       // PR 1 is in pre-review, and alice already agreed with a thumbs-up
       mockReviews(1, []),
