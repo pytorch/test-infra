@@ -690,7 +690,6 @@ src/greenlight/
   scan_runner.py   # the scan's fingerprint fan-out, dispatch loop, and recheck-refusal posting
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target
   cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (assess_rules)
-  trusted_authors.py # read and parse the trusted-authors issue, which only the scan reads
   authority.py     # the scan's lazy per-PR shadow lookup, REVERTED-row stamp and moved-head deferral
   candidate_filter.py # prune listed PRs the scan can leave alone this iteration (recency window, excluded labels)
   review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
