@@ -1253,3 +1253,91 @@ L4:
     expect(crcrL3Jobs).toEqual([]);
   });
 });
+
+describe("isDrciGreen", () => {
+  const cancelled = getDummyJob({
+    name: "cancelledJob",
+    conclusion: "cancelled",
+  });
+  const cases: [
+    string,
+    Parameters<typeof constructResultsCommentHelper>[0],
+    boolean
+  ][] = [
+    ["nothing ran yet", { pending: 0 }, true],
+    [
+      "only unrelated failures",
+      { pending: 0, flakyJobs: [failedA], brokenTrunkJobs: [failedB] },
+      true,
+    ],
+    ["pending jobs", { pending: 1 }, false],
+    ["a new failure", { pending: 0, failedJobs: [failedA] }, false],
+    ["a cancelled job", { pending: 0, failedJobs: [cancelled] }, false],
+    ["an unclassified failure", { pending: 0, unknownJobs: [failedA] }, false],
+    [
+      "a workflow awaiting approval",
+      { pending: 0, awaitingApprovalJobs: [failedA] },
+      false,
+    ],
+  ];
+
+  test.each(cases)("%s", (_name, input, expected) => {
+    const green = updateDrciBot.isDrciGreen({
+      pending: input.pending ?? 3,
+      failedJobs: input.failedJobs ?? [],
+      unknownJobs: input.unknownJobs ?? [],
+      awaitingApprovalJobs: input.awaitingApprovalJobs ?? [],
+    });
+    expect(green).toBe(expected);
+    // The headline icon is the same decision
+    expect(
+      constructResultsCommentHelper(input).includes(":white_check_mark:")
+    ).toBe(expected);
+  });
+});
+
+describe("isCiGoodForReview", () => {
+  const startupFailure = getDummyJob({
+    name: "pull / linux-test",
+    conclusion: "startup_failure",
+  });
+  const cases: [
+    string,
+    Partial<Parameters<typeof updateDrciBot.isCiGoodForReview>[0]>,
+    boolean
+  ][] = [
+    ["nothing failed", {}, true],
+    [
+      "a workflow awaiting approval",
+      { awaitingApprovalJobs: [awaitingApprovalA] },
+      true,
+    ],
+    [
+      "a workflow that failed to start",
+      { awaitingApprovalJobs: [startupFailure] },
+      false,
+    ],
+    [
+      "a workflow awaiting approval and a new failure",
+      { awaitingApprovalJobs: [awaitingApprovalA], failedJobs: [failedA] },
+      false,
+    ],
+    [
+      "pending jobs",
+      { pending: 1, awaitingApprovalJobs: [awaitingApprovalA] },
+      false,
+    ],
+  ];
+
+  test.each(cases)("%s", (_name, input, expected) => {
+    expect(
+      updateDrciBot.isCiGoodForReview({
+        pending: 0,
+        failedJobs: [],
+        unknownJobs: [],
+        awaitingApprovalJobs: [],
+        ...input,
+      })
+    ).toBe(expected);
+  });
+});
