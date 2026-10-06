@@ -313,3 +313,90 @@ def test_merges_adapter_is_the_only_caller_that_turns_named_columns_on():
             if opts_in(node):
                 naming.append(func.name)
     assert naming == ["merges_adapter"]
+
+
+def test_rerun_disabled_tests_schema_is_unchanged():
+    # ClickHouse reads this table with a fixed column list. Adding code_skip
+    # here would shift every later value.
+    sql = captured_query(
+        lambda_function.rerun_disabled_tests_adapter,
+        "default.rerun_disabled_tests",
+        "ossci-raw-job-status",
+        "rerun_disabled_tests/1/1",
+    )
+    assert "`flaky` Bool" in sql
+    assert "code_skip" not in sql
+    assert "insert into default.rerun_disabled_tests\n" in sql
+
+
+def test_code_skips_adapter_inserts_the_eight_fields_positionally():
+    sql = captured_query(
+        lambda_function.rerun_disabled_code_skips_adapter,
+        "default.rerun_disabled_code_skips",
+        "ossci-raw-job-status",
+        "rerun_disabled_code_skips/1/1",
+    )
+    expected = [
+        "`workflow_id` Int64",
+        "`workflow_run_attempt` Int64",
+        "`name` String",
+        "`classname` String",
+        "`filename` String",
+        "`num_green` Int64",
+        "`num_red` Int64",
+        "`code_skip` String",
+    ]
+    schema_sql = (
+        pathlib.Path(__file__).resolve().parents[3]
+        / "clickhouse_db_schema"
+        / "default.rerun_disabled_code_skips"
+        / "schema.sql"
+    ).read_text()
+    previous = -1
+    for column in expected:
+        assert column in sql
+        found = schema_sql.index(column)
+        assert found > previous
+        previous = found
+    assert "`flaky`" not in sql
+    assert "insert into default.rerun_disabled_code_skips\n" in sql
+    assert "as _meta" in sql
+    # New table uses the _meta spelling, not the legacy meta column.
+    assert lambda_function.meta_column("default.rerun_disabled_code_skips") == "`_meta`"
+
+
+def test_code_skips_prefix_is_its_own_table():
+    assert (
+        lambda_function.SUPPORTED_PATHS["rerun_disabled_code_skips"]
+        == "default.rerun_disabled_code_skips"
+    )
+    assert (
+        lambda_function.extract_clickhouse_table_name(
+            "ossci-raw-job-status", "rerun_disabled_code_skips/99/1"
+        )
+        == "default.rerun_disabled_code_skips"
+    )
+    assert (
+        lambda_function.extract_clickhouse_table_name(
+            "ossci-raw-job-status", "rerun_disabled_tests/99/1"
+        )
+        == "default.rerun_disabled_tests"
+    )
+
+
+def test_passing_code_skip_query_uses_the_issue_closing_bar():
+    query = (
+        pathlib.Path(__file__).resolve().parents[3]
+        / "torchci"
+        / "clickhouse_queries"
+        / "flaky_tests"
+        / "passing_code_skips"
+        / "query.sql"
+    ).read_text()
+    assert "INTERVAL 7 DAY" in query
+    assert "min_num_green" in query
+    assert "total_red = 0" in query
+    assert "failing_rows = 0" in query
+    assert "default.rerun_disabled_code_skips" in query
+    assert "rerun_disabled_tests" not in query
+    assert "flaky" not in query

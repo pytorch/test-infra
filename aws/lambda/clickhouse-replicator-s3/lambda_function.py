@@ -292,6 +292,23 @@ def rerun_disabled_tests_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
 
 
+def rerun_disabled_code_skips_adapter(table, bucket, key):
+    # Eight fields from the code-skip collection. No `flaky` column: that word
+    # belongs to default.rerun_disabled_tests, whose readers select a fixed list.
+    schema = """
+    `workflow_id` Int64,
+    `workflow_run_attempt` Int64,
+    `name` String,
+    `classname` String,
+    `filename` String,
+    `num_green` Int64,
+    `num_red` Int64,
+    `code_skip` String
+    """
+
+    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
+
+
 def handle_test_run_summary(table, bucket, key) -> None:
     schema = """
     `classname` String,
@@ -327,8 +344,8 @@ def handle_test_run_summary(table, bucket, key) -> None:
 # tuple column. Three of them predate the `_meta` spelling and call theirs
 # `meta`; a positional insert matched by position and never had to know, so
 # naming the columns is what surfaces the difference. Checked against
-# system.columns on 2026-09-10: of the 21 tables general_adapter serves, 18 use
-# `_meta`, these 3 use `meta`, and none has both.
+# system.columns on 2026-09-10: of the tables general_adapter served then, 18 use
+# `_meta`, these 3 use `meta`, and none has both. New tables use `_meta`.
 DEFAULT_META_COLUMN = "`_meta`"
 META_COLUMN_BY_TABLE = {
     "default.merge_bases": "`meta`",
@@ -916,6 +933,7 @@ SUPPORTED_PATHS = {
     "merge_bases": "default.merge_bases",
     "failed_test_runs": "default.failed_test_runs",
     "rerun_disabled_tests": "default.rerun_disabled_tests",
+    "rerun_disabled_code_skips": "default.rerun_disabled_code_skips",
     "external_contribution_counts": "misc.external_contribution_stats",
     "test_data_aggregates": "misc.aggregated_test_metrics",
     "torchbench-csv/torchao": "benchmark.inductor_torchao_perf_stats",
@@ -946,6 +964,7 @@ OBJECT_CONVERTER = {
     "default.test_run_summary": handle_test_run_summary,
     "default.merge_bases": merge_bases_adapter,
     "default.rerun_disabled_tests": rerun_disabled_tests_adapter,
+    "default.rerun_disabled_code_skips": rerun_disabled_code_skips_adapter,
     "default.queue_times_historical": queue_times_historical_adapter,
     "misc.external_contribution_stats": external_contribution_stats_adapter,
     "misc.aggregated_test_metrics": external_aggregated_test_metrics_adapter,
