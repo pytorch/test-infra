@@ -1,0 +1,9 @@
+{
+  "params": {
+    "min_num_green": "Int64"
+  },
+  "defaults": {
+    "min_num_green": 150
+  },
+  "tests": []
+}

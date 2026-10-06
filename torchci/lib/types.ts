@@ -250,6 +250,18 @@ export interface DisabledNonFlakyTestData {
   num_red: number;
 }
 
+// One grouped row from flaky_tests/passing_code_skips. code_skips has one
+// entry when every upload in the window agreed, and more than one when they
+// did not. There is no flaky column; that stays on rerun_disabled_tests.
+export interface PassingCodeSkipRow {
+  name: string;
+  classname: string;
+  filename: string;
+  code_skips: string[];
+  num_green: number;
+  num_red: number;
+}
+
 export interface TTSChange {
   name: string | undefined;
   htmlUrl: string | undefined;
