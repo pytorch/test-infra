@@ -26,9 +26,9 @@ import {
 } from "lib/crcr/healthProbe";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import {
-  buildNightlyMatrix,
   isRealCommitSha,
   NightlyRow,
+  paginateNightlyMatrix,
 } from "lib/crcr/nightlyMatrix";
 import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import { Highlight } from "lib/types";
@@ -52,6 +52,9 @@ const CrcrPinnedContext = createContext<[Highlight, any]>([
   { sha: undefined, name: undefined },
   null,
 ]);
+
+const NIGHTLY_ROWS_PER_PAGE = 100;
+const NIGHTLY_QUERY_ROW_LIMIT = NIGHTLY_ROWS_PER_PAGE + 1;
 
 // ---- Types ----
 
@@ -370,6 +373,8 @@ function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
       JSON.stringify({
         repo: repoFullName,
         days: String(L3_PROMOTION_WINDOW_DAYS),
+        limit: String(NIGHTLY_QUERY_ROW_LIMIT),
+        offset: "0",
       })
     );
   const { data } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
@@ -1304,19 +1309,32 @@ function CrcrNightlyMatrix({
   days: number;
   summaryStats: NightlySummaryStats | null;
 }) {
+  const [page, setPage] = useState(1);
+  const offset = (page - 1) * NIGHTLY_ROWS_PER_PAGE;
+
+  useEffect(() => {
+    setPage(1);
+  }, [repoFullName, days]);
+
   const url = `/api/clickhouse/crcr_nightly_dashboard?parameters=${encodeURIComponent(
-    JSON.stringify({ repo: repoFullName, days: String(days) })
+    JSON.stringify({
+      repo: repoFullName,
+      days: String(days),
+      limit: String(NIGHTLY_QUERY_ROW_LIMIT),
+      offset: String(offset),
+    })
   )}`;
   const { data, error } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
     refreshInterval: 60_000,
   });
 
-  const { matrix, columns } = useMemo(() => {
-    if (!data) return { matrix: null, columns: [] };
-    const full = buildNightlyMatrix(data);
+  const { matrix, columns, hasNextPage } = useMemo(() => {
+    if (!data) return { matrix: null, columns: [], hasNextPage: false };
+    const matrix = paginateNightlyMatrix(data, NIGHTLY_ROWS_PER_PAGE);
     return {
-      matrix: full,
-      columns: detectGroups(full.jobNames),
+      matrix,
+      columns: detectGroups(matrix.jobNames),
+      hasNextPage: matrix.hasNextPage,
     };
   }, [data]);
 
@@ -1342,11 +1360,23 @@ function CrcrNightlyMatrix({
   }
   if (data.length === 0) {
     return (
-      <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-        No nightly results for {repoFullName} in the last {days} days.
-      </Typography>
+      <>
+        <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+          No nightly results for {repoFullName} in the last {days} days.
+        </Typography>
+        {page > 1 && (
+          <CrcrPagination
+            page={page}
+            hasNextPage={false}
+            onPageChange={setPage}
+          />
+        )}
+      </>
     );
   }
+
+  const firstRow = offset + 1;
+  const lastRow = offset + matrix.rows.length;
 
   return (
     <>
@@ -1509,6 +1539,21 @@ function CrcrNightlyMatrix({
           </tbody>
         </table>
       </div>
+      {(page > 1 || hasNextPage) && (
+        <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">
+          Showing nightly matrix rows {firstRow}–{lastRow}. Summary cards cover
+          every completed run in the selected range.
+        </Typography>
+      )}
+      {(page > 1 || hasNextPage) && (
+        <Box sx={{ mt: 2 }}>
+          <CrcrPagination
+            page={page}
+            hasNextPage={hasNextPage}
+            onPageChange={setPage}
+          />
+        </Box>
+      )}
     </>
   );
 }

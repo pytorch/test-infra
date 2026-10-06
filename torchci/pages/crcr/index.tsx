@@ -793,6 +793,8 @@ export default function CrcrSummaryPage() {
       JSON.stringify({
         repo: "pytorch/crcr-test",
         days: String(L3_PROMOTION_WINDOW_DAYS),
+        limit: "101",
+        offset: "0",
       })
     );
   const { data: nightlyHealthJobs, error: nightlyHealthError } = useSWR<
