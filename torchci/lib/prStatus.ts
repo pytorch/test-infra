@@ -34,7 +34,7 @@ export const PR_STATUS_LABELS = [
 ];
 
 // Set to the rollout date
-export const PRE_REVIEW_START_DATE: string | null = "2026-10-01";
+export const PRE_REVIEW_START_DATE: string | null = "2026-09-01";
 
 // Delimiters around the rendered section. The full-sweep render in drci.ts
 // rebuilds the whole comment and does not need them, but the label-event path
