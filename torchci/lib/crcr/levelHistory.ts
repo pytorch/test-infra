@@ -1,5 +1,5 @@
 import { fetcherHandleError } from "lib/GeneralUtils";
-import useSWR from "swr";
+import useSWRImmutable from "swr/immutable";
 
 export interface LevelHistoryEvent {
   changed_at: string;
@@ -15,8 +15,9 @@ export function useLevelHistory(repoFullName: string) {
         JSON.stringify({ repo: repoFullName, limit: LEVEL_HISTORY_LIMIT })
       )}`
     : null;
-  const { data, error } = useSWR<LevelHistoryEvent[]>(url, fetcherHandleError, {
-    refreshInterval: 60_000,
-  });
+  const { data, error } = useSWRImmutable<LevelHistoryEvent[]>(
+    url,
+    fetcherHandleError
+  );
   return { events: data ?? [], error, loaded: data !== undefined || !!error };
 }
