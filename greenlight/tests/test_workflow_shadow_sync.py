@@ -3,7 +3,7 @@
 ``greenlight verdict`` takes ``--shadow`` as a bare flag, so leaving it off means ``shadow=False``
 and nothing fails. The terminal verdict ORs ``request.shadow`` with its own ``has_covering_rule``
 check, but that catches a forgotten flag only for an author no merge rule covers: for one a rule
-covers, listed or not, the flag alone withholds the approval. The three marker calls take
+covers, the flag alone withholds the approval. The three marker calls take
 ``request.shadow`` verbatim -- deliberately, since deriving a marker fail-closed would hide a trusted
 author's in-flight review from a reader that filters shadow out. A marker written without the flag
 therefore records a shadow PR as an ordinary one, and Dr. CI renders it: greenlight state shown on

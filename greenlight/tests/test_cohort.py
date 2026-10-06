@@ -70,12 +70,13 @@ class _Rule:
 
 
 def test_evaluation_cohort_membership_is_independent_of_eligibility():
-    # A cohort member is evaluated; whether that evaluation has authority is assess's answer.
+    # A cohort member is evaluated; whether that evaluation has authority is assess_rules's answer.
     resolved = cohort.evaluation_cohort(frozenset({_HUMAN, "octocat"}))
     assert resolved == frozenset({_HUMAN, "octocat"})
-    rule = _Rule(frozenset({_HUMAN, "octocat"}), covers_all=True)
-    assert cohort.assess("octocat", frozenset({_HUMAN}), (rule,), lambda: None).rule is None
-    assert cohort.assess(_HUMAN, frozenset({_HUMAN}), (rule,), lambda: None).rule is rule
+    docs_only = _Rule(frozenset({_HUMAN, "octocat"}), paths=frozenset({_DOCS}))
+    catch_all = _Rule(frozenset({_HUMAN}), covers_all=True)
+    assert cohort.assess_rules("octocat", (docs_only, catch_all), lambda: (_TORCH,)).rule is None
+    assert cohort.assess_rules(_HUMAN, (docs_only, catch_all), lambda: (_TORCH,)).rule is catch_all
 
 
 def test_assess_rules_refuses_greenlight_itself_although_a_catch_all_rule_names_it():

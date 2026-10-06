@@ -3,31 +3,27 @@
 Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules approvers),
 fingerprints each one, reads its latest recorded state from ClickHouse, and asks
 ``decision.decide`` whether to dispatch a review, skip it, or wait. A PR is evaluated in shadow
-unless its author is listed in the trusted-authors issue and named by a merge rule covering every
-file it changes; a path-scoped rule also needs a non-ghstack PR based on ``main`` (see ``authority``
-and TRUSTED_AUTHORS.md). A shadow run is dispatched and recorded, but the row is stamped ``shadow``
-so it is never approved and never rendered, and Dr. CI is not poked for it. Only a REVERTED row is
-stamped non-shadow on a PR with a recorded row whose author is currently listed: it must deny. State
-is re-read from ClickHouse every scan, so the one-shot and ``--loop`` paths behave identically --
-nothing is remembered in memory between scans. All GitHub, ClickHouse, and dispatch I/O sits behind
-injectable keyword seams so the loop is testable without any of them.
+unless its author is named by a merge rule covering every file it changes; a path-scoped rule also
+needs a non-ghstack PR based on ``main`` (see ``authority`` and TRUSTED_AUTHORS.md). A shadow run is
+dispatched and recorded, but the row is stamped ``shadow`` so it is never approved and never rendered,
+and Dr. CI is not poked for it. The one exception is a REVERTED row, stamped non-shadow on any PR with
+a recorded row: it must deny. State is re-read from ClickHouse every scan, so the one-shot and
+``--loop`` paths behave identically -- nothing is remembered in memory between scans. All GitHub,
+ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable without any
+of them.
 
-The issue is read first, and an unreadable one fails the pass before any other GitHub read. Both
-authz gates (``authz_gates``) run once the issue and the merge rules resolve.
+Both authz gates (``authz_gates``) run once the merge rules resolve.
 
 ``PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`` sizes that shadow traffic. An authoritative PR is always
 evaluated; every other PR from the listing joins only if a stable hash of its number falls under the
-dial, so the holdout is the same group from one scan to the next. At exactly ``0.0`` the listing
-narrows to the logins the issue lists, minus bots and greenlight, whether or not a merge rule names
-them; their shadow PRs still reach the revert guard, but are never fingerprinted or dispatched. The
-dial gates which PRs from the listing are fingerprinted and nothing else: both authz gates, the
-merge-authorized login set, and whether a verdict carries authority behave identically at every
-setting.
+dial, so the holdout is the same group from one scan to the next. The dial gates which PRs from the
+listing are fingerprinted and nothing else: the listing, both authz gates, the merge-authorized login
+set, and whether a verdict carries authority behave identically at every setting.
 
 Reverted PRs are excluded before any of that on the listing path, and on the ``--pr`` path once its
-gate admits the target or refuses a listed author's (an unlisted author's refused target never reaches
-the revert guard): greenlight revokes its own approval, records the exclusion, and drops the PR (see
-``revert_guard``). A refused target is never fingerprinted or dispatched.
+gate admits the target or refuses one whose author GitHub can name (a refused target with no author
+login never reaches the revert guard): greenlight revokes its own approval, records the exclusion,
+and drops the PR (see ``revert_guard``). A refused target is never fingerprinted or dispatched.
 
 The fingerprint step can also short-circuit: when a human has already decided a PR (an
 approval from a merge-authorized login, or changes requested by anyone), the scan skips
@@ -51,7 +47,7 @@ from typing import TYPE_CHECKING
 
 from greenlight import candidate_filter, cohort, drci_poke, github_client, revert_guard, scan_runner, state, state_emit
 from greenlight import dispatch as dispatch_module
-from greenlight.authority import Authority, Target, log_unnamed_listed
+from greenlight.authority import Authority, Target
 from greenlight.authz_gates import admit_target, requester_allowed
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
@@ -167,7 +163,6 @@ def run(
     get_pr: Callable[[Github, str, int], VerdictPR] = github_client.get_pr,
     dismiss_approvals: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
     upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
-    resolve_listed: Callable[[], frozenset[str]],
     resolve_merge_rules: Callable[[], MergeRulesSnapshot],
     now: Callable[[], datetime] = _utcnow,
 ) -> None:
@@ -176,14 +171,12 @@ def run(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-    listed = resolve_listed()
     # Resolved once per scan and never caught here: a cold failure must fail the scan (one-shot
     # exits non-zero, daemon backs off) rather than silently revert to hashing all human comments.
     snapshot = resolve_merge_rules()
     authorized_logins = snapshot.authorized
     evaluable = cohort.evaluation_cohort(authorized_logins)
-    log_unnamed_listed(listed, snapshot.rules)
-    if requester is not None and not requester_allowed(requester, listed, evaluable):
+    if requester is not None and not requester_allowed(requester, evaluable):
         return
     with contextlib.ExitStack() as clients:
         client = build_github(token)
@@ -193,7 +186,6 @@ def run(
             target = admit_target(
                 client,
                 pr,
-                listed=listed,
                 rules=snapshot.rules,
                 get_pr=get_pr,
                 allow_untrusted_author=allow_untrusted_author,
@@ -201,22 +193,9 @@ def run(
             if target is None:
                 return
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
-        # The dial sizes the shadow experiment and decides nothing about authority. At exactly 0.0
-        # the listing narrows to the logins the issue lists -- a state no fractional dial reaches, since
-        # each of those still lists the wide cohort and only thins the fingerprint set below. A listed
-        # login no merge rule names stays listed, so its reverted PRs are still revoked.
-        # authorized_logins stays resolved and threaded at every setting: the fingerprint and the
-        # human-review skip both read it to spot an approval from someone who could have merged the
-        # PR themselves, which is a separate question from whose PRs get listed.
-        wide_listing = config.shadow_rollout > 0.0
-        listing_authors = evaluable if wide_listing else cohort.evaluation_cohort(listed)
-        logger.info(
-            "scan cohort: %s (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=%g)",
-            "full evaluation cohort" if wide_listing else "trusted authors only",
-            config.shadow_rollout,
-        )
+        logger.info("scan cohort: full evaluation cohort (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=%g)", config.shadow_rollout)
         pr_numbers, updated_at_by_number, labels_by_number, authors_by_number = _candidate_numbers(
-            client, pr=pr, fetch=fetch, authors=listing_authors
+            client, pr=pr, fetch=fetch, authors=evaluable
         )
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
@@ -230,7 +209,6 @@ def run(
         # cancel (abandoned stays empty) yet must still skip dispatch.
         cancel_event = threading.Event()
         authority = Authority(
-            listed=listed,
             rules=snapshot.rules,
             authors=authors_by_number,
             fetch_pr=lambda number: get_pr(client, TARGET_REPO, number),
