@@ -1,7 +1,8 @@
-import claudeInlineNoticeBot, {
+import claudeInlineCommentBot, {
+  CLAUDE_INLINE_WORKFLOW,
   formInlineNotice,
   mentionsClaude,
-} from "lib/bot/claudeInlineNoticeBot";
+} from "lib/bot/claudeInlineCommentBot";
 import nock from "nock";
 import { Probot } from "probot";
 import { handleScope } from "./common";
@@ -45,10 +46,26 @@ function makeReviewCommentEvent(
         name: repo,
         full_name: `${owner}/${repo}`,
         owner: { login: owner },
+        default_branch: "main",
       },
       installation: { id: 2 },
     },
   };
+}
+
+function mockDispatch(commentId: number, status = 204) {
+  return nock("https://api.github.com")
+    .post(
+      `/repos/${PYTORCH_REPO}/actions/workflows/${CLAUDE_INLINE_WORKFLOW}/dispatches`,
+      (body) => {
+        expect(body).toEqual({
+          ref: "main",
+          inputs: { pr_number: "199076", comment_id: String(commentId) },
+        });
+        return true;
+      }
+    )
+    .reply(status);
 }
 
 function mockReply(topLevelCommentId: number, containedStrings: string[]) {
@@ -65,7 +82,7 @@ function mockReply(topLevelCommentId: number, containedStrings: string[]) {
     .reply(201);
 }
 
-describe("claudeInlineNoticeBot pure helpers", () => {
+describe("claudeInlineCommentBot pure helpers", () => {
   test("mentionsClaude", () => {
     expect(mentionsClaude("@claude review")).toBe(true);
     expect(mentionsClaude("hey @Claude, why?")).toBe(true);
@@ -83,35 +100,57 @@ describe("claudeInlineNoticeBot pure helpers", () => {
   });
 });
 
-describe("claudeInlineNoticeBot", () => {
+describe("claudeInlineCommentBot", () => {
   let probot: Probot;
 
   beforeEach(() => {
     probot = utils.testProbot();
-    probot.load(claudeInlineNoticeBot);
+    probot.load(claudeInlineCommentBot);
   });
 
   afterEach(() => {
     nock.cleanAll();
   });
 
-  test("replies to inline @claude mention from a member", async () => {
+  test("dispatches the workflow for an inline @claude mention", async () => {
     utils.mockAccessToken();
-    const scope = mockReply(4196187570, [
-      "does not respond to inline review comments",
-      "`torch/cuda/memory.py:664`",
-    ]);
+    const scope = mockDispatch(4196187570);
     await probot.receive(makeReviewCommentEvent() as any);
     handleScope(scope);
   });
 
-  test("replies to the top-level comment of a thread", async () => {
+  test("passes the reply's own id, not the thread root", async () => {
     utils.mockAccessToken();
-    const scope = mockReply(111, ["PR conversation"]);
+    const scope = mockDispatch(222);
     await probot.receive(
       makeReviewCommentEvent({ commentId: 222, inReplyToId: 111 }) as any
     );
     handleScope(scope);
+  });
+
+  test("replies with a notice when the dispatch fails", async () => {
+    utils.mockAccessToken();
+    const scopes = [
+      mockDispatch(4196187570, 404),
+      mockReply(4196187570, [
+        "could not be started",
+        "`torch/cuda/memory.py:664`",
+      ]),
+    ];
+    await probot.receive(makeReviewCommentEvent() as any);
+    handleScope(scopes);
+  });
+
+  test("notice replies to the top-level comment of a thread", async () => {
+    utils.mockAccessToken();
+    const scopes = [
+      mockDispatch(222, 404),
+      mockReply(111, ["PR conversation"]),
+    ];
+    await probot.receive(
+      makeReviewCommentEvent({ commentId: 222, inReplyToId: 111 }) as any
+    );
+    handleScope(scopes);
   });
 
   test.each([
