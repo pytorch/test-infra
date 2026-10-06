@@ -34,6 +34,8 @@ WORKFLOW_URL = (
 BRANCH_PREFIX = "crcr-demotion/"
 DEMOTION_LABEL = "crcr-auto-demotion"
 EXTRA_LABELS = ["topic: not user facing"]
+# Mentioned on every demotion PR, besides the repo's oncalls.
+ALWAYS_CC = ["atalman"]
 
 
 # ---- Allowlist editing ----
@@ -271,35 +273,26 @@ def pr_title(repo: str) -> str:
 
 def pr_body(repo: str, status: dict, oncalls: list[str]) -> str:
     hud_link = f"[`{repo}`]({HUD_URL}/crcr/{repo})"
-    window_days = status["windowDays"]
-    if status["noData"]:
-        finding = (
-            f"Over the last {window_days} days, {hud_link} reported no "
-            "completed PR jobs to HUD."
-        )
-    else:
-        rows = "\n".join(
-            f"| {c['criterion']} | {c['measured']} | {c['target']} |"
-            for c in status["criteria"]
-            if c["met"] is False
-        )
-        finding = (
-            f"Over the last {window_days} days, {hud_link} missed these L3 "
-            "targets:\n\n"
-            "| Criterion | Measured | L3 target |\n| --- | --- | --- |\n"
-            f"{rows}"
-        )
-    cc = (
-        "cc " + " ".join(f"@{oncall}" for oncall in oncalls)
-        if oncalls
-        else "No oncalls are listed for this repo in the allowlist."
+    rows = "\n".join(
+        f"| {c['criterion']} | {c['measured']} | {c['target']} |"
+        for c in status["criteria"]
+        if c["met"] is False
     )
+    finding = (
+        f"Over the last {status['windowDays']} days, {hud_link} missed these L3 "
+        "targets:\n\n"
+        "| Criterion | Measured | L3 target |\n| --- | --- | --- |\n"
+        f"{rows}"
+    )
+    cc = "cc " + " ".join(f"@{name}" for name in [*oncalls, *ALWAYS_CC])
+    if not oncalls:
+        cc = f"No oncalls are listed for this repo in the allowlist.\n\n{cc}"
     return f"""{finding}
 
 This moves it from L3 to L2 in `{ALLOWLIST_PATH}`. L2 entries have no oncalls or
 device, so both are dropped.
 
-{cc}@atalman
+{cc}
 
 - If it gets back within its L3 targets before this is merged, this PR is closed automatically.
 - Closing this PR does not cancel the demotion: a new one is opened while the repo misses its L3 targets.

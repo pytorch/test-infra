@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 from unittest import main, mock, TestCase
 
 from torchci.crcr_sync_level import (
@@ -6,6 +7,7 @@ from torchci.crcr_sync_level import (
     demote_in_allowlist,
     DemotionPR,
     plan,
+    pr_body,
     sync,
 )
 
@@ -29,7 +31,6 @@ def status(change, **extra):
     return {
         "level": "L3",
         "change": change,
-        "noData": False,
         "windowDays": 7,
         "criteria": [
             {
@@ -97,6 +98,20 @@ class TestPlan(TestCase):
         )
 
 
+class TestPrBody(TestCase):
+    def test_every_mention_is_a_separate_word(self):
+        """A mention glued to the next one (`@a@b`) notifies neither."""
+        body = pr_body("Ascend/pytorch", status("demote"), ["huangjingwei", "zyw-hw"])
+        self.assertIn("\ncc @huangjingwei @zyw-hw @atalman\n", body)
+
+    def test_the_reviewer_is_mentioned_even_without_oncalls(self):
+        body = pr_body("a/b", status("demote"), [])
+        self.assertIn(
+            "No oncalls are listed for this repo in the allowlist.\n\ncc @atalman\n",
+            body,
+        )
+
+
 class TestSync(TestCase):
     def run_sync(self, statuses, open_prs=None):
         upstream = mock.MagicMock()
@@ -104,13 +119,16 @@ class TestSync(TestCase):
         upstream.get_contents.return_value = mock.MagicMock(
             decoded_content=ALLOWLIST.encode(), sha="blob"
         )
-        with (
-            mock.patch(
-                "torchci.crcr_sync_level.open_demotion_prs", return_value=open_prs or {}
-            ),
-            mock.patch("torchci.crcr_sync_level.open_pr") as open_pr,
-            mock.patch("torchci.crcr_sync_level.close_pr") as close_pr,
-        ):
+
+        def patch(name, **kwargs):
+            return stack.enter_context(
+                mock.patch(f"torchci.crcr_sync_level.{name}", **kwargs)
+            )
+
+        with ExitStack() as stack:
+            patch("open_demotion_prs", return_value=open_prs or {})
+            open_pr = patch("open_pr")
+            close_pr = patch("close_pr")
             ok = sync(upstream, "pytorchbot", statuses)
         return ok, upstream, open_pr, close_pr
 

@@ -62,7 +62,8 @@ export default async function handler(
       repos: statuses.map((status) => ({
         repo: status.repo,
         level: "L3",
-        change: status.onTemporaryDemotion ? "demote" : null,
+        // Silence (no jobs at all) is listed on /crcr but never opens a PR.
+        change: status.onTemporaryDemotion && !status.noData ? "demote" : null,
         noData: status.noData,
         windowDays: L3_DEMOTION_WINDOW_DAYS,
         criteria: status.rows.map((row) => ({

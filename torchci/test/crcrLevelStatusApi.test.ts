@@ -106,10 +106,10 @@ describe("/api/crcr/level-status", () => {
         met: false,
       },
     ]);
-    // Reported nothing over the window: demoted for silence, with nothing to
-    // judge on any criterion.
+    // Reported nothing over the window: listed on /crcr, but silence cannot be
+    // told apart from the relay not reporting, so it never opens a PR.
     expect(byRepo["vendor/silent"]).toMatchObject({
-      change: "demote",
+      change: null,
       noData: true,
     });
     expect(
