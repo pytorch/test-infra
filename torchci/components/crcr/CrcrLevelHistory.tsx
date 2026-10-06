@@ -68,59 +68,59 @@ export default function CrcrLevelHistory({
       </AccordionSummary>
       <AccordionDetails sx={{ px: 2, pb: 2 }}>
         <Stack spacing={1.5}>
-            <Typography variant="caption" color="text.secondary">
-              Observed from CRCR dispatch records retained by the HUD. Manual PR
-              links and automated-decision criteria will be added with the
-              dedicated audit ledger.
-            </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Observed from CRCR dispatch records retained by the HUD. Manual PR
+            links and automated-decision criteria will be added with the
+            dedicated audit ledger.
+          </Typography>
 
-            {events.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No level events were observed in the retained dispatch history.
-              </Typography>
-            ) : (
-              <Stack spacing={0}>
-                {events.map((event, index) => (
+          {events.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No level events were observed in the retained dispatch history.
+            </Typography>
+          ) : (
+            <Stack spacing={0}>
+              {events.map((event, index) => (
+                <Box
+                  key={`${event.changed_at}-${event.new_level}`}
+                  display="grid"
+                  gridTemplateColumns="20px minmax(0, 1fr)"
+                  columnGap={1}
+                  sx={{ pb: index === events.length - 1 ? 0 : 1.5 }}
+                >
                   <Box
-                    key={`${event.changed_at}-${event.new_level}`}
-                    display="grid"
-                    gridTemplateColumns="20px minmax(0, 1fr)"
-                    columnGap={1}
-                    sx={{ pb: index === events.length - 1 ? 0 : 1.5 }}
+                    sx={{
+                      borderLeft: index === events.length - 1 ? 0 : 1,
+                      borderColor: "divider",
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
                   >
                     <Box
                       sx={{
-                        borderLeft: index === events.length - 1 ? 0 : 1,
-                        borderColor: "divider",
-                        display: "flex",
-                        justifyContent: "center",
+                        width: 10,
+                        height: 10,
+                        mt: 0.5,
+                        borderRadius: "50%",
+                        bgcolor: "primary.main",
                       }}
-                    >
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          mt: 0.5,
-                          borderRadius: "50%",
-                          bgcolor: "primary.main",
-                        }}
-                      />
-                    </Box>
-                    <Stack spacing={0.25}>
-                      <Typography variant="caption" color="text.secondary">
-                        <LocalTimeHuman timestamp={event.changed_at} />
-                      </Typography>
-                      <Typography variant="body2" fontWeight={600}>
-                        {event.previous_level} → {event.new_level}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Observed in CRCR dispatch records
-                      </Typography>
-                    </Stack>
+                    />
                   </Box>
-                ))}
-              </Stack>
-            )}
+                  <Stack spacing={0.25}>
+                    <Typography variant="caption" color="text.secondary">
+                      <LocalTimeHuman timestamp={event.changed_at} />
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600}>
+                      {event.previous_level} → {event.new_level}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Observed in CRCR dispatch records
+                    </Typography>
+                  </Stack>
+                </Box>
+              ))}
+            </Stack>
+          )}
         </Stack>
       </AccordionDetails>
     </Accordion>
