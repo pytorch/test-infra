@@ -344,6 +344,8 @@ describe("verify-drci-functionality", () => {
           "- patterns: ['*']\n  approved_by: [alice]"
         ).toString("base64"),
       })
+      .get(`/repos/${OWNER}/${REPO}/pulls/31/reviews?per_page=100`)
+      .reply(200, [])
       .post(`/repos/${OWNER}/${REPO}/issues/31/comments`, (body) => {
         comment = body.body;
         return true;

@@ -1,4 +1,4 @@
-// What greenlight's scan would decide for a PR it has recorded no state for yet,
+// What greenlight's scan would decide for a PR it has no non-shadow state for,
 // read from the same sources it reads. The issue grammar and the merge-rule
 // semantics are ports of greenlight/src/greenlight/trusted_authors.py,
 // merge_authz.py and cohort.assess, and the size caps of the ones in
@@ -11,6 +11,7 @@ import {
   GREENLIGHT_IN_PROGRESS_EMOJI,
   GREENLIGHT_NEEDS_HUMAN_EMOJI,
 } from "lib/greenlight/greenlightRender";
+import { isHumanDecided } from "lib/greenlight/greenlightReviewGate";
 import { Octokit } from "octokit";
 
 export type GreenlightEligibility = "too_big" | "merge_rules" | "waiting";
@@ -309,6 +310,32 @@ export function greenlightEligibilityGate(
     return false;
   }
 
+  // merge_authz.py's approver union: every rule counts whatever its patterns, a
+  // plain entry matches case-insensitively, and namesAuthor adds team members.
+  async function isMergeApprover(rules: MergeRule[], login: string) {
+    const lowered = login.toLowerCase();
+    return (
+      rules.some((rule) =>
+        rule.logins.some((entry) => pyStrip(entry).toLowerCase() === lowered)
+      ) || namesAuthor(rules, login)
+    );
+  }
+
+  // The scan skips a PR a human has decided and writes no row for it, so
+  // "waiting" would last for as long as that decision stands.
+  async function waitingUnlessDecided(pr: EligibilityPr, rules: MergeRule[]) {
+    const reviews = await octokit.paginate(octokit.rest.pulls.listReviews, {
+      owner,
+      repo,
+      pull_number: pr.number,
+      per_page: 100,
+    });
+    const decided = await isHumanDecided(reviews, (reviewer) =>
+      isMergeApprover(rules, reviewer)
+    );
+    return decided ? null : "waiting";
+  }
+
   return async (pr) => {
     const login = pr.user?.login;
     if (pr.draft || !login) {
@@ -328,7 +355,7 @@ export function greenlightEligibilityGate(
     const rules = await mergeRules;
     const catchAll = rules.filter((rule) => rule.coversAll);
     if (await namesAuthor(catchAll, login)) {
-      return "waiting";
+      return waitingUnlessDecided(pr, rules);
     }
     // A ghstack head lands by cherry-picking its orig branch, and a PR on another
     // base is listed against that base, so neither listing bounds what lands.
@@ -342,7 +369,9 @@ export function greenlightEligibilityGate(
     const covering = rules.filter(
       (rule) => rule.matches !== null && files.every(rule.matches)
     );
-    return (await namesAuthor(covering, login)) ? "waiting" : "merge_rules";
+    return (await namesAuthor(covering, login))
+      ? waitingUnlessDecided(pr, rules)
+      : "merge_rules";
   };
 }
 
