@@ -3,11 +3,13 @@
 greenlight lists every open PR from the evaluation cohort (see the README's "Who is evaluated, and
 whose verdict carries authority") but reviews only those whose author is eligible for them, and only
 an eligible author's review carries authority: only it can approve the PR, render in Dr. CI, or
-satisfy the land-time merge gate. For a listed PR whose author is not eligible for it and that has
-no non-shadow greenlight row, Dr. CI says its changes can't be reviewed due to `merge_rules.yaml`
-restrictions, or are too big to review when the PR is oversized. Eligibility comes from the merge
-rules alone, and an ineligible author is what `--allow-untrusted-author` calls untrusted: that
-local-only flag reviews such a PR anyway, in shadow. This document covers who is eligible,
+satisfy the land-time merge gate. For a listed PR whose author is not eligible for it, Dr. CI says
+its changes can't be reviewed due to `merge_rules.yaml` restrictions, or are too big to review when
+the PR is oversized. Either line also replaces a greenlight verdict on an older commit, but never
+one on the PR's current head; in every other case — an eligible author's PR that is not oversized,
+a draft, an author no rule names, a failed check — an outdated verdict stays. Eligibility comes from
+the merge rules alone, and an ineligible author is what `--allow-untrusted-author` calls untrusted:
+that local-only flag reviews such a PR anyway, in shadow. This document covers who is eligible,
 onboarding and offboarding, and the risks this design accepts.
 
 ## The rule
@@ -89,10 +91,12 @@ scan.
   names, such as an author removed after greenlight approved the PR; a manual `--pr` run still
   covers any PR with an author login. Otherwise a reverted PR keeps greenlight's approval until
   someone dismisses it by hand.
-- **Dr. CI can keep showing a stale approval.** When an author loses eligibility, the scan
-  dismisses greenlight's approval on a listed PR inside the review window and not labelled `Stale`,
-  but Dr. CI keeps showing the last authoritative `LAND`, not even marked outdated while the head
-  is unchanged. Nothing lands on it once the approval is gone.
+- **Dr. CI can keep showing a stale approval.** When an author loses eligibility with the head
+  unchanged — a merge-rule change — the scan dismisses greenlight's approval on a listed PR inside
+  the review window and not labelled `Stale`, but Dr. CI keeps showing the last authoritative
+  `LAND`, not even marked outdated: it never replaces a verdict on the current head. Nothing lands
+  on it once the approval is gone. Once the head moves, the outdated verdict gives way to the
+  `merge_rules.yaml` or too-big line where one applies.
 - **An approval can outlive eligibility.** The scan dismisses an approval only on a PR it lists
   inside the review window and not labelled `Stale`, and only while the PR's latest recorded row is
   a `LAND`. Every other approval stays: on a PR outside the window, labelled `Stale`, or by an author
