@@ -242,6 +242,10 @@ For L3 the upstream check run is gated on the `ciflow/crcr/<device>` label, whic
 
 Because the downstream echoes back the *dispatch-time* payload — whose labels can be stale, e.g. on **reopen** where no fresh `labeled` event fires — the relay records a per-commit "check run wanted" flag (`crcr:check_run_wanted:<head_sha>:<repo>`) at dispatch time (when the label is already present) and in the `labeled` handler. The callback consults this flag so it still creates the check run when the echoed labels don't reflect the PR's current state.
 
+### Temporary demotion
+
+When an L3 repo falls below the demotion criteria, the sync level workflow ([`tools/torchci/crcr_sync_level.py`](../../../tools/torchci/crcr_sync_level.py)) opens a PR from a `crcr-demotion/<owner>/<repo>` branch of the upstream repo that moves it from L3 to L2 in `allowlist.yml`. Until that PR is merged (or closed) the relay treats the repo as **temporarily demoted**: it creates **no new upstream check runs** for it, as if it were already L2. This does not wait for the allowlist to change, but it starts at the relay's next sweep: jobs that start before then count as started before the demotion and finish normally.
+
 ### Re-running checks
 
 A developer can re-run downstream CI directly from the upstream PR's checks UI. Re-runs happen at the **workflow-run** level via `rerun-failed-jobs`: the downstream `run_id` is stored as each check run's `external_id`, and GitHub rejects re-running individual jobs of a run that is already running, so one run-level call re-runs all failed jobs together without conflict. The GitHub App subscribes to the `check_run` and `check_suite` events, and the relay handles their `rerequested` action:

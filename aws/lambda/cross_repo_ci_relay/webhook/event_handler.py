@@ -5,7 +5,7 @@ import logging
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
 
-from utils import gh_helper, redis_helper
+from utils import demotion, gh_helper, redis_helper
 from utils.allowlist import AllowlistLevel, CrcrEvent, load_allowlist
 from utils.config import RelayConfig
 from utils.misc import (
@@ -159,6 +159,8 @@ def _handle_pr_labeled(config: RelayConfig, payload: dict) -> dict:
         repo
         for repo in l3_repos
         if CrcrEvent.PULL_REQUEST in allowlist.get_repo_events(repo)
+        # Temporarily demoted
+        and not demotion.suppressed(config, AllowlistLevel.L3, repo)
     ]
     if not l3_repos:
         return {"ok": True, "created_check_runs": []}
@@ -287,6 +289,9 @@ def _handle_check_run_rerequested(config: RelayConfig, payload: dict) -> dict:
     level = allowlist.get_repo_level(downstream_repo)
     if level is None or level.value < AllowlistLevel.L3.value:
         return {"ignored": True, "reason": "downstream repo not L3+"}
+    if demotion.suppressed(config, level, downstream_repo):
+        # Its check runs are held back, so a re-run would show nothing.
+        return {"ignored": True, "reason": "downstream repo temporarily demoted"}
 
     token = gh_helper.get_repo_access_token(
         config.github_app_id, config.github_app_private_key, downstream_repo
@@ -369,6 +374,8 @@ def _handle_check_suite_rerequested(config: RelayConfig, payload: dict) -> dict:
         seen.add((downstream_repo, run_id))
         level = allowlist.get_repo_level(downstream_repo)
         if level is None or level.value < AllowlistLevel.L3.value:
+            continue
+        if demotion.suppressed(config, level, downstream_repo):
             continue
         try:
             token = tokens.get(downstream_repo)
