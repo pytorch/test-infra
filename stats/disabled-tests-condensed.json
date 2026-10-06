@@ -225,6 +225,13 @@
       "rocm"
     ]
   ],
+  "test_copy_transpose_tiled_batched_layout_odd_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199890",
+    "https://github.com/pytorch/pytorch/issues/199890",
+    [
+      "rocm"
+    ]
+  ],
   "test_copy_transpose_tiled_small_case_at_cuda_bool (__main__.TestTorchDeviceTypeCUDA)": [
     "198632",
     "https://github.com/pytorch/pytorch/issues/198632",
@@ -242,6 +249,29 @@
   "test_copy_transpose_tiled_small_case_at_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "198911",
     "https://github.com/pytorch/pytorch/issues/198911",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_copy_transpose_tiled_small_slices_rejected_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199891",
+    "https://github.com/pytorch/pytorch/issues/199891",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_copy_transpose_tiled_small_slices_rejected_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199892",
+    "https://github.com/pytorch/pytorch/issues/199892",
+    [
+      "inductor"
+    ]
+  ],
+  "test_copy_transpose_tiled_small_slices_rejected_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199893",
+    "https://github.com/pytorch/pytorch/issues/199893",
     [
       "inductor",
       "rocm"
@@ -1260,13 +1290,6 @@
       "xpu"
     ]
   ],
-  "test_sdpa_rewriter_14_gpu (__main__.SDPAPatternRewriterGpuTests)": [
-    "198142",
-    "https://github.com/pytorch/pytorch/issues/198142",
-    [
-      "rocm"
-    ]
-  ],
   "test_sdpa_rewriter_stacked_layers_with_mask_gpu (__main__.SDPAPatternRewriterGpuDynamicTests)": [
     "198998",
     "https://github.com/pytorch/pytorch/issues/198998",
@@ -1579,6 +1602,13 @@
   "test_uuid_visible_devices (__main__.TestCudaAllocator)": [
     "180123",
     "https://github.com/pytorch/pytorch/issues/180123",
+    [
+      "rocm"
+    ]
+  ],
+  "test_variable_sharing_cuda (__main__.TestMultiprocessingDeviceCUDA)": [
+    "199889",
+    "https://github.com/pytorch/pytorch/issues/199889",
     [
       "rocm"
     ]
