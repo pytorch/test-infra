@@ -1,13 +1,12 @@
-"""Whose evaluation in one scan carries authority, judged from the trusted-authors issue's list.
+"""Whose evaluation in one scan carries authority, judged from the merge rules alone.
 
-``log_unnamed_listed`` flags listed logins no merge rule names; ``covering_rule`` asks
-``cohort.assess`` about one PR and logs the answer whenever its author is listed in the issue.
-``Authority`` answers ``shadow_for_pr`` for one pass, lazily and at most once per PR: only a PR the
-revert guard, the dial exemption or dispatch asks about is worth a files read, so a catch-all author
-and a PR nobody asks about cost no GitHub call. It also answers the stamp for a REVERTED row, the one
-row that denies, keeping it visible on a recorded PR whose author is currently listed, and it defers
-a candidate whose head moved after its authority was read. The memo is unlocked and the files read
-borrows the scan's main client, so it is asked from the main thread only.
+``covering_rule`` asks ``cohort.assess_rules`` about one PR and logs the answer. ``Authority``
+answers ``shadow_for_pr`` for one pass, lazily and at most once per PR: only a PR the revert guard,
+the dial exemption or dispatch asks about is worth a files read, so a catch-all author and a PR
+nobody asks about cost no GitHub call. It also answers the stamp for a REVERTED row, the one row that
+denies, keeping it visible on every recorded PR, and it defers a candidate whose head moved after its
+authority was read. The memo is unlocked and the files read borrows the scan's main client, so it is
+asked from the main thread only.
 """
 
 from __future__ import annotations
@@ -54,34 +53,20 @@ class Target(NamedTuple):
     refused: bool = False
 
 
-def is_listed(login: str | None, listed: frozenset[str]) -> bool:
-    return login is not None and login.lower() in listed
-
-
-def log_unnamed_listed(listed: frozenset[str], rules: Sequence[EligibilityRule]) -> None:
-    """Warn about listed logins no merge rule names in any casing: none of their PRs can be authoritative."""
-    named = {approver.lower() for rule in rules for approver in rule.approvers}
-    unnamed = sorted(listed - named)
-    if unnamed:
-        logger.warning("trusted-authors issue lists %d login(s) that no merge rule names: %s", len(unnamed), unnamed)
-
-
 def covering_rule(
     number: int,
     login: str | None,
-    listed: frozenset[str],
     rules: Sequence[EligibilityRule],
     files: Callable[[], Sequence[str] | None],
 ) -> EligibilityRule | None:
-    """``cohort.assess`` for PR ``number``, logging its reason whenever the author is listed."""
-    rule, reason = cohort.assess(login, listed, rules, files)
-    if is_listed(login, listed):
-        logger.info("PR #%d by %s: %s", number, login, reason)
+    """``cohort.assess_rules`` for PR ``number``, logging its reason."""
+    rule, reason = cohort.assess_rules(login, rules, files)
+    logger.info("PR #%d by %s: %s", number, login, reason)
     return rule
 
 
 class Authority:
-    """The scan's ``shadow_for_pr``: a PR is shadow unless its author, listed in the issue, is eligible for it.
+    """The scan's ``shadow_for_pr``: a PR is shadow unless its author is eligible for it.
 
     ``authors`` maps each PR from the listing to its author; a number outside it is shadow. ``target``
     seeds the ``--pr`` gate's answer, which is never re-read. A PR whose files read fails is shadow and
@@ -93,7 +78,6 @@ class Authority:
     def __init__(
         self,
         *,
-        listed: frozenset[str],
         rules: Sequence[EligibilityRule],
         authors: Mapping[int, str | None],
         fetch_pr: Callable[[int], _FilesPR],
@@ -102,7 +86,6 @@ class Authority:
         recorded: Collection[int],
         target: Target | None = None,
     ) -> None:
-        self._listed = listed
         self._rules = rules
         self._authors = dict(authors)
         self._fetch_pr = fetch_pr
@@ -138,13 +121,13 @@ class Authority:
         return answer
 
     def reverted_shadow(self, number: int) -> bool:
-        """``shadow`` for a REVERTED row, which stays visible on a recorded PR whose author is listed.
+        """``shadow`` for a REVERTED row, which stays visible on every recorded PR.
 
         A shadow REVERTED row is invisible to Dr. CI and the land gate, which then keep reading any
-        authoritative row beneath it, and a REVERTED row can only deny. A listed author's recorded PR
-        therefore gets a non-shadow one whatever its files show now, so they are never read for it.
+        authoritative row beneath it, and a REVERTED row can only deny. A recorded PR therefore gets a
+        non-shadow one whatever its author or files show now, so its files are never read for it.
         """
-        if number in self._recorded and is_listed(self._authors.get(number), self._listed):
+        if number in self._recorded:
             return False
         return self.shadow(number)
 
@@ -178,7 +161,7 @@ class Authority:
             return changed_files(pr)
 
         try:
-            rule = covering_rule(number, self._authors[number], self._listed, self._rules, files)
+            rule = covering_rule(number, self._authors[number], self._rules, files)
         except IterationTimeout:
             raise
         except _ReadSkipped:
