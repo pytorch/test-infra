@@ -93,10 +93,9 @@ based on `main` if the rule is path-scoped. The listing scan fingerprints and di
 eligible PRs, and applies that cut to the *fingerprint candidates*, after the revert guard and the
 state read, not to the listing. Every other listed PR is therefore still state-read and still
 reaches `revert_guard` — so it still loses a greenlight approval it should no longer hold and still
-gets its permanent `REVERTED` row — but is never dispatched. Unless it is reverted, the scan leaves
-greenlight's approval on such a PR in place until a human or a later verdict dismisses it; the
-land-time merge gate honours that approval only while the PR's latest non-shadow row is a `LAND`
-for its current head.
+gets its permanent `REVERTED` row — but is never dispatched; when it is inside the review window
+and not labelled `Stale`, and its latest recorded row is a `LAND`, the scan dismisses greenlight's
+approval.
 
 A review is recorded in **shadow** when the verdict's record-time merge-rule check fails, when
 `verdict` runs with `--shadow`, or when a local `--allow-untrusted-author` run reviews an ineligible
@@ -390,8 +389,8 @@ unprefixed `BOT_LOGIN`:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted PR. Must be App-shaped when set; the reverted-PR path refuses the whole scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR write on `pytorch/pytorch` (to revoke its approval on a reverted PR), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs; `verdict` needs PR write, plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org for its merge-rule check |
+| `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the whole scan without it |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs; `verdict` needs PR write, plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org for its merge-rule check |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
@@ -403,7 +402,7 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
-| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, and revokes its approval on a reverted PR, but the capped fan-out stops before submitting anything, so nothing is fingerprinted, evaluated, or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, and revokes its approval on a reverted or ineligible PR, but the capped fan-out stops before submitting anything, so nothing is fingerprinted, evaluated, or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
 
 `review` additionally reads ClickHouse — any scan that finds at least one cohort
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
@@ -583,8 +582,10 @@ eligible PRs that are new or changed. Reverted PRs — those carrying the `Rever
 own approving review, records the `REVERTED` row unless it is already the PR's latest row, and
 pokes Dr. CI when either changed. The
 exclusion survives removal of the label, and `@greenlight recheck` is not exempt (it is skipped
-silently). This path writes to `pytorch/pytorch`, so `review` needs PR write and the App's
-`BOT_LOGIN`. Draft PRs are dropped from the listing scan entirely — never
+silently). A listed ineligible PR inside the review window and not labelled `Stale`, whose latest
+recorded row is a `LAND`, has greenlight's approval dismissed, with nothing recorded or dispatched.
+Both paths write to `pytorch/pytorch`, so `review` needs PR write and the App's `BOT_LOGIN`.
+Draft PRs are dropped from the listing scan entirely — never
 fingerprinted or dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still
 reviews a draft. PRs whose `updated_at` is older than the review window
 (`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24), or that carry the `Stale` label, are
