@@ -44,6 +44,7 @@ from torchci.vllm_log_parser import (
     FailedTest,
     get_test_signature,
     parse_log,
+    torch_sensitive_infra_matches,
 )
 
 
@@ -457,6 +458,7 @@ def render(
     base: Dict[str, Any],
     buckets: Dict[str, List[Dict]],
     regressed_tests: Optional[List[Dict]] = None,
+    contested_infra: Optional[Dict[str, int]] = None,
 ) -> str:
     regressed = buckets["regressed"]
     clusters: Dict[str, List[Dict]] = defaultdict(list)
@@ -537,6 +539,12 @@ def render(
         out.append("\n</details>")
 
     out.append("\n### Infrastructure check\n")
+    for pattern, count in sorted((contested_infra or {}).items()):
+        out.append(
+            f"- Infra-looking signature `{pattern}` hit **{count}** regressed "
+            "clusters, all passing on the baseline. Too widespread to be transient, "
+            "so it is **not** tagged infra in the cluster logs.\n"
+        )
     if top_agent_share >= 0.5:
         out.append(
             f"⚠️ {agents[0][1]}/{len(regressed)} failures landed on `{agents[0][0]}`. "
@@ -579,13 +587,21 @@ def render_failure_context(
     failure_window_context_after_lines: int,
     capture_mode: str = "failure_context",
     parsed_failures: Optional[List[FailedTest]] = None,
+    contested_infra: Optional[Dict[str, int]] = None,
 ) -> str:
-    """Render parsed pytest records, bounded windows, and the configured raw tail."""
+    """Render parsed pytest records, bounded windows, and the configured raw tail.
+
+    ``contested_infra`` maps an infra pattern to the number of regressed clusters
+    it was seen on; those patterns do not set ``job_is_infra`` and are called out
+    in the header instead.
+    """
+    contested = contested_infra or {}
     cleaned_lines = clean_failure_context_lines(body)
     context = extract_failure_context(
         cleaned_lines,
         failure_window_context_before_lines=failure_window_context_before_lines,
         failure_window_context_after_lines=failure_window_context_after_lines,
+        contested_infra=frozenset(contested),
     )
 
     sections = [
@@ -593,8 +609,14 @@ def render_failure_context(
         f"# capture_mode: {capture_mode}\n",
         f"# cleaned_log_lines: {context['line_count']}\n",
         f"# job_is_infra: {context['job_is_infra']}\n",
-        "# failure_window_counts:",
     ]
+    for pattern in torch_sensitive_infra_matches(body):
+        if pattern in contested:
+            sections.append(
+                f"# infra_contested: /{pattern}/ matched on {contested[pattern]} "
+                "regressed clusters that pass on the baseline; not tagged infra\n"
+            )
+    sections.append("# failure_window_counts:")
     for summary in context["failure_windows"]:
         sections.append(
             f"#   {summary['window_type']}: matched={summary['matched_instance_count']} "
@@ -856,6 +878,16 @@ def _write_both_context_artifacts(
     return written
 
 
+def contested_infra_counts(bodies: List[str], min_clusters: int) -> Dict[str, int]:
+    """Torch-sensitive infra patterns found in at least ``min_clusters`` bodies."""
+    if min_clusters <= 0:
+        return {}
+    counts: Counter = Counter()
+    for body in bodies:
+        counts.update(torch_sensitive_infra_matches(body))
+    return {p: n for p, n in counts.items() if n >= min_clusters}
+
+
 def fetch_cluster_logs(
     buckets: Dict[str, List[Dict]],
     logs_dir: str,
@@ -865,6 +897,8 @@ def fetch_cluster_logs(
     failure_window_context_after_lines: int,
     torch_versions: Optional[List[str]] = None,
     regressed_tests: Optional[List[Dict]] = None,
+    contested_infra_min_clusters: int = 0,
+    contested_infra: Optional[Dict[str, int]] = None,
 ) -> List[str]:
     """Download one representative artifact per surfaced cluster.
 
@@ -885,6 +919,12 @@ def fetch_cluster_logs(
         failure_window_context_before_lines: Lines before each window anchor.
         failure_window_context_after_lines: Reference-style end offset for each
             window anchor.
+        contested_infra_min_clusters: A torch-sensitive infra pattern seen on at
+            least this many regressed clusters is not tagged infra. Every one of
+            those clusters passes on the baseline, so a signature that widespread
+            is systematic rather than transient. 0 disables the check.
+        contested_infra: Optional output dict; the contested patterns and their
+            regressed-cluster counts are written here.
 
     Returns:
         Paths of the artifacts written.
@@ -899,6 +939,9 @@ def fetch_cluster_logs(
     cluster_logs_dir.mkdir(parents=True, exist_ok=True)
     written: List[str] = []
 
+    # Every log is fetched before any artifact is written: whether an infra tag
+    # stands depends on how many regressed clusters share the signature.
+    fetched: List[Tuple[str, Dict, str]] = []
     for key, jobs in sorted(clusters.items(), key=lambda kv: (-len(kv[1]), kv[0])):
         rep = sorted(jobs, key=lambda j: j["name"])[0]
         try:
@@ -920,10 +963,18 @@ def fetch_cluster_logs(
             found = _TORCH_VERSION.search(body)
             if found:
                 torch_versions.append(found.group(1))
+        fetched.append((key, rep, body))
 
+    contested = contested_infra_counts(
+        [body for _, _, body in fetched], contested_infra_min_clusters
+    )
+    if contested_infra is not None:
+        contested_infra.update(contested)
+
+    for key, rep, body in fetched:
         parsed_failures: Optional[List[FailedTest]] = None
         try:
-            parsed_failures = all_failures(parse_log(body))
+            parsed_failures = all_failures(parse_log(body, frozenset(contested)))
         except Exception as exc:  # parser asserts an invariant; windows still work
             print(f"warning {key}: pytest parse unavailable: {exc}", file=sys.stderr)
 
@@ -938,6 +989,7 @@ def fetch_cluster_logs(
             failure_window_context_after_lines,
             "nightly_failure_context",
             parsed_failures=parsed_failures,
+            contested_infra=contested,
         )
         with open(dest, "w") as f:
             f.write(artifact)
@@ -994,6 +1046,13 @@ def argument_parser() -> argparse.ArgumentParser:
         default=50,
         help="reference-style end offset for each failure-window anchor",
     )
+    parser.add_argument(
+        "--contested-infra-min-clusters",
+        type=nonnegative_int,
+        default=5,
+        help="a CUDA-init / startup free-memory signature on at least this many "
+        "regressed clusters is not tagged infra (0 disables)",
+    )
     return parser
 
 
@@ -1026,6 +1085,7 @@ def main() -> int:
     # both feed the rendered report and report.json downstream.
     torch_versions: List[str] = []
     regressed_tests: List[Dict] = []
+    contested_infra: Dict[str, int] = {}
     # `both` clusters are diffed for hidden test-set regressions even when nothing
     # flipped green->red, so fetch whenever either bucket is non-empty.
     if args.logs_dir and (buckets["regressed"] or buckets["both"]):
@@ -1048,10 +1108,12 @@ def main() -> int:
                 args.failure_window_context_after_lines,
                 torch_versions,
                 regressed_tests,
+                args.contested_infra_min_clusters,
+                contested_infra,
             )
             print(f"fetched {len(written)} cluster log(s)", file=sys.stderr)
 
-    report = render(tn, base, buckets, regressed_tests)
+    report = render(tn, base, buckets, regressed_tests, contested_infra)
     if args.output:
         with open(args.output, "w") as f:
             f.write(report)
@@ -1087,6 +1149,7 @@ def main() -> int:
                     "both": buckets["both"],
                     "passed": passed_clusters(buckets),
                     "regressed_tests": regressed_tests,
+                    "contested_infra": contested_infra,
                 },
                 f,
                 indent=2,

@@ -39,5 +39,5 @@ your repo knowledge, still using one of the three values.
 | Multi-modal per-model assertions (qwen2_vl, chameleon) | vllm-project/vllm | Check vLLM first — may be torch-side once isolated |
 | Responses API assertion (`'incomplete' == 'completed'`) | vllm-project/vllm | |
 | `test_lm_eval_accuracy_v1_engine` — measured below threshold | pytorch/pytorch | Often numerical drift from a triton update, but confirm against vLLM before filing — this one can land either side |
-| `ValueError: Free memory on device cuda:N (X/Y GiB) … less than desired` (tagged `test_is_infra`) | infra | GPU contention — rerun the job, do not file; can cascade dozens of unrelated tests, so the real failures may be a subset |
+| `ValueError: Free memory on device cuda:N (X/Y GiB) … less than desired` (tagged `test_is_infra`) | infra | GPU contention — rerun the job, do not file; can cascade dozens of unrelated tests, so the real failures may be a subset. **Not** when the artifact header says `infra_contested` (see SKILL.md) |
 | CUDA OOM (`torch.OutOfMemoryError` / `CUDA out of memory`) in tp≥2 or B200 fusion tests (runner had ~4–5 GiB free at start) | infra | **Not** tagged `test_is_infra` (runtime OOM ≠ startup free-memory check); cross-check the same job on the same-day main build. If main OOMs the same way, it's contention — skip filing |

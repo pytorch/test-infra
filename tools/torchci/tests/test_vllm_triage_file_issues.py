@@ -351,6 +351,128 @@ class TestRoutingIsNotAFilingGate(unittest.TestCase):
             self.assertIn(r, vtfi.SECTIONS)
 
 
+class TestNeedsInvestigation(unittest.TestCase):
+    """Widespread infra/undetermined causes are filed for a human."""
+
+    CLUSTERS = [f":nvidia: (H200 MIG 35GB) Job {i}" for i in range(79)]
+
+    def test_widespread_infra_cause_is_investigated(self):
+        # Shape of the 2026-10-06 CUDA-init finding: 79 clusters, routed infra.
+        c = cause(routing="infra", new_failure_confidence="low", clusters=self.CLUSTERS)
+        self.assertFalse(eligible(c))
+        self.assertTrue(vtfi.needs_investigation(c, 10))
+
+    def test_widespread_undetermined_cause_is_investigated(self):
+        c = cause(determined=False, clusters=self.CLUSTERS)
+        self.assertTrue(vtfi.needs_investigation(c, 10))
+
+    def test_small_infra_cause_is_still_dropped(self):
+        c = cause(routing="infra", clusters=self.CLUSTERS[:3])
+        self.assertFalse(vtfi.needs_investigation(c, 10))
+
+    def test_eligible_cause_is_not_double_counted(self):
+        self.assertFalse(vtfi.needs_investigation(cause(clusters=self.CLUSTERS), 10))
+
+    def test_zero_disables(self):
+        c = cause(routing="infra", clusters=self.CLUSTERS)
+        self.assertFalse(vtfi.needs_investigation(c, 0))
+
+    def test_template_ships_the_section(self):
+        self.assertIn(vtfi.INVESTIGATE_SECTION, vtfi.umbrella_body("2.15", {}))
+
+    def test_child_body_says_why_it_was_filed(self):
+        c = cause(routing="infra", clusters=self.CLUSTERS)
+        body = vtfi.child_body(c, {}, "k")
+        self.assertIn("Filed for investigation", body)
+        self.assertIn("79 job clusters", body)
+
+    def test_dry_run_lists_investigation_after_eligible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = Path(tmp) / "findings.json"
+            report = Path(tmp) / "report.json"
+            findings.write_text(
+                json.dumps(
+                    {
+                        "causes": [
+                            cause(
+                                title="CUDA init storm",
+                                routing="infra",
+                                clusters=self.CLUSTERS,
+                            ),
+                            cause(title="small infra", routing="infra"),
+                            cause(),
+                        ]
+                    }
+                )
+            )
+            report.write_text(json.dumps({"torch_version_minor": "2.15"}))
+            argv = ["filer", "--findings", str(findings), "--report", str(report)]
+            output = io.StringIO()
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.dict(os.environ, {"GITHUB_TOKEN": "dry-run-token"}),
+                mock.patch.object(vtfi, "_req") as req,
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(vtfi.main(), 0)
+                req.assert_not_called()
+        out = output.getvalue()
+        self.assertIn("1 eligible, 1 for investigation, 1 skipped", out)
+        self.assertLess(
+            out.index("child [pytorch/pytorch]"), out.index("child [infra]")
+        )
+        self.assertNotIn("small infra  key=", out)
+
+
+class TestSkippedRecurrence(unittest.TestCase):
+    """A tracked cause the agent re-labels as infra still gets a comment."""
+
+    def test_skipped_cause_matching_an_issue_is_recorded(self):
+        skipped = cause(
+            title="free-memory startup check",
+            routing="infra",
+            new_failure_confidence="low",
+        )
+        tracked = {"number": 8940, "body": ""}
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = Path(tmp) / "findings.json"
+            report = Path(tmp) / "report.json"
+            findings.write_text(json.dumps({"causes": [skipped]}))
+            report.write_text(json.dumps({"torch_version_minor": "2.15"}))
+            argv = [
+                "filer",
+                "--findings",
+                str(findings),
+                "--report",
+                str(report),
+                "--execute",
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}),
+                mock.patch.object(vtfi, "find_umbrella", return_value={"number": 1}),
+                mock.patch.object(vtfi, "open_children", return_value=[tracked]),
+                mock.patch.object(
+                    vtfi, "find_existing", return_value=(tracked, "near-duplicate")
+                ),
+                mock.patch.object(vtfi, "record_recurrence") as record,
+                mock.patch.object(vtfi, "report_silences") as silences,
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(vtfi.main(), 0)
+        record.assert_called_once()
+        self.assertIn("routing=`infra`", record.call_args.args[6])
+        # ...and the silence check treats it as matched.
+        self.assertIn(8940, silences.call_args.args[4])
+
+    def test_recurrence_comment_carries_the_note(self):
+        body = vtfi.recurrence_comment(
+            {"torch_nightly_build": 93069}, cause(), [], [], "key", "NOTE-TEXT"
+        )
+        self.assertIn("Still reproducing on torch-nightly build", body)
+        self.assertIn("NOTE-TEXT", body)
+
+
 class TestInsertInSection(unittest.TestCase):
     # The live #8610 body: the vLLM section precedes the torch one, so
     # appending at the end of the body files everything as a torch regression.

@@ -23,7 +23,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from torchci.vllm_deduplication import (
     read_upstream_checks,
@@ -49,6 +49,7 @@ SECTIONS = {
     TORCH_ROUTING: "### Confirmed regressions",
     VLLM_ROUTING: "### Regression on vLLM side",
 }
+INVESTIGATE_SECTION = "### Need investigation"
 
 
 def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any:
@@ -324,6 +325,9 @@ def umbrella_body(minor: str, report: Dict[str, Any]) -> str:
         "<!-- Causes whose fix belongs in vLLM, not torch. Filed here so the\n"
         "     failing jobs are not re-triaged every run; link the upstream\n"
         "     vllm-project/vllm issue, or promote to pytorch/pytorch, by hand. -->\n\n"
+        f"{INVESTIGATE_SECTION}\n\n"
+        "<!-- Widespread causes the agent called infra or could not root-cause.\n"
+        "     Every job here passes on the baseline; a human decides. -->\n\n"
         f"{SECTIONS[TORCH_ROUTING]}\n\n"
         "<!-- checklist: appended automatically, one entry per root cause -->\n"
     )
@@ -389,7 +393,16 @@ def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
         f"{classification_confidence(cause) or 'unknown'}, new-failure "
         f"{new_failure_confidence(cause) or 'unknown'})"
     )
-    if routing_of(cause) == VLLM_ROUTING:
+    if needs_investigation(cause, 1):
+        sections.append(
+            "**Filed for investigation.** The root-cause agent called this "
+            f"`{routing}` (determined={bool(cause.get('determined'))}), which "
+            "normally keeps it out of the tracker. It is filed anyway because it "
+            f"spans {len(cause.get('clusters') or [])} job clusters that all pass "
+            "on the baseline, which transient infrastructure rarely does. "
+            "Confirm or rule out a torch regression by hand."
+        )
+    elif routing_of(cause) == VLLM_ROUTING:
         sections.append(
             "The fix for this one looks like it belongs in vLLM rather than "
             "torch. It is tracked here so the failing jobs are not re-triaged "
@@ -414,6 +427,7 @@ def recurrence_comment(
     added: List[str],
     all_clusters: List[str],
     matched_by: str,
+    note: str = "",
 ) -> str:
     """The comment left on an already-filed cause.
 
@@ -451,6 +465,8 @@ def recurrence_comment(
             "Filed here instead of as a new issue. If this is in fact a "
             "different cause, split it and the next run will track them apart.",
         ]
+    if note:
+        out += ["", note]
     return "\n".join(out)
 
 
@@ -621,12 +637,121 @@ def eligible(
     return base_eligible and upstream_status == UpstreamStatus.NO_HITS
 
 
+def needs_investigation(cause: Dict[str, Any], min_clusters: int) -> bool:
+    """A cause ``eligible`` rejects as infra or undetermined, but too widespread
+    to drop.
+
+    Every cluster in a cause already passed on the baseline. A CUDA-init failure
+    on 79 such clusters, three runs in a row, was routed to infra and never
+    reached the tracker. Size is the signal transient infrastructure does not
+    produce, so above ``min_clusters`` the cause is filed for a human instead.
+    """
+    if min_clusters <= 0:
+        return False
+    if routing_of(cause) in FILED_ROUTINGS and cause.get("determined"):
+        return False
+    return len(cause.get("clusters") or []) >= min_clusters
+
+
+def skip_note(cause: Dict[str, Any]) -> str:
+    """Why a recurrence on a tracked issue was not itself eligible this run."""
+    return (
+        f"This run's root-cause pass rated it routing=`{cause.get('routing')}`, "
+        f"determined={bool(cause.get('determined'))}, classification "
+        f"{classification_confidence(cause) or 'unknown'}, new-failure "
+        f"{new_failure_confidence(cause) or 'unknown'}, so it was not filed as a "
+        "new cause. The failure is still there."
+    )
+
+
+def find_existing(
+    token: str,
+    repo: str,
+    cause: Dict[str, Any],
+    children: List[Dict],
+    filed_this_run: Dict[str, Dict],
+) -> Tuple[Optional[Dict], str]:
+    """The open issue already tracking ``cause``, and how it was matched."""
+    key = fingerprint(repo, cause)
+    existing = filed_this_run.get(key) or search_issue_by_key(token, repo, key)
+    if existing is not None:
+        return existing, "key"
+    # Older keys, newest scheme first. A hit is rewritten to the current key so
+    # the fallback stops being needed.
+    for stale in (cluster_fingerprint(repo, cause), legacy_fingerprint(repo, cause)):
+        if stale == key:
+            continue
+        existing = search_issue_by_key(token, repo, stale)
+        if existing:
+            _req(
+                "PATCH",
+                f"/repos/{repo}/issues/{existing['number']}",
+                token,
+                {
+                    "body": (existing.get("body") or "").replace(
+                        f"{KEY_PREFIX}: {stale}", f"{KEY_PREFIX}: {key}"
+                    )
+                },
+            )
+            print(f"  migrated key {stale} -> {key}")
+            return existing, "key"
+    candidate = near_duplicate(cause, children)
+    if candidate is None:
+        return None, "key"
+    existing = _req("GET", f"/repos/{repo}/issues/{candidate['number']}", token)
+    print(
+        f"  near-duplicate of #{existing['number']} "
+        f"(same {exception_type(cause.get('signature') or '')}, "
+        f"overlapping clusters): commenting instead of filing"
+    )
+    return existing, "near-duplicate"
+
+
+def record_recurrence(
+    token: str,
+    repo: str,
+    report: Dict[str, Any],
+    cause: Dict[str, Any],
+    existing: Dict,
+    matched_by: str,
+    note: str = "",
+) -> None:
+    """Merge new clusters into a tracked issue and comment that it recurred."""
+    fresh = _req("GET", f"/repos/{repo}/issues/{existing['number']}", token)
+    merged, added = merge_clusters(fresh.get("body") or "", cause.get("clusters") or [])
+    if added:
+        _req(
+            "PATCH",
+            f"/repos/{repo}/issues/{existing['number']}",
+            token,
+            {"body": merged},
+        )
+    _req(
+        "POST",
+        f"/repos/{repo}/issues/{existing['number']}/comments",
+        token,
+        {
+            "body": recurrence_comment(
+                report, cause, added, issue_clusters(merged), matched_by, note
+            )
+        },
+    )
+    print(f"  recurrence -> #{existing['number']} ({matched_by})")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--findings", required=True, help="findings.json from the agent")
     p.add_argument("--report", required=True, help="report.json from the triage job")
     p.add_argument("--repo", default="pytorch/test-infra")
     p.add_argument("--max-issues", type=int, default=5)
+    p.add_argument(
+        "--investigate-min-clusters",
+        type=int,
+        default=10,
+        help="file infra/undetermined causes spanning at least this many clusters "
+        "under 'Need investigation' (0 disables)",
+    )
     p.add_argument(
         "--upstream-checks",
         default="",
@@ -710,6 +835,7 @@ def main() -> int:
         check.cause_signature: check.status for check in upstream_checks.checks
     }
     selected = []
+    investigate = []
     skipped = []
     for cause in causes:
         if eligible(
@@ -718,10 +844,21 @@ def main() -> int:
             upstream_checks_enabled,
         ):
             selected.append(cause)
+        elif needs_investigation(cause, args.investigate_min_clusters):
+            investigate.append(cause)
         else:
             skipped.append(cause)
 
-    print(f"{len(causes)} cause(s): {len(selected)} eligible, {len(skipped)} skipped")
+    print(
+        f"{len(causes)} cause(s): {len(selected)} eligible, "
+        f"{len(investigate)} for investigation, {len(skipped)} skipped"
+    )
+    for c in investigate:
+        print(
+            f"  investigate: {c.get('title', '<untitled>')!r} "
+            f"({len(c.get('clusters') or [])} clusters, routing={c.get('routing')}, "
+            f"determined={c.get('determined')})"
+        )
     for c in skipped:
         upstream_detail = ""
         if upstream_checks_enabled and routing_of(c) == VLLM_ROUTING:
@@ -734,17 +871,19 @@ def main() -> int:
             f"new_failure_confidence={new_failure_confidence(c) or None}, "
             f"routing={c.get('routing')}{upstream_detail})"
         )
-    if len(selected) > args.max_issues:
+    # Investigation causes go last so they never crowd out an eligible one.
+    to_file = selected + investigate
+    if len(to_file) > args.max_issues:
         print(
             f"capping at --max-issues={args.max_issues} "
-            f"({len(selected) - args.max_issues} not filed this run)"
+            f"({len(to_file) - args.max_issues} not filed this run)"
         )
-        selected = selected[: args.max_issues]
+        to_file = to_file[: args.max_issues]
 
     if not args.execute:
         print("\n=== DRY RUN (pass --execute to file) ===")
         print(f"umbrella: [torch {minor}] vLLM CI failures - torch nightly triage")
-        for c in selected:
+        for c in to_file:
             print(
                 f"  child [{routing_of(c)}]: {c.get('title')}  "
                 f"key={fingerprint(args.repo, c)}"
@@ -775,75 +914,26 @@ def main() -> int:
     filed_this_run: Dict[str, Dict] = {}
     matched: set = set()
 
-    for c in selected:
+    for c in to_file:
         key = fingerprint(args.repo, c)
-        existing = filed_this_run.get(key) or search_issue_by_key(token, args.repo, key)
-        matched_by = "key"
-        if existing is None:
-            # Older keys, newest scheme first. A hit is rewritten to the
-            # current key so the fallback stops being needed.
-            for stale in (
-                cluster_fingerprint(args.repo, c),
-                legacy_fingerprint(args.repo, c),
-            ):
-                if stale == key:
-                    continue
-                existing = search_issue_by_key(token, args.repo, stale)
-                if existing:
-                    _req(
-                        "PATCH",
-                        f"/repos/{args.repo}/issues/{existing['number']}",
-                        token,
-                        {
-                            "body": (existing.get("body") or "").replace(
-                                f"{KEY_PREFIX}: {stale}", f"{KEY_PREFIX}: {key}"
-                            )
-                        },
-                    )
-                    print(f"  migrated key {stale} -> {key}")
-                    break
-        if existing is None:
-            candidate = near_duplicate(c, children)
-            if candidate is not None:
-                existing = _req(
-                    "GET", f"/repos/{args.repo}/issues/{candidate['number']}", token
-                )
-                matched_by = "near-duplicate"
-                print(
-                    f"  near-duplicate of #{existing['number']} "
-                    f"(same {exception_type(c.get('signature') or '')}, "
-                    f"overlapping clusters): commenting instead of filing"
-                )
+        existing, matched_by = find_existing(
+            token, args.repo, c, children, filed_this_run
+        )
         if existing:
-            fresh = _req(
-                "GET", f"/repos/{args.repo}/issues/{existing['number']}", token
-            )
-            body = fresh.get("body") or ""
-            merged, added = merge_clusters(body, c.get("clusters") or [])
-            if added:
-                _req(
-                    "PATCH",
-                    f"/repos/{args.repo}/issues/{existing['number']}",
-                    token,
-                    {"body": merged},
-                )
-            _req(
-                "POST",
-                f"/repos/{args.repo}/issues/{existing['number']}/comments",
-                token,
-                {
-                    "body": recurrence_comment(
-                        report, c, added, issue_clusters(merged), matched_by
-                    )
-                },
-            )
+            record_recurrence(token, args.repo, report, c, existing, matched_by)
             matched.add(existing["number"])
-            print(f"  recurrence -> #{existing['number']} ({matched_by})")
             continue
         routing = routing_of(c)
-        vllm_side = routing == VLLM_ROUTING
+        investigating = c in investigate
+        vllm_side = routing == VLLM_ROUTING and not investigating
         labels = [CHILD_LABEL] + ([VLLM_SIDE_LABEL] if vllm_side else [])
-        prefix = "[vllm-side]" if vllm_side else ""
+        prefix = (
+            "[needs-investigation]"
+            if investigating
+            else "[vllm-side]"
+            if vllm_side
+            else ""
+        )
         issue = _req(
             "POST",
             f"/repos/{args.repo}/issues",
@@ -864,8 +954,21 @@ def main() -> int:
             args.repo,
             umbrella,
             f"- [ ] #{issue['number']} - {c.get('title')}",
-            SECTIONS[routing],
+            INVESTIGATE_SECTION if investigating else SECTIONS[routing],
         )
+
+    # A skipped cause that is already tracked is still a recurrence. Without
+    # this, a tracked cause the agent re-labels as infra gets neither a
+    # "still reproducing" nor a "did not reproduce" comment and looks abandoned.
+    for c in skipped:
+        existing, matched_by = find_existing(
+            token, args.repo, c, children, filed_this_run
+        )
+        if existing and existing["number"] not in matched:
+            record_recurrence(
+                token, args.repo, report, c, existing, matched_by, skip_note(c)
+            )
+            matched.add(existing["number"])
 
     report_silences(token, args.repo, report, children, matched, minor)
     return 0

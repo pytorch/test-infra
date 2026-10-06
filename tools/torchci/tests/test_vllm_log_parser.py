@@ -12,6 +12,7 @@ from torchci.vllm_log_parser import (
     get_test_signature,
     parse_log,
     strip_markers,
+    torch_sensitive_infra_matches,
 )
 
 
@@ -641,6 +642,48 @@ class TestInfraTagging(unittest.TestCase):
         }
         self.assertTrue(by_id["tests/test_a.py::test_one"].test_is_infra)
         self.assertFalse(by_id["tests/test_b.py::test_two"].test_is_infra)
+
+
+class TestContestedInfra(unittest.TestCase):
+    """A torch-sensitive infra pattern can be withheld from the infra tag."""
+
+    CUDA_INIT = (
+        "FAILED tests/test_a.py::test_one - RuntimeError: CUDA driver "
+        "initialization failed, you might not have a CUDA gpu.\n"
+        "= 1 failed in 1.00s ="
+    )
+
+    def _only_failure(self, parsed_log):
+        return parsed_log.pytest_results[0].test_failures[0]
+
+    def test_cuda_init_is_infra_by_default(self) -> None:
+        self.assertTrue(self._only_failure(parse_log(self.CUDA_INIT)).test_is_infra)
+
+    def test_contested_cuda_init_is_not_infra(self) -> None:
+        contested = frozenset(torch_sensitive_infra_matches(self.CUDA_INIT))
+        self.assertEqual(len(contested), 1)
+        failure = self._only_failure(parse_log(self.CUDA_INIT, contested))
+        self.assertFalse(failure.test_is_infra)
+
+    def test_contesting_does_not_hide_other_infra(self) -> None:
+        log = (
+            "FAILED tests/test_a.py::test_one - RuntimeError: CUDA driver "
+            "initialization failed; nvidia-container-cli: initialization error\n"
+            "= 1 failed in 1.00s ="
+        )
+        contested = frozenset(torch_sensitive_infra_matches(log))
+        self.assertTrue(self._only_failure(parse_log(log, contested)).test_is_infra)
+
+    def test_contested_job_level_tag(self) -> None:
+        log = "ValueError: Free memory on device cuda:0 (13.05/16.0 GiB) less than desired"
+        self.assertTrue(parse_log(log).job_is_infra)
+        contested = frozenset(torch_sensitive_infra_matches(log))
+        self.assertFalse(parse_log(log, contested).job_is_infra)
+
+    def test_only_torch_sensitive_patterns_are_reported(self) -> None:
+        self.assertEqual(
+            torch_sensitive_infra_matches("docker pull failed: toomanyrequests"), []
+        )
 
 
 class TestCustomRunnerSummaryIgnored(unittest.TestCase):
