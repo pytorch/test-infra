@@ -542,7 +542,7 @@ class TestContestedInfra(unittest.TestCase):
         ]
     )
 
-    def _buckets(self, n):
+    def _buckets(self, n: int) -> dict:
         return {
             "regressed": [
                 {
@@ -558,7 +558,7 @@ class TestContestedInfra(unittest.TestCase):
             "unclassified": [],
         }
 
-    def _fetch(self, n, min_clusters):
+    def _fetch(self, n: int, min_clusters: int) -> tuple:
         contested: dict = {}
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
             triage, "_fetch_job_log", return_value=self.CUDA_INIT_BODY

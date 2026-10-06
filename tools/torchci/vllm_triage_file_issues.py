@@ -698,13 +698,13 @@ def find_existing(
     candidate = near_duplicate(cause, children)
     if candidate is None:
         return None, "key"
-    existing = _req("GET", f"/repos/{repo}/issues/{candidate['number']}", token)
+    issue = _req("GET", f"/repos/{repo}/issues/{candidate['number']}", token)
     print(
-        f"  near-duplicate of #{existing['number']} "
+        f"  near-duplicate of #{issue['number']} "
         f"(same {exception_type(cause.get('signature') or '')}, "
         f"overlapping clusters): commenting instead of filing"
     )
-    return existing, "near-duplicate"
+    return issue, "near-duplicate"
 
 
 def record_recurrence(
