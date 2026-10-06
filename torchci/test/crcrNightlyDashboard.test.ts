@@ -105,6 +105,36 @@ describe("CRCR nightly dashboard selection", () => {
     ]);
   });
 
+  test("keeps an unfinished sibling of a qualifying SHA", () => {
+    const selected = dashboardJobs(
+      [
+        {
+          sha: realSha("1"),
+          runId: "build-run",
+          jobName: "build",
+          runAttempt: 1,
+          status: "completed",
+          completedAt: "2026-09-30T10:00:00Z",
+        },
+        {
+          sha: realSha("1"),
+          runId: "test-run",
+          jobName: "test",
+          runAttempt: 1,
+          status: "in_progress",
+          completedAt: "",
+        },
+      ],
+      start,
+      stop
+    );
+
+    expect(selected.map((job) => job.jobName).sort()).toEqual([
+      "build",
+      "test",
+    ]);
+  });
+
   test("keeps run-level completeness when a reporter has no upstream SHA", () => {
     const selected = dashboardJobs(
       [
@@ -174,9 +204,12 @@ describe("CRCR nightly dashboard selection", () => {
     expect(normalized).toContain(
       "nightly_key IN (SELECT nightly_key FROM eligible_nightly_keys)"
     );
-    expect(normalized).toContain("GROUP BY pytorch_head_sha, run_id, job_name");
+    expect(normalized).toContain("deduped AS");
+    expect(normalized).toContain("ROW_NUMBER() OVER");
     expect(normalized).toContain(
-      "(pytorch_head_sha, run_id, job_name, run_attempt) IN"
+      "PARTITION BY pytorch_head_sha, run_id, job_name"
     );
+    expect(normalized).toContain("ORDER BY run_attempt DESC");
+    expect(normalized).toContain("WHERE rn = 1");
   });
 });
