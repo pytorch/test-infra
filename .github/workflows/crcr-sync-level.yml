@@ -4,9 +4,11 @@ name: CRCR sync level
 # line with HUD's verdicts.
 
 on:
-  schedule:
-    # Once a day: the verdicts cover a whole week, so they move slowly.
-    - cron: "0 8 * * *"
+  # Manual only for now. Once a run by hand has checked the secrets and the
+  # endpoint, enable the daily run (the verdicts cover a whole week, so they
+  # move slowly) by uncommenting:
+  # schedule:
+  #   - cron: "0 8 * * *"
   workflow_dispatch:
 
 concurrency:
