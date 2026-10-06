@@ -5,9 +5,9 @@ name: Green Light Scan
 # `@greenlight recheck` entry point: dispatched by filename from a pytorch/pytorch trigger (or run
 # by hand), it runs the same greenlight scanner (`greenlight review`) — lists the open
 # pytorch/pytorch PRs from the evaluation cohort (every merge_rules.yaml approver, minus bots and
-# greenlight itself) and dispatches greenlight-pr-review.yml for each new or changed PR. A PR is
-# dispatched in shadow — reviewed and recorded, never approved — unless a merge rule naming its
-# author covers every file it changes (greenlight/TRUSTED_AUTHORS.md).
+# greenlight itself) and dispatches greenlight-pr-review.yml for each new or changed PR whose
+# author is named by a merge rule covering every file the PR changes
+# (greenlight/TRUSTED_AUTHORS.md); no other PR is dispatched.
 # Read-only on ClickHouse; dispatches the reviewer workflow via the App token.
 
 on:

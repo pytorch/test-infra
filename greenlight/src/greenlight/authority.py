@@ -2,8 +2,8 @@
 
 ``covering_rule`` asks ``cohort.assess_rules`` about one PR and logs the answer. ``Authority``
 answers ``shadow_for_pr`` for one pass, lazily and at most once per PR: only a PR the revert guard,
-the dial exemption or dispatch asks about is worth a files read, so a catch-all author and a PR
-nobody asks about cost no GitHub call. It also answers the stamp for a REVERTED row, the one row that
+the scan's eligibility filter or dispatch asks about is worth a files read, so a catch-all author and
+a PR nobody asks about cost no GitHub call. It also answers the stamp for a REVERTED row, the one row that
 denies, keeping it visible on every recorded PR, and it defers a candidate whose head moved after its
 authority was read. The memo is unlocked and the files read borrows the scan's main client, so it is
 asked from the main thread only.
