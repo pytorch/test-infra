@@ -30,15 +30,14 @@ recent_changes AS (
         new_level
     FROM observed_changes
     WHERE
-        previous_level != ''
-        AND previous_level != new_level
+        previous_level != new_level
     ORDER BY changed_at DESC
     LIMIT {limit: UInt32}
 )
 
 SELECT
     changed_at,
-    previous_level,
+    if(previous_level = '', 'Initial level', previous_level) AS previous_level,
     new_level
 FROM recent_changes
 ORDER BY changed_at ASC

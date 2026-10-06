@@ -1,25 +1,18 @@
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Chip,
-  Collapse,
   Paper,
   Skeleton,
   Stack,
   Typography,
 } from "@mui/material";
+import { LocalTimeHuman } from "components/common/TimeUtils";
 import { useLevelHistory } from "lib/crcr/levelHistory";
 import { useState } from "react";
-
-function formatChangedAt(value: string): string {
-  return new Date(value).toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 export default function CrcrLevelHistory({
   repoFullName,
@@ -47,55 +40,34 @@ export default function CrcrLevelHistory({
   }
 
   return (
-    <Paper elevation={1} sx={{ p: 2 }}>
-      <Stack spacing={1.5}>
+    <Accordion
+      disableGutters
+      elevation={1}
+      expanded={expanded}
+      onChange={(_event, isExpanded) => setExpanded(isExpanded)}
+      sx={{ "&:before": { display: "none" } }}
+    >
+      <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
         <Box
           display="flex"
           justifyContent="space-between"
           alignItems="center"
           flexWrap="wrap"
           gap={1}
-          sx={{ cursor: "pointer" }}
-          onClick={() => setExpanded((value) => !value)}
+          width="100%"
         >
-          <Stack spacing={0.5}>
-            <Typography variant="h6">Level History</Typography>
-            <Chip
-              label={expanded ? "Hide details" : "Details"}
-              size="small"
-              color="primary"
-              variant={expanded ? "filled" : "outlined"}
-              clickable
-              onClick={(event) => {
-                event.stopPropagation();
-                setExpanded((value) => !value);
-              }}
-              deleteIcon={
-                <ExpandMoreIcon
-                  sx={{
-                    transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.2s",
-                  }}
-                />
-              }
-              onDelete={(event) => {
-                event.stopPropagation();
-                setExpanded((value) => !value);
-              }}
-              sx={{ width: "fit-content" }}
-            />
-          </Stack>
+          <Typography variant="h6">Level History</Typography>
           <Chip
-            label={`${events.length} observed change${
+            label={`${events.length} observed level event${
               events.length === 1 ? "" : "s"
             }`}
             size="small"
             variant="outlined"
           />
         </Box>
-
-        <Collapse in={expanded} timeout="auto" unmountOnExit>
-          <Stack spacing={1.5}>
+      </AccordionSummary>
+      <AccordionDetails sx={{ px: 2, pb: 2 }}>
+        <Stack spacing={1.5}>
             <Typography variant="caption" color="text.secondary">
               Observed from CRCR dispatch records retained by the HUD. Manual PR
               links and automated-decision criteria will be added with the
@@ -104,7 +76,7 @@ export default function CrcrLevelHistory({
 
             {events.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                No level changes were observed in the retained dispatch history.
+                No level events were observed in the retained dispatch history.
               </Typography>
             ) : (
               <Stack spacing={0}>
@@ -136,7 +108,7 @@ export default function CrcrLevelHistory({
                     </Box>
                     <Stack spacing={0.25}>
                       <Typography variant="caption" color="text.secondary">
-                        {formatChangedAt(event.changed_at)}
+                        <LocalTimeHuman timestamp={event.changed_at} />
                       </Typography>
                       <Typography variant="body2" fontWeight={600}>
                         {event.previous_level} → {event.new_level}
@@ -149,9 +121,8 @@ export default function CrcrLevelHistory({
                 ))}
               </Stack>
             )}
-          </Stack>
-        </Collapse>
-      </Stack>
-    </Paper>
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }

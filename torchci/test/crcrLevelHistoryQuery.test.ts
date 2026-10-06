@@ -17,6 +17,8 @@ describe("crcr_level_history query", () => {
     expect(sql).toContain("GROUP BY run_id");
     expect(sql).toContain("lagInFrame(new_level, 1, '')");
     expect(sql).toContain("previous_level != new_level");
+    expect(sql).toContain("if(previous_level = '', 'Initial level', previous_level)");
+    expect(sql).not.toContain("previous_level != ''");
   });
 
   it("returns the latest bounded history in chronological order", () => {
