@@ -244,7 +244,7 @@ Because the downstream echoes back the *dispatch-time* payload — whose labels 
 
 ### Temporary demotion
 
-When an L3 repo falls below the demotion criteria, the sync level workflow ([`tools/torchci/crcr_sync_level.py`](../../../tools/torchci/crcr_sync_level.py)) opens a PR from a `crcr-demotion/<owner>/<repo>` branch of the upstream repo that moves it from L3 to L2 in `allowlist.yml`. Until that PR is merged (or closed) the relay treats the repo as **temporarily demoted**: it creates **no new upstream check runs** for it, as if it were already L2. This does not wait for the allowlist to change.
+When an L3 repo falls below the demotion criteria, the sync level workflow ([`tools/torchci/crcr_sync_level.py`](../../../tools/torchci/crcr_sync_level.py)) opens a PR from a `crcr-demotion/<owner>/<repo>` branch of the upstream repo that moves it from L3 to L2 in `allowlist.yml`. Until that PR is merged (or closed) the relay treats the repo as **temporarily demoted**: it creates **no new upstream check runs** for it, as if it were already L2. This does not wait for the allowlist to change, but it starts at the relay's next sweep: jobs that start before then count as started before the demotion and finish normally.
 
 ### Re-running checks
 
