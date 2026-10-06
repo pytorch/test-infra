@@ -5,6 +5,7 @@ import autoLabelCodevTrunk from "./autoLabelCodevTrunk";
 import cancelWorkflowsOnCloseBot from "./cancelWorkflowsOnCloseBot";
 import checkLabelsBot from "./checkLabelsBot";
 import ciflowPushTrigger from "./ciflowPushTrigger";
+import claudeInlineNoticeBot from "./claudeInlineNoticeBot";
 import codevNoWritePerm from "./codevNoWritePermBot";
 import crcrOncallBot from "./crcrOncallBot";
 import drciBot from "./drciBot";
@@ -23,6 +24,7 @@ export default function bot(app: Probot) {
   autoLabelBot(app);
   cancelWorkflowsOnCloseBot(app);
   checkLabelsBot(app);
+  claudeInlineNoticeBot(app);
   ciflowPushTrigger(app);
   codevNoWritePerm(app);
   crcrOncallBot(app);
