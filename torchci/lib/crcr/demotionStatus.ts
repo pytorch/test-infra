@@ -25,8 +25,9 @@ function isViolating(metrics: L3Metrics | null): boolean {
 /**
  * Per-repo demotion status over the single L3_DEMOTION_WINDOW_DAYS window.
  *
- * Display only: a violation here lists the repo under the /crcr temporary
- * demotion section.
+ * A violation here lists the repo under the /crcr temporary demotion section,
+ * and /api/crcr/level-status serves the verdict to the workflow that opens the
+ * L3 -> L2 PR for the repo.
  *
  * A repo with zero jobs in the window has no summary row, and iterating the
  * map alone would never see it. Such a repo is put on temporary demotion

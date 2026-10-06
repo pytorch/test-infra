@@ -51,6 +51,7 @@ import {
 } from "lib/crcr/l3Thresholds";
 import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
+  CRCR_HEALTH_REPO,
   DEFAULT_CRCR_EVENTS,
   filterCrcrEntriesByEvent,
 } from "lib/crcrAllowlist";
@@ -143,7 +144,6 @@ const LEVEL_META: Record<
 };
 
 const LEVELS_ORDERED: Level[] = ["L4", "L3", "L2", "L1"];
-const CRCR_HEALTH_REPO = "pytorch/crcr-test";
 
 function PassRateChip({ rate }: { rate: number }) {
   const pct = (rate * 100).toFixed(1) + "%";
