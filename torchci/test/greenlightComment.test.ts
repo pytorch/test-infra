@@ -57,6 +57,8 @@ const SHADOW_ROW = { ...NO_LAND_ROW, pr_number: 194777, shadow: true };
 // The head a PR moved to after its verdict was recorded.
 const PUSHED_SHA = "f1e2d3c4b5a6978877665544332211aabbccddee";
 
+const REVERTED_ROW = { ...LAND_ROW, pr_number: 194999, status: "REVERTED" };
+
 // A live review. The renderer only emits the in-progress marker while the row is
 // inside the staleness window, and buildGreenlightSections stamps `now` itself,
 // so this version has to track the wall clock rather than be a fixed date.
@@ -84,6 +86,29 @@ function heads(
   ...rows: { pr_number: number; head_sha: string }[]
 ): Map<number, string> {
   return new Map(rows.map((row) => [row.pr_number, row.head_sha]));
+}
+
+// heads() for PRs that have each moved on to PUSHED_SHA since their row.
+function pushed(...rows: { pr_number: number }[]): Map<number, string> {
+  return new Map(rows.map((row) => [row.pr_number, PUSHED_SHA]));
+}
+
+// The section the renderer gives a row on its own, with the PR at currentHeadSha.
+function verdictSection(row: typeof LAND_ROW, currentHeadSha: string): string {
+  return greenlightRender.renderGreenlightSection(
+    {
+      repo: "pytorch/pytorch",
+      prNumber: row.pr_number,
+      status: row.status,
+      reason: row.reason,
+      message: row.message,
+      headSha: row.head_sha,
+      evalJob: row.eval_job,
+      version: row.version,
+    },
+    new Date(),
+    currentHeadSha
+  );
 }
 
 function fakeOctokit() {
@@ -301,7 +326,7 @@ describe("buildGreenlightSections", () => {
 
     expect(render).toHaveBeenCalledTimes(2);
     expect([...sections.keys()]).toEqual([NO_LAND_ROW.pr_number]);
-    // A PR with a non-shadow row of its own never reaches the eligibility gate,
+    // A PR with a non-shadow row on its head never reaches the eligibility gate,
     // even when that row renders nothing.
     expect(check).not.toHaveBeenCalled();
     expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
@@ -462,9 +487,10 @@ describe("buildGreenlightSections", () => {
     }
   );
 
-  it("renders a non-shadow row as before, and runs no gate for it", async () => {
+  it("renders a non-shadow row on the PR's head as before, and runs no gate for it", async () => {
     const row = { ...LAND_ROW, shadow: false };
     queryClickhouseSaved.mockResolvedValue([row]);
+    check.mockResolvedValue("merge_rules");
 
     const sections = await buildGreenlightSections(
       "pytorch",
@@ -473,21 +499,119 @@ describe("buildGreenlightSections", () => {
       github
     );
 
-    expect(sections.get(row.pr_number)).toBe(
-      greenlightRender.renderGreenlightSection(
-        {
-          repo: "pytorch/pytorch",
-          prNumber: row.pr_number,
-          status: row.status,
-          reason: row.reason,
-          message: row.message,
-          headSha: row.head_sha,
-          evalJob: row.eval_job,
-          version: row.version,
-        },
-        new Date(),
-        row.head_sha
-      )
+    expect(sections.get(row.pr_number)).toBe(verdictSection(row, row.head_sha));
+    expect(check).not.toHaveBeenCalled();
+    expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["merge_rules", "LAND", LAND_ROW],
+    ["merge_rules", "NO_LAND", NO_LAND_ROW],
+    ["too_big", "LAND", LAND_ROW],
+    ["too_big", "NO_LAND", NO_LAND_ROW],
+  ] as const)(
+    "renders the %s line in place of a %s verdict on an earlier commit, sharing one gate",
+    async (eligibility, _, row) => {
+      queryClickhouseSaved.mockResolvedValue([row]);
+      check.mockResolvedValue(eligibility);
+
+      const sections = await buildGreenlightSections(
+        "pytorch",
+        "pytorch",
+        new Map([...pushed(row), ...heads(NO_STATE_PR)]),
+        github
+      );
+
+      expect(gateFactory).toHaveBeenCalledTimes(1);
+      expect(octokit.rest.pulls.get).toHaveBeenCalledWith({
+        owner: "pytorch",
+        repo: "pytorch",
+        pull_number: row.pr_number,
+      });
+      expect(check).toHaveBeenCalledTimes(2);
+      expect(check).toHaveBeenCalledWith({ number: row.pr_number });
+      expect([...sections.entries()]).toEqual([
+        [row.pr_number, renderGreenlightEligibility(eligibility)],
+        [NO_STATE_PR.pr_number, renderGreenlightEligibility(eligibility)],
+      ]);
+    }
+  );
+
+  it.each(["waiting", null] as const)(
+    "keeps a verdict on an earlier commit, marked outdated, when the gate returns %p",
+    async (eligibility) => {
+      queryClickhouseSaved.mockResolvedValue([LAND_ROW]);
+      check.mockResolvedValue(eligibility);
+
+      const sections = await buildGreenlightSections(
+        "pytorch",
+        "pytorch",
+        pushed(LAND_ROW),
+        github
+      );
+
+      expect(check).toHaveBeenCalledWith({ number: LAND_ROW.pr_number });
+      expect([...sections.entries()]).toEqual([
+        [LAND_ROW.pr_number, verdictSection(LAND_ROW, PUSHED_SHA)],
+      ]);
+      expect(sections.get(LAND_ROW.pr_number)).toContain(
+        greenlightRender.GREENLIGHT_OUTDATED_HEADLINE_PREFIX
+      );
+    }
+  );
+
+  it.each([
+    ["the eligibility check", "check"],
+    ["the PR read", "pulls.get"],
+  ])(
+    "keeps a verdict on an earlier commit when %s fails, logging it",
+    async (_, failing) => {
+      queryClickhouseSaved.mockResolvedValue([LAND_ROW]);
+      const thrown = new Error("github unreachable");
+      check.mockResolvedValue("merge_rules");
+      if (failing === "check") {
+        check.mockRejectedValue(thrown);
+      } else {
+        octokit.rest.pulls.get.mockRejectedValue(thrown);
+      }
+      const logged = jest.spyOn(console, "error").mockImplementation(() => {});
+
+      const sections = await buildGreenlightSections(
+        "pytorch",
+        "pytorch",
+        pushed(LAND_ROW),
+        github
+      );
+
+      expect([...sections.entries()]).toEqual([
+        [LAND_ROW.pr_number, verdictSection(LAND_ROW, PUSHED_SHA)],
+      ]);
+      expect(logged).toHaveBeenCalledWith(
+        expect.stringContaining("eligibility check failed"),
+        LAND_ROW.pr_number,
+        thrown
+      );
+    }
+  );
+
+  // A revert holds for every head, so the renderer never marks one outdated, and a
+  // status it has no branch for renders nothing either way.
+  it("runs no gate for a row on an earlier commit the renderer does not mark outdated", async () => {
+    queryClickhouseSaved.mockResolvedValue([REVERTED_ROW, UNKNOWN_STATUS_ROW]);
+    check.mockResolvedValue("merge_rules");
+
+    const sections = await buildGreenlightSections(
+      "pytorch",
+      "pytorch",
+      pushed(REVERTED_ROW, UNKNOWN_STATUS_ROW),
+      github
+    );
+
+    expect([...sections.entries()]).toEqual([
+      [REVERTED_ROW.pr_number, verdictSection(REVERTED_ROW, PUSHED_SHA)],
+    ]);
+    expect(sections.get(REVERTED_ROW.pr_number)).toContain(
+      greenlightRender.GREENLIGHT_REVERTED_HEADLINE
     );
     expect(check).not.toHaveBeenCalled();
     expect(octokit.rest.pulls.get).not.toHaveBeenCalled();
