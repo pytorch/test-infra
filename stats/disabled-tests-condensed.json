@@ -232,6 +232,14 @@
       "rocm"
     ]
   ],
+  "test_copy_transpose_tiled_batched_layout_odd_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199910",
+    "https://github.com/pytorch/pytorch/issues/199910",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_copy_transpose_tiled_small_case_at_cuda_bool (__main__.TestTorchDeviceTypeCUDA)": [
     "198632",
     "https://github.com/pytorch/pytorch/issues/198632",
@@ -265,6 +273,13 @@
   "test_copy_transpose_tiled_small_slices_rejected_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
     "199892",
     "https://github.com/pytorch/pytorch/issues/199892",
+    [
+      "inductor"
+    ]
+  ],
+  "test_copy_transpose_tiled_small_slices_rejected_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199911",
+    "https://github.com/pytorch/pytorch/issues/199911",
     [
       "inductor"
     ]
@@ -879,116 +894,6 @@
       "macos"
     ]
   ],
-  "test_non_strict_export_distribution_validation (__main__.TestExport)": [
-    "198148",
-    "https://github.com/pytorch/pytorch/issues/198148",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_cpp_serdes (__main__.CppSerdesTestExport)": [
-    "198149",
-    "https://github.com/pytorch/pytorch/issues/198149",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_retraceability_nonstrict (__main__.RetraceExportNonStrictTestExport)": [
-    "198143",
-    "https://github.com/pytorch/pytorch/issues/198143",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_retraceability_strict (__main__.RetraceExportTestExport)": [
-    "198144",
-    "https://github.com/pytorch/pytorch/issues/198144",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
-    "198145",
-    "https://github.com/pytorch/pytorch/issues/198145",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_serdes_strict (__main__.SerDesExportTestExport)": [
-    "198146",
-    "https://github.com/pytorch/pytorch/issues/198146",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_strict (__main__.StrictExportTestExport)": [
-    "198150",
-    "https://github.com/pytorch/pytorch/issues/198150",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_strict_export_v2 (__main__.StrictExportV2TestExport)": [
-    "198147",
-    "https://github.com/pytorch/pytorch/issues/198147",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
-    "198151",
-    "https://github.com/pytorch/pytorch/issues/198151",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
-  "test_non_strict_export_distribution_validation_training_ir_to_decomp_strict (__main__.TrainingIRToRunDecompExportTestExport)": [
-    "198152",
-    "https://github.com/pytorch/pytorch/issues/198152",
-    [
-      "asan",
-      "linux",
-      "mac",
-      "macos",
-      "rocm"
-    ]
-  ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
     "189397",
     "https://github.com/pytorch/pytorch/issues/189397",
@@ -1329,31 +1234,9 @@
       "slow"
     ]
   ],
-  "test_shared_memory_pruning_addmm_bfloat16_mat1_transposed_False_mat2_transposed_True_use_tma_False (__main__.TestTemplateConfigPruning)": [
-    "172177",
-    "https://github.com/pytorch/pytorch/issues/172177",
-    [
-      "rocm",
-      "xpu"
-    ]
-  ],
-  "test_shared_memory_pruning_addmm_bfloat16_mat1_transposed_True_mat2_transposed_False_use_tma_False (__main__.TestTemplateConfigPruning)": [
-    "198075",
-    "https://github.com/pytorch/pytorch/issues/198075",
-    [
-      "rocm"
-    ]
-  ],
   "test_shared_memory_pruning_addmm_bfloat16_mat1_transposed_True_mat2_transposed_True_use_tma_False (__main__.TestTemplateConfigPruning)": [
     "198409",
     "https://github.com/pytorch/pytorch/issues/198409",
-    [
-      "rocm"
-    ]
-  ],
-  "test_shared_memory_pruning_mm_bfloat16_mat1_transposed_False_mat2_transposed_False_use_tma_False (__main__.TestTemplateConfigPruning)": [
-    "197881",
-    "https://github.com/pytorch/pytorch/issues/197881",
     [
       "rocm"
     ]
