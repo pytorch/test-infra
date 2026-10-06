@@ -31,8 +31,9 @@ Where it is checked:
 - **The scan** (`authority.Authority`) answers per PR, lazily and at most once per pass, and reads a
   PR's files only for an author whom path-scoped rules alone name. A PR whose files read fails
   is ineligible for that pass and fails it; after a rate limit the remaining reads are skipped and
-  those PRs are reported as abandoned. Neither is fingerprinted or dispatched. A candidate
-  fingerprinted at a head other than the one its files were read at is deferred to the next pass.
+  those PRs are reported as abandoned. Neither is fingerprinted or dispatched, nor has greenlight's
+  approval dismissed. A candidate fingerprinted at a head other than the one its files were read at
+  is deferred to the next pass.
 - **The `--pr` gate** (`authz_gates.admit_target`) runs the same check on the PR it fetches. A
   refused target is never fingerprinted or dispatched, but one with an author login still goes
   through the revert guard.
@@ -65,18 +66,21 @@ cached copy is older than `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`, and the 
 A login gains authority only where a rule names it in its exact GitHub casing, and the per-PR reason
 catches a miscased entry.
 
-Eligibility is not part of the fingerprint, so a PR already reviewed in shadow is not re-reviewed
-when it becomes eligible, whatever the cause: a rule naming its author or covering its files, a
-retarget to `main`, or a change to the eligibility check. A push, a comment the fingerprint covers,
-or a local `just run review --pr <N> --force` re-reviews it.
+Eligibility is not part of the fingerprint, so a PR already reviewed in shadow, or one whose
+approval the scan dismissed while it was ineligible, is not re-reviewed when it becomes eligible,
+whatever the cause: a rule naming its author or covering its files, a retarget to `main`, or a
+change to the eligibility check. A push, a comment the fingerprint covers, or a local
+`just run review --pr <N> --force` re-reviews it.
 
 Removing an author from a rule stops greenlight reviewing each of their PRs that no remaining rule
-covers, and revokes nothing by itself: such a PR keeps greenlight's approval until a human or a
-later verdict dismisses it, and a review already in flight is recorded in shadow, which dismisses
-it. Once no rule names the author, the scan stops listing their PRs. To take a live approval back at
-once, dismiss greenlight's review by hand. The kill switches are the "Greenlight Review Bot" rule in
-`merge_rules.yaml`, without which no greenlight approval authorizes a merge, and the
-`greenlight-scan` Lambda, whose disabling stops the scheduled scan.
+covers. On its next pass that lists such a PR inside the review window and not labelled `Stale`,
+the scan dismisses greenlight's approval when the PR's latest recorded row is a `LAND`, and a review
+already in flight is recorded in shadow, which dismisses it too. A PR outside the window or labelled
+`Stale` keeps its approval, and so does every PR of an author no rule names, since the scan does not
+list them. To take a live approval back at once, dismiss greenlight's review by hand. The kill
+switches are the "Greenlight Review Bot" rule in `merge_rules.yaml`, without which no greenlight
+approval authorizes a merge, and the `greenlight-scan` Lambda, whose disabling stops the scheduled
+scan.
 
 ## Accepted risks
 
@@ -86,9 +90,18 @@ once, dismiss greenlight's review by hand. The kill switches are the "Greenlight
   covers any PR with an author login. Otherwise a reverted PR keeps greenlight's approval until
   someone dismisses it by hand.
 - **Dr. CI can keep showing a stale approval.** When an author loses eligibility, the scan
-  dispatches no review that would replace greenlight's last authoritative verdict, and Dr. CI never
-  renders a shadow one, so it keeps showing that verdict, not even marked outdated while the head is
-  unchanged.
+  dismisses greenlight's approval on a listed PR inside the review window and not labelled `Stale`,
+  but Dr. CI keeps showing the last authoritative `LAND`, not even marked outdated while the head
+  is unchanged. Nothing lands on it once the approval is gone.
+- **An approval can outlive eligibility.** The scan dismisses an approval only on a PR it lists
+  inside the review window and not labelled `Stale`, and only while the PR's latest recorded row is
+  a `LAND`. Every other approval stays: on a PR outside the window, labelled `Stale`, or by an author
+  no rule names, and under a later `FAILED`, `CANCELLED` or in-flight row. pytorch's land-time gate
+  honours only the PR's latest non-shadow row, and allows greenlight's approval only when that row
+  is a `LAND` for the PR's current head; any other row holds or refuses the merge. Under a later
+  non-shadow row the approval alone therefore cannot land the PR, but one whose `LAND` is still the
+  latest non-shadow row, with the head unchanged, can, however its author's eligibility has
+  changed since.
 - **Silent changes.** A login can join or leave a merge rule with no human edit — a nightly pytorch
   job regenerates the catch-all Metamates rule, and a bot approves and merges the change — and its
   PRs then gain authority, lose it, or keep only what a narrower rule covers.
@@ -106,13 +119,12 @@ once, dismiss greenlight's review by hand. The kill switches are the "Greenlight
 - **A catch-all author's base is not bound.** For an author an all-path rule names, no check reads
   the files or the base, so a base change after the review — a retarget, or a push to a ghstack
   base — can still widen what lands beyond what the model reviewed.
-- **A drifted PR keeps its approval.** A PR that drifts out of scope — a push that adds a file its
-  author's rule does not cover, or that takes a path-scoped author's PR past 200 files, or a
-  merge-rule change that stops covering it — gets no further review, so the approval greenlight
-  already gave it stays until a human or a later verdict dismisses it. pytorch's land-time gate
-  honours only the PR's latest non-shadow row, and allows greenlight's approval only when that row
-  is a `LAND` for the PR's current head: after a push it holds or refuses the merge, but with the
-  head unchanged that approval can still land the PR.
+- **A drifted PR is not re-reviewed.** A PR that drifts out of scope — a push that adds a file its
+  author's rule does not cover, or that takes a path-scoped author's PR past 200 files — gets no
+  further review. The scan's next pass dismisses the approval greenlight already gave it while that
+  `LAND` is still the PR's latest recorded row and the PR is not labelled `Stale`; until then the
+  land-time gate holds or refuses the merge, since that `LAND` is for an older commit. A pass that
+  cannot read the PR's files leaves the approval in place.
 - **One team fails every verdict.** The verdict resolves the merge rules on every run, so a single
   team whose members cannot be read fails every `LAND` and `NO_LAND` recorded without `--shadow`,
   with no row. It fails closed.
