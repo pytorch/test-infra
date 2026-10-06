@@ -167,8 +167,8 @@
 -- prs_evaluated stop being the same number.
 --
 -- The flag is attributed per PR by max(shadow) over its rows and applied after that grouping,
--- never as a row filter. A PR carrying rows of both kinds -- which the trusted-author cohort
--- changing mid-cycle produces -- would otherwise lose rows from its group and be reconstructed
+-- never as a row filter. A PR carrying rows of both kinds -- which eligibility changing
+-- mid-cycle produces -- would otherwise lose rows from its group and be reconstructed
 -- wrong rather than excluded, and would land in a different population here than on the coverage
 -- tiles. terminal_verdicts groups over the whole ledger rather than the window, because that
 -- is the row set it reads: a verdict predates the window it is scored in.

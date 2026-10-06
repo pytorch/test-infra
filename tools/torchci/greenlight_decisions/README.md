@@ -132,15 +132,19 @@ trusted author. Those 25 are exactly the after-half rows reading
 `lifecycle_status = never-reviewed`; excluding them puts the 51% at 57/137, or
 41.6%.
 
-The shadow half may be a sample rather than a census besides.
-`PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` admits a stable sha256-keyed fraction of the
-shadow PRs to the fingerprint fan-out, and a held-out PR is never
-evaluated — though it still reaches the revert guard, so it can enter this file
-carrying a `REVERTED` row and nothing else. **The deployed value is not in this
-repo: `config.py` defaults it to `1.0`, and each scan logs the value it ran
-with.** At `1.0` the denominator is the whole evaluation cohort; below it, only
-what the dial admitted. That bounds who reaches this file; it is not a property
-of the column.
+The shadow half may be a sample rather than a census besides. Until the third
+era (see `is_shadow` below), `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` admitted a
+stable sha256-keyed fraction of the shadow PRs to the fingerprint fan-out, and a
+held-out PR was never evaluated — though it still reached the revert guard, so
+it can enter this file carrying a `REVERTED` row and nothing else. **The
+deployed values are in the history of pytorch-gha-infra-2's
+`runners/regions/us-east-1/lambdas/greenlight-scan.tf`, and each scan logged the
+value it ran with.** That file's commits set `0.0` (f6f527f, 2026-09-09),
+`0.1` (a8f4477, 2026-09-10), `0.2` (3a0a123, 2026-09-14), `0.5` (e1129cb,
+2026-09-17) and `1.0` (41c9d33, 2026-09-18) — UTC commit dates; each value took
+effect when it was applied. At `1.0` the denominator was the whole evaluation
+cohort; below it, only what the dial admitted. That bounds who reaches this
+file; it is not a property of the column.
 
 ## How the verdict is chosen
 
@@ -191,41 +195,66 @@ got.
   greenlight does post the comment, and it is identical to an enforcing one.
 
   Authority is decided per row, and the author and the PR's changed files are
-  what normally decide it: the scan decides it at dispatch, a terminal verdict
-  ORs the caller's `--shadow` against a fresh merge-rule check of the reviewed
-  commit, a marker row (`AI_REVIEW_STARTED`, `CANCELLED`, `FAILED`) takes
-  `--shadow` verbatim, and a `REVERTED` row takes the scan's answer — except
-  that a PR with a recorded row whose author is currently listed gets a
-  non-shadow `REVERTED` row, because that row can only deny. **Who carries
-  authority is set by the trusted-authors issue in pytorch/test-infra
-  (`constants.TRUSTED_AUTHORS_ISSUE_NUMBER` in the greenlight service) as the
-  scan read it, together with pytorch's `merge_rules.yaml`; read those rather
-  than a list of logins here, which goes stale.** The issue's edit history and
-  `merge_rules.yaml`'s git history say how they stood. Rows written before the
-  issue went live were decided by the author alone, against
-  `cohort.TRUSTED_AUTHORS`, a hardcoded set whose versions live in greenlight's
-  git history. A PR carries authority only when its author is listed in that
-  issue and a merge rule names the author and covers every file the PR changes,
-  on a non-ghstack PR based on `main` if the rule is path-scoped. Every other PR
-  is shadow by default, and `--shadow` — a CLI flag, and a `workflow_dispatch`
-  input on the reviewer workflow — makes anyone shadow on demand.
+  what normally decide it: the scan decides it before dispatch, a terminal
+  verdict ORs the caller's `--shadow` against a fresh merge-rule check of the
+  reviewed commit, a marker row (`AI_REVIEW_STARTED`, `CANCELLED`, `FAILED`)
+  takes `--shadow` verbatim, and a `REVERTED` row takes the scan's answer —
+  except that a PR with a recorded row gets a non-shadow `REVERTED` row, because
+  that row can only deny. **Who carries authority is set by pytorch's
+  `merge_rules.yaml` as greenlight read it; read that rather than a list of
+  logins here, which goes stale.** Its git history says how it stood. A PR
+  carries authority only when a merge rule names the author and covers every
+  file the PR changes, on a non-ghstack PR based on `main` if the rule is
+  path-scoped. Until the third era below, every other PR was shadow by
+  default. `--shadow` — a CLI flag, and a `workflow_dispatch` input on the
+  reviewer workflow — makes anyone shadow on demand.
 
-  This describes the PR rather than the selected verdict: it is an OR over every
-  state row the PR has, markers and `REVERTED` exclusions included. It answers
-  "was this PR evaluated in shadow", which is a different question from "did the
-  verdict in *this row* carry authority". The two diverge on any PR holding rows
-  of both kinds:
+  Those rules hold in the last of three eras — a hardcoded set, then the
+  trusted-authors issue plus merge rules, then merge rules alone without shadow
+  reviews — and a row follows the era it was written in:
+
+  - **Hardcoded set.** Rows written before the issue went live were decided by
+    the author alone, against `cohort.TRUSTED_AUTHORS`, a hardcoded set whose
+    versions live in greenlight's git history.
+  - **Issue plus merge rules**, from the deployment of the `greenlight-scan`
+    release carrying pytorch/test-infra #8955 and #8956, both merged
+    2026-10-02. Who carried authority was set by the trusted-authors issue,
+    pytorch/test-infra #8945, as the scan read it, together with
+    `merge_rules.yaml`: a PR carried authority only when its author was listed
+    in that issue and a merge rule named the author and covered every file the
+    PR changed, under the same path-scoped condition. The `REVERTED` exception
+    above applied only when the issue listed the PR's author. The issue's edit
+    history and `merge_rules.yaml`'s git history say how they stood.
+  - **Merge rules alone, without shadow reviews**, from the deployment of the
+    `greenlight-scan` release that stops reading the issue. The deployed scan
+    dispatches nothing for a PR without authority, so it gets no review rows;
+    the revert guard's `REVERTED` row is the only row that scan can write for
+    it. Shadow rows then come only from that `REVERTED` row, a terminal verdict
+    whose fresh merge-rule check fails, `--shadow`, or a local
+    `--allow-untrusted-author` run, and the HUD quality dashboard's totals in
+    its default `all` mode drop from that day.
+
+  Runs of `.github/workflows/greenlight-review.yml` use the code at their
+  dispatch ref, so a run dispatched on `main` crosses each boundary when its
+  change merges, not when the `greenlight-scan` release is deployed.
+
+  `is_shadow` describes the PR rather than the selected verdict: it is an OR
+  over every state row the PR has, markers and `REVERTED` exclusions included.
+  It answers "was this PR evaluated in shadow", which is a different question
+  from "did the verdict in *this row* carry authority". The two diverge on any
+  PR holding rows of both kinds:
 
   - one whose authority changed mid-review: its author added to or removed from
-    the trusted-authors issue, a push that moved its files into or out of the
-    covering merge rule, a path-scoped author's PR retargeted away from `main`,
-    or a merge-rules change;
+    the trusted-authors issue (issue plus merge rules), a push that moved its
+    files into or out of the covering merge rule, a path-scoped author's PR
+    retargeted away from `main`, or a merge-rules change;
   - a path-scoped author's verdict recorded after the head moved off the
     reviewed commit, or whose base moved while it listed the files, which is
     shadow;
   - a `REVERTED` row stamped differently from the PR's other rows: non-shadow on
-    a shadow PR whose author is currently listed, or shadow on a PR whose author
-    is no longer listed;
+    a shadow PR (under merge rules alone, every one; under the issue plus merge
+    rules, one whose author was listed), or shadow on a PR whose author was no
+    longer listed (issue plus merge rules);
   - one `--shadow` dispatch against an authoritative PR.
 
   None had happened as of 2026-09-17, when every PR's rows agreed. The hardcoded
