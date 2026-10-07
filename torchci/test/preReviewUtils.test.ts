@@ -233,6 +233,23 @@ describe("markInProgressIfAccepted", () => {
     );
     handleScope(scope);
   });
+
+  test("does not label a PR that is already ready for review", async () => {
+    const scope = mockPr({
+      requested: ["alice"],
+      reactions: [thumbsUp("alice")],
+    });
+
+    await markInProgressIfAccepted(
+      octokit,
+      "pytorch",
+      "pytorch",
+      1,
+      ["triaged", "ready for review"],
+      AUTHOR
+    );
+    handleScope(scope);
+  });
 });
 
 describe("updateInProgressLabels", () => {
@@ -245,6 +262,7 @@ describe("updateInProgressLabels", () => {
         expect(query.q).toContain("repo:pytorch/pytorch");
         expect(query.q).toContain('label:"triaged"');
         expect(query.q).toContain('-label:"in progress"');
+        expect(query.q).toContain('-label:"ready for review"');
         expect(query.q).toContain("created:>=2026-01-01");
         expect(query.q).toContain("reactions:>0");
         return true;

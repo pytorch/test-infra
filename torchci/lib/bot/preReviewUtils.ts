@@ -1,6 +1,7 @@
 import {
   fetchPrStatusState,
   PR_STATUS_LABEL_IN_PROGRESS,
+  PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_TRIAGED,
   PRE_REVIEW_START_DATE,
   PrStatusState,
@@ -202,7 +203,8 @@ export async function getPreReviewStatus(
 }
 
 // Mark a triaged PR in progress once every assigned reviewer agrees. The
-// triaged label is kept.
+// triaged label is kept, so a PR already past automated review (ready for
+// review) is skipped, or adding in progress again would trigger another review.
 export async function markInProgressIfAccepted(
   octokit: Octokit,
   owner: string,
@@ -224,7 +226,8 @@ export async function markInProgressIfAccepted(
   if (
     status.accepted &&
     labels.includes(PR_STATUS_LABEL_TRIAGED) &&
-    !labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
+    !labels.includes(PR_STATUS_LABEL_IN_PROGRESS) &&
+    !labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW)
   ) {
     console.log(
       `Adding "${PR_STATUS_LABEL_IN_PROGRESS}" to ${owner}/${repo}#${prNumber}, accepted by ${status.agreed.join(
@@ -254,7 +257,7 @@ export async function updateInProgressLabels(
   }
   const candidates = (
     await octokit.paginate(octokit.rest.search.issuesAndPullRequests, {
-      q: `repo:${owner}/${repo} is:pr is:open draft:false label:"${PR_STATUS_LABEL_TRIAGED}" -label:"${PR_STATUS_LABEL_IN_PROGRESS}" created:>=${startDate} reactions:>0`,
+      q: `repo:${owner}/${repo} is:pr is:open draft:false label:"${PR_STATUS_LABEL_TRIAGED}" -label:"${PR_STATUS_LABEL_IN_PROGRESS}" -label:"${PR_STATUS_LABEL_READY_FOR_REVIEW}" created:>=${startDate} reactions:>0`,
       sort: "created",
       order: "asc",
       per_page: 100,
