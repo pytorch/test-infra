@@ -132,10 +132,10 @@ export function getPrStatusMessage(state: PrStatusState): string {
       );
     case "inProgress":
       return (
-        "## PR Status: in progress\n\n" +
-        "The overall direction of the change is " +
-        "good. The next step is to ensure the change passes the automated " +
-        "review.\n\n" +
+        "## PR Status: “in progress”.\n\n" +
+        "The overall direction of the change is good. The next step is to " +
+        "ensure the change passes the automated review. See the " +
+        "Automated Review section below for findings to address.\n\n" +
         "To minimize iteration time, feel free to run the pr-review " +
         "skill from the repo locally. The PR will be marked ready for " +
         "maintainer review when automated review passes. To bypass automated " +
