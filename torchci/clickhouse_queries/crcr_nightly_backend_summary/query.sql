@@ -57,6 +57,9 @@ WHERE
     AND event_type = 'nightly'
     AND status = 'completed'
     AND (run_id, job_name, run_attempt) IN (
-        SELECT run_id, job_name, max_attempt
+        SELECT
+            run_id,
+            job_name,
+            max_attempt
         FROM latest_attempts
     )
