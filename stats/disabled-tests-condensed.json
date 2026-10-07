@@ -338,6 +338,22 @@
       "rocm"
     ]
   ],
+  "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195094",
+    "https://github.com/pytorch/pytorch/issues/195094",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_del_same_stream_no_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195553",
+    "https://github.com/pytorch/pytorch/issues/195553",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_dtensor_op_db_linalg_cond_cpu_float32 (__main__.TestMultiThreadedDTensorOpsCPU)": [
     "190141",
     "https://github.com/pytorch/pytorch/issues/190141",
