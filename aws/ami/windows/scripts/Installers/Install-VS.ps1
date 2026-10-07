@@ -27,7 +27,7 @@ $VS_INSTALL_ARGS = @("--nocache","--quiet","--wait", "--add Microsoft.VisualStud
                                                      "--add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset")
 
 if (${env:INSTALL_WINDOWS_SDK} -eq "1") {
-    $VS_INSTALL_ARGS += "--add Microsoft.VisualStudio.Component.Windows10SDK.19041"
+    $VS_INSTALL_ARGS += "--add Microsoft.VisualStudio.Component.Windows10SDK.22621"
 }
 
 if (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") {
