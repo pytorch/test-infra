@@ -41,16 +41,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - base: nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
-            tag: cuda13.0.2-cudnn-devel-ubuntu24.04
-          - base: nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
-            tag: cuda12.8.1-cudnn-devel-ubuntu22.04
-          - base: nvidia/cuda:12.8.0-devel-ubuntu22.04
-            tag: cuda12.8.0-devel-ubuntu22.04
-          - base: nvidia/cuda:12.4.0-devel-ubuntu22.04
-            tag: cuda12.4.0-devel-ubuntu22.04
+          # only 11.8 patch; cudnn8 and 22.04 are the only variants
           - base: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
             tag: cuda11.8.0-cudnn8-devel-ubuntu22.04
+          - base: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+            tag: cuda12.4.1-cudnn-devel-ubuntu22.04
+          - base: nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
+            tag: cuda12.6.3-cudnn-devel-ubuntu24.04
+          # 12.8 ships no cudnn variant
+          - base: nvidia/cuda:12.8.2-devel-ubuntu24.04
+            tag: cuda12.8.2-devel-ubuntu24.04
+          - base: nvidia/cuda:12.9.2-cudnn-devel-ubuntu24.04
+            tag: cuda12.9.2-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
+            tag: cuda13.0.3-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.1.2-cudnn-devel-ubuntu24.04
+            tag: cuda13.1.2-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04
+            tag: cuda13.2.1-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.3.1-cudnn-devel-ubuntu24.04
+            tag: cuda13.3.1-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.4.2-cudnn-devel-ubuntu24.04
+            tag: cuda13.4.2-cudnn-devel-ubuntu24.04
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
