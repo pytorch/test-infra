@@ -1,0 +1,75 @@
+name: Build runner-container-hooks
+
+on:
+  pull_request:
+    paths:
+      - runner-container-hooks/**
+      - .github/workflows/runner-container-hooks-build.yml
+      - .github/workflows/runner-container-hooks-release.yml
+  push:
+    branches:
+      - main
+    paths:
+      - runner-container-hooks/**
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: runner-container-hooks
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: runner-container-hooks/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: x86_64-unknown-linux-musl,aarch64-unknown-linux-musl
+          components: rustfmt,clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: runner-container-hooks/packages/k8s/rpc-server
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bootstrap the packages
+        run: npm run bootstrap
+
+      - name: Build packages
+        run: npm run build-all
+
+      - name: Check formatting
+        run: npm run format-check
+
+      - name: Check linter
+        run: |
+          npm run lint
+          # rpc-server-script.ts holds base64 of compiled binaries; CI
+          # regenerates it from source and the bytes aren't reproducible
+          # across rustc patch versions, so exclude it from the no-diff check.
+          git diff --exit-code -- . \
+            ':!packages/k8s/tests/test-kind.yaml' \
+            ':!packages/k8s/src/k8s/rpc-server-script.ts'
+
+      - name: Rust format check
+        working-directory: runner-container-hooks/packages/k8s/rpc-server
+        run: cargo fmt --check
+
+      - name: Rust clippy
+        working-directory: runner-container-hooks/packages/k8s/rpc-server
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Rust tests
+        working-directory: runner-container-hooks/packages/k8s/rpc-server
+        run: cargo test
