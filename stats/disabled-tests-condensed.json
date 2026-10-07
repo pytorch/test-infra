@@ -225,6 +225,14 @@
       "rocm"
     ]
   ],
+  "test_copy_transpose_tiled_batched_layout_big_batch_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199996",
+    "https://github.com/pytorch/pytorch/issues/199996",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_copy_transpose_tiled_batched_layout_odd_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "199890",
     "https://github.com/pytorch/pytorch/issues/199890",
@@ -235,6 +243,14 @@
   "test_copy_transpose_tiled_batched_layout_odd_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "199910",
     "https://github.com/pytorch/pytorch/issues/199910",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_copy_transpose_tiled_batched_layout_permute_4d_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199997",
+    "https://github.com/pytorch/pytorch/issues/199997",
     [
       "inductor",
       "rocm"
@@ -305,6 +321,13 @@
     "https://github.com/pytorch/pytorch/issues/191702",
     [
       "linux"
+    ]
+  ],
+  "test_ddp_optimizer_cudagraph (__main__.TestMultiProc)": [
+    "199998",
+    "https://github.com/pytorch/pytorch/issues/199998",
+    [
+      "rocm"
     ]
   ],
   "test_del_attr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
