@@ -51,9 +51,11 @@ jobs:
             tag: cuda12.4.1-cudnn-devel-ubuntu22.04
           - base: nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
             tag: cuda12.6.3-cudnn-devel-ubuntu24.04
-          # 12.8 ships no cudnn variant
-          - base: nvidia/cuda:12.8.2-devel-ubuntu24.04
-            tag: cuda12.8.2-devel-ubuntu24.04
+          # 12.8.2 is the newest 12.8 patch, but nvidia stopped publishing a
+          # cudnn flavour after 12.8.1, so .1 is the newest that has one.
+          # cudnn-devel is a superset of devel, so prefer it over the patch.
+          - base: nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+            tag: cuda12.8.1-cudnn-devel-ubuntu24.04
           - base: nvidia/cuda:12.9.2-cudnn-devel-ubuntu24.04
             tag: cuda12.9.2-cudnn-devel-ubuntu24.04
           - base: nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
