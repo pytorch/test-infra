@@ -451,6 +451,15 @@ def test_every_statement_reads_the_reports_inside_the_zip_once(mode):
     assert all(sql.count(source) == 1 for sql in run_test_reports_adapter(mode))
 
 
+@pytest.mark.parametrize("mode", ["dry", "on"])
+def test_every_statement_turns_on_the_archive_path_syntax(mode):
+    # Our ClickHouse Cloud service turns it off, and every statement reads the
+    # zip as `<archive> :: <file>`.
+    for sql in run_test_reports_adapter(mode):
+        assert ":: test/test-run-reports/*/*.jsonl" in sql
+        assert "settings allow_archive_path_syntax = 1" in sql
+
+
 def test_only_runs_carries_the_deduplication_token():
     token = f"insert_deduplication_token = '{TEST_RUN_REPORTS_ZIP}:ingest-v1'"
     queries = run_test_reports_adapter("on")
