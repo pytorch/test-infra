@@ -143,11 +143,12 @@
       "linux"
     ]
   ],
-  "test_codegen_structure_parallel_matmuls (__main__.TestUserStreamCompile)": [
-    "194332",
-    "https://github.com/pytorch/pytorch/issues/194332",
+  "test_col2im_uint32_overflow (__main__.TestMPS)": [
+    "187289",
+    "https://github.com/pytorch/pytorch/issues/187289",
     [
-      "linux"
+      "mac",
+      "macos"
     ]
   ],
   "test_combo_kernel_per_config_subkernel_r0_r1 (__main__.ComboKernelTests)": [
@@ -1234,6 +1235,13 @@
     "https://github.com/pytorch/pytorch/issues/198443",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_retained_handle_stale_after_watchdog_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
+    "200056",
+    "https://github.com/pytorch/pytorch/issues/200056",
+    [
       "rocm"
     ]
   ],
