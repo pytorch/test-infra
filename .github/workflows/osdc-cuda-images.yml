@@ -1,16 +1,8 @@
 name: Build the OSDC CUDA images
 
-# Publishes nvidia/cuda images with the few things an OSDC job container needs
-# that the stock ones lack -- git above all. See docker/osdc-cuda/Dockerfile.
-#
-# The weekly run is what picks up Ubuntu security updates and any new base tag
-# content; nothing else refreshes these.
-
 on:
   workflow_dispatch: {}
   schedule:
-    # Mondays, after the 06:00 docker-build cron so the two do not contend for
-    # the BuildKit pool.
     - cron: "0 8 * * 1"
   push:
     branches: [main]
@@ -29,8 +21,6 @@ concurrency:
 jobs:
   build:
     name: ${{ matrix.tag }}
-    # The build itself happens on the in-cluster BuildKit service, so this
-    # runner only orchestrates it: a small general-purpose pod is enough.
     runs-on: mt-l-x86iamx-8-16
     container:
       image: "ghcr.io/actions/actions-runner:latest"
@@ -40,20 +30,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # One row per CUDA minor pytorch actually ships, at the newest patch
-        # nvidia/cuda publishes. See RELEASE.md's support matrix: 13.1 and
-        # 13.3 are skipped there, so they are skipped here too.
+        # Minors pytorch ships (RELEASE.md), newest patch with a cudnn flavour.
         include:
-          # only 11.8 patch; cudnn8 and 22.04 are the only variants
           - base: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
             tag: cuda11.8.0-cudnn8-devel-ubuntu22.04
           - base: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
             tag: cuda12.4.1-cudnn-devel-ubuntu22.04
           - base: nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
             tag: cuda12.6.3-cudnn-devel-ubuntu24.04
-          # 12.8.2 is the newest 12.8 patch, but nvidia stopped publishing a
-          # cudnn flavour after 12.8.1, so .1 is the newest that has one.
-          # cudnn-devel is a superset of devel, so prefer it over the patch.
           - base: nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
             tag: cuda12.8.1-cudnn-devel-ubuntu24.04
           - base: nvidia/cuda:12.9.2-cudnn-devel-ubuntu24.04
@@ -68,8 +52,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      # A pull request builds to prove the Dockerfile still works against the
-      # base, and stops there. Only main, the schedule and a dispatch publish.
       - name: Decide whether to publish
         id: publish
         shell: bash
@@ -93,8 +75,6 @@ jobs:
             type=raw,value=${{ matrix.tag }}
             type=sha,prefix=${{ matrix.tag }}-,format=short
 
-      # OSDC runners have no host docker daemon, so this builds on the
-      # in-cluster remote BuildKit service rather than with `docker build`.
       - name: Build and push
         uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@main
         with:
