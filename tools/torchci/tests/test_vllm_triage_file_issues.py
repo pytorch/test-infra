@@ -22,6 +22,7 @@ from pathlib import Path
 from unittest import mock
 
 from torchci import vllm_triage_file_issues as vtfi
+
 from torchci.vllm_deduplication import UpstreamStatus
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
