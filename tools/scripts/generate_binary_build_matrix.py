@@ -43,6 +43,9 @@ TORCH_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
 # torchvision not being published, this one about torch.
 PYPI_UNPUBLISHED_PYTHON_ARCHES = ["3.15", "3.15t"]
 
+# The only Python versions built for windows-arm64, out of the channel's versions.
+WINDOWS_ARM64_PYTHON_ARCHES = ["3.11", "3.12", "3.13"]
+
 MACOS_PYTHON_POINT_VERSIONS = {
     "3.10": "3.10.19",
     "3.11": "3.11.14",
@@ -302,11 +305,14 @@ def initialize_globals(
         # The getting-started page offers a single ROCm option per channel, and
         # it should be the newest one the channel ships.
         ROCM_ARCHES = [max(ROCM_ARCHES, key=parse_version)]
+    PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
+    if os == WINDOWS_ARM64:
+        PYTHON_ARCHES = [
+            py for py in PYTHON_ARCHES if py in WINDOWS_ARM64_PYTHON_ARCHES
+        ]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
-        PYTHON_ARCHES = [PYTHON_ARCHES_DICT[channel][0]]
-    else:
-        PYTHON_ARCHES = PYTHON_ARCHES_DICT[channel]
+        PYTHON_ARCHES = PYTHON_ARCHES[:1]
     if getting_started:
         PYTHON_ARCHES = [
             py for py in PYTHON_ARCHES if py not in PYTHON_ARCHES_NO_GETTING_STARTED
@@ -582,7 +588,9 @@ def generate_wheels_matrix(
         python_versions = list(PYTHON_ARCHES)
 
     if os == WINDOWS_ARM64:
-        python_versions = ["3.11", "3.12", "3.13"]  # only versions for now
+        python_versions = [
+            v for v in python_versions if v in WINDOWS_ARM64_PYTHON_ARCHES
+        ]
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
