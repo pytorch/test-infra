@@ -927,6 +927,9 @@ TEST_RUN_REPORTS_SCHEMA_VERSIONS = "('0.1')"
 # Part of the deduplication token: bump it to ingest the same zips again after
 # a fix.
 TEST_RUN_REPORTS_INGEST_VERSION = 1
+# Every statement reads the zip with the `<archive> :: <file>` path syntax,
+# which our ClickHouse Cloud service turns off by default.
+TEST_RUN_REPORTS_SETTINGS = "allow_archive_path_syntax = 1"
 TEST_RUN_REPORTS_OUTCOMES = (
     "('passed', 'failed', 'error', 'skipped', 'xfailed', 'xpassed', 'crashed', "
     "'timed_out')"
@@ -1115,15 +1118,15 @@ def test_run_reports_adapter(table, bucket, key) -> None:
         select = select.format(
             database=database, environment_columns=environment_columns
         )
+        settings = TEST_RUN_REPORTS_SETTINGS
         if dry:
-            query = f"select count() from ({rows} {select})"
+            query = f"select count() from ({rows} {select}) settings {settings}"
         else:
             columns = columns.format(environment_columns=environment_columns)
-            settings = ""
             if target == "runs":
                 token = f"{key}:ingest-v{TEST_RUN_REPORTS_INGEST_VERSION}"
-                settings = f"settings insert_deduplication_token = '{token}'"
-            query = f"insert into {database}.{target} ({columns}) {settings} {rows} {select}"
+                settings += f", insert_deduplication_token = '{token}'"
+            query = f"insert into {database}.{target} ({columns}) settings {settings} {rows} {select}"
         started = time.time()
         try:
             result = get_clickhouse_client().query(query)
