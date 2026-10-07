@@ -76,9 +76,7 @@ low-GPU-memory startup failure override the explicit infra tag.
 on N regressed clusters ...` means the triage withheld the infra tag: a CUDA-init or
 startup free-memory signature hit N regressed clusters, every one of which passes on
 the baseline. Transient agent trouble does not do that, so treat the signature as a
-candidate torch regression. Route it to `pytorch/pytorch` unless the logs point
-elsewhere, and do not rate it `new_failure_confidence: low` merely for looking like
-infra.
+candidate torch regression; ROUTING.md has the routing.
 
 ## Step 2: NEW vs pre-existing
 

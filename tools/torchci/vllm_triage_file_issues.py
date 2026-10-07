@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -52,7 +53,38 @@ SECTIONS = {
 INVESTIGATE_SECTION = "### Need investigation"
 
 
+# A run looks up every eligible, investigated and skipped cause by key, up to
+# three searches each, and the search API allows 30 authenticated requests a
+# minute. Searches are paced to that rate, and a rate-limited request of any
+# kind is retried after the wait GitHub asks for.
+SEARCH_MIN_INTERVAL_S = 2.0
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_MAX_WAIT_S = 300.0
+_last_search = 0.0
+
+
+def _rate_limit_wait(err: urllib.error.HTTPError, attempt: int) -> Optional[float]:
+    """Seconds to wait before retrying ``err``, or None if it is not a rate limit.
+
+    Follows GitHub's guidance: honour ``Retry-After``, else wait for
+    ``X-RateLimit-Reset`` when the quota is spent, else back off from a minute.
+    """
+    if err.code not in (403, 429):
+        return None
+    retry_after = err.headers.get("Retry-After", "")
+    if retry_after.isdigit():
+        return float(retry_after)
+    reset = err.headers.get("X-RateLimit-Reset", "")
+    if err.headers.get("X-RateLimit-Remaining") == "0" and reset.isdigit():
+        return max(1.0, int(reset) - time.time())
+    if err.code == 429 or "rate limit" in str(err.reason).lower():
+        return 60.0 * 2**attempt
+    # A 403 without rate-limit signals is a permission error; retrying won't help.
+    return None
+
+
 def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any:
+    global _last_search
     url = path if path.startswith("http") else f"{API}{path}"
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
@@ -61,8 +93,29 @@ def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any
     req.add_header("X-GitHub-Api-Version", "2022-11-28")
     if data:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read() or "null")
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        if path.startswith("/search/"):
+            pause = _last_search + SEARCH_MIN_INTERVAL_S - time.monotonic()
+            if pause > 0:
+                time.sleep(pause)
+            _last_search = time.monotonic()
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read() or "null")
+        except urllib.error.HTTPError as err:
+            wait = _rate_limit_wait(err, attempt)
+            if (
+                wait is None
+                or attempt == RATE_LIMIT_RETRIES
+                or wait > RATE_LIMIT_MAX_WAIT_S
+            ):
+                raise
+            print(
+                f"rate limited on {method} {path}; retrying in {wait:.0f}s",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+    raise AssertionError("unreachable")
 
 
 # pytest prints an assertion, then explains it on continuation lines:
@@ -744,7 +797,12 @@ def main() -> int:
     p.add_argument("--findings", required=True, help="findings.json from the agent")
     p.add_argument("--report", required=True, help="report.json from the triage job")
     p.add_argument("--repo", default="pytorch/test-infra")
-    p.add_argument("--max-issues", type=int, default=5)
+    p.add_argument(
+        "--max-issues",
+        type=int,
+        default=5,
+        help="cap on new issues per run; recurrences on tracked issues do not count",
+    )
     p.add_argument(
         "--investigate-min-clusters",
         type=int,
@@ -873,12 +931,6 @@ def main() -> int:
         )
     # Investigation causes go last so they never crowd out an eligible one.
     to_file = selected + investigate
-    if len(to_file) > args.max_issues:
-        print(
-            f"capping at --max-issues={args.max_issues} "
-            f"({len(to_file) - args.max_issues} not filed this run)"
-        )
-        to_file = to_file[: args.max_issues]
 
     if not args.execute:
         print("\n=== DRY RUN (pass --execute to file) ===")
@@ -888,6 +940,10 @@ def main() -> int:
                 f"  child [{routing_of(c)}]: {c.get('title')}  "
                 f"key={fingerprint(args.repo, c)}"
             )
+        print(
+            f"(--max-issues={args.max_issues} caps new issues only; causes already "
+            "tracked are commented on regardless)"
+        )
         return 0
 
     umbrella = find_umbrella(token, args.repo, minor)
@@ -913,6 +969,11 @@ def main() -> int:
     # key in a single run would otherwise both be filed.
     filed_this_run: Dict[str, Dict] = {}
     matched: set = set()
+    # The cap counts creations only. Applied before the lookup, recurrences used
+    # it up, and a tracked cause cut by it got no comment and was then reported
+    # silent.
+    created = 0
+    capped: List[Dict[str, Any]] = []
 
     for c in to_file:
         key = fingerprint(args.repo, c)
@@ -922,6 +983,9 @@ def main() -> int:
         if existing:
             record_recurrence(token, args.repo, report, c, existing, matched_by)
             matched.add(existing["number"])
+            continue
+        if created >= args.max_issues:
+            capped.append(c)
             continue
         routing = routing_of(c)
         investigating = c in investigate
@@ -944,6 +1008,7 @@ def main() -> int:
                 "labels": labels,
             },
         )
+        created += 1
         print(f"  created #{issue['number']} [{routing}]: {c.get('title')}")
         # Visible to the rest of this run, by key and to the near-duplicate scan.
         filed_this_run[key] = issue
@@ -956,6 +1021,14 @@ def main() -> int:
             f"- [ ] #{issue['number']} - {c.get('title')}",
             INVESTIGATE_SECTION if investigating else SECTIONS[routing],
         )
+
+    if capped:
+        print(
+            f"capping at --max-issues={args.max_issues} new issues "
+            f"({len(capped)} not filed this run)"
+        )
+        for c in capped:
+            print(f"  not filed: {c.get('title', '<untitled>')!r}")
 
     # A skipped cause that is already tracked is still a recurrence. Without
     # this, a tracked cause the agent re-labels as infra gets neither a

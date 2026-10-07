@@ -558,10 +558,10 @@ class TestContestedInfra(unittest.TestCase):
             "unclassified": [],
         }
 
-    def _fetch(self, n: int, min_clusters: int) -> tuple:
+    def _fetch(self, n: int, min_clusters: int, body: str = "") -> tuple:
         contested: dict = {}
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
-            triage, "_fetch_job_log", return_value=self.CUDA_INIT_BODY
+            triage, "_fetch_job_log", return_value=body or self.CUDA_INIT_BODY
         ):
             written = triage.fetch_cluster_logs(
                 self._buckets(n),
@@ -590,6 +590,18 @@ class TestContestedInfra(unittest.TestCase):
         for artifact in artifacts:
             self.assertIn("# job_is_infra: True", artifact)
             self.assertNotIn("# infra_contested:", artifact)
+
+    def test_escape_sequence_inside_signature_is_still_counted(self) -> None:
+        # parse_log matches the stripped text, so the count must too, or the
+        # signature stays tagged infra however many clusters it hits.
+        body = self.CUDA_INIT_BODY.replace(
+            "CUDA driver initialization", "CUDA driver \x1b[1minitialization"
+        )
+        artifacts, contested = self._fetch(n=3, min_clusters=3, body=body)
+        self.assertEqual(list(contested.values()), [3])
+        for artifact in artifacts:
+            self.assertIn("# job_is_infra: False", artifact)
+            self.assertIn("# infra_contested:", artifact)
 
     def test_zero_disables_the_check(self) -> None:
         self.assertEqual(

@@ -9,6 +9,7 @@ pins one field of that contract.
 """
 
 import contextlib
+import email.message
 import io
 import json
 import os
@@ -16,11 +17,11 @@ import re
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
 from torchci import vllm_triage_file_issues as vtfi
-
 from torchci.vllm_deduplication import UpstreamStatus
 from torchci.vllm_triage_file_issues import (
     classification_confidence,
@@ -471,6 +472,123 @@ class TestSkippedRecurrence(unittest.TestCase):
         )
         self.assertIn("Still reproducing on torch-nightly build", body)
         self.assertIn("NOTE-TEXT", body)
+
+
+class TestMaxIssues(unittest.TestCase):
+    """--max-issues caps new issues; recurrences on tracked ones are not counted."""
+
+    def _run(self, causes, existing):
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = Path(tmp) / "findings.json"
+            report = Path(tmp) / "report.json"
+            findings.write_text(json.dumps({"causes": causes}))
+            report.write_text(json.dumps({"torch_version_minor": "2.15"}))
+            argv = [
+                "filer",
+                "--findings",
+                str(findings),
+                "--report",
+                str(report),
+                "--max-issues",
+                "1",
+                "--execute",
+            ]
+            output = io.StringIO()
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}),
+                mock.patch.object(vtfi, "find_umbrella", return_value={"number": 1}),
+                mock.patch.object(vtfi, "open_children", return_value=[]),
+                mock.patch.object(vtfi, "find_existing", side_effect=existing),
+                mock.patch.object(vtfi, "_req", return_value={"number": 99}) as req,
+                mock.patch.object(vtfi, "append_to_umbrella"),
+                mock.patch.object(vtfi, "record_recurrence") as record,
+                mock.patch.object(vtfi, "report_silences") as silences,
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(vtfi.main(), 0)
+        return req, record, silences, output.getvalue()
+
+    def test_recurrences_do_not_use_up_the_cap(self):
+        causes = [
+            cause(title=f"cause {i}", signature=f"E{i}Error: x") for i in range(3)
+        ]
+        existing = [({"number": 10}, "key"), ({"number": 11}, "key"), (None, "key")]
+        req, record, silences, _ = self._run(causes, existing)
+        self.assertEqual(record.call_count, 2)
+        self.assertEqual(req.call_count, 1)  # the one new issue
+        self.assertEqual(silences.call_args.args[4], {10, 11, 99})
+
+    def test_new_issues_past_the_cap_are_not_filed(self):
+        causes = [
+            cause(title=f"cause {i}", signature=f"E{i}Error: x") for i in range(3)
+        ]
+        req, record, _, out = self._run(causes, [(None, "key")] * 3)
+        record.assert_not_called()
+        self.assertEqual(req.call_count, 1)
+        self.assertIn("(2 not filed this run)", out)
+
+
+def _http_error(code, reason="Forbidden", **headers):
+    msg = email.message.Message()
+    for name, value in headers.items():
+        msg[name.replace("_", "-")] = value
+    return urllib.error.HTTPError("https://api.github.com/x", code, reason, msg, None)
+
+
+class TestRateLimit(unittest.TestCase):
+    """_req waits out GitHub rate limits instead of failing the run."""
+
+    def setUp(self):
+        ok = mock.MagicMock()
+        ok.__enter__.return_value.read.return_value = b'{"ok": true}'
+        self.ok = ok
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.sleep = stack.enter_context(mock.patch.object(vtfi.time, "sleep"))
+        stack.enter_context(mock.patch.object(vtfi, "_last_search", 0.0))
+        stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+
+    def test_retry_after_is_honoured(self):
+        errors = [_http_error(403, Retry_After="7"), self.ok]
+        with mock.patch.object(vtfi.urllib.request, "urlopen", side_effect=errors):
+            self.assertEqual(vtfi._req("GET", "/repos/x", "tok"), {"ok": True})
+        self.sleep.assert_called_once_with(7.0)
+
+    def test_secondary_limit_without_headers_backs_off(self):
+        errors = [_http_error(429, "Too Many Requests"), self.ok]
+        with mock.patch.object(vtfi.urllib.request, "urlopen", side_effect=errors):
+            vtfi._req("POST", "/repos/x/issues", "tok", {"title": "t"})
+        self.sleep.assert_called_once_with(60.0)
+
+    def test_permission_error_is_not_retried(self):
+        with (
+            mock.patch.object(
+                vtfi.urllib.request, "urlopen", side_effect=[_http_error(403)]
+            ),
+            self.assertRaises(urllib.error.HTTPError),
+        ):
+            vtfi._req("GET", "/repos/x", "tok")
+        self.sleep.assert_not_called()
+
+    def test_wait_past_the_ceiling_raises(self):
+        reset = str(int(vtfi.time.time()) + 3600)
+        err = _http_error(403, X_RateLimit_Remaining="0", X_RateLimit_Reset=reset)
+        with (
+            mock.patch.object(vtfi.urllib.request, "urlopen", side_effect=[err]),
+            self.assertRaises(urllib.error.HTTPError),
+        ):
+            vtfi._req("GET", "/repos/x", "tok")
+        self.sleep.assert_not_called()
+
+    def test_searches_are_paced(self):
+        with mock.patch.object(
+            vtfi.urllib.request, "urlopen", side_effect=[self.ok, self.ok]
+        ):
+            vtfi._req("GET", "/search/issues?q=a", "tok")
+            vtfi._req("GET", "/search/issues?q=b", "tok")
+        self.assertEqual(self.sleep.call_count, 1)
+        self.assertGreater(self.sleep.call_args.args[0], 0)
 
 
 class TestInsertInSection(unittest.TestCase):

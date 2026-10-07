@@ -44,6 +44,7 @@ from torchci.vllm_log_parser import (
     FailedTest,
     get_test_signature,
     parse_log,
+    strip_markers,
     torch_sensitive_infra_matches,
 )
 
@@ -610,7 +611,7 @@ def render_failure_context(
         f"# cleaned_log_lines: {context['line_count']}\n",
         f"# job_is_infra: {context['job_is_infra']}\n",
     ]
-    for pattern in torch_sensitive_infra_matches(body):
+    for pattern in torch_sensitive_infra_matches("\n".join(cleaned_lines)):
         if pattern in contested:
             sections.append(
                 f"# infra_contested: /{pattern}/ matched on {contested[pattern]} "
@@ -879,12 +880,17 @@ def _write_both_context_artifacts(
 
 
 def contested_infra_counts(bodies: List[str], min_clusters: int) -> Dict[str, int]:
-    """Torch-sensitive infra patterns found in at least ``min_clusters`` bodies."""
+    """Torch-sensitive infra patterns found in at least ``min_clusters`` bodies.
+
+    Matched on marker-stripped text, as ``parse_log`` does: an escape sequence
+    inside a signature would otherwise hide it from the count while the parser
+    still tags it infra.
+    """
     if min_clusters <= 0:
         return {}
     counts: Counter = Counter()
     for body in bodies:
-        counts.update(torch_sensitive_infra_matches(body))
+        counts.update(torch_sensitive_infra_matches(strip_markers(body)))
     return {p: n for p, n in counts.items() if n >= min_clusters}
 
 
