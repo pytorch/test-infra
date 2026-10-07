@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+from typing import List, Optional
 from unittest import main, TestCase
 
 from tools.scripts.generate_binary_build_matrix import (
@@ -138,6 +139,8 @@ class GenerateBuildMatrixTest(TestCase):
         channel: str = "test",
         python_abi3: bool = False,
         getting_started: bool = False,
+        build_python_only: bool = False,
+        python_versions: Optional[List[str]] = None,
     ) -> set:
         out = generate_build_matrix(
             "wheel",
@@ -149,9 +152,9 @@ class GenerateBuildMatrixTest(TestCase):
             "enable" if operating_system in ("linux", "windows") else "disable",
             "false",
             "false",
-            "disable",
+            "enable" if build_python_only else "disable",
             "true" if getting_started else "false",
-            None,
+            python_versions,
             "enable" if python_abi3 else "disable",
         )
         return {entry["python_version"] for entry in out["include"]}
@@ -202,6 +205,39 @@ class GenerateBuildMatrixTest(TestCase):
         versions = self._test_channel_python_versions("windows-arm64")
         self.assertNotIn("3.15", versions)
         self.assertNotIn("3.15t", versions)
+
+    def test_windows_arm64_python_versions(self):
+        for channel in ("nightly", "release"):
+            self.assertEqual(
+                self._test_channel_python_versions("windows-arm64", channel=channel),
+                {"3.11", "3.12", "3.13"},
+            )
+
+    def test_build_python_only_on_windows_arm64(self):
+        # The oldest version windows-arm64 builds, not the channel's oldest: release
+        # starts at 3.10, which windows-arm64 doesn't build.
+        for channel in ("nightly", "release"):
+            self.assertEqual(
+                self._test_channel_python_versions(
+                    "windows-arm64", channel=channel, build_python_only=True
+                ),
+                {"3.11"},
+            )
+
+    def test_python_versions_on_windows_arm64(self):
+        # Requested versions are kept, minus those windows-arm64 doesn't build.
+        self.assertEqual(
+            self._test_channel_python_versions(
+                "windows-arm64", python_versions=["3.12", "3.15"]
+            ),
+            {"3.12"},
+        )
+
+    def test_python_versions_none_built_on_windows_arm64(self):
+        with self.assertRaisesRegex(ValueError, "windows-arm64 only builds"):
+            self._test_channel_python_versions(
+                "windows-arm64", python_versions=["3.14"]
+            )
 
     def test_python_abi3_keeps_oldest_and_free_threaded(self):
         # A single abi3 wheel covers every later CPython, but free-threaded
