@@ -40,6 +40,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # One row per CUDA minor pytorch actually ships, at the newest patch
+        # nvidia/cuda publishes. See RELEASE.md's support matrix: 13.1 and
+        # 13.3 are skipped there, so they are skipped here too.
         include:
           # only 11.8 patch; cudnn8 and 22.04 are the only variants
           - base: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
@@ -55,12 +58,8 @@ jobs:
             tag: cuda12.9.2-cudnn-devel-ubuntu24.04
           - base: nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
             tag: cuda13.0.3-cudnn-devel-ubuntu24.04
-          - base: nvidia/cuda:13.1.2-cudnn-devel-ubuntu24.04
-            tag: cuda13.1.2-cudnn-devel-ubuntu24.04
           - base: nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04
             tag: cuda13.2.1-cudnn-devel-ubuntu24.04
-          - base: nvidia/cuda:13.3.1-cudnn-devel-ubuntu24.04
-            tag: cuda13.3.1-cudnn-devel-ubuntu24.04
           - base: nvidia/cuda:13.4.2-cudnn-devel-ubuntu24.04
             tag: cuda13.4.2-cudnn-devel-ubuntu24.04
     steps:
