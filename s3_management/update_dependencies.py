@@ -488,6 +488,20 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "target": "rocm10.1",
         },
     ],
+    "rocm-sdk-devel": [
+        {
+            "project": "torch_rocm",
+            "target": "rocm7.14",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.0",
+        },
+        {
+            "project": "torch_rocm",
+            "target": "rocm10.1",
+        },
+    ],
     "rocm-sdk-libraries": [
         {
             "project": "torch_rocm",
