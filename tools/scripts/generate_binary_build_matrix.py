@@ -588,9 +588,15 @@ def generate_wheels_matrix(
         python_versions = list(PYTHON_ARCHES)
 
     if os == WINDOWS_ARM64:
+        requested_versions = python_versions
         python_versions = [
             v for v in python_versions if v in WINDOWS_ARM64_PYTHON_ARCHES
         ]
+        if not python_versions:
+            raise ValueError(
+                f"windows-arm64 only builds Python {WINDOWS_ARM64_PYTHON_ARCHES}, "
+                f"none of the requested {requested_versions}"
+            )
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux

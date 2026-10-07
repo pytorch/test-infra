@@ -233,6 +233,12 @@ class GenerateBuildMatrixTest(TestCase):
             {"3.12"},
         )
 
+    def test_python_versions_none_built_on_windows_arm64(self):
+        with self.assertRaisesRegex(ValueError, "windows-arm64 only builds"):
+            self._test_channel_python_versions(
+                "windows-arm64", python_versions=["3.14"]
+            )
+
     def test_python_abi3_keeps_oldest_and_free_threaded(self):
         # A single abi3 wheel covers every later CPython, but free-threaded
         # interpreters reject abi3 wheels and still need one wheel each.
