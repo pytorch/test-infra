@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 
 # `import urllib` alone does not bind the `parse` submodule. encode_url_component
 # works today only because clickhouse_connect imports urllib.parse first.
@@ -908,6 +909,234 @@ def pr_review_verdicts_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+# Test run reports (pytorch/pytorch tools/testing/hud/test_run_report.md): each
+# test job uploads one zip of JSONL reports, once, when it ends. The zip sits
+# beside the job's other artifacts, so it is matched by name rather than by a
+# SUPPORTED_PATHS prefix. The name is restricted to characters that are safe to
+# put in a SQL string literal.
+TEST_RUN_REPORTS_KEY = re.compile(
+    r"^[\w.-]+/[\w.-]+/\d+/\d+/artifact/test-run-reports-[\w.-]+\.report\.zip$"
+)
+TEST_RUN_REPORTS_TABLE = "fortesting.runs"
+# off: the zips are not routed. dry: each zip is read and parsed, and the rows
+# every statement would insert are counted and printed; nothing is written
+# (failures still go to errors.gen_errors). on: ingest. TEST_RUN_REPORTS_MODE
+# on the function overrides this default.
+TEST_RUN_REPORTS_MODE = "on"
+TEST_RUN_REPORTS_SCHEMA_VERSIONS = "('0.1')"
+# Part of the deduplication token: bump it to ingest the same zips again after
+# a fix.
+TEST_RUN_REPORTS_INGEST_VERSION = 1
+TEST_RUN_REPORTS_OUTCOMES = (
+    "('passed', 'failed', 'error', 'skipped', 'xfailed', 'xpassed', 'crashed', "
+    "'timed_out')"
+)
+TEST_RUN_REPORTS_ENVIRONMENT = [
+    "os",
+    "os_version",
+    "cpu_architecture",
+    "cpu_capability",
+    "python_version",
+    "cc_compiler",
+    "cc_compiler_version",
+    "accelerator",
+    "accelerator_version",
+    "device_name",
+]
+
+# The catalogs whose id DEFAULT fills each of runs' id columns.
+TEST_RUN_REPORTS_IDS = {
+    "tests": "test_id",
+    "environments": "env_id",
+    "flags": "flags_id",
+}
+
+# One row per run line, carrying its file's report line. The zip is read once:
+# lines are grouped by the file they came from, then the run lines are unfolded.
+# The ids are the catalogs' own id DEFAULTs, read when the zip is ingested and
+# evaluated over the columns of the same names, so runs gets the ids the
+# catalogs compute and a change to them needs no change here.
+TEST_RUN_REPORTS_ROWS = """
+WITH
+    files AS (
+        SELECT
+            _path AS path,
+            -- until reports carry their uuid: the 16 hex digits the writer puts
+            -- in the file name, as the low half of a UUID (zero when absent)
+            extract(path, '-([0-9a-f]{{16}})[.]jsonl$') AS report_hex,
+            toUUIDOrZero(concat('00000000-0000-0000-', substring(report_hex, 1, 4),
+                '-', substring(report_hex, 5))) AS report_uuid,
+            anyIf(line, JSONExtractString(line, 'type') = 'report') AS report_line,
+            groupArrayIf(line, JSONExtractString(line, 'type') = 'run') AS run_lines
+        FROM s3('{source}', 'LineAsString')
+        -- a line cut off by a killed test process is skipped
+        WHERE isValidJSON(line)
+        GROUP BY path
+    ),
+    report_rows AS (
+        SELECT
+            JSONExtractString(report_line, 'repo') AS repo,
+            JSONExtractInt(report_line, 'github_workflow_job_id') AS github_workflow_job_id,
+            report_uuid,
+            {environment},
+            toUInt8(JSONExtractUInt(report_line, 'environment', 'device_count')) AS device_count,
+            -- the report lists every registered flag and setting; the flags table
+            -- keeps those that are set, so off ('0') and unset ('') ones are dropped
+            mapFilter((k, v) -> v NOT IN ('0', ''),
+                JSONExtract(report_line, 'flags', 'Map(String, String)')) AS flags,
+            JSONExtractString(line, 'file') AS file,
+            JSONExtractString(line, 'suite') AS suite,
+            JSONExtractString(line, 'case_name') AS case_name,
+            JSONExtractString(line, 'declared_case_name') AS declared_case_name,
+            toUInt16(JSONExtractUInt(line, 'rerun_number')) AS rerun_number,
+            if(JSONExtractString(line, 'outcome') IN {outcomes},
+                JSONExtractString(line, 'outcome'), 'unknown') AS outcome,
+            leftUTF8(JSONExtractString(line, 'outcome_summary'), 256) AS outcome_summary,
+            fromUnixTimestamp64Milli(JSONExtractInt(line, 'started_at'), 'UTC') AS started_at,
+            fromUnixTimestamp64Milli(JSONExtractInt(line, 'ended_at'), 'UTC') AS ended_at,
+            -- as the run line says, or unknown when it does not say; any other
+            -- value fails the insert, so a producer bug is logged, not hidden
+            if(JSONHas(line, 'language'), JSONExtractString(line, 'language'),
+                'unknown') AS language,
+            {test_id} AS test_id,
+            {env_id} AS env_id,
+            {flags_id} AS flags_id
+        FROM files
+        ARRAY JOIN run_lines AS line
+        WHERE JSONExtractString(report_line, 'schema_version') IN {versions}
+          AND repo != ''
+          AND github_workflow_job_id != 0
+    )
+"""
+
+# (table, columns, select), in order: the catalogs get rows only for ids they
+# lack (read with FINAL, as their schema requires), so first_seen_at stays the
+# first sighting and a repeat inserts nothing; runs then gets every run, and its
+# deduplication token makes a repeat of the same zip a no-op.
+TEST_RUN_REPORTS_STATEMENTS = [
+    (
+        "tests",
+        "repo, file, suite, case_name, declared_case_name, language",
+        """
+        select repo, file, suite, case_name, declared_case_name, language
+        from report_rows
+        where test_id not in (select id from {database}.tests final)
+        limit 1 by test_id
+        """,
+    ),
+    (
+        "environments",
+        "{environment_columns}, device_count",
+        """
+        select {environment_columns}, device_count
+        from report_rows
+        where env_id not in (select id from {database}.environments final)
+        limit 1 by env_id
+        """,
+    ),
+    (
+        "flags",
+        "flags",
+        """
+        select flags
+        from report_rows
+        where flags_id not in (select id from {database}.flags final)
+        limit 1 by flags_id
+        """,
+    ),
+    (
+        "runs",
+        "test_id, env_id, flags_id, github_workflow_job_id, report_uuid, "
+        "rerun_number, outcome, outcome_summary, started_at, ended_at",
+        # properties is left to its empty default until its contents are decided
+        """
+        select test_id, env_id, flags_id, github_workflow_job_id, report_uuid,
+               rerun_number, outcome, outcome_summary, started_at, ended_at
+        from report_rows
+        """,
+    ),
+]
+
+
+def test_run_reports_mode() -> str:
+    return os.getenv("TEST_RUN_REPORTS_MODE", TEST_RUN_REPORTS_MODE)
+
+
+def test_run_reports_id_defaults(database) -> dict:
+    """The id DEFAULT expression of each catalog in `database`, keyed by the runs
+    column it fills."""
+    tables = ", ".join(f"'{table}'" for table in TEST_RUN_REPORTS_IDS)
+    defaults = dict(
+        get_clickhouse_client()
+        .query(
+            "select table, default_expression from system.columns "
+            f"where database = '{database}' and table in ({tables}) "
+            "and name = 'id' and default_kind = 'DEFAULT'"
+        )
+        .result_rows
+    )
+    missing = [table for table in TEST_RUN_REPORTS_IDS if table not in defaults]
+    if missing:
+        raise RuntimeError(f"no id DEFAULT in {database}: {', '.join(missing)}")
+    return {column: defaults[table] for table, column in TEST_RUN_REPORTS_IDS.items()}
+
+
+def test_run_reports_adapter(table, bucket, key) -> None:
+    """Ingest one test job's zip of test run reports into the tests,
+    environments, flags and runs tables of `table`'s database (or, in dry mode,
+    count what would be inserted). ClickHouse reads the zip itself, and runs'
+    ids come from the catalogs' id DEFAULTs, so this holds no id logic. One
+    attempt: the first failure is logged and nothing after it runs. The catalogs
+    only get ids they lack and runs carries a deduplication token, so the same
+    zip again inserts nothing while the earlier runs insert is within
+    ClickHouse's insert deduplication window (an hour by default); a later
+    repeat adds a second copy of the job's runs until merges collapse it."""
+    database = table.split(".")[0]
+    dry = test_run_reports_mode() == "dry"
+    suffix = " (dry run)" if dry else ""
+    try:
+        ids = test_run_reports_id_defaults(database)
+    except Exception as e:
+        log_failure_to_clickhouse(f"{database}.runs ids{suffix}", bucket, key, e)
+        return
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+    environment_columns = ", ".join(TEST_RUN_REPORTS_ENVIRONMENT)
+    rows = TEST_RUN_REPORTS_ROWS.format(
+        source=f"{url} :: test/test-run-reports/*/*.jsonl",
+        environment=",\n            ".join(
+            f"JSONExtractString(report_line, 'environment', '{name}') AS {name}"
+            for name in TEST_RUN_REPORTS_ENVIRONMENT
+        ),
+        outcomes=TEST_RUN_REPORTS_OUTCOMES,
+        versions=TEST_RUN_REPORTS_SCHEMA_VERSIONS,
+        **ids,
+    )
+    for target, columns, select in TEST_RUN_REPORTS_STATEMENTS:
+        select = select.format(
+            database=database, environment_columns=environment_columns
+        )
+        if dry:
+            query = f"select count() from ({rows} {select})"
+        else:
+            columns = columns.format(environment_columns=environment_columns)
+            settings = ""
+            if target == "runs":
+                token = f"{key}:ingest-v{TEST_RUN_REPORTS_INGEST_VERSION}"
+                settings = f"settings insert_deduplication_token = '{token}'"
+            query = f"insert into {database}.{target} ({columns}) {settings} {rows} {select}"
+        started = time.time()
+        try:
+            result = get_clickhouse_client().query(query)
+        except Exception as e:
+            log_failure_to_clickhouse(f"{database}.{target}{suffix}", bucket, key, e)
+            return
+        if dry:
+            print(
+                f"test run reports dry run: {target}: {result.result_rows[0][0]} rows "
+                f"in {time.time() - started:.1f}s, {key}"
+            )
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -965,6 +1194,7 @@ OBJECT_CONVERTER = {
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
     "misc.runner_fleet_count": runner_fleet_count_adapter,
     "misc.greenlight_pr_state": greenlight_pr_state_adapter,
+    TEST_RUN_REPORTS_TABLE: test_run_reports_adapter,
 }
 
 
@@ -975,6 +1205,13 @@ def extract_clickhouse_table_name(bucket, key) -> Optional[str]:
     """
     if key is None:
         return None
+
+    if (
+        test_run_reports_mode() in ("dry", "on")
+        and bucket == "gha-artifacts"
+        and TEST_RUN_REPORTS_KEY.match(key)
+    ):
+        return TEST_RUN_REPORTS_TABLE
 
     for path, table in SUPPORTED_PATHS.items():
         if key.startswith(f"{path}/"):

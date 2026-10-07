@@ -313,3 +313,240 @@ def test_merges_adapter_is_the_only_caller_that_turns_named_columns_on():
             if opts_in(node):
                 naming.append(func.name)
     assert naming == ["merges_adapter"]
+
+
+# Test run reports: one zip per test job, matched by name; catalogs, then runs.
+
+TEST_RUN_REPORTS_ZIP = (
+    "pytorch/pytorch/37383941543/1/artifact/"
+    "test-run-reports-test-distributed-6-8-lf-l-x86iamx-8-64_112017841325.report.zip"
+)
+
+
+def route(bucket, key, mode):
+    with mock.patch.dict("os.environ", {"TEST_RUN_REPORTS_MODE": mode}):
+        return lambda_function.extract_clickhouse_table_name(bucket, key)
+
+
+@pytest.mark.parametrize(
+    "key",
+    [
+        TEST_RUN_REPORTS_ZIP,
+        "pytorch/pytorch/37383941543/2/artifact/"
+        "test-run-reports-test-default-1-6-linux.rocm.gpu.gfx950.1_112017841999.report.zip",
+    ],
+)
+@pytest.mark.parametrize("mode", ["dry", "on"])
+def test_a_test_run_reports_zip_routes_to_runs(key, mode):
+    assert route("gha-artifacts", key, mode) == "fortesting.runs"
+
+
+@pytest.mark.parametrize("mode", ["off", "yes", ""])
+def test_any_other_mode_routes_nothing(mode):
+    assert route("gha-artifacts", TEST_RUN_REPORTS_ZIP, mode) is None
+
+
+def test_the_default_mode_is_on():
+    assert lambda_function.TEST_RUN_REPORTS_MODE == "on"
+    with mock.patch.dict("os.environ", clear=True):
+        assert lambda_function.test_run_reports_mode() == "on"
+        table = lambda_function.extract_clickhouse_table_name(
+            "gha-artifacts", TEST_RUN_REPORTS_ZIP
+        )
+    assert table == "fortesting.runs"
+
+
+def test_the_environment_overrides_the_default_mode():
+    with mock.patch.object(lambda_function, "TEST_RUN_REPORTS_MODE", "on"):
+        assert route("gha-artifacts", TEST_RUN_REPORTS_ZIP, "off") is None
+
+
+@pytest.mark.parametrize(
+    "bucket,key",
+    [
+        ("gha-artifacts", "pytorch/pytorch/1/1/artifact/test-reports-test-x_1.zip"),
+        ("gha-artifacts", "pytorch/pytorch/1/1/artifact/logs-test-x_1.zip"),
+        ("gha-artifacts", "pytorch/pytorch/1/linux-jammy-py3.11-gcc11/artifacts.zip"),
+        ("gha-artifacts", "pytorch/pytorch/1/1/artifact/test-run-reports-x_1.zip"),
+        (
+            "gha-artifacts",
+            "pytorch/pytorch/1/1/artifact/sub/test-run-reports-x_1.report.zip",
+        ),
+        (
+            "gha-artifacts",
+            "pytorch/pytorch/1/1/artifact/test-run-reports-x'_1.report.zip",
+        ),
+        ("other-bucket", TEST_RUN_REPORTS_ZIP),
+    ],
+)
+def test_no_other_zip_is_taken_for_a_test_run_reports_zip(bucket, key):
+    assert route(bucket, key, "on") is None
+
+
+def test_the_prefix_routes_are_unchanged():
+    key = "test_jsons_while_running/1/2/python-pytest_x_x-0123.json"
+    assert route("gha-artifacts", key, "on") == "tests.all_test_runs"
+
+
+# Stand-ins for the catalogs' id DEFAULTs, as system.columns returns them.
+ID_DEFAULTS = [
+    ("tests", "tests_id(repo, file, language)"),
+    ("environments", "environments_id(os, device_count)"),
+    ("flags", "flags_id(flags)"),
+]
+ID_LOOKUP = "from system.columns"
+
+
+def run_test_reports_adapter(mode, fail_on=None, id_defaults=ID_DEFAULTS):
+    """Run the adapter with the ClickHouse client stubbed; return every SQL it
+    sent after the id DEFAULT lookup, failing the first statement that writes or
+    counts `fail_on`."""
+    queries = []
+
+    def query(sql):
+        queries.append(sql)
+        if ID_LOOKUP in sql:
+            return mock.Mock(result_rows=list(id_defaults))
+        if fail_on and (
+            f"insert into fortesting.{fail_on} " in sql
+            or (
+                sql.startswith("select count()")
+                and f"from fortesting.{fail_on} final)" in sql
+            )
+        ):
+            raise RuntimeError("insert failed")
+        return mock.Mock(result_rows=[[7]])
+
+    client = mock.Mock()
+    client.query.side_effect = query
+    with mock.patch.object(lambda_function, "get_clickhouse_client", lambda: client):
+        with mock.patch.dict("os.environ", {"TEST_RUN_REPORTS_MODE": mode}):
+            lambda_function.test_run_reports_adapter(
+                "fortesting.runs", "gha-artifacts", TEST_RUN_REPORTS_ZIP
+            )
+    assert ID_LOOKUP in queries[0]
+    return queries[1:]
+
+
+def insert_target(sql):
+    return re.search(r"insert into ([\w.]+)", sql).group(1)
+
+
+def test_the_catalogs_are_written_before_runs():
+    targets = [insert_target(sql) for sql in run_test_reports_adapter("on")]
+    assert targets == [
+        "fortesting.tests",
+        "fortesting.environments",
+        "fortesting.flags",
+        "fortesting.runs",
+    ]
+
+
+@pytest.mark.parametrize("mode", ["dry", "on"])
+def test_every_statement_reads_the_reports_inside_the_zip_once(mode):
+    source = (
+        f"s3('https://gha-artifacts.s3.amazonaws.com/{TEST_RUN_REPORTS_ZIP}"
+        " :: test/test-run-reports/*/*.jsonl', 'LineAsString')"
+    )
+    assert all(sql.count(source) == 1 for sql in run_test_reports_adapter(mode))
+
+
+def test_only_runs_carries_the_deduplication_token():
+    token = f"insert_deduplication_token = '{TEST_RUN_REPORTS_ZIP}:ingest-v1'"
+    queries = run_test_reports_adapter("on")
+    assert [token in sql for sql in queries] == [False, False, False, True]
+
+
+def test_the_catalogs_only_take_unseen_ids():
+    tests, environments, flags, _ = run_test_reports_adapter("on")
+    assert "where test_id not in (select id from fortesting.tests final)" in tests
+    assert (
+        "where env_id not in (select id from fortesting.environments final)"
+        in environments
+    )
+    assert "where flags_id not in (select id from fortesting.flags final)" in flags
+
+
+def test_a_failed_statement_is_logged_and_nothing_after_it_runs():
+    queries = run_test_reports_adapter("on", fail_on="environments")
+    assert [insert_target(sql) for sql in queries] == [
+        "fortesting.tests",
+        "fortesting.environments",
+        "errors.gen_errors",
+    ]
+    assert '"table": "fortesting.environments"' in queries[-1]
+
+
+def test_dry_mode_counts_and_writes_nothing(capsys):
+    queries = run_test_reports_adapter("dry")
+    assert len(queries) == 4
+    assert all(sql.startswith("select count() from (") for sql in queries)
+    assert not any("insert into" in sql for sql in queries)
+    printed = capsys.readouterr().out.splitlines()
+    assert [line.split(":")[1].strip() for line in printed] == [
+        "tests",
+        "environments",
+        "flags",
+        "runs",
+    ]
+    assert all(" 7 rows in " in line for line in printed)
+
+
+def test_a_failed_dry_statement_is_logged_as_a_dry_run():
+    queries = run_test_reports_adapter("dry", fail_on="environments")
+    assert len(queries) == 3
+    assert '"table": "fortesting.environments (dry run)"' in queries[-1]
+
+
+@pytest.mark.parametrize("mode", ["dry", "on"])
+def test_the_ids_are_the_catalogs_own_defaults(mode):
+    # runs' ids are whatever the catalogs' id DEFAULTs say, so the lambda holds
+    # no id logic of its own.
+    for sql in run_test_reports_adapter(mode):
+        assert "tests_id(repo, file, language) AS test_id" in sql
+        assert "environments_id(os, device_count) AS env_id" in sql
+        assert "flags_id(flags) AS flags_id" in sql
+        assert "sipHash64" not in sql
+
+
+@pytest.mark.parametrize("mode", ["dry", "on"])
+def test_a_missing_id_default_is_logged_and_nothing_runs(mode):
+    queries = run_test_reports_adapter(mode, id_defaults=ID_DEFAULTS[:2])
+    assert [insert_target(sql) for sql in queries] == ["errors.gen_errors"]
+    suffix = " (dry run)" if mode == "dry" else ""
+    assert f'"table": "fortesting.runs ids{suffix}"' in queries[0]
+    assert "no id DEFAULT in fortesting: flags" in queries[0]
+
+
+def test_the_language_comes_from_each_run_line():
+    # Passed through as written, so a value outside tests.language's enum fails
+    # the insert; only a line without one becomes unknown.
+    for sql in run_test_reports_adapter("on"):
+        assert (
+            "if(JSONHas(line, 'language'), JSONExtractString(line, 'language')," in sql
+        )
+        assert "startsWith(file, 'cpp/')" not in sql
+        assert "IN ('python', 'cpp')" not in sql
+
+
+def test_runs_take_the_report_uuid_from_the_file_name():
+    # Until reports carry their uuid, the file name's 16 hex digits become the
+    # low half of one; the format() escaping must leave a {16} quantifier.
+    *_, runs = run_test_reports_adapter("on")
+    assert "extract(path, '-([0-9a-f]{16})[.]jsonl$') AS report_hex" in runs
+    assert "github_workflow_job_id, report_uuid, rerun_number" in runs
+
+
+def test_runs_leave_properties_to_its_default():
+    # Until what goes in runs.properties is decided, nothing writes it.
+    *_, runs = run_test_reports_adapter("on")
+    assert "started_at, ended_at) settings" in runs
+    assert not any("properties" in sql for sql in run_test_reports_adapter("on"))
+
+
+def test_only_set_flags_are_stored_and_hashed():
+    # flags drops off ('0') and unset ('') entries, so the stored map and
+    # flags_id both come from the filtered map.
+    for sql in run_test_reports_adapter("on"):
+        assert "mapFilter((k, v) -> v NOT IN ('0', '')," in sql
+        assert "flags_id(flags) AS flags_id" in sql
