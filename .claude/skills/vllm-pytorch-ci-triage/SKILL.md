@@ -72,6 +72,12 @@ surfaced pytest failure tagged `test_is_infra: true` is transient infrastructure
 evidence; call it out as infra. Do not let a high-scoring infra message such as a
 low-GPU-memory startup failure override the explicit infra tag.
 
+**Contested infra is not infra.** A header line `# infra_contested: /<pattern>/ matched
+on N regressed clusters ...` means the triage withheld the infra tag: a CUDA-init or
+startup free-memory signature hit N regressed clusters, every one of which passes on
+the baseline. Transient agent trouble does not do that, so treat the signature as a
+candidate torch regression; ROUTING.md has the routing.
+
 ## Step 2: NEW vs pre-existing
 
 Classification is decided **upstream** by the torch-nightly vs same-commit-baseline
