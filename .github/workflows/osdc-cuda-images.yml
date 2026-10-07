@@ -29,7 +29,9 @@ concurrency:
 jobs:
   build:
     name: ${{ matrix.tag }}
-    runs-on: mt-rel-l-x86iavx512-8-64
+    # The build itself happens on the in-cluster BuildKit service, so this
+    # runner only orchestrates it: a small general-purpose pod is enough.
+    runs-on: mt-l-x86iamx-8-16
     container:
       image: "ghcr.io/actions/actions-runner:latest"
     permissions:
