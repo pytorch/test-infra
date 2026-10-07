@@ -55,10 +55,7 @@ jobs:
       - name: Decide whether to publish
         id: publish
         shell: bash
-        # TEMPORARY: publish from this pull request once, to prove the GHCR
-        # push path works. Revert to the line below before merging.
-        #   push=${{ github.event_name != 'pull_request' }}
-        run: echo "push=true" >> "${GITHUB_OUTPUT}"
+        run: echo "push=${{ github.event_name != 'pull_request' }}" >> "${GITHUB_OUTPUT}"
 
       - name: Log in to GHCR
         if: steps.publish.outputs.push == 'true'
