@@ -1,0 +1,91 @@
+name: Build the OSDC CUDA images
+
+# Publishes nvidia/cuda images with the few things an OSDC job container needs
+# that the stock ones lack -- git above all. See docker/osdc-cuda/Dockerfile.
+#
+# The weekly run is what picks up Ubuntu security updates and any new base tag
+# content; nothing else refreshes these.
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Mondays, after the 06:00 docker-build cron so the two do not contend for
+    # the BuildKit pool.
+    - cron: "0 8 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "docker/osdc-cuda/**"
+      - ".github/workflows/osdc-cuda-images.yml"
+  pull_request:
+    paths:
+      - "docker/osdc-cuda/**"
+      - ".github/workflows/osdc-cuda-images.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' && github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.tag }}
+    runs-on: mt-rel-l-x86iavx512-8-64
+    container:
+      image: "ghcr.io/actions/actions-runner:latest"
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - base: nvidia/cuda:13.0.2-cudnn-devel-ubuntu24.04
+            tag: cuda13.0.2-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+            tag: cuda12.8.1-cudnn-devel-ubuntu22.04
+          - base: nvidia/cuda:12.8.0-devel-ubuntu22.04
+            tag: cuda12.8.0-devel-ubuntu22.04
+          - base: nvidia/cuda:12.4.0-devel-ubuntu22.04
+            tag: cuda12.4.0-devel-ubuntu22.04
+          - base: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+            tag: cuda11.8.0-cudnn8-devel-ubuntu22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      # A pull request builds to prove the Dockerfile still works against the
+      # base, and stops there. Only main, the schedule and a dispatch publish.
+      - name: Decide whether to publish
+        id: publish
+        shell: bash
+        run: echo "push=${{ github.event_name != 'pull_request' }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to GHCR
+        if: steps.publish.outputs.push == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository }}/osdc-cuda
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ matrix.tag }}
+            type=sha,prefix=${{ matrix.tag }}-,format=short
+
+      # OSDC runners have no host docker daemon, so this builds on the
+      # in-cluster remote BuildKit service rather than with `docker build`.
+      - name: Build and push
+        uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@main
+        with:
+          context: ./docker/osdc-cuda
+          file: ./docker/osdc-cuda/Dockerfile
+          build-args: BASE_IMAGE=${{ matrix.base }}
+          push: ${{ steps.publish.outputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
