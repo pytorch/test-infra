@@ -55,8 +55,8 @@ jobs:
     # 1. Must be pytorch or meta-pytorch org
     # 2. Must mention @claude (body path differs by event type, see comment below)
     # 3. Must be org member/collaborator or allowed bot
-    # 4. Must not be a denied machine account. These are GitHub User accounts with
-    #    org membership, so they would pass check 3. pytorchupdatebot is not denied:
+    # 4. Must not be a denied automation account. Claude should be started by people
+    #    and by automation intended to start it. pytorchupdatebot is not denied:
     #    executorch's pin-bump-ci-handler.yml uses it to ask Claude for CI fixes.
     #    Keep this list in sync with deniedUsers in "Verify write access".
     #
