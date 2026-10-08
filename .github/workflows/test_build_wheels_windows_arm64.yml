@@ -7,7 +7,6 @@ on:
       - .github/workflows/build_wheels_windows.yml
       - .github/workflows/generate_binary_build_matrix.yml
       - tools/scripts/generate_binary_build_matrix.py
-      - .github/scripts/winarm64/pre_build_script_audio.sh
   workflow_dispatch:
 
 permissions:
@@ -35,18 +34,19 @@ jobs:
             package-name: torchvision
             architecture: "arm64"
             build-platform: setup-py
-          - repository: pytorch/audio
-            # Relative to the audio checkout, which sits next to test-infra in the workspace
-            pre-script: ../../test-infra/.github/scripts/winarm64/pre_build_script_audio.sh
-            smoke-test-script: test/smoke_test/smoke_test_no_ffmpeg.py
-            package-name: torchaudio
+          - repository: pytorch/ao
+            # ao has no nightly branch
+            ref: main
+            pre-script: packaging/pre_build_script.sh
+            smoke-test-script: packaging/smoke_test.py
+            package-name: torchao
             architecture: "arm64"
-            build-platform: python-build-package
+            build-platform: setup-py
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: nightly
+      ref: ${{ matrix.ref || 'nightly' }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       pre-script: ${{ matrix.pre-script }}
