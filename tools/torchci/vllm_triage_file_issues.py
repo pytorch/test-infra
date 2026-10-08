@@ -242,6 +242,20 @@ _EXCEPTION_TYPE = re.compile(r"([A-Za-z_][\w.]*(?:Error|Exception|Warning|Failur
 # while a single shared cluster out of four stays distinct.
 NEAR_DUP_JACCARD = 0.5
 
+# The same job set hit with a different first exception is one cause seen at a
+# different point in its chain: #9066 led with the AttributeError that #9053's
+# "All nodes remain" assertion follows from, across the same ten clusters. Two
+# shared clusters can still be coincidence, so require three.
+STRONG_OVERLAP_JACCARD = 0.8
+STRONG_OVERLAP_MIN_SHARED = 3
+
+# Identifiers that pin a signature without an exception class to its cause:
+# quoted strings and dotted or underscored names. Version stamps such as
+# nixl_ep_cpp_torch215 are normalized so the next minor's spelling matches.
+_QUOTED = re.compile(r"[\"']([^\"'\s]{3,})[\"']")
+_IDENTIFIER = re.compile(r"\b[A-Za-z_][\w]*(?:[._][\w]+)+\b")
+_TORCH_STAMP = re.compile(r"torch\d{3}")
+
 
 def issue_signature(body: str) -> str:
     m = _SIGNATURE_SECTION.search(body or "")
@@ -264,6 +278,23 @@ def exception_type(signature: str) -> str:
     return m.group(1) if m else ""
 
 
+def exception_types(signature: str) -> set:
+    """The exception class each line of a signature reports."""
+    found = set()
+    for line in normalize_signature(signature).splitlines():
+        m = _EXCEPTION_TYPE.search(line)
+        if m:
+            found.add(m.group(1))
+    return found
+
+
+def identifiers(signature: str) -> set:
+    text = _TORCH_STAMP.sub("torchNNN", normalize_signature(signature))
+    return set(_QUOTED.findall(text)) | {
+        t for t in _IDENTIFIER.findall(text) if len(t) >= 5
+    }
+
+
 def jaccard(a: List[str], b: List[str]) -> float:
     sa, sb = {x.strip() for x in a}, {x.strip() for x in b}
     union = sa | sb
@@ -280,6 +311,12 @@ def merge_clusters(body: str, clusters: List[str]) -> tuple:
         return body, []
     listing = "\n".join(f"- `{c}`" for c in existing + added)
     return _CLUSTERS_SECTION.sub(lambda m: m.group(1) + listing, body, count=1), added
+
+
+def next_minor(minor: str) -> str:
+    """Return "2.16" for "2.15", or "" for anything that is not MAJOR.MINOR."""
+    m = re.fullmatch(r"(\d+)\.(\d+)", minor or "")
+    return f"{m.group(1)}.{int(m.group(2)) + 1}" if m else ""
 
 
 def open_children(token: str, repo: str, minor: str = "") -> List[Dict]:
@@ -307,25 +344,47 @@ def near_duplicate(cause: Dict[str, Any], children: List[Dict]) -> Optional[Dict
     failed", #8817 called it "Failed to determine NCCL GIN support" -- the same
     two B200 clusters, one bug, two issues.
 
-    Matching is on exception type plus cluster overlap, deliberately not on
-    message text: those two strings share only "RuntimeError" and "failed", so
-    any text-similarity threshold loose enough to pair them would pair most
-    unrelated RuntimeErrors too.
+    Clusters must overlap (Jaccard >= NEAR_DUP_JACCARD), and then one of:
+
+    - an exception class is shared: the cause's first line names a class on any
+      line of the child's signature, or the other way round, so a symptom
+      matches the issue that recorded its root cause (#9068, a GSM8K 0.0
+      assertion, against #9049's worker OOM followed by that assertion);
+    - the cluster sets are nearly identical and wide (STRONG_OVERLAP_*);
+    - neither signature names an exception class and they share an identifier,
+      e.g. both nanobind aborts quote PAD_ZERO (#9065 against #9050).
+
+    Not on free message text: #8808 and #8817 share only "RuntimeError" and
+    "failed", so any similarity threshold loose enough to pair them would pair
+    most unrelated RuntimeErrors too.
 
     Returns the best-overlapping match, or None.
     """
-    et = exception_type(cause.get("signature") or "")
+    sig = cause.get("signature") or ""
+    et = exception_type(sig)
     mine = [c.strip() for c in cause.get("clusters") or [] if c.strip()]
-    if not et or not mine:
+    if not mine:
         return None
     best, best_j = None, 0.0
     for child in children:
         body = child.get("body") or ""
-        if exception_type(issue_signature(body)) != et:
+        theirs = issue_clusters(body)
+        j = jaccard(mine, theirs)
+        if j < NEAR_DUP_JACCARD or j <= best_j:
             continue
-        j = jaccard(mine, issue_clusters(body))
-        if j >= NEAR_DUP_JACCARD and j > best_j:
-            best, best_j = child, j
+        child_sig = issue_signature(body)
+        child_et = exception_type(child_sig)
+        shared = len(set(mine) & {c.strip() for c in theirs})
+        if et and child_et:
+            same = et in exception_types(child_sig) or child_et in exception_types(sig)
+            strong = j >= STRONG_OVERLAP_JACCARD and shared >= STRONG_OVERLAP_MIN_SHARED
+            if not (same or strong):
+                continue
+        elif et or child_et:
+            continue
+        elif not identifiers(sig) & identifiers(child_sig):
+            continue
+        best, best_j = child, j
     return best
 
 
@@ -717,6 +776,45 @@ def skip_note(cause: Dict[str, Any]) -> str:
     )
 
 
+_DUPLICATE_OF = re.compile(
+    r"duplicate of\s+(?:#|https://github\.com/([\w.-]+/[\w.-]+)/issues/)(\d+)", re.I
+)
+
+
+def canonical_issue(token: str, repo: str, issue: Dict) -> Dict:
+    """The open issue a closed duplicate was folded into, else ``issue``.
+
+    A key lookup also returns closed issues. For one closed as fixed that is
+    the point (a recurrence after the fix is news), but for one closed as a
+    duplicate the comment lands where nobody reads it: #9054 and #9027 got
+    "Still reproducing" while #8899 and #9017, the issues they were folded
+    into, got nothing. Follows the last "duplicate of #N" (or issue URL) in
+    the body or comments, one hop, and only to an open issue in ``repo``.
+    """
+    if issue.get("state") != "closed":
+        return issue
+    comments = _req(
+        "GET", f"/repos/{repo}/issues/{issue['number']}/comments?per_page=100", token
+    )
+    texts = [issue.get("body") or ""] + [c.get("body") or "" for c in comments or []]
+    for text in reversed(texts):
+        refs = list(_DUPLICATE_OF.finditer(text))
+        if not refs:
+            continue
+        ref_repo, number = refs[-1].groups()
+        # A URL into another repo carries a number that means nothing here.
+        if ref_repo and ref_repo.lower() != repo.lower():
+            break
+        target = _req("GET", f"/repos/{repo}/issues/{number}", token)
+        if target.get("state") == "open":
+            print(
+                f"  #{issue['number']} is closed as a duplicate of #{target['number']}"
+            )
+            return target
+        break
+    return issue
+
+
 def find_existing(
     token: str,
     repo: str,
@@ -728,7 +826,7 @@ def find_existing(
     key = fingerprint(repo, cause)
     existing = filed_this_run.get(key) or search_issue_by_key(token, repo, key)
     if existing is not None:
-        return existing, "key"
+        return canonical_issue(token, repo, existing), "key"
     # Older keys, newest scheme first. A hit is rewritten to the current key so
     # the fallback stops being needed.
     for stale in (cluster_fingerprint(repo, cause), legacy_fingerprint(repo, cause)):
@@ -747,7 +845,7 @@ def find_existing(
                 },
             )
             print(f"  migrated key {stale} -> {key}")
-            return existing, "key"
+            return canonical_issue(token, repo, existing), "key"
     candidate = near_duplicate(cause, children)
     if candidate is None:
         return None, "key"
@@ -963,6 +1061,13 @@ def main() -> int:
         print(f"reusing umbrella #{umbrella['number']}")
 
     children = open_children(token, args.repo, minor)
+    # Matching also sees the next minor. During a release cycle the nightly lane
+    # files under the newer minor while version-override runs file under the
+    # older one, and the same cause shows up under both (#9066 against #9053,
+    # #9068 against #9049). Silences stay scoped to this run's minor.
+    candidates = list(children)
+    if next_minor(minor):
+        candidates += open_children(token, args.repo, next_minor(minor))
 
     # Keyed by fingerprint, for causes filed earlier in this same run. The
     # search API is not read-your-writes, so two causes that normalize to one
@@ -978,7 +1083,7 @@ def main() -> int:
     for c in to_file:
         key = fingerprint(args.repo, c)
         existing, matched_by = find_existing(
-            token, args.repo, c, children, filed_this_run
+            token, args.repo, c, candidates, filed_this_run
         )
         if existing:
             record_recurrence(token, args.repo, report, c, existing, matched_by)
@@ -1013,6 +1118,7 @@ def main() -> int:
         # Visible to the rest of this run, by key and to the near-duplicate scan.
         filed_this_run[key] = issue
         children.append(issue)
+        candidates.append(issue)
         matched.add(issue["number"])
         append_to_umbrella(
             token,
@@ -1035,7 +1141,7 @@ def main() -> int:
     # "still reproducing" nor a "did not reproduce" comment and looks abandoned.
     for c in skipped:
         existing, matched_by = find_existing(
-            token, args.repo, c, children, filed_this_run
+            token, args.repo, c, candidates, filed_this_run
         )
         if existing and existing["number"] not in matched:
             record_recurrence(
