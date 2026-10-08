@@ -1065,6 +1065,13 @@
       "rocm"
     ]
   ],
+  "test_opcheck_customopdef (__main__.TestGenerateOpcheckTests)": [
+    "200213",
+    "https://github.com/pytorch/pytorch/issues/200213",
+    [
+      "dynamo"
+    ]
+  ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
@@ -1539,6 +1546,15 @@
       "asan",
       "linux",
       "rocm",
+      "slow"
+    ]
+  ],
+  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
+    "182418",
+    "https://github.com/pytorch/pytorch/issues/182418",
+    [
+      "asan",
+      "linux",
       "slow"
     ]
   ],
