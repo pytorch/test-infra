@@ -5,6 +5,11 @@ import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
+  PR_STATUS_LABEL_IN_PROGRESS,
+  PR_STATUS_LABEL_READY_FOR_REVIEW,
+  PR_STATUS_LABEL_REVIEW_OPT_OUT,
+} from "../prStatus";
+import {
   getApprovalStatusFromReviews,
   PR_APPROVED,
   PR_CHANGES_REQUESTED,
@@ -591,6 +596,47 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     }
   }
 
+  // The review workflow treats `in progress` being labeled by pytorch-bot as a
+  // request to review again, so cycling the label re-runs it.
+  async handleReview() {
+    await this.logger.log("review");
+    const { ctx, owner, repo, prNum } = this;
+    const reject = async (message: string) => {
+      await this.rejectComment();
+      await this.addComment(message);
+    };
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return await reject("The automated review only runs on pytorch/pytorch.");
+    }
+
+    const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
+    const labels: string[] = (pr?.labels ?? []).map((label: any) => label.name);
+    if (
+      !labels.includes(PR_STATUS_LABEL_IN_PROGRESS) ||
+      labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW) ||
+      labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT)
+    ) {
+      return await reject(
+        `The automated review only re-runs on PRs labeled \`${PR_STATUS_LABEL_IN_PROGRESS}\` ` +
+          `and neither \`${PR_STATUS_LABEL_READY_FOR_REVIEW}\` nor \`${PR_STATUS_LABEL_REVIEW_OPT_OUT}\`.`
+      );
+    }
+
+    await ctx.octokit.issues.removeLabel({
+      owner,
+      repo,
+      issue_number: prNum,
+      name: PR_STATUS_LABEL_IN_PROGRESS,
+    });
+    await ctx.octokit.issues.addLabels({
+      owner,
+      repo,
+      issue_number: prNum,
+      labels: [PR_STATUS_LABEL_IN_PROGRESS],
+    });
+    await this.ackComment();
+  }
+
   async handleLint(login: string) {
     await this.logger.log("lint");
     if (!(await this.hasWritePermissions(login))) {
@@ -681,6 +727,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         case "pre-review": {
           return await this.handlePreReviewAccept();
+        }
+        case "review": {
+          return await this.handleReview();
         }
         case "lint":
         case "fix-lint":

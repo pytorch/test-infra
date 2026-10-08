@@ -69,6 +69,13 @@ import {
 } from "lib/jobUtils";
 import { buildPrReviewSections } from "lib/prReview/prReviewComment";
 import {
+  fetchPrReviewHeadVerdicts,
+  maybePromoteToReadyForReview,
+  PromotionOutcome,
+  PrReviewHeadVerdictRow,
+  withStaleReviewNote,
+} from "lib/prReview/readyForReviewPromotion";
+import {
   extractPrStatusSection,
   fetchPrStatusState,
   hasPrStatusLabel,
@@ -280,6 +287,16 @@ export async function updateDrciComments(
     console.error("pr review section build threw for", owner, repo, e);
     return new Map<number, string>();
   });
+  // Read only for pytorch/pytorch. Empty otherwise or on error, which
+  // promotes nothing.
+  const prReviewHeadVerdictsPromise = (
+    isPyTorchPyTorch(owner, repo)
+      ? fetchPrReviewHeadVerdicts(owner, repo, headShaByPr)
+      : Promise.resolve(new Map<number, PrReviewHeadVerdictRow>())
+  ).catch((e) => {
+    console.error("pr review head verdict read threw for", owner, repo, e);
+    return new Map<number, PrReviewHeadVerdictRow>();
+  });
   // Used to gate which CRCR L3 results are PR-visible (see classifyCrcrJobs)
   // by the same ciflow/crcr/<device> label the relay itself requires before
   // creating an upstream check run. Started early alongside the greenlight
@@ -318,6 +335,7 @@ export async function updateDrciComments(
 
   const greenlightSections = await greenlightSectionsPromise;
   const prReviewSections = await prReviewSectionsPromise;
+  const prReviewHeadVerdicts = await prReviewHeadVerdictsPromise;
   const crcrAllowlist = await crcrAllowlistPromise;
 
   // Return the list of all failed jobs grouped by their classification
@@ -531,6 +549,34 @@ export async function updateDrciComments(
         greenlightSections.get(pr_info.pr_number) ?? ""
       );
 
+      // Runs before the PR status section below so it renders the new stage.
+      const review = prReviewHeadVerdicts.get(pr_info.pr_number);
+      let promotion: PromotionOutcome = "not_eligible";
+      if (review !== undefined) {
+        try {
+          promotion = await maybePromoteToReadyForReview(
+            octokit,
+            owner,
+            repo,
+            pr_info.pr_number,
+            pr_info.head_sha,
+            review,
+            isCiGoodForReview({
+              pending,
+              failedJobs,
+              unknownJobs,
+              awaitingApprovalJobs,
+            })
+          );
+        } catch (e) {
+          console.error(
+            "ready for review promotion threw for PR",
+            pr_info.pr_number,
+            e
+          );
+        }
+      }
+
       // Use live labels so a lagging ClickHouse snapshot cannot overwrite a
       // newer webhook update. Mirrored labels and an existing section only gate
       // the GitHub read; live labels determine what renders. On an API failure,
@@ -583,7 +629,10 @@ export async function updateDrciComments(
         prStatusSection,
         pr_info.headRef,
         labels,
-        prReviewSections.get(pr_info.pr_number) ?? ""
+        withStaleReviewNote(
+          prReviewSections.get(pr_info.pr_number) ?? "",
+          promotion
+        )
       );
 
       const { id, body } =
@@ -1041,6 +1090,41 @@ function pluralize(word: string, count: number, pluralForm?: string): string {
   return `${word}s`;
 }
 
+// Whether the Dr.CI headline shows the success icon: nothing failed, was
+// cancelled, is unclassified, awaits approval or is pending. Unrelated failures
+// (flaky, broken trunk, ...) do not count.
+export function isDrciGreen({
+  pending,
+  failedJobs,
+  unknownJobs,
+  awaitingApprovalJobs,
+}: {
+  pending: number;
+  failedJobs: RecentWorkflowsData[];
+  unknownJobs: RecentWorkflowsData[];
+  awaitingApprovalJobs: RecentWorkflowsData[];
+}): boolean {
+  return (
+    pending === 0 &&
+    failedJobs.length === 0 &&
+    unknownJobs.length === 0 &&
+    awaitingApprovalJobs.length === 0
+  );
+}
+
+// The ready for review promotion's CI rule: the headline's, except that
+// workflows waiting for a maintainer to approve their run do not block.
+export function isCiGoodForReview(
+  args: Parameters<typeof isDrciGreen>[0]
+): boolean {
+  return isDrciGreen({
+    ...args,
+    awaitingApprovalJobs: args.awaitingApprovalJobs.filter(
+      (job) => job.conclusion !== "action_required"
+    ),
+  });
+}
+
 export function constructResultsComment(
   pending: number,
   failedJobs: RecentWorkflowsData[],
@@ -1121,14 +1205,18 @@ export function constructResultsComment(
   const hasAwaitingApproval = awaitingApprovalJobs.length > 0;
 
   let icon = "";
-  if (hasSignificantFailures || hasCancelledFailures || hasUnknownFailures) {
+  if (isDrciGreen({ pending, failedJobs, unknownJobs, awaitingApprovalJobs })) {
+    icon = successIcon;
+  } else if (
+    hasSignificantFailures ||
+    hasCancelledFailures ||
+    hasUnknownFailures
+  ) {
     icon = failuresIcon;
   } else if (hasAwaitingApproval) {
     icon = warningIcon;
-  } else if (hasPending) {
-    icon = pendingIcon;
   } else {
-    icon = successIcon;
+    icon = pendingIcon;
   }
 
   let title_messages = [];

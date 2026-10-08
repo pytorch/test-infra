@@ -135,11 +135,12 @@ export function getPrStatusMessage(state: PrStatusState): string {
         "## PR Status: in progress\n\n" +
         "The overall direction of the change is " +
         "good. The next step is to ensure the change passes the automated " +
-        "review.\n\n" +
+        "review and CI is green (see status below in this comment).\n\n" +
         "To minimize iteration time, feel free to run the pr-review " +
-        "skill from the repo locally. The PR will be marked ready for " +
-        "maintainer review when automated review passes. To bypass automated " +
-        "review, please add the “no automated review” label."
+        "skill from the repo locally. If you address comments without " +
+        "pushing, comment `@pytorchbot review` to re-run the automated " +
+        "review. To bypass automated review, please add the “no automated " +
+        "review” label."
       );
     case "preReview":
       return (

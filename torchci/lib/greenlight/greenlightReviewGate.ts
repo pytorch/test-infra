@@ -23,7 +23,7 @@ const BOT_LOGINS = new Set([
   "linux-foundation-easycla",
 ]);
 
-function isBot(login: string, type: string | undefined): boolean {
+export function isBot(login: string, type: string | undefined): boolean {
   const normalized = login.toLowerCase();
   return (
     type?.toLowerCase() === "bot" ||
