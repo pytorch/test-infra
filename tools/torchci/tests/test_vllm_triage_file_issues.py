@@ -732,6 +732,134 @@ class TestNearDuplicate(unittest.TestCase):
         cause = {"signature": "something went wrong", "clusters": list(self.B200)}
         self.assertIsNone(near_duplicate(cause, [child]))
 
+    QWEN = [":nvidia: (B200) LM Eval Qwen3.5 Models"]
+    FUSION = [
+        ":nvidia: (H100) Distributed Compile",
+        ":nvidia: (H100) Fusion E2E Quick",
+        ":nvidia: (H100) Fusion E2E Config Sweep",
+        ":nvidia: (H100) Fusion E2E TP2 Quick",
+    ]
+
+    def test_symptom_matches_an_issue_that_recorded_its_root_cause(self):
+        # #9068 against #9049: the GSM8K 0.0 assertion is the second line of
+        # #9049's signature, after the worker OOM that causes it.
+        child = self._issue(
+            9049,
+            "RuntimeError: Worker failed with error 'CUDA out of memory.'\n"
+            "AssertionError: GSM8K metric too low: 0.0000 < 0.8500",
+            self.QWEN,
+        )
+        cause = {
+            "signature": "AssertionError: GSM8K metric too low: 0.0000 < 0.8500",
+            "clusters": list(self.QWEN),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 9049)
+
+    def test_same_wide_job_set_matches_across_exception_types(self):
+        # #9066 against #9053: the AttributeError the fusion passes fail on,
+        # and the "All nodes remain" assertion that follows, on the same jobs.
+        child = self._issue(
+            9053, "AssertionError: All nodes remain for op _C::quant", self.FUSION
+        )
+        cause = {
+            "signature": "AttributeError: 'aten.reciprocal' has no overload name 'name'",
+            "clusters": list(self.FUSION),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 9053)
+
+    def test_partial_overlap_across_exception_types_stays_distinct(self):
+        child = self._issue(9053, "AssertionError: boom", self.FUSION)
+        cause = {"signature": "AttributeError: boom", "clusters": self.FUSION[:3]}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_untyped_signatures_match_on_a_shared_identifier(self):
+        # #9065 against #9050: both nanobind aborts quote PAD_ZERO, and
+        # neither names an exception class.
+        child = self._issue(
+            9050,
+            'Critical nanobind error: refusing to add duplicate key "PAD_ZERO" '
+            "to enumeration\nFatal Python error: Aborted",
+            self.B200,
+        )
+        cause = {
+            "signature": "Critical nanobind error: refusing to add duplicate key "
+            '"PAD_ZERO" to enumeration "triton._C.libtriton.ir.PADDING_OPTION"!',
+            "clusters": list(self.B200),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 9050)
+
+    def test_untyped_signatures_without_a_shared_identifier_stay_distinct(self):
+        child = self._issue(9050, 'Critical nanobind error: key "PAD_ZERO"', self.B200)
+        cause = {"signature": "Segmentation fault (core dumped)", "clusters": self.B200}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_torch_version_stamps_do_not_split_identifiers(self):
+        self.assertEqual(
+            vtfi.identifiers("No module named nixl_ep_cu13.nixl_ep_cpp_torch215"),
+            vtfi.identifiers("No module named nixl_ep_cu13.nixl_ep_cpp_torch216"),
+        )
+
+    def test_next_minor(self):
+        self.assertEqual(vtfi.next_minor("2.15"), "2.16")
+        self.assertEqual(vtfi.next_minor("2.9"), "2.10")
+        self.assertEqual(vtfi.next_minor(""), "")
+        self.assertEqual(vtfi.next_minor("2.15.0"), "")
+
+
+class TestCanonicalIssue(unittest.TestCase):
+    """Recurrences on closed duplicates go to the issue they were folded into."""
+
+    def _req(self, issues, comments):
+        def fake(method, path, token, body=None):
+            if path.endswith("/comments?per_page=100"):
+                return comments.get(int(path.split("/")[-2]), [])
+            return issues[int(path.rsplit("/", 1)[-1])]
+
+        return fake
+
+    def test_open_issue_is_returned_without_lookups(self):
+        issue = {"number": 8899, "state": "open"}
+        with mock.patch.object(vtfi, "_req") as req:
+            self.assertIs(vtfi.canonical_issue("t", "r", issue), issue)
+            req.assert_not_called()
+
+    def test_closed_duplicate_follows_a_hash_reference(self):
+        # #9054, closed with "duplicate of  #8899" (two spaces, as written).
+        issues = {8899: {"number": 8899, "state": "open"}}
+        comments = {9054: [{"body": "duplicate of  #8899: No module named ..."}]}
+        closed = {"number": 9054, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            self.assertEqual(vtfi.canonical_issue("t", "r", closed)["number"], 8899)
+
+    def test_closed_duplicate_follows_an_issue_url(self):
+        # #9027, closed with a link to a comment on #9017.
+        issues = {9017: {"number": 9017, "state": "open"}}
+        comments = {
+            9027: [
+                {
+                    "body": "Closing as duplicate of "
+                    "https://github.com/pytorch/test-infra/issues/9017#issuecomment-1"
+                }
+            ]
+        }
+        closed = {"number": 9027, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            self.assertEqual(vtfi.canonical_issue("t", "r", closed)["number"], 9017)
+
+    def test_closed_as_fixed_keeps_the_closed_issue(self):
+        # A recurrence after a fix is news; it belongs on the fixed issue.
+        closed = {"number": 8878, "state": "closed", "body": ""}
+        comments = {8878: [{"body": "Fixed by pytorch/pytorch#123."}]}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req({}, comments)):
+            self.assertIs(vtfi.canonical_issue("t", "r", closed), closed)
+
+    def test_duplicate_of_a_closed_issue_keeps_the_original(self):
+        issues = {8899: {"number": 8899, "state": "closed"}}
+        comments = {9054: [{"body": "Duplicate of #8899"}]}
+        closed = {"number": 9054, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            self.assertIs(vtfi.canonical_issue("t", "r", closed), closed)
+
 
 class TestMergeClusters(unittest.TestCase):
     BODY = (
