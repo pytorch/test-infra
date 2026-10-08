@@ -322,7 +322,7 @@ jobs:
           cd %SRC_DIR%
           call .venv\Scripts\activate.bat
 
-          pip install --upgrade setuptools==72.1.0 build==1.2.2 wheel
+          pip install --upgrade setuptools==78.1.0 build==1.2.2 wheel
           ${{ inputs.build-command }}
       - name: Build the wheel (setup-py) Arm64
         if: ${{ inputs.build-platform == 'setup-py' && inputs.architecture == 'arm64' }}
