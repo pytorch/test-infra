@@ -226,6 +226,14 @@
       "rocm"
     ]
   ],
+  "test_copy_strided_chunk_alignment_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200246",
+    "https://github.com/pytorch/pytorch/issues/200246",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_copy_transpose_tiled_batched_layout_big_batch_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "199996",
     "https://github.com/pytorch/pytorch/issues/199996",
@@ -1044,6 +1052,13 @@
       "rocm"
     ]
   ],
+  "test_numpy_ref_linalg_tensorinv_xpu_float64 (__main__.TestCommonXPU)": [
+    "200245",
+    "https://github.com/pytorch/pytorch/issues/200245",
+    [
+      "xpu"
+    ]
+  ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
     "189397",
     "https://github.com/pytorch/pytorch/issues/189397",
@@ -1242,6 +1257,13 @@
     "https://github.com/pytorch/pytorch/issues/198443",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_retained_handle_stale_after_wait_timeout_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
+    "200247",
+    "https://github.com/pytorch/pytorch/issues/200247",
+    [
       "rocm"
     ]
   ],
