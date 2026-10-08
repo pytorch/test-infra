@@ -55,6 +55,10 @@ jobs:
     # 1. Must be pytorch or meta-pytorch org
     # 2. Must mention @claude (body path differs by event type, see comment below)
     # 3. Must be org member/collaborator or allowed bot
+    # 4. Must not be a denied machine account. These are GitHub User accounts with
+    #    org membership, so they would pass check 3. pytorchupdatebot is not denied:
+    #    executorch's pin-bump-ci-handler.yml uses it to ask Claude for CI fixes.
+    #    Keep this list in sync with deniedUsers in "Verify write access".
     #
     # Note on event payload paths:
     #   issue_comment -> github.event.comment.body / .author_association
@@ -75,8 +79,11 @@ jobs:
         (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
       ) &&
       (
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
-          github.event.comment.author_association || github.event.issue.author_association) ||
+        (
+          contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+            github.event.comment.author_association || github.event.issue.author_association) &&
+          !contains(fromJSON('["pytorchbot","pytorchmergebot","facebook-github-bot"]'), github.actor)
+        ) ||
         github.actor == 'pytorch-auto-revert[bot]'
       )
     runs-on: ubuntu-latest
@@ -93,11 +100,17 @@ jobs:
         with:
           script: |
             const allowedBots = ['pytorch-auto-revert[bot]'];
+            const deniedUsers = ['pytorchbot', 'pytorchmergebot', 'facebook-github-bot'];
             const actor = context.actor;
 
             console.log(`Actor: ${actor}`);
             console.log(`Repository: ${context.repo.owner}/${context.repo.repo}`);
             console.log(`author_association: ${{ github.event.comment.author_association || github.event.issue.author_association }}`);
+
+            if (deniedUsers.includes(actor.toLowerCase())) {
+              core.setFailed(`${actor} is a machine account and cannot trigger Claude`);
+              return;
+            }
 
             if (allowedBots.includes(actor)) {
               console.log(`${actor} is an allowed bot, skipping permission check`);
