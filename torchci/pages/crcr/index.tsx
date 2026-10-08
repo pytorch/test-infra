@@ -49,6 +49,7 @@ import {
   L3_DEMOTION_WINDOW_DAYS,
   L3_PROMOTION_WINDOW_DAYS,
 } from "lib/crcr/l3Thresholds";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   CRCR_HEALTH_REPO,
   DEFAULT_CRCR_EVENTS,
@@ -888,6 +889,8 @@ export default function CrcrSummaryPage() {
       JSON.stringify({
         repo: "pytorch/crcr-test",
         days: String(L3_PROMOTION_WINDOW_DAYS),
+        limit: "101",
+        offset: "0",
       })
     );
   const { data: nightlyHealthJobs, error: nightlyHealthError } = useSWR<
@@ -1074,9 +1077,11 @@ export default function CrcrSummaryPage() {
                 setDays(Number(e.target.value))
               }
             >
-              <MenuItem value={1}>Last 24h</MenuItem>
-              <MenuItem value={7}>Last 7 days</MenuItem>
-              <MenuItem value={30}>Last 30 days</MenuItem>
+              {CRCR_TIME_RANGES.map(({ days: rangeDays, label }) => (
+                <MenuItem key={rangeDays} value={rangeDays}>
+                  {label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Box>

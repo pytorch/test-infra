@@ -26,10 +26,11 @@ import {
 } from "lib/crcr/healthProbe";
 import { L3_PROMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import {
-  buildNightlyMatrix,
   isRealCommitSha,
   NightlyRow,
+  paginateNightlyMatrix,
 } from "lib/crcr/nightlyMatrix";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import { Highlight } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
@@ -51,6 +52,9 @@ const CrcrPinnedContext = createContext<[Highlight, any]>([
   { sha: undefined, name: undefined },
   null,
 ]);
+
+const NIGHTLY_ROWS_PER_PAGE = 100;
+const NIGHTLY_QUERY_ROW_LIMIT = NIGHTLY_ROWS_PER_PAGE + 1;
 
 // ---- Types ----
 
@@ -104,6 +108,15 @@ interface SummaryStats {
   p95_exec_time_s: number | null;
   p95_e2e_time_s: number | null;
   timeout_rate: number;
+}
+
+interface NightlySummaryStats {
+  successes: number;
+  failures: number;
+  timed_out: number;
+  total: number;
+  nightly_runs: number;
+  pass_rate: number;
 }
 
 interface RepoTenure {
@@ -360,6 +373,8 @@ function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
       JSON.stringify({
         repo: repoFullName,
         days: String(L3_PROMOTION_WINDOW_DAYS),
+        limit: String(NIGHTLY_QUERY_ROW_LIMIT),
+        offset: "0",
       })
     );
   const { data } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
@@ -426,49 +441,18 @@ function NightlyHealthCard({ repoFullName }: { repoFullName: string }) {
 function NightlySummaryCards({
   rows,
   repoFullName,
+  stats,
 }: {
   rows: NightlyRow<CrcrJobRow>[];
   repoFullName: string;
+  stats: NightlySummaryStats | null;
 }) {
   const isCrcrTest = repoFullName === "pytorch/crcr-test";
 
-  const stats = useMemo(() => {
-    const jobs: CrcrJobRow[] = [];
-    for (const row of rows) {
-      for (const job of row.jobs.values()) {
-        jobs.push(job);
-      }
-    }
-    const completed = jobs.filter((j) => j.status === "completed");
-    const successes = completed.filter(
-      (j) => j.conclusion === "success"
-    ).length;
-    const failures = completed.filter(
-      (j) =>
-        j.conclusion === "failure" &&
-        !(isCrcrTest && isExpectedNightlyOutcome(j))
-    ).length;
-    const timedOut = completed.filter(
-      (j) =>
-        j.conclusion === "timed_out" &&
-        !(isCrcrTest && isExpectedNightlyOutcome(j))
-    ).length;
-    const total = completed.length;
-    const passRate = total > 0 ? successes / total : 0;
-    return {
-      successes,
-      failures,
-      timedOut,
-      total,
-      passRate,
-      uniqueShas: rows.length,
-    };
-  }, [rows, isCrcrTest]);
-
   const passColor =
-    stats.passRate >= 1.0
+    (stats?.pass_rate ?? 0) >= 1.0
       ? "#2e7d32"
-      : stats.passRate >= 0.9
+      : (stats?.pass_rate ?? 0) >= 0.9
       ? "#ed6c02"
       : "#d32f2f";
 
@@ -479,21 +463,21 @@ function NightlySummaryCards({
       ) : (
         <StatCard
           label="Pass Rate"
-          value={`${(stats.passRate * 100).toFixed(1)}%`}
-          sub={`${stats.successes}/${stats.total} jobs`}
-          color={passColor}
+          value={stats ? `${(stats.pass_rate * 100).toFixed(1)}%` : "–"}
+          sub={stats ? `${stats.successes}/${stats.total} jobs` : ""}
+          color={stats ? passColor : undefined}
         />
       )}
       <StatCard
         label="Nightly Runs"
-        value={stats.uniqueShas}
-        sub="unique SHAs tested"
+        value={stats?.nightly_runs ?? "–"}
+        sub="completed runs in range"
       />
       <StatCard
         label="Failures"
-        value={stats.failures}
-        sub={stats.timedOut > 0 ? `+ ${stats.timedOut} timed out` : ""}
-        color={stats.failures > 0 ? "#d32f2f" : undefined}
+        value={stats?.failures ?? "–"}
+        sub={stats?.timed_out ? `+ ${stats.timed_out} timed out` : ""}
+        color={stats && stats.failures > 0 ? "#d32f2f" : undefined}
       />
     </Box>
   );
@@ -1288,23 +1272,38 @@ function CrcrMatrix({
 function CrcrNightlyMatrix({
   repoFullName,
   days,
+  summaryStats,
 }: {
   repoFullName: string;
   days: number;
+  summaryStats: NightlySummaryStats | null;
 }) {
+  const [page, setPage] = useState(1);
+  const offset = (page - 1) * NIGHTLY_ROWS_PER_PAGE;
+
+  useEffect(() => {
+    setPage(1);
+  }, [repoFullName, days]);
+
   const url = `/api/clickhouse/crcr_nightly_dashboard?parameters=${encodeURIComponent(
-    JSON.stringify({ repo: repoFullName, days: String(days) })
+    JSON.stringify({
+      repo: repoFullName,
+      days: String(days),
+      limit: String(NIGHTLY_QUERY_ROW_LIMIT),
+      offset: String(offset),
+    })
   )}`;
   const { data, error } = useSWR<CrcrJobRow[]>(url, fetcherHandleError, {
     refreshInterval: 60_000,
   });
 
-  const { matrix, columns } = useMemo(() => {
-    if (!data) return { matrix: null, columns: [] };
-    const full = buildNightlyMatrix(data);
+  const { matrix, columns, hasNextPage } = useMemo(() => {
+    if (!data) return { matrix: null, columns: [], hasNextPage: false };
+    const matrix = paginateNightlyMatrix(data, NIGHTLY_ROWS_PER_PAGE);
     return {
-      matrix: full,
-      columns: detectGroups(full.jobNames),
+      matrix,
+      columns: detectGroups(matrix.jobNames),
+      hasNextPage: matrix.hasNextPage,
     };
   }, [data]);
 
@@ -1330,15 +1329,31 @@ function CrcrNightlyMatrix({
   }
   if (data.length === 0) {
     return (
-      <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
-        No nightly results for {repoFullName} in the last {days} days.
-      </Typography>
+      <>
+        <Typography color="text.secondary" sx={{ py: 4, textAlign: "center" }}>
+          No nightly results for {repoFullName} in the last {days} days.
+        </Typography>
+        {page > 1 && (
+          <CrcrPagination
+            page={page}
+            hasNextPage={false}
+            onPageChange={setPage}
+          />
+        )}
+      </>
     );
   }
 
+  const firstRow = offset + 1;
+  const lastRow = offset + matrix.rows.length;
+
   return (
     <>
-      <NightlySummaryCards rows={matrix.rows} repoFullName={repoFullName} />
+      <NightlySummaryCards
+        rows={matrix.rows}
+        repoFullName={repoFullName}
+        stats={summaryStats}
+      />
       <div style={{ overflowX: "auto", overflowY: "visible" }}>
         <table className={hudStyles.hudTable}>
           <colgroup>
@@ -1493,6 +1508,21 @@ function CrcrNightlyMatrix({
           </tbody>
         </table>
       </div>
+      {(page > 1 || hasNextPage) && (
+        <Typography color="text.secondary" sx={{ mt: 1 }} variant="body2">
+          Showing nightly matrix rows {firstRow}–{lastRow}. Summary cards cover
+          every completed run in the selected range.
+        </Typography>
+      )}
+      {(page > 1 || hasNextPage) && (
+        <Box sx={{ mt: 2 }}>
+          <CrcrPagination
+            page={page}
+            hasNextPage={hasNextPage}
+            onPageChange={setPage}
+          />
+        </Box>
+      )}
     </>
   );
 }
@@ -1522,6 +1552,19 @@ export default function CrcrBackendPage() {
     { refreshInterval: 60_000 }
   );
   const stats = summaryData?.[0] ?? null;
+
+  const nightlySummaryUrl =
+    repoFullName && isNightly
+      ? `/api/clickhouse/crcr_nightly_backend_summary?parameters=${encodeURIComponent(
+          JSON.stringify({ repo: repoFullName, days: String(days) })
+        )}`
+      : null;
+  const { data: nightlySummaryData } = useSWR<NightlySummaryStats[]>(
+    nightlySummaryUrl,
+    fetcherHandleError,
+    { refreshInterval: 60_000 }
+  );
+  const nightlySummary = nightlySummaryData?.[0] ?? null;
 
   // Not scoped by the days selector -- tenure at the current level is a
   // full-history question (RFC-0050: "operating at L2 for at least 1 month").
@@ -1655,10 +1698,11 @@ export default function CrcrBackendPage() {
                       updateQuery({ days: Number(e.target.value), page: 1 })
                     }
                   >
-                    <MenuItem value={1}>Last 24h</MenuItem>
-                    <MenuItem value={7}>Last 7 days</MenuItem>
-                    <MenuItem value={14}>Last 14 days</MenuItem>
-                    <MenuItem value={30}>Last 30 days</MenuItem>
+                    {CRCR_TIME_RANGES.map(({ days: rangeDays, label }) => (
+                      <MenuItem key={rangeDays} value={rangeDays}>
+                        {label}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Stack>
@@ -1690,7 +1734,11 @@ export default function CrcrBackendPage() {
             </Typography>
 
             {isNightly ? (
-              <CrcrNightlyMatrix repoFullName={repoFullName} days={days} />
+              <CrcrNightlyMatrix
+                repoFullName={repoFullName}
+                days={days}
+                summaryStats={nightlySummary}
+              />
             ) : (
               <CrcrMatrix
                 repoFullName={repoFullName}
