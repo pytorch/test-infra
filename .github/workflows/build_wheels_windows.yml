@@ -214,6 +214,18 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.pre-script }}
           is_windows: 'enabled'
+      - name: Install torch dependency Arm64
+        # Same as the x64 "Install torch dependency" step, whose command comes from
+        # setup-binary-builds (x64 only). PyPI has no win_arm64 torch, so a pre-script
+        # that installs torch without an index URL (e.g. ao's) relies on this.
+        if: inputs.architecture == 'arm64'
+        shell: cmd
+        run: |
+          set TORCH_PKG=torch
+          if not "%PYTORCH_VERSION%"=="" set TORCH_PKG=torch==%PYTORCH_VERSION%
+          set PRE=
+          if "%CHANNEL%"=="nightly" set PRE=--pre
+          python -m pip install %TORCH_PKG% %PRE% --index-url https://download.pytorch.org/whl/%CHANNEL%/%CU_VERSION%
       - name: Run Pre-Script Arm64
         if: ${{ inputs.pre-script != '' && inputs.architecture == 'arm64' }}
         env:
@@ -224,13 +236,23 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         shell: cmd
         run: |
-          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -find VC\Auxiliary\Build\vcvarsall.bat`) do set VS_PATH=%%i
           set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
 
           cd %SRC_DIR%
 
           call "%VS_PATH%" arm64
           "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
+      - name: Create venv Arm64
+        # The Arm64 steps below run in .venv. Create it if the pre-script didn't,
+        # with access to the torch installed above.
+        if: inputs.architecture == 'arm64'
+        working-directory: ${{ inputs.repository }}
+        shell: cmd
+        run: |
+          if exist .venv\Scripts\activate.bat exit /b 0
+          python -m venv --system-site-packages .venv
+          echo *> .venv\.gitignore
       - name: Install certificates for Arm64 runner
         if: ${{ inputs.architecture == 'arm64' }}
         working-directory: ${{ inputs.repository }}
@@ -316,7 +338,7 @@ jobs:
           set CONDA_PREFIX=%DEPENDENCIES_DIR%
           set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
           set DISTUTILS_USE_SDK=1
-          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -find VC\Auxiliary\Build\vcvarsall.bat`) do set VS_PATH=%%i
 
           call "%VS_PATH%" arm64
           cd %SRC_DIR%
@@ -334,7 +356,7 @@ jobs:
           set CONDA_PREFIX=%DEPENDENCIES_DIR%
           set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
           set DISTUTILS_USE_SDK=1
-          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -find VC\Auxiliary\Build\vcvarsall.bat`) do set VS_PATH=%%i
 
           call "%VS_PATH%" arm64
           cd %SRC_DIR%
