@@ -777,7 +777,7 @@ def skip_note(cause: Dict[str, Any]) -> str:
 
 
 _DUPLICATE_OF = re.compile(
-    r"duplicate of\s+(?:#|https://github\.com/[\w.-]+/[\w.-]+/issues/)(\d+)", re.I
+    r"duplicate of\s+(?:#|https://github\.com/([\w.-]+/[\w.-]+)/issues/)(\d+)", re.I
 )
 
 
@@ -789,7 +789,7 @@ def canonical_issue(token: str, repo: str, issue: Dict) -> Dict:
     duplicate the comment lands where nobody reads it: #9054 and #9027 got
     "Still reproducing" while #8899 and #9017, the issues they were folded
     into, got nothing. Follows the last "duplicate of #N" (or issue URL) in
-    the body or comments, one hop, and only to an open issue.
+    the body or comments, one hop, and only to an open issue in ``repo``.
     """
     if issue.get("state") != "closed":
         return issue
@@ -798,10 +798,14 @@ def canonical_issue(token: str, repo: str, issue: Dict) -> Dict:
     )
     texts = [issue.get("body") or ""] + [c.get("body") or "" for c in comments or []]
     for text in reversed(texts):
-        m = _DUPLICATE_OF.search(text)
-        if not m:
+        refs = list(_DUPLICATE_OF.finditer(text))
+        if not refs:
             continue
-        target = _req("GET", f"/repos/{repo}/issues/{m.group(1)}", token)
+        ref_repo, number = refs[-1].groups()
+        # A URL into another repo carries a number that means nothing here.
+        if ref_repo and ref_repo.lower() != repo.lower():
+            break
+        target = _req("GET", f"/repos/{repo}/issues/{number}", token)
         if target.get("state") == "open":
             print(
                 f"  #{issue['number']} is closed as a duplicate of #{target['number']}"

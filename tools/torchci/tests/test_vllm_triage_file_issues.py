@@ -844,7 +844,40 @@ class TestCanonicalIssue(unittest.TestCase):
         }
         closed = {"number": 9027, "state": "closed", "body": ""}
         with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
-            self.assertEqual(vtfi.canonical_issue("t", "r", closed)["number"], 9017)
+            result = vtfi.canonical_issue("t", "pytorch/test-infra", closed)
+        self.assertEqual(result["number"], 9017)
+
+    def test_closed_duplicate_ignores_an_issue_url_in_another_repo(self):
+        # #9017 in vllm-project/vllm is unrelated to pytorch/test-infra#9017.
+        issues = {9017: {"number": 9017, "state": "open"}}
+        comments = {
+            9027: [
+                {
+                    "body": "Closing as duplicate of "
+                    "https://github.com/vllm-project/vllm/issues/9017"
+                }
+            ]
+        }
+        closed = {"number": 9027, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            self.assertIs(
+                vtfi.canonical_issue("t", "pytorch/test-infra", closed), closed
+            )
+
+    def test_closed_duplicate_follows_an_issue_url_in_the_same_repo(self):
+        issues = {9017: {"number": 9017, "state": "open"}}
+        comments = {
+            9027: [
+                {
+                    "body": "Closing as duplicate of "
+                    "https://github.com/PyTorch/test-infra/issues/9017"
+                }
+            ]
+        }
+        closed = {"number": 9027, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            result = vtfi.canonical_issue("t", "pytorch/test-infra", closed)
+        self.assertEqual(result["number"], 9017)
 
     def test_closed_as_fixed_keeps_the_closed_issue(self):
         # A recurrence after a fix is news; it belongs on the fixed issue.
