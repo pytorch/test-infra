@@ -224,7 +224,7 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         shell: cmd
         run: |
-          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -find VC\Auxiliary\Build\vcvarsall.bat`) do set VS_PATH=%%i
           set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
 
           cd %SRC_DIR%
@@ -316,7 +316,7 @@ jobs:
           set CONDA_PREFIX=%DEPENDENCIES_DIR%
           set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
           set DISTUTILS_USE_SDK=1
-          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -find VC\Auxiliary\Build\vcvarsall.bat`) do set VS_PATH=%%i
 
           call "%VS_PATH%" arm64
           cd %SRC_DIR%
@@ -334,7 +334,7 @@ jobs:
           set CONDA_PREFIX=%DEPENDENCIES_DIR%
           set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
           set DISTUTILS_USE_SDK=1
-          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -find VC\Auxiliary\Build\vcvarsall.bat`) do set VS_PATH=%%i
 
           call "%VS_PATH%" arm64
           cd %SRC_DIR%
