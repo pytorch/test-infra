@@ -426,11 +426,6 @@
       "linux"
     ]
   ],
-  "test_eager_equivalence_nn_functional_gelu_backend_inductor_default_cuda_float32 (__main__.TestOpInfoPropertiesCUDA)": [
-    "188840",
-    "https://github.com/pytorch/pytorch/issues/188840",
-    []
-  ],
   "test_effn_attn_uniform_zero_bias (__main__.CudaReproTests)": [
     "196552",
     "https://github.com/pytorch/pytorch/issues/196552",
