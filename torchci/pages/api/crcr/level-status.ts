@@ -2,7 +2,7 @@ import { queryClickhouseSaved } from "lib/clickhouse";
 import { buildDemotionStatuses } from "lib/crcr/demotionStatus";
 import { formatMeasured, L3SummaryRow } from "lib/crcr/l3Readiness";
 import { L3_DEMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
-import { CRCR_HEALTH_REPO, fetchCrcrAllowlist } from "lib/crcrAllowlist";
+import { fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import { getOctokit } from "lib/github";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -50,9 +50,7 @@ export default async function handler(
     });
     const l3Repos = allowlist
       .getEntries()
-      .filter(
-        (entry) => entry.level === "L3" && entry.repo !== CRCR_HEALTH_REPO
-      )
+      .filter((entry) => entry.level === "L3")
       .map((entry) => entry.repo);
     const statuses = buildDemotionStatuses(
       l3Repos,

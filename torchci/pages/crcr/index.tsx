@@ -931,7 +931,6 @@ export default function CrcrSummaryPage() {
     const seen = new Set<string>();
     for (const level of LEVELS_ORDERED) {
       for (const entry of allowlist[level]) {
-        if (entry.repo === CRCR_HEALTH_REPO) continue;
         result[level].push(entry);
         seen.add(entry.repo);
       }
@@ -940,7 +939,7 @@ export default function CrcrSummaryPage() {
     // Add ClickHouse-only repos (not in allowlist) under their reported level
     if (ciData) {
       for (const row of ciData) {
-        if (seen.has(row.repo) || row.repo === CRCR_HEALTH_REPO) continue;
+        if (seen.has(row.repo)) continue;
         const level = (row.downstream_repo_level || "L2") as Level;
         if (level in result) {
           result[level].push({
