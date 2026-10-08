@@ -1534,9 +1534,7 @@
   "test_timeout_with_communicator_cleanup (__main__.ProcessGroupNCCL2WatchdogNoTearDownTest)": [
     "200326",
     "https://github.com/pytorch/pytorch/issues/200326",
-    [
-      "linux"
-    ]
+    []
   ],
   "test_tiny_half_norm_ (__main__.TestCuda)": [
     "94897",
