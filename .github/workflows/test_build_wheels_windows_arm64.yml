@@ -41,7 +41,7 @@ jobs:
             smoke-test-script: packaging/smoke_test.py
             package-name: torchao
             architecture: "arm64"
-            build-platform: setup-py
+            build-platform: python-build-package
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
