@@ -217,7 +217,7 @@ jobs:
       - name: Install torch dependency Arm64
         # Same as the x64 "Install torch dependency" step, whose command comes from
         # setup-binary-builds (x64 only). PyPI has no win_arm64 torch, so a pre-script
-        # that just runs `pip install torch` (e.g. ao's) relies on this.
+        # that installs torch without an index URL (e.g. ao's) relies on this.
         if: inputs.architecture == 'arm64'
         shell: cmd
         run: |
