@@ -289,7 +289,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"
@@ -303,7 +303,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15-cuda13_2",
       "validation_runner": "windows.g4dn.xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"
@@ -317,7 +317,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15-cuda13_4",
       "validation_runner": "windows.g4dn.xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"
@@ -331,7 +331,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"
@@ -345,7 +345,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15t-cpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"
@@ -359,7 +359,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15t-cuda13_2",
       "validation_runner": "windows.g4dn.xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"
@@ -373,7 +373,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15t-cuda13_4",
       "validation_runner": "windows.g4dn.xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"
@@ -387,7 +387,7 @@
       "package_type": "wheel",
       "build_name": "wheel-py3_15t-xpu",
       "validation_runner": "windows.4xlarge",
-      "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/xpu",
+      "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
       "stable_version": "2.14.1"

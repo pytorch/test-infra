@@ -31,16 +31,9 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
 }
 
-# Python versions for which only torch is validated (no torchvision). torchvision
-# wheels are not published for these versions yet, so the install command must
-# request torch alone.
-TORCH_ONLY_PYTHON_ARCHES = ["3.15", "3.15t"]
-
 # Python versions with no torch wheels on PyPI. The release channel normally
 # validates via a bare `pip3 install torch`, which resolves against PyPI; for
-# these it must use --index-url download.pytorch.org instead. Same members as
-# TORCH_ONLY_PYTHON_ARCHES today but a different fact -- that one is about
-# torchvision not being published, this one about torch.
+# these it must use --index-url download.pytorch.org instead.
 PYPI_UNPUBLISHED_PYTHON_ARCHES = ["3.15", "3.15t"]
 
 MACOS_PYTHON_POINT_VERSIONS = {
@@ -430,11 +423,6 @@ def get_wheel_install_command(
         if getting_started
         else PACKAGES_TO_INSTALL_WHL
     )
-
-    # Validate torch only (no torchvision) for versions without published
-    # torchvision wheels, e.g. 3.15 / 3.15t.
-    if python_version in TORCH_ONLY_PYTHON_ARCHES:
-        PACKAGES_TO_INSTALL = "torch"
 
     if (
         channel == RELEASE

@@ -68,9 +68,11 @@ build_installation_command() {
         installation=${installation/" torchvision"/""}
     fi
 
-    # include-torchaudio option: add torchaudio to installation
+    # include-torchaudio option: add torchaudio to installation. Match the
+    # leading space: release PyPI commands end in "torchvision" with no
+    # trailing space.
     if [[ ${INCLUDE_TORCHAUDIO:-} == 'true' ]]; then
-        installation=${installation/"torchvision "/"torchvision torchaudio "}
+        installation=${installation/" torchvision"/" torchvision torchaudio"}
     fi
 
     # if RELEASE version is passed as parameter - install specific version
@@ -340,12 +342,12 @@ write_build_report() {
 
 handle_aarch64_cuda_override
 
-# torchvision wheels are not published for Python 3.15 / 3.15t yet, so validate
-# torch only: skip the torchvision install and its smoke-test module check.
-# Guard with :- since libtorch builds run this before the libtorch exit below
-# and do not set MATRIX_PYTHON_VERSION (set -u would abort otherwise).
-if [[ ${MATRIX_PYTHON_VERSION:-} == "3.15" || ${MATRIX_PYTHON_VERSION:-} == "3.15t" ]]; then
-    export TORCH_ONLY=true
+# torchaudio 2.11.0, released with torch 2.14, has no cp315 / cp315t wheels.
+# Remove once 2.15 is the stable version. Guard with :- since libtorch builds
+# run this before the libtorch exit below and do not set these variables (set -u
+# would abort otherwise).
+if [[ ${MATRIX_CHANNEL:-} == "release" && ${MATRIX_PYTHON_VERSION:-} == 3.15* ]]; then
+    export INCLUDE_TORCHAUDIO=false
 fi
 
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then

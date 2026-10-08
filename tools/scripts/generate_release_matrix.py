@@ -100,6 +100,11 @@ RELEASE_DICT = {
         "torchtext": "0.18.1",
         "torchdata": "0.7.1",
     },
+    "2.15.0": {
+        "torch": "2.15.0",
+        "torchvision": "0.29.2",
+        "torchaudio": "2.11.1",
+    },
 }
 
 

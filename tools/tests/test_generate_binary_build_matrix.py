@@ -255,7 +255,7 @@ class GenerateBuildMatrixTest(TestCase):
             "3.10", self._test_channel_python_versions("linux", channel="release")
         )
 
-    def test_torch_only_install_command_for_torch_only_arches(self):
+    def test_torchvision_install_command_for_python_315(self):
         out = generate_build_matrix(
             "wheel",
             "linux",
@@ -272,9 +272,8 @@ class GenerateBuildMatrixTest(TestCase):
         )
         for entry in out["include"]:
             if entry["python_version"] in ("3.15", "3.15t"):
-                # torchvision is not published for these versions yet.
-                self.assertNotIn("torchvision", entry["installation"])
-                self.assertIn("torch", entry["installation"])
+                # torchvision publishes py3-none wheels that cover 3.15 / 3.15t.
+                self.assertIn("torch torchvision", entry["installation"])
 
     def _rocm_versions(self, channel: str, getting_started: str) -> set:
         out = generate_build_matrix(

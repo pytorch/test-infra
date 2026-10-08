@@ -23,8 +23,8 @@ on:
         required: false
         type: string
       include-torchaudio:
-        description: 'Include torchaudio in validation (by default only torch and torchvision are validated)'
-        default: false
+        description: 'Include torchaudio in validation'
+        default: true
         required: false
         type: boolean
       use-only-dl-pytorch-org:
@@ -75,8 +75,8 @@ on:
         required: false
         type: string
       include-torchaudio:
-        description: 'Include torchaudio in validation (by default only torch and torchvision are validated)'
-        default: false
+        description: 'Include torchaudio in validation'
+        default: true
         required: false
         type: boolean
       use-only-dl-pytorch-org:
