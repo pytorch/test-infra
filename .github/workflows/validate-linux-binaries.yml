@@ -241,5 +241,20 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu${CUDA_VERSION_NODOT}"
         fi
 
-        python3.11 -m pip install torch --progress-bar off --index-url ${DWN_PYTORCH_ORG}
-        python3.11 .ci/pytorch/smoke_test/smoke_test.py --package torchonly
+        PACKAGES="torch torchvision"
+        TEST_SUFFIX="--package torch_torchvision"
+        if [[ "${{ inputs.torchonly }}" == "true" ]]; then
+          PACKAGES="torch"
+          TEST_SUFFIX="--package torchonly"
+        elif [[ "${{ inputs.include-torchaudio }}" == "true" ]]; then
+          PACKAGES="torch torchvision torchaudio"
+          TEST_SUFFIX="--package all"
+        fi
+
+        python3.11 -m pip install ${PACKAGES} --progress-bar off --index-url ${DWN_PYTORCH_ORG}
+        # smoke_test.py runs the torchvision and torchaudio smoke tests with a
+        # bare "python3", which is the system interpreter here, not python3.11.
+        mkdir -p /tmp/python3.11-bin
+        ln -sf "$(command -v python3.11)" /tmp/python3.11-bin/python3
+        export PATH="/tmp/python3.11-bin:${PATH}"
+        python3.11 .ci/pytorch/smoke_test/smoke_test.py ${TEST_SUFFIX}
