@@ -739,13 +739,6 @@
       "linux"
     ]
   ],
-  "test_local_stream_nested_enter_exit_cuda (__main__.TestStreamsCUDA)": [
-    "194836",
-    "https://github.com/pytorch/pytorch/issues/194836",
-    [
-      "linux"
-    ]
-  ],
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
     "188706",
     "https://github.com/pytorch/pytorch/issues/188706",
