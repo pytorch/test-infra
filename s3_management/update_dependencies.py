@@ -1053,6 +1053,11 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "pycparser": [{"project": "vllm"}],
 }
 
+# Preview mirrors the same ROCm meta, runtime library, and device package set.
+for package_configs in PACKAGES_PER_PROJECT.values():
+    if any(config.get("project") == "torch_rocm" for config in package_configs):
+        package_configs.append({"project": "torch_rocm", "target": "rocm-preview"})
+
 
 # NVIDIA packages that are published to PyPI rather than pypi.nvidia.com. The
 # nvidia-/cuda- prefix heuristic would send these to a 404 and silently freeze
@@ -1125,6 +1130,8 @@ def get_package_source_url(pkg_name: str, prefix: str) -> str:
     if uses_nvidia_index(pkg_name):
         return f"https://pypi.nvidia.com/{pkg_name}/"
     if is_amd_package(pkg_name):
+        if "rocm-preview" in prefix:
+            return f"https://nightly.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
         # ROCm7.14 had older index url
         if "rocm7.14" in prefix:
             return f"https://repo.amd.com/rocm/whl-multi-arch/{pkg_name}/"
