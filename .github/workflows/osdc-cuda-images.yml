@@ -1,0 +1,86 @@
+name: Build the OSDC CUDA images
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 8 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "docker/osdc-cuda/**"
+      - ".github/workflows/osdc-cuda-images.yml"
+  pull_request:
+    paths:
+      - "docker/osdc-cuda/**"
+      - ".github/workflows/osdc-cuda-images.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' && github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.tag }}
+    runs-on: mt-l-x86iamx-8-16
+    container:
+      image: "ghcr.io/actions/actions-runner:latest"
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # Minors pytorch ships (RELEASE.md), newest patch with a cudnn flavour.
+        include:
+          - base: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+            tag: cuda11.8.0-cudnn8-devel-ubuntu22.04
+          - base: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+            tag: cuda12.4.1-cudnn-devel-ubuntu22.04
+          - base: nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
+            tag: cuda12.6.3-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+            tag: cuda12.8.1-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:12.9.2-cudnn-devel-ubuntu24.04
+            tag: cuda12.9.2-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.0.3-cudnn-devel-ubuntu24.04
+            tag: cuda13.0.3-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.2.1-cudnn-devel-ubuntu24.04
+            tag: cuda13.2.1-cudnn-devel-ubuntu24.04
+          - base: nvidia/cuda:13.4.2-cudnn-devel-ubuntu24.04
+            tag: cuda13.4.2-cudnn-devel-ubuntu24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Decide whether to publish
+        id: publish
+        shell: bash
+        run: echo "push=${{ github.event_name != 'pull_request' }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to GHCR
+        if: steps.publish.outputs.push == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository }}/osdc-cuda
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ matrix.tag }}
+            type=sha,prefix=${{ matrix.tag }}-,format=short
+
+      - name: Build and push
+        uses: pytorch/test-infra/.github/actions/docker-build-remote-buildkit@main
+        with:
+          context: ./docker/osdc-cuda
+          file: ./docker/osdc-cuda/Dockerfile
+          build-args: BASE_IMAGE=${{ matrix.base }}
+          push: ${{ steps.publish.outputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
