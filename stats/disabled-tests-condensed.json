@@ -234,11 +234,25 @@
       "rocm"
     ]
   ],
+  "test_copy_transpose_tiled_batched_layout_batch_first_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200381",
+    "https://github.com/pytorch/pytorch/issues/200381",
+    [
+      "inductor"
+    ]
+  ],
   "test_copy_transpose_tiled_batched_layout_big_batch_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "199996",
     "https://github.com/pytorch/pytorch/issues/199996",
     [
       "inductor",
+      "rocm"
+    ]
+  ],
+  "test_copy_transpose_tiled_batched_layout_broadcast_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200382",
+    "https://github.com/pytorch/pytorch/issues/200382",
+    [
       "rocm"
     ]
   ],
@@ -252,6 +266,14 @@
   "test_copy_transpose_tiled_batched_layout_odd_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "199910",
     "https://github.com/pytorch/pytorch/issues/199910",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_copy_transpose_tiled_batched_layout_padded_dst_batch_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200383",
+    "https://github.com/pytorch/pytorch/issues/200383",
     [
       "inductor",
       "rocm"
@@ -731,6 +753,13 @@
   "test_local_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
     "195130",
     "https://github.com/pytorch/pytorch/issues/195130",
+    [
+      "linux"
+    ]
+  ],
+  "test_local_stream_nested_enter_exit_cuda (__main__.TestStreamsCUDA)": [
+    "194836",
+    "https://github.com/pytorch/pytorch/issues/194836",
     [
       "linux"
     ]
