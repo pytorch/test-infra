@@ -199,12 +199,15 @@ describe("maybePromoteToReadyForReview", () => {
     });
   }
 
-  function mockActivity({
-    comments = [] as object[],
-    reviews = [] as object[],
-    reviewComments = [] as object[],
-  }) {
-    const since = encodeURIComponent(new Date(STARTED_MS).toISOString());
+  function mockActivity(
+    {
+      comments = [] as object[],
+      reviews = [] as object[],
+      reviewComments = [] as object[],
+    },
+    startedMs = STARTED_MS
+  ) {
+    const since = encodeURIComponent(new Date(startedMs).toISOString());
     return api()
       .get(
         `/repos/pytorch/pytorch/issues/1/comments?since=${since}&per_page=100`
@@ -314,6 +317,46 @@ describe("maybePromoteToReadyForReview", () => {
     ];
     expect(await promote()).toBe("maintainer_activity");
     handleScope(scope);
+  });
+
+  test("requires a fresh passing review after a maintainer requests changes", async () => {
+    const activity = {
+      reviews: [
+        {
+          user: { login: "maint" },
+          state: "CHANGES_REQUESTED",
+          body: "Please add tests.",
+          submitted_at: AFTER,
+        },
+      ],
+    };
+    const staleScope = [
+      mockPr(),
+      mockActivity(activity),
+      mockPermission("maint", "write"),
+    ];
+
+    // The old passing verdict cannot immediately undo the move to in progress.
+    // No label writes are mocked, so any attempted promotion fails this test.
+    expect(await promote()).toBe("maintainer_activity");
+    handleScope(staleScope);
+
+    const freshStartedMs = Date.parse("2026-10-01T14:00:00Z");
+    const freshScope = [
+      mockPr(),
+      mockActivity(activity, freshStartedMs),
+      ...mockPromote(),
+    ];
+
+    // The fresh review verifies the request was addressed. Its passing verdict
+    // can promote the PR without requiring the maintainer to dismiss the review.
+    expect(
+      await promote(true, {
+        ...REVIEW,
+        started_at_ms: String(freshStartedMs),
+      })
+    ).toBe("promoted");
+    handleScope(freshScope);
   });
 
   test("checks live labels and head, not the evaluated ones", async () => {

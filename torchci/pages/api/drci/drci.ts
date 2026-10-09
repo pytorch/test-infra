@@ -77,6 +77,7 @@ import {
 } from "lib/prReview/readyForReviewPromotion";
 import {
   extractPrStatusSection,
+  fetchLiveLabels,
   fetchPrStatusState,
   hasPrStatusLabel,
   PR_STATUS_START,
@@ -591,14 +592,12 @@ export async function updateDrciComments(
             hasPrStatusLabel(labels || []) ||
             existingComment.includes(PR_STATUS_START)
           ) {
-            const liveLabels = (
-              await octokit.paginate(octokit.rest.issues.listLabelsOnIssue, {
-                owner,
-                repo,
-                issue_number: pr_info.pr_number,
-                per_page: 100,
-              })
-            ).map((label) => label.name);
+            const liveLabels = await fetchLiveLabels(
+              octokit,
+              owner,
+              repo,
+              pr_info.pr_number
+            );
 
             if (hasPrStatusLabel(liveLabels)) {
               const state = await fetchPrStatusState(
