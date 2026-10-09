@@ -744,38 +744,6 @@
       "linux"
     ]
   ],
-  "test_linalg_batched_lu_stability_large_inputs_cuda_complex128 (__main__.TestLinalgCUDA)": [
-    "196672",
-    "https://github.com/pytorch/pytorch/issues/196672",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linalg_batched_lu_stability_large_inputs_cuda_complex64 (__main__.TestLinalgCUDA)": [
-    "197452",
-    "https://github.com/pytorch/pytorch/issues/197452",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linalg_batched_lu_stability_large_inputs_cuda_float32 (__main__.TestLinalgCUDA)": [
-    "197180",
-    "https://github.com/pytorch/pytorch/issues/197180",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_linalg_batched_lu_stability_large_inputs_cuda_float64 (__main__.TestLinalgCUDA)": [
-    "197394",
-    "https://github.com/pytorch/pytorch/issues/197394",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_load_then_compile_survives_baked_in_global_collision (__main__.TestAOTCompile)": [
     "198709",
     "https://github.com/pytorch/pytorch/issues/198709",
@@ -1122,13 +1090,6 @@
       "mac",
       "macos",
       "rocm"
-    ]
-  ],
-  "test_numpy_ref_linalg_tensorinv_xpu_float64 (__main__.TestCommonXPU)": [
-    "200245",
-    "https://github.com/pytorch/pytorch/issues/200245",
-    [
-      "xpu"
     ]
   ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
