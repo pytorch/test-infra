@@ -1391,14 +1391,6 @@
       "xpu"
     ]
   ],
-  "test_serialization_array_with_empty (__main__.TestCuda)": [
-    "134966",
-    "https://github.com/pytorch/pytorch/issues/134966",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_serialization_array_with_storage (__main__.TestCuda)": [
     "134991",
     "https://github.com/pytorch/pytorch/issues/134991",
