@@ -366,6 +366,18 @@ floating one.
    running, which cache directory listings for that long; new nodes see it at once. The
    [`hf-cache-sync`](../.github/workflows/hf-cache-sync.yml) workflow runs `--sync` every 10 minutes,
    so a repo refreshed in one of the regions it covers reaches the others without anyone seeding it.
+15. **The container's own hostname does not resolve.** `socket.gethostbyname(socket.gethostname())`
+   raises `socket.gaierror: [Errno -2] Name or service not known`, because nothing adds the job
+   container's hostname to its `/etc/hosts`. A plain `docker run` does add it, so code that picks its
+   own address this way — `torch.distributed` rendezvous, a `dist.TCPStore` master, anything binding
+   to "my host" — works on an EC2 runner and fails here. Add the entry before the step that needs it:
+   ```yaml
+   - name: Make the container hostname resolvable
+     run: echo "127.0.0.1 $(hostname)" >> /etc/hosts
+   ```
+   Loopback is right when every participant is in this container, which is the usual single-node
+   case. A job that really talks to another pod wants the pod IP instead, e.g.
+   `echo "$(ip route get 1 | awk '{print $7; exit}') $(hostname)" >> /etc/hosts`.
 
 ---
 
