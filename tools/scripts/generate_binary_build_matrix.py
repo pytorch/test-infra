@@ -18,6 +18,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
@@ -732,6 +733,42 @@ def generate_build_matrix(
     return {"include": includes}
 
 
+def add_nightly_date(
+    build_matrix: Dict[str, Any],
+    getting_started: str,
+    nightly_date: str,
+) -> None:
+    """Record on every nightly row which day this nightly set belongs to.
+
+    The caller decides the day, once, because the job that generates the matrix
+    is not re-run when only failed jobs are re-run. A build job reading its own
+    clock instead would stamp a row rebuilt after midnight with the next day.
+
+    Getting-started matrices describe the install page and are never built, so
+    a day on those rows would only churn the file they are written into.
+    """
+    stamp = nightly_date.strip()
+    if not stamp or getting_started == "true":
+        return
+    # Read from each row rather than from the requested channel, because
+    # "all" asks for nightly rows alongside test and release ones.
+    rows = [row for row in build_matrix["include"] if row["channel"] == NIGHTLY]
+    # Checked only once a row would carry it, so a release build is never
+    # failed by a value it would have thrown away.
+    if not rows:
+        return
+    try:
+        day = datetime.strptime(stamp, "%Y%m%d")
+    except ValueError:
+        day = None
+    # A year under four digits parses and then formats back shorter, which
+    # would name a wheel after a day nobody meant.
+    if day is None or day.strftime("%Y%m%d") != stamp:
+        raise ValueError(f"Nightly date must be a real date as YYYYMMDD: {stamp!r}")
+    for row in rows:
+        row["nightly_date"] = stamp
+
+
 def main(args: List[str]) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -838,6 +875,13 @@ def main(args: List[str]) -> None:
         default=os.getenv("PYTHON_ABI3", DISABLE),
     )
 
+    parser.add_argument(
+        "--nightly-date",
+        help="Day the nightly set belongs to, as YYYYMMDD. Unset leaves it off.",
+        type=str,
+        default=os.getenv("NIGHTLY_DATE", ""),
+    )
+
     options = parser.parse_args(args)
     try:
         python_versions = json.loads(options.python_versions)
@@ -863,6 +907,7 @@ def main(args: List[str]) -> None:
         python_versions,
         options.python_abi3,
     )
+    add_nightly_date(build_matrix, options.getting_started, options.nightly_date)
 
     print(json.dumps(build_matrix))
 

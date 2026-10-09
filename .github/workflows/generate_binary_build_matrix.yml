@@ -70,6 +70,11 @@ on:
         required: false
         type: boolean
         default: false
+      pin-nightly-date:
+        description: "Stamp every nightly row with today's date (UTC) so re-running failed rows keeps the original nightly date. Takes effect only where the build workflow leaves ref empty, because a re-run has to rebuild the same commit"
+        required: false
+        type: boolean
+        default: false
 
     outputs:
       matrix:
@@ -112,8 +117,15 @@ jobs:
           GETTING_STARTED: ${{ inputs.getting-started }}
           PYTHON_VERSIONS: ${{ inputs.python-versions }}
           PYTHON_ABI3: ${{ inputs.python-abi3 }}
+          PIN_NIGHTLY_DATE: ${{ inputs.pin-nightly-date }}
         run: |
           set -eou pipefail
+          # Pick the day here, once, so that re-running a single failed build row
+          # later still produces a wheel named for the day of this set.
+          if [[ "${PIN_NIGHTLY_DATE}" == "true" ]]; then
+            NIGHTLY_DATE="$(date -u +%Y%m%d)"
+            export NIGHTLY_DATE
+          fi
           MATRIX_BLOB="$(python3 tools/scripts/generate_binary_build_matrix.py)"
           echo "${MATRIX_BLOB}"
           echo "matrix=${MATRIX_BLOB}" >> "${GITHUB_OUTPUT}"
