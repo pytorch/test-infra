@@ -76,8 +76,9 @@ describe("/api/crcr/level-status", () => {
     const byRepo = Object.fromEntries(
       res._json.repos.map((r: any) => [r.repo, r])
     );
-    // Only real L3 backends: not the CRCR test repo, not L2.
+    // Every L3 backend, the CRCR test repo included: not L2.
     expect(Object.keys(byRepo).sort()).toEqual([
+      "pytorch/crcr-test",
       "vendor/failing",
       "vendor/healthy",
       "vendor/silent",
