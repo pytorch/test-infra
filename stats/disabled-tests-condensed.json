@@ -929,6 +929,27 @@
       "dynamo"
     ]
   ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsXPU)": [
+    "200421",
+    "https://github.com/pytorch/pytorch/issues/200421",
+    [
+      "xpu"
+    ]
+  ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes (__main__._cls)": [
+    "200422",
+    "https://github.com/pytorch/pytorch/issues/200422",
+    [
+      "xpu"
+    ]
+  ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_xpu (__main__.GPUTests)": [
+    "200423",
+    "https://github.com/pytorch/pytorch/issues/200423",
+    [
+      "xpu"
+    ]
+  ],
   "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
     "196899",
     "https://github.com/pytorch/pytorch/issues/196899",
