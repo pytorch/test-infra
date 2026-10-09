@@ -143,6 +143,13 @@
       "linux"
     ]
   ],
+  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
+    "181318",
+    "https://github.com/pytorch/pytorch/issues/181318",
+    [
+      "linux"
+    ]
+  ],
   "test_col2im_uint32_overflow (__main__.TestMPS)": [
     "187289",
     "https://github.com/pytorch/pytorch/issues/187289",
@@ -163,6 +170,14 @@
     "https://github.com/pytorch/pytorch/issues/198181",
     [
       "xpu"
+    ]
+  ],
+  "test_compile_backward_bmm_cuda_float32 (__main__.TestNestedTensorOpInfoCUDA)": [
+    "200403",
+    "https://github.com/pytorch/pytorch/issues/200403",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -279,18 +294,33 @@
       "rocm"
     ]
   ],
-  "test_copy_transpose_tiled_batched_layout_permute_4d_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "199997",
-    "https://github.com/pytorch/pytorch/issues/199997",
+  "test_copy_transpose_tiled_batched_layout_padded_dst_batch_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200400",
+    "https://github.com/pytorch/pytorch/issues/200400",
+    [
+      "rocm"
+    ]
+  ],
+  "test_copy_transpose_tiled_batched_layout_padded_dst_batch_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200401",
+    "https://github.com/pytorch/pytorch/issues/200401",
     [
       "inductor",
       "rocm"
     ]
   ],
-  "test_copy_transpose_tiled_small_case_at_cuda_bool (__main__.TestTorchDeviceTypeCUDA)": [
-    "198632",
-    "https://github.com/pytorch/pytorch/issues/198632",
+  "test_copy_transpose_tiled_batched_layout_padded_src_batch_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200402",
+    "https://github.com/pytorch/pytorch/issues/200402",
     [
+      "inductor"
+    ]
+  ],
+  "test_copy_transpose_tiled_batched_layout_permute_4d_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "199997",
+    "https://github.com/pytorch/pytorch/issues/199997",
+    [
+      "inductor",
       "rocm"
     ]
   ],
@@ -352,6 +382,16 @@
     "https://github.com/pytorch/pytorch/issues/191702",
     [
       "linux"
+    ]
+  ],
+  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
+    "127536",
+    "https://github.com/pytorch/pytorch/issues/127536",
+    [
+      "dynamo",
+      "inductor",
+      "linux",
+      "slow"
     ]
   ],
   "test_ddp_optimizer_cudagraph (__main__.TestMultiProc)": [
@@ -931,19 +971,19 @@
       "xpu"
     ]
   ],
-  "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
-    "195219",
-    "https://github.com/pytorch/pytorch/issues/195219",
-    [
-      "linux"
-    ]
-  ],
   "test_non_blocking_d2h_event_sync_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsCUDA)": [
     "198524",
     "https://github.com/pytorch/pytorch/issues/198524",
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_non_blocking_d2h_event_sync_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
+    "195756",
+    "https://github.com/pytorch/pytorch/issues/195756",
+    [
+      "linux"
     ]
   ],
   "test_non_contig_byte_cpu_float16 (__main__.TestUnaryUfuncsCPU)": [
@@ -1290,14 +1330,6 @@
     "https://github.com/pytorch/pytorch/issues/194896",
     [
       "xpu"
-    ]
-  ],
-  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_bfloat16 (__main__.DeterministicTest)": [
-    "198441",
-    "https://github.com/pytorch/pytorch/issues/198441",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
