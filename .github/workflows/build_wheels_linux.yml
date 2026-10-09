@@ -155,6 +155,9 @@ jobs:
       PACKAGE_TYPE: wheel
       REPOSITORY: ${{ inputs.repository }}
       REF: ${{ inputs.ref }}
+      # Only when a re-run would rebuild the same code: an empty ref means the
+      # commit that triggered the run, but only for this same repository.
+      NIGHTLY_DATE: ${{ inputs.ref == '' && (inputs.repository == '' || inputs.repository == github.repository) && matrix.nightly_date || '' }}
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
