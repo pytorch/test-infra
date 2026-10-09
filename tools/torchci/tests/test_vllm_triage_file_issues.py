@@ -529,6 +529,25 @@ class TestMaxIssues(unittest.TestCase):
         self.assertEqual(req.call_count, 1)
         self.assertIn("(2 not filed this run)", out)
 
+    def test_silence_check_learns_which_cause_each_cluster_failed_on(self):
+        causes = [
+            cause(title="tracked", signature="E0Error: x", clusters=["A", "B"]),
+            cause(title="new", signature="E1Error: x", clusters=["C"]),
+            cause(title="capped", signature="E2Error: x", clusters=["B", "D"]),
+        ]
+        existing = [({"number": 10}, "key"), (None, "key"), (None, "key")]
+        _, _, silences, _ = self._run(causes, existing)
+        self.assertEqual(
+            silences.call_args.args[6],
+            {
+                "A": "#10",
+                # First cause wins: B stays on the tracked issue.
+                "B": "#10",
+                "C": "#99",
+                "D": "untracked cause: capped",
+            },
+        )
+
 
 def _http_error(code, reason="Forbidden", **headers):
     msg = email.message.Message()
@@ -939,18 +958,26 @@ class TestReportSilences(unittest.TestCase):
             "body": body,
         }
 
-    def _run(self, report, children, matched=frozenset()):
+    def _run(
+        self, report, children, matched=frozenset(), attribution=None, comments=()
+    ):
         posted = []
 
         def fake_req(method, path, token, body=None):
             if method == "GET" and "/comments" in path:
-                return []
+                return list(comments)
             posted.append((method, path, body))
             return {}
 
         with mock.patch.object(vtfi, "_req", side_effect=fake_req):
             vtfi.report_silences(
-                "t", "pytorch/test-infra", report, children, set(matched), self.MINOR
+                "t",
+                "pytorch/test-infra",
+                report,
+                children,
+                set(matched),
+                self.MINOR,
+                attribution,
             )
         return posted
 
@@ -985,7 +1012,101 @@ class TestReportSilences(unittest.TestCase):
             },
             [child],
         )
-        self.assertEqual(posted, [])
+        # Reported, but as missing coverage, never as a fix.
+        self.assertEqual(len(posted), 1)
+        body = posted[0][2]["body"]
+        self.assertNotIn("Did not reproduce", body)
+        self.assertNotIn(vtfi.SILENT_PREFIX, body)
+        self.assertIn("Not reproduced on torch-nightly build", body)
+        self.assertIn("**Did not run** (1)", body)
+        self.assertIn("- `:amd: (MI355) LM Eval Spec Decode`", body)
+        self.assertIn("**Passed** (1)", body)
+
+    MASKED_REPORT = {
+        "torch_nightly_build": 93820,
+        "baseline_build": 93775,
+        "passed": [":computer: (CPU) Basic Models"],
+        "regressed": [
+            {"name": ":nvidia: (H200 MIG 35GB) Model Executor"},
+            {"name": ":nvidia: (L4) Kernels"},
+        ],
+        "both": [{"name": ":nvidia: (B200) Humming"}],
+    }
+
+    def test_a_cluster_failing_on_another_cause_is_named(self):
+        # The #9074 case: Model Executor failed on the free-memory check, so the
+        # test this issue tracks never ran.
+        child = self._child(
+            9074,
+            [
+                ":nvidia: (H200 MIG 35GB) Model Executor",
+                ":nvidia: (L4) Kernels",
+                ":nvidia: (B200) Humming",
+            ],
+        )
+        posted = self._run(
+            self.MASKED_REPORT,
+            [child],
+            attribution={":nvidia: (H200 MIG 35GB) Model Executor": "#8940"},
+        )
+        body = posted[0][2]["body"]
+        self.assertIn("**Failed on another cause** (1)", body)
+        self.assertIn("- `:nvidia: (H200 MIG 35GB) Model Executor` -> #8940", body)
+        self.assertIn("**Failed, cause not identified** (1)", body)
+        self.assertIn("- `:nvidia: (L4) Kernels`", body)
+        self.assertIn("**Failing on the baseline too** (1)", body)
+
+    def test_an_unchanged_status_is_not_repeated(self):
+        child = self._child(9074, [":nvidia: (H200 MIG 35GB) Model Executor"])
+        attribution = {":nvidia: (H200 MIG 35GB) Model Executor": "#8940"}
+        first = self._run(self.MASKED_REPORT, [child], attribution=attribution)
+        again = self._run(
+            self.MASKED_REPORT,
+            [child],
+            attribution=attribution,
+            comments=[{"body": first[0][2]["body"]}],
+        )
+        self.assertEqual(again, [])
+
+    def test_a_changed_status_is_announced(self):
+        child = self._child(9074, [":nvidia: (H200 MIG 35GB) Model Executor"])
+        first = self._run(
+            self.MASKED_REPORT,
+            [child],
+            attribution={":nvidia: (H200 MIG 35GB) Model Executor": "#8940"},
+        )
+        moved = self._run(
+            self.MASKED_REPORT,
+            [child],
+            attribution={":nvidia: (H200 MIG 35GB) Model Executor": "#9078"},
+            comments=[{"body": first[0][2]["body"]}],
+        )
+        self.assertEqual(len(moved), 1)
+
+    def test_a_recurrence_clears_the_last_status(self):
+        # Came back, then went quiet again: say so again even if the breakdown
+        # matches the one from before the recurrence.
+        child = self._child(9074, [":nvidia: (H200 MIG 35GB) Model Executor"])
+        attribution = {":nvidia: (H200 MIG 35GB) Model Executor": "#8940"}
+        first = self._run(self.MASKED_REPORT, [child], attribution=attribution)
+        again = self._run(
+            self.MASKED_REPORT,
+            [child],
+            attribution=attribution,
+            comments=[
+                {"body": first[0][2]["body"]},
+                {"body": "Still reproducing on torch-nightly build [#1](x)."},
+            ],
+        )
+        self.assertEqual(len(again), 1)
+
+    def test_long_cluster_lists_are_collapsed(self):
+        clusters = [f":nvidia: (L4) Shard {i}" for i in range(12)]
+        posted = self._run(
+            {"torch_nightly_build": 1, "baseline_build": 0, "passed": ["x"]},
+            [self._child(9055, clusters)],
+        )
+        self.assertIn("<details>", posted[0][2]["body"])
 
     def test_a_cause_that_reproduced_is_not_reported_quiet(self):
         child = self._child(8784, [":nvidia: (B200) Distributed"])
