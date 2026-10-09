@@ -483,13 +483,6 @@
     "https://github.com/pytorch/pytorch/issues/188676",
     []
   ],
-  "test_fn_grad_nn_functional_interpolate_linear_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
-    "197512",
-    "https://github.com/pytorch/pytorch/issues/197512",
-    [
-      "linux"
-    ]
-  ],
   "test_forward_ad_nn_functional_grid_sample_xpu_float32 (__main__.TestCompositeComplianceXPU)": [
     "199493",
     "https://github.com/pytorch/pytorch/issues/199493",
