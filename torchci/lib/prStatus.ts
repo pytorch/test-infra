@@ -31,8 +31,7 @@ export const PR_STATUS_LABEL_READY_FOR_REVIEW = "ready for review";
 export const PR_STATUS_LABEL_REVIEW_OPT_OUT = "no automated review";
 
 export const PR_STATUS_LABELS = [
-  // Uncomment the following line post-rollout + change ln 166 to true in test
-  // PR_STATUS_LABEL_TRIAGED,
+  PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
 ];
