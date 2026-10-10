@@ -27,6 +27,7 @@ CREATE TABLE default.crcr_workflow_job
     `environment` String DEFAULT '' COMMENT 'JSON: {"sdk": "<version>", "device": "<hardware>", ...}',
     `downstream_repo_level` String DEFAULT '' COMMENT 'Relay level at dispatch time: L2, L3, L4',
     `event_type` String DEFAULT 'pull_request' COMMENT 'Dispatch event type: pull_request, nightly, periodic',
+    `triage_verdict_json` String DEFAULT '' COMMENT 'JSON triage verdict self-reported by the downstream repo and validated by the relay; advisory only',
     `_inserted_at` DateTime MATERIALIZED now(),
     `repository_full_name` String ALIAS downstream_repo COMMENT 'Alias for consistency with workflow_job queries',
     `duration_seconds` Float64 ALIAS if(completed_at = toDateTime64(0, 9), 0, dateDiff(second, started_at, completed_at)),
