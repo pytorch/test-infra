@@ -641,6 +641,123 @@ def silence_comment(report: Dict[str, Any], clusters: List[str], streak: int) ->
     return "\n".join(out)
 
 
+STATUS_PREFIX = "vllm-triage-status"
+# Longer cluster lists go in a collapsed block so the comment stays readable.
+STATUS_INLINE_LIMIT = 10
+
+
+def _bucket_names(report: Dict[str, Any], bucket: str) -> set:
+    return {
+        (row if isinstance(row, str) else row.get("name") or "").strip()
+        for row in report.get(bucket) or []
+    }
+
+
+def classify_clusters(
+    report: Dict[str, Any], clusters: List[str], attribution: Dict[str, str]
+) -> Dict[str, List[str]]:
+    """Sort an unmatched issue's clusters by what happened to them this run.
+
+    ``attribution`` maps a failing cluster to the cause this run blamed it on,
+    rendered as ``#N`` for a tracked issue or the cause title otherwise.
+    """
+    passed = _bucket_names(report, "passed")
+    regressed = _bucket_names(report, "regressed")
+    both = _bucket_names(report, "both")
+    groups: Dict[str, List[str]] = {
+        "passed": [],
+        "masked": [],
+        "failed": [],
+        "both": [],
+        "missing": [],
+    }
+    for c in clusters:
+        if c in passed:
+            groups["passed"].append(f"`{c}`")
+        elif c in regressed and c in attribution:
+            groups["masked"].append(f"`{c}` -> {attribution[c]}")
+        elif c in regressed:
+            groups["failed"].append(f"`{c}`")
+        elif c in both:
+            groups["both"].append(f"`{c}`")
+        else:
+            groups["missing"].append(f"`{c}`")
+    return groups
+
+
+STATUS_HEADINGS = [
+    (
+        "masked",
+        "Failed on another cause",
+        "the job failed, but on the cause shown, so this cause's test may not have run",
+    ),
+    (
+        "failed",
+        "Failed, cause not identified",
+        "the job failed but this run did not attribute the failure to any cause",
+    ),
+    ("both", "Failing on the baseline too", "not a torch-nightly signal either way"),
+    (
+        "missing",
+        "Did not run",
+        "absent from the build: killed, skipped, or renamed",
+    ),
+    ("passed", "Passed", "ran and passed on the nightly build"),
+]
+
+
+def status_digest(groups: Dict[str, List[str]]) -> str:
+    """Identifies the breakdown, ignoring the build number, so an unchanged
+    status is not re-announced every run."""
+    text = json.dumps({k: sorted(v) for k, v in groups.items()}, sort_keys=True)
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
+def last_status_digest(token: str, repo: str, number: int) -> str:
+    """The breakdown last announced on an issue, or "" if none since the last
+    recurrence."""
+    try:
+        comments = _req(
+            "GET", f"/repos/{repo}/issues/{number}/comments?per_page=100", token
+        )
+    except urllib.error.URLError:
+        return ""
+    last = ""
+    for c in comments or []:
+        body = c.get("body") or ""
+        m = re.search(rf"<!-- {STATUS_PREFIX}: (\w+) -->", body)
+        if m:
+            last = m.group(1)
+        elif "Still reproducing on torch-nightly build" in body:
+            last = ""
+    return last
+
+
+def status_comment(
+    report: Dict[str, Any], groups: Dict[str, List[str]], digest: str
+) -> str:
+    """Told the cause was not seen, and why that is not a fix."""
+    build = report.get("torch_nightly_build")
+    base = report.get("baseline_build")
+    out = [
+        f"Not reproduced on torch-nightly build "
+        f"[#{build}](https://buildkite.com/vllm/ci/builds/{build})"
+        f" (baseline [#{base}](https://buildkite.com/vllm/ci/builds/{base})), "
+        "but not confirmed fixed: not every cluster on this issue ran and passed.",
+    ]
+    for key, heading, meaning in STATUS_HEADINGS:
+        rows = groups.get(key) or []
+        if not rows:
+            continue
+        out += ["", f"**{heading}** ({len(rows)}): {meaning}.", ""]
+        items = [f"- {r}" for r in rows]
+        if len(items) > STATUS_INLINE_LIMIT:
+            items = ["<details><summary>Show</summary>", "", *items, "", "</details>"]
+        out += items
+    out += ["", f"<!-- {STATUS_PREFIX}: {digest} -->"]
+    return "\n".join(out)
+
+
 def report_silences(
     token: str,
     repo: str,
@@ -648,6 +765,7 @@ def report_silences(
     children: List[Dict],
     matched: set,
     minor: str,
+    attribution: Optional[Dict[str, str]] = None,
 ) -> None:
     """Comment on tracked causes that did not come back this run.
 
@@ -655,6 +773,8 @@ def report_silences(
     run's ``passed`` set. A cluster that appears in no bucket at all did not
     run -- infrastructure killed it, or the pipeline dropped it -- and saying
     "did not reproduce" there would turn missing coverage into a false fix.
+    Otherwise the issue gets a per-cluster status comment instead, posted
+    only when the breakdown differs from the last one announced.
     """
     passed = {c.strip() for c in report.get("passed") or []}
     if not passed:
@@ -671,7 +791,21 @@ def report_silences(
             continue
         missing = [c for c in clusters if c not in passed]
         if missing:
-            print(f"  #{number}: no coverage for {len(missing)} cluster(s); silent")
+            groups = classify_clusters(report, clusters, attribution or {})
+            digest = status_digest(groups)
+            if digest == last_status_digest(token, repo, number):
+                print(f"  #{number}: not reproduced, status unchanged; silent")
+                continue
+            _req(
+                "POST",
+                f"/repos/{repo}/issues/{number}/comments",
+                token,
+                {"body": status_comment(report, groups, digest)},
+            )
+            summary = ", ".join(
+                f"{len(groups[k])} {k}" for k, _, _ in STATUS_HEADINGS if groups[k]
+            )
+            print(f"  not reproduced -> #{number} ({summary})")
             continue
         streak = silent_streak(token, repo, number) + 1
         if streak > SILENT_COMMENT_LIMIT:
@@ -856,6 +990,17 @@ def find_existing(
         f"overlapping clusters): commenting instead of filing"
     )
     return issue, "near-duplicate"
+
+
+def attribute(attribution: Dict[str, str], cause: Dict[str, Any], label: str) -> None:
+    """Record which cause this run blamed each of the cause's clusters on.
+
+    First writer wins, so a cluster filed under a tracked issue keeps the
+    issue number rather than a later cause's title.
+    """
+    for c in cause.get("clusters") or []:
+        if c.strip():
+            attribution.setdefault(c.strip(), label)
 
 
 def record_recurrence(
@@ -1074,6 +1219,9 @@ def main() -> int:
     # key in a single run would otherwise both be filed.
     filed_this_run: Dict[str, Dict] = {}
     matched: set = set()
+    # Failing cluster -> the cause it was blamed on this run, for the status
+    # comment on issues that did not recur.
+    attribution: Dict[str, str] = {}
     # The cap counts creations only. Applied before the lookup, recurrences used
     # it up, and a tracked cause cut by it got no comment and was then reported
     # silent.
@@ -1088,6 +1236,7 @@ def main() -> int:
         if existing:
             record_recurrence(token, args.repo, report, c, existing, matched_by)
             matched.add(existing["number"])
+            attribute(attribution, c, f"#{existing['number']}")
             continue
         if created >= args.max_issues:
             capped.append(c)
@@ -1120,6 +1269,7 @@ def main() -> int:
         children.append(issue)
         candidates.append(issue)
         matched.add(issue["number"])
+        attribute(attribution, c, f"#{issue['number']}")
         append_to_umbrella(
             token,
             args.repo,
@@ -1148,8 +1298,14 @@ def main() -> int:
                 token, args.repo, report, c, existing, matched_by, skip_note(c)
             )
             matched.add(existing["number"])
+        if existing:
+            attribute(attribution, c, f"#{existing['number']}")
 
-    report_silences(token, args.repo, report, children, matched, minor)
+    # Causes left untracked (skipped, capped) are named by title.
+    for c in causes:
+        attribute(attribution, c, f"untracked cause: {c.get('title') or '<untitled>'}")
+
+    report_silences(token, args.repo, report, children, matched, minor, attribution)
     return 0
 
 
