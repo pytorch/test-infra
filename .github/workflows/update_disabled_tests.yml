@@ -101,22 +101,28 @@ jobs:
             unstable-jobs.json
             for_historical_records.json
 
-  # NB: Use our self-hosted runner to upload the files to S3, the runners already
-  # have access to the bucket
   upload-disabled-tests-s3:
-    runs-on: linux.large
+    runs-on: ubuntu-24.04
     needs: update-disabled-tests
+    permissions:
+      id-token: write
     steps:
       - name: Download disabled artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: disabled-artifacts
 
+      # The role trusts test-infra's main only
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::308535385114:role/gha_workflow_test-infra-ossci-metrics-write
+          aws-region: us-east-1
+
       - name: Upload files to s3
         if: github.event_name != 'pull_request'
         run: |
-          python3 -mpip install awscli==1.27.69
-
           aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
           aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json
           aws s3 cp unstable-jobs.json s3://ossci-metrics/unstable-jobs.json
