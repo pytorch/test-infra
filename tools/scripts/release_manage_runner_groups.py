@@ -283,11 +283,13 @@ def get_protected_branches(client: GitHubClient, repo: str) -> List[str]:
 
 
 def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
-    """main plus every release/X.Y branch of ``repo``.
+    """main, every release/X.Y branch, and each line's newest GA and RC tags.
 
     Deliberately not filtered by branch protection, unlike get_target_refs: on
     pytorch/test-infra only main is protected, so that filter would drop
-    release/2.10 through release/2.14 and cover a single ref.
+    release/2.10 through release/2.14 and cover a single ref. Tag builds need
+    their own entries: authorizing the release branch does not authorize a
+    reusable workflow at refs/tags/vX.Y.Z-rcN.
     """
     refs = client.request(
         "GET", f"/repos/{repo}/git/matching-refs/heads/release/"
@@ -300,7 +302,13 @@ def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
         ),
         key=release_version,
     )
-    return [f"refs/heads/{name}" for name in ["main", *releases]]
+    branches = [f"refs/heads/{name}" for name in ["main", *releases]]
+    tags = [
+        tag
+        for line in release_lines(branches)
+        for tag in get_release_tags(client, line, repo)
+    ]
+    return branches + tags
 
 
 def build_self_allowed(
@@ -690,7 +698,8 @@ def parse_args() -> argparse.Namespace:
         metavar="PATH",
         help=(
             "Workflow path in --repo to allow-list at main and every release/X.Y "
-            "branch, on top of whatever discovery finds. For a reusable workflow "
+            "branch and each line's newest GA and RC tags, on top of whatever "
+            "discovery finds. For a reusable workflow "
             "whose callers live in other repositories, which discovery here "
             "cannot see. Repeatable."
         ),

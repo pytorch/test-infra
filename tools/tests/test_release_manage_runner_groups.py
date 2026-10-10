@@ -630,6 +630,8 @@ class TestSelfAllow(TestCase):
             def request(self, method: str, path: str, **kwargs: Any) -> Any:
                 class R:
                     def json(self_inner):
+                        if "/git/matching-refs/tags/" in path:
+                            return []
                         return [
                             {"ref": "refs/heads/release/2.9"},
                             {"ref": "refs/heads/release/2.10"},
@@ -647,6 +649,49 @@ class TestSelfAllow(TestCase):
                 "refs/heads/release/2.9",
                 "refs/heads/release/2.10",
             ],
+        )
+
+    def test_unprotected_release_line_authorizes_ga_and_rc_tags(self) -> None:
+        class C(m.GitHubClient):
+            def __init__(self) -> None:
+                pass
+
+            def request(self, method: str, path: str, **kwargs: Any) -> Any:
+                responses = {
+                    "/repos/pytorch/TensorRT/git/matching-refs/heads/release/": [
+                        {"ref": "refs/heads/release/2.15"},
+                    ],
+                    "/repos/pytorch/TensorRT/git/matching-refs/tags/v2.15.": [
+                        {"ref": "refs/tags/v2.15.0-rc1"},
+                        {"ref": "refs/tags/v2.15.0-rc2"},
+                        {"ref": "refs/tags/v2.15.0"},
+                        {"ref": "refs/tags/v2.15.0-dev"},
+                    ],
+                }
+
+                class R:
+                    def json(self_inner):
+                        return responses[path]
+
+                return R()
+
+        # No branch-protection request is needed. The RC remains authorized even
+        # when get_target_refs skips discovery because release/2.15 is unprotected.
+        refs = m.get_reusable_refs(C(), "pytorch/TensorRT")
+        self.assertEqual(
+            refs,
+            [
+                "refs/heads/main",
+                "refs/heads/release/2.15",
+                "refs/tags/v2.15.0",
+                "refs/tags/v2.15.0-rc2",
+            ],
+        )
+        self.assertIn(
+            "pytorch/TensorRT/.github/workflows/build_linux.yml@refs/tags/v2.15.0-rc2",
+            m.build_self_allowed(
+                "pytorch/TensorRT", [".github/workflows/build_linux.yml"], refs
+            ),
         )
 
 
