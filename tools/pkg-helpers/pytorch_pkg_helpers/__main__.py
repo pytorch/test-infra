@@ -81,6 +81,15 @@ def parse_args() -> argparse.Namespace:
         help="Architecture name of the machine (uname -m)",
         default=os.getenv("ARCH_NAME", ""),
     )
+    parser.add_argument(
+        "--nightly-date",
+        type=str,
+        help=(
+            "Day a nightly build belongs to, as YYYYMMDD. Normally set by the "
+            "job that generated the build matrix. Unset means today."
+        ),
+        default=os.getenv("NIGHTLY_DATE", ""),
+    )
     options = parser.parse_args()
     return options
 
@@ -116,6 +125,7 @@ def main():
             gpu_arch_version=options.gpu_arch_version,
             base_build_version=options.base_build_version,
             platform=options.platform,
+            nightly_date=options.nightly_date,
         )
     )
     for variable in sorted(variables):

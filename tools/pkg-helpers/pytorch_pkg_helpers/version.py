@@ -1,6 +1,6 @@
 import re
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -8,10 +8,34 @@ from typing import List
 LEADING_V_PATTERN = re.compile("^v")
 TRAILING_RC_PATTERN = re.compile("-rc[0-9]*$")
 LEGACY_BASE_VERSION_SUFFIX_PATTERN = re.compile("a0$")
+NIGHTLY_DATE_FORMAT = "%Y%m%d"
 
 
 class NoGitTagException(Exception):
     pass
+
+
+def get_nightly_date(nightly_date: str = "") -> str:
+    # The day normally comes from the job that generated the build matrix, so
+    # that a row rebuilt after midnight keeps the day of its own set. Without
+    # one, fall back to this machine's clock, which is the older behaviour.
+    nightly_date = nightly_date.strip()
+    if not nightly_date:
+        return datetime.today().strftime(NIGHTLY_DATE_FORMAT)
+    try:
+        day = datetime.strptime(nightly_date, NIGHTLY_DATE_FORMAT)
+    except ValueError:
+        day = None
+    if day is None or day.strftime(NIGHTLY_DATE_FORMAT) != nightly_date:
+        raise ValueError(
+            f"Nightly date must be a real date as YYYYMMDD: {nightly_date!r}"
+        )
+    # A future date is a valid version number that sorts above every real
+    # nightly, so pip would serve it as the newest one. Compared in UTC because
+    # that is the zone the matrix job stamps in.
+    if day.date() > datetime.now(timezone.utc).date():
+        raise ValueError(f"Nightly date is in the future: {nightly_date!r}")
+    return nightly_date
 
 
 def get_root_dir() -> Path:
@@ -68,9 +92,11 @@ class PytorchVersion:
         gpu_arch_version: str,
         no_build_suffix: bool,
         base_build_version: str,
+        nightly_date: str = "",
     ) -> None:
         self.gpu_arch_version = gpu_arch_version
         self.no_build_suffix = no_build_suffix
+        self.nightly_date = nightly_date
         if base_build_version == "":
             base_build_version = get_base_version()
         self.base_build_version = base_build_version
@@ -90,7 +116,7 @@ class PytorchVersion:
         return f"{get_tag()}{self.get_post_build_suffix()}"
 
     def get_nightly_version(self) -> str:
-        date_str = datetime.today().strftime("%Y%m%d")
+        date_str = get_nightly_date(self.nightly_date)
         build_suffix = self.get_post_build_suffix()
         return f"{self.base_build_version}.dev{date_str}{build_suffix}"
 
@@ -101,13 +127,18 @@ def get_version_variables(
     gpu_arch_version: str,
     base_build_version: str,
     platform: str,
+    nightly_date: str = "",
 ) -> List[str]:
     version = PytorchVersion(
         gpu_arch_version=gpu_arch_version,
         no_build_suffix=(platform == "darwin"),
         base_build_version=base_build_version,
+        nightly_date=nightly_date,
     )
-    output_version = version.get_nightly_version()
+    # A release version carries no date, so computing one here would only risk
+    # failing the build on a value it then throws away.
     if channel == "test":
         output_version = version.get_release_version()
+    else:
+        output_version = version.get_nightly_version()
     return [f"export BUILD_VERSION='{output_version}'"]
