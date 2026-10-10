@@ -23,6 +23,7 @@ jobs:
       os: linux-aarch64
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      runner-fleet: osdc
       with-cuda: enable
   test:
     needs: generate-matrix

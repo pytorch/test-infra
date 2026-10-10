@@ -22,6 +22,7 @@ jobs:
       os: linux
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      runner-fleet: osdc
       with-cuda: disable
       with-rocm: disable
       build-python-only: enable
