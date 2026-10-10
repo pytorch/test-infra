@@ -283,7 +283,13 @@ def get_protected_branches(client: GitHubClient, repo: str) -> List[str]:
 
 
 def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
-    """main plus every release/X.Y branch of ``repo``.
+    """main, nightly, and every release/X.Y branch of ``repo``.
+
+    nightly is in the list because generate_binary_build_matrix.py treats
+    refs/heads/nightly as a release ref, so a nightly build asks for a release
+    runner. Without a matching allow-list entry those jobs are routed to a
+    fleet they cannot use and sit queued until the next nightly cut cancels
+    them, with no error anywhere.
 
     Deliberately not filtered by branch protection, unlike get_target_refs: on
     pytorch/test-infra only main is protected, so that filter would drop
@@ -300,7 +306,7 @@ def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
         ),
         key=release_version,
     )
-    return [f"refs/heads/{name}" for name in ["main", *releases]]
+    return [f"refs/heads/{name}" for name in ["main", "nightly", *releases]]
 
 
 def build_self_allowed(
