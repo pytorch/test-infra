@@ -5,8 +5,9 @@ their latest recorded state from ClickHouse, fingerprints each PR whose author i
 and asks ``decision.decide`` whether to dispatch a review, skip it, or wait. An author is eligible
 when a merge rule names them and covers every file the PR changes; a path-scoped rule also needs a
 non-ghstack PR based on ``main`` (see ``authority`` and TRUSTED_AUTHORS.md). The scan never
-fingerprints or dispatches any other PR. A PR whose files read failed or was skipped stays
-undetermined and is never dispatched.
+fingerprints or dispatches any other PR; when a recent one's author is determined ineligible and its
+latest recorded row is a LAND, the scan dismisses greenlight's approval on it instead, writing no row.
+A PR whose files read failed or was skipped stays undetermined: never dismissed, never dispatched.
 The ``shadow`` stamp marks an ineligible ``--pr`` target reviewed under the local-only
 ``--allow-untrusted-author`` -- never approved, never rendered, no Dr. CI poke -- and the REVERTED
 row of an ineligible PR with no recorded row; on a recorded PR the REVERTED row is always
@@ -47,14 +48,18 @@ from greenlight import dispatch as dispatch_module
 from greenlight.authority import Authority, Target
 from greenlight.authz_gates import admit_target, requester_allowed
 from greenlight.constants import (
+    BOT_LOGIN_SUFFIX,
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
     EXCLUDED_LABELS,
+    STATUS_LAND,
     TARGET_REPO,
+    is_app_login,
 )
+from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from typing import Protocol
 
     from github import Github
@@ -80,6 +85,11 @@ logger = logging.getLogger(__name__)
 # that the prior 8-worker / 0.25s pool tripped.
 _FINGERPRINT_WORKERS = 4
 _FINGERPRINT_SECONDS_BETWEEN_REQUESTS = 0.5
+
+_NO_LONGER_ELIGIBLE_MESSAGE = (
+    "This pull request is no longer eligible for a greenlight review under merge_rules.yaml; "
+    "greenlight's approval no longer applies."
+)
 
 
 def _utcnow() -> datetime:
@@ -134,6 +144,58 @@ def _candidate_numbers(
         {open_pr.number: open_pr.labels for open_pr in open_prs},
         {open_pr.number: open_pr.author for open_pr in open_prs},
     )
+
+
+def _revoke_ineligible_approvals(
+    client: Github,
+    ineligible: Sequence[int],
+    *,
+    states: Mapping[int, PRState],
+    bot_login: str,
+    get_pr: Callable[[Github, str, int], VerdictPR],
+    dismiss: Callable[..., list[int]],
+    failed: list[int],
+    cancel_event: threading.Event,
+) -> None:
+    """Dismiss greenlight's approval on each PR in ``ineligible`` whose latest recorded row is a LAND.
+
+    Under merge_rules.yaml's wildcard Greenlight Review Bot rule, an approval greenlight gave while the
+    PR was eligible still authorizes a merge, and the scan dispatches no review that would revoke it.
+    Nothing is recorded, dispatched or poked. A failure is accounted as the revert guard accounts its
+    own: a rate limit trips ``cancel_event``, and the PR fails the pass.
+    """
+    due = [number for number in ineligible if (row := states.get(number)) is not None and row.status == STATUS_LAND]
+    if not due:
+        return
+    # As in revert_guard: an empty or non-App login matches no review, so it would dismiss nothing
+    # while reporting success.
+    if not is_app_login(bot_login):
+        raise ValueError(
+            f"BOT_LOGIN must be the greenlight App login (<app-slug>{BOT_LOGIN_SUFFIX}) to revoke approvals "
+            f"on PR(s) no longer eligible {due}; got {bot_login!r}"
+        )
+    for number in due:
+        try:
+            dismissed = dismiss(
+                get_pr(client, TARGET_REPO, number), bot_login=bot_login, message=_NO_LONGER_ELIGIBLE_MESSAGE
+            )
+        except IterationTimeout:
+            raise
+        except Exception as exc:
+            if github_client.is_rate_limit_error(exc):
+                cancel_event.set()
+            logger.error(
+                "failed to revoke greenlight approval on PR #%d, which is no longer eligible: %s",
+                number,
+                exc,
+                exc_info=True,
+            )
+            failed.append(number)
+            continue
+        if dismissed:
+            logger.info(
+                "dismissed %d greenlight approval(s) on PR #%d, which is no longer eligible", len(dismissed), number
+            )
 
 
 def run(
@@ -258,6 +320,17 @@ def run(
                 window=timedelta(hours=config.review_window_hours),
             )
             fingerprint_numbers = [number for number in recent if not authority.shadow(number)]
+            undetermined = authority.undetermined
+            _revoke_ineligible_approvals(
+                client,
+                [number for number in recent if authority.shadow(number) and number not in undetermined],
+                states=states,
+                bot_login=bot_login,
+                get_pr=get_pr,
+                dismiss=dismiss_approvals,
+                failed=failed,
+                cancel_event=cancel_event,
+            )
         else:
             fingerprint_numbers = pr_numbers
         undetermined = authority.undetermined

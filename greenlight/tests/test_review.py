@@ -29,6 +29,7 @@ from greenlight.constants import (
     STATUS_CANCELLED,
     STATUS_FAILED,
     STATUS_LAND,
+    STATUS_NO_LAND,
     STATUS_REVERTED,
     TARGET_REPO,
 )
@@ -2576,6 +2577,103 @@ def test_the_scan_lists_the_full_cohort_and_dispatches_only_its_eligible_prs(mak
     assert scan.dispatch_shadow == [(3, False)]
 
 
+def _ineligible_pr_scan(make_config: Callable[..., Config], **kwargs: Any) -> _Scan:
+    # carol's docs rule misses the torch file, so this PR is determined ineligible after one files read.
+    defaults: dict[str, Any] = {
+        "listed": [_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR)],
+        "fingerprints": {},
+        "files": {1: (_TORCH_FILE,)},
+        "bot_login": "greenlight-app[bot]",
+    }
+    return _run_scan(make_config, **{**defaults, **kwargs})
+
+
+def test_an_ineligible_pr_whose_latest_row_is_a_land_has_greenlights_approval_dismissed(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _ineligible_pr_scan(
+            make_config, states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)}, dismissed_ids={1: [901]}
+        )
+
+    # The approval greenlight gave while the PR was eligible would still authorize a merge, and no
+    # review is dispatched that could revoke it, so the scan dismisses it itself and does nothing else.
+    assert scan.dismissals == [(1, "greenlight-app[bot]", review._NO_LONGER_ELIGIBLE_MESSAGE)]
+    assert "dismissed 1 greenlight approval(s) on PR #1, which is no longer eligible" in caplog.text
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert scan.emitted == []
+    assert scan.reverted_emitted == []
+    assert scan.poked == []
+
+
+@pytest.mark.parametrize(
+    "states",
+    [
+        pytest.param({}, id="no-row"),
+        pytest.param({1: _state(1, STATUS_NO_LAND, _HASH_A, _NEW)}, id="latest-row-no-land"),
+        pytest.param({1: _state(1, STATUS_AI_REVIEW_STARTED, _HASH_A, _NEW)}, id="latest-row-in-flight"),
+    ],
+)
+def test_an_ineligible_pr_whose_latest_row_is_not_a_land_is_left_alone(make_config, states):
+    # No BOT_LOGIN either: with nothing to dismiss the scan never needs one.
+    scan = _ineligible_pr_scan(make_config, states=states, bot_login="")
+
+    assert scan.dismissals == []
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+
+
+@pytest.mark.parametrize(
+    "listed",
+    [
+        pytest.param([_open_pr(1, updated_at=_OLD, author=_SCOPED_AUTHOR)], id="outside-review-window"),
+        pytest.param([_open_pr(1, updated_at=_NEW, labels=("Stale",), author=_SCOPED_AUTHOR)], id="stale-labeled"),
+    ],
+)
+def test_an_ineligible_land_pr_outside_the_review_window_or_labelled_stale_is_never_dismissed(make_config, listed):
+    scan = _ineligible_pr_scan(make_config, listed=listed, states={1: _state(1, STATUS_LAND, _HASH_A, _OLD)})
+
+    # A LAND row is terminal, so the recency filter drops this PR, and the dismissal covers only the PRs
+    # it keeps.
+    assert scan.dismissals == []
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+
+
+def test_an_undetermined_pr_is_never_dismissed_when_its_files_read_fails(make_config):
+    scan = _ineligible_pr_scan(
+        make_config,
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        files_errors={1: RuntimeError("files boom")},
+        raises=RuntimeError,
+    )
+
+    # A failed read decides nothing about the author, so the approval stands and the pass fails.
+    assert scan.dismissals == []
+    assert scan.fingerprinted == []
+    assert str(scan.error) == "1 PR(s) failed during scan: [1]"
+
+
+def test_an_undetermined_pr_is_never_dismissed_when_a_rate_limit_skips_its_files_read(make_config):
+    from github import RateLimitExceededException
+
+    scan = _ineligible_pr_scan(
+        make_config,
+        listed=[
+            _open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(2, updated_at=_NEW, labels=("Reverted",)),
+        ],
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        dismiss_errors={2: RateLimitExceededException(403)},
+        raises=RuntimeError,
+    )
+
+    # PR 2's revert-guard dismissal trips the rate limit, so PR 1's files are never read: undetermined,
+    # and abandoned rather than dismissed.
+    assert scan.dismissals == [(2, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.files_fetched == []
+    assert str(scan.error) == "1 PR(s) failed during scan: [2]; 1 PR(s) abandoned due to rate limit: [1]"
+
+
 def test_an_eligible_pr_whose_latest_row_is_a_land_keeps_its_approval_and_is_left_to_decide(make_config):
     scan = _run_scan(
         make_config,
@@ -2590,3 +2688,74 @@ def test_an_eligible_pr_whose_latest_row_is_a_land_keeps_its_approval_and_is_lef
     assert scan.dismissals == []
     assert sorted(scan.fingerprinted) == [1, 2]
     assert scan.dispatched == [(2, "headsha2", _HASH_B, DEFAULT_DISPATCH_REF)]
+
+
+def test_a_failed_dismissal_is_logged_and_fails_the_pass_but_the_scan_goes_on(make_config, caplog):
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan = _ineligible_pr_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
+            fingerprints={2: ("headsha2", _HASH_A)},
+            states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+            dismiss_errors={1: RuntimeError("dismiss boom")},
+            raises=RuntimeError,
+        )
+
+    assert "failed to revoke greenlight approval on PR #1, which is no longer eligible" in caplog.text
+    assert any(record.exc_info is not None for record in caplog.records)
+    assert scan.dispatched == [(2, "headsha2", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert str(scan.error) == "1 PR(s) failed during scan: [1]"
+
+
+def test_a_rate_limited_dismissal_abandons_the_fanout_and_skips_the_dispatch_phase(make_config, caplog):
+    from github import RateLimitExceededException
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        scan = _ineligible_pr_scan(
+            make_config,
+            listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
+            fingerprints={2: ("headsha2", _HASH_A)},
+            states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+            dismiss_errors={1: RateLimitExceededException(403)},
+            raises=RuntimeError,
+        )
+
+    # Accounted exactly as a rate limit in the revert guard: the shared cancel event abandons PR 2's
+    # fingerprint, and nothing is dispatched on the throttled token.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "abandoned 1 of 1" in caplog.text
+    assert str(scan.error) == "1 PR(s) failed during scan: [1]; 1 PR(s) abandoned due to rate limit: [2]"
+
+
+@pytest.mark.parametrize("bot_login", ["", "pytorchgreenlight"])
+def test_a_due_dismissal_without_the_app_bot_login_refuses_the_scan(make_config, bot_login):
+    scan = _ineligible_pr_scan(
+        make_config, states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)}, bot_login=bot_login, raises=ValueError
+    )
+
+    assert "BOT_LOGIN must be the greenlight App login" in str(scan.error)
+    assert scan.dismissals == []
+    assert scan.fingerprinted == []
+
+
+def test_an_iteration_timeout_during_a_dismissal_halts_the_pass_instead_of_failing_the_pr(make_config):
+    scan = _ineligible_pr_scan(
+        make_config,
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        dismiss_errors={1: IterationTimeout("iteration exceeded")},
+        raises=IterationTimeout,
+    )
+
+    assert scan.dismissals == [(1, "greenlight-app[bot]", review._NO_LONGER_ELIGIBLE_MESSAGE)]
+    assert scan.fingerprinted == []
+
+
+def test_a_land_whose_approval_is_already_gone_is_asked_again_and_logs_nothing(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _ineligible_pr_scan(make_config, states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)})
+
+    # No row records the dismissal, so every scan that lists the PR asks again; finding no live
+    # approval is not worth a log line.
+    assert scan.dismissals == [(1, "greenlight-app[bot]", review._NO_LONGER_ELIGIBLE_MESSAGE)]
+    assert "dismissed" not in caplog.text
