@@ -49,9 +49,8 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Scan the open PRs from the evaluation cohort in pytorch/pytorch (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
-            "dispatch the review workflow for new or changed PRs. A PR is evaluated in shadow "
-            "(dispatched and recorded, but never approved) unless its author is eligible for it under "
-            "the merge rules: named by a rule that covers every changed file. Requires "
+            "dispatch the review workflow for new or changed PRs whose author is eligible under the "
+            "merge rules: named by a rule that covers every changed file. Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials."
         ),
     )

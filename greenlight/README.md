@@ -27,7 +27,7 @@ cohort in `pytorch/pytorch` (see "Who is evaluated, and whose verdict carries au
 below) and, for each one, computes its fingerprint
 (`eval_hash`), reads the PR's latest recorded state from ClickHouse
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
-(`greenlight-pr-review.yml` on `pytorch/test-infra`) for PRs that are new or changed since
+(`greenlight-pr-review.yml` on `pytorch/test-infra`) for eligible PRs that are new or changed since
 their last review. A reverted PR is dropped from every path, permanently: greenlight revokes its
 own approving review, records a `REVERTED` row, and never reviews the PR again. A PR counts as
 reverted once it carries the `Reverted` label (matched case-insensitively) or has ever recorded a
@@ -89,9 +89,18 @@ PRs.
 
 **Whose verdict carries authority** is decided per PR ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)): the
 author must be named by one merge rule covering every file the PR changes, on a non-ghstack PR
-based on `main` if the rule is path-scoped. Every other PR is
-evaluated in **shadow**: fingerprinted, dispatched, reviewed, and recorded exactly like any other,
-but its row is stamped `shadow`, and a shadow row
+based on `main` if the rule is path-scoped. The listing scan fingerprints and dispatches only such
+eligible PRs, and applies that cut to the *fingerprint candidates*, after the revert guard and the
+state read, not to the listing. Every other listed PR is therefore still state-read and still
+reaches `revert_guard` — so it still loses a greenlight approval it should no longer hold and still
+gets its permanent `REVERTED` row — but is never dispatched. Unless it is reverted, the scan leaves
+greenlight's approval on such a PR in place until a human or a later verdict dismisses it; the
+land-time merge gate honours that approval only while the PR's latest non-shadow row is a `LAND`
+for its current head.
+
+A review is recorded in **shadow** when the verdict's record-time merge-rule check fails, when
+`verdict` runs with `--shadow`, or when a local `--allow-untrusted-author` run reviews an ineligible
+PR. Its row is stamped `shadow`, and a shadow row
 
 - is never approved — and a `LAND` on a shadow PR additionally dismisses any prior greenlight
   approval, because an approval collected while the PR was eligible is still live authority under
@@ -101,24 +110,8 @@ but its row is stamped `shadow`, and a shadow row
   `/api/greenlight/pr_state` route the land-time merge gate reads;
 - triggers no Dr. CI poke.
 
-A `REVERTED` row, which can only deny, is the exception: on a PR with a recorded row it is always
-stamped non-shadow.
-
-**How much of that shadow experiment runs** is `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`, a fraction in
-`0`–`1` (default `1`). An authoritative PR is exempt and always evaluated — holding one out would
-not shrink the experiment, it would withhold the live service. Every other listed PR joins only
-when `candidate_filter.rollout_filter` finds a stable sha256 of `repo#number` under the dial: the
-same PR gets the same answer on every scan and in every process, the buckets nest so dialling up
-never drops a PR already in flight, and a second target repo draws its own partition. It buys a
-stable holdout group to compare against, and a bound on the blast radius of anything wrong in the
-shadow path.
-
-The dial is applied to the *fingerprint candidates*, after the revert guard and the state read, not
-to the listing. A held-out PR is therefore still listed, still has its state read, and still reaches
-`revert_guard` — so it still loses a greenlight approval it should no longer hold and still gets its
-permanent `REVERTED` row. What the dial cuts is the fingerprint fan-out and the dispatches. It
-decides nothing else, and is never an input to the eligibility check: a PR that is evaluated is
-stamped, approved, rendered and poked exactly as it would be at any other setting.
+A `REVERTED` row, which can only deny, is stamped non-shadow on a PR with a recorded row, and
+follows the PR's eligibility on one without.
 
 ### Rechecking a PR (`@greenlight recheck`)
 
@@ -407,7 +400,6 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
 | `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches a resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching. The verdict is outside this cache and re-reads the rules for each `LAND`/`NO_LAND` recorded without `--shadow` |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check |
-| `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` | `1` | How much of the shadow experiment `review`'s listing scan runs, as a fraction in `0`–`1`. An authoritative PR is always evaluated; every other listed PR joins only when a stable sha256 of `repo#number` falls under the dial, so the holdout is the same group from one scan to the next and raising the dial only ever adds PRs. `1` (the default) evaluates the whole evaluation cohort. `0` holds every shadow PR out of the fingerprint fan-out and dispatch; those PRs are still listed and still reach the revert guard. Anything outside `0`–`1`, and any non-finite value, is rejected. It thins the fingerprint fan-out and the dispatches, not the listing, which paginates every open PR at every setting. Affects the listing scan alone — `--pr`, `@greenlight recheck`, and both authz gates are never sampled out |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
@@ -586,13 +578,13 @@ on failure, and clean signal shutdown — all built and tested. `review` scans t
 from the evaluation cohort in `pytorch/pytorch`, computes each PR's fingerprint
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
-PRs that are new or changed. Reverted PRs — those carrying the `Reverted` label or with a
+eligible PRs that are new or changed. Reverted PRs — those carrying the `Reverted` label or with a
 `REVERTED` row already recorded — are excluded permanently on every path: greenlight revokes its
 own approving review, records the `REVERTED` row unless it is already the PR's latest row, and
 pokes Dr. CI when either changed. The
 exclusion survives removal of the label, and `@greenlight recheck` is not exempt (it is skipped
-silently). This is the one path where `review` writes to `pytorch/pytorch`, so it needs PR write
-and the App's `BOT_LOGIN`. Draft PRs are dropped from the listing scan entirely — never
+silently). This path writes to `pytorch/pytorch`, so `review` needs PR write and the App's
+`BOT_LOGIN`. Draft PRs are dropped from the listing scan entirely — never
 fingerprinted or dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still
 reviews a draft. PRs whose `updated_at` is older than the review window
 (`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24), or that carry the `Stale` label, are
@@ -690,7 +682,7 @@ src/greenlight/
   scan_runner.py   # the scan's fingerprint fan-out, dispatch loop, and recheck-refusal posting
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target
   cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (assess_rules)
-  authority.py     # the scan's lazy per-PR shadow lookup, REVERTED-row stamp and moved-head deferral
+  authority.py     # the scan's lazy per-PR eligibility lookup, REVERTED-row stamp and moved-head deferral
   candidate_filter.py # prune listed PRs the scan can leave alone this iteration (recency window, excluded labels)
   review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
   revert_guard.py  # permanently exclude reverted PRs: revoke greenlight's approval, record the REVERTED row
