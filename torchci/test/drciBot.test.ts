@@ -332,8 +332,6 @@ describe("verify-drci-functionality", () => {
     const scope = nock("https://api.github.com")
       .get(`/repos/${OWNER}/${REPO}/issues/31/comments`)
       .reply(200, [])
-      .get("/repos/pytorch/test-infra/issues/8945")
-      .reply(200, { body: "```\n@alice\n```" })
       .get(
         (uri) =>
           uri.startsWith(`/repos/${OWNER}/${REPO}/contents/`) &&

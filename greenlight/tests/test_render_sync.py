@@ -16,24 +16,29 @@ from urllib.parse import urlparse
 
 import pytest
 
-from greenlight import comment_format, constants, verdict_outline
+from greenlight import cohort, comment_format, constants, pr_hash, verdict_outline
 from tests import ts_source
 
 _TS_RENDER = "torchci/lib/greenlight/greenlightRender.ts"
 _TS_SWEEP = "torchci/lib/greenlight/greenlightSweep.ts"
 _TS_CONFIG = "torchci/lib/greenlight/greenlightConfig.ts"
 _TS_REPORT_LINK = "torchci/lib/greenlight/greenlightReportLink.ts"
+_TS_REVIEW_GATE = "torchci/lib/greenlight/greenlightReviewGate.ts"
 _PY_RENDER = "greenlight/src/greenlight/comment_format.py"
+_PY_COHORT = "greenlight/src/greenlight/cohort.py"
 _PY_CONSTANTS = "greenlight/src/greenlight/constants.py"
 _PY_OUTLINE = "greenlight/src/greenlight/verdict_outline.py"
+_PY_PR_HASH = "greenlight/src/greenlight/pr_hash.py"
 
 assert (ts_source.ROOT / _TS_RENDER).is_file()
 assert (ts_source.ROOT / _TS_SWEEP).is_file()
 assert (ts_source.ROOT / _TS_CONFIG).is_file()
 assert (ts_source.ROOT / _TS_REPORT_LINK).is_file()
+assert (ts_source.ROOT / _TS_REVIEW_GATE).is_file()
 
 _TS_STATUS_RE = re.compile(r'^export const GREENLIGHT_STATUS_(\w+) =\s*"([^"]*)";$', re.MULTILINE)
 _TS_REPOS_RE = re.compile(r"^export const GREENLIGHT_REPOS: string\[\] =\s*\[([^\]]*)\]", re.MULTILINE)
+_TS_BOT_LOGINS_RE = re.compile(r"^const BOT_LOGINS = new Set\(\[([^\]]*)\]\)", re.MULTILINE)
 _TS_QUOTED_RE = re.compile(r'"([^"]*)"')
 _TS_JOB_LINK_RE = re.compile(r"\[([^\]]+)\]\(\$\{\w+\}\)")
 _TS_REASON_PREFIX_RE = re.compile(r"`([^`$]*)\$\{inlineCode\(")
@@ -78,6 +83,14 @@ def _ts_repos() -> frozenset[str]:
     repos = frozenset(constants.normalize_repo(repo) for repo in _TS_QUOTED_RE.findall(m.group(1)))
     assert repos, f"`GREENLIGHT_REPOS` in {_TS_CONFIG} holds no entries: {ts_source.RESTRUCTURED}"
     return repos
+
+
+def _ts_bot_logins() -> frozenset[str]:
+    m = _TS_BOT_LOGINS_RE.search(_code(_TS_REVIEW_GATE, "//"))
+    assert m is not None, f"no `const BOT_LOGINS = new Set([...])` in {_TS_REVIEW_GATE}: {ts_source.RESTRUCTURED}"
+    logins = frozenset(_TS_QUOTED_RE.findall(m.group(1)))
+    assert logins, f"`BOT_LOGINS` in {_TS_REVIEW_GATE} holds no entries: {ts_source.RESTRUCTURED}"
+    return logins
 
 
 def _ts_link_labels() -> set[str]:
@@ -268,6 +281,23 @@ def test_repo_allowlist_matches_python() -> None:
         _TS_CONFIG,
         _PY_CONSTANTS,
         f"symmetric difference: {sorted(extracted ^ constants.DRCI_STATUS_COMMENT_REPOS)}",
+    )
+
+
+def test_greenlight_login_matches_python() -> None:
+    extracted = ts_source.ts_string(_TS_CONFIG, "GREENLIGHT_APP_SLUG")
+    assert extracted == cohort.GREENLIGHT_APP_SLUG, ts_source.drift(
+        _TS_CONFIG,
+        _PY_COHORT,
+        f"GREENLIGHT_APP_SLUG is {extracted!r}, Python has {cohort.GREENLIGHT_APP_SLUG!r}. Both sides drop this "
+        f"login from the evaluation cohort; on a drift Dr. CI shows a GreenLight line on PRs the scan never lists.",
+    )
+
+
+def test_ts_bot_logins_match_python() -> None:
+    extracted = _ts_bot_logins()
+    assert extracted == pr_hash.BOT_LOGINS, ts_source.drift(
+        _TS_REVIEW_GATE, _PY_PR_HASH, f"symmetric difference: {sorted(extracted ^ pr_hash.BOT_LOGINS)}"
     )
 
 
