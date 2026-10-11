@@ -33,6 +33,6 @@ export async function decrypt(
     });
   });
 
-  /* istanbul ignore next */
-  return decripted.Plaintext?.toString() ?? undefined;
+  // Plaintext is a Uint8Array, whose toString() yields comma-separated byte values, not the secret.
+  return decripted.Plaintext === undefined ? undefined : Buffer.from(decripted.Plaintext).toString('utf8');
 }
