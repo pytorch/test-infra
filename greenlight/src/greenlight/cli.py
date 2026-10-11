@@ -10,7 +10,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import drci_poke, github_client, merge_authz, review, trusted_authors, verdict
+from greenlight import drci_poke, github_client, merge_authz, review, verdict
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
@@ -50,10 +50,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Scan the open PRs from the evaluation cohort in pytorch/pytorch (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
             "dispatch the review workflow for new or changed PRs. A PR is evaluated in shadow "
-            "(dispatched and recorded, but never approved) unless its author is listed in the "
-            "trusted-authors issue and is eligible for it under the merge rules: named by a rule that "
-            "covers every changed file. Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read "
-            "credentials."
+            "(dispatched and recorded, but never approved) unless its author is eligible for it under "
+            "the merge rules: named by a rule that covers every changed file. Requires "
+            "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials."
         ),
     )
     review_parser.add_argument(
@@ -61,9 +60,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help=(
-            "scan only this PR number (skips the listing; the PR's author must still be listed in the "
-            "trusted-authors issue and eligible for it under the merge rules, and the run fails while "
-            "that issue is unreadable)"
+            "scan only this PR number (skips the listing; the PR's author must still be eligible for it "
+            "under the merge rules)"
         ),
     )
     review_parser.add_argument(
@@ -88,17 +86,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--requester",
         default=None,
         help=(
-            "login that requested this review (@greenlight recheck); must be listed in the trusted-authors "
-            "issue and in the evaluation cohort, or the run refuses (it fails while that issue is unreadable)"
+            "login that requested this review (@greenlight recheck); must be in the evaluation cohort "
+            "(a merge_rules.yaml approver, minus bots and greenlight itself), or the run refuses"
         ),
     )
     review_parser.add_argument(
         "--allow-untrusted-author",
         action="store_true",
         help=(
-            "LOCAL USE ONLY: review the --pr target even when its author is not eligible for it. "
-            "Eligibility is still resolved and still decides shadow, so such a PR is reviewed in "
-            "shadow and never approved (never exposed as a workflow input)"
+            "LOCAL USE ONLY: waive the covering-rule requirement on the --pr target, reviewing it even "
+            "when no merge rule naming its author covers every changed file. Eligibility is still "
+            "resolved and still decides shadow, so such a PR is reviewed in shadow and never approved "
+            "(never exposed as a workflow input)"
         ),
     )
 
@@ -183,17 +182,6 @@ def _build_authz_client(config: Config) -> merge_authz.AuthzClient:
     if token is None:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to resolve merge authorization")
     return github_client.build_authz_client(token)
-
-
-def _resolve_listed(config: Config) -> frozenset[str]:
-    token = config.github_token
-    if token is None:
-        raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to read the trusted-authors issue")
-    client = github_client.build_client(token)
-    try:
-        return trusted_authors.fetch_trusted_logins(client)
-    finally:
-        github_client.close_client(client)
 
 
 def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock_path: str | None) -> int:
@@ -301,7 +289,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         requester=args.requester,
         allow_untrusted_author=args.allow_untrusted_author,
         bot_login=bot_login,
-        resolve_listed=lambda: _resolve_listed(config),
         resolve_merge_rules=authorized_cache.snapshot,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)
