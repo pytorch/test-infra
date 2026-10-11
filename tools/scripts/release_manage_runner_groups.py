@@ -283,7 +283,8 @@ def get_protected_branches(client: GitHubClient, repo: str) -> List[str]:
 
 
 def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
-    """main, nightly, and every release/X.Y branch of ``repo``.
+    """main, nightly, every release/X.Y branch of ``repo``, and the release tags
+    of its newest NUM_RELEASE_BRANCHES lines.
 
     nightly is in the list because generate_binary_build_matrix.py treats
     refs/heads/nightly as a release ref, so a nightly build asks for a release
@@ -294,6 +295,11 @@ def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
     Deliberately not filtered by branch protection, unlike get_target_refs: on
     pytorch/test-infra only main is protected, so that filter would drop
     release/2.10 through release/2.14 and cover a single ref.
+
+    The tags matter for a repo that builds its release from a tag push, such as
+    pytorch/TensorRT's ``v2.15.0-rc1``: the release branch entry does not
+    authorize a run at ``refs/tags/v2.15.0-rc1``. Only the newest lines get
+    them, as in get_target_refs, rather than every line back to the first.
     """
     refs = client.request(
         "GET", f"/repos/{repo}/git/matching-refs/heads/release/"
@@ -306,7 +312,13 @@ def get_reusable_refs(client: GitHubClient, repo: str) -> List[str]:
         ),
         key=release_version,
     )
-    return [f"refs/heads/{name}" for name in ["main", "nightly", *releases]]
+    branches = [f"refs/heads/{name}" for name in ["main", "nightly", *releases]]
+    tags = [
+        tag
+        for line in release_lines(branches)[-NUM_RELEASE_BRANCHES:]
+        for tag in get_release_tags(client, line, repo)
+    ]
+    return branches + tags
 
 
 def build_self_allowed(
@@ -695,8 +707,9 @@ def parse_args() -> argparse.Namespace:
         default=[],
         metavar="PATH",
         help=(
-            "Workflow path in --repo to allow-list at main and every release/X.Y "
-            "branch, on top of whatever discovery finds. For a reusable workflow "
+            "Workflow path in --repo to allow-list at main, nightly, every "
+            "release/X.Y branch and the newest lines' release tags, on top of whatever "
+            "discovery finds. For a reusable workflow "
             "whose callers live in other repositories, which discovery here "
             "cannot see. Repeatable."
         ),
