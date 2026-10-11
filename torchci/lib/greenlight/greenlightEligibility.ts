@@ -1,5 +1,6 @@
-// What greenlight's scan would decide for a PR it has no non-shadow state for,
-// read from the same sources it reads. The merge-rule semantics are ports of
+// What greenlight's scan would decide for a PR it has no non-shadow state for, or
+// whose newest non-shadow verdict is on an earlier commit, read from the same
+// sources it reads. The merge-rule semantics are ports of
 // greenlight/src/greenlight/merge_authz.py, cohort.evaluation_cohort and
 // cohort.assess_rules, and the size caps of the ones in
 // .github/workflows/greenlight-pr-review.yml: they must change together, or this
