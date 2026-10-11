@@ -622,7 +622,7 @@ class TestSelfAllow(TestCase):
             },
         )
 
-    def test_reusable_refs_are_main_then_releases_numerically(self) -> None:
+    def test_reusable_refs_are_main_nightly_then_releases_numerically(self) -> None:
         class C(m.GitHubClient):
             def __init__(self) -> None:
                 pass
@@ -643,6 +643,7 @@ class TestSelfAllow(TestCase):
             m.get_reusable_refs(C(), "pytorch/test-infra"),
             [
                 "refs/heads/main",
+                "refs/heads/nightly",
                 "refs/heads/release/2.1",
                 "refs/heads/release/2.9",
                 "refs/heads/release/2.10",
