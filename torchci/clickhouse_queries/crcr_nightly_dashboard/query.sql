@@ -3,6 +3,8 @@
 WITH nightly_jobs AS (
     SELECT
         *,
+        -- An ALIAS column, which SELECT * leaves out.
+        duration_seconds,
         if(
             match(pytorch_head_sha, '^[0-9a-fA-F]{40}$'),
             concat('sha:', pytorch_head_sha),
