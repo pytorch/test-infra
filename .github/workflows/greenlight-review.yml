@@ -78,7 +78,7 @@ jobs:
     # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/test-infra with
     # Actions: write and Pull requests: write so the minted token can dispatch the
     # reviewer workflow, read PRs across pytorch/pytorch and pytorch/test-infra, and
-    # revoke greenlight's own approval on a reverted PR.
+    # revoke greenlight's own approval on a reverted or no-longer-eligible PR.
     environment: greenlight-record
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -87,7 +87,7 @@ jobs:
           working_directory: greenlight
 
       # pull-requests:write on every invocation, not just the --pr recheck: the listing scan
-      # dismisses greenlight's approving review on any PR that has been reverted. Keep the
+      # dismisses greenlight's approving review on a reverted or no-longer-eligible PR. Keep the
       # permission set in sync with _TOKEN_PERMISSIONS in greenlight/src/greenlight/lambda_handler.py.
       - name: Mint Green Light app token
         id: app-token
@@ -117,8 +117,9 @@ jobs:
         env:
           PYTORCH_GREENLIGHT_GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           # The App's bot login (<slug>[bot]) author-scopes the recheck-refusal comment and picks
-          # out greenlight's own approvals to revoke on a reverted PR. An empty app-slug yields the
-          # bare "[bot]", which the CLI rejects as not App-shaped rather than silently matching nothing.
+          # out greenlight's own approvals to revoke on a reverted or no-longer-eligible PR. An empty
+          # app-slug yields the bare "[bot]", which the CLI rejects as not App-shaped rather than
+          # silently matching nothing.
           BOT_LOGIN: ${{ steps.app-token.outputs.app-slug }}[bot]
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
