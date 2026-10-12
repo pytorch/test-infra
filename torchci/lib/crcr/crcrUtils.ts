@@ -351,6 +351,28 @@ export function conclusionLabel(status: string, conclusion: string): string {
   return conclusion || status;
 }
 
+// ---- Check run names ----
+
+/**
+ * Parse the downstream ``owner/repo`` out of a CRCR check run name.
+ *
+ * Check runs are named ``crcr/<owner>/<repo>/<workflow_name>/<job_name>``
+ * (see the Python gh_helper.check_run_name), so the downstream repo is the
+ * first two path segments after the ``crcr/`` prefix. Returns null for any
+ * name that is not a CRCR check run.
+ */
+export function downstreamRepoFromCheckRunName(name: string): string | null {
+  const prefix = "crcr/";
+  if (!name.startsWith(prefix)) {
+    return null;
+  }
+  const parts = name.slice(prefix.length).split("/");
+  if (parts.length < 4 || !parts[0] || !parts[1]) {
+    return null;
+  }
+  return `${parts[0]}/${parts[1]}`;
+}
+
 // ---- Error Helper ----
 
 export class ApiError extends Error {
