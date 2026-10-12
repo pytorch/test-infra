@@ -297,15 +297,16 @@ def _files_pr(*filenames: str, **refs: str) -> _FakeFilesPR:
     return _FakeFilesPR([_FakePRFile(name) for name in filenames], **refs)
 
 
-def test_changed_files_of_a_ghstack_head_is_none_without_listing():
-    pr = _files_pr("a.py", head_ref="gh/jeanschmidt/12/head")
+@pytest.mark.parametrize("base_ref", ["gh/jeanschmidt/12/base", constants.TARGET_BRANCH])
+def test_changed_files_lists_the_filenames_of_a_ghstack_head_on_any_base(base_ref: str) -> None:
+    pr = _files_pr("a.py", "b.py", head_ref="gh/jeanschmidt/12/head", base_ref=base_ref)
 
-    assert merge_authz.changed_files(pr) is None
-    assert pr.get_files_calls == 0
+    assert merge_authz.changed_files(pr) == ("a.py", "b.py")
 
 
-def test_changed_files_of_a_base_other_than_main_is_none_without_listing():
-    pr = _files_pr("a.py", base_ref="release/2.9")
+@pytest.mark.parametrize("head_ref", ["feature", "gh/jeanschmidt/12/orig"])
+def test_changed_files_of_a_non_ghstack_head_on_a_base_other_than_main_is_none_without_listing(head_ref: str) -> None:
+    pr = _files_pr("a.py", head_ref=head_ref, base_ref="release/2.9")
 
     assert merge_authz.changed_files(pr) is None
     assert pr.get_files_calls == 0

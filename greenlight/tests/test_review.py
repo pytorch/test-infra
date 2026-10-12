@@ -2486,31 +2486,47 @@ def test_a_push_between_the_authority_read_and_the_fingerprint_defers_only_a_pr_
     assert scan.dispatch_shadow == [(2, False)]
 
 
-@pytest.mark.parametrize(
-    ("head_refs", "base_refs"),
-    [
-        pytest.param({1: "gh/carol/7/head", 2: "gh/albanD/3/head"}, {}, id="ghstack-head-on-main"),
-        pytest.param({}, {1: "release/2.9", 2: "release/2.9"}, id="non-main-base"),
-    ],
-)
-def test_a_ghstack_head_or_a_non_main_base_leaves_a_path_scoped_author_undispatched_but_not_a_catch_all_one(
-    make_config, head_refs, base_refs
+def test_a_non_ghstack_pr_on_a_non_main_base_leaves_a_path_scoped_author_undispatched_but_not_a_catch_all_one(
+    make_config,
 ):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
         fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
         files={1: (_DOCS_FILE,)},
-        head_refs=head_refs,
-        base_refs=base_refs,
+        base_refs={1: "release/2.9", 2: "release/2.9"},
     )
 
-    # trymerge lands a ghstack PR from its orig branch, and any base but main is writable by the author,
-    # so the checked files could not bound what lands: the path-scoped author's PR is not dispatched,
-    # and its files are never listed. A catch-all author's authority never depends on the files.
+    # trymerge refuses to land a non-ghstack PR on any base but main, so the path-scoped author's PR is
+    # not dispatched, and its files are never listed. A catch-all author's authority never depends on
+    # the files.
     assert scan.fingerprinted == [2]
     assert scan.dispatch_shadow == [(2, False)]
     assert scan.files_fetched == []
+
+
+@pytest.mark.parametrize(
+    ("changed", "dispatched"),
+    [
+        pytest.param((_DOCS_FILE,), [(1, False)], id="covered"),
+        pytest.param((_DOCS_FILE, _TORCH_FILE), [], id="uncovered"),
+    ],
+)
+def test_a_ghstack_pr_on_its_own_base_dispatches_a_path_scoped_author_only_when_its_rule_covers_the_pr(
+    make_config, changed, dispatched
+):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        files={1: changed},
+        head_refs={1: "gh/carol/7/head"},
+        base_refs={1: "gh/carol/7/base"},
+    )
+
+    # trymerge checks each PR of a ghstack stack against that PR's own file list, whatever its base.
+    assert scan.files_fetched == [1]
+    assert scan.dispatch_shadow == dispatched
 
 
 def test_a_refused_pr_target_by_an_author_outside_every_rule_still_has_its_revert_revoked(make_config):

@@ -190,7 +190,11 @@ describe("greenlightEligibilityGate", () => {
   };
   const AT_CAPS = { additions: 1995, changed_files: 200 };
   const PAST_CAPS = { additions: 1996, changed_files: 201 };
-  const GHSTACK = { head: { ref: "gh/alice/12/head" } };
+  const GHSTACK_ON_MAIN = { head: { ref: "gh/alice/12/head" } };
+  const GHSTACK_ON_OWN_BASE = {
+    ...GHSTACK_ON_MAIN,
+    base: { ref: "gh/alice/12/base" },
+  };
   const RELEASE = { base: { ref: "release/2.9" } };
   const by = (login: string) => ({ user: { login } });
   const reviewed = (state: string, login: string) => ({
@@ -254,8 +258,41 @@ describe("greenlightEligibilityGate", () => {
     ["files one naming rule covers", DOCS_TREE, {}, "waiting", "111"],
     ["files only two rules cover", MIXED, by("dave"), "merge_rules", "110"],
     ["an approver in another case", DOCS, by("alice"), "merge_rules", "110"],
-    ["a ghstack head", DOCS, GHSTACK, "merge_rules", "100"],
-    ["a base other than main", DOCS, RELEASE, "merge_rules", "100"],
+    [
+      "a ghstack head on its own base with covered files",
+      DOCS,
+      GHSTACK_ON_OWN_BASE,
+      "waiting",
+      "111",
+    ],
+    [
+      "a ghstack head on its own base with uncovered files",
+      MIXED,
+      GHSTACK_ON_OWN_BASE,
+      "merge_rules",
+      "110",
+    ],
+    [
+      "a ghstack head on main with covered files",
+      DOCS,
+      GHSTACK_ON_MAIN,
+      "waiting",
+      "111",
+    ],
+    [
+      "a non-ghstack head on a base other than main",
+      DOCS,
+      RELEASE,
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a ghstack orig ref on a base other than main",
+      DOCS,
+      { ...RELEASE, head: { ref: "gh/alice/12/orig" } },
+      "merge_rules",
+      "100",
+    ],
     [
       "a catch-all author's decided PR",
       DECIDED,

@@ -88,8 +88,8 @@ which is not bot-shaped and would otherwise put greenlight in its own cohort rev
 PRs.
 
 **Whose verdict carries authority** is decided per PR ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)): the
-author must be named by one merge rule covering every file the PR changes, on a non-ghstack PR
-based on `main` if the rule is path-scoped. The listing scan fingerprints and dispatches only such
+author must be named by one merge rule covering every file the PR changes, a path-scoped rule only
+on a PR based on `main` or on a ghstack PR. The listing scan fingerprints and dispatches only such
 eligible PRs, and applies that cut to the *fingerprint candidates*, after the revert guard and the
 state read, not to the listing. Every other listed PR is therefore still state-read and still
 reaches `revert_guard` — so it still loses a greenlight approval it should no longer hold and still

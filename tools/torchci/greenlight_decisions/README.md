@@ -204,8 +204,8 @@ got.
   `merge_rules.yaml` as greenlight read it; read that rather than a list of
   logins here, which goes stale.** Its git history says how it stood. A PR
   carries authority only when a merge rule names the author and covers every
-  file the PR changes, on a non-ghstack PR based on `main` if the rule is
-  path-scoped. Until the third era below, every other PR was shadow by
+  file the PR changes, a path-scoped rule only on a PR based on `main` or on a
+  ghstack PR. Until the third era below, every other PR was shadow by
   default. `--shadow` — a CLI flag, and a `workflow_dispatch` input on the
   reviewer workflow — makes anyone shadow on demand.
 
@@ -222,9 +222,10 @@ got.
     pytorch/test-infra #8945, as the scan read it, together with
     `merge_rules.yaml`: a PR carried authority only when its author was listed
     in that issue and a merge rule named the author and covered every file the
-    PR changed, under the same path-scoped condition. The `REVERTED` exception
-    above applied only when the issue listed the PR's author. The issue's edit
-    history and `merge_rules.yaml`'s git history say how they stood.
+    PR changed, on a non-ghstack PR based on `main` if the rule was
+    path-scoped. The `REVERTED` exception above applied only when the issue
+    listed the PR's author. The issue's edit history and `merge_rules.yaml`'s
+    git history say how they stood.
   - **Merge rules alone, without shadow reviews**, from the deployment of the
     `greenlight-scan` release that stops reading the issue. The deployed scan
     dispatches nothing for a PR without authority, so it gets no review rows;
@@ -246,11 +247,11 @@ got.
 
   - one whose authority changed mid-review: its author added to or removed from
     the trusted-authors issue (issue plus merge rules), a push that moved its
-    files into or out of the covering merge rule, a path-scoped author's PR
-    retargeted away from `main`, or a merge-rules change;
+    files into or out of the covering merge rule, a path-scoped author's
+    non-ghstack PR retargeted away from `main`, or a merge-rules change;
   - a path-scoped author's verdict recorded after the head moved off the
-    reviewed commit, or whose base moved while it listed the files, which is
-    shadow;
+    reviewed commit, or whose base branch changed while it listed the files,
+    which is shadow;
   - a `REVERTED` row stamped differently from the PR's other rows: non-shadow on
     a shadow PR (under merge rules alone, every one; under the issue plus merge
     rules, one whose author was listed), or shadow on a PR whose author was no

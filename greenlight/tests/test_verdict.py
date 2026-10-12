@@ -1733,17 +1733,23 @@ def test_has_covering_rule_refuses_a_path_scoped_author_over_the_file_cap_though
     assert covers(_FakeRulesClient(files=files), "Scoped") is False
 
 
+def test_has_covering_rule_passes_a_path_scoped_author_of_a_ghstack_pr_on_its_own_base(covers):
+    base = "gh/scoped/1/base"
+    client = _FakeRulesClient(files=["docs/index.md"], head_ref="gh/scoped/1/head", live_bases=(base, base))
+
+    assert covers(client, "Scoped") is True
+
+
 @pytest.mark.parametrize(
     "pr",
     [
-        pytest.param({"head_ref": "gh/scoped/1/head"}, id="ghstack-head"),
         pytest.param({"live_bases": ("release/2.9",)}, id="release-base"),
         pytest.param({"live_heads": ("c" * 40,)}, id="head-moved"),
         pytest.param({"live_heads": (_REVIEWED, "c" * 40)}, id="head-moved-during-the-listing"),
         pytest.param({"live_bases": (constants.TARGET_BRANCH, "release/2.9")}, id="base-moved-during-the-listing"),
     ],
 )
-def test_has_covering_rule_refuses_a_path_scoped_author_whose_files_cannot_bound_the_reviewed_commit(covers, pr):
+def test_has_covering_rule_refuses_a_path_scoped_author_on_a_refused_base_or_a_moved_head_or_base(covers, pr):
     assert covers(_FakeRulesClient(files=["docs/index.md"], **pr), "Scoped") is False
 
 
