@@ -680,6 +680,13 @@
       "linux"
     ]
   ],
+  "test_int64_indices_match_aten_bfloat16 (__main__.TestRadixKernelParams)": [
+    "200665",
+    "https://github.com/pytorch/pytorch/issues/200665",
+    [
+      "linux"
+    ]
+  ],
   "test_jacfwd_different_levels_cpu (__main__.TestHessianCPU)": [
     "192284",
     "https://github.com/pytorch/pytorch/issues/192284",
