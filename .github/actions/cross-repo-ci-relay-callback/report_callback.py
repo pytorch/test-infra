@@ -27,6 +27,7 @@ Optional env vars:
     TRIAGE_VERDICT          JSON object with a triage verdict for this job
     ARTIFACT_URL            URL to downstream artifacts
     MAX_TIME                curl --max-time (default 10)
+    RATE_LIMIT_RETRIES      Retries on HTTP 429 (default 5)
 """
 
 import json
@@ -34,6 +35,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 
 
@@ -141,46 +143,66 @@ def build_payload() -> str:
     return json.dumps(client_payload)
 
 
+# The relay rate-limits per repo over a sliding 60 s window, so the backoff
+# has to add up to about a minute for the last retry to land in a fresh window.
+RATE_LIMIT_BACKOFF_S = (2, 4, 8, 16, 32)
+
+
+def post_once(payload_file: str) -> tuple[int, str]:
+    """POST the payload once. Returns (curl exit code, HTTP status)."""
+    result = subprocess.run(
+        [
+            "curl",
+            "--silent",
+            "--show-error",
+            "--fail-with-body",
+            "--output",
+            "/tmp/relay_response.json",
+            "--write-out",
+            "%{http_code}",
+            "-X",
+            "POST",
+            "--max-time",
+            os.environ.get("MAX_TIME", "10"),
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            f"Authorization: Bearer {os.environ['OIDC_TOKEN']}",
+            "--data",
+            f"@{payload_file}",
+            os.environ["CALLBACK_URL"].rstrip("/"),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode, result.stdout.strip()
+
+
 def send_callback(payload: str) -> None:
-    callback_url = os.environ["CALLBACK_URL"].rstrip("/")
-    oidc_token = os.environ["OIDC_TOKEN"]
-    max_time = os.environ.get("MAX_TIME", "10")
+    retries = int(os.environ.get("RATE_LIMIT_RETRIES", str(len(RATE_LIMIT_BACKOFF_S))))
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         f.write(payload)
         payload_file = f.name
 
     try:
-        result = subprocess.run(
-            [
-                "curl",
-                "--silent",
-                "--show-error",
-                "--fail-with-body",
-                "--output",
-                "/tmp/relay_response.json",
-                "--write-out",
-                "%{http_code}",
-                "-X",
-                "POST",
-                "--max-time",
-                max_time,
-                "-H",
-                "Content-Type: application/json",
-                "-H",
-                f"Authorization: Bearer {oidc_token}",
-                "--data",
-                f"@{payload_file}",
-                callback_url,
-            ],
-            capture_output=True,
-            text=True,
-        )
+        attempt = 0
+        while True:
+            returncode, http_code = post_once(payload_file)
+            if http_code != "429" or attempt >= retries:
+                break
+            delay = RATE_LIMIT_BACKOFF_S[min(attempt, len(RATE_LIMIT_BACKOFF_S) - 1)]
+            attempt += 1
+            print(
+                f"Relay rate limit hit (HTTP 429); retry {attempt}/{retries} "
+                f"in {delay}s",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
     finally:
         os.unlink(payload_file)
 
-    http_code = result.stdout.strip()
-    if result.returncode != 0:
+    if returncode != 0:
         print(f"Error: Callback server returned HTTP {http_code}.", file=sys.stderr)
         try:
             with open("/tmp/relay_response.json") as f:
@@ -189,7 +211,7 @@ def send_callback(payload: str) -> None:
                 print(f"Relay server error response body:\n{body}", file=sys.stderr)
         except FileNotFoundError:
             pass
-        sys.exit(result.returncode)
+        sys.exit(returncode)
 
     print(f"Relay server response HTTP: {http_code}")
 
