@@ -180,12 +180,34 @@ describe("isSuppressible", () => {
   );
 
   test.each([0.88, 0.71, 0.5])(
-    "confidence %s is below the badge scale's high bucket, so the job keeps blocking",
+    "confidence %s is below the badge scale's high bucket, so a not_related job keeps blocking",
     (confidence) => {
       // Assert the premise: if the scale is retuned so this is `high` after
       // all, the case below stops testing anything and should fail loudly.
       expect(confidenceBucket(confidence)).not.toBe("high");
       expect(isSuppressible(job(), [row({ confidence })])).toBe(false);
+      expect(
+        isSuppressible(job(), [row({ verdict: "garbage", confidence })])
+      ).toBe(false);
+    }
+  );
+
+  test.each([0.85, 0.88])(
+    "an infra_issue verdict at %s clears the job below the badge's high bucket",
+    (confidence) => {
+      expect(confidenceBucket(confidence)).not.toBe("high");
+      expect(
+        isSuppressible(job(), [row({ verdict: "infra_issue", confidence })])
+      ).toBe(true);
+    }
+  );
+
+  test.each([0.8499, 0.71, 0.5])(
+    "an infra_issue verdict at %s keeps the job blocking",
+    (confidence) => {
+      expect(
+        isSuppressible(job(), [row({ verdict: "infra_issue", confidence })])
+      ).toBe(false);
     }
   );
 
@@ -201,9 +223,15 @@ describe("isSuppressible", () => {
   // UI scale moves a merge gate. Pin the number here so that change cannot be
   // silent: retuning `confidenceBucket` turns this red and whoever does it has
   // to decide the merge question on purpose.
-  test("the merge gate's effective floor is 0.89 -- retuning the badge scale must be deliberate", () => {
-    expect(confidentEnoughToSuppress(0.89)).toBe(true);
-    expect(confidentEnoughToSuppress(0.8899)).toBe(false);
+  test("the not_related/garbage floor is 0.89 -- retuning the badge scale must be deliberate", () => {
+    expect(confidentEnoughToSuppress("not_related", 0.89)).toBe(true);
+    expect(confidentEnoughToSuppress("not_related", 0.8899)).toBe(false);
+    expect(confidentEnoughToSuppress("garbage", 0.8899)).toBe(false);
+  });
+
+  test("infra_issue has its own floor of 0.85, independent of the badge scale", () => {
+    expect(confidentEnoughToSuppress("infra_issue", 0.85)).toBe(true);
+    expect(confidentEnoughToSuppress("infra_issue", 0.8499)).toBe(false);
   });
 
   test("a verdict older than the job's completion is a stale rerun verdict", () => {
