@@ -36,9 +36,18 @@ export const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export const fetcherHandleError = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) {
-    const info = await res.json();
+    // Error bodies are not always JSON, e.g. a platform-level 500 page.
+    const body = await res.text();
+    let info: any;
+    try {
+      info = JSON.parse(body);
+    } catch {
+      info = { error: body };
+    }
     const error = new ErrorWithStatusCode(
-      `An error occurred while fetching the data`,
+      info?.error
+        ? `An error occurred while fetching the data: ${info.error}`
+        : `An error occurred while fetching the data`,
       res.status,
       info?.error
     );

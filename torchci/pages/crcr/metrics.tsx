@@ -19,6 +19,7 @@ import {
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetcherHandleError } from "lib/GeneralUtils";
+import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useMemo, useState } from "react";
@@ -118,7 +119,7 @@ function FailuresChart({
   );
 }
 
-function TotalRunsChart({
+function TotalJobsChart({
   data,
   days,
 }: {
@@ -147,10 +148,10 @@ function TotalRunsChart({
       <TimeSeriesPanelWithData
         data={data}
         series={series}
-        title="Total Runs Over Time"
+        title="Total Jobs Over Time"
         groupByFieldName="repo"
         yAxisRenderer={(v: number) => String(Math.round(v))}
-        yAxisLabel="Total Runs"
+        yAxisLabel="Total Jobs"
         useUTC
       />
     </Box>
@@ -194,7 +195,7 @@ function MetricsCharts({
         <Stack spacing={3}>
           <PassRateChart data={data} days={days} />
           <FailuresChart data={data} days={days} />
-          <TotalRunsChart data={data} days={days} />
+          <TotalJobsChart data={data} days={days} />
         </Stack>
       )}
 
@@ -271,10 +272,11 @@ export default function CrcrMetricsPage() {
                 setDays(Number(e.target.value))
               }
             >
-              <MenuItem value={7}>Last 7 days</MenuItem>
-              <MenuItem value={14}>Last 14 days</MenuItem>
-              <MenuItem value={30}>Last 30 days</MenuItem>
-              <MenuItem value={90}>Last 90 days</MenuItem>
+              {CRCR_TIME_RANGES.map(({ days: rangeDays, label }) => (
+                <MenuItem key={rangeDays} value={rangeDays}>
+                  {label}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
         </Box>
