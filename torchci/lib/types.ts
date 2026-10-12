@@ -124,6 +124,12 @@ export interface RecentWorkflowsData extends BasicJobData {
   downstreamRepo?: string;
   /** CRCR downstream triage verdict JSON, "" when none — set by fetchCrcrWorkflows. */
   triageVerdictJson?: string;
+  /**
+   * CRCR workflow run attempt — set by fetchCrcrWorkflows. A re-run produces a
+   * separate row, so a consumer that wants the job's current state picks the
+   * highest attempt, the way the HUD's CRCR merge does.
+   */
+  runAttempt?: number;
 }
 
 export interface Artifact {
