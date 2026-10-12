@@ -673,6 +673,13 @@
       "rocm"
     ]
   ],
+  "test_int32_indices_match_aten_fp32 (__main__.TestRadixKernelParams)": [
+    "200626",
+    "https://github.com/pytorch/pytorch/issues/200626",
+    [
+      "linux"
+    ]
+  ],
   "test_jacfwd_different_levels_cpu (__main__.TestHessianCPU)": [
     "192284",
     "https://github.com/pytorch/pytorch/issues/192284",
@@ -1307,22 +1314,6 @@
       "xpu"
     ]
   ],
-  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
-    "196006",
-    "https://github.com/pytorch/pytorch/issues/196006",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_training_precision_float32 (__main__.DeterministicTest)": [
-    "198491",
-    "https://github.com/pytorch/pytorch/issues/198491",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_amp (__main__.DeterministicTest)": [
     "196983",
     "https://github.com/pytorch/pytorch/issues/196983",
@@ -1403,14 +1394,6 @@
     "https://github.com/pytorch/pytorch/issues/198997",
     [
       "xpu"
-    ]
-  ],
-  "test_serialization_array_with_storage (__main__.TestCuda)": [
-    "134991",
-    "https://github.com/pytorch/pytorch/issues/134991",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_set_per_process_memory_fraction (__main__.TestCuda)": [
@@ -1504,14 +1487,6 @@
     "https://github.com/pytorch/pytorch/issues/158664",
     [
       "dynamo"
-    ]
-  ],
-  "test_sum_fp16 (__main__.TestCuda)": [
-    "99953",
-    "https://github.com/pytorch/pytorch/issues/99953",
-    [
-      "linux",
-      "rocm"
     ]
   ],
   "test_svd_lowrank_cuda_complex128 (__main__.TestLinalgCUDA)": [
