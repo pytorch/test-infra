@@ -2211,54 +2211,6 @@ def test_listing_scans_the_evaluation_cohort_minus_bots_and_greenlight(make_conf
     assert scan.listed_authors == [frozenset({"alice", "bob"})]
 
 
-_DIAL_SETTINGS = [
-    pytest.param(1.0, id="full-rollout"),
-    pytest.param(0.5, id="half-rollout"),
-    pytest.param(0.0, id="zero-rollout"),
-]
-
-
-@pytest.mark.parametrize("shadow_rollout", _DIAL_SETTINGS)
-def test_every_dial_setting_lists_the_same_lowercased_evaluation_cohort(make_config, shadow_rollout):
-    scan = _run_scan(
-        make_config,
-        listed=[],
-        fingerprints={},
-        rules=_catch_all("Alice", "Bob"),
-        config_kwargs={"shadow_rollout": shadow_rollout},
-    )
-
-    # The dial thins the fingerprint candidates, never the listing: a PR held out of the experiment
-    # still has to reach the revert guard, at 0.0 as at every other setting.
-    assert scan.listed_authors == [frozenset({"alice", "bob"})]
-
-
-def test_rollout_defaults_to_one_and_lists_the_whole_evaluation_cohort(make_config, caplog):
-    with caplog.at_level(logging.INFO, logger="greenlight"):
-        scan = _run_scan(make_config, listed=[], fingerprints={}, rules=_catch_all("Alice", "bob"))
-
-    # Unset means everyone: the dial has to be reached for, and the setting is logged at every value
-    # so an operator who moves it can confirm from the logs that the next tick picked it up.
-    assert scan.listed_authors == [frozenset({"alice", "bob"})]
-    assert "scan cohort: full evaluation cohort (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=1)" in caplog.text
-
-
-@pytest.mark.parametrize("shadow_rollout", _DIAL_SETTINGS)
-def test_authorized_logins_stay_resolved_and_threaded_at_every_dial(make_config, shadow_rollout):
-    scan = _run_scan(
-        make_config,
-        listed=[_open_pr(1)],
-        fingerprints={1: ("headsha1", _HASH_A)},
-        config_kwargs={"shadow_rollout": shadow_rollout},
-    )
-
-    # The dial must never become "skip the merge_rules fetch". That resolved set is also what decides
-    # whether a human with merge rights already approved the PR, so dropping it at any setting would
-    # silently change which PRs the scan skips.
-    assert scan.rules_reads == 1
-    assert scan.authorized_seen == [_AUTHORIZED]
-
-
 def test_requester_gate_admits_every_evaluation_cohort_member(make_config, caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
         scan = _run_scan(
@@ -2278,18 +2230,17 @@ def test_requester_gate_admits_every_evaluation_cohort_member(make_config, caplo
 
 
 @pytest.mark.parametrize(("author", "changed", "shadow"), _AUTHORITATIVE_VS_SHADOW)
-def test_pr_target_gate_admits_exactly_the_prs_the_listing_scan_stamps_authoritative(
-    make_config, author, changed, shadow
-):
+def test_pr_target_gate_admits_exactly_the_prs_the_listing_scan_dispatches(make_config, author, changed, shadow):
     listing = _run_scan(
         make_config, listed=[_open_pr(5, author=author)], fingerprints={5: ("headsha5", _HASH_A)}, files={5: changed}
     )
     target = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=author, files={5: changed})
 
-    # Both paths ask the same merge-rule question of the same author and files, so --pr reviews with
-    # authority exactly what the scheduled scan would, and refuses every PR the scan stamps shadow.
-    assert listing.dispatch_shadow == [(5, shadow)]
-    assert target.dispatch_shadow == ([] if shadow else [(5, False)])
+    # Both paths ask the same merge-rule question of the same author and files, so --pr reviews
+    # exactly what the scheduled scan would, and refuses every PR the scan leaves undispatched.
+    expected = [] if shadow else [(5, False)]
+    assert listing.dispatch_shadow == expected
+    assert target.dispatch_shadow == expected
 
 
 def test_pr_target_gate_admits_a_path_scoped_author_whose_rule_covers_the_pr(make_config):
@@ -2320,7 +2271,7 @@ def test_pr_target_gate_refuses_a_path_scoped_author_whose_rule_misses_a_file(ma
 
 
 @pytest.mark.parametrize(("author", "changed", "shadow"), _AUTHORITATIVE_VS_SHADOW)
-def test_dispatch_marker_carries_the_prs_shadow_and_gates_the_poke(make_config, author, changed, shadow):
+def test_the_listing_fingerprints_dispatches_marks_and_pokes_only_an_eligible_pr(make_config, author, changed, shadow):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, author=author)],
@@ -2328,11 +2279,12 @@ def test_dispatch_marker_carries_the_prs_shadow_and_gates_the_poke(make_config, 
         files={1: changed},
     )
 
-    # The scan decides once and spends it three ways: the workflow input that withholds the
-    # approval, the row the merge gate reads, and whether Dr. CI is worth poking at all -- a shadow
-    # row is filtered out of the query a rebuild would run.
-    assert scan.dispatch_shadow == [(1, shadow)]
-    assert scan.emit_shadow == [(1, shadow)]
+    # An eligible PR is fingerprinted, dispatched, marked in flight and poked, never as shadow; the
+    # listing does none of that for an ineligible one.
+    expected = [] if shadow else [(1, False)]
+    assert scan.fingerprinted == ([] if shadow else [1])
+    assert scan.dispatch_shadow == expected
+    assert scan.emit_shadow == expected
     assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
 
 
@@ -2355,7 +2307,7 @@ def test_reverted_row_carries_the_prs_shadow_and_gates_the_poke(make_config, aut
     assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
 
 
-def test_mixed_cohort_batch_stamps_each_pr_independently(make_config):
+def test_mixed_cohort_batch_dispatches_only_its_eligible_prs(make_config):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, author="albanD"), _open_pr(2, author=_SCOPED_AUTHOR)],
@@ -2363,10 +2315,11 @@ def test_mixed_cohort_batch_stamps_each_pr_independently(make_config):
         files={2: (_TORCH_FILE,)},
     )
 
-    # Every steady-state scan carries both cohorts at once, so a single per-scan answer would be
-    # wrong for half the batch in either direction.
-    assert scan.dispatch_shadow == [(1, False), (2, True)]
-    assert scan.emit_shadow == [(1, False), (2, True)]
+    # Every steady-state scan carries eligible and ineligible PRs at once, so a single per-scan
+    # answer would be wrong for part of the batch in either direction.
+    assert scan.fingerprinted == [1]
+    assert scan.dispatch_shadow == [(1, False)]
+    assert scan.emit_shadow == [(1, False)]
     assert [number for _repo, number, _config in scan.poked] == [1]
 
 
@@ -2432,105 +2385,6 @@ def test_allow_untrusted_author_with_an_unnameable_author_fails_closed_to_shadow
     assert scan.dispatch_shadow == [(5, True)]
     assert scan.emit_shadow == [(5, True)]
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
-
-
-# Two PR numbers whose stable buckets straddle the midpoint of the dial -- #12 lands at 3562 and
-# #11 at 5102 of 10000. The buckets themselves are pinned in test_candidate_filter.
-_IN_EXPERIMENT_PR = 12
-_HELD_OUT_PR = 11
-
-
-def test_fractional_rollout_evaluates_only_the_sampled_half_of_the_shadow_cohort(make_config):
-    scan = _run_scan(
-        make_config,
-        listed=[
-            _open_pr(_IN_EXPERIMENT_PR, author=_SCOPED_AUTHOR),
-            _open_pr(_HELD_OUT_PR, author=_SCOPED_AUTHOR),
-        ],
-        fingerprints={_IN_EXPERIMENT_PR: (f"headsha{_IN_EXPERIMENT_PR}", _HASH_A)},
-        files={_IN_EXPERIMENT_PR: (_TORCH_FILE,), _HELD_OUT_PR: (_TORCH_FILE,)},
-        config_kwargs={"shadow_rollout": 0.5},
-    )
-
-    # What the dial buys: a stable holdout group, and a bounded blast radius for anything wrong in
-    # the shadow path. What it cuts is the fingerprint fan-out and the dispatches -- the listing
-    # itself still paginates every open PR in the repo at every setting.
-    assert scan.fingerprinted == [_IN_EXPERIMENT_PR]
-    assert [number for number, *_ in scan.dispatched] == [_IN_EXPERIMENT_PR]
-    assert scan.dispatch_shadow == [(_IN_EXPERIMENT_PR, True)]
-    # Held out of the experiment, not out of the scan: its recorded state is still read.
-    assert scan.read_calls == [(TARGET_REPO, [_IN_EXPERIMENT_PR, _HELD_OUT_PR])]
-
-
-def test_a_held_out_pr_still_reaches_the_revert_guard(make_config):
-    scan = _run_scan(
-        make_config,
-        listed=[_open_pr(_HELD_OUT_PR, updated_at=_NEW, labels=("Reverted",), author=_SCOPED_AUTHOR)],
-        fingerprints={},
-        files={_HELD_OUT_PR: (_TORCH_FILE,)},
-        bot_login="greenlight-app[bot]",
-        dismissed_ids={_HELD_OUT_PR: [901]},
-        config_kwargs={"shadow_rollout": 0.5},
-    )
-
-    # The dial is applied to the fingerprint candidates and never to the listing, precisely so this
-    # keeps working. Sampling at the listing would leave a held-out PR carrying a live greenlight
-    # approval it should have lost, and no REVERTED row -- so removing the label would silently
-    # re-admit it forever. Both failures are silent: no log, no error.
-    assert scan.fingerprinted == []
-    assert scan.reverted_shadow == [(_HELD_OUT_PR, True)]
-    assert scan.dismissals == [(_HELD_OUT_PR, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
-    assert scan.reverted_emitted == [(TARGET_REPO, _HELD_OUT_PR, f"headsha{_HELD_OUT_PR}", 1)]
-
-
-def test_an_authoritative_pr_is_never_held_out_by_the_dial(make_config):
-    scan = _run_scan(
-        make_config,
-        listed=[_open_pr(_HELD_OUT_PR, author="albanD")],
-        fingerprints={_HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A)},
-        config_kwargs={"shadow_rollout": 0.5},
-    )
-
-    # Same PR number and same dial as the held-out case, opposite answer: the exemption is keyed off
-    # the PR's authority. Sampling an authoritative PR out would not shrink the experiment, it would
-    # withhold the live, authoritative service greenlight already gives its author.
-    assert scan.fingerprinted == [_HELD_OUT_PR]
-    assert scan.dispatch_shadow == [(_HELD_OUT_PR, False)]
-
-
-def test_pr_target_is_never_held_out_by_the_dial(make_config):
-    scan = _run_scan(
-        make_config,
-        pr=_HELD_OUT_PR,
-        fingerprints={_HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A)},
-        author="mallory",
-        allow_untrusted_author=True,
-        config_kwargs={"shadow_rollout": 0.0},
-    )
-
-    # An explicit --pr recheck is a human pointing greenlight at one PR. Sampling it out would exit
-    # 0 having done nothing at all, with nothing logged to say why -- so the dial gates the listing
-    # scan alone, at every setting, 0.0 included.
-    assert scan.fingerprinted == [_HELD_OUT_PR]
-    assert [number for number, *_ in scan.dispatched] == [_HELD_OUT_PR]
-    assert scan.dispatch_shadow == [(_HELD_OUT_PR, True)]
-
-
-def test_zero_rollout_leaves_the_authoritative_prs_at_full_service(make_config):
-    scan = _run_scan(
-        make_config,
-        listed=[_open_pr(_HELD_OUT_PR, author="albanD"), _open_pr(_IN_EXPERIMENT_PR, author="huydhn")],
-        fingerprints={
-            _HELD_OUT_PR: (f"headsha{_HELD_OUT_PR}", _HASH_A),
-            _IN_EXPERIMENT_PR: (f"headsha{_IN_EXPERIMENT_PR}", _HASH_A),
-        },
-        config_kwargs={"shadow_rollout": 0.0},
-    )
-
-    # 0.0 pauses the shadow experiment, not the service: authoritative PRs are all exempt, so they
-    # are evaluated at full strength on both sides of the bucket boundary.
-    assert sorted(scan.fingerprinted) == [_HELD_OUT_PR, _IN_EXPERIMENT_PR]
-    assert scan.emit_shadow == [(_HELD_OUT_PR, False), (_IN_EXPERIMENT_PR, False)]
 
 
 def test_catch_all_authors_cost_no_github_read_for_their_authority(make_config):
@@ -2619,20 +2473,16 @@ def test_a_push_between_the_authority_read_and_the_fingerprint_defers_only_a_pr_
 ):
     scan = _run_scan(
         make_config,
-        listed=[
-            _open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR),
-            _open_pr(2, updated_at=_NEW),
-            _open_pr(3, updated_at=_NEW, author=_MISCASED_AUTHOR),
-        ],
-        fingerprints={1: ("pushed1", _HASH_A), 2: ("pushed2", _HASH_A), 3: ("pushed3", _HASH_A)},
+        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
+        fingerprints={1: ("pushed1", _HASH_A), 2: ("pushed2", _HASH_A)},
         files={1: (_DOCS_FILE,)},
     )
 
     # PR 1's authority was decided on the head its files were read at, and the fingerprint saw a newer
-    # head nobody decided, so it waits for the next pass without failing it. PRs 2 and 3 needed no
-    # read, so a new head changes nothing for them.
-    assert sorted(scan.fingerprinted) == [1, 2, 3]
-    assert scan.dispatch_shadow == [(2, False), (3, True)]
+    # head nobody decided, so it waits for the next pass without failing it. PR 2 needed no read, so a
+    # new head changes nothing for it.
+    assert sorted(scan.fingerprinted) == [1, 2]
+    assert scan.dispatch_shadow == [(2, False)]
 
 
 @pytest.mark.parametrize(
@@ -2642,7 +2492,7 @@ def test_a_push_between_the_authority_read_and_the_fingerprint_defers_only_a_pr_
         pytest.param({}, {1: "release/2.9", 2: "release/2.9"}, id="non-main-base"),
     ],
 )
-def test_a_ghstack_head_or_a_non_main_base_leaves_a_path_scoped_author_shadow_but_not_a_catch_all_one(
+def test_a_ghstack_head_or_a_non_main_base_leaves_a_path_scoped_author_undispatched_but_not_a_catch_all_one(
     make_config, head_refs, base_refs
 ):
     scan = _run_scan(
@@ -2655,9 +2505,10 @@ def test_a_ghstack_head_or_a_non_main_base_leaves_a_path_scoped_author_shadow_bu
     )
 
     # trymerge lands a ghstack PR from its orig branch, and any base but main is writable by the author,
-    # so the checked files could not bound what lands: the path-scoped author is shadow, and the files
-    # are never listed. A catch-all author's authority never depends on the files.
-    assert scan.dispatch_shadow == [(1, True), (2, False)]
+    # so the checked files could not bound what lands: the path-scoped author's PR is not dispatched,
+    # and its files are never listed. A catch-all author's authority never depends on the files.
+    assert scan.fingerprinted == [2]
+    assert scan.dispatch_shadow == [(2, False)]
     assert scan.files_fetched == []
 
 
@@ -2702,7 +2553,7 @@ def test_a_refused_pr_target_with_no_author_login_never_reaches_the_revert_guard
     assert scan.reverted_emitted == []
 
 
-def test_zero_rollout_lists_the_full_cohort_and_dispatches_only_its_authoritative_prs(make_config):
+def test_the_scan_lists_the_full_cohort_and_dispatches_only_its_eligible_prs(make_config):
     scan = _run_scan(
         make_config,
         listed=[
@@ -2714,13 +2565,28 @@ def test_zero_rollout_lists_the_full_cohort_and_dispatches_only_its_authoritativ
         files={1: (_TORCH_FILE,), 2: (_TORCH_FILE,)},
         bot_login="greenlight-app[bot]",
         dismissed_ids={1: [901]},
-        config_kwargs={"shadow_rollout": 0.0},
     )
 
-    # 0.0 pauses the shadow experiment and nothing else: the listing is still the whole cohort, and a
-    # reverted shadow PR in it is still revoked and recorded, but no shadow PR is fingerprinted.
+    # The listing is the whole cohort, and a reverted ineligible PR in it is still revoked and
+    # recorded, but no ineligible PR is fingerprinted or dispatched.
     assert scan.listed_authors == [cohort.evaluation_cohort(_AUTHORIZED)]
     assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
     assert scan.reverted_shadow == [(1, True)]
     assert scan.fingerprinted == [3]
     assert scan.dispatch_shadow == [(3, False)]
+
+
+def test_an_eligible_pr_whose_latest_row_is_a_land_keeps_its_approval_and_is_left_to_decide(make_config):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_B)},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW), 2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
+        files={1: (_DOCS_FILE,)},
+        bot_login="greenlight-app[bot]",
+    )
+
+    # decide alone answers for an eligible PR: an unchanged one is skipped, a changed one re-reviewed.
+    assert scan.dismissals == []
+    assert sorted(scan.fingerprinted) == [1, 2]
+    assert scan.dispatched == [(2, "headsha2", _HASH_B, DEFAULT_DISPATCH_REF)]

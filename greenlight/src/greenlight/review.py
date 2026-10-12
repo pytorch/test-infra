@@ -1,24 +1,21 @@
 """Scan pytorch/pytorch PRs from the evaluation cohort and dispatch the AI review workflow.
 
-Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules approvers),
-fingerprints each one, reads its latest recorded state from ClickHouse, and asks
-``decision.decide`` whether to dispatch a review, skip it, or wait. A PR is evaluated in shadow
-unless its author is named by a merge rule covering every file it changes; a path-scoped rule also
-needs a non-ghstack PR based on ``main`` (see ``authority`` and TRUSTED_AUTHORS.md). A shadow run is
-dispatched and recorded, but the row is stamped ``shadow`` so it is never approved and never rendered,
-and Dr. CI is not poked for it. The one exception is a REVERTED row, stamped non-shadow on any PR with
-a recorded row: it must deny. State is re-read from ClickHouse every scan, so the one-shot and
+Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules approvers), reads
+their latest recorded state from ClickHouse, fingerprints each PR whose author is eligible for it,
+and asks ``decision.decide`` whether to dispatch a review, skip it, or wait. An author is eligible
+when a merge rule names them and covers every file the PR changes; a path-scoped rule also needs a
+non-ghstack PR based on ``main`` (see ``authority`` and TRUSTED_AUTHORS.md). The scan never
+fingerprints or dispatches any other PR. A PR whose files read failed or was skipped stays
+undetermined and is never dispatched.
+The ``shadow`` stamp marks an ineligible ``--pr`` target reviewed under the local-only
+``--allow-untrusted-author`` -- never approved, never rendered, no Dr. CI poke -- and the REVERTED
+row of an ineligible PR with no recorded row; on a recorded PR the REVERTED row is always
+non-shadow, since it can only deny. State is re-read from ClickHouse every scan, so the one-shot and
 ``--loop`` paths behave identically -- nothing is remembered in memory between scans. All GitHub,
 ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable without any
 of them.
 
 Both authz gates (``authz_gates``) run once the merge rules resolve.
-
-``PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`` sizes that shadow traffic. An authoritative PR is always
-evaluated; every other PR from the listing joins only if a stable hash of its number falls under the
-dial, so the holdout is the same group from one scan to the next. The dial gates which PRs from the
-listing are fingerprinted and nothing else: the listing, both authz gates, the merge-authorized login
-set, and whether a verdict carries authority behave identically at every setting.
 
 Reverted PRs are excluded before any of that on the listing path, and on the ``--pr`` path once its
 gate admits the target or refuses one whose author GitHub can name (a refused target with no author
@@ -193,7 +190,6 @@ def run(
             if target is None:
                 return
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
-        logger.info("scan cohort: full evaluation cohort (PYTORCH_GREENLIGHT_SHADOW_ROLLOUT=%g)", config.shadow_rollout)
         pr_numbers, updated_at_by_number, labels_by_number, authors_by_number = _candidate_numbers(
             client, pr=pr, fetch=fetch, authors=evaluable
         )
@@ -252,8 +248,7 @@ def run(
         skip_on_approval = pr is None
         if pr is None:
             # A single --pr target is always evaluated: the recency window only prunes the listed
-            # scan, where a stale untouched PR would waste a fingerprint, and holding a recheck out
-            # of the rollout would exit 0 having silently done nothing.
+            # scan, where a stale untouched PR would waste a fingerprint.
             recent = candidate_filter.recency_filter(
                 pr_numbers,
                 updated_at_by_number,
@@ -262,14 +257,7 @@ def run(
                 now=evaluated_at,
                 window=timedelta(hours=config.review_window_hours),
             )
-            # An authoritative PR is exempt from the dial: sampling one out would not shrink the
-            # experiment, it would withhold the live service greenlight already gives its author.
-            fingerprint_numbers = candidate_filter.rollout_filter(
-                recent,
-                frozenset(number for number in recent if not authority.shadow(number)),
-                repo=TARGET_REPO,
-                rollout=config.shadow_rollout,
-            )
+            fingerprint_numbers = [number for number in recent if not authority.shadow(number)]
         else:
             fingerprint_numbers = pr_numbers
         undetermined = authority.undetermined
