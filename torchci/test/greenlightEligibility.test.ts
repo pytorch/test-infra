@@ -4,29 +4,13 @@ import {
   GreenlightEligibility,
   greenlightEligibilityGate,
   parseMergeRules,
-  parseTrustedAuthors,
   renderGreenlightEligibility,
 } from "lib/greenlight/greenlightEligibility";
 import { GateReview } from "lib/greenlight/greenlightReviewGate";
 import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
 import { Octokit } from "octokit";
 
-const FENCE = "```";
 const FILES_ROUTE = "GET /repos/{owner}/{repo}/pulls/{pull_number}/files";
-
-function issueBody(...lines: string[]): string {
-  return lines.join("\n");
-}
-
-const TRUSTED_ISSUE = issueBody(
-  FENCE,
-  "@Alice",
-  "@carol",
-  "@dave",
-  "@root-approver",
-  "@team-member",
-  FENCE
-);
 
 const RULES_YAML = `
 - { name: Everything, patterns: ['*'], approved_by: [root-approver, pytorch/everyone] }
@@ -40,7 +24,6 @@ function notFound(): Error {
 }
 
 function fakeOctokit({
-  body = TRUSTED_ISSUE as unknown,
   rules = RULES_YAML,
   files = [] as string[],
   members = {} as Record<string, string[]>,
@@ -49,7 +32,6 @@ function fakeOctokit({
   const listReviews = jest.fn();
   return {
     rest: {
-      issues: { get: jest.fn().mockResolvedValue({ data: { body } }) },
       pulls: { listReviews },
       repos: {
         getContent: jest.fn().mockResolvedValue({
@@ -94,68 +76,6 @@ function pr(overrides: Partial<EligibilityPr> = {}): EligibilityPr {
     ...overrides,
   };
 }
-
-describe("parseTrustedAuthors", () => {
-  it("reads one lowercased login per line", () => {
-    expect(
-      parseTrustedAuthors(issueBody(FENCE, "@alice", "@Bob", FENCE))
-    ).toEqual(new Set(["alice", "bob"]));
-  });
-
-  it("skips blank lines and comments, and allows a text info string", () => {
-    const body = issueBody(
-      "",
-      "  ",
-      "``` Text ",
-      "# who may land",
-      "",
-      "   @alice  ",
-      "\t# @mallory is a comment",
-      "   ``` \t"
-    );
-    expect(parseTrustedAuthors(body)).toEqual(new Set(["alice"]));
-  });
-
-  it("ends the list at the closing fence", () => {
-    const body = issueBody(FENCE, "@alice", FENCE, "@mallory", "anything");
-    expect(parseTrustedAuthors(body)).toEqual(new Set(["alice"]));
-  });
-
-  it("splits on \\r\\n and \\r as well as \\n", () => {
-    expect(parseTrustedAuthors(`${FENCE}\r\n@alice\r@bob\n${FENCE}`)).toEqual(
-      new Set(["alice", "bob"])
-    );
-  });
-
-  it("accepts an empty block and a 39-character login", () => {
-    expect(parseTrustedAuthors(issueBody(FENCE, FENCE))).toEqual(new Set());
-    const login = `a${"-".repeat(38)}`;
-    expect(parseTrustedAuthors(issueBody(FENCE, `@${login}`, FENCE))).toEqual(
-      new Set([login])
-    );
-  });
-
-  it.each([
-    ["no fence", issueBody("@alice", FENCE)],
-    ["a py fence", issueBody("```py", "@alice", FENCE)],
-    ["a 4-space fence", issueBody(`    ${FENCE}`, "@alice", FENCE)],
-    ["text before the fence", issueBody("Trusted:", FENCE, "@alice", FENCE)],
-    ["an entry without @", issueBody(FENCE, "alice", FENCE)],
-    ["a trailing comment", issueBody(FENCE, "@alice # lead", FENCE)],
-    ["a 40-character login", issueBody(FENCE, `@${"a".repeat(40)}`, FENCE)],
-    ["an unclosed fence", issueBody(FENCE, "@alice")],
-    // Python's str.strip keeps U+FEFF, so its reader rejects this line.
-    ["a BOM-only line", issueBody(FENCE, "\ufeff", FENCE)],
-    ["an empty body", ""],
-    ["a blank body", " \n\t\n"],
-  ])("rejects %s", (_, body) => {
-    expect(() => parseTrustedAuthors(body)).toThrow();
-  });
-
-  it.each([[null], [undefined], [42]])("rejects a %p body", (body) => {
-    expect(() => parseTrustedAuthors(body)).toThrow();
-  });
-});
 
 describe("parseMergeRules", () => {
   it("splits approvers into exact-case logins and org/slug teams", () => {
@@ -261,8 +181,15 @@ describe("greenlightEligibilityGate", () => {
   const DOCS_TREE = { files: ["docs/a.md", "docs/b/c.md"] };
   const MIXED = { files: ["docs/a.md", "torch/a.py"] };
   const TEAM = { members: { "pytorch/everyone": ["team-member"] } };
-  const FRANK = { ...DOCS, body: issueBody(FENCE, "@frank", FENCE) };
+  const PATH_TEAM = {
+    rules: `${RULES_YAML}- { patterns: [third_party/**], approved_by: [pytorch/vendors] }\n`,
+    members: { "pytorch/vendors": ["vendor"] },
+  };
+  const BOT_APPROVERS = {
+    rules: `${RULES_YAML}- { patterns: ['*'], approved_by: [pytorchbot, pytorchgreenlight] }\n`,
+  };
   const AT_CAPS = { additions: 1995, changed_files: 200 };
+  const PAST_CAPS = { additions: 1996, changed_files: 201 };
   const GHSTACK = { head: { ref: "gh/alice/12/head" } };
   const RELEASE = { base: { ref: "release/2.9" } };
   const by = (login: string) => ({ user: { login } });
@@ -273,9 +200,13 @@ describe("greenlightEligibilityGate", () => {
   const SPACED = {
     rules: `${RULES_YAML}- { patterns: [third_party/**], approved_by: ['  Grace '] }\n`,
   };
+  // Python's str.strip keeps U+FEFF, so this entry never names eve.
+  const BOM_PADDED = {
+    rules: `${RULES_YAML}- { patterns: ['*'], approved_by: ['\ufeffeve'] }\n`,
+  };
 
   // [case, fake GitHub, PR fields, outcome,
-  //  issue reads + rules reads + file listings + review listings]
+  //  rules reads + file listings + review listings]
   const CASES: [
     string,
     Parameters<typeof fakeOctokit>[0],
@@ -283,78 +214,93 @@ describe("greenlightEligibilityGate", () => {
     GreenlightEligibility | null,
     string
   ][] = [
-    ["a draft", {}, { draft: true }, null, "0000"],
-    ["no author", {}, { user: null }, null, "0000"],
-    ["an unlisted author", {}, by("eve"), null, "1000"],
-    ["lines past the cap", DOCS, { additions: 1996 }, "too_big", "1000"],
-    ["files past the cap", DOCS, { changed_files: 201 }, "too_big", "1000"],
-    ["a PR at both caps", DOCS, AT_CAPS, "waiting", "1111"],
-    ["an author a catch-all names", {}, by("root-approver"), "waiting", "1101"],
-    ["a catch-all team's member", TEAM, by("team-member"), "waiting", "1101"],
-    ["files one naming rule covers", DOCS_TREE, {}, "waiting", "1111"],
-    ["files only two rules cover", MIXED, by("dave"), "merge_rules", "1110"],
-    ["an approver in another case", DOCS, by("alice"), "merge_rules", "1110"],
+    ["a draft", {}, { draft: true }, null, "000"],
+    ["no author", {}, { user: null }, null, "000"],
+    ["a bot a catch-all names", BOT_APPROVERS, by("pytorchbot"), null, "000"],
     [
-      "a listed author no rule names",
-      FRANK,
-      by("frank"),
-      "merge_rules",
-      "1110",
+      "greenlight's bare login, which a catch-all names",
+      BOT_APPROVERS,
+      by("PyTorchGreenLight"),
+      null,
+      "000",
     ],
-    ["a ghstack head", DOCS, GHSTACK, "merge_rules", "1100"],
-    ["a base other than main", DOCS, RELEASE, "merge_rules", "1100"],
+    ["an author no rule names", DOCS, by("frank"), null, "100"],
+    [
+      "an author only a BOM-padded entry names",
+      BOM_PADDED,
+      by("eve"),
+      null,
+      "100",
+    ],
+    [
+      "a non-approver's PR past the caps",
+      {},
+      { ...by("eve"), ...PAST_CAPS },
+      null,
+      "100",
+    ],
+    ["lines past the cap", DOCS, { additions: 1996 }, "too_big", "100"],
+    ["files past the cap", DOCS, { changed_files: 201 }, "too_big", "100"],
+    ["a PR at both caps", DOCS, AT_CAPS, "waiting", "111"],
+    ["an author a catch-all names", {}, by("root-approver"), "waiting", "101"],
+    ["a catch-all team's member", TEAM, by("team-member"), "waiting", "101"],
+    [
+      "a path rule team's member",
+      { ...DOCS, ...PATH_TEAM },
+      by("vendor"),
+      "merge_rules",
+      "110",
+    ],
+    ["files one naming rule covers", DOCS_TREE, {}, "waiting", "111"],
+    ["files only two rules cover", MIXED, by("dave"), "merge_rules", "110"],
+    ["an approver in another case", DOCS, by("alice"), "merge_rules", "110"],
+    ["a ghstack head", DOCS, GHSTACK, "merge_rules", "100"],
+    ["a base other than main", DOCS, RELEASE, "merge_rules", "100"],
     [
       "a catch-all author's decided PR",
       DECIDED,
       by("root-approver"),
       null,
-      "1101",
+      "101",
     ],
-    [
-      "a covered author's decided PR",
-      { ...DOCS, ...DECIDED },
-      {},
-      null,
-      "1111",
-    ],
+    ["a covered author's decided PR", { ...DOCS, ...DECIDED }, {}, null, "111"],
     [
       "an approval by a padded entry in another case",
       { ...DOCS, ...SPACED, ...reviewed("APPROVED", "GRACE") },
       {},
       null,
-      "1111",
+      "111",
     ],
     [
       "an approval by a rule's approver whatever its patterns",
       { ...DOCS, ...reviewed("APPROVED", "carol") },
       {},
       null,
-      "1111",
+      "111",
     ],
     [
       "an approval by an approving team's member",
       { ...DOCS, ...TEAM, ...reviewed("APPROVED", "team-member") },
       {},
       null,
-      "1111",
+      "111",
     ],
     [
       "an approval by a non-approver",
       { ...DOCS, ...reviewed("APPROVED", "eve") },
       {},
       "waiting",
-      "1111",
+      "111",
     ],
   ];
 
   it.each(CASES)("decides %s", async (_, options, fields, outcome, reads) => {
     const octokit = fakeOctokit(options);
     expect(await gateFor(octokit)(pr(fields))).toBe(outcome);
-    const { issues, repos, pulls } = octokit.rest;
+    const { repos, pulls } = octokit.rest;
     const routes = octokit.paginate.mock.calls.map(([route]) => route);
     expect(
       [
-        issues.get.mock.calls.length,
         repos.getContent.mock.calls.length,
         routes.filter((route) => route === FILES_ROUTE).length,
         routes.filter((route) => route === pulls.listReviews).length,
@@ -396,7 +342,7 @@ describe("greenlightEligibilityGate", () => {
     );
   });
 
-  it("fetches the issue, the rules and each team lookup once per gate", async () => {
+  it("fetches the rules and each team lookup once per gate", async () => {
     const octokit = fakeOctokit({ ...DOCS, ...TEAM });
     const gate = gateFor(octokit);
     const results = await Promise.all(
@@ -405,12 +351,6 @@ describe("greenlightEligibilityGate", () => {
       )
     );
     expect(results).toEqual(["waiting", "waiting", null, "merge_rules"]);
-    expect(octokit.rest.issues.get).toHaveBeenCalledTimes(1);
-    expect(octokit.rest.issues.get).toHaveBeenCalledWith({
-      owner: "pytorch",
-      repo: "test-infra",
-      issue_number: 8945,
-    });
     expect(octokit.rest.repos.getContent).toHaveBeenCalledTimes(1);
     expect(octokit.rest.repos.getContent).toHaveBeenCalledWith({
       owner: "pytorch",
@@ -419,23 +359,21 @@ describe("greenlightEligibilityGate", () => {
     });
     const lookups = octokit.rest.teams.getMembershipForUserInOrg.mock.calls;
     const users = lookups.map(([args]) => args.username).sort();
-    expect(users).toEqual(["carol", "team-member"]);
+    expect(users).toEqual(["carol", "eve", "team-member"]);
   });
 
-  it("rejects when the issue cannot be read, on every check", async () => {
+  it("rejects when the rules cannot be read, on every check", async () => {
     const octokit = fakeOctokit();
-    octokit.rest.issues.get.mockRejectedValue(new Error("boom"));
+    octokit.rest.repos.getContent.mockRejectedValue(new Error("boom"));
     const gate = gateFor(octokit);
     await expect(gate(pr())).rejects.toThrow("boom");
     await expect(gate(pr({ number: 2 }))).rejects.toThrow("boom");
-    expect(octokit.rest.issues.get).toHaveBeenCalledTimes(1);
+    expect(octokit.rest.repos.getContent).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ["a malformed issue", { body: "@alice" }],
-    ["malformed rules", { rules: "name: x" }],
-  ])("rejects on %s", async (_, options) => {
-    await expect(gateFor(fakeOctokit(options))(pr())).rejects.toThrow();
+  it("rejects on malformed rules", async () => {
+    const octokit = fakeOctokit({ rules: "name: x" });
+    await expect(gateFor(octokit)(pr())).rejects.toThrow();
   });
 
   it("rejects when a team lookup fails with anything but 404", async () => {

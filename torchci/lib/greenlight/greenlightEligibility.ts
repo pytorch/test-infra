@@ -1,17 +1,18 @@
 // What greenlight's scan would decide for a PR it has no non-shadow state for,
-// read from the same sources it reads. The issue grammar and the merge-rule
-// semantics are ports of greenlight/src/greenlight/trusted_authors.py,
-// merge_authz.py and cohort.assess, and the size caps of the ones in
+// read from the same sources it reads. The merge-rule semantics are ports of
+// greenlight/src/greenlight/merge_authz.py, cohort.evaluation_cohort and
+// cohort.assess_rules, and the size caps of the ones in
 // .github/workflows/greenlight-pr-review.yml: they must change together, or this
 // line promises a review the scan will not run.
 
 import yaml from "js-yaml";
 import { getFilesChangedByPr } from "lib/bot/utils";
+import { GREENLIGHT_APP_SLUG } from "lib/greenlight/greenlightConfig";
 import {
   GREENLIGHT_IN_PROGRESS_EMOJI,
   GREENLIGHT_NEEDS_HUMAN_EMOJI,
 } from "lib/greenlight/greenlightRender";
-import { isHumanDecided } from "lib/greenlight/greenlightReviewGate";
+import { isBot, isHumanDecided } from "lib/greenlight/greenlightReviewGate";
 import { Octokit } from "octokit";
 
 export type GreenlightEligibility = "too_big" | "merge_rules" | "waiting";
@@ -40,11 +41,6 @@ interface MergeRule {
   coversAll: boolean;
 }
 
-const TRUSTED_AUTHORS_ISSUE = {
-  owner: "pytorch",
-  repo: "test-infra",
-  issue_number: 8945,
-};
 const MERGE_RULES_FILE = {
   owner: "pytorch",
   repo: "pytorch",
@@ -56,11 +52,8 @@ const MAX_DIFF_FILES = 200;
 const GHSTACK_HEAD_REF_RE = /^gh\/[^/]+\/[0-9]+\/head$/;
 const TEAM_REF_RE = /^[^/]+\/[^/]+$/;
 
-const OPENING_FENCE_RE = /^ {0,3}```[ \t]*(?:text[ \t]*)?$/i;
-const CLOSING_FENCE_RE = /^ {0,3}```[ \t]*$/;
-const ENTRY_RE = /^@([A-Za-z0-9][A-Za-z0-9-]{0,38})$/;
 // Python's str.strip set. String.prototype.trim differs: it also strips U+FEFF,
-// which would accept a line the Python reader rejects.
+// which would read a BOM-padded approved_by entry differently from Python.
 const PY_SPACE =
   "[\\t-\\r\\x1c-\\x20\\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]";
 const PY_STRIP_RE = new RegExp(`^${PY_SPACE}+|${PY_SPACE}+$`, "g");
@@ -87,52 +80,6 @@ const ELIGIBILITY_STATUS: Record<GreenlightEligibility, string> = {
 
 function pyStrip(text: string): string {
   return text.replace(PY_STRIP_RE, "");
-}
-
-function lineError(index: number, line: string, problem: string): Error {
-  return new Error(
-    `trusted-authors issue line ${index + 1}: ${JSON.stringify(
-      line
-    )}: ${problem}`
-  );
-}
-
-export function parseTrustedAuthors(body: unknown): Set<string> {
-  if (typeof body !== "string" || pyStrip(body) === "") {
-    throw new Error(
-      `trusted-authors issue body is empty or not text: ${JSON.stringify(body)}`
-    );
-  }
-  // Markdown ends lines only at \r\n, \r and \n.
-  const lines = body.split(/\r\n|\r|\n/);
-  const start = lines.findIndex((line) => pyStrip(line) !== "");
-  if (!OPENING_FENCE_RE.test(lines[start])) {
-    throw lineError(
-      start,
-      lines[start],
-      "the first non-blank line must open a ``` fence whose info string is empty or text"
-    );
-  }
-  const logins = new Set<string>();
-  for (let i = start + 1; i < lines.length; i++) {
-    if (CLOSING_FENCE_RE.test(lines[i])) {
-      return logins;
-    }
-    const entry = pyStrip(lines[i]);
-    if (entry === "" || entry.startsWith("#")) {
-      continue;
-    }
-    const match = ENTRY_RE.exec(entry);
-    if (match === null) {
-      throw lineError(
-        i,
-        lines[i],
-        "expected '@login', a '#' comment or a blank line"
-      );
-    }
-    logins.add(match[1].toLowerCase());
-  }
-  throw lineError(start, lines[start], "the opening fence is never closed");
 }
 
 function patternsToRegex(patterns: string[]): RegExp {
@@ -239,11 +186,6 @@ export function parseMergeRules(text: string): MergeRule[] {
   return rules.map((rule) => parseRule(rule));
 }
 
-async function fetchTrustedAuthors(octokit: Octokit): Promise<Set<string>> {
-  const { data } = await octokit.rest.issues.get(TRUSTED_AUTHORS_ISSUE);
-  return parseTrustedAuthors(data.body);
-}
-
 async function fetchMergeRules(octokit: Octokit): Promise<MergeRule[]> {
   const { data } = await octokit.rest.repos.getContent(MERGE_RULES_FILE);
   if (!("content" in data)) {
@@ -274,15 +216,14 @@ async function fetchTeamMembership(
   }
 }
 
-// One gate per Dr.CI sweep or webhook event: the issue and the merge rules are
-// each fetched at most once, on first need, and team lookups are memoized. The
-// returned check rejects on any GitHub or parse error rather than guessing.
+// One gate per Dr.CI sweep or webhook event: the merge rules are fetched at most
+// once, on first need, and team lookups are memoized. The returned check rejects
+// on any GitHub or parse error rather than guessing.
 export function greenlightEligibilityGate(
   octokit: Octokit,
   owner: string,
   repo: string
 ): EligibilityCheck {
-  let trustedAuthors: Promise<Set<string>> | undefined;
   let mergeRules: Promise<MergeRule[]> | undefined;
   const memberships = new Map<string, Promise<boolean>>();
 
@@ -341,8 +282,17 @@ export function greenlightEligibilityGate(
     if (pr.draft || !login) {
       return null;
     }
-    trustedAuthors ??= fetchTrustedAuthors(octokit);
-    if (!(await trustedAuthors).has(login.toLowerCase())) {
+    // The scan lists only cohort.evaluation_cohort's PRs: merge-rule approvers
+    // other than bots and greenlight.
+    if (
+      isBot(login, undefined) ||
+      login.toLowerCase() === GREENLIGHT_APP_SLUG
+    ) {
+      return null;
+    }
+    mergeRules ??= fetchMergeRules(octokit);
+    const rules = await mergeRules;
+    if (!(await isMergeApprover(rules, login))) {
       return null;
     }
     if (
@@ -351,8 +301,6 @@ export function greenlightEligibilityGate(
     ) {
       return "too_big";
     }
-    mergeRules ??= fetchMergeRules(octokit);
-    const rules = await mergeRules;
     const catchAll = rules.filter((rule) => rule.coversAll);
     if (await namesAuthor(catchAll, login)) {
       return waitingUnlessDecided(pr, rules);
