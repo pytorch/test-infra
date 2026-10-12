@@ -1,15 +1,32 @@
--- Identify runs where at least one job started within the time window.
--- Using run-level filtering ensures complete nightly rows: when a pipeline's
--- jobs start at different times (build first, tests later), per-job
--- started_at filtering would clip earlier jobs from the last run, producing
--- partial rows with missing cells.
-WITH eligible_runs AS (
-    SELECT DISTINCT run_id
+-- Select complete matrix rows before returning their individual jobs. A raw
+-- job limit could otherwise cut a many-job nightly in half.
+WITH nightly_jobs AS (
+    SELECT
+        *,
+        if(
+            match(pytorch_head_sha, '^[0-9a-fA-F]{40}$'),
+            concat('sha:', pytorch_head_sha),
+            concat('run:', if(run_id != '', run_id, pytorch_head_sha))
+        ) AS matrix_key
     FROM default.crcr_workflow_job FINAL
     WHERE
         downstream_repo = {repo: String}
-        AND started_at > now() - INTERVAL {days: UInt64} DAY
         AND event_type = 'nightly'
+),
+
+eligible_matrix_keys AS (
+    SELECT DISTINCT matrix_key
+    FROM nightly_jobs
+    WHERE started_at > now() - INTERVAL {days: UInt64} DAY
+),
+
+selected_matrix_keys AS (
+    SELECT matrix_key
+    FROM nightly_jobs
+    WHERE matrix_key IN (SELECT matrix_key FROM eligible_matrix_keys)
+    GROUP BY matrix_key
+    ORDER BY max(started_at) DESC
+    LIMIT {limit: UInt64} OFFSET {offset: UInt64}
 ),
 
 latest_attempts AS (
@@ -17,11 +34,8 @@ latest_attempts AS (
         run_id,
         job_name,
         max(run_attempt) AS max_attempt
-    FROM default.crcr_workflow_job FINAL
-    WHERE
-        downstream_repo = {repo: String}
-        AND event_type = 'nightly'
-        AND run_id IN (SELECT run_id FROM eligible_runs)
+    FROM nightly_jobs
+    WHERE matrix_key IN (SELECT matrix_key FROM selected_matrix_keys)
     GROUP BY run_id, job_name
 )
 
@@ -48,11 +62,9 @@ SELECT
     execution_time,
     failed_tests_json
 FROM
-    default.crcr_workflow_job FINAL
+    nightly_jobs
 WHERE
-    downstream_repo = {repo: String}
-    AND event_type = 'nightly'
-    AND run_id IN (SELECT run_id FROM eligible_runs)
+    matrix_key IN (SELECT matrix_key FROM selected_matrix_keys)
     AND (run_id, job_name, run_attempt) IN (
         SELECT
             run_id,
@@ -62,4 +74,3 @@ WHERE
     )
 ORDER BY
     started_at DESC
-LIMIT 500
