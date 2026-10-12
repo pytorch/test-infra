@@ -83,6 +83,13 @@
       "xpu"
     ]
   ],
+  "test_bf16_heavy_ties_deterministic (__main__.TestRadixKernelParams)": [
+    "200577",
+    "https://github.com/pytorch/pytorch/issues/200577",
+    [
+      "linux"
+    ]
+  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
@@ -574,13 +581,6 @@
   "test_fused_sdp_priority_order_use_compile_False_cuda (__main__.TestSDPAAcceleratorCUDA)": [
     "197006",
     "https://github.com/pytorch/pytorch/issues/197006",
-    [
-      "linux"
-    ]
-  ],
-  "test_fused_sdp_priority_order_use_compile_True_cuda (__main__.TestSDPAAcceleratorCUDA)": [
-    "196438",
-    "https://github.com/pytorch/pytorch/issues/196438",
     [
       "linux"
     ]
