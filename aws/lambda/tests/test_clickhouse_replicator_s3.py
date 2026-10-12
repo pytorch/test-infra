@@ -315,50 +315,93 @@ def test_merges_adapter_is_the_only_caller_that_turns_named_columns_on():
     assert naming == ["merges_adapter"]
 
 
-# Test run reports: one zip per test job, matched by name; catalogs, then runs.
+# Test run reports: one object per report, matched by pattern and sampled by
+# workflow run; catalogs, then runs.
 
-TEST_RUN_REPORTS_ZIP = (
-    "pytorch/pytorch/37383941543/1/artifact/"
-    "test-run-reports-test-distributed-6-8-lf-l-x86iamx-8-64_112017841325.report.zip"
+TEST_RUN_REPORT = (
+    "torchci-reports/pytorch/pytorch/38278237839/114912897697/"
+    "dynamo.test_benchmark_runner-ffe2a051-037b-44c1-8205-291c7bd84c1e.report.jsonl"
 )
 
 
-def route(bucket, key, mode):
-    with mock.patch.dict("os.environ", {"TEST_RUN_REPORTS_MODE": mode}):
+def report_key(run_id, job_id=114912897697):
+    return f"torchci-reports/pytorch/pytorch/{run_id}/{job_id}/test_torch-1111.report.jsonl"
+
+
+def route(bucket, key, mode, percent="100"):
+    environ = {
+        "TEST_RUN_REPORTS_MODE": mode,
+        "TEST_RUN_REPORTS_SAMPLE_PERCENT": percent,
+    }
+    with mock.patch.dict("os.environ", environ):
         return lambda_function.extract_clickhouse_table_name(bucket, key)
 
 
 @pytest.mark.parametrize(
     "key",
     [
-        TEST_RUN_REPORTS_ZIP,
-        "pytorch/pytorch/37383941543/2/artifact/"
-        "test-run-reports-test-default-1-6-linux.rocm.gpu.gfx950.1_112017841999.report.zip",
+        TEST_RUN_REPORT,
+        # uploaded by tools/stats/upload_artifacts.py from a ROCm job's artifact
+        "torchci-reports/pytorch/pytorch/38198677080/114650549795/"
+        "test_nn-6b8ce582-daf6-4680-91f6-89c42741e8c5.report.jsonl",
     ],
 )
 @pytest.mark.parametrize("mode", ["dry", "on"])
-def test_a_test_run_reports_zip_routes_to_runs(key, mode):
+def test_a_test_run_report_routes_to_runs(key, mode):
     assert route("gha-artifacts", key, mode) == "fortesting.runs"
 
 
 @pytest.mark.parametrize("mode", ["off", "yes", ""])
 def test_any_other_mode_routes_nothing(mode):
-    assert route("gha-artifacts", TEST_RUN_REPORTS_ZIP, mode) is None
+    assert route("gha-artifacts", TEST_RUN_REPORT, mode) is None
 
 
-def test_the_default_mode_is_on():
+def test_the_defaults_are_on_for_a_tenth_of_runs():
     assert lambda_function.TEST_RUN_REPORTS_MODE == "on"
+    assert lambda_function.TEST_RUN_REPORTS_SAMPLE_PERCENT == 10
     with mock.patch.dict("os.environ", clear=True):
         assert lambda_function.test_run_reports_mode() == "on"
-        table = lambda_function.extract_clickhouse_table_name(
-            "gha-artifacts", TEST_RUN_REPORTS_ZIP
-        )
-    assert table == "fortesting.runs"
+        tables = [
+            lambda_function.extract_clickhouse_table_name(
+                "gha-artifacts", report_key(run_id)
+            )
+            for run_id in (38278237800, 38278237809, 38278237810, 38278237839)
+        ]
+    assert tables == ["fortesting.runs", "fortesting.runs", None, None]
 
 
 def test_the_environment_overrides_the_default_mode():
     with mock.patch.object(lambda_function, "TEST_RUN_REPORTS_MODE", "on"):
-        assert route("gha-artifacts", TEST_RUN_REPORTS_ZIP, "off") is None
+        assert route("gha-artifacts", TEST_RUN_REPORT, "off") is None
+
+
+@pytest.mark.parametrize(
+    "percent,routed",
+    [
+        ("0", []),
+        ("1", [38278237800]),
+        ("50", [38278237800, 38278237849]),
+        ("100", [38278237800, 38278237849, 38278237850, 38278237899]),
+    ],
+)
+def test_runs_are_sampled_by_id(percent, routed):
+    runs = [38278237800, 38278237849, 38278237850, 38278237899]
+    assert [
+        run_id
+        for run_id in runs
+        if route("gha-artifacts", report_key(run_id), "on", percent)
+    ] == routed
+
+
+@pytest.mark.parametrize("run_id", [38278237805, 38278237839])
+def test_a_runs_jobs_are_all_routed_or_none_are(run_id):
+    # Job ids across the sampled range, so sampling by job would split the run.
+    jobs = [114912897600, 114912897605, 114912897650, 114912897697]
+    routed = {
+        route("gha-artifacts", report_key(run_id, job_id), "on", "10")
+        for job_id in jobs
+    }
+    assert len(routed) == 1
 
 
 @pytest.mark.parametrize(
@@ -367,19 +410,26 @@ def test_the_environment_overrides_the_default_mode():
         ("gha-artifacts", "pytorch/pytorch/1/1/artifact/test-reports-test-x_1.zip"),
         ("gha-artifacts", "pytorch/pytorch/1/1/artifact/logs-test-x_1.zip"),
         ("gha-artifacts", "pytorch/pytorch/1/linux-jammy-py3.11-gcc11/artifacts.zip"),
-        ("gha-artifacts", "pytorch/pytorch/1/1/artifact/test-run-reports-x_1.zip"),
+        # the job zips of reports that came before one object per report
         (
             "gha-artifacts",
-            "pytorch/pytorch/1/1/artifact/sub/test-run-reports-x_1.report.zip",
+            "pytorch/pytorch/1/1/artifact/test-run-reports-x_1.report.zip",
+        ),
+        ("gha-artifacts", "torchci-reports/pytorch/pytorch/1/2/test_torch-1111.jsonl"),
+        (
+            "gha-artifacts",
+            "torchci-reports/pytorch/pytorch/1/2/sub/test_torch-1111.report.jsonl",
         ),
         (
             "gha-artifacts",
-            "pytorch/pytorch/1/1/artifact/test-run-reports-x'_1.report.zip",
+            "torchci-reports/pytorch/pytorch/1/x/test_torch.report.jsonl",
         ),
-        ("other-bucket", TEST_RUN_REPORTS_ZIP),
+        ("gha-artifacts", "torchci-reports/pytorch/pytorch/1/2/test'x.report.jsonl"),
+        ("gha-artifacts", f"x/{TEST_RUN_REPORT}"),
+        ("other-bucket", TEST_RUN_REPORT),
     ],
 )
-def test_no_other_zip_is_taken_for_a_test_run_reports_zip(bucket, key):
+def test_no_other_key_is_taken_for_a_test_run_report(bucket, key):
     assert route(bucket, key, "on") is None
 
 
@@ -422,7 +472,7 @@ def run_test_reports_adapter(mode, fail_on=None, id_defaults=ID_DEFAULTS):
     with mock.patch.object(lambda_function, "get_clickhouse_client", lambda: client):
         with mock.patch.dict("os.environ", {"TEST_RUN_REPORTS_MODE": mode}):
             lambda_function.test_run_reports_adapter(
-                "fortesting.runs", "gha-artifacts", TEST_RUN_REPORTS_ZIP
+                "fortesting.runs", "gha-artifacts", TEST_RUN_REPORT
             )
     assert ID_LOOKUP in queries[0]
     return queries[1:]
@@ -443,25 +493,13 @@ def test_the_catalogs_are_written_before_runs():
 
 
 @pytest.mark.parametrize("mode", ["dry", "on"])
-def test_every_statement_reads_the_reports_inside_the_zip_once(mode):
-    source = (
-        f"s3('https://gha-artifacts.s3.amazonaws.com/{TEST_RUN_REPORTS_ZIP}"
-        " :: test/test-run-reports/*/*.jsonl', 'LineAsString')"
-    )
+def test_every_statement_reads_the_report_once(mode):
+    source = f"s3('https://gha-artifacts.s3.amazonaws.com/{TEST_RUN_REPORT}', 'LineAsString')"
     assert all(sql.count(source) == 1 for sql in run_test_reports_adapter(mode))
 
 
-@pytest.mark.parametrize("mode", ["dry", "on"])
-def test_every_statement_turns_on_the_archive_path_syntax(mode):
-    # Our ClickHouse Cloud service turns it off, and every statement reads the
-    # zip as `<archive> :: <file>`.
-    for sql in run_test_reports_adapter(mode):
-        assert ":: test/test-run-reports/*/*.jsonl" in sql
-        assert "settings allow_archive_path_syntax = 1" in sql
-
-
 def test_only_runs_carries_the_deduplication_token():
-    token = f"insert_deduplication_token = '{TEST_RUN_REPORTS_ZIP}:ingest-v1'"
+    token = f"insert_deduplication_token = '{TEST_RUN_REPORT}:ingest-v1'"
     queries = run_test_reports_adapter("on")
     assert [token in sql for sql in queries] == [False, False, False, True]
 
@@ -538,11 +576,12 @@ def test_the_language_comes_from_each_run_line():
         assert "IN ('python', 'cpp')" not in sql
 
 
-def test_runs_take_the_report_uuid_from_the_file_name():
-    # Until reports carry their uuid, the file name's 16 hex digits become the
-    # low half of one; the format() escaping must leave a {16} quantifier.
+def test_runs_take_the_report_uuid_from_the_report_line():
     *_, runs = run_test_reports_adapter("on")
-    assert "extract(path, '-([0-9a-f]{16})[.]jsonl$') AS report_hex" in runs
+    assert (
+        "toUUIDOrZero(JSONExtractString(report_line, 'report_uuid')) AS report_uuid"
+        in runs
+    )
     assert "github_workflow_job_id, report_uuid, rerun_number" in runs
 
 
