@@ -68,8 +68,8 @@ PyTorch Green Light has one unit of work — the `review` phase:
 
 `cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. The
 author must be named by a merge rule that covers every file the PR changes, a path-scoped rule only
-on a non-ghstack PR based on `main`; the scan and the verdict (`verdict.has_covering_rule`) run this
-same check. Any other non-draft PR is listed, state-read and revert-guarded but never dispatched;
+on a PR based on `main` or on a ghstack PR; the scan and the verdict (`verdict.has_covering_rule`) run
+this same check. Any other non-draft PR is listed, state-read and revert-guarded but never dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
 record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert

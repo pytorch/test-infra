@@ -38,8 +38,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# trymerge's RE_GHSTACK_HEAD_REF. trymerge exempts a ghstack head from its main-base refusal and lands
-# the stack by cherry-picking its orig branch, so the PR's own file listing does not bound what lands.
+# trymerge's RE_GHSTACK_HEAD_REF.
 _GHSTACK_HEAD_REF = re.compile(r"^(gh/[^/]+/[0-9]+/)head$")
 
 # Exact port of pytorch's gitutils.patterns_to_regex and trymerge._find_non_matching_files; keep
@@ -221,20 +220,22 @@ def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
 
 
 def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
-    """Return the PR's changed paths, or None when its listing is too long or cannot bound what trymerge lands.
+    """Return the PR's changed paths, or None for a non-ghstack PR not based on main or too many files.
 
-    None for a ghstack head or a base other than ``TARGET_BRANCH``, and for more than ``MAX_DIFF_FILES``
-    files, a cap kept below the 3000 at which GitHub's file listing stops silently. Only ``filename`` (the
-    new path) is read, so, as in trymerge, a rename's source path is never checked.
+    trymerge refuses a PR on any base but main unless it is a ghstack PR, and checks each PR of a ghstack
+    stack against that PR's own file list; this mirrors it. That list does not bound what trymerge lands
+    from a ghstack stack (greenlight/TRUSTED_AUTHORS.md, "Accepted risks"). Too many is more than
+    ``MAX_DIFF_FILES``, a cap kept below the 3000 at which GitHub's file listing stops silently. Only
+    ``filename`` (the new path) is read, so, as in trymerge, a rename's source path is never checked.
     """
     head_ref = pr.head.ref
-    if _GHSTACK_HEAD_REF.match(head_ref):
-        logger.warning("PR head %r is a ghstack head; its file listing cannot bound what lands", head_ref)
-        return None
     base_ref = pr.base.ref
-    if base_ref != constants.TARGET_BRANCH:
+    if base_ref != constants.TARGET_BRANCH and not _GHSTACK_HEAD_REF.match(head_ref):
         logger.warning(
-            "PR base %r is not %r; its file listing cannot bound what lands", base_ref, constants.TARGET_BRANCH
+            "PR base %r is not %r and head %r is not a ghstack head; its files are not listed",
+            base_ref,
+            constants.TARGET_BRANCH,
+            head_ref,
         )
         return None
     files = tuple(file.filename for file in itertools.islice(pr.get_files(), constants.MAX_DIFF_FILES + 1))

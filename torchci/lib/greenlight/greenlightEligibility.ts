@@ -306,11 +306,13 @@ export function greenlightEligibilityGate(
     if (await namesAuthor(catchAll, login)) {
       return waitingUnlessDecided(pr, rules);
     }
-    // A ghstack head lands by cherry-picking its orig branch, and a PR on another
-    // base is listed against that base, so neither listing bounds what lands.
+    // Mirrors trymerge, which refuses a PR on any base but main unless it is a
+    // ghstack PR, and checks each PR of a ghstack stack against that PR's own
+    // file list. That list does not bound what trymerge lands from a ghstack
+    // stack (greenlight/TRUSTED_AUTHORS.md, "Accepted risks").
     if (
-      GHSTACK_HEAD_REF_RE.test(pr.head.ref) ||
-      pr.base.ref !== TARGET_BRANCH
+      pr.base.ref !== TARGET_BRANCH &&
+      !GHSTACK_HEAD_REF_RE.test(pr.head.ref)
     ) {
       return "merge_rules";
     }

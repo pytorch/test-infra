@@ -3,8 +3,8 @@
 Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules approvers), reads
 their latest recorded state from ClickHouse, fingerprints each PR whose author is eligible for it,
 and asks ``decision.decide`` whether to dispatch a review, skip it, or wait. An author is eligible
-when a merge rule names them and covers every file the PR changes; a path-scoped rule also needs a
-non-ghstack PR based on ``main`` (see ``authority`` and TRUSTED_AUTHORS.md). The scan never
+when a merge rule names them and covers every file the PR changes. If the rule is path-scoped, it counts
+only on a PR based on ``main`` or on a ghstack PR (see ``authority`` and TRUSTED_AUTHORS.md). The scan never
 fingerprints or dispatches any other PR; when a recent one's author is determined ineligible and its
 latest recorded row is a LAND, the scan dismisses greenlight's approval on it instead, writing no row.
 A PR whose files read failed or was skipped stays undetermined: never dismissed, never dispatched.
