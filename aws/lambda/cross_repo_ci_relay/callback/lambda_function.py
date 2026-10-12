@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 
-from utils import jwt_helper
+from utils import demotion, jwt_helper
 from utils.config import get_config
 from utils.misc import HTTPException, JSON_HEADERS, parse_lambda_event
 
@@ -19,6 +19,10 @@ def lambda_handler(event, context):
     if event.get("source") == "crcr.sweeper":
         config = get_config()
         result = cleanup_handler.handle(config)
+        try:
+            demotion.reconcile(config)
+        except Exception:
+            logger.exception("demotion reconcile failed")
         return {
             "statusCode": 200,
             "headers": JSON_HEADERS,

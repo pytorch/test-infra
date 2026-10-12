@@ -10,6 +10,7 @@ import {
   ShadowMode,
   useQualityQuery,
 } from "lib/greenlight/qualityQuery";
+import { chartKeyOfTile, chartToggle, ChartToggleProps } from "./chartConfigs";
 import QualityTile, { TILE_SPAN } from "./QualityTile";
 import { QualityColors, qualityColors, tinted } from "./tileColors";
 import { LATENCY_TILES, LatencyTileConfig } from "./tileConfigs";
@@ -51,12 +52,13 @@ export default function LatencyPanels({
   stopTime,
   shadowMode,
   autoRefresh,
+  ...toggles
 }: {
   startTime: string;
   stopTime: string;
   shadowMode: ShadowMode;
   autoRefresh: boolean;
-}) {
+} & ChartToggleProps) {
   const latency = useQualityQuery(
     QUALITY_QUERIES.latency,
     startTime,
@@ -79,6 +81,7 @@ export default function LatencyPanels({
             loading={latency.loading}
             empty={!hasCount(row?.[tile.nField])}
             error={latency.error}
+            {...chartToggle(chartKeyOfTile(tile.key), toggles)}
           />
         </Grid>
       ))}

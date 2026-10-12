@@ -5,7 +5,7 @@ import time
 
 import utils.redis_helper as redis_helper
 from redis.exceptions import RedisError
-from utils import gh_helper
+from utils import demotion, gh_helper
 from utils.allowlist import AllowlistLevel, AllowlistMap, load_allowlist
 from utils.config import RelayConfig
 from utils.hud import forward_to_hud
@@ -478,6 +478,14 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
                 needs_cr = redis_helper.is_check_run_wanted(
                     config, head_sha, verified_repo
                 )
+
+            # No new check run while its demotion PR is open, but a job that
+            # started before that still gets its check run finished.
+            started_at = workflow_record.timestamp if workflow_record else None
+            if needs_cr and demotion.suppressed(
+                config, repo_level, verified_repo, started_at
+            ):
+                needs_cr = False
 
             if needs_cr:
                 _create_upstream_check_run(

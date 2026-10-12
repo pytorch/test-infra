@@ -12,6 +12,12 @@ on:
       # mirror only goes red on main.
       - "greenlight/tests/outline_parity_cases.json"
       - "greenlight/src/greenlight/verdict_outline.py"
+      # The greenlight replay tests read these: they pin the review workflow's stack step and
+      # parse the skill and hooks. Without these paths an edit to them ships green and the
+      # replay tests only go red on main.
+      - ".github/workflows/greenlight-pr-review.yml"
+      - ".claude/skills/greenlight-review/**"
+      - ".claude/hooks/greenlight/**"
   push:
     branches:
       - main

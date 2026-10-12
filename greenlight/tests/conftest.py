@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from greenlight import guards
+from greenlight import guards, verdict
 from greenlight.config import Config
 
 
@@ -12,6 +12,48 @@ from greenlight.config import Config
 def _no_real_watchdog_exit(monkeypatch):
     """Neutralise the shared hard watchdog's exit action so no test can call os._exit."""
     monkeypatch.setattr(guards._WATCHDOG, "_on_expire", lambda: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_merge_rule_lookup(monkeypatch):
+    """Refuse ``verdict.has_covering_rule``, which reads the merge rules from live GitHub.
+
+    ``_run_full`` looks the function up on the module at call time, which is the attribute patched
+    here; ``set_eligible`` swaps a fake in. A test module that imports the function itself binds the
+    real one at collection, before this runs, and hands it fake clients.
+    """
+
+    def unreachable(*_args: object, **_kwargs: object) -> bool:
+        raise AssertionError("a test reached the live merge-rule lookup")
+
+    monkeypatch.setattr(verdict, "has_covering_rule", unreachable)
+
+
+class _FakeEligibility:
+    """Stand-in for ``verdict.has_covering_rule`` that records each call and answers from a fixed set."""
+
+    def __init__(self, authors: frozenset[str]) -> None:
+        self.authors = authors
+        self.calls: list[tuple[str, str, int, str, str | None]] = []
+
+    def __call__(self, token: str, repo: str, pr_number: int, head_sha: str, author: str | None) -> bool:
+        self.calls.append((token, repo, pr_number, head_sha, author))
+        return author in self.authors
+
+
+@pytest.fixture
+def set_eligible(monkeypatch):
+    """Replace ``verdict.has_covering_rule`` with a fake under which exactly the given authors are eligible.
+
+    ``set_eligible("alice")`` returns the installed fake; its ``calls`` record every lookup.
+    """
+
+    def _install(*authors: str) -> _FakeEligibility:
+        fake = _FakeEligibility(frozenset(authors))
+        monkeypatch.setattr(verdict, "has_covering_rule", fake)
+        return fake
+
+    return _install
 
 
 @pytest.fixture(autouse=True)

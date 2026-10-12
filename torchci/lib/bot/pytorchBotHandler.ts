@@ -6,6 +6,11 @@ import { queryClickhouseSaved } from "../clickhouse";
 import { downstreamRepoFromCheckRunName } from "../crcr/crcrUtils";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
+  PR_STATUS_LABEL_IN_PROGRESS,
+  PR_STATUS_LABEL_READY_FOR_REVIEW,
+  PR_STATUS_LABEL_REVIEW_OPT_OUT,
+} from "../prStatus";
+import {
   getApprovalStatusFromReviews,
   PR_APPROVED,
   PR_CHANGES_REQUESTED,
@@ -16,12 +21,14 @@ import {
   BOT_MANAGED_PR_LABELS,
   cherryPickClassifications,
 } from "./Constants";
+import { isInPreReview, markInProgressIfAccepted } from "./preReviewUtils";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,
   addLabels,
   CachedConfigTracker,
   hasApprovedPullRuns,
+  hasVerifiedHumanWritePermissions,
   isFirstTimeContributor,
   isOrgTeamMember,
   isPyTorchbotSupportedOrg,
@@ -82,6 +89,12 @@ class PytorchBotHandler {
       await reactOnComment(this.ctx, "+1");
     } else {
       await this.addComment("+1");
+    }
+  }
+
+  async rejectComment() {
+    if (this.useReactions) {
+      await reactOnComment(this.ctx, "-1");
     }
   }
 
@@ -386,24 +399,32 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     );
   }
 
+  // Deliberately not `this.login`: on the pull_request_review path that holds
+  // the PR author, not the reviewer who typed the command.
+  getCommandAuthor(): string | undefined {
+    return (
+      this.ctx.payload?.comment?.user?.login ??
+      this.ctx.payload?.review?.user?.login
+    );
+  }
+
   // May the person who typed this command hand-apply BOT_MANAGED_PR_LABELS?
   //
-  // Deliberately not `this.login`: on the pull_request_review path that holds
-  // the PR author, not the reviewer who typed the command, so a reviewer who is
-  // not on the team could borrow the exemption of an author who is. Fails
-  // closed when the payload carries no author at all.
+  // A reviewer who is not on the team must not borrow the exemption of an
+  // author who is. Fails closed when the payload carries no author at all.
   async mayApplyBotManagedLabels(): Promise<boolean> {
-    const commandAuthor =
-      this.ctx.payload?.comment?.user?.login ??
-      this.ctx.payload?.review?.user?.login;
+    const commandAuthor = this.getCommandAuthor();
     if (!commandAuthor) {
       return false;
     }
-    return await isOrgTeamMember(
-      this.ctx,
-      this.owner,
-      BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
-      commandAuthor
+    return (
+      (await hasVerifiedHumanWritePermissions(this.ctx, commandAuthor)) ||
+      (await isOrgTeamMember(
+        this.ctx,
+        this.owner,
+        BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
+        commandAuthor
+      ))
     );
   }
 
@@ -420,8 +441,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     // remove unnecessary spaces from labels
     const labelsToAdd = labels.map((s: string) => s.trim());
 
-    // Bot-managed labels are refused on PRs, except for the dev infra team, who
-    // own the automation those labels drive. This mirrors the exemption
+    // Bot-managed labels are refused on PRs, except for people with write
+    // access and the dev infra team, who own the automation those labels drive. This mirrors the exemption
     // autoLabelBot applies when the same label arrives through the GitHub UI;
     // the two enforcement points have to agree or the label is reachable
     // through whichever one is laxer.
@@ -456,9 +477,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (botManagedLabels.length > 0) {
       await this.addComment(
         "These pull request lifecycle labels are managed automatically by " +
-          "pytorch-bot. Applying them by hand is limited to the `" +
+          "pytorch-bot. Applying them by hand is limited to people with " +
+          "write access and the `" +
           BOT_MANAGED_PR_LABEL_EXEMPT_TEAM +
-          "` team, which could not be verified for you: " +
+          "` team, and neither could be verified for you: " +
           botManagedLabels.join(", ") +
           "."
       );
@@ -530,6 +552,91 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await updateDrciComments(ctx.octokit, owner, repo, [prNum]);
   }
 
+  async handlePreReviewAccept() {
+    await this.logger.log("pre-review accept");
+    const { ctx, owner, repo, prNum } = this;
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return;
+    }
+
+    const login = this.getCommandAuthor();
+    const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
+    if (!login || !pr?.user?.login) {
+      return;
+    }
+    if (!isInPreReview(pr)) {
+      return await this.rejectComment();
+    }
+    // The scheduled run only checks PRs with a thumbs-up, so this lets it retry
+    // accepts that don't complete agreement now, such as a failed check or a
+    // reviewer who is removed or triaged added later
+    await ctx.octokit.rest.reactions.createForIssue({
+      owner,
+      repo,
+      issue_number: prNum,
+      content: "+1",
+    });
+    // Only acknowledge accepts that count toward the in progress label
+    if (
+      (
+        await markInProgressIfAccepted(
+          ctx.octokit,
+          owner,
+          repo,
+          prNum,
+          pr.labels.map((label: any) => label.name),
+          pr.user.login,
+          [login]
+        )
+      ).countedFrom.includes(login)
+    ) {
+      await this.ackComment();
+    } else {
+      await this.rejectComment();
+    }
+  }
+
+  // The review workflow treats `in progress` being labeled by pytorch-bot as a
+  // request to review again, so cycling the label re-runs it.
+  async handleReview() {
+    await this.logger.log("review");
+    const { ctx, owner, repo, prNum } = this;
+    const reject = async (message: string) => {
+      await this.rejectComment();
+      await this.addComment(message);
+    };
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return await reject("The automated review only runs on pytorch/pytorch.");
+    }
+
+    const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
+    const labels: string[] = (pr?.labels ?? []).map((label: any) => label.name);
+    if (
+      !labels.includes(PR_STATUS_LABEL_IN_PROGRESS) ||
+      labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW) ||
+      labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT)
+    ) {
+      return await reject(
+        `The automated review only re-runs on PRs labeled \`${PR_STATUS_LABEL_IN_PROGRESS}\` ` +
+          `and neither \`${PR_STATUS_LABEL_READY_FOR_REVIEW}\` nor \`${PR_STATUS_LABEL_REVIEW_OPT_OUT}\`.`
+      );
+    }
+
+    await ctx.octokit.issues.removeLabel({
+      owner,
+      repo,
+      issue_number: prNum,
+      name: PR_STATUS_LABEL_IN_PROGRESS,
+    });
+    await ctx.octokit.issues.addLabels({
+      owner,
+      repo,
+      issue_number: prNum,
+      labels: [PR_STATUS_LABEL_IN_PROGRESS],
+    });
+    await this.ackComment();
+  }
+
   async handleLint(login: string) {
     await this.logger.log("lint");
     if (!(await this.hasWritePermissions(login))) {
@@ -575,6 +682,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       split_args = shlex.split(inputArgs);
       args = parser.parse_args(split_args);
     } catch (err: any) {
+      if (split_args[0] === "pre-review") {
+        await this.rejectComment();
+      }
       // If the args are invalid, comment with the error + some help.
       await this.addComment(
         "❌ 🤖 pytorchbot command failed: \n```\n" +
@@ -614,6 +724,12 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         case "drci": {
           return await this.handleDrCI();
+        }
+        case "pre-review": {
+          return await this.handlePreReviewAccept();
+        }
+        case "review": {
+          return await this.handleReview();
         }
         case "lint":
         case "fix-lint":

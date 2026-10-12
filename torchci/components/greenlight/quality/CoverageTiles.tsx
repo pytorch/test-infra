@@ -6,6 +6,7 @@ import {
 } from "lib/greenlight/greenlightRender";
 import { ABSENT } from "lib/greenlight/qualityFigures";
 import { QualityQueryState } from "lib/greenlight/qualityQuery";
+import { chartKeyOfTile, chartToggle, ChartToggleProps } from "./chartConfigs";
 import QualityTile, { TILE_SPAN } from "./QualityTile";
 import { QualityColors, qualityColors, tinted } from "./tileColors";
 import { COVERAGE_TILES, StatTileConfig } from "./tileConfigs";
@@ -49,9 +50,10 @@ function splitLegend(tile: StatTileConfig, row: any, colors: QualityColors) {
 // decides whether the rest of the page auto-refreshes, so one owner holds it.
 export default function CoverageTiles({
   coverage,
+  ...toggles
 }: {
   coverage: QualityQueryState;
-}) {
+} & ChartToggleProps) {
   const colors = qualityColors(useTheme());
 
   return (
@@ -66,6 +68,7 @@ export default function CoverageTiles({
             loading={coverage.loading}
             empty={tile.isEmpty?.(coverage.row) ?? false}
             error={coverage.error}
+            {...chartToggle(chartKeyOfTile(tile.key), toggles)}
           />
         </Grid>
       ))}

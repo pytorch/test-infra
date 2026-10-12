@@ -52,6 +52,7 @@ from torchci.greenlight_replay.workflow import (
     load,
     prompt,
     review_budgets,
+    stack_enabled,
     WORKFLOW_RELPATH,
 )
 
@@ -105,6 +106,9 @@ class Policy:
     ``review_budget_minutes`` is ``(target, soft, hard)``. They are minutes because
     that is how the workflow states them; ``budget-reminder.sh`` reads absolute epochs,
     which the caller derives from these against its own start time.
+
+    ``stack_enabled`` says the workflow runs the ghstack stack step :mod:`.stack_step`
+    pins, so each replay gets that context too.
     """
 
     root: Path
@@ -119,6 +123,7 @@ class Policy:
     model: str
     effort: str
     tools: str
+    stack_enabled: bool = False
 
 
 def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> Policy:
@@ -151,6 +156,10 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
     unsupported = schema_support_violation(schema)
     if unsupported:
         raise ValueError(f"{schema_path}: {unsupported}")
+    collects_stack = stack_enabled(document, workflow_path)
+    logger.info(
+        "ghstack stack context is %s for %s", "on" if collects_stack else "off", ref
+    )
 
     return Policy(
         root=root,
@@ -165,6 +174,7 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
         model=model,
         effort=effort,
         tools=tools,
+        stack_enabled=collects_stack,
     )
 
 
@@ -295,11 +305,13 @@ def _confined_env(ceiling: Path) -> dict[str, str]:
 def _clear_destination(dest: Path) -> None:
     """Remove a previously materialized tree so the extraction starts from nothing.
 
-    One of two guarded deletions in this package; the other is
+    One of three guarded deletions in this package; the others are
     ``workspace._clear_policy_half``, which clears a slot's copied ``.claude`` under
-    equivalent guards. Anyone auditing what this harness can delete wants both.
+    equivalent guards, and ``stack.clear_stack``, which clears a run directory's stack
+    context and refuses a symlink the same way. Anyone auditing what this harness can
+    delete wants all three.
 
-    A path bug in either would be the most destructive thing here, so this one refuses
+    A path bug in any would be the most destructive thing here, so this one refuses
     anything that is not recognisably a tree this module created: a symlink (which
     could aim the removal somewhere else entirely), a non-directory, a filesystem root,
     the home directory, and above all a directory holding a ``.git`` -- a materialized

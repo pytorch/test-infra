@@ -13,6 +13,7 @@ import {
   shouldReadAdvisorVerdicts,
 } from "lib/advisor/advisorVerdictSource";
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
+import { updateInProgressLabels } from "lib/bot/preReviewUtils";
 import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
@@ -35,6 +36,7 @@ import {
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
   HUD_URL,
+  isExcludedFromAdvisor,
   isExcludedFromBrokenTrunk,
   isExcludedFromFlakiness,
   isExcludedFromSimilarityPostProcessing,
@@ -54,7 +56,10 @@ import {
 } from "lib/fetchRecentWorkflows";
 import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
-import { GREENLIGHT_PENDING_ALT_ATTR } from "lib/greenlight/greenlightSweep";
+import {
+  GREENLIGHT_PENDING_ALT_ATTR,
+  PR_REVIEW_PENDING_ALT_ATTR,
+} from "lib/greenlight/greenlightSweep";
 import {
   backfillMissingLog,
   getDisabledTestIssues,
@@ -67,8 +72,17 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
+import { buildPrReviewSections } from "lib/prReview/prReviewComment";
+import {
+  fetchPrReviewHeadVerdicts,
+  maybePromoteToReadyForReview,
+  PromotionOutcome,
+  PrReviewHeadVerdictRow,
+  withStaleReviewNote,
+} from "lib/prReview/readyForReviewPromotion";
 import {
   extractPrStatusSection,
+  fetchLiveLabels,
   fetchPrStatusState,
   hasPrStatusLabel,
   PR_STATUS_START,
@@ -198,6 +212,20 @@ export default async function handler(
       repo,
       prNumber ? [parseInt(prNumber as string)] : []
     );
+
+    // Reactions don't trigger webhooks, so the scheduled run also checks
+    // whether triaged PRs are ready to be marked in progress
+    if (
+      authorization == process.env.DRCI_BOT_KEY &&
+      prNumber === undefined &&
+      isPyTorchPyTorch(validatedOrg, repo)
+    ) {
+      try {
+        await updateInProgressLabels(octokit, validatedOrg, repo);
+      } catch (error) {
+        console.error("Failed to update in progress labels:", error);
+      }
+    }
     return res.status(200).json(failures);
   } catch (error) {
     console.error("Error in Dr.CI handler:", error);
@@ -235,12 +263,12 @@ export async function updateDrciComments(
   // The Green Light verdict is per-PR, not per-job, so it is read for the whole
   // sweep in one batched query. This must stay outside forAllPRs, which fans out
   // concurrently and would multiply the query by the PR count. It needs nothing
-  // but the PR set and their heads, both settled here, so it is started now and
-  // awaited after the serial chain below instead of adding its latency to it --
-  // that chain is on the critical path of every on-demand poke render. The catch
-  // is attached at creation, not at the await, so a rejection landing before then
-  // is never an unhandled one; failing to an empty map keeps a greenlight /
-  // ClickHouse error from breaking the comment.
+  // but the PR set, their heads and the octokit, all settled here, so it is
+  // started now and awaited after the serial chain below instead of adding its
+  // latency to it -- that chain is on the critical path of every on-demand poke
+  // render. The catch is attached at creation, not at the await, so a rejection
+  // landing before then is never an unhandled one; failing to an empty map keeps
+  // a greenlight / ClickHouse error from breaking the comment.
   const headShaByPr = new Map<number, string>(
     Array.from(workflowsByPR.entries()).map(([prNumber, pr_info]) => [
       prNumber,
@@ -250,10 +278,39 @@ export async function updateDrciComments(
   const greenlightSectionsPromise = buildGreenlightSections(
     owner,
     repo,
-    headShaByPr
+    headShaByPr,
+    octokit
   ).catch((e) => {
     console.error("greenlight section build threw for", owner, repo, e);
     return new Map<number, string>();
+  });
+  // The automated PR review verdict is per-PR too, read the same way.
+  const prReviewSectionsPromise = buildPrReviewSections(
+    owner,
+    repo,
+    headShaByPr
+  ).catch((e) => {
+    console.error("pr review section build threw for", owner, repo, e);
+    return new Map<number, string>();
+  });
+  // Read only for pytorch/pytorch. Empty otherwise or on error, which
+  // promotes nothing.
+  const prReviewHeadVerdictsPromise = (
+    isPyTorchPyTorch(owner, repo)
+      ? fetchPrReviewHeadVerdicts(owner, repo, headShaByPr)
+      : Promise.resolve(new Map<number, PrReviewHeadVerdictRow>())
+  ).catch((e) => {
+    console.error("pr review head verdict read threw for", owner, repo, e);
+    return new Map<number, PrReviewHeadVerdictRow>();
+  });
+  // Used to gate which CRCR L3 results are PR-visible (see classifyCrcrJobs)
+  // by the same ciflow/crcr/<device> label the relay itself requires before
+  // creating an upstream check run. Started early alongside the greenlight
+  // fetch; a failure here degrades to "show no CRCR L3 results" rather than
+  // breaking the whole comment.
+  const crcrAllowlistPromise = fetchCrcrAllowlist(octokit).catch((e) => {
+    console.error("CRCR allowlist fetch failed for", owner, repo, e);
+    return null;
   });
 
   const head = get_head_branch(repo);
@@ -283,17 +340,13 @@ export async function updateDrciComments(
   );
 
   const greenlightSections = await greenlightSectionsPromise;
-
-  // Loaded once for the whole sweep, before any PR is rendered: the on-call pin
-  // needs it, and a read that fails once would otherwise be retried for every PR
-  // with CRCR failures. Null is "could not read", which is not the same as an
-  // allowlist with no on-calls in it -- see the section build below.
-  let crcrAllowlist: CrcrAllowlist | null = null;
-  try {
-    crcrAllowlist = await fetchCrcrAllowlist(octokit);
-  } catch (err) {
-    console.error("Failed to load CRCR allowlist for pins:", err);
-  }
+  const prReviewSections = await prReviewSectionsPromise;
+  const prReviewHeadVerdicts = await prReviewHeadVerdictsPromise;
+  // Loaded once for the whole sweep: it gates which L3 results are PR-visible
+  // (see classifyCrcrJobs) and it supplies the on-call pins, so one failed read
+  // is not retried for every PR. Null is "could not read", which is not the same
+  // as an allowlist with no on-calls in it -- see the section build below.
+  const crcrAllowlist = await crcrAllowlistPromise;
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -370,8 +423,11 @@ export async function updateDrciComments(
         );
       }
 
-      // The failures either advisor consumer can say anything about.
-      const advisorJobs = [...failedJobs, ...unknownJobs];
+      // The failures either advisor consumer can say anything about. PR-state
+      // gates are left out, so no verdict line renders beside one.
+      const advisorJobs = [...failedJobs, ...unknownJobs].filter(
+        (job) => !isExcludedFromAdvisor(job)
+      );
 
       // One read of this PR's advisor verdicts, shared by the inline "AI
       // verdict:" line and the suppression gate below. Reading per consumer
@@ -466,12 +522,12 @@ export async function updateDrciComments(
       // workflow rows are (see getWorkflowJobsStatuses). A row from a superseded
       // push is not what the checks UI shows, and left in it would keep a red
       // block alive in a comment that claims to describe the newer commit.
-      const crcrL3Jobs: RecentWorkflowsData[] = [];
       const crcrFailedByRepo = new Map<string, RecentWorkflowsData[]>();
       const crcrTotalByRepo = new Map<string, number>();
       // False when the rows could not be read at all, which is not the same as
       // "this PR has no failing downstream jobs" -- see the section build below.
       let crcrRowsRead = true;
+      let crcrL3Jobs: RecentWorkflowsData[] = [];
       try {
         const crcrWorkflows = latestAttemptsForHead(
           await fetchCrcrWorkflows(`${owner}/${repo}`, [pr_info.pr_number]),
@@ -485,22 +541,34 @@ export async function updateDrciComments(
               (crcrTotalByRepo.get(downstreamRepo) ?? 0) + 1
             );
           }
+        }
 
-          const level = job.downstreamLevel || "";
-          if (!isCrCrFailure(job)) {
-            continue;
-          }
-          if (level === "L4") {
-            // L4 failures are blocking — merge them into failedJobs. They also
-            // get a block below, because blocking is exactly when naming an owner
-            // matters most, and the on-call bot this replaces paged on L4 too.
-            failedJobs.push(job);
-          } else if (level !== "L3") {
-            // L1/L2 results never reach a PR (see the allowlist levels).
-            continue;
-          } else {
-            crcrL3Jobs.push(job);
-          }
+        // classifyCrcrJobs owns the ciflow/crcr/<device> label gate that keeps
+        // unlabeled shadow runs off the PR (see its docstring), and it sees only
+        // the failures: the query now returns every completed job, because the
+        // ratio above needs the denominator. L4 failures also stay in
+        // `failedJobs`, where they block the merge.
+        const crcrFailures = crcrWorkflows.filter(isCrCrFailure);
+        const classified = classifyCrcrJobs(
+          crcrFailures,
+          labels || [],
+          crcrAllowlist
+        );
+        crcrL3Jobs = classified.crcrL3Jobs;
+        failedJobs.push(...classified.crcrL4Jobs);
+
+        // What the section may show. With no allowlist the device label cannot be
+        // looked up, so the gate cannot be applied and the un-gated failures
+        // stand in: the section treats an unreadable allowlist as "carry the
+        // pins, render nothing", while an empty map would read as "the failures
+        // cleared" and free them, paging every on-call again once the allowlist
+        // comes back.
+        const crcrSectionJobs =
+          crcrAllowlist === null
+            ? crcrFailures
+            : [...classified.crcrL3Jobs, ...classified.crcrL4Jobs];
+        for (const job of crcrSectionJobs) {
+          const downstreamRepo = job.downstreamRepo || "";
           if (downstreamRepo) {
             const repoJobs = crcrFailedByRepo.get(downstreamRepo) ?? [];
             repoJobs.push(job);
@@ -575,6 +643,34 @@ export async function updateDrciComments(
         crcrSection
       );
 
+      // Runs before the PR status section below so it renders the new stage.
+      const review = prReviewHeadVerdicts.get(pr_info.pr_number);
+      let promotion: PromotionOutcome = "not_eligible";
+      if (review !== undefined) {
+        try {
+          promotion = await maybePromoteToReadyForReview(
+            octokit,
+            owner,
+            repo,
+            pr_info.pr_number,
+            pr_info.head_sha,
+            review,
+            isCiGoodForReview({
+              pending,
+              failedJobs,
+              unknownJobs,
+              awaitingApprovalJobs,
+            })
+          );
+        } catch (e) {
+          console.error(
+            "ready for review promotion threw for PR",
+            pr_info.pr_number,
+            e
+          );
+        }
+      }
+
       // Use live labels so a lagging ClickHouse snapshot cannot overwrite a
       // newer webhook update. Mirrored labels and an existing section only gate
       // the GitHub read; live labels determine what renders. On an API failure,
@@ -589,14 +685,12 @@ export async function updateDrciComments(
             hasPrStatusLabel(labels || []) ||
             existingComment.includes(PR_STATUS_START)
           ) {
-            const liveLabels = (
-              await octokit.paginate(octokit.rest.issues.listLabelsOnIssue, {
-                owner,
-                repo,
-                issue_number: pr_info.pr_number,
-                per_page: 100,
-              })
-            ).map((label) => label.name);
+            const liveLabels = await fetchLiveLabels(
+              octokit,
+              owner,
+              repo,
+              pr_info.pr_number
+            );
 
             if (hasPrStatusLabel(liveLabels)) {
               const state = await fetchPrStatusState(
@@ -624,7 +718,13 @@ export async function updateDrciComments(
         repo,
         failureInfo,
         formDrciSevBody(sevs),
-        prStatusSection
+        prStatusSection,
+        pr_info.headRef,
+        labels,
+        withStaleReviewNote(
+          prReviewSections.get(pr_info.pr_number) ?? "",
+          promotion
+        )
       );
 
       const { id, body } = replicaComment || (await readLiveComment());
@@ -709,7 +809,7 @@ function removeFailureContext(failure: {
  * @returns A list of PR numbers
  */
 // PRs whose Dr.CI comment is in a transient state that warrants a re-render
-// even with no recent (< NUM_MINUTES) workflow activity. Three cases:
+// even with no recent (< NUM_MINUTES) workflow activity. Four cases:
 //   - `\d Pending`: the comment still shows pending jobs that may resolve.
 //   - the advisor pending sentinel: a NEW/unclassified failure was dispatched
 //     to the AI advisor but its verdict had not landed at the last render, so
@@ -724,8 +824,10 @@ function removeFailureContext(failure: {
 //     Light verdict, which also lands out of band from any workflow event. Only
 //     an in-flight render emits it and every terminal one omits it, so the PR
 //     self-clears the same way (see GREENLIGHT_PENDING_ALT_ATTR).
-// All three stay gated by the open-PR + 1-month freshness guards below, and by
-// the comment author: the marker and both sentinels are plain text any user can
+//   - the PR review pending sentinel: the same for the automated PR review
+//     section (see PR_REVIEW_PENDING_ALT_ATTR).
+// All four stay gated by the open-PR + 1-month freshness guards below, and by
+// the comment author: the marker and the sentinels are plain text any user can
 // put in a comment body, and a comment Dr.CI does not own is one it cannot
 // refresh -- so without the author filter an arbitrary user could pin a PR into
 // every sweep indefinitely. Qualified as issue_comment.user.login because
@@ -735,7 +837,7 @@ function removeFailureContext(failure: {
 // comment, fenced or HTML-escaped depending on the format the row carries but in
 // neither case with the matched characters removed. Every literal matched here
 // therefore has to be defused on the way in -- see defuseSweepSentinels in
-// lib/greenlight/greenlightSweep.ts, the one pass both of those renderers run
+// lib/greenlight/greenlightSweep.ts, the one pass every one of those renderers runs
 // and which any new predicate added below must also cover.
 async function getPRsNeedingCommentRefresh(repo: String): Promise<number[]> {
   const query = `
@@ -751,6 +853,7 @@ where
         match(body, '\\d Pending')
         or position(body, {pendingAltAttr: String}) > 0
         or position(body, {greenlightPendingAltAttr: String}) > 0
+        or position(body, {prReviewPendingAltAttr: String}) > 0
     )
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String }
@@ -761,6 +864,7 @@ where
     drciCommentAuthor: DRCI_COMMENT_AUTHOR,
     pendingAltAttr: ADVISOR_PENDING_ALT_ATTR,
     greenlightPendingAltAttr: GREENLIGHT_PENDING_ALT_ATTR,
+    prReviewPendingAltAttr: PR_REVIEW_PENDING_ALT_ATTR,
   });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }
@@ -1153,6 +1257,41 @@ function pluralize(word: string, count: number, pluralForm?: string): string {
   return `${word}s`;
 }
 
+// Whether the Dr.CI headline shows the success icon: nothing failed, was
+// cancelled, is unclassified, awaits approval or is pending. Unrelated failures
+// (flaky, broken trunk, ...) do not count.
+export function isDrciGreen({
+  pending,
+  failedJobs,
+  unknownJobs,
+  awaitingApprovalJobs,
+}: {
+  pending: number;
+  failedJobs: RecentWorkflowsData[];
+  unknownJobs: RecentWorkflowsData[];
+  awaitingApprovalJobs: RecentWorkflowsData[];
+}): boolean {
+  return (
+    pending === 0 &&
+    failedJobs.length === 0 &&
+    unknownJobs.length === 0 &&
+    awaitingApprovalJobs.length === 0
+  );
+}
+
+// The ready for review promotion's CI rule: the headline's, except that
+// workflows waiting for a maintainer to approve their run do not block.
+export function isCiGoodForReview(
+  args: Parameters<typeof isDrciGreen>[0]
+): boolean {
+  return isDrciGreen({
+    ...args,
+    awaitingApprovalJobs: args.awaitingApprovalJobs.filter(
+      (job) => job.conclusion !== "action_required"
+    ),
+  });
+}
+
 export function constructResultsComment(
   pending: number,
   failedJobs: RecentWorkflowsData[],
@@ -1175,8 +1314,8 @@ export function constructResultsComment(
   prNumber: number,
   // job.id -> pre-rendered "AI verdict:" line (empty unless advisor-enabled).
   advisorLines: Map<number, string> = new Map(),
-  // Pre-rendered Green Light section for this PR, already carrying its own
-  // leading newline (empty unless greenlight-enabled and this PR has state).
+  // Pre-rendered Green Light section or eligibility line for this PR, already
+  // carrying its own leading newline (empty when the PR has neither).
   greenlightSection: string = "",
   // Pre-rendered CRCR section for this PR, already carrying its own delimiters
   // (empty unless the PR has failing downstream CRCR jobs). It groups the
@@ -1238,14 +1377,18 @@ export function constructResultsComment(
   const hasAwaitingApproval = awaitingApprovalJobs.length > 0;
 
   let icon = "";
-  if (hasSignificantFailures || hasCancelledFailures || hasUnknownFailures) {
+  if (isDrciGreen({ pending, failedJobs, unknownJobs, awaitingApprovalJobs })) {
+    icon = successIcon;
+  } else if (
+    hasSignificantFailures ||
+    hasCancelledFailures ||
+    hasUnknownFailures
+  ) {
     icon = failuresIcon;
   } else if (hasAwaitingApproval) {
     icon = warningIcon;
-  } else if (hasPending) {
-    icon = pendingIcon;
   } else {
-    icon = successIcon;
+    icon = pendingIcon;
   }
 
   let title_messages = [];
@@ -1566,6 +1709,42 @@ function isPending(job: RecentWorkflowsData): boolean {
 // SQL filter and the check runs crcrOncallBot used to page on.
 function isCrCrFailure(job: RecentWorkflowsData): boolean {
   return ["failure", "cancelled", "timed_out"].includes(job.conclusion ?? "");
+}
+
+/**
+ * Split CRCR downstream job results (from fetchCrcrWorkflows) into the
+ * PR-visible L3 bucket and the always-blocking L4 bucket.
+ *
+ * L3 is opt-in: the relay (allowlist.py's needs_check_run) only creates an
+ * upstream check run for an L3 repo when the PR carries that repo's
+ * ciflow/crcr/<device> label. But every L1+ repo participating in
+ * pull_request events is dispatched -- and forwarded to HUD -- on every PR
+ * regardless of labels (shadow observation for L1/L2, plus e.g. crcr-test's
+ * own post-merge self-tests, which deliberately run on landed PRs that never
+ * carried its label). Without re-applying the same label gate here, every one
+ * of those unlabeled shadow runs would resurface on the PR comment even
+ * though the PR never opted in and no check run was ever created for it.
+ * L4 has no such gate: it always blocks, regardless of labels.
+ */
+export function classifyCrcrJobs(
+  crcrWorkflows: RecentWorkflowsData[],
+  labels: string[],
+  crcrAllowlist: CrcrAllowlist | null
+): { crcrL3Jobs: RecentWorkflowsData[]; crcrL4Jobs: RecentWorkflowsData[] } {
+  const crcrL3Jobs: RecentWorkflowsData[] = [];
+  const crcrL4Jobs: RecentWorkflowsData[] = [];
+  for (const job of crcrWorkflows) {
+    const level = job.downstreamLevel || "";
+    if (level === "L3") {
+      const device = crcrAllowlist?.getDeviceForRepo(job.downstreamRepo || "");
+      if (device && labels.includes(`ciflow/crcr/${device}`)) {
+        crcrL3Jobs.push(job);
+      }
+    } else if (level === "L4") {
+      crcrL4Jobs.push(job);
+    }
+  }
+  return { crcrL3Jobs, crcrL4Jobs };
 }
 
 export async function getWorkflowJobsStatuses(
@@ -1896,6 +2075,7 @@ export async function reorganizeWorkflows(
         let prTitle = "";
         let prBody = "";
         let prShas: { sha: string; title: string }[] = [];
+        let prHeadRef = "";
         // Gate this to PyTorch as disabled tests feature is only available there
         if (octokit && repo === "pytorch") {
           const prData = await fetchPR(
@@ -1908,6 +2088,7 @@ export async function reorganizeWorkflows(
           prTitle = prData.title;
           prBody = prData.body;
           prShas = prData.shas;
+          prHeadRef = prData.headRef ?? "";
         }
 
         return {
@@ -1922,6 +2103,7 @@ export async function reorganizeWorkflows(
           title: prTitle,
           body: prBody,
           shas: prShas,
+          headRef: prHeadRef,
         };
       })
       .value()

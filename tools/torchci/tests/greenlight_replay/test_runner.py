@@ -21,9 +21,22 @@ from replay_runner_fixtures import (
     result_element,
     ScratchTestCase,
 )
-from torchci.greenlight_replay import runner, transcript
+from torchci.greenlight_replay import runner, stack as stack_mod, transcript
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.inputs import ReplayInputs
+
+
+THIS_PR = {"number": 167890, "title": "The PR under review", "this": True}
+
+
+def sibling(number):
+    """A stack entry for a PR above the reviewed one, in the workflow's jq shape."""
+    return {
+        "number": number,
+        "title": f"PR {number}",
+        "this": False,
+        "diff": f"/tmp/greenlight-stack/{number}.diff",
+    }
 
 
 class _PolicyWithoutBudget:
@@ -406,6 +419,63 @@ class TestInputPlacement(RunnerTestCase):
         # not be fetched is reviewed without it rather than skipped.
         result = self.review((0, envelope(result_element()), GOOD_VERDICT))
         self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
+
+    def with_stack(self, *entries, diffs=()):
+        """The inputs plus a stack laid out under ``stack``'s names, not the remap's.
+
+        That way the cases below also fail if the writer and the remap stop agreeing on
+        where the stack lives.
+        """
+        directory = self.run_dir / stack_mod.STACK_DIRNAME
+        directory.mkdir()
+        for number in diffs:
+            (directory / f"{number}.diff").write_text("diff --git a/x b/x\n")
+        stack_path = self.run_dir / stack_mod.STACK_FILENAME
+        stack_path.write_text(json.dumps({"stack": list(entries)}), encoding="utf-8")
+        return dataclasses.replace(self.inputs, stack_path=stack_path)
+
+    def test_a_stack_whose_diffs_the_remap_reaches_is_reviewed(self):
+        self.inputs = self.with_stack(sibling(167891), THIS_PR, diffs=[167891])
+        result = self.review((0, envelope(result_element()), GOOD_VERDICT))
+        self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
+
+    def test_a_stack_with_nothing_open_above_the_pr_is_reviewed(self):
+        self.inputs = self.with_stack(THIS_PR)
+        result = self.review((0, envelope(result_element()), GOOD_VERDICT))
+        self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
+
+    def test_a_stack_written_somewhere_other_than_the_run_directory_is_refused(self):
+        elsewhere = self.scratch("greenlight-elsewhere-")
+        message = self.run_review_expecting_failure(
+            dataclasses.replace(
+                self.inputs, stack_path=elsewhere / stack_mod.STACK_FILENAME
+            ),
+            self.run_dir,
+        )
+        self.assertIn(remap.STACK_BASENAME, message)
+
+    def test_a_stack_naming_a_diff_that_was_never_written_is_refused(self):
+        inputs = self.with_stack(sibling(167891), THIS_PR)
+        message = self.run_review_expecting_failure(inputs, self.run_dir)
+        self.assertIn("/tmp/greenlight-stack/167891.diff", message)
+
+    def test_a_stack_naming_a_diff_the_remap_does_not_rewrite_is_refused(self):
+        stray = {**sibling(167891), "diff": "/tmp/greenlight-stacks/167891.diff"}
+        inputs = self.with_stack(stray, THIS_PR, diffs=[167891])
+        message = self.run_review_expecting_failure(inputs, self.run_dir)
+        self.assertIn("/tmp/greenlight-stacks/167891.diff", message)
+
+    def test_a_leftover_stack_file_is_refused_when_no_stack_was_built(self):
+        leftover = self.run_dir / stack_mod.STACK_FILENAME
+        leftover.write_text(json.dumps({"stack": [THIS_PR]}), encoding="utf-8")
+        message = self.run_review_expecting_failure(self.inputs, self.run_dir)
+        self.assertIn(str(leftover), message)
+
+    def test_a_leftover_stack_directory_is_refused_when_no_stack_was_built(self):
+        leftover = self.run_dir / stack_mod.STACK_DIRNAME
+        leftover.mkdir()
+        message = self.run_review_expecting_failure(self.inputs, self.run_dir)
+        self.assertIn(str(leftover), message)
 
 
 if __name__ == "__main__":

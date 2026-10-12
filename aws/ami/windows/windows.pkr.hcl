@@ -1,5 +1,8 @@
 data "amazon-ami" "windows_root_ami" {
   filters = {
+    # Pin the last base AMI whose OpenSSH sshd service starts (used for the
+    # 20260826001402 image); newer ones fail Install-SSH.ps1. Remove to unpin.
+    image-id            = "ami-07fede2e6cf6d7f22"
     name                = "Windows_Server-2019-English-Full-Base-*"
     root-device-type    = "ebs"
     virtualization-type = "hvm"
@@ -34,8 +37,12 @@ source "amazon-ebs" "windows_ebs_builder" {
   winrm_username  = "Administrator"
   skip_create_ami = var.skip_create_ami
   aws_polling {
-    # For some reason the AMIs take a really long time to be ready so just assume it'll take a while
-    max_attempts = 600
+    # Check every minute for up to 30 min for the AMI to become available.
+    # The AWS credentials must outlive provisioning plus this wait (see
+    # role-duration-seconds in build-windows-ami.yml) or packer never gets to
+    # share the AMI.
+    delay_seconds = 60
+    max_attempts  = 120
   }
 }
 
@@ -55,10 +62,11 @@ build {
     ]
   }
 
-  # Install sshd_config
+  # Stage sshd_config; Install-SSH.ps1 moves it into C:\ProgramData\ssh after
+  # sshd has created that directory.
   provisioner "file" {
     source      = "${path.root}/configs/sshd_config"
-    destination = "C:\\ProgramData\\ssh\\sshd_config"
+    destination = "C:\\Windows\\Temp\\sshd_config"
   }
 
   # Install ssh server
@@ -93,27 +101,6 @@ build {
   }
 
   provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=12.6"]
-    scripts = [
-      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
-    ]
-  }
-
-  provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=12.8"]
-    scripts = [
-      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
-    ]
-  }
-
-  provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=13.0"]
-    scripts = [
-      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
-    ]
-  }
-
-  provisioner "powershell" {
     environment_vars = ["CUDA_VERSION=13.2"]
     scripts = [
       "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
@@ -134,6 +121,14 @@ build {
     elevated_password = ""
     scripts = [
       "${path.root}/scripts/Helpers/Uninstall-WinDefend.ps1",
+    ]
+  }
+
+  # Runners rely on sshd (SSH debugging, kill_active_ssh_sessions.ps1); don't
+  # capture an image where a later step stopped it.
+  provisioner "powershell" {
+    inline = [
+      "if ((Get-Service sshd).Status -ne 'Running') { throw 'sshd is not running at the end of provisioning' }",
     ]
   }
 }

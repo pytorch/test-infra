@@ -42,7 +42,7 @@ export function secondsFormatter(value: number | null | undefined): string {
 // dayjs.utc(undefined) is NOT invalid — it returns the current time, so a guard
 // written against the parsed result never fires for an absent field and silently
 // substitutes "now". Absence has to be rejected on the input.
-function parseStamp(value: unknown): dayjs.Dayjs | undefined {
+export function parseStamp(value: unknown): dayjs.Dayjs | undefined {
   if (typeof value !== "string" || value === "") {
     return undefined;
   }
@@ -50,17 +50,37 @@ function parseStamp(value: unknown): dayjs.Dayjs | undefined {
   return parsed.isValid() ? parsed : undefined;
 }
 
-export function utcStamp(value: string | null | undefined): string {
-  const parsed = parseStamp(value);
-  // Absence arrives two ways and both are ordinary. join_use_nulls = 0 on this
-  // cluster, so a timestamp a LEFT JOIN could not resolve comes back as the
-  // epoch; a column a query nulls out explicitly comes back as JSON null, which
-  // parseStamp rejects on type before dayjs is reached. Neither may render as a
-  // 1970 date or as an Invalid Date.
+// Absence arrives two ways and both are ordinary. join_use_nulls = 0 on this
+// cluster, so a timestamp a LEFT JOIN could not resolve comes back as the
+// epoch; a column a query nulls out explicitly comes back as JSON null, which
+// parseStamp rejects on type before dayjs is reached. Neither may render as a
+// 1970 date or as an Invalid Date.
+function stampText(parsed: dayjs.Dayjs | undefined): string {
   if (parsed === undefined || parsed.valueOf() <= 0) {
     return ABSENT;
   }
-  return parsed.format(STAMP_FORMAT);
+  return parsed.utc().format(STAMP_FORMAT);
+}
+
+export function utcStamp(value: string | null | undefined): string {
+  return stampText(parseStamp(value));
+}
+
+export function formatUtcSpan(
+  start: dayjs.Dayjs | undefined,
+  end: dayjs.Dayjs | undefined
+): string {
+  return `${stampText(start)} → ${stampText(end)} UTC`;
+}
+
+// Undefined, NEVER zero, for a value that is absent or not a finite number, so a
+// figure nobody reported cannot pass for a measured 0.
+export function finiteNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  if (value === null || value === undefined || !Number.isFinite(parsed)) {
+    return undefined;
+  }
+  return parsed;
 }
 
 // Whether a tile's own n/denominator column carries anything to report. Drives
@@ -88,29 +108,32 @@ export function pctOf(
   return (n / d) * 100;
 }
 
+// The clamped bounds the queries actually ran over, or undefined when either is
+// absent or unparseable.
+export function effectiveWindow(
+  row: any
+): { start: dayjs.Dayjs; end: dayjs.Dayjs } | undefined {
+  const start = parseStamp(row?.effective_start);
+  const end = parseStamp(row?.effective_end);
+  return start === undefined || end === undefined ? undefined : { start, end };
+}
+
 // A window whose clamped end is at or before its clamped start selects nothing.
 // The picker allows it: a Custom range that ends before the ledger begins has
 // its start clamped forward past its own end. Bounds that are absent or
 // unparseable answer false — not knowing the window is not the same as knowing
 // it is empty.
 export function isEmptyWindow(row: any): boolean {
-  const start = parseStamp(row?.effective_start);
-  const end = parseStamp(row?.effective_end);
-  if (start === undefined || end === undefined) {
-    return false;
-  }
-  return end.valueOf() <= start.valueOf();
+  const bounds = effectiveWindow(row);
+  return bounds !== undefined && bounds.end.valueOf() <= bounds.start.valueOf();
 }
 
-// Span the queries actually ran over, in fractional days, or undefined when
-// either clamped bound is absent or unparseable.
+// effectiveWindow's span in fractional days.
 export function effectiveWindowDays(row: any): number | undefined {
-  const start = parseStamp(row?.effective_start);
-  const end = parseStamp(row?.effective_end);
-  if (start === undefined || end === undefined) {
-    return undefined;
-  }
-  return end.diff(start, "day", true);
+  const bounds = effectiveWindow(row);
+  return bounds === undefined
+    ? undefined
+    : bounds.end.diff(bounds.start, "day", true);
 }
 
 // The picker's window is clamped server-side to the ledger's span, so the
@@ -122,9 +145,10 @@ export function formatEffectiveWindow(row: any): string {
   if (isEmptyWindow(row)) {
     return NO_DATA_IN_WINDOW;
   }
-  return `${utcStamp(row?.effective_start)} → ${utcStamp(
-    row?.effective_end
-  )} UTC`;
+  return formatUtcSpan(
+    parseStamp(row?.effective_start),
+    parseStamp(row?.effective_end)
+  );
 }
 
 export interface RevertStats {
@@ -134,10 +158,15 @@ export interface RevertStats {
   resolvable?: number;
   total?: number;
   landApproved?: number;
-  // The rest of the same split: reverts of an approved version that the ghfirst
-  // gate removed from landApproved. The two sum to every LAND revert resolved to
-  // a PR, and this one is why the rate can read 0.0% with rows in the table.
+  // Reverts the rate would count but for the ghfirst gate. The table lists them,
+  // which is why the rate can read 0.0% with rows beneath it.
   landApprovedGhfirst?: number;
+  // Reverts carrying a GreenLight LAND whose verdict, by mergebot's own merge
+  // record, predates the commit that merged, whatever their classification.
+  // Neither the rate nor the table counts them. With landApproved and
+  // landApprovedGhfirst they sum to every revert carrying a GreenLight LAND that
+  // resolved to a PR.
+  landApprovedStale?: number;
   evaluated?: number;
   unattributable?: number;
   ghfirst?: number;
@@ -145,34 +174,29 @@ export interface RevertStats {
   rate?: number;
 }
 
-// Undefined means "not reported", NEVER zero. These are whole-window scalars
-// riding on every row, so they vanish with the row set — and an empty result is
-// exactly the case where reverts can exist and be invisible here.
-function countOrUnknown(value: any): number | undefined {
-  const parsed = Number(value);
-  if (value === null || value === undefined || !Number.isFinite(parsed)) {
-    return undefined;
-  }
-  return parsed;
-}
-
 // Read from the query's own pre-limit window counts rather than by counting the
 // rows it returned. The query ends in a LIMIT, and counting returned rows makes
 // the rate wrong under truncation in a way that is not merely a shrink: the
 // ORDER BY is newest-first, so the numerator can drop to zero while the
 // denominator stays large, collapsing the rate rather than biasing it.
+//
+// A count missing from the result stays undefined rather than reading 0. These
+// whole-window scalars ride on every row, so they vanish with the row set — and
+// an empty result is exactly the case where reverts can exist and be invisible
+// here.
 export function revertStats(rows: any[]): RevertStats {
   const scalars = rows[0];
-  const landApproved = countOrUnknown(scalars?.land_approved_reverts);
-  const evaluatedPrs = countOrUnknown(scalars?.evaluated_prs_total);
+  const landApproved = finiteNumber(scalars?.land_approved_reverts);
+  const evaluatedPrs = finiteNumber(scalars?.evaluated_prs_total);
   return {
-    resolvable: countOrUnknown(scalars?.resolvable_reverts),
-    total: countOrUnknown(scalars?.attributable_reverts),
+    resolvable: finiteNumber(scalars?.resolvable_reverts),
+    total: finiteNumber(scalars?.attributable_reverts),
     landApproved,
-    landApprovedGhfirst: countOrUnknown(scalars?.land_approved_ghfirst_reverts),
-    evaluated: countOrUnknown(scalars?.evaluated_reverts),
-    unattributable: countOrUnknown(scalars?.unattributable_reverts),
-    ghfirst: countOrUnknown(scalars?.ghfirst_reverts),
+    landApprovedGhfirst: finiteNumber(scalars?.land_approved_ghfirst_reverts),
+    landApprovedStale: finiteNumber(scalars?.land_approved_stale_reverts),
+    evaluated: finiteNumber(scalars?.evaluated_reverts),
+    unattributable: finiteNumber(scalars?.unattributable_reverts),
+    ghfirst: finiteNumber(scalars?.ghfirst_reverts),
     evaluatedPrs,
     // Mixed grain on purpose: the numerator counts revert commits and the
     // denominator counts PRs, so a PR reverted twice contributes twice to a
@@ -182,16 +206,19 @@ export function revertStats(rows: any[]): RevertStats {
 }
 
 // merged_version_approved answers "was the verdict shown issued against the
-// commit that actually merged". A row the detectors cannot place counts as
-// unresolved rather than as either answer.
+// commit that actually merged", and answers no only on mergebot's own merge
+// record. A row the detectors cannot place, or one only the branch history
+// contradicts, reads 'unknown', which is neither answer: it is kept rather than
+// excluded as stale, and counts toward the staleness note's total but never its
+// stale count.
 //
 // Every value the column can hold, declared once for the whole page. The strings
 // are the query's, not ours: greenlight_quality_reverts builds them in a multiIf
 // and nothing in TypeScript checks values, so a rename server-side would degrade
-// both consumers here silently and differently — the table would print the raw
-// string while stalenessCounts scored 0 confirmed and 0 stale and the note
-// announced total detector failure. test/greenlightQualityColumnSync.test.ts
-// pins this set against that multiIf.
+// both consumers here silently and differently — the table would list the stale
+// reverts it is meant to drop, under the raw string, while stalenessCounts scored
+// 0 stale and the note reported nothing excluded.
+// test/greenlightQualityColumnSync.test.ts pins this set against that multiIf.
 export const MERGED_VERSION_APPROVED = {
   yes: "yes",
   no: "no",
@@ -210,13 +237,26 @@ export function revertRows(rows: any[]): any[] {
   return rows.filter((row) => !isWindowAnchorRow(row));
 }
 
-// Every revert of a version GreenLight approved. Shared by the table and the
-// staleness note so the two cannot disagree about the population they describe.
+// Every revert carrying a GreenLight LAND, stale or not. The staleness note
+// counts this set and the table's rows are cut from it, so the note's stale count
+// is exactly the part of it the table leaves out.
 //
 // Non-LAND is excluded because staleness only matters where something claims
 // "the merged version was approved", and every non-LAND row carries 'unknown'
-// by construction — counting those would report rows the question never applied
-// to as detector failures.
+// by construction — counting those would pad the note's total with rows the
+// question never applied to.
+function landRevertRows(rows: any[]): any[] {
+  return revertRows(rows).filter(
+    (row) => row?.verdict === GREENLIGHT_STATUS_LAND
+  );
+}
+
+// The reverts carrying a GreenLight LAND that the table lists. A stale one is
+// dropped, as the rate's land_approved_reverts drops it server-side: mergebot's
+// own merge record shows its verdict was issued against an earlier commit, so the
+// approval never covered what landed. An unverified one stays, as it does in the
+// rate: either no detector could place the merged commit, or only the branch
+// history contradicts the verdict, and neither proves the approval missed it.
 //
 // A reverter's classification is NOT excluded here, so this set is deliberately
 // wider than the rate's land_approved_reverts, which drops ghfirst server-side.
@@ -227,8 +267,8 @@ export function revertRows(rows: any[]): any[] {
 // be seen, which is why a table wider than the tile above it is not a
 // contradiction — the same call produced both.
 export function approvedRevertRows(rows: any[]): any[] {
-  return revertRows(rows).filter(
-    (row) => row?.verdict === GREENLIGHT_STATUS_LAND
+  return landRevertRows(rows).filter(
+    (row) => row?.merged_version_approved !== MERGED_VERSION_APPROVED.no
   );
 }
 
@@ -242,7 +282,7 @@ export interface StalenessCounts {
 }
 
 export function stalenessCounts(rows: any[]): StalenessCounts {
-  const judged = approvedRevertRows(rows);
+  const judged = landRevertRows(rows);
   const confirmed = judged.filter(
     (row) => row?.merged_version_approved === MERGED_VERSION_APPROVED.yes
   ).length;
@@ -261,17 +301,21 @@ export function stalenessCounts(rows: any[]): StalenessCounts {
 }
 
 const STALE_VERDICT_LEAD =
-  "The verdict shown is the newest issued before the merge, so it can predate the commit that actually merged.";
+  "The verdict shown is the newest issued before the merge, so it can predate the commit that actually merged. Reverts where it provably does are excluded as stale";
 
 // Shared by the revert tile and the reverted table so the two cannot state
-// different limitations. Both resolve to the same LAND rows, so the two
-// surfaces also report the same counts.
+// different limitations. Both build it from the query's unfiltered rows — the
+// table's own list has already dropped the stale reverts counted here — so the
+// two surfaces also report the same counts.
 export function staleVerdictNote(rows: any[]): string {
-  const counts = stalenessCounts(rows);
-  if (counts.resolved === 0) {
-    return STALE_VERDICT_LEAD;
+  return staleVerdictNoteOf(stalenessCounts(rows));
+}
+
+export function staleVerdictNoteOf(counts: StalenessCounts): string {
+  if (counts.total === 0) {
+    return `${STALE_VERDICT_LEAD}.`;
   }
-  return `${STALE_VERDICT_LEAD} ${intFormatter(counts.stale)} of ${intFormatter(
-    counts.resolved
-  )} checked verdicts here are stale.`;
+  return `${STALE_VERDICT_LEAD}: ${intFormatter(
+    counts.stale
+  )} of ${intFormatter(counts.total)} reverts carrying a GreenLight LAND here.`;
 }

@@ -217,8 +217,8 @@ no structural or stylistic checking at all.
 `large_file_skip_byte_limit` bytes, warning `Skipping to avoid parser lock` and
 reporting nothing; lintrunner renders that as a pass. The default is 20000. The
 largest query here, `greenlight_quality_reverts/query.sql`, reaches sqlfluff as
-26,253 bytes once the adapter's substitution is applied: under a 20000 limit that
-yields the warning and zero violations, and under a 32768 limit it yields 203 —
+26,267 bytes once the adapter's substitution is applied: under a 20000 limit that
+yields the warning and zero violations, and under a 32768 limit it yields 205 —
 size alone is the discriminator.
 `.sqlfluff` raises the limit to 32768 for this repo, so nothing is currently
 skipped; the comment there explains why, and lowering it again silently unlints

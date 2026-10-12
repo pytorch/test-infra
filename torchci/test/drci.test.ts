@@ -7,6 +7,7 @@ import {
   pinLedger,
   withoutControlMarkers,
 } from "lib/crcr/crcrComment";
+import { CrcrAllowlist } from "lib/crcrAllowlist";
 import * as drciUtils from "lib/drciUtils";
 import {
   DOCS_URL,
@@ -1011,6 +1012,42 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(header.includes("bot commands wiki")).toBeTruthy();
   });
 
+  test("test formDrciHeader links Auto PR Triage runs by head branch", async () => {
+    const header = formDrciHeader("pytorch", "pytorch", 42, "fix/foo-1.2_x", [
+      "open source",
+    ]);
+
+    expect(header).toContain(
+      "* :robot: See [Auto PR Triage runs for this PR](https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml?query=branch%3Afix%2Ffoo-1.2_x%20-is%3Askipped%20-is%3Acancelled)\n"
+    );
+    expect(header).toContain("bot commands wiki");
+  });
+
+  test("test formDrciHeader omits the Auto PR Triage link without the open source label", async () => {
+    for (const labels of [[], ["triaged", "ciflow/trunk"]]) {
+      const header = formDrciHeader(
+        "pytorch",
+        "pytorch",
+        42,
+        "fix-foo",
+        labels
+      );
+      expect(header).not.toContain("Auto PR Triage");
+    }
+  });
+
+  test("test formDrciHeader omits the Auto PR Triage link without a plain head branch", async () => {
+    for (const headRef of ["", "fix)(evil", "a b", "x]\n* injected"]) {
+      const header = formDrciHeader("pytorch", "pytorch", 42, headRef, [
+        "open source",
+      ]);
+      expect(header).not.toContain("Auto PR Triage");
+    }
+    expect(
+      formDrciHeader("pytorch", "vision", 42, "fix-foo", ["open source"])
+    ).not.toContain("Auto PR Triage");
+  });
+
   test("test formDrciHeader for pytorch/vision", async () => {
     const header = formDrciHeader("pytorch", "vision", 42);
 
@@ -1477,5 +1514,168 @@ describe("pinBodyForSweep", () => {
         async () => ""
       )
     ).toBe("replica");
+  });
+});
+
+describe("classifyCrcrJobs", () => {
+  // Mirrors the shape of pytorch/pytorch's real .github/allowlist.yml.
+  const allowlist = CrcrAllowlist.fromYaml(`
+L3:
+  crcr-test:
+    pytorch/crcr-test: [oncall1]
+  npu:
+    Ascend/pytorch: [oncall2]
+L4:
+  - org/l4-repo: oncall3
+`);
+
+  function crcrJob(
+    overrides: Partial<RecentWorkflowsData>
+  ): RecentWorkflowsData {
+    return getDummyJob({
+      name: "crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-xfail-checkrun-creation",
+      downstreamLevel: "L3",
+      downstreamRepo: "pytorch/crcr-test",
+      conclusion: "failure",
+      ...overrides,
+    });
+  }
+
+  // Regression test for pytorch/test-infra#8879: crcr-test dispatches on
+  // every PR (shadow traffic) and even self-tests post-merge on PRs that
+  // never carried its label, but none of that should resurface on a PR whose
+  // labels never opted into ciflow/crcr/crcr-test.
+  test("drops an L3 job when the PR lacks the matching ciflow/crcr/<device> label", () => {
+    const job = crcrJob({});
+    const { crcrL3Jobs, crcrL4Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      ["ciflow/crcr/npu"], // a different device's label, not crcr-test's
+      allowlist
+    );
+    expect(crcrL3Jobs).toEqual([]);
+    expect(crcrL4Jobs).toEqual([]);
+  });
+
+  test("keeps an L3 job when the PR carries the matching ciflow/crcr/<device> label", () => {
+    const job = crcrJob({});
+    const { crcrL3Jobs, crcrL4Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      ["ciflow/crcr/crcr-test"],
+      allowlist
+    );
+    expect(crcrL3Jobs).toEqual([job]);
+    expect(crcrL4Jobs).toEqual([]);
+  });
+
+  test("always keeps L4 jobs regardless of labels", () => {
+    const job = crcrJob({
+      downstreamLevel: "L4",
+      downstreamRepo: "org/l4-repo",
+    });
+    const { crcrL3Jobs, crcrL4Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      [],
+      allowlist
+    );
+    expect(crcrL3Jobs).toEqual([]);
+    expect(crcrL4Jobs).toEqual([job]);
+  });
+
+  test("drops L3 jobs when the allowlist failed to load", () => {
+    const job = crcrJob({});
+    const { crcrL3Jobs } = updateDrciBot.classifyCrcrJobs(
+      [job],
+      ["ciflow/crcr/crcr-test"],
+      null
+    );
+    expect(crcrL3Jobs).toEqual([]);
+  });
+});
+
+describe("isDrciGreen", () => {
+  const cancelled = getDummyJob({
+    name: "cancelledJob",
+    conclusion: "cancelled",
+  });
+  const cases: [
+    string,
+    Parameters<typeof constructResultsCommentHelper>[0],
+    boolean
+  ][] = [
+    ["nothing ran yet", { pending: 0 }, true],
+    [
+      "only unrelated failures",
+      { pending: 0, flakyJobs: [failedA], brokenTrunkJobs: [failedB] },
+      true,
+    ],
+    ["pending jobs", { pending: 1 }, false],
+    ["a new failure", { pending: 0, failedJobs: [failedA] }, false],
+    ["a cancelled job", { pending: 0, failedJobs: [cancelled] }, false],
+    ["an unclassified failure", { pending: 0, unknownJobs: [failedA] }, false],
+    [
+      "a workflow awaiting approval",
+      { pending: 0, awaitingApprovalJobs: [failedA] },
+      false,
+    ],
+  ];
+
+  test.each(cases)("%s", (_name, input, expected) => {
+    const green = updateDrciBot.isDrciGreen({
+      pending: input.pending ?? 3,
+      failedJobs: input.failedJobs ?? [],
+      unknownJobs: input.unknownJobs ?? [],
+      awaitingApprovalJobs: input.awaitingApprovalJobs ?? [],
+    });
+    expect(green).toBe(expected);
+    // The headline icon is the same decision
+    expect(
+      constructResultsCommentHelper(input).includes(":white_check_mark:")
+    ).toBe(expected);
+  });
+});
+
+describe("isCiGoodForReview", () => {
+  const startupFailure = getDummyJob({
+    name: "pull / linux-test",
+    conclusion: "startup_failure",
+  });
+  const cases: [
+    string,
+    Partial<Parameters<typeof updateDrciBot.isCiGoodForReview>[0]>,
+    boolean
+  ][] = [
+    ["nothing failed", {}, true],
+    [
+      "a workflow awaiting approval",
+      { awaitingApprovalJobs: [awaitingApprovalA] },
+      true,
+    ],
+    [
+      "a workflow that failed to start",
+      { awaitingApprovalJobs: [startupFailure] },
+      false,
+    ],
+    [
+      "a workflow awaiting approval and a new failure",
+      { awaitingApprovalJobs: [awaitingApprovalA], failedJobs: [failedA] },
+      false,
+    ],
+    [
+      "pending jobs",
+      { pending: 1, awaitingApprovalJobs: [awaitingApprovalA] },
+      false,
+    ],
+  ];
+
+  test.each(cases)("%s", (_name, input, expected) => {
+    expect(
+      updateDrciBot.isCiGoodForReview({
+        pending: 0,
+        failedJobs: [],
+        unknownJobs: [],
+        awaitingApprovalJobs: [],
+        ...input,
+      })
+    ).toBe(expected);
   });
 });

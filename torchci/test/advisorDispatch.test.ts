@@ -127,6 +127,47 @@ describe("autoDispatchAdvisorForNewFailures", () => {
     );
   });
 
+  it("never dispatches on a PR-state gate", async () => {
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [
+          job("Check mergeability of ghstack PR / ghstack-mergeability-check"),
+          job("Check mergeability of ghstack PR"),
+          job("Lint / pr-sanity-checks"),
+          job("Check Labels / Check labels"),
+          job("wf / b"),
+        ],
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ jobName: "wf / b" })
+    );
+  });
+
+  // Code signals the advisor can judge, even though flakiness detection skips
+  // them.
+  it("still dispatches on lint, docs, BC-lint and build failures", async () => {
+    const names = [
+      "Lint / lintrunner-noclang-partial / lint",
+      "docs-build / linux-docs / build-docs-python-false",
+      "BC Lint / bc_linter",
+      "pull / linux-jammy-py3.10-gcc11 / build",
+    ];
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: names.map((n) => job(n)) },
+      deps
+    );
+    const dispatched = (
+      deps.dispatchAdvisorWorkflow as jest.Mock
+    ).mock.calls.map((c) => c[0].jobName);
+    expect(dispatched.sort()).toEqual([...names].sort());
+  });
+
   it("skips jobs already dispatching or dispatched", async () => {
     const states = new Map([
       [

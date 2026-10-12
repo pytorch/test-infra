@@ -68,7 +68,7 @@ describe("upsertDrCiComment", () => {
       "pytorch",
       "pytorch",
       123,
-      { octokit, log: jest.fn() } as any,
+      { octokit, log: jest.fn(), payload: {} } as any,
       "https://github.com/pytorch/pytorch/pull/123"
     );
 
@@ -92,7 +92,7 @@ describe("upsertDrCiComment", () => {
       "pytorch",
       "pytorch",
       123,
-      { octokit, log: jest.fn() } as any,
+      { octokit, log: jest.fn(), payload: {} } as any,
       "https://github.com/pytorch/pytorch/pull/123"
     );
 

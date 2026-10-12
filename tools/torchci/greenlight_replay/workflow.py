@@ -2,9 +2,9 @@
 
 ``.github/workflows/greenlight-pr-review.yml`` *is* the policy under test. Everything
 the CI job hands the model is read back out of it here -- the prompt, the model and
-effort, the tool allowlist, the two diff-size caps and the three review budgets -- so
-that a policy pull request which retunes any of them is honoured rather than silently
-replaced by the baseline numbers.
+effort, the tool allowlist, the two diff-size caps, the three review budgets and
+whether it collects ghstack stack context -- so that a policy pull request which retunes
+any of them is honoured rather than silently replaced by the baseline numbers.
 
 Four properties of that reading are load-bearing.
 
@@ -46,6 +46,12 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from torchci.greenlight_replay.stack_step import (
+    CI_STACK_DIR,
+    stack_steps,
+    step_digest,
+    STEP_SHA256,
+)
 
 
 __all__ = [
@@ -64,6 +70,7 @@ __all__ = [
     "load",
     "prompt",
     "review_budgets",
+    "stack_enabled",
 ]
 
 WORKFLOW_RELPATH = ".github/workflows/greenlight-pr-review.yml"
@@ -171,6 +178,33 @@ def review_budgets(document: dict[str, Any], path: Path) -> tuple[int, int, int]
         for key in REVIEW_BUDGET_KEYS
     )
     return target, soft, hard
+
+
+def stack_enabled(document: dict[str, Any], path: Path) -> bool:
+    """Whether the workflow collects the ghstack stack context :mod:`.stack` rebuilds.
+
+    No such step is a policy CI ran without the context, so its replay gets none. The
+    one step there is must digest to ``stack_step.STEP_SHA256``, every key but its
+    ``name`` included: a step edited since would otherwise be replayed as the step the
+    harness reproduces rather than the step the policy runs.
+    """
+    steps = stack_steps(_steps(document))
+    if not steps:
+        return False
+    if len(steps) > 1:
+        raise ValueError(
+            f"{path}: expected at most one step whose run: names {CI_STACK_DIR}, "
+            f"found {len(steps)}"
+        )
+    digest = step_digest(steps[0])
+    if digest != STEP_SHA256:
+        raise ValueError(
+            f"{path}: the step whose run: names {CI_STACK_DIR} digests to {digest}, but "
+            f"greenlight_replay.stack_step pins the step digesting to {STEP_SHA256}. "
+            "Port the change to stack_step.py and stack.py and re-pin STEP_SHA256 "
+            "before replaying this policy."
+        )
+    return True
 
 
 def _jobs(document: dict[str, Any]) -> list[dict[str, Any]]:

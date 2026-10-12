@@ -20,19 +20,71 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
+
+from torchci.vllm_deduplication import (
+    read_upstream_checks,
+    UpstreamChecksArtifact,
+    UpstreamStatus,
+)
 
 
 API = "https://api.github.com"
 UMBRELLA_LABEL = "vllm-torch-nightly-umbrella"
 CHILD_LABEL = "vllm-torch-nightly"
+# Extra label on causes whose fix belongs in vLLM, so they can be listed or
+# filtered apart from the torch regressions without reading each body.
+VLLM_SIDE_LABEL = "vllm-side"
 KEY_PREFIX = "vllm-triage-key"
+
+TORCH_ROUTING = "pytorch/pytorch"
+VLLM_ROUTING = "vllm-project/vllm"
+FILED_ROUTINGS = (TORCH_ROUTING, VLLM_ROUTING)
+
+# Umbrella section each routing is listed under.
+SECTIONS = {
+    TORCH_ROUTING: "### Confirmed regressions",
+    VLLM_ROUTING: "### Regression on vLLM side",
+}
+INVESTIGATE_SECTION = "### Need investigation"
+
+
+# A run looks up every eligible, investigated and skipped cause by key, up to
+# three searches each, and the search API allows 30 authenticated requests a
+# minute. Searches are paced to that rate, and a rate-limited request of any
+# kind is retried after the wait GitHub asks for.
+SEARCH_MIN_INTERVAL_S = 2.0
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_MAX_WAIT_S = 300.0
+_last_search = 0.0
+
+
+def _rate_limit_wait(err: urllib.error.HTTPError, attempt: int) -> Optional[float]:
+    """Seconds to wait before retrying ``err``, or None if it is not a rate limit.
+
+    Follows GitHub's guidance: honour ``Retry-After``, else wait for
+    ``X-RateLimit-Reset`` when the quota is spent, else back off from a minute.
+    """
+    if err.code not in (403, 429):
+        return None
+    retry_after = err.headers.get("Retry-After", "")
+    if retry_after.isdigit():
+        return float(retry_after)
+    reset = err.headers.get("X-RateLimit-Reset", "")
+    if err.headers.get("X-RateLimit-Remaining") == "0" and reset.isdigit():
+        return max(1.0, int(reset) - time.time())
+    if err.code == 429 or "rate limit" in str(err.reason).lower():
+        return 60.0 * 2**attempt
+    # A 403 without rate-limit signals is a permission error; retrying won't help.
+    return None
 
 
 def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any:
+    global _last_search
     url = path if path.startswith("http") else f"{API}{path}"
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
@@ -41,8 +93,29 @@ def _req(method: str, path: str, token: str, body: Optional[dict] = None) -> Any
     req.add_header("X-GitHub-Api-Version", "2022-11-28")
     if data:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read() or "null")
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        if path.startswith("/search/"):
+            pause = _last_search + SEARCH_MIN_INTERVAL_S - time.monotonic()
+            if pause > 0:
+                time.sleep(pause)
+            _last_search = time.monotonic()
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read() or "null")
+        except urllib.error.HTTPError as err:
+            wait = _rate_limit_wait(err, attempt)
+            if (
+                wait is None
+                or attempt == RATE_LIMIT_RETRIES
+                or wait > RATE_LIMIT_MAX_WAIT_S
+            ):
+                raise
+            print(
+                f"rate limited on {method} {path}; retrying in {wait:.0f}s",
+                file=sys.stderr,
+            )
+            time.sleep(wait)
+    raise AssertionError("unreachable")
 
 
 # pytest prints an assertion, then explains it on continuation lines:
@@ -169,6 +242,20 @@ _EXCEPTION_TYPE = re.compile(r"([A-Za-z_][\w.]*(?:Error|Exception|Warning|Failur
 # while a single shared cluster out of four stays distinct.
 NEAR_DUP_JACCARD = 0.5
 
+# The same job set hit with a different first exception is one cause seen at a
+# different point in its chain: #9066 led with the AttributeError that #9053's
+# "All nodes remain" assertion follows from, across the same ten clusters. Two
+# shared clusters can still be coincidence, so require three.
+STRONG_OVERLAP_JACCARD = 0.8
+STRONG_OVERLAP_MIN_SHARED = 3
+
+# Identifiers that pin a signature without an exception class to its cause:
+# quoted strings and dotted or underscored names. Version stamps such as
+# nixl_ep_cpp_torch215 are normalized so the next minor's spelling matches.
+_QUOTED = re.compile(r"[\"']([^\"'\s]{3,})[\"']")
+_IDENTIFIER = re.compile(r"\b[A-Za-z_][\w]*(?:[._][\w]+)+\b")
+_TORCH_STAMP = re.compile(r"torch\d{3}")
+
 
 def issue_signature(body: str) -> str:
     m = _SIGNATURE_SECTION.search(body or "")
@@ -191,6 +278,23 @@ def exception_type(signature: str) -> str:
     return m.group(1) if m else ""
 
 
+def exception_types(signature: str) -> set:
+    """The exception class each line of a signature reports."""
+    found = set()
+    for line in normalize_signature(signature).splitlines():
+        m = _EXCEPTION_TYPE.search(line)
+        if m:
+            found.add(m.group(1))
+    return found
+
+
+def identifiers(signature: str) -> set:
+    text = _TORCH_STAMP.sub("torchNNN", normalize_signature(signature))
+    return set(_QUOTED.findall(text)) | {
+        t for t in _IDENTIFIER.findall(text) if len(t) >= 5
+    }
+
+
 def jaccard(a: List[str], b: List[str]) -> float:
     sa, sb = {x.strip() for x in a}, {x.strip() for x in b}
     union = sa | sb
@@ -207,6 +311,12 @@ def merge_clusters(body: str, clusters: List[str]) -> tuple:
         return body, []
     listing = "\n".join(f"- `{c}`" for c in existing + added)
     return _CLUSTERS_SECTION.sub(lambda m: m.group(1) + listing, body, count=1), added
+
+
+def next_minor(minor: str) -> str:
+    """Return "2.16" for "2.15", or "" for anything that is not MAJOR.MINOR."""
+    m = re.fullmatch(r"(\d+)\.(\d+)", minor or "")
+    return f"{m.group(1)}.{int(m.group(2)) + 1}" if m else ""
 
 
 def open_children(token: str, repo: str, minor: str = "") -> List[Dict]:
@@ -234,25 +344,47 @@ def near_duplicate(cause: Dict[str, Any], children: List[Dict]) -> Optional[Dict
     failed", #8817 called it "Failed to determine NCCL GIN support" -- the same
     two B200 clusters, one bug, two issues.
 
-    Matching is on exception type plus cluster overlap, deliberately not on
-    message text: those two strings share only "RuntimeError" and "failed", so
-    any text-similarity threshold loose enough to pair them would pair most
-    unrelated RuntimeErrors too.
+    Clusters must overlap (Jaccard >= NEAR_DUP_JACCARD), and then one of:
+
+    - an exception class is shared: the cause's first line names a class on any
+      line of the child's signature, or the other way round, so a symptom
+      matches the issue that recorded its root cause (#9068, a GSM8K 0.0
+      assertion, against #9049's worker OOM followed by that assertion);
+    - the cluster sets are nearly identical and wide (STRONG_OVERLAP_*);
+    - neither signature names an exception class and they share an identifier,
+      e.g. both nanobind aborts quote PAD_ZERO (#9065 against #9050).
+
+    Not on free message text: #8808 and #8817 share only "RuntimeError" and
+    "failed", so any similarity threshold loose enough to pair them would pair
+    most unrelated RuntimeErrors too.
 
     Returns the best-overlapping match, or None.
     """
-    et = exception_type(cause.get("signature") or "")
+    sig = cause.get("signature") or ""
+    et = exception_type(sig)
     mine = [c.strip() for c in cause.get("clusters") or [] if c.strip()]
-    if not et or not mine:
+    if not mine:
         return None
     best, best_j = None, 0.0
     for child in children:
         body = child.get("body") or ""
-        if exception_type(issue_signature(body)) != et:
+        theirs = issue_clusters(body)
+        j = jaccard(mine, theirs)
+        if j < NEAR_DUP_JACCARD or j <= best_j:
             continue
-        j = jaccard(mine, issue_clusters(body))
-        if j >= NEAR_DUP_JACCARD and j > best_j:
-            best, best_j = child, j
+        child_sig = issue_signature(body)
+        child_et = exception_type(child_sig)
+        shared = len(set(mine) & {c.strip() for c in theirs})
+        if et and child_et:
+            same = et in exception_types(child_sig) or child_et in exception_types(sig)
+            strong = j >= STRONG_OVERLAP_JACCARD and shared >= STRONG_OVERLAP_MIN_SHARED
+            if not (same or strong):
+                continue
+        elif et or child_et:
+            continue
+        elif not identifiers(sig) & identifiers(child_sig):
+            continue
+        best, best_j = child, j
     return best
 
 
@@ -301,22 +433,47 @@ def umbrella_body(minor: str, report: Dict[str, Any]) -> str:
         f"[#{report.get('baseline_build')}]"
         f"(https://buildkite.com/vllm/ci/builds/{report.get('baseline_build')})"
         f" on commit `{str(report.get('commit') or '')[:12]}`.\n\n"
-        "### Confirmed regressions\n\n"
+        f"{SECTIONS[VLLM_ROUTING]}\n\n"
+        "<!-- Causes whose fix belongs in vLLM, not torch. Filed here so the\n"
+        "     failing jobs are not re-triaged every run; link the upstream\n"
+        "     vllm-project/vllm issue, or promote to pytorch/pytorch, by hand. -->\n\n"
+        f"{INVESTIGATE_SECTION}\n\n"
+        "<!-- Widespread causes the agent called infra or could not root-cause.\n"
+        "     Every job here passes on the baseline; a human decides. -->\n\n"
+        f"{SECTIONS[TORCH_ROUTING]}\n\n"
         "<!-- checklist: appended automatically, one entry per root cause -->\n"
     )
 
 
-def append_to_umbrella(token: str, repo: str, umbrella: Dict, line: str) -> None:
+def insert_in_section(body: str, section: str, line: str) -> str:
+    """Put ``line`` at the end of ``section``, creating the section if absent.
+
+    Appending to the end of the body would file everything under whichever
+    section happens to be last, which is how a vLLM-side cause would end up
+    listed as a confirmed torch regression.
+    """
+    if line.strip() in body:
+        return body
+    if section not in body:
+        return body.rstrip() + f"\n\n{section}\n\n{line}\n"
+    head, _, rest = body.partition(section)
+    # The section runs until the next heading of the same level.
+    nxt = re.search(r"^### ", rest, re.M)
+    if nxt:
+        inner, tail = rest[: nxt.start()], rest[nxt.start() :]
+        return head + section + inner.rstrip() + "\n" + line + "\n\n" + tail
+    return head + section + rest.rstrip() + "\n" + line + "\n"
+
+
+def append_to_umbrella(
+    token: str, repo: str, umbrella: Dict, line: str, section: str
+) -> None:
     fresh = _req("GET", f"/repos/{repo}/issues/{umbrella['number']}", token)
     body = fresh.get("body") or ""
-    if line.strip() in body:
+    new = insert_in_section(body, section, line)
+    if new == body:
         return
-    _req(
-        "PATCH",
-        f"/repos/{repo}/issues/{umbrella['number']}",
-        token,
-        {"body": body.rstrip() + "\n" + line + "\n"},
-    )
+    _req("PATCH", f"/repos/{repo}/issues/{umbrella['number']}", token, {"body": new})
 
 
 def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
@@ -341,12 +498,31 @@ def child_body(cause: Dict[str, Any], report: Dict[str, Any], key: str) -> str:
     ]
     if jobs:
         sections.append(f"## Representative jobs\n\n{jobs}")
+    routing = cause.get("routing", "undetermined")
     sections.append(
-        f"## Suggested routing\n\n{cause.get('routing', 'undetermined')} "
+        f"## Suggested routing\n\n{routing} "
         f"(agent confidence: classification "
         f"{classification_confidence(cause) or 'unknown'}, new-failure "
         f"{new_failure_confidence(cause) or 'unknown'})"
     )
+    if needs_investigation(cause, 1):
+        sections.append(
+            "**Filed for investigation.** The root-cause agent called this "
+            f"`{routing}` (determined={bool(cause.get('determined'))}), which "
+            "normally keeps it out of the tracker. It is filed anyway because it "
+            f"spans {len(cause.get('clusters') or [])} job clusters that all pass "
+            "on the baseline, which transient infrastructure rarely does. "
+            "Confirm or rule out a torch regression by hand."
+        )
+    elif routing_of(cause) == VLLM_ROUTING:
+        sections.append(
+            "The fix for this one looks like it belongs in vLLM rather than "
+            "torch. It is tracked here so the failing jobs are not re-triaged "
+            "every run -- **the next step is a human one**: link the upstream "
+            "`vllm-project/vllm` issue if it exists, open one if it does not, "
+            "or re-route to `pytorch/pytorch` if this turns out to be a torch "
+            "regression after all."
+        )
     sections.append(
         "---\n\n"
         "Filed automatically by the vLLM torch-nightly triage workflow. The root "
@@ -363,6 +539,7 @@ def recurrence_comment(
     added: List[str],
     all_clusters: List[str],
     matched_by: str,
+    note: str = "",
 ) -> str:
     """The comment left on an already-filed cause.
 
@@ -400,6 +577,8 @@ def recurrence_comment(
             "Filed here instead of as a new issue. If this is in fact a "
             "different cause, split it and the next run will track them apart.",
         ]
+    if note:
+        out += ["", note]
     return "\n".join(out)
 
 
@@ -532,8 +711,16 @@ def new_failure_confidence(cause: Dict[str, Any]) -> str:
     return _level(cause.get("new_failure_confidence"))
 
 
-def eligible(cause: Dict[str, Any]) -> bool:
-    """Medium-confidence torch/triton causes only.
+def routing_of(cause: Dict[str, Any]) -> str:
+    return str(cause.get("routing", "")).strip().lower()
+
+
+def eligible(
+    cause: Dict[str, Any],
+    upstream_status: Optional[UpstreamStatus] = None,
+    upstream_checks: bool = False,
+) -> bool:
+    """Medium-confidence causes with a repo to fix them in.
 
     Infra-looking clusters and anything the agent could not root-cause stay out of
     the tracker: at three runs a week, filing uncertain causes would bury the real
@@ -541,14 +728,166 @@ def eligible(cause: Dict[str, Any]) -> bool:
 
     ``new_failure_confidence: low`` means "likely a variant of an existing known
     issue", so filing it would duplicate a child issue that already exists.
+
+    Routing selects the umbrella section, not whether to file. It used to gate
+    filing on ``pytorch/pytorch``, which silently dropped every vLLM-side cause
+    however well evidenced -- the cuda-bindings 13.4 ``cudaIpcMemHandle_t``
+    breakage was emitted with ``new_failure_confidence: high`` on three
+    consecutive runs and discarded each time, and was eventually filed by hand as
+    vllm-project/vllm#58599. Routing is a destination; confidence is the quality
+    bar, and the fields above already carry it.
     """
-    return (
+    base_eligible = (
         bool(cause.get("determined"))  # type: ignore[return-value]
         and classification_confidence(cause) != "low"
-        and classification_confidence(cause)
+        and bool(classification_confidence(cause))
         and new_failure_confidence(cause) != "low"
-        and str(cause.get("routing", "")).strip().lower() == "pytorch/pytorch"
+        and routing_of(cause) in FILED_ROUTINGS
     )
+    if not upstream_checks or routing_of(cause) != VLLM_ROUTING:
+        return base_eligible
+    return base_eligible and upstream_status == UpstreamStatus.NO_HITS
+
+
+def needs_investigation(cause: Dict[str, Any], min_clusters: int) -> bool:
+    """A cause ``eligible`` rejects as infra or undetermined, but too widespread
+    to drop.
+
+    Every cluster in a cause already passed on the baseline. A CUDA-init failure
+    on 79 such clusters, three runs in a row, was routed to infra and never
+    reached the tracker. Size is the signal transient infrastructure does not
+    produce, so above ``min_clusters`` the cause is filed for a human instead.
+    """
+    if min_clusters <= 0:
+        return False
+    if routing_of(cause) in FILED_ROUTINGS and cause.get("determined"):
+        return False
+    return len(cause.get("clusters") or []) >= min_clusters
+
+
+def skip_note(cause: Dict[str, Any]) -> str:
+    """Why a recurrence on a tracked issue was not itself eligible this run."""
+    return (
+        f"This run's root-cause pass rated it routing=`{cause.get('routing')}`, "
+        f"determined={bool(cause.get('determined'))}, classification "
+        f"{classification_confidence(cause) or 'unknown'}, new-failure "
+        f"{new_failure_confidence(cause) or 'unknown'}, so it was not filed as a "
+        "new cause. The failure is still there."
+    )
+
+
+_DUPLICATE_OF = re.compile(
+    r"duplicate of\s+(?:#|https://github\.com/([\w.-]+/[\w.-]+)/issues/)(\d+)", re.I
+)
+
+
+def canonical_issue(token: str, repo: str, issue: Dict) -> Dict:
+    """The open issue a closed duplicate was folded into, else ``issue``.
+
+    A key lookup also returns closed issues. For one closed as fixed that is
+    the point (a recurrence after the fix is news), but for one closed as a
+    duplicate the comment lands where nobody reads it: #9054 and #9027 got
+    "Still reproducing" while #8899 and #9017, the issues they were folded
+    into, got nothing. Follows the last "duplicate of #N" (or issue URL) in
+    the body or comments, one hop, and only to an open issue in ``repo``.
+    """
+    if issue.get("state") != "closed":
+        return issue
+    comments = _req(
+        "GET", f"/repos/{repo}/issues/{issue['number']}/comments?per_page=100", token
+    )
+    texts = [issue.get("body") or ""] + [c.get("body") or "" for c in comments or []]
+    for text in reversed(texts):
+        refs = list(_DUPLICATE_OF.finditer(text))
+        if not refs:
+            continue
+        ref_repo, number = refs[-1].groups()
+        # A URL into another repo carries a number that means nothing here.
+        if ref_repo and ref_repo.lower() != repo.lower():
+            break
+        target = _req("GET", f"/repos/{repo}/issues/{number}", token)
+        if target.get("state") == "open":
+            print(
+                f"  #{issue['number']} is closed as a duplicate of #{target['number']}"
+            )
+            return target
+        break
+    return issue
+
+
+def find_existing(
+    token: str,
+    repo: str,
+    cause: Dict[str, Any],
+    children: List[Dict],
+    filed_this_run: Dict[str, Dict],
+) -> Tuple[Optional[Dict], str]:
+    """The open issue already tracking ``cause``, and how it was matched."""
+    key = fingerprint(repo, cause)
+    existing = filed_this_run.get(key) or search_issue_by_key(token, repo, key)
+    if existing is not None:
+        return canonical_issue(token, repo, existing), "key"
+    # Older keys, newest scheme first. A hit is rewritten to the current key so
+    # the fallback stops being needed.
+    for stale in (cluster_fingerprint(repo, cause), legacy_fingerprint(repo, cause)):
+        if stale == key:
+            continue
+        existing = search_issue_by_key(token, repo, stale)
+        if existing:
+            _req(
+                "PATCH",
+                f"/repos/{repo}/issues/{existing['number']}",
+                token,
+                {
+                    "body": (existing.get("body") or "").replace(
+                        f"{KEY_PREFIX}: {stale}", f"{KEY_PREFIX}: {key}"
+                    )
+                },
+            )
+            print(f"  migrated key {stale} -> {key}")
+            return canonical_issue(token, repo, existing), "key"
+    candidate = near_duplicate(cause, children)
+    if candidate is None:
+        return None, "key"
+    issue = _req("GET", f"/repos/{repo}/issues/{candidate['number']}", token)
+    print(
+        f"  near-duplicate of #{issue['number']} "
+        f"(same {exception_type(cause.get('signature') or '')}, "
+        f"overlapping clusters): commenting instead of filing"
+    )
+    return issue, "near-duplicate"
+
+
+def record_recurrence(
+    token: str,
+    repo: str,
+    report: Dict[str, Any],
+    cause: Dict[str, Any],
+    existing: Dict,
+    matched_by: str,
+    note: str = "",
+) -> None:
+    """Merge new clusters into a tracked issue and comment that it recurred."""
+    fresh = _req("GET", f"/repos/{repo}/issues/{existing['number']}", token)
+    merged, added = merge_clusters(fresh.get("body") or "", cause.get("clusters") or [])
+    if added:
+        _req(
+            "PATCH",
+            f"/repos/{repo}/issues/{existing['number']}",
+            token,
+            {"body": merged},
+        )
+    _req(
+        "POST",
+        f"/repos/{repo}/issues/{existing['number']}/comments",
+        token,
+        {
+            "body": recurrence_comment(
+                report, cause, added, issue_clusters(merged), matched_by, note
+            )
+        },
+    )
+    print(f"  recurrence -> #{existing['number']} ({matched_by})")
 
 
 def main() -> int:
@@ -556,7 +895,30 @@ def main() -> int:
     p.add_argument("--findings", required=True, help="findings.json from the agent")
     p.add_argument("--report", required=True, help="report.json from the triage job")
     p.add_argument("--repo", default="pytorch/test-infra")
-    p.add_argument("--max-issues", type=int, default=5)
+    p.add_argument(
+        "--max-issues",
+        type=int,
+        default=5,
+        help="cap on new issues per run; recurrences on tracked issues do not count",
+    )
+    p.add_argument(
+        "--investigate-min-clusters",
+        type=int,
+        default=10,
+        help="file infra/undetermined causes spanning at least this many clusters "
+        "under 'Need investigation' (0 disables)",
+    )
+    p.add_argument(
+        "--upstream-checks",
+        default="",
+        help="validated upstream-checks.json used by --check-vllm-upstream",
+    )
+    p.add_argument(
+        "--check-vllm-upstream",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="require an upstream NO_HITS review before filing vLLM causes",
+    )
     p.add_argument(
         "--torch-version-override",
         default="",
@@ -577,6 +939,18 @@ def main() -> int:
     report = json.load(open(args.report))
     findings = json.load(open(args.findings))
     causes = findings.get("causes") or []
+
+    upstream_checks = UpstreamChecksArtifact(checks=[])
+    upstream_checks_enabled = args.check_vllm_upstream
+    if args.upstream_checks:
+        try:
+            upstream_checks = read_upstream_checks(args.upstream_checks)
+        except (OSError, TypeError, ValueError) as exc:
+            print(
+                "WARNING: upstream checks are missing or invalid; all vLLM "
+                f"filing is disabled ({type(exc).__name__}: {exc})",
+                file=sys.stderr,
+            )
 
     minor = (
         args.torch_version_override.strip()
@@ -613,29 +987,61 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    selected = [c for c in causes if eligible(c)]
-    skipped = [c for c in causes if not eligible(c)]
-    print(f"{len(causes)} cause(s): {len(selected)} eligible, {len(skipped)} skipped")
+    upstream_statuses = {
+        check.cause_signature: check.status for check in upstream_checks.checks
+    }
+    selected = []
+    investigate = []
+    skipped = []
+    for cause in causes:
+        if eligible(
+            cause,
+            upstream_statuses.get(str(cause.get("signature") or "")),
+            upstream_checks_enabled,
+        ):
+            selected.append(cause)
+        elif needs_investigation(cause, args.investigate_min_clusters):
+            investigate.append(cause)
+        else:
+            skipped.append(cause)
+
+    print(
+        f"{len(causes)} cause(s): {len(selected)} eligible, "
+        f"{len(investigate)} for investigation, {len(skipped)} skipped"
+    )
+    for c in investigate:
+        print(
+            f"  investigate: {c.get('title', '<untitled>')!r} "
+            f"({len(c.get('clusters') or [])} clusters, routing={c.get('routing')}, "
+            f"determined={c.get('determined')})"
+        )
     for c in skipped:
+        upstream_detail = ""
+        if upstream_checks_enabled and routing_of(c) == VLLM_ROUTING:
+            status = upstream_statuses.get(str(c.get("signature") or ""))
+            upstream_detail = f", upstream_status={status or 'missing check'}"
         print(
             f"  skip: {c.get('title', '<untitled>')!r} "
             f"(determined={c.get('determined')}, "
             f"classification_confidence={classification_confidence(c) or None}, "
             f"new_failure_confidence={new_failure_confidence(c) or None}, "
-            f"routing={c.get('routing')})"
+            f"routing={c.get('routing')}{upstream_detail})"
         )
-    if len(selected) > args.max_issues:
-        print(
-            f"capping at --max-issues={args.max_issues} "
-            f"({len(selected) - args.max_issues} not filed this run)"
-        )
-        selected = selected[: args.max_issues]
+    # Investigation causes go last so they never crowd out an eligible one.
+    to_file = selected + investigate
 
     if not args.execute:
         print("\n=== DRY RUN (pass --execute to file) ===")
         print(f"umbrella: [torch {minor}] vLLM CI failures - torch nightly triage")
-        for c in selected:
-            print(f"  child: {c.get('title')}  key={fingerprint(args.repo, c)}")
+        for c in to_file:
+            print(
+                f"  child [{routing_of(c)}]: {c.get('title')}  "
+                f"key={fingerprint(args.repo, c)}"
+            )
+        print(
+            f"(--max-issues={args.max_issues} caps new issues only; causes already "
+            "tracked are commented on regardless)"
+        )
         return 0
 
     umbrella = find_umbrella(token, args.repo, minor)
@@ -655,99 +1061,93 @@ def main() -> int:
         print(f"reusing umbrella #{umbrella['number']}")
 
     children = open_children(token, args.repo, minor)
+    # Matching also sees the next minor. During a release cycle the nightly lane
+    # files under the newer minor while version-override runs file under the
+    # older one, and the same cause shows up under both (#9066 against #9053,
+    # #9068 against #9049). Silences stay scoped to this run's minor.
+    candidates = list(children)
+    if next_minor(minor):
+        candidates += open_children(token, args.repo, next_minor(minor))
 
     # Keyed by fingerprint, for causes filed earlier in this same run. The
     # search API is not read-your-writes, so two causes that normalize to one
     # key in a single run would otherwise both be filed.
     filed_this_run: Dict[str, Dict] = {}
     matched: set = set()
+    # The cap counts creations only. Applied before the lookup, recurrences used
+    # it up, and a tracked cause cut by it got no comment and was then reported
+    # silent.
+    created = 0
+    capped: List[Dict[str, Any]] = []
 
-    for c in selected:
+    for c in to_file:
         key = fingerprint(args.repo, c)
-        existing = filed_this_run.get(key) or search_issue_by_key(token, args.repo, key)
-        matched_by = "key"
-        if existing is None:
-            # Older keys, newest scheme first. A hit is rewritten to the
-            # current key so the fallback stops being needed.
-            for stale in (
-                cluster_fingerprint(args.repo, c),
-                legacy_fingerprint(args.repo, c),
-            ):
-                if stale == key:
-                    continue
-                existing = search_issue_by_key(token, args.repo, stale)
-                if existing:
-                    _req(
-                        "PATCH",
-                        f"/repos/{args.repo}/issues/{existing['number']}",
-                        token,
-                        {
-                            "body": (existing.get("body") or "").replace(
-                                f"{KEY_PREFIX}: {stale}", f"{KEY_PREFIX}: {key}"
-                            )
-                        },
-                    )
-                    print(f"  migrated key {stale} -> {key}")
-                    break
-        if existing is None:
-            candidate = near_duplicate(c, children)
-            if candidate is not None:
-                existing = _req(
-                    "GET", f"/repos/{args.repo}/issues/{candidate['number']}", token
-                )
-                matched_by = "near-duplicate"
-                print(
-                    f"  near-duplicate of #{existing['number']} "
-                    f"(same {exception_type(c.get('signature') or '')}, "
-                    f"overlapping clusters): commenting instead of filing"
-                )
+        existing, matched_by = find_existing(
+            token, args.repo, c, candidates, filed_this_run
+        )
         if existing:
-            fresh = _req(
-                "GET", f"/repos/{args.repo}/issues/{existing['number']}", token
-            )
-            body = fresh.get("body") or ""
-            merged, added = merge_clusters(body, c.get("clusters") or [])
-            if added:
-                _req(
-                    "PATCH",
-                    f"/repos/{args.repo}/issues/{existing['number']}",
-                    token,
-                    {"body": merged},
-                )
-            _req(
-                "POST",
-                f"/repos/{args.repo}/issues/{existing['number']}/comments",
-                token,
-                {
-                    "body": recurrence_comment(
-                        report, c, added, issue_clusters(merged), matched_by
-                    )
-                },
-            )
+            record_recurrence(token, args.repo, report, c, existing, matched_by)
             matched.add(existing["number"])
-            print(f"  recurrence -> #{existing['number']} ({matched_by})")
             continue
+        if created >= args.max_issues:
+            capped.append(c)
+            continue
+        routing = routing_of(c)
+        investigating = c in investigate
+        vllm_side = routing == VLLM_ROUTING and not investigating
+        labels = [CHILD_LABEL] + ([VLLM_SIDE_LABEL] if vllm_side else [])
+        prefix = (
+            "[needs-investigation]"
+            if investigating
+            else "[vllm-side]"
+            if vllm_side
+            else ""
+        )
         issue = _req(
             "POST",
             f"/repos/{args.repo}/issues",
             token,
             {
-                "title": f"[vllm][torch {minor}] {c.get('title')}",
+                "title": f"[vllm][torch {minor}]{prefix} {c.get('title')}",
                 "body": child_body(c, report, key),
-                "labels": [CHILD_LABEL],
+                "labels": labels,
             },
         )
-        print(f"  created #{issue['number']}: {c.get('title')}")
+        created += 1
+        print(f"  created #{issue['number']} [{routing}]: {c.get('title')}")
         # Visible to the rest of this run, by key and to the near-duplicate scan.
         filed_this_run[key] = issue
         children.append(issue)
+        candidates.append(issue)
         matched.add(issue["number"])
         append_to_umbrella(
             token,
             args.repo,
             umbrella,
             f"- [ ] #{issue['number']} - {c.get('title')}",
+            INVESTIGATE_SECTION if investigating else SECTIONS[routing],
         )
+
+    if capped:
+        print(
+            f"capping at --max-issues={args.max_issues} new issues "
+            f"({len(capped)} not filed this run)"
+        )
+        for c in capped:
+            print(f"  not filed: {c.get('title', '<untitled>')!r}")
+
+    # A skipped cause that is already tracked is still a recurrence. Without
+    # this, a tracked cause the agent re-labels as infra gets neither a
+    # "still reproducing" nor a "did not reproduce" comment and looks abandoned.
+    for c in skipped:
+        existing, matched_by = find_existing(
+            token, args.repo, c, candidates, filed_this_run
+        )
+        if existing and existing["number"] not in matched:
+            record_recurrence(
+                token, args.repo, report, c, existing, matched_by, skip_note(c)
+            )
+            matched.add(existing["number"])
 
     report_silences(token, args.repo, report, children, matched, minor)
     return 0

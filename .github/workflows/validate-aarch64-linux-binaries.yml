@@ -110,6 +110,7 @@ jobs:
       channel: ${{ inputs.channel }}
       with-cuda: enable
       with-cpu: enable
+      runner-fleet: osdc
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
 
   linux-aarch64:
@@ -117,7 +118,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-aarch64-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@main
+    uses: pytorch/test-infra/.github/workflows/linux_job_v3.yml@main
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
@@ -127,10 +128,19 @@ jobs:
       job-name: ${{ matrix.build_name }}
       docker-image: ${{ matrix.container_image }}
       binary-matrix: ${{ toJSON(matrix) }}
-      docker-build-dir: "skip-docker-build"
-      no-sudo: true
       script: |
         set -ex
+
+        # The matrix export writes MATRIX_* to a file that only the docker
+        # branch of run_with_env_secrets.py applies, via --env-file. An OSDC
+        # job has no docker daemon, so it takes the other branch and the file
+        # is ignored. Values are unquoted and some hold spaces, so split on
+        # the first = rather than eval-ing the line.
+        while IFS= read -r line; do
+          [[ -z "${line}" || "${line}" == "GITHUB_WORKFLOW="* ]] && continue
+          export "${line%%=*}=${line#*=}"
+        done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+
         export DESIRED_PYTHON=${{ matrix.python_version }}
         echo "/opt/conda/bin" >> $GITHUB_PATH
         ###############################################################################

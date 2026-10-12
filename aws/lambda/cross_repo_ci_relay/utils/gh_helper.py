@@ -120,6 +120,26 @@ def list_check_runs_in_suite(
     return runs
 
 
+def has_open_pull(
+    *,
+    token: str,
+    repo_full_name: str,
+    head: str,
+    timeout: int = 20,
+    gh_client: github.Github | None = None,
+) -> bool:
+    """Whether ``repo_full_name`` has an open pull request from ``head``
+    (``owner:branch``)."""
+    if gh_client is None:
+        gh_client = github.Github(login_or_token=token, timeout=timeout)
+    _, data = gh_client.requester.requestJsonAndCheck(
+        "GET",
+        f"/repos/{repo_full_name}/pulls",
+        parameters={"state": "open", "head": head, "per_page": 1},
+    )
+    return bool(data)
+
+
 def create_repository_dispatch(
     *,
     token: str,

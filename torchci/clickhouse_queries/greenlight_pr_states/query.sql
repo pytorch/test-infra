@@ -6,10 +6,10 @@
 -- superseded slower dispatch that finishes with a later version still loses to the newer
 -- dispatch's higher run_id.
 --
--- A shadow evaluation carries no authority, so Dr.CI must never render one. The exclusion
--- belongs in WHERE, ahead of LIMIT 1 BY: shadow rows have to be gone before the collapse
--- picks a winner, or a PR whose newest row is shadow yields that row and then loses it
--- instead of falling back to its newest non-shadow row.
+-- A shadow evaluation carries no authority, so shadow sorts ahead of run_id (false first):
+-- a PR's newest non-shadow row wins even when a later shadow row exists, and a PR yields a
+-- shadow row only when it has no non-shadow row at all. The shadow column is what tells
+-- that PR apart from one with no greenlight state.
 SELECT
     pr_number,
     status,
@@ -18,11 +18,11 @@ SELECT
     head_sha,
     eval_job,
     run_id,
-    version
+    version,
+    shadow
 FROM misc.greenlight_pr_state
 WHERE
     repo = {repo: String}
     AND pr_number IN {prNumbers: Array(Int64)}
-    AND shadow = false
-ORDER BY pr_number, run_id DESC, version DESC
+ORDER BY pr_number, shadow, run_id DESC, version DESC
 LIMIT 1 BY pr_number

@@ -65,3 +65,33 @@ class TestDockerReleaseMatrix(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestValidationRunners(unittest.TestCase):
+    """The validation rows name OSDC runners.
+
+    They used to be the EC2 constants, with no way to change that -- this
+    generator never went through the fleet switch the other validate-*
+    workflows use.
+    """
+
+    def _runners(self):
+        matrix = generate_docker_matrix("test", False)
+        return {row["platform"]: row["validation_runner"] for row in matrix["include"]}
+
+    def test_amd64_rows_use_the_osdc_gpu_runner(self):
+        self.assertEqual(
+            self._runners()["linux/amd64"],
+            generate_binary_build_matrix.OSDC_LINUX_GPU_RUNNER,
+        )
+
+    def test_arm64_row_uses_the_osdc_aarch64_runner(self):
+        self.assertEqual(
+            self._runners()["linux/arm64"],
+            generate_binary_build_matrix.OSDC_LINUX_AARCH64_RUNNER,
+        )
+
+    def test_no_ec2_runner_is_named(self):
+        """Validation does not use the release fleet, so no mt-rel-* either."""
+        for platform, runner in self._runners().items():
+            self.assertTrue(runner.startswith("mt-l-"), f"{platform}: {runner}")

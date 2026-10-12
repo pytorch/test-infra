@@ -62,6 +62,7 @@ jobs:
     with:
       package-type: ${{ inputs.package_type }}
       os: linux
+      runner-fleet: osdc
       channel: ${{ inputs.channel }}
       with-cuda: ${{ inputs.with_cuda }}
       with-rocm: ${{ inputs.with_rocm }}
@@ -87,7 +88,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     name: "linux-${{ matrix.package_type }}-${{ matrix.python_version }}-${{ matrix.desired_cuda }}"
     with:
       runner: ${{ matrix.validation_runner }}
@@ -97,11 +98,25 @@ jobs:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
         set -ex
+
+        # The matrix export writes MATRIX_* to a file that only the docker
+        # branch of run_with_env_secrets.py applies, via --env-file. An OSDC
+        # job has no docker daemon, so it takes the other branch and the file
+        # is ignored. Values are unquoted and some hold spaces, so split on
+        # the first = rather than eval-ing the line.
+        while IFS= read -r line; do
+          [[ -z "${line}" || "${line}" == "GITHUB_WORKFLOW="* ]] && continue
+          export "${line%%=*}=${line#*=}"
+        done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
+
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
         export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
-          source /test-infra/.github/scripts/install_torch.sh
+          # Was /test-infra, the path v2's `docker run -v` mounted it at. v3
+          # runs in the container directly, so it is under the workspace --
+          # the same form the windows and macos legs below already use.
+          source "${GITHUB_WORKSPACE}/test-infra/.github/scripts/install_torch.sh"
         fi
         eval $SMOKE_TEST
   validate-windows:

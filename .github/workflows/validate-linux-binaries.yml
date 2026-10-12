@@ -117,6 +117,7 @@ jobs:
     with:
       package-type: wheel,libtorch
       os: linux
+      runner-fleet: osdc
       channel: ${{ inputs.channel }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       with-xpu: enable
@@ -126,7 +127,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-linux-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
@@ -138,10 +139,20 @@ jobs:
       # the wheels are self-contained. Only XPU still needs its own container.
       docker-image: ${{ (matrix.gpu_arch_type == 'xpu' && matrix.container_image) || 'pytorch/almalinux-builder:cpu-main' }}
       binary-matrix: ${{ toJSON(matrix) }}
-      docker-build-dir: "skip-docker-build"
       timeout: 180
       script: |
         set -ex
+
+        # The matrix export writes MATRIX_* to this file rather than to
+        # GITHUB_ENV. v2 read it back before running the script; v3 does not,
+        # so validate_binaries.sh would see MATRIX_PACKAGE_TYPE unbound.
+        # Values are unquoted and some hold spaces -- MATRIX_INSTALLATION is a
+        # whole pip command -- so split on the first = and export directly.
+        # eval-ing the line word-splits it and exports only the first word.
+        while IFS= read -r line; do
+          [[ -z "${line}" || "${line}" == "GITHUB_WORKFLOW="* ]] && continue
+          export "${line%%=*}=${line#*=}"
+        done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
         export ENV_NAME="conda-env-${{ github.run_id }}"
         export TORCH_ONLY=${{ inputs.torchonly }}
         export INCLUDE_TEST_OPS=${{ inputs.include-test-ops }}
@@ -164,16 +175,15 @@ jobs:
 
   linux-poetry:
     if: ${{ inputs.channel == 'release' }}
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     name: poetry-test
     with:
-      runner: "linux.g5.4xlarge.nvidia.gpu"
+      runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
       ref: main
       test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: "poetry-test"
       docker-image: 'pytorch/almalinux-builder:cpu-main'
-      docker-build-dir: "skip-docker-build"
       timeout: 60
       script: |
         set -ex
@@ -194,16 +204,19 @@ jobs:
         source ../../test-infra/.github/scripts/validate_poetry.sh
 
   linux-amazon-2023:
-    uses: ./.github/workflows/linux_job_v2.yml
+    uses: ./.github/workflows/linux_job_v3.yml
     name: amazon-linux-2023-test
     with:
-      runner: "linux.g5.4xlarge.nvidia.gpu"
+      runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
       ref: main
       test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: "amazon-linux-2023-test"
-      docker-image: 'almalinux/9-base'
-      docker-build-dir: "skip-docker-build"
+      # Not almalinux/9-base: actions/checkout needs git in the container and
+      # no RHEL-family base image ships it. This is the AlmaLinux 9 manylinux
+      # image, so the job still validates on EL9, and it has git and yum for
+      # the Development Tools install below.
+      docker-image: 'quay.io/pypa/manylinux_2_34_x86_64'
       timeout: 180
       script: |
         set -ex

@@ -74,8 +74,31 @@
 -- time. The review clock aggregates separately because it is a different grain, and cycles is read
 -- exactly once for the same reason: its two clocks and all six counters are conditional aggregates
 -- over one pass, with the window and anchor tests carried as per-row flags rather than as a WHERE
--- that would admit only one of them. The two one-row results are cross-joined; neither side groups,
--- so each yields exactly one row even when the window is empty.
+-- that would admit only one of them.
+--
+-- granularity 'day' or 'week' returns one row per UTC day or Monday-starting week, each computed as
+-- a window of just that bucket's part of the effective window would be; any other value, the default
+-- 'window' included, returns the single whole-window row, its latency_bucket being window_start, and
+-- so does an empty window at every granularity. Each clock buckets on the event it ends on --
+-- end-to-end on first_verdict_at, dispatch on first_dispatch_at, the review and run counters on
+-- terminal_at, which is verdict_at wherever review_ok holds -- so a head SHA whose verdict and
+-- dispatch land in different buckets counts in each, for the matching clock. The n_ columns sum
+-- across buckets to the window's; the medians and the excluded_ counters, which span both clocks,
+-- need not. Buckets come from toStartOfDay and toMonday under multiIf because dateTrunc rejects
+-- 'window' as a unit even in a branch that is never taken.
+--
+-- The bucket spine joins on the review side: LEFT JOINing its cycles onto the bucket starts yields
+-- one row per bucket even where no cycle ended, including the single row of an empty window. The
+-- push side is LEFT JOINed onto that, dropping its groups for buckets outside the window; a miss
+-- fills its columns with type defaults, 0 for the counts and NULL for the Nullable medians, which is
+-- what its aggregates report for a bucket with no head SHA. The spine is not a third table in the
+-- outer FROM because hud_user runs with enable_analyzer off, and the old analyzer it falls back to
+-- plans a three-table FROM measurably slower than a two-table one. The spine ends at window_end
+-- rounded up to the second: range() stops short of its end, and a bucket starting inside
+-- window_end's last second still belongs to the window. An empty window takes the one-row spine
+-- rather than an empty range(): the spine's 32-bit DateTime arithmetic wraps for a window starting
+-- past 2106, spanning decades of buckets, and an empty spine costs the query over ten times its
+-- usual memory.
 --
 -- The dispatch clock anchors on AI_REVIEW_DISPATCHED, not AI_REVIEW_STARTED. DISPATCHED is written
 -- by the scan the instant it fires the reviewer workflow; STARTED is written once that workflow is
@@ -99,6 +122,9 @@
 -- now64(3) for a repo with no ledger rows, collapsing the window to empty. The clamp has to fail
 -- closed: repo is caller-supplied, and an open clamp scans all of history. window_end clamps to
 -- now64(3) because the page snaps stopTime up to the next bucket, always landing in the future.
+-- The clamp runs inside the scalar subquery because WITH aliases expand textually: an if() around
+-- it would put two copies of the subquery into every use of ledger_start and window_start, and each
+-- copy costs planning time.
 --
 -- Both clocks anchor on push-receipt time -- the moment GitHub took delivery of the SHA -- and
 -- never on the commit's authored timestamp. An authored timestamp is written by the contributor's
@@ -157,18 +183,18 @@
 -- dropping the unit, stranding a verdict whose run is then measured from the epoch. max(shadow)
 -- attributes a whole unit to shadow if any of its rows is, so the modes partition every count below
 -- without remainder. Both halves take the predicate, being sibling reads that meet only at the
--- CROSS JOIN of two one-row aggregates: filtering one alone reports two populations in one row.
+-- final bucket join: filtering one alone reports two populations in one row.
 -- pushes is not filtered and cannot be, default.push and the workflow_run views carrying no shadow
 -- dimension, so attribution comes from the ledger side only.
 WITH
 (
-    SELECT min(version)
+    SELECT if(min(version) > toDateTime64(0, 3), min(version), now64(3))
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
-) AS ledger_min,
-if(ledger_min > toDateTime64(0, 3), ledger_min, now64(3)) AS ledger_start,
+) AS ledger_start,
 greatest({startTime: DateTime64(3)}, ledger_start) AS window_start,
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
+{granularity: String} AS granularity,
 toDateTime64(0, 3) AS epoch,
 toFloat64(1800) AS e2e_cutoff_s,
 toFloat64(480) AS dispatch_cutoff_s,
@@ -181,7 +207,18 @@ sha_units AS (
         head_sha,
         minIf(version, status IN ('LAND', 'NO_LAND')) AS first_verdict_at,
         minIf(version, status = 'AI_REVIEW_DISPATCHED') AS first_dispatch_at,
-        max(shadow) AS is_shadow
+        max(shadow) AS is_shadow,
+        multiIf(
+            granularity = 'day', toStartOfDay(first_verdict_at),
+            granularity = 'week', toMonday(first_verdict_at),
+            window_start
+        ) AS verdict_bucket,
+        multiIf(
+            granularity = 'day', toStartOfDay(first_dispatch_at),
+            granularity = 'week', toMonday(first_dispatch_at),
+            window_start
+        ) AS dispatch_bucket,
+        arrayJoin(arrayDistinct([verdict_bucket, dispatch_bucket])) AS bucket
     FROM misc.greenlight_pr_state
     WHERE repo = {repo: String}
     GROUP BY pr_number, head_sha
@@ -254,14 +291,17 @@ pushes AS (
 
 anchored AS (
     SELECT
+        u.bucket AS bucket,
         p.pushed_at AS pushed_at,
         (
             u.first_verdict_at >= window_start
             AND u.first_verdict_at < window_end
+            AND u.verdict_bucket = u.bucket
         ) AS verdict_in_window,
         (
             u.first_dispatch_at >= window_start
             AND u.first_dispatch_at < window_end
+            AND u.dispatch_bucket = u.bucket
         ) AS dispatch_in_window,
         (verdict_in_window OR dispatch_in_window) AS considered,
         (
@@ -296,6 +336,7 @@ anchored AS (
 
 push_clocks AS (
     SELECT
+        bucket,
         countIf(e2e_ok) AS n_end_to_end,
         if(
             countIf(e2e_ok) = 0,
@@ -329,10 +370,12 @@ push_clocks AS (
             AND pushed_at < ledger_start
         ) AS excluded_pre_ledger
     FROM anchored
+    GROUP BY bucket
 ),
 
 review_clock AS (
     SELECT
+        s.bucket AS bucket,
         countIf(review_ok) AS n_review,
         countIf(
             review_ok AND review_secs > review_visible_after_s
@@ -344,6 +387,30 @@ review_clock AS (
             run_timed AND run_secs > review_runtime_cutoff_s
         ) AS n_review_runs_over_runtime
     FROM (
+        SELECT
+            arrayJoin(
+                if(
+                    granularity IN ('day', 'week')
+                    AND window_end > window_start,
+                    CAST(
+                        range(
+                            toUInt32(
+                                if(
+                                    granularity = 'day',
+                                    toStartOfDay(window_start),
+                                    toMonday(window_start)
+                                )
+                            ),
+                            toUInt32(ceil(toFloat64(window_end))),
+                            if(granularity = 'day', 86400, 604800)
+                        ),
+                        'Array(DateTime)'
+                    ),
+                    [window_start]
+                )
+            ) AS bucket
+    ) AS s
+    LEFT JOIN (
         SELECT
             (
                 verdict_at >= window_start
@@ -368,7 +435,12 @@ review_clock AS (
             dateDiff('millisecond', dispatch_at, verdict_at)
             / 1000.0 AS review_secs,
             dateDiff('millisecond', run_start_at, terminal_at)
-            / 1000.0 AS run_secs
+            / 1000.0 AS run_secs,
+            multiIf(
+                granularity = 'day', toStartOfDay(terminal_at),
+                granularity = 'week', toMonday(terminal_at),
+                window_start
+            ) AS bucket
         FROM cycles
         WHERE
             (
@@ -376,10 +448,12 @@ review_clock AS (
                 OR ({shadowMode: String} = 'shadow' AND is_shadow)
                 OR {shadowMode: String} NOT IN ('enforcing', 'shadow')
             )
-    )
+    ) AS c ON s.bucket = c.bucket
+    GROUP BY s.bucket
 )
 
 SELECT
+    r.bucket AS latency_bucket,
     p.n_end_to_end AS n_end_to_end,
     p.e2e_p50_s AS e2e_p50_s,
     p.n_e2e_within_cutoff AS n_e2e_within_cutoff,
@@ -401,5 +475,6 @@ SELECT
     p.excluded_no_push_ts AS excluded_no_push_ts,
     p.excluded_push_after_event AS excluded_push_after_event,
     p.excluded_pre_ledger AS excluded_pre_ledger
-FROM push_clocks AS p
-CROSS JOIN review_clock AS r
+FROM review_clock AS r
+LEFT JOIN push_clocks AS p ON r.bucket = p.bucket
+ORDER BY latency_bucket

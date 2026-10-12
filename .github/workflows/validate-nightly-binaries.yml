@@ -25,6 +25,7 @@ on:
       - .github/workflows/validate-macos-arm64-binaries.yml
       - .github/workflows/validate-aarch64-linux-binaries.yml
       - .github/scripts/validate_binaries.sh
+      - .github/scripts/validate_libtorch.py
       - test/smoke_test/*
 
 jobs:

@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
 import { pinLedger } from "lib/crcr/crcrComment";
+import { buildGreenlightOpenedLine } from "lib/greenlight/greenlightComment";
 import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
@@ -62,6 +63,18 @@ export const EXCLUDED_FROM_FLAKINESS = [
   "check labels",
 ];
 export const EXCLUDED_FROM_BROKEN_TRUNK = ["lint"];
+// PR-state gates. They check the PR's ghstack branches, size or labels, not
+// what its code does, so the AI CI Advisor's question -- did this change cause
+// the failure? -- does not apply: a stack that is out of sync answers "not
+// related" and must still block. Dr.CI neither dispatches the advisor on these
+// nor renders or acts on a verdict for them.
+export const EXCLUDED_FROM_ADVISOR = [
+  "ghstack-mergeability-check",
+  // The same check when Dr.CI reports only the workflow name
+  "check mergeability of ghstack pr",
+  "pr-sanity-checks",
+  "check labels",
+];
 // If the base commit is too old, don't query for similar failures because
 // it increases the risk of getting misclassification. This guardrail can
 // be relaxed once we achieve better accuracy from the log classifier. This
@@ -83,18 +96,38 @@ export const EXCLUDED_FROM_SIMILARITY_POST_PROCESSING = [
 // This error is returned when a step in the job timeout and is cancelled
 export const CANCELLED_STEP_ERROR = "##[error]The operation was canceled.";
 
+// Auto PR Triage runs on pull_request_target, so GitHub does not link a fork
+// PR's runs to the PR; the run list filtered by head branch finds them, even
+// after later pushes. The link is only shown for PRs with the label that starts
+// triage, and the list leaves out the runs every other label starts and skips.
+// Only plain branch names are linked, so a branch name cannot break or inject
+// Markdown into the comment.
+const AUTO_PR_TRIAGE_LABEL = "open source";
+const AUTO_PR_TRIAGE_RUNS_URL =
+  "https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml";
+const SAFE_BRANCH_RE = /^[A-Za-z0-9._\/-]+$/;
+
 export function formDrciHeader(
   owner: string,
   repo: string,
-  prNum: number
+  prNum: number,
+  headRef: string = "",
+  labels: string[] = []
 ): string {
   // For PyTorch only
   if (isPyTorchPyTorch(owner, repo)) {
+    const triageQuery = encodeURIComponent(
+      `branch:${headRef} -is:skipped -is:cancelled`
+    );
+    const triageLink =
+      labels.includes(AUTO_PR_TRIAGE_LABEL) && SAFE_BRANCH_RE.test(headRef)
+        ? `* :robot: See [Auto PR Triage runs for this PR](${AUTO_PR_TRIAGE_RUNS_URL}?query=${triageQuery})\n`
+        : "";
     return `## :link: Helpful Links
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}/pr/${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${PYTHON_DOCS_PATH})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${CPP_DOCS_PATH})
-* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL})
+${triageLink}* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL})
 
 Note: Links to docs will display an error until the docs builds have been completed.`;
   }
@@ -117,10 +150,19 @@ export function formDrciComment(
   // newline (empty unless the PR is in the contributor workflow). It tells the
   // contributor what stage the PR is at and who owes the next step, so it leads
   // the comment rather than sitting below the CI results.
-  prStatusSection: string = ""
+  prStatusSection: string = "",
+  headRef: string = "",
+  labels: string[] = [],
+  // Pre-rendered automated PR review section, carrying its own leading newline
+  // (empty when the PR has no review). It sits right below the PR Status so a
+  // finished verdict is visible next to the stage it explains.
+  prReviewSection: string = ""
 ): string {
-  const header = formDrciHeader(owner, repo, pr_num);
-  const comment = `${DRCI_COMMENT_START}${prStatusSection}
+  const header = formDrciHeader(owner, repo, pr_num, headRef, labels);
+  // The section ends in an HTML block, which a blank line must close before the
+  // header's markdown heading.
+  const review = prReviewSection ? `${prReviewSection}\n` : "";
+  const comment = `${DRCI_COMMENT_START}${prStatusSection}${review}
 ${header}
 ${sevs}
 ${pr_results}
@@ -210,6 +252,10 @@ export async function upsertDrCiComment(
     return;
   }
 
+  // Before getDrciComment, so the gate's GitHub calls stay out of the window
+  // between finding no comment and creating one, where a concurrent event can
+  // post a duplicate.
+  const greenlightLine = await buildGreenlightOpenedLine(owner, repo, context);
   const existingDrciData = await getDrciComment(
     context.octokit,
     owner,
@@ -227,18 +273,24 @@ export async function upsertDrCiComment(
   const sev = getActiveSEVs(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
+  const prLabels: string[] = (context.payload.pull_request?.labels ?? []).map(
+    (label: { name: string }) => label.name
+  );
   // Open and synchronize events do not recalculate status, so preserve it while
   // rebuilding the rest of the comment. The CRCR results are rebuilt by the next
   // sweep and the push may have invalidated them, so only the pin ledger is kept:
   // it is invisible, and losing it would make that sweep page every on-call
-  // again for a failure they were already told about.
+  // again for a failure they were already told about. The greenlight line is the
+  // only other thing this event has to say, and it shares the results slot.
   const drciComment = formDrciComment(
     prNum,
     owner,
     repo,
-    pinLedger(existingDrciComment),
+    pinLedger(existingDrciComment) + greenlightLine,
     formDrciSevBody(sev),
-    extractPrStatusSection(existingDrciComment)
+    extractPrStatusSection(existingDrciComment),
+    context.payload.pull_request?.head?.ref ?? "",
+    prLabels
   );
 
   if (existingDrciComment === drciComment) {
@@ -507,6 +559,10 @@ export function isExcludedFromBrokenTrunk(job: RecentWorkflowsData): boolean {
 
 export function isExcludedFromFlakiness(job: RecentWorkflowsData): boolean {
   return isExcluded(job, EXCLUDED_FROM_FLAKINESS);
+}
+
+export function isExcludedFromAdvisor(job: RecentWorkflowsData): boolean {
+  return isExcluded(job, EXCLUDED_FROM_ADVISOR);
 }
 
 export async function fetchPRLabels(

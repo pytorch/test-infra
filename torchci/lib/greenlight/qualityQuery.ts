@@ -3,6 +3,7 @@
 import { LARGE_WINDOW_DAYS } from "components/common/timeWindow";
 import { fetcher } from "lib/GeneralUtils";
 import { GREENLIGHT_REPOS } from "lib/greenlight/greenlightConfig";
+import type { ChartGranularity } from "lib/greenlight/qualityCharts";
 import { effectiveWindowDays } from "lib/greenlight/qualityFigures";
 import useSWR from "swr";
 
@@ -20,8 +21,9 @@ export const QUALITY_QUERIES = {
 };
 
 // A shadow evaluation is one GreenLight ran without publishing its approving
-// review. Every query on this page buckets its units the same way, so the three
-// states partition the population: enforcing + shadow == all, on every tile.
+// review. Every query on this page classifies its units the same way, so the
+// three states partition whatever GreenLight evaluated: enforcing + shadow ==
+// all there. Totals over every merge or every revert are not split by mode.
 export type ShadowMode = "all" | "enforcing" | "shadow";
 
 export const DEFAULT_SHADOW_MODE: ShadowMode = "all";
@@ -39,11 +41,15 @@ export const SHADOW_MODE_OPTIONS: ShadowModeOption[] = [
   { value: "shadow", label: "Shadow only" },
 ];
 
+// An absent granularity drops out of the blob, since JSON.stringify omits an
+// undefined value, and the query falls back to its params.json default: one
+// whole-window row.
 export function qualityUrl(
   queryName: string,
   startTime: string,
   stopTime: string,
-  shadowMode: ShadowMode
+  shadowMode: ShadowMode,
+  granularity?: ChartGranularity
 ): string {
   return `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify({
@@ -51,24 +57,27 @@ export function qualityUrl(
       stopTime,
       repo: GREENLIGHT_QUALITY_REPO,
       shadowMode,
+      granularity,
     })
   )}`;
 }
 
-// CoverageRow, LatencyRow and RevertRow are declared for the queries the page
-// reads through indirection — tile-config field names and DataGrid column
-// declarations — so a mistyped field string is a compile error rather than a
+// The row interfaces are declared for the queries the page reads through
+// indirection — tile-config field names, the charts' bucket columns and DataGrid
+// column declarations — so a mistyped one is a compile error rather than a
 // silent "-". They are NOT the guard against the SQL renaming a column: an
 // interface left untouched by that rename still declares the old name and still
 // compiles. test/greenlightQualityColumnSync.test.ts is what closes that, by
-// parsing the queries themselves.
+// parsing the queries themselves, and its reads check is all that covers the
+// merge chart's series fields, which are plain strings.
 
-// CoverageRow alone is absent from that test's ROW_INTERFACES, on purpose.
-// MIN_FIELDS_PER_INTERFACE is one floor shared by every registered interface, so
-// admitting a row this narrow would drop it far enough that most of LatencyRow or
-// RevertRow could vanish unnoticed. This row keeps the keyof check and forgoes
-// the SQL-sync one.
+// CoverageRow and MergeAuthorityRow are absent from that test's ROW_INTERFACES,
+// on purpose. MIN_FIELDS_PER_INTERFACE is one floor shared by every registered
+// interface, so admitting rows this narrow would drop it far enough that most of
+// LatencyRow or RevertRow could vanish unnoticed. These rows keep the keyof
+// check on the fields typed against them and forgo the SQL-sync one.
 export interface CoverageRow {
+  coverage_bucket: string;
   prs_evaluated: number;
   prs_with_verdict: number;
   verdicts_total: number;
@@ -84,7 +93,19 @@ export interface CoverageRow {
   effective_end: string;
 }
 
+export interface MergeAuthorityRow {
+  merge_bucket: string;
+  merged_evaluated_prs: number;
+  gl_only: number;
+  pct_gl_only: number | null;
+  human_approved: number;
+  no_approval: number;
+  merged_prs_total: number;
+  pct_of_all_merges: number | null;
+}
+
 export interface LatencyRow {
+  latency_bucket: string;
   n_end_to_end: number;
   e2e_p50_s: number | null;
   n_e2e_within_cutoff: number;
@@ -114,7 +135,6 @@ export interface RevertRow {
   author: string;
   merged_sha: string;
   // NULL on a revert that resolves to no PR, so no merge exists to point at.
-  // The query stopped epoch-filling these; utcStamp rejects both spellings.
   merged_at: string | null;
   verdict: string;
   // NULL rather than the epoch on a revert GreenLight never evaluated, so the
@@ -129,11 +149,14 @@ export interface RevertRow {
   revert_classification: string;
   revert_message: string;
   merged_version_approved: string;
+  // 0 or 1: whether this row is one of the reverts land_approved_reverts counts.
+  counts_in_rate: number;
   resolvable_reverts: number;
   attributable_reverts: number;
   evaluated_reverts: number;
   land_approved_reverts: number;
   land_approved_ghfirst_reverts: number;
+  land_approved_stale_reverts: number;
   unattributable_reverts: number;
   ghfirst_reverts: number;
   evaluated_prs_total: number;
@@ -146,6 +169,14 @@ export interface QualityQueryState {
   row?: any;
 }
 
+export interface QualityQueryOptions {
+  granularity?: ChartGranularity;
+  enabled?: boolean;
+  passive?: boolean;
+}
+
+const IDLE_QUERY: QualityQueryState = { loading: false, rows: [] };
+
 // Whether the window is narrow enough to be worth re-polling. Judged on the
 // span the queries actually ran over — every one of them clamps its start to
 // the ledger's first row, so the picker's own span can be many times wider than
@@ -157,9 +188,14 @@ export function shouldAutoRefresh(coverageRow: any): boolean {
   return days === undefined || days <= LARGE_WINDOW_DAYS;
 }
 
-// Panels that name the same query over the same window and mode build the same
-// URL and therefore share one SWR key: the reverts query feeds both the revert
-// tile and the reverted table.
+// Panels that name the same query over the same window, mode and granularity
+// build the same URL and therefore share one SWR key: the reverts query feeds
+// the revert tile, its chart and the reverted table.
+//
+// A disabled query has no key and reads as idle rather than loading, so a chart
+// that has nothing to fetch shows its empty state instead of a skeleton. A
+// passive one has no fetcher: it only reads what another panel fetches under the
+// same key, and so can never re-run that query.
 //
 // shadowMode is required and sits ahead of the defaulted autoRefresh so that
 // every caller has to state it. Defaulted, a caller that omitted it would drop
@@ -176,17 +212,20 @@ export function useQualityQuery(
   startTime: string,
   stopTime: string,
   shadowMode: ShadowMode,
-  autoRefresh: boolean = true
+  autoRefresh: boolean = true,
+  { granularity, enabled = true, passive = false }: QualityQueryOptions = {}
 ): QualityQueryState {
   const { data, error } = useSWR(
-    qualityUrl(queryName, startTime, stopTime, shadowMode),
-    fetcher,
+    enabled
+      ? qualityUrl(queryName, startTime, stopTime, shadowMode, granularity)
+      : null,
+    passive ? null : fetcher,
     {
       refreshInterval: autoRefresh ? REFRESH_INTERVAL_MS : 0,
       revalidateOnFocus: false,
     }
   );
-  return readQuery(queryName, data, error);
+  return enabled ? readQuery(queryName, data, error) : IDLE_QUERY;
 }
 
 // The API route has no error handling, so a failing query answers with an HTML

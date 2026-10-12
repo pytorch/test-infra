@@ -282,7 +282,10 @@ export async function retryRequest(
   }
   return await urllib.request(path);
 }
-export async function reactOnComment(ctx: any, reaction: "+1" | "confused") {
+export async function reactOnComment(
+  ctx: any,
+  reaction: "+1" | "-1" | "confused"
+) {
   ctx.log(
     `Reacting with "${reaction}" to comment ${ctx.payload.comment.html_url}`
   );
@@ -348,6 +351,37 @@ export async function hasWritePermissions(
   return permissions === "admin" || permissions === "write";
 }
 
+// Triage or higher on owner/repo. The legacy `permission` field reports triage
+// as "read", so this reads the granular permissions and the role name. A 404
+// (no such user) is no permission; any other error propagates.
+export async function hasTriageOrHigherPermissions(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  username: string
+): Promise<boolean> {
+  let data;
+  try {
+    data = (
+      await octokit.rest.repos.getCollaboratorPermissionLevel({
+        owner,
+        repo,
+        username,
+      })
+    ).data;
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) {
+      return false;
+    }
+    throw error;
+  }
+  const p = data.user?.permissions;
+  return (
+    Boolean(p?.triage || p?.push || p?.maintain || p?.admin) ||
+    ["triage", "write", "maintain", "admin"].includes(data.role_name)
+  );
+}
+
 // Answers "did we VERIFY this user as an active member of org/teamSlug?" —
 // a false is "not verified", which is weaker than "not a member".
 //
@@ -397,6 +431,32 @@ export async function isOrgTeamMember(
           "team membership lookup failed, denying the exemption"
         );
       }
+    } catch {
+      // Logging is best effort.
+    }
+    return false;
+  }
+}
+
+// Answers "did we VERIFY that this human has write or admin access to the
+// event's repo?" Unlike hasWritePermissions, it fails closed: a lookup error
+// resolves to false instead of throwing, and `[bot]` logins are always false,
+// so no app inherits the facebook-github-tools / meta-codesync allowance.
+export async function hasVerifiedHumanWritePermissions(
+  ctx: any,
+  username: string
+): Promise<boolean> {
+  if (!username || username.endsWith("[bot]")) {
+    return false;
+  }
+  try {
+    return await hasWritePermissions(ctx, username);
+  } catch (error) {
+    try {
+      ctx.log?.error?.(
+        { username, err: error },
+        "collaborator permission lookup failed, denying write access"
+      );
     } catch {
       // Logging is best effort.
     }

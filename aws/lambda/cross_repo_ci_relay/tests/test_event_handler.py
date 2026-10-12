@@ -234,10 +234,17 @@ class TestPrLabeledHandler(unittest.TestCase):
         mock_map.get_repo_events.side_effect = _all_events
         self.mock_load.return_value = mock_map
 
+        # Not on temporary demotion unless a test says so.
+        self.patcher_since = patch(
+            "utils.redis_helper.get_demotion_since", return_value=None
+        )
+        self.mock_since = self.patcher_since.start()
+
     def tearDown(self):
         self.patcher_redis.stop()
         self.patcher_gh.stop()
         self.patcher_load.stop()
+        self.patcher_since.stop()
 
     def _job(
         self, job_name="ci", status="in_progress", conclusion=None, run_id="99999"
@@ -337,6 +344,16 @@ class TestPrLabeledHandler(unittest.TestCase):
             unittest.mock.ANY, "abc123", "org/l3repo"
         )
 
+    def test_repo_on_temporary_demotion_gets_no_check_runs(self):
+        self.mock_since.return_value = 500.0  # its demotion PR is open
+        self.mock_redis.get_dispatch_jobs.return_value = [self._job()]
+
+        result = handle(_cfg(), self._labeled_payload(), "pull_request", "label-del")
+
+        self.assertEqual(result, {"ok": True, "created_check_runs": []})
+        self.mock_gh.create_check_run.assert_not_called()
+        self.mock_redis.mark_check_run_wanted.assert_not_called()
+
     def test_nightly_only_backend_does_not_backfill_check_runs(self):
         self.mock_load.return_value.get_repo_events.side_effect = None
         self.mock_load.return_value.get_repo_events.return_value = frozenset(
@@ -377,10 +394,17 @@ class TestCheckRunRerun(unittest.TestCase):
         self.mock_map.get_repos_at_or_above_level.return_value = (["org/l3repo"], [])
         self.mock_load.return_value = self.mock_map
 
+        # Not on temporary demotion unless a test says so.
+        self.patcher_since = patch(
+            "utils.redis_helper.get_demotion_since", return_value=None
+        )
+        self.mock_since = self.patcher_since.start()
+
     def tearDown(self):
         self.patcher_gh.stop()
         self.patcher_redis.stop()
         self.patcher_load.stop()
+        self.patcher_since.stop()
 
     def _check_run_payload(self, name="crcr/org/l3repo/CI/build", external_id="88888"):
         return {
@@ -437,6 +461,30 @@ class TestCheckRunRerun(unittest.TestCase):
             handle(_cfg(), payload, "check_run", "del-3"), {"ignored": True}
         )
         self.mock_gh.rerun_failed_jobs.assert_not_called()
+
+    def test_rerun_of_a_temporarily_demoted_repo_is_ignored(self):
+        """Its check runs are held back, so a re-run would show nothing."""
+        self.mock_since.return_value = 500.0
+
+        result = handle(_cfg(), self._check_run_payload(), "check_run", "del-5")
+
+        self.assertEqual(
+            result, {"ignored": True, "reason": "downstream repo temporarily demoted"}
+        )
+        self.mock_gh.rerun_failed_jobs.assert_not_called()
+
+        self.mock_gh.list_check_runs_in_suite.return_value = [
+            {"name": "crcr/org/l3repo/CI/build", "external_id": "111"}
+        ]
+        payload = {
+            "action": "rerequested",
+            "check_suite": {"id": 9001, "head_sha": "abc123"},
+            "repository": {"full_name": "pytorch/pytorch"},
+        }
+        result = handle(_cfg(), payload, "check_suite", "del-6")
+
+        self.assertEqual(result, {"ok": True, "rerun": []})
+        self.mock_gh.rerun_workflow_run.assert_not_called()
 
     def test_check_suite_rerequested_reruns_each_distinct_run(self):
         """The suite-level "Re-run all checks" button re-runs *all* jobs of every

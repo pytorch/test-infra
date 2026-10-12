@@ -1,0 +1,20 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "repo": "String",
+    "revertWindowDays": "UInt32"
+  },
+  "defaults": {
+    "repo": "pytorch/pytorch",
+    "revertWindowDays": 7
+  },
+  "tests": [
+    {
+      "startTime": "2026-09-01T00:00:00.000",
+      "stopTime": "2026-09-22T00:00:00.000",
+      "repo": "pytorch/pytorch",
+      "revertWindowDays": 7
+    }
+  ]
+}

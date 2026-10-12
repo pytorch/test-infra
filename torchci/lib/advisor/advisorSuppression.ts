@@ -21,6 +21,7 @@ import {
   resolveVerdict,
 } from "lib/advisorVerdictUtils";
 import { isTime0 } from "lib/bot/utils";
+import { isExcludedFromAdvisor } from "lib/drciUtils";
 import { RecentWorkflowsData } from "lib/types";
 
 dayjs.extend(utc);
@@ -126,7 +127,9 @@ export function isSuppressible(
   job: RecentWorkflowsData,
   rows: AdvisorVerdictRow[]
 ): boolean {
-  if (!producedATestOutcome(job)) {
+  // A PR-state gate keeps blocking whatever a verdict says. Dr.CI no longer
+  // dispatches on these, but verdicts from earlier or manual dispatches exist.
+  if (isExcludedFromAdvisor(job) || !producedATestOutcome(job)) {
     return false;
   }
   const resolved = resolveVerdict(rows);

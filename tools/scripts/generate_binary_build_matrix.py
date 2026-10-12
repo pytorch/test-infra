@@ -21,13 +21,13 @@ import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
-# 3.11 is the minimum for nightly: 2.15 does not build 3.10. test and release
-# keep it because 2.14.0 publishes cp310 wheels, and dropping it here would
-# stop validating binaries users can still install. Remove it from those two
-# once 2.15 is the stable version.
+# 3.11 is the minimum for nightly and test: 2.15 does not build 3.10. release
+# keeps it because 2.14 publishes cp310 wheels, and dropping it here would stop
+# validating binaries users can still install. Remove it from release once 2.15
+# is the stable version.
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
-    "test": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
+    "test": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
 }
 
@@ -51,14 +51,17 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
+    # 13.0 is kept on nightly for vLLM's torch-nightly lane, which pins the
+    # cu130 index. release/2.15 was cut with it, so the 2.15 candidates on the
+    # test channel build it too.
     "nightly": ["13.0", "13.2", "13.4"],
-    "test": ["12.6", "13.0", "13.2", "13.4"],
+    "test": ["13.0", "13.2", "13.4"],
     "release": ["12.6", "13.0", "13.2"],
 }
 
 ROCM_ARCHES_DICT = {
-    "nightly": ["7.14", "10.0"],
-    "test": ["7.2", "7.14"],
+    "nightly": ["10.0", "10.1"],
+    "test": ["7.14", "10.0"],
     "release": ["7.2", "7.14"],
 }
 
@@ -81,21 +84,31 @@ CUDA_CUDNN_VERSIONS = {
 }
 
 STABLE_CUDA_VERSIONS = {
-    "nightly": "13.0",
-    "test": "13.0",
+    "nightly": "13.2",
+    "test": "13.2",
     "release": "13.0",
 }
 
 # CUDA versions with no Windows torch build to depend on; see
-# CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch.
-CUDA_ARCHES_NO_WINDOWS = ["13.4"]
+# CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch. Per channel, because 13.0 is held
+# on nightly for vLLM's cu130 lane and that hold is Linux-only, while 13.0 on
+# the release channel does have Windows wheels and must keep being validated.
+CUDA_ARCHES_NO_WINDOWS_DICT = {
+    # 13.0 is the vLLM hold and is Linux-only. 13.4 has Windows wheels on
+    # nightly and in the 2.15 candidates; 2.14 releases have none.
+    "nightly": ["13.0"],
+    "test": ["13.0"],
+    "release": ["13.4"],
+}
 
 # CUDA versions that are built and validated, but must not be advertised on the
 # pytorch.org getting-started page yet. Without this, update-quick-start-module
 # in pytorch/pytorch.github.io publishes an install selector for a CUDA version
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
-CUDA_ARCHES_NO_GETTING_STARTED = ["13.4"]
+# 13.0 is held on nightly for vLLM's cu130 lane only; it must not reappear in
+# the pytorch.org install selector.
+CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0"]
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
@@ -124,9 +137,9 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.15.0"
-CURRENT_CANDIDATE_VERSION = "2.14.0"
-CURRENT_STABLE_VERSION = "2.14.0"
+CURRENT_NIGHTLY_VERSION = "2.16.0"
+CURRENT_CANDIDATE_VERSION = "2.15.0"
+CURRENT_STABLE_VERSION = "2.14.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -475,7 +488,7 @@ def generate_libtorch_matrix(
             arches += [
                 c
                 for c in CUDA_ARCHES
-                if os != WINDOWS or c not in CUDA_ARCHES_NO_WINDOWS
+                if os != WINDOWS or c not in CUDA_ARCHES_NO_WINDOWS_DICT[channel]
             ]
 
         if with_rocm == ENABLE and os == LINUX:
@@ -586,7 +599,11 @@ def generate_wheels_matrix(
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os == WINDOWS:
-                arches += [c for c in CUDA_ARCHES if c not in CUDA_ARCHES_NO_WINDOWS]
+                arches += [
+                    c
+                    for c in CUDA_ARCHES
+                    if c not in CUDA_ARCHES_NO_WINDOWS_DICT[channel]
+                ]
             elif os == LINUX:
                 arches += CUDA_ARCHES
             elif os == LINUX_AARCH64:

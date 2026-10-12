@@ -18,6 +18,7 @@ import {
   CachedLabelerConfigTracker,
   getFilesChangedByPrCached,
   hasApprovedPullRuns,
+  hasVerifiedHumanWritePermissions,
   hasWritePermissions,
   isOrgTeamMember,
   isPyTorchbotSupportedOrg,
@@ -39,8 +40,9 @@ function isPytorchBotActor(actor: LabelActor): boolean {
   );
 }
 
-// Who is allowed to leave a bot-managed label in place: pytorch-bot itself, and
-// the dev infra team, who own the automation those labels drive.
+// Who is allowed to leave a bot-managed label in place: pytorch-bot itself,
+// anyone with write access to the repo, and the dev infra team, who own the
+// automation those labels drive.
 async function mayApplyBotManagedLabel(
   context: Context,
   org: string,
@@ -53,11 +55,14 @@ async function mayApplyBotManagedLabel(
   if (!login) {
     return false;
   }
-  return await isOrgTeamMember(
-    context,
-    org,
-    BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
-    login
+  return (
+    (await hasVerifiedHumanWritePermissions(context, login)) ||
+    (await isOrgTeamMember(
+      context,
+      org,
+      BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
+      login
+    ))
   );
 }
 
@@ -745,7 +750,7 @@ function myBot(app: Probot): void {
         return;
       }
       context.log(
-        `Removing bot-managed label "${addedLabel}" from ${owner}/${repo}#${context.payload.pull_request.number} because its latest label actor could not be verified as pytorch-bot or an active ${BOT_MANAGED_PR_LABEL_EXEMPT_TEAM} member`
+        `Removing bot-managed label "${addedLabel}" from ${owner}/${repo}#${context.payload.pull_request.number} because its latest label actor could not be verified as pytorch-bot, a user with write access, or an active ${BOT_MANAGED_PR_LABEL_EXEMPT_TEAM} member`
       );
       await context.octokit.issues.removeLabel(
         context.repo({
@@ -756,7 +761,7 @@ function myBot(app: Probot): void {
       await context.octokit.issues.createComment(
         context.repo({
           issue_number: context.payload.pull_request.number,
-          body: `The \`${addedLabel}\` label is managed automatically by pytorch-bot. Applying it by hand is limited to the \`${BOT_MANAGED_PR_LABEL_EXEMPT_TEAM}\` team, which could not be verified for the account that added it, so it has been removed.`,
+          body: `The \`${addedLabel}\` label is managed automatically by pytorch-bot. Applying it by hand is limited to people with write access and the \`${BOT_MANAGED_PR_LABEL_EXEMPT_TEAM}\` team, and neither could be verified for the account that added it, so it has been removed.`,
         })
       );
       return;

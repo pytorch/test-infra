@@ -1,5 +1,4 @@
 import { Grid, useTheme } from "@mui/material";
-import { intFormatter } from "components/common/numberFormat";
 import {
   hasCount,
   pctOf,
@@ -10,21 +9,27 @@ import {
   ShadowMode,
   useQualityQuery,
 } from "lib/greenlight/qualityQuery";
+import { chartKeyOfTile, chartToggle, ChartToggleProps } from "./chartConfigs";
 import QualityTile, { TILE_SPAN } from "./QualityTile";
 import { qualityColors, tinted } from "./tileColors";
-import { REVIEW_RUN_TILES, ReviewRunTileConfig } from "./tileConfigs";
+import {
+  REVIEW_RUN_TILES,
+  reviewRunFraction,
+  ReviewRunTileConfig,
+} from "./tileConfigs";
 
 export default function ReviewRunPanels({
   startTime,
   stopTime,
   shadowMode,
   autoRefresh,
+  ...toggles
 }: {
   startTime: string;
   stopTime: string;
   shadowMode: ShadowMode;
   autoRefresh: boolean;
-}) {
+} & ChartToggleProps) {
   // Same query and same arguments, and so the same SWR key, as LatencyPanels:
   // these counts ride on the latency row rather than costing a second read of
   // the ledger.
@@ -42,6 +47,7 @@ export default function ReviewRunPanels({
     <>
       {REVIEW_RUN_TILES.map((tile: ReviewRunTileConfig) => {
         const note = tile.subNote?.(row);
+        const fraction = reviewRunFraction(tile, row);
         return (
           <Grid key={tile.key} size={TILE_SPAN}>
             <QualityTile
@@ -56,8 +62,8 @@ export default function ReviewRunPanels({
               // population, not part of the figure the share reports.
               sub={
                 <>
-                  {tinted(intFormatter(row?.[tile.countField]), colors.fault)}
-                  {` / ${intFormatter(row?.[tile.nField])} runs`}
+                  {tinted(fraction.count, colors.fault)}
+                  {fraction.rest}
                   {note === undefined ? "" : ` · ${note}`}
                 </>
               }
@@ -65,6 +71,7 @@ export default function ReviewRunPanels({
               loading={latency.loading}
               empty={!hasCount(row?.[tile.nField])}
               error={latency.error}
+              {...chartToggle(chartKeyOfTile(tile.key), toggles)}
             />
           </Grid>
         );

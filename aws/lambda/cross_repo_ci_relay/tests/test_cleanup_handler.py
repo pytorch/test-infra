@@ -271,7 +271,7 @@ class TestCleanupCheckRunFinalize(unittest.TestCase):
         self.patcher_redis = patch("callback.cleanup_handler.redis_helper")
         self.mock_redis = self.patcher_redis.start()
         self.patcher_hud = patch("callback.cleanup_handler.forward_to_hud")
-        self.patcher_hud.start()
+        self.mock_hud = self.patcher_hud.start()
 
         self.patcher_load = patch("callback.cleanup_handler.load_allowlist")
         self.mock_load = self.patcher_load.start()
@@ -285,11 +285,18 @@ class TestCleanupCheckRunFinalize(unittest.TestCase):
         self.mock_gh.get_repo_access_token.return_value = "tok"
         self.mock_gh.create_check_run.return_value = 777
 
+        # Not on temporary demotion unless a test says so.
+        self.patcher_since = patch(
+            "utils.redis_helper.get_demotion_since", return_value=None
+        )
+        self.mock_since = self.patcher_since.start()
+
     def tearDown(self):
         self.patcher_redis.stop()
         self.patcher_hud.stop()
         self.patcher_load.stop()
         self.patcher_gh.stop()
+        self.patcher_since.stop()
 
     def _level_zombie(self, level):
         zombie = _zombie_entry()
@@ -344,6 +351,32 @@ class TestCleanupCheckRunFinalize(unittest.TestCase):
         handle(_cfg())
 
         self.mock_gh.create_check_run.assert_not_called()
+
+    def test_l3_zombie_started_before_the_demotion_still_finalizes(self):
+        """Its check run already shows in progress, so it must be finished."""
+        zombie = self._level_zombie("L3")
+        self.mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        self.mock_since.return_value = zombie["state_record"].timestamp + 1000
+        self.mock_redis.scan_expired_in_progress.return_value = [zombie]
+
+        handle(_cfg())
+
+        self.mock_gh.create_check_run.assert_called_once()
+
+    def test_l3_zombie_started_after_the_demotion_gets_no_check_run(self):
+        zombie = self._level_zombie("L3")
+        self.mock_map.get_repo_level.return_value = AllowlistLevel.L3
+        self.mock_since.return_value = zombie["state_record"].timestamp - 1000
+        self.mock_redis.scan_expired_in_progress.return_value = [zombie]
+
+        result = handle(_cfg())
+
+        self.mock_gh.create_check_run.assert_not_called()
+        # Only the check run is held back: HUD still hears that it timed out.
+        self.assertEqual(result["cleaned"], 1)
+        _, _, untrusted = self.mock_hud.call_args.args
+        workflow = untrusted["callback_payload"]["workflow"]
+        self.assertEqual(workflow["conclusion"], "timed_out")
 
     def test_l2_zombie_does_not_finalize_check_run(self):
         # Default zombie is L2 → the stored-level pre-check short-circuits, no

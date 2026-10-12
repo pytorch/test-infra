@@ -12,7 +12,7 @@ on:
 
 jobs:
   test-gather-benchmark-info:
-    runs-on: linux.2xlarge
+    runs-on: ubuntu-24.04
     outputs:
       benchmark-metadata: ${{ steps.gather-benchmark-metadata.outputs.benchmark-metadata }}
       runners-info: ${{ steps.gather-runners-info.outputs.runners-info }}

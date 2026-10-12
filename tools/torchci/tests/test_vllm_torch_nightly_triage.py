@@ -531,6 +531,100 @@ class TestFetchClusterLogs(unittest.TestCase):
         self.assertIn("ValueError", artifact)
 
 
+class TestContestedInfra(unittest.TestCase):
+    CUDA_INIT_BODY = make_pytest_body(
+        [
+            (
+                "tests/test_a.py::test_foo",
+                "RuntimeError",
+                "CUDA driver initialization failed, you might not have a CUDA gpu.",
+            )
+        ]
+    )
+
+    def _buckets(self, n: int) -> dict:
+        return {
+            "regressed": [
+                {
+                    "name": f"Job {name}",
+                    "url": f"tn#job{name}",
+                    "state": "failed",
+                    "exit_status": 1,
+                }
+                for name in "ABCDEFGH"[:n]
+            ],
+            "both": [],
+            "baseline_only": [],
+            "unclassified": [],
+        }
+
+    def _fetch(self, n: int, min_clusters: int, body: str = "") -> tuple:
+        contested: dict = {}
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            triage, "_fetch_job_log", return_value=body or self.CUDA_INIT_BODY
+        ):
+            written = triage.fetch_cluster_logs(
+                self._buckets(n),
+                tmp,
+                token="tok",
+                tail_lines=50,
+                failure_window_context_before_lines=10,
+                failure_window_context_after_lines=50,
+                contested_infra_min_clusters=min_clusters,
+                contested_infra=contested,
+            )
+            artifacts = [Path(path).read_text() for path in written]
+        return artifacts, contested
+
+    def test_widespread_signature_is_not_tagged_infra(self) -> None:
+        artifacts, contested = self._fetch(n=3, min_clusters=3)
+        self.assertEqual(list(contested.values()), [3])
+        for artifact in artifacts:
+            self.assertIn("# job_is_infra: False", artifact)
+            self.assertIn("# infra_contested:", artifact)
+            self.assertIn("test_is_infra: False", artifact)
+
+    def test_rare_signature_stays_infra(self) -> None:
+        artifacts, contested = self._fetch(n=2, min_clusters=3)
+        self.assertEqual(contested, {})
+        for artifact in artifacts:
+            self.assertIn("# job_is_infra: True", artifact)
+            self.assertNotIn("# infra_contested:", artifact)
+
+    def test_escape_sequence_inside_signature_is_still_counted(self) -> None:
+        # parse_log matches the stripped text, so the count must too, or the
+        # signature stays tagged infra however many clusters it hits.
+        body = self.CUDA_INIT_BODY.replace(
+            "CUDA driver initialization", "CUDA driver \x1b[1minitialization"
+        )
+        artifacts, contested = self._fetch(n=3, min_clusters=3, body=body)
+        self.assertEqual(list(contested.values()), [3])
+        for artifact in artifacts:
+            self.assertIn("# job_is_infra: False", artifact)
+            self.assertIn("# infra_contested:", artifact)
+
+    def test_zero_disables_the_check(self) -> None:
+        self.assertEqual(
+            triage.contested_infra_counts([self.CUDA_INIT_BODY] * 50, 0), {}
+        )
+
+    def test_report_calls_out_contested_signature(self) -> None:
+        tn = {
+            "number": 2,
+            "url": "tn",
+            "commit": "a" * 40,
+            "state": "failed",
+            "created_at": None,
+        }
+        base = dict(tn, number=1, url="base", state="passed")
+        buckets = self._buckets(1)
+        buckets["regressed"][0]["agent"] = "agent-1"
+        report = triage.render(
+            tn, base, buckets, [], {"CUDA driver initialization failed": 79}
+        )
+        self.assertIn("hit **79** regressed clusters", report)
+
+
 def _regressed_entry():
     return {
         "name": "Job A",
@@ -667,6 +761,8 @@ class TestReportJsonWiring(unittest.TestCase):
             failure_window_context_after_lines,
             torch_versions=None,
             regressed_tests=None,
+            contested_infra_min_clusters=0,
+            contested_infra=None,
         ):
             if regressed_tests is not None:
                 regressed_tests.append(_regressed_entry())
@@ -718,6 +814,7 @@ class TestReportJsonWiring(unittest.TestCase):
                 # Consumed by the filer to tell a cause that stopped
                 # reproducing from one whose job simply did not run.
                 "passed",
+                "contested_infra",
                 "regressed_tests",
             },
         )

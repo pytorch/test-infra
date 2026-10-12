@@ -79,7 +79,12 @@ def make_policy(max_diff_lines=2000, max_diff_bytes=500000) -> Policy:
 
 
 class FakeGh:
-    """A ``_run`` stand-in that answers the two commands this module issues."""
+    """A ``_run`` stand-in that answers the commands this module issues.
+
+    GraphQL is routed apart from the REST diff. The body read-back queries it for a
+    ghstack PR under every policy; these payloads carry no ``headRefName``, so nothing
+    here asks, and a query is a failure by default. ``test_stack`` answers them.
+    """
 
     def __init__(self, diff=DIFF, payload=None, pr_returncode=0) -> None:
         self.diff = diff
@@ -89,6 +94,8 @@ class FakeGh:
 
     def __call__(self, argv):
         self.calls.append(list(argv))
+        if argv[:3] == ["gh", "api", "graphql"]:
+            return self.graphql(argv)
         if argv[:2] == ["gh", "api"]:
             return completed(self.diff)
         if argv[:3] == ["gh", "pr", "view"]:
@@ -96,6 +103,9 @@ class FakeGh:
                 return completed(b"", self.pr_returncode, b"no such pull request")
             return completed(json.dumps(self.payload).encode("utf-8"))
         raise AssertionError(f"unexpected command: {argv}")
+
+    def graphql(self, argv):
+        raise AssertionError(f"unexpected GraphQL query: {argv}")
 
     def call_matching(self, prefix):
         return next(call for call in self.calls if call[: len(prefix)] == prefix)

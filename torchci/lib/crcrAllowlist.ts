@@ -11,6 +11,9 @@ export const DEFAULT_CRCR_EVENTS = [
 ] as const satisfies readonly CrcrEvent[];
 const CRCR_EVENTS = new Set<CrcrEvent>(["pull_request", "nightly"]);
 
+/** CRCR's own test repo. */
+export const CRCR_HEALTH_REPO = "pytorch/crcr-test";
+
 const LEVEL_ORDER: Record<AllowlistLevel, number> = {
   L1: 0,
   L2: 1,

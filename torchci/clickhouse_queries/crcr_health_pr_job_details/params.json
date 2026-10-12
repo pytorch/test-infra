@@ -1,0 +1,12 @@
+{
+  "params": {
+    "window_minutes": "UInt64",
+    "stale_after_minutes": "UInt64"
+  },
+  "tests": [
+    {
+      "window_minutes": "720",
+      "stale_after_minutes": "385"
+    }
+  ]
+}

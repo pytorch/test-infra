@@ -56,8 +56,8 @@ export const GREENLIGHT_REVERTED_BODY =
 // circle, so the neutral lamp is U+26AA. REVERTED shares NO_LAND's: a revert is
 // not a verdict on the author, only a statement that re-landing needs a human.
 const GREENLIGHT_APPROVED_EMOJI = "🟢";
-const GREENLIGHT_NEEDS_HUMAN_EMOJI = "🟡";
-const GREENLIGHT_IN_PROGRESS_EMOJI = "⏳";
+export const GREENLIGHT_NEEDS_HUMAN_EMOJI = "🟡";
+export const GREENLIGHT_IN_PROGRESS_EMOJI = "⏳";
 const GREENLIGHT_NO_VERDICT_EMOJI = "⚪";
 
 // Leads the summary line whenever the verdict was reached on a commit that is no

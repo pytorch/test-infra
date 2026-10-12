@@ -18,9 +18,34 @@ import ctypes
 import glob
 import os
 import shutil
+import ssl
 import sys
 import urllib.request
 import zipfile
+
+
+def ssl_context() -> ssl.SSLContext | None:
+    """Build a verifying context that does not read the Windows cert store.
+
+    create_default_context() with no cafile falls through to
+    load_default_certs(), which on Windows concatenates every cert in the
+    system stores into one blob and hands it to OpenSSL in a single
+    load_verify_locations() call. A single unparseable entry aborts the whole
+    load with "[ASN1: NOT_ENOUGH_DATA]", and it happens before
+    set_default_verify_paths(), so SSL_CERT_FILE alone cannot avoid it.
+    Naming a cafile takes the load_verify_locations() branch instead.
+
+    Returns None when no bundle is available, which keeps urlopen on its
+    default behaviour rather than downgrading verification.
+    """
+    cafile = os.environ.get("SSL_CERT_FILE")
+    if not cafile or not os.path.isfile(cafile):
+        try:
+            import certifi
+        except ImportError:
+            return None
+        cafile = certifi.where()
+    return ssl.create_default_context(cafile=cafile)
 
 
 def find_c10_lib() -> str | None:
@@ -49,7 +74,9 @@ def main() -> None:
     request = urllib.request.Request(
         args.url, headers={"User-Agent": "libtorch-validation"}
     )
-    with urllib.request.urlopen(request) as response, open("libtorch.zip", "wb") as out:
+    with urllib.request.urlopen(request, context=ssl_context()) as response, open(
+        "libtorch.zip", "wb"
+    ) as out:
         shutil.copyfileobj(response, out)
     with zipfile.ZipFile("libtorch.zip") as zf:
         zf.extractall(".")

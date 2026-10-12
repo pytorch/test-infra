@@ -68,12 +68,21 @@ FAILED_INLINE_EXC_RE = re.compile(
 )
 FAILED_INLINE_ASSERT_RE = re.compile(r"(?:FAILED|ERROR)\s+(.+?)\s+-\s+(assert\s+.*)")
 
-INFRA_PATTERNS = [
-    re.compile(r"nvidia-container-cli", re.IGNORECASE),
+# Infra-looking signatures that a torch build can also cause: CUDA failing to
+# initialise in a worker, or the device already partly allocated at startup.
+# On a handful of jobs they are agent trouble; on dozens of jobs that all pass
+# on the baseline they are the regression. Callers can withhold the infra tag
+# for these via ``contested_infra`` once they have that cross-job evidence.
+TORCH_SENSITIVE_INFRA_PATTERNS = [
     re.compile(r"CUDA driver initialization failed", re.IGNORECASE),
+    re.compile(r"Free memory on device cuda:\d+.*less than desired"),
+]
+
+INFRA_PATTERNS = [
+    *TORCH_SENSITIVE_INFRA_PATTERNS,
+    re.compile(r"nvidia-container-cli", re.IGNORECASE),
     re.compile(r"exit status 137"),
     re.compile(r"exit(?:ed with)? status 125", re.IGNORECASE),
-    re.compile(r"Free memory on device cuda:\d+.*less than desired"),
     re.compile(r"docker.*pull", re.IGNORECASE),
     re.compile(r"command hook exited with status", re.IGNORECASE),
     re.compile(r"toomanyrequests", re.IGNORECASE),
@@ -223,6 +232,7 @@ def extract_failure_context(
     failure_window_context_after_lines: int,
     max_lines: int = 450,
     max_window_lines: int = 100,
+    contested_infra: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     """Extract bounded, structured failure context from cleaned log lines.
 
@@ -240,6 +250,8 @@ def extract_failure_context(
             window after its anchor.
         max_lines: Total number of lines allowed across emitted failure windows.
         max_window_lines: Maximum number of lines retained from any emitted window.
+        contested_infra: Infra patterns (``.pattern`` strings) that must not set
+            ``job_is_infra``; see ``TORCH_SENSITIVE_INFRA_PATTERNS``.
 
     Returns:
         Structured failure-window context, including the cleaned line count,
@@ -323,7 +335,7 @@ def extract_failure_context(
     ]
     return {
         "line_count": len(lines),
-        "job_is_infra": _matches_infra("\n".join(lines)),
+        "job_is_infra": _matches_infra("\n".join(lines), contested_infra),
         "failure_window_context_before_lines": failure_window_context_before_lines,
         "failure_window_context_after_lines": failure_window_context_after_lines,
         "failure_windows": failure_windows,
@@ -331,11 +343,13 @@ def extract_failure_context(
     }
 
 
-def parse_log(text: str) -> ParsedLog:
+def parse_log(text: str, contested_infra: frozenset[str] = frozenset()) -> ParsedLog:
     """Clean a raw log and extract structured failure information.
 
     Args:
         text: Raw log text from Buildkite.
+        contested_infra: Infra patterns (``.pattern`` strings) that must not set
+            ``job_is_infra`` / ``test_is_infra``.
 
     Returns:
         Parsed log with extracted failure signatures.
@@ -346,7 +360,10 @@ def parse_log(text: str) -> ParsedLog:
     extraction = _extract_pytest_failures(lines)
 
     if not extraction.pytest_results:
-        return ParsedLog(error_excerpt=cleaned, job_is_infra=_matches_infra(cleaned))
+        return ParsedLog(
+            error_excerpt=cleaned,
+            job_is_infra=_matches_infra(cleaned, contested_infra),
+        )
 
     for pytest_result in extraction.pytest_results:
         for failure in pytest_result.test_failures:
@@ -362,7 +379,9 @@ def parse_log(text: str) -> ParsedLog:
                     f"{failure.pytest_exception_class}: {failure.inline_message}"
                 )
         for failure in pytest_result.test_failures:
-            failure.test_is_infra = _matches_infra(failure.exception_chain)
+            failure.test_is_infra = _matches_infra(
+                failure.exception_chain, contested_infra
+            )
 
     return ParsedLog(pytest_results=extraction.pytest_results)
 
@@ -513,12 +532,23 @@ def _save_section_body(
         result.section_bodies[section_name] = body
 
 
-def _matches_infra(text: str) -> bool:
+def _matches_infra(text: str, contested_infra: frozenset[str] = frozenset()) -> bool:
     """
     Return True for a confirmed transient (retryable) infra signature.
+
+    Patterns whose ``.pattern`` is in ``contested_infra`` do not count.
     """
 
-    return any(pattern.search(text) for pattern in INFRA_PATTERNS)
+    return any(
+        pattern.search(text)
+        for pattern in INFRA_PATTERNS
+        if pattern.pattern not in contested_infra
+    )
+
+
+def torch_sensitive_infra_matches(text: str) -> list[str]:
+    """Return the ``TORCH_SENSITIVE_INFRA_PATTERNS`` (as strings) found in text."""
+    return [p.pattern for p in TORCH_SENSITIVE_INFRA_PATTERNS if p.search(text)]
 
 
 def _parse_summary_count(summary: str) -> int:

@@ -622,7 +622,7 @@ class TestSelfAllow(TestCase):
             },
         )
 
-    def test_reusable_refs_are_main_then_releases_numerically(self) -> None:
+    def test_reusable_refs_are_main_nightly_then_releases_numerically(self) -> None:
         class C(m.GitHubClient):
             def __init__(self) -> None:
                 pass
@@ -643,10 +643,60 @@ class TestSelfAllow(TestCase):
             m.get_reusable_refs(C(), "pytorch/test-infra"),
             [
                 "refs/heads/main",
+                "refs/heads/nightly",
                 "refs/heads/release/2.1",
                 "refs/heads/release/2.9",
                 "refs/heads/release/2.10",
             ],
+        )
+
+    def test_reusable_refs_pin_tags_of_the_newest_lines(self) -> None:
+        # pytorch/TensorRT builds its RC from a tag push and protects no release
+        # branch, so these tags are its only route onto the release runners.
+        responses = {
+            "/repos/pytorch/TensorRT/git/matching-refs/heads/release/": [
+                {"ref": "refs/heads/release/2.13"},
+                {"ref": "refs/heads/release/2.14"},
+                {"ref": "refs/heads/release/2.15"},
+            ],
+            "/repos/pytorch/TensorRT/git/matching-refs/tags/v2.14.": [
+                {"ref": "refs/tags/v2.14.0-rc3"},
+                {"ref": "refs/tags/v2.14.0"},
+            ],
+            "/repos/pytorch/TensorRT/git/matching-refs/tags/v2.15.": [
+                {"ref": "refs/tags/v2.15.0-rc1"},
+            ],
+        }
+        requested: List[str] = []
+
+        class C(m.GitHubClient):
+            def __init__(self) -> None:
+                pass
+
+            def request(self, method: str, path: str, **kwargs: Any) -> Any:
+                requested.append(path)
+
+                class R:
+                    def json(self_inner):
+                        return responses[path]
+
+                return R()
+
+        self.assertEqual(
+            m.get_reusable_refs(C(), "pytorch/TensorRT"),
+            [
+                "refs/heads/main",
+                "refs/heads/nightly",
+                "refs/heads/release/2.13",
+                "refs/heads/release/2.14",
+                "refs/heads/release/2.15",
+                "refs/tags/v2.14.0",
+                "refs/tags/v2.14.0-rc3",
+                "refs/tags/v2.15.0-rc1",
+            ],
+        )
+        self.assertNotIn(
+            "/repos/pytorch/TensorRT/git/matching-refs/tags/v2.13.", requested
         )
 
 

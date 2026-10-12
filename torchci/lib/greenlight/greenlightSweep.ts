@@ -1,8 +1,9 @@
 // The literals Dr.CI's re-render sweep greps a comment body for, and the single
-// pass that breaks them. Both message renderers write into that one body -- the
-// fence in greenlightRender.ts and the escaped HTML block in greenlightOutline.ts
-// -- and the first of those calls the second, so the vocabulary they share sits
-// below both rather than inside either. A second copy is a copy that can be
+// pass that breaks them. Every renderer of model text writes into that one body
+// -- Green Light's fence in greenlightRender.ts and escaped HTML block in
+// greenlightOutline.ts, and the automated review section in
+// lib/prReview/prReviewRender.ts -- so the vocabulary they share sits below all of
+// them rather than inside any. A second copy is a copy that can be
 // widened alone, and a predicate defused on one route and not the other pins its
 // PR into every sweep for as long as the comment stands.
 
@@ -18,6 +19,11 @@ export const ZERO_WIDTH_SPACE = "\u200b";
 const GREENLIGHT_PENDING_ALT = "Green Light: in progress";
 export const GREENLIGHT_PENDING_ALT_ATTR = `alt="${GREENLIGHT_PENDING_ALT}"`;
 
+// The same sentinel for the automated PR review section (lib/prReview), whose
+// verdict also lands out of band from any workflow event on the PR head.
+const PR_REVIEW_PENDING_ALT = "PR review: in progress";
+export const PR_REVIEW_PENDING_ALT_ATTR = `alt="${PR_REVIEW_PENDING_ALT}"`;
+
 // Every literal getPRsNeedingCommentRefresh (drci.ts) pins a PR into the sweep
 // on. Those predicates run over the RAW comment body, which neither renderer's
 // containment reaches: the fence in defangGreenlightMessage stops the text
@@ -28,6 +34,7 @@ export const GREENLIGHT_PENDING_ALT_ATTR = `alt="${GREENLIGHT_PENDING_ALT}"`;
 export const SWEEP_SENTINELS = [
   GREENLIGHT_PENDING_ALT_ATTR,
   ADVISOR_PENDING_ALT_ATTR,
+  PR_REVIEW_PENDING_ALT_ATTR,
 ];
 // The sweep's third predicate is the regex `\d Pending`, meant to match the
 // comment's own "3 Pending" job count. Text merely describing the PR's CI state
@@ -59,7 +66,7 @@ export const SWEEP_PREDICATE_MIN_LENGTH = Math.min(
 // The outline route also runs this over its code spans: the sweep matches the
 // body, not the rendered HTML, so a predicate inside a `<code>` pins the PR just
 // as hard as one in prose. That route arrives with the text already escaped,
-// where both sentinels are spelled `&quot;` and the loop matches nothing, leaving
+// where the sentinels are spelled `&quot;` and the loop matches nothing, leaving
 // the `Pending` substitution the pass that fires. The loop is what covers a
 // predicate spelled without a quote, and the fenced route, which hands over raw
 // text.

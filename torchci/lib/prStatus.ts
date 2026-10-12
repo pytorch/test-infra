@@ -12,7 +12,11 @@
 
 import { PullRequestReview } from "@octokit/webhooks-types";
 import { isPyTorchPyTorch } from "lib/bot/utils";
-import { getApprovalStatusFromReviews, PR_APPROVED } from "lib/reviewApproval";
+import {
+  getApprovalStatusFromReviews,
+  PR_APPROVED,
+  PR_CHANGES_REQUESTED,
+} from "lib/reviewApproval";
 import { Octokit } from "octokit";
 
 // The three mutually-exclusive status labels of the PR workflow. A PR carrying
@@ -22,6 +26,9 @@ import { Octokit } from "octokit";
 export const PR_STATUS_LABEL_TRIAGED = "triaged";
 export const PR_STATUS_LABEL_IN_PROGRESS = "in progress";
 export const PR_STATUS_LABEL_READY_FOR_REVIEW = "ready for review";
+// Skips automated review, so the PR goes to ready for review instead of in
+// progress.
+export const PR_STATUS_LABEL_REVIEW_OPT_OUT = "no automated review";
 
 export const PR_STATUS_LABELS = [
   // Uncomment the following line post-rollout + change ln 166 to true in test
@@ -29,6 +36,9 @@ export const PR_STATUS_LABELS = [
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
 ];
+
+// Set to the rollout date
+export const PRE_REVIEW_START_DATE: string | null = "2026-09-01";
 
 // Delimiters around the rendered section. The full-sweep render in drci.ts
 // rebuilds the whole comment and does not need them, but the label-event path
@@ -57,6 +67,8 @@ export interface PrStatusState {
   labels: string[];
   // Whether the PR currently carries a live approving review.
   isApproved: boolean;
+  // Whether an authorized reviewer has an outstanding request for changes.
+  hasChangesRequested?: boolean;
   // The reviewers assigned to the PR, without the leading "@". Teams are
   // "org/team". Only read in the preReview stage, where it may legitimately be
   // empty -- a triaged PR with no reviewer assigned yet renders the message
@@ -66,13 +78,17 @@ export interface PrStatusState {
   // emits no webhook for reactions, so a list defined that way could stay wrong
   // indefinitely. See the note above fetchPrStatusState.
   assignedReviewers: string[];
+  // True when the PR lookup failed, so assignedReviewers only has people who
+  // already reviewed.
+  reviewerLookupFailed?: boolean;
 }
 
 // Approval outranks every label: it is a statement about the PR made by a
 // maintainer, whereas the labels are bot-maintained and can lag a review by a
 // sweep. Below it the labels are checked most-advanced first so a PR that
-// briefly carries two of them (a bot mid-transition) reports the later stage
-// rather than flapping back.
+// briefly carries two of them (a bot mid-transition) reports the later stage.
+// During a move back to in progress, this temporarily reports ready for review
+// until the bot removes that label; the next live read reports in progress.
 export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   const labels = new Set(state.labels);
   if (state.isApproved) {
@@ -124,13 +140,23 @@ export function getPrStatusMessage(state: PrStatusState): string {
     case "inProgress":
       return (
         "## PR Status: in progress\n\n" +
-        "The overall direction of the change is " +
-        "good. The next step is to ensure the change passes the automated " +
-        "review.\n\n" +
+        (state.hasChangesRequested
+          ? "A maintainer requested changes. Please address their feedback " +
+            "before the PR returns to maintainer review.\n\n"
+          : "The overall direction of the change is good.\n\n") +
+        "To become ready for review, the change must pass automated review " +
+        "and every maintainer comment must be addressed, either with a code " +
+        "change or a reply explaining why no change is needed. A fresh " +
+        "automated review checks that the feedback has been addressed. All " +
+        "CI must finish and Dr. CI must classify every failure as unrelated " +
+        "to your PR. Fix the failures it attributes to your PR (see status " +
+        "below in this comment). Workflows waiting for a maintainer to " +
+        "approve their run do not block this.\n\n" +
         "To minimize iteration time, feel free to run the pr-review " +
-        "skill from the repo locally. The PR will be marked ready for " +
-        "maintainer review when automated review passes. To bypass automated " +
-        "review, please add the “no automated review” label."
+        "skill from the repo locally. If you address comments without " +
+        "pushing, comment `@pytorchbot review` to re-run the automated " +
+        "review. To bypass automated review, please add the “no automated " +
+        "review” label."
       );
     case "preReview":
       return (
@@ -247,6 +273,22 @@ export function buildAssignedReviewers(
   return Array.from(new Set([...users, ...reviewers, ...teams]));
 }
 
+/** Fetches current labels, including every page, rather than webhook snapshots. */
+export async function fetchLiveLabels(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<string[]> {
+  const labels = await octokit.paginate(octokit.rest.issues.listLabelsOnIssue, {
+    owner,
+    repo,
+    issue_number: prNumber,
+    per_page: 100,
+  });
+  return labels.map((label) => label.name);
+}
+
 /**
  * Fetches approval for every stage and reviewer assignments for triaged PRs.
  * Returns null when reviews are unavailable so callers preserve current status.
@@ -293,11 +335,10 @@ export async function fetchPrStatusState(
   const reviews = reviewsResult.value;
   const pull = pullResult.status === "fulfilled" ? pullResult.value : undefined;
 
-  const isApproved =
-    getApprovalStatusFromReviews(
-      reviews as any,
-      isPyTorchPyTorch(owner, repo)
-    ) === PR_APPROVED;
+  const approvalStatus = getApprovalStatusFromReviews(
+    reviews as any,
+    isPyTorchPyTorch(owner, repo)
+  );
 
   // Without a known author, omit recovered reviewers rather than risk listing
   // the author as responsible for reviewing their own PR.
@@ -314,5 +355,11 @@ export async function fetchPrStatusState(
         )
       : [];
 
-  return { labels, isApproved, assignedReviewers };
+  return {
+    labels,
+    isApproved: approvalStatus === PR_APPROVED,
+    hasChangesRequested: approvalStatus === PR_CHANGES_REQUESTED,
+    assignedReviewers,
+    reviewerLookupFailed: pullResult.status === "rejected",
+  };
 }

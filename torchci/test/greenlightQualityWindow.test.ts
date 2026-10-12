@@ -1,4 +1,5 @@
-// Pins the absent-bound behaviour of the effective-window helpers.
+// Pins the effective-window and UTC-stamp helpers, above all how they treat an
+// absent bound.
 //
 // dayjs.utc(undefined) returns the current time rather than an invalid date, so a guard
 // written against the parsed result never fires for a missing field. That made
@@ -8,14 +9,21 @@
 // branch of the auto-refresh decision unreachable. Neither showed up in tsc, lint or the
 // rendered page.
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import {
   ABSENT,
+  effectiveWindow,
   effectiveWindowDays,
+  formatEffectiveWindow,
+  formatUtcSpan,
   isEmptyWindow,
   percentUnitsFormatter,
   secondsFormatter,
   utcStamp,
 } from "lib/greenlight/qualityFigures";
+
+dayjs.extend(utc);
 
 const ABSENT_BOUNDS = [
   undefined,
@@ -32,6 +40,10 @@ describe("effective-window helpers with absent bounds", () => {
 
   test.each(ABSENT_BOUNDS)("isEmptyWindow is false for %p", (row) => {
     expect(isEmptyWindow(row)).toBe(false);
+  });
+
+  test.each(ABSENT_BOUNDS)("effectiveWindow is undefined for %p", (row) => {
+    expect(effectiveWindow(row)).toBeUndefined();
   });
 
   test("isEmptyWindow does not depend on when it is called", () => {
@@ -54,6 +66,18 @@ describe("effective-window helpers with real bounds", () => {
 
   test("a normal window is not empty", () => {
     expect(isEmptyWindow(row)).toBe(false);
+  });
+
+  test("effectiveWindow hands back both bounds as parsed", () => {
+    const bounds = effectiveWindow(row);
+    expect(bounds?.start.toISOString()).toBe(row.effective_start);
+    expect(bounds?.end.toISOString()).toBe(row.effective_end);
+  });
+
+  test("formatEffectiveWindow states the window's span in UTC", () => {
+    expect(formatEffectiveWindow(row)).toBe(
+      "2026-08-03 00:00 → 2026-09-02 00:00 UTC"
+    );
   });
 
   test("an end at or before the start is empty", () => {
@@ -106,5 +130,25 @@ describe("utcStamp", () => {
     expect(utcStamp(null)).toBe(ABSENT);
     expect(percentUnitsFormatter(null)).toBe(ABSENT);
     expect(secondsFormatter(null)).toBe(ABSENT);
+  });
+});
+
+describe("formatUtcSpan", () => {
+  test("states both ends in UTC, whichever mode the times are in", () => {
+    const local = dayjs("2026-09-10T00:00:00.000Z");
+    const utcMode = dayjs.utc("2026-09-11T06:30:00.000Z");
+    expect(formatUtcSpan(local, utcMode)).toBe(
+      "2026-09-10 00:00 → 2026-09-11 06:30 UTC"
+    );
+  });
+
+  test("an absent end, or the epoch a missed join leaves, is a dash", () => {
+    const end = dayjs.utc("2026-09-11T06:30:00.000Z");
+    expect(formatUtcSpan(undefined, end)).toBe(
+      `${ABSENT} → 2026-09-11 06:30 UTC`
+    );
+    expect(formatUtcSpan(dayjs.utc(0), end)).toBe(
+      `${ABSENT} → 2026-09-11 06:30 UTC`
+    );
   });
 });

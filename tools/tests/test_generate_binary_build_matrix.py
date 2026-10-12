@@ -244,17 +244,16 @@ class GenerateBuildMatrixTest(TestCase):
             {"3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"},
         )
 
-    def test_python_310_dropped_from_nightly_only(self):
-        # 2.14.0 publishes cp310 wheels, so test and release must keep
-        # validating them; only nightly (2.15) drops 3.10.
-        self.assertNotIn(
-            "3.10", self._test_channel_python_versions("linux", channel="nightly")
-        )
-        for channel in ("test", "release"):
-            self.assertIn(
-                "3.10",
-                self._test_channel_python_versions("linux", channel=channel),
+    def test_python_310_dropped_from_nightly_and_test(self):
+        # 2.15 does not build 3.10, so nightly and test (the 2.15 candidates)
+        # drop it; 2.14 publishes cp310 wheels, so release keeps validating them.
+        for channel in ("nightly", "test"):
+            self.assertNotIn(
+                "3.10", self._test_channel_python_versions("linux", channel=channel)
             )
+        self.assertIn(
+            "3.10", self._test_channel_python_versions("linux", channel="release")
+        )
 
     def test_torch_only_install_command_for_torch_only_arches(self):
         out = generate_build_matrix(
@@ -321,19 +320,48 @@ class GenerateBuildMatrixTest(TestCase):
         )
         return {entry["desired_cuda"] for entry in out["include"]}
 
-    def test_getting_started_excludes_cuda_13_4(self):
+    def test_getting_started_offers_nightly_cuda_13_2_and_13_4(self):
         # Covers linux-aarch64 too: CUDA_AARCH64_ARCHES used to be a separate
         # hand-maintained list that bypassed CUDA_ARCHES_NO_GETTING_STARTED.
+        for operating_system in ("linux", "linux-aarch64"):
+            for channel in ("nightly", "test"):
+                self.assertEqual(
+                    {"cu132", "cu134"},
+                    {
+                        v
+                        for v in self._cuda_versions(
+                            "wheel", operating_system, channel, "true"
+                        )
+                        if v.startswith("cu")
+                    },
+                    f"{operating_system}/{channel}",
+                )
+
+    def test_getting_started_windows_cuda_13_4_not_in_release(self):
+        # Nightly and the 2.15 candidates on test carry win_amd64 cu134 wheels;
+        # 13.4 is not in the 2.14 release channel at all. See
+        # CUDA_ARCHES_NO_WINDOWS_DICT.
         for package_type in ("wheel", "libtorch"):
-            for operating_system in ("linux", "linux-aarch64"):
-                for channel in ("nightly", "test", "release"):
-                    self.assertNotIn(
-                        "cu134",
-                        self._cuda_versions(
-                            package_type, operating_system, channel, "true"
-                        ),
-                        f"{package_type}/{operating_system}/{channel}",
-                    )
+            for channel in ("nightly", "test"):
+                self.assertIn(
+                    "cu134",
+                    self._cuda_versions(package_type, "windows", channel, "true"),
+                    f"{package_type}/{channel}",
+                )
+            self.assertNotIn(
+                "cu134",
+                self._cuda_versions(package_type, "windows", "release", "true"),
+                f"{package_type}/release",
+            )
+
+    def test_windows_has_no_cuda_13_0(self):
+        # 13.0 is held on nightly for vLLM's cu130 lane, Linux only.
+        for package_type in ("wheel", "libtorch"):
+            self.assertNotIn(
+                "cu130",
+                self._cuda_versions(package_type, "windows", "nightly", "true"),
+                f"{package_type}/nightly",
+            )
 
     def test_cuda_13_4_still_built_on_nightly_and_test(self):
         for operating_system in ("linux", "linux-aarch64"):

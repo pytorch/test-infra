@@ -18,7 +18,7 @@ import {
   getClickhouseClientWritable,
   queryClickhouseSaved,
 } from "lib/clickhouse";
-import { CANCELLED_STEP_ERROR } from "lib/drciUtils";
+import { CANCELLED_STEP_ERROR, isExcludedFromAdvisor } from "lib/drciUtils";
 import { getOctokit } from "lib/github";
 import { RecentWorkflowsData } from "lib/types";
 
@@ -496,11 +496,13 @@ export async function autoDispatchAdvisorForNewFailures(
   if (!autoDispatchEnabled(owner, repo)) return;
   if (!isValidSha(headSha)) return;
 
-  // True NEW failures only -- mirror constructResultsComment's cancelled filter.
+  // True NEW failures only -- mirror constructResultsComment's cancelled filter
+  // -- and never a PR-state gate (see EXCLUDED_FROM_ADVISOR).
   const candidates = args.newFailures.filter(
     (job) =>
       job.conclusion !== "cancelled" &&
-      !(job.failure_captures || []).includes(CANCELLED_STEP_ERROR)
+      !(job.failure_captures || []).includes(CANCELLED_STEP_ERROR) &&
+      !isExcludedFromAdvisor(job)
   );
   if (candidates.length === 0) return;
 

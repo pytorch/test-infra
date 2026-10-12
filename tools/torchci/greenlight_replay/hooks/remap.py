@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
 """PreToolUse hook: give each concurrent replay run its own copy of the scratch paths.
 
-The greenlight-review skill names three absolute paths -- ``/tmp/greenlight-pr.diff``,
-``/tmp/greenlight-pr.json`` and ``/tmp/greenlight-verdict.json``. In CI that is safe,
-because a runner hosts exactly one review. A replay runs many reviewers at once on one
-machine, where those three globals would have the reviewers reading each other's diffs and
-overwriting each other's verdicts. The skill is the artifact under test, so it cannot be
-edited to fix this; instead every ``Read``, ``Write``, ``Glob`` or ``Grep`` naming one of the three is rewritten,
-via the PreToolUse ``updatedInput`` mechanism, to the same basename inside the per-run
-directory named by ``$GREENLIGHT_REPLAY_RUN_DIR``.
+The greenlight-review skill names four absolute files -- ``/tmp/greenlight-pr.diff``,
+``/tmp/greenlight-pr.json``, ``/tmp/greenlight-stack.json`` and
+``/tmp/greenlight-verdict.json`` -- and one directory, ``/tmp/greenlight-stack/``, holding
+the diffs of the ghstack PRs above the one under review. In CI that is safe, because a
+runner hosts exactly one review. A replay runs many reviewers at once on one machine, where
+those globals would have the reviewers reading each other's diffs and overwriting each
+other's verdicts. The skill is the artifact under test, so it cannot be edited to fix this;
+instead every ``Read``, ``Write``, ``Glob`` or ``Grep`` naming one of the four files is
+rewritten, via the PreToolUse ``updatedInput`` mechanism, to the same basename inside the
+per-run directory named by ``$GREENLIGHT_REPLAY_RUN_DIR``, and one naming the stack
+directory, or any path beneath it, to the same relative path under that run's own
+``greenlight-stack``.
+
+The directory is matched on a path boundary, so ``/tmp/greenlight-stackX`` is not it. A
+path whose ``..`` would leave the run's stack directory is not rewritten at all.
+``restrict-read.py`` already denies any ``..`` in the path it judges; this only keeps the
+rewrite itself from ever naming a file outside the run.
 
 Two separate gatekeepers judge the same tool call, and they judge DIFFERENT paths. Measured
 on CLI 2.1.267, 2026-09-18, with a third observer hook recording what it was handed:
@@ -55,6 +64,8 @@ __all__ = [
     "METADATA_BASENAME",
     "REMAPPED_BASENAMES",
     "RUN_DIR_ENV",
+    "STACK_BASENAME",
+    "STACK_DIRNAME",
     "VERDICT_BASENAME",
     "remapped_path",
     "run_dir_violation",
@@ -66,13 +77,20 @@ RUN_DIR_ENV = "GREENLIGHT_REPLAY_RUN_DIR"
 # Kept equal to the paths the greenlight-review skill names. A basename that the skill
 # starts using but that is missing here is not an error the model reports: the run simply
 # shares that file with every other concurrent run. These are restated rather than imported
-# from ``inputs`` because this module is executed as a bare script by the reviewer, under a
-# python3 that has no torchci on its path; ``runner`` asserts the two agree.
+# from the modules that write them because this module is executed as a bare script by the
+# reviewer, under a python3 that has no torchci on its path; ``runner`` asserts they agree.
 DIFF_BASENAME = "greenlight-pr.diff"
 METADATA_BASENAME = "greenlight-pr.json"
+STACK_BASENAME = "greenlight-stack.json"
 VERDICT_BASENAME = "greenlight-verdict.json"
+STACK_DIRNAME = "greenlight-stack"
 
-REMAPPED_BASENAMES = (DIFF_BASENAME, METADATA_BASENAME, VERDICT_BASENAME)
+REMAPPED_BASENAMES = (
+    DIFF_BASENAME,
+    METADATA_BASENAME,
+    STACK_BASENAME,
+    VERDICT_BASENAME,
+)
 
 _SCRATCH_BASENAME_PREFIX = "greenlight-"
 
@@ -117,11 +135,27 @@ def run_dir_violation(run_dir: str) -> str | None:
 
 
 def remapped_path(run_dir: str, original: str) -> str | None:
-    """The per-run stand-in for one of the skill's three globals, else None."""
+    """The per-run stand-in for one of the skill's scratch paths, else None."""
+    root = os.path.realpath(run_dir)
     basename = _originals().get(original)
-    if basename is None:
+    if basename is not None:
+        return os.path.join(root, basename)
+    return _stack_path(root, original)
+
+
+def _stack_path(root: str, original: str) -> str | None:
+    shared = f"/tmp{os.sep}{STACK_DIRNAME}"  # noqa: S108
+    if original != shared and not original.startswith(shared + os.sep):
         return None
-    return os.path.join(os.path.realpath(run_dir), basename)
+    stack_dir = os.path.join(root, STACK_DIRNAME)
+    # Normalized only to decide containment. Kept as written rather than normalized, so
+    # a CLI that chains updatedInput would still hand restrict-read.py the '..' it
+    # denies; today it judges the original path.
+    target = stack_dir + original[len(shared) :]
+    normalized = os.path.normpath(target)
+    if normalized != stack_dir and not normalized.startswith(stack_dir + os.sep):
+        return None
+    return target
 
 
 def _deny(reason: str) -> int:

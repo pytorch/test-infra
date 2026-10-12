@@ -110,8 +110,8 @@ export function coverageTileFields(): {
 // Below these the corresponding extractor has stopped matching and the subset assertion
 // would hold vacuously. They are floors against silence, not assertions about content.
 //
-// Each sits exactly one below its true value — 4 queries, 7 columns in the thinnest
-// query, 52 distinct reads, 21 fields in the thinnest row interface — so coverage cannot
+// Each sits exactly one below its true value — 4 queries, 8 columns in the thinnest
+// query, 57 distinct reads, 22 fields in the thinnest row interface — so coverage cannot
 // shrink by more than a single item without tripping this. A floor with slack in it
 // cannot catch the thing it is for: at 40 reads against a true 50, ten could disappear
 // in silence. These track the true counts in both directions; a floor left behind when
@@ -124,9 +124,9 @@ export function coverageTileFields(): {
 // excluded_push_after_event, review_visible_after_s, human_approved, no_approval — and
 // dropping them from the SQL would not move this number.
 export const MIN_QUERIES = 3;
-export const MIN_COLUMNS_PER_QUERY = 6;
-export const MIN_READS_ACROSS_PAGE = 51;
-export const MIN_FIELDS_PER_INTERFACE = 20;
+export const MIN_COLUMNS_PER_QUERY = 7;
+export const MIN_READS_ACROSS_PAGE = 56;
+export const MIN_FIELDS_PER_INTERFACE = 21;
 
 // Which query each row interface describes. Stated rather than derived from the interface
 // name: guessing "RevertRow" -> "reverts" would quietly bind to the wrong query after a
@@ -134,11 +134,11 @@ export const MIN_FIELDS_PER_INTERFACE = 20;
 //
 // An opt-in registry, not a map of every row interface qualityQuery.ts declares. An
 // interface absent from here is checked by none of the three tests that read it — not the
-// field-list floor, not the SQL sync, not nullability. CoverageRow is absent to keep those
-// three sharp: MIN_FIELDS_PER_INTERFACE is a single floor covering every entry, so
-// registering a row far thinner than the rest means lowering the floor to admit it, and
-// the wider interfaces could then lose most of their fields without tripping it. That row
-// keeps its keyof check against tsc and forgoes the SQL sync.
+// field-list floor, not the SQL sync, not nullability. CoverageRow and MergeAuthorityRow
+// are absent to keep those three sharp: MIN_FIELDS_PER_INTERFACE is a single floor
+// covering every entry, so registering a row far thinner than the rest means lowering the
+// floor to admit it, and the wider interfaces could then lose most of their fields without
+// tripping it. Those rows keep their keyof check against tsc and forgo the SQL sync.
 export const ROW_INTERFACES: { [_interfaceName: string]: string } = {
   LatencyRow: "greenlight_quality_latency",
   RevertRow: "greenlight_quality_reverts",
@@ -417,7 +417,7 @@ const MODE_LITERAL = /'([a-z_]+)'/g;
 
 // All four queries carry a prose block above the filter describing it, so a comment that
 // quoted the SQL would otherwise parse as a filter of its own.
-function sqlCode(queryName: string): string {
+export function sqlCode(queryName: string): string {
   return querySql(queryName).replace(/^[ \t]*--.*$/gm, "");
 }
 

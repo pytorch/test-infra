@@ -1,5 +1,5 @@
--- Reverts landed on the default branch, each joined to the GreenLight verdict that was live
--- for the version being reverted. Drives both the revert-trust rate and the reverted-PR table.
+-- Reverts landed on the default branch, each joined to the GreenLight verdict that was live for
+-- the version being reverted. Drives the revert-trust rate, its chart and the reverted-PR table.
 --
 -- Rows whose pr_number is 0 are reverts that could not be resolved back to a PR. They are
 -- returned rather than filtered so the count survives a window in which every revert is
@@ -17,11 +17,10 @@
 -- of. Naming the second one alone as "resolvable to a PR" understates the population by however
 -- many ghfirst reverts the window held.
 --
--- land_approved_ghfirst_reverts is the rest of that same split: reverts of a version GreenLight
--- approved that the ghfirst exclusion removed from land_approved_reverts. The two sum to every
--- LAND revert resolved to a PR. It is a window count rather than something a caller subtracts
--- from the returned rows, because the rows are cut by the row limit and the counts are not --
--- a caller deriving it from rows would watch its figure shrink while the rate it explains held.
+-- The three land_approved_* counts partition every LAND revert resolved to a PR. The stale count
+-- takes reverts of any classification with merged_version_approved 'no', a verdict on another
+-- head; 'unknown' proves nothing and stays out of it. The rest split on the ghfirst exclusion.
+-- counts_in_rate marks the rows behind land_approved_reverts, so callers never restate its rule.
 --
 -- The *_reverts columns are window totals: identical on every row, and computed before the row
 -- limit, so a truncated result still reports exact counts for the whole window. Counting the
@@ -37,8 +36,8 @@
 --
 -- evaluated_prs_total is the denominator of the revert rate: distinct PRs GreenLight evaluated
 -- over the same window, and the same population clickhouse_queries/greenlight_quality_coverage
--- reports as prs_evaluated, so the two tiles cannot disagree. It is spelled exactly as that
--- query spells it -- group the window by pr_number, keep every group whose
+-- reports as prs_evaluated, so the two tiles cannot disagree. It is computed as that query
+-- computes its whole-window row -- group the window by pr_number, keep every group whose
 -- max(status != 'REVERTED') is 1 -- rather than as a distinct count over the same rows,
 -- because shadowMode below is a property of the PR and only the grouped form can apply it
 -- without cutting rows out of a group. REVERTED is excluded because GreenLight's revert guard
@@ -65,7 +64,7 @@
 -- Do not simplify this to the ARRAY JOIN clause: under sqlfluff 3.3.0's clickhouse dialect a
 -- following WHERE/GROUP BY/LIMIT is swallowed as its alias, costing this file all lint coverage.
 --
--- ghfirst reverts are excluded from every count except ghfirst_reverts. A ghfirst revert is
+-- ghfirst reverts are excluded from every count the rate is built from. A ghfirst revert is
 -- forced by the internal-first landing path rather than by anything a reviewer could see in the
 -- diff, so scoring one against a GreenLight verdict measures the landing path.
 --
@@ -73,8 +72,8 @@
 -- rows are: every count here rides on a row, so filtering a class of revert away takes its own
 -- tally with it. A window whose reverts are all ghfirst would come back empty and report no
 -- reverts at all, when in fact every one was excluded -- and with roughly half of all reverts
--- ghfirst, such a window is ordinary. The caller lists the excluded rows marked by their code
--- rather than dropping them; they are the examples a reader needs to check the exclusion against.
+-- ghfirst, such a window is ordinary. The caller lists the excluded rows carrying a LAND that is
+-- not stale, marked by their code: the examples a reader needs to check the exclusion against.
 --
 -- revert_classification = 'ghfirst', pr_number > 0 and pr_number = 0 partition the result
 -- exactly: attributable_reverts + unattributable_reverts + ghfirst_reverts is the returned row
@@ -105,7 +104,7 @@
 -- command, and only a member of pytorchbot's own set is accepted. extract returns the leftmost
 -- match, so without all three of those a -c written inside the message -- or in prose above the
 -- command -- outranks the real flag. That is a reviewer-supplied string deciding whether a
--- revert counts against GreenLight, on the one field that removes a revert from the numerator.
+-- revert counts against GreenLight, on a field that removes a revert from the numerator.
 -- The set has to be extended here if pytorchbot gains a classification; an unrecognised code
 -- reads as '', which keeps the revert in the rate rather than silently dropping it.
 --
@@ -145,12 +144,11 @@
 -- they record the head that was attempted, not one that landed, and stack members that never
 -- carried the merge command have no row at all.
 --
--- The fallback is the head ref recorded on the PR: its pushes reach default.push, so the last one
--- before the merge is the version that merged. It applies only when the head branch lives in this
--- repo -- a fork branch never appears in default.push, and its name can collide with an unrelated
--- in-repo branch, which resolves to a stale SHA that looks legitimate.
---
--- 'unknown' means neither source resolved, or the row carries no LAND to check.
+-- The fallback is the last push to the PR's head ref before the merge, only for a branch in this
+-- repo: a fork branch never appears in default.push, and its name can collide with an unrelated
+-- in-repo branch, which resolves to a stale SHA that looks legitimate. Pushes are ordered by
+-- head_commit.timestamp, which the contributor writes, so a mismatch only the fallback finds
+-- proves nothing and reads 'unknown', as does a row neither source resolves or that has no LAND.
 --
 -- verdict_at, merged_at and reverted_at are NULL, not the epoch, where there is no verdict, no
 -- merge and no revert to point at. maxIf over a LEFT JOIN miss returns 1970 rather than nothing,
@@ -171,16 +169,15 @@
 -- The flag is attributed per PR by max(shadow) over its rows and applied after that grouping,
 -- never as a row filter. A PR carrying rows of both kinds -- which the trusted-author cohort
 -- changing mid-cycle produces -- would otherwise lose rows from its group and be reconstructed
--- wrong rather than excluded, and would land in a different bucket here than on the coverage
+-- wrong rather than excluded, and would land in a different population here than on the coverage
 -- tiles. terminal_verdicts groups over the whole ledger rather than the window, because that
 -- is the row set it reads: a verdict predates the window it is scored in.
 --
 -- The mode does not split the revert counts. A revert commit reaches this query from
--- default.push, which knows nothing of GreenLight, so resolvable_reverts,
--- attributable_reverts, unattributable_reverts and ghfirst_reverts count every revert in the
--- effective window under every mode, reached by the clamp alone. Only evaluated_prs_total and
--- the columns that read a verdict -- evaluated_reverts, land_approved_reverts,
--- land_approved_ghfirst_reverts -- partition between the two populations.
+-- default.push, which knows nothing of GreenLight, so resolvable_reverts, attributable_reverts,
+-- unattributable_reverts and ghfirst_reverts count every revert in the effective window under
+-- every mode, reached by the clamp alone. Only evaluated_prs_total and the columns that read a
+-- verdict -- evaluated_reverts and land_approved_* -- partition between the two populations.
 --
 WITH
 (
@@ -430,12 +427,6 @@ counted AS (
             counts_toward_rate AND pr_number > 0 AND verdict != ''
         ) OVER () AS evaluated_reverts,
         sum(
-            counts_toward_rate AND pr_number > 0 AND verdict = 'LAND'
-        ) OVER () AS land_approved_reverts,
-        sum(
-            NOT counts_toward_rate AND pr_number > 0 AND verdict = 'LAND'
-        ) OVER () AS land_approved_ghfirst_reverts,
-        sum(
             counts_toward_rate AND pr_number = 0
         ) OVER () AS unattributable_reverts
     FROM classified
@@ -502,18 +493,18 @@ resolved AS (
         any(c.verdict_at) AS verdict_at,
         any(c.reverter) AS reverter,
         any(c.revert_classification) AS revert_classification,
+        any(c.counts_toward_rate) AS counts_toward_rate,
         any(c.revert_message) AS revert_message,
         any(c.resolvable_reverts) AS resolvable_reverts,
         any(c.attributable_reverts) AS attributable_reverts,
         any(c.evaluated_reverts) AS evaluated_reverts,
-        any(c.land_approved_reverts) AS land_approved_reverts,
-        any(c.land_approved_ghfirst_reverts) AS land_approved_ghfirst_reverts,
         any(c.unattributable_reverts) AS unattributable_reverts,
         any(c.ghfirst_reverts) AS ghfirst_reverts,
         coalesce(
             nullIf(any(mh.head_sha), ''),
             argMaxIf(b.head_sha, b.pushed_at, b.pushed_at < c.merged_at)
-        ) AS merged_head
+        ) AS merged_head,
+        any(mh.head_sha) AS recorded_head
     FROM counted AS c
     LEFT JOIN pr_meta AS pm ON c.pr_number = pm.number
     LEFT JOIN branch_heads AS b ON pm.head_ref = b.head_ref
@@ -543,16 +534,25 @@ SELECT
     r.revert_classification AS revert_classification,
     r.revert_message AS revert_message,
     multiIf(
-        r.verdict != 'LAND', 'unknown',
-        r.merged_head = '', 'unknown',
+        r.verdict != 'LAND' OR r.merged_head = '', 'unknown',
         r.merged_head = r.verdict_head_sha, 'yes',
+        r.recorded_head = '', 'unknown',
         'no'
     ) AS merged_version_approved,
+    r.counts_toward_rate AND r.pr_number > 0 AND r.verdict = 'LAND'
+    AND merged_version_approved != 'no' AS counts_in_rate,
     r.resolvable_reverts AS resolvable_reverts,
     r.attributable_reverts AS attributable_reverts,
     r.evaluated_reverts AS evaluated_reverts,
-    r.land_approved_reverts AS land_approved_reverts,
-    r.land_approved_ghfirst_reverts AS land_approved_ghfirst_reverts,
+    sum(counts_in_rate) OVER () AS land_approved_reverts,
+    sum(
+        NOT r.counts_toward_rate AND r.pr_number > 0 AND r.verdict = 'LAND'
+        AND merged_version_approved != 'no'
+    ) OVER () AS land_approved_ghfirst_reverts,
+    sum(
+        r.pr_number > 0 AND r.verdict = 'LAND'
+        AND merged_version_approved = 'no'
+    ) OVER () AS land_approved_stale_reverts,
     r.unattributable_reverts AS unattributable_reverts,
     r.ghfirst_reverts AS ghfirst_reverts,
     evaluated_prs_total

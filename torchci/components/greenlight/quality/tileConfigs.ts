@@ -28,13 +28,17 @@ export interface StatTileConfig {
   isEmpty?: (_row: any) => boolean;
 }
 
+export function noVerdictCount(row: any): number {
+  return row?.prs_evaluated - row?.prs_with_verdict;
+}
+
 // The one thing the PRs tile's split cannot show. Named beside the legend rather
 // than left to the caveat, because the Verdicts tile carries the identical
 // grammar under the identical legend and does sum: a reader who checks the
 // arithmetic there and finds it works will trust it here, and a gap of one or two
 // then reads as a fault rather than as a category.
 export function noVerdictGap(row: any): string | undefined {
-  const gap = row?.prs_evaluated - row?.prs_with_verdict;
+  const gap = noVerdictCount(row);
   return hasCount(gap) ? `${intFormatter(gap)} no verdict` : undefined;
 }
 
@@ -177,6 +181,18 @@ export const REVIEW_RUN_TILES: ReviewRunTileConfig[] = [
   },
 ];
 
+// A tile's "count / n runs" line, in two pieces because only the count takes the
+// share's colour.
+export function reviewRunFraction(
+  tile: ReviewRunTileConfig,
+  row: any
+): { count: string; rest: string } {
+  return {
+    count: intFormatter(row?.[tile.countField]),
+    rest: ` / ${intFormatter(row?.[tile.nField])} runs`,
+  };
+}
+
 // A share and the fraction it was taken over, handed to the panel as two pieces
 // rather than one finished string: the tile carries two of these over two
 // different denominators, and colour is what pairs each percentage with its own.
@@ -205,6 +221,8 @@ export function mergeAuthorityShares(row: any): {
   };
 }
 
+export const MERGE_AUTHORITY_LABEL = "Merged on GreenLight alone";
+
 export const MERGE_AUTHORITY_CAVEAT =
   "Merges where GreenLight's approval was the only one on the PR. Both its " +
   "verdict and any human approval are read as of the merge command, and the " +
@@ -224,29 +242,47 @@ export function revertRateValue(stats: RevertStats): string {
 // Which count to show depends on whether the exclusion is hiding anything from the
 // rate. Approved reverts removed by it are what reconciles a zero against a table that
 // is not empty, so they are named when there are any; where the exclusion touched no
-// approved revert the rate hides nothing, and the bare ghfirst total is the honest
-// disclosure rather than a figure implying the headline is understated.
+// revert the rate would otherwise count, the rate hides nothing, and the bare ghfirst
+// total is the honest disclosure rather than a figure implying the headline is
+// understated.
+//
+// A revert that is both ghfirst and stale counts as stale, not ghfirst. So where
+// every ghfirst revert carrying a GreenLight LAND is also stale, landApprovedGhfirst
+// is 0, the fallback's bare total includes those same reverts, and each of them is
+// counted on this line and on the stale one.
 export function revertRateExclusion(stats: RevertStats): string {
-  if (hasCount(stats.landApprovedGhfirst)) {
-    return `${intFormatter(stats.landApprovedGhfirst)} excluded as ghfirst`;
-  }
-  return hasCount(stats.ghfirst)
-    ? `${intFormatter(stats.ghfirst)} excluded as ghfirst`
-    : "";
+  return exclusionLine(
+    hasCount(stats.landApprovedGhfirst)
+      ? stats.landApprovedGhfirst
+      : stats.ghfirst,
+    "ghfirst"
+  );
+}
+
+export function exclusionLine(
+  count: number | undefined,
+  reason: string
+): string {
+  return hasCount(count) ? `${intFormatter(count)} excluded as ${reason}` : "";
 }
 
 // The revert count is the numerator of the rate above it and takes that rate's
-// colour, so it is handed over apart from the rest of the line. The exclusion is
-// its own line and empty when nothing was excluded.
+// colour, so it is handed over apart from the rest of the line. Each exclusion is
+// its own line, listed only when it removed something. The stale one is on the
+// face for the same reason as ghfirst, and unlike ghfirst reverts, stale ones are
+// not listed in the table beneath it either.
 export function revertRateSub(stats: RevertStats): {
   count: string;
   rest: string;
-  exclusion: string;
+  exclusions: string[];
 } {
   return {
     count: intFormatter(stats.landApproved),
     rest: ` / ${intFormatter(stats.evaluatedPrs)} PRs`,
-    exclusion: revertRateExclusion(stats),
+    exclusions: [
+      revertRateExclusion(stats),
+      exclusionLine(stats.landApprovedStale, "stale"),
+    ].filter((line) => line !== ""),
   };
 }
 

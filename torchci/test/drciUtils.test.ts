@@ -662,6 +662,48 @@ describe("splice and full render agree", () => {
       expect(extractPrStatusSection(full)).toBe(section);
     }
   });
+
+  const review =
+    "\n<details><summary>AUTOMATED REVIEW</summary><p>\n\nx\n\n</p></details>";
+  const render = (section: string) =>
+    formDrciComment(
+      123,
+      "pytorch",
+      "pytorch",
+      "results",
+      "sevs",
+      section,
+      "",
+      [],
+      review
+    );
+
+  test.each(sections)(
+    "splicing %j keeps the review section in place",
+    (section) => {
+      expect(
+        splicePrStatusSection(render(""), section, DRCI_COMMENT_START)
+      ).toBe(render(section));
+      expect(
+        splicePrStatusSection(render(section), "", DRCI_COMMENT_START)
+      ).toBe(render(""));
+    }
+  );
+
+  test.each(sections)(
+    "the review section sits between %j and Helpful Links",
+    (section) => {
+      const full = render(section);
+      expect(full.startsWith(`${DRCI_COMMENT_START}${section}${review}`)).toBe(
+        true
+      );
+      // A blank line closes the review's HTML block before the heading.
+      expect(full).toContain("</p></details>\n\n## :link: Helpful Links");
+      expect(full.indexOf("AUTOMATED REVIEW")).toBeLessThan(
+        full.indexOf("results")
+      );
+    }
+  );
 });
 
 describe("upsertPrStatusSection", () => {

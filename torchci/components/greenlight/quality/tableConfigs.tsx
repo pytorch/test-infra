@@ -31,7 +31,7 @@ const COL_DESC = {
     "The commit that performed the revert. A ghstack stack is reverted by one commit, so sibling PRs of the same stack share this SHA — and share the reverter's message, which is written once against the stack.",
   revertedAt: "When the revert landed on main.",
   mergedVersionApproved:
-    "Whether the verdict shown was issued against the commit that actually merged. Stale means it was issued against an earlier one, so the approval never covered what landed.",
+    "Whether the verdict shown was issued against the commit that actually merged. Confirmed means it was. Unverified means that could not be settled, so the revert is kept: the commit that merged could not be identified, or mergebot has no record of the merge and only the PR's branch history disagrees with the verdict. Where mergebot's merge record shows the verdict was issued against an earlier commit, the revert is excluded as stale and not listed: that approval never covered what landed.",
   classification:
     "The -c argument of the @pytorchbot revert command that triggered this revert, picked by the reverter from a fixed set. Rows reading ghfirst are listed here but excluded from the rate above, which is why this table can hold more rows than that figure counts. A dash means no classification could be read from this revert at all, most often because no pytorchbot command sits behind it — an internal 'Back out' commit lands that way. Several causes collapse to the same dash and cannot be told apart here.",
   revertMessage:

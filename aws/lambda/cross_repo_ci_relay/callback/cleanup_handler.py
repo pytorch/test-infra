@@ -13,7 +13,7 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 
 import utils.redis_helper as redis_helper
 from redis.exceptions import RedisError
-from utils import gh_helper
+from utils import demotion, gh_helper
 from utils.allowlist import AllowlistLevel, AllowlistMap, load_allowlist
 from utils.config import RelayConfig
 from utils.hud import forward_to_hud
@@ -94,6 +94,13 @@ def _finalize_timed_out_check_run(
     if not needs_cr and level == AllowlistLevel.L3:
         needs_cr = redis_helper.is_check_run_wanted(config, head_sha, verified_repo)
     if not needs_cr:
+        return
+
+    # A job that started after the demotion never had a check run, so there is
+    # nothing to finish; one that started before still gets its timed_out.
+    if demotion.suppressed(
+        config, level, verified_repo, zombie["state_record"].timestamp
+    ):
         return
 
     workflow = body.get("workflow") or {}

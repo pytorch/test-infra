@@ -5,8 +5,9 @@ lists the candidates and their labels; this module decides which of them are wor
 a fingerprint, from the recency window, the ``Stale`` label, and the rollout dial.
 
 Everything here takes PR numbers and returns PR numbers. Nothing in this module knows who wrote a
-PR or whether its verdict carries authority -- that lives in ``cohort`` and must stay there, so
-that sizing the experiment can never become a way of deciding one.
+PR or whether its verdict carries authority -- ``authority`` decides that per PR through
+``cohort.assess``, and it must stay there, so that sizing the experiment can never become a way
+of deciding one.
 """
 
 from __future__ import annotations

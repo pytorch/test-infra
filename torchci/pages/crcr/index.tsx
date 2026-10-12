@@ -1,5 +1,6 @@
 import {
   Box,
+  ButtonBase,
   Chip,
   Divider,
   FormControl,
@@ -23,11 +24,25 @@ import {
 } from "@mui/material";
 import { durationDisplay } from "components/common/TimeUtils";
 import L3SummaryChip from "components/crcr/L3SummaryChip";
-import { fetcherHandleError } from "lib/GeneralUtils";
+import type {
+  RelayHealthJob,
+  RelayHealthRun,
+} from "components/crcr/RelayHealthDetailsDialog";
+import RelayHealthDetailsDialog, {
+  isHealthJobPassing,
+} from "components/crcr/RelayHealthDetailsDialog";
+import { buildDemotionStatuses } from "lib/crcr/demotionStatus";
+import {
+  CRCR_HEALTH_STALE_AFTER_MINUTES,
+  CRCR_HEALTH_WINDOW_LABEL,
+  CRCR_HEALTH_WINDOW_MINUTES,
+  summarizeCrcrHealth,
+} from "lib/crcr/healthProbe";
 import {
   buildCriteriaRows,
   buildDemotionRows,
   L3SummaryRow,
+  useL3SummaryMap,
   useTenure,
 } from "lib/crcr/l3Readiness";
 import {
@@ -35,12 +50,14 @@ import {
   L3_PROMOTION_WINDOW_DAYS,
 } from "lib/crcr/l3Thresholds";
 import {
+  CRCR_HEALTH_REPO,
   DEFAULT_CRCR_EVENTS,
   filterCrcrEntriesByEvent,
 } from "lib/crcrAllowlist";
+import { fetcherHandleError } from "lib/GeneralUtils";
 import Head from "next/head";
 import NextLink from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import useSWR from "swr";
 
 import type { AllowlistEntry, AllowlistResponse } from "../api/crcr/allowlist";
@@ -75,7 +92,21 @@ interface HealthPrRow {
   last_run: string;
   successes: number;
   total: number;
-  pass_rate: number;
+  pending: number;
+  overdue_in_progress: number;
+  pass_rate: number | null;
+}
+
+interface HealthPrDetailRow {
+  pr_number: number;
+  job_name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string;
+  completed_at: string | null;
+  workflow_run_url: string | null;
+  check_run_id: string | null;
+  is_overdue: number;
 }
 
 type EventTab = "pr" | "nightly";
@@ -112,7 +143,6 @@ const LEVEL_META: Record<
 };
 
 const LEVELS_ORDERED: Level[] = ["L4", "L3", "L2", "L1"];
-const CRCR_HEALTH_REPO = "pytorch/crcr-test";
 
 function PassRateChip({ rate }: { rate: number }) {
   const pct = (rate * 100).toFixed(1) + "%";
@@ -142,25 +172,6 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
-}
-
-// crcr_l3_summary, keyed by repo — the all-repo query the promotion and
-// demotion at-a-glance columns share (fixed windows).
-function useL3SummaryMap(days: number): Map<string, L3SummaryRow> {
-  const url =
-    `/api/clickhouse/crcr_l3_summary?parameters=` +
-    encodeURIComponent(JSON.stringify({ days: String(days) }));
-  const { data } = useSWR<L3SummaryRow[]>(url, fetcherHandleError, {
-    refreshInterval: 60_000,
-  });
-  return useMemo(() => {
-    const map = new Map<string, L3SummaryRow>();
-    if (!data) return map;
-    for (const row of data) {
-      map.set(row.repo, row);
-    }
-    return map;
-  }, [data]);
 }
 
 function ReadinessChip({
@@ -199,12 +210,21 @@ function CiHealthTable({
   metricsMap,
   l3SummaryMap,
   l3SummaryMapDemotion,
+  activeDotColor = "success.main",
+  activeDotLabel = "Active",
 }: {
   level: Level;
   repos: AllowlistEntry[];
   metricsMap: Map<string, CiMetricsRow>;
   l3SummaryMap: Map<string, L3SummaryRow>;
   l3SummaryMapDemotion: Map<string, L3SummaryRow>;
+  // Red for the Temporary Demotion section — every row there is already
+  // flagged at-risk, so the usual "active and reporting" green would read
+  // backwards. Rows with no data at all stay grey either way.
+  activeDotColor?: string;
+  // Travels with activeDotColor: a red dot tooltipped "Active" reads as a
+  // contradiction, so the caller recolouring the dot renames it too.
+  activeDotLabel?: string;
 }) {
   return (
     <TableContainer component={Paper} elevation={1}>
@@ -260,10 +280,10 @@ function CiHealthTable({
                       width: 8,
                       height: 8,
                       borderRadius: "50%",
-                      bgcolor: hasData ? "success.main" : "grey.400",
+                      bgcolor: hasData ? activeDotColor : "grey.400",
                       display: "inline-block",
                     }}
-                    title={hasData ? "Active" : "No data"}
+                    title={hasData ? activeDotLabel : "No data"}
                   />
                 </TableCell>
                 <TableCell>
@@ -531,39 +551,106 @@ function CrcrTestHealthCard({
 }: {
   healthPrs: HealthPrRow[] | undefined;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsUrl = detailsOpen
+    ? `/api/clickhouse/crcr_health_pr_job_details?parameters=${encodeURIComponent(
+        JSON.stringify({
+          window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+          stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
+        })
+      )}`
+    : null;
+  const { data: healthJobDetails, error: healthJobDetailsError } = useSWR<
+    HealthPrDetailRow[]
+  >(detailsUrl, fetcherHandleError);
+  const healthRuns = useMemo(() => {
+    const runs = new Map<
+      number,
+      { jobs: RelayHealthJob[]; latestTime: number }
+    >();
+    for (const job of healthJobDetails ?? []) {
+      const current = runs.get(job.pr_number) ?? {
+        jobs: [],
+        latestTime: 0,
+      };
+      current.jobs.push({
+        jobName: job.job_name,
+        status: job.status,
+        conclusion: job.conclusion,
+        startedAt: job.started_at,
+        completedAt: job.completed_at,
+        workflowRunUrl: job.workflow_run_url,
+        checkRunId: job.check_run_id,
+        isOverdue: job.is_overdue === 1,
+      });
+      current.latestTime = Math.max(
+        current.latestTime,
+        new Date(job.started_at).getTime()
+      );
+      runs.set(job.pr_number, current);
+    }
+    return Array.from(runs.entries())
+      .sort(([, a], [, b]) => b.latestTime - a.latestTime)
+      .map(
+        ([prNumber, run]): RelayHealthRun => ({
+          label: `PR #${prNumber}`,
+          url: `https://github.com/pytorch/pytorch/pull/${prNumber}`,
+          jobs: run.jobs,
+        })
+      );
+  }, [healthJobDetails]);
+
   if (!healthPrs || healthPrs.length === 0) return null;
-  const allPassed = healthPrs.every((pr) => pr.pass_rate >= 1.0);
-  const passedCount = healthPrs.filter((pr) => pr.pass_rate >= 1.0).length;
-  const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
-  const label = allPassed ? "Healthy" : "Degraded";
+  const { pending, overdue, passedCount, state } =
+    summarizeCrcrHealth(healthPrs);
+  const borderColor = state === "degraded" ? "#ed6c02" : "#2e7d32";
+  const label = state === "degraded" ? "Degraded" : "Healthy";
+  const detail =
+    state === "degraded" && overdue > 0
+      ? `${overdue} job${overdue === 1 ? "" : "s"} overdue`
+      : pending > 0
+      ? `${pending} job${pending === 1 ? "" : "s"} pending`
+      : `${passedCount}/${healthPrs.length} probe PRs passed in the last ${CRCR_HEALTH_WINDOW_LABEL}`;
   return (
-    <NextLink href="/crcr/pytorch/crcr-test" passHref legacyBehavior>
-      <Paper
-        component="a"
-        elevation={2}
-        sx={{
-          p: 2,
-          flex: 1,
-          minWidth: 160,
-          textAlign: "center",
-          borderLeft: `4px solid ${borderColor}`,
-          textDecoration: "none",
-          color: "inherit",
-          cursor: "pointer",
-          "&:hover": { bgcolor: "action.hover" },
-        }}
+    <>
+      <ButtonBase
+        onClick={() => setDetailsOpen(true)}
+        aria-label="View CRCR pull request health details"
+        sx={{ flex: 1, minWidth: 160, textAlign: "initial", borderRadius: 1 }}
       >
-        <Typography variant="caption" color="text.secondary">
-          CRCR Relay Health
-        </Typography>
-        <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
-          {label}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {passedCount}/{healthPrs.length} recent PRs passed · pytorch/crcr-test
-        </Typography>
-      </Paper>
-    </NextLink>
+        <Paper
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            width: "100%",
+            textAlign: "center",
+            borderLeft: `4px solid ${borderColor}`,
+            color: "inherit",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+            {label}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {detail} · pytorch/crcr-test
+          </Typography>
+        </Paper>
+      </ButtonBase>
+      <RelayHealthDetailsDialog
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="CRCR Relay Health — pull requests"
+        runs={healthRuns}
+        fullPageHref="/crcr/pytorch/crcr-test"
+        loading={detailsOpen && !healthJobDetails && !healthJobDetailsError}
+        error={!!healthJobDetailsError}
+      />
+    </>
   );
 }
 
@@ -573,22 +660,23 @@ interface NightlyJobRow {
   status: string;
   conclusion: string;
   started_at: string;
+  completed_at: string | null;
+  workflow_run_url: string | null;
+  check_run_id: string | null;
 }
 
 const NIGHTLY_HEALTH_COUNT = 5;
 
-function isExpectedNightlyOutcome(job: NightlyJobRow): boolean {
-  const name = job.job_name ?? "";
-  return (
-    (name.includes("xfail") && job.conclusion === "failure") ||
-    (name.includes("xcancel") && job.conclusion === "cancelled") ||
-    (name.includes("xtimeout") && job.conclusion === "timed_out")
-  );
-}
-
 function isNightlyJobPassing(job: NightlyJobRow): boolean {
-  if (job.status !== "completed") return false;
-  return job.conclusion === "success" || isExpectedNightlyOutcome(job);
+  return isHealthJobPassing({
+    jobName: job.job_name,
+    status: job.status,
+    conclusion: job.conclusion,
+    startedAt: job.started_at,
+    completedAt: job.completed_at,
+    workflowRunUrl: job.workflow_run_url,
+    checkRunId: job.check_run_id,
+  });
 }
 
 function CrcrNightlyHealthCard({
@@ -596,6 +684,7 @@ function CrcrNightlyHealthCard({
 }: {
   nightlyJobs: NightlyJobRow[] | undefined;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   if (!nightlyJobs || nightlyJobs.length === 0) {
     const staleColor = "#9e9e9e";
     return (
@@ -697,39 +786,58 @@ function CrcrNightlyHealthCard({
   ).length;
   const borderColor = allPassed ? "#2e7d32" : "#ed6c02";
   const label = allPassed ? "Healthy" : "Degraded";
+  const healthRuns: RelayHealthRun[] = shasByTime.map(({ sha, jobs }) => ({
+    label: `SHA ${sha.slice(0, 7)}`,
+    url: `https://github.com/pytorch/pytorch/commit/${sha}`,
+    jobs: jobs.map((job) => ({
+      jobName: job.job_name,
+      status: job.status,
+      conclusion: job.conclusion,
+      startedAt: job.started_at,
+      completedAt: job.completed_at,
+      workflowRunUrl: job.workflow_run_url,
+      checkRunId: job.check_run_id,
+    })),
+  }));
 
   return (
-    <NextLink
-      href="/crcr/pytorch/crcr-test?event=nightly"
-      passHref
-      legacyBehavior
-    >
-      <Paper
-        component="a"
-        elevation={2}
-        sx={{
-          p: 2,
-          flex: 1,
-          minWidth: 160,
-          textAlign: "center",
-          borderLeft: `4px solid ${borderColor}`,
-          textDecoration: "none",
-          color: "inherit",
-          cursor: "pointer",
-          "&:hover": { bgcolor: "action.hover" },
-        }}
+    <>
+      <ButtonBase
+        onClick={() => setDetailsOpen(true)}
+        aria-label="View CRCR nightly health details"
+        sx={{ flex: 1, minWidth: 160, textAlign: "initial", borderRadius: 1 }}
       >
-        <Typography variant="caption" color="text.secondary">
-          CRCR Relay Health - Nightly
-        </Typography>
-        <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
-          {label}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {passedCount}/{shasByTime.length} recent nightlies passed
-        </Typography>
-      </Paper>
-    </NextLink>
+        <Paper
+          elevation={2}
+          sx={{
+            p: 2,
+            flex: 1,
+            width: "100%",
+            textAlign: "center",
+            borderLeft: `4px solid ${borderColor}`,
+            color: "inherit",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            CRCR Relay Health - Nightly
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: 600, color: borderColor }}>
+            {label}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {passedCount}/{shasByTime.length} recent nightlies passed
+          </Typography>
+        </Paper>
+      </ButtonBase>
+      <RelayHealthDetailsDialog
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="CRCR Relay Health — nightlies"
+        runs={healthRuns}
+        fullPageHref="/crcr/pytorch/crcr-test?event=nightly"
+      />
+    </>
   );
 }
 
@@ -760,7 +868,12 @@ export default function CrcrSummaryPage() {
 
   const healthUrl =
     `/api/clickhouse/crcr_health_last_prs?parameters=` +
-    encodeURIComponent(JSON.stringify({ count: "5" }));
+    encodeURIComponent(
+      JSON.stringify({
+        window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
+        stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
+      })
+    );
   const { data: healthPrs, error: healthError } = useSWR<HealthPrRow[]>(
     healthUrl,
     fetcherHandleError,
@@ -791,8 +904,9 @@ export default function CrcrSummaryPage() {
 
   // L3 readiness — fixed promotion/demotion windows, independent of the
   // Time Range selector above.
-  const l3SummaryMap = useL3SummaryMap(L3_PROMOTION_WINDOW_DAYS);
-  const l3SummaryMapDemotion = useL3SummaryMap(L3_DEMOTION_WINDOW_DAYS);
+  const { map: l3SummaryMap } = useL3SummaryMap(L3_PROMOTION_WINDOW_DAYS);
+  const { map: l3SummaryMapDemotion, hasResult: l3SummaryDemotionHasResult } =
+    useL3SummaryMap(L3_DEMOTION_WINDOW_DAYS);
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, CiMetricsRow>();
@@ -871,6 +985,39 @@ export default function CrcrSummaryPage() {
     (count, level) => count + pullRequestReposByLevel[level].length,
     0
   );
+  // L3 repos failing at least one demotion criterion, or reporting no jobs at
+  // all over the window (see lib/crcr/demotionStatus.ts).
+  // A repo on temporary demotion is shown once, in that section — not also
+  // in the regular L3 table below it.
+  const { activeL3Repos, pendingDemotionRepos } = useMemo(() => {
+    // Only a successful summary can say a repo had no jobs; before the first
+    // one arrives (loading, or the very first request failed), a missing row
+    // is unknown, not silence. A later failed refresh keeps the last good
+    // result rather than emptying the section.
+    const demotionMetrics = l3SummaryDemotionHasResult
+      ? l3SummaryMapDemotion
+      : null;
+    const onTemporaryDemotion = new Set(
+      buildDemotionStatuses(
+        pullRequestReposByLevel.L3.map((entry) => entry.repo),
+        demotionMetrics
+      )
+        .filter((s) => s.onTemporaryDemotion)
+        .map((s) => s.repo)
+    );
+    return {
+      activeL3Repos: pullRequestReposByLevel.L3.filter(
+        (entry) => !onTemporaryDemotion.has(entry.repo)
+      ),
+      pendingDemotionRepos: pullRequestReposByLevel.L3.filter((entry) =>
+        onTemporaryDemotion.has(entry.repo)
+      ),
+    };
+  }, [
+    pullRequestReposByLevel,
+    l3SummaryMapDemotion,
+    l3SummaryDemotionHasResult,
+  ]);
 
   const stats = useMemo(() => {
     if (!ciData || ciData.length === 0) return null;
@@ -1049,27 +1196,59 @@ export default function CrcrSummaryPage() {
             </Typography>
 
             {LEVELS_ORDERED.map((level) => {
-              const repos = pullRequestReposByLevel[level];
-              if (repos.length === 0) return null;
+              // Repos on temporary demotion are pulled out of the regular L3
+              // table below — shown once, in the demotion section only.
+              const repos =
+                level === "L3" ? activeL3Repos : pullRequestReposByLevel[level];
+              const showDemotionSection =
+                level === "L3" && pendingDemotionRepos.length > 0;
+              if (repos.length === 0 && !showDemotionSection) return null;
               const meta = LEVEL_META[level];
 
               return (
-                <Box key={level}>
-                  <Divider sx={{ mb: 2 }}>
-                    <Typography variant="h6">{meta.label}</Typography>
-                  </Divider>
-                  {level === "L1" ? (
-                    <L1Section repos={repos} />
-                  ) : (
-                    <CiHealthTable
-                      level={level}
-                      repos={repos}
-                      metricsMap={metricsMap}
-                      l3SummaryMap={l3SummaryMap}
-                      l3SummaryMapDemotion={l3SummaryMapDemotion}
-                    />
+                <Fragment key={level}>
+                  {/* The level heading renders even when every L3 repo is on
+                      temporary demotion. */}
+                  <Box>
+                    <Divider sx={{ mb: 2 }}>
+                      <Typography variant="h6">{meta.label}</Typography>
+                    </Divider>
+                    {repos.length > 0 &&
+                      (level === "L1" ? (
+                        <L1Section repos={repos} />
+                      ) : (
+                        <CiHealthTable
+                          level={level}
+                          repos={repos}
+                          metricsMap={metricsMap}
+                          l3SummaryMap={l3SummaryMap}
+                          l3SummaryMapDemotion={l3SummaryMapDemotion}
+                        />
+                      ))}
+                  </Box>
+                  {showDemotionSection && (
+                    <Box>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        L3 backends meeting any of the demotion criteria, or
+                        reporting no jobs at all, over the last{" "}
+                        {L3_DEMOTION_WINDOW_DAYS} days.
+                      </Typography>
+                      <CiHealthTable
+                        level="L3"
+                        repos={pendingDemotionRepos}
+                        metricsMap={metricsMap}
+                        l3SummaryMap={l3SummaryMap}
+                        l3SummaryMapDemotion={l3SummaryMapDemotion}
+                        activeDotColor="error.main"
+                        activeDotLabel="On temporary demotion"
+                      />
+                    </Box>
                   )}
-                </Box>
+                </Fragment>
               );
             })}
 

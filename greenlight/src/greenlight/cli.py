@@ -10,7 +10,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import drci_poke, github_client, merge_authz, review, verdict
+from greenlight import drci_poke, github_client, merge_authz, review, trusted_authors, verdict
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
@@ -49,16 +49,22 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Scan the open PRs from the evaluation cohort in pytorch/pytorch (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
-            "dispatch the review workflow for new or changed PRs. A PR whose author is outside the "
-            "trusted-author set is evaluated in shadow: dispatched and recorded, but never approved. "
-            "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials."
+            "dispatch the review workflow for new or changed PRs. A PR is evaluated in shadow "
+            "(dispatched and recorded, but never approved) unless its author is listed in the "
+            "trusted-authors issue and is eligible for it under the merge rules: named by a rule that "
+            "covers every changed file. Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read "
+            "credentials."
         ),
     )
     review_parser.add_argument(
         "--pr",
         type=int,
         default=None,
-        help="scan only this PR number (skips the listing; the PR's author must still be trusted)",
+        help=(
+            "scan only this PR number (skips the listing; the PR's author must still be listed in the "
+            "trusted-authors issue and eligible for it under the merge rules, and the run fails while "
+            "that issue is unreadable)"
+        ),
     )
     review_parser.add_argument(
         "--max",
@@ -81,15 +87,18 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser.add_argument(
         "--requester",
         default=None,
-        help="login that requested this review (@greenlight recheck); must be a trusted author or the run refuses",
+        help=(
+            "login that requested this review (@greenlight recheck); must be listed in the trusted-authors "
+            "issue and in the evaluation cohort, or the run refuses (it fails while that issue is unreadable)"
+        ),
     )
     review_parser.add_argument(
         "--allow-untrusted-author",
         action="store_true",
         help=(
-            "LOCAL USE ONLY: review the --pr target even when its author is untrusted. The author is "
-            "still resolved and still decides shadow, so such a PR is reviewed in shadow and never "
-            "approved (never exposed as a workflow input)"
+            "LOCAL USE ONLY: review the --pr target even when its author is not eligible for it. "
+            "Eligibility is still resolved and still decides shadow, so such a PR is reviewed in "
+            "shadow and never approved (never exposed as a workflow input)"
         ),
     )
 
@@ -99,7 +108,9 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Record a single PR-review verdict: emit the row for S3 -> ClickHouse ingestion and, "
             "for LAND/NO_LAND, post the GitHub review. Runs once outside the daemon loop and lock. "
-            "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN for LAND/NO_LAND."
+            "Requires PYTORCH_GREENLIGHT_GITHUB_TOKEN for LAND/NO_LAND, which, unless --shadow, also use "
+            "it to check the merge rules (with their team members) and, when needed, the PR's files; "
+            "if that check fails, the command fails without writing the row."
         ),
     )
     verdict_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the repository")
@@ -172,6 +183,17 @@ def _build_authz_client(config: Config) -> merge_authz.AuthzClient:
     if token is None:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to resolve merge authorization")
     return github_client.build_authz_client(token)
+
+
+def _resolve_listed(config: Config) -> frozenset[str]:
+    token = config.github_token
+    if token is None:
+        raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to read the trusted-authors issue")
+    client = github_client.build_client(token)
+    try:
+        return trusted_authors.fetch_trusted_logins(client)
+    finally:
+        github_client.close_client(client)
 
 
 def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock_path: str | None) -> int:
@@ -279,6 +301,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         requester=args.requester,
         allow_untrusted_author=args.allow_untrusted_author,
         bot_login=bot_login,
-        resolve_authorized=authorized_cache.get,
+        resolve_listed=lambda: _resolve_listed(config),
+        resolve_merge_rules=authorized_cache.snapshot,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

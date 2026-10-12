@@ -1901,6 +1901,14 @@ describe("auto-label-bot: label restrictions", () => {
       .reply(status, body);
   }
 
+  // Write access is checked before team membership, so every membership test
+  // below first answers this with a non-writing permission.
+  function mockRepoPermission(login: string, status: number, body?: any) {
+    return nock("https://api.github.com")
+      .get(`/repos/seemethere/test-repo/collaborators/${login}/permission`)
+      .reply(status, body);
+  }
+
   // Two SEPARATE single-interceptor scopes on purpose. A combined scope's
   // `isDone()` is false as soon as either half is unconsumed, so the keep-tests
   // below could not tell "nothing happened" from "the label was deleted and
@@ -1931,11 +1939,15 @@ describe("auto-label-bot: label restrictions", () => {
           actor: { id: 1700823, login: "seemethere" },
         },
       ]);
+    const permission = mockRepoPermission("seemethere", 200, {
+      permission: "read",
+    });
     const membership = mockDevInfraMembership("seemethere", 404);
     const removal = mockBotManagedLabelRemoval();
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
 
+    handleScope(permission);
     handleScope(membership);
     handleScope([removal.deletion, removal.comment]);
     handleScope(scope);
@@ -1953,6 +1965,9 @@ describe("auto-label-bot: label restrictions", () => {
           actor: { id: 1700823, login: "seemethere" },
         },
       ]);
+    const permission = mockRepoPermission("seemethere", 200, {
+      permission: "read",
+    });
     const membership = mockDevInfraMembership("seemethere", 200, {
       state: "active",
     });
@@ -1975,7 +1990,67 @@ describe("auto-label-bot: label restrictions", () => {
     expect(removal.deletion.isDone()).toBe(false);
     expect(removal.comment.isDone()).toBe(false);
     expect(anyWrite.pendingMocks()).toHaveLength(2);
+    handleScope(permission);
     handleScope(membership);
+    handleScope(scope);
+  });
+
+  test("keep in progress label when its last applier has write access", async () => {
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 1700823, login: "seemethere" },
+        },
+      ]);
+    const permission = mockRepoPermission("seemethere", 200, {
+      permission: "write",
+    });
+    // A writer is allowed without the team lookup being spent.
+    const membership = nock("https://api.github.com")
+      .get(/\/memberships\//)
+      .reply(200, { state: "active" });
+    const anyWrite = nock("https://api.github.com")
+      .delete(/.*/)
+      .reply(200)
+      .post(/.*/)
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    expect(membership.isDone()).toBe(false);
+    expect(anyWrite.pendingMocks()).toHaveLength(2);
+    handleScope(permission);
+    handleScope(scope);
+  });
+
+  test("remove in progress label when the write-access lookup fails and the team is unverified", async () => {
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          actor: { id: 1700823, login: "seemethere" },
+        },
+      ]);
+    const permission = mockRepoPermission("seemethere", 404, {
+      message: "Not Found",
+    });
+    const membership = mockDevInfraMembership("seemethere", 404);
+    const removal = mockBotManagedLabelRemoval();
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(permission);
+    handleScope(membership);
+    handleScope([removal.deletion, removal.comment]);
     handleScope(scope);
   });
 
@@ -1991,6 +2066,9 @@ describe("auto-label-bot: label restrictions", () => {
           actor: { id: 1700823, login: "seemethere" },
         },
       ]);
+    const permission = mockRepoPermission("seemethere", 200, {
+      permission: "read",
+    });
     const membership = mockDevInfraMembership("seemethere", 200, {
       state: "pending",
     });
@@ -1998,6 +2076,7 @@ describe("auto-label-bot: label restrictions", () => {
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
 
+    handleScope(permission);
     handleScope(membership);
     handleScope([removal.deletion, removal.comment]);
     handleScope(scope);
@@ -2018,6 +2097,9 @@ describe("auto-label-bot: label restrictions", () => {
           actor: { id: 1700823, login: "seemethere" },
         },
       ]);
+    const permission = mockRepoPermission("seemethere", 200, {
+      permission: "read",
+    });
     const membership = mockDevInfraMembership("seemethere", 403, {
       message: "Forbidden",
     });
@@ -2025,6 +2107,7 @@ describe("auto-label-bot: label restrictions", () => {
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
 
+    handleScope(permission);
     handleScope(membership);
     handleScope([removal.deletion, removal.comment]);
     handleScope(scope);
@@ -2035,6 +2118,10 @@ describe("auto-label-bot: label restrictions", () => {
     payload["label"] = { name: "in progress" };
     payload["pull_request"]["labels"] = [{ name: "in progress" }];
     const teamLookup = jest.spyOn(botUtils, "isOrgTeamMember");
+    const writeLookup = jest.spyOn(
+      botUtils,
+      "hasVerifiedHumanWritePermissions"
+    );
 
     const scope = nock("https://api.github.com")
       .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
@@ -2050,37 +2137,51 @@ describe("auto-label-bot: label restrictions", () => {
 
     // pytorch-bot short-circuits: no membership call is spent on it.
     expect(teamLookup).not.toHaveBeenCalled();
+    expect(writeLookup).not.toHaveBeenCalled();
     handleScope(scope);
   });
 
-  test("remove in progress label from a non-pytorch-bot bot without asking about membership", async () => {
-    const payload = botManagedLabelPayload();
+  // The last two are apps hasWritePermissions grants unconditionally; the
+  // bot-managed exemption must still refuse them.
+  test.each([
+    "pytorchgreenlight[bot]",
+    "facebook-github-tools[bot]",
+    "meta-codesync[bot]",
+  ])(
+    "remove in progress label from a non-pytorch-bot bot (%s) without asking about membership or permissions",
+    async (botLogin) => {
+      const payload = botManagedLabelPayload();
 
-    const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 311227100, login: "pytorchgreenlight[bot]" },
-        },
-      ]);
-    // Matches any membership path, not a literal one: an interceptor pinned to
-    // an exact login or org goes unconsumed whenever the request differs in any
-    // way, which would pass this test without proving the call was skipped.
-    const membership = nock("https://api.github.com")
-      .get(/\/memberships\//)
-      .reply(404);
-    const removal = mockBotManagedLabelRemoval();
+      const scope = nock("https://api.github.com")
+        .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
+        .reply(200, [
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 311227100, login: botLogin },
+          },
+        ]);
+      // Matches any membership path, not a literal one: an interceptor pinned to
+      // an exact login or org goes unconsumed whenever the request differs in any
+      // way, which would pass this test without proving the call was skipped.
+      const membership = nock("https://api.github.com")
+        .get(/\/memberships\//)
+        .reply(404);
+      const permission = nock("https://api.github.com")
+        .get(/\/collaborators\//)
+        .reply(200, { permission: "write" });
+      const removal = mockBotManagedLabelRemoval();
 
-    await probot.receive({ name: "pull_request", payload, id: "2" });
+      await probot.receive({ name: "pull_request", payload, id: "2" });
 
-    // The lookup would 404 anyway; skipping it saves the round trip and the
-    // removal below shows the skip still denies.
-    expect(membership.isDone()).toBe(false);
-    handleScope([removal.deletion, removal.comment]);
-    handleScope(scope);
-  });
+      // Neither lookup applies to an app; skipping them saves the round trips and
+      // the removal below shows the skip still denies.
+      expect(membership.isDone()).toBe(false);
+      expect(permission.isDone()).toBe(false);
+      handleScope([removal.deletion, removal.comment]);
+      handleScope(scope);
+    }
+  );
 });
 
 describe("auto-label-bot: check-labels integration", () => {
