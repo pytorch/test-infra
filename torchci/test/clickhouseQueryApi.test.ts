@@ -1,5 +1,6 @@
 import { NextApiRequest } from "next";
 import * as clickhouseModule from "../lib/clickhouse";
+import { fetcherHandleError } from "../lib/GeneralUtils";
 import handler from "../pages/api/clickhouse/[queryName]";
 import { mockRes } from "./nextApiMocks";
 
@@ -43,5 +44,44 @@ describe("/api/clickhouse/[queryName]", () => {
     expect(mockQuery).not.toHaveBeenCalled();
     expect(res._status).toBe(400);
     expect(res._json.error).toMatch(/^Invalid parameters: /);
+  });
+});
+
+describe("fetcherHandleError", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  function respond(status: number, body: string) {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: status < 400,
+      status,
+      text: () => Promise.resolve(body),
+      json: () => Promise.resolve(JSON.parse(body)),
+    }) as any;
+  }
+
+  it("puts the server's error in the message", async () => {
+    respond(500, JSON.stringify({ error: "MEMORY_LIMIT_EXCEEDED" }));
+    await expect(fetcherHandleError("/api/clickhouse/q")).rejects.toMatchObject(
+      {
+        message:
+          "An error occurred while fetching the data: MEMORY_LIMIT_EXCEEDED",
+        status: 500,
+        info: "MEMORY_LIMIT_EXCEEDED",
+      }
+    );
+  });
+
+  it("handles a body that is not JSON", async () => {
+    respond(500, "Internal Server Error");
+    await expect(fetcherHandleError("/api/clickhouse/q")).rejects.toMatchObject(
+      {
+        message:
+          "An error occurred while fetching the data: Internal Server Error",
+        status: 500,
+      }
+    );
   });
 });
