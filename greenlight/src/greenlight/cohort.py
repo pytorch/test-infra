@@ -1,10 +1,9 @@
 """Who greenlight evaluates, and whose evaluation carries authority.
 
 ``evaluation_cohort`` answers the first: pytorch/pytorch's merge_rules approver set, minus bots and
-greenlight itself. ``assess_rules`` answers the second for the verdict: one merge rule must name the
-author and cover every file the PR changes. The scan's ``assess`` also requires the author to be
-listed in the trusted-authors issue. Every other evaluation is shadow: recorded as usual, but never
-approved and never rendered by Dr. CI.
+greenlight itself. ``assess_rules`` answers the second, for the scan and the verdict alike: one merge
+rule must name the author and cover every file the PR changes. Every other evaluation is shadow:
+recorded as usual, but never approved and never rendered by Dr. CI.
 
 ``pr_hash`` is the only greenlight import, and deliberately so -- its ``is_bot`` is the one bot
 predicate the fingerprint already relies on, and a second list here would drift from it.
@@ -19,7 +18,7 @@ from greenlight.pr_hash import is_bot
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
-__all__ = ["GREENLIGHT_APP_SLUG", "Eligibility", "EligibilityRule", "assess", "assess_rules", "evaluation_cohort"]
+__all__ = ["GREENLIGHT_APP_SLUG", "Eligibility", "EligibilityRule", "assess_rules", "evaluation_cohort"]
 
 # greenlight's own App slug. merge_rules.yaml names bare logins, so an entry for greenlight
 # resolves to this bare form -- which ``is_bot`` does not match: it is absent from BOT_LOGINS and
@@ -50,18 +49,6 @@ class EligibilityRule(Protocol):
 class Eligibility(NamedTuple):
     rule: EligibilityRule | None
     reason: str
-
-
-def assess(
-    login: str | None,
-    listed: frozenset[str],
-    rules: Sequence[EligibilityRule],
-    files: Callable[[], Sequence[str] | None],
-) -> Eligibility:
-    """``assess_rules`` for an author the trusted-authors issue lists; ``listed`` holds lowercased logins."""
-    if login and _is_evaluable(login) and login.lower() not in listed:
-        return Eligibility(None, "not listed")
-    return assess_rules(login, rules, files)
 
 
 def assess_rules(
