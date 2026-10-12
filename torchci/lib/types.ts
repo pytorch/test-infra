@@ -120,6 +120,17 @@ export interface RecentWorkflowsData extends BasicJobData {
   failure_context: string[];
   /** CRCR downstream repo level ("L3" or "L4") — set by fetchCrcrWorkflows. */
   downstreamLevel?: string;
+  /**
+   * CRCR downstream repo (owner/name) — set by fetchCrcrWorkflows. The rendered
+   * CRCR section groups by this rather than parsing it back out of `name`.
+   */
+  downstreamRepo?: string;
+  /**
+   * CRCR workflow run attempt — set by fetchCrcrWorkflows. A re-run produces a
+   * separate row, so a consumer that wants the job's current state picks the
+   * highest attempt, the way the HUD's CRCR merge does.
+   */
+  runAttempt?: number;
 }
 
 export interface Artifact {

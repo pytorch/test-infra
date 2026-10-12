@@ -2,6 +2,7 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
+import { pinLedger } from "lib/crcr/crcrComment";
 import {
   hasS3Log,
   isFailureFromPrevMergeCommit,
@@ -227,12 +228,15 @@ export async function upsertDrCiComment(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
   // Open and synchronize events do not recalculate status, so preserve it while
-  // rebuilding the rest of the comment.
+  // rebuilding the rest of the comment. The CRCR results are rebuilt by the next
+  // sweep and the push may have invalidated them, so only the pin ledger is kept:
+  // it is invisible, and losing it would make that sweep page every on-call
+  // again for a failure they were already told about.
   const drciComment = formDrciComment(
     prNum,
     owner,
     repo,
-    "",
+    pinLedger(existingDrciComment),
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment)
   );

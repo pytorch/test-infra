@@ -3,6 +3,7 @@ import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
+import { downstreamRepoFromCheckRunName } from "../crcr/crcrUtils";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
   getApprovalStatusFromReviews,
@@ -15,7 +16,6 @@ import {
   BOT_MANAGED_PR_LABELS,
   cherryPickClassifications,
 } from "./Constants";
-import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,
