@@ -32,9 +32,9 @@ import {
   L3_PROMOTION_WINDOW_DAYS,
   useL3VerdictColors,
 } from "lib/crcr/l3Thresholds";
+import type { AllowlistResponse } from "pages/api/crcr/allowlist";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import type { AllowlistResponse } from "pages/api/crcr/allowlist";
 
 // Measured value colored by verdict — the value itself carries the signal,
 // no separate checkmark column needed. Each column only highlights the

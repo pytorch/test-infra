@@ -231,14 +231,16 @@ describe("getL3ProtectionStatus", () => {
   const passingRows = buildDemotionRows(summaryRow({}));
 
   it("does not assign a temporary-protection status outside L3", () => {
-    expect(getL3ProtectionStatus("L2", passingRows, true, undefined)).toBeNull();
+    expect(
+      getL3ProtectionStatus("L2", passingRows, true, undefined)
+    ).toBeNull();
   });
 
   it("marks an L3 backend for protection when a demotion criterion fails", () => {
     const failingRows = buildDemotionRows(summaryRow({ pass_rate: 0.5 }));
-    expect(
-      getL3ProtectionStatus("L3", failingRows, true, undefined)
-    ).toBe("active");
+    expect(getL3ProtectionStatus("L3", failingRows, true, undefined)).toBe(
+      "active"
+    );
   });
 
   it("marks an L3 backend for protection when it reported no jobs", () => {

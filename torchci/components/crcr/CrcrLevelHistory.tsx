@@ -30,7 +30,9 @@ export default function CrcrLevelHistory({
     return (
       <Paper elevation={1} sx={{ p: 2 }}>
         <Stack spacing={0.5}>
-          <Typography variant="h6">Observed Configured-Level History</Typography>
+          <Typography variant="h6">
+            Observed Configured-Level History
+          </Typography>
           <Typography variant="body2" color="error">
             Observed configured-level history is temporarily unavailable. Please
             try again later.
@@ -57,7 +59,9 @@ export default function CrcrLevelHistory({
           gap={1}
           width="100%"
         >
-          <Typography variant="h6">Observed Configured-Level History</Typography>
+          <Typography variant="h6">
+            Observed Configured-Level History
+          </Typography>
           <Chip
             label={`${events.length} observed configured-level event${
               events.length === 1 ? "" : "s"
@@ -71,11 +75,10 @@ export default function CrcrLevelHistory({
         <Stack spacing={1.5}>
           <Typography variant="caption" color="text.secondary">
             Shows configured levels observed when CRCR dispatches work. The
-            separate temporary-protection state on the CRCR summary is a
-            rolling health evaluation, not a level change: an L3 backend stays
-            L3 until an allowlist change is merged. Persistent PR links,
-            decision criteria, and protection episodes require a dedicated
-            audit ledger.
+            separate temporary-protection state on the CRCR summary is a rolling
+            health evaluation, not a level change: an L3 backend stays L3 until
+            an allowlist change is merged. Persistent PR links, decision
+            criteria, and protection episodes require a dedicated audit ledger.
           </Typography>
 
           {events.length === 0 ? (
