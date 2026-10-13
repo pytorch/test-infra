@@ -26,8 +26,10 @@ describe("CrcrLevelHistory", () => {
       <CrcrLevelHistory repoFullName="pytorch/pytorch" />
     );
 
-    expect(html).toContain("Level history is temporarily unavailable");
-    expect(html).not.toContain("0 observed changes");
+    expect(html).toContain(
+      "Observed configured-level history is temporarily unavailable"
+    );
+    expect(html).not.toContain("0 observed configured-level events");
     expect(html).not.toContain(
       "No level events were observed in the retained dispatch history."
     );
@@ -52,7 +54,8 @@ describe("CrcrLevelHistory", () => {
 
     expect(html).toContain("2026-09-12 00:53:00");
     expect(html).toContain("Initial level → L2");
-    expect(html).toContain("1 observed level event");
+    expect(html).toContain("1 observed configured-level event");
+    expect(html).toContain("temporary-protection state");
     expect(html).toContain('aria-expanded="false"');
   });
 });
