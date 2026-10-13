@@ -1,0 +1,60 @@
+name: Send PyTorch Slack PR review digests
+
+on:
+  schedule:
+    # 9AM ET during daylight saving time, 8AM in winter. The manifest is written
+    # at 11:00 UTC by pr-notifications-manifest.yml.
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Send the DMs instead of printing them"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - .github/scripts/pr_notifications_slack.py
+      - .github/workflows/pr-notifications-slack.yml
+
+jobs:
+  # Prints the digests of every registered member, without the Slack token
+  dry-run-pytorch-slack-digests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Print the PR review digests
+        # Today's manifest may not be written yet
+        run: python3 .github/scripts/pr_notifications_slack.py --date "$(date -u -d yesterday +%F)"
+
+  # DMs the digest to members of #auto-pr-triage-notifications in the PyTorch
+  # Slack
+  send-pytorch-slack-digests:
+    if: github.repository == 'pytorch/test-infra' && github.event_name != 'pull_request'
+    runs-on: ubuntu-22.04
+    environment: pr-notifications-slack
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Send the PR review digests
+        env:
+          PYTORCH_SLACK_BOT_TOKEN: ${{ secrets.PYTORCH_SLACK_BOT_TOKEN }}
+        run: python3 .github/scripts/pr_notifications_slack.py ${{ (github.event_name == 'schedule' || inputs.live) && '--live' || '' }}
+      - name: Report the failure in the PyTorch Slack
+        if: failure()
+        env:
+          PYTORCH_SLACK_BOT_TOKEN: ${{ secrets.PYTORCH_SLACK_BOT_TOKEN }}
+          # Private channel of the digest's maintainers, with the app invited
+          CHANNEL: C0C8Z8R63RQ
+          TEXT: "Sending the PyTorch Slack PR review digests failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        # Slack reports errors as ok=false with HTTP 200
+        run: |
+          curl --silent --show-error --fail https://slack.com/api/chat.postMessage \
+            --header "Authorization: Bearer $PYTORCH_SLACK_BOT_TOKEN" \
+            --data-urlencode "channel=$CHANNEL" --data-urlencode "text=$TEXT" \
+            | tee /dev/stderr | grep -q '"ok":true'
