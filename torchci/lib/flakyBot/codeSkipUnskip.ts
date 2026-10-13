@@ -232,6 +232,59 @@ function splitSource(source: string): {
   return { lines, newline, trailing };
 }
 
+// The suite colon can sit on a later line at the same indent as `class`,
+// which is how long base lists are wrapped. Those continuation lines are
+// still the header: they must not pop the class before its methods.
+function classBodyStart(lines: string[], start: number): number {
+  let depth = 0;
+  let quote: QuoteKind | null = null;
+  for (let lineNo = start; lineNo < lines.length; lineNo++) {
+    const line = lines[lineNo];
+    let i = 0;
+    while (i < line.length) {
+      if (quote) {
+        if (quote.length === 1 && line[i] === "\\") {
+          i += 2;
+          continue;
+        }
+        if (line.startsWith(quote, i)) {
+          i += quote.length;
+          quote = null;
+          continue;
+        }
+        i++;
+        continue;
+      }
+      if (line.startsWith('"""', i) || line.startsWith("'''", i)) {
+        quote = line.slice(i, i + 3) as QuoteKind;
+        i += 3;
+        continue;
+      }
+      const c = line[i];
+      if (c === "#") {
+        break;
+      }
+      if (c === '"' || c === "'") {
+        quote = c;
+        i++;
+        continue;
+      }
+      if (c === "(" || c === "[" || c === "{") {
+        depth++;
+      } else if (c === ")" || c === "]" || c === "}") {
+        depth--;
+      } else if (c === ":" && depth <= 0) {
+        return lineNo + 1;
+      }
+      i++;
+    }
+    if (quote === null && depth <= 0 && lineNo === start) {
+      return start + 1;
+    }
+  }
+  return lines.length;
+}
+
 function indexFunctions(source: string): FunctionRecord[] {
   const { lines } = splitSource(source);
   const records: FunctionRecord[] = [];
@@ -280,7 +333,8 @@ function indexFunctions(source: string): FunctionRecord[] {
         line: i,
         decorators: classDecorators,
       });
-      i++;
+      const bodyAt = classBodyStart(lines, i);
+      i = bodyAt > i ? bodyAt : i + 1;
       continue;
     }
 
@@ -1314,6 +1368,12 @@ async function closeOwnedDraft(octokit: Octokit): Promise<void> {
     );
     return;
   }
+  if (!existing.draft) {
+    console.log(
+      `Pull request #${existing.number} is not a draft. A human has taken it out of draft, so this run will not close it.`
+    );
+    return;
+  }
   const why =
     "Nothing currently qualifies for unskip. No decorator passed the rerun bar and the safety checks on this run. Closing this draft so a stale deletion cannot be merged.";
   await leaveComment(octokit, existing.number, why);
@@ -1328,8 +1388,14 @@ async function closeOwnedDraft(octokit: Octokit): Promise<void> {
 
 export async function handlePassingCodeSkips(
   octokit: Octokit,
-  rows: PassingCodeSkipRow[]
+  rows: PassingCodeSkipRow[] | null
 ): Promise<void> {
+  // null is a failed query, not an empty candidate list. [] still means
+  // nothing qualified and the owned draft may be closed.
+  if (rows === null) {
+    console.warn("code-skip query failed; leaving any open draft alone.");
+    return;
+  }
   try {
     await openOrUpdateCodeSkipPullRequest(octokit, rows);
   } catch (err) {
