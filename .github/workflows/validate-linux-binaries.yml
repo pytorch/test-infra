@@ -132,7 +132,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.15
       test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: ${{ matrix.build_name }}
       # ROCm validates on the regular almalinux image (like CUDA) to confirm
@@ -180,7 +180,7 @@ jobs:
     with:
       runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.15
       test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: "poetry-test"
       docker-image: 'pytorch/almalinux-builder:cpu-main'
@@ -209,7 +209,7 @@ jobs:
     with:
       runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.15
       test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: "amazon-linux-2023-test"
       # Not almalinux/9-base: actions/checkout needs git in the container and
