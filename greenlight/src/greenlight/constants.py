@@ -95,6 +95,11 @@ FULL_TICK_INTERVAL = timedelta(minutes=15)
 # A tick scheduled one interval after a full tick can start slightly early; the tolerance keeps it a
 # full tick instead of pushing the full listing back a whole schedule period.
 FULL_TICK_TOLERANCE = timedelta(seconds=30)
+# A fingerprint is cached only when its PR's updated_at is this old at the clock read after the listing.
+# Close to an update GitHub can skip a review's updated_at bump (a second review within about 10 s of
+# the first), stamp two events with the same second, or serve updated_at and the reviews out of step,
+# so a younger fingerprint can miss an event without its updated_at ever changing.
+FINGERPRINT_QUIET = timedelta(seconds=120)
 
 MERGE_RULES_PATH = ".github/merge_rules.yaml"
 

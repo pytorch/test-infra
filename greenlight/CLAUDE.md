@@ -73,6 +73,23 @@ PyTorch Green Light has one unit of work — the `review` phase:
   does a PR idle longer than the review window whose review is unfinished: a failed, cancelled or
   stuck one is retried at the first full tick after its 45-minute timer, and an in-flight one whose
   fingerprint changed without bumping `updated_at` is re-dispatched there.
+  Once a listing tick's fan-out finishes, the process keeps only the fingerprint results
+  (`scan_memory`) that tick reused and those it fetched (a hash only when read at the listed head)
+  when the listed `updated_at` was at least `FINGERPRINT_QUIET` (2 minutes) old at the clock read
+  after the listing, before the fan-out; each is keyed on that `updated_at`, the listed head and the
+  merge-authorized login set. A fast tick decides a PR whose key is unchanged on its kept result,
+  logging the decision as `cached`, and fingerprints afresh any PR that would dispatch, so a dispatch
+  never carries a cached head or hash; full ticks never reuse a result. What the key cannot see waits
+  at most for the next full tick: an inline review comment edit (never bumps `updated_at`) or
+  deletion (unmeasured), a conversation comment deletion that does not bump it (unmeasured; the one
+  observed case bumped), an approver's login rename or account deletion, and a review dismissal that
+  does not bump it. A bump that shows up only after the result was stored leaves the PR decided on
+  that result until the bump becomes visible (one observed case lagged between 8 s and several
+  minutes), and at most until the next full tick. Each bump, a bot's comment edit such as Dr. CI's
+  included, costs a fresh fetch on every tick until one finds it at least two minutes old: at most
+  two with ticks two minutes or more apart, more on a `--loop` daemon (60 s apart by default). A
+  change to the approver set refetches every PR on the next tick; a `--loop` host needs a synced
+  clock. `--pr` and `--force` never touch the kept results.
   Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (PR write, for the revocation), `BOT_LOGIN`, and
   `CLICKHOUSE_*` read access.
 
@@ -129,7 +146,8 @@ In production the scheduled scan instead deploys as the `greenlight-scan` AWS La
 the one-shot path with no single-instance lock and both hang-guard layers off
 (`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
 relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. A warm Lambda
-keeps the scan's tick memory between invocations; a CLI one-shot always lists in full.
+keeps the scan's tick memory, kept fingerprints included, between invocations; a CLI one-shot always
+lists in full.
 
 ## Comments
 

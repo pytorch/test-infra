@@ -15,9 +15,11 @@ non-shadow, since it can only deny. State is re-read from ClickHouse every scan.
 how much a listing scan lists: a full tick lists every open PR, on every tick until one completes,
 and again ``FULL_TICK_INTERVAL`` (less ``FULL_TICK_TOLERANCE``) after the start of the last full
 tick that completed; the fast ticks in between list the recently updated PRs plus the open
-Reverted-labelled ones (``pr_listing``). ``memory=None`` makes every tick full. All GitHub,
-ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable without
-any of them.
+Reverted-labelled ones (``pr_listing``). ``memory=None`` makes every tick full. A fast tick also
+reuses a PR's cached fingerprint result while its listed ``updated_at`` and head and the approver set
+are unchanged, but fingerprints afresh any PR it would dispatch (``scan_memory``); ``--pr`` and
+``--force`` never touch the cache. All GitHub, ClickHouse, and dispatch I/O sits behind injectable
+keyword seams so the loop is testable without any of them.
 
 Both authz gates (``authz_gates``) run once the merge rules resolve.
 
@@ -46,13 +48,24 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from greenlight import candidate_filter, cohort, drci_poke, github_client, revert_guard, scan_runner, state, state_emit
+from greenlight import (
+    candidate_filter,
+    cohort,
+    drci_poke,
+    github_client,
+    revert_guard,
+    scan_dispatch,
+    scan_runner,
+    state,
+    state_emit,
+)
 from greenlight import dispatch as dispatch_module
 from greenlight.authority import Authority, Target
 from greenlight.authz_gates import admit_target, requester_allowed
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, EXCLUDED_LABELS, TARGET_REPO
 from greenlight.ineligible_approvals import revoke_ineligible_approvals
 from greenlight.pr_listing import candidate_numbers, default_fetch, default_fetch_updated
+from greenlight.scan_memory import FingerprintCache
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -65,8 +78,9 @@ if TYPE_CHECKING:
     from greenlight.merge_authz import MergeRulesSnapshot
     from greenlight.pr_listing import FetchFn, FetchUpdatedFn
     from greenlight.review_gate import ReviewSkip
+    from greenlight.scan_dispatch import DispatchFn
     from greenlight.scan_memory import ScanMemory
-    from greenlight.scan_runner import DispatchFn, FingerprintFn
+    from greenlight.scan_runner import FingerprintFn, FingerprintResult
     from greenlight.state import PRState
 
     class _BuildClient(Protocol):
@@ -93,7 +107,7 @@ def _utcnow() -> datetime:
 
 def _default_fingerprint(
     client: Github, pr_number: int, authorized_logins: frozenset[str], skip_on_approval: bool
-) -> tuple[str, str] | ReviewSkip:
+) -> FingerprintResult:
     # allow_skip is unconditional: a human-decided PR always short-circuits the fingerprint.
     # skip_on_approval varies by path so an approval skips the listing but never the recheck.
     return github_client.fingerprint_pr(
@@ -165,7 +179,7 @@ def run(
         window = timedelta(hours=config.review_window_hours)
         listed_at = now()
         full_tick = memory is None or memory.full_tick_due(listed_at)
-        pr_numbers, updated_at_by_number, labels_by_number, authors_by_number = candidate_numbers(
+        pr_numbers, updated_at_by_number, labels_by_number, authors_by_number, head_sha_by_number = candidate_numbers(
             client,
             pr=pr,
             authors=evaluable,
@@ -262,6 +276,18 @@ def run(
             worker_client = build_github(token, seconds_between_requests=_FINGERPRINT_SECONDS_BETWEEN_REQUESTS)
             clients.callback(github_client.close_client, worker_client)
             client_pool.put(worker_client)
+        cache = (
+            None
+            if memory is None or pr is not None or force
+            else FingerprintCache(
+                memory,
+                reuse=not full_tick,
+                authorized_logins=authorized_logins,
+                updated_at=updated_at_by_number,
+                head_sha=head_sha_by_number,
+                now=evaluated_at,
+            )
+        )
         if max_dispatches is None:
             pending = scan_runner._fingerprint_all(
                 fingerprint_numbers,
@@ -278,6 +304,7 @@ def run(
                 skips=skips,
                 force=force,
                 cancel_event=cancel_event,
+                cache=cache,
             )
         else:
             pending = scan_runner._fingerprint_until_dispatchable(
@@ -296,7 +323,10 @@ def run(
                 skips=skips,
                 force=force,
                 cancel_event=cancel_event,
+                cache=cache,
             )
+        if cache is not None:
+            cache.commit()
         pending = authority.dispatchable(pending)
         dispatch_failed: list[int] = []
         if cancel_event.is_set():
@@ -316,7 +346,7 @@ def run(
             # later tick to a full listing.
             if full_tick and memory is not None and pr is None:
                 memory.mark_full_tick(listed_at)
-            dispatch_failed = scan_runner._dispatch_pending(
+            dispatch_failed = scan_dispatch._dispatch_pending(
                 client,
                 pending,
                 ref=ref,

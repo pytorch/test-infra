@@ -54,6 +54,10 @@ def test_a_full_tick_is_due_fifteen_minutes_on_less_thirty_seconds_of_tolerance(
     assert timedelta(seconds=30) == constants.FULL_TICK_TOLERANCE
 
 
+def test_a_fingerprint_is_cached_only_two_minutes_after_its_prs_last_update():
+    assert timedelta(minutes=2) == constants.FINGERPRINT_QUIET
+
+
 def test_s3_key_prefix_value():
     assert constants.S3_KEY_PREFIX == "greenlight_pr_state"
 

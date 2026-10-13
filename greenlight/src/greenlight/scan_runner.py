@@ -1,9 +1,9 @@
-"""Fingerprint orchestration, dispatch, and recheck-refusal posting for the review scan.
+"""Fingerprint orchestration and recheck-refusal posting for the review scan.
 
-Extracted from ``review`` so both modules stay within the per-file line limit. The concurrent
-fingerprint machinery, the per-PR decision seam, dispatch, and the ``@greenlight recheck``
-refusal comment live here; ``review.run`` owns the authz gates, candidate listing, recency
-filter, and client lifecycle, and drives these helpers.
+The concurrent fingerprint machinery, the per-PR decision seam, the reuse of cached fingerprint
+results, and the ``@greenlight recheck`` refusal comment live here; ``scan_dispatch`` dispatches the
+candidates, and ``review.run`` owns the authz gates, candidate listing, recency filter, and client
+lifecycle, and drives these helpers.
 """
 
 from __future__ import annotations
@@ -13,14 +13,13 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
-from greenlight import comment_format, constants
+from greenlight import comment_format
 from greenlight.decision import Decision, decide
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
-from greenlight.state import next_run_id
 
 if TYPE_CHECKING:
     import queue
@@ -32,20 +31,14 @@ if TYPE_CHECKING:
     from github import Github
 
     from greenlight.github_types import VerdictPR
+    from greenlight.scan_memory import FingerprintCache
     from greenlight.state import PRState
 
     # The fingerprint seam returns the PR's (head_sha, eval_hash) or, when a human has already
     # decided it, a ReviewSkip. skip_on_approval (True on the listing scan, False on --pr) is
     # threaded per call so an approval skips the listing but never the manual recheck.
-    FingerprintFn = Callable[[Github, int, frozenset[str], bool], tuple[str, str] | ReviewSkip]
-
-    class DispatchFn(Protocol):
-        # Everything but shadow is positional-only so injected test doubles needn't match the
-        # parameter names; shadow is keyword-only and has no default, so no caller can dispatch a
-        # review without stating which cohort the PR belongs to.
-        def __call__(
-            self, client: Github, pr_number: int, head_sha: str, eval_hash: str, ref: str, /, *, shadow: bool
-        ) -> None: ...
+    FingerprintResult = tuple[str, str] | ReviewSkip
+    FingerprintFn = Callable[[Github, int, frozenset[str], bool], FingerprintResult]
 
 
 logger = logging.getLogger(__name__)
@@ -79,10 +72,6 @@ def _staleness_key_for_state(recorded: PRState | None) -> tuple[bool, datetime]:
     return (True, recorded.version)
 
 
-def _staleness_key(candidate: _Candidate) -> tuple[bool, datetime]:
-    return _staleness_key_for_state(candidate.state)
-
-
 def _fingerprint_task(
     fingerprint: FingerprintFn,
     client_pool: queue.Queue[Github],
@@ -90,7 +79,7 @@ def _fingerprint_task(
     authorized_logins: frozenset[str],
     skip_on_approval: bool,
     cancel_event: threading.Event,
-) -> tuple[str, str] | ReviewSkip | _Cancelled:
+) -> FingerprintResult | _Cancelled:
     if cancel_event.is_set():
         return _CANCELLED
     client = client_pool.get()
@@ -104,9 +93,46 @@ def _fingerprint_task(
         client_pool.put(client)
 
 
+def _judge(
+    number: int,
+    result: FingerprintResult,
+    recorded: PRState | None,
+    *,
+    now: datetime,
+    timeout: timedelta,
+    skips: list[tuple[int, ReviewSkip]],
+    cached: bool,
+) -> _Candidate | None:
+    """The PR's candidate when ``decide`` would dispatch it; otherwise None, logging why it is left alone.
+
+    A dispatch is logged by the caller that takes it: a cached result that would dispatch is
+    fingerprinted afresh instead. A decision taken from a ``cached`` result is logged as one.
+    """
+    tag = ", cached" if cached else ""
+    # A ReviewSkip is a human decision, never a fingerprint failure: check it before unpacking, which
+    # would raise on it, so it is collected as a skip rather than handled as an error.
+    if isinstance(result, ReviewSkip):
+        logger.info("PR #%d: SKIP (%s%s): %s", number, result.reason, tag, result.detail)
+        skips.append((number, result))
+        return None
+    head_sha, eval_hash = result
+    outcome = decide(
+        current_eval_hash=eval_hash,
+        latest_status=recorded.status if recorded is not None else None,
+        latest_eval_hash=recorded.eval_hash if recorded is not None else None,
+        latest_version=recorded.version if recorded is not None else None,
+        now=now,
+        timeout=timeout,
+    )
+    if outcome.action is Decision.DISPATCH:
+        return _Candidate(number, head_sha, eval_hash, recorded, outcome.reason)
+    logger.info("PR #%d: %s (%s%s)", number, outcome.action.name, outcome.reason, tag)
+    return None
+
+
 def _evaluate_pr(
     number: int,
-    future: Future[tuple[str, str] | ReviewSkip | _Cancelled],
+    future: Future[FingerprintResult | _Cancelled],
     states: dict[int, PRState],
     *,
     now: datetime,
@@ -115,6 +141,7 @@ def _evaluate_pr(
     abandoned: list[int],
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
+    cache: FingerprintCache | None,
 ) -> _Candidate | None:
     try:
         result = future.result()
@@ -124,35 +151,61 @@ def _evaluate_pr(
         if result is _CANCELLED:
             abandoned.append(number)
             return None
-        # A ReviewSkip is a human decision, never a fingerprint failure: check before unpacking
-        # so it is collected/dropped, not mistaken for an error and appended to failed.
-        if isinstance(result, ReviewSkip):
-            logger.info("PR #%d: SKIP (%s): %s", number, result.reason, result.detail)
-            skips.append((number, result))
-            return None
-        head_sha, eval_hash = result
         recorded = states.get(number)
-        if force:
-            logger.info("PR #%d: DISPATCH (forced)", number)
-            return _Candidate(number, head_sha, eval_hash, recorded, "forced")
-        outcome = decide(
-            current_eval_hash=eval_hash,
-            latest_status=recorded.status if recorded is not None else None,
-            latest_eval_hash=recorded.eval_hash if recorded is not None else None,
-            latest_version=recorded.version if recorded is not None else None,
-            now=now,
-            timeout=timeout,
-        )
-        logger.info("PR #%d: %s (%s)", number, outcome.action.name, outcome.reason)
-        if outcome.action is Decision.DISPATCH:
-            return _Candidate(number, head_sha, eval_hash, recorded, outcome.reason)
-        return None
+        if force and not isinstance(result, ReviewSkip):
+            head_sha, eval_hash = result
+            candidate: _Candidate | None = _Candidate(number, head_sha, eval_hash, recorded, "forced")
+        else:
+            candidate = _judge(number, result, recorded, now=now, timeout=timeout, skips=skips, cached=False)
+        # Stored only once judged cleanly, so a PR that fails here leaves nothing for a later tick to reuse.
+        if cache is not None:
+            cache.store(number, result)
+        if candidate is not None:
+            logger.info("PR #%d: DISPATCH (%s)", number, candidate.reason)
+        return candidate
     except IterationTimeout:
         raise
     except Exception:
         logger.exception("skipping PR #%d: failed to evaluate", number)
         failed.append(number)
         return None
+
+
+def _settle_from_cache(
+    pr_numbers: Sequence[int],
+    states: dict[int, PRState],
+    *,
+    cache: FingerprintCache | None,
+    now: datetime,
+    timeout: timedelta,
+    skips: list[tuple[int, ReviewSkip]],
+) -> list[int]:
+    """Judge each PR the cache still holds a result for, and return the rest, in order, to fingerprint.
+
+    A cached result that would dispatch, or whose judgment raises, goes back with the rest: every
+    dispatch carries a fresh head and hash, and the fresh path contains a PR's errors.
+    """
+    if cache is None:
+        return list(pr_numbers)
+    unsettled: list[int] = []
+    for number in pr_numbers:
+        try:
+            cached = cache.lookup(number)
+            settled = (
+                cached is not None
+                and _judge(number, cached, states.get(number), now=now, timeout=timeout, skips=skips, cached=True)
+                is None
+            )
+        except IterationTimeout:
+            raise
+        except Exception:
+            logger.exception("PR #%d: failed to judge its cached fingerprint; fingerprinting it afresh", number)
+            settled = False
+        if settled:
+            cache.keep(number)
+        else:
+            unsettled.append(number)
+    return unsettled
 
 
 def _fingerprint_all(
@@ -171,8 +224,10 @@ def _fingerprint_all(
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
     cancel_event: threading.Event,
+    cache: FingerprintCache | None,
 ) -> list[_Candidate]:
-    futures: dict[int, Future[tuple[str, str] | ReviewSkip | _Cancelled]] = {}
+    unsettled = _settle_from_cache(pr_numbers, states, cache=cache, now=now, timeout=timeout, skips=skips)
+    futures: dict[int, Future[FingerprintResult | _Cancelled]] = {}
     if worker_count:
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
             futures = {
@@ -185,10 +240,10 @@ def _fingerprint_all(
                     skip_on_approval,
                     cancel_event,
                 )
-                for number in pr_numbers
+                for number in unsettled
             }
     pending: list[_Candidate] = []
-    for number in pr_numbers:
+    for number in unsettled:
         candidate = _evaluate_pr(
             number,
             futures[number],
@@ -199,6 +254,7 @@ def _fingerprint_all(
             abandoned=abandoned,
             skips=skips,
             force=force,
+            cache=cache,
         )
         if candidate is not None:
             pending.append(candidate)
@@ -222,19 +278,22 @@ def _fingerprint_until_dispatchable(
     skips: list[tuple[int, ReviewSkip]],
     force: bool,
     cancel_event: threading.Event,
+    cache: FingerprintCache | None,
 ) -> list[_Candidate]:
     """Fingerprint the stalest PRs first, submitting only until ``limit`` candidates are in hand.
 
     The pool is kept saturated: each completion frees its slot immediately, so no task ever waits
     on a slower sibling. Submission stops the moment the cap is reached or the fan-out is
     cancelled, but whatever is already in flight is still evaluated -- its GitHub call is already
-    paid for, and dropping the result would lose a failure or a human-decision skip.
+    paid for, and dropping the result would lose a failure or a human-decision skip. A PR its cached
+    result settles is never submitted, so it takes no slot and never counts toward ``limit``.
     """
     ranked = sorted(pr_numbers, key=lambda number: _staleness_key_for_state(states.get(number)))
+    unsettled = _settle_from_cache(ranked, states, cache=cache, now=now, timeout=timeout, skips=skips)
     found: dict[int, _Candidate] = {}
     if worker_count:
-        queued = iter(ranked)
-        in_flight: dict[Future[tuple[str, str] | ReviewSkip | _Cancelled], int] = {}
+        queued = iter(unsettled)
+        in_flight: dict[Future[FingerprintResult | _Cancelled], int] = {}
         with ThreadPoolExecutor(max_workers=worker_count) as pool:
             while True:
                 while len(in_flight) < worker_count and len(found) < limit and not cancel_event.is_set():
@@ -266,6 +325,7 @@ def _fingerprint_until_dispatchable(
                         abandoned=abandoned,
                         skips=skips,
                         force=force,
+                        cache=cache,
                     )
                     if candidate is not None:
                         found[number] = candidate
@@ -273,69 +333,6 @@ def _fingerprint_until_dispatchable(
     # so returning these in whichever order the pool happened to finish would hand the last slot
     # to the fastest task rather than the stalest PR.
     return [found[number] for number in ranked if number in found]
-
-
-def _emit_dispatch_marker(
-    candidate: _Candidate, emit_dispatched: Callable[..., None], poke: Callable[[int], None], *, shadow: bool
-) -> None:
-    # The workflow was already fired, so an emit failure is logged and swallowed: a missing marker
-    # self-heals (next scan re-dispatches, the reviewer's per-PR concurrency group cancels the dup),
-    # and must not fail the scan or block dispatching the remaining candidates.
-    try:
-        emit_dispatched(
-            repo=constants.TARGET_REPO,
-            pr_number=candidate.pr_number,
-            head_sha=candidate.head_sha,
-            eval_hash=candidate.eval_hash,
-            run_id=next_run_id(candidate.state),
-            shadow=shadow,
-        )
-    except IterationTimeout:
-        raise
-    except Exception as exc:
-        logger.error(
-            "failed to emit AI_REVIEW_DISPATCHED marker for PR #%d: %s", candidate.pr_number, exc, exc_info=True
-        )
-    else:
-        # Success arm only: Dr. CI rebuilds its comment from the row this emit just wrote, so poking
-        # after a failed emit would re-render the very state the marker was meant to replace. A
-        # shadow row is filtered out of that query, so a rebuild has nothing to pick up and the poke
-        # is skipped.
-        if not shadow:
-            poke(candidate.pr_number)
-
-
-def _dispatch_pending(
-    client: Github,
-    pending: list[_Candidate],
-    *,
-    ref: str,
-    max_dispatches: int | None,
-    dispatch: DispatchFn,
-    emit_dispatched: Callable[..., None],
-    poke: Callable[[int], None],
-    shadow_for_pr: Callable[[int], bool],
-) -> list[int]:
-    ordered = sorted(pending, key=_staleness_key)
-    limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
-    dispatch_failed: list[int] = []
-    for candidate in ordered[:limit]:
-        # Resolved once per candidate so the workflow input, the marker row, and the poke decision
-        # can never disagree about which cohort this PR is in.
-        shadow = shadow_for_pr(candidate.pr_number)
-        try:
-            dispatch(client, candidate.pr_number, candidate.head_sha, candidate.eval_hash, ref, shadow=shadow)
-        except IterationTimeout:
-            raise
-        except Exception as exc:
-            logger.error("failed to dispatch review for PR #%d: %s", candidate.pr_number, exc, exc_info=True)
-            dispatch_failed.append(candidate.pr_number)
-            continue
-        logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
-        _emit_dispatch_marker(candidate, emit_dispatched, poke, shadow=shadow)
-    for candidate in ordered[limit:]:
-        logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
-    return dispatch_failed
 
 
 def post_refusals(

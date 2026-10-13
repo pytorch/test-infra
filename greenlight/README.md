@@ -65,9 +65,39 @@ the next full tick: a PR whose place in GitHub's updated order lags its `updated
 reverted only by its recorded row; and a PR idle longer than the review window (24 h by default)
 whose review is unfinished: a failed, cancelled or stuck one is retried at the first full tick after
 its `--timeout-minutes` timer (45 minutes by default), and an in-flight one whose fingerprint
-changed without bumping `updated_at` is re-dispatched there. A warm `greenlight-scan` Lambda and a `--loop`
-daemon keep the tick memory between scans; a CLI one-shot and a cold Lambda always list in full,
-and `--pr` never lists.
+changed without bumping `updated_at` is re-dispatched there.
+
+A fast tick also reuses fingerprints. Once a listing tick's fan-out finishes, the process keeps only
+the fingerprint results that tick reused and those it fetched (a hash only when read at the listed
+head) when the listed `updated_at` was at least two minutes old (`FINGERPRINT_QUIET`) at the clock
+read after the listing, before the fan-out. Each is keyed on that `updated_at`, the listed head and
+the merge-authorized login set. A fast tick decides a PR whose key is unchanged on its kept result
+without fetching its fingerprint, and fingerprints afresh any PR that decision would dispatch, so
+every dispatch carries a head and hash read that tick. A PR whose author only path-scoped merge rules
+name still has its changed files read every tick, to decide whether that author is eligible for it.
+Each `updated_at` bump, a bot's comment edit such as Dr. CI's included, costs the PR a fresh fetch on
+every tick until one finds the bump at least two minutes old: at most two when ticks are two minutes
+or more apart, and more on a `--loop` daemon, whose ticks are 60 s apart by default. Each tick logs
+how many fingerprints it reused and how many it fetched fresh, and logs a decision taken from a kept
+result with a `cached` tag. The quiet age compares the host's clock with GitHub's `updated_at`, so a
+`--loop` host needs a synced clock.
+
+Full ticks never reuse a result, so what the key cannot see waits at most for the next full tick:
+
+- an edit of an inline review comment, which never bumps `updated_at` (the reviewer never sees
+  inline comments), or its deletion, whose effect on `updated_at` is unmeasured;
+- the deletion of a conversation comment, if it does not bump `updated_at` (unmeasured; the one
+  observed case bumped);
+- an approver's login rename or account deletion;
+- a review dismissal, if it does not bump `updated_at`.
+
+A bump that shows up only after the result was stored leaves the PR decided on that result until the
+bump becomes visible (one observed case lagged between 8 s and several minutes), and at most until
+the next full tick.
+
+A warm `greenlight-scan` Lambda and a `--loop` daemon keep the tick memory, kept fingerprints
+included, between scans; a CLI one-shot and a cold Lambda always list in full and start with nothing
+kept, and `--pr` never lists or touches the kept fingerprints.
 
 ```bash
 just run review                      # scan + dispatch once, then exit
@@ -454,10 +484,11 @@ password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead. A warm execution
-environment keeps the scan's tick memory between invocations, so the Lambda alternates full and
-fast ticks; a CLI one-shot always lists in full (see Usage). The scan's GitHub token must be able to
-list the repository's issues (`GET /repos/{owner}/{repo}/issues`, through public read access or the
-Issues: read permission); if it cannot, every fast tick fails loudly while full ticks still run.
+environment keeps the scan's tick memory, kept fingerprints included, between invocations, so the
+Lambda alternates full and fast ticks; a CLI one-shot always lists in full (see Usage). The scan's
+GitHub token must be able to list the repository's issues (`GET /repos/{owner}/{repo}/issues`,
+through public read access or the Issues: read permission); if it cannot, every fast tick fails
+loudly while full ticks still run.
 
 The handler caps each pass at `--max 30` (`_DEFAULT_MAX_DISPATCHES_PER_SCAN`, changeable on the
 function through `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` without a redeploy), and
@@ -599,7 +630,8 @@ from the evaluation cohort in `pytorch/pytorch`, computes each PR's fingerprint
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
 eligible PRs that are new or changed. It lists every open PR on a full tick, and on the fast ticks
-in between only the recently updated ones plus the open `Reverted`-labelled ones (see Usage).
+in between only the recently updated ones plus the open `Reverted`-labelled ones, reusing the
+fingerprint of a PR unchanged since an earlier tick (see Usage).
 Reverted PRs — those carrying the `Reverted` label or with a
 `REVERTED` row already recorded — are excluded permanently on every path: greenlight revokes its
 own approving review, records the `REVERTED` row unless it is already the PR's latest row, and
@@ -680,7 +712,9 @@ when it judges whether a human approval has already put the PR out of greenlight
 must not reuse pytorch's own `trymerge.py` authorization check, which is case-sensitive and scoped
 to the rules whose file patterns match a single PR. Drift between the two costs a merge a full
 wait for a verdict that was never coming, or refuses a PR greenlight would in fact have reviewed.
-A login entering or leaving the set re-fingerprints only the PRs where that login has commented.
+A login entering or leaving the set changes the fingerprint only of the PRs where that login has
+commented, but the next tick refetches every PR's fingerprint: the set is part of each kept result's
+key (see Usage).
 
 ## Development
 
@@ -704,8 +738,9 @@ src/greenlight/
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # scan evaluation-cohort PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
   pr_listing.py    # list the scan's open PRs: a full listing, or a fast one (recently updated, plus open Reverted-labelled PRs)
-  scan_memory.py   # what a process carries between listing scans: when the last full tick that completed started
-  scan_runner.py   # the scan's fingerprint fan-out, dispatch loop, and recheck-refusal posting
+  scan_memory.py   # what a process carries between listing scans: when the last full tick that completed started, and the fingerprint results a fast tick reuses
+  scan_runner.py   # the scan's fingerprint fan-out, which decides cache hits without a fingerprint, and recheck-refusal posting
+  scan_dispatch.py # the scan's dispatch loop: the --max cap, the AI_REVIEW_DISPATCHED marker, and the Dr. CI poke
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target
   cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (assess_rules)
   authority.py     # the scan's lazy per-PR eligibility lookup, REVERTED-row stamp and moved-head deferral

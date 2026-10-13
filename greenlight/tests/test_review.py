@@ -4,7 +4,7 @@ import itertools
 import logging
 import queue
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock
@@ -27,6 +27,7 @@ from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
+    FINGERPRINT_QUIET,
     FULL_TICK_INTERVAL,
     FULL_TICK_TOLERANCE,
     STATUS_AI_REVIEW_STARTED,
@@ -2166,6 +2167,23 @@ def test_pr_changes_requested_refuses_with_comment(make_config, caplog):
     assert "posted recheck refusal for PR #5" in caplog.text
 
 
+def test_a_forced_recheck_still_skips_and_refuses_a_pr_with_changes_requested(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            pr=5,
+            force=True,
+            fingerprints={5: ReviewSkip(CHANGES_REQUESTED, "changes requested by bob")},
+            bot_login="greenlight-app[bot]",
+        )
+
+    # --force overrides a recorded decision, never a human one: the changes-requested PR is skipped, not
+    # dispatched, and still gets its refusal comment.
+    assert scan.dispatched == []
+    assert "PR #5: SKIP (changes_requested): changes requested by bob" in caplog.text
+    assert [(number, marker) for number, marker, _body, _author in scan.refusals] == [(5, RECHECK_REFUSAL_MARKER)]
+
+
 def test_pr_approval_is_not_skipped_and_dispatches(make_config):
     scan = _run_scan(
         make_config,
@@ -3033,3 +3051,263 @@ def test_a_full_tick_under_the_dispatch_cap_is_marked(make_config):
 
     assert len(scan.dispatched) == 2
     assert not memory.full_tick_due(_NOW)
+
+
+_LANDED = {1: _state(1, STATUS_LAND, _HASH_A, _NEW)}
+
+
+def _warm_memory(
+    make_config: Callable[..., Config],
+    listed: Sequence[OpenPR],
+    fingerprints: dict[int, tuple[str, str] | ReviewSkip],
+    states: dict[int, PRState],
+) -> ScanMemory:
+    """A memory whose full tick at _NOW listed, fingerprinted and completed ``listed``."""
+    memory = ScanMemory()
+    _run_scan(make_config, listed=listed, fingerprints=fingerprints, states=states, memory=memory)
+    assert not memory.full_tick_due(_NOW)
+    return memory
+
+
+def test_a_fast_tick_reuses_the_fingerprint_of_a_pr_listed_as_it_was(make_config, caplog):
+    listed = [_open_pr(1, updated_at=_FRESH)]
+    memory = _warm_memory(make_config, listed, {1: ("headsha1", _HASH_A)}, _LANDED)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(make_config, updated=listed, fingerprints={}, states=_LANDED, memory=memory)
+
+    # No fingerprint is fetched: a fetch would find no fake result, fail the PR and raise.
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "PR #1: SKIP (decided, cached)" in caplog.text
+    assert "fingerprints: 1 reused from the cache, 0 fetched fresh" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("listed", "rules"),
+    [
+        pytest.param(_open_pr(1, updated_at=_FRESH + timedelta(seconds=1)), _RULES, id="updated-at"),
+        pytest.param(_open_pr(1, head_sha="headsha1-pushed", updated_at=_FRESH), _RULES, id="head"),
+        pytest.param(replace(_open_pr(1, updated_at=_FRESH), head_sha=None), _RULES, id="no-head"),
+        pytest.param(
+            _open_pr(1, updated_at=_FRESH),
+            (*_RULES, merge_authz.compile_rule("newcomer", ["*"], frozenset({"zoe"}))),
+            id="approvers",
+        ),
+    ],
+)
+def test_a_fast_tick_fingerprints_afresh_a_pr_whose_cache_key_changed(make_config, listed, rules):
+    memory = _warm_memory(make_config, [_open_pr(1, updated_at=_FRESH)], {1: ("headsha1", _HASH_A)}, _LANDED)
+
+    scan = _run_scan(
+        make_config,
+        updated=[listed],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states=_LANDED,
+        rules=rules,
+        memory=memory,
+    )
+
+    assert scan.fingerprinted == [1]
+
+
+def test_a_cached_result_that_would_dispatch_is_fingerprinted_afresh_and_dispatched_on_the_fresh_one(make_config):
+    listed = [_open_pr(1, updated_at=_FRESH)]
+    memory = _warm_memory(make_config, listed, {1: ("headsha1", _HASH_A)}, _LANDED)
+
+    # The latest recorded review has since failed and aged out, so the cached result would be retried.
+    scan = _run_scan(
+        make_config,
+        updated=listed,
+        fingerprints={1: ("headsha1", _HASH_B)},
+        states={1: _state(1, STATUS_FAILED, _HASH_A, _OLD)},
+        memory=memory,
+    )
+
+    assert scan.fingerprinted == [1]
+    assert scan.dispatched == [(1, "headsha1", _HASH_B, DEFAULT_DISPATCH_REF)]
+    assert scan.emitted == [(TARGET_REPO, 1, "headsha1", _HASH_B, 1)]
+
+
+@pytest.mark.parametrize(
+    ("age", "reused"),
+    [
+        pytest.param(FINGERPRINT_QUIET, True, id="quiet"),
+        pytest.param(FINGERPRINT_QUIET - timedelta(seconds=1), False, id="too-recent"),
+    ],
+)
+def test_a_fingerprint_is_reused_only_if_its_pr_had_gone_quiet_when_it_was_fetched(make_config, age, reused):
+    listed = [_open_pr(1, updated_at=_NOW - age)]
+    memory = _warm_memory(make_config, listed, {1: ("headsha1", _HASH_A)}, _LANDED)
+
+    scan = _run_scan(
+        make_config, updated=listed, fingerprints={1: ("headsha1", _HASH_A)}, states=_LANDED, memory=memory
+    )
+
+    assert scan.fingerprinted == ([] if reused else [1])
+
+
+def test_a_full_tick_fingerprints_every_pr_afresh_and_the_next_fast_tick_reuses_its_results(make_config, caplog):
+    listed = [_open_pr(1, updated_at=_FRESH)]
+    memory = _warm_memory(make_config, listed, {1: ("headsha1", _HASH_A)}, _LANDED)
+    landed_b = {1: _state(1, STATUS_LAND, _HASH_B, _NEW)}
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        full = _run_scan(
+            make_config,
+            listed=listed,
+            fingerprints={1: ("headsha1", _HASH_B)},
+            states=_LANDED,
+            memory=memory,
+            now=_NOW + FULL_TICK_INTERVAL,
+        )
+
+    # PR1's cached hash matches its recorded LAND, so read it would have settled PR1: the full tick's
+    # fingerprint shows it never read the cache.
+    assert full.listed_calls == 1
+    assert full.fingerprinted == [1]
+    assert "fingerprints: 0 reused from the cache, 1 fetched fresh" in caplog.text
+
+    fast = _run_scan(
+        make_config,
+        updated=listed,
+        fingerprints={},
+        states=landed_b,
+        memory=memory,
+        now=_NOW + FULL_TICK_INTERVAL + timedelta(minutes=1),
+    )
+
+    # The fast tick after it reuses the full tick's hash, the one the recorded LAND then matches.
+    assert fast.updated_calls != []
+    assert fast.fingerprinted == []
+
+
+def test_a_pr_a_tick_did_not_evaluate_loses_its_cached_result(make_config):
+    states = {n: _state(n, STATUS_LAND, _HASH_A, _NEW) for n in (1, 2)}
+    prs = [_open_pr(1, updated_at=_FRESH), _open_pr(2, updated_at=_FRESH)]
+    memory = _warm_memory(make_config, prs, {1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)}, states)
+
+    without_pr2 = _run_scan(make_config, updated=prs[:1], fingerprints={}, states=states, memory=memory)
+    with_pr2 = _run_scan(
+        make_config, updated=prs, fingerprints={2: ("headsha2", _HASH_A)}, states=states, memory=memory
+    )
+
+    # PR2 missed one fast listing, so that tick dropped its result, though PR2 returns listed as it was.
+    assert without_pr2.fingerprinted == []
+    assert with_pr2.fingerprinted == [2]
+
+
+@pytest.mark.parametrize(
+    ("pr", "force"),
+    [pytest.param(5, False, id="pr"), pytest.param(5, True, id="pr-force"), pytest.param(None, True, id="force")],
+)
+def test_the_pr_and_force_paths_neither_read_nor_write_the_cache(make_config, pr, force):
+    states = {n: _state(n, STATUS_LAND, _HASH_A, _NEW) for n in (1, 5)}
+    prs = [_open_pr(1, updated_at=_FRESH), _open_pr(5, updated_at=_FRESH)]
+    fingerprints: dict[int, tuple[str, str] | ReviewSkip] = {1: ("headsha1", _HASH_A), 5: ("headsha5", _HASH_A)}
+    memory = _warm_memory(make_config, prs[:1], fingerprints, states)
+
+    bypass = _run_scan(
+        make_config, pr=pr, force=force, updated=prs, fingerprints=fingerprints, states=states, memory=memory
+    )
+    after = _run_scan(make_config, updated=prs, fingerprints={5: ("headsha5", _HASH_A)}, states=states, memory=memory)
+
+    # The bypassing run fingerprinted PR1 too when it listed it, reading no cached result, and stored
+    # and evicted nothing: the next fast tick still reuses PR1 and still has to fingerprint PR5.
+    assert sorted(bypass.fingerprinted) == ([5] if pr is not None else [1, 5])
+    assert after.fingerprinted == [5]
+
+
+def test_a_scan_without_a_memory_logs_no_fingerprint_cache_counts(make_config, caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        _run_scan(make_config, listed=[_open_pr(1, updated_at=_FRESH)], fingerprints={1: ("headsha1", _HASH_A)})
+
+    assert "fingerprints:" not in caplog.text
+
+
+def test_a_capped_fast_tick_spends_its_dispatch_cap_on_fingerprinted_prs_not_on_cache_hits(make_config):
+    cached = [_open_pr(1, updated_at=_FRESH), _open_pr(2, updated_at=_FRESH)]
+    uncached = [_open_pr(n, updated_at=_FRESH) for n in range(3, 3 + 2 * review._FINGERPRINT_WORKERS)]
+    states = {
+        **{pr.number: _state(pr.number, STATUS_LAND, _HASH_A, _OLD) for pr in cached},
+        **{pr.number: _state(pr.number, STATUS_LAND, _HASH_A, _NEW) for pr in uncached},
+    }
+    cached_fingerprints: dict[int, tuple[str, str] | ReviewSkip] = {
+        pr.number: (f"headsha{pr.number}", _HASH_A) for pr in cached
+    }
+    memory = _warm_memory(make_config, cached, cached_fingerprints, states)
+
+    scan = _run_scan(
+        make_config,
+        updated=[*cached, *uncached],
+        fingerprints={**cached_fingerprints, **{pr.number: (f"headsha{pr.number}", _HASH_B) for pr in uncached}},
+        states=states,
+        max_dispatches=1,
+        memory=memory,
+    )
+
+    # Their older LANDs rank the cached PRs stalest, yet they settle before anything is submitted, so the
+    # first worker-sized batch goes to the changed uncached PRs and the cap of one stops submission there.
+    # Submitted with the rest, PRs 1 and 2 would take two of that batch's slots.
+    assert scan.dispatched == [(3, "headsha3", _HASH_B, DEFAULT_DISPATCH_REF)]
+    assert sorted(scan.fingerprinted) == list(range(3, 3 + review._FINGERPRINT_WORKERS))
+
+
+def test_after_a_rate_limit_a_fast_tick_still_settles_its_cache_hits_and_abandons_the_rest(make_config, caplog):
+    from github import RateLimitExceededException
+
+    memory = _warm_memory(make_config, [_open_pr(1, updated_at=_FRESH)], {1: ("headsha1", _HASH_A)}, _LANDED)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            updated=[
+                _open_pr(1, updated_at=_FRESH),
+                _open_pr(2, updated_at=_FRESH),
+                _open_pr(3, updated_at=_FRESH, labels=("Reverted",)),
+            ],
+            fingerprints={2: ("headsha2", _HASH_A)},
+            states=_LANDED,
+            bot_login="greenlight-app[bot]",
+            dismiss_errors={3: RateLimitExceededException(403)},
+            memory=memory,
+            raises=RuntimeError,
+        )
+
+    # The revert guard's rate limit cancels the fan-out before it starts: PR1 still settles from the
+    # cache, while PR2's fingerprint is abandoned as it would be without one.
+    assert "PR #1: SKIP (decided, cached)" in caplog.text
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "abandoned due to rate limit: [2]" in str(scan.error)
+
+
+def test_a_cached_pr_whose_judgment_raises_is_fingerprinted_afresh_and_the_tick_goes_on(
+    make_config, monkeypatch, caplog
+):
+    listed = [_open_pr(1, updated_at=_FRESH), _open_pr(2, updated_at=_FRESH)]
+    from greenlight.decision import decide as real_decide
+
+    memory = _warm_memory(make_config, listed[:1], {1: ("headsha1", _HASH_A)}, _LANDED)
+
+    def decide_failing_on_the_cached_hash(**kwargs: Any) -> Any:
+        if kwargs["current_eval_hash"] == _HASH_A:
+            raise RuntimeError("decide boom")
+        return real_decide(**kwargs)
+
+    monkeypatch.setattr(scan_runner, "decide", decide_failing_on_the_cached_hash)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            updated=listed,
+            fingerprints={1: ("headsha1", _HASH_B), 2: ("headsha2", _HASH_B)},
+            states=_LANDED,
+            memory=memory,
+        )
+
+    # Judging PR1's cached result raised: the error is logged against PR1, which is fingerprinted afresh
+    # instead of aborting the tick, and both PRs still dispatch.
+    assert "PR #1: failed to judge its cached fingerprint; fingerprinting it afresh" in caplog.text
+    assert sorted(scan.fingerprinted) == [1, 2]
+    assert sorted(number for number, *_ in scan.dispatched) == [1, 2]

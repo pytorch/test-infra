@@ -146,17 +146,17 @@ def candidate_numbers(
     fetch: FetchFn,
     cutoff: datetime | None,
     fetch_updated: FetchUpdatedFn,
-) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, str]]:
-    """Return the candidate PR numbers with their ``updated_at``, labels, and author.
+) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, str], dict[int, str | None]]:
+    """Return the candidate PR numbers with their ``updated_at``, labels, author, and head.
 
     With no ``cutoff`` the listing is full (``fetch``); with one it is fast (``fetch_updated``). The
-    ``--pr`` path has no listing to read labels or an author from, so it returns neither: the one
+    ``--pr`` path has no listing to read labels, an author or a head from, so it returns none: the one
     caller that needs labels (``revert_guard``) fetches that single PR's, and the PR's author and
     authority come from its gate.
     """
     if pr is not None:
         logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
-        return [pr], {}, {}, {}
+        return [pr], {}, {}, {}, {}
     if cutoff is None:
         open_prs = fetch(client, authors)
         tick = "full tick"
@@ -171,4 +171,5 @@ def candidate_numbers(
         {open_pr.number: open_pr.updated_at for open_pr in open_prs},
         {open_pr.number: open_pr.labels for open_pr in open_prs},
         {open_pr.number: open_pr.author for open_pr in open_prs},
+        {open_pr.number: open_pr.head_sha for open_pr in open_prs},
     )

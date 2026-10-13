@@ -10,7 +10,7 @@ The same fetch keeps every rule as a ``MergeRule``: its approvers in exact case 
 patterns compiled with trymerge's own semantics, so a rule can be asked whether it covers all of
 a PR's files (``changed_files``) the way trymerge asks at land time.
 
-``AuthorizedLoginsCache`` owns the only cross-scan state: it fetches lazily, serves a
+``AuthorizedLoginsCache`` caches the resolved approver set and rules: it fetches lazily, serves a
 cached snapshot for ``ttl_seconds``, and on a refresh failure serves the last good snapshot
 rather than failing a scan over a transient merge_rules/GitHub hiccup. A cold failure (never
 fetched successfully) has no snapshot to fall back to and propagates.
