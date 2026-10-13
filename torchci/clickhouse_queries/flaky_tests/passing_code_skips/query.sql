@@ -34,7 +34,9 @@ FROM
                     r.num_red AS num_red
                 FROM
                     default.rerun_disabled_code_skips AS r
-                    LEFT JOIN default.workflow_run AS w FINAL ON r.workflow_id = w.id
+                LEFT JOIN
+                    default.workflow_run AS w FINAL
+                    ON r.workflow_id = w.id
                 WHERE
                     w.created_at > CURRENT_TIMESTAMP() - INTERVAL 7 DAY
             )
