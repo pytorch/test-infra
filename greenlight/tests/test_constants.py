@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 
 from greenlight import constants
@@ -45,6 +47,11 @@ def test_scanner_groupings_partition_verdict_statuses():
     total = len(constants.TERMINAL_STATUSES) + len(constants.IN_FLIGHT_STATUSES) + len(constants.RETRY_STATUSES)
     assert total == len(union)
     assert union - constants.SCAN_ONLY_STATUSES == constants.VERDICT_STATUSES
+
+
+def test_a_full_tick_is_due_fifteen_minutes_on_less_thirty_seconds_of_tolerance():
+    assert timedelta(minutes=15) == constants.FULL_TICK_INTERVAL
+    assert timedelta(seconds=30) == constants.FULL_TICK_TOLERANCE
 
 
 def test_s3_key_prefix_value():

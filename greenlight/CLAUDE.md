@@ -63,13 +63,23 @@ PyTorch Green Light has one unit of work — the `review` phase:
   (cancelled/failed) review, and skipping — without fingerprinting or dispatching — any PR a human
   has already decided (approved by a `merge_rules.yaml` approver, bots excluded, or changes
   requested by any non-bot reviewer).
+  The listing alternates per process (`pr_listing`, `scan_memory`): a full tick lists every open
+  PR, on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
+  `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed
+  (its listing and fingerprint fan-out finished without a rate-limit abort and without reaching the
+  `--max` dispatch cap); the fast ticks between list the PRs updated inside the review window plus
+  every open `Reverted`-labelled PR. A PR whose place in GitHub's updated order lags its
+  `updated_at`, and an idle PR reverted only by its recorded row, wait for the next full tick; so
+  does a PR idle longer than the review window whose review is unfinished: a failed, cancelled or
+  stuck one is retried at the first full tick after its 45-minute timer, and an in-flight one whose
+  fingerprint changed without bumping `updated_at` is re-dispatched there.
   Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (PR write, for the revocation), `BOT_LOGIN`, and
   `CLICKHOUSE_*` read access.
 
 `cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. The
 author must be named by a merge rule that covers every file the PR changes, a path-scoped rule only
 on a PR based on `main` or on a ghstack PR; the scan and the verdict (`verdict.has_covering_rule`) run
-this same check. Any other non-draft PR is listed, state-read and revert-guarded but never dispatched;
+this same check. Any other non-draft PR the scan lists is state-read and revert-guarded but never dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
 record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
@@ -118,7 +128,8 @@ cannot reach.
 In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda: it runs
 the one-shot path with no single-instance lock and both hang-guard layers off
 (`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
-relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead.
+relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. A warm Lambda
+keeps the scan's tick memory between invocations; a CLI one-shot always lists in full.
 
 ## Comments
 

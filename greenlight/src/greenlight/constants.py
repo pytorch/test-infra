@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -89,6 +90,11 @@ DISPATCH_REPO = "pytorch/test-infra"
 WORKFLOW_FILE = "greenlight-pr-review.yml"
 DEFAULT_DISPATCH_REF = "main"
 DEFAULT_TIMEOUT_MINUTES = 45
+
+FULL_TICK_INTERVAL = timedelta(minutes=15)
+# A tick scheduled one interval after a full tick can start slightly early; the tolerance keeps it a
+# full tick instead of pushing the full listing back a whole schedule period.
+FULL_TICK_TOLERANCE = timedelta(seconds=30)
 
 MERGE_RULES_PATH = ".github/merge_rules.yaml"
 

@@ -23,11 +23,16 @@ from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
 from greenlight.log import configure_logging
 from greenlight.runner import execute_once, run_forever
+from greenlight.scan_memory import ScanMemory
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 logger = logging.getLogger(__name__)
+
+# Held at module level so it outlives main(): the Lambda handler calls main() once per tick, and a
+# warm execution environment keeps this module loaded between ticks.
+_SCAN_MEMORY = ScanMemory()
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -290,5 +295,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         allow_untrusted_author=args.allow_untrusted_author,
         bot_login=bot_login,
         resolve_merge_rules=authorized_cache.snapshot,
+        memory=None if args.pr is not None else _SCAN_MEMORY,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

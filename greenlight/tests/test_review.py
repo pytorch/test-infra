@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import logging
 import queue
 import threading
@@ -15,6 +16,7 @@ from greenlight import (
     cohort,
     drci_poke,
     github_client,
+    ineligible_approvals,
     merge_authz,
     revert_guard,
     review,
@@ -25,6 +27,8 @@ from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
+    FULL_TICK_INTERVAL,
+    FULL_TICK_TOLERANCE,
     STATUS_AI_REVIEW_STARTED,
     STATUS_CANCELLED,
     STATUS_FAILED,
@@ -33,9 +37,10 @@ from greenlight.constants import (
     STATUS_REVERTED,
     TARGET_REPO,
 )
-from greenlight.github_client import OpenPR
 from greenlight.guards import IterationTimeout
+from greenlight.pr_listing import OpenPR
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
+from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
 
 if TYPE_CHECKING:
@@ -219,6 +224,7 @@ class _Scan:
     dispatch_shadow: list[tuple[int, bool]]
     emit_shadow: list[tuple[int, bool]]
     reverted_shadow: list[tuple[int, bool]]
+    updated_calls: list[datetime]
     error: Exception | None
 
 
@@ -249,6 +255,11 @@ def _run_scan(
     dismissed_ids: dict[int, list[int]] | None = None,
     dismiss_errors: dict[int, Exception] | None = None,
     raises: type[Exception] | None = None,
+    memory: ScanMemory | None = None,
+    updated: Sequence[OpenPR] = (),
+    listing_error: Exception | None = None,
+    clock: Callable[[], datetime] | None = None,
+    fingerprint_errors: dict[int, BaseException] | None = None,
 ) -> _Scan:
     states = states or {}
     files = files or {}
@@ -279,16 +290,29 @@ def _run_scan(
     dispatch_shadow: list[tuple[int, bool]] = []
     emit_shadow: list[tuple[int, bool]] = []
     reverted_shadow: list[tuple[int, bool]] = []
+    updated_calls: list[datetime] = []
 
     def fake_fetch(_client, authors):
         listed_calls.append(1)
         listed_authors.append(authors)
+        if listing_error is not None:
+            raise listing_error
         return list(listed)
+
+    def fake_fetch_updated(_client, authors, cutoff):
+        updated_calls.append(cutoff)
+        listed_authors.append(authors)
+        if listing_error is not None:
+            raise listing_error
+        return list(updated)
 
     def fake_fingerprint(_client, number, authorized_logins, skip_on_approval):
         fingerprinted.append(number)
         authorized_seen.append(authorized_logins)
         skip_on_approval_seen.append(skip_on_approval)
+        error = (fingerprint_errors or {}).get(number)
+        if error is not None:
+            raise error
         return fingerprints[number]
 
     def fake_read_state(repo, numbers):
@@ -366,6 +390,7 @@ def _run_scan(
             bot_login=bot_login,
             build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=fake_fetch,
+            fetch_updated=fake_fetch_updated,
             fetch_labels=fake_fetch_labels,
             fingerprint=fake_fingerprint,
             read_state=fake_read_state,
@@ -378,7 +403,8 @@ def _run_scan(
             dismiss_approvals=fake_dismiss,
             upsert_comment=fake_upsert,
             resolve_merge_rules=fake_resolve_merge_rules,
-            now=lambda: now,
+            now=clock or (lambda: now),
+            memory=memory,
         )
 
     # A pass that must fail is still observed: every fake has recorded into the lists by the time
@@ -412,6 +438,7 @@ def _run_scan(
         dispatch_shadow=dispatch_shadow,
         emit_shadow=emit_shadow,
         reverted_shadow=reverted_shadow,
+        updated_calls=updated_calls,
         error=error,
     )
 
@@ -2036,28 +2063,6 @@ def test_run_resolves_the_rules_once_and_threads_the_authorized_set_to_fingerpri
     assert scan.authorized_seen == [_AUTHORIZED] * 3
 
 
-def test_default_fetch_forwards_the_cohort_to_list_open_prs(monkeypatch):
-    captured: dict[str, object] = {}
-    expected = [_open_pr(1)]
-
-    def fake_list(client, repo, authors):
-        captured["client"] = client
-        captured["repo"] = repo
-        captured["authors"] = set(authors)
-        return expected
-
-    monkeypatch.setattr(github_client, "list_open_prs_by_authors", fake_list)
-
-    result = review._default_fetch(_CLIENT, frozenset({"alice", "bob"}))
-
-    assert result is expected
-    assert captured["client"] is _CLIENT
-    assert captured["repo"] == TARGET_REPO
-    # The author set is the caller's, not a module constant: the listing follows whatever author set
-    # the scan resolved for this pass.
-    assert captured["authors"] == {"alice", "bob"}
-
-
 def test_default_fingerprint_forwards_to_fingerprint_pr(monkeypatch):
     captured: dict[str, object] = {}
 
@@ -2612,7 +2617,7 @@ def test_an_ineligible_pr_whose_latest_row_is_a_land_has_greenlights_approval_di
 
     # The approval greenlight gave while the PR was eligible would still authorize a merge, and no
     # review is dispatched that could revoke it, so the scan dismisses it itself and does nothing else.
-    assert scan.dismissals == [(1, "greenlight-app[bot]", review._NO_LONGER_ELIGIBLE_MESSAGE)]
+    assert scan.dismissals == [(1, "greenlight-app[bot]", ineligible_approvals._NO_LONGER_ELIGIBLE_MESSAGE)]
     assert "dismissed 1 greenlight approval(s) on PR #1, which is no longer eligible" in caplog.text
     assert scan.fingerprinted == []
     assert scan.dispatched == []
@@ -2763,7 +2768,7 @@ def test_an_iteration_timeout_during_a_dismissal_halts_the_pass_instead_of_faili
         raises=IterationTimeout,
     )
 
-    assert scan.dismissals == [(1, "greenlight-app[bot]", review._NO_LONGER_ELIGIBLE_MESSAGE)]
+    assert scan.dismissals == [(1, "greenlight-app[bot]", ineligible_approvals._NO_LONGER_ELIGIBLE_MESSAGE)]
     assert scan.fingerprinted == []
 
 
@@ -2773,5 +2778,259 @@ def test_a_land_whose_approval_is_already_gone_is_asked_again_and_logs_nothing(m
 
     # No row records the dismissal, so every scan that lists the PR asks again; finding no live
     # approval is not worth a log line.
-    assert scan.dismissals == [(1, "greenlight-app[bot]", review._NO_LONGER_ELIGIBLE_MESSAGE)]
+    assert scan.dismissals == [(1, "greenlight-app[bot]", ineligible_approvals._NO_LONGER_ELIGIBLE_MESSAGE)]
     assert "dismissed" not in caplog.text
+
+
+def _marked_memory(at: datetime) -> ScanMemory:
+    memory = ScanMemory()
+    memory.mark_full_tick(at)
+    return memory
+
+
+def test_a_scan_with_no_memory_lists_in_full(make_config):
+    scan = _run_scan(make_config, listed=[_open_pr(1)], fingerprints={1: ("headsha1", _HASH_A)})
+
+    assert scan.listed_calls == 1
+    assert scan.updated_calls == []
+
+
+def test_a_cold_memory_lists_in_full_and_marks_the_tick_at_its_listing_time(make_config):
+    memory = ScanMemory()
+
+    scan = _run_scan(make_config, listed=[_open_pr(1)], fingerprints={1: ("headsha1", _HASH_A)}, memory=memory)
+
+    assert scan.listed_calls == 1
+    assert scan.updated_calls == []
+    assert not memory.full_tick_due(_NOW + FULL_TICK_INTERVAL - FULL_TICK_TOLERANCE - timedelta(seconds=1))
+    assert memory.full_tick_due(_NOW + FULL_TICK_INTERVAL - FULL_TICK_TOLERANCE)
+
+
+def test_a_tick_inside_the_interval_lists_only_recent_prs_and_leaves_the_mark_alone(make_config, caplog):
+    memory = _marked_memory(_NOW - timedelta(minutes=5))
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            listed=[_open_pr(1), _open_pr(2)],
+            updated=[_open_pr(2, updated_at=_FRESH)],
+            fingerprints={2: ("headsha2", _HASH_A)},
+            memory=memory,
+        )
+
+    # The cutoff is the review window back from the listing time, and the fast listing's result is
+    # all the state read and the fan-out see.
+    assert scan.listed_calls == 0
+    assert scan.updated_calls == [_NOW - timedelta(hours=24)]
+    assert scan.read_calls == [(TARGET_REPO, [2])]
+    assert scan.fingerprinted == [2]
+    assert "fast tick, updated since 2026-07-30 12:00:00 UTC" in caplog.text
+    # A fast tick leaves the last full tick's mark alone.
+    assert memory.full_tick_due(_NOW + timedelta(minutes=10))
+
+
+def test_the_fast_listing_cutoff_follows_the_configured_review_window(make_config):
+    scan = _run_scan(
+        make_config,
+        fingerprints={},
+        config_kwargs={"review_window_hours": 6.0},
+        memory=_marked_memory(_NOW - timedelta(minutes=1)),
+    )
+
+    assert scan.updated_calls == [_NOW - timedelta(hours=6)]
+
+
+def test_a_tick_once_the_interval_has_passed_lists_in_full_again(make_config):
+    memory = _marked_memory(_NOW - FULL_TICK_INTERVAL)
+
+    scan = _run_scan(make_config, listed=[_open_pr(1)], fingerprints={1: ("headsha1", _HASH_A)}, memory=memory)
+
+    assert scan.listed_calls == 1
+    assert scan.updated_calls == []
+    assert not memory.full_tick_due(_NOW + timedelta(minutes=14))
+
+
+def test_a_full_tick_is_marked_even_when_a_pr_fails_and_the_scan_raises(make_config):
+    memory = ScanMemory()
+
+    # PR2 has no fingerprint, so its evaluation fails and the pass raises after the dispatch phase.
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        memory=memory,
+        raises=RuntimeError,
+    )
+
+    assert "1 PR(s) failed during scan: [2]" in str(scan.error)
+    assert [number for number, *_ in scan.dispatched] == [1]
+    assert not memory.full_tick_due(_NOW)
+
+
+def test_a_full_tick_is_not_marked_when_its_listing_fails(make_config):
+    memory = ScanMemory()
+
+    scan = _run_scan(
+        make_config, fingerprints={}, memory=memory, listing_error=RuntimeError("listing boom"), raises=RuntimeError
+    )
+
+    assert "listing boom" in str(scan.error)
+    assert memory.full_tick_due(_NOW)
+
+
+def test_a_full_tick_is_not_marked_after_a_rate_limit(make_config):
+    from github import RateLimitExceededException
+
+    memory = ScanMemory()
+
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",)), _open_pr(2, updated_at=_NEW)],
+        fingerprints={2: ("headsha2", _HASH_A)},
+        bot_login="greenlight-app[bot]",
+        dismiss_errors={1: RateLimitExceededException(403)},
+        memory=memory,
+        raises=RuntimeError,
+    )
+
+    assert "abandoned due to rate limit: [2]" in str(scan.error)
+    assert memory.full_tick_due(_NOW)
+
+
+def test_a_fast_tick_listing_failure_fails_the_scan(make_config):
+    memory = _marked_memory(_NOW - timedelta(minutes=5))
+
+    scan = _run_scan(
+        make_config, fingerprints={}, memory=memory, listing_error=RuntimeError("listing boom"), raises=RuntimeError
+    )
+
+    assert "listing boom" in str(scan.error)
+    assert scan.read_calls == []
+
+
+def test_the_pr_path_neither_lists_nor_marks_a_memory_it_is_handed(make_config):
+    memory = ScanMemory()
+
+    scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, memory=memory)
+
+    assert scan.listed_calls == 0
+    assert scan.updated_calls == []
+    assert memory.full_tick_due(_NOW)
+
+
+def _advancing_clock(start: datetime, step: timedelta) -> Callable[[], datetime]:
+    readings = itertools.count()
+    return lambda: start + step * next(readings)
+
+
+def test_a_full_tick_is_marked_at_the_instant_read_before_its_listing(make_config):
+    memory = ScanMemory()
+
+    _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        memory=memory,
+        clock=_advancing_clock(_NOW, timedelta(minutes=1)),
+    )
+
+    # The scan reads the clock before the listing (_NOW) and again for the window filter a minute
+    # later; coming due exactly one interval, less the tolerance, after _NOW pins the mark to the first.
+    due_at = _NOW + FULL_TICK_INTERVAL - FULL_TICK_TOLERANCE
+    assert memory.full_tick_due(due_at)
+    assert not memory.full_tick_due(due_at - timedelta(microseconds=1))
+
+
+def test_a_fast_tick_cuts_off_at_its_listing_instant_and_the_window_filter_reads_a_later_one(make_config, caplog):
+    # Updated 30 s inside the listing's cutoff, so the fast listing keeps it, but outside the window by
+    # the time the window filter reads the clock a minute later.
+    edge = _NOW - timedelta(hours=24) + timedelta(seconds=30)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config,
+            updated=[_open_pr(4, updated_at=edge)],
+            fingerprints={4: ("headsha4", _HASH_A)},
+            memory=_marked_memory(_NOW - timedelta(minutes=5)),
+            clock=_advancing_clock(_NOW, timedelta(minutes=1)),
+        )
+
+    assert scan.updated_calls == [_NOW - timedelta(hours=24)]
+    assert scan.read_calls == [(TARGET_REPO, [4])]
+    assert scan.fingerprinted == []
+    assert "skipping stale PR #4: no recent activity (never reviewed)" in caplog.text
+
+
+def test_a_fast_tick_lists_for_the_evaluation_cohort(make_config):
+    rules = _catch_all("Alice", "bob", "pytorchbot", cohort.GREENLIGHT_APP_SLUG)
+
+    scan = _run_scan(make_config, fingerprints={}, rules=rules, memory=_marked_memory(_NOW - timedelta(minutes=5)))
+
+    assert scan.listed_calls == 0
+    assert scan.listed_authors == [frozenset({"alice", "bob"})]
+
+
+def test_a_fast_tick_revokes_and_records_an_idle_reverted_pr_its_supplement_listed(make_config):
+    scan = _run_scan(
+        make_config,
+        updated=[_open_pr(3, updated_at=_OLD, labels=("Reverted",)), _open_pr(4, updated_at=_FRESH)],
+        fingerprints={4: ("headsha4", _HASH_A)},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={3: [901]},
+        memory=_marked_memory(_NOW - timedelta(minutes=5)),
+    )
+
+    # PR3 is outside the review window, so only the Reverted supplement lists it on a fast tick; the
+    # revert guard still revokes greenlight's approval and records the exclusion.
+    assert scan.listed_calls == 0
+    assert scan.dismissals == [(3, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
+    assert scan.reverted_emitted == [(TARGET_REPO, 3, "headsha3", 1)]
+    assert scan.fingerprinted == [4]
+    assert [number for number, *_ in scan.dispatched] == [4]
+
+
+def test_a_full_tick_is_not_marked_when_its_fan_out_times_out(make_config):
+    memory = ScanMemory()
+
+    _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={},
+        fingerprint_errors={1: IterationTimeout("iteration exceeded")},
+        memory=memory,
+        raises=IterationTimeout,
+    )
+
+    assert memory.full_tick_due(_NOW)
+
+
+@pytest.mark.parametrize("max_dispatches", [0, 1])
+def test_a_full_tick_the_dispatch_cap_cut_short_is_not_marked(make_config, max_dispatches):
+    memory = ScanMemory()
+
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+        max_dispatches=max_dispatches,
+        memory=memory,
+    )
+
+    # PRs past the cap are never fingerprinted, so the next tick lists in full again.
+    assert len(scan.dispatched) == max_dispatches
+    assert memory.full_tick_due(_NOW)
+
+
+def test_a_full_tick_under_the_dispatch_cap_is_marked(make_config):
+    memory = ScanMemory()
+
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
+        max_dispatches=3,
+        memory=memory,
+    )
+
+    assert len(scan.dispatched) == 2
+    assert not memory.full_tick_due(_NOW)

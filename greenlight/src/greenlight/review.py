@@ -11,10 +11,13 @@ A PR whose files read failed or was skipped stays undetermined: never dismissed,
 The ``shadow`` stamp marks an ineligible ``--pr`` target reviewed under the local-only
 ``--allow-untrusted-author`` -- never approved, never rendered, no Dr. CI poke -- and the REVERTED
 row of an ineligible PR with no recorded row; on a recorded PR the REVERTED row is always
-non-shadow, since it can only deny. State is re-read from ClickHouse every scan, so the one-shot and
-``--loop`` paths behave identically -- nothing is remembered in memory between scans. All GitHub,
-ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable without any
-of them.
+non-shadow, since it can only deny. State is re-read from ClickHouse every scan. ``memory`` decides
+how much a listing scan lists: a full tick lists every open PR, on every tick until one completes,
+and again ``FULL_TICK_INTERVAL`` (less ``FULL_TICK_TOLERANCE``) after the start of the last full
+tick that completed; the fast ticks in between list the recently updated PRs plus the open
+Reverted-labelled ones (``pr_listing``). ``memory=None`` makes every tick full. All GitHub,
+ClickHouse, and dispatch I/O sits behind injectable keyword seams so the loop is testable without
+any of them.
 
 Both authz gates (``authz_gates``) run once the merge rules resolve.
 
@@ -47,28 +50,22 @@ from greenlight import candidate_filter, cohort, drci_poke, github_client, rever
 from greenlight import dispatch as dispatch_module
 from greenlight.authority import Authority, Target
 from greenlight.authz_gates import admit_target, requester_allowed
-from greenlight.constants import (
-    BOT_LOGIN_SUFFIX,
-    DEFAULT_DISPATCH_REF,
-    DEFAULT_TIMEOUT_MINUTES,
-    EXCLUDED_LABELS,
-    STATUS_LAND,
-    TARGET_REPO,
-    is_app_login,
-)
-from greenlight.guards import IterationTimeout
+from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, EXCLUDED_LABELS, TARGET_REPO
+from greenlight.ineligible_approvals import revoke_ineligible_approvals
+from greenlight.pr_listing import candidate_numbers, default_fetch, default_fetch_updated
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
+    from collections.abc import Callable, Sequence
     from typing import Protocol
 
     from github import Github
 
     from greenlight.config import Config
-    from greenlight.github_client import OpenPR
     from greenlight.github_types import VerdictPR
     from greenlight.merge_authz import MergeRulesSnapshot
+    from greenlight.pr_listing import FetchFn, FetchUpdatedFn
     from greenlight.review_gate import ReviewSkip
+    from greenlight.scan_memory import ScanMemory
     from greenlight.scan_runner import DispatchFn, FingerprintFn
     from greenlight.state import PRState
 
@@ -86,21 +83,12 @@ logger = logging.getLogger(__name__)
 _FINGERPRINT_WORKERS = 4
 _FINGERPRINT_SECONDS_BETWEEN_REQUESTS = 0.5
 
-_NO_LONGER_ELIGIBLE_MESSAGE = (
-    "This pull request is no longer eligible for a greenlight review under merge_rules.yaml; "
-    "greenlight's approval no longer applies."
-)
-
 
 def _utcnow() -> datetime:
     # Naive UTC to match the version column: state.read_latest_states normalizes every
     # version to naive UTC on read, and decision.decide subtracts the two, which would
     # raise if either operand were tz-aware.
     return datetime.now(UTC).replace(tzinfo=None)
-
-
-def _default_fetch(client: Github, authors: frozenset[str]) -> list[OpenPR]:
-    return github_client.list_open_prs_by_authors(client, TARGET_REPO, authors)
 
 
 def _default_fingerprint(
@@ -118,86 +106,6 @@ def _default_fingerprint(
     )
 
 
-def _candidate_numbers(
-    client: Github,
-    *,
-    pr: int | None,
-    fetch: Callable[[Github, frozenset[str]], list[OpenPR]],
-    authors: frozenset[str],
-) -> tuple[list[int], dict[int, datetime | None], dict[int, tuple[str, ...]], dict[int, str]]:
-    """Return the candidate PR numbers with their ``updated_at``, labels, and author.
-
-    The ``--pr`` path has no listing to read labels or an author from, so it returns neither: the one
-    caller that needs labels (``revert_guard``) fetches that single PR's, and the PR's author and
-    authority come from its gate.
-    """
-    if pr is not None:
-        logger.info("targeting single PR #%d in %s", pr, TARGET_REPO)
-        return [pr], {}, {}, {}
-    open_prs = fetch(client, authors)
-    logger.info("found %d open PR(s) from %d author(s) in %s", len(open_prs), len(authors), TARGET_REPO)
-    for open_pr in open_prs:
-        logger.debug("open PR #%d by %s: %s (%s)", open_pr.number, open_pr.author, open_pr.title, open_pr.url)
-    return (
-        [open_pr.number for open_pr in open_prs],
-        {open_pr.number: open_pr.updated_at for open_pr in open_prs},
-        {open_pr.number: open_pr.labels for open_pr in open_prs},
-        {open_pr.number: open_pr.author for open_pr in open_prs},
-    )
-
-
-def _revoke_ineligible_approvals(
-    client: Github,
-    ineligible: Sequence[int],
-    *,
-    states: Mapping[int, PRState],
-    bot_login: str,
-    get_pr: Callable[[Github, str, int], VerdictPR],
-    dismiss: Callable[..., list[int]],
-    failed: list[int],
-    cancel_event: threading.Event,
-) -> None:
-    """Dismiss greenlight's approval on each PR in ``ineligible`` whose latest recorded row is a LAND.
-
-    Under merge_rules.yaml's wildcard Greenlight Review Bot rule, an approval greenlight gave while the
-    PR was eligible still authorizes a merge, and the scan dispatches no review that would revoke it.
-    Nothing is recorded, dispatched or poked. A failure is accounted as the revert guard accounts its
-    own: a rate limit trips ``cancel_event``, and the PR fails the pass.
-    """
-    due = [number for number in ineligible if (row := states.get(number)) is not None and row.status == STATUS_LAND]
-    if not due:
-        return
-    # As in revert_guard: an empty or non-App login matches no review, so it would dismiss nothing
-    # while reporting success.
-    if not is_app_login(bot_login):
-        raise ValueError(
-            f"BOT_LOGIN must be the greenlight App login (<app-slug>{BOT_LOGIN_SUFFIX}) to revoke approvals "
-            f"on PR(s) no longer eligible {due}; got {bot_login!r}"
-        )
-    for number in due:
-        try:
-            dismissed = dismiss(
-                get_pr(client, TARGET_REPO, number), bot_login=bot_login, message=_NO_LONGER_ELIGIBLE_MESSAGE
-            )
-        except IterationTimeout:
-            raise
-        except Exception as exc:
-            if github_client.is_rate_limit_error(exc):
-                cancel_event.set()
-            logger.error(
-                "failed to revoke greenlight approval on PR #%d, which is no longer eligible: %s",
-                number,
-                exc,
-                exc_info=True,
-            )
-            failed.append(number)
-            continue
-        if dismissed:
-            logger.info(
-                "dismissed %d greenlight approval(s) on PR #%d, which is no longer eligible", len(dismissed), number
-            )
-
-
 def run(
     config: Config,
     *,
@@ -210,7 +118,8 @@ def run(
     allow_untrusted_author: bool = False,
     bot_login: str = "",
     build_github: _BuildClient = github_client.build_client,
-    fetch: Callable[[Github, frozenset[str]], list[OpenPR]] = _default_fetch,
+    fetch: FetchFn = default_fetch,
+    fetch_updated: FetchUpdatedFn = default_fetch_updated,
     fetch_labels: Callable[[Github, str, int], tuple[str, ...]] = revert_guard.fetch_pr_labels,
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
@@ -224,6 +133,7 @@ def run(
     upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
     resolve_merge_rules: Callable[[], MergeRulesSnapshot],
     now: Callable[[], datetime] = _utcnow,
+    memory: ScanMemory | None = None,
 ) -> None:
     logger.info("reviewing evaluation-cohort PRs in %s", TARGET_REPO)
     logger.debug("greenlight config: %r", config)
@@ -252,8 +162,16 @@ def run(
             if target is None:
                 return
         logger.info("filtering fingerprint comments to %d merge-authorized login(s)", len(authorized_logins))
-        pr_numbers, updated_at_by_number, labels_by_number, authors_by_number = _candidate_numbers(
-            client, pr=pr, fetch=fetch, authors=evaluable
+        window = timedelta(hours=config.review_window_hours)
+        listed_at = now()
+        full_tick = memory is None or memory.full_tick_due(listed_at)
+        pr_numbers, updated_at_by_number, labels_by_number, authors_by_number = candidate_numbers(
+            client,
+            pr=pr,
+            authors=evaluable,
+            fetch=fetch,
+            cutoff=None if full_tick else listed_at - window,
+            fetch_updated=fetch_updated,
         )
         states = read_state(TARGET_REPO, pr_numbers)
         evaluated_at = now()
@@ -317,11 +235,11 @@ def run(
                 states,
                 candidate_filter.labeled_with(labels_by_number, EXCLUDED_LABELS),
                 now=evaluated_at,
-                window=timedelta(hours=config.review_window_hours),
+                window=window,
             )
             fingerprint_numbers = [number for number in recent if not authority.shadow(number)]
             undetermined = authority.undetermined
-            _revoke_ineligible_approvals(
+            revoke_ineligible_approvals(
                 client,
                 [number for number in recent if authority.shadow(number) and number not in undetermined],
                 states=states,
@@ -379,6 +297,7 @@ def run(
                 force=force,
                 cancel_event=cancel_event,
             )
+        capped = max_dispatches is not None and len(pending) >= max(0, max_dispatches)
         pending = authority.dispatchable(pending)
         dispatch_failed: list[int] = []
         if cancel_event.is_set():
@@ -394,6 +313,11 @@ def run(
                 len(pending),
             )
         else:
+            # Marked before the per-PR failures below can raise: one failing PR must not hold every
+            # later tick to a full listing. A capped tick is not marked: the PRs past the cap were
+            # never fingerprinted.
+            if full_tick and memory is not None and pr is None and not capped:
+                memory.mark_full_tick(listed_at)
             dispatch_failed = scan_runner._dispatch_pending(
                 client,
                 pending,

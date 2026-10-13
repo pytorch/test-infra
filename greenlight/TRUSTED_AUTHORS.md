@@ -1,9 +1,11 @@
 # Trusted authors
 
-greenlight lists every open PR from the evaluation cohort (see the README's "Who is evaluated, and
-whose verdict carries authority") but reviews only those whose author is eligible for them, and only
-an eligible author's review carries authority: only it can approve the PR, render in Dr. CI, or
-satisfy the land-time merge gate. For a listed PR whose author is not eligible for it, Dr. CI says
+greenlight lists the open PRs from the evaluation cohort — every one on a full tick; on a fast tick,
+the recently updated ones plus the open `Reverted`-labelled ones (see the README's "Usage" and "Who
+is evaluated, and whose verdict carries authority") — but reviews only those whose author is
+eligible for them, and only an eligible author's review carries authority: only it can approve the
+PR, render in Dr. CI, or satisfy the land-time merge gate. For a listed PR whose author is not
+eligible for it, Dr. CI says
 its changes can't be reviewed due to `merge_rules.yaml` restrictions, or are too big to review when
 the PR is oversized. Either line also replaces a greenlight verdict on an older commit, but never
 one on the PR's current head; in every other case — an eligible author's PR that is not oversized,
