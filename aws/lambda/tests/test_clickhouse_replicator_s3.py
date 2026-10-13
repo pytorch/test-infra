@@ -442,7 +442,7 @@ def test_the_prefix_routes_are_unchanged():
 ID_DEFAULTS = [
     ("tests", "tests_id(repo, file, language)"),
     ("environments", "environments_id(os, device_count)"),
-    ("flags", "flags_id(flags)"),
+    ("env_vars", "env_vars_id(env_vars)"),
 ]
 ID_LOOKUP = "from system.columns"
 
@@ -487,7 +487,7 @@ def test_the_catalogs_are_written_before_runs():
     assert targets == [
         "fortesting.tests",
         "fortesting.environments",
-        "fortesting.flags",
+        "fortesting.env_vars",
         "fortesting.runs",
     ]
 
@@ -505,13 +505,16 @@ def test_only_runs_carries_the_deduplication_token():
 
 
 def test_the_catalogs_only_take_unseen_ids():
-    tests, environments, flags, _ = run_test_reports_adapter("on")
-    assert "where test_id not in (select id from fortesting.tests final)" in tests
+    tests, environments, env_vars, _ = run_test_reports_adapter("on")
+    assert "where tests_id not in (select id from fortesting.tests final)" in tests
     assert (
-        "where env_id not in (select id from fortesting.environments final)"
+        "where environments_id not in (select id from fortesting.environments final)"
         in environments
     )
-    assert "where flags_id not in (select id from fortesting.flags final)" in flags
+    assert (
+        "where env_vars_id not in (select id from fortesting.env_vars final)"
+        in env_vars
+    )
 
 
 def test_a_failed_statement_is_logged_and_nothing_after_it_runs():
@@ -533,7 +536,7 @@ def test_dry_mode_counts_and_writes_nothing(capsys):
     assert [line.split(":")[1].strip() for line in printed] == [
         "tests",
         "environments",
-        "flags",
+        "env_vars",
         "runs",
     ]
     assert all(" 7 rows in " in line for line in printed)
@@ -550,9 +553,9 @@ def test_the_ids_are_the_catalogs_own_defaults(mode):
     # runs' ids are whatever the catalogs' id DEFAULTs say, so the lambda holds
     # no id logic of its own.
     for sql in run_test_reports_adapter(mode):
-        assert "tests_id(repo, file, language) AS test_id" in sql
-        assert "environments_id(os, device_count) AS env_id" in sql
-        assert "flags_id(flags) AS flags_id" in sql
+        assert "tests_id(repo, file, language) AS tests_id" in sql
+        assert "environments_id(os, device_count) AS environments_id" in sql
+        assert "env_vars_id(env_vars) AS env_vars_id" in sql
         assert "sipHash64" not in sql
 
 
@@ -562,7 +565,7 @@ def test_a_missing_id_default_is_logged_and_nothing_runs(mode):
     assert [insert_target(sql) for sql in queries] == ["errors.gen_errors"]
     suffix = " (dry run)" if mode == "dry" else ""
     assert f'"table": "fortesting.runs ids{suffix}"' in queries[0]
-    assert "no id DEFAULT in fortesting: flags" in queries[0]
+    assert "no id DEFAULT in fortesting: env_vars" in queries[0]
 
 
 def test_the_language_comes_from_each_run_line():
@@ -585,16 +588,20 @@ def test_runs_take_the_report_uuid_from_the_report_line():
     assert "github_workflow_job_id, report_uuid, rerun_number" in runs
 
 
-def test_runs_leave_properties_to_its_default():
-    # Until what goes in runs.properties is decided, nothing writes it.
+def test_runs_write_no_properties():
+    # runs has no properties column; the report's properties are not ingested.
     *_, runs = run_test_reports_adapter("on")
     assert "started_at, ended_at) settings" in runs
     assert not any("properties" in sql for sql in run_test_reports_adapter("on"))
 
 
-def test_only_set_flags_are_stored_and_hashed():
-    # flags drops off ('0') and unset ('') entries, so the stored map and
-    # flags_id both come from the filtered map.
+def test_only_set_env_vars_are_stored_and_hashed():
+    # The report's flags become env_vars without off ('0') and unset ('')
+    # entries, so the stored map and env_vars_id both come from the filtered map.
     for sql in run_test_reports_adapter("on"):
         assert "mapFilter((k, v) -> v NOT IN ('0', '')," in sql
-        assert "flags_id(flags) AS flags_id" in sql
+        assert (
+            "JSONExtract(report_line, 'flags', 'Map(String, String)')) AS env_vars"
+            in sql
+        )
+        assert "env_vars_id(env_vars) AS env_vars_id" in sql

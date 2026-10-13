@@ -951,9 +951,9 @@ TEST_RUN_REPORTS_ENVIRONMENT = [
 
 # The catalogs whose id DEFAULT fills each of runs' id columns.
 TEST_RUN_REPORTS_IDS = {
-    "tests": "test_id",
-    "environments": "env_id",
-    "flags": "flags_id",
+    "tests": "tests_id",
+    "environments": "environments_id",
+    "env_vars": "env_vars_id",
 }
 
 # One row per run line, carrying the report line. The report is read once: its
@@ -979,10 +979,11 @@ WITH
             toUUIDOrZero(JSONExtractString(report_line, 'report_uuid')) AS report_uuid,
             {environment},
             toUInt8(JSONExtractUInt(report_line, 'environment', 'device_count')) AS device_count,
-            -- the report lists every registered flag and setting; the flags table
-            -- keeps those that are set, so off ('0') and unset ('') ones are dropped
+            -- the report's flags list every registered flag and setting; the
+            -- env_vars table keeps those that are set, so off ('0') and unset ('')
+            -- ones are dropped
             mapFilter((k, v) -> v NOT IN ('0', ''),
-                JSONExtract(report_line, 'flags', 'Map(String, String)')) AS flags,
+                JSONExtract(report_line, 'flags', 'Map(String, String)')) AS env_vars,
             JSONExtractString(line, 'file') AS file,
             JSONExtractString(line, 'suite') AS suite,
             JSONExtractString(line, 'case_name') AS case_name,
@@ -997,9 +998,9 @@ WITH
             -- value fails the insert, so a producer bug is logged, not hidden
             if(JSONHas(line, 'language'), JSONExtractString(line, 'language'),
                 'unknown') AS language,
-            {test_id} AS test_id,
-            {env_id} AS env_id,
-            {flags_id} AS flags_id
+            {tests_id} AS tests_id,
+            {environments_id} AS environments_id,
+            {env_vars_id} AS env_vars_id
         FROM files
         ARRAY JOIN run_lines AS line
         WHERE JSONExtractString(report_line, 'schema_version') IN {versions}
@@ -1019,8 +1020,8 @@ TEST_RUN_REPORTS_STATEMENTS = [
         """
         select repo, file, suite, case_name, declared_case_name, language
         from report_rows
-        where test_id not in (select id from {database}.tests final)
-        limit 1 by test_id
+        where tests_id not in (select id from {database}.tests final)
+        limit 1 by tests_id
         """,
     ),
     (
@@ -1029,28 +1030,28 @@ TEST_RUN_REPORTS_STATEMENTS = [
         """
         select {environment_columns}, device_count
         from report_rows
-        where env_id not in (select id from {database}.environments final)
-        limit 1 by env_id
+        where environments_id not in (select id from {database}.environments final)
+        limit 1 by environments_id
         """,
     ),
     (
-        "flags",
-        "flags",
+        "env_vars",
+        "env_vars",
         """
-        select flags
+        select env_vars
         from report_rows
-        where flags_id not in (select id from {database}.flags final)
-        limit 1 by flags_id
+        where env_vars_id not in (select id from {database}.env_vars final)
+        limit 1 by env_vars_id
         """,
     ),
     (
         "runs",
-        "test_id, env_id, flags_id, github_workflow_job_id, report_uuid, "
+        "tests_id, environments_id, env_vars_id, github_workflow_job_id, report_uuid, "
         "rerun_number, outcome, outcome_summary, started_at, ended_at",
-        # properties is left to its empty default until its contents are decided
         """
-        select test_id, env_id, flags_id, github_workflow_job_id, report_uuid,
-               rerun_number, outcome, outcome_summary, started_at, ended_at
+        select tests_id, environments_id, env_vars_id, github_workflow_job_id,
+               report_uuid, rerun_number, outcome, outcome_summary, started_at,
+               ended_at
         from report_rows
         """,
     ),
@@ -1088,7 +1089,7 @@ def test_run_reports_id_defaults(database) -> dict:
 
 
 def test_run_reports_adapter(table, bucket, key) -> None:
-    """Ingest one test run report into the tests, environments, flags and runs
+    """Ingest one test run report into the tests, environments, env_vars and runs
     tables of `table`'s database (or, in dry mode, count what would be
     inserted). ClickHouse reads the report itself, and runs' ids come from the
     catalogs' id DEFAULTs, so this holds no id logic. One attempt: the first
