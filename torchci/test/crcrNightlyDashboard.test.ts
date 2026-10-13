@@ -81,12 +81,8 @@ describe("crcr_nightly_dashboard", () => {
     );
     expect(normalized).toContain("latest_attempts AS");
     expect(normalized).not.toContain("ROW_NUMBER() OVER");
-    expect(normalized).toContain(
-      "GROUP BY matrix_key, run_id, job_name"
-    );
-    expect(normalized).toContain(
-      "matrix_key FROM eligible_matrix_keys"
-    );
+    expect(normalized).toContain("GROUP BY matrix_key, run_id, job_name");
+    expect(normalized).toContain("matrix_key FROM eligible_matrix_keys");
     expect(normalized).toContain(
       "ORDER BY latest_started_at DESC, matrix_key DESC"
     );
@@ -120,10 +116,11 @@ describe("crcr_nightly_dashboard", () => {
       },
     ];
 
-    expect(latestAttemptJobs(jobs).map((job) => job.shard).sort()).toEqual([
-      "failing",
-      "passing",
-    ]);
+    expect(
+      latestAttemptJobs(jobs)
+        .map((job) => job.shard)
+        .sort()
+    ).toEqual(["failing", "passing"]);
   });
 
   test("uses a run key to discard stale retries without a real SHA", () => {
