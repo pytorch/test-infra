@@ -17,7 +17,9 @@ import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
 import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
 import CrcrLevelHistory from "components/crcr/CrcrLevelHistory";
-import TriageVerdictSection from "components/crcr/TriageVerdictSection";
+import TriageVerdictSection, {
+  CollapsibleTriageVerdict,
+} from "components/crcr/TriageVerdictSection";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import {
@@ -806,7 +808,9 @@ function GroupedJobCell({
     conclusionCssColor[worst.conclusion] ?? "var(--color-grey, #8b949e)";
 
   const tooltipContent = (
-    <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
+    <div
+      style={{ whiteSpace: "pre-line", fontSize: "0.8rem", textAlign: "left" }}
+    >
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
         {groupName} ({jobs.length} jobs)
       </div>
@@ -828,6 +832,11 @@ function GroupedJobCell({
               j.job_name
             )}
             : {c}
+            <CollapsibleTriageVerdict
+              verdictJson={j.triage_verdict_json}
+              prNumber={j.pr_number}
+              upstreamRepo={j.upstream_repo}
+            />
           </div>
         );
       })}

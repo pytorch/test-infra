@@ -2,6 +2,7 @@ import { Chip, ChipProps, useTheme } from "@mui/material";
 import { LocalTimeHuman } from "components/common/TimeUtils";
 import {
   isSuspectedPrUnderTest,
+  parseTriageVerdict,
   TriageCategory,
   TriageVerdict,
 } from "lib/crcr/triageVerdict";
@@ -162,5 +163,34 @@ export default function TriageVerdictSection({
         </div>
       )}
     </div>
+  );
+}
+
+// For tooltips that list many jobs, like a grouped matrix column: one line per
+// job, with the full section behind a disclosure so the group stays scannable.
+// Takes the stored JSON so the parse only runs once the tooltip is rendered.
+export function CollapsibleTriageVerdict({
+  verdictJson,
+  prNumber,
+  upstreamRepo,
+}: {
+  verdictJson: string | null | undefined;
+  prNumber?: number;
+  upstreamRepo: string;
+}) {
+  const verdict = parseTriageVerdict(verdictJson);
+  if (!verdict) return null;
+
+  return (
+    <details style={{ marginLeft: 12, marginBottom: 4 }}>
+      <summary style={{ cursor: "pointer" }}>
+        AI triage: {verdict.category} ({verdict.confidence})
+      </summary>
+      <TriageVerdictSection
+        verdict={verdict}
+        prNumber={prNumber}
+        upstreamRepo={upstreamRepo}
+      />
+    </details>
   );
 }
