@@ -331,13 +331,6 @@
       "rocm"
     ]
   ],
-  "test_copy_transpose_tiled_small_case_at_cuda_float16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "199016",
-    "https://github.com/pytorch/pytorch/issues/199016",
-    [
-      "rocm"
-    ]
-  ],
   "test_copy_transpose_tiled_small_case_at_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "198911",
     "https://github.com/pytorch/pytorch/issues/198911",
