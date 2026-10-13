@@ -318,6 +318,315 @@ function indexFunctions(source: string): FunctionRecord[] {
   return records;
 }
 
+interface ClassRecord {
+  name: string;
+  bases: string[];
+  basesOpaque: boolean;
+  testNames: string[];
+}
+
+// unittest.TestCase and object do not define test_* methods. A same-file
+// parent that does is handled by the walk. Any other missing base is refused.
+const SAFE_EXTERNAL_BASES = new Set(["TestCase", "object", "ABC"]);
+
+function isSafeExternalBase(name: string): boolean {
+  if (name === "unittest.TestCase") {
+    return true;
+  }
+  const simple = name.split(".").pop() ?? name;
+  return SAFE_EXTERNAL_BASES.has(simple);
+}
+
+function splitTopLevelCommas(text: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === "\\") {
+        i++;
+        continue;
+      }
+      if (c === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (c === "'" || c === '"') {
+      quote = c;
+      continue;
+    }
+    if (c === "(" || c === "[" || c === "{") {
+      depth++;
+    } else if (c === ")" || c === "]" || c === "}") {
+      depth--;
+    } else if (c === "," && depth === 0) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts;
+}
+
+function parseBaseList(inside: string): { bases: string[]; opaque: boolean } {
+  const bases: string[] = [];
+  for (const part of splitTopLevelCommas(inside)) {
+    const piece = part.trim();
+    if (piece === "") {
+      continue;
+    }
+    const match = piece.match(/^([A-Za-z_][\w.]*)(\s*\[[\s\S]*\])?$/);
+    if (!match) {
+      return { bases: [], opaque: true };
+    }
+    bases.push(match[1]);
+  }
+  return { bases, opaque: false };
+}
+
+function finishClassHeader(
+  name: string,
+  buf: string,
+  next: number
+): { name: string; bases: string[]; opaque: boolean; next: number } {
+  const open = buf.indexOf("(");
+  if (open === -1) {
+    return { name, bases: [], opaque: false, next };
+  }
+  const close = buf.lastIndexOf(")");
+  if (close < open) {
+    return { name, bases: [], opaque: true, next };
+  }
+  const parsed = parseBaseList(buf.slice(open + 1, close));
+  return { name, bases: parsed.bases, opaque: parsed.opaque, next };
+}
+
+function parseClassHeader(
+  lines: string[],
+  start: number
+): { name: string; bases: string[]; opaque: boolean; next: number } | null {
+  const nameMatch = lines[start].trim().match(/^class\s+([A-Za-z_]\w*)\b/);
+  if (!nameMatch) {
+    return null;
+  }
+  const name = nameMatch[1];
+  let buf = "";
+  let depth = 0;
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i].trim();
+    for (let j = 0; j < line.length; j++) {
+      const c = line[j];
+      if (c === "#") {
+        break;
+      }
+      if (c === "'" || c === '"') {
+        return { name, bases: [], opaque: true, next: i + 1 };
+      }
+      if (c === "(" || c === "[" || c === "{") {
+        depth++;
+      } else if (c === ")" || c === "]" || c === "}") {
+        depth--;
+      } else if (c === ":" && depth === 0) {
+        return finishClassHeader(name, buf, i + 1);
+      }
+      buf += c;
+    }
+    if (depth <= 0) {
+      return { name, bases: [], opaque: true, next: i + 1 };
+    }
+  }
+  return { name, bases: [], opaque: true, next: lines.length };
+}
+
+function indexClasses(source: string): {
+  classes: Map<string, ClassRecord>;
+  duplicates: Set<string>;
+} {
+  const { lines } = splitSource(source);
+  const classes = new Map<string, ClassRecord>();
+  const duplicates = new Set<string>();
+  let i = 0;
+  while (i < lines.length) {
+    if (!/^class\s+/.test(lines[i].trim())) {
+      i++;
+      continue;
+    }
+    const header = parseClassHeader(lines, i);
+    if (!header) {
+      i++;
+      continue;
+    }
+    if (classes.has(header.name)) {
+      duplicates.add(header.name);
+    } else {
+      classes.set(header.name, {
+        name: header.name,
+        bases: header.bases,
+        basesOpaque: header.opaque,
+        testNames: [],
+      });
+    }
+    i = Math.max(header.next, i + 1);
+  }
+  for (const fn of indexFunctions(source)) {
+    if (fn.className === null || !fn.name.startsWith("test")) {
+      continue;
+    }
+    const cls = classes.get(fn.className);
+    if (cls && !duplicates.has(fn.className)) {
+      cls.testNames.push(fn.name);
+    }
+  }
+  return { classes, duplicates };
+}
+
+function addImportNames(statement: string, names: Set<string>): void {
+  const collapsed = statement.replace(/\s+/g, " ").trim();
+  let imported = "";
+  const fromImport = collapsed.startsWith("from ");
+  if (fromImport) {
+    const marker = " import ";
+    const idx = collapsed.indexOf(marker);
+    if (idx < 0) {
+      return;
+    }
+    imported = collapsed.slice(idx + marker.length).trim();
+  } else if (collapsed.startsWith("import ")) {
+    imported = collapsed.slice("import ".length).trim();
+  } else {
+    return;
+  }
+  if (imported.startsWith("(") && imported.endsWith(")")) {
+    imported = imported.slice(1, -1).trim();
+  }
+  if (imported === "*") {
+    return;
+  }
+  for (const part of splitTopLevelCommas(imported)) {
+    const piece = part.trim();
+    if (piece === "" || piece === "*") {
+      continue;
+    }
+    const alias = piece.match(/\bas\s+([A-Za-z_]\w*)\s*$/);
+    if (alias) {
+      names.add(alias[1]);
+      continue;
+    }
+    if (!fromImport) {
+      const head = piece.match(/^([A-Za-z_]\w*)/);
+      if (head) {
+        names.add(head[1]);
+      }
+      continue;
+    }
+    const ident = piece.match(/^([A-Za-z_][\w.]*)/);
+    const leaf = ident?.[1].split(".").pop();
+    if (leaf) {
+      names.add(leaf);
+    }
+  }
+}
+
+function importedBindings(source: string): Set<string> {
+  const { lines } = splitSource(source);
+  const names = new Set<string>();
+  let buf = "";
+  let depth = 0;
+  let active = false;
+  const finish = () => {
+    addImportNames(buf, names);
+    buf = "";
+    depth = 0;
+    active = false;
+  };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!active) {
+      if (trimmed === "" || trimmed.startsWith("#")) {
+        continue;
+      }
+      if (!trimmed.startsWith("import ") && !trimmed.startsWith("from ")) {
+        continue;
+      }
+      active = true;
+    }
+    const hash = trimmed.indexOf("#");
+    const code = hash === -1 ? trimmed : trimmed.slice(0, hash);
+    buf += `${code} `;
+    for (const c of code) {
+      if (c === "(") {
+        depth++;
+      } else if (c === ")") {
+        depth--;
+      }
+    }
+    if (!line.trimEnd().endsWith("\\") && depth <= 0) {
+      finish();
+    }
+  }
+  if (active) {
+    finish();
+  }
+  return names;
+}
+
+function classSkipCoversSingleTest(
+  source: string,
+  className: string
+): { ok: true } | { ok: false; reason: string } {
+  const { classes, duplicates } = indexClasses(source);
+  const imported = importedBindings(source);
+  const covered = new Set<string>();
+  const seen = new Set<string>();
+  const walk = (name: string): string | null => {
+    if (seen.has(name)) {
+      return null;
+    }
+    seen.add(name);
+    if (duplicates.has(name)) {
+      return "class-level skip covers other tests; not editing";
+    }
+    const cls = classes.get(name);
+    if (!cls) {
+      if (isSafeExternalBase(name)) {
+        return null;
+      }
+      const head = name.split(".")[0] ?? name;
+      if (imported.has(name) || imported.has(head)) {
+        return `base class ${name} is imported and its tests are not visible in this file; not editing`;
+      }
+      return `base class ${name} is not defined in this file and its tests are not visible; not editing`;
+    }
+    if (cls.basesOpaque) {
+      return `base class ${name} has a base whose tests are not visible in this file; not editing`;
+    }
+    for (const testName of cls.testNames) {
+      covered.add(testName);
+    }
+    for (const base of cls.bases) {
+      const reason = walk(base);
+      if (reason !== null) {
+        return reason;
+      }
+    }
+    return null;
+  };
+  const reason = walk(className);
+  if (reason !== null) {
+    return { ok: false, reason };
+  }
+  if (covered.size !== 1) {
+    return {
+      ok: false,
+      reason: "class-level skip covers other tests; not editing",
+    };
+  }
+  return { ok: true };
+}
+
 function baseName(qualified: string): string {
   const parts = qualified.split(".");
   return parts[parts.length - 1] ?? qualified;
@@ -507,17 +816,15 @@ export function removeCodeSkipDecorator(
       };
     }
     if (classHits.length === 1) {
-      const siblings = records.filter(
-        (other) =>
-          other.classLine === record.classLine &&
-          other.className === record.className &&
-          other.name.startsWith("test")
-      );
-      if (siblings.length !== 1) {
+      if (record.className === null) {
         return {
           ok: false,
           reason: "class-level skip covers other tests; not editing",
         };
+      }
+      const isolated = classSkipCoversSingleTest(source, record.className);
+      if (!isolated.ok) {
+        return isolated;
       }
       span = classHits[0];
     }
@@ -737,42 +1044,45 @@ interface OpenBatch {
   body: string;
   headRef: string;
   headSha: string;
+  draft: boolean;
 }
 
 async function findOpenBatch(octokit: Octokit): Promise<OpenBatch | null> {
   const query = `repo:${PYTORCH}/${PYTORCH} is:pr is:open in:title "${CODE_SKIP_UNSKIP_PR_TITLE}"`;
   const { data } = await octokit.rest.search.issuesAndPullRequests({
     q: query,
-    per_page: 10,
+    per_page: 20,
   });
-  const hit = data.items.find(
+  const hits = data.items.filter(
     (item) => item.title === CODE_SKIP_UNSKIP_PR_TITLE
   );
-  if (!hit) {
-    return null;
+  for (const hit of hits) {
+    try {
+      const pr = await octokit.rest.pulls.get({
+        owner: PYTORCH,
+        repo: PYTORCH,
+        pull_number: hit.number,
+      });
+      if (pr.data.head.repo?.full_name !== `${PYTORCH}/${PYTORCH}`) {
+        console.log(
+          `Skipping pull request #${pr.data.number}: head repo is ${
+            pr.data.head.repo?.full_name ?? "unknown"
+          }, not ${PYTORCH}/${PYTORCH}.`
+        );
+        continue;
+      }
+      return {
+        number: pr.data.number,
+        body: pr.data.body ?? "",
+        headRef: pr.data.head.ref,
+        headSha: pr.data.head.sha,
+        draft: pr.data.draft === true,
+      };
+    } catch (err) {
+      console.log(`Could not read pull request #${hit.number}: ${err}`);
+    }
   }
-  const pr = await octokit.rest.pulls.get({
-    owner: PYTORCH,
-    repo: PYTORCH,
-    pull_number: hit.number,
-  });
-  if (pr.data.head.repo?.full_name !== `${PYTORCH}/${PYTORCH}`) {
-    console.log(
-      `Open batch PR #${pr.data.number} is not pushed to ${PYTORCH}/${PYTORCH}; not opening a second one.`
-    );
-    return {
-      number: pr.data.number,
-      body: pr.data.body ?? "",
-      headRef: "",
-      headSha: "",
-    };
-  }
-  return {
-    number: pr.data.number,
-    body: pr.data.body ?? "",
-    headRef: pr.data.head.ref,
-    headSha: pr.data.head.sha,
-  };
+  return null;
 }
 
 async function filesMatchHead(
@@ -812,7 +1122,7 @@ async function filesMatchHead(
 
 function batchCommitMessage(removedCount: number): string {
   return [
-    "Unskip code skips that passed rerun-disabled-tests",
+    CODE_SKIP_UNSKIP_PR_TITLE,
     "",
     `Remove ${removedCount} code-skip decorator(s) that passed the same bar used to close DISABLED issues (${CODE_SKIP_WINDOW_DAYS} days, at least ${CODE_SKIP_MIN_GREEN} greens, 0 reds).`,
     "A human should review this draft before merge.",
@@ -872,6 +1182,9 @@ async function moveBranch(
   sha: string,
   create: boolean
 ): Promise<void> {
+  // The new commit's parent is main, so moving the branch is not a
+  // fast-forward. Callers must skip this when the pull request is ready
+  // or the branch has commits this bot did not create.
   if (!create) {
     await octokit.rest.git.updateRef({
       owner: PYTORCH,
@@ -890,6 +1203,13 @@ async function moveBranch(
       sha,
     });
   } catch (err) {
+    const onlyBot = await branchAheadIsOnlyBotCommits(octokit, branch);
+    if (!onlyBot) {
+      console.log(
+        `Branch ${branch} already exists and has commits this bot did not create. Not force-pushing. ${err}`
+      );
+      throw err;
+    }
     console.log(`Branch ${branch} already exists; updating it. ${err}`);
     await octokit.rest.git.updateRef({
       owner: PYTORCH,
@@ -899,6 +1219,111 @@ async function moveBranch(
       force: true,
     });
   }
+}
+
+async function branchAheadIsOnlyBotCommits(
+  octokit: Octokit,
+  branch: string
+): Promise<boolean> {
+  try {
+    const compared = await octokit.rest.repos.compareCommits({
+      owner: PYTORCH,
+      repo: PYTORCH,
+      base: "main",
+      head: branch,
+    });
+    const commits = compared.data.commits;
+    if (compared.data.total_commits !== commits.length) {
+      return false;
+    }
+    return commits.every((commit) =>
+      (commit.commit.message ?? "").startsWith(CODE_SKIP_UNSKIP_PR_TITLE)
+    );
+  } catch (err) {
+    console.log(
+      `Could not compare ${branch} to main; not force-pushing. ${err}`
+    );
+    return false;
+  }
+}
+
+async function leaveComment(
+  octokit: Octokit,
+  pullNumber: number,
+  body: string
+): Promise<void> {
+  console.log(body);
+  try {
+    const existing = await octokit.rest.issues.listComments({
+      owner: PYTORCH,
+      repo: PYTORCH,
+      issue_number: pullNumber,
+      per_page: 100,
+    });
+    const already = existing.data.some((comment) => comment.body === body);
+    if (already) {
+      return;
+    }
+    await octokit.rest.issues.createComment({
+      owner: PYTORCH,
+      repo: PYTORCH,
+      issue_number: pullNumber,
+      body,
+    });
+  } catch (err) {
+    console.log(`Could not comment on pull request #${pullNumber}: ${err}`);
+  }
+}
+
+async function headIsOnlyBotCommits(
+  octokit: Octokit,
+  pullNumber: number
+): Promise<boolean> {
+  try {
+    const listed = await octokit.rest.pulls.listCommits({
+      owner: PYTORCH,
+      repo: PYTORCH,
+      pull_number: pullNumber,
+      per_page: 100,
+    });
+    if (listed.data.length === 0 || listed.data.length >= 100) {
+      return false;
+    }
+    return listed.data.every((commit) =>
+      (commit.commit.message ?? "").startsWith(CODE_SKIP_UNSKIP_PR_TITLE)
+    );
+  } catch (err) {
+    console.log(
+      `Could not list commits on #${pullNumber}; not force-pushing. ${err}`
+    );
+    return false;
+  }
+}
+
+async function closeOwnedDraft(octokit: Octokit): Promise<void> {
+  const existing = await findOpenBatch(octokit);
+  if (!existing) {
+    console.log(
+      "No safe code-skip removal this run, and no open pytorch/pytorch draft to close."
+    );
+    return;
+  }
+  if (existing.headRef !== CODE_SKIP_UNSKIP_BRANCH) {
+    console.log(
+      `Pull request #${existing.number} is not on ${CODE_SKIP_UNSKIP_BRANCH}; not closing it.`
+    );
+    return;
+  }
+  const why =
+    "Nothing currently qualifies for unskip. No decorator passed the rerun bar and the safety checks on this run. Closing this draft so a stale deletion cannot be merged.";
+  await leaveComment(octokit, existing.number, why);
+  await octokit.rest.pulls.update({
+    owner: PYTORCH,
+    repo: PYTORCH,
+    pull_number: existing.number,
+    state: "closed",
+  });
+  console.log(`Closed draft pull request #${existing.number}.`);
 }
 
 export async function handlePassingCodeSkips(
@@ -918,8 +1343,9 @@ async function openOrUpdateCodeSkipPullRequest(
 ): Promise<void> {
   if (rows.length === 0) {
     console.log(
-      "No code skips cleared the rerun bar; not opening a pull request."
+      "No code skips cleared the rerun bar; checking for a stale draft."
     );
+    await closeOwnedDraft(octokit);
     return;
   }
 
@@ -946,14 +1372,20 @@ async function openOrUpdateCodeSkipPullRequest(
   }
   if (plan.removed.length === 0) {
     console.log(
-      "Code skips cleared the bar but none could be edited safely; not opening a pull request."
+      "Code skips cleared the bar but none could be edited safely; checking for a stale draft."
     );
+    await closeOwnedDraft(octokit);
     return;
   }
 
   const body = buildPullRequestBody(plan);
   const existing = await findOpenBatch(octokit);
-  if (existing && existing.headRef === "") {
+  if (existing && !existing.draft) {
+    await leaveComment(
+      octokit,
+      existing.number,
+      "This pull request is not a draft. A human has taken it out of draft, so this run will not push new deletions onto it."
+    );
     return;
   }
   if (existing) {
@@ -965,6 +1397,15 @@ async function openOrUpdateCodeSkipPullRequest(
       return;
     }
     if (!sameFiles) {
+      const onlyBot = await headIsOnlyBotCommits(octokit, existing.number);
+      if (!onlyBot) {
+        await leaveComment(
+          octokit,
+          existing.number,
+          "This branch has commits this bot did not create. Not force-pushing over that work."
+        );
+        return;
+      }
       const sha = await commitOntoMain(
         octokit,
         plan.files,

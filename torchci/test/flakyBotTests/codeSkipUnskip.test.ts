@@ -250,6 +250,67 @@ class TestFoo(TestCase):
     expect(source).toContain('@unittest.skip("broken")');
   });
 
+  test("does not delete a class skip when a parent class has tests", () => {
+    const source = `class Parent(TestCase):
+    def test_one(self):
+        pass
+
+@unittest.skip("broken")
+class Child(Parent):
+    def test_three(self):
+        pass
+`;
+    const result = removeCodeSkipDecorator(
+      source,
+      "test_three",
+      "Child",
+      "broken"
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toContain("class-level");
+    }
+    expect(source).toContain('@unittest.skip("broken")');
+
+    const plan = planCodeSkipEdits(
+      [
+        row({
+          name: "test_three",
+          classname: "Child",
+          code_skips: ["broken"],
+        }),
+      ],
+      new Map([["test/test_foo.py", source]])
+    );
+    expect(plan.removed).toHaveLength(0);
+    expect(plan.files).toHaveLength(0);
+    const body = buildPullRequestBody(plan);
+    expect(body).toContain("Left in place");
+    expect(body).toContain("class-level");
+  });
+
+  test("does not delete a class skip when the base class is imported", () => {
+    const source = `from other_tests import Parent
+
+@unittest.skip("broken")
+class Child(Parent):
+    def test_three(self):
+        pass
+`;
+    const result = removeCodeSkipDecorator(
+      source,
+      "test_three",
+      "Child",
+      "broken"
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toContain("imported");
+      expect(result.reason).toContain("not visible");
+    }
+    expect(source).toContain('@unittest.skip("broken")');
+  });
+
   test("removes a class skip when it covers only that test", () => {
     const source = `@unittest.skip("broken")
 class TestFoo(TestCase):
@@ -406,11 +467,26 @@ describe("code skip pull request", () => {
             })
           ),
         },
+        issues: {
+          listComments: jest.fn(record("listComments", { data: [] })),
+          createComment: jest.fn(record("createComment", { data: {} })),
+        },
         pulls: {
           get: jest.fn(record("pulls.get", { data: {} })),
           create: jest.fn(record("pulls.create", { data: { number: 42 } })),
           update: jest.fn(record("pulls.update", { data: {} })),
           listFiles: jest.fn(record("listFiles", { data: [] })),
+          listCommits: jest.fn(
+            record("listCommits", {
+              data: [
+                {
+                  commit: {
+                    message: `${CODE_SKIP_UNSKIP_PR_TITLE}\n\nRemove 1 code-skip decorator(s).`,
+                  },
+                },
+              ],
+            })
+          ),
         },
         git: {
           getRef: jest.fn(
@@ -436,11 +512,44 @@ describe("code skip pull request", () => {
     return { octokit: octokit as unknown as Octokit, calls, raw: octokit };
   }
 
-  test("opens no pull request when nothing cleared the bar", async () => {
+  test("closes an open draft when nothing cleared the bar", async () => {
     const { octokit, raw } = fakeOctokit();
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [{ title: CODE_SKIP_UNSKIP_PR_TITLE, number: 7 }],
+      },
+    } as never);
+    raw.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 7,
+        draft: true,
+        body: "stale body",
+        head: {
+          ref: CODE_SKIP_UNSKIP_BRANCH,
+          sha: "headsha",
+          repo: { full_name: "pytorch/pytorch" },
+        },
+      },
+    } as never);
+
     await handlePassingCodeSkips(octokit, []);
+
+    expect(raw.rest.search.issuesAndPullRequests).toHaveBeenCalled();
     expect(raw.rest.pulls.create).not.toHaveBeenCalled();
-    expect(raw.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    expect(raw.rest.git.updateRef).not.toHaveBeenCalled();
+    expect(raw.rest.issues.createComment).toHaveBeenCalled();
+    const comment = raw.rest.issues.createComment.mock.calls[0][0] as {
+      issue_number: number;
+      body: string;
+    };
+    expect(comment.issue_number).toBe(7);
+    expect(comment.body).toContain("Nothing currently qualifies");
+    const closed = raw.rest.pulls.update.mock.calls[0][0] as {
+      pull_number: number;
+      state: string;
+    };
+    expect(closed.pull_number).toBe(7);
+    expect(closed.state).toBe("closed");
   });
 
   test("opens no pull request when every candidate is a capability skip", async () => {
@@ -449,7 +558,8 @@ describe("code skip pull request", () => {
       row({ name: "test_ptx", code_skips: ["PTX is not supported"] }),
     ]);
     expect(raw.rest.pulls.create).not.toHaveBeenCalled();
-    expect(raw.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    expect(raw.rest.search.issuesAndPullRequests).toHaveBeenCalled();
+    expect(raw.rest.pulls.update).not.toHaveBeenCalled();
   });
 
   test("opens one draft pull request for every safe removal", async () => {
@@ -492,6 +602,7 @@ describe("code skip pull request", () => {
     raw.rest.pulls.get.mockResolvedValue({
       data: {
         number: 7,
+        draft: true,
         body: "stale body",
         head: {
           ref: CODE_SKIP_UNSKIP_BRANCH,
@@ -517,5 +628,169 @@ describe("code skip pull request", () => {
     expect(update.pull_number).toBe(7);
     expect(update.body).toContain("test_a");
     expect(update.body).toContain("A human must review");
+    const moved = raw.rest.git.updateRef.mock.calls[0][0] as { force: boolean };
+    expect(moved.force).toBe(true);
+  });
+
+  test("does not push when the open pull request is not a draft", async () => {
+    const { octokit, raw } = fakeOctokit();
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [{ title: CODE_SKIP_UNSKIP_PR_TITLE, number: 7 }],
+      },
+    } as never);
+    raw.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 7,
+        draft: false,
+        body: "stale body",
+        head: {
+          ref: CODE_SKIP_UNSKIP_BRANCH,
+          sha: "headsha",
+          repo: { full_name: "pytorch/pytorch" },
+        },
+      },
+    } as never);
+
+    await handlePassingCodeSkips(octokit, [
+      row({ name: "test_a", code_skips: ["broken"] }),
+    ]);
+
+    expect(raw.rest.git.updateRef).not.toHaveBeenCalled();
+    expect(raw.rest.git.createRef).not.toHaveBeenCalled();
+    expect(raw.rest.pulls.create).not.toHaveBeenCalled();
+    expect(raw.rest.pulls.update).not.toHaveBeenCalled();
+    expect(raw.rest.issues.createComment).toHaveBeenCalled();
+    const comment = raw.rest.issues.createComment.mock.calls[0][0] as {
+      issue_number: number;
+      body: string;
+    };
+    expect(comment.issue_number).toBe(7);
+    expect(comment.body).toContain("not a draft");
+    expect(comment.body).toContain("human has taken it out of draft");
+  });
+
+  test("does not force-push over commits the bot did not create", async () => {
+    const { octokit, raw } = fakeOctokit();
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [{ title: CODE_SKIP_UNSKIP_PR_TITLE, number: 7 }],
+      },
+    } as never);
+    raw.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 7,
+        draft: true,
+        body: "stale body",
+        head: {
+          ref: CODE_SKIP_UNSKIP_BRANCH,
+          sha: "headsha",
+          repo: { full_name: "pytorch/pytorch" },
+        },
+      },
+    } as never);
+    raw.rest.pulls.listFiles.mockResolvedValue({
+      data: [{ filename: "test/test_foo.py" }],
+    } as never);
+    raw.rest.pulls.listCommits.mockResolvedValue({
+      data: [
+        {
+          commit: {
+            message: `${CODE_SKIP_UNSKIP_PR_TITLE}\n\nRemove 1 code-skip decorator(s).`,
+          },
+        },
+        { commit: { message: "Reviewer: keep the neighbor assertion" } },
+      ],
+    } as never);
+
+    await handlePassingCodeSkips(octokit, [
+      row({ name: "test_a", code_skips: ["broken"] }),
+    ]);
+
+    expect(raw.rest.git.updateRef).not.toHaveBeenCalled();
+    expect(raw.rest.git.createRef).not.toHaveBeenCalled();
+    expect(raw.rest.pulls.update).not.toHaveBeenCalled();
+    const comment = raw.rest.issues.createComment.mock.calls[0][0] as {
+      body: string;
+    };
+    expect(comment.body).toContain("did not create");
+  });
+
+  test("a fork pull request with the same title does not block the pytorch draft", async () => {
+    const { octokit, raw } = fakeOctokit();
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [
+          { title: CODE_SKIP_UNSKIP_PR_TITLE, number: 99 },
+          { title: CODE_SKIP_UNSKIP_PR_TITLE, number: 7 },
+        ],
+      },
+    } as never);
+    raw.rest.pulls.get.mockImplementation(
+      async (args: { pull_number: number }) => {
+        if (args.pull_number === 99) {
+          return {
+            data: {
+              number: 99,
+              draft: true,
+              body: "fork body",
+              head: {
+                ref: "someone-branch",
+                sha: "forksha",
+                repo: { full_name: "someone/pytorch" },
+              },
+            },
+          };
+        }
+        return {
+          data: {
+            number: 7,
+            draft: true,
+            body: "stale body",
+            head: {
+              ref: CODE_SKIP_UNSKIP_BRANCH,
+              sha: "headsha",
+              repo: { full_name: "pytorch/pytorch" },
+            },
+          },
+        };
+      }
+    );
+    raw.rest.pulls.listFiles.mockResolvedValue({
+      data: [{ filename: "test/test_foo.py" }],
+    } as never);
+
+    await handlePassingCodeSkips(octokit, [
+      row({ name: "test_a", code_skips: ["broken"] }),
+    ]);
+
+    expect(raw.rest.pulls.create).not.toHaveBeenCalled();
+    expect(raw.rest.git.updateRef).toHaveBeenCalledTimes(1);
+    const update = raw.rest.pulls.update.mock.calls[0][0] as {
+      pull_number: number;
+    };
+    expect(update.pull_number).toBe(7);
+
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [{ title: CODE_SKIP_UNSKIP_PR_TITLE, number: 99 }],
+      },
+    } as never);
+    raw.rest.pulls.create.mockClear();
+    raw.rest.git.updateRef.mockClear();
+    raw.rest.pulls.update.mockClear();
+
+    await handlePassingCodeSkips(octokit, [
+      row({ name: "test_a", code_skips: ["broken"] }),
+    ]);
+
+    expect(raw.rest.git.updateRef).not.toHaveBeenCalled();
+    expect(raw.rest.pulls.create).toHaveBeenCalledTimes(1);
+    const created = raw.rest.pulls.create.mock.calls[0][0] as {
+      head: string;
+      draft: boolean;
+    };
+    expect(created.head).toBe(CODE_SKIP_UNSKIP_BRANCH);
+    expect(created.draft).toBe(true);
   });
 });
