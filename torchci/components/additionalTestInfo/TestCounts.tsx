@@ -276,7 +276,7 @@ export function TestCountsInfo({
 }) {
   const shouldShow = jobs.some((job) => job.name!.includes("/ test "));
   const { data: info, error } = useClickHouseAPIImmutable<{ count: number }>(
-    "tests/test_status_counts_on_commits_by_file",
+    "test_status_counts_on_commits_by_file",
     {
       shas: jobs.length > 0 ? [jobs[0].sha] : [],
       workflowIds: JSON.stringify([parseInt(workflowId)]),
@@ -308,7 +308,7 @@ export function TestCountsInfo({
 
   const { data: comparisonInfo, error: comparisonInfoError } =
     useClickHouseAPIImmutable<{ count: number }>(
-      "tests/test_status_counts_on_commits_by_file",
+      "test_status_counts_on_commits_by_file",
       {
         shas: jobs.length > 0 ? [jobs[0].sha] : [],
         workflowIds: JSON.stringify([

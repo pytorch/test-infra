@@ -116,9 +116,7 @@ class FileReportGenerator:
         logger.debug(
             f"Querying ClickHouse for status counts with SHA: {sha} and workflow IDs: {params['workflowIds']}"
         )
-        result = query_clickhouse_saved(
-            "tests/test_status_counts_on_commits_by_file", params
-        )
+        result = query_clickhouse_saved("test_status_counts_on_commits_by_file", params)
         for key in ["success", "flaky", "skipped", "failure"]:
             for row in result:
                 row[key] = int(row[key])

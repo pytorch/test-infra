@@ -41,7 +41,7 @@ export function TestStatusInfo({
   const [clicked, setClicked] = useState(-1);
 
   const fetchedCount = useClickHouseAPIImmutable<{ count: number }>(
-    "tests/test_counts_on_commit",
+    "test_counts_on_commit",
     {
       workflowId: parseInt(workflowId),
       runAttempt: parseInt(runAttempt),
@@ -56,7 +56,7 @@ export function TestStatusInfo({
   }, [fetchedCount]);
 
   const { data, isLoading } = useClickHouseAPIImmutable<{ [key: string]: any }>(
-    "tests/test_statuses_on_commit",
+    "test_statuses_on_commit",
     {
       workflowId: parseInt(workflowId),
       runAttempt: parseInt(runAttempt),
@@ -195,7 +195,7 @@ function IndividualInfo({
   run_attempt: number;
 }) {
   const { data, isLoading } = useClickHouseAPIImmutable<{ [key: string]: any }>(
-    "tests/test_on_commit",
+    "test_on_commit",
     {
       testName: test.name,
       className: test.classname,

@@ -92,7 +92,7 @@ per_sha_pending AS (
 ),
 
 test_statuses AS (
-    -- Mirror the join+IN pattern from tests/test_status_counts_on_commits_by_file:
+    -- Mirror the join+IN pattern from test_status_counts_on_commits_by_file:
     -- the WHERE...IN gives ClickHouse a sargable predicate to skip data parts
     -- before the JOIN materializes the (sha) column.
     SELECT
