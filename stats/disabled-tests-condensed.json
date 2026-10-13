@@ -687,6 +687,13 @@
       "linux"
     ]
   ],
+  "test_int64_indices_match_aten_float32 (__main__.TestRadixKernelParams)": [
+    "200706",
+    "https://github.com/pytorch/pytorch/issues/200706",
+    [
+      "linux"
+    ]
+  ],
   "test_jacfwd_different_levels_cpu (__main__.TestHessianCPU)": [
     "192284",
     "https://github.com/pytorch/pytorch/issues/192284",
@@ -1178,6 +1185,13 @@
     "https://github.com/pytorch/pytorch/issues/199704",
     [
       "xpu"
+    ]
+  ],
+  "test_profiler_experimental_tree_with_stack_and_modules (__main__.TestProfilerTree)": [
+    "200705",
+    "https://github.com/pytorch/pytorch/issues/200705",
+    [
+      "linux"
     ]
   ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
