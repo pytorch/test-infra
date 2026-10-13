@@ -12,17 +12,37 @@
 // rather than in the standalone comment crcrOncallBot used to post. GitHub
 // notifies every @-mention in a comment whenever that comment is EDITED, and the
 // Dr. CI comment is rewritten every 15 minutes, so a pin has to be spent exactly
-// once per person; `notifiedHandles` and `takeUnnotified` are that logic.
+// once per (repo, person) -- one repo's recovery must not leave another repo's
+// mention unspent. `notifiedHandlesByRepo` and `takeUnnotified` are that logic.
 
 import { RecentWorkflowsData } from "lib/types";
 
-// Written next to each mention once that on-call has been notified.
+// Written next to each mention once that on-call has been notified for that
+// repo. The repo is part of the key on purpose; see takeUnnotified.
 const PIN_MARKER_PREFIX = "<!-- crcr-pinned:";
 const PIN_MARKER_SUFFIX = " -->";
 
-// The marker that records one handle as notified.
-function pinnedMarker(handle: string): string {
-  return `${PIN_MARKER_PREFIX}${handle}${PIN_MARKER_SUFFIX}`;
+// The marker that records one (repo, handle) pair as notified. Neither a repo
+// name nor a handle can contain `:`, so the first one after the prefix separates
+// them; a team handle keeps its own `/`.
+function pinnedMarker(repo: string, handle: string): string {
+  return `${PIN_MARKER_PREFIX}${repo}:${handle}${PIN_MARKER_SUFFIX}`;
+}
+
+// Every pin marker in `text`, in the order written. One place owns the marker
+// grammar so the read (notifiedHandlesByRepo) and the copy (pinLedger) cannot
+// drift apart.
+function pinMarkers(
+  text: string
+): { repo: string; handle: string; marker: string }[] {
+  const found: { repo: string; handle: string; marker: string }[] = [];
+  const re =
+    /<!-- crcr-pinned:([A-Za-z0-9._-]+\/[A-Za-z0-9._-]+):([A-Za-z0-9/_-]+) -->/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    found.push({ repo: match[1], handle: match[2], marker: match[0] });
+  }
+  return found;
 }
 
 // A handle from the allowlist lands in a public comment, so it is validated
@@ -111,25 +131,39 @@ export function withoutControlMarkers(text: string): string {
   return text.replace(/<!--\s*crcr-/gi, "<!- -crcr-");
 }
 
-// On-calls whose marker already appears in the section. Reading these off the
-// comment being replaced is what stops a rewrite from notifying them again.
+// On-calls whose marker already appears in the section, per repo. Reading these
+// off the comment being replaced is what stops a rewrite from notifying them
+// again.
 //
 // Scoped to the section on purpose. A marker is a plain HTML comment, so it can
 // be quoted into any comment on the PR; matching the whole body would let a
 // discussion that mentions one suppress a real page for the rest of the PR.
 //
-// The marker is per HANDLE, not per repo: a repo-keyed marker would never notify
-// an on-call added to the allowlist after the first failure. Markers are only as
-// durable as the block holding them, so an on-call dropped from the allowlist
-// while the block is rendered loses theirs and would be notified again if the
-// repo failed after they were re-added -- acceptable for a rare flap, and better
-// than re-notifying everyone each time the block is rewritten.
+// The marker is keyed by (repo, handle). Per HANDLE alone it would outlive the
+// repo that spent it: a login on call for two repos would stay pinned while
+// either of them is red, so an independent outage in the repo that recovered
+// would never be mentioned. Per REPO alone it would never notify an on-call
+// added to the allowlist after the first failure. Markers are only as durable as
+// the block holding them, so an on-call dropped from the allowlist while the
+// block is rendered loses theirs and would be notified again if the repo failed
+// after they were re-added -- acceptable for a rare flap, and better than
+// re-notifying everyone each time the block is rewritten.
+export function notifiedHandlesByRepo(body: string): Map<string, Set<string>> {
+  const byRepo = new Map<string, Set<string>>();
+  for (const { repo, handle } of pinMarkers(extractCrcrSection(body))) {
+    byRepo.set(repo, new Set([...(byRepo.get(repo) ?? []), handle]));
+  }
+  return byRepo;
+}
+
+// Every handle pinned in `body`, across repos. Used by tests and by callers that
+// only need to know whether anybody at all has been paged.
 export function notifiedHandles(body: string): Set<string> {
   const handles = new Set<string>();
-  const re = /<!-- crcr-pinned:([A-Za-z0-9/_-]+) -->/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(extractCrcrSection(body))) !== null) {
-    handles.add(match[1]);
+  for (const perRepo of notifiedHandlesByRepo(body).values()) {
+    for (const handle of perRepo) {
+      handles.add(handle);
+    }
   }
   return handles;
 }
@@ -147,14 +181,15 @@ export function notifiedHandles(body: string): Set<string> {
  * section, dropping the ledger if the failure is gone.
  */
 export function pinLedger(body: string): string {
-  const handles = Array.from(notifiedHandles(body));
-  if (handles.length === 0) {
+  // Copied verbatim rather than rebuilt from the (repo, handle) pairs, so a
+  // ledger is exactly the pins it was given and re-ledgering one is the
+  // identity -- the sweep's early return depends on that.
+  const markers = pinMarkers(extractCrcrSection(body)).map((p) => p.marker);
+  if (markers.length === 0) {
     return "";
   }
   return (
-    `${CRCR_SECTION_START}\n` +
-    handles.map(pinnedMarker).join("") +
-    `\n${CRCR_SECTION_END}\n`
+    `${CRCR_SECTION_START}\n` + markers.join("") + `\n${CRCR_SECTION_END}\n`
   );
 }
 
@@ -244,14 +279,27 @@ function isFailureConclusion(conclusion: string | undefined): boolean {
  * attempt for a job can belong to the old commit; resolving attempts first would
  * hand the job to that stale row and the head filter would then drop it --
  * deleting a real failure from the comment, and for an L4 job a blocking one.
- * Rows with no head SHA predate the column and are kept.
+ *
+ * Rows with no head SHA are rows whose commit is unknown. They are kept, but only
+ * for a job this commit has no row for: an unknown commit must not outrank a
+ * known result for the same job, or the failure tie-break inside
+ * latestAttemptPerJob would let an old red row keep a job red -- and at L4
+ * blocking -- after this commit's run passed.
  */
 export function latestAttemptsForHead(
   jobs: RecentWorkflowsData[],
   headSha: string
 ): RecentWorkflowsData[] {
+  const forHead = jobs.filter(
+    (job) => !job.head_sha || job.head_sha === headSha
+  );
+  const jobsOnThisCommit = new Set(
+    forHead.filter((job) => job.head_sha === headSha).map((job) => job.name)
+  );
   return latestAttemptPerJob(
-    jobs.filter((job) => !job.head_sha || job.head_sha === headSha)
+    forHead.filter(
+      (job) => job.head_sha === headSha || !jobsOnThisCommit.has(job.name)
+    )
   );
 }
 
@@ -273,15 +321,13 @@ export function renderCrcrSection(
   // sections use.
   hudPrUrl: string,
   onCallsFor: (_repo: string) => string[],
-  // On-calls already notified on an earlier sweep.
-  notified: Set<string>
+  // On-calls already notified on an earlier sweep, per downstream repo.
+  notified: Map<string, Set<string>>
 ): string {
   if (failedByRepo.size === 0) {
     return "";
   }
 
-  // Shared across the blocks so a handle listed by two repos is mentioned once.
-  const nextNotified = new Set(notified);
   const blocks = Array.from(failedByRepo.keys())
     .sort((a, b) => a.localeCompare(b))
     .map((repo) =>
@@ -291,7 +337,10 @@ export function renderCrcrSection(
         totalByRepo.get(repo),
         hudPrUrl,
         onCallsFor,
-        nextNotified
+        // This repo's own pins: a handle on call for two repos is mentioned for
+        // each of them, so one repo recovering does not silence the other's
+        // next outage.
+        notified.get(repo) ?? new Set()
       )
     )
     .join("");
@@ -360,7 +409,7 @@ export function crcrSectionForSweep(
     onCallsFor,
     // The pins are read out of the section being replaced, so it is also what
     // keeps this render from re-notifying anyone.
-    notifiedHandles(previousBody)
+    notifiedHandlesByRepo(previousBody)
   );
 }
 
@@ -370,8 +419,8 @@ function renderRepoBlock(
   total: number | undefined,
   hudPrUrl: string,
   onCallsFor: (_repo: string) => string[],
-  // Everyone notified so far, across the whole section. Mutated as this block
-  // mentions people, so the returned set covers every repo, not just this one.
+  // Handles already notified for THIS repo, whose markers this block carries
+  // forward so the next sweep still reads the pin.
   notified: Set<string>
 ): string {
   const jobs = [...failed].sort((a, b) => a.name.localeCompare(b.name));
@@ -418,7 +467,7 @@ function renderRepoBlock(
     out += `* …and ${jobs.length - MAX_JOB_BULLETS_PER_REPO} more\n`;
   }
 
-  out += renderPin(mentionNow, alreadyNotified, {
+  out += renderPin(repo, mentionNow, alreadyNotified, {
     // Told apart so the block only claims "no on-call is configured" when the
     // allowlist really has none, rather than when every entry was unusable.
     hasNoOnCalls: oncalls.length === 0,
@@ -431,8 +480,11 @@ function renderRepoBlock(
 
 /**
  * Splits a repo's on-calls into the handles this render mentions and the ones
- * already notified. Splitting here rather than per repo is what keeps a handle
- * listed by two repos from being mentioned -- and so notified -- twice.
+ * already notified for this repo. The set is per repo: a login on call for two
+ * repos is mentioned once for each, so when one of those repos recovers and
+ * fails again the new outage is mentioned again even while the other is still
+ * red. A repeat is the cheaper error -- a missed mention is a failure nobody was
+ * told about.
  */
 function takeUnnotified(
   oncalls: string[],
@@ -450,15 +502,11 @@ function takeUnnotified(
     }
     (notified.has(handle) ? alreadyNotified : mentionNow).push(handle);
   }
-  // add() takes one value, so add them one at a time -- `notified.add(...names)`
-  // would silently add nothing and every block would re-mention the same handle.
-  for (const handle of mentionNow) {
-    notified.add(handle);
-  }
   return { mentionNow, alreadyNotified };
 }
 
 function renderPin(
+  repo: string,
   mentionNow: string[],
   alreadyNotified: string[],
   opts: {
@@ -475,7 +523,8 @@ function renderPin(
   // that stops being emitted re-notifies that person on the sweep after --
   // omitting the already-notified is what turns one notification into one per
   // sweep.
-  const markers = (handles: string[]) => handles.map(pinnedMarker).join("");
+  const markers = (handles: string[]) =>
+    handles.map((handle) => pinnedMarker(repo, handle)).join("");
 
   if (mentionNow.length === 0) {
     if (alreadyNotified.length === 0) {

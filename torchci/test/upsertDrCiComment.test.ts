@@ -58,7 +58,7 @@ describe("upsertDrCiComment", () => {
       new Map([["pytorch/crcr-test", 2]]),
       "https://hud.pytorch.org/pr/pytorch/pytorch/123",
       () => ["alice"],
-      new Set()
+      new Map()
     );
     const existing = formDrciComment(123, "pytorch", "pytorch", section);
     expect(notifiedHandles(existing)).toEqual(new Set(["alice"]));
