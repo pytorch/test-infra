@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - .github/workflows/cross-repo-ci-relay-tests.yml
+      - .github/actions/cross-repo-ci-relay-callback/**
       - aws/lambda/cross_repo_ci_relay/**
   push:
     branches:
       - main
     paths:
       - .github/workflows/cross-repo-ci-relay-tests.yml
+      - .github/actions/cross-repo-ci-relay-callback/**
       - aws/lambda/cross_repo_ci_relay/**
 
 defaults:

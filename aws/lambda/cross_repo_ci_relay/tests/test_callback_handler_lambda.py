@@ -122,6 +122,25 @@ class TestCallbackLambdaHandler(unittest.TestCase):
 
         self.assertEqual(response["statusCode"], 503)
         self.assertEqual(json.loads(response["body"])["detail"], "HUD unreachable")
+        self.assertNotIn("Retry-After", response["headers"])
+
+    @patch("callback.lambda_function.jwt_helper.load_ci_providers")
+    @patch("callback.lambda_function.get_config")
+    @patch("callback.lambda_function.jwt_helper.verify_oidc_token")
+    @patch("callback.lambda_function.callback_handler.handle")
+    def test_exception_headers_reach_the_response(
+        self, mock_handle, mock_oidc, mock_get_config, _
+    ):
+        mock_oidc.return_value = {"repository": "org/repo"}
+        mock_handle.side_effect = HTTPException(
+            429, "rate limit exceeded for org/repo", headers={"Retry-After": "1"}
+        )
+
+        response = lambda_handler(_event(), {})
+
+        self.assertEqual(response["statusCode"], 429)
+        self.assertEqual(response["headers"]["Retry-After"], "1")
+        self.assertEqual(response["headers"]["content-type"], "application/json")
 
     @patch("callback.lambda_function.jwt_helper.load_ci_providers")
     @patch("callback.lambda_function.get_config")

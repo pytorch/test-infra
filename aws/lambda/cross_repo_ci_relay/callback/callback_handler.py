@@ -101,7 +101,14 @@ def _verify_access(
             "rate limit exceeded for verified_repo=%s, rejecting request",
             verified_repo,
         )
-        raise HTTPException(429, f"rate limit exceeded for {verified_repo}")
+        # Retry-After marks this as the relay's own limit, which is safe to retry:
+        # nothing has been written yet. A 429 passed through from HUD comes after
+        # the state write, and retrying it fails as an invalid transition.
+        raise HTTPException(
+            429,
+            f"rate limit exceeded for {verified_repo}",
+            headers={"Retry-After": str(max(1, 60 // config.rate_limit_per_min))},
+        )
     return allowlist, repo_level
 
 

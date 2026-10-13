@@ -336,7 +336,18 @@ class TestCallbackHandler(unittest.TestCase):
         with self.assertRaises(HTTPException) as ctx:
             handle(_cfg(), _body(), verified_repo="org/repo")
         self.assertEqual(ctx.exception.status_code, 429)
+        self.assertEqual(ctx.exception.headers, {"Retry-After": "3"})
         self.assertFalse(self.mock_hud.called)
+
+    def test_hud_429_is_passed_through_without_retry_after(self):
+        # Only the relay's own limit carries Retry-After; reporters must not
+        # retry a HUD 429, which arrives after the state write.
+        self.mock_hud.side_effect = HTTPException(429, "HUD rejected callback")
+
+        with self.assertRaises(HTTPException) as ctx:
+            handle(_cfg(), _body(), verified_repo="org/repo")
+        self.assertEqual(ctx.exception.status_code, 429)
+        self.assertEqual(ctx.exception.headers, {})
 
     # --- Redis outage during callback is tolerated ---
 
