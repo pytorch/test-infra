@@ -27,8 +27,10 @@ Optional env vars:
     TRIAGE_VERDICT          JSON object with a triage verdict for this job
     ARTIFACT_URL            URL to downstream artifacts
     MAX_TIME                curl --max-time (default 10)
-    RATE_LIMIT_RETRIES      Retries on HTTP 429 (default 5)
+    RATE_LIMIT_RETRIES      Retries on the relay's rate-limit 429 (default 5)
 """
+
+from __future__ import annotations
 
 import json
 import os
@@ -37,6 +39,7 @@ import sys
 import tempfile
 import time
 from datetime import datetime, timezone
+from typing import NamedTuple
 
 
 def build_payload() -> str:
@@ -148,34 +151,71 @@ def build_payload() -> str:
 RATE_LIMIT_BACKOFF_S = (2, 4, 8, 16, 32)
 
 
-def post_once(payload_file: str) -> tuple[int, str]:
-    """POST the payload once. Returns (curl exit code, HTTP status)."""
-    result = subprocess.run(
-        [
-            "curl",
-            "--silent",
-            "--show-error",
-            "--fail-with-body",
-            "--output",
-            "/tmp/relay_response.json",
-            "--write-out",
-            "%{http_code}",
-            "-X",
-            "POST",
-            "--max-time",
-            os.environ.get("MAX_TIME", "10"),
-            "-H",
-            "Content-Type: application/json",
-            "-H",
-            f"Authorization: Bearer {os.environ['OIDC_TOKEN']}",
-            "--data",
-            f"@{payload_file}",
-            os.environ["CALLBACK_URL"].rstrip("/"),
-        ],
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode, result.stdout.strip()
+class Response(NamedTuple):
+    returncode: int  # curl exit code
+    http_code: str
+    body: str
+    retry_after: int | None
+
+
+def parse_retry_after(headers: str) -> int | None:
+    """Seconds from a Retry-After header in curl's --dump-header output."""
+    for line in headers.splitlines():
+        name, _, value = line.partition(":")
+        if name.strip().lower() == "retry-after":
+            try:
+                return int(value.strip())
+            except ValueError:
+                return None
+    return None
+
+
+def post_once(payload_file: str) -> Response:
+    """POST the payload once."""
+    with tempfile.TemporaryDirectory() as tmp:
+        body_file = os.path.join(tmp, "body")
+        header_file = os.path.join(tmp, "headers")
+        result = subprocess.run(
+            [
+                "curl",
+                "--silent",
+                "--show-error",
+                "--fail-with-body",
+                "--output",
+                body_file,
+                "--dump-header",
+                header_file,
+                "--write-out",
+                "%{http_code}",
+                "-X",
+                "POST",
+                "--max-time",
+                os.environ.get("MAX_TIME", "10"),
+                "-H",
+                "Content-Type: application/json",
+                "-H",
+                f"Authorization: Bearer {os.environ['OIDC_TOKEN']}",
+                "--data",
+                f"@{payload_file}",
+                os.environ["CALLBACK_URL"].rstrip("/"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        def read(path: str) -> str:
+            try:
+                with open(path) as f:
+                    return f.read()
+            except FileNotFoundError:
+                return ""
+
+        return Response(
+            result.returncode,
+            result.stdout.strip(),
+            read(body_file),
+            parse_retry_after(read(header_file)),
+        )
 
 
 def send_callback(payload: str) -> None:
@@ -188,10 +228,20 @@ def send_callback(payload: str) -> None:
     try:
         attempt = 0
         while True:
-            returncode, http_code = post_once(payload_file)
-            if http_code != "429" or attempt >= retries:
+            resp = post_once(payload_file)
+            # Only the relay's own rate limit sends Retry-After. A 429 that HUD
+            # returned through the relay comes after the job state was written,
+            # and a retry would fail as an invalid state transition.
+            if (
+                resp.http_code != "429"
+                or resp.retry_after is None
+                or attempt >= retries
+            ):
                 break
-            delay = RATE_LIMIT_BACKOFF_S[min(attempt, len(RATE_LIMIT_BACKOFF_S) - 1)]
+            delay = max(
+                resp.retry_after,
+                RATE_LIMIT_BACKOFF_S[min(attempt, len(RATE_LIMIT_BACKOFF_S) - 1)],
+            )
             attempt += 1
             print(
                 f"Relay rate limit hit (HTTP 429); retry {attempt}/{retries} "
@@ -202,18 +252,15 @@ def send_callback(payload: str) -> None:
     finally:
         os.unlink(payload_file)
 
-    if returncode != 0:
-        print(f"Error: Callback server returned HTTP {http_code}.", file=sys.stderr)
-        try:
-            with open("/tmp/relay_response.json") as f:
-                body = f.read()
-            if body:
-                print(f"Relay server error response body:\n{body}", file=sys.stderr)
-        except FileNotFoundError:
-            pass
-        sys.exit(returncode)
+    if resp.returncode != 0:
+        print(
+            f"Error: Callback server returned HTTP {resp.http_code}.", file=sys.stderr
+        )
+        if resp.body:
+            print(f"Relay server error response body:\n{resp.body}", file=sys.stderr)
+        sys.exit(resp.returncode)
 
-    print(f"Relay server response HTTP: {http_code}")
+    print(f"Relay server response HTTP: {resp.http_code}")
 
 
 if __name__ == "__main__":

@@ -17,9 +17,10 @@ JSON_HEADERS = {"content-type": "application/json"}
 
 
 class HTTPException(Exception):
-    def __init__(self, status_code: int, detail):
+    def __init__(self, status_code: int, detail, headers: dict | None = None):
         self.status_code = status_code
         self.detail = detail
+        self.headers = headers or {}
 
 
 class EventDispatchPayload(TypedDict):

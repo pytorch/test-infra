@@ -72,7 +72,7 @@ def lambda_handler(event, context):
         logger.exception(exc.detail)
         return {
             "statusCode": exc.status_code,
-            "headers": JSON_HEADERS,
+            "headers": {**JSON_HEADERS, **exc.headers},
             "body": json.dumps({"detail": exc.detail}),
         }
     except Exception:
