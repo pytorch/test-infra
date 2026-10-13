@@ -1,11 +1,15 @@
 import argparse
+import contextlib
+import io
 import json
 import os
 import sys
 from unittest import main, TestCase
 
 from tools.scripts.generate_binary_build_matrix import (
+    add_nightly_date,
     generate_build_matrix,
+    main as generate_matrix_main,
     OSDC_RUNNERS,
     parse_version,
     ROCM_ARCHES_DICT,
@@ -412,6 +416,111 @@ def parse_args():
         help="Update reference files with the generated output",
     )
     return parser.parse_known_args()
+
+
+class TestAddNightlyDate(TestCase):
+    def matrix(self, *channels: str):
+        return {"include": [{"channel": c} for c in channels or ("nightly", "nightly")]}
+
+    def test_every_nightly_row_gets_the_same_day(self) -> None:
+        out = self.matrix()
+        add_nightly_date(out, "false", "20261008")
+        self.assertEqual(
+            [row["nightly_date"] for row in out["include"]],
+            ["20261008", "20261008"],
+        )
+
+    def test_nothing_is_stamped_without_a_day(self) -> None:
+        # The fixture regeneration script and anyone running this by hand pass
+        # no day, and their output has to stay the same from one day to the next.
+        for nightly_date in ("", "   "):
+            out = self.matrix()
+            add_nightly_date(out, "false", nightly_date)
+            for row in out["include"]:
+                self.assertNotIn("nightly_date", row)
+
+    def test_getting_started_rows_get_no_date(self) -> None:
+        # Those rows describe the install page instead of a build, so a day on
+        # them would rewrite that page every day for no reason.
+        out = self.matrix()
+        add_nightly_date(out, "true", "20261008")
+        for row in out["include"]:
+            self.assertNotIn("nightly_date", row)
+
+    def test_only_the_nightly_rows_are_stamped(self) -> None:
+        # A caller asking for every channel at once still gets nightly rows,
+        # and only a nightly version carries a date.
+        out = self.matrix("nightly", "test", "release")
+        add_nightly_date(out, "false", "20261008")
+        self.assertEqual(
+            [row.get("nightly_date") for row in out["include"]],
+            ["20261008", None, None],
+        )
+
+    def test_a_day_that_cannot_exist_fails_here(self) -> None:
+        # One clear failure in the matrix job beats the same bad value failing
+        # separately in every build row it was handed to. The last one parses
+        # and then formats back shorter, so it needs the round trip to catch it.
+        for bad in ("notadate", "2026-10-08", "20260230", "2026108", "00101008"):
+            with self.assertRaisesRegex(ValueError, "must be a real date"):
+                add_nightly_date(self.matrix(), "false", bad)
+
+    def test_a_bad_day_is_ignored_when_no_row_would_carry_it(self) -> None:
+        # A release build is handed whatever the caller set, so failing it on a
+        # value it then throws away would break a build for no reason.
+        out = self.matrix("test", "release")
+        add_nightly_date(out, "false", "notadate")
+        for row in out["include"]:
+            self.assertNotIn("nightly_date", row)
+
+
+class TestMainStampsTheMatrix(TestCase):
+    """The call in main() is the whole feature, so it needs its own test.
+
+    Removing it, or the environment default that carries the day in from the
+    matrix job, leaves every other test in this file green while the matrix the
+    build workflows actually read loses its day.
+    """
+
+    def setUp(self) -> None:
+        os.environ.pop("NIGHTLY_DATE", None)
+
+    def tearDown(self) -> None:
+        os.environ.pop("NIGHTLY_DATE", None)
+
+    def run_main(self, *args):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            generate_matrix_main(["--operating-system", "linux", *args])
+        return json.loads(out.getvalue())["include"]
+
+    def test_every_emitted_row_carries_the_day(self) -> None:
+        rows = self.run_main("--channel", "nightly", "--nightly-date", "20261008")
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual(row["nightly_date"], "20261008")
+
+    def test_the_day_can_arrive_in_the_environment(self) -> None:
+        # That is how the matrix job hands it over, so passing the option by
+        # hand does not prove the workflow is wired to anything.
+        os.environ["NIGHTLY_DATE"] = "20261008"
+        rows = self.run_main("--channel", "nightly")
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertEqual(row["nightly_date"], "20261008")
+
+    def test_getting_started_rows_stay_clean_through_main(self) -> None:
+        os.environ["NIGHTLY_DATE"] = "20261008"
+        rows = self.run_main("--channel", "nightly", "--getting-started", "true")
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertNotIn("nightly_date", row)
+
+    def test_no_day_emits_the_rows_unchanged(self) -> None:
+        rows = self.run_main("--channel", "nightly")
+        self.assertTrue(rows)
+        for row in rows:
+            self.assertNotIn("nightly_date", row)
 
 
 class TestRunnerFleet(TestCase):
