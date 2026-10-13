@@ -1502,11 +1502,6 @@
       "linux"
     ]
   ],
-  "test_timeout_with_communicator_cleanup (__main__.ProcessGroupNCCL2WatchdogNoTearDownTest)": [
-    "200326",
-    "https://github.com/pytorch/pytorch/issues/200326",
-    []
-  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
