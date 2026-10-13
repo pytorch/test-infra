@@ -919,36 +919,35 @@ describe("code skip pull request", () => {
         ],
       },
     } as never);
-    raw.rest.pulls.get.mockImplementation(
-      async (args: { pull_number: number }) => {
-        if (args.pull_number === 99) {
-          return {
-            data: {
-              number: 99,
-              draft: true,
-              body: "fork body",
-              head: {
-                ref: "someone-branch",
-                sha: "forksha",
-                repo: { full_name: "someone/pytorch" },
-              },
-            },
-          };
-        }
+    raw.rest.pulls.get.mockImplementation(async (...args: unknown[]) => {
+      const pullNumber = (args[0] as { pull_number: number }).pull_number;
+      if (pullNumber === 99) {
         return {
           data: {
-            number: 7,
+            number: 99,
             draft: true,
-            body: "stale body",
+            body: "fork body",
             head: {
-              ref: CODE_SKIP_UNSKIP_BRANCH,
-              sha: "headsha",
-              repo: { full_name: "pytorch/pytorch" },
+              ref: "someone-branch",
+              sha: "forksha",
+              repo: { full_name: "someone/pytorch" },
             },
           },
         };
       }
-    );
+      return {
+        data: {
+          number: 7,
+          draft: true,
+          body: "stale body",
+          head: {
+            ref: CODE_SKIP_UNSKIP_BRANCH,
+            sha: "headsha",
+            repo: { full_name: "pytorch/pytorch" },
+          },
+        },
+      };
+    });
     raw.rest.pulls.listFiles.mockResolvedValue({
       data: [{ filename: "test/test_foo.py" }],
     } as never);
