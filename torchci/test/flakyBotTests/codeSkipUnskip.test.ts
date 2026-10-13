@@ -1,4 +1,10 @@
 import { readFileSync } from "fs";
+import fetchDisabledNonFlakyTests from "lib/fetchDisabledNonFlakyTests";
+import fetchFlakyTests, {
+  fetchFlakyTestsAcrossFileReruns,
+} from "lib/fetchFlakyTests";
+import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
+import fetchPassingCodeSkips from "lib/fetchPassingCodeSkips";
 import {
   buildPullRequestBody,
   CODE_SKIP_MIN_GREEN,
@@ -12,9 +18,33 @@ import {
   removeCodeSkipDecorator,
   repoPathForTestFile,
 } from "lib/flakyBot/codeSkipUnskip";
+import { getOctokit } from "lib/github";
 import { PassingCodeSkipRow } from "lib/types";
 import nock from "nock";
 import { Octokit } from "octokit";
+import handler from "pages/api/flaky-tests/disable";
+
+jest.mock("lib/fetchPassingCodeSkips", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+jest.mock("lib/fetchFlakyTests", () => ({
+  __esModule: true,
+  default: jest.fn(),
+  fetchFlakyTestsAcrossFileReruns: jest.fn(),
+}));
+jest.mock("lib/fetchIssuesByLabel", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+jest.mock("lib/fetchDisabledNonFlakyTests", () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+jest.mock("lib/github", () => ({
+  __esModule: true,
+  getOctokit: jest.fn(),
+}));
 
 nock.disableNetConnect();
 
@@ -289,6 +319,52 @@ class Child(Parent):
     expect(body).toContain("class-level");
   });
 
+  test("does not delete a class skip when the parent header wraps to a closing paren", () => {
+    const source = `class Parent(
+    TestCase,
+):
+    def test_one(self):
+        pass
+
+@unittest.skip("broken")
+class Child(Parent):
+    def test_three(self):
+        pass
+`;
+    const result = removeCodeSkipDecorator(
+      source,
+      "test_three",
+      "Child",
+      "broken"
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toContain("class-level");
+    }
+    expect(source).toContain('@unittest.skip("broken")');
+  });
+
+  test("removes a class skip on a wrapped header whose only base is TestCase", () => {
+    const source = `@unittest.skip("broken")
+class TestFoo(
+    TestCase,
+):
+    def test_a(self):
+        pass
+`;
+    const result = removeCodeSkipDecorator(
+      source,
+      "test_a",
+      "TestFoo",
+      "broken"
+    );
+    if (!result.ok) {
+      throw new Error(result.reason);
+    }
+    expect(result.source).not.toContain("@unittest.skip");
+    expect(result.source).toContain("def test_a(self):");
+  });
+
   test("does not delete a class skip when the base class is imported", () => {
     const source = `from other_tests import Parent
 
@@ -550,6 +626,123 @@ describe("code skip pull request", () => {
     };
     expect(closed.pull_number).toBe(7);
     expect(closed.state).toBe("closed");
+  });
+
+  test("does not close a pull request that a person has marked ready", async () => {
+    const { octokit, raw } = fakeOctokit();
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [{ title: CODE_SKIP_UNSKIP_PR_TITLE, number: 7 }],
+      },
+    } as never);
+    raw.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 7,
+        draft: false,
+        body: "ready body",
+        head: {
+          ref: CODE_SKIP_UNSKIP_BRANCH,
+          sha: "headsha",
+          repo: { full_name: "pytorch/pytorch" },
+        },
+      },
+    } as never);
+
+    await handlePassingCodeSkips(octokit, []);
+
+    expect(raw.rest.pulls.update).not.toHaveBeenCalled();
+    expect(raw.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(raw.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
+  test("does not close a draft when the code-skip query failed", async () => {
+    const { octokit, raw } = fakeOctokit();
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [{ title: CODE_SKIP_UNSKIP_PR_TITLE, number: 7 }],
+      },
+    } as never);
+    raw.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 7,
+        draft: true,
+        body: "stale body",
+        head: {
+          ref: CODE_SKIP_UNSKIP_BRANCH,
+          sha: "headsha",
+          repo: { full_name: "pytorch/pytorch" },
+        },
+      },
+    } as never);
+
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    await handlePassingCodeSkips(octokit, null);
+
+    expect(warn).toHaveBeenCalledWith(
+      "code-skip query failed; leaving any open draft alone."
+    );
+    warn.mockRestore();
+    expect(raw.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+    expect(raw.rest.pulls.update).not.toHaveBeenCalled();
+    expect(raw.rest.issues.createComment).not.toHaveBeenCalled();
+    expect(raw.rest.pulls.create).not.toHaveBeenCalled();
+  });
+
+  test("a thrown code-skip query leaves the open draft alone", async () => {
+    const { octokit, raw } = fakeOctokit();
+    raw.rest.search.issuesAndPullRequests.mockResolvedValue({
+      data: {
+        items: [{ title: CODE_SKIP_UNSKIP_PR_TITLE, number: 7 }],
+      },
+    } as never);
+    raw.rest.pulls.get.mockResolvedValue({
+      data: {
+        number: 7,
+        draft: true,
+        body: "stale body",
+        head: {
+          ref: CODE_SKIP_UNSKIP_BRANCH,
+          sha: "headsha",
+          repo: { full_name: "pytorch/pytorch" },
+        },
+      },
+    } as never);
+    (fetchPassingCodeSkips as jest.Mock).mockRejectedValue(
+      new Error("missing table")
+    );
+    (fetchFlakyTests as jest.Mock).mockResolvedValue([]);
+    (fetchFlakyTestsAcrossFileReruns as jest.Mock).mockResolvedValue([]);
+    (fetchIssuesByLabel as jest.Mock).mockResolvedValue([]);
+    (fetchDisabledNonFlakyTests as jest.Mock).mockResolvedValue([]);
+    (getOctokit as jest.Mock).mockResolvedValue(octokit);
+
+    const previousKey = process.env.FLAKY_TEST_BOT_KEY;
+    process.env.FLAKY_TEST_BOT_KEY = "test-key";
+    const end = jest.fn();
+    const res = { status: jest.fn(() => ({ end })) };
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await handler(
+        { headers: { authorization: "test-key" } } as never,
+        res as never
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("any open draft is left alone")
+      );
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("missing table")
+      );
+      expect(raw.rest.pulls.update).not.toHaveBeenCalled();
+      expect(raw.rest.issues.createComment).not.toHaveBeenCalled();
+    } finally {
+      if (previousKey === undefined) {
+        delete process.env.FLAKY_TEST_BOT_KEY;
+      } else {
+        process.env.FLAKY_TEST_BOT_KEY = previousKey;
+      }
+      warn.mockRestore();
+    }
   });
 
   test("opens no pull request when every candidate is a capability skip", async () => {

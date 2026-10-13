@@ -38,11 +38,14 @@ export default async function handler(
 
 async function disableFlakyTestsAndReenableNonFlakyTests() {
   // A missing code-skip table must not block closing DISABLED issues. The
-  // table is created by hand; until then this query fails and we pass [].
+  // table is created by hand; until then this query throws. null is not an
+  // empty candidate list: [] means nothing qualifies and closes the draft.
   const passingCodeSkipsPromise = fetchPassingCodeSkips().catch(
     (err: unknown) => {
-      console.warn(`code-skip query failed; issue closing still runs. ${err}`);
-      return [] as PassingCodeSkipRow[];
+      console.warn(
+        `code-skip query failed; issue closing still runs and any open draft is left alone. ${err}`
+      );
+      return null;
     }
   );
   const [
@@ -78,7 +81,7 @@ async function handleAll(
   flakyTestsAcrossFileReruns: FlakyTestData[],
   issues: IssueData[],
   disabledNonFlakyTests: DisabledNonFlakyTestData[],
-  passingCodeSkips: PassingCodeSkipRow[] = []
+  passingCodeSkips: PassingCodeSkipRow[] | null = []
 ) {
   const allFlakyTests = flakyTests.concat(flakyTestsAcrossFileReruns);
   allFlakyTests.forEach((test) => {
@@ -104,7 +107,8 @@ async function handleAll(
   await handleNoLongerFlakyTests(nonFlakyTests, dedupedIssues, octokit);
 
   // A passing code skip has no DISABLED issue, so the closer above never sees
-  // it. This opens or updates one draft pull request for the whole set.
+  // it. null means the query failed and must not close a draft. An array
+  // opens, updates, or closes one draft for that result.
   await handlePassingCodeSkips(octokit, passingCodeSkips);
 }
 
