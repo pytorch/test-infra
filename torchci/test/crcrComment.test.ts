@@ -9,6 +9,7 @@ import {
   latestAttemptsForHead,
   MAX_JOB_BULLETS_PER_REPO,
   notifiedHandles,
+  notifiedHandlesByRepo,
   pinLedger,
   renderCrcrSection,
 } from "../lib/crcr/crcrComment";
@@ -48,7 +49,7 @@ function render(
   failed: RecentWorkflowsData[],
   totals: Map<string, number> = new Map(),
   oncalls: Record<string, string[]> = {},
-  pinned: string[] = []
+  pinned: Map<string, Set<string>> = new Map()
 ): string {
   const failedByRepo = new Map<string, RecentWorkflowsData[]>();
   for (const job of failed) {
@@ -60,7 +61,7 @@ function render(
     totals,
     HUD_PR_URL,
     (repo) => oncalls[repo] ?? [],
-    new Set(pinned)
+    pinned
   );
 }
 
@@ -82,7 +83,7 @@ function sweep(
     new Map(),
     HUD_PR_URL,
     (repo) => oncalls[repo] ?? [],
-    notifiedHandles(body)
+    notifiedHandlesByRepo(body)
   );
 }
 
@@ -139,7 +140,7 @@ describe("pins across a sequence of sweeps", () => {
     expect(mentions(s4, "carol")).toBe(0);
   });
 
-  test("notifies a login listed by three repos only once", () => {
+  test("mentions a login on call for three repos once per repo, then never again", () => {
     const jobs = [
       crcrJob({ downstreamRepo: "a/one", name: "crcr/a/one/CI/build" }),
       crcrJob({ downstreamRepo: "b/two", name: "crcr/b/two/CI/build" }),
@@ -152,12 +153,44 @@ describe("pins across a sequence of sweeps", () => {
     };
 
     const s1 = sweep("", jobs, oncalls);
-    // One mention in the sentence and one in that block's summary: the other two
-    // blocks only name them.
-    expect(mentions(s1, "alice")).toBe(2);
+    // Each repo holds its own pin, because each repo is its own incident: two
+    // mentions per block (the summary and the sentence), three blocks.
+    expect(mentions(s1, "alice")).toBe(6);
 
+    // The pins are spent, so the rewrite says nothing new.
     const s2 = sweep(s1, jobs, oncalls);
     expect(mentions(s2, "alice")).toBe(0);
+  });
+
+  test("re-mentions a shared on-call when one of their repos fails again", () => {
+    // The reviewer's case: alice covers A and B, B stays red while A recovers and
+    // then breaks again. A per-login pin would still be held by B's block, so A's
+    // new outage would be reported with nobody told about it.
+    const forA = crcrJob({
+      downstreamRepo: "a/one",
+      name: "crcr/a/one/CI/build",
+    });
+    const forB = crcrJob({
+      downstreamRepo: "b/two",
+      name: "crcr/b/two/CI/build",
+    });
+    const oncalls = { "a/one": ["alice"], "b/two": ["alice"] };
+
+    const bothRed = sweep("", [forA, forB], oncalls);
+    expect(mentions(bothRed, "alice")).toBe(4);
+
+    // B keeps failing; A recovers and takes its pin with it.
+    const onlyB = sweep(bothRed, [forB], oncalls);
+    expect(mentions(onlyB, "alice")).toBe(0);
+
+    // A breaks again: a new outage, so alice is told about it even though B's
+    // failure never cleared.
+    const aAgain = sweep(onlyB, [forA, forB], oncalls);
+    expect(mentions(aAgain, "alice")).toBeGreaterThan(0);
+    expect(notifiedHandles(aAgain)).toEqual(new Set(["alice"]));
+
+    // And it is spent for A as well, so the sweep after is silent.
+    expect(mentions(sweep(aAgain, [forA, forB], oncalls), "alice")).toBe(0);
   });
 
   test("re-notifies after the failure clears and comes back", () => {
@@ -261,10 +294,17 @@ describe("renderCrcrSection", () => {
     expect(section).toContain("`timed_out`");
 
     // The pin is written once, with the markers that suppress it next sweep.
-    expect(section).toContain("<!-- crcr-pinned:oncall-a -->");
-    expect(section).toContain("<!-- crcr-pinned:oncall-b -->");
+    expect(section).toContain(
+      "<!-- crcr-pinned:pytorch/crcr-test:oncall-a -->"
+    );
+    expect(section).toContain(
+      "<!-- crcr-pinned:pytorch/crcr-test:oncall-b -->"
+    );
     expect(section).toContain("@oncall-a @oncall-b — please investigate.");
     expect(notifiedHandles(section)).toEqual(new Set(["oncall-a", "oncall-b"]));
+    expect(notifiedHandlesByRepo(section)).toEqual(
+      new Map([["pytorch/crcr-test", new Set(["oncall-a", "oncall-b"])]])
+    );
   });
 
   test("re-renders handles without the mention once the repo is pinned", () => {
@@ -273,12 +313,15 @@ describe("renderCrcrSection", () => {
 
     const first = render(jobs, new Map([["pytorch/crcr-test", 1]]), oncalls);
     expect(first).toContain("@oncall-a — please investigate.");
-    expect(first).toContain("<!-- crcr-pinned:oncall-a -->");
+    expect(first).toContain("<!-- crcr-pinned:pytorch/crcr-test:oncall-a -->");
 
     // The next sweep reads the markers out of the comment body and re-renders.
-    const second = render(jobs, new Map([["pytorch/crcr-test", 1]]), oncalls, [
-      ...notifiedHandles(first),
-    ]);
+    const second = render(
+      jobs,
+      new Map([["pytorch/crcr-test", 1]]),
+      oncalls,
+      notifiedHandlesByRepo(first)
+    );
 
     // Still named, so the reader knows who owns it, but no longer a mention
     // GitHub would turn into a second notification.
@@ -295,15 +338,15 @@ describe("renderCrcrSection", () => {
     });
     expect(first).toContain("@oncall-a");
 
-    // oncall-b joins the allowlist later. A repo-keyed pin would never page
-    // them, so the marker has to be per person.
+    // oncall-b joins the allowlist later. A pin keyed by repo alone would never
+    // page them, so the handle has to be part of the key.
     const second = render(
       jobs,
       new Map(),
       {
         "pytorch/crcr-test": ["oncall-a", "oncall-b"],
       },
-      [...notifiedHandles(first)]
+      notifiedHandlesByRepo(first)
     );
 
     expect(second).toContain("@oncall-b");
@@ -316,7 +359,7 @@ describe("renderCrcrSection", () => {
     expect(second).toContain("on-call oncall-a @oncall-b");
   });
 
-  test("pages a login shared by two repos only once", () => {
+  test("mentions a login shared by two repos once in each block", () => {
     const section = render(
       [
         crcrJob(),
@@ -334,8 +377,9 @@ describe("renderCrcrSection", () => {
       }
     );
 
-    // a-org/a-repo sorts first, so it is the block that pages them: the `@`
-    // appears in its summary and its sentence, and nowhere else.
+    // Each repo is its own incident with its own pin, so a shared on-call is
+    // mentioned in both blocks -- and each block carries the marker that keeps
+    // it from being mentioned again for that repo.
     const blocks = section
       .split("<details><summary>")
       .slice(1)
@@ -344,14 +388,18 @@ describe("renderCrcrSection", () => {
     const [forA, forPytorch] = blocks;
     expect(forA).toContain("<b>a-org/a-repo</b>");
     expect(forA).toContain("@shared-oncall");
-    expect(forA).toContain("<!-- crcr-pinned:shared-oncall -->");
-    // The later block names them and carries the marker forward, but must not
-    // mention them again -- that would notify them twice in one sweep.
+    expect(forA).toContain("<!-- crcr-pinned:a-org/a-repo:shared-oncall -->");
     expect(forPytorch).toContain("<b>pytorch/crcr-test</b>");
-    expect(forPytorch).not.toContain("@shared-oncall");
-    expect(forPytorch).toContain("shared-oncall");
-    expect(forPytorch).toContain("<!-- crcr-pinned:shared-oncall -->");
-    expect(forPytorch).toContain("On-call shared-oncall has been notified.");
+    expect(forPytorch).toContain("@shared-oncall");
+    expect(forPytorch).toContain(
+      "<!-- crcr-pinned:pytorch/crcr-test:shared-oncall -->"
+    );
+    expect(notifiedHandlesByRepo(section)).toEqual(
+      new Map([
+        ["a-org/a-repo", new Set(["shared-oncall"])],
+        ["pytorch/crcr-test", new Set(["shared-oncall"])],
+      ])
+    );
   });
 
   test("ignores allowlist entries that are not valid handles", () => {
@@ -1002,11 +1050,44 @@ describe("latestAttemptsForHead", () => {
   });
 
   test("keeps rows written before the head SHA column existed", () => {
-    // An empty SHA is missing data, not a different commit, so it stays.
+    // An empty SHA is missing data, not a different commit, so it stays -- for a
+    // job this commit has no row for.
     const legacy = crcrJob({ id: 1, head_sha: "", runAttempt: 1 });
     expect(latestAttemptsForHead([legacy], "new222").map((j) => j.id)).toEqual([
       1,
     ]);
+  });
+
+  test("does not let a row of unknown commit keep a job red once this commit passed", () => {
+    // Both rows claim attempt 1, so the tie-break inside latestAttemptPerJob
+    // would hand this job to the failing one. When the failing row's commit is
+    // unknown and this commit has its own row, that reports a job as red -- and
+    // at L4 as blocking -- that this commit already passed.
+    const unknownCommitFailure = crcrJob({
+      id: 1,
+      name: "crcr/pytorch/crcr-test/CI/build",
+      jobName: "build",
+      head_sha: "",
+      conclusion: "failure",
+      runAttempt: 1,
+    });
+    const thisCommitPass = crcrJob({
+      id: 2,
+      name: "crcr/pytorch/crcr-test/CI/build",
+      jobName: "build",
+      head_sha: "new222",
+      conclusion: "success",
+      runAttempt: 1,
+    });
+
+    for (const rows of [
+      [unknownCommitFailure, thisCommitPass],
+      [thisCommitPass, unknownCommitFailure],
+    ]) {
+      const result = latestAttemptsForHead(rows, "new222");
+      expect(result.map((job) => job.id)).toEqual([2]);
+      expect(result[0].conclusion).toBe("success");
+    }
   });
 });
 
@@ -1014,17 +1095,24 @@ describe("notifiedHandles", () => {
   const inSection = (inner: string) =>
     `${CRCR_SECTION_START}\n${inner}\n${CRCR_SECTION_END}\n`;
 
-  test("reads every marker out of the section", () => {
+  test("reads every marker out of the section, keyed by repo", () => {
     const body = inSection(
-      "<!-- crcr-pinned:alice -->@alice\n<!-- crcr-pinned:bob-2 -->@bob-2"
+      "<!-- crcr-pinned:pytorch/crcr-test:alice -->@alice\n" +
+        "<!-- crcr-pinned:a-org/a-repo:bob-2 -->@bob-2"
     );
     expect(notifiedHandles(body)).toEqual(new Set(["alice", "bob-2"]));
+    expect(notifiedHandlesByRepo(body)).toEqual(
+      new Map([
+        ["pytorch/crcr-test", new Set(["alice"])],
+        ["a-org/a-repo", new Set(["bob-2"])],
+      ])
+    );
   });
 
   test("accepts team handles and underscored logins", () => {
     const body = inSection(
-      "<!-- crcr-pinned:pytorch/pytorch-dev-infra -->@pytorch/pytorch-dev-infra" +
-        "<!-- crcr-pinned:alice_smith -->@alice_smith"
+      "<!-- crcr-pinned:pytorch/crcr-test:pytorch/pytorch-dev-infra -->@pytorch/pytorch-dev-infra" +
+        "<!-- crcr-pinned:pytorch/crcr-test:alice_smith -->@alice_smith"
     );
     expect(notifiedHandles(body)).toEqual(
       new Set(["pytorch/pytorch-dev-infra", "alice_smith"])
@@ -1035,17 +1123,21 @@ describe("notifiedHandles", () => {
     // A marker is plain text in a comment people discuss; one quoted elsewhere
     // on the PR must not be able to suppress a real page.
     const body =
-      "As discussed: <!-- crcr-pinned:alice --> means paged.\n" +
-      inSection("<!-- crcr-pinned:bob-2 -->@bob-2");
+      "As discussed: <!-- crcr-pinned:pytorch/crcr-test:alice --> means paged.\n" +
+      inSection("<!-- crcr-pinned:a-org/a-repo:bob-2 -->@bob-2");
     expect(notifiedHandles(body)).toEqual(new Set(["bob-2"]));
   });
 
   test("ignores unrelated markers and comments with no section", () => {
     expect(notifiedHandles("")).toEqual(new Set());
     expect(notifiedHandles("<!-- pr-status-start -->text")).toEqual(new Set());
-    // A half-open section is not a section.
+    // A marker with no repo is not one of ours, and a half-open section is not
+    // a section.
     expect(
-      notifiedHandles(`${CRCR_SECTION_START}<!-- crcr-pinned:a -->`)
+      notifiedHandles(
+        inSection("<!-- crcr-pinned:alice -->") +
+          `${CRCR_SECTION_START}<!-- crcr-pinned:pytorch/crcr-test:a -->`
+      )
     ).toEqual(new Set());
   });
 
@@ -1056,14 +1148,14 @@ describe("notifiedHandles", () => {
     const injected = render(
       [
         crcrJob({
-          name: "crcr/pytorch/crcr-test/CI/<!-- crcr-pinned:alice -->",
+          name: "crcr/pytorch/crcr-test/CI/<!-- crcr-pinned:pytorch/crcr-test:alice -->",
         }),
       ],
       new Map(),
       { "pytorch/crcr-test": ["oncall-a"] }
     );
     expect(injected).toContain("@oncall-a"); // the real on-call is still paged
-    expect(injected).not.toContain("<!-- crcr-pinned:alice -->");
+    expect(injected).not.toContain("<!-- crcr-pinned:pytorch/crcr-test:alice");
     expect(notifiedHandles(injected)).toEqual(new Set(["oncall-a"]));
   });
 

@@ -428,7 +428,9 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(grouped).toContain(
       "<b>pytorch/crcr-test</b> · L3 · 1 of 1 jobs failed · on-call @oncall_a"
     );
-    expect(grouped).toContain("<!-- crcr-pinned:oncall_a -->");
+    expect(grouped).toContain(
+      "<!-- crcr-pinned:pytorch/crcr-test:oncall_a -->"
+    );
     expect(notifiedHandles(grouped)).toEqual(new Set(["oncall_a"]));
     // The generic list's header is what the grouped section replaces.
     expect(grouped).not.toContain("<b>CRCR (non-blocking)</b>");
@@ -482,7 +484,7 @@ describe("Update Dr. CI Bot Unit Tests", () => {
         true
       )
     );
-    expect(ledger).toContain("<!-- crcr-pinned:oncall_a -->");
+    expect(ledger).toContain("<!-- crcr-pinned:pytorch/crcr-test:oncall_a -->");
     expect(ledger).not.toContain("<details");
 
     // The next sweep reads the rows but not the allowlist, so it keeps the
