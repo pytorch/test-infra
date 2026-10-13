@@ -49,8 +49,8 @@
 -- string to ClickHouse without validating it.
 --
 -- The flag is attributed per PR (per PR and bucket, at day or week granularity) by max(shadow) and
--- applied after the GROUP BY, never as a row filter. A PR carrying rows of both kinds -- which the
--- trusted-author cohort changing mid-cycle produces -- would otherwise lose rows from its group and
+-- applied after the GROUP BY, never as a row filter. A PR carrying rows of both kinds -- which
+-- eligibility changing mid-cycle produces -- would otherwise lose rows from its group and
 -- be reconstructed wrong rather than excluded, silently moving it between populations instead of
 -- out of one.
 --

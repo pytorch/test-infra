@@ -34,17 +34,19 @@ jobs:
             package-name: torchvision
             architecture: "arm64"
             build-platform: setup-py
-          - repository: pytorch/vision
-            pre-script: packaging/pre_build_script_arm64.sh
-            smoke-test-script: test/smoke_test.py
-            package-name: torchvision
+          - repository: pytorch/ao
+            # ao has no nightly branch
+            ref: main
+            pre-script: packaging/pre_build_script.sh
+            smoke-test-script: packaging/smoke_test.py
+            package-name: torchao
             architecture: "arm64"
             build-platform: python-build-package
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
       repository: ${{ matrix.repository }}
-      ref: nightly
+      ref: ${{ matrix.ref || 'nightly' }}
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
       pre-script: ${{ matrix.pre-script }}

@@ -351,6 +351,37 @@ export async function hasWritePermissions(
   return permissions === "admin" || permissions === "write";
 }
 
+// Triage or higher on owner/repo. The legacy `permission` field reports triage
+// as "read", so this reads the granular permissions and the role name. A 404
+// (no such user) is no permission; any other error propagates.
+export async function hasTriageOrHigherPermissions(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  username: string
+): Promise<boolean> {
+  let data;
+  try {
+    data = (
+      await octokit.rest.repos.getCollaboratorPermissionLevel({
+        owner,
+        repo,
+        username,
+      })
+    ).data;
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) {
+      return false;
+    }
+    throw error;
+  }
+  const p = data.user?.permissions;
+  return (
+    Boolean(p?.triage || p?.push || p?.maintain || p?.admin) ||
+    ["triage", "write", "maintain", "admin"].includes(data.role_name)
+  );
+}
+
 // Answers "did we VERIFY this user as an active member of org/teamSlug?" —
 // a false is "not verified", which is weaker than "not a member".
 //

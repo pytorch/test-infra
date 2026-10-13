@@ -121,14 +121,8 @@ def test_max_diff_files_value():
 
 
 def test_target_branch_value():
-    # A path-scoped author is eligible only on this base: the one trymerge requires of a non-ghstack PR.
+    # A path-scoped author's PR must be based on this branch unless it is a ghstack PR, as trymerge requires.
     assert constants.TARGET_BRANCH == "main"
-
-
-def test_trusted_authors_issue_reference():
-    # Whoever can edit this issue can grant greenlight authority, so moving it is a trust change.
-    assert constants.TRUSTED_AUTHORS_ISSUE_REPO == "pytorch/test-infra"
-    assert constants.TRUSTED_AUTHORS_ISSUE_NUMBER == 8945
 
 
 def test_drci_endpoint_value():

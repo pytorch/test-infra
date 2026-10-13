@@ -1,4 +1,5 @@
-// Per-repo gate for the Green Light section of the Dr.CI comment.
+// Per-repo gate for the Green Light section of the Dr.CI comment, and
+// greenlight's own login.
 //
 // Pure data with no server-only imports, so it can be imported from both API
 // routes and React components.
@@ -30,3 +31,8 @@ export function greenlightRepoKey(owner: string, repo: string): string {
 export function isGreenlightRepo(owner: string, repo: string): boolean {
   return GREENLIGHT_REPOS.includes(greenlightRepoKey(owner, repo));
 }
+
+// greenlight's bare login, the form a merge_rules.yaml entry would take. isBot
+// misses it: only the REST-side "pytorchgreenlight[bot]" is bot-shaped. Must equal
+// GREENLIGHT_APP_SLUG in greenlight/src/greenlight/cohort.py.
+export const GREENLIGHT_APP_SLUG = "pytorchgreenlight";

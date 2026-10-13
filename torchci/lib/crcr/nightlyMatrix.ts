@@ -113,3 +113,20 @@ export function buildNightlyMatrix<T extends NightlyMatrixJob>(
   );
   return { jobNames, rows };
 }
+
+export function paginateNightlyMatrix<T extends NightlyMatrixJob>(
+  data: T[],
+  pageSize: number
+): { hasNextPage: boolean; jobNames: string[]; rows: NightlyRow<T>[] } {
+  const full = buildNightlyMatrix(data);
+  const rows = full.rows.slice(0, pageSize);
+  const jobNames = Array.from(
+    new Set(rows.flatMap((row) => Array.from(row.jobs.keys())))
+  ).sort();
+
+  return {
+    hasNextPage: full.rows.length > pageSize,
+    jobNames,
+    rows,
+  };
+}

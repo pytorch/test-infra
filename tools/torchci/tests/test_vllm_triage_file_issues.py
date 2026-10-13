@@ -9,6 +9,7 @@ pins one field of that contract.
 """
 
 import contextlib
+import email.message
 import io
 import json
 import os
@@ -16,6 +17,7 @@ import re
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -351,6 +353,245 @@ class TestRoutingIsNotAFilingGate(unittest.TestCase):
             self.assertIn(r, vtfi.SECTIONS)
 
 
+class TestNeedsInvestigation(unittest.TestCase):
+    """Widespread infra/undetermined causes are filed for a human."""
+
+    CLUSTERS = [f":nvidia: (H200 MIG 35GB) Job {i}" for i in range(79)]
+
+    def test_widespread_infra_cause_is_investigated(self):
+        # Shape of the 2026-10-06 CUDA-init finding: 79 clusters, routed infra.
+        c = cause(routing="infra", new_failure_confidence="low", clusters=self.CLUSTERS)
+        self.assertFalse(eligible(c))
+        self.assertTrue(vtfi.needs_investigation(c, 10))
+
+    def test_widespread_undetermined_cause_is_investigated(self):
+        c = cause(determined=False, clusters=self.CLUSTERS)
+        self.assertTrue(vtfi.needs_investigation(c, 10))
+
+    def test_small_infra_cause_is_still_dropped(self):
+        c = cause(routing="infra", clusters=self.CLUSTERS[:3])
+        self.assertFalse(vtfi.needs_investigation(c, 10))
+
+    def test_eligible_cause_is_not_double_counted(self):
+        self.assertFalse(vtfi.needs_investigation(cause(clusters=self.CLUSTERS), 10))
+
+    def test_zero_disables(self):
+        c = cause(routing="infra", clusters=self.CLUSTERS)
+        self.assertFalse(vtfi.needs_investigation(c, 0))
+
+    def test_template_ships_the_section(self):
+        self.assertIn(vtfi.INVESTIGATE_SECTION, vtfi.umbrella_body("2.15", {}))
+
+    def test_child_body_says_why_it_was_filed(self):
+        c = cause(routing="infra", clusters=self.CLUSTERS)
+        body = vtfi.child_body(c, {}, "k")
+        self.assertIn("Filed for investigation", body)
+        self.assertIn("79 job clusters", body)
+
+    def test_dry_run_lists_investigation_after_eligible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = Path(tmp) / "findings.json"
+            report = Path(tmp) / "report.json"
+            findings.write_text(
+                json.dumps(
+                    {
+                        "causes": [
+                            cause(
+                                title="CUDA init storm",
+                                routing="infra",
+                                clusters=self.CLUSTERS,
+                            ),
+                            cause(title="small infra", routing="infra"),
+                            cause(),
+                        ]
+                    }
+                )
+            )
+            report.write_text(json.dumps({"torch_version_minor": "2.15"}))
+            argv = ["filer", "--findings", str(findings), "--report", str(report)]
+            output = io.StringIO()
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.dict(os.environ, {"GITHUB_TOKEN": "dry-run-token"}),
+                mock.patch.object(vtfi, "_req") as req,
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(vtfi.main(), 0)
+                req.assert_not_called()
+        out = output.getvalue()
+        self.assertIn("1 eligible, 1 for investigation, 1 skipped", out)
+        self.assertLess(
+            out.index("child [pytorch/pytorch]"), out.index("child [infra]")
+        )
+        self.assertNotIn("small infra  key=", out)
+
+
+class TestSkippedRecurrence(unittest.TestCase):
+    """A tracked cause the agent re-labels as infra still gets a comment."""
+
+    def test_skipped_cause_matching_an_issue_is_recorded(self):
+        skipped = cause(
+            title="free-memory startup check",
+            routing="infra",
+            new_failure_confidence="low",
+        )
+        tracked = {"number": 8940, "body": ""}
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = Path(tmp) / "findings.json"
+            report = Path(tmp) / "report.json"
+            findings.write_text(json.dumps({"causes": [skipped]}))
+            report.write_text(json.dumps({"torch_version_minor": "2.15"}))
+            argv = [
+                "filer",
+                "--findings",
+                str(findings),
+                "--report",
+                str(report),
+                "--execute",
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}),
+                mock.patch.object(vtfi, "find_umbrella", return_value={"number": 1}),
+                mock.patch.object(vtfi, "open_children", return_value=[tracked]),
+                mock.patch.object(
+                    vtfi, "find_existing", return_value=(tracked, "near-duplicate")
+                ),
+                mock.patch.object(vtfi, "record_recurrence") as record,
+                mock.patch.object(vtfi, "report_silences") as silences,
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(vtfi.main(), 0)
+        record.assert_called_once()
+        self.assertIn("routing=`infra`", record.call_args.args[6])
+        # ...and the silence check treats it as matched.
+        self.assertIn(8940, silences.call_args.args[4])
+
+    def test_recurrence_comment_carries_the_note(self):
+        body = vtfi.recurrence_comment(
+            {"torch_nightly_build": 93069}, cause(), [], [], "key", "NOTE-TEXT"
+        )
+        self.assertIn("Still reproducing on torch-nightly build", body)
+        self.assertIn("NOTE-TEXT", body)
+
+
+class TestMaxIssues(unittest.TestCase):
+    """--max-issues caps new issues; recurrences on tracked ones are not counted."""
+
+    def _run(self, causes, existing):
+        with tempfile.TemporaryDirectory() as tmp:
+            findings = Path(tmp) / "findings.json"
+            report = Path(tmp) / "report.json"
+            findings.write_text(json.dumps({"causes": causes}))
+            report.write_text(json.dumps({"torch_version_minor": "2.15"}))
+            argv = [
+                "filer",
+                "--findings",
+                str(findings),
+                "--report",
+                str(report),
+                "--max-issues",
+                "1",
+                "--execute",
+            ]
+            output = io.StringIO()
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}),
+                mock.patch.object(vtfi, "find_umbrella", return_value={"number": 1}),
+                mock.patch.object(vtfi, "open_children", return_value=[]),
+                mock.patch.object(vtfi, "find_existing", side_effect=existing),
+                mock.patch.object(vtfi, "_req", return_value={"number": 99}) as req,
+                mock.patch.object(vtfi, "append_to_umbrella"),
+                mock.patch.object(vtfi, "record_recurrence") as record,
+                mock.patch.object(vtfi, "report_silences") as silences,
+                contextlib.redirect_stdout(output),
+            ):
+                self.assertEqual(vtfi.main(), 0)
+        return req, record, silences, output.getvalue()
+
+    def test_recurrences_do_not_use_up_the_cap(self):
+        causes = [
+            cause(title=f"cause {i}", signature=f"E{i}Error: x") for i in range(3)
+        ]
+        existing = [({"number": 10}, "key"), ({"number": 11}, "key"), (None, "key")]
+        req, record, silences, _ = self._run(causes, existing)
+        self.assertEqual(record.call_count, 2)
+        self.assertEqual(req.call_count, 1)  # the one new issue
+        self.assertEqual(silences.call_args.args[4], {10, 11, 99})
+
+    def test_new_issues_past_the_cap_are_not_filed(self):
+        causes = [
+            cause(title=f"cause {i}", signature=f"E{i}Error: x") for i in range(3)
+        ]
+        req, record, _, out = self._run(causes, [(None, "key")] * 3)
+        record.assert_not_called()
+        self.assertEqual(req.call_count, 1)
+        self.assertIn("(2 not filed this run)", out)
+
+
+def _http_error(code, reason="Forbidden", **headers):
+    msg = email.message.Message()
+    for name, value in headers.items():
+        msg[name.replace("_", "-")] = value
+    return urllib.error.HTTPError("https://api.github.com/x", code, reason, msg, None)
+
+
+class TestRateLimit(unittest.TestCase):
+    """_req waits out GitHub rate limits instead of failing the run."""
+
+    def setUp(self):
+        ok = mock.MagicMock()
+        ok.__enter__.return_value.read.return_value = b'{"ok": true}'
+        self.ok = ok
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.sleep = stack.enter_context(mock.patch.object(vtfi.time, "sleep"))
+        stack.enter_context(mock.patch.object(vtfi, "_last_search", 0.0))
+        stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+
+    def test_retry_after_is_honoured(self):
+        errors = [_http_error(403, Retry_After="7"), self.ok]
+        with mock.patch.object(vtfi.urllib.request, "urlopen", side_effect=errors):
+            self.assertEqual(vtfi._req("GET", "/repos/x", "tok"), {"ok": True})
+        self.sleep.assert_called_once_with(7.0)
+
+    def test_secondary_limit_without_headers_backs_off(self):
+        errors = [_http_error(429, "Too Many Requests"), self.ok]
+        with mock.patch.object(vtfi.urllib.request, "urlopen", side_effect=errors):
+            vtfi._req("POST", "/repos/x/issues", "tok", {"title": "t"})
+        self.sleep.assert_called_once_with(60.0)
+
+    def test_permission_error_is_not_retried(self):
+        with (
+            mock.patch.object(
+                vtfi.urllib.request, "urlopen", side_effect=[_http_error(403)]
+            ),
+            self.assertRaises(urllib.error.HTTPError),
+        ):
+            vtfi._req("GET", "/repos/x", "tok")
+        self.sleep.assert_not_called()
+
+    def test_wait_past_the_ceiling_raises(self):
+        reset = str(int(vtfi.time.time()) + 3600)
+        err = _http_error(403, X_RateLimit_Remaining="0", X_RateLimit_Reset=reset)
+        with (
+            mock.patch.object(vtfi.urllib.request, "urlopen", side_effect=[err]),
+            self.assertRaises(urllib.error.HTTPError),
+        ):
+            vtfi._req("GET", "/repos/x", "tok")
+        self.sleep.assert_not_called()
+
+    def test_searches_are_paced(self):
+        with mock.patch.object(
+            vtfi.urllib.request, "urlopen", side_effect=[self.ok, self.ok]
+        ):
+            vtfi._req("GET", "/search/issues?q=a", "tok")
+            vtfi._req("GET", "/search/issues?q=b", "tok")
+        self.assertEqual(self.sleep.call_count, 1)
+        self.assertGreater(self.sleep.call_args.args[0], 0)
+
+
 class TestInsertInSection(unittest.TestCase):
     # The live #8610 body: the vLLM section precedes the torch one, so
     # appending at the end of the body files everything as a torch regression.
@@ -490,6 +731,167 @@ class TestNearDuplicate(unittest.TestCase):
         child = self._issue(8808, "RuntimeError: boom", self.B200)
         cause = {"signature": "something went wrong", "clusters": list(self.B200)}
         self.assertIsNone(near_duplicate(cause, [child]))
+
+    QWEN = [":nvidia: (B200) LM Eval Qwen3.5 Models"]
+    FUSION = [
+        ":nvidia: (H100) Distributed Compile",
+        ":nvidia: (H100) Fusion E2E Quick",
+        ":nvidia: (H100) Fusion E2E Config Sweep",
+        ":nvidia: (H100) Fusion E2E TP2 Quick",
+    ]
+
+    def test_symptom_matches_an_issue_that_recorded_its_root_cause(self):
+        # #9068 against #9049: the GSM8K 0.0 assertion is the second line of
+        # #9049's signature, after the worker OOM that causes it.
+        child = self._issue(
+            9049,
+            "RuntimeError: Worker failed with error 'CUDA out of memory.'\n"
+            "AssertionError: GSM8K metric too low: 0.0000 < 0.8500",
+            self.QWEN,
+        )
+        cause = {
+            "signature": "AssertionError: GSM8K metric too low: 0.0000 < 0.8500",
+            "clusters": list(self.QWEN),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 9049)
+
+    def test_same_wide_job_set_matches_across_exception_types(self):
+        # #9066 against #9053: the AttributeError the fusion passes fail on,
+        # and the "All nodes remain" assertion that follows, on the same jobs.
+        child = self._issue(
+            9053, "AssertionError: All nodes remain for op _C::quant", self.FUSION
+        )
+        cause = {
+            "signature": "AttributeError: 'aten.reciprocal' has no overload name 'name'",
+            "clusters": list(self.FUSION),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 9053)
+
+    def test_partial_overlap_across_exception_types_stays_distinct(self):
+        child = self._issue(9053, "AssertionError: boom", self.FUSION)
+        cause = {"signature": "AttributeError: boom", "clusters": self.FUSION[:3]}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_untyped_signatures_match_on_a_shared_identifier(self):
+        # #9065 against #9050: both nanobind aborts quote PAD_ZERO, and
+        # neither names an exception class.
+        child = self._issue(
+            9050,
+            'Critical nanobind error: refusing to add duplicate key "PAD_ZERO" '
+            "to enumeration\nFatal Python error: Aborted",
+            self.B200,
+        )
+        cause = {
+            "signature": "Critical nanobind error: refusing to add duplicate key "
+            '"PAD_ZERO" to enumeration "triton._C.libtriton.ir.PADDING_OPTION"!',
+            "clusters": list(self.B200),
+        }
+        self.assertEqual(near_duplicate(cause, [child])["number"], 9050)
+
+    def test_untyped_signatures_without_a_shared_identifier_stay_distinct(self):
+        child = self._issue(9050, 'Critical nanobind error: key "PAD_ZERO"', self.B200)
+        cause = {"signature": "Segmentation fault (core dumped)", "clusters": self.B200}
+        self.assertIsNone(near_duplicate(cause, [child]))
+
+    def test_torch_version_stamps_do_not_split_identifiers(self):
+        self.assertEqual(
+            vtfi.identifiers("No module named nixl_ep_cu13.nixl_ep_cpp_torch215"),
+            vtfi.identifiers("No module named nixl_ep_cu13.nixl_ep_cpp_torch216"),
+        )
+
+    def test_next_minor(self):
+        self.assertEqual(vtfi.next_minor("2.15"), "2.16")
+        self.assertEqual(vtfi.next_minor("2.9"), "2.10")
+        self.assertEqual(vtfi.next_minor(""), "")
+        self.assertEqual(vtfi.next_minor("2.15.0"), "")
+
+
+class TestCanonicalIssue(unittest.TestCase):
+    """Recurrences on closed duplicates go to the issue they were folded into."""
+
+    def _req(self, issues, comments):
+        def fake(method, path, token, body=None):
+            if path.endswith("/comments?per_page=100"):
+                return comments.get(int(path.split("/")[-2]), [])
+            return issues[int(path.rsplit("/", 1)[-1])]
+
+        return fake
+
+    def test_open_issue_is_returned_without_lookups(self):
+        issue = {"number": 8899, "state": "open"}
+        with mock.patch.object(vtfi, "_req") as req:
+            self.assertIs(vtfi.canonical_issue("t", "r", issue), issue)
+            req.assert_not_called()
+
+    def test_closed_duplicate_follows_a_hash_reference(self):
+        # #9054, closed with "duplicate of  #8899" (two spaces, as written).
+        issues = {8899: {"number": 8899, "state": "open"}}
+        comments = {9054: [{"body": "duplicate of  #8899: No module named ..."}]}
+        closed = {"number": 9054, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            self.assertEqual(vtfi.canonical_issue("t", "r", closed)["number"], 8899)
+
+    def test_closed_duplicate_follows_an_issue_url(self):
+        # #9027, closed with a link to a comment on #9017.
+        issues = {9017: {"number": 9017, "state": "open"}}
+        comments = {
+            9027: [
+                {
+                    "body": "Closing as duplicate of "
+                    "https://github.com/pytorch/test-infra/issues/9017#issuecomment-1"
+                }
+            ]
+        }
+        closed = {"number": 9027, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            result = vtfi.canonical_issue("t", "pytorch/test-infra", closed)
+        self.assertEqual(result["number"], 9017)
+
+    def test_closed_duplicate_ignores_an_issue_url_in_another_repo(self):
+        # #9017 in vllm-project/vllm is unrelated to pytorch/test-infra#9017.
+        issues = {9017: {"number": 9017, "state": "open"}}
+        comments = {
+            9027: [
+                {
+                    "body": "Closing as duplicate of "
+                    "https://github.com/vllm-project/vllm/issues/9017"
+                }
+            ]
+        }
+        closed = {"number": 9027, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            self.assertIs(
+                vtfi.canonical_issue("t", "pytorch/test-infra", closed), closed
+            )
+
+    def test_closed_duplicate_follows_an_issue_url_in_the_same_repo(self):
+        issues = {9017: {"number": 9017, "state": "open"}}
+        comments = {
+            9027: [
+                {
+                    "body": "Closing as duplicate of "
+                    "https://github.com/PyTorch/test-infra/issues/9017"
+                }
+            ]
+        }
+        closed = {"number": 9027, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            result = vtfi.canonical_issue("t", "pytorch/test-infra", closed)
+        self.assertEqual(result["number"], 9017)
+
+    def test_closed_as_fixed_keeps_the_closed_issue(self):
+        # A recurrence after a fix is news; it belongs on the fixed issue.
+        closed = {"number": 8878, "state": "closed", "body": ""}
+        comments = {8878: [{"body": "Fixed by pytorch/pytorch#123."}]}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req({}, comments)):
+            self.assertIs(vtfi.canonical_issue("t", "r", closed), closed)
+
+    def test_duplicate_of_a_closed_issue_keeps_the_original(self):
+        issues = {8899: {"number": 8899, "state": "closed"}}
+        comments = {9054: [{"body": "Duplicate of #8899"}]}
+        closed = {"number": 9054, "state": "closed", "body": ""}
+        with mock.patch.object(vtfi, "_req", side_effect=self._req(issues, comments)):
+            self.assertIs(vtfi.canonical_issue("t", "r", closed), closed)
 
 
 class TestMergeClusters(unittest.TestCase):

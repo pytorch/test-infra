@@ -32,4 +32,12 @@ describe("CLI Parser", () => {
       expect(args.classification).toBe("regression");
     });
   });
+
+  describe("review command", () => {
+    it("takes no arguments", () => {
+      const parser = getParser();
+      expect(parser.parse_args(["review"]).command).toBe("review");
+      expect(() => parser.parse_args(["review", "now"])).toThrow();
+    });
+  });
 });

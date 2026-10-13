@@ -27,7 +27,7 @@ cohort in `pytorch/pytorch` (see "Who is evaluated, and whose verdict carries au
 below) and, for each one, computes its fingerprint
 (`eval_hash`), reads the PR's latest recorded state from ClickHouse
 `misc.greenlight_pr_state`, and dispatches the reviewer workflow
-(`greenlight-pr-review.yml` on `pytorch/test-infra`) for PRs that are new or changed since
+(`greenlight-pr-review.yml` on `pytorch/test-infra`) for eligible PRs that are new or changed since
 their last review. A reverted PR is dropped from every path, permanently: greenlight revokes its
 own approving review, records a `REVERTED` row, and never reviews the PR again. A PR counts as
 reverted once it carries the `Reverted` label (matched case-insensitively) or has ever recorded a
@@ -58,7 +58,7 @@ just review                          # convenience alias for `just run review`
 just run review --loop               # scan + dispatch forever as a daemon
 just run review --loop --interval 30 # daemon, 30s between iterations
 just run review --pr 123             # scan only PR #123 (its author must be eligible for it)
-just run review --pr 123 --requester alice  # recheck PR #123 for alice (author eligible for it, alice a trusted author)
+just run review --pr 123 --requester alice  # recheck PR #123 for alice (author eligible for it, alice in the evaluation cohort)
 just run review --max 5              # cap this iteration at 5 dispatches
 just run review --ref my-branch      # dispatch the reviewer workflow at this test-infra ref (default main)
 just run review --timeout-minutes 60 # re-dispatch an in-flight review after 60 min (default 45)
@@ -77,8 +77,7 @@ reclaimed sooner.
 
 ### Who is evaluated, and whose verdict carries authority
 
-Two independent questions, both answered in `cohort.py`; on the second, the scan also requires a
-listed author and the verdict only a covering merge rule, on purpose.
+Two independent questions, both answered in `cohort.py`.
 
 **Who is evaluated** is the *evaluation cohort*: `cohort.evaluation_cohort(authorized_logins)` —
 every `approved_by` login in `pytorch/pytorch`'s `merge_rules.yaml` (taken across all rules
@@ -89,10 +88,18 @@ which is not bot-shaped and would otherwise put greenlight in its own cohort rev
 PRs.
 
 **Whose verdict carries authority** is decided per PR ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)): the
-author must be listed in the trusted-authors issue and named by one merge rule covering every file
-the PR changes, on a non-ghstack PR based on `main` if the rule is path-scoped. Every other PR is
-evaluated in **shadow**: fingerprinted, dispatched, reviewed, and recorded exactly like any other,
-but its row is stamped `shadow`, and a shadow row
+author must be named by one merge rule covering every file the PR changes, a path-scoped rule only
+on a PR based on `main` or on a ghstack PR. The listing scan fingerprints and dispatches only such
+eligible PRs, and applies that cut to the *fingerprint candidates*, after the revert guard and the
+state read, not to the listing. Every other listed PR is therefore still state-read and still
+reaches `revert_guard` — so it still loses a greenlight approval it should no longer hold and still
+gets its permanent `REVERTED` row — but is never dispatched; when it is inside the review window
+and not labelled `Stale`, and its latest recorded row is a `LAND`, the scan dismisses greenlight's
+approval.
+
+A review is recorded in **shadow** when the verdict's record-time merge-rule check fails, when
+`verdict` runs with `--shadow`, or when a local `--allow-untrusted-author` run reviews an ineligible
+PR. Its row is stamped `shadow`, and a shadow row
 
 - is never approved — and a `LAND` on a shadow PR additionally dismisses any prior greenlight
   approval, because an approval collected while the PR was eligible is still live authority under
@@ -102,45 +109,29 @@ but its row is stamped `shadow`, and a shadow row
   `/api/greenlight/pr_state` route the land-time merge gate reads;
 - triggers no Dr. CI poke.
 
-A `REVERTED` row, which can only deny, is the exception: on a PR with a recorded row it is stamped
-non-shadow when its author is currently listed.
-
-**How much of that shadow experiment runs** is `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT`, a fraction in
-`0`–`1` (default `1`). An authoritative PR is exempt and always evaluated — holding one out would
-not shrink the experiment, it would withhold the live service. Every other listed PR joins only
-when `candidate_filter.rollout_filter` finds a stable sha256 of `repo#number` under the dial: the
-same PR gets the same answer on every scan and in every process, the buckets nest so dialling up
-never drops a PR already in flight, and a second target repo draws its own partition. It buys a
-stable holdout group to compare against, and a bound on the blast radius of anything wrong in the
-shadow path.
-
-The dial is applied to the *fingerprint candidates*, after the revert guard and the state read, not
-to the listing. A held-out PR is therefore still listed, still has its state read, and still reaches
-`revert_guard` — so it still loses a greenlight approval it should no longer hold and still gets its
-permanent `REVERTED` row. What the dial cuts is the fingerprint fan-out and the dispatches. It
-decides nothing else, and is never an input to the eligibility check: a PR that is evaluated is
-stamped, approved, rendered and poked exactly as it would be at any other setting.
+A `REVERTED` row, which can only deny, is stamped non-shadow on a PR with a recorded row, and
+follows the PR's eligibility on one without.
 
 ### Rechecking a PR (`@greenlight recheck`)
 
 `@greenlight recheck` on a `pytorch/pytorch` PR needs a `pytorch/pytorch` workflow to dispatch
 `greenlight-review.yml` with the PR number and the commenter's login. No such workflow exists, so
 the path runs only when a `pytorch/test-infra` writer dispatches it by hand. The scan re-checks
-that one PR through `--pr`, for a requester listed in the issue and in the evaluation cohort.
+that one PR through `--pr`, for a requester in the evaluation cohort.
 
-The scan is the single source of authorization and enforces two gates, both narrower than the
-cohort it scans: cohort membership alone never authorizes a request.
+The scan is the single source of authorization and enforces two gates. A requester confers no
+authority: a review carries it only when its PR's author passes the merge-rule check.
 
 - **Target-author gate** — `--pr N` fetches PR `N` and refuses (no fingerprint, no dispatch, no
   review) unless its author is eligible for `N`. The listing scan is at least filtered to the
   evaluation cohort, whereas `--pr` names an arbitrary PR and is filtered by nothing, so this gate
   is what stops an arbitrary PR from being reviewed or approved on request.
 - **Requester gate** — `--requester <login>`, when given, additionally requires `<login>` to be
-  listed and in the evaluation cohort (case-insensitive). It needs no target PR, so it gates a
-  listing scan too; it refuses before any PR is fetched and logs the requester for audit.
+  in the evaluation cohort (case-insensitive). It needs no target PR, so it gates a listing scan
+  too; it refuses before any PR is fetched and logs the requester for audit.
 
-A refusal is a clean exit 0, but a listed author's refused PR still goes through the revert guard,
-which can revoke and record, and a failure there fails the run. `--allow-untrusted-author` is a
+A refusal is a clean exit 0, but a refused target with an author login still goes through the revert
+guard, which can revoke and record, and a failure there fails the run. `--allow-untrusted-author` is a
 **local-only** flag that waives the target gate's refusal — but not its eligibility check, which
 still decides shadow. So an ineligible PR is reviewed and recorded **in shadow**: never approved,
 and its verdict dismisses any prior greenlight approval. An eligible PR behaves exactly as it does
@@ -398,8 +389,8 @@ unprefixed `BOT_LOGIN`:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted PR. Must be App-shaped when set; the reverted-PR path refuses the whole scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR write on `pytorch/pytorch` (to revoke its approval on a reverted PR), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs; `verdict` needs PR write, plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org for its merge-rule check |
+| `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the whole scan without it |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs; `verdict` needs PR write, plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org for its merge-rule check |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
@@ -408,11 +399,10 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
 | `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches a resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching. The verdict is outside this cache and re-reads the rules for each `LAND`/`NO_LAND` recorded without `--shadow` |
 | `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check |
-| `PYTORCH_GREENLIGHT_SHADOW_ROLLOUT` | `1` | How much of the shadow experiment `review`'s listing scan runs, as a fraction in `0`–`1`. An authoritative PR is always evaluated; every other listed PR joins only when a stable sha256 of `repo#number` falls under the dial, so the holdout is the same group from one scan to the next and raising the dial only ever adds PRs. `1` (the default) evaluates the whole evaluation cohort. `0` exactly narrows the listing to the logins the trusted-authors issue lists, minus bots and greenlight, and holds every shadow PR out of the fingerprint fan-out and dispatch; those PRs still reach the revert guard. A tiny non-zero value such as `1e-9` is not the same thing — it still lists the wide cohort, with an empty experiment. Anything outside `0`–`1`, and any non-finite value, is rejected. It thins the fingerprint fan-out and the dispatches, not the listing, which paginates every open PR at every setting. Affects the listing scan alone — `--pr`, `@greenlight recheck`, and both authz gates are never sampled out |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
-| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, and revokes its approval on a reverted PR, but the capped fan-out stops before submitting anything, so nothing is fingerprinted, evaluated, or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, and revokes its approval on a reverted or ineligible PR, but the capped fan-out stops before submitting anything, so nothing is fingerprinted, evaluated, or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
 
 `review` additionally reads ClickHouse — any scan that finds at least one cohort
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
@@ -587,13 +577,15 @@ on failure, and clean signal shutdown — all built and tested. `review` scans t
 from the evaluation cohort in `pytorch/pytorch`, computes each PR's fingerprint
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
-PRs that are new or changed. Reverted PRs — those carrying the `Reverted` label or with a
+eligible PRs that are new or changed. Reverted PRs — those carrying the `Reverted` label or with a
 `REVERTED` row already recorded — are excluded permanently on every path: greenlight revokes its
 own approving review, records the `REVERTED` row unless it is already the PR's latest row, and
 pokes Dr. CI when either changed. The
 exclusion survives removal of the label, and `@greenlight recheck` is not exempt (it is skipped
-silently). This is the one path where `review` writes to `pytorch/pytorch`, so it needs PR write
-and the App's `BOT_LOGIN`. Draft PRs are dropped from the listing scan entirely — never
+silently). A listed ineligible PR inside the review window and not labelled `Stale`, whose latest
+recorded row is a `LAND`, has greenlight's approval dismissed, with nothing recorded or dispatched.
+Both paths write to `pytorch/pytorch`, so `review` needs PR write and the App's `BOT_LOGIN`.
+Draft PRs are dropped from the listing scan entirely — never
 fingerprinted or dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still
 reviews a draft. PRs whose `updated_at` is older than the review window
 (`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24), or that carry the `Stale` label, are
@@ -690,9 +682,8 @@ src/greenlight/
   review.py        # scan evaluation-cohort PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
   scan_runner.py   # the scan's fingerprint fan-out, dispatch loop, and recheck-refusal posting
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target
-  cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (assess)
-  trusted_authors.py # read and parse the trusted-authors issue, which only the scan reads
-  authority.py     # the scan's lazy per-PR shadow lookup, REVERTED-row stamp and moved-head deferral
+  cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (assess_rules)
+  authority.py     # the scan's lazy per-PR eligibility lookup, REVERTED-row stamp and moved-head deferral
   candidate_filter.py # prune listed PRs the scan can leave alone this iteration (recency window, excluded labels)
   review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
   revert_guard.py  # permanently exclude reverted PRs: revoke greenlight's approval, record the REVERTED row

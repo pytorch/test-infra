@@ -71,19 +71,30 @@ export const SUPPRESSIBLE_VERDICTS: ReadonlySet<string> = new Set(
     .map(([verdict]) => verdict)
 );
 
-// Clear only what the badge scale calls high confidence. Asks advisorBadge for
-// the bucket rather than restating its threshold, so retuning the scale moves
-// the gate with it.
+// `infra_issue` clears from 0.85. Calibrated against trunk outcomes of merged
+// PRs (Aug-Oct 2026): the job went newly red on main after the merge for 0 of 15
+// scored `infra_issue` verdicts at 0.85-0.88, 1 of 36 at 0.89-0.92 and 6 of 291
+// at >= 0.93. The new band is small and only covers PRs that merged anyway, so
+// the AI suppression dashboard is the check that it holds up.
+export const INFRA_ISSUE_MIN_CONFIDENCE = 0.85;
+
+// Every other cleared verdict needs what the badge scale calls high confidence.
+// Asks advisorBadge for the bucket rather than restating its threshold, so
+// retuning the scale moves the gate with it.
 //
 // That keeps badge and gate in step for `not_related` -- the only cleared
 // verdict whose label is hedged by confidence, so it is the only one that could
 // read "probably not related" while this suppressed. `verdictBadge` returns for
 // `garbage` and `infra_issue` before it consults the bucket, so those labels
-// never hedge: a sub-threshold `infra_issue` shows a flat "infra issue" beside a
-// job that still blocks, and about 6% of `infra_issue` rows in a recent 30-day
-// sample sit below the bar. Fixing that means changing labels in advisorBadge.ts,
-// which is on the already-live comment path -- a follow-up, not this change.
-export function confidentEnoughToSuppress(confidence: number): boolean {
+// never hedge, which is why `infra_issue` can take its own floor without the
+// comment and the gate disagreeing.
+export function confidentEnoughToSuppress(
+  verdict: string,
+  confidence: number
+): boolean {
+  if (verdict === "infra_issue") {
+    return confidence >= INFRA_ISSUE_MIN_CONFIDENCE;
+  }
   return confidenceBucket(confidence) === "high";
 }
 
@@ -138,7 +149,7 @@ export function isSuppressible(
   }
   return (
     SUPPRESSIBLE_VERDICTS.has(resolved.verdict) &&
-    confidentEnoughToSuppress(resolved.confidence) &&
+    confidentEnoughToSuppress(resolved.verdict, resolved.confidence) &&
     verdictDescribesThisRun(job, resolved.timestamp)
   );
 }
