@@ -1,9 +1,11 @@
 import { RecentWorkflowsData } from "lib/types";
 import {
+  CRCR_JOBS_IN_FLIGHT,
   CRCR_SECTION_END,
   CRCR_SECTION_START,
   crcrSectionForSweep,
   crcrSectionHasBlocks,
+  isCrcrInFlight,
   isSafeHandle,
   latestAttemptPerJob,
   latestAttemptsForHead,
@@ -832,6 +834,74 @@ describe("crcrSectionForSweep", () => {
   });
 });
 
+describe("in-flight jobs keep the PR wakeable", () => {
+  test("marks the section while a job is in flight, and nothing once all report", () => {
+    const oncalls = (repo: string) =>
+      repo === "pytorch/crcr-test" ? ["oncall-a"] : [];
+    const failedByRepo = (jobs: RecentWorkflowsData[]) => {
+      const map = new Map<string, RecentWorkflowsData[]>();
+      for (const job of jobs) {
+        const repo = job.downstreamRepo!;
+        map.set(repo, [...(map.get(repo) ?? []), job]);
+      }
+      return map;
+    };
+    // An in_progress write sets no completed_at, so ClickHouse keeps the
+    // column's epoch-0 default -- what a real in-flight row carries.
+    const running = crcrJob({
+      id: 222,
+      jobName: "test-L3-still-running",
+      conclusion: "",
+      completed_at: "",
+    });
+    expect(isCrcrInFlight(running)).toBe(true);
+    expect(
+      isCrcrInFlight(
+        crcrJob({
+          conclusion: "",
+          completed_at: "1970-01-01 00:00:00.000000000",
+        })
+      )
+    ).toBe(true);
+    expect(isCrcrInFlight(crcrJob())).toBe(false);
+
+    const withFailure = crcrSectionForSweep(
+      "",
+      failedByRepo([crcrJob()]),
+      new Map(),
+      HUD_PR_URL,
+      oncalls,
+      true,
+      [running]
+    );
+    expect(withFailure).toContain(CRCR_JOBS_IN_FLIGHT);
+    // The marker must not outlive the rows it describes, or the PR stays in
+    // the sweep set after everything has reported.
+    const allReported = crcrSectionForSweep(
+      "",
+      failedByRepo([crcrJob()]),
+      new Map(),
+      HUD_PR_URL,
+      oncalls,
+      true
+    );
+    expect(allReported).not.toContain(CRCR_JOBS_IN_FLIGHT);
+    // No failures but a matrix still going: the marker alone, rendering
+    // nothing, so the generic list stays authoritative.
+    const noFailures = crcrSectionForSweep(
+      "",
+      new Map(),
+      new Map(),
+      HUD_PR_URL,
+      oncalls,
+      true,
+      [running]
+    );
+    expect(noFailures).toContain(CRCR_JOBS_IN_FLIGHT);
+    expect(crcrSectionHasBlocks(noFailures)).toBe(false);
+  });
+});
+
 describe("crcrSectionHasBlocks", () => {
   test("tells a rendered section from the ledger that has no blocks", () => {
     const rendered = render([crcrJob()], new Map(), {
@@ -885,6 +955,37 @@ describe("latestAttemptPerJob", () => {
     const latest = latestAttemptPerJob([passedFirst, failedRetry]);
     expect(latest).toHaveLength(1);
     expect(latest[0].id).toBe(2);
+  });
+
+  test("keeps a newer run's attempt over an older run's retry", () => {
+    // run_attempt counts attempts of ONE run and starts over at 1 for the next,
+    // so an older run's retry must not outrank a newer run's first attempt: a
+    // re-dispatch for the same commit (a reopen, say) is a new run, and ranking
+    // on the attempt alone reports the job red after the new run passed it --
+    // and at L4 keeps blocking the merge on it.
+    const olderRetry = crcrJob({
+      id: 1,
+      jobName: "build",
+      runId: 101,
+      conclusion: "failure",
+      runAttempt: 2,
+    });
+    const newerRun = crcrJob({
+      id: 2,
+      jobName: "build",
+      runId: 202,
+      conclusion: "success",
+      runAttempt: 1,
+    });
+
+    for (const rows of [
+      [olderRetry, newerRun],
+      [newerRun, olderRetry],
+    ]) {
+      const latest = latestAttemptPerJob(rows);
+      expect(latest).toHaveLength(1);
+      expect(latest[0].id).toBe(2);
+    }
   });
 
   test("dedups per job, not per repo", () => {

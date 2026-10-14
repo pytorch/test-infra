@@ -27,8 +27,10 @@ import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import { buildCrcrTriageLines } from "lib/crcr/crcrTriage";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
+  CRCR_JOBS_IN_FLIGHT,
   crcrSectionForSweep,
   crcrSectionHasBlocks,
+  isCrcrInFlight,
   latestAttemptsForHead,
 } from "lib/crcr/crcrComment";
 import {
@@ -58,6 +60,7 @@ import { fetchCommitTimestamp } from "lib/fetchCommit";
 import fetchIssuesByLabel from "lib/fetchIssuesByLabel";
 import fetchPR from "lib/fetchPR";
 import {
+  fetchCrcrActivityPRs,
   fetchCrcrWorkflows,
   fetchFailedJobsFromCommits,
   fetchJobNamesFromCommits,
@@ -239,12 +242,30 @@ export async function updateDrciComments(
   // longer to run on CH
   const [recentWorkflows, workflowsFromPendingComments] = await Promise.all([
     fetchRecentWorkflows(`${owner}/${repo}`, prNumbers, NUM_MINUTES + ""),
-    // Only fetch if we are not updating a specific PR
+    // Only fetch if we are not updating a specific PR. The backfill set is the
+    // PRs whose comment still shows a pending state, plus the PRs the CRCR
+    // relay reported on recently: a downstream callback is not upstream
+    // workflow activity, so without the second half a PR whose only fresh
+    // signal is the relay is swept only when something else happens on it --
+    // and a failure landing after upstream CI has gone quiet waits for that
+    // something. One fetchRecentWorkflows call carries both, because with
+    // prNumbers set the saved query resolves those PRs' head SHAs and returns
+    // their jobs with no time window (see relevant_shas); a PR the CRCR query
+    // woke whose head has no upstream jobs at all drops out here, as it would
+    // for the marker set alone.
     prNumbers.length != 0
       ? []
       : fetchRecentWorkflows(
           `${owner}/${repo}`,
-          await getPRsNeedingCommentRefresh(`${owner}/${repo}`),
+          Array.from(
+            new Set([
+              ...(await getPRsNeedingCommentRefresh(`${owner}/${repo}`)),
+              ...(await fetchCrcrActivityPRs(
+                `${owner}/${repo}`,
+                NUM_MINUTES + ""
+              )),
+            ])
+          ),
           NUM_MINUTES + ""
         ),
   ]);
@@ -553,9 +574,9 @@ export async function updateDrciComments(
       // These jobs live in oot_workflow_job, not workflow_job, so they are fetched
       // separately and classified based on their downstream_repo_level.
       //
-      // fetchCrcrWorkflows returns every completed job, passing ones included, so
-      // `totalByRepo` can report how much of a repo's matrix failed. Only the
-      // failures reach a bucket or a block.
+      // fetchCrcrWorkflows returns every job that reported, still-running ones
+      // included, so `totalByRepo` can report how much of a repo's matrix
+      // failed. Only the failures reach a bucket or a block.
       //
       // Rows are scoped to the commit the comment reports on, the way the normal
       // workflow rows are (see getWorkflowJobsStatuses). A row from a superseded
@@ -567,11 +588,16 @@ export async function updateDrciComments(
       // False when the rows could not be read at all, which is not the same as
       // "this PR has no failing downstream jobs" -- see the section build below.
       let crcrRowsRead = true;
+      // This commit's rows that have not concluded yet. They write the
+      // in-flight marker into the section, which is what keeps the sweep
+      // visiting the PR while a matrix outlasts the wake window.
+      let crcrInFlightJobs: RecentWorkflowsData[] = [];
       try {
         const crcrWorkflows = latestAttemptsForHead(
           await fetchCrcrWorkflows(`${owner}/${repo}`, [pr_info.pr_number]),
           pr_info.head_sha
         );
+        crcrInFlightJobs = crcrWorkflows.filter(isCrcrInFlight);
         for (const job of crcrWorkflows) {
           const downstreamRepo = job.downstreamRepo || "";
           if (downstreamRepo) {
@@ -584,9 +610,9 @@ export async function updateDrciComments(
 
         // classifyCrcrJobs owns the ciflow/crcr/<device> label gate that keeps
         // unlabeled shadow runs off the PR (see its docstring), and it sees only
-        // the failures: the query returns every completed job, because the
-        // denominator above counts them. L4 failures also stay in `failedJobs`,
-        // where they block the merge.
+        // the failures: the query now returns every job that reported, because
+        // the ratio above needs the denominator. L4 failures also stay in
+        // `failedJobs`, where they block the merge.
         const crcrFailures = crcrWorkflows.filter(isCrCrFailure);
         const classified = classifyCrcrJobs(
           crcrFailures,
@@ -655,7 +681,8 @@ export async function updateDrciComments(
       // rewrite does not re-notify anyone. `crcrSectionForPr` reads those pins
       // from the live comment rather than the replica, and decides what a sweep
       // that could not read the rows, or the allowlist, leaves behind -- see its
-      // docstring.
+      // docstring. Still-running rows also write the in-flight marker, so the
+      // PR keeps being swept until they resolve.
       const allowlist = crcrAllowlist;
       const crcrSection = await crcrSectionForPr({
         failedByRepo: crcrFailedByRepo,
@@ -668,6 +695,7 @@ export async function updateDrciComments(
             : (downstreamRepo) => allowlist.getOncallsForRepo(downstreamRepo),
         replicaBody: replicaComment?.body ?? "",
         readLive: async () => (await readLiveComment()).body,
+        pendingJobs: crcrInFlightJobs,
       });
 
       const failureInfo = constructResultsComment(
@@ -861,7 +889,7 @@ function removeFailureContext(failure: {
  * @returns A list of PR numbers
  */
 // PRs whose Dr.CI comment is in a transient state that warrants a re-render
-// even with no recent (< NUM_MINUTES) workflow activity. Four cases:
+// even with no recent (< NUM_MINUTES) workflow activity. Five cases:
 //   - `\d Pending`: the comment still shows pending jobs that may resolve.
 //   - the advisor pending sentinel: a NEW/unclassified failure was dispatched
 //     to the AI advisor but its verdict had not landed at the last render, so
@@ -878,6 +906,11 @@ function removeFailureContext(failure: {
 //     self-clears the same way (see GREENLIGHT_PENDING_ALT_ATTR).
 //   - the PR review pending sentinel: the same for the automated PR review
 //     section (see PR_REVIEW_PENDING_ALT_ATTR).
+//   - the CRCR in-flight sentinel: a downstream job that has started but not
+//     concluded (see CRCR_JOBS_IN_FLIGHT). CRCR rows are not upstream workflow
+//     activity, so a matrix outlasting upstream CI would otherwise land its
+//     failure on a comment nobody re-renders; the marker self-clears when the
+//     last job concludes.
 // All four stay gated by the open-PR + 1-month freshness guards below, and by
 // the comment author: the marker and the sentinels are plain text any user can
 // put in a comment body, and a comment Dr.CI does not own is one it cannot
@@ -906,6 +939,7 @@ where
         or position(body, {pendingAltAttr: String}) > 0
         or position(body, {greenlightPendingAltAttr: String}) > 0
         or position(body, {prReviewPendingAltAttr: String}) > 0
+        or position(body, {crcrInFlightMark: String}) > 0
     )
     and issue_comment.updated_at > now() - interval 1 month
     and issue_url like {repo: String }
@@ -917,6 +951,7 @@ where
     pendingAltAttr: ADVISOR_PENDING_ALT_ATTR,
     greenlightPendingAltAttr: GREENLIGHT_PENDING_ALT_ATTR,
     prReviewPendingAltAttr: PR_REVIEW_PENDING_ALT_ATTR,
+    crcrInFlightMark: CRCR_JOBS_IN_FLIGHT,
   });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
 }
@@ -1156,6 +1191,10 @@ export async function crcrSectionForPr(opts: {
   replicaBody: string;
   // Reads the comment as GitHub has it.
   readLive: () => Promise<string>;
+  // This commit's CRCR rows with no conclusion yet; non-empty writes the
+  // in-flight marker, which is what keeps a matrix that outlasts upstream CI
+  // in the sweep set -- see CRCR_JOBS_IN_FLIGHT.
+  pendingJobs?: RecentWorkflowsData[];
 }): Promise<string> {
   const pinBody = await pinBodyForSweep(
     opts.failedByRepo,
@@ -1169,7 +1208,8 @@ export async function crcrSectionForPr(opts: {
     opts.totalByRepo,
     opts.hudPrUrl,
     opts.onCallsFor,
-    opts.rowsRead
+    opts.rowsRead,
+    opts.pendingJobs ?? []
   );
 }
 
@@ -1793,6 +1833,15 @@ function isPending(job: RecentWorkflowsData): boolean {
   return job.conclusion === "" && isTime0(job.completed_at);
 }
 
+// fetchCrcrWorkflows returns every job that reported, of every conclusion --
+// still-running ones have none, so they are never one of these -- and the CRCR
+// section reports how much of a repo's matrix failed from them; only these reach
+// a failure bucket. `cancelled` and `timed_out` count, matching the query's old
+// SQL filter and the check runs crcrOncallBot used to page on.
+function isCrCrFailure(job: RecentWorkflowsData): boolean {
+  return ["failure", "cancelled", "timed_out"].includes(job.conclusion ?? "");
+}
+
 /**
  * Split CRCR downstream job results (from fetchCrcrWorkflows) into the
  * PR-visible L3 bucket and the always-blocking L4 bucket.
@@ -1827,14 +1876,6 @@ export function classifyCrcrJobs(
     }
   }
   return { crcrL3Jobs, crcrL4Jobs };
-}
-
-// fetchCrcrWorkflows returns completed jobs of every conclusion so the CRCR
-// section can report how much of a repo's matrix failed; only these reach a
-// failure bucket. `cancelled` and `timed_out` count, matching the query's old
-// SQL filter and the check runs crcrOncallBot used to page on.
-function isCrCrFailure(job: RecentWorkflowsData): boolean {
-  return ["failure", "cancelled", "timed_out"].includes(job.conclusion ?? "");
 }
 
 export async function getWorkflowJobsStatuses(

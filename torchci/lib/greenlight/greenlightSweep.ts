@@ -8,6 +8,7 @@
 // PR into every sweep for as long as the comment stands.
 
 import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
+import { CRCR_JOBS_IN_FLIGHT } from "lib/crcr/crcrComment";
 
 export const ZERO_WIDTH_SPACE = "\u200b";
 
@@ -35,6 +36,7 @@ export const SWEEP_SENTINELS = [
   GREENLIGHT_PENDING_ALT_ATTR,
   ADVISOR_PENDING_ALT_ATTR,
   PR_REVIEW_PENDING_ALT_ATTR,
+  CRCR_JOBS_IN_FLIGHT,
 ];
 // The sweep's third predicate is the regex `\d Pending`, meant to match the
 // comment's own "3 Pending" job count. Text merely describing the PR's CI state

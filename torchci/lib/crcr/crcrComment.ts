@@ -91,6 +91,29 @@ const SECTION_SUMMARY =
 // the cap is high enough that it rarely engages.
 export const MAX_JOB_BULLETS_PER_REPO = 10;
 
+// Written between the section's delimiters while any downstream job on the
+// comment's head SHA is still running. The Dr. CI sweep only visits a PR for
+// recent upstream workflow activity or a pending marker already in the comment,
+// and a CRCR row is neither -- so a matrix that outlasts upstream CI would land
+// its failure on a comment nobody re-renders. The marker keeps the PR in the
+// sweep set until the matrix reports (see getPRsNeedingCommentRefresh in
+// pages/api/drci/drci.ts), then vanishes with the in-flight rows. The literal
+// also lives in SWEEP_SENTINELS (lib/greenlight/greenlightSweep.ts): the sweep
+// matches the RAW comment body, so model-written text that carried it would pin
+// the PR into every sweep forever.
+export const CRCR_JOBS_IN_FLIGHT = "<!-- crcr-jobs-in-flight -->";
+
+// Whether a row describes a job still running. An in_progress write sets no
+// completed_at -- only a completed callback does (crcrUtils.extractDynamoRecord)
+// -- so ClickHouse keeps the column's epoch-0 default, the same zero a missing
+// time maps to (see TIME_0 in lib/bot/utils). A row that concluded without a
+// conclusion is done, not running.
+export function isCrcrInFlight(job: RecentWorkflowsData): boolean {
+  const unconcluded =
+    !job.completed_at || job.completed_at.startsWith("1970-01-01");
+  return (job.conclusion ?? "") === "" && unconcluded;
+}
+
 // The rendered section, or "" when either delimiter is missing (a comment that
 // has none, or one whose section was already removed). Includes the trailing
 // newline the renderer writes, the way extractPrStatusSection does, so a sweep
@@ -178,7 +201,12 @@ export function notifiedHandles(body: string): Set<string> {
  * again for a failure they were already told about. The ledger carries the pins
  * across that rewrite and nothing else: the comment is left without a failure
  * block the push may have just invalidated, and the next sweep renders the real
- * section, dropping the ledger if the failure is gone.
+ * section, dropping the ledger if the failure is gone. The in-flight marker is
+ * dropped with them on purpose: a push is itself workflow activity, and the
+ * relay's in_progress rows wake the PR through fetchCrcrActivityPRs, so the
+ * marker is rewritten by the first sweep that sees the still-running rows --
+ * while a marker copied blindly across rewrites would outlive the rows it
+ * claims to describe and keep a finished PR in the sweep set.
  */
 export function pinLedger(body: string): string {
   // Copied verbatim rather than rebuilt from the (repo, handle) pairs, so a
@@ -209,17 +237,23 @@ export function crcrSectionHasBlocks(section: string): boolean {
 }
 
 /**
- * One row per job, at its latest attempt.
+ * One row per job, at the latest attempt of its latest run.
  *
  * A re-run of a downstream workflow writes a NEW row rather than updating the
  * old one, so a job that failed and was then re-run green has both a red and a
- * green row here. GitHub's checks UI shows only the latest attempt, and the HUD
- * resolves the same way (the CRCR merge on the PR page keeps the highest
- * `run_attempt`), so the comment has to as well -- otherwise a rerun that fixed
+ * green row here. GitHub's checks UI surfaces one check run per job name, and
+ * the comment has to resolve to one row as well -- otherwise a rerun that fixed
  * the failure would still be reported as red, and one job would count twice in
  * the "N of M jobs failed" ratio.
  *
- * "Latest" is among the rows that reported a conclusion, because a row that
+ * "Latest" is the newest run first and the highest attempt within it, not the
+ * highest attempt overall: `run_attempt` counts attempts of ONE run and starts
+ * over at 1 for the next, so a re-dispatch for a commit already reported on (a
+ * reopen, say) writes attempt 1 of a run that supersedes the older run's
+ * retries. Runs are ordered by `run_id`, which grows with each one; a row that
+ * names no run cannot be placed in time and sorts with the oldest.
+ *
+ * It is also among the rows that reported a conclusion, because a row that
  * never did cannot supersede one that did -- see the filter below.
  */
 export function latestAttemptPerJob(
@@ -250,6 +284,11 @@ export function latestAttemptPerJob(
     // tie on the conclusion -- reporting a green run as red is noise, but
     // reporting a red run as green is a missed page.
     const best = candidates.reduce((a, b) => {
+      // The run first: an attempt only orders rows inside its own run.
+      const runDiff = (b.runId ?? 0) - (a.runId ?? 0);
+      if (runDiff !== 0) {
+        return runDiff > 0 ? b : a;
+      }
       const attemptDiff = (b.runAttempt ?? 1) - (a.runAttempt ?? 1);
       if (attemptDiff !== 0) {
         return attemptDiff > 0 ? b : a;
@@ -272,7 +311,7 @@ function isFailureConclusion(conclusion: string | undefined): boolean {
 
 /**
  * The rows that describe the commit the comment reports on: `headSha`'s rows,
- * one per job at its latest attempt.
+ * one per job, at the latest attempt of its latest run.
  *
  * The head filter runs BEFORE attempts are resolved, and the order is the point.
  * A run of a superseded push can be re-run after the new push, so the highest
@@ -322,7 +361,10 @@ export function renderCrcrSection(
   hudPrUrl: string,
   onCallsFor: (_repo: string) => string[],
   // On-calls already notified on an earlier sweep, per downstream repo.
-  notified: Map<string, Set<string>>
+  notified: Map<string, Set<string>>,
+  // This commit's CRCR rows that have not concluded yet; non-empty writes the
+  // in-flight marker (see CRCR_JOBS_IN_FLIGHT).
+  pendingJobs: RecentWorkflowsData[] = []
 ): string {
   if (failedByRepo.size === 0) {
     return "";
@@ -349,7 +391,11 @@ export function renderCrcrSection(
     `${CRCR_SECTION_START}\n` +
     `<details ><summary>${SECTION_SUMMARY}</summary><p>\n` +
     blocks +
-    `\n</p></details>\n${CRCR_SECTION_END}\n`
+    `\n</p></details>\n` +
+    // After the blocks, before the end delimiter: a fixed position so a sweep
+    // that changes nothing produces the same body and skips the API call.
+    (pendingJobs.length > 0 ? `${CRCR_JOBS_IN_FLIGHT}\n` : "") +
+    `${CRCR_SECTION_END}\n`
   );
 }
 
@@ -380,6 +426,10 @@ export function renderCrcrSection(
  * same as "this repo has no on-calls": the latter renders an explicit line,
  * because reporting a missing allowlist entry is useful and reporting a failed
  * read as one is a lie.
+ *
+ * A PR with no failures but jobs still in flight gets the in-flight marker
+ * alone: it renders nothing, but it is what keeps the sweep visiting the PR
+ * until the matrix reports -- see CRCR_JOBS_IN_FLIGHT.
  */
 export function crcrSectionForSweep(
   // The comment being replaced. Its section holds the pins spent so far.
@@ -389,12 +439,19 @@ export function crcrSectionForSweep(
   hudPrUrl: string,
   onCallsFor: ((_repo: string) => string[]) | null,
   // False when the CRCR rows could not be read at all.
-  rowsRead: boolean
+  rowsRead: boolean,
+  // This commit's CRCR rows with no conclusion yet.
+  pendingJobs: RecentWorkflowsData[] = []
 ): string {
   if (!rowsRead) {
     return pinLedger(previousBody);
   }
   if (failedByRepo.size === 0) {
+    if (pendingJobs.length > 0) {
+      // The failures are gone, which frees the pins, but a matrix still going
+      // keeps the PR wakeable without rendering anything.
+      return `${CRCR_SECTION_START}\n${CRCR_JOBS_IN_FLIGHT}\n${CRCR_SECTION_END}\n`;
+    }
     // The failures are gone, which is known without the allowlist: drop the
     // section and free its pins for a later outage.
     return "";
@@ -409,7 +466,8 @@ export function crcrSectionForSweep(
     onCallsFor,
     // The pins are read out of the section being replaced, so it is also what
     // keeps this render from re-notifying anyone.
-    notifiedHandlesByRepo(previousBody)
+    notifiedHandlesByRepo(previousBody),
+    pendingJobs
   );
 }
 
@@ -433,8 +491,10 @@ function renderRepoBlock(
   const { mentionNow, alreadyNotified } = takeUnnotified(oncalls, notified);
 
   // `2 of 4 jobs failed` tells a reader whether one leg flaked or the backend is
-  // down; without a trustworthy denominator, the failing count alone. A total
-  // below the failing count is stale data, not a ratio worth printing.
+  // down; without a trustworthy denominator, the failing count alone. The total
+  // counts still-running jobs too, so a matrix mid-flight does not read as a
+  // small matrix that all failed. A total below the failing count is stale data,
+  // not a ratio worth printing.
   const ratio =
     total !== undefined && total >= jobs.length
       ? `${jobs.length} of ${total} jobs failed`
