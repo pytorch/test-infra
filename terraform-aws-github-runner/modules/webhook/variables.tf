@@ -82,3 +82,14 @@ variable "scale_up_lambda_concurrency" {
   type        = number
   default     = 10
 }
+
+variable "webhook_signature_mode" {
+  description = "How the webhook lambda handles a GitHub delivery whose signature fails verification: `enforce` rejects it with a 401, `warn` logs it and processes it anyway. Use `warn` to roll enforcement out or back without a code change. A delivery with no signature header is rejected with a 401 in both modes."
+  type        = string
+  default     = "enforce"
+
+  validation {
+    condition     = contains(["enforce", "warn"], var.webhook_signature_mode)
+    error_message = "webhook_signature_mode must be \"enforce\" or \"warn\"."
+  }
+}

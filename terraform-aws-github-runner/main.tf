@@ -90,6 +90,7 @@ module "webhook" {
   role_permissions_boundary = var.role_permissions_boundary
 
   scale_up_lambda_concurrency = var.scale_up_lambda_concurrency
+  webhook_signature_mode      = var.webhook_signature_mode
 }
 
 module "runners" {

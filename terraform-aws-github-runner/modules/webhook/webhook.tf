@@ -45,6 +45,7 @@ resource "aws_lambda_function" "webhook" {
       GITHUB_APP_WEBHOOK_SECRET = local.github_app_webhook_secret
       SQS_URL_WEBHOOK           = var.sqs_build_queue.id
       NUM_MESSAGE_GROUPS        = var.scale_up_lambda_concurrency
+      WEBHOOK_SIGNATURE_MODE    = var.webhook_signature_mode
     }
   }
 

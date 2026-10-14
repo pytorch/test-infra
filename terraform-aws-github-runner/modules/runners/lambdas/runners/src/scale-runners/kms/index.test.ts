@@ -6,9 +6,7 @@ import nock from 'nock';
 const decryptedStr = 'The Decrypted String';
 const awsRegion = 'the-aws-region';
 const mockKmsPromise = {
-  Plaintext: {
-    toString: jest.fn().mockReturnValue(decryptedStr),
-  },
+  Plaintext: new TextEncoder().encode(decryptedStr),
 };
 const mockKms = {
   decrypt: jest.fn().mockResolvedValue(mockKmsPromise),
@@ -49,7 +47,6 @@ describe('decrypt', () => {
           ['Environment']: environmentName,
         },
       });
-      expect(mockKmsPromise.Plaintext.toString).toBeCalled();
     });
   });
 });

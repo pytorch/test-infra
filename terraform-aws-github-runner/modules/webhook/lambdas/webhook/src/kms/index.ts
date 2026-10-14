@@ -12,7 +12,8 @@ export async function decrypt(encrypted: string, key: string, environmentName: s
         ['Environment']: environmentName,
       },
     });
-    result = decrypted.Plaintext?.toString();
+    // Plaintext is a Uint8Array, whose toString() yields comma-separated byte values, not the secret.
+    result = decrypted.Plaintext === undefined ? undefined : Buffer.from(decrypted.Plaintext).toString('utf8');
   }
   return result;
 }
