@@ -925,6 +925,13 @@
       "xpu"
     ]
   ],
+  "test_nn_functional_deprecated (__main__.TestNNFunctionalCompile)": [
+    "200917",
+    "https://github.com/pytorch/pytorch/issues/200917",
+    [
+      "inductor"
+    ]
+  ],
   "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
     "195219",
     "https://github.com/pytorch/pytorch/issues/195219",
@@ -1269,22 +1276,6 @@
     "https://github.com/pytorch/pytorch/issues/194896",
     [
       "xpu"
-    ]
-  ],
-  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_amp (__main__.DeterministicTest)": [
-    "196983",
-    "https://github.com/pytorch/pytorch/issues/196983",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_bfloat16 (__main__.DeterministicTest)": [
-    "196057",
-    "https://github.com/pytorch/pytorch/issues/196057",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
