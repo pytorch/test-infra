@@ -178,7 +178,7 @@ export function getPrStatusMessage(state: PrStatusState): string {
         "- a maintainer named in the description who agreed to the change " +
         "(`Supported by @<maintainer>`).\n\n" +
         "Such PRs are a low priority for maintainers to review and might not " +
-        "get a response, given the very high volume of PRs we receive. " +
+        "get a response given the very high volume of PRs we receive. " +
         "Please focus on `actionable` issues to ensure a maintainer will be " +
         "available to review your PR.\n\n" +
         "If one of these applies, add the matching line to the PR " +
