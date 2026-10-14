@@ -8,6 +8,7 @@ import {
   hasPrStatusLabel,
   PR_STATUS_END,
   PR_STATUS_LABEL_IN_PROGRESS,
+  PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
@@ -84,6 +85,41 @@ describe("getPrStatusStage", () => {
     expect(getPrStatusStage(state({ labels: ["ready for review"] }))).toBe(
       "readyForReview"
     );
+  });
+
+  test("missing actionable issue outranks the triaged label added with it", () => {
+    expect(
+      getPrStatusStage(
+        state({
+          labels: [
+            PR_STATUS_LABEL_TRIAGED,
+            PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+          ],
+          assignedReviewers: ["alice"],
+        })
+      )
+    ).toBe("missingActionableIssue");
+  });
+
+  test("a later stage outranks a leftover missing actionable issue label", () => {
+    expect(
+      getPrStatusStage(
+        state({
+          labels: [
+            PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+            PR_STATUS_LABEL_IN_PROGRESS,
+          ],
+        })
+      )
+    ).toBe("inProgress");
+    expect(
+      getPrStatusStage(
+        state({
+          labels: [PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE],
+          isApproved: true,
+        })
+      )
+    ).toBe("approved");
   });
 });
 
@@ -166,6 +202,26 @@ describe("getPrStatusMessage", () => {
     );
   });
 
+  test("missing actionable issue explains how to link one", () => {
+    const message = getPrStatusMessage(
+      state({
+        labels: [
+          PR_STATUS_LABEL_TRIAGED,
+          PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+        ],
+      })
+    );
+    expect(message).toMatch(/^## PR Status: missing actionable issue\n\n/);
+    expect(message).toContain(
+      "- a linked issue labeled `actionable` (`Fixes #<issue>` or `Part of #<issue>`); or\n"
+    );
+    expect(message).toContain(
+      "- a maintainer named in the description who agreed to the change (`Supported by @<maintainer>`).\n"
+    );
+    expect(message).toContain("add the matching line to the PR description");
+    expect(message).toContain("then remove and re-add `open source`.");
+  });
+
   test("approved", () => {
     expect(getPrStatusMessage(state({ isApproved: true }))).toBe(
       "## PR Status: Approved 🚀\n\n" +
@@ -208,6 +264,12 @@ describe("hasPrStatusLabel", () => {
     );
     expect(hasPrStatusLabel([PR_STATUS_LABEL_IN_PROGRESS])).toBe(true);
     expect(hasPrStatusLabel([PR_STATUS_LABEL_READY_FOR_REVIEW])).toBe(true);
+    expect(
+      hasPrStatusLabel([
+        PR_STATUS_LABEL_TRIAGED,
+        PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+      ])
+    ).toBe(true);
   });
 
   test("matching is exact, so a near-miss label is not a status label", () => {

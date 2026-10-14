@@ -29,12 +29,17 @@ export const PR_STATUS_LABEL_READY_FOR_REVIEW = "ready for review";
 // Skips automated review, so the PR goes to ready for review instead of in
 // progress.
 export const PR_STATUS_LABEL_REVIEW_OPT_OUT = "no automated review";
+// Added by Auto PR Triage, together with triaged, when the PR links neither an
+// actionable issue nor a supporting maintainer.
+export const PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE =
+  "missing actionable issue";
 
 export const PR_STATUS_LABELS = [
   // Uncomment the following line post-rollout + change ln 166 to true in test
   // PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
+  PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
 ];
 
 // Set to the rollout date
@@ -59,6 +64,7 @@ export type PrStatusStage =
   | "approved"
   | "readyForReview"
   | "inProgress"
+  | "missingActionableIssue"
   | "preReview"
   | "none";
 
@@ -99,6 +105,10 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   }
   if (labels.has(PR_STATUS_LABEL_IN_PROGRESS)) {
     return "inProgress";
+  }
+  // Checked before triaged, which Auto PR Triage adds alongside it.
+  if (labels.has(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)) {
+    return "missingActionableIssue";
   }
   if (labels.has(PR_STATUS_LABEL_TRIAGED)) {
     return "preReview";
@@ -157,6 +167,23 @@ export function getPrStatusMessage(state: PrStatusState): string {
         "pushing, comment `@pytorchbot review` to re-run the automated " +
         "review. To bypass automated review, please add the “no automated " +
         "review” label."
+      );
+    case "missingActionableIssue":
+      return (
+        "## PR Status: missing actionable issue\n\n" +
+        "Auto PR Triage did not find either of the following when it " +
+        "checked this PR:\n\n" +
+        "- a linked issue labeled `actionable` (`Fixes #<issue>` or " +
+        "`Part of #<issue>`); or\n" +
+        "- a maintainer named in the description who agreed to the change " +
+        "(`Supported by @<maintainer>`).\n\n" +
+        "If one of these applies, add the matching line to the PR " +
+        "description. If there is no `actionable` issue for this change " +
+        "yet, you can open one (or comment on an existing one) and wait for " +
+        "a maintainer to label it `actionable`. Then ask a maintainer to " +
+        "triage the PR again: they remove the `triaged`, `bot-triaged`, and " +
+        "`missing actionable issue` labels, then remove and re-add " +
+        "`open source`."
       );
     case "preReview":
       return (

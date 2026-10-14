@@ -2,6 +2,7 @@ import { getPreReviewStatus } from "lib/bot/preReviewUtils";
 import {
   fetchPrStatusState,
   getPrStatusStage,
+  PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_TRIAGED,
   PRE_REVIEW_START_DATE,
@@ -52,9 +53,6 @@ type WaitingPr = {
 };
 
 const CONCURRENCY = 10;
-
-// The PR is waiting on its author to link an actionable issue, not on reviewers
-const MISSING_ACTIONABLE_ISSUE_LABEL = "missing actionable issue";
 
 // review-logs/ is the bucket's publicly readable prefix, which the internal job
 // reads through fwdproxy
@@ -150,7 +148,8 @@ export async function buildPrNotificationsManifest(
     const labels = pr.labels.map((label) =>
       typeof label === "string" ? label : label.name ?? ""
     );
-    if (labels.includes(MISSING_ACTIONABLE_ISSUE_LABEL)) {
+    // The PR is waiting on its author to link an actionable issue, not on reviewers
+    if (labels.includes(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)) {
       return null;
     }
     const state = await fetchPrStatusState(
