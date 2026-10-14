@@ -356,18 +356,19 @@ def test_any_other_mode_routes_nothing(mode):
     assert route("gha-artifacts", TEST_RUN_REPORT, mode) is None
 
 
-def test_the_defaults_are_on_for_a_tenth_of_runs():
+def test_the_defaults_are_on_for_the_default_percent_of_runs():
     assert lambda_function.TEST_RUN_REPORTS_MODE == "on"
-    assert lambda_function.TEST_RUN_REPORTS_SAMPLE_PERCENT == 10
+    percent = lambda_function.TEST_RUN_REPORTS_SAMPLE_PERCENT
     with mock.patch.dict("os.environ", clear=True):
         assert lambda_function.test_run_reports_mode() == "on"
-        tables = [
-            lambda_function.extract_clickhouse_table_name(
+        tables = {
+            run_id % 100: lambda_function.extract_clickhouse_table_name(
                 "gha-artifacts", report_key(run_id)
             )
-            for run_id in (38278237800, 38278237809, 38278237810, 38278237839)
-        ]
-    assert tables == ["fortesting.runs", "fortesting.runs", None, None]
+            for run_id in range(38278237800, 38278237900)
+        }
+    # A run is routed when the last two digits of its id are below the percent.
+    assert tables == {n: "fortesting.runs" if n < percent else None for n in range(100)}
 
 
 def test_the_environment_overrides_the_default_mode():

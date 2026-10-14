@@ -927,7 +927,7 @@ TEST_RUN_REPORTS_MODE = "on"
 # The percent of workflow runs whose reports are routed, picked by run id so
 # that the reports of a run's jobs, in every attempt, are all routed or none are.
 # TEST_RUN_REPORTS_SAMPLE_PERCENT on the function overrides this default.
-TEST_RUN_REPORTS_SAMPLE_PERCENT = 10
+TEST_RUN_REPORTS_SAMPLE_PERCENT = 30
 TEST_RUN_REPORTS_SCHEMA_VERSIONS = "('0.1')"
 # Part of the deduplication token: bump it to ingest the same reports again
 # after a fix.
