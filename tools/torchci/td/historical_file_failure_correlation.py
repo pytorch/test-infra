@@ -7,6 +7,7 @@ from torchci.td.utils import (
     evaluate,
     get_merge_bases_dict,
 )
+from torchci.utils import round_floats
 
 
 FAILED_TESTS_QUERY = """
@@ -65,7 +66,7 @@ def main() -> None:
     evaluate(filtered_tests, merge_bases, test_file_ratings, lambda x: x["failure"])
 
     with open("file_test_rating.json", mode="w") as file:
-        json.dump(test_file_ratings, file, sort_keys=True, indent=2)
+        json.dump(round_floats(test_file_ratings), file, sort_keys=True, indent=2)
 
 
 if __name__ == "__main__":

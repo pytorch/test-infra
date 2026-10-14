@@ -12,6 +12,14 @@ REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
 CACHE_FOLDER = REPO_ROOT / "_logs" / ".torchci_python_utils_cache"
 
 
+def round_floats(obj: Any, ndigits: int = 6) -> Any:
+    # Long float digits match the org's "BII - UID" secret-scanning pattern,
+    # which blocks the push to generated-stats.
+    if isinstance(obj, dict):
+        return {k: round_floats(v, ndigits) for k, v in obj.items()}
+    return round(obj, ndigits) if isinstance(obj, float) else obj
+
+
 def js_beautify(obj):
     # Like json.dumps with indent=2, but only at the first level.  Nice for
     # dictionaries of str -> really long list
