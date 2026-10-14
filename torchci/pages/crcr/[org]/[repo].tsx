@@ -16,6 +16,9 @@ import {
 import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
 import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
+import TriageVerdictSection, {
+  CollapsibleTriageVerdict,
+} from "components/crcr/TriageVerdictSection";
 import hudStyles from "components/hud.module.css";
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import {
@@ -31,6 +34,7 @@ import {
   paginateNightlyMatrix,
 } from "lib/crcr/nightlyMatrix";
 import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
+import { parseTriageVerdict } from "lib/crcr/triageVerdict";
 import { Highlight } from "lib/types";
 import Head from "next/head";
 import NextLink from "next/link";
@@ -91,6 +95,7 @@ interface CrcrJobRow {
   queue_time: number | null;
   execution_time: number | null;
   failed_tests_json: string;
+  triage_verdict_json: string;
 }
 
 interface SummaryStats {
@@ -562,6 +567,8 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
     job.queue_time != null ? `Queue: ${job.queue_time.toFixed(1)}s` : null,
   ].filter(Boolean);
 
+  const verdict = parseTriageVerdict(job.triage_verdict_json);
+
   let failedTests: Array<{
     name: string;
     classname?: string;
@@ -577,8 +584,17 @@ function JobCellTooltipContent({ job }: { job: CrcrJobRow }) {
   }
 
   return (
-    <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
+    <div
+      style={{ whiteSpace: "pre-line", fontSize: "0.8rem", textAlign: "left" }}
+    >
       {lines.join("\n")}
+      {verdict && (
+        <TriageVerdictSection
+          verdict={verdict}
+          prNumber={job.pr_number}
+          upstreamRepo={job.upstream_repo}
+        />
+      )}
       {failedTests.length > 0 && (
         <div
           style={{
@@ -791,7 +807,9 @@ function GroupedJobCell({
     conclusionCssColor[worst.conclusion] ?? "var(--color-grey, #8b949e)";
 
   const tooltipContent = (
-    <div style={{ whiteSpace: "pre-line", fontSize: "0.8rem" }}>
+    <div
+      style={{ whiteSpace: "pre-line", fontSize: "0.8rem", textAlign: "left" }}
+    >
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
         {groupName} ({jobs.length} jobs)
       </div>
@@ -813,6 +831,11 @@ function GroupedJobCell({
               j.job_name
             )}
             : {c}
+            <CollapsibleTriageVerdict
+              verdictJson={j.triage_verdict_json}
+              prNumber={j.pr_number}
+              upstreamRepo={j.upstream_repo}
+            />
           </div>
         );
       })}
