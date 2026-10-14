@@ -21,10 +21,13 @@ export async function fetchCrcrWorkflows(
   // Query the crcr_workflow_job table for CRCR downstream CI jobs on open PRs.
   // Map columns to RecentWorkflowsData shape so Dr.CI can classify them.
   //
-  // Every completed job is returned, passing ones included: the rendered
-  // section reports "N of M jobs failed", which needs the denominator, and the
-  // caller splits pass from fail. Failures are the only rows that reach a Dr.CI
-  // bucket, so the extra rows cost one query result, not a changed verdict.
+  // Every job that reported is returned, passing and still-running ones
+  // included: the rendered section reports "N of M jobs failed", and a job that
+  // is still running is one of the M but not one that passed. Failures are the
+  // only rows that reach a Dr.CI bucket -- isCrCrFailure decides that on the
+  // conclusion -- so the extra rows cost one query result, not a verdict. A job
+  // that has not reported at all has no row here, so M is what the repo has
+  // reported rather than the size of the matrix.
   const rows = await queryClickhouse(
     `SELECT
       workflow_name AS name,
@@ -38,11 +41,11 @@ export async function fetchCrcrWorkflows(
       downstream_repo,
       downstream_repo_level,
       triage_verdict_json,
-      run_attempt
+      run_attempt,
+      run_id
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
-      AND pr_number IN ({prNumbers:Array(UInt64)})
-      AND status = 'completed'`,
+      AND pr_number IN ({prNumbers:Array(UInt64)})`,
     { repo, prNumbers: prNumbers.length > 0 ? prNumbers : [0] }
   );
 
@@ -84,7 +87,43 @@ export async function fetchCrcrWorkflows(
     downstreamRepo: row.downstream_repo || "",
     triageVerdictJson: row.triage_verdict_json || "",
     runAttempt: Number(row.run_attempt ?? 1) || 1,
+    // The run a row's attempt belongs to: run_attempt starts over at 1 for each
+    // new run, so the two together place the row. 0 is "no run named", which
+    // latestAttemptPerJob sorts with the oldest.
+    runId: Number(row.run_id) || 0,
   }));
+}
+
+export async function fetchCrcrActivityPRs(
+  repo: string = "pytorch/pytorch",
+  numMinutes: string = "30"
+): Promise<number[]> {
+  // The PRs the relay reported on recently, by row write time. A CRCR row is
+  // not upstream workflow activity, so the sweep otherwise never visits a PR
+  // whose only fresh signal is a downstream callback -- a failure landing
+  // after upstream CI has gone quiet would sit unreported until something else
+  // woke the PR. _inserted_at is the row's write time: the in_progress write
+  // and the completed rewrite of the same key both refresh it, so a matrix
+  // keeps its PR wakeable for as long as it reports. Filtering on the
+  // conclusion or the status would blind the wake to exactly those runs.
+  // Rows only exist once the relay has heard from a job (queued jobs write
+  // none), so this wakes on what is observable, not on what is queued.
+  //
+  // No FINAL: duplicates of one key collapse in the DISTINCT, and skipping the
+  // merge keeps the read off the merges. An in-flight job's PR is also kept
+  // wakeable by the in-flight sentinel the sweep writes into its comment; this
+  // query is what gives that sentinel its first sweep.
+  const rows = await queryClickhouse(
+    `SELECT DISTINCT pr_number
+    FROM default.crcr_workflow_job
+    WHERE upstream_repo = {repo:String}
+      AND _inserted_at > now() - INTERVAL {numMinutes:Int64} MINUTE`,
+    { repo, numMinutes: parseInt(numMinutes, 10) }
+  );
+  // A row without a PR cannot wake one.
+  return rows
+    .map((row: any) => parseInt(row.pr_number) || 0)
+    .filter((pr: number) => pr > 0);
 }
 
 export async function fetchFailedJobsFromCommits(

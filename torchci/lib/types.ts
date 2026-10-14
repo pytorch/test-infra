@@ -125,11 +125,18 @@ export interface RecentWorkflowsData extends BasicJobData {
   /** CRCR downstream triage verdict JSON, "" when none — set by fetchCrcrWorkflows. */
   triageVerdictJson?: string;
   /**
-   * CRCR workflow run attempt — set by fetchCrcrWorkflows. A re-run produces a
-   * separate row, so a consumer that wants the job's current state picks the
-   * highest attempt, the way the HUD's CRCR merge does.
+   * CRCR workflow run attempt — set by fetchCrcrWorkflows. A re-run of a run
+   * produces a separate row at a higher attempt, so a consumer that wants the
+   * job's current state reads it with runId: attempts number inside one run and
+   * start over at 1 for the next.
    */
   runAttempt?: number;
+  /**
+   * CRCR downstream workflow run id (github.run_id) — set by
+   * fetchCrcrWorkflows. Stable across a run's re-runs, so with runAttempt it
+   * identifies the attempt. 0 when the reporter sent none.
+   */
+  runId?: number;
 }
 
 export interface Artifact {

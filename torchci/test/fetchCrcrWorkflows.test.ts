@@ -1,5 +1,8 @@
 import { queryClickhouse } from "../lib/clickhouse";
-import { fetchCrcrWorkflows } from "../lib/fetchRecentWorkflows";
+import {
+  fetchCrcrActivityPRs,
+  fetchCrcrWorkflows,
+} from "../lib/fetchRecentWorkflows";
 
 // The real module opens a ClickHouse client at import time, which the oracle for
 // this test is not: it is only the row-to-job mapping that matters here.
@@ -27,6 +30,7 @@ function row(overrides: Record<string, unknown> = {}) {
     downstream_repo: "pytorch/crcr-test",
     downstream_repo_level: "L3",
     run_attempt: 2,
+    run_id: "999",
     ...overrides,
   };
 }
@@ -36,7 +40,7 @@ describe("fetchCrcrWorkflows", () => {
     queryClickhouseMock.mockReset();
   });
 
-  test("returns every completed job, not only the failures", async () => {
+  test("returns every job that reported, not only the failures", async () => {
     queryClickhouseMock.mockResolvedValue([
       row(),
       row({ conclusion: "success", jobName: "test-L3-cancel-checkrun" }),
@@ -46,12 +50,15 @@ describe("fetchCrcrWorkflows", () => {
     expect(jobs).toHaveLength(2);
 
     // The denominator of "N of M jobs failed" needs the passing rows, so the
-    // query must not filter on the conclusion. The status filter stays: an
-    // in-progress attempt is not a job that ran.
+    // query must not filter on the conclusion. It must not filter on the status
+    // either: a job still running is one of the M, and leaving it out makes a
+    // matrix mid-flight read as a small matrix that all failed. run_id places a
+    // row in its run, which run_attempt alone cannot.
     const sql = queryClickhouseMock.mock.calls[0][0];
     expect(sql).not.toMatch(/conclusion\s+IN/i);
-    expect(sql).toContain("status = 'completed'");
+    expect(sql).not.toMatch(/status\s*=/i);
     expect(sql).toContain("run_attempt");
+    expect(sql).toContain("run_id");
     expect(sql).toContain("downstream_repo");
   });
 
@@ -79,6 +86,7 @@ describe("fetchCrcrWorkflows", () => {
     expect(job.downstreamRepo).toBe("pytorch/crcr-test");
     expect(job.downstreamLevel).toBe("L3");
     expect(job.runAttempt).toBe(2);
+    expect(job.runId).toBe(999);
     expect(job.id).toBe(456);
     expect(job.html_url).toBe(
       "https://github.com/pytorch/crcr-test/actions/runs/555"
@@ -125,5 +133,36 @@ describe("fetchCrcrWorkflows", () => {
       repo: "pytorch/pytorch",
       prNumbers: [0],
     });
+  });
+});
+
+describe("fetchCrcrActivityPRs", () => {
+  beforeEach(() => {
+    queryClickhouseMock.mockReset();
+  });
+
+  test("wakes a PR on any recent row write, verdict or not", async () => {
+    // An in_progress write and the completed rewrite of the same key both
+    // refresh _inserted_at, so "written recently" covers a matrix still going
+    // as well as a failure that just landed. Filtering on the conclusion or
+    // the status would blind the wake to exactly the runs it exists for: a
+    // downstream report is not upstream workflow activity, so this query is
+    // the only thing telling the sweep the PR moved at all.
+    queryClickhouseMock.mockResolvedValue([
+      { pr_number: "123" },
+      { pr_number: "0" },
+    ]);
+
+    const prs = await fetchCrcrActivityPRs("pytorch/pytorch", "30");
+    const sql = queryClickhouseMock.mock.calls[0][0];
+    expect(sql).toContain("_inserted_at");
+    expect(sql).toContain("upstream_repo");
+    expect(sql).not.toMatch(/conclusion\s*=|status\s*=/i);
+    expect(queryClickhouseMock.mock.calls[0][1]).toEqual({
+      repo: "pytorch/pytorch",
+      numMinutes: 30,
+    });
+    // A row without a PR cannot wake one.
+    expect(prs).toEqual([123]);
   });
 });
