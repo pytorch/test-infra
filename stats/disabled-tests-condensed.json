@@ -658,20 +658,6 @@
       "dynamo"
     ]
   ],
-  "test_kernel_metadata_field_types (__main__.TestMetadataJsonFormat)": [
-    "198442",
-    "https://github.com/pytorch/pytorch/issues/198442",
-    [
-      "rocm"
-    ]
-  ],
-  "test_kernel_metadata_has_expected_fields (__main__.TestMetadataJsonFormat)": [
-    "187119",
-    "https://github.com/pytorch/pytorch/issues/187119",
-    [
-      "rocm"
-    ]
-  ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
     "186911",
     "https://github.com/pytorch/pytorch/issues/186911",
