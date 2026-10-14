@@ -226,13 +226,6 @@
       "rocm"
     ]
   ],
-  "test_converting_copy_emits_vectorized_kernel_bool_int64_cuda (__main__.TestTorchCUDACUDA)": [
-    "199096",
-    "https://github.com/pytorch/pytorch/issues/199096",
-    [
-      "rocm"
-    ]
-  ],
   "test_converting_copy_emits_vectorized_kernel_int32_int64_cuda (__main__.TestTorchCUDACUDA)": [
     "199097",
     "https://github.com/pytorch/pytorch/issues/199097",
@@ -1437,13 +1430,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_synchronize_event_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
-    "191746",
-    "https://github.com/pytorch/pytorch/issues/191746",
-    [
-      "linux"
     ]
   ],
   "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
