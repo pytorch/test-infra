@@ -887,6 +887,37 @@ describe("latestAttemptPerJob", () => {
     expect(latest[0].id).toBe(2);
   });
 
+  test("keeps a newer run's attempt over an older run's retry", () => {
+    // run_attempt counts attempts of ONE run and starts over at 1 for the next,
+    // so an older run's retry must not outrank a newer run's first attempt: a
+    // re-dispatch for the same commit (a reopen, say) is a new run, and ranking
+    // on the attempt alone reports the job red after the new run passed it --
+    // and at L4 keeps blocking the merge on it.
+    const olderRetry = crcrJob({
+      id: 1,
+      jobName: "build",
+      runId: 101,
+      conclusion: "failure",
+      runAttempt: 2,
+    });
+    const newerRun = crcrJob({
+      id: 2,
+      jobName: "build",
+      runId: 202,
+      conclusion: "success",
+      runAttempt: 1,
+    });
+
+    for (const rows of [
+      [olderRetry, newerRun],
+      [newerRun, olderRetry],
+    ]) {
+      const latest = latestAttemptPerJob(rows);
+      expect(latest).toHaveLength(1);
+      expect(latest[0].id).toBe(2);
+    }
+  });
+
   test("dedups per job, not per repo", () => {
     const latest = latestAttemptPerJob([
       crcrJob({ id: 1, jobName: "build", runAttempt: 1 }),

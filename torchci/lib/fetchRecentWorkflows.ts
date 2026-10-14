@@ -21,10 +21,13 @@ export async function fetchCrcrWorkflows(
   // Query the crcr_workflow_job table for CRCR downstream CI jobs on open PRs.
   // Map columns to RecentWorkflowsData shape so Dr.CI can classify them.
   //
-  // Every completed job is returned, passing ones included: the rendered
-  // section reports "N of M jobs failed", which needs the denominator, and the
-  // caller splits pass from fail. Failures are the only rows that reach a Dr.CI
-  // bucket, so the extra rows cost one query result, not a changed verdict.
+  // Every job that reported is returned, passing and still-running ones
+  // included: the rendered section reports "N of M jobs failed", and a job that
+  // is still running is one of the M but not one that passed. Failures are the
+  // only rows that reach a Dr.CI bucket -- isCrCrFailure decides that on the
+  // conclusion -- so the extra rows cost one query result, not a verdict. A job
+  // that has not reported at all has no row here, so M is what the repo has
+  // reported rather than the size of the matrix.
   const rows = await queryClickhouse(
     `SELECT
       workflow_name AS name,
@@ -37,11 +40,11 @@ export async function fetchCrcrWorkflows(
       pytorch_head_sha AS head_sha,
       downstream_repo,
       downstream_repo_level,
-      run_attempt
+      run_attempt,
+      run_id
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
-      AND pr_number IN ({prNumbers:Array(UInt64)})
-      AND status = 'completed'`,
+      AND pr_number IN ({prNumbers:Array(UInt64)})`,
     { repo, prNumbers: prNumbers.length > 0 ? prNumbers : [0] }
   );
 
@@ -82,6 +85,10 @@ export async function fetchCrcrWorkflows(
     downstreamLevel: row.downstream_repo_level || "",
     downstreamRepo: row.downstream_repo || "",
     runAttempt: Number(row.run_attempt ?? 1) || 1,
+    // The run a row's attempt belongs to: run_attempt starts over at 1 for each
+    // new run, so the two together place the row. 0 is "no run named", which
+    // latestAttemptPerJob sorts with the oldest.
+    runId: Number(row.run_id) || 0,
   }));
 }
 

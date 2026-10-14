@@ -514,9 +514,9 @@ export async function updateDrciComments(
       // These jobs live in oot_workflow_job, not workflow_job, so they are fetched
       // separately and classified based on their downstream_repo_level.
       //
-      // fetchCrcrWorkflows returns every completed job, passing ones included, so
-      // `totalByRepo` can report how much of a repo's matrix failed. Only the
-      // failures reach a bucket or a block.
+      // fetchCrcrWorkflows returns every job that reported, still-running ones
+      // included, so `totalByRepo` can report how much of a repo's matrix
+      // failed. Only the failures reach a bucket or a block.
       //
       // Rows are scoped to the commit the comment reports on, the way the normal
       // workflow rows are (see getWorkflowJobsStatuses). A row from a superseded
@@ -545,8 +545,8 @@ export async function updateDrciComments(
 
         // classifyCrcrJobs owns the ciflow/crcr/<device> label gate that keeps
         // unlabeled shadow runs off the PR (see its docstring), and it sees only
-        // the failures: the query now returns every completed job, because the
-        // ratio above needs the denominator. L4 failures also stay in
+        // the failures: the query now returns every job that reported, because
+        // the ratio above needs the denominator. L4 failures also stay in
         // `failedJobs`, where they block the merge.
         const crcrFailures = crcrWorkflows.filter(isCrCrFailure);
         const classified = classifyCrcrJobs(
@@ -1703,9 +1703,10 @@ function isPending(job: RecentWorkflowsData): boolean {
   return job.conclusion === "" && isTime0(job.completed_at);
 }
 
-// fetchCrcrWorkflows returns completed jobs of every conclusion so the CRCR
-// section can report how much of a repo's matrix failed; only these reach a
-// failure bucket. `cancelled` and `timed_out` count, matching the query's old
+// fetchCrcrWorkflows returns every job that reported, of every conclusion --
+// still-running ones have none, so they are never one of these -- and the CRCR
+// section reports how much of a repo's matrix failed from them; only these reach
+// a failure bucket. `cancelled` and `timed_out` count, matching the query's old
 // SQL filter and the check runs crcrOncallBot used to page on.
 function isCrCrFailure(job: RecentWorkflowsData): boolean {
   return ["failure", "cancelled", "timed_out"].includes(job.conclusion ?? "");

@@ -209,17 +209,23 @@ export function crcrSectionHasBlocks(section: string): boolean {
 }
 
 /**
- * One row per job, at its latest attempt.
+ * One row per job, at the latest attempt of its latest run.
  *
  * A re-run of a downstream workflow writes a NEW row rather than updating the
  * old one, so a job that failed and was then re-run green has both a red and a
- * green row here. GitHub's checks UI shows only the latest attempt, and the HUD
- * resolves the same way (the CRCR merge on the PR page keeps the highest
- * `run_attempt`), so the comment has to as well -- otherwise a rerun that fixed
+ * green row here. GitHub's checks UI surfaces one check run per job name, and
+ * the comment has to resolve to one row as well -- otherwise a rerun that fixed
  * the failure would still be reported as red, and one job would count twice in
  * the "N of M jobs failed" ratio.
  *
- * "Latest" is among the rows that reported a conclusion, because a row that
+ * "Latest" is the newest run first and the highest attempt within it, not the
+ * highest attempt overall: `run_attempt` counts attempts of ONE run and starts
+ * over at 1 for the next, so a re-dispatch for a commit already reported on (a
+ * reopen, say) writes attempt 1 of a run that supersedes the older run's
+ * retries. Runs are ordered by `run_id`, which grows with each one; a row that
+ * names no run cannot be placed in time and sorts with the oldest.
+ *
+ * It is also among the rows that reported a conclusion, because a row that
  * never did cannot supersede one that did -- see the filter below.
  */
 export function latestAttemptPerJob(
@@ -250,6 +256,11 @@ export function latestAttemptPerJob(
     // tie on the conclusion -- reporting a green run as red is noise, but
     // reporting a red run as green is a missed page.
     const best = candidates.reduce((a, b) => {
+      // The run first: an attempt only orders rows inside its own run.
+      const runDiff = (b.runId ?? 0) - (a.runId ?? 0);
+      if (runDiff !== 0) {
+        return runDiff > 0 ? b : a;
+      }
       const attemptDiff = (b.runAttempt ?? 1) - (a.runAttempt ?? 1);
       if (attemptDiff !== 0) {
         return attemptDiff > 0 ? b : a;
@@ -272,7 +283,7 @@ function isFailureConclusion(conclusion: string | undefined): boolean {
 
 /**
  * The rows that describe the commit the comment reports on: `headSha`'s rows,
- * one per job at its latest attempt.
+ * one per job, at the latest attempt of its latest run.
  *
  * The head filter runs BEFORE attempts are resolved, and the order is the point.
  * A run of a superseded push can be re-run after the new push, so the highest
@@ -433,8 +444,10 @@ function renderRepoBlock(
   const { mentionNow, alreadyNotified } = takeUnnotified(oncalls, notified);
 
   // `2 of 4 jobs failed` tells a reader whether one leg flaked or the backend is
-  // down; without a trustworthy denominator, the failing count alone. A total
-  // below the failing count is stale data, not a ratio worth printing.
+  // down; without a trustworthy denominator, the failing count alone. The total
+  // counts still-running jobs too, so a matrix mid-flight does not read as a
+  // small matrix that all failed. A total below the failing count is stale data,
+  // not a ratio worth printing.
   const ratio =
     total !== undefined && total >= jobs.length
       ? `${jobs.length} of ${total} jobs failed`
