@@ -123,7 +123,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: release/2.15
       test-infra-ref: ${{ inputs.test-infra-ref }}
       job-name: ${{ matrix.build_name }}
       docker-image: ${{ matrix.container_image }}
