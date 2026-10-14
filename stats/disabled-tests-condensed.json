@@ -1077,13 +1077,6 @@
       "rocm"
     ]
   ],
-  "test_one_shot_all_reduce (__main__.SymmMemCollectiveTest)": [
-    "194403",
-    "https://github.com/pytorch/pytorch/issues/194403",
-    [
-      "rocm"
-    ]
-  ],
   "test_oom_retry_message_logged_at_info (__main__.TestCuda)": [
     "198574",
     "https://github.com/pytorch/pytorch/issues/198574",
