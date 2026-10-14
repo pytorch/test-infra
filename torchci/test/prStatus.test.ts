@@ -218,6 +218,9 @@ describe("getPrStatusMessage", () => {
     expect(message).toContain(
       "- a maintainer named in the description who agreed to the change (`Supported by @<maintainer>`).\n"
     );
+    expect(message).toContain(
+      "Such PRs are a low priority for maintainers to review"
+    );
     expect(message).toContain("add the matching line to the PR description");
     expect(message).toContain("then remove and re-add `open source`.");
   });
