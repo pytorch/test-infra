@@ -14,13 +14,6 @@
       "macos"
     ]
   ],
-  "test_alloc_rendezvous_on_current_stream (__main__.SymmetricMemoryTest)": [
-    "192616",
-    "https://github.com/pytorch/pytorch/issues/192616",
-    [
-      "rocm"
-    ]
-  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
@@ -687,20 +680,6 @@
       "dynamo"
     ]
   ],
-  "test_kernel_metadata_field_types (__main__.TestMetadataJsonFormat)": [
-    "198442",
-    "https://github.com/pytorch/pytorch/issues/198442",
-    [
-      "rocm"
-    ]
-  ],
-  "test_kernel_metadata_has_expected_fields (__main__.TestMetadataJsonFormat)": [
-    "187119",
-    "https://github.com/pytorch/pytorch/issues/187119",
-    [
-      "rocm"
-    ]
-  ],
   "test_launch_elastic_multiple_agents (__main__.ElasticLaunchTest)": [
     "186911",
     "https://github.com/pytorch/pytorch/issues/186911",
@@ -1351,13 +1330,6 @@
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_runtime_follows_current_device_not_input (__main__.TestCompileOnOneRankDeviceAsParameter)": [
-    "197453",
-    "https://github.com/pytorch/pytorch/issues/197453",
-    [
-      "rocm"
     ]
   ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
