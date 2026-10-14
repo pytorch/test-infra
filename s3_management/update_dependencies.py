@@ -1067,6 +1067,9 @@ PYPI_HOSTED_NVIDIA_PACKAGES = {
     # repoint it at an index that does not carry it.
     "cupti-python",
     "nvidia-ml-py",
+    # 2.32.3 is published to PyPI only; pypi.nvidia.com stops at 2.31.2. PyPI
+    # carries every version already mirrored, so switching the source drops none.
+    "nvidia-nccl-cu13",
 }
 
 
