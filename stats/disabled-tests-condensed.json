@@ -512,13 +512,6 @@
       "slow"
     ]
   ],
-  "test_extend_nccl_pg_timeout_backend0 (__main__.ProcessGroupNCCLGroupTest)": [
-    "195724",
-    "https://github.com/pytorch/pytorch/issues/195724",
-    [
-      "rocm"
-    ]
-  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
@@ -1170,13 +1163,6 @@
   "test_raw_amdsmi_device_uuids (__main__.TestCudaAllocator)": [
     "180227",
     "https://github.com/pytorch/pytorch/issues/180227",
-    [
-      "rocm"
-    ]
-  ],
-  "test_reconfigure_scale_down_up (__main__.GlooFaultToleranceTest)": [
-    "188767",
-    "https://github.com/pytorch/pytorch/issues/188767",
     [
       "rocm"
     ]
