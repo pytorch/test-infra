@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import requests
 from torchci.clickhouse import query_clickhouse_saved  # type: ignore[import-not-found]
+from torchci.utils import round_floats  # type: ignore[import-not-found]
 
 
 TEST_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-times.json"
@@ -177,14 +178,14 @@ def main() -> None:
     )
 
     with open("test-times.json", "w") as f:
-        f.write(json.dumps(test_file_times, indent=2, sort_keys=True))
+        f.write(json.dumps(round_floats(test_file_times), indent=2, sort_keys=True))
 
     test_class_times = gen_test_class_times(
         get_class_data_from_db(), download_old_test_class_times()
     )
 
     with open("test-class-times.json", "w") as f:
-        f.write(json.dumps(test_class_times, indent=2, sort_keys=True))
+        f.write(json.dumps(round_floats(test_class_times), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
