@@ -1058,6 +1058,12 @@ for package_configs in PACKAGES_PER_PROJECT.values():
     if any(config.get("project") == "torch_rocm" for config in package_configs):
         package_configs.append({"project": "torch_rocm", "target": "rocm-preview"})
 
+# Torch declares setuptools as a runtime dependency, so the index-only preview
+# install needs it mirrored alongside the ROCm packages.
+PACKAGES_PER_PROJECT.setdefault("setuptools", []).append(
+    {"project": "torch_rocm", "target": "rocm-preview"}
+)
+
 
 # NVIDIA packages that are published to PyPI rather than pypi.nvidia.com. The
 # nvidia-/cuda- prefix heuristic would send these to a 404 and silently freeze
