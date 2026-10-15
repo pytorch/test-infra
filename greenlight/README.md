@@ -55,8 +55,8 @@ that verdict on `pytorch/pytorch` (both below).
 Which open PRs a listing scan reads depends on the tick. A **full tick** lists every open PR. It
 runs on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
 `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed —
-one whose listing and fingerprint fan-out finished without a rate-limit abort and without reaching
-the `--max` dispatch cap, even if a PR then failed. A clock that steps back past the start of
+one whose listing and fingerprint fan-out finished without a rate-limit abort, even if a PR then
+failed. A clock that steps back past the start of
 the last full tick counts as due. Every scan in between is a **fast tick**: it walks
 the open PRs most recently updated first, stops at the review window's edge, and adds every open PR
 labelled `Reverted`, at any age (one issues-endpoint listing per Reverted label). Every source
@@ -465,7 +465,7 @@ function through `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` without a redeploy
 main-thread work, so an uncapped pass over the whole evaluation cohort would both run the Lambda
 out of its 300 s clock and fire an unbounded burst of `workflow_dispatch` POSTs on one token —
 what GitHub's secondary rate limit punishes hardest. Deferring is free: no state row is written
-for a PR the cap never reaches, so the next scan re-evaluates and dispatches it.
+for a PR the cap never reaches, so the next scan that lists it re-evaluates and dispatches it.
 
 The cap also has to cover the poke drain, which is what actually sets the pass's worst case. Taking
 every one of the 30 pokes to `drci_poke`'s full 40 s timeout, across 8 pool workers, against the

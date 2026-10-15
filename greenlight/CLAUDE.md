@@ -66,8 +66,8 @@ PyTorch Green Light has one unit of work — the `review` phase:
   The listing alternates per process (`pr_listing`, `scan_memory`): a full tick lists every open
   PR, on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
   `FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed
-  (its listing and fingerprint fan-out finished without a rate-limit abort and without reaching the
-  `--max` dispatch cap); the fast ticks between list the PRs updated inside the review window plus
+  (its listing and fingerprint fan-out finished without a rate-limit abort); the fast ticks between
+  list the PRs updated inside the review window plus
   every open `Reverted`-labelled PR. A PR whose place in GitHub's updated order lags its
   `updated_at`, and an idle PR reverted only by its recorded row, wait for the next full tick; so
   does a PR idle longer than the review window whose review is unfinished: a failed, cancelled or

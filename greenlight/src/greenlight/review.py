@@ -297,7 +297,6 @@ def run(
                 force=force,
                 cancel_event=cancel_event,
             )
-        capped = max_dispatches is not None and len(pending) >= max(0, max_dispatches)
         pending = authority.dispatchable(pending)
         dispatch_failed: list[int] = []
         if cancel_event.is_set():
@@ -314,9 +313,8 @@ def run(
             )
         else:
             # Marked before the per-PR failures below can raise: one failing PR must not hold every
-            # later tick to a full listing. A capped tick is not marked: the PRs past the cap were
-            # never fingerprinted.
-            if full_tick and memory is not None and pr is None and not capped:
+            # later tick to a full listing.
+            if full_tick and memory is not None and pr is None:
                 memory.mark_full_tick(listed_at)
             dispatch_failed = scan_runner._dispatch_pending(
                 client,

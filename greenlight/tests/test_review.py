@@ -3005,7 +3005,7 @@ def test_a_full_tick_is_not_marked_when_its_fan_out_times_out(make_config):
 
 
 @pytest.mark.parametrize("max_dispatches", [0, 1])
-def test_a_full_tick_the_dispatch_cap_cut_short_is_not_marked(make_config, max_dispatches):
+def test_a_full_tick_the_dispatch_cap_cut_short_is_marked(make_config, max_dispatches):
     memory = ScanMemory()
 
     scan = _run_scan(
@@ -3016,9 +3016,8 @@ def test_a_full_tick_the_dispatch_cap_cut_short_is_not_marked(make_config, max_d
         memory=memory,
     )
 
-    # PRs past the cap are never fingerprinted, so the next tick lists in full again.
     assert len(scan.dispatched) == max_dispatches
-    assert memory.full_tick_due(_NOW)
+    assert not memory.full_tick_due(_NOW)
 
 
 def test_a_full_tick_under_the_dispatch_cap_is_marked(make_config):
