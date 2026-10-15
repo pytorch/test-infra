@@ -76,13 +76,6 @@
       "xpu"
     ]
   ],
-  "test_bf16_heavy_ties_deterministic (__main__.TestRadixKernelParams)": [
-    "200577",
-    "https://github.com/pytorch/pytorch/issues/200577",
-    [
-      "linux"
-    ]
-  ],
   "test_bmm_large_batch_dynamic_cuda (__main__.AOTInductorTestDualWrapper)": [
     "186999",
     "https://github.com/pytorch/pytorch/issues/186999",
@@ -628,27 +621,6 @@
     "https://github.com/pytorch/pytorch/issues/191009",
     [
       "inductor"
-    ]
-  ],
-  "test_int32_indices_match_aten_fp32 (__main__.TestRadixKernelParams)": [
-    "200626",
-    "https://github.com/pytorch/pytorch/issues/200626",
-    [
-      "linux"
-    ]
-  ],
-  "test_int64_indices_match_aten_bfloat16 (__main__.TestRadixKernelParams)": [
-    "200665",
-    "https://github.com/pytorch/pytorch/issues/200665",
-    [
-      "linux"
-    ]
-  ],
-  "test_int64_indices_match_aten_float32 (__main__.TestRadixKernelParams)": [
-    "200706",
-    "https://github.com/pytorch/pytorch/issues/200706",
-    [
-      "linux"
     ]
   ],
   "test_jacfwd_different_levels_cpu (__main__.TestHessianCPU)": [
