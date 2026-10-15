@@ -458,8 +458,8 @@ def test_default_fetch_updated_with_nothing_to_add_reports_zero_supplements(capl
     assert "fast tick: 1 PR(s) updated since the cutoff, plus 0 labelled Reverted" in caplog.text
 
 
-def _open_pr(number: int) -> OpenPR:
-    return OpenPR(TARGET_REPO, number, "alice", f"fix {number}", f"https://example.test/{number}", "sha", None)
+def _open_pr(number: int, head_sha: str | None = None) -> OpenPR:
+    return OpenPR(TARGET_REPO, number, "alice", f"fix {number}", f"https://example.test/{number}", head_sha, None)
 
 
 def _candidates(
@@ -492,13 +492,14 @@ def _candidates(
 
 def test_candidate_numbers_without_a_cutoff_runs_the_full_listing(caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        (numbers, updated, labels, authors), calls = _candidates(full=[_open_pr(2), _open_pr(1)])
+        (numbers, updated, labels, authors, heads), calls = _candidates(full=[_open_pr(2, "sha2"), _open_pr(1)])
 
     assert calls == ["fetch"]
     assert numbers == [2, 1]
     assert updated == {1: None, 2: None}
     assert labels == {1: (), 2: ()}
     assert authors == {1: "alice", 2: "alice"}
+    assert heads == {1: None, 2: "sha2"}
     assert "found 2 open PR(s) from 1 author(s) in pytorch/pytorch (full tick)" in caplog.text
 
 
@@ -517,5 +518,5 @@ def test_candidate_numbers_with_a_cutoff_runs_the_fast_listing(caplog):
 def test_candidate_numbers_for_a_single_pr_lists_nothing():
     result, calls = _candidates(pr=7, cutoff=_CUTOFF)
 
-    assert result == ([7], {}, {}, {})
+    assert result == ([7], {}, {}, {}, {})
     assert calls == []

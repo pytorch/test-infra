@@ -21,8 +21,24 @@ one-shot `verdict` and `drci-poke` subcommands:
   for the next full tick; so does a PR idle longer than the review window (24 h by default) whose
   review is unfinished: a failed, cancelled or stuck one is retried at the first full tick after its
   `--timeout-minutes` timer (45 minutes by default), and an in-flight one whose fingerprint changed
-  without bumping `updated_at` is re-dispatched there. A warm Lambda keeps the tick memory between invocations; a CLI
-  one-shot always lists in full, and `--pr` never lists. A reverted PR —
+  without bumping `updated_at` is re-dispatched there. Once a listing tick's fan-out finishes, the
+  process keeps only the fingerprint results that tick reused and those it fetched (a hash only when
+  read at the listed head) when the listed `updated_at` was at least two minutes old at the clock
+  read after the listing, before the fan-out, keyed on that `updated_at`, the listed head and the
+  merge-authorized login set; a fast tick decides a PR whose key is unchanged on its kept result and
+  fingerprints afresh any PR that would dispatch, so a dispatch never carries a cached head or hash.
+  Full ticks never reuse a result, so what the key cannot see waits at most for the next full tick:
+  an inline review comment edit (never bumps `updated_at`) or deletion (unmeasured), a conversation
+  comment deletion that does not bump it (unmeasured; the one observed case bumped), an approver's
+  login rename or account deletion, and a review dismissal that does not bump it. A bump that shows
+  up only after the result was stored leaves the PR decided on that result until the bump becomes
+  visible (one observed case lagged between 8 s and several minutes), and at most until the next
+  full tick. Each bump, a bot's comment edit such as Dr. CI's included, costs a fresh fetch on every
+  tick until one finds it at least two minutes old: at most two with ticks two minutes or more apart,
+  more on a `--loop` daemon (60 s apart by default). A change to the approver set refetches every PR
+  on the next tick, and a `--loop` host needs a synced clock. A warm Lambda keeps the tick memory,
+  kept fingerprints included, between invocations; a CLI one-shot always lists in full, and `--pr`
+  never lists or touches the kept fingerprints. A reverted PR —
   labeled `Reverted`, or with a `REVERTED` row already recorded — is excluded permanently on every
   path: greenlight revokes its own approving review, records the `REVERTED` row unless it is
   already the PR's latest, and drops the PR. Removing the label does not restore eligibility, and `@greenlight recheck` is not exempt (it
@@ -208,7 +224,10 @@ The end-to-end flow, per cohort PR:
    exclusion above still applies to it, and never on the `--pr` path, where the target-author gate
    has already decided — and when it is inside the review window and not labelled `Stale`, and its
    latest recorded row is a `LAND`, the scan dismisses greenlight's approval instead of dispatching
-   anything, even when a human has already approved it.
+   anything, even when a human has already approved it. On a fast tick, a PR whose listed
+   `updated_at` and head and the approver set are unchanged since an earlier tick kept its
+   fingerprint result is decided on that result instead, and fingerprinted afresh only when that
+   decision would dispatch it or raises.
 2. It reads the PR's latest recorded state from `misc.greenlight_pr_state`.
 3. If the PR is new, or its fingerprint changed since that state, and no review is
    in-flight within the `--timeout-minutes` window, it dispatches the reviewer workflow

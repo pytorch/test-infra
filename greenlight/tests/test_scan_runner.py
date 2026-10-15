@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+import dataclasses
 import logging
 import queue
 import threading
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, NoReturn, cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from greenlight import scan_runner
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
-from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     from concurrent.futures import Future
 
     from github import Github
+
+    from greenlight.scan_memory import FingerprintCache
 
 # post_refusals threads the client straight through to the get_pr seam and never inspects it.
 _CLIENT = cast("Github", object())
@@ -188,6 +190,7 @@ def test_evaluate_pr_iteration_timeout_propagates():
             abandoned=abandoned,
             skips=skips,
             force=False,
+            cache=None,
         )
 
     assert failed == []
@@ -287,6 +290,7 @@ def test_evaluate_pr_cancelled_result_records_abandoned_not_failed():
         abandoned=abandoned,
         skips=skips,
         force=False,
+        cache=None,
     )
 
     # A cancelled task was never attempted, so it is not a candidate and not a failure: it is recorded
@@ -312,298 +316,36 @@ def _pr_state(number: int, run_id: int) -> PRState:
     )
 
 
-def _candidate(number: int, *, run_id: int | None) -> scan_runner._Candidate:
-    # run_id is None to model a never-reviewed PR (state None); an int models a recorded prior run.
-    recorded = None if run_id is None else _pr_state(number, run_id)
-    return scan_runner._Candidate(
-        pr_number=number,
-        head_sha=f"headsha{number}",
-        eval_hash=_EVAL_HASH,
-        state=recorded,
-        reason="never_reviewed" if run_id is None else "changed",
-    )
-
-
-def _noop_poke(_pr_number: int) -> None:
-    return None
-
-
-def _boom_poke(pr_number: int) -> NoReturn:
-    raise AssertionError(f"poke should not be called for PR #{pr_number}")
-
-
-def _never_shadow(_pr_number: int) -> bool:
-    return False
-
-
-def test_dispatch_pending_emits_marker_with_next_run_id():
-    dispatched: list[int] = []
-    emitted: list[dict[str, object]] = []
-
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
-        dispatched.append(number)
-
-    def emit(**kwargs):
-        emitted.append(kwargs)
-
-    pending = [_candidate(1, run_id=None), _candidate(2, run_id=4), _candidate(3, run_id=0)]
-    failed = scan_runner._dispatch_pending(
-        _CLIENT,
-        pending,
-        ref="main",
-        max_dispatches=None,
-        dispatch=dispatch,
-        emit_dispatched=emit,
-        poke=_noop_poke,
-        shadow_for_pr=_never_shadow,
-    )
-
-    # One marker per successfully dispatched candidate: never-reviewed (None) and legacy run_id 0
-    # both base at run_id 1; a prior run 4 supersedes with run_id 5.
-    assert failed == []
-    assert sorted(dispatched) == [1, 2, 3]
-    assert {call["pr_number"]: call["run_id"] for call in emitted} == {1: 1, 2: 5, 3: 1}
-    for call in emitted:
-        assert call["repo"] == TARGET_REPO
-        assert call["eval_hash"] == _EVAL_HASH
-    assert {call["head_sha"] for call in emitted} == {"headsha1", "headsha2", "headsha3"}
-
-
-def test_dispatch_pending_does_not_emit_when_dispatch_fails():
-    emitted: list[dict[str, object]] = []
-    poked: list[int] = []
-
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
-        raise RuntimeError(f"dispatch boom {number}")
-
-    def emit(**kwargs):
-        emitted.append(kwargs)
-
-    failed = scan_runner._dispatch_pending(
-        _CLIENT,
-        [_candidate(1, run_id=2)],
-        ref="main",
-        max_dispatches=None,
-        dispatch=boom_dispatch,
-        emit_dispatched=emit,
-        poke=poked.append,
-        shadow_for_pr=_never_shadow,
-    )
-
-    # A failed dispatch never fired the workflow, so no in-flight marker may be emitted for it --
-    # and with no marker written there is nothing for Dr. CI to re-render, so no poke either.
-    assert failed == [1]
-    assert emitted == []
-    assert poked == []
-
-
-def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
-    dispatched: list[int] = []
-    emitted: list[int] = []
-    poked: list[int] = []
-
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
-        dispatched.append(number)
-
-    def boom_emit(*, pr_number, **_kwargs):
-        if pr_number == 1:
-            raise RuntimeError("emit boom")
-        emitted.append(pr_number)
-
-    with caplog.at_level(logging.ERROR, logger="greenlight"):
-        failed = scan_runner._dispatch_pending(
-            _CLIENT,
-            [_candidate(1, run_id=None), _candidate(2, run_id=None)],
-            ref="main",
-            max_dispatches=None,
-            dispatch=dispatch,
-            emit_dispatched=boom_emit,
-            poke=poked.append,
-            shadow_for_pr=_never_shadow,
-        )
-
-    # The workflow already fired, so a marker-emit failure is logged and swallowed: PR1's dispatch
-    # is not counted as failed, and the remaining PR2 still dispatches and emits.
-    assert failed == []
-    assert dispatched == [1, 2]
-    assert emitted == [2]
-    # PR1 wrote no marker, so poking it would rebuild the comment from the state the marker was
-    # meant to replace; only PR2's successful emit earns a poke.
-    assert poked == [2]
-    assert "failed to emit AI_REVIEW_DISPATCHED marker for PR #1" in caplog.text
-    assert any(record.exc_info is not None for record in caplog.records)
-
-
-def test_dispatch_pending_emit_iteration_timeout_propagates():
-    dispatched: list[int] = []
-
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
-        dispatched.append(number)
-
-    def timeout_emit(**_kwargs):
-        raise IterationTimeout("iteration exceeded")
-
-    # IterationTimeout from the marker emit is the per-iteration watchdog signal: it must propagate
-    # past the swallow arm, halting the loop so PR2 is never reached.
-    with pytest.raises(IterationTimeout):
-        scan_runner._dispatch_pending(
-            _CLIENT,
-            [_candidate(1, run_id=None), _candidate(2, run_id=None)],
-            ref="main",
-            max_dispatches=None,
-            dispatch=dispatch,
-            emit_dispatched=timeout_emit,
-            poke=_boom_poke,
-            shadow_for_pr=_never_shadow,
-        )
-
-    assert dispatched == [1]
-
-
-def test_dispatch_pending_pokes_drci_after_each_successful_emit():
-    events: list[str] = []
-
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
-        events.append(f"dispatch:{number}")
-
-    def emit(*, pr_number, **_kwargs):
-        events.append(f"emit:{pr_number}")
-
-    def poke(pr_number):
-        events.append(f"poke:{pr_number}")
-
-    failed = scan_runner._dispatch_pending(
-        _CLIENT,
-        [_candidate(1, run_id=None), _candidate(2, run_id=4)],
-        ref="main",
-        max_dispatches=None,
-        dispatch=dispatch,
-        emit_dispatched=emit,
-        poke=poke,
-        shadow_for_pr=_never_shadow,
-    )
-
-    # Ordering is the contract: Dr. CI re-reads the row on poke, so each PR's poke must follow its
-    # own emit, and one candidate must be fully handled before the next is dispatched.
-    assert failed == []
-    assert events == ["dispatch:1", "emit:1", "poke:1", "dispatch:2", "emit:2", "poke:2"]
-
-
-def test_dispatch_pending_does_not_poke_deferred_candidates():
-    poked: list[int] = []
-
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
-        return None
-
-    def emit(**_kwargs):
-        return None
-
-    failed = scan_runner._dispatch_pending(
-        _CLIENT,
-        [_candidate(1, run_id=None), _candidate(2, run_id=None)],
-        ref="main",
-        max_dispatches=1,
-        dispatch=dispatch,
-        emit_dispatched=emit,
-        poke=poked.append,
-        shadow_for_pr=_never_shadow,
-    )
-
-    # A candidate deferred by the --max cap was never dispatched or marked, so it must not be poked.
-    assert failed == []
-    assert poked == [1]
-
-
-@pytest.mark.parametrize(
-    ("shadow", "expected_pokes"),
-    [
-        pytest.param(True, [], id="shadow-author"),
-        pytest.param(False, [1], id="trusted-author"),
-    ],
-)
-def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow, expected_pokes):
-    dispatch_kwargs: list[dict[str, object]] = []
-    emitted: list[dict[str, object]] = []
-    poked: list[int] = []
-
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, **kwargs):
-        dispatch_kwargs.append(kwargs)
-
-    def emit(**kwargs):
-        emitted.append(kwargs)
-
-    failed = scan_runner._dispatch_pending(
-        _CLIENT,
-        [_candidate(1, run_id=None)],
-        ref="main",
-        max_dispatches=None,
-        dispatch=dispatch,
-        emit_dispatched=emit,
-        poke=poked.append,
-        shadow_for_pr=lambda _number: shadow,
-    )
-
-    # One lookup drives all three: the reviewer workflow input that withholds the approval, the row
-    # the merge gate and Dr. CI read, and whether a rebuild is worth requesting at all.
-    assert failed == []
-    assert dispatch_kwargs == [{"shadow": shadow}]
-    assert [call["shadow"] for call in emitted] == [shadow]
-    assert poked == expected_pokes
-
-
-def test_dispatch_pending_resolves_shadow_per_candidate():
-    seen: list[tuple[int, object]] = []
-    poked: list[int] = []
-
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
-        return None
-
-    def emit(*, pr_number, shadow, **_kwargs):
-        seen.append((pr_number, shadow))
-
-    scan_runner._dispatch_pending(
-        _CLIENT,
-        [_candidate(1, run_id=None), _candidate(2, run_id=None)],
-        ref="main",
-        max_dispatches=None,
-        dispatch=dispatch,
-        emit_dispatched=emit,
-        poke=poked.append,
-        shadow_for_pr=lambda number: number == 2,
-    )
-
-    # A mixed batch must not collapse to one answer -- the cohort is per author, and a single scan
-    # routinely carries both.
-    assert seen == [(1, False), (2, True)]
-    assert poked == [1]
-
-
-def test_dispatch_pending_does_not_poke_a_shadow_pr_whose_emit_failed(caplog):
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
-        return None
-
-    def boom_emit(**_kwargs):
-        raise RuntimeError("emit boom")
-
-    with caplog.at_level(logging.ERROR, logger="greenlight"):
-        failed = scan_runner._dispatch_pending(
-            _CLIENT,
-            [_candidate(1, run_id=None)],
-            ref="main",
-            max_dispatches=None,
-            dispatch=dispatch,
-            emit_dispatched=boom_emit,
-            poke=_boom_poke,
-            shadow_for_pr=lambda _number: True,
-        )
-
-    # Both suppressions apply at once, and the shadow one must not resurrect the failed-emit one:
-    # _boom_poke asserts if either is dropped.
-    assert failed == []
-    assert "failed to emit AI_REVIEW_DISPATCHED marker for PR #1" in caplog.text
-
-
 _CHANGED_HASH = "b" * 64
+
+
+class _FakeCache:
+    """A fast tick's fingerprint cache holding ``cached``; records every call and the thread it came from."""
+
+    def __init__(self, cached: dict[int, tuple[str, str] | ReviewSkip] | None = None) -> None:
+        self.cached = cached or {}
+        self.kept: list[int] = []
+        self.stored: dict[int, tuple[str, str] | ReviewSkip] = {}
+        self.threads: set[int] = set()
+
+    def lookup(self, number: int) -> tuple[str, str] | ReviewSkip | None:
+        self.threads.add(threading.get_ident())
+        return self.cached.get(number)
+
+    def keep(self, number: int) -> None:
+        self.threads.add(threading.get_ident())
+        self.kept.append(number)
+
+    def store(self, number: int, result: tuple[str, str] | ReviewSkip) -> None:
+        self.threads.add(threading.get_ident())
+        self.stored[number] = result
+
+
+def _client_pool(worker_count: int) -> queue.Queue[Github]:
+    client_pool: queue.Queue[Github] = queue.Queue()
+    for _ in range(worker_count):
+        client_pool.put(cast("Github", object()))
+    return client_pool
 
 
 def _until_dispatchable(
@@ -617,15 +359,13 @@ def _until_dispatchable(
     abandoned: list[int] | None = None,
     skips: list[tuple[int, ReviewSkip]] | None = None,
     cancel_event: threading.Event | None = None,
+    cache: _FakeCache | None = None,
 ) -> list[scan_runner._Candidate]:
-    client_pool: queue.Queue[Github] = queue.Queue()
-    for _ in range(worker_count):
-        client_pool.put(cast("Github", object()))
     return scan_runner._fingerprint_until_dispatchable(
         pr_numbers,
         states or {},
         fingerprint=fingerprint,
-        client_pool=client_pool,
+        client_pool=_client_pool(worker_count),
         worker_count=worker_count,
         authorized_logins=frozenset({"alice"}),
         skip_on_approval=True,
@@ -637,6 +377,35 @@ def _until_dispatchable(
         skips=skips if skips is not None else [],
         force=False,
         cancel_event=cancel_event if cancel_event is not None else threading.Event(),
+        cache=cast("FingerprintCache | None", cache),
+    )
+
+
+def _all(
+    pr_numbers: list[int],
+    *,
+    fingerprint: scan_runner.FingerprintFn,
+    states: dict[int, PRState],
+    abandoned: list[int],
+    cancel_event: threading.Event,
+    cache: _FakeCache,
+) -> list[scan_runner._Candidate]:
+    return scan_runner._fingerprint_all(
+        pr_numbers,
+        states,
+        fingerprint=fingerprint,
+        client_pool=_client_pool(2),
+        worker_count=2,
+        authorized_logins=frozenset({"alice"}),
+        skip_on_approval=True,
+        now=datetime(2026, 6, 1),
+        timeout=timedelta(hours=1),
+        failed=[],
+        abandoned=abandoned,
+        skips=[],
+        force=False,
+        cancel_event=cancel_event,
+        cache=cast("FingerprintCache", cache),
     )
 
 
@@ -767,3 +536,277 @@ def test_fingerprint_until_dispatchable_stops_submitting_once_the_fan_out_is_can
     # tasks that reached the pool and found the event already set.
     assert abandoned == []
     assert pending == []
+
+
+def test_a_cached_result_that_settles_its_pr_is_judged_without_a_fingerprint(caplog):
+    fingerprinted: list[int] = []
+    skips: list[tuple[int, ReviewSkip]] = []
+    cache = _FakeCache({1: ("headsha1", _EVAL_HASH), 2: _skip("changes requested by bob")})
+
+    def fingerprint(_client, number, _authorized, _skip_on_approval):
+        fingerprinted.append(number)
+        return (f"headsha{number}", _EVAL_HASH)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        pending = _until_dispatchable(
+            [1, 2, 3],
+            fingerprint=fingerprint,
+            limit=4,
+            states={1: _pr_state(1, run_id=1), 3: _pr_state(3, run_id=1)},
+            skips=skips,
+            cache=cache,
+        )
+
+    # PR1's cached hash is the one its LAND was recorded for, and PR2's cached human decision still
+    # stands, so neither costs a fingerprint; PR3 has nothing cached and is fingerprinted as before.
+    assert fingerprinted == [3]
+    assert sorted(cache.kept) == [1, 2]
+    # Decisions taken from the cache are tagged; PR3's fresh one is not.
+    assert "PR #1: SKIP (decided, cached)" in caplog.text
+    assert "PR #2: SKIP (changes_requested, cached): changes requested by bob" in caplog.text
+    assert "PR #3: SKIP (decided)" in caplog.text
+    assert skips == [(2, _skip("changes requested by bob"))]
+    assert pending == []
+    assert cache.stored == {3: ("headsha3", _EVAL_HASH)}
+
+
+def test_a_cached_result_that_would_dispatch_is_fingerprinted_afresh_and_the_fresh_one_dispatches(caplog):
+    cache = _FakeCache({1: ("stalehead", _EVAL_HASH)})
+    fingerprinted: list[int] = []
+
+    def fingerprint(_client, number, _authorized, _skip_on_approval):
+        fingerprinted.append(number)
+        return ("freshhead", _CHANGED_HASH)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        pending = _until_dispatchable([1], fingerprint=fingerprint, limit=4, cache=cache)
+
+    # PR1 was never reviewed, so its cached result would dispatch; the head and hash a dispatch hands
+    # the reviewer are read this tick, never taken from the cache, and the decision is logged once.
+    assert fingerprinted == [1]
+    assert cache.kept == []
+    assert [(c.pr_number, c.head_sha, c.eval_hash) for c in pending] == [(1, "freshhead", _CHANGED_HASH)]
+    assert cache.stored == {1: ("freshhead", _CHANGED_HASH)}
+    assert caplog.text.count("PR #1: DISPATCH (never_reviewed)") == 1
+
+
+def test_cache_hits_take_no_slot_and_never_count_toward_the_limit():
+    fingerprinted: list[int] = []
+    lock = threading.Lock()
+    newer = datetime(2026, 2, 1)
+    states = {
+        **{n: _pr_state(n, run_id=1) for n in (1, 2)},
+        **{n: dataclasses.replace(_pr_state(n, run_id=1), version=newer) for n in (3, 4, 5)},
+    }
+    cache = _FakeCache({1: ("headsha1", _EVAL_HASH), 2: ("headsha2", _EVAL_HASH)})
+
+    def fingerprint(_client, number, _authorized, _skip_on_approval):
+        with lock:
+            fingerprinted.append(number)
+        return (f"headsha{number}", _CHANGED_HASH)
+
+    pending = _until_dispatchable(
+        [1, 2, 3, 4, 5], fingerprint=fingerprint, limit=1, worker_count=2, states=states, cache=cache
+    )
+
+    # PRs 1 and 2 rank stalest, but their cached results settle them before anything is submitted, so
+    # the pool's first pair goes to PRs 3 and 4, and the cap of one then keeps PR5 from being submitted.
+    assert sorted(cache.kept) == [1, 2]
+    assert sorted(fingerprinted) == [3, 4]
+    assert [candidate.pr_number for candidate in pending] == [3, 4]
+    assert cache.threads == {threading.get_ident()}
+
+
+def test_cache_hits_are_still_judged_when_a_rate_limit_cancels_the_fan_out():
+    from github import RateLimitExceededException
+
+    cancel_event = threading.Event()
+    reached_fingerprint = threading.Event()
+    fingerprinted: list[int] = []
+    lock = threading.Lock()
+    failed: list[int] = []
+    abandoned: list[int] = []
+    skips: list[tuple[int, ReviewSkip]] = []
+    cache = _FakeCache({11: ("headsha11", _EVAL_HASH), 12: ("headsha12", _EVAL_HASH)})
+
+    def fingerprint(_client, number, _authorized, _skip_on_approval):
+        with lock:
+            fingerprinted.append(number)
+        if number == 2:
+            reached_fingerprint.set()
+            assert cancel_event.wait(timeout=5)
+            return _skip("changes requested by bob")
+        assert reached_fingerprint.wait(timeout=5)
+        raise RateLimitExceededException(403)
+
+    pending = _until_dispatchable(
+        [*range(1, 9), 11, 12],
+        fingerprint=fingerprint,
+        limit=8,
+        worker_count=2,
+        states={11: _pr_state(11, run_id=1), 12: _pr_state(12, run_id=1)},
+        failed=failed,
+        abandoned=abandoned,
+        skips=skips,
+        cancel_event=cancel_event,
+        cache=cache,
+    )
+
+    # The cached PRs 11 and 12 are settled before submission starts; the uncached PRs go exactly as in
+    # the uncached cancellation test: PR1's rate limit stops submission after the first pair, both are
+    # drained, and PRs 3-8 are never submitted. Of the drained pair only PR2 completed, so only its
+    # skip is cached.
+    assert sorted(cache.kept) == [11, 12]
+    assert sorted(fingerprinted) == [1, 2]
+    assert failed == [1]
+    assert [number for number, _ in skips] == [2]
+    assert abandoned == []
+    assert pending == []
+    assert cache.stored == {2: _skip("changes requested by bob")}
+
+
+def test_fingerprint_all_judges_cache_hits_fingerprints_the_rest_and_never_caches_an_abandoned_task():
+    fingerprinted: list[int] = []
+    lock = threading.Lock()
+    abandoned: list[int] = []
+    cache = _FakeCache({1: ("headsha1", _EVAL_HASH), 2: ("stalehead", _EVAL_HASH)})
+
+    def fingerprint(_client, number, _authorized, _skip_on_approval):
+        with lock:
+            fingerprinted.append(number)
+        return (f"freshhead{number}", _CHANGED_HASH)
+
+    pending = _all(
+        [1, 2, 3],
+        fingerprint=fingerprint,
+        states={1: _pr_state(1, run_id=1)},
+        abandoned=abandoned,
+        cancel_event=threading.Event(),
+        cache=cache,
+    )
+
+    # PR1 settles from the cache; PR2's cached result would dispatch, so it is fingerprinted afresh
+    # with the uncached PR3, and both dispatch on the fresh results.
+    assert cache.kept == [1]
+    assert sorted(fingerprinted) == [2, 3]
+    assert [(c.pr_number, c.head_sha) for c in pending] == [(2, "freshhead2"), (3, "freshhead3")]
+    assert cache.stored == {2: ("freshhead2", _CHANGED_HASH), 3: ("freshhead3", _CHANGED_HASH)}
+    assert abandoned == []
+    assert cache.threads == {threading.get_ident()}
+
+    cancelled = threading.Event()
+    cancelled.set()
+    cache = _FakeCache({1: ("headsha1", _EVAL_HASH)})
+
+    pending = _all(
+        [1, 2],
+        fingerprint=fingerprint,
+        states={1: _pr_state(1, run_id=1)},
+        abandoned=abandoned,
+        cancel_event=cancelled,
+        cache=cache,
+    )
+
+    # Once the fan-out is cancelled the cached PR1 still settles, while PR2's task is abandoned as
+    # before and nothing is cached for it.
+    assert cache.kept == [1]
+    assert abandoned == [2]
+    assert pending == []
+    assert cache.stored == {}
+
+
+@pytest.mark.parametrize("result", [("headsha5", _EVAL_HASH), _skip()], ids=["fingerprint", "human-decided"])
+def test_evaluate_pr_stores_every_completed_fingerprint(result):
+    cache = _FakeCache()
+    future = cast("Future[tuple[str, str] | ReviewSkip | scan_runner._Cancelled]", _ResultFuture(result))
+
+    scan_runner._evaluate_pr(
+        5,
+        future,
+        {},
+        now=datetime(2026, 6, 1),
+        timeout=timedelta(hours=1),
+        failed=[],
+        abandoned=[],
+        skips=[],
+        force=False,
+        cache=cast("FingerprintCache", cache),
+    )
+
+    assert cache.stored == {5: result}
+
+
+@pytest.mark.parametrize(
+    "future",
+    [_RaisingFuture(RuntimeError("fingerprint boom")), _ResultFuture(scan_runner._CANCELLED)],
+    ids=["failed", "abandoned"],
+)
+def test_evaluate_pr_stores_neither_a_failed_nor_an_abandoned_task(future):
+    cache = _FakeCache()
+
+    scan_runner._evaluate_pr(
+        5,
+        cast("Future[tuple[str, str] | ReviewSkip | scan_runner._Cancelled]", future),
+        {},
+        now=datetime(2026, 6, 1),
+        timeout=timedelta(hours=1),
+        failed=[],
+        abandoned=[],
+        skips=[],
+        force=False,
+        cache=cast("FingerprintCache", cache),
+    )
+
+    assert cache.stored == {}
+
+
+def test_evaluate_pr_does_not_store_a_result_whose_judgment_raises(monkeypatch):
+    def boom_decide(**_kwargs):
+        raise RuntimeError("decide boom")
+
+    monkeypatch.setattr(scan_runner, "decide", boom_decide)
+    cache = _FakeCache()
+    failed: list[int] = []
+    future = cast(
+        "Future[tuple[str, str] | ReviewSkip | scan_runner._Cancelled]", _ResultFuture(("headsha5", _EVAL_HASH))
+    )
+
+    result = scan_runner._evaluate_pr(
+        5,
+        future,
+        {},
+        now=datetime(2026, 6, 1),
+        timeout=timedelta(hours=1),
+        failed=failed,
+        abandoned=[],
+        skips=[],
+        force=False,
+        cache=cast("FingerprintCache", cache),
+    )
+
+    # The fingerprint completed but its judgment failed, so the PR is failed and leaves nothing cached
+    # for a later tick to settle on.
+    assert result is None
+    assert failed == [5]
+    assert cache.stored == {}
+
+
+def test_an_iteration_timeout_while_judging_a_cached_result_propagates(monkeypatch):
+    def timeout_decide(**_kwargs):
+        raise IterationTimeout("iteration exceeded")
+
+    def fingerprint(*_args):
+        raise AssertionError("no PR may be fingerprinted once the iteration has timed out")
+
+    monkeypatch.setattr(scan_runner, "decide", timeout_decide)
+
+    # The per-iteration watchdog must abort the tick from the cached path too, never be logged and
+    # swallowed like an ordinary judgment error that sends the PR to the fresh path.
+    with pytest.raises(IterationTimeout):
+        _until_dispatchable(
+            [1],
+            fingerprint=fingerprint,
+            limit=4,
+            states={1: _pr_state(1, run_id=1)},
+            cache=_FakeCache({1: ("headsha1", _EVAL_HASH)}),
+        )
