@@ -507,7 +507,9 @@ def test_only_runs_carries_the_deduplication_token():
 
 def test_the_catalogs_only_take_unseen_ids():
     tests, environments, env_vars, _ = run_test_reports_adapter("on")
-    assert "where tests_id not in (select id from fortesting.tests final)" in tests
+    # tests' lookup holds only the report's own ids, not the whole catalog's.
+    lookup = "select id from fortesting.tests final where id in (select tests_id from report_rows)"
+    assert f"where tests_id not in ( {lookup} )" in " ".join(tests.split())
     assert (
         "where environments_id not in (select id from fortesting.environments final)"
         in environments

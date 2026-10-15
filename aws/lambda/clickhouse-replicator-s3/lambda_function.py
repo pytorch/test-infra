@@ -1012,7 +1012,9 @@ WITH
 # (table, columns, select), in order: the catalogs get rows only for ids they
 # lack (read with FINAL, as their schema requires), so first_seen_at stays the
 # first sighting and a repeat inserts nothing; runs then gets every run, and its
-# deduplication token makes a repeat of the same report a no-op.
+# deduplication token makes a repeat of the same report a no-op. Holding all of
+# tests' ids for every report is costly, and grows with the catalog, so its
+# lookup holds only the report's own ids.
 TEST_RUN_REPORTS_STATEMENTS = [
     (
         "tests",
@@ -1020,7 +1022,10 @@ TEST_RUN_REPORTS_STATEMENTS = [
         """
         select repo, file, suite, case_name, declared_case_name, language
         from report_rows
-        where tests_id not in (select id from {database}.tests final)
+        where tests_id not in (
+            select id from {database}.tests final
+            where id in (select tests_id from report_rows)
+        )
         limit 1 by tests_id
         """,
     ),
