@@ -840,6 +840,13 @@
       "xpu"
     ]
   ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "199495",
+    "https://github.com/pytorch/pytorch/issues/199495",
+    [
+      "xpu"
+    ]
+  ],
   "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_xpu (__main__.GPUTests)": [
     "200423",
     "https://github.com/pytorch/pytorch/issues/200423",
