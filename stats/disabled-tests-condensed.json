@@ -700,6 +700,11 @@
       "linux"
     ]
   ],
+  "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188706",
+    "https://github.com/pytorch/pytorch/issues/188706",
+    []
+  ],
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188707",
     "https://github.com/pytorch/pytorch/issues/188707",
@@ -1065,13 +1070,6 @@
       "linux",
       "mac",
       "macos"
-    ]
-  ],
-  "test_opcheck_unbacked_stride_cpu (__main__.TestCustomOpTestingCPU)": [
-    "199138",
-    "https://github.com/pytorch/pytorch/issues/199138",
-    [
-      "dynamo"
     ]
   ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
