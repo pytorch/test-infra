@@ -151,6 +151,13 @@
       "macos"
     ]
   ],
+  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
+    "187202",
+    "https://github.com/pytorch/pytorch/issues/187202",
+    [
+      "linux"
+    ]
+  ],
   "test_combo_kernel_per_config_subkernel_r0_r1 (__main__.ComboKernelTests)": [
     "198180",
     "https://github.com/pytorch/pytorch/issues/198180",
@@ -501,6 +508,13 @@
     "188676",
     "https://github.com/pytorch/pytorch/issues/188676",
     []
+  ],
+  "test_flydsl_sync_all (__main__.RocshmemFlyDSLTest)": [
+    "201030",
+    "https://github.com/pytorch/pytorch/issues/201030",
+    [
+      "rocm"
+    ]
   ],
   "test_forward_ad_nn_functional_grid_sample_xpu_float32 (__main__.TestCompositeComplianceXPU)": [
     "199493",
@@ -894,6 +908,13 @@
     "https://github.com/pytorch/pytorch/issues/199177",
     [
       "xpu"
+    ]
+  ],
+  "test_nn_functional_deprecated (__main__.TestNNFunctionalCompile)": [
+    "200917",
+    "https://github.com/pytorch/pytorch/issues/200917",
+    [
+      "inductor"
     ]
   ],
   "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
