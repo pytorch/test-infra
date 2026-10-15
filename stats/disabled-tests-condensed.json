@@ -218,17 +218,17 @@
       "slow"
     ]
   ],
-  "test_converting_copy_emits_vectorized_kernel_int32_int64_cuda (__main__.TestTorchCUDACUDA)": [
-    "199097",
-    "https://github.com/pytorch/pytorch/issues/199097",
+  "test_copy_strided_chunk_alignment_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
+    "200246",
+    "https://github.com/pytorch/pytorch/issues/200246",
     [
       "inductor",
       "rocm"
     ]
   ],
-  "test_copy_strided_chunk_alignment_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "200246",
-    "https://github.com/pytorch/pytorch/issues/200246",
+  "test_copy_strided_chunk_alignment_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "201051",
+    "https://github.com/pytorch/pytorch/issues/201051",
     [
       "inductor",
       "rocm"
@@ -304,14 +304,6 @@
   "test_copy_transpose_tiled_batched_layout_permute_4d_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "199997",
     "https://github.com/pytorch/pytorch/issues/199997",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
-  "test_copy_transpose_tiled_small_case_at_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "198911",
-    "https://github.com/pytorch/pytorch/issues/198911",
     [
       "inductor",
       "rocm"
