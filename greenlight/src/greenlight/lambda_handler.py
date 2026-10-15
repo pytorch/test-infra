@@ -40,8 +40,8 @@ _TOKEN_REPOSITORIES = ["pytorch", "test-infra"]
 
 # A dispatch costs 3-8s of serial main-thread work, and the Lambda function times out at 300s: an
 # uncapped scan against the full evaluation cohort would run out of clock mid-pass. Deferring is
-# free -- no state row is written for a deferred PR, so the next tick re-evaluates and dispatches
-# it -- while overrunning the timeout kills the scan after arbitrary partial work.
+# free -- no state row is written for a deferred PR, so the next tick that lists it re-evaluates
+# and dispatches it -- while overrunning the timeout kills the scan after arbitrary partial work.
 _DEFAULT_MAX_DISPATCHES_PER_SCAN = 30
 _MAX_DISPATCHES_ENV = "PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN"
 

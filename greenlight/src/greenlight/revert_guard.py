@@ -2,8 +2,8 @@
 
 A PR is excluded when it carries the ``Reverted`` label OR has ever recorded a ``REVERTED`` row.
 The label can be taken off again, the row cannot, so the row is what makes the exclusion
-permanent. Every scan re-runs the same steps for each excluded PR -- revoke greenlight's own
-approval, record the row unless one already wins, poke Dr. CI if either changed anything and the
+permanent. Every scan that lists an excluded PR re-runs the same steps for it -- revoke greenlight's
+own approval, record the row unless one already wins, poke Dr. CI if either changed anything and the
 PR is not shadow -- and then drops the PR before it is fingerprinted or dispatched. Re-running is
 not redundant: a review already in flight when the revert landed can still post a LAND approval
 afterwards.
@@ -17,9 +17,9 @@ renders: a review that lands its verdict after the exclusion was recorded carrie
 Two invariants are load-bearing:
 
 - The row is written whatever the dismissal returns. Recording cannot suppress a retry -- an
-  excluded PR is dismissed again on every scan, before any recorded state is read -- whereas
-  skipping the row after a failed dismissal loses the exclusion outright the moment the label
-  comes off, leaving a candidate PR still carrying the approval nothing revoked.
+  excluded PR is dismissed again on every scan that lists it, whatever its recorded state says --
+  whereas skipping the row after a failed dismissal loses the exclusion outright the moment the
+  label comes off, leaving a candidate PR still carrying the approval nothing revoked.
 - A missing row is never read as "no approval". The reviewer workflow posts its approving review a
   step before it uploads the row, so a lost upload, a cancelled job, or replication lag all leave a
   live approval with nothing recorded -- hence the dismissal is attempted whatever the state says.

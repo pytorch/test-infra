@@ -13,7 +13,16 @@ one-shot `verdict` and `drci-poke` subcommands:
   `approved_by` login in `merge_rules.yaml`, team refs expanded, minus bots and minus greenlight
   itself); for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
-  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed eligible PRs. A reverted PR —
+  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed eligible PRs. A full tick
+  lists every open PR — on every tick until one completes, and again 15 minutes (less 30 s of
+  tolerance) after the start of the last full tick that completed — and the fast ticks between list
+  the PRs updated inside the review window plus the open `Reverted`-labelled PRs. A PR whose place in
+  GitHub's updated order lags its `updated_at`, and an idle PR reverted only by its recorded row, wait
+  for the next full tick; so does a PR idle longer than the review window (24 h by default) whose
+  review is unfinished: a failed, cancelled or stuck one is retried at the first full tick after its
+  `--timeout-minutes` timer (45 minutes by default), and an in-flight one whose fingerprint changed
+  without bumping `updated_at` is re-dispatched there. A warm Lambda keeps the tick memory between invocations; a CLI
+  one-shot always lists in full, and `--pr` never lists. A reverted PR —
   labeled `Reverted`, or with a `REVERTED` row already recorded — is excluded permanently on every
   path: greenlight revokes its own approving review, records the `REVERTED` row unless it is
   already the PR's latest, and drops the PR. Removing the label does not restore eligibility, and `@greenlight recheck` is not exempt (it
@@ -155,7 +164,7 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS` | `600` | Per-iteration hard timeout (`0` = disabled) |
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Max backoff between retries (daemon) |
-| `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless a review is in-flight or retry-eligible (cancelled/failed) |
+| `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless a review is in-flight or retry-eligible (cancelled/failed); a fast tick's walk stops at the same edge |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | `drci-poke` waits this long for state ingestion before the request (`0` = no wait); `review`'s own poke always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key for `drci-poke` and `review`'s dispatch poke (`DRCI_BOT_KEY`); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (`HUD_API_TOKEN`); clears HUD's bot challenge, not an endpoint credential |
@@ -181,7 +190,8 @@ the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/comm
 
 The end-to-end flow, per cohort PR:
 
-1. `review` reads `merge_rules.yaml`, then scans the open PRs,
+1. `review` reads `merge_rules.yaml`, then scans the open PRs it lists (every one on a full tick;
+   on a fast tick, the recently updated ones plus the open `Reverted`-labelled ones),
    dropping any draft PR from the listing outright — never fingerprinted or dispatched, though
    a `--pr` run still reviews a draft. It
    also drops any reverted PR (labeled `Reverted`, or with a `REVERTED` row already recorded),

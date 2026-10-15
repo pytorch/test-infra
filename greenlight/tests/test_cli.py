@@ -15,6 +15,7 @@ from greenlight.config import Config
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import SingleInstanceError
+from greenlight.scan_memory import ScanMemory
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -113,6 +114,7 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
+        "memory": cli._SCAN_MEMORY,
     }
 
 
@@ -666,6 +668,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
+        "memory": None,
     }
 
 
@@ -687,7 +690,26 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
+        "memory": cli._SCAN_MEMORY,
     }
+
+
+def test_main_hands_every_listing_scan_one_process_wide_memory_and_a_pr_recheck_none(monkeypatch):
+    review_mock = Mock()
+    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    assert cli.main(["review", "--ref", "main", "--max", "30"]) == EXIT_OK
+    assert cli.main(["review", "--ref", "main", "--max", "30"]) == EXIT_OK
+    assert cli.main(["review", "--pr", "5"]) == EXIT_OK
+
+    # Two main() calls in one process, as the Lambda handler makes on warm invocations, share the
+    # module-level memory; a --pr recheck lists nothing and gets none.
+    first, second, recheck = (call.kwargs["memory"] for call in review_mock.call_args_list)
+    assert isinstance(first, ScanMemory)
+    assert first is second is cli._SCAN_MEMORY
+    assert recheck is None
 
 
 def test_main_force_without_pr_is_usage_error(monkeypatch):
@@ -728,6 +750,7 @@ def test_main_review_force_binds_into_run(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
+        "memory": None,
     }
 
 
@@ -749,6 +772,7 @@ def test_main_review_binds_requester_and_override_into_run(monkeypatch):
         "requester": "albanD",
         "allow_untrusted_author": True,
         "bot_login": "",
+        "memory": None,
     }
 
 

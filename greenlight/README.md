@@ -52,6 +52,23 @@ dismissed). `verdict` records a single
 PR-review verdict and acts on the PR, and `drci-poke` refreshes the Dr. CI comment that shows
 that verdict on `pytorch/pytorch` (both below).
 
+Which open PRs a listing scan reads depends on the tick. A **full tick** lists every open PR. It
+runs on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
+`FULL_TICK_INTERVAL`, `FULL_TICK_TOLERANCE`) after the start of the last full tick that completed —
+one whose listing and fingerprint fan-out finished without a rate-limit abort, even if a PR then
+failed. A clock that steps back past the start of
+the last full tick counts as due. Every scan in between is a **fast tick**: it walks
+the open PRs most recently updated first, stops at the review window's edge, and adds every open PR
+labelled `Reverted`, at any age (one issues-endpoint listing per Reverted label). Every source
+drops drafts and authors outside the evaluation cohort. What a fast tick does not list waits for
+the next full tick: a PR whose place in GitHub's updated order lags its `updated_at`; an idle PR
+reverted only by its recorded row; and a PR idle longer than the review window (24 h by default)
+whose review is unfinished: a failed, cancelled or stuck one is retried at the first full tick after
+its `--timeout-minutes` timer (45 minutes by default), and an in-flight one whose fingerprint
+changed without bumping `updated_at` is re-dispatched there. A warm `greenlight-scan` Lambda and a `--loop`
+daemon keep the tick memory between scans; a CLI one-shot and a cold Lambda always list in full,
+and `--pr` never lists.
+
 ```bash
 just run review                      # scan + dispatch once, then exit
 just review                          # convenience alias for `just run review`
@@ -398,7 +415,7 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_BACKOFF_BASE_SECONDS` | `1` | Base backoff after a failed iteration (daemon mode) |
 | `PYTORCH_GREENLIGHT_BACKOFF_MAX_SECONDS` | `60` | Maximum backoff between retries (daemon mode) |
 | `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` | `600` | How long the scan caches a resolved `merge_rules.yaml` snapshot — the authorized-login set and the rules its eligibility checks read — before refetching. The verdict is outside this cache and re-reads the rules for each `LAND`/`NO_LAND` recorded without `--shadow` |
-| `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check |
+| `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` | `24` | `review` skips a PR whose `updated_at` is older than this many hours, unless it has an in-flight or retry-eligible (cancelled/failed) review to re-check; a fast tick's walk stops at the same edge |
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
@@ -436,7 +453,11 @@ password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The
 `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`, so it runs with no single-instance lock and both
 hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog, which is wrong
 under the Lambda runtime); single-instance and hang-bounding come from
-`reserved_concurrent_executions = 1` and the Lambda function timeout instead.
+`reserved_concurrent_executions = 1` and the Lambda function timeout instead. A warm execution
+environment keeps the scan's tick memory between invocations, so the Lambda alternates full and
+fast ticks; a CLI one-shot always lists in full (see Usage). The scan's GitHub token must be able to
+list the repository's issues (`GET /repos/{owner}/{repo}/issues`, through public read access or the
+Issues: read permission); if it cannot, every fast tick fails loudly while full ticks still run.
 
 The handler caps each pass at `--max 30` (`_DEFAULT_MAX_DISPATCHES_PER_SCAN`, changeable on the
 function through `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` without a redeploy), and
@@ -444,7 +465,7 @@ function through `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` without a redeploy
 main-thread work, so an uncapped pass over the whole evaluation cohort would both run the Lambda
 out of its 300 s clock and fire an unbounded burst of `workflow_dispatch` POSTs on one token —
 what GitHub's secondary rate limit punishes hardest. Deferring is free: no state row is written
-for a PR the cap never reaches, so the next scan re-evaluates and dispatches it.
+for a PR the cap never reaches, so the next scan that lists it re-evaluates and dispatches it.
 
 The cap also has to cover the poke drain, which is what actually sets the pass's worst case. Taking
 every one of the 30 pokes to `drci_poke`'s full 40 s timeout, across 8 pool workers, against the
@@ -577,7 +598,9 @@ on failure, and clean signal shutdown — all built and tested. `review` scans t
 from the evaluation cohort in `pytorch/pytorch`, computes each PR's fingerprint
 (`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
 dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
-eligible PRs that are new or changed. Reverted PRs — those carrying the `Reverted` label or with a
+eligible PRs that are new or changed. It lists every open PR on a full tick, and on the fast ticks
+in between only the recently updated ones plus the open `Reverted`-labelled ones (see Usage).
+Reverted PRs — those carrying the `Reverted` label or with a
 `REVERTED` row already recorded — are excluded permanently on every path: greenlight revokes its
 own approving review, records the `REVERTED` row unless it is already the PR's latest row, and
 pokes Dr. CI when either changed. The
@@ -680,6 +703,8 @@ src/greenlight/
   lambda_handler.py # AWS Lambda entry point: load secrets, mint App token, run one review scan via cli.main
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
   review.py        # scan evaluation-cohort PRs: fingerprint, read state, dispatch reviewer workflow for new/changed; raises on failure
+  pr_listing.py    # list the scan's open PRs: a full listing, or a fast one (recently updated, plus open Reverted-labelled PRs)
+  scan_memory.py   # what a process carries between listing scans: when the last full tick that completed started
   scan_runner.py   # the scan's fingerprint fan-out, dispatch loop, and recheck-refusal posting
   authz_gates.py   # the scan's two authz gates: the --requester login and the --pr target
   cohort.py        # who greenlight evaluates (evaluation_cohort) and whose verdict carries authority (assess_rules)
@@ -687,6 +712,7 @@ src/greenlight/
   candidate_filter.py # prune listed PRs the scan can leave alone this iteration (recency window, excluded labels)
   review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
   revert_guard.py  # permanently exclude reverted PRs: revoke greenlight's approval, record the REVERTED row
+  ineligible_approvals.py # revoke greenlight's approval on a listed PR whose author is no longer eligible for it
   merge_authz.py   # resolve merge_rules.yaml: the authorized-login set (the fingerprint comment allowlist) and each rule's approvers and trymerge file patterns, with TTL cache; list a PR's changed files
   state.py         # read a PR's latest recorded state from misc.greenlight_pr_state (deliberately shadow-unfiltered)
   state_emit.py    # build and emit a state row to S3 for replicator ingestion; single source of the row schema and object key
@@ -698,7 +724,7 @@ src/greenlight/
   verdict_outline.py # render a model-authored verdict outline as one contained HTML bullet list (mirrored in TypeScript)
   redact.py        # scrub credential-shaped substrings out of untrusted, model-authored text
   drci_poke.py     # ask Dr. CI to rebuild one PR's comment (drci-poke subcommand and the scan's dispatch poke); swallows its own failures
-  github_client.py # GitHub PR access: read PR list/fingerprint + post verdict actions
+  github_client.py # GitHub PR access: build clients, read fingerprint inputs + post verdict actions
   github_types.py  # structural (Protocol) contracts the GitHub client speaks
   clickhouse_client.py # ClickHouse connection helper for the service's read (SELECT) queries
   pr_hash.py       # eval_hash land-guard: deterministic PR fingerprint hash

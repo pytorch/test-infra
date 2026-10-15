@@ -1,6 +1,6 @@
 """GitHub pull-request access for the greenlight service.
 
-Reads the open-PR list and the PR-fingerprint inputs, and performs the verdict write
+Builds the GitHub clients, reads the PR-fingerprint inputs, and performs the verdict write
 actions: post an approving review, comment, and dismiss greenlight's own prior approvals.
 """
 
@@ -8,17 +8,14 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from greenlight import constants
 from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bot, is_bot_command
 from greenlight.review_gate import ReviewSkip, human_review_skip_reason
-from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
-    from datetime import datetime
 
     from github import Github
     from urllib3.util.retry import Retry
@@ -31,23 +28,10 @@ if TYPE_CHECKING:
         _PRActor,
         _PRComment,
         _PRReview,
-        _RepoClient,
         _VerdictReview,
     )
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True, slots=True)
-class OpenPR:
-    repo: str
-    number: int
-    author: str
-    title: str
-    url: str
-    head_sha: str
-    updated_at: datetime | None
-    labels: tuple[str, ...] = ()
 
 
 # Pin the request timeout so a future PyGithub default change can't let
@@ -157,34 +141,6 @@ def is_rate_limit_error(exc: BaseException) -> bool:
         headers = getattr(exc, "headers", None) or {}
         return "retry-after" in headers or headers.get("x-ratelimit-remaining") == "0"
     return False
-
-
-def list_open_prs_by_authors(client: _RepoClient, repo: str, authors: Iterable[str]) -> list[OpenPR]:
-    lowered_authors = {a.lower() for a in authors}
-    repo_obj = client.get_repo(repo)
-    prs: list[OpenPR] = []
-    for pr in repo_obj.get_pulls(state="open"):
-        user = pr.user
-        if user is None:
-            continue
-        login = user.login
-        if login and login.lower() in lowered_authors:
-            if pr.draft:
-                continue
-            updated_at = pr.updated_at
-            prs.append(
-                OpenPR(
-                    repo=repo,
-                    number=pr.number,
-                    author=login,
-                    title=pr.title,
-                    url=pr.html_url,
-                    head_sha=pr.head.sha,
-                    updated_at=naive_utc(updated_at) if updated_at is not None else None,
-                    labels=tuple(label.name for label in pr.labels),
-                )
-            )
-    return sorted(prs, key=lambda p: p.number)
 
 
 def _actor_login(
