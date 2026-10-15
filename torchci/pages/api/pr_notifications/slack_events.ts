@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { getOctokit } from "lib/github";
 import { saveSlackUser } from "lib/prNotificationsSlack";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -7,6 +8,8 @@ export const config = { api: { bodyParser: false } };
 
 const CHANNEL_ID = "C0C8N0L7U5Q";
 const REGISTRATION = /^github:\s*@?([A-Za-z0-9-]{1,39})$/i;
+const notFound = (login: string) =>
+  `Couldn't find a GitHub account named \`${login}\`. Check the spelling and post \`github: <your GitHub login>\` again.`;
 const MAX_REQUEST_AGE_SECONDS = 5 * 60;
 
 async function readBody(req: NextApiRequest): Promise<string> {
@@ -44,31 +47,57 @@ function isFromSlack(
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-async function react(ts: string) {
-  const response = await fetch("https://slack.com/api/reactions.add", {
+async function callSlack(method: string, args: Record<string, string>) {
+  const response = await fetch(`https://slack.com/api/${method}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.PYTORCH_SLACK_BOT_TOKEN}`,
       "Content-Type": "application/json; charset=utf-8",
     },
-    body: JSON.stringify({
-      channel: CHANNEL_ID,
-      timestamp: ts,
-      name: "white_check_mark",
-    }),
+    body: JSON.stringify({ channel: CHANNEL_ID, ...args }),
   });
   const { ok, error } = await response.json();
   // Slack retries an event it thinks failed
   if (!ok && error !== "already_reacted") {
-    throw new Error(`reactions.add: ${error}`);
+    throw new Error(`${method}: ${error}`);
+  }
+}
+
+function react(ts: string, name: string) {
+  return callSlack("reactions.add", { timestamp: ts, name });
+}
+
+// Shown as "Only visible to you", until the user reloads Slack
+function tellUser(user: string, text: string) {
+  return callSlack("chat.postEphemeral", { user, text });
+}
+
+/**
+ * The login of the GitHub user account named `login`, or null if there is
+ * none. A failed lookup is null too, since either way the member should check
+ * their login and post again.
+ */
+async function findGitHubUser(login: string): Promise<string | null> {
+  try {
+    const octokit = await getOctokit("pytorch", "pytorch");
+    const { data } = await octokit.rest.users.getByUsername({
+      username: login,
+    });
+    return data.type === "User" ? data.login : null;
+  } catch (error: any) {
+    if (error?.status !== 404) {
+      console.error(`Failed to look up GitHub user ${login}:`, error);
+    }
+    return null;
   }
 }
 
 /**
  * Slack Events API endpoint of the PyTorch Slack PR review digest app. A member
  * of the opt-in #auto-pr-triage-notifications channel registers by posting
- * `github: <login>` there, which saves their GitHub login and reacts with a
- * checkmark to confirm.
+ * `github: <login>` there. An existing GitHub account is saved and confirmed
+ * with a checkmark. Any other login gets a cross and a reply only the poster
+ * sees.
  */
 export default async function handler(
   req: NextApiRequest,
@@ -84,6 +113,11 @@ export default async function handler(
   if (!secret || !isFromSlack(req, body, secret)) {
     return res.status(403).json({ error: "Forbidden" });
   }
+  // Slack resends an event it got no answer to within 3 seconds, while the
+  // first delivery is still being handled
+  if (req.headers["x-slack-retry-reason"] === "http_timeout") {
+    return res.status(200).end();
+  }
 
   const payload = JSON.parse(body);
   // Sent once when the request URL is set in the Slack app config
@@ -97,8 +131,15 @@ export default async function handler(
     event?.type === "message" && event.channel === CHANNEL_ID && !event.subtype;
   const match = isMemberMessage && REGISTRATION.exec(event.text?.trim() ?? "");
   if (match) {
-    await saveSlackUser(event.user, match[1]);
-    await react(event.ts);
+    const login = await findGitHubUser(match[1]);
+    if (login === null) {
+      await react(event.ts, "x");
+      await tellUser(event.user, notFound(match[1]));
+    } else {
+      // Lowercase to match the manifest's reviewer keys
+      await saveSlackUser(event.user, login.toLowerCase());
+      await react(event.ts, "white_check_mark");
+    }
   }
   return res.status(200).end();
 }

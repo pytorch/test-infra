@@ -70,7 +70,7 @@ describe("buildPrNotificationsManifest", () => {
   test("lists pending reviewers per stage and expands teams", async () => {
     const pull = {
       user: { login: AUTHOR },
-      requested_reviewers: [{ login: "alice" }, { login: "bob" }],
+      requested_reviewers: [{ login: "alice" }, { login: "Bob" }],
       requested_teams: [{ slug: "infra" }],
     };
     const scope = [
@@ -149,6 +149,7 @@ describe("buildPrNotificationsManifest", () => {
         },
       },
       reviewers: {
+        // Lowercase, whatever GitHub returned
         bob: { pre_review: [{ pr: 1 }], final_review: [] },
         carol: {
           pre_review: [{ pr: 1, via: "pytorch/infra" }],

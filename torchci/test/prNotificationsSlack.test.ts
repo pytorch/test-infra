@@ -2,17 +2,32 @@ import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { createHmac } from "crypto";
 import { NextApiRequest } from "next";
 import { Readable } from "stream";
+import { getOctokit } from "../lib/github";
 import { saveSlackUser } from "../lib/prNotificationsSlack";
 import { getS3Client } from "../lib/s3";
 import handler from "../pages/api/pr_notifications/slack_events";
 import { mockRes } from "./nextApiMocks";
 
 jest.mock("../lib/s3", () => ({ getS3Client: jest.fn() }));
+jest.mock("../lib/github", () => ({ getOctokit: jest.fn() }));
 
 const SECRET = "secret";
 const CHANNEL = "C0C8N0L7U5Q";
 const send = jest.fn();
 const fetchMock = jest.fn();
+const getByUsername = jest.fn();
+
+// The Slack API method and arguments of each call
+function slackCalls() {
+  return fetchMock.mock.calls.map(([url, init]) => [
+    url.replace("https://slack.com/api/", ""),
+    JSON.parse(init.body),
+  ]);
+}
+
+function gitHubError(status: number) {
+  return Object.assign(new Error(`HTTP ${status}`), { status });
+}
 
 function saved(users: Record<string, string>, etag = '"1"') {
   return {
@@ -39,7 +54,10 @@ function writes() {
     }));
 }
 
-function slackRequest(payload: any, { secret = SECRET, age = 0 } = {}) {
+function slackRequest(
+  payload: any,
+  { secret = SECRET, age = 0, headers = {} as Record<string, string> } = {}
+) {
   const body = JSON.stringify(payload);
   const timestamp = String(Math.floor(Date.now() / 1000) - age);
   const hmac = createHmac("sha256", secret).update(`v0:${timestamp}:${body}`);
@@ -48,6 +66,7 @@ function slackRequest(payload: any, { secret = SECRET, age = 0 } = {}) {
     headers: {
       "x-slack-request-timestamp": timestamp,
       "x-slack-signature": `v0=${hmac.digest("hex")}`,
+      ...headers,
     },
   }) as unknown as NextApiRequest;
 }
@@ -76,6 +95,12 @@ beforeEach(() => {
   jest.clearAllMocks();
   process.env.PYTORCH_SLACK_SIGNING_SECRET = SECRET;
   (getS3Client as jest.Mock).mockReturnValue({ send });
+  (getOctokit as jest.Mock).mockResolvedValue({
+    rest: { users: { getByUsername } },
+  });
+  getByUsername.mockImplementation(async ({ username }) => ({
+    data: { login: username, type: "User" },
+  }));
   global.fetch = fetchMock;
   fetchMock.mockResolvedValue({ json: async () => ({ ok: true }) });
 });
@@ -95,26 +120,78 @@ describe("/api/pr_notifications/slack_events", () => {
     expect(res._json).toEqual({ challenge: "c" });
   });
 
-  it("saves a registration, then confirms it", async () => {
+  it("saves an existing GitHub account, then confirms it", async () => {
     send.mockResolvedValueOnce(saved({}));
+    getByUsername.mockResolvedValueOnce({
+      data: { login: "Alice-2", type: "User" },
+    });
     const res = await post(slackRequest(message("GitHub: @alice-2")));
     expect(res._status).toBe(200);
+    expect(getByUsername).toHaveBeenCalledWith({ username: "alice-2" });
     expect(writes()[0].users).toEqual({ UA: "alice-2" });
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-      channel: CHANNEL,
-      timestamp: "1.1",
-      name: "white_check_mark",
-    });
+    expect(slackCalls()).toEqual([
+      [
+        "reactions.add",
+        { channel: CHANNEL, timestamp: "1.1", name: "white_check_mark" },
+      ],
+    ]);
   });
 
-  it("ignores everything but registrations in the channel", async () => {
+  it("tells the poster when the GitHub account can't be found", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    for (const lookup of [
+      () => getByUsername.mockRejectedValueOnce(gitHubError(404)),
+      () =>
+        getByUsername.mockResolvedValueOnce({
+          data: { login: "pytorch", type: "Organization" },
+        }),
+      // A failed lookup gets the same reply, so the member posts again
+      () => getByUsername.mockRejectedValueOnce(gitHubError(502)),
+    ]) {
+      fetchMock.mockClear();
+      lookup();
+      const res = await post(slackRequest(message("github: pytorch")));
+      expect(res._status).toBe(200);
+      expect(slackCalls()).toEqual([
+        ["reactions.add", { channel: CHANNEL, timestamp: "1.1", name: "x" }],
+        [
+          "chat.postEphemeral",
+          {
+            channel: CHANNEL,
+            user: "UA",
+            text: expect.stringContaining("named `pytorch`"),
+          },
+        ],
+      ]);
+    }
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("skips Slack's resend of an event that is still being handled", async () => {
+    const res = await post(
+      slackRequest(message("github: alice"), {
+        headers: {
+          "x-slack-retry-num": "1",
+          "x-slack-retry-reason": "http_timeout",
+        },
+      })
+    );
+    expect(res._status).toBe(200);
+    expect(getByUsername).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores everything else", async () => {
     for (const payload of [
       message("github: alice and more"),
+      message("my github: alice"),
       message("github: alice", { channel: "C1" }),
       message("github: alice", { subtype: "message_changed" }),
     ]) {
       expect((await post(slackRequest(payload)))._status).toBe(200);
     }
+    expect(getByUsername).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
