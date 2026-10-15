@@ -16,10 +16,15 @@ import pLimit from "p-limit";
 
 export type ReviewStage = "pre_review" | "final_review";
 
+// Added by Meta's labeler to PRs whose author isn't a Meta employee
+const OPEN_SOURCE_LABEL = "open source";
+
 export interface ManifestPr {
   title: string;
   url: string;
   author: string;
+  // From an open source contributor rather than a maintainer
+  open_source: boolean;
   stage: ReviewStage;
   // When the PR got the label for its current stage, null if not found
   stage_since: string | null;
@@ -231,6 +236,7 @@ export async function buildPrNotificationsManifest(
         title: pr.title,
         url: pr.html_url,
         author,
+        open_source: labels.includes(OPEN_SOURCE_LABEL),
         stage,
         stage_since: await getStageSince(
           octokit,
