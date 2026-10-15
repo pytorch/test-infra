@@ -48,9 +48,11 @@ Files are named NNNNNN-description.sql: six digits, a dash, a description,
 .sql. Any file in the folder that starts with a digit or carries .sql in its
 name is held to that and refused otherwise; README.md and helper scripts are
 left alone. Files are plain ClickHouse SQL: statements end with ';', '--' and
-/* */ comments are removed before sending, and every table name is bare and
-resolves in the target database. A database.table name anywhere in a file is
-refused, system.* aside, so a sandbox run cannot reach a real database.
+/* */ comments are removed before sending, and every table a file creates,
+alters or writes is named bare and resolves in the target database. A
+database.table name in those places is refused, system.* aside, so a sandbox
+run cannot change a real database. After FROM or JOIN it is allowed: a view
+that reads default.workflow_job needs it, and reading is harmless.
 
 Connection, through the ClickHouse HTTP interface with a database user:
 CLICKHOUSE_ENDPOINT (host, host:port or URL), CLICKHOUSE_USERNAME,
@@ -111,12 +113,13 @@ CREATE_RE = re.compile(
     rf"(?:IF\s+NOT\s+EXISTS\s+)?({IDENT})",
     re.I,
 )
-# database.name where a statement names a table: after TABLE (CREATE, ALTER,
-# DROP, TRUNCATE, OPTIMIZE, RENAME, ATTACH, ...), VIEW, DICTIONARY, INSERT INTO,
-# a view's TO, FROM, JOIN, and the first operand of EXCHANGE TABLES; the second
-# operand sits after AND, which only EXCHANGE_RE looks at.
+# database.name where a statement creates, alters, drops or writes a table:
+# after TABLE (CREATE, ALTER, DROP, TRUNCATE, OPTIMIZE, RENAME, ATTACH, ...),
+# VIEW, DICTIONARY, INSERT INTO, a view's TO, and the first operand of EXCHANGE
+# TABLES; the second operand sits after AND, which only EXCHANGE_RE looks at.
+# After FROM or JOIN a database.name is a read and is not matched.
 QUALIFIED_RE = re.compile(
-    r"\b(?:TABLES?|VIEW|DICTIONAR(?:Y|IES)|INTO|TO|FROM|JOIN)\s+"
+    r"\b(?:TABLES?|VIEW|DICTIONAR(?:Y|IES)|INTO|TO)\s+"
     rf"(?:IF\s+(?:NOT\s+)?EXISTS\s+)?({IDENT})\s*\.\s*({IDENT})",
     re.I,
 )
@@ -340,7 +343,8 @@ def unquoted(sql: str) -> str:
 
 
 def refuse_qualified_names(migration: Migration) -> None:
-    """A database.name anywhere in the file would reach past the target database."""
+    """A database.name that a file creates, alters or writes would reach past the
+    target database; one it only reads (FROM, JOIN) is fine."""
     for sql in migration.statements:
         skeleton = unquoted(sql)
         for pattern in (QUALIFIED_RE, EXCHANGE_RE):
