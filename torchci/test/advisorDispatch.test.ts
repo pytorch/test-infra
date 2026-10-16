@@ -6,11 +6,12 @@ import {
   autoDispatchAdvisorForNewFailures,
   AutoDispatchDeps,
   MAX_DISPATCH_RETRIES,
-  nextDispatchVersion,
   ranAfterDispatch,
+  readyToReanalyze,
   signalKeyForJob,
   stableHashSelect,
 } from "lib/advisor/advisorDispatch";
+import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { RecentWorkflowsData } from "lib/types";
 
 const VALID_SHA = "a".repeat(40);
@@ -513,6 +514,16 @@ describe("rerun re-dispatch", () => {
   const DISPATCHED_AT = "2026-10-16 00:53:36.569";
   const RERUN_DONE = "2026-10-16 01:13:57";
   const FIRST_DONE = "2026-10-16 00:15:45";
+  // The first analysis answered after it was dispatched.
+  const ANSWERED = [
+    {
+      sha: VALID_SHA,
+      signal_key: signalKeyForJob("wf / a"),
+      verdict: "not_related",
+      confidence: 0.95,
+      timestamp: "2026-10-16 00:54:54.000",
+    } as unknown as AdvisorVerdictRow,
+  ];
 
   beforeEach(() => {
     process.env = { ...OLD_ENV };
@@ -541,17 +552,36 @@ describe("rerun re-dispatch", () => {
       {
         ...baseArgs,
         newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: ANSWERED,
       },
       deps
     );
     expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
     expect(deps.recordDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "dispatching",
-        retryCount: 0,
-        jobCompletedAt: RERUN_DONE,
-      })
+      expect.objectContaining({ state: "dispatching", retryCount: 0 })
     );
+  });
+
+  it("waits for the previous analysis to answer before re-dispatching", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest
+        .fn()
+        .mockResolvedValue(dispatchedStates(DISPATCHED_AT)),
+    });
+    const unanswered = [
+      { ...ANSWERED[0], timestamp: "2026-10-16 00:40:00.000" },
+    ] as AdvisorVerdictRow[];
+    for (const verdictRows of [undefined, [], unanswered]) {
+      await autoDispatchAdvisorForNewFailures(
+        {
+          ...baseArgs,
+          newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+          verdictRows,
+        },
+        deps
+      );
+    }
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
   });
 
   it("does not re-dispatch for the run the dispatch already analyzed", async () => {
@@ -564,6 +594,7 @@ describe("rerun re-dispatch", () => {
       {
         ...baseArgs,
         newFailures: [job("wf / a", "failure", [], FIRST_DONE)],
+        verdictRows: ANSWERED,
       },
       deps
     );
@@ -577,7 +608,11 @@ describe("rerun re-dispatch", () => {
         .mockResolvedValue(dispatchedStates(DISPATCHED_AT)),
     });
     await autoDispatchAdvisorForNewFailures(
-      { ...baseArgs, newFailures: [job("wf / a", "failure", [], "")] },
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], "")],
+        verdictRows: ANSWERED,
+      },
       deps
     );
     expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
@@ -602,6 +637,7 @@ describe("rerun re-dispatch", () => {
       {
         ...baseArgs,
         newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: ANSWERED,
       },
       deps
     );
@@ -623,6 +659,7 @@ describe("rerun re-dispatch", () => {
       {
         ...baseArgs,
         newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: ANSWERED,
       },
       deps
     );
@@ -630,7 +667,7 @@ describe("rerun re-dispatch", () => {
   });
 });
 
-describe("ranAfterDispatch / nextDispatchVersion", () => {
+describe("ranAfterDispatch / readyToReanalyze", () => {
   it("treats a tie as a rerun and an unknown time as not one", () => {
     const at = "2026-10-16 01:13:57.000";
     expect(ranAfterDispatch(job("x", "failure", [], at), at)).toBe(true);
@@ -638,14 +675,13 @@ describe("ranAfterDispatch / nextDispatchVersion", () => {
     expect(ranAfterDispatch(job("x", "failure", [], at), "")).toBe(false);
   });
 
-  it("stamps a version after the analyzed run even when the clock lags", () => {
-    // A completed_at an hour in the future stands in for a lagging clock.
-    const future = new Date(Date.now() + 3600_000)
-      .toISOString()
-      .replace("T", " ")
-      .replace("Z", "");
-    const version = nextDispatchVersion(future);
-    const analyzed = job("x", "failure", [], future);
-    expect(ranAfterDispatch(analyzed, version)).toBe(false);
+  it("is ready only when a verdict is strictly newer than the dispatch", () => {
+    const at = "2026-10-16 00:53:36.569";
+    const v = (timestamp: string) =>
+      ({ timestamp } as unknown as AdvisorVerdictRow);
+    expect(readyToReanalyze([v("2026-10-16 00:54:54.000")], at)).toBe(true);
+    expect(readyToReanalyze([v(at)], at)).toBe(false);
+    expect(readyToReanalyze([v("2026-10-16 00:40:00.000")], at)).toBe(false);
+    expect(readyToReanalyze([], at)).toBe(false);
   });
 });

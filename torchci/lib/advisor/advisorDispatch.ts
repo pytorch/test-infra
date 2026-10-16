@@ -8,13 +8,17 @@
 import { createHash } from "crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { parseUtc } from "lib/advisor/advisorBadge";
+import { isStrictlyAfter, parseUtc } from "lib/advisor/advisorBadge";
 import {
   getAdvisorRepoConfig,
   getMaxDispatchPerPr,
   getMaxNewFailures,
   OUTAGE_GUARD_BYPASS_LABELS,
 } from "lib/advisor/advisorConfig";
+import {
+  AdvisorVerdictRow,
+  headRowsBySignalKey,
+} from "lib/advisorVerdictUtils";
 import {
   getClickhouseClientWritable,
   queryClickhouseSaved,
@@ -354,9 +358,6 @@ export interface DispatchRecord {
   retryCount: number;
   prNumber: number;
   jobName: string;
-  // The analyzed job's completed_at. The row's version is kept strictly after
-  // it; see nextDispatchVersion.
-  jobCompletedAt?: string;
 }
 
 // Monotonic version generator. The ReplacingMergeTree keeps the row with the
@@ -367,18 +368,9 @@ export interface DispatchRecord {
 // let a 'dispatching' row mask a terminal one (e.g. a fast-failing dispatch
 // would never retry). Clamp to strictly-increasing-per-process so the terminal
 // write always outranks its pre-dispatch write.
-//
-// Also clamped to after `notBefore`, the analyzed job's completed_at.
-// Auto-dispatch re-dispatches a 'dispatched' signal whose job finished at or
-// after the row's version (a rerun). If this server's clock lagged GitHub's,
-// a version stamped from the clock alone could land before the very run it
-// was written for, and that signal would be re-dispatched on every pass. With
-// the clamp, a dispatch can never look older than the run it analyzed.
 let lastVersionMs = 0;
-export function nextDispatchVersion(notBefore?: string): string {
+function nextDispatchVersion(): string {
   let ms = dayjs().valueOf();
-  const floor = parseUtc(notBefore);
-  if (floor !== null && ms <= floor.valueOf()) ms = floor.valueOf() + 1;
   if (ms <= lastVersionMs) ms = lastVersionMs + 1;
   lastVersionMs = ms;
   return dayjs(ms).utc().format("YYYY-MM-DD HH:mm:ss.SSS");
@@ -398,7 +390,7 @@ export async function recordDispatch(record: DispatchRecord): Promise<void> {
         retry_count: record.retryCount,
         pr_number: record.prNumber,
         job_name: record.jobName,
-        version: nextDispatchVersion(record.jobCompletedAt),
+        version: nextDispatchVersion(),
       },
     ],
     format: "JSONEachRow",
@@ -470,6 +462,9 @@ export interface AutoDispatchArgs {
   // The FAILED bucket from Dr.CI (RecentWorkflowsData[]). Cancelled jobs are
   // filtered out here so only true NEW failures are dispatched.
   newFailures: RecentWorkflowsData[];
+  // This PR's advisor verdicts. Only re-dispatch of a rerun reads them (see
+  // readyToReanalyze); without them a rerun is never re-dispatched.
+  verdictRows?: AdvisorVerdictRow[];
 }
 
 /**
@@ -481,9 +476,11 @@ export interface AutoDispatchArgs {
  * matching the gate's treatment of a tie as stale.
  *
  * False when either time is missing or unparseable, so an unknown completion
- * time can never re-dispatch. Each run re-dispatches at most once:
- * nextDispatchVersion stamps the new dispatch strictly after that run's
- * completed_at.
+ * time can never re-dispatch. The new dispatch's version is later than the
+ * run's completion, so each run is re-dispatched once. The exception is a
+ * server clock behind GitHub's by more than the time from the run finishing to
+ * its dispatch: the run then looks newer than its own dispatch and gets one
+ * more, after which the next pass's clock is past it.
  */
 export function ranAfterDispatch(
   job: RecentWorkflowsData,
@@ -494,6 +491,21 @@ export function ranAfterDispatch(
   return (
     completed !== null && dispatched !== null && !completed.isBefore(dispatched)
   );
+}
+
+/**
+ * Re-dispatch a rerun only once the previous analysis has answered: some verdict
+ * for this signal is newer than the latest dispatch. Verdicts are keyed by
+ * (head, job name) with no record of which run they analyzed, so two analyses
+ * in flight for one key could finish out of order, and an earlier run's
+ * clearing verdict could land last and clear a later run. One analysis per key
+ * at a time rules that out. Missing verdict rows mean no re-dispatch.
+ */
+export function readyToReanalyze(
+  rowsForKey: AdvisorVerdictRow[],
+  dispatchVersion: string
+): boolean {
+  return rowsForKey.some((r) => isStrictlyAfter(r.timestamp, dispatchVersion));
 }
 
 /** Whether auto-dispatch is enabled for this environment + repo. */
@@ -582,13 +594,18 @@ export async function autoDispatchAdvisorForNewFailures(
     retryCount: number;
   }[] = [];
   const rerun: { signalKey: string; job: RecentWorkflowsData }[] = [];
+  const verdictsByKey = headRowsBySignalKey(args.verdictRows ?? [], headSha);
   for (const [signalKey, job] of byKey) {
     const prev = states.get(signalKey);
     if (!prev) {
       fresh.push({ signalKey, job });
       continue;
     }
-    if (prev.state === "dispatched" && ranAfterDispatch(job, prev.version)) {
+    if (
+      prev.state === "dispatched" &&
+      ranAfterDispatch(job, prev.version) &&
+      readyToReanalyze(verdictsByKey.get(signalKey) ?? [], prev.version)
+    ) {
       rerun.push({ signalKey, job });
       continue;
     }
@@ -697,7 +714,6 @@ export async function autoDispatchAdvisorForNewFailures(
       retryCount,
       prNumber,
       jobName: job.name,
-      jobCompletedAt: job.completed_at,
     };
 
     // Pre-dispatch write gates the dispatch on write-path health: if we cannot
