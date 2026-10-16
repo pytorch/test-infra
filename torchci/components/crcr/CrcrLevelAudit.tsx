@@ -30,7 +30,7 @@ import {
   parseCriteriaSnapshot,
   useLevelAudit,
 } from "lib/crcr/levelAudit";
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 
 function kindColor(kind: AuditDecisionKind) {
   if (kind === "promotion") return "success" as const;
@@ -72,7 +72,7 @@ function AuditLink({
   children,
 }: {
   href: string | null;
-  children: string;
+  children: ReactNode;
 }) {
   if (!isSafeHttpUrl(href)) return null;
   return (
