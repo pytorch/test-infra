@@ -129,13 +129,6 @@
       "rocm"
     ]
   ],
-  "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
-    "194171",
-    "https://github.com/pytorch/pytorch/issues/194171",
-    [
-      "linux"
-    ]
-  ],
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
     "181318",
     "https://github.com/pytorch/pytorch/issues/181318",
@@ -198,6 +191,20 @@
   "test_cond_in_NN (__main__.TestControlFlowNNCUDA)": [
     "196982",
     "https://github.com/pytorch/pytorch/issues/196982",
+    [
+      "linux"
+    ]
+  ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "199423",
+    "https://github.com/pytorch/pytorch/issues/199423",
+    [
+      "linux"
+    ]
+  ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "199424",
+    "https://github.com/pytorch/pytorch/issues/199424",
     [
       "linux"
     ]
@@ -1325,22 +1332,6 @@
     "https://github.com/pytorch/pytorch/issues/194896",
     [
       "xpu"
-    ]
-  ],
-  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_float16 (__main__.DeterministicTest)": [
-    "198074",
-    "https://github.com/pytorch/pytorch/issues/198074",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_run2run_determinism_model_name_DistillGPT2_training_or_inference_training_precision_float32 (__main__.DeterministicTest)": [
-    "197045",
-    "https://github.com/pytorch/pytorch/issues/197045",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_run2run_determinism_model_name_GoogleFnet_training_or_inference_training_precision_amp (__main__.DeterministicTest)": [
