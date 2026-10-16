@@ -121,6 +121,45 @@ describe("getPrStatusStage", () => {
       )
     ).toBe("approved");
   });
+
+  test("an approval no merge rule accepts outranks the other labels", () => {
+    expect(
+      getPrStatusStage(
+        state({
+          labels: [PR_STATUS_LABEL_TRIAGED, PR_STATUS_LABEL_IN_PROGRESS],
+          isApproved: true,
+          isMergeApproved: false,
+        })
+      )
+    ).toBe("approvedNeedsMergeApproval");
+  });
+
+  test("an approval no merge rule accepts does not hide a missing actionable issue", () => {
+    expect(
+      getPrStatusStage(
+        state({
+          labels: [
+            PR_STATUS_LABEL_TRIAGED,
+            PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+          ],
+          isApproved: true,
+          isMergeApproved: false,
+        })
+      )
+    ).toBe("missingActionableIssue");
+  });
+
+  test("an unknown merge rule result reports a plain approval", () => {
+    expect(
+      getPrStatusStage(
+        state({
+          labels: [PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE],
+          isApproved: true,
+          isMergeApproved: undefined,
+        })
+      )
+    ).toBe("approved");
+  });
 });
 
 describe("getPrStatusMessage", () => {
@@ -223,6 +262,16 @@ describe("getPrStatusMessage", () => {
     );
     expect(message).toContain("add the matching line to the PR description");
     expect(message).toContain("then remove and re-add `open source`.");
+  });
+
+  test("approved without a merge rule approver", () => {
+    const message = getPrStatusMessage(
+      state({ isApproved: true, isMergeApproved: false })
+    );
+    expect(message).toMatch(
+      /^## PR Status: Approved \(needs additional approval to merge\)\n\n/
+    );
+    expect(message).toContain("`.github/merge_rules.yaml`");
   });
 
   test("approved", () => {
@@ -482,6 +531,19 @@ describe("buildAssignedReviewers", () => {
   });
 });
 
+// Lets alice approve anything and bob only docs; dev-infra members approve CI.
+const MERGE_RULES = `
+- name: Documentation
+  patterns: ["docs/**"]
+  approved_by: [bob]
+- name: OSS CI
+  patterns: [".github/**"]
+  approved_by: [pytorch/pytorch-dev-infra]
+- name: Core Maintainers
+  patterns: ["*"]
+  approved_by: [alice]
+`;
+
 function octokitStub({
   reviews = [] as any[],
   pull = {
@@ -491,20 +553,45 @@ function octokitStub({
   } as any,
   reviewsError,
   pullError,
+  files = ["torch/foo.py"],
+  mergeRules = MERGE_RULES,
+  mergeRulesError,
+  teamMembers = [] as string[],
 }: {
   reviews?: any[];
   pull?: any;
   reviewsError?: Error;
   pullError?: Error;
+  files?: string[];
+  mergeRules?: string;
+  mergeRulesError?: Error;
+  teamMembers?: string[];
 } = {}) {
   const listReviews = jest.fn();
+  const getContent = jest.fn(async () => {
+    if (mergeRulesError) {
+      throw mergeRulesError;
+    }
+    return { data: { content: Buffer.from(mergeRules).toString("base64") } };
+  });
+  const getMembershipForUserInOrg = jest.fn(
+    async ({ username }: { username: string }) => {
+      if (!teamMembers.includes(username)) {
+        throw Object.assign(new Error("Not Found"), { status: 404 });
+      }
+      return { data: { state: "active" } };
+    }
+  );
   const get = jest.fn(async () => {
     if (pullError) {
       throw pullError;
     }
     return { data: pull };
   });
-  const paginate = jest.fn(async () => {
+  const paginate = jest.fn(async (route: any) => {
+    if (route !== listReviews) {
+      return files.map((filename) => ({ filename }));
+    }
     if (reviewsError) {
       throw reviewsError;
     }
@@ -512,8 +599,13 @@ function octokitStub({
   });
   return {
     paginate,
-    rest: { pulls: { listReviews, get } },
+    rest: {
+      pulls: { listReviews, get },
+      repos: { getContent },
+      teams: { getMembershipForUserInOrg },
+    },
     _get: get,
+    _getContent: getContent,
   } as any;
 }
 
@@ -532,6 +624,75 @@ describe("fetchPrStatusState", () => {
   });
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  test.each([
+    ["a catch-all approver", ["alice"], ["torch/foo.py"], [], true],
+    ["an approver of every changed file", ["bob"], ["docs/a.md"], [], true],
+    [
+      "an approver of only some files",
+      ["bob"],
+      ["docs/a.md", "torch/foo.py"],
+      [],
+      false,
+    ],
+    ["no listed approver", ["carol"], ["torch/foo.py"], [], false],
+    [
+      "a member of an approving team",
+      ["carol"],
+      [".github/x.yml"],
+      ["carol"],
+      true,
+    ],
+  ])(
+    "checks the merge rules for %s",
+    async (_, approvers, files, teamMembers, isMergeApproved) => {
+      const octokit = octokitStub({
+        reviews: approvers.map(approvingReview),
+        files,
+        teamMembers,
+      });
+      const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
+        "in progress",
+      ]);
+
+      expect(state!.isApproved).toBe(true);
+      expect(state!.isMergeApproved).toBe(isMergeApproved);
+    }
+  );
+
+  test("leaves the merge rule result unknown when the rules cannot be read", async () => {
+    const octokit = octokitStub({
+      reviews: [approvingReview("carol")],
+      mergeRulesError: new Error("boom"),
+    });
+    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
+      "in progress",
+    ]);
+
+    expect(state!.isApproved).toBe(true);
+    expect(state!.isMergeApproved).toBeUndefined();
+  });
+
+  test("does not read the merge rules without an approval", async () => {
+    const octokit = octokitStub({ reviews: [] });
+    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
+      "in progress",
+    ]);
+
+    expect(state!.isMergeApproved).toBeUndefined();
+    expect(octokit._getContent).not.toHaveBeenCalled();
+  });
+
+  test("does not read the merge rules outside pytorch/pytorch", async () => {
+    const octokit = octokitStub({ reviews: [approvingReview("carol")] });
+    const state = await fetchPrStatusState(octokit, "pytorch", "vision", 1, [
+      "in progress",
+    ]);
+
+    expect(state!.isApproved).toBe(true);
+    expect(state!.isMergeApproved).toBeUndefined();
+    expect(octokit._getContent).not.toHaveBeenCalled();
   });
 
   test("reads approval for a non-triaged PR without fetching reviewers", async () => {
