@@ -9,11 +9,22 @@ import { createHash } from "crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import {
+  dispatchedAfterRun,
+  DispatchMark,
+  isLiveDispatch,
+  isStrictlyAfter,
+  parseUtc,
+} from "lib/advisor/advisorBadge";
+import {
   getAdvisorRepoConfig,
   getMaxDispatchPerPr,
   getMaxNewFailures,
   OUTAGE_GUARD_BYPASS_LABELS,
 } from "lib/advisor/advisorConfig";
+import {
+  AdvisorVerdictRow,
+  headRowsBySignalKey,
+} from "lib/advisorVerdictUtils";
 import {
   getClickhouseClientWritable,
   queryClickhouseSaved,
@@ -302,9 +313,11 @@ export async function dispatchAdvisorWorkflow(
 
 export type DispatchState = "dispatching" | "dispatched" | "failed";
 
-interface DispatchStateRow {
+export interface DispatchStateRow {
   state: DispatchState;
   retryCount: number;
+  // When the latest row was written (its ReplacingMergeTree version, UTC).
+  version: string;
 }
 
 /**
@@ -336,6 +349,7 @@ export async function readDispatchStates(
     result.set(row.signal_key as string, {
       state: sr[0] as DispatchState,
       retryCount: Number(sr[1] ?? 0),
+      version: String(row.latest_version ?? ""),
     });
   }
   return result;
@@ -360,16 +374,38 @@ export interface DispatchRecord {
 // let a 'dispatching' row mask a terminal one (e.g. a fast-failing dispatch
 // would never retry). Clamp to strictly-increasing-per-process so the terminal
 // write always outranks its pre-dispatch write.
+//
+// A terminal row is stamped 1ms after its pre-dispatch row (`after`), not with
+// the time it is written. Readers take the latest row's version as the moment
+// the dispatch captured its evidence (verdictCoversRun, ranAfterDispatch), and
+// the pre-dispatch row is written before the signal pattern is built. Stamping
+// the terminal row at write time would move that moment past a rerun that
+// finished during the POST, or past the verdict itself if the POST returned
+// late.
 let lastVersionMs = 0;
-function nextDispatchVersion(): string {
-  let ms = dayjs().valueOf();
-  if (ms <= lastVersionMs) ms = lastVersionMs + 1;
-  lastVersionMs = ms;
+export function nextDispatchVersion(after?: string): string {
+  const floor = parseUtc(after);
+  let ms: number;
+  if (floor !== null) {
+    ms = floor.valueOf() + 1;
+  } else {
+    ms = dayjs().valueOf();
+    if (ms <= lastVersionMs) ms = lastVersionMs + 1;
+  }
+  lastVersionMs = Math.max(lastVersionMs, ms);
   return dayjs(ms).utc().format("YYYY-MM-DD HH:mm:ss.SSS");
 }
 
-/** Insert one row into the dispatch log. ReplacingMergeTree collapses by key. */
-export async function recordDispatch(record: DispatchRecord): Promise<void> {
+/**
+ * Insert one row into the dispatch log. ReplacingMergeTree collapses by key.
+ * Pass the pre-dispatch row's version as `after` for a terminal row (see
+ * nextDispatchVersion). Returns the version written.
+ */
+export async function recordDispatch(
+  record: DispatchRecord,
+  after?: string
+): Promise<string> {
+  const version = nextDispatchVersion(after);
   await getClickhouseClientWritable().insert({
     table: DISPATCH_TABLE,
     values: [
@@ -382,11 +418,12 @@ export async function recordDispatch(record: DispatchRecord): Promise<void> {
         retry_count: record.retryCount,
         pr_number: record.prNumber,
         job_name: record.jobName,
-        version: nextDispatchVersion(),
+        version,
       },
     ],
     format: "JSONEachRow",
   });
+  return version;
 }
 
 // Auto-dispatch is skipped on draft PRs (work-in-progress, not ready for
@@ -454,6 +491,65 @@ export interface AutoDispatchArgs {
   // The FAILED bucket from Dr.CI (RecentWorkflowsData[]). Cancelled jobs are
   // filtered out here so only true NEW failures are dispatched.
   newFailures: RecentWorkflowsData[];
+  // This PR's advisor verdicts. Only re-dispatch of a rerun reads them (see
+  // readyToReanalyze); without them a rerun is never re-dispatched.
+  verdictRows?: AdvisorVerdictRow[];
+}
+
+/**
+ * Whether `job` may have finished after the dispatch recorded at `version`
+ * (the negation of dispatchedAfterRun, for known times), i.e. it is a rerun at
+ * the same commit that the dispatched analysis may not have seen.
+ * Dedup is keyed by (head, job name), so without this a rerun is never
+ * analyzed, and the suppression gate, which ignores a verdict written before
+ * the job finished, keeps the job blocking for good. A dispatch within the
+ * run's completion second counts as before the run, as it does for the gate.
+ *
+ * False when either time is missing or unparseable, so an unknown completion
+ * time can never re-dispatch. The new dispatch's version is later than the
+ * run's completion, so each run is re-dispatched once, assuming this server's
+ * clock is not behind GitHub's by more than the time from the run finishing to
+ * its dispatch. If it is, the dispatch looks older than the run: the run can be
+ * re-dispatched again on later passes, at most once per answered analysis, and
+ * no verdict covers it, so the job keeps blocking.
+ */
+export function ranAfterDispatch(
+  job: RecentWorkflowsData,
+  version: string
+): boolean {
+  return (
+    parseUtc(job.completed_at) !== null &&
+    parseUtc(version) !== null &&
+    !dispatchedAfterRun(version, job.completed_at)
+  );
+}
+
+/**
+ * The latest dispatch row as the comment line and the suppression gate see it.
+ * A failed row under the retry limit is marked retryPending: the next pass
+ * retries it, so the line keeps the PR in the sweep.
+ */
+export function toDispatchMark(row: DispatchStateRow): DispatchMark {
+  return {
+    state: row.state,
+    version: row.version,
+    retryPending:
+      row.state === "failed" && row.retryCount < MAX_DISPATCH_RETRIES,
+  };
+}
+
+/**
+ * Re-dispatch a rerun only once the previous analysis has answered: some verdict
+ * for this signal is newer than the latest dispatch. verdictCoversRun takes the
+ * newest verdict after the latest dispatch to be that dispatch's answer, which
+ * holds only while one analysis per key is in flight. Missing verdict rows mean
+ * no re-dispatch.
+ */
+export function readyToReanalyze(
+  rowsForKey: AdvisorVerdictRow[],
+  dispatchVersion: string
+): boolean {
+  return rowsForKey.some((r) => isStrictlyAfter(r.timestamp, dispatchVersion));
 }
 
 /** Whether auto-dispatch is enabled for this environment + repo. */
@@ -532,18 +628,29 @@ export async function autoDispatchAdvisorForNewFailures(
 
   // Split the work. `fresh` (no prior record) is subject to the per-PR cap
   // below; `failedRetry` (a prior dispatch whose POST threw, still under the
-  // retry limit) re-uses an already-counted slot, so it is always allowed. Skip
-  // already dispatching/dispatched and exhausted-failed signals.
+  // retry limit) and `rerun` (see ranAfterDispatch) re-use an already-counted
+  // slot, so they are always allowed. Skip in-flight, otherwise dispatched and
+  // exhausted-failed signals.
   const fresh: { signalKey: string; job: RecentWorkflowsData }[] = [];
   const failedRetry: {
     signalKey: string;
     job: RecentWorkflowsData;
     retryCount: number;
   }[] = [];
+  const rerun: { signalKey: string; job: RecentWorkflowsData }[] = [];
+  const verdictsByKey = headRowsBySignalKey(args.verdictRows ?? [], headSha);
   for (const [signalKey, job] of byKey) {
     const prev = states.get(signalKey);
     if (!prev) {
       fresh.push({ signalKey, job });
+      continue;
+    }
+    if (
+      isLiveDispatch(prev) &&
+      ranAfterDispatch(job, prev.version) &&
+      readyToReanalyze(verdictsByKey.get(signalKey) ?? [], prev.version)
+    ) {
+      rerun.push({ signalKey, job });
       continue;
     }
     if (prev.state === "dispatching" || prev.state === "dispatched") continue;
@@ -553,7 +660,9 @@ export async function autoDispatchAdvisorForNewFailures(
     }
   }
   // Nothing fresh and nothing to retry -> return before paying for a PR lookup.
-  if (fresh.length === 0 && failedRetry.length === 0) return;
+  if (fresh.length === 0 && failedRetry.length === 0 && rerun.length === 0) {
+    return;
+  }
 
   // Don't auto-dispatch on PRs that aren't open: a closed/merged PR won't be
   // worked on, and (by default) draft PRs are work-in-progress. Looked up only
@@ -625,14 +734,15 @@ export async function autoDispatchAdvisorForNewFailures(
     );
   }
 
-  // failedRetry first (already counted against the budget), then the capped
-  // fresh subset.
+  // failedRetry and rerun first (already counted against the budget), then the
+  // capped fresh subset.
   const toDispatch: {
     signalKey: string;
     job: RecentWorkflowsData;
     retryCount: number;
   }[] = [
     ...failedRetry,
+    ...rerun.map((r) => ({ ...r, retryCount: 0 })),
     ...fresh
       .filter((f) => selected.has(f.signalKey))
       .map((f) => ({ ...f, retryCount: 0 })),
@@ -654,8 +764,9 @@ export async function autoDispatchAdvisorForNewFailures(
     // record the marker (e.g. bad write creds) we must NOT dispatch, otherwise
     // a later verdict-write failure would re-dispatch forever. The same creds
     // fail for every key, so abort the whole PR.
+    let preVersion: string;
     try {
-      await deps.recordDispatch({ ...base, state: "dispatching" });
+      preVersion = await deps.recordDispatch({ ...base, state: "dispatching" });
     } catch (e) {
       console.error(
         `advisor auto-dispatch: pre-dispatch write failed for PR ${prNumber}, aborting`,
@@ -681,7 +792,7 @@ export async function autoDispatchAdvisorForNewFailures(
       );
       // Supersede the pre-dispatch row so it is retryable next pass.
       try {
-        await deps.recordDispatch({ ...base, state: "failed" });
+        await deps.recordDispatch({ ...base, state: "failed" }, preVersion);
       } catch (e2) {
         console.error("advisor auto-dispatch: failed-state write failed", e2);
       }
@@ -691,7 +802,7 @@ export async function autoDispatchAdvisorForNewFailures(
     // Confirm completion. If this write throws, the 'dispatching' row already
     // blocks re-dispatch, so the only cost is losing the explicit confirmation.
     try {
-      await deps.recordDispatch({ ...base, state: "dispatched" });
+      await deps.recordDispatch({ ...base, state: "dispatched" }, preVersion);
     } catch (e) {
       console.error(
         "advisor auto-dispatch: post-dispatch write failed (non-fatal)",

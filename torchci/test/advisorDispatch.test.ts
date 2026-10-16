@@ -6,9 +6,13 @@ import {
   autoDispatchAdvisorForNewFailures,
   AutoDispatchDeps,
   MAX_DISPATCH_RETRIES,
+  ranAfterDispatch,
+  readyToReanalyze,
   signalKeyForJob,
   stableHashSelect,
+  toDispatchMark,
 } from "lib/advisor/advisorDispatch";
+import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { RecentWorkflowsData } from "lib/types";
 
 const VALID_SHA = "a".repeat(40);
@@ -16,12 +20,14 @@ const VALID_SHA = "a".repeat(40);
 function job(
   name: string,
   conclusion = "failure",
-  failure_captures: string[] = []
+  failure_captures: string[] = [],
+  completed_at = ""
 ): RecentWorkflowsData {
   return {
     name,
     conclusion,
     failure_captures,
+    completed_at,
   } as unknown as RecentWorkflowsData;
 }
 
@@ -501,5 +507,289 @@ describe("stableHashSelect", () => {
 
   it("never returns more than n", () => {
     expect(stableHashSelect(keys, 7)).toHaveLength(7);
+  });
+});
+
+describe("rerun re-dispatch", () => {
+  const OLD_ENV = process.env;
+  const DISPATCHED_AT = "2026-10-16 00:53:36.569";
+  const RERUN_DONE = "2026-10-16 01:13:57";
+  const FIRST_DONE = "2026-10-16 00:15:45";
+  // The first analysis answered after it was dispatched.
+  const ANSWERED = [
+    {
+      sha: VALID_SHA,
+      signal_key: signalKeyForJob("wf / a"),
+      verdict: "not_related",
+      confidence: 0.95,
+      timestamp: "2026-10-16 00:54:54.000",
+    } as unknown as AdvisorVerdictRow,
+  ];
+
+  beforeEach(() => {
+    process.env = { ...OLD_ENV };
+    process.env.DRCI_ADVISOR_AUTODISPATCH_ENABLED = "true";
+    process.env.VERCEL_ENV = "production";
+  });
+  afterEach(() => {
+    process.env = OLD_ENV;
+  });
+
+  const dispatchedStates = (version: string) =>
+    new Map([
+      [
+        signalKeyForJob("wf / a"),
+        { state: "dispatched" as const, retryCount: 0, version },
+      ],
+    ]);
+
+  it("re-dispatches a dispatched job whose run finished after the dispatch", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest
+        .fn()
+        .mockResolvedValue(dispatchedStates(DISPATCHED_AT)),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: ANSWERED,
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
+    expect(deps.recordDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ state: "dispatching", retryCount: 0 })
+    );
+  });
+
+  it("waits for the previous analysis to answer before re-dispatching", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest
+        .fn()
+        .mockResolvedValue(dispatchedStates(DISPATCHED_AT)),
+    });
+    const unanswered = [
+      { ...ANSWERED[0], timestamp: "2026-10-16 00:40:00.000" },
+    ] as AdvisorVerdictRow[];
+    for (const verdictRows of [undefined, [], unanswered]) {
+      await autoDispatchAdvisorForNewFailures(
+        {
+          ...baseArgs,
+          newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+          verdictRows,
+        },
+        deps
+      );
+    }
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("does not re-dispatch for the run the dispatch already analyzed", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest
+        .fn()
+        .mockResolvedValue(dispatchedStates(DISPATCHED_AT)),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], FIRST_DONE)],
+        verdictRows: ANSWERED,
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("does not re-dispatch a job with no usable completed_at", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest
+        .fn()
+        .mockResolvedValue(dispatchedStates(DISPATCHED_AT)),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], "")],
+        verdictRows: ANSWERED,
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("leaves an in-flight dispatching row alone even after a rerun", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(
+        new Map([
+          [
+            signalKeyForJob("wf / a"),
+            {
+              state: "dispatching" as const,
+              retryCount: 0,
+              version: DISPATCHED_AT,
+            },
+          ],
+        ])
+      ),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: [
+          { ...ANSWERED[0], timestamp: "2026-10-16 00:40:00.000" },
+        ] as AdvisorVerdictRow[],
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  // The 'dispatched' confirmation write is allowed to fail.
+  it("re-dispatches after an answered dispatching row", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(
+        new Map([
+          [
+            signalKeyForJob("wf / a"),
+            {
+              state: "dispatching" as const,
+              retryCount: 0,
+              version: DISPATCHED_AT,
+            },
+          ],
+        ])
+      ),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: ANSWERED,
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
+  });
+
+  it("a rerun is not held back by an exhausted per-PR budget", async () => {
+    // The rerun's slot was counted when the job was first dispatched.
+    const states = new Map(
+      Array.from({ length: DEFAULT_MAX_DISPATCH_PER_PR }, (_, i) => [
+        signalKeyForJob(`wf / ${i === 0 ? "a" : `other${i}`}`),
+        { state: "dispatched" as const, retryCount: 0, version: DISPATCHED_AT },
+      ])
+    );
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: ANSWERED,
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("ranAfterDispatch / readyToReanalyze", () => {
+  it("treats a tie as a rerun and an unknown time as not one", () => {
+    const at = "2026-10-16 01:13:57.000";
+    expect(ranAfterDispatch(job("x", "failure", [], at), at)).toBe(true);
+    expect(ranAfterDispatch(job("x", "failure", [], ""), at)).toBe(false);
+    expect(ranAfterDispatch(job("x", "failure", [], at), "")).toBe(false);
+  });
+
+  it("is ready only when a verdict is strictly newer than the dispatch", () => {
+    const at = "2026-10-16 00:53:36.569";
+    const v = (timestamp: string) =>
+      ({ timestamp } as unknown as AdvisorVerdictRow);
+    expect(readyToReanalyze([v("2026-10-16 00:54:54.000")], at)).toBe(true);
+    expect(readyToReanalyze([v(at)], at)).toBe(false);
+    expect(readyToReanalyze([v("2026-10-16 00:40:00.000")], at)).toBe(false);
+    expect(readyToReanalyze([], at)).toBe(false);
+  });
+});
+
+describe("dispatch row versions", () => {
+  const OLD_ENV = process.env;
+  beforeEach(() => {
+    process.env = { ...OLD_ENV };
+    process.env.DRCI_ADVISOR_AUTODISPATCH_ENABLED = "true";
+    process.env.VERCEL_ENV = "production";
+  });
+  afterEach(() => {
+    process.env = OLD_ENV;
+  });
+
+  // The terminal row must carry the pre-dispatch time, which readers take as
+  // when the analysis captured its evidence.
+  it("stamps terminal rows from the pre-dispatch row's version", async () => {
+    const PRE = "2026-10-16 00:53:36.569";
+    const recordDispatch = jest.fn().mockResolvedValue(PRE);
+    const deps = makeDeps({ recordDispatch });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(recordDispatch.mock.calls[0]).toEqual([
+      expect.objectContaining({ state: "dispatching" }),
+    ]);
+    expect(recordDispatch.mock.calls[1]).toEqual([
+      expect.objectContaining({ state: "dispatched" }),
+      PRE,
+    ]);
+  });
+
+  it("stamps a failed row from the pre-dispatch row's version too", async () => {
+    const PRE = "2026-10-16 00:53:36.569";
+    const recordDispatch = jest.fn().mockResolvedValue(PRE);
+    const deps = makeDeps({
+      recordDispatch,
+      dispatchAdvisorWorkflow: jest.fn().mockRejectedValue(new Error("5xx")),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(recordDispatch.mock.calls[1]).toEqual([
+      expect.objectContaining({ state: "failed" }),
+      PRE,
+    ]);
+  });
+});
+
+describe("toDispatchMark", () => {
+  const v = "2026-10-16 00:53:36.569";
+  it("marks a failed row under the retry limit as retry-pending", () => {
+    expect(
+      toDispatchMark({ state: "failed", retryCount: 0, version: v })
+        .retryPending
+    ).toBe(true);
+    expect(
+      toDispatchMark({
+        state: "failed",
+        retryCount: MAX_DISPATCH_RETRIES,
+        version: v,
+      }).retryPending
+    ).toBe(false);
+    expect(
+      toDispatchMark({ state: "dispatched", retryCount: 0, version: v })
+        .retryPending
+    ).toBe(false);
+  });
+
+  it("a rerun within the dispatch's second counts as a rerun", () => {
+    expect(
+      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:36"), v)
+    ).toBe(true);
+    expect(
+      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:35"), v)
+    ).toBe(false);
   });
 });
