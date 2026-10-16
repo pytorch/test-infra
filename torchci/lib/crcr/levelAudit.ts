@@ -120,7 +120,10 @@ export function firstAuditValue(
   decision: LevelAuditDecision,
   field: keyof LevelAuditEvent
 ): string | null {
-  for (const event of [...decision.events].reverse()) {
+  for (const event of [
+    decision.current,
+    ...[...decision.events].reverse(),
+  ]) {
     const value = event[field];
     if (typeof value === "string" && value) return value;
   }
