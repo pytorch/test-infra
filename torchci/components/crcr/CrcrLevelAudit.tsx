@@ -20,9 +20,9 @@ import {
 } from "@mui/material";
 import { LocalTimeHuman } from "components/common/TimeUtils";
 import {
-  auditDisplayTime,
   AuditDecisionKind,
   AuditDecisionSource,
+  auditDisplayTime,
   AuditEventState,
   firstAuditValue,
   isSafeHttpUrl,
@@ -197,7 +197,9 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
             <Typography variant="caption" color="text.secondary">
               Recorded by
             </Typography>
-            <Typography variant="body2">{recordedBy ?? "Not recorded"}</Typography>
+            <Typography variant="body2">
+              {recordedBy ?? "Not recorded"}
+            </Typography>
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary">
@@ -264,7 +266,8 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
                           criterion.verdict === "failed"
                             ? "error.main"
                             : undefined,
-                        fontWeight: criterion.verdict === "failed" ? 600 : undefined,
+                        fontWeight:
+                          criterion.verdict === "failed" ? 600 : undefined,
                       }}
                     >
                       {criterion.observed}
@@ -300,7 +303,9 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
                   variant="outlined"
                 />
                 <Typography variant="body2" color="text.secondary">
-                  <LocalTimeHuman timestamp={auditDisplayTime(lifecycleEvent)} />
+                  <LocalTimeHuman
+                    timestamp={auditDisplayTime(lifecycleEvent)}
+                  />
                 </Typography>
               </Box>
             ))}
@@ -356,9 +361,7 @@ export default function CrcrLevelAudit({
           gap={1}
           width="100%"
         >
-          <Typography variant="h6">
-            Configured-Level Decision Audit
-          </Typography>
+          <Typography variant="h6">Configured-Level Decision Audit</Typography>
           <Chip
             label={`${decisions.length} audit decision${
               decisions.length === 1 ? "" : "s"
@@ -380,7 +383,8 @@ export default function CrcrLevelAudit({
 
           {!selectedDecision ? (
             <Typography variant="body2" color="text.secondary">
-              No configured-level audit decisions have been recorded for this repository.
+              No configured-level audit decisions have been recorded for this
+              repository.
             </Typography>
           ) : (
             <Box
@@ -400,7 +404,9 @@ export default function CrcrLevelAudit({
                     <ListItemButton
                       key={decision.decision_id}
                       selected={selected}
-                      onClick={() => setSelectedDecisionId(decision.decision_id)}
+                      onClick={() =>
+                        setSelectedDecisionId(decision.decision_id)
+                      }
                       sx={{
                         display: "grid",
                         gridTemplateColumns: "20px minmax(0, 1fr)",
@@ -433,7 +439,12 @@ export default function CrcrLevelAudit({
                           {event.previous_level || "Unconfigured"} →{" "}
                           {event.new_level}
                         </Typography>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          flexWrap="wrap"
+                          useFlexGap
+                        >
                           <Chip
                             label={`${displaySource(
                               event.decision_source
