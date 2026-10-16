@@ -35,8 +35,7 @@ export const PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE =
   "missing actionable issue";
 
 export const PR_STATUS_LABELS = [
-  // Uncomment the following line post-rollout + change ln 166 to true in test
-  // PR_STATUS_LABEL_TRIAGED,
+  PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
