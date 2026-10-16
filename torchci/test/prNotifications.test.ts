@@ -80,7 +80,7 @@ describe("buildPrNotificationsManifest", () => {
       ]),
       // PR 6 is skipped without any lookups
       mockSearch('label:"triaged"', [
-        searchItem(1, ["triaged"]),
+        searchItem(1, ["triaged", "open source"]),
         searchItem(6, ["triaged", "missing actionable issue"]),
       ]),
 
@@ -96,7 +96,8 @@ describe("buildPrNotificationsManifest", () => {
         .reply(200, [{ content: "+1", user: { login: "alice" } }]),
       mockLabeled(1, "triaged", "2026-10-01T00:00:00Z"),
 
-      // PR 2 is in final review, asked of dave directly and the infra team
+      // PR 2 is a maintainer PR in final review, asked of dave directly and
+      // the infra team
       mockReviews(2, []),
       utils.mockGetPR("pytorch/pytorch", 2, {
         requested_reviewers: [{ login: "dave" }],
@@ -137,6 +138,7 @@ describe("buildPrNotificationsManifest", () => {
           title: "PR 1",
           url: "https://github.com/pytorch/pytorch/pull/1",
           author: AUTHOR,
+          open_source: true,
           stage: "pre_review",
           stage_since: "2026-10-01T00:00:00Z",
         },
@@ -144,6 +146,7 @@ describe("buildPrNotificationsManifest", () => {
           title: "PR 2",
           url: "https://github.com/pytorch/pytorch/pull/2",
           author: AUTHOR,
+          open_source: false,
           stage: "final_review",
           stage_since: "2026-10-04T00:00:00Z",
         },

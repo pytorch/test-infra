@@ -113,7 +113,16 @@ def render_digest(manifest: dict[str, Any], login: str, now: datetime) -> str | 
     if final_review:
         header = f"*Final review ({len(final_review)})*"
         lines += ["", f"{header} (<{FINAL_REVIEW_QUEUE_URL}|full queue>)"]
-        lines.extend(_format_pr(manifest, e) for e in final_review)
+        prs = manifest["prs"]
+        # Manifests from before open_source was added hold only OSS PRs
+        oss = [e for e in final_review if prs[str(e["pr"])].get("open_source", True)]
+        for title, entries in [
+            ("OSS PRs", oss),
+            ("Maintainer PRs", [e for e in final_review if e not in oss]),
+        ]:
+            if entries:
+                lines.append(f"{title} ({len(entries)})")
+                lines.extend(_format_pr(manifest, e) for e in entries)
     return "\n".join(lines)
 
 

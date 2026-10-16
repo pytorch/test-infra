@@ -15,10 +15,13 @@ import pr_notifications_slack as pns
 NOW = datetime(2026, 10, 5, 13, 0, tzinfo=timezone.utc)
 
 
-def pr(number: int, since: str | None, title: str = "") -> dict[str, Any]:
+def pr(
+    number: int, since: str | None, title: str = "", open_source: bool = True
+) -> dict[str, Any]:
     return {
         "title": title or f"PR {number}",
         "url": f"https://github.com/pytorch/pytorch/pull/{number}",
+        "open_source": open_source,
         "stage_since": since,
     }
 
@@ -28,7 +31,7 @@ MANIFEST: dict[str, Any] = {
     "prs": {
         "1": pr(1, "2026-10-04T00:00:00Z"),
         "2": pr(2, "2026-09-30T00:00:00Z", title="Fix <script> & co"),
-        "3": pr(3, None),
+        "3": pr(3, None, open_source=False),
         "4": pr(4, "2026-10-01T00:00:00Z"),
     },
     "reviewers": {
@@ -60,7 +63,9 @@ class RenderDigestTest(unittest.TestCase):
                     "• <https://github.com/pytorch/pytorch/pull/1|#1 PR 1>",
                     "",
                     f"*Final review (2)* (<{pns.FINAL_REVIEW_QUEUE_URL}|full queue>)",
+                    "OSS PRs (1)",
                     "• <https://github.com/pytorch/pytorch/pull/4|#4 PR 4>",
+                    "Maintainer PRs (1)",
                     "• <https://github.com/pytorch/pytorch/pull/3|#3 PR 3>",
                 ]
             ),
@@ -70,6 +75,13 @@ class RenderDigestTest(unittest.TestCase):
         digest = pns.render_digest(MANIFEST, "bob", NOW) or ""
         self.assertIn("Final review (1)", digest)
         self.assertNotIn("Pre-review", digest)
+
+    def test_old_manifest_prs_count_as_oss(self) -> None:
+        manifest = json.loads(json.dumps(MANIFEST))
+        del manifest["prs"]["4"]["open_source"]
+        digest = pns.render_digest(manifest, "bob", NOW) or ""
+        self.assertIn("OSS PRs (1)", digest)
+        self.assertNotIn("Maintainer PRs", digest)
 
     def test_nothing_waiting(self) -> None:
         self.assertIsNone(pns.render_digest(MANIFEST, "carol", NOW))
