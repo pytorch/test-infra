@@ -39,6 +39,7 @@ export interface ReviewerEntry {
 export interface PrNotificationsManifest {
   generated_at: string;
   prs: Record<number, ManifestPr>;
+  // Keyed by lowercase GitHub login, since logins are case-insensitive
   reviewers: Record<string, Record<ReviewStage, ReviewerEntry[]>>;
   // PRs that could not be checked, so their reviewers are missing above
   failed_prs: number[];
@@ -276,8 +277,9 @@ export async function buildPrNotificationsManifest(
         }
         manifest.prs[pr.number] = waiting.pr;
         for (const { login, via } of waiting.reviewers) {
-          manifest.reviewers[login] ??= { pre_review: [], final_review: [] };
-          const entries = manifest.reviewers[login][waiting.pr.stage];
+          const key = login.toLowerCase();
+          manifest.reviewers[key] ??= { pre_review: [], final_review: [] };
+          const entries = manifest.reviewers[key][waiting.pr.stage];
           const existing = entries.find((entry) => entry.pr === pr.number);
           if (!existing) {
             entries.push(via ? { pr: pr.number, via } : { pr: pr.number });

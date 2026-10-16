@@ -142,10 +142,11 @@ class SendDigestsTest(unittest.TestCase):
         self, live: bool, send_error: Exception | None = None
     ) -> tuple[list[str], mock.Mock, str]:
         slack = mock.Mock()
-        # UBOT is a bot in the channel, UDAVE is mapped but not in the channel
+        # UBOT is a bot in the channel, UDAVE is mapped but not in the channel,
+        # and UBOB registered before logins were lowercased
         slack.channel_members.return_value = ["UALICE", "UBOB", "UCAROL", "UBOT"]
         slack.send_dm.side_effect = send_error
-        users = {"UALICE": "alice", "UBOB": "bob", "UCAROL": "carol", "UDAVE": "alice"}
+        users = {"UALICE": "alice", "UBOB": "Bob", "UCAROL": "carol", "UDAVE": "alice"}
         out = io.StringIO()
         with redirect_stdout(out):
             failures = pns.send_digests(slack, users, MANIFEST, live, NOW)

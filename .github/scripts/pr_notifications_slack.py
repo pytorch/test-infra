@@ -185,6 +185,9 @@ def send_digests(
             # Bots and members who haven't registered yet
             unmapped.append(member)
             continue
+        # Registrations saved before logins were lowercased keep their case,
+        # but the manifest's reviewer keys are lowercase
+        login = login.lower()
         text = render_digest(manifest, login, now)
         if text is None:
             nothing += 1
