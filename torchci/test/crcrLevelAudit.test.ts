@@ -107,9 +107,7 @@ describe("crcr_level_audit", () => {
     expect(isSafeHttpUrl("https://github.com/pytorch/pytorch/pull/1")).toBe(
       true
     );
-    expect(isSafeHttpUrl("https://github.com@evil.example/pull/1")).toBe(
-      false
-    );
+    expect(isSafeHttpUrl("https://github.com@evil.example/pull/1")).toBe(false);
     expect(isSafeHttpUrl("javascript:alert(1)")).toBe(false);
   });
 });
