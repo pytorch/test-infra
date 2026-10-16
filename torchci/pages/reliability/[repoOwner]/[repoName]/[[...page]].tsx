@@ -573,13 +573,18 @@ export default function Page() {
         </Grid>
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
+          {/*
+            Unstable jobs to watch: the union of unstable.yml and jobs whose name
+            carries the runtime unstable marker.
+          */}
           <GroupReliabilityPanel
             title={"Unstable jobs"}
+            subtitle={
+              UNSTABLE_WORKFLOWS.map((w) => `${w}.yml`).join(", ") +
+              " + jobs tagged unstable at runtime"
+            }
             queryName={queryName}
-            queryParams={{
-              workflowNames: UNSTABLE_WORKFLOWS,
-              ...queryParams,
-            }}
+            queryParams={{ unstableOnly: 1, ...queryParams }}
             metricName={metricName}
             metricHeaderName={metricHeaderName}
             filter={filter}
