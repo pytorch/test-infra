@@ -531,7 +531,8 @@ describe("buildAssignedReviewers", () => {
   });
 });
 
-// Lets alice approve anything and bob only docs; dev-infra members approve CI.
+// Lets alice and greenlight approve anything, bob only docs, and dev-infra
+// members CI.
 const MERGE_RULES = `
 - name: Documentation
   patterns: ["docs/**"]
@@ -542,6 +543,9 @@ const MERGE_RULES = `
 - name: Core Maintainers
   patterns: ["*"]
   approved_by: [alice]
+- name: Greenlight Review Bot
+  patterns: ["*"]
+  approved_by: [pytorchgreenlight]
 `;
 
 function octokitStub({
@@ -660,6 +664,23 @@ describe("fetchPrStatusState", () => {
       expect(state!.isMergeApproved).toBe(isMergeApproved);
     }
   );
+
+  test("matches greenlight's REST login to its merge rule login", async () => {
+    const octokit = octokitStub({
+      reviews: [
+        {
+          ...approvingReview("pytorchgreenlight[bot]"),
+          author_association: "NONE",
+        },
+      ],
+    });
+    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
+      "in progress",
+    ]);
+
+    expect(state!.isApproved).toBe(true);
+    expect(state!.isMergeApproved).toBe(true);
+  });
 
   test("leaves the merge rule result unknown when the rules cannot be read", async () => {
     const octokit = octokitStub({

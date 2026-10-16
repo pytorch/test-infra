@@ -346,7 +346,9 @@ export async function fetchLiveLabels(
 
 // Mirrors trymerge's find_matching_merge_rule: an approval counts for a rule
 // whose patterns match every changed file and that names the approver, or
-// names no approvers at all.
+// names no approvers at all. trymerge reads approvers over GraphQL, where an
+// app's login lacks the "[bot]" suffix REST gives it (merge_rules.yaml names
+// "pytorchgreenlight", reviews come back from "pytorchgreenlight[bot]").
 async function hasMergeRuleApproval(
   octokit: Octokit,
   owner: string,
@@ -358,6 +360,7 @@ async function hasMergeRuleApproval(
     fetchMergeRules(octokit),
     getFilesChangedByPr(octokit, owner, repo, prNumber),
   ]);
+  const logins = approvers.map((approver) => approver.replace(/\[bot\]$/, ""));
   for (const rule of rules) {
     if (rule.matches === null || !files.every(rule.matches)) {
       continue;
@@ -365,12 +368,12 @@ async function hasMergeRuleApproval(
     if (rule.logins.length === 0 && rule.teams.length === 0) {
       return true;
     }
-    for (const approver of approvers) {
-      if (rule.logins.includes(approver)) {
+    for (const login of logins) {
+      if (rule.logins.includes(login)) {
         return true;
       }
       for (const team of rule.teams) {
-        if (await fetchTeamMembership(octokit, team, approver)) {
+        if (await fetchTeamMembership(octokit, team, login)) {
           return true;
         }
       }
