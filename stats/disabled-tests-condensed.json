@@ -371,6 +371,56 @@
       "rocm"
     ]
   ],
+  "test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_True_gradient_as_bucket_view_False_static_graph_False_shard_buckets_False (__main__.TestZeroRedundancyOptimizerDistributed)": [
+    "201136",
+    "https://github.com/pytorch/pytorch/issues/201136",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_True_gradient_as_bucket_view_False_static_graph_False_shard_buckets_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
+    "201136",
+    "https://github.com/pytorch/pytorch/issues/201136",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_True_gradient_as_bucket_view_False_static_graph_True_shard_buckets_False (__main__.TestZeroRedundancyOptimizerDistributed)": [
+    "201136",
+    "https://github.com/pytorch/pytorch/issues/201136",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_True_gradient_as_bucket_view_False_static_graph_True_shard_buckets_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
+    "201136",
+    "https://github.com/pytorch/pytorch/issues/201136",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_True_gradient_as_bucket_view_True_static_graph_False_shard_buckets_False (__main__.TestZeroRedundancyOptimizerDistributed)": [
+    "201136",
+    "https://github.com/pytorch/pytorch/issues/201136",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_True_gradient_as_bucket_view_True_static_graph_False_shard_buckets_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
+    "201136",
+    "https://github.com/pytorch/pytorch/issues/201136",
+    [
+      "linux"
+    ]
+  ],
+  "test_ddp_zero_overlap_use_gpu_True_use_interleaved_hook_True_gradient_as_bucket_view_True_static_graph_True_shard_buckets_True (__main__.TestZeroRedundancyOptimizerDistributed)": [
+    "201136",
+    "https://github.com/pytorch/pytorch/issues/201136",
+    [
+      "linux"
+    ]
+  ],
   "test_del_attr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195525",
     "https://github.com/pytorch/pytorch/issues/195525",
@@ -865,6 +915,13 @@
     "https://github.com/pytorch/pytorch/issues/196899",
     [
       "xpu"
+    ]
+  ],
+  "test_nested_compile_in_backend_preserves_user_objects_cuda (__main__.TestStreamsCUDA)": [
+    "201135",
+    "https://github.com/pytorch/pytorch/issues/201135",
+    [
+      "linux"
     ]
   ],
   "test_nested_stream_enter_exit_cuda (__main__.TestStreamsCUDA)": [
