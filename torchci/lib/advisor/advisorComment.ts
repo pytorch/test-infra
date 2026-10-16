@@ -1,6 +1,6 @@
 // Server-side glue for the inline AI advisor verdict lines in the Dr.CI comment.
-// Reads finalized verdicts + in-progress dispatch state from ClickHouse, then
-// delegates the (pure) line selection/rendering to lib/advisor/advisorBadge.
+// Resolves the PR's verdict rows, then delegates the (pure) line selection and
+// rendering to lib/advisor/advisorBadge.
 //
 // The verdict's signal_key is exactly `dr_ci_${jobName}` (what auto-dispatch
 // wrote), so verdicts match jobs by exact signal-key equality -- no fuzzy
@@ -8,12 +8,9 @@
 
 import {
   AdvisorLineVerdict,
+  DispatchMark,
   selectAdvisorLines,
 } from "lib/advisor/advisorBadge";
-import {
-  readDispatchStates,
-  signalKeyForJob,
-} from "lib/advisor/advisorDispatch";
 import { advisorCommentEnabled } from "lib/advisor/advisorFlags";
 import {
   AdvisorVerdictRow,
@@ -28,21 +25,23 @@ import { RecentWorkflowsData } from "lib/types";
  * repo isn't advisor-enabled, or there are no jobs). The caller wraps this so a
  * ClickHouse error can never break the Dr.CI comment.
  *
- * Takes the PR's verdict rows rather than reading them, so this line and the
- * suppression gate describe the same rows resolved the same way. A signal key
+ * Takes the PR's verdict rows and dispatch states rather than reading them, so
+ * this line and the suppression gate describe the same rows resolved the same
+ * way. A signal key
  * whose newest rows disagree resolves to nothing here too, and the job falls
  * through to the pending/in-progress treatment below -- an unusable answer
  * should not render as a confident badge.
  */
-export async function buildAdvisorVerdictLines(
+export function buildAdvisorVerdictLines(
   hudBaseUrl: string,
   owner: string,
   repo: string,
   prNumber: number,
   headSha: string,
   jobs: RecentWorkflowsData[],
-  verdictRows: AdvisorVerdictRow[]
-): Promise<Map<number, string>> {
+  verdictRows: AdvisorVerdictRow[],
+  dispatchByKey: Map<string, DispatchMark>
+): Map<number, string> {
   if (!advisorCommentEnabled(owner, repo) || jobs.length === 0) {
     return new Map();
   }
@@ -61,18 +60,6 @@ export async function buildAdvisorVerdictLines(
     }
   }
 
-  // In-progress dispatches (dispatching/dispatched) for the head commit.
-  const signalKeys = jobs
-    .filter((j) => j.name)
-    .map((j) => signalKeyForJob(j.name));
-  const states = await readDispatchStates(owner, repo, headSha, signalKeys);
-  const inProgress = new Map<string, string>();
-  for (const [key, st] of states) {
-    if (st.state === "dispatching" || st.state === "dispatched") {
-      inProgress.set(key, st.version);
-    }
-  }
-
   return selectAdvisorLines(
     hudBaseUrl,
     owner,
@@ -81,6 +68,6 @@ export async function buildAdvisorVerdictLines(
     headSha,
     jobs.map((j) => ({ id: j.id, name: j.name, completedAt: j.completed_at })),
     verdictByKey,
-    inProgress
+    dispatchByKey
   );
 }

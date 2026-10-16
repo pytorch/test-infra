@@ -637,11 +637,40 @@ describe("rerun re-dispatch", () => {
       {
         ...baseArgs,
         newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
-        verdictRows: ANSWERED,
+        verdictRows: [
+          { ...ANSWERED[0], timestamp: "2026-10-16 00:40:00.000" },
+        ] as AdvisorVerdictRow[],
       },
       deps
     );
     expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
+  // The 'dispatched' confirmation write is allowed to fail.
+  it("re-dispatches after an answered dispatching row", async () => {
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(
+        new Map([
+          [
+            signalKeyForJob("wf / a"),
+            {
+              state: "dispatching" as const,
+              retryCount: 0,
+              version: DISPATCHED_AT,
+            },
+          ],
+        ])
+      ),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [job("wf / a", "failure", [], RERUN_DONE)],
+        verdictRows: ANSWERED,
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledTimes(1);
   });
 
   it("a rerun is not held back by an exhausted per-PR budget", async () => {

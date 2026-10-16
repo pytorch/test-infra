@@ -10,12 +10,14 @@
 import {
   ANALYZING_BADGE,
   drciSignalKeyForJob,
+  isLiveDispatch,
   isStrictlyAfter,
   OUTDATED_BADGE,
   parseUtc,
   PENDING_BADGE,
   renderBadgeSvg,
   verdictBadge,
+  verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
 import { isValidSha, readDispatchStates } from "lib/advisor/advisorDispatch";
@@ -97,29 +99,33 @@ export default async function handler(
       signalKey,
     })) as { verdict: string; confidence: number; timestamp: string }[];
 
-    // A verdict written before this run finished describes an earlier run at
-    // the same commit, so it does not speak for this one.
     const row = verdictRows[0];
-    if (row && (!since || isStrictlyAfter(row.timestamp, since))) {
+    // Without `since` the latest verdict is shown, as before this parameter.
+    if (row && !since) {
       const badge = verdictBadge(row.verdict, Number(row.confidence));
       sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
       return;
     }
 
-    // No verdict for this run yet: "analyzing" if a dispatch is in flight (one
-    // made after this run finished, when an earlier run's verdict exists),
-    // "outdated" if only an earlier run's verdict exists, else pending.
+    // With `since`, only a verdict that covers that run is shown, by the same
+    // test the comment line and the suppression gate use.
     const states = await readDispatchStates(owner, repo, sha, [signalKey]);
-    const st = states.get(signalKey);
-    const inProgress =
-      st !== undefined &&
-      (st.state === "dispatching" || st.state === "dispatched") &&
-      (!row || isStrictlyAfter(st.version, since));
-    const badge = inProgress
-      ? ANALYZING_BADGE
-      : row
-      ? OUTDATED_BADGE
-      : PENDING_BADGE;
+    const dispatch = states.get(signalKey);
+    if (row && verdictCoversRun(row.timestamp, since, dispatch)) {
+      const badge = verdictBadge(row.verdict, Number(row.confidence));
+      sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
+      return;
+    }
+
+    // Otherwise: "analyzing" while a dispatch has no newer verdict yet,
+    // "outdated" when the only verdict covers an earlier run, else pending.
+    const badge =
+      isLiveDispatch(dispatch) &&
+      !isStrictlyAfter(row?.timestamp, dispatch.version)
+        ? ANALYZING_BADGE
+        : row
+        ? OUTDATED_BADGE
+        : PENDING_BADGE;
     sendSvg(res, renderBadgeSvg(badge), SHORT_CACHE);
   } catch (e) {
     // Fail soft: a pending pill, uncached so the next view retries. Never 500

@@ -1,15 +1,7 @@
+import { DispatchMark } from "lib/advisor/advisorBadge";
 import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { RecentWorkflowsData } from "lib/types";
-
-// Stubbed rather than requireActual'd: the real module reaches lib/lambda.ts,
-// which pulls the AWS SDK into a test that has nothing to do with it. These two
-// exports are all advisorComment uses, and no dispatch is in flight in any case
-// below, so every job's line comes from its verdict alone.
-jest.mock("lib/advisor/advisorDispatch", () => ({
-  readDispatchStates: jest.fn().mockResolvedValue(new Map()),
-  signalKeyForJob: (fullJobName: string) => `dr_ci_${fullJobName}`,
-}));
 
 const HEAD_SHA = "a".repeat(40);
 const OTHER_SHA = "b".repeat(40);
@@ -41,7 +33,8 @@ function row(overrides: Partial<AdvisorVerdictRow> = {}): AdvisorVerdictRow {
 
 async function lines(
   rows: AdvisorVerdictRow[],
-  jobs: RecentWorkflowsData[] = [job()]
+  jobs: RecentWorkflowsData[] = [job()],
+  dispatches: Map<string, DispatchMark> = new Map()
 ): Promise<Map<number, string>> {
   return buildAdvisorVerdictLines(
     "https://hud.pytorch.org",
@@ -50,7 +43,8 @@ async function lines(
     123,
     HEAD_SHA,
     jobs,
-    rows
+    rows,
+    dispatches
   );
 }
 
@@ -120,20 +114,32 @@ describe("buildAdvisorVerdictLines", () => {
     expect(rendered.get(1)).not.toContain("high-conf summary");
   });
 
-  // A rerun at the same commit finished after the only verdict was written.
-  test("a verdict older than the job's run renders as outdated", async () => {
+  // A rerun at the same commit finished after the only dispatch and verdict.
+  test("a verdict that does not cover the job's run renders as outdated", async () => {
     const rendered = await lines(
-      [row({ timestamp: OLDER })],
-      [job({ completed_at: "2026-08-28 12:00:00" })]
+      [row({ timestamp: NEWER })],
+      [job({ completed_at: "2026-08-28 12:10:00" })],
+      new Map([
+        [
+          `dr_ci_${JOB_NAME}`,
+          { state: "dispatched", version: "2026-08-28 11:50:00.000" },
+        ],
+      ])
     );
     expect(rendered.get(1)).toContain('alt="AI verdict: outdated"');
     expect(rendered.get(1)).not.toContain("<details>");
   });
 
-  test("a verdict newer than the job's run renders as before", async () => {
+  test("a verdict answering a dispatch made after the run renders", async () => {
     const rendered = await lines(
       [row({ timestamp: NEWER })],
-      [job({ completed_at: "2026-08-28 12:00:00" })]
+      [job({ completed_at: "2026-08-28 11:50:00" })],
+      new Map([
+        [
+          `dr_ci_${JOB_NAME}`,
+          { state: "dispatched", version: "2026-08-28 12:00:00.000" },
+        ],
+      ])
     );
     expect(rendered.get(1)).toContain('alt="AI verdict: not related"');
   });

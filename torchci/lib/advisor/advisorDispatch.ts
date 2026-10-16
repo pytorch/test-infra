@@ -8,7 +8,11 @@
 import { createHash } from "crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { isStrictlyAfter, parseUtc } from "lib/advisor/advisorBadge";
+import {
+  isLiveDispatch,
+  isStrictlyAfter,
+  parseUtc,
+} from "lib/advisor/advisorBadge";
 import {
   getAdvisorRepoConfig,
   getMaxDispatchPerPr,
@@ -477,10 +481,11 @@ export interface AutoDispatchArgs {
  *
  * False when either time is missing or unparseable, so an unknown completion
  * time can never re-dispatch. The new dispatch's version is later than the
- * run's completion, so each run is re-dispatched once. The exception is a
- * server clock behind GitHub's by more than the time from the run finishing to
- * its dispatch: the run then looks newer than its own dispatch and gets one
- * more, after which the next pass's clock is past it.
+ * run's completion, so each run is re-dispatched once, assuming this server's
+ * clock is not behind GitHub's by more than the time from the run finishing to
+ * its dispatch. If it is, the dispatch looks older than the run: the run can be
+ * re-dispatched again on later passes, at most once per answered analysis, and
+ * no verdict covers it, so the job keeps blocking.
  */
 export function ranAfterDispatch(
   job: RecentWorkflowsData,
@@ -495,11 +500,10 @@ export function ranAfterDispatch(
 
 /**
  * Re-dispatch a rerun only once the previous analysis has answered: some verdict
- * for this signal is newer than the latest dispatch. Verdicts are keyed by
- * (head, job name) with no record of which run they analyzed, so two analyses
- * in flight for one key could finish out of order, and an earlier run's
- * clearing verdict could land last and clear a later run. One analysis per key
- * at a time rules that out. Missing verdict rows mean no re-dispatch.
+ * for this signal is newer than the latest dispatch. verdictCoversRun takes the
+ * newest verdict after the latest dispatch to be that dispatch's answer, which
+ * holds only while one analysis per key is in flight. Missing verdict rows mean
+ * no re-dispatch.
  */
 export function readyToReanalyze(
   rowsForKey: AdvisorVerdictRow[],
@@ -602,7 +606,7 @@ export async function autoDispatchAdvisorForNewFailures(
       continue;
     }
     if (
-      prev.state === "dispatched" &&
+      isLiveDispatch(prev) &&
       ranAfterDispatch(job, prev.version) &&
       readyToReanalyze(verdictsByKey.get(signalKey) ?? [], prev.version)
     ) {

@@ -1,4 +1,4 @@
-import { confidenceBucket } from "lib/advisor/advisorBadge";
+import { confidenceBucket, DispatchMark } from "lib/advisor/advisorBadge";
 import {
   confidentEnoughToSuppress,
   extractSuppressed,
@@ -13,6 +13,17 @@ const HEAD_SHA = "a".repeat(40);
 const JOB_DONE_AT = "2026-08-28 12:00:00.000";
 const AFTER_JOB = "2026-08-28 12:05:00.000";
 const BEFORE_JOB = "2026-08-28 11:55:00.000";
+// The dispatch that analyzed the job: after it finished, before AFTER_JOB.
+const DISPATCHED = { state: "dispatched", version: "2026-08-28 12:01:00.000" };
+
+// The gate with the default dispatch, for cases about everything else.
+function gate(
+  j: RecentWorkflowsData,
+  rows: AdvisorVerdictRow[],
+  dispatch: DispatchMark | undefined = DISPATCHED
+): boolean {
+  return isSuppressible(j, rows, dispatch);
+}
 
 function job(
   overrides: Partial<RecentWorkflowsData> = {}
@@ -129,12 +140,12 @@ describe("isSuppressible", () => {
   test.each(["not_related", "infra_issue", "garbage"])(
     "a confident, fresh %s verdict clears the job",
     (verdict) => {
-      expect(isSuppressible(job(), [row({ verdict })])).toBe(true);
+      expect(gate(job(), [row({ verdict })])).toBe(true);
     }
   );
 
   test("no verdict keeps the job blocking", () => {
-    expect(isSuppressible(job(), [])).toBe(false);
+    expect(gate(job(), [])).toBe(false);
   });
 
   // pytorch/pytorch#198500: a stack out of sync got a `not_related` verdict,
@@ -145,7 +156,7 @@ describe("isSuppressible", () => {
     "Check Labels / Check labels",
   ])("a confident verdict on PR-state gate %s keeps it blocking", (name) => {
     expect(
-      isSuppressible(job({ name }), [
+      gate(job({ name }), [
         row({ signal_key: `dr_ci_${name}`, confidence: 0.97 }),
       ])
     ).toBe(false);
@@ -154,7 +165,7 @@ describe("isSuppressible", () => {
   test.each(["related", "revert", "unsure"])(
     "%s keeps the job blocking",
     (verdict) => {
-      expect(isSuppressible(job(), [row({ verdict })])).toBe(false);
+      expect(gate(job(), [row({ verdict })])).toBe(false);
     }
   );
 
@@ -173,9 +184,9 @@ describe("isSuppressible", () => {
   test.each(["cancelled", "timed_out", "action_required", "neutral"])(
     "an infra_issue verdict on a %s job still keeps it blocking",
     (conclusion) => {
-      expect(
-        isSuppressible(job({ conclusion }), [row({ verdict: "infra_issue" })])
-      ).toBe(false);
+      expect(gate(job({ conclusion }), [row({ verdict: "infra_issue" })])).toBe(
+        false
+      );
     }
   );
 
@@ -185,10 +196,10 @@ describe("isSuppressible", () => {
       // Assert the premise: if the scale is retuned so this is `high` after
       // all, the case below stops testing anything and should fail loudly.
       expect(confidenceBucket(confidence)).not.toBe("high");
-      expect(isSuppressible(job(), [row({ confidence })])).toBe(false);
-      expect(
-        isSuppressible(job(), [row({ verdict: "garbage", confidence })])
-      ).toBe(false);
+      expect(gate(job(), [row({ confidence })])).toBe(false);
+      expect(gate(job(), [row({ verdict: "garbage", confidence })])).toBe(
+        false
+      );
     }
   );
 
@@ -196,18 +207,18 @@ describe("isSuppressible", () => {
     "an infra_issue verdict at %s clears the job below the badge's high bucket",
     (confidence) => {
       expect(confidenceBucket(confidence)).not.toBe("high");
-      expect(
-        isSuppressible(job(), [row({ verdict: "infra_issue", confidence })])
-      ).toBe(true);
+      expect(gate(job(), [row({ verdict: "infra_issue", confidence })])).toBe(
+        true
+      );
     }
   );
 
   test.each([0.8499, 0.71, 0.5])(
     "an infra_issue verdict at %s keeps the job blocking",
     (confidence) => {
-      expect(
-        isSuppressible(job(), [row({ verdict: "infra_issue", confidence })])
-      ).toBe(false);
+      expect(gate(job(), [row({ verdict: "infra_issue", confidence })])).toBe(
+        false
+      );
     }
   );
 
@@ -215,7 +226,7 @@ describe("isSuppressible", () => {
     // The lowest confidence advisorBadge still labels "not related".
     const lowestHigh = 0.89;
     expect(confidenceBucket(lowestHigh)).toBe("high");
-    expect(isSuppressible(job(), [row({ confidence: lowestHigh })])).toBe(true);
+    expect(gate(job(), [row({ confidence: lowestHigh })])).toBe(true);
   });
 
   // Deriving the gate from the badge scale is deliberate -- the comment must not
@@ -234,37 +245,59 @@ describe("isSuppressible", () => {
     expect(confidentEnoughToSuppress("infra_issue", 0.8499)).toBe(false);
   });
 
+  test("a verdict older than its dispatch is not that dispatch's answer", () => {
+    expect(gate(job(), [row({ timestamp: "2026-08-28 12:00:30.000" })])).toBe(
+      false
+    );
+  });
+
+  // pytorch/pytorch#201104: the only dispatch predates a rerun of the job.
+  test("a dispatch made before the job's run finished covers an earlier run", () => {
+    expect(
+      gate(job(), [row()], { state: "dispatched", version: BEFORE_JOB })
+    ).toBe(false);
+  });
+
+  test("no dispatch row, or a failed one, keeps the job blocking", () => {
+    expect(isSuppressible(job(), [row()], undefined)).toBe(false);
+    expect(
+      gate(job(), [row()], { state: "failed", version: DISPATCHED.version })
+    ).toBe(false);
+  });
+
+  // The 'dispatched' confirmation write is allowed to fail.
+  test("an answered 'dispatching' row covers the run", () => {
+    expect(
+      gate(job(), [row()], {
+        state: "dispatching",
+        version: DISPATCHED.version,
+      })
+    ).toBe(true);
+  });
+
   test("a verdict older than the job's completion is a stale rerun verdict", () => {
-    expect(isSuppressible(job(), [row({ timestamp: BEFORE_JOB })])).toBe(false);
+    expect(gate(job(), [row({ timestamp: BEFORE_JOB })])).toBe(false);
   });
 
   test("a verdict exactly at the job's completion is ambiguous, so it blocks", () => {
-    expect(isSuppressible(job(), [row({ timestamp: JOB_DONE_AT })])).toBe(
-      false
-    );
+    expect(gate(job(), [row({ timestamp: JOB_DONE_AT })])).toBe(false);
   });
 
   test("an unparseable timestamp keeps the job blocking", () => {
-    expect(isSuppressible(job(), [row({ timestamp: "not a date" })])).toBe(
-      false
-    );
-    expect(isSuppressible(job({ completed_at: "not a date" }), [row()])).toBe(
-      false
-    );
+    expect(gate(job(), [row({ timestamp: "not a date" })])).toBe(false);
+    expect(gate(job({ completed_at: "not a date" }), [row()])).toBe(false);
   });
 
   test.each(["cancelled", "timed_out", "action_required", "neutral"])(
     "a %s job never produced a test outcome, so it keeps blocking",
     (conclusion) => {
-      expect(isSuppressible(job({ conclusion }), [row()])).toBe(false);
+      expect(gate(job({ conclusion }), [row()])).toBe(false);
     }
   );
 
   test("a zero completed_at keeps the job blocking", () => {
     expect(
-      isSuppressible(job({ completed_at: "1970-01-01 00:00:00.000000000" }), [
-        row(),
-      ])
+      gate(job({ completed_at: "1970-01-01 00:00:00.000000000" }), [row()])
     ).toBe(false);
   });
 });
@@ -302,9 +335,12 @@ describe("suppressibleJobIds", () => {
     rows: AdvisorVerdictRow[],
     headSha = HEAD_SHA
   ): number[] {
-    return [...suppressibleJobIds(OWNER, REPO, headSha, jobs, rows)].sort(
-      (a, b) => a - b
+    const dispatches = new Map(
+      jobs.filter((j) => j.name).map((j) => [`dr_ci_${j.name}`, DISPATCHED])
     );
+    return [
+      ...suppressibleJobIds(OWNER, REPO, headSha, jobs, rows, dispatches),
+    ].sort((a, b) => a - b);
   }
 
   // The whole flag surface, because the interesting cell is the last one: a
@@ -335,7 +371,8 @@ describe("suppressibleJobIds", () => {
         "not-an-advisor-repo",
         HEAD_SHA,
         [job()],
-        [row()]
+        [row()],
+        new Map([[`dr_ci_${job().name}`, DISPATCHED]])
       ),
     ]).toEqual([]);
   });

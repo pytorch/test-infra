@@ -11,6 +11,7 @@ import {
   renderVerdictLine,
   selectAdvisorLines,
   verdictBadge,
+  verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 
 const HUD = "https://hud.pytorch.org";
@@ -204,7 +205,10 @@ describe("selectAdvisorLines", () => {
       ],
     ]);
     const inProgress = new Map([
-      [drciSignalKeyForJob("trunk / b / test"), "2026-10-16 00:53:36.569"],
+      [
+        drciSignalKeyForJob("trunk / b / test"),
+        { state: "dispatched", version: "2026-10-16 00:53:36.569" },
+      ],
     ]);
 
     const out = selectAdvisorLines(
@@ -225,64 +229,79 @@ describe("selectAdvisorLines", () => {
     expect(out.has(4)).toBe(false); // no name
   });
 
-  // A rerun at the same commit: the only verdict predates this run.
-  describe("a verdict written before this run finished", () => {
+  // pytorch/pytorch#201104: a verdict for the first run of a job, then a rerun
+  // at the same commit that finished after it.
+  describe("a rerun at the same commit", () => {
     const JOB = "pull / aarch64 / build";
     const KEY = drciSignalKeyForJob(JOB);
-    const rerun = [{ id: 7, name: JOB, completedAt: "2026-10-16 01:13:57" }];
-    const verdicts = new Map([
-      [
-        KEY,
-        {
-          verdict: "not_related",
-          confidence: 0.95,
-          summary: "earlier run",
-          timestamp: "2026-10-16 00:54:54.000",
-        },
-      ],
-    ]);
-    const select = (inProgress: Map<string, string>) =>
+    const RERUN_DONE = "2026-10-16 01:13:57";
+    const FIRST_DISPATCH = {
+      state: "dispatched",
+      version: "2026-10-16 00:53:36.569",
+    };
+    const RERUN_DISPATCH = {
+      state: "dispatched",
+      version: "2026-10-16 01:20:00.000",
+    };
+    const verdictAt = (timestamp: string) =>
+      new Map([
+        [
+          KEY,
+          { verdict: "not_related", confidence: 0.95, summary: "s", timestamp },
+        ],
+      ]);
+    const select = (
+      verdicts: Map<string, any>,
+      dispatch: { state: string; version: string } | undefined
+    ) =>
       selectAdvisorLines(
         HUD,
         "pytorch",
         "pytorch",
         1,
         "sha",
-        rerun,
+        [{ id: 7, name: JOB, completedAt: RERUN_DONE }],
         verdicts,
-        inProgress
+        dispatch ? new Map([[KEY, dispatch]]) : new Map()
       ).get(7);
 
-    it("renders outdated, not the earlier verdict, when nothing is in flight", () => {
-      const line = select(new Map([[KEY, "2026-10-16 00:53:36.569"]]));
+    it("shows outdated, not the first run's verdict, when nothing is in flight", () => {
+      const line = select(verdictAt("2026-10-16 00:54:54.000"), FIRST_DISPATCH);
       expect(line).toContain('alt="AI verdict: outdated"');
       expect(line).not.toContain("not related");
       expect(line).not.toContain(ADVISOR_PENDING_ALT_ATTR);
       expect(line).toContain("since=2026-10-16+01%3A13%3A57");
     });
 
-    it("renders in-progress once a dispatch newer than the run exists", () => {
-      const line = select(new Map([[KEY, "2026-10-16 01:20:00.001"]]));
+    it("shows in-progress while the rerun's analysis has not answered", () => {
+      const line = select(verdictAt("2026-10-16 00:54:54.000"), RERUN_DISPATCH);
       expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
       expect(line).not.toContain("<details>");
     });
 
-    it("renders the verdict once one newer than the run lands", () => {
-      const fresh = new Map([
-        [KEY, { ...verdicts.get(KEY)!, timestamp: "2026-10-16 01:30:00.000" }],
-      ]);
-      const line = selectAdvisorLines(
-        HUD,
-        "pytorch",
-        "pytorch",
-        1,
-        "sha",
-        rerun,
-        fresh,
-        new Map()
-      ).get(7);
+    // A further rerun finished while the previous analysis was still running:
+    // keep the sentinel so the PR stays in the sweep until that answer lands.
+    it("keeps the sentinel while an older analysis is unanswered", () => {
+      const line = select(verdictAt("2026-10-16 01:00:00.000"), RERUN_DISPATCH);
+      expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
+    });
+
+    it("shows the verdict once the rerun's analysis answers", () => {
+      const line = select(verdictAt("2026-10-16 01:30:00.000"), RERUN_DISPATCH);
       expect(line).toContain("<details>");
       expect(line).toContain('alt="AI verdict: not related"');
+    });
+
+    // An analysis of an earlier run that lands after the rerun finished is not
+    // this run's answer.
+    it("a late answer to a dispatch made before the run is outdated", () => {
+      const line = select(verdictAt("2026-10-16 01:30:00.000"), FIRST_DISPATCH);
+      expect(line).toContain('alt="AI verdict: outdated"');
+    });
+
+    it("a verdict with no dispatch row is outdated", () => {
+      const line = select(verdictAt("2026-10-16 01:30:00.000"), undefined);
+      expect(line).toContain('alt="AI verdict: outdated"');
     });
 
     it("a job with no usable completed_at still shows its verdict", () => {
@@ -293,12 +312,43 @@ describe("selectAdvisorLines", () => {
         1,
         "sha",
         [{ id: 7, name: JOB, completedAt: "" }],
-        verdicts,
+        verdictAt("2026-10-16 00:54:54.000"),
         new Map()
       ).get(7);
       expect(line).toContain("<details>");
       expect(line).not.toContain("since=");
     });
+  });
+});
+
+describe("verdictCoversRun", () => {
+  const DONE = "2026-10-16 01:13:57";
+  const d = (state: string, version: string) => ({ state, version });
+  it("needs a live dispatch after the run and a verdict after the dispatch", () => {
+    const after = d("dispatched", "2026-10-16 01:20:00.000");
+    expect(verdictCoversRun("2026-10-16 01:30:00", DONE, after)).toBe(true);
+    expect(
+      verdictCoversRun(
+        "2026-10-16 01:30:00",
+        DONE,
+        d("dispatching", after.version)
+      )
+    ).toBe(true);
+    expect(
+      verdictCoversRun("2026-10-16 01:30:00", DONE, d("failed", after.version))
+    ).toBe(false);
+    expect(verdictCoversRun("2026-10-16 01:10:00", DONE, after)).toBe(false);
+    expect(
+      verdictCoversRun(
+        "2026-10-16 01:30:00",
+        DONE,
+        d("dispatched", "2026-10-16 00:53:36.569")
+      )
+    ).toBe(false);
+    expect(verdictCoversRun("2026-10-16 01:30:00", DONE, undefined)).toBe(
+      false
+    );
+    expect(verdictCoversRun("2026-10-16 01:30:00", "", after)).toBe(false);
   });
 });
 

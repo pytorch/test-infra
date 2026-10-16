@@ -69,9 +69,8 @@ export const PENDING_BADGE: AdvisorBadge = {
   darkText: false,
 };
 
-// A verdict exists, but it was written before this run of the job finished, so
-// it describes an earlier run at the same commit (a rerun) and says nothing
-// about this one.
+// A verdict exists, but it answers an analysis of an earlier run of the job at
+// the same commit (a rerun), so it says nothing about this one.
 export const OUTDATED_BADGE: AdvisorBadge = {
   label: "outdated",
   color: "#9f9f9f",
@@ -92,6 +91,40 @@ export function parseUtc(ts?: string): dayjs.Dayjs | null {
   if (!ts) return null;
   const d = dayjs.utc(ts);
   return d.isValid() && d.valueOf() > 0 ? d : null;
+}
+
+// The latest misc.ai_advisor_dispatches row for one (head, signal key): its
+// state and when it was written (its version, UTC).
+export interface DispatchMark {
+  state: string;
+  version: string;
+}
+
+// A dispatch that was made and not superseded by a failed POST. 'dispatching'
+// counts too: its 'dispatched' confirmation write is allowed to fail.
+export function isLiveDispatch(d?: DispatchMark): d is DispatchMark {
+  return d?.state === "dispatching" || d?.state === "dispatched";
+}
+
+// Whether a verdict written at `verdictTimestamp` speaks for the job run that
+// finished at `completedAt`. Verdict rows record no analyzed run, only (head,
+// job name), so this ties the verdict to a dispatch instead: the latest
+// dispatch was made after the run finished, so it analyzed this run, and the
+// verdict is newer than that dispatch, so it is that dispatch's answer.
+// Auto-dispatch keeps one analysis per key in flight, so nothing older can land
+// after it. Comparing the verdict with the run's completion alone is not
+// enough: an analysis of an earlier run that is still going when this run
+// finishes lands later and passes.
+export function verdictCoversRun(
+  verdictTimestamp: string | undefined,
+  completedAt: string | undefined,
+  dispatch: DispatchMark | undefined
+): boolean {
+  return (
+    isLiveDispatch(dispatch) &&
+    isStrictlyAfter(dispatch.version, completedAt) &&
+    isStrictlyAfter(verdictTimestamp, dispatch.version)
+  );
 }
 
 export type ConfidenceBucket = "high" | "med" | "low";
@@ -183,9 +216,10 @@ export function renderBadgeSvg(badge: AdvisorBadge): string {
 // server-side; the route resolves the live state, so the same URL flips from
 // analyzing to the verdict without the comment changing.
 //
-// `since` is the job's completed_at. The route then ignores verdicts written
-// before it, so a rerun at the same commit never shows the earlier run's
-// verdict, and each run gets its own URL, which camo caches separately.
+// `since` is the job's completed_at. The route then shows only a verdict that
+// covers that run (verdictCoversRun), so a rerun at the same commit never shows
+// the earlier run's verdict, and each run gets its own URL, which camo caches
+// separately.
 export function advisorBadgeUrl(
   hudBaseUrl: string,
   owner: string,
@@ -230,7 +264,7 @@ export function renderInProgressLine(
 }
 
 // Outdated line: the only verdict is for an earlier run of this job and no
-// analysis of this run is in flight. Says so rather than showing the earlier
+// analysis is in flight. Says so rather than showing the earlier
 // verdict, which the suppression gate ignores for the same reason. The alt is
 // not the pending sentinel: with nothing in flight, re-rendering this PR every
 // sweep could not change the line.
@@ -302,19 +336,15 @@ export interface AdvisorLineVerdict {
 }
 
 // Decide the per-job line. Pure so it is unit-testable without ClickHouse.
-// Returns job.id -> HTML.
-//
-// A verdict counts for a job only if it was written after the job finished; a
-// verdict older than that describes an earlier run at the same commit (a
-// rerun). The suppression gate applies the same test, so this keeps the line
-// from showing a verdict the gate ignores. In order:
-//   - a verdict for this run: the verdict line;
-//   - an analysis in flight that was dispatched after this run finished (or,
-//     with no verdict at all, any analysis in flight): the in-progress line;
-//   - only a verdict for an earlier run: the outdated line;
+// Returns job.id -> HTML. In order:
+//   - a verdict that covers this run (verdictCoversRun; the suppression gate
+//     uses the same test), or any verdict when the run's completion time is
+//     unknown: the verdict line;
+//   - a live dispatch not yet answered by a newer verdict: the in-progress line,
+//     whose pending sentinel keeps the PR in the sweep until the answer lands;
+//   - a verdict that covers an earlier run only: the outdated line;
 //   - otherwise no line.
-// `inProgress` maps a signal key with a 'dispatching'/'dispatched' state to
-// that state's version (when it was written).
+// `dispatchByKey` holds the latest dispatch row per signal key.
 export function selectAdvisorLines(
   hudBaseUrl: string,
   owner: string,
@@ -323,13 +353,14 @@ export function selectAdvisorLines(
   headSha: string,
   jobs: AdvisorLineJob[],
   verdictByKey: Map<string, AdvisorLineVerdict>,
-  inProgress: Map<string, string>
+  dispatchByKey: Map<string, DispatchMark>
 ): Map<number, string> {
   const out = new Map<number, string>();
   for (const job of jobs) {
     if (!job.name) continue;
     const key = drciSignalKeyForJob(job.name);
     const verdict = verdictByKey.get(key);
+    const dispatch = dispatchByKey.get(key);
     const since = parseUtc(job.completedAt) ? job.completedAt : undefined;
     const args = [
       hudBaseUrl,
@@ -341,7 +372,10 @@ export function selectAdvisorLines(
       job.id,
     ] as const;
 
-    if (verdict && (!since || isStrictlyAfter(verdict.timestamp, since))) {
+    if (
+      verdict &&
+      (!since || verdictCoversRun(verdict.timestamp, since, dispatch))
+    ) {
       out.set(
         job.id,
         renderVerdictLine(
@@ -352,12 +386,10 @@ export function selectAdvisorLines(
           since
         )
       );
-      continue;
-    }
-    const analyzing =
-      inProgress.has(key) &&
-      (!verdict || isStrictlyAfter(inProgress.get(key), since));
-    if (analyzing) {
+    } else if (
+      isLiveDispatch(dispatch) &&
+      !isStrictlyAfter(verdict?.timestamp, dispatch.version)
+    ) {
       out.set(job.id, renderInProgressLine(...args, since));
     } else if (verdict) {
       out.set(job.id, renderOutdatedLine(...args, since));

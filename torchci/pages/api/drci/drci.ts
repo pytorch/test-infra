@@ -1,9 +1,16 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
+import {
+  ADVISOR_PENDING_ALT_ATTR,
+  DispatchMark,
+} from "lib/advisor/advisorBadge";
 import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
-import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
+import {
+  autoDispatchAdvisorForNewFailures,
+  readDispatchStates,
+  signalKeyForJob,
+} from "lib/advisor/advisorDispatch";
 import {
   extractSuppressed,
   suppressibleJobIds,
@@ -393,15 +400,15 @@ export async function updateDrciComments(
       );
 
       // One read of this PR's advisor verdicts, shared by auto-dispatch, the
-      // inline "AI verdict:" line and the suppression gate below. Reading per consumer
-      // would let a verdict landing between the two reads make the badge and
-      // the merge gate describe the same job differently.
+      // inline "AI verdict:" line and the suppression gate below. Reading per
+      // consumer would let a verdict landing between the reads make the badge
+      // and the merge gate describe the same job differently.
       //
       // A read that is skipped or fails yields an empty array, which every
       // consumer treats as "no verdict": nothing is suppressed and no rerun is
-      // re-dispatched, so every job keeps blocking. Note the comment can still render an "analyzing" line
-      // for a job with a dispatch in flight, since that state is read
-      // separately and does not depend on these rows.
+      // re-dispatched, so every job keeps blocking. The comment can still
+      // render an "analyzing" line for a job with a dispatch in flight, since
+      // that state is read separately below.
       let advisorVerdictRows: AdvisorVerdictRow[] = [];
       if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
         try {
@@ -450,19 +457,49 @@ export async function updateDrciComments(
         );
       }
 
+      // The latest dispatch per job, read AFTER auto-dispatch so a dispatch it
+      // just made is seen. Shared by the verdict line and the suppression gate,
+      // which both count a verdict only if it answers a dispatch made after the
+      // job's run finished. A failed read yields an empty map: no verdict then
+      // covers its run, so every job keeps blocking and no line says
+      // "analyzing".
+      const advisorDispatches = new Map<string, DispatchMark>();
+      if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
+        try {
+          const states = await readDispatchStates(
+            owner,
+            repo,
+            pr_info.head_sha,
+            advisorJobs
+              .filter((j) => j.name)
+              .map((j) => signalKeyForJob(j.name))
+          );
+          for (const [key, st] of states) {
+            advisorDispatches.set(key, st);
+          }
+        } catch (e) {
+          console.error(
+            "advisor dispatch-state read threw for PR",
+            pr_info.pr_number,
+            e
+          );
+        }
+      }
+
       // Render the verdicts for this PR's new and unclassified failures as an
       // inline line per job. Wrapped so an advisor error can never break the
       // comment.
       let advisorLines: Map<number, string> = new Map();
       try {
-        advisorLines = await buildAdvisorVerdictLines(
+        advisorLines = buildAdvisorVerdictLines(
           HUD_URL,
           owner,
           repo,
           pr_info.pr_number,
           pr_info.head_sha,
           advisorJobs,
-          advisorVerdictRows
+          advisorVerdictRows,
+          advisorDispatches
         );
       } catch (e) {
         console.error(
@@ -486,7 +523,8 @@ export async function updateDrciComments(
           repo,
           pr_info.head_sha,
           advisorJobs,
-          advisorVerdictRows
+          advisorVerdictRows,
+          advisorDispatches
         );
         aiNotRelatedJobs.push(
           ...extractSuppressed(failedJobs, suppressible),
