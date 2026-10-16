@@ -381,7 +381,7 @@ export interface DispatchRecord {
 // finished during the POST, or past the verdict itself if the POST returned
 // late.
 let lastVersionMs = 0;
-function nextDispatchVersion(after?: string): string {
+export function nextDispatchVersion(after?: string): string {
   const floor = parseUtc(after);
   let ms: number;
   if (floor !== null) {

@@ -117,15 +117,17 @@ export default async function handler(
       return;
     }
 
-    // Otherwise: "analyzing" while a dispatch has no newer verdict yet,
-    // "outdated" when the only verdict covers an earlier run, else pending.
-    const badge =
-      isLiveDispatch(dispatch) &&
-      !isStrictlyAfter(row?.timestamp, dispatch.version)
-        ? ANALYZING_BADGE
-        : row
-        ? OUTDATED_BADGE
-        : PENDING_BADGE;
+    // Otherwise: "analyzing" while a live dispatch has no newer verdict yet;
+    // pending while one answered for an earlier run and this run's dispatch is
+    // owed; "outdated" when a verdict exists with no live dispatch.
+    let badge = PENDING_BADGE;
+    if (isLiveDispatch(dispatch)) {
+      if (!isStrictlyAfter(row?.timestamp, dispatch.version)) {
+        badge = ANALYZING_BADGE;
+      }
+    } else if (row) {
+      badge = OUTDATED_BADGE;
+    }
     sendSvg(res, renderBadgeSvg(badge), SHORT_CACHE);
   } catch (e) {
     // Fail soft: a pending pill, uncached so the next view retries. Never 500

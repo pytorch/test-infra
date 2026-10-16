@@ -265,12 +265,22 @@ describe("selectAdvisorLines", () => {
         dispatch ? new Map([[KEY, dispatch]]) : new Map()
       ).get(7);
 
-    it("shows outdated, not the first run's verdict, when nothing is in flight", () => {
+    // Auto-dispatch owes the rerun an analysis; keep the PR in the sweep even
+    // if this pass skipped it.
+    it("shows in-progress, not the first run's verdict, while the rerun's dispatch is owed", () => {
       const line = select(verdictAt("2026-10-16 00:54:54.000"), FIRST_DISPATCH);
-      expect(line).toContain('alt="AI verdict: outdated"');
+      expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
       expect(line).not.toContain("not related");
-      expect(line).not.toContain(ADVISOR_PENDING_ALT_ATTR);
       expect(line).toContain("since=2026-10-16+01%3A13%3A57");
+    });
+
+    it("shows outdated when the only dispatch failed", () => {
+      const line = select(verdictAt("2026-10-16 00:54:54.000"), {
+        state: "failed",
+        version: FIRST_DISPATCH.version,
+      });
+      expect(line).toContain('alt="AI verdict: outdated"');
+      expect(line).not.toContain(ADVISOR_PENDING_ALT_ATTR);
     });
 
     it("shows in-progress while the rerun's analysis has not answered", () => {
@@ -294,9 +304,10 @@ describe("selectAdvisorLines", () => {
 
     // An analysis of an earlier run that lands after the rerun finished is not
     // this run's answer.
-    it("a late answer to a dispatch made before the run is outdated", () => {
+    it("a late answer to a dispatch made before the run is not shown", () => {
       const line = select(verdictAt("2026-10-16 01:30:00.000"), FIRST_DISPATCH);
-      expect(line).toContain('alt="AI verdict: outdated"');
+      expect(line).not.toContain("<details>");
+      expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
     });
 
     it("a verdict with no dispatch row is outdated", () => {

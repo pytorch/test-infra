@@ -2,6 +2,7 @@ import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
 import {
   dispatchAdvisorWorkflow,
   isValidSha,
+  nextDispatchVersion,
   readDispatchStates,
   recordDispatch,
   signalKeyForJob,
@@ -107,8 +108,10 @@ export default async function handler(
   }
 
   // Best-effort pre-dispatch marker (so the auto loop sees the manual dispatch).
-  // The terminal rows below are stamped just after it (see recordDispatch).
-  let preVersion: string | undefined;
+  // The terminal rows below are stamped just after it (see recordDispatch). If
+  // the marker write fails, they are still stamped from a time taken before the
+  // dispatch, never from when they are written.
+  let preVersion = nextDispatchVersion();
   try {
     preVersion = await recordDispatch({ ...record, state: "dispatching" });
   } catch (e) {

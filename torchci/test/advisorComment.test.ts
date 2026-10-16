@@ -115,7 +115,7 @@ describe("buildAdvisorVerdictLines", () => {
   });
 
   // A rerun at the same commit finished after the only dispatch and verdict.
-  test("a verdict that does not cover the job's run renders as outdated", async () => {
+  test("a verdict that does not cover the job's run is not rendered as one", async () => {
     const rendered = await lines(
       [row({ timestamp: NEWER })],
       [job({ completed_at: "2026-08-28 12:10:00" })],
@@ -126,7 +126,7 @@ describe("buildAdvisorVerdictLines", () => {
         ],
       ])
     );
-    expect(rendered.get(1)).toContain('alt="AI verdict: outdated"');
+    expect(rendered.get(1)).toContain('alt="AI verdict: pending"');
     expect(rendered.get(1)).not.toContain("<details>");
   });
 

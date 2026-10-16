@@ -264,10 +264,10 @@ export function renderInProgressLine(
 }
 
 // Outdated line: the only verdict is for an earlier run of this job and no
-// analysis is in flight. Says so rather than showing the earlier
+// analysis is in flight or owed. Says so rather than showing the earlier
 // verdict, which the suppression gate ignores for the same reason. The alt is
-// not the pending sentinel: with nothing in flight, re-rendering this PR every
-// sweep could not change the line.
+// not the pending sentinel: with nothing in flight or owed, re-rendering this
+// PR every sweep could not change the line.
 export function renderOutdatedLine(
   hudBaseUrl: string,
   owner: string,
@@ -340,9 +340,13 @@ export interface AdvisorLineVerdict {
 //   - a verdict that covers this run (verdictCoversRun; the suppression gate
 //     uses the same test), or any verdict when the run's completion time is
 //     unknown: the verdict line;
-//   - a live dispatch not yet answered by a newer verdict: the in-progress line,
-//     whose pending sentinel keeps the PR in the sweep until the answer lands;
-//   - a verdict that covers an earlier run only: the outdated line;
+//   - any other live dispatch: the in-progress line. Either its analysis has
+//     not answered yet, or it answered for an earlier run and auto-dispatch
+//     owes this run a new one (a rerun). The pending sentinel keeps the PR in
+//     the sweep until that work lands, including when a pass skipped it on a
+//     transient error;
+//   - a verdict with no live dispatch (none, or a failed one): the outdated
+//     line;
 //   - otherwise no line.
 // `dispatchByKey` holds the latest dispatch row per signal key, or is null when
 // it could not be read. Then nothing can be shown as covering its run, and
@@ -389,11 +393,7 @@ export function selectAdvisorLines(
           since
         )
       );
-    } else if (
-      dispatchByKey === null ||
-      (isLiveDispatch(dispatch) &&
-        !isStrictlyAfter(verdict?.timestamp, dispatch.version))
-    ) {
+    } else if (dispatchByKey === null || isLiveDispatch(dispatch)) {
       out.set(job.id, renderInProgressLine(...args, since));
     } else if (verdict) {
       out.set(job.id, renderOutdatedLine(...args, since));
