@@ -141,6 +141,12 @@ class SignalExtractionDatasource:
         # Do not "optimize" this away by selecting `wf.conclusion` directly —
         # the extractor and downstream logic rely on the KG-adjusted value so
         # that pending jobs can also be recognized as failures-in-progress.
+        #
+        # workflow_job is sorted by (id, run_id, dynamoKey), so only the
+        # created_at minmax skip index can prune by date. Under FINAL the
+        # server skips that index unless use_skip_indexes_if_final=1, and every
+        # call reads the whole table. Exact mode keeps FINAL correct by also
+        # reading granules that hold other versions of the matched rows.
         query = f"""
         SELECT
             wf.head_sha,
@@ -167,6 +173,8 @@ class SignalExtractionDatasource:
             )
           {workflow_filter}
         ORDER BY wf.head_sha, wf.started_at ASC, wf.run_id, wf.run_attempt, wf.name
+        SETTINGS use_skip_indexes_if_final = 1,
+                 use_skip_indexes_if_final_exact_mode = 1
         """
 
         log = logging.getLogger(__name__)
