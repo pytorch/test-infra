@@ -5,9 +5,13 @@ import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
+  AUTO_PR_TRIAGE_LABEL,
+  BOT_TRIAGED_LABEL,
   PR_STATUS_LABEL_IN_PROGRESS,
+  PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
+  PR_STATUS_LABEL_TRIAGED,
 } from "../prStatus";
 import {
   getApprovalStatusFromReviews,
@@ -637,6 +641,52 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await this.ackComment();
   }
 
+  // Follows the rerun steps of Auto PR Triage: a run is a no-op while its
+  // outcome labels are present, and only an `open source` labeled event starts
+  // one. Limited to PRs it marked as missing an actionable issue; anyone may
+  // run it, so abuse is visible in the PR's timeline.
+  async handleRetriage() {
+    await this.logger.log("retriage");
+    const { ctx, owner, repo, prNum } = this;
+    const reject = async (message: string) => {
+      await this.rejectComment();
+      await this.addComment(message);
+    };
+    if (!isPyTorchPyTorch(owner, repo)) {
+      return await reject("Auto PR Triage only runs on pytorch/pytorch.");
+    }
+
+    const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
+    const labels: string[] = (pr?.labels ?? []).map((label: any) => label.name);
+    if (!labels.includes(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)) {
+      return await reject(
+        `Auto PR Triage only re-runs on PRs labeled \`${PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE}\`.`
+      );
+    }
+
+    const labelsToRemove = [
+      PR_STATUS_LABEL_TRIAGED,
+      BOT_TRIAGED_LABEL,
+      PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+      AUTO_PR_TRIAGE_LABEL,
+    ].filter((label) => labels.includes(label));
+    for (const name of labelsToRemove) {
+      await ctx.octokit.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: prNum,
+        name,
+      });
+    }
+    await ctx.octokit.issues.addLabels({
+      owner,
+      repo,
+      issue_number: prNum,
+      labels: [AUTO_PR_TRIAGE_LABEL],
+    });
+    await this.ackComment();
+  }
+
   async handleLint(login: string) {
     await this.logger.log("lint");
     if (!(await this.hasWritePermissions(login))) {
@@ -730,6 +780,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         case "review": {
           return await this.handleReview();
+        }
+        case "retriage": {
+          return await this.handleRetriage();
         }
         case "lint":
         case "fix-lint":
