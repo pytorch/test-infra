@@ -22,6 +22,7 @@ import {
   buildDemotionRows,
   CriterionRow,
   formatMeasured,
+  getL3ProtectionStatus,
   L3Metrics,
   mergeCriteriaRows,
   useTenure,
@@ -31,6 +32,7 @@ import {
   L3_PROMOTION_WINDOW_DAYS,
   useL3VerdictColors,
 } from "lib/crcr/l3Thresholds";
+import type { AllowlistResponse } from "pages/api/crcr/allowlist";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 
@@ -86,7 +88,24 @@ function useL3Summary(days: number, repoFullName: string) {
     refreshInterval: 60_000,
   });
   const summary = useMemo(() => data?.[0] ?? null, [data]);
-  return { summary, loaded: !!data || !!error };
+  return {
+    summary,
+    error,
+    loaded: !!data || !!error,
+  };
+}
+
+function configuredLevel(
+  allowlist: AllowlistResponse | undefined,
+  repoFullName: string
+): string | null {
+  if (!allowlist) return null;
+  for (const level of ["L1", "L2", "L3", "L4"] as const) {
+    if (allowlist[level].some((entry) => entry.repo === repoFullName)) {
+      return level;
+    }
+  }
+  return null;
 }
 
 export default function CrcrL3Readiness({
@@ -100,7 +119,13 @@ export default function CrcrL3Readiness({
   const promotion = useL3Summary(L3_PROMOTION_WINDOW_DAYS, repoFullName);
   const demotion = useL3Summary(L3_DEMOTION_WINDOW_DAYS, repoFullName);
   const tenure = useTenure(repoFullName);
+  const { data: allowlist } = useSWR<AllowlistResponse>(
+    "/api/crcr/allowlist",
+    fetcherHandleError,
+    { refreshInterval: 5 * 60_000 }
+  );
   const [expanded, setExpanded] = useState(false);
+  const level = configuredLevel(allowlist, repoFullName);
 
   if (!promotion.loaded || !demotion.loaded || !tenure.loaded) {
     return <Skeleton variant="rectangular" height={80} />;
@@ -109,6 +134,12 @@ export default function CrcrL3Readiness({
   const promotionRows = buildCriteriaRows(promotion.summary, tenure.tenure);
   const demotionRows = buildDemotionRows(demotion.summary);
   const rows = mergeCriteriaRows(promotionRows, demotionRows);
+  const l3ProtectionStatus = getL3ProtectionStatus(
+    level,
+    demotionRows,
+    demotion.summary !== null,
+    demotion.error
+  );
 
   return (
     <Paper elevation={1} sx={{ p: 2 }}>
@@ -150,6 +181,26 @@ export default function CrcrL3Readiness({
             />
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
+            {l3ProtectionStatus && (
+              <Chip
+                label={
+                  l3ProtectionStatus === "active"
+                    ? "Temporary protection active"
+                    : l3ProtectionStatus === "clear"
+                    ? "Protection clear"
+                    : "Protection status unavailable"
+                }
+                size="small"
+                color={
+                  l3ProtectionStatus === "active"
+                    ? "error"
+                    : l3ProtectionStatus === "clear"
+                    ? "success"
+                    : "warning"
+                }
+                variant="outlined"
+              />
+            )}
             <L3SummaryChip
               label="Promotion"
               rows={promotionRows}
@@ -168,6 +219,8 @@ export default function CrcrL3Readiness({
             <Typography variant="caption" color="text.secondary">
               Promotion is evaluated over the last {L3_PROMOTION_WINDOW_DAYS}{" "}
               days, demotion over the last {L3_DEMOTION_WINDOW_DAYS} days.
+              {level === "L3" &&
+                " A failed demotion criterion moves an L3 backend to the separate temporary-protection section on the CRCR summary; it remains configured as L3 until an allowlist change is merged."}
             </Typography>
 
             <TableContainer>

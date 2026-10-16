@@ -1,6 +1,7 @@
 import {
   buildCriteriaRows,
   buildDemotionRows,
+  getL3ProtectionStatus,
   L3SummaryRow,
   mergeCriteriaRows,
   RepoTenure,
@@ -223,6 +224,39 @@ describe("buildDemotionRows", () => {
   it("leaves every row unjudged when there is no summary data", () => {
     const rows = buildDemotionRows(null);
     expect(rows.every((r) => r.verdict === null)).toBe(true);
+  });
+});
+
+describe("getL3ProtectionStatus", () => {
+  const passingRows = buildDemotionRows(summaryRow({}));
+
+  it("does not assign a temporary-protection status outside L3", () => {
+    expect(
+      getL3ProtectionStatus("L2", passingRows, true, undefined)
+    ).toBeNull();
+  });
+
+  it("marks an L3 backend for protection when a demotion criterion fails", () => {
+    const failingRows = buildDemotionRows(summaryRow({ pass_rate: 0.5 }));
+    expect(getL3ProtectionStatus("L3", failingRows, true, undefined)).toBe(
+      "active"
+    );
+  });
+
+  it("marks an L3 backend for protection when it reported no jobs", () => {
+    expect(getL3ProtectionStatus("L3", [], false, undefined)).toBe("active");
+  });
+
+  it("does not confuse a failed query with a temporary-protection decision", () => {
+    expect(
+      getL3ProtectionStatus("L3", passingRows, false, new Error("unavailable"))
+    ).toBe("unavailable");
+  });
+
+  it("clears protection only for a successful, passing L3 evaluation", () => {
+    expect(getL3ProtectionStatus("L3", passingRows, true, undefined)).toBe(
+      "clear"
+    );
   });
 });
 
