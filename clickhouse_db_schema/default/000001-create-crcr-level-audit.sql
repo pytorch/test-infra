@@ -20,6 +20,8 @@ CREATE TABLE crcr_level_audit
     `proposal_pr_url` String DEFAULT '' COMMENT 'Bot or maintainer configuration proposal pull request',
     `approval_pr_url` String DEFAULT '' COMMENT 'Review or approval record for a manual decision when separate',
     `configuration_commit_sha` String DEFAULT '' COMMENT 'Merged allowlist/configuration commit for applied decisions',
+    `configuration_commit_url` String DEFAULT '' COMMENT 'Canonical link to the applied allowlist/configuration commit',
+    `decision_actor` String DEFAULT '' COMMENT 'Maintainer or service principal responsible for the decision',
     `recorded_by` LowCardinality(String) COMMENT 'Trusted workflow or service that emitted this audit event',
     `recorded_at` DateTime64(3) COMMENT 'When the writer recorded this lifecycle event',
     `effective_at` Nullable(DateTime64(3)) COMMENT 'When the configured level became effective; set only for applied events',
