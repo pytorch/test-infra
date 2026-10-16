@@ -460,10 +460,10 @@ export async function updateDrciComments(
       // The latest dispatch per job, read AFTER auto-dispatch so a dispatch it
       // just made is seen. Shared by the verdict line and the suppression gate,
       // which both count a verdict only if it answers a dispatch made after the
-      // job's run finished. A failed read yields an empty map: no verdict then
-      // covers its run, so every job keeps blocking and no line says
-      // "analyzing".
-      const advisorDispatches = new Map<string, DispatchMark>();
+      // job's run finished. A failed read yields null: no verdict then covers
+      // its run, so every job keeps blocking, and every line shows the pending
+      // sentinel so the next sweep re-renders the PR.
+      let advisorDispatches: Map<string, DispatchMark> | null = new Map();
       if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
         try {
           const states = await readDispatchStates(
@@ -474,10 +474,9 @@ export async function updateDrciComments(
               .filter((j) => j.name)
               .map((j) => signalKeyForJob(j.name))
           );
-          for (const [key, st] of states) {
-            advisorDispatches.set(key, st);
-          }
+          advisorDispatches = new Map(states);
         } catch (e) {
+          advisorDispatches = null;
           console.error(
             "advisor dispatch-state read threw for PR",
             pr_info.pr_number,
@@ -524,7 +523,7 @@ export async function updateDrciComments(
           pr_info.head_sha,
           advisorJobs,
           advisorVerdictRows,
-          advisorDispatches
+          advisorDispatches ?? new Map()
         );
         aiNotRelatedJobs.push(
           ...extractSuppressed(failedJobs, suppressible),

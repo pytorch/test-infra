@@ -372,16 +372,38 @@ export interface DispatchRecord {
 // let a 'dispatching' row mask a terminal one (e.g. a fast-failing dispatch
 // would never retry). Clamp to strictly-increasing-per-process so the terminal
 // write always outranks its pre-dispatch write.
+//
+// A terminal row is stamped 1ms after its pre-dispatch row (`after`), not with
+// the time it is written. Readers take the latest row's version as the moment
+// the dispatch captured its evidence (verdictCoversRun, ranAfterDispatch), and
+// the pre-dispatch row is written before the signal pattern is built. Stamping
+// the terminal row at write time would move that moment past a rerun that
+// finished during the POST, or past the verdict itself if the POST returned
+// late.
 let lastVersionMs = 0;
-function nextDispatchVersion(): string {
-  let ms = dayjs().valueOf();
-  if (ms <= lastVersionMs) ms = lastVersionMs + 1;
-  lastVersionMs = ms;
+function nextDispatchVersion(after?: string): string {
+  const floor = parseUtc(after);
+  let ms: number;
+  if (floor !== null) {
+    ms = floor.valueOf() + 1;
+  } else {
+    ms = dayjs().valueOf();
+    if (ms <= lastVersionMs) ms = lastVersionMs + 1;
+  }
+  lastVersionMs = Math.max(lastVersionMs, ms);
   return dayjs(ms).utc().format("YYYY-MM-DD HH:mm:ss.SSS");
 }
 
-/** Insert one row into the dispatch log. ReplacingMergeTree collapses by key. */
-export async function recordDispatch(record: DispatchRecord): Promise<void> {
+/**
+ * Insert one row into the dispatch log. ReplacingMergeTree collapses by key.
+ * Pass the pre-dispatch row's version as `after` for a terminal row (see
+ * nextDispatchVersion). Returns the version written.
+ */
+export async function recordDispatch(
+  record: DispatchRecord,
+  after?: string
+): Promise<string> {
+  const version = nextDispatchVersion(after);
   await getClickhouseClientWritable().insert({
     table: DISPATCH_TABLE,
     values: [
@@ -394,11 +416,12 @@ export async function recordDispatch(record: DispatchRecord): Promise<void> {
         retry_count: record.retryCount,
         pr_number: record.prNumber,
         job_name: record.jobName,
-        version: nextDispatchVersion(),
+        version,
       },
     ],
     format: "JSONEachRow",
   });
+  return version;
 }
 
 // Auto-dispatch is skipped on draft PRs (work-in-progress, not ready for
@@ -724,8 +747,9 @@ export async function autoDispatchAdvisorForNewFailures(
     // record the marker (e.g. bad write creds) we must NOT dispatch, otherwise
     // a later verdict-write failure would re-dispatch forever. The same creds
     // fail for every key, so abort the whole PR.
+    let preVersion: string;
     try {
-      await deps.recordDispatch({ ...base, state: "dispatching" });
+      preVersion = await deps.recordDispatch({ ...base, state: "dispatching" });
     } catch (e) {
       console.error(
         `advisor auto-dispatch: pre-dispatch write failed for PR ${prNumber}, aborting`,
@@ -751,7 +775,7 @@ export async function autoDispatchAdvisorForNewFailures(
       );
       // Supersede the pre-dispatch row so it is retryable next pass.
       try {
-        await deps.recordDispatch({ ...base, state: "failed" });
+        await deps.recordDispatch({ ...base, state: "failed" }, preVersion);
       } catch (e2) {
         console.error("advisor auto-dispatch: failed-state write failed", e2);
       }
@@ -761,7 +785,7 @@ export async function autoDispatchAdvisorForNewFailures(
     // Confirm completion. If this write throws, the 'dispatching' row already
     // blocks re-dispatch, so the only cost is losing the explicit confirmation.
     try {
-      await deps.recordDispatch({ ...base, state: "dispatched" });
+      await deps.recordDispatch({ ...base, state: "dispatched" }, preVersion);
     } catch (e) {
       console.error(
         "advisor auto-dispatch: post-dispatch write failed (non-fatal)",

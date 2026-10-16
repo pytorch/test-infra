@@ -40,7 +40,8 @@ export function buildAdvisorVerdictLines(
   headSha: string,
   jobs: RecentWorkflowsData[],
   verdictRows: AdvisorVerdictRow[],
-  dispatchByKey: Map<string, DispatchMark>
+  // null when the dispatch states could not be read (see selectAdvisorLines).
+  dispatchByKey: Map<string, DispatchMark> | null
 ): Map<number, string> {
   if (!advisorCommentEnabled(owner, repo) || jobs.length === 0) {
     return new Map();

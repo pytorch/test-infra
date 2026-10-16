@@ -714,3 +714,51 @@ describe("ranAfterDispatch / readyToReanalyze", () => {
     expect(readyToReanalyze([], at)).toBe(false);
   });
 });
+
+describe("dispatch row versions", () => {
+  const OLD_ENV = process.env;
+  beforeEach(() => {
+    process.env = { ...OLD_ENV };
+    process.env.DRCI_ADVISOR_AUTODISPATCH_ENABLED = "true";
+    process.env.VERCEL_ENV = "production";
+  });
+  afterEach(() => {
+    process.env = OLD_ENV;
+  });
+
+  // The terminal row must carry the pre-dispatch time, which readers take as
+  // when the analysis captured its evidence.
+  it("stamps terminal rows from the pre-dispatch row's version", async () => {
+    const PRE = "2026-10-16 00:53:36.569";
+    const recordDispatch = jest.fn().mockResolvedValue(PRE);
+    const deps = makeDeps({ recordDispatch });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(recordDispatch.mock.calls[0]).toEqual([
+      expect.objectContaining({ state: "dispatching" }),
+    ]);
+    expect(recordDispatch.mock.calls[1]).toEqual([
+      expect.objectContaining({ state: "dispatched" }),
+      PRE,
+    ]);
+  });
+
+  it("stamps a failed row from the pre-dispatch row's version too", async () => {
+    const PRE = "2026-10-16 00:53:36.569";
+    const recordDispatch = jest.fn().mockResolvedValue(PRE);
+    const deps = makeDeps({
+      recordDispatch,
+      dispatchAdvisorWorkflow: jest.fn().mockRejectedValue(new Error("5xx")),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [job("wf / a")] },
+      deps
+    );
+    expect(recordDispatch.mock.calls[1]).toEqual([
+      expect.objectContaining({ state: "failed" }),
+      PRE,
+    ]);
+  });
+});

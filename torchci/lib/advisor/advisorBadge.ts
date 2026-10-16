@@ -344,7 +344,10 @@ export interface AdvisorLineVerdict {
 //     whose pending sentinel keeps the PR in the sweep until the answer lands;
 //   - a verdict that covers an earlier run only: the outdated line;
 //   - otherwise no line.
-// `dispatchByKey` holds the latest dispatch row per signal key.
+// `dispatchByKey` holds the latest dispatch row per signal key, or is null when
+// it could not be read. Then nothing can be shown as covering its run, and
+// every job gets the in-progress line: its sentinel keeps the PR in the sweep,
+// so the next render, with a working read, settles the lines.
 export function selectAdvisorLines(
   hudBaseUrl: string,
   owner: string,
@@ -353,14 +356,14 @@ export function selectAdvisorLines(
   headSha: string,
   jobs: AdvisorLineJob[],
   verdictByKey: Map<string, AdvisorLineVerdict>,
-  dispatchByKey: Map<string, DispatchMark>
+  dispatchByKey: Map<string, DispatchMark> | null
 ): Map<number, string> {
   const out = new Map<number, string>();
   for (const job of jobs) {
     if (!job.name) continue;
     const key = drciSignalKeyForJob(job.name);
     const verdict = verdictByKey.get(key);
-    const dispatch = dispatchByKey.get(key);
+    const dispatch = dispatchByKey?.get(key);
     const since = parseUtc(job.completedAt) ? job.completedAt : undefined;
     const args = [
       hudBaseUrl,
@@ -387,8 +390,9 @@ export function selectAdvisorLines(
         )
       );
     } else if (
-      isLiveDispatch(dispatch) &&
-      !isStrictlyAfter(verdict?.timestamp, dispatch.version)
+      dispatchByKey === null ||
+      (isLiveDispatch(dispatch) &&
+        !isStrictlyAfter(verdict?.timestamp, dispatch.version))
     ) {
       out.set(job.id, renderInProgressLine(...args, since));
     } else if (verdict) {

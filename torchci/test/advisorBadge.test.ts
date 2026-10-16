@@ -304,6 +304,25 @@ describe("selectAdvisorLines", () => {
       expect(line).toContain('alt="AI verdict: outdated"');
     });
 
+    // The dispatch states could not be read: keep the PR in the sweep.
+    it("shows in-progress for every job when dispatch states are unknown", () => {
+      const out = selectAdvisorLines(
+        HUD,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha",
+        [
+          { id: 7, name: JOB, completedAt: RERUN_DONE },
+          { id: 8, name: "pull / other / build", completedAt: RERUN_DONE },
+        ],
+        verdictAt("2026-10-16 01:30:00.000"),
+        null
+      );
+      expect(out.get(7)).toContain(ADVISOR_PENDING_ALT_ATTR);
+      expect(out.get(8)).toContain(ADVISOR_PENDING_ALT_ATTR);
+    });
+
     it("a job with no usable completed_at still shows its verdict", () => {
       const line = selectAdvisorLines(
         HUD,
