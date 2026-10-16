@@ -56,6 +56,7 @@ export async function buildAdvisorVerdictLines(
         verdict: resolved.verdict,
         confidence: resolved.confidence,
         summary: resolved.summary,
+        timestamp: resolved.timestamp,
       });
     }
   }
@@ -65,10 +66,10 @@ export async function buildAdvisorVerdictLines(
     .filter((j) => j.name)
     .map((j) => signalKeyForJob(j.name));
   const states = await readDispatchStates(owner, repo, headSha, signalKeys);
-  const inProgressKeys = new Set<string>();
+  const inProgress = new Map<string, string>();
   for (const [key, st] of states) {
     if (st.state === "dispatching" || st.state === "dispatched") {
-      inProgressKeys.add(key);
+      inProgress.set(key, st.version);
     }
   }
 
@@ -78,8 +79,8 @@ export async function buildAdvisorVerdictLines(
     repo,
     prNumber,
     headSha,
-    jobs.map((j) => ({ id: j.id, name: j.name })),
+    jobs.map((j) => ({ id: j.id, name: j.name, completedAt: j.completed_at })),
     verdictByKey,
-    inProgressKeys
+    inProgress
   );
 }

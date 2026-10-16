@@ -8,6 +8,7 @@
 import { createHash } from "crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { parseUtc } from "lib/advisor/advisorBadge";
 import {
   getAdvisorRepoConfig,
   getMaxDispatchPerPr,
@@ -305,6 +306,8 @@ export type DispatchState = "dispatching" | "dispatched" | "failed";
 interface DispatchStateRow {
   state: DispatchState;
   retryCount: number;
+  // When the latest row was written (its ReplacingMergeTree version, UTC).
+  version: string;
 }
 
 /**
@@ -336,6 +339,7 @@ export async function readDispatchStates(
     result.set(row.signal_key as string, {
       state: sr[0] as DispatchState,
       retryCount: Number(sr[1] ?? 0),
+      version: String(row.latest_version ?? ""),
     });
   }
   return result;
@@ -350,6 +354,9 @@ export interface DispatchRecord {
   retryCount: number;
   prNumber: number;
   jobName: string;
+  // The analyzed job's completed_at. The row's version is kept strictly after
+  // it; see nextDispatchVersion.
+  jobCompletedAt?: string;
 }
 
 // Monotonic version generator. The ReplacingMergeTree keeps the row with the
@@ -360,9 +367,18 @@ export interface DispatchRecord {
 // let a 'dispatching' row mask a terminal one (e.g. a fast-failing dispatch
 // would never retry). Clamp to strictly-increasing-per-process so the terminal
 // write always outranks its pre-dispatch write.
+//
+// Also clamped to after `notBefore`, the analyzed job's completed_at.
+// Auto-dispatch re-dispatches a 'dispatched' signal whose job finished at or
+// after the row's version (a rerun). If this server's clock lagged GitHub's,
+// a version stamped from the clock alone could land before the very run it
+// was written for, and that signal would be re-dispatched on every pass. With
+// the clamp, a dispatch can never look older than the run it analyzed.
 let lastVersionMs = 0;
-function nextDispatchVersion(): string {
+export function nextDispatchVersion(notBefore?: string): string {
   let ms = dayjs().valueOf();
+  const floor = parseUtc(notBefore);
+  if (floor !== null && ms <= floor.valueOf()) ms = floor.valueOf() + 1;
   if (ms <= lastVersionMs) ms = lastVersionMs + 1;
   lastVersionMs = ms;
   return dayjs(ms).utc().format("YYYY-MM-DD HH:mm:ss.SSS");
@@ -382,7 +398,7 @@ export async function recordDispatch(record: DispatchRecord): Promise<void> {
         retry_count: record.retryCount,
         pr_number: record.prNumber,
         job_name: record.jobName,
-        version: nextDispatchVersion(),
+        version: nextDispatchVersion(record.jobCompletedAt),
       },
     ],
     format: "JSONEachRow",
@@ -454,6 +470,30 @@ export interface AutoDispatchArgs {
   // The FAILED bucket from Dr.CI (RecentWorkflowsData[]). Cancelled jobs are
   // filtered out here so only true NEW failures are dispatched.
   newFailures: RecentWorkflowsData[];
+}
+
+/**
+ * Whether `job` finished at or after the dispatch recorded at `version`, i.e.
+ * it is a rerun at the same commit that the dispatched analysis never saw.
+ * Dedup is keyed by (head, job name), so without this a rerun is never
+ * analyzed, and the suppression gate, which ignores a verdict written before
+ * the job finished, keeps the job blocking for good. A tie counts as a rerun,
+ * matching the gate's treatment of a tie as stale.
+ *
+ * False when either time is missing or unparseable, so an unknown completion
+ * time can never re-dispatch. Each run re-dispatches at most once:
+ * nextDispatchVersion stamps the new dispatch strictly after that run's
+ * completed_at.
+ */
+export function ranAfterDispatch(
+  job: RecentWorkflowsData,
+  version: string
+): boolean {
+  const completed = parseUtc(job.completed_at);
+  const dispatched = parseUtc(version);
+  return (
+    completed !== null && dispatched !== null && !completed.isBefore(dispatched)
+  );
 }
 
 /** Whether auto-dispatch is enabled for this environment + repo. */
@@ -532,18 +572,24 @@ export async function autoDispatchAdvisorForNewFailures(
 
   // Split the work. `fresh` (no prior record) is subject to the per-PR cap
   // below; `failedRetry` (a prior dispatch whose POST threw, still under the
-  // retry limit) re-uses an already-counted slot, so it is always allowed. Skip
-  // already dispatching/dispatched and exhausted-failed signals.
+  // retry limit) and `rerun` (see ranAfterDispatch) re-use an already-counted
+  // slot, so they are always allowed. Skip in-flight, otherwise dispatched and
+  // exhausted-failed signals.
   const fresh: { signalKey: string; job: RecentWorkflowsData }[] = [];
   const failedRetry: {
     signalKey: string;
     job: RecentWorkflowsData;
     retryCount: number;
   }[] = [];
+  const rerun: { signalKey: string; job: RecentWorkflowsData }[] = [];
   for (const [signalKey, job] of byKey) {
     const prev = states.get(signalKey);
     if (!prev) {
       fresh.push({ signalKey, job });
+      continue;
+    }
+    if (prev.state === "dispatched" && ranAfterDispatch(job, prev.version)) {
+      rerun.push({ signalKey, job });
       continue;
     }
     if (prev.state === "dispatching" || prev.state === "dispatched") continue;
@@ -553,7 +599,9 @@ export async function autoDispatchAdvisorForNewFailures(
     }
   }
   // Nothing fresh and nothing to retry -> return before paying for a PR lookup.
-  if (fresh.length === 0 && failedRetry.length === 0) return;
+  if (fresh.length === 0 && failedRetry.length === 0 && rerun.length === 0) {
+    return;
+  }
 
   // Don't auto-dispatch on PRs that aren't open: a closed/merged PR won't be
   // worked on, and (by default) draft PRs are work-in-progress. Looked up only
@@ -625,14 +673,15 @@ export async function autoDispatchAdvisorForNewFailures(
     );
   }
 
-  // failedRetry first (already counted against the budget), then the capped
-  // fresh subset.
+  // failedRetry and rerun first (already counted against the budget), then the
+  // capped fresh subset.
   const toDispatch: {
     signalKey: string;
     job: RecentWorkflowsData;
     retryCount: number;
   }[] = [
     ...failedRetry,
+    ...rerun.map((r) => ({ ...r, retryCount: 0 })),
     ...fresh
       .filter((f) => selected.has(f.signalKey))
       .map((f) => ({ ...f, retryCount: 0 })),
@@ -648,6 +697,7 @@ export async function autoDispatchAdvisorForNewFailures(
       retryCount,
       prNumber,
       jobName: job.name,
+      jobCompletedAt: job.completed_at,
     };
 
     // Pre-dispatch write gates the dispatch on write-path health: if we cannot

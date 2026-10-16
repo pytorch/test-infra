@@ -1,9 +1,11 @@
 import {
   ADVISOR_PENDING_ALT,
+  ADVISOR_PENDING_ALT_ATTR,
   advisorBadgeUrl,
   ANALYZING_BADGE,
   confidenceBucket,
   drciSignalKeyForJob,
+  isStrictlyAfter,
   renderBadgeSvg,
   renderInProgressLine,
   renderVerdictLine,
@@ -201,7 +203,9 @@ describe("selectAdvisorLines", () => {
         { verdict: "related", confidence: 0.95, summary: "done" },
       ],
     ]);
-    const inProgress = new Set([drciSignalKeyForJob("trunk / b / test")]);
+    const inProgress = new Map([
+      [drciSignalKeyForJob("trunk / b / test"), "2026-10-16 00:53:36.569"],
+    ]);
 
     const out = selectAdvisorLines(
       HUD,
@@ -219,5 +223,98 @@ describe("selectAdvisorLines", () => {
     expect(out.get(2)).not.toContain("<details>");
     expect(out.has(3)).toBe(false); // no advisor activity
     expect(out.has(4)).toBe(false); // no name
+  });
+
+  // A rerun at the same commit: the only verdict predates this run.
+  describe("a verdict written before this run finished", () => {
+    const JOB = "pull / aarch64 / build";
+    const KEY = drciSignalKeyForJob(JOB);
+    const rerun = [{ id: 7, name: JOB, completedAt: "2026-10-16 01:13:57" }];
+    const verdicts = new Map([
+      [
+        KEY,
+        {
+          verdict: "not_related",
+          confidence: 0.95,
+          summary: "earlier run",
+          timestamp: "2026-10-16 00:54:54.000",
+        },
+      ],
+    ]);
+    const select = (inProgress: Map<string, string>) =>
+      selectAdvisorLines(
+        HUD,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha",
+        rerun,
+        verdicts,
+        inProgress
+      ).get(7);
+
+    it("renders outdated, not the earlier verdict, when nothing is in flight", () => {
+      const line = select(new Map([[KEY, "2026-10-16 00:53:36.569"]]));
+      expect(line).toContain('alt="AI verdict: outdated"');
+      expect(line).not.toContain("not related");
+      expect(line).not.toContain(ADVISOR_PENDING_ALT_ATTR);
+      expect(line).toContain("since=2026-10-16+01%3A13%3A57");
+    });
+
+    it("renders in-progress once a dispatch newer than the run exists", () => {
+      const line = select(new Map([[KEY, "2026-10-16 01:20:00.001"]]));
+      expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
+      expect(line).not.toContain("<details>");
+    });
+
+    it("renders the verdict once one newer than the run lands", () => {
+      const fresh = new Map([
+        [KEY, { ...verdicts.get(KEY)!, timestamp: "2026-10-16 01:30:00.000" }],
+      ]);
+      const line = selectAdvisorLines(
+        HUD,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha",
+        rerun,
+        fresh,
+        new Map()
+      ).get(7);
+      expect(line).toContain("<details>");
+      expect(line).toContain('alt="AI verdict: not related"');
+    });
+
+    it("a job with no usable completed_at still shows its verdict", () => {
+      const line = selectAdvisorLines(
+        HUD,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha",
+        [{ id: 7, name: JOB, completedAt: "" }],
+        verdicts,
+        new Map()
+      ).get(7);
+      expect(line).toContain("<details>");
+      expect(line).not.toContain("since=");
+    });
+  });
+});
+
+describe("isStrictlyAfter", () => {
+  it("orders parseable times and refuses ties and unknowns", () => {
+    expect(isStrictlyAfter("2026-10-16 01:00:01", "2026-10-16 01:00:00")).toBe(
+      true
+    );
+    expect(isStrictlyAfter("2026-10-16 01:00:00", "2026-10-16 01:00:00")).toBe(
+      false
+    );
+    expect(isStrictlyAfter("2026-10-16 01:00:00", "")).toBe(false);
+    expect(isStrictlyAfter("", "2026-10-16 01:00:00")).toBe(false);
+    expect(isStrictlyAfter("2026-10-16 01:00:00", "garbage")).toBe(false);
+    expect(
+      isStrictlyAfter("2026-10-16 01:00:00", "1970-01-01 00:00:00.000000000")
+    ).toBe(false);
   });
 });

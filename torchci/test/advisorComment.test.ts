@@ -119,4 +119,22 @@ describe("buildAdvisorVerdictLines", () => {
     expect(rendered.get(1)).toContain("low-conf summary");
     expect(rendered.get(1)).not.toContain("high-conf summary");
   });
+
+  // A rerun at the same commit finished after the only verdict was written.
+  test("a verdict older than the job's run renders as outdated", async () => {
+    const rendered = await lines(
+      [row({ timestamp: OLDER })],
+      [job({ completed_at: "2026-08-28 12:00:00" })]
+    );
+    expect(rendered.get(1)).toContain('alt="AI verdict: outdated"');
+    expect(rendered.get(1)).not.toContain("<details>");
+  });
+
+  test("a verdict newer than the job's run renders as before", async () => {
+    const rendered = await lines(
+      [row({ timestamp: NEWER })],
+      [job({ completed_at: "2026-08-28 12:00:00" })]
+    );
+    expect(rendered.get(1)).toContain('alt="AI verdict: not related"');
+  });
 });

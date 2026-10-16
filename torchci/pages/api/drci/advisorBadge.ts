@@ -10,6 +10,9 @@
 import {
   ANALYZING_BADGE,
   drciSignalKeyForJob,
+  isStrictlyAfter,
+  OUTDATED_BADGE,
+  parseUtc,
   PENDING_BADGE,
   renderBadgeSvg,
   verdictBadge,
@@ -31,6 +34,7 @@ const LONG_CACHE =
 // GitHub owner/repo name shape, to bound the public endpoint's CH lookups.
 const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
 const MAX_JOB_LEN = 256;
+const MAX_SINCE_LEN = 64;
 
 function one(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] : value ?? "";
@@ -54,6 +58,12 @@ export default async function handler(
   const repo = one(req.query.repo);
   const sha = one(req.query.sha);
   const job = one(req.query.job);
+  // The job run's completed_at (see advisorBadgeUrl). Optional: comments
+  // rendered before it existed omit it, and an unusable value is ignored, which
+  // leaves the badge describing the latest verdict as it always did.
+  const sinceRaw = one(req.query.since);
+  const since =
+    sinceRaw.length <= MAX_SINCE_LEN && parseUtc(sinceRaw) ? sinceRaw : "";
 
   // Bad input -> a neutral pending pill (never a 4xx/5xx, which would render a
   // broken-image icon in the comment). Don't cache bad requests.
@@ -85,25 +95,32 @@ export default async function handler(
       repo: repoFull,
       sha,
       signalKey,
-    })) as { verdict: string; confidence: number }[];
+    })) as { verdict: string; confidence: number; timestamp: string }[];
 
-    if (verdictRows.length > 0) {
-      const row = verdictRows[0];
+    // A verdict written before this run finished describes an earlier run at
+    // the same commit, so it does not speak for this one.
+    const row = verdictRows[0];
+    if (row && (!since || isStrictlyAfter(row.timestamp, since))) {
       const badge = verdictBadge(row.verdict, Number(row.confidence));
       sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
       return;
     }
 
-    // No verdict yet: show "analyzing" if a dispatch is in flight, else pending.
+    // No verdict for this run yet: "analyzing" if a dispatch is in flight (one
+    // made after this run finished, when an earlier run's verdict exists),
+    // "outdated" if only an earlier run's verdict exists, else pending.
     const states = await readDispatchStates(owner, repo, sha, [signalKey]);
     const st = states.get(signalKey);
     const inProgress =
-      st && (st.state === "dispatching" || st.state === "dispatched");
-    sendSvg(
-      res,
-      renderBadgeSvg(inProgress ? ANALYZING_BADGE : PENDING_BADGE),
-      SHORT_CACHE
-    );
+      st !== undefined &&
+      (st.state === "dispatching" || st.state === "dispatched") &&
+      (!row || isStrictlyAfter(st.version, since));
+    const badge = inProgress
+      ? ANALYZING_BADGE
+      : row
+      ? OUTDATED_BADGE
+      : PENDING_BADGE;
+    sendSvg(res, renderBadgeSvg(badge), SHORT_CACHE);
   } catch (e) {
     // Fail soft: a pending pill, uncached so the next view retries. Never 500
     // (a broken image is worse than a transient "pending").

@@ -7,7 +7,11 @@
 //   - selectAdvisorLines / renderVerdictLine / renderInProgressLine: the
 //     "AI verdict:" line emitted under each new failure in the comment.
 
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import _ from "lodash";
+
+dayjs.extend(utc);
 
 // The signal_key prefix for HUD-originated (Dr.CI) advisor dispatches. Mirrors
 // signalKeyForJob() in advisorDispatch.ts; duplicated here to keep this module
@@ -64,6 +68,31 @@ export const PENDING_BADGE: AdvisorBadge = {
   color: "#9f9f9f",
   darkText: false,
 };
+
+// A verdict exists, but it was written before this run of the job finished, so
+// it describes an earlier run at the same commit (a rerun) and says nothing
+// about this one.
+export const OUTDATED_BADGE: AdvisorBadge = {
+  label: "outdated",
+  color: "#9f9f9f",
+  darkText: false,
+};
+
+// Whether `later` is strictly after `earlier`, both read as UTC. False when
+// either is missing, unparseable or the epoch sentinel, so a caller can never
+// mistake an unknown time for an ordering. Equality is false because these
+// timestamps are truncated and a tie cannot be told apart from either order.
+export function isStrictlyAfter(later?: string, earlier?: string): boolean {
+  const a = parseUtc(later);
+  const b = parseUtc(earlier);
+  return a !== null && b !== null && a.isAfter(b);
+}
+
+export function parseUtc(ts?: string): dayjs.Dayjs | null {
+  if (!ts) return null;
+  const d = dayjs.utc(ts);
+  return d.isValid() && d.valueOf() > 0 ? d : null;
+}
 
 export type ConfidenceBucket = "high" | "med" | "low";
 
@@ -153,14 +182,20 @@ export function renderBadgeSvg(badge: AdvisorBadge): string {
 // Absolute URL of the badge image for one (repo, sha, job). Camo fetches it
 // server-side; the route resolves the live state, so the same URL flips from
 // analyzing to the verdict without the comment changing.
+//
+// `since` is the job's completed_at. The route then ignores verdicts written
+// before it, so a rerun at the same commit never shows the earlier run's
+// verdict, and each run gets its own URL, which camo caches separately.
 export function advisorBadgeUrl(
   hudBaseUrl: string,
   owner: string,
   repo: string,
   sha: string,
-  jobName: string
+  jobName: string,
+  since?: string
 ): string {
   const qs = new URLSearchParams({ owner, repo, sha, job: jobName });
+  if (since) qs.set("since", since);
   return `${hudBaseUrl}/api/drci/advisorBadge?${qs.toString()}`;
 }
 
@@ -183,14 +218,35 @@ export function renderInProgressLine(
   prNumber: number,
   sha: string,
   jobName: string,
-  jobId: number
+  jobId: number,
+  since?: string
 ): string {
-  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName);
+  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName, since);
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
   // alt = the pending sentinel: it marks this PR for re-rendering until the
   // verdict lands (see ADVISOR_PENDING_ALT_ATTR) and reads as "AI verdict:
   // pending". Emit the shared attr constant so the cron's match stays in lockstep.
   return `    AI verdict: <a href="${link}"><img ${ADVISOR_PENDING_ALT_ATTR} src="${badge}"></a>\n`;
+}
+
+// Outdated line: the only verdict is for an earlier run of this job and no
+// analysis of this run is in flight. Says so rather than showing the earlier
+// verdict, which the suppression gate ignores for the same reason. The alt is
+// not the pending sentinel: with nothing in flight, re-rendering this PR every
+// sweep could not change the line.
+export function renderOutdatedLine(
+  hudBaseUrl: string,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  sha: string,
+  jobName: string,
+  jobId: number,
+  since?: string
+): string {
+  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName, since);
+  const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
+  return `    AI verdict: <a href="${link}"><img alt="${ADVISOR_ALT_PREFIX}${OUTDATED_BADGE.label}" src="${badge}"></a> (for an earlier run of this job)\n`;
 }
 
 // Concluded line: "AI verdict:" plain text toggles the expand; the badge links
@@ -205,9 +261,10 @@ export function renderVerdictLine(
   jobId: number,
   verdict: string,
   confidence: number,
-  summary: string
+  summary: string,
+  since?: string
 ): string {
-  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName);
+  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName, since);
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
   // alt encodes the concluded outcome (`AI verdict: related`, etc.) so the
   // verdict is machine-readable text in the comment AND no longer matches the
@@ -232,17 +289,32 @@ export function renderVerdictLine(
 export interface AdvisorLineJob {
   id: number;
   name: string;
+  // The job's completed_at. Unset or unparseable means the run cannot be told
+  // apart from an earlier one, and any verdict for the job is shown as before.
+  completedAt?: string;
 }
 export interface AdvisorLineVerdict {
   // verdict + confidence drive the badge label baked into the alt text.
   verdict: string;
   confidence: number;
   summary: string;
+  timestamp?: string;
 }
 
-// Decide the per-job line: a finalized verdict wins; otherwise an in-progress
-// dispatch ('dispatching'/'dispatched') shows the analyzing badge; otherwise no
-// line. Pure so it is unit-testable without ClickHouse. Returns job.id -> HTML.
+// Decide the per-job line. Pure so it is unit-testable without ClickHouse.
+// Returns job.id -> HTML.
+//
+// A verdict counts for a job only if it was written after the job finished; a
+// verdict older than that describes an earlier run at the same commit (a
+// rerun). The suppression gate applies the same test, so this keeps the line
+// from showing a verdict the gate ignores. In order:
+//   - a verdict for this run: the verdict line;
+//   - an analysis in flight that was dispatched after this run finished (or,
+//     with no verdict at all, any analysis in flight): the in-progress line;
+//   - only a verdict for an earlier run: the outdated line;
+//   - otherwise no line.
+// `inProgress` maps a signal key with a 'dispatching'/'dispatched' state to
+// that state's version (when it was written).
 export function selectAdvisorLines(
   hudBaseUrl: string,
   owner: string,
@@ -251,44 +323,44 @@ export function selectAdvisorLines(
   headSha: string,
   jobs: AdvisorLineJob[],
   verdictByKey: Map<string, AdvisorLineVerdict>,
-  inProgressKeys: Set<string>
+  inProgress: Map<string, string>
 ): Map<number, string> {
   const out = new Map<number, string>();
   for (const job of jobs) {
     if (!job.name) continue;
     const key = drciSignalKeyForJob(job.name);
     const verdict = verdictByKey.get(key);
-    if (verdict) {
+    const since = parseUtc(job.completedAt) ? job.completedAt : undefined;
+    const args = [
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      headSha,
+      job.name,
+      job.id,
+    ] as const;
+
+    if (verdict && (!since || isStrictlyAfter(verdict.timestamp, since))) {
       out.set(
         job.id,
         renderVerdictLine(
-          hudBaseUrl,
-          owner,
-          repo,
-          prNumber,
-          headSha,
-          job.name,
-          job.id,
+          ...args,
           verdict.verdict,
           verdict.confidence,
-          verdict.summary
+          verdict.summary,
+          since
         )
       );
       continue;
     }
-    if (inProgressKeys.has(key)) {
-      out.set(
-        job.id,
-        renderInProgressLine(
-          hudBaseUrl,
-          owner,
-          repo,
-          prNumber,
-          headSha,
-          job.name,
-          job.id
-        )
-      );
+    const analyzing =
+      inProgress.has(key) &&
+      (!verdict || isStrictlyAfter(inProgress.get(key), since));
+    if (analyzing) {
+      out.set(job.id, renderInProgressLine(...args, since));
+    } else if (verdict) {
+      out.set(job.id, renderOutdatedLine(...args, since));
     }
   }
   return out;
