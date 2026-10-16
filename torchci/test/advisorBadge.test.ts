@@ -4,6 +4,8 @@ import {
   advisorBadgeUrl,
   ANALYZING_BADGE,
   confidenceBucket,
+  dispatchedAfterRun,
+  DispatchMark,
   drciSignalKeyForJob,
   isStrictlyAfter,
   renderBadgeSvg,
@@ -252,7 +254,7 @@ describe("selectAdvisorLines", () => {
       ]);
     const select = (
       verdicts: Map<string, any>,
-      dispatch: { state: string; version: string } | undefined
+      dispatch: DispatchMark | undefined
     ) =>
       selectAdvisorLines(
         HUD,
@@ -274,7 +276,16 @@ describe("selectAdvisorLines", () => {
       expect(line).toContain("since=2026-10-16+01%3A13%3A57");
     });
 
-    it("shows outdated when the only dispatch failed", () => {
+    it("keeps the sentinel while a failed dispatch will be retried", () => {
+      const line = select(verdictAt("2026-10-16 00:54:54.000"), {
+        state: "failed",
+        version: FIRST_DISPATCH.version,
+        retryPending: true,
+      });
+      expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
+    });
+
+    it("shows outdated when the only dispatch failed for good", () => {
       const line = select(verdictAt("2026-10-16 00:54:54.000"), {
         state: "failed",
         version: FIRST_DISPATCH.version,
@@ -348,6 +359,21 @@ describe("selectAdvisorLines", () => {
       expect(line).toContain("<details>");
       expect(line).not.toContain("since=");
     });
+  });
+});
+
+describe("dispatchedAfterRun", () => {
+  // completed_at is whole seconds: a run recorded at 01:13:57 may have finished
+  // at 01:13:57.999.
+  it("counts a dispatch only from the second after the run's completion", () => {
+    expect(
+      dispatchedAfterRun("2026-10-16 01:13:57.569", "2026-10-16 01:13:57")
+    ).toBe(false);
+    expect(
+      dispatchedAfterRun("2026-10-16 01:13:58.000", "2026-10-16 01:13:57")
+    ).toBe(true);
+    expect(dispatchedAfterRun("2026-10-16 01:13:58.000", "")).toBe(false);
+    expect(dispatchedAfterRun("", "2026-10-16 01:13:57")).toBe(false);
   });
 });
 

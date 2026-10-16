@@ -10,6 +10,7 @@ import {
   readyToReanalyze,
   signalKeyForJob,
   stableHashSelect,
+  toDispatchMark,
 } from "lib/advisor/advisorDispatch";
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { RecentWorkflowsData } from "lib/types";
@@ -760,5 +761,35 @@ describe("dispatch row versions", () => {
       expect.objectContaining({ state: "failed" }),
       PRE,
     ]);
+  });
+});
+
+describe("toDispatchMark", () => {
+  const v = "2026-10-16 00:53:36.569";
+  it("marks a failed row under the retry limit as retry-pending", () => {
+    expect(
+      toDispatchMark({ state: "failed", retryCount: 0, version: v })
+        .retryPending
+    ).toBe(true);
+    expect(
+      toDispatchMark({
+        state: "failed",
+        retryCount: MAX_DISPATCH_RETRIES,
+        version: v,
+      }).retryPending
+    ).toBe(false);
+    expect(
+      toDispatchMark({ state: "dispatched", retryCount: 0, version: v })
+        .retryPending
+    ).toBe(false);
+  });
+
+  it("a rerun within the dispatch's second counts as a rerun", () => {
+    expect(
+      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:36"), v)
+    ).toBe(true);
+    expect(
+      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:35"), v)
+    ).toBe(false);
   });
 });

@@ -94,15 +94,38 @@ export function parseUtc(ts?: string): dayjs.Dayjs | null {
 }
 
 // The latest misc.ai_advisor_dispatches row for one (head, signal key): its
-// state and when it was written (its version, UTC).
+// state and its version (UTC; for a terminal row, just after its pre-dispatch
+// row, i.e. before the dispatch captured its evidence). `retryPending` marks a
+// failed dispatch that auto-dispatch will retry.
 export interface DispatchMark {
   state: string;
   version: string;
+  retryPending?: boolean;
+}
+
+// Whether a dispatch at `version` was made after the run that finished at
+// `completedAt`, so its evidence included that run. completed_at has whole-
+// second precision while versions carry milliseconds, so a run recorded at
+// 01:13:57 may have finished as late as 01:13:57.999: only a version at or after
+// the next whole second counts. False when either time is unknown.
+export function dispatchedAfterRun(
+  version: string | undefined,
+  completedAt: string | undefined
+): boolean {
+  const v = parseUtc(version);
+  const c = parseUtc(completedAt);
+  return (
+    v !== null &&
+    c !== null &&
+    v.valueOf() >= c.startOf("second").valueOf() + 1000
+  );
 }
 
 // A dispatch that was made and not superseded by a failed POST. 'dispatching'
 // counts too: its 'dispatched' confirmation write is allowed to fail.
-export function isLiveDispatch(d?: DispatchMark): d is DispatchMark {
+export function isLiveDispatch(
+  d?: DispatchMark
+): d is DispatchMark & { state: "dispatching" | "dispatched" } {
   return d?.state === "dispatching" || d?.state === "dispatched";
 }
 
@@ -110,11 +133,18 @@ export function isLiveDispatch(d?: DispatchMark): d is DispatchMark {
 // finished at `completedAt`. Verdict rows record no analyzed run, only (head,
 // job name), so this ties the verdict to a dispatch instead: the latest
 // dispatch was made after the run finished, so it analyzed this run, and the
-// verdict is newer than that dispatch, so it is that dispatch's answer.
-// Auto-dispatch keeps one analysis per key in flight, so nothing older can land
-// after it. Comparing the verdict with the run's completion alone is not
-// enough: an analysis of an earlier run that is still going when this run
-// finishes lands later and passes.
+// verdict is newer than that dispatch, so it is taken as that dispatch's
+// answer. Comparing the verdict with the run's completion alone is not enough:
+// an analysis of an earlier run that is still going when this run finishes
+// lands later and passes.
+//
+// LIMIT: "the newest verdict after the dispatch is its answer" holds while one
+// analysis per key is in flight, which auto-dispatch keeps in the normal case
+// (readyToReanalyze). It does not hold when two renders dispatch one key at
+// the same moment, or when GitHub accepted a dispatch whose POST still threw
+// (recorded 'failed', then retried). An earlier analysis can then land after a
+// later dispatch and be counted for it. Closing that needs the verdict row to
+// record which dispatch it answers.
 export function verdictCoversRun(
   verdictTimestamp: string | undefined,
   completedAt: string | undefined,
@@ -122,7 +152,7 @@ export function verdictCoversRun(
 ): boolean {
   return (
     isLiveDispatch(dispatch) &&
-    isStrictlyAfter(dispatch.version, completedAt) &&
+    dispatchedAfterRun(dispatch.version, completedAt) &&
     isStrictlyAfter(verdictTimestamp, dispatch.version)
   );
 }
@@ -345,8 +375,9 @@ export interface AdvisorLineVerdict {
 //     owes this run a new one (a rerun). The pending sentinel keeps the PR in
 //     the sweep until that work lands, including when a pass skipped it on a
 //     transient error;
-//   - a verdict with no live dispatch (none, or a failed one): the outdated
-//     line;
+//   - a failed dispatch that auto-dispatch will retry: the in-progress line,
+//     for the same reason;
+//   - a verdict with no live or retryable dispatch: the outdated line;
 //   - otherwise no line.
 // `dispatchByKey` holds the latest dispatch row per signal key, or is null when
 // it could not be read. Then nothing can be shown as covering its run, and
@@ -393,7 +424,11 @@ export function selectAdvisorLines(
           since
         )
       );
-    } else if (dispatchByKey === null || isLiveDispatch(dispatch)) {
+    } else if (
+      dispatchByKey === null ||
+      isLiveDispatch(dispatch) ||
+      dispatch?.retryPending
+    ) {
       out.set(job.id, renderInProgressLine(...args, since));
     } else if (verdict) {
       out.set(job.id, renderOutdatedLine(...args, since));

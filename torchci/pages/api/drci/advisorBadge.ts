@@ -20,7 +20,11 @@ import {
   verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
-import { isValidSha, readDispatchStates } from "lib/advisor/advisorDispatch";
+import {
+  isValidSha,
+  readDispatchStates,
+  toDispatchMark,
+} from "lib/advisor/advisorDispatch";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -110,7 +114,8 @@ export default async function handler(
     // With `since`, only a verdict that covers that run is shown, by the same
     // test the comment line and the suppression gate use.
     const states = await readDispatchStates(owner, repo, sha, [signalKey]);
-    const dispatch = states.get(signalKey);
+    const st = states.get(signalKey);
+    const dispatch = st ? toDispatchMark(st) : undefined;
     if (row && verdictCoversRun(row.timestamp, since, dispatch)) {
       const badge = verdictBadge(row.verdict, Number(row.confidence));
       sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
@@ -119,13 +124,14 @@ export default async function handler(
 
     // Otherwise: "analyzing" while a live dispatch has no newer verdict yet;
     // pending while one answered for an earlier run and this run's dispatch is
-    // owed; "outdated" when a verdict exists with no live dispatch.
+    // owed, or a failed dispatch will be retried; "outdated" when a verdict
+    // exists with neither.
     let badge = PENDING_BADGE;
     if (isLiveDispatch(dispatch)) {
       if (!isStrictlyAfter(row?.timestamp, dispatch.version)) {
         badge = ANALYZING_BADGE;
       }
-    } else if (row) {
+    } else if (row && !dispatch?.retryPending) {
       badge = OUTDATED_BADGE;
     }
     sendSvg(res, renderBadgeSvg(badge), SHORT_CACHE);

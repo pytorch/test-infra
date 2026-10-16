@@ -10,6 +10,7 @@ import {
   autoDispatchAdvisorForNewFailures,
   readDispatchStates,
   signalKeyForJob,
+  toDispatchMark,
 } from "lib/advisor/advisorDispatch";
 import {
   extractSuppressed,
@@ -474,7 +475,9 @@ export async function updateDrciComments(
               .filter((j) => j.name)
               .map((j) => signalKeyForJob(j.name))
           );
-          advisorDispatches = new Map(states);
+          advisorDispatches = new Map(
+            Array.from(states, ([key, st]) => [key, toDispatchMark(st)])
+          );
         } catch (e) {
           advisorDispatches = null;
           console.error(

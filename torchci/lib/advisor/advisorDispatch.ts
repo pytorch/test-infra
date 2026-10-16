@@ -9,6 +9,8 @@ import { createHash } from "crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import {
+  dispatchedAfterRun,
+  DispatchMark,
   isLiveDispatch,
   isStrictlyAfter,
   parseUtc,
@@ -311,7 +313,7 @@ export async function dispatchAdvisorWorkflow(
 
 export type DispatchState = "dispatching" | "dispatched" | "failed";
 
-interface DispatchStateRow {
+export interface DispatchStateRow {
   state: DispatchState;
   retryCount: number;
   // When the latest row was written (its ReplacingMergeTree version, UTC).
@@ -495,12 +497,13 @@ export interface AutoDispatchArgs {
 }
 
 /**
- * Whether `job` finished at or after the dispatch recorded at `version`, i.e.
- * it is a rerun at the same commit that the dispatched analysis never saw.
+ * Whether `job` may have finished after the dispatch recorded at `version`
+ * (the negation of dispatchedAfterRun, for known times), i.e. it is a rerun at
+ * the same commit that the dispatched analysis may not have seen.
  * Dedup is keyed by (head, job name), so without this a rerun is never
  * analyzed, and the suppression gate, which ignores a verdict written before
- * the job finished, keeps the job blocking for good. A tie counts as a rerun,
- * matching the gate's treatment of a tie as stale.
+ * the job finished, keeps the job blocking for good. A dispatch within the
+ * run's completion second counts as before the run, as it does for the gate.
  *
  * False when either time is missing or unparseable, so an unknown completion
  * time can never re-dispatch. The new dispatch's version is later than the
@@ -514,11 +517,25 @@ export function ranAfterDispatch(
   job: RecentWorkflowsData,
   version: string
 ): boolean {
-  const completed = parseUtc(job.completed_at);
-  const dispatched = parseUtc(version);
   return (
-    completed !== null && dispatched !== null && !completed.isBefore(dispatched)
+    parseUtc(job.completed_at) !== null &&
+    parseUtc(version) !== null &&
+    !dispatchedAfterRun(version, job.completed_at)
   );
+}
+
+/**
+ * The latest dispatch row as the comment line and the suppression gate see it.
+ * A failed row under the retry limit is marked retryPending: the next pass
+ * retries it, so the line keeps the PR in the sweep.
+ */
+export function toDispatchMark(row: DispatchStateRow): DispatchMark {
+  return {
+    state: row.state,
+    version: row.version,
+    retryPending:
+      row.state === "failed" && row.retryCount < MAX_DISPATCH_RETRIES,
+  };
 }
 
 /**
