@@ -66,13 +66,25 @@ describe("retriage command", () => {
       .reply(200, {});
   }
 
-  function mockRetriage(labelsToRemove: string[]) {
+  function mockLiveLabels(labels: string[]) {
+    return nock("https://api.github.com")
+      .get("/repos/pytorch/pytorch/issues/1/labels?per_page=100")
+      .reply(
+        200,
+        labels.map((name) => ({ name }))
+      );
+  }
+
+  function mockRetriage(
+    labelsToRemove: string[],
+    { alreadyRemoved = [] as string[] } = {}
+  ) {
     const removes = labelsToRemove.map((label) =>
       nock("https://api.github.com")
         .delete(
           `/repos/pytorch/pytorch/issues/1/labels/${encodeURIComponent(label)}`
         )
-        .reply(200, [])
+        .reply(alreadyRemoved.includes(label) ? 404 : 200, [])
     );
     const add = nock("https://api.github.com")
       .post("/repos/pytorch/pytorch/issues/1/labels", (body) => {
@@ -89,6 +101,7 @@ describe("retriage command", () => {
   test("the author re-runs triage by cycling the triage labels", async () => {
     const event = retriageEvent(AUTHOR);
     const scope = [
+      mockLiveLabels(MISSING_ISSUE_LABELS),
       ...mockRetriage([
         "triaged",
         "bot-triaged",
@@ -105,6 +118,7 @@ describe("retriage command", () => {
   test("anyone may re-run triage", async () => {
     const event = retriageEvent("stranger");
     const scope = [
+      mockLiveLabels(MISSING_ISSUE_LABELS),
       ...mockRetriage([
         "triaged",
         "bot-triaged",
@@ -118,13 +132,27 @@ describe("retriage command", () => {
     handleScope(scope);
   });
 
-  test("only removes labels the PR carries", async () => {
-    const event = retriageEvent(AUTHOR, [
-      "triaged",
-      "missing actionable issue",
-    ]);
+  test("only removes labels the PR carries, read live", async () => {
+    // The webhook snapshot is stale: triaged and open source are gone
+    const event = retriageEvent(AUTHOR);
     const scope = [
-      ...mockRetriage(["triaged", "missing actionable issue"]),
+      mockLiveLabels(["missing actionable issue", "bot-triage-error"]),
+      ...mockRetriage(["missing actionable issue", "bot-triage-error"]),
+      mockReact(event, "+1"),
+    ];
+
+    await bot.receive(event);
+    handleScope(scope);
+  });
+
+  test("a label removed concurrently does not stop the rerun", async () => {
+    const event = retriageEvent(AUTHOR);
+    const scope = [
+      mockLiveLabels(MISSING_ISSUE_LABELS),
+      ...mockRetriage(
+        ["triaged", "bot-triaged", "missing actionable issue", "open source"],
+        { alreadyRemoved: ["bot-triaged"] }
+      ),
       mockReact(event, "+1"),
     ];
 
@@ -137,6 +165,7 @@ describe("retriage command", () => {
     async (labels) => {
       const event = retriageEvent(AUTHOR, labels);
       const scope = [
+        mockLiveLabels(labels),
         mockReact(event, "-1"),
         mockReply(
           event,
@@ -148,6 +177,19 @@ describe("retriage command", () => {
       handleScope(scope);
     }
   );
+
+  test("rejects an opted-out PR without changing labels", async () => {
+    const labels = [...MISSING_ISSUE_LABELS, "no automated triage"];
+    const event = retriageEvent(AUTHOR, labels);
+    const scope = [
+      mockLiveLabels(labels),
+      mockReact(event, "-1"),
+      mockReply(event, "skips PRs labeled `no automated triage`"),
+    ];
+
+    await bot.receive(event);
+    handleScope(scope);
+  });
 
   test("rejects outside pytorch/pytorch", async () => {
     const event = retriageEvent(AUTHOR, MISSING_ISSUE_LABELS, "vision");

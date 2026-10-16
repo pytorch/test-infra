@@ -36,6 +36,9 @@ export const PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE =
 // Adding this label starts an Auto PR Triage run.
 export const AUTO_PR_TRIAGE_LABEL = "open source";
 export const BOT_TRIAGED_LABEL = "bot-triaged";
+export const BOT_TRIAGE_ERROR_LABEL = "bot-triage-error";
+// Auto PR Triage leaves a PR with this label as is.
+export const AUTO_PR_TRIAGE_OPT_OUT_LABEL = "no automated triage";
 
 export const PR_STATUS_LABELS = [
   // Uncomment the following line post-rollout + change ln 166 to true in test

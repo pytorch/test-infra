@@ -6,7 +6,10 @@ import { queryClickhouseSaved } from "../clickhouse";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
   AUTO_PR_TRIAGE_LABEL,
+  AUTO_PR_TRIAGE_OPT_OUT_LABEL,
+  BOT_TRIAGE_ERROR_LABEL,
   BOT_TRIAGED_LABEL,
+  fetchLiveLabels,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -642,9 +645,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   }
 
   // Follows the rerun steps of Auto PR Triage: a run is a no-op while its
-  // outcome labels are present, and only an `open source` labeled event starts
-  // one. Limited to PRs it marked as missing an actionable issue; anyone may
-  // run it, so abuse is visible in the PR's timeline.
+  // outcome labels or opt-out are present, and only an `open source` labeled
+  // event starts one. Limited to PRs it marked as missing an actionable issue;
+  // anyone may run it, so abuse is visible in the PR's timeline.
   async handleRetriage() {
     await this.logger.log("retriage");
     const { ctx, owner, repo, prNum } = this;
@@ -656,11 +659,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       return await reject("Auto PR Triage only runs on pytorch/pytorch.");
     }
 
-    const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
-    const labels: string[] = (pr?.labels ?? []).map((label: any) => label.name);
+    const labels = await fetchLiveLabels(ctx.octokit, owner, repo, prNum);
     if (!labels.includes(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)) {
       return await reject(
         `Auto PR Triage only re-runs on PRs labeled \`${PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE}\`.`
+      );
+    }
+    if (labels.includes(AUTO_PR_TRIAGE_OPT_OUT_LABEL)) {
+      return await reject(
+        `Auto PR Triage skips PRs labeled \`${AUTO_PR_TRIAGE_OPT_OUT_LABEL}\`.`
       );
     }
 
@@ -668,15 +675,23 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       PR_STATUS_LABEL_TRIAGED,
       BOT_TRIAGED_LABEL,
       PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+      BOT_TRIAGE_ERROR_LABEL,
       AUTO_PR_TRIAGE_LABEL,
     ].filter((label) => labels.includes(label));
     for (const name of labelsToRemove) {
-      await ctx.octokit.issues.removeLabel({
-        owner,
-        repo,
-        issue_number: prNum,
-        name,
-      });
+      try {
+        await ctx.octokit.issues.removeLabel({
+          owner,
+          repo,
+          issue_number: prNum,
+          name,
+        });
+      } catch (error) {
+        // Already removed, e.g. by a concurrent retriage
+        if ((error as { status?: number }).status !== 404) {
+          throw error;
+        }
+      }
     }
     await ctx.octokit.issues.addLabels({
       owner,
