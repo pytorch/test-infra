@@ -99,6 +99,11 @@ class _FakeFile:
         self.filename = filename
 
 
+class _FakeLabel:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
 class _FakePR:
     def __init__(
         self,
@@ -111,6 +116,8 @@ class _FakePR:
         self.head = _FakeHead(head_sha)
         self.base = _FakeRef(constants.TARGET_BRANCH)
         self.user = _FakeUser(author) if author is not None else None
+        self.labels: list[_FakeLabel] = []
+        self.state = "open"
         self._rec = rec
         self._reviews = reviews or []
         self._issue_comments = issue_comments or []
@@ -135,6 +142,10 @@ class _FakePR:
 
     def get_files(self) -> list[_FakeFile]:
         return []
+
+    def add_to_labels(self, *labels: str) -> None: ...
+
+    def remove_from_labels(self, label: str) -> None: ...
 
 
 class _FakeRepo:

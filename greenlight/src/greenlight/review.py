@@ -34,7 +34,8 @@ its fingerprint and dispatch. On the listing path an approval or changes-request
 on the ``--pr`` recheck path an approval is ignored (reviewed anyway) and changes-requested
 is refused with a comment instead of a dispatch. A candidate fingerprinted at a head other than
 the one its authority was read at is deferred to the next pass; a deferred ``--pr`` recheck exits 0
-without dispatching.
+without dispatching. Every listing tick that reaches its dispatch phase without a rate limit then relabels
+the PRs it listed that are reverted, kept by the recency filter or Stale-skipped (``verdict_labels``).
 """
 
 from __future__ import annotations
@@ -58,6 +59,7 @@ from greenlight import (
     scan_runner,
     state,
     state_emit,
+    verdict_labels,
 )
 from greenlight import dispatch as dispatch_module
 from greenlight.authority import Authority, Target
@@ -145,6 +147,7 @@ def run(
     get_pr: Callable[[Github, str, int], VerdictPR] = github_client.get_pr,
     dismiss_approvals: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
     upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
+    label_prs: Callable[[verdict_labels.LabelPass], None] = verdict_labels.label_listed_prs,
     resolve_merge_rules: Callable[[], MergeRulesSnapshot],
     now: Callable[[], datetime] = _utcnow,
     memory: ScanMemory | None = None,
@@ -253,9 +256,10 @@ def run(
             )
             fingerprint_numbers = [number for number in recent if not authority.shadow(number)]
             undetermined = authority.undetermined
+            ineligible = [number for number in recent if authority.shadow(number) and number not in undetermined]
             revoke_ineligible_approvals(
                 client,
-                [number for number in recent if authority.shadow(number) and number not in undetermined],
+                ineligible,
                 states=states,
                 bot_login=bot_login,
                 get_pr=get_pr,
@@ -264,7 +268,7 @@ def run(
                 cancel_event=cancel_event,
             )
         else:
-            fingerprint_numbers = pr_numbers
+            fingerprint_numbers, recent, ineligible = pr_numbers, [], []
         undetermined = authority.undetermined
         fingerprint_numbers = [number for number in fingerprint_numbers if number not in undetermined]
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
@@ -356,7 +360,23 @@ def run(
                 poke=poke,
                 shadow_for_pr=authority.shadow,
             )
-        # Only the --pr recheck path posts refusals; a listing-scan skip is dropped silently
+            if pr is None:
+                label_prs(
+                    verdict_labels.LabelPass(
+                        fetch_pr=lambda number: get_pr(client, TARGET_REPO, number),
+                        reverted=excluded,
+                        recent=recent,
+                        eligible=fingerprint_numbers,
+                        ineligible=ineligible,
+                        skips=skips,
+                        labels=labels_by_number,
+                        heads=head_sha_by_number,
+                        listed_at=listed_at,
+                        clock=now,
+                        timeout=timeout,
+                    )
+                )
+        # Only the --pr recheck path posts refusals; a listing-scan skip gets no refusal
         # (already logged). skips can hold a refusal only when skip_on_approval is False (--pr),
         # so this can never comment on a listing-scan approval.
         if pr is not None:
