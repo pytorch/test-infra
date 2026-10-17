@@ -55,14 +55,6 @@
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
   ],
-  "pull / linux-noble-xpu-n-py3.11 / build": [
-    "izaitsevfb",
-    "201218",
-    "https://github.com/pytorch/pytorch/issues/201218",
-    "pull",
-    "linux-noble-xpu-n-py3.11",
-    "build"
-  ],
   "trunk / linux-noble-rocm-py3.11-mi350 / test (default)": [
     "izaitsevfb",
     "201278",
