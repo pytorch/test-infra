@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from github import BadCredentialsException, GithubException, RateLimitExceededException, UnknownObjectException
@@ -32,6 +32,8 @@ from greenlight.state import PRState
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Mapping, Sequence
+
+    from greenlight.github_types import VerdictPR
 
 _LISTED_AT = datetime(2026, 10, 15, 12, 0, 0)
 _IN_TIME = timedelta(seconds=10)
@@ -107,6 +109,29 @@ class _FakePR:
             raise error
 
 
+@dataclass(frozen=True)
+class _FakeHead:
+    sha: str
+
+
+class _FakeVerdictPR(_FakePR):
+    def __init__(
+        self,
+        labels: Sequence[str] = (),
+        *,
+        head_sha: str = _HEAD,
+        state: str = "open",
+        fail: Mapping[str, Exception] | None = None,
+    ) -> None:
+        super().__init__(labels, state=state, fail=fail)
+        self._head_sha = head_sha
+
+    @property
+    def head(self) -> _FakeHead:
+        self._raise_if_failing("head")
+        return _FakeHead(self._head_sha)
+
+
 def _desired(
     gate: PRState | None,
     verdict: PRState | None,
@@ -128,6 +153,10 @@ def _desired(
         now=_NOW,
         timeout=_TIMEOUT,
     )
+
+
+def _label_verdict(pr: _FakeVerdictPR, status: str, *, reviewed_head: str = _HEAD) -> None:
+    verdict_labels.label_verdict(cast("VerdictPR", pr), status, reviewed_head=reviewed_head, number=7)
 
 
 @dataclass
@@ -490,6 +519,88 @@ def test_sync_raises_any_other_removal_failure_before_adding(error):
 
     assert raised.value is error
     assert pr.calls == [("remove", GL_APPROVED_LABEL)]
+
+
+def test_a_land_leaves_gl_approved_as_the_prs_only_greenlight_label():
+    pr = _FakeVerdictPR([GL_HUMAN_LABEL, "triaged", GL_SUPERSEDED_LABEL])
+
+    _label_verdict(pr, STATUS_LAND)
+
+    assert pr.calls[-1] == ("add", GL_APPROVED_LABEL)
+    assert sorted(pr.calls[:-1]) == [("remove", GL_HUMAN_LABEL), ("remove", GL_SUPERSEDED_LABEL)]
+    assert sorted(label.name for label in pr.labels) == [GL_APPROVED_LABEL, "triaged"]
+
+
+def test_a_no_land_leaves_gl_human_as_the_prs_only_greenlight_label():
+    pr = _FakeVerdictPR([GL_APPROVED_LABEL])
+
+    _label_verdict(pr, STATUS_NO_LAND)
+
+    assert pr.calls == [("remove", GL_APPROVED_LABEL), ("add", GL_HUMAN_LABEL)]
+
+
+def test_a_verdict_already_labelled_writes_nothing():
+    pr = _FakeVerdictPR(["gl/approved", "triaged"])
+
+    _label_verdict(pr, STATUS_LAND)
+
+    assert pr.calls == []
+
+
+def test_a_verdict_on_a_pr_that_moved_off_the_reviewed_head_is_left_to_the_scan():
+    pr = _FakeVerdictPR([GL_SUPERSEDED_LABEL], head_sha=_REWORKED)
+
+    _label_verdict(pr, STATUS_LAND)
+
+    assert pr.calls == []
+
+
+def test_a_verdict_whose_reviewed_head_differs_from_the_prs_only_in_case_is_labelled():
+    pr = _FakeVerdictPR([GL_SUPERSEDED_LABEL])
+
+    _label_verdict(pr, STATUS_LAND, reviewed_head=_HEAD.upper())
+
+    assert pr.calls == [("remove", GL_SUPERSEDED_LABEL), ("add", GL_APPROVED_LABEL)]
+
+
+@pytest.mark.parametrize("label", ["Reverted", "reverted", "REVERTED"])
+def test_a_verdict_on_a_reverted_pr_is_left_to_the_scan(label):
+    pr = _FakeVerdictPR([label, GL_HUMAN_LABEL])
+
+    _label_verdict(pr, STATUS_LAND)
+
+    assert pr.calls == []
+
+
+def test_a_verdict_on_a_closed_pr_writes_nothing():
+    pr = _FakeVerdictPR([GL_HUMAN_LABEL], state="closed")
+
+    _label_verdict(pr, STATUS_LAND)
+
+    assert pr.calls == []
+
+
+@pytest.mark.parametrize("step", ["state", "head", "labels", "remove", "add"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(GithubException(500, {"message": "Server Error"}), id="server-error"),
+        pytest.param(RateLimitExceededException(403, {"message": "API rate limit exceeded"}), id="rate-limit"),
+        pytest.param(UnknownObjectException(404, {"message": "Not Found"}), id="not-found"),
+        pytest.param(RequestsConnectionError("connection reset"), id="connection"),
+        pytest.param(RuntimeError("unexpected"), id="unexpected"),
+    ],
+)
+def test_a_failed_verdict_label_write_is_logged_and_swallowed(step, error, caplog):
+    pr = _FakeVerdictPR([GL_HUMAN_LABEL], fail={step: error})
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        _label_verdict(pr, STATUS_LAND)
+
+    [record] = caplog.records
+    assert record.levelno == logging.ERROR
+    assert record.exc_info is not None
+    assert "PR #7" in record.getMessage()
 
 
 def test_a_tick_with_no_pr_to_judge_reads_and_writes_nothing():
