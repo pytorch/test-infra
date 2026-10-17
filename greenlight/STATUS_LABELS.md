@@ -18,6 +18,7 @@ re-submit, or a newer in-flight, `FAILED` or `CANCELLED` row at the same head en
 
 | Situation | Labels |
 | --- | --- |
+| greenlight records a non-shadow `LAND` / `NO_LAND` on the PR's current head | `GL/approved` / `GL/human` |
 | Verdict current, PR inside the review window and not labelled `Stale`, author eligible | that verdict's label |
 | Verdict current, PR inside the review window and not labelled `Stale`, author determined ineligible | `GL/superseded` only |
 | Verdict current, PR labelled `Stale` or author undetermined | unchanged |
@@ -39,7 +40,12 @@ that lands after the revert makes the scan record that row again.
 
 ## When greenlight writes them
 
-Every listing tick that reaches its dispatch phase without a rate limit runs a label
+At verdict time, the reviewer workflow's `record` job (`verdict`), right after it approves or
+dismisses and before the status comment, makes the verdict's label the PR's only `GL/*` label for a
+non-shadow `LAND` or `NO_LAND`. It leaves a PR that is no longer open as it is, and one whose head
+has moved off the reviewed one or that carries `Reverted` to the scan.
+
+At scan time, every listing tick that reaches its dispatch phase without a rate limit runs a label
 pass after its dispatches and before it raises for the PRs that failed: a paused tick (`--max 0`)
 too, a `--pr` run never. The pass judges the listed PRs that are reverted, labelled `Stale`, or kept
 by the review window (updated inside it, or with an in-flight or retry-eligible review), reads their
@@ -53,11 +59,11 @@ and a tick that reaches its `--max` cap stops fingerprinting there, so on those 
 supersedes an unfingerprinted PR as human-decided only on a skip taken from a kept fingerprint
 result (logged `cached`), which only fast ticks reuse.
 
-The pass writes only on a transition: a PR whose `GL/*` labels, compared case-insensitively, already
+Both write only on a transition: a PR whose `GL/*` labels, compared case-insensitively, already
 match is left alone; otherwise the extras are removed, then the missing labels are added in one
-request, and a removal that finds the label already gone counts as done. It is best-effort: a
-failed write is logged and never fails the scan. A failure on one PR is logged and the pass moves
-on to the next, but three failures with
+request, and a removal that finds the label already gone counts as done. Both are best-effort: a
+failed write is logged and never fails the scan, withholds the approval or loses the verdict row. In
+the pass, a failure on one PR is logged and the pass moves on to the next, but three failures with
 no PR synced between them (`LABEL_PASS_MAX_FAILURES`) stop it for that tick, and a rate limit stops
 it at once. The pass takes its PRs in number order, so three that keep failing stop it at the same
 place every tick. The PRs it did not reach wait for the next tick. Its ClickHouse read is not
@@ -93,25 +99,30 @@ A label write is a PR update, with effects outside greenlight:
 ## Deployment
 
 The three labels must exist in `pytorch/pytorch`, named exactly `GL/approved`, `GL/human` and
-`GL/superseded`, before code that writes them reaches test-infra `main`, since a listing run of
-`greenlight-review.yml` dispatched by hand at `main` (empty `pr`) runs the label pass without
-waiting for a Lambda release. The scheduled scan's pass follows the `greenlight-scan` Lambda release (see the README's
+`GL/superseded`, before code that writes them reaches test-infra `main`, since two paths run
+greenlight from `main` without waiting for a Lambda release: the reviewer workflow's `record` job,
+at the ref the scan dispatches it at (`main` by default), so verdict-time labels start at merge; and
+a listing run of `greenlight-review.yml` dispatched by hand at `main` (empty `pr`), which runs the
+label pass. The scheduled scan's pass follows the `greenlight-scan` Lambda release (see the README's
 "Deployment"). The label writes call the issue-label endpoints, which GitHub's App-permission table
 lists under both Pull requests: write and Issues: write; greenlight's App tokens request
 `pull_requests: write` and not `issues: write`. If label writes return 403, the App installation and
-the two token mints used for label writes (`_TOKEN_PERMISSIONS` in `lambda_handler.py` and
-`greenlight-review.yml`) need `issues: write` too. No flag turns the labels off.
+the three token mints used for label writes (`_TOKEN_PERMISSIONS` in `lambda_handler.py`,
+`greenlight-review.yml`, and the `record` job in `greenlight-pr-review.yml`) need `issues: write`
+too. No flag turns the labels off.
 
 ## Known edges
 
 - A review that finishes 45-55 minutes after it started can flip `GL/superseded` back to the
   verdict's label once.
-- The scan never touches a closed PR, so a merged PR keeps the label it merged with. If the PR is
-  reverted, though, the scan pairs its `REVERTED` row with the PR's latest verdict, which can be one
-  recorded after the merge.
+- A verdict-time write followed by a failed S3 upload leaves a label with no row behind it until
+  greenlight reviews the PR again.
+- A verdict recorded after a human has merged the PR writes no label, and the scan never touches a
+  closed PR, so a merged PR keeps the label it merged with. If the PR is reverted, though, the scan
+  pairs its `REVERTED` row with the PR's latest verdict, which can be that late one.
 - A verdict the `record` job downgrades to shadow, on a PR whose author the scan still judges
-  eligible, is not a row the pass reads, and greenlight does not review the PR again until it
-  changes, so the label of the verdict before it stays.
+  eligible, writes no label, and greenlight does not review the PR again until it changes, so the
+  label of the verdict before it stays.
 - An author made ineligible and then eligible again, with no push, shows `GL/approved` although
   greenlight never re-posts the approval it dismissed.
 - A reverted PR whose reopen failed stays closed, so the scan never lists it and it never gets
