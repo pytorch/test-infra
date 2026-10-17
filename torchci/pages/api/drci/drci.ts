@@ -16,6 +16,11 @@ import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { updateInProgressLabels } from "lib/bot/preReviewUtils";
 import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
+import {
+  crcrSectionForSweep,
+  crcrSectionHasBlocks,
+  latestAttemptsForHead,
+} from "lib/crcr/crcrComment";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
   CANCELLED_STEP_ERROR,
@@ -337,6 +342,10 @@ export async function updateDrciComments(
   const greenlightSections = await greenlightSectionsPromise;
   const prReviewSections = await prReviewSectionsPromise;
   const prReviewHeadVerdicts = await prReviewHeadVerdictsPromise;
+  // Loaded once for the whole sweep: it gates which L3 results are PR-visible
+  // (see classifyCrcrJobs) and it supplies the on-call pins, so one failed read
+  // is not retried for every PR. Null is "could not read", which is not the same
+  // as an allowlist with no on-calls in it -- see the section build below.
   const crcrAllowlist = await crcrAllowlistPromise;
 
   // Return the list of all failed jobs grouped by their classification
@@ -504,20 +513,70 @@ export async function updateDrciComments(
       // Classify CRCR downstream CI jobs (L3 = non-blocking, L4 = blocking).
       // These jobs live in oot_workflow_job, not workflow_job, so they are fetched
       // separately and classified based on their downstream_repo_level.
+      //
+      // fetchCrcrWorkflows returns every job that reported, still-running ones
+      // included, so `totalByRepo` can report how much of a repo's matrix
+      // failed. Only the failures reach a bucket or a block.
+      //
+      // Rows are scoped to the commit the comment reports on, the way the normal
+      // workflow rows are (see getWorkflowJobsStatuses). A row from a superseded
+      // push is not what the checks UI shows, and left in it would keep a red
+      // block alive in a comment that claims to describe the newer commit.
+      const crcrFailedByRepo = new Map<string, RecentWorkflowsData[]>();
+      const crcrTotalByRepo = new Map<string, number>();
+      // False when the rows could not be read at all, which is not the same as
+      // "this PR has no failing downstream jobs" -- see the section build below.
+      let crcrRowsRead = true;
       let crcrL3Jobs: RecentWorkflowsData[] = [];
       try {
-        const crcrWorkflows = await fetchCrcrWorkflows(`${owner}/${repo}`, [
-          pr_info.pr_number,
-        ]);
+        const crcrWorkflows = latestAttemptsForHead(
+          await fetchCrcrWorkflows(`${owner}/${repo}`, [pr_info.pr_number]),
+          pr_info.head_sha
+        );
+        for (const job of crcrWorkflows) {
+          const downstreamRepo = job.downstreamRepo || "";
+          if (downstreamRepo) {
+            crcrTotalByRepo.set(
+              downstreamRepo,
+              (crcrTotalByRepo.get(downstreamRepo) ?? 0) + 1
+            );
+          }
+        }
+
+        // classifyCrcrJobs owns the ciflow/crcr/<device> label gate that keeps
+        // unlabeled shadow runs off the PR (see its docstring), and it sees only
+        // the failures: the query now returns every job that reported, because
+        // the ratio above needs the denominator. L4 failures also stay in
+        // `failedJobs`, where they block the merge.
+        const crcrFailures = crcrWorkflows.filter(isCrCrFailure);
         const classified = classifyCrcrJobs(
-          crcrWorkflows,
+          crcrFailures,
           labels || [],
           crcrAllowlist
         );
         crcrL3Jobs = classified.crcrL3Jobs;
-        // L4 failures are blocking — merge them into failedJobs
         failedJobs.push(...classified.crcrL4Jobs);
+
+        // What the section may show. With no allowlist the device label cannot be
+        // looked up, so the gate cannot be applied and the un-gated failures
+        // stand in: the section treats an unreadable allowlist as "carry the
+        // pins, render nothing", while an empty map would read as "the failures
+        // cleared" and free them, paging every on-call again once the allowlist
+        // comes back.
+        const crcrSectionJobs =
+          crcrAllowlist === null
+            ? crcrFailures
+            : [...classified.crcrL3Jobs, ...classified.crcrL4Jobs];
+        for (const job of crcrSectionJobs) {
+          const downstreamRepo = job.downstreamRepo || "";
+          if (downstreamRepo) {
+            const repoJobs = crcrFailedByRepo.get(downstreamRepo) ?? [];
+            repoJobs.push(job);
+            crcrFailedByRepo.set(downstreamRepo, repoJobs);
+          }
+        }
       } catch (err) {
+        crcrRowsRead = false;
         // If CRCR fetch fails, log and proceed — don't block the Dr.CI update
         console.error("Failed to fetch CRCR workflows:", err);
       }
@@ -525,6 +584,39 @@ export async function updateDrciComments(
       if (crcrL3Jobs.length > 0) {
         failures[pr_info.pr_number].CRCR_L3 = crcrL3Jobs;
       }
+
+      // The Dr. CI comment as GitHub has it, read at most once per PR per sweep:
+      // the pins below and the id further down both want it. Read-only
+      // (listComments) -- it never creates a comment.
+      let liveCommentPromise: Promise<{ id: number; body: string }> | undefined;
+      const readLiveComment = () =>
+        (liveCommentPromise ??= getDrciComment(
+          octokit,
+          owner,
+          repo,
+          pr_info.pr_number
+        ));
+      const replicaComment = existingDrCiComments.get(pr_info.pr_number);
+
+      // One block per downstream repo, with the on-call pin. Repos already
+      // pinned in the current comment keep their handles un-mentioned, so a
+      // rewrite does not re-notify anyone. `crcrSectionForPr` reads those pins
+      // from the live comment rather than the replica, and decides what a sweep
+      // that could not read the rows, or the allowlist, leaves behind -- see its
+      // docstring.
+      const allowlist = crcrAllowlist;
+      const crcrSection = await crcrSectionForPr({
+        failedByRepo: crcrFailedByRepo,
+        totalByRepo: crcrTotalByRepo,
+        rowsRead: crcrRowsRead,
+        hudPrUrl: `${HUD_URL}/pr/${owner}/${repo}/${pr_info.pr_number}`,
+        onCallsFor:
+          allowlist === null
+            ? null
+            : (downstreamRepo) => allowlist.getOncallsForRepo(downstreamRepo),
+        replicaBody: replicaComment?.body ?? "",
+        readLive: async () => (await readLiveComment()).body,
+      });
 
       const failureInfo = constructResultsComment(
         pending,
@@ -547,7 +639,8 @@ export async function updateDrciComments(
         repo,
         pr_info.pr_number,
         advisorLines,
-        greenlightSections.get(pr_info.pr_number) ?? ""
+        greenlightSections.get(pr_info.pr_number) ?? "",
+        crcrSection
       );
 
       // Runs before the PR status section below so it renders the new stage.
@@ -634,9 +727,7 @@ export async function updateDrciComments(
         )
       );
 
-      const { id, body } =
-        existingDrCiComments.get(pr_info.pr_number) ||
-        (await getDrciComment(octokit, owner, repo, pr_info.pr_number));
+      const { id, body } = replicaComment || (await readLiveComment());
 
       // The comment is there and remains unchanged, so there is no need to do anything
       if (body === comment) {
@@ -953,6 +1044,83 @@ export async function getBaseCommitJobNames(
   return namesBySha;
 }
 
+/**
+ * The comment body the CRCR pins are read from.
+ *
+ * `getExistingDrCiComments` is a batched ClickHouse query, and the replica can
+ * lag the live comment -- the webhook rewrite (drciBot) writes it directly to
+ * GitHub. A pin that only GitHub knows about is invisible to the sweep, which
+ * then mentions every on-call again for a failure they have already been told
+ * about. So a sweep that has to carry pins reads the live comment, and only falls
+ * back to the replica's body: when the read fails, because dropping pins is the
+ * worse error, and when GitHub has no comment at all, because then there is
+ * nothing to read.
+ *
+ * "Has to carry pins" is not the same as "has failures". A sweep whose CRCR query
+ * failed has no failures to report, but it still carries the previous pins
+ * forward -- the ledger is the only thing it can put back -- and that ledger is
+ * only as good as the body it was read from. Reading the replica there would
+ * rebuild it without a marker that the sweep it was written by had spent, and the
+ * next healthy sweep would mention that on-call all over again.
+ */
+export async function pinBodyForSweep(
+  failedByRepo: Map<string, RecentWorkflowsData[]>,
+  rowsRead: boolean,
+  replicaBody: string,
+  readLive: () => Promise<string>
+): Promise<string> {
+  // A sweep that found no failures and read the rows is done with the pins: the
+  // section is cleared, so it does not pay for the extra GitHub call.
+  if (failedByRepo.size === 0 && rowsRead) {
+    return replicaBody;
+  }
+  try {
+    return (await readLive()) || replicaBody;
+  } catch (err) {
+    console.error("Failed to read the Dr. CI comment for pins:", err);
+    return replicaBody;
+  }
+}
+
+/**
+ * The CRCR section for one PR: the pins come from the best body available, the
+ * blocks from this sweep's rows.
+ *
+ * The two steps are one function because they have to agree on what this sweep is
+ * doing. Which body the pins are read from depends on the same two facts that
+ * decide what the section can say -- whether there are failures and whether the
+ * rows were readable -- and a sweep that carries the pins forward while reading
+ * them from a body that has none spends them again on the next sweep.
+ */
+export async function crcrSectionForPr(opts: {
+  failedByRepo: Map<string, RecentWorkflowsData[]>;
+  totalByRepo: Map<string, number>;
+  // False when the CRCR rows could not be read at all.
+  rowsRead: boolean;
+  hudPrUrl: string;
+  // Null when the allowlist could not be read this sweep.
+  onCallsFor: ((_repo: string) => string[]) | null;
+  // The body from the batched ClickHouse query, which can lag GitHub.
+  replicaBody: string;
+  // Reads the comment as GitHub has it.
+  readLive: () => Promise<string>;
+}): Promise<string> {
+  const pinBody = await pinBodyForSweep(
+    opts.failedByRepo,
+    opts.rowsRead,
+    opts.replicaBody,
+    opts.readLive
+  );
+  return crcrSectionForSweep(
+    pinBody,
+    opts.failedByRepo,
+    opts.totalByRepo,
+    opts.hudPrUrl,
+    opts.onCallsFor,
+    opts.rowsRead
+  );
+}
+
 async function getExistingDrCiComments(
   repoFullName: string,
   workflowsByPR: Map<number, PRandJobs>
@@ -1148,7 +1316,12 @@ export function constructResultsComment(
   advisorLines: Map<number, string> = new Map(),
   // Pre-rendered Green Light section or eligibility line for this PR, already
   // carrying its own leading newline (empty when the PR has neither).
-  greenlightSection: string = ""
+  greenlightSection: string = "",
+  // Pre-rendered CRCR section for this PR, already carrying its own delimiters
+  // (empty unless the PR has failing downstream CRCR jobs). It groups the
+  // failures by downstream repo and carries the on-call pins, so it replaces the
+  // generic job list the crcrL3Jobs bucket would otherwise produce.
+  crcrSection: string = ""
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
@@ -1442,23 +1615,45 @@ export function constructResultsComment(
     relatedIssues,
     relatedInfo
   );
-  output += constructResultsJobsSections(
-    hudBaseUrl,
-    owner,
-    repo,
-    prNumber,
-    "CRCR (non-blocking)",
-    `The following CRCR downstream CI ${pluralize(
-      "job",
-      crcrL3Jobs.length
-    )} failed but ${pluralize("is", crcrL3Jobs.length, "are")} non-blocking`,
-    crcrL3Jobs,
-    "",
-    true,
-    relatedJobs,
-    relatedIssues,
-    relatedInfo
-  );
+  // The CRCR section is rendered by lib/crcr/crcrComment so the failures can be
+  // grouped by downstream repo and pinned to that repo's on-calls. It is empty
+  // unless the PR has failing downstream jobs, in which case crcrL3Jobs is
+  // non-empty too -- keeping the fallback means a CRCR section is still shown if
+  // the pre-rendered one was dropped by the caller.
+  //
+  // Only a section with blocks replaces the generic list, not merely a non-empty
+  // one: a sweep that could not rebuild the section passes on the pin ledger,
+  // which renders nothing at all. Treating that as the section would count the
+  // failures in the title and list none of them, so it keeps the list -- and is
+  // spliced anyway, because its markers are the only record of who has been
+  // paged.
+  const crcrBlocks = crcrSectionHasBlocks(crcrSection);
+  output += crcrBlocks
+    ? `\n${crcrSection}`
+    : constructResultsJobsSections(
+        hudBaseUrl,
+        owner,
+        repo,
+        prNumber,
+        "CRCR (non-blocking)",
+        `The following CRCR downstream CI ${pluralize(
+          "job",
+          crcrL3Jobs.length
+        )} failed but ${pluralize(
+          "is",
+          crcrL3Jobs.length,
+          "are"
+        )} non-blocking`,
+        crcrL3Jobs,
+        "",
+        true,
+        relatedJobs,
+        relatedIssues,
+        relatedInfo
+      );
+  if (crcrSection && !crcrBlocks) {
+    output += `\n${crcrSection}`;
+  }
   return output;
 }
 
@@ -1506,6 +1701,15 @@ function getTrunkFailure(
 
 function isPending(job: RecentWorkflowsData): boolean {
   return job.conclusion === "" && isTime0(job.completed_at);
+}
+
+// fetchCrcrWorkflows returns every job that reported, of every conclusion --
+// still-running ones have none, so they are never one of these -- and the CRCR
+// section reports how much of a repo's matrix failed from them; only these reach
+// a failure bucket. `cancelled` and `timed_out` count, matching the query's old
+// SQL filter and the check runs crcrOncallBot used to page on.
+function isCrCrFailure(job: RecentWorkflowsData): boolean {
+  return ["failure", "cancelled", "timed_out"].includes(job.conclusion ?? "");
 }
 
 /**
