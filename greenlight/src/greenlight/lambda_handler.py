@@ -28,7 +28,7 @@ _AWS_REGION = "us-east-1"
 
 # Least-privilege scope for the installation token: only the repos and permissions the scan
 # needs, even though the App itself holds broader org-level grants. pull_requests is write, not
-# read: the scan revokes greenlight's own approval on a reverted PR.
+# read: the scan revokes greenlight's own approval on a reverted or ineligible PR.
 # Keep in sync with the actions/create-github-app-token scope in .github/workflows/greenlight-review.yml.
 _TOKEN_PERMISSIONS = {
     "actions": "write",
@@ -68,9 +68,9 @@ def _max_dispatches_from_env() -> int:
     except ValueError as exc:
         raise ValueError(f"{_MAX_DISPATCHES_ENV} must be an integer, got {raw!r}") from exc
     # Zero is a deliberate pause switch: the scan still lists and still revokes its approval on a
-    # reverted PR, it just fingerprints and dispatches nothing. A negative magnitude means the same
-    # thing once the scan clamps it, so it can only be a typo -- and one whose symptom is a silent
-    # stall. "-0" is not that typo and is accepted: it parses to zero because it is zero.
+    # reverted or ineligible PR, it just fingerprints and dispatches nothing. A negative magnitude
+    # means the same thing once the scan clamps it, so it can only be a typo -- and one whose symptom
+    # is a silent stall. "-0" is not that typo and is accepted: it parses to zero because it is zero.
     if value < 0:
         raise ValueError(f"{_MAX_DISPATCHES_ENV} must not be negative, got {value}")
     return value

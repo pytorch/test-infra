@@ -184,7 +184,7 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | `drci-poke` waits this long for state ingestion before the request (`0` = no wait); `review`'s own poke always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key for `drci-poke` and `review`'s dispatch poke (`DRCI_BOT_KEY`); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (`HUD_API_TOKEN`); clears HUD's bot challenge, not an endpoint credential |
-| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | `greenlight-scan` Lambda only: dispatch cap for the scheduled pass, passed through as `review --max` (`0` fingerprints, evaluates, and dispatches nothing; the scan still lists and still revokes on reverted or ineligible PRs). Non-negative integer, with no upper bound enforced — roughly 30-50 is what fits the 300 s timeout; elsewhere use `--max` |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | `greenlight-scan` Lambda only: dispatch cap for the scheduled pass, passed through as `review --max` (`0` fingerprints nothing afresh and dispatches nothing; the scan still lists and still revokes on reverted or ineligible PRs). Non-negative integer, with no upper bound enforced — roughly 30-50 is what fits the 300 s timeout; elsewhere use `--max` |
 
 Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.
@@ -256,8 +256,8 @@ The end-to-end flow, per cohort PR:
    refusing or waiting otherwise.
 
 A scan is live: it makes real GitHub and ClickHouse calls and will really dispatch the
-reviewer workflow. Scope a trial run with `--pr N` and cap it with `--max N`; add
-`--log-level DEBUG` to watch the flow:
+reviewer workflow. Scope a trial run with `--pr N` and cap it with `--max N`;
+add `--log-level DEBUG` to watch the flow:
 
 ```bash
 just review --pr 123 --max 1 --log-level DEBUG   # scan one PR, dispatch at most once
