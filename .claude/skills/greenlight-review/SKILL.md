@@ -132,6 +132,18 @@ it, and the change is trivial only if the answer to both is no:
    a yes: merge tooling treats a job whose name contains `unstable` as non-blocking, so
    the change decides whether that job can block merges.
 
+   Apart from the output those tools parse, a change leaves code outside pytorch wrong
+   only if it changes something pytorch offers to that code:
+   - the public Python API: a name whose import path, as users write it, has no part
+     starting with an underscore, or one that `docs/source` lists in an `autofunction`,
+     `autoclass`, `automodule` or `autosummary` entry;
+   - the C++ extension API: what `docs/cpp` and `docs/source/accelerator` document, the
+     API in `torch/headeronly` and `torch/csrc/stable`, and the headers any of these
+     include;
+   - formats users save, such as checkpoints.
+
+   Output shape aside, breaking outside code that relied on anything else is not a yes.
+
 These two questions outrank everything below: fitting a class never turns a yes into a
 no. The one exception is a change that fits **Meta-internal only**. Meta's own review
 covers it, so neither question applies to it, and neither do the two lists below.
