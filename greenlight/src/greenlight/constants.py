@@ -108,6 +108,11 @@ FULL_TICK_TOLERANCE = timedelta(seconds=30)
 # the first), stamp two events with the same second, or serve updated_at and the reviews out of step,
 # so a younger fingerprint can miss an event without its updated_at ever changing.
 FINGERPRINT_QUIET = timedelta(seconds=120)
+# The scan's label pass starts a PR only this soon after the tick's listing starts, in every run mode. Against the
+# scan Lambda's 300 s function timeout, that typically leaves room, though it guarantees none, for the writes of a
+# PR started just before it and for the Dr. CI poke drain that ends the scan.
+LABEL_PASS_DEADLINE = timedelta(seconds=150)
+LABEL_PASS_MAX_FAILURES = 3
 
 MERGE_RULES_PATH = ".github/merge_rules.yaml"
 
