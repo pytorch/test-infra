@@ -205,12 +205,12 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. For
 `LAND`/`NO_LAND`, a `NO_LAND` first dismisses greenlight's prior approval; unless `--shadow`,
 [the record-time merge-rule check](TRUSTED_AUTHORS.md) decides shadow next, and a failed check writes
-no row; after the row, a `LAND` approves, or dismisses if shadow. `CANCELLED` and `FAILED` markers
-only emit the row. The model's message is asked for as a short markdown outline (see "How the verdict
-message is rendered") and is secret-scrubbed at a single point before it fans out to both the emitted
-row and the posted comment; whichever comment ultimately carries it — greenlight's own, or
-Dr. CI's Green Light section rendered from the row — additionally neutralizes its formatting
-and @-mentions on the way out.
+no row; after the row, a `LAND` approves, or dismisses if shadow.
+`CANCELLED` and `FAILED` markers only emit the row. The model's
+message is asked for as a short markdown outline (see "How the verdict message is rendered") and is
+secret-scrubbed at a single point before it fans out to both the emitted row and the posted comment;
+whichever comment ultimately carries it — greenlight's own, or Dr. CI's Green Light section rendered
+from the row — additionally neutralizes its formatting and @-mentions on the way out.
 
 ```bash
 just run verdict --pr 123 --head-sha "$SHA" --verdict-file verdict.json \
@@ -449,7 +449,7 @@ unprefixed `BOT_LOGIN`:
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | How long `drci-poke` waits for the emitted row to reach ClickHouse before requesting the rebuild (`0` = no wait). Does not apply to `review`'s own dispatch poke, which always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key used by `drci-poke` and by `review`'s dispatch poke, sent as a raw `Authorization` value (the `DRCI_BOT_KEY` secret); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (the `HUD_API_TOKEN` secret). Not an endpoint credential — Dr. CI authenticates on `Authorization` alone; this clears HUD's bot challenge, the same pairing `update-drci-comments.yml` already sends |
-| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, and revokes its approval on a reverted or ineligible PR, but the capped fan-out stops before submitting anything, so nothing is fingerprinted, evaluated, or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | Read only by the `greenlight-scan` Lambda handler, which passes it through as `review --max`; every other path takes the `--max` flag instead. Caps how many PRs one scheduled pass dispatches so the pass fits the 300 s function timeout — the practical ceiling is roughly 30 at the slow end of the dispatch cost and roughly 50 at the fast end (see Deployment). `0` is a pause switch: the scan still lists its candidates, reads their state, and revokes its approval on a reverted or ineligible PR, but the capped fan-out stops before submitting anything, so nothing is fingerprinted afresh or dispatched. Must be a non-negative integer; blank or unset is the default, and the ceiling is documented rather than enforced |
 
 `review` additionally reads ClickHouse — any scan that finds at least one cohort
 PR looks up `misc.greenlight_pr_state` — via the standard `CLICKHOUSE_*` connection
@@ -623,47 +623,43 @@ criterion it never examined counts as one — and LAND if only nits remain.
 
 ## Current status
 
-Works today: the CLI runs the `review` phase once (cron-like) or as a `--loop` daemon,
-with a single-instance lock, a per-iteration soft timeout plus a hard watchdog, backoff
-on failure, and clean signal shutdown — all built and tested. `review` scans the open PRs
-from the evaluation cohort in `pytorch/pytorch`, computes each PR's fingerprint
-(`eval_hash`), reads the PR's latest recorded state from `misc.greenlight_pr_state`, and
-dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`) for
-eligible PRs that are new or changed. It lists every open PR on a full tick, and on the fast ticks
-in between only the recently updated ones plus the open `Reverted`-labelled ones, reusing the
-fingerprint of a PR unchanged since an earlier tick (see Usage).
-Reverted PRs — those carrying the `Reverted` label or with a
-`REVERTED` row already recorded — are excluded permanently on every path: greenlight revokes its
-own approving review, records the `REVERTED` row unless it is already the PR's latest row, and
-pokes Dr. CI when either changed. The
-exclusion survives removal of the label, and `@greenlight recheck` is not exempt (it is skipped
-silently). A listed ineligible PR inside the review window and not labelled `Stale`, whose latest
-recorded row is a `LAND`, has greenlight's approval dismissed, with nothing recorded or dispatched.
-Both paths write to `pytorch/pytorch`, so `review` needs PR write and the App's `BOT_LOGIN`.
-Draft PRs are dropped from the listing scan entirely — never
-fingerprinted or dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still
-reviews a draft. PRs whose `updated_at` is older than the review window
-(`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`, default 24), or that carry the `Stale` label, are
-skipped without fingerprinting unless a review is in-flight or retry-eligible (cancelled/failed);
-an explicit `@greenlight recheck` (the `--pr` path) reviews such a PR regardless. PRs a human has already decided
-— approved by a merge-authorized login (bots excluded) or with changes requested by any non-bot
-reviewer — are also skipped without fingerprinting, and no state is written, so the scan resumes
-if that changes. An `AI_REVIEW_STARTED` marker is treated as an
-in-flight review and left alone until the `--timeout-minutes` window (default 45) elapses.
-`review` requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan with at least one PR reads
-ClickHouse (`CLICKHOUSE_*`).
+Works today: the CLI runs the `review` phase once (cron-like) or as a `--loop` daemon, with a
+single-instance lock, a per-iteration soft timeout plus a hard watchdog, backoff on failure, and
+clean signal shutdown — all built and tested. `review` scans the open PRs from the evaluation cohort
+in `pytorch/pytorch`, computes each PR's fingerprint (`eval_hash`), reads the PR's latest recorded
+state from `misc.greenlight_pr_state`, and dispatches the reviewer workflow
+(`greenlight-pr-review.yml` on `pytorch/test-infra`) for eligible PRs that are new or changed. It
+lists every open PR on a full tick, and on the fast ticks in between only the recently updated ones
+plus the open `Reverted`-labelled ones, reusing the fingerprint of a PR unchanged since an earlier
+tick (see Usage). Reverted PRs — those carrying the `Reverted` label or with a `REVERTED` row
+already recorded — are excluded permanently on every path: greenlight revokes its own approving
+review, records the `REVERTED` row unless it is already the PR's latest row, and pokes Dr. CI when
+either changed. The exclusion survives removal of the label, and `@greenlight recheck` is not exempt
+(it is skipped silently). A listed ineligible PR inside the review window and not labelled `Stale`,
+whose latest recorded row is a `LAND`, has greenlight's approval dismissed, with nothing recorded or
+dispatched. Both paths write to `pytorch/pytorch`, so `review` needs PR write and the App's
+`BOT_LOGIN`. Draft PRs are dropped from the listing scan entirely — never fingerprinted or
+dispatched — though an explicit `@greenlight recheck` (the `--pr` path) still reviews a draft. PRs
+whose `updated_at` is older than the review window (`PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`,
+default 24), or that carry the `Stale` label, are skipped without fingerprinting unless a review is
+in-flight or retry-eligible (cancelled/failed); an explicit `@greenlight recheck` (the `--pr` path)
+reviews such a PR regardless. PRs a human has already decided — approved by a merge-authorized login
+(bots excluded) or with changes requested by any non-bot reviewer — are also skipped without
+fingerprinting, and no state is written, so the scan resumes if that changes. An `AI_REVIEW_STARTED`
+marker is treated as an in-flight review and left alone until the `--timeout-minutes` window
+(default 45) elapses. `review` requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN`, and any scan
+with at least one PR reads ClickHouse (`CLICKHOUSE_*`).
 
 Also works: the reviewer workflow's `announce_start` job emits the `AI_REVIEW_STARTED`
 marker at run start; the `verdict` subcommand emits a PR-review verdict row (with the
 passed-in `eval_hash` verbatim) for the record workflow to upload to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state`; for LAND/NO_LAND it also acts on the PR — approve, or
-dismiss greenlight's prior approval. A shadow verdict is never approved and always dismisses.
-`verdict` is a one-shot call for a
-privileged CI job and never writes ClickHouse directly. The `drci-poke` subcommand asks Dr. CI
-to rebuild one PR's comment, which is where the status is shown on the repos that delegate it.
-The service reads ClickHouse via `clickhouse_client.connect()` for both the review scan and its
-other SELECTs.
+dismiss greenlight's prior approval. A shadow verdict is
+never approved and always dismisses. `verdict` is a one-shot call for a privileged CI job and never
+writes ClickHouse directly. The `drci-poke` subcommand asks Dr. CI to rebuild one PR's comment,
+which is where the status is shown on the repos that delegate it. The service reads ClickHouse via
+`clickhouse_client.connect()` for both the review scan and its other SELECTs.
 
 `misc.greenlight_pr_state` is append-only-equivalent: it keeps its `SharedReplacingMergeTree`
 engine, but no verdict emit is ever collapsed because the sort key
