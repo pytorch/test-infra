@@ -78,6 +78,14 @@ def test_verdict_labels_cover_exactly_the_terminal_statuses():
     assert set(verdict_labels._VERDICT_LABELS) == constants.TERMINAL_STATUSES
 
 
+def test_label_pass_deadline_value():
+    assert timedelta(seconds=150) == constants.LABEL_PASS_DEADLINE
+
+
+def test_label_pass_max_failures_value():
+    assert constants.LABEL_PASS_MAX_FAILURES == 3
+
+
 def test_s3_key_prefix_value():
     assert constants.S3_KEY_PREFIX == "greenlight_pr_state"
 

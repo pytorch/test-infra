@@ -29,11 +29,14 @@ from greenlight.constants import (
     GL_LABELS,
     GL_SUPERSEDED_LABEL,
     IN_FLIGHT_STATUSES,
+    LABEL_PASS_DEADLINE,
+    LABEL_PASS_MAX_FAILURES,
     STATUS_LAND,
     STATUS_NO_LAND,
     STATUS_REVERTED,
     TARGET_REPO,
 )
+from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
@@ -80,7 +83,8 @@ class LabelPass:
     and ``eligible`` and ``ineligible`` the ``recent`` PRs whose author is determined eligible or
     not; an undetermined PR is in neither. ``skips`` holds the PRs a human decided, and ``labels``
     and ``heads`` each listed PR's labels and head. An in-flight gate row counts as a review in
-    progress for ``timeout``, measured against ``clock()``.
+    progress for ``timeout``, and a PR is started only while ``clock()`` reads less than
+    ``LABEL_PASS_DEADLINE`` after ``listed_at``.
     """
 
     fetch_pr: Callable[[int], _RelabelPR]
@@ -91,6 +95,7 @@ class LabelPass:
     skips: Sequence[tuple[int, ReviewSkip]]
     labels: Mapping[int, Sequence[str]]
     heads: Mapping[int, str | None]
+    listed_at: datetime
     clock: Callable[[], datetime]
     timeout: timedelta
 
@@ -174,8 +179,12 @@ def label_listed_prs(
 
     The rows are read in one query that is not guarded, so a failure to read them
     propagates. The PRs go in number order; one is fetched only when its listed labels differ
-    from the ones it must carry, and one found closed keeps its labels. A failure on a PR is logged
-    and, ``IterationTimeout`` aside, never propagates: the pass moves on to the next PR.
+    from the ones it must carry, none is started once the tick is ``LABEL_PASS_DEADLINE`` old, and
+    one found closed keeps its labels. A failure on a PR is logged and, ``IterationTimeout`` aside,
+    never propagates: a rate limit stops the pass, and so does a run of ``LABEL_PASS_MAX_FAILURES``
+    other failures with no PR synced between them; a failure short of that moves it on to the next
+    PR. As the order is fixed, PRs that keep failing stop the pass at the same place every tick.
+    Every PR the pass does not reach waits for the next tick.
     """
     reverted = frozenset(scan.reverted)
     recent = frozenset(scan.recent)
@@ -187,7 +196,11 @@ def label_listed_prs(
     if not candidates:
         return
     now = scan.clock()
+    if now - scan.listed_at >= LABEL_PASS_DEADLINE:
+        logger.info("label pass skipped: the tick is past its %s deadline", LABEL_PASS_DEADLINE)
+        return
     gates, verdicts = read_gate_rows(TARGET_REPO, candidates)
+    failures = 0
     for number in candidates:
         try:
             desired = desired_labels(
@@ -203,12 +216,32 @@ def label_listed_prs(
             )
             if desired is None or _folded(_ours(scan.labels.get(number, ()))) == _folded(desired):
                 continue
+            if scan.clock() - scan.listed_at >= LABEL_PASS_DEADLINE:
+                logger.info("label pass deadline reached at PR #%d; the rest wait for the next scan", number)
+                return
             pr = scan.fetch_pr(number)
             if pr.state != _STATE_OPEN:
                 logger.info("PR #%d is now %s; its labels stay as they are", number, pr.state)
                 continue
             sync_labels(pr, desired, number=number)
+            failures = 0
         except IterationTimeout:
             raise
         except Exception as exc:
+            if is_rate_limit_error(exc):
+                logger.error(
+                    "label pass stopped at PR #%d by a rate limit; the rest wait for the next scan: %s",
+                    number,
+                    exc,
+                    exc_info=True,
+                )
+                return
             logger.error("failed to relabel PR #%d: %s", number, exc, exc_info=True)
+            failures += 1
+            if failures >= LABEL_PASS_MAX_FAILURES:
+                logger.error(
+                    "label pass stopped at PR #%d after %d failures in a row; the rest wait for the next scan",
+                    number,
+                    failures,
+                )
+                return

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
-from github import BadCredentialsException, GithubException, UnknownObjectException
+from github import BadCredentialsException, GithubException, RateLimitExceededException, UnknownObjectException
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import RetryError
 
@@ -16,6 +16,7 @@ from greenlight.constants import (
     GL_APPROVED_LABEL,
     GL_HUMAN_LABEL,
     GL_SUPERSEDED_LABEL,
+    LABEL_PASS_DEADLINE,
     STATUS_AI_REVIEW_DISPATCHED,
     STATUS_AI_REVIEW_STARTED,
     STATUS_CANCELLED,
@@ -30,7 +31,7 @@ from greenlight.review_gate import HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Mapping, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
 
 _LISTED_AT = datetime(2026, 10, 15, 12, 0, 0)
 _IN_TIME = timedelta(seconds=10)
@@ -169,6 +170,7 @@ class _Scan:
                 skips=[(number, _HUMAN_DECIDED) for number in self.skips],
                 labels=self.labels,
                 heads=dict.fromkeys(self.labels, _HEAD) if self.heads is None else self.heads,
+                listed_at=_LISTED_AT,
                 clock=self._clock,
                 timeout=self.timeout,
             ),
@@ -714,6 +716,60 @@ def test_a_pr_closed_since_the_listing_keeps_its_labels_and_the_pass_moves_on(ca
     assert all(record.levelno < logging.ERROR for record in caplog.records)
 
 
+@pytest.mark.parametrize("elapsed", [LABEL_PASS_DEADLINE, LABEL_PASS_DEADLINE + timedelta(minutes=1)])
+def test_a_tick_past_the_label_deadline_skips_the_pass_without_reading_clickhouse(elapsed):
+    scan = _Scan(labels={5: []}, rows={5: (_LAND, _LAND)}, recent=[5], eligible=[5], elapsed=[elapsed])
+
+    scan.run()
+
+    assert scan.reads == []
+    assert scan.fetched == []
+
+
+def test_a_tick_just_inside_the_label_deadline_runs_the_pass():
+    scan = _Scan(
+        labels={5: []},
+        rows={5: (_LAND, _LAND)},
+        recent=[5],
+        eligible=[5],
+        elapsed=[LABEL_PASS_DEADLINE - timedelta(microseconds=1)],
+    )
+
+    scan.run()
+
+    assert scan.reads == [(TARGET_REPO, [5])]
+    assert scan.prs[5].calls == [("add", GL_APPROVED_LABEL)]
+
+
+def test_the_pass_starts_no_pr_once_the_label_deadline_has_passed():
+    scan = _Scan(
+        labels={3: [], 5: [], 7: []},
+        rows={3: (_LAND, _LAND), 5: (_LAND, _LAND), 7: (_LAND, _LAND)},
+        recent=[3, 5, 7],
+        eligible=[3, 5, 7],
+        elapsed=[_IN_TIME, LABEL_PASS_DEADLINE - timedelta(microseconds=1), LABEL_PASS_DEADLINE],
+    )
+
+    scan.run()
+
+    assert scan.fetched == [3]
+    assert scan.prs[3].calls == [("add", GL_APPROVED_LABEL)]
+
+
+def test_the_pass_ends_at_the_first_pr_it_reaches_past_the_deadline_even_if_the_clock_steps_back():
+    scan = _Scan(
+        labels={3: [], 5: []},
+        rows={3: (_LAND, _LAND), 5: (_LAND, _LAND)},
+        recent=[3, 5],
+        eligible=[3, 5],
+        elapsed=[_IN_TIME, LABEL_PASS_DEADLINE, _IN_TIME],
+    )
+
+    scan.run()
+
+    assert scan.fetched == []
+
+
 def _failing_scan(step: str, error: Exception) -> _Scan:
     return _Scan(
         labels={3: [GL_HUMAN_LABEL], 5: [GL_HUMAN_LABEL]},
@@ -740,7 +796,7 @@ def _failing_scan(step: str, error: Exception) -> _Scan:
         pytest.param(RuntimeError("unexpected"), id="unexpected"),
     ],
 )
-def test_a_failure_on_a_pr_is_logged_and_the_pass_moves_on(step, error, caplog):
+def test_a_failure_other_than_a_rate_limit_is_logged_and_the_pass_moves_on(step, error, caplog):
     scan = _failing_scan(step, error)
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
@@ -755,6 +811,35 @@ def test_a_failure_on_a_pr_is_logged_and_the_pass_moves_on(step, error, caplog):
 
 
 @pytest.mark.parametrize("step", ["fetch", "state", "labels", "remove", "add"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(RateLimitExceededException(403, {"message": "API rate limit exceeded"}), id="rate-limit"),
+        pytest.param(GithubException(429, {"message": "secondary rate limit"}), id="429"),
+        pytest.param(
+            GithubException(403, {"message": "secondary rate limit"}, headers={"retry-after": "60"}),
+            id="403-with-retry-after",
+        ),
+        pytest.param(
+            GithubException(403, {"message": "quota exhausted"}, headers={"x-ratelimit-remaining": "0"}),
+            id="403-with-no-quota-left",
+        ),
+    ],
+)
+def test_a_rate_limit_is_logged_and_stops_the_pass(step, error, caplog):
+    scan = _failing_scan(step, error)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan.run()
+
+    assert scan.fetched == [3]
+    [record] = caplog.records
+    assert record.exc_info is not None
+    assert record.exc_info[1] is error
+    assert "PR #3" in record.getMessage()
+
+
+@pytest.mark.parametrize("step", ["fetch", "state", "labels", "remove", "add"])
 def test_an_iteration_timeout_propagates_out_of_the_pass(step):
     scan = _failing_scan(step, IterationTimeout("iteration exceeded 300 seconds"))
 
@@ -762,6 +847,88 @@ def test_an_iteration_timeout_propagates_out_of_the_pass(step):
         scan.run()
 
     assert scan.fetched == [3]
+
+
+_OUTCOME_ERRORS: dict[str, Callable[[], Exception]] = {
+    "F": lambda: GithubException(500, {"message": "Server Error"}),
+    "R": lambda: RateLimitExceededException(403, {"message": "API rate limit exceeded"}),
+    "T": lambda: IterationTimeout("iteration exceeded 300 seconds"),
+}
+
+
+def _breaker_scan(outcomes: str) -> _Scan:
+    """A tick whose PRs 1, 2, ... each need ``GL/approved``, one per letter of ``outcomes``.
+
+    ``S`` syncs; ``F`` fails, ``R`` hits a rate limit and ``T`` times out on the add; ``C`` is found
+    closed; ``U`` already carries the label, so it is not fetched.
+    """
+    by_number = dict(enumerate(outcomes, start=1))
+    return _Scan(
+        labels={number: [GL_APPROVED_LABEL] if outcome == "U" else [] for number, outcome in by_number.items()},
+        rows=dict.fromkeys(by_number, (_LAND, _LAND)),
+        recent=list(by_number),
+        eligible=list(by_number),
+        closed=[number for number, outcome in by_number.items() if outcome == "C"],
+        fail={
+            number: {"add": _OUTCOME_ERRORS[outcome]()}
+            for number, outcome in by_number.items()
+            if outcome in _OUTCOME_ERRORS
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    ("outcomes", "fetched"),
+    [
+        pytest.param("FFFS", [1, 2, 3], id="in-a-row"),
+        pytest.param("FCFFS", [1, 2, 3, 4], id="around-a-closed-pr"),
+        pytest.param("FUFFS", [1, 3, 4], id="around-a-pr-not-fetched"),
+    ],
+)
+def test_three_failures_with_no_pr_synced_between_them_stop_the_pass(outcomes, fetched, caplog):
+    scan = _breaker_scan(outcomes)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan.run()
+
+    assert scan.fetched == fetched
+    *failures, summary = caplog.records
+    assert len(failures) == 3
+    assert all(record.exc_info is not None for record in failures)
+    assert summary.exc_info is None
+    assert f"label pass stopped at PR #{fetched[-1]} after 3 failures in a row" in summary.getMessage()
+
+
+@pytest.mark.parametrize("outcomes", ["FFSFS", "FFSFFS"])
+def test_a_pr_synced_between_failures_starts_their_count_again(outcomes, caplog):
+    scan = _breaker_scan(outcomes)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan.run()
+
+    assert scan.fetched == list(range(1, len(outcomes) + 1))
+    assert scan.prs[len(outcomes)].calls == [("add", GL_APPROVED_LABEL)]
+    assert len(caplog.records) == outcomes.count("F")
+
+
+def test_a_rate_limit_after_two_failures_stops_the_pass_as_a_rate_limit(caplog):
+    scan = _breaker_scan("FFRS")
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan.run()
+
+    assert scan.fetched == [1, 2, 3]
+    assert len(caplog.records) == 3
+    assert "label pass stopped at PR #3 by a rate limit" in caplog.records[-1].getMessage()
+
+
+def test_an_iteration_timeout_after_two_failures_still_propagates():
+    scan = _breaker_scan("FFTS")
+
+    with pytest.raises(IterationTimeout):
+        scan.run()
+
+    assert scan.fetched == [1, 2, 3]
 
 
 def test_a_failed_row_read_propagates_out_of_the_pass():
