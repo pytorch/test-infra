@@ -205,8 +205,8 @@ daemon): it emits a gzipped single-line JSON row (whose `reason` must be a canon
 it into `misc.greenlight_pr_state` — the command never writes ClickHouse directly. For
 `LAND`/`NO_LAND`, a `NO_LAND` first dismisses greenlight's prior approval; unless `--shadow`,
 [the record-time merge-rule check](TRUSTED_AUTHORS.md) decides shadow next, and a failed check writes
-no row; after the row, a `LAND` approves, or dismisses if shadow.
-`CANCELLED` and `FAILED` markers only emit the row. The model's
+no row; after the row, a `LAND` approves, or dismisses if shadow, and a non-shadow verdict sets its
+[`GL/*` label](STATUS_LABELS.md). `CANCELLED` and `FAILED` markers only emit the row. The model's
 message is asked for as a short markdown outline (see "How the verdict message is rendered") and is
 secret-scrubbed at a single point before it fans out to both the emitted row and the posted comment;
 whichever comment ultimately carries it — greenlight's own, or Dr. CI's Green Light section rendered
@@ -437,7 +437,7 @@ unprefixed `BOT_LOGIN`:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the whole scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs; `verdict` needs PR write, plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org for its merge-rule check |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs; `verdict` needs PR write (its approval, dismissal and `GL/*` label), plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org for its merge-rule check |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
@@ -658,7 +658,7 @@ marker at run start; the `verdict` subcommand emits a PR-review verdict row (wit
 passed-in `eval_hash` verbatim) for the record workflow to upload to
 `s3://gha-artifacts/greenlight_pr_state/`, where the clickhouse-replicator-s3 path ingests
 it into `misc.greenlight_pr_state`; for LAND/NO_LAND it also acts on the PR — approve, or
-dismiss greenlight's prior approval. A shadow verdict is
+dismiss greenlight's prior approval — and sets its `GL/*` label unless shadow. A shadow verdict is
 never approved and always dismisses. `verdict` is a one-shot call for a privileged CI job and never
 writes ClickHouse directly. The `drci-poke` subcommand asks Dr. CI to rebuild one PR's comment,
 which is where the status is shown on the repos that delegate it. The service reads ClickHouse via
@@ -752,9 +752,9 @@ src/greenlight/
   state_emit.py    # build and emit a state row to S3 for replicator ingestion; single source of the row schema and object key
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)
   dispatch.py      # trigger the reviewer workflow on pytorch/test-infra via workflow_dispatch
-  verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss and (unless Dr. CI renders it) comment
+  verdict.py       # one-shot: emit a verdict row for S3->replicator, then approve/dismiss, set the GL/* label and (unless Dr. CI renders it) comment
   verdict_input.py # resolve and validate the verdict command's input: its status, and a LAND/NO_LAND's reason and message
-  verdict_labels.py # greenlight's GL/* status labels: each PR's desired set, applied by the scan's label pass
+  verdict_labels.py # greenlight's GL/* status labels: each PR's desired set, applied at verdict time and by the scan's label pass
   comment_format.py # render greenlight's PR comment bodies; pick the outline or fenced message renderer per row
   verdict_outline.py # render a model-authored verdict outline as one contained HTML bullet list (mirrored in TypeScript)
   redact.py        # scrub credential-shaped substrings out of untrusted, model-authored text

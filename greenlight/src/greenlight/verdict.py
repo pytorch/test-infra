@@ -25,8 +25,10 @@ not take back one collected while the PR was eligible, and a live approval is au
 the row says. The row is
 authoritative, so the comment upsert is best-effort on every path (a
 failed write is logged and swallowed); the LAND approving review and the NO_LAND dismissal are the
-merge gate and stay load-bearing -- they raise on failure. MARKER statuses (CANCELLED / FAILED /
-AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are both present,
+merge gate and stay load-bearing -- they raise on failure. An authoritative LAND or NO_LAND also
+makes that verdict's ``GL/*`` label the PR's only one (``verdict_labels``), best-effort too, unless
+the PR is closed, has moved off the reviewed head or carries ``Reverted``. MARKER statuses (CANCELLED /
+FAILED / AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are both present,
 best-effort upsert that same canonical comment to show the run as in-progress (AI_REVIEW_STARTED)
 or not-completed (CANCELLED / FAILED). The command never writes to ClickHouse directly.
 
@@ -44,7 +46,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import cohort, comment_format, constants, github_client, merge_authz, redact, state_emit, verdict_input
+from greenlight import (
+    cohort,
+    comment_format,
+    constants,
+    github_client,
+    merge_authz,
+    redact,
+    state_emit,
+    verdict_input,
+    verdict_labels,
+)
 from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, STATUS_NO_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
 
 if TYPE_CHECKING:
@@ -319,6 +331,8 @@ def _run_full(
         else:
             github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
             logger.info("approved %s#%d", request.repo, request.pr_number)
+    if not shadow:
+        verdict_labels.label_verdict(pr, status, reviewed_head=request.head_sha, number=request.pr_number)
     _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
 
 
