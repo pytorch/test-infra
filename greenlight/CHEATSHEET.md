@@ -65,7 +65,11 @@ one-shot `verdict` and `drci-poke` subcommands:
   an author is a `merge_rules.yaml` change in `pytorch/pytorch`, live on the scheduled scan's next
   pass (a `--loop` daemon caches the rules for `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`); an
   author no rule names drops out of the listing and keeps any approval until it is dismissed by
-  hand. [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md) has the details.
+  hand. [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md) has the details. Every listing tick that reaches its
+  dispatch phase without a rate limit also supersedes, restores or re-applies the `GL/*` labels of its
+  reverted and `Stale` PRs, and of those the review window keeps (updated inside it, or with an in-flight or
+  retry-eligible review), after its dispatches: best-effort writes, made only on a transition, in a
+  time-boxed pass ([STATUS_LABELS.md](STATUS_LABELS.md)).
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval). It also upserts the status comment, except on
@@ -173,7 +177,7 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login; author-scopes the recheck-refusal comment and picks out greenlight's approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR); `verdict` needs PR write plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org (for its merge-rule check) |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels); `verdict` needs PR write plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org (for its merge-rule check) |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
@@ -184,7 +188,7 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | `PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS` | `10` | `drci-poke` waits this long for state ingestion before the request (`0` = no wait); `review`'s own poke always waits zero |
 | `PYTORCH_GREENLIGHT_DRCI_TOKEN` | unset | Dr. CI endpoint key for `drci-poke` and `review`'s dispatch poke (`DRCI_BOT_KEY`); unset skips the poke |
 | `PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN` | unset | Optional `x-hud-internal-bot` header value for either poke (`HUD_API_TOKEN`); clears HUD's bot challenge, not an endpoint credential |
-| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | `greenlight-scan` Lambda only: dispatch cap for the scheduled pass, passed through as `review --max` (`0` fingerprints nothing afresh and dispatches nothing; the scan still lists and still revokes on reverted or ineligible PRs). Non-negative integer, with no upper bound enforced — roughly 30-50 is what fits the 300 s timeout; elsewhere use `--max` |
+| `PYTORCH_GREENLIGHT_MAX_DISPATCHES_PER_SCAN` | `30` | `greenlight-scan` Lambda only: dispatch cap for the scheduled pass, passed through as `review --max` (`0` fingerprints nothing afresh and dispatches nothing; the scan still lists, still revokes on reverted or ineligible PRs, and still runs its `GL/*` label pass, which then supersedes a human-decided PR only on a fast tick, from its kept result). Non-negative integer, with no upper bound enforced — roughly 30-50 is what fits the 300 s timeout; elsewhere use `--max` |
 
 Raise verbosity with `--log-level DEBUG` (or `PYTORCH_GREENLIGHT_LOG_LEVEL=DEBUG`); DEBUG also
 logs the resolved `Config`.
@@ -234,7 +238,9 @@ The end-to-end flow, per cohort PR:
    (`greenlight-pr-review.yml` on `pytorch/test-infra`) and emits an `AI_REVIEW_DISPATCHED`
    row, then hands Dr. CI a poke to a background pool (no ingestion wait — the row is already
    in S3) so that first state surfaces immediately instead of on the next sweep. The scan does
-   not wait on the poke; the pool is drained before the scan returns.
+   not wait on the poke; the pool is drained before the scan returns. After its dispatches, every
+   listing tick that reaches its dispatch phase without a rate limit also supersedes, restores or re-applies
+   the `GL/*` labels of its reverted and `Stale` PRs and of those the review window keeps; `--pr` never does.
 4. The reviewer workflow's `announce_start` job records an `AI_REVIEW_STARTED` marker, so
    the next scan sees the review as in-flight and does not re-dispatch it.
 5. Before the model runs, the workflow sanitizes the untrusted `./pytorch` checkout —
@@ -256,7 +262,8 @@ The end-to-end flow, per cohort PR:
    refusing or waiting otherwise.
 
 A scan is live: it makes real GitHub and ClickHouse calls and will really dispatch the
-reviewer workflow. Scope a trial run with `--pr N` and cap it with `--max N`;
+reviewer workflow, and a listing run writes real `GL/*` labels
+itself. Scope a trial run with `--pr N`, which skips the label pass, and cap it with `--max N`;
 add `--log-level DEBUG` to watch the flow:
 
 ```bash
