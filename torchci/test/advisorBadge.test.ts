@@ -332,12 +332,26 @@ describe("selectAdvisorLines", () => {
       expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
     });
 
-    // Auto-dispatch treats a key with no dispatch row as fresh, so a dispatch
-    // is owed: keep the PR in the sweep rather than calling the verdict stale.
-    it("a verdict with no dispatch row keeps the sentinel", () => {
-      const line = select(verdictAt("2026-10-16 01:30:00.000"), undefined);
-      expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
-      expect(line).not.toContain("<details>");
+    // With auto-dispatch on, a key with no dispatch row is treated as fresh,
+    // so a dispatch is owed: keep the PR in the sweep. With it off, nothing
+    // will dispatch it, so the sentinel would pin the PR for nothing.
+    it("a verdict with no dispatch row keeps the sentinel only with auto-dispatch on", () => {
+      const line = (autoDispatchOn: boolean) =>
+        selectAdvisorLines(
+          HUD,
+          "pytorch",
+          "pytorch",
+          1,
+          "sha",
+          [{ id: 7, name: JOB, completedAt: RERUN_DONE }],
+          verdictAt("2026-10-16 01:30:00.000"),
+          new Map(),
+          autoDispatchOn
+        ).get(7);
+      expect(line(true)).toContain(ADVISOR_PENDING_ALT_ATTR);
+      expect(line(true)).not.toContain("<details>");
+      expect(line(false)).toContain('alt="AI verdict: outdated"');
+      expect(line(false)).not.toContain(ADVISOR_PENDING_ALT_ATTR);
     });
 
     it("no verdict and no dispatch row renders no line", () => {

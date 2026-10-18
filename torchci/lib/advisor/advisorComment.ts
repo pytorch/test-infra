@@ -41,7 +41,9 @@ export function buildAdvisorVerdictLines(
   jobs: RecentWorkflowsData[],
   verdictRows: AdvisorVerdictRow[],
   // null when the dispatch states could not be read (see selectAdvisorLines).
-  dispatchByKey: Map<string, DispatchMark> | null
+  dispatchByKey: Map<string, DispatchMark> | null,
+  // Whether auto-dispatch runs for this repo (see selectAdvisorLines).
+  autoDispatchOn: boolean = false
 ): Map<number, string> {
   if (!advisorCommentEnabled(owner, repo) || jobs.length === 0) {
     return new Map();
@@ -69,6 +71,7 @@ export function buildAdvisorVerdictLines(
     headSha,
     jobs.map((j) => ({ id: j.id, name: j.name, completedAt: j.completed_at })),
     verdictByKey,
-    dispatchByKey
+    dispatchByKey,
+    autoDispatchOn
   );
 }

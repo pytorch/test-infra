@@ -8,6 +8,7 @@ import {
 import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
 import {
   autoDispatchAdvisorForNewFailures,
+  autoDispatchEnabled,
   readDispatchStates,
   signalKeyForJob,
   toDispatchMark,
@@ -502,7 +503,8 @@ export async function updateDrciComments(
           pr_info.head_sha,
           advisorJobs,
           advisorVerdictRows,
-          advisorDispatches
+          advisorDispatches,
+          autoDispatchEnabled(owner, repo)
         );
       } catch (e) {
         console.error(

@@ -375,10 +375,12 @@ export interface AdvisorLineVerdict {
 //     owes this run a new one (a rerun). The pending sentinel keeps the PR in
 //     the sweep until that work lands, including when a pass skipped it on a
 //     transient error;
-//   - a failed dispatch that auto-dispatch will retry, or a verdict whose key
-//     has no dispatch row at all (auto-dispatch treats that key as fresh and
-//     dispatches it): the in-progress line, for the same reason;
-//   - a verdict whose latest dispatch failed for good: the outdated line;
+//   - a failed dispatch that auto-dispatch will retry, or, with auto-dispatch
+//     on (`autoDispatchOn`), a verdict whose key has no dispatch row at all
+//     (auto-dispatch treats that key as fresh and dispatches it): the
+//     in-progress line, for the same reason;
+//   - any other verdict (its latest dispatch failed for good, or it has no
+//     row and nothing will dispatch it): the outdated line;
 //   - otherwise no line.
 // `dispatchByKey` holds the latest dispatch row per signal key, or is null when
 // it could not be read. Then nothing can be shown as covering its run, and
@@ -394,7 +396,8 @@ export function selectAdvisorLines(
   headSha: string,
   jobs: AdvisorLineJob[],
   verdictByKey: Map<string, AdvisorLineVerdict>,
-  dispatchByKey: Map<string, DispatchMark> | null
+  dispatchByKey: Map<string, DispatchMark> | null,
+  autoDispatchOn: boolean = false
 ): Map<number, string> {
   const out = new Map<number, string>();
   for (const job of jobs) {
@@ -431,7 +434,7 @@ export function selectAdvisorLines(
       dispatchByKey === null ||
       isLiveDispatch(dispatch) ||
       dispatch?.retryPending ||
-      (verdict !== undefined && dispatch === undefined)
+      (autoDispatchOn && verdict !== undefined && dispatch === undefined)
     ) {
       out.set(job.id, renderInProgressLine(...args, since));
     } else if (verdict) {
