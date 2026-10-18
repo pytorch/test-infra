@@ -124,14 +124,15 @@ export default async function handler(
 
     // Otherwise: "analyzing" while a live dispatch has no newer verdict yet;
     // pending while one answered for an earlier run and this run's dispatch is
-    // owed, or a failed dispatch will be retried; "outdated" when a verdict
-    // exists with neither.
+    // owed, a failed dispatch will be retried, or the key has no dispatch row
+    // (auto-dispatch treats it as fresh); "outdated" when a verdict exists and
+    // its latest dispatch failed for good. Same cases as selectAdvisorLines.
     let badge = PENDING_BADGE;
     if (isLiveDispatch(dispatch)) {
       if (!isStrictlyAfter(row?.timestamp, dispatch.version)) {
         badge = ANALYZING_BADGE;
       }
-    } else if (row && !dispatch?.retryPending) {
+    } else if (row && dispatch !== undefined && !dispatch.retryPending) {
       badge = OUTDATED_BADGE;
     }
     sendSvg(res, renderBadgeSvg(badge), SHORT_CACHE);
