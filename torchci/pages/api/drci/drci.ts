@@ -462,8 +462,9 @@ export async function updateDrciComments(
       // just made is seen. Shared by the verdict line and the suppression gate,
       // which both count a verdict only if it answers a dispatch made after the
       // job's run finished. A failed read yields null: no verdict then covers
-      // its run, so every job keeps blocking, and every line shows the pending
-      // sentinel so the next sweep re-renders the PR.
+      // its run, so every job keeps blocking, and every line for a job whose
+      // completion time is known shows the pending sentinel so the next sweep
+      // re-renders the PR (see selectAdvisorLines).
       let advisorDispatches: Map<string, DispatchMark> | null = new Map();
       if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
         try {

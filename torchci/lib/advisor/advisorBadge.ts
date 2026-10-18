@@ -375,14 +375,17 @@ export interface AdvisorLineVerdict {
 //     owes this run a new one (a rerun). The pending sentinel keeps the PR in
 //     the sweep until that work lands, including when a pass skipped it on a
 //     transient error;
-//   - a failed dispatch that auto-dispatch will retry: the in-progress line,
-//     for the same reason;
-//   - a verdict with no live or retryable dispatch: the outdated line;
+//   - a failed dispatch that auto-dispatch will retry, or a verdict whose key
+//     has no dispatch row at all (auto-dispatch treats that key as fresh and
+//     dispatches it): the in-progress line, for the same reason;
+//   - a verdict whose latest dispatch failed for good: the outdated line;
 //   - otherwise no line.
 // `dispatchByKey` holds the latest dispatch row per signal key, or is null when
 // it could not be read. Then nothing can be shown as covering its run, and
-// every job gets the in-progress line: its sentinel keeps the PR in the sweep,
-// so the next render, with a working read, settles the lines.
+// every job whose completion time is known gets the in-progress line: its
+// sentinel keeps the PR in the sweep, so the next render, with a working read,
+// settles the lines. A job with an unknown completion time still falls into
+// the first case above.
 export function selectAdvisorLines(
   hudBaseUrl: string,
   owner: string,
@@ -427,7 +430,8 @@ export function selectAdvisorLines(
     } else if (
       dispatchByKey === null ||
       isLiveDispatch(dispatch) ||
-      dispatch?.retryPending
+      dispatch?.retryPending ||
+      (verdict !== undefined && dispatch === undefined)
     ) {
       out.set(job.id, renderInProgressLine(...args, since));
     } else if (verdict) {

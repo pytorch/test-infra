@@ -29,6 +29,38 @@ function withFlags(
 }
 
 describe("shouldReadAdvisorVerdicts", () => {
+  // Re-dispatching a rerun reads the verdict rows, so auto-dispatch alone is
+  // enough to read.
+  test("auto-dispatch alone reads, on an advisor-enabled repo", () => {
+    const saved = {
+      flag: process.env.DRCI_ADVISOR_AUTODISPATCH_ENABLED,
+      env: process.env.VERCEL_ENV,
+    };
+    process.env.DRCI_ADVISOR_AUTODISPATCH_ENABLED = "true";
+    (process.env as Record<string, string>).VERCEL_ENV = "production";
+    try {
+      withFlags("false", "false", () => {
+        expect(shouldReadAdvisorVerdicts("pytorch", "pytorch", JOBS)).toBe(
+          true
+        );
+        expect(shouldReadAdvisorVerdicts("pytorch", OFF_REPO, JOBS)).toBe(
+          false
+        );
+        expect(shouldReadAdvisorVerdicts("pytorch", "pytorch", NO_JOBS)).toBe(
+          false
+        );
+      });
+    } finally {
+      for (const [k, v] of [
+        ["DRCI_ADVISOR_AUTODISPATCH_ENABLED", saved.flag],
+        ["VERCEL_ENV", saved.env],
+      ] as const) {
+        if (v === undefined) delete (process.env as Record<string, string>)[k];
+        else (process.env as Record<string, string>)[k] = v;
+      }
+    }
+  });
+
   test("both flags off means no read", () => {
     withFlags("false", "false", () => {
       expect(shouldReadAdvisorVerdicts("pytorch", "pytorch", JOBS)).toBe(false);

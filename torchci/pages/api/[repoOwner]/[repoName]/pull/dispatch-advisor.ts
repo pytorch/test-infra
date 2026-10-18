@@ -108,12 +108,17 @@ export default async function handler(
   }
 
   // Best-effort pre-dispatch marker (so the auto loop sees the manual dispatch).
-  // The terminal rows below are stamped just after it (see recordDispatch). If
-  // the marker write fails, they are still stamped from a time taken before the
-  // dispatch, never from when they are written.
-  let preVersion = nextDispatchVersion();
+  // Its version is allocated once, before the write: the terminal rows below
+  // are stamped just after it (see recordDispatch). If the write throws after
+  // the row persisted, the terminal row still outranks it; and they are never
+  // stamped from when they are written.
+  const preVersion = nextDispatchVersion();
   try {
-    preVersion = await recordDispatch({ ...record, state: "dispatching" });
+    await recordDispatch({
+      ...record,
+      state: "dispatching",
+      version: preVersion,
+    });
   } catch (e) {
     console.error("dispatch-advisor: pre-dispatch write failed", e);
   }

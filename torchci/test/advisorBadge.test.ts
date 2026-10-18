@@ -303,7 +303,18 @@ describe("selectAdvisorLines", () => {
     // A further rerun finished while the previous analysis was still running:
     // keep the sentinel so the PR stays in the sweep until that answer lands.
     it("keeps the sentinel while an older analysis is unanswered", () => {
-      const line = select(verdictAt("2026-10-16 01:00:00.000"), RERUN_DISPATCH);
+      // The newest verdict predates RERUN_DISPATCH, and this run finished
+      // after it.
+      const line = selectAdvisorLines(
+        HUD,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha",
+        [{ id: 7, name: JOB, completedAt: "2026-10-16 01:25:00" }],
+        verdictAt("2026-10-16 01:00:00.000"),
+        new Map([[KEY, RERUN_DISPATCH]])
+      ).get(7);
       expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
     });
 
@@ -321,9 +332,16 @@ describe("selectAdvisorLines", () => {
       expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
     });
 
-    it("a verdict with no dispatch row is outdated", () => {
+    // Auto-dispatch treats a key with no dispatch row as fresh, so a dispatch
+    // is owed: keep the PR in the sweep rather than calling the verdict stale.
+    it("a verdict with no dispatch row keeps the sentinel", () => {
       const line = select(verdictAt("2026-10-16 01:30:00.000"), undefined);
-      expect(line).toContain('alt="AI verdict: outdated"');
+      expect(line).toContain(ADVISOR_PENDING_ALT_ATTR);
+      expect(line).not.toContain("<details>");
+    });
+
+    it("no verdict and no dispatch row renders no line", () => {
+      expect(select(new Map(), undefined)).toBeUndefined();
     });
 
     // The dispatch states could not be read: keep the PR in the sweep.
@@ -343,6 +361,22 @@ describe("selectAdvisorLines", () => {
       );
       expect(out.get(7)).toContain(ADVISOR_PENDING_ALT_ATTR);
       expect(out.get(8)).toContain(ADVISOR_PENDING_ALT_ATTR);
+    });
+
+    // The documented carve-out: with no completion time, nothing can be
+    // checked against the dispatch, so the verdict renders as before.
+    it("an unknown completion time still shows its verdict when dispatch states are unknown", () => {
+      const line = selectAdvisorLines(
+        HUD,
+        "pytorch",
+        "pytorch",
+        1,
+        "sha",
+        [{ id: 7, name: JOB, completedAt: "" }],
+        verdictAt("2026-10-16 00:54:54.000"),
+        null
+      ).get(7);
+      expect(line).toContain("<details>");
     });
 
     it("a job with no usable completed_at still shows its verdict", () => {

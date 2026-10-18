@@ -6,6 +6,7 @@ import {
   autoDispatchAdvisorForNewFailures,
   AutoDispatchDeps,
   MAX_DISPATCH_RETRIES,
+  nextDispatchVersion,
   ranAfterDispatch,
   readyToReanalyze,
   signalKeyForJob,
@@ -783,7 +784,10 @@ describe("toDispatchMark", () => {
         .retryPending
     ).toBe(false);
   });
+});
 
+describe("ranAfterDispatch boundary", () => {
+  const v = "2026-10-16 00:53:36.569";
   it("a rerun within the dispatch's second counts as a rerun", () => {
     expect(
       ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:36"), v)
@@ -791,5 +795,23 @@ describe("toDispatchMark", () => {
     expect(
       ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:35"), v)
     ).toBe(false);
+  });
+});
+
+describe("nextDispatchVersion", () => {
+  // The terminal row's version is what the gate compares; pin its exact value.
+  it("stamps exactly 1ms after `after`, in the version format", () => {
+    expect(nextDispatchVersion("2026-10-16 00:53:36.569")).toBe(
+      "2026-10-16 00:53:36.570"
+    );
+    expect(nextDispatchVersion("2026-10-16 23:59:59.999")).toBe(
+      "2026-10-17 00:00:00.000"
+    );
+  });
+
+  it("without `after`, stamps a current UTC time in the same format", () => {
+    expect(nextDispatchVersion()).toMatch(
+      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/
+    );
   });
 });

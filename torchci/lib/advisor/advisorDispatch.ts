@@ -316,7 +316,9 @@ export type DispatchState = "dispatching" | "dispatched" | "failed";
 export interface DispatchStateRow {
   state: DispatchState;
   retryCount: number;
-  // When the latest row was written (its ReplacingMergeTree version, UTC).
+  // The latest row's ReplacingMergeTree version (UTC). For a terminal row this
+  // is its pre-dispatch row's version + 1ms, just before the dispatch captured
+  // its evidence, not when the row was written.
   version: string;
 }
 
@@ -364,6 +366,9 @@ export interface DispatchRecord {
   retryCount: number;
   prNumber: number;
   jobName: string;
+  // An exact version to write, allocated by the caller beforehand (see the
+  // manual endpoint). Unset: recordDispatch allocates one.
+  version?: string;
 }
 
 // Monotonic version generator. The ReplacingMergeTree keeps the row with the
@@ -405,7 +410,7 @@ export async function recordDispatch(
   record: DispatchRecord,
   after?: string
 ): Promise<string> {
-  const version = nextDispatchVersion(after);
+  const version = record.version ?? nextDispatchVersion(after);
   await getClickhouseClientWritable().insert({
     table: DISPATCH_TABLE,
     values: [
