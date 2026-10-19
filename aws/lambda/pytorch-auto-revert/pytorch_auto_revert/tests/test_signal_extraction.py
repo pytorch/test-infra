@@ -88,6 +88,7 @@ def J(
     conclusion: str = "success",
     started_at: datetime,
     rule: str = "",
+    workflow_event: str = "push",
 ):
     return JobRow(
         head_sha=Sha(sha),
@@ -101,6 +102,7 @@ def J(
         started_at=started_at,
         created_at=started_at,
         rule=rule,
+        workflow_event=workflow_event,
     )
 
 
@@ -1247,6 +1249,95 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNone(sig.test_classname)
         self.assertEqual(sig.test_file, "test_dataloader.py")
         self.assertEqual(sig.test_name, "test_shuffle_pin_memory")
+
+    def test_job_group_concluded(self):
+        # Born-red baseline flag: only a natural first attempt whose shards all
+        # passed or failed on tests proves the test was absent.
+        s1, s2 = (
+            "linux-test / test (default, 1, 2, r)",
+            "linux-test / test (default, 2, 2, r)",
+        )
+        rows = [
+            # sha, shard-2 conclusion, shard-2 rule, workflow_event, expected
+            ("C1", "failure", "pytest failure", "push", True),  # test fails here
+            ("C2", "success", "", "push", True),
+            ("C3", "failure", "pytest failure", "push", True),  # other test fails
+            ("C4", "failure", "GHA timeout", "push", False),  # shard crashed
+            ("C5", "timed_out", "", "push", False),
+            ("C6", "skipped", "", "push", False),  # one shard skipped
+            ("C7", "success", "", "workflow_dispatch", False),
+            ("C8", "", "", "push", False),  # pending
+        ]
+        jobs, tests = [], []
+        for i, (sha, concl, rule, event, _) in enumerate(rows):
+            minute = 100 - 10 * i
+            run, j1, j2 = 1000 + i, 2 * i + 1, 2 * i + 2
+            jobs.append(
+                J(
+                    sha=sha,
+                    run=run,
+                    job=j1,
+                    attempt=1,
+                    name=s1,
+                    started_at=ts(self.t0, minute),
+                    workflow_event=event,
+                )
+            )
+            jobs.append(
+                J(
+                    sha=sha,
+                    run=run,
+                    job=j2,
+                    attempt=1,
+                    name=s2,
+                    started_at=ts(self.t0, minute),
+                    workflow_event=event,
+                    status="in_progress" if concl == "" else "completed",
+                    conclusion=concl,
+                    rule=rule,
+                )
+            )
+        # C4's crashed shard rerun and passed: a partial attempt, still no baseline.
+        jobs.append(
+            J(
+                sha="C4",
+                run=1003,
+                job=99,
+                attempt=2,
+                name=s2,
+                started_at=ts(self.t0, 75),
+            )
+        )
+        # C9: still running (keep-going), already failing on tests.
+        jobs.append(
+            J(
+                sha="C9",
+                run=1009,
+                job=98,
+                attempt=1,
+                name=s2,
+                started_at=ts(self.t0, 5),
+                status="in_progress",
+                conclusion="failure",
+                rule="pytest failure",
+            )
+        )
+        tests.append(
+            T(
+                job=2,
+                run=1000,
+                attempt=1,
+                file="foo.py",
+                name="test_bar",
+                failure_runs=1,
+            )
+        )
+        sig = self._find_test_signal(
+            self._extract(jobs, tests), "trunk", "foo.py::test_bar"
+        )
+        assert sig is not None
+        got = {c.head_sha: c.job_group_concluded for c in sig.commits}
+        self.assertEqual(got, {**{r[0]: r[4] for r in rows}, "C9": False})
 
 
 if __name__ == "__main__":

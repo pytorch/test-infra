@@ -1266,6 +1266,7 @@ class TestSignalCommitReplace(unittest.TestCase):
             timestamp=datetime(2025, 8, 19, 12, 0, 0),
             signal_key="k",
         ),
+        "job_group_concluded": True,
     }
 
     def _init_params(self):
@@ -1323,7 +1324,7 @@ class TestSignalCommitReplace(unittest.TestCase):
 
 
 class TestBornRedTestSignal(unittest.TestCase):
-    """Test-track born-red detection: failing head + empty-events tail.
+    """Test-track born-red detection: failures newer than a concluded baseline.
 
     Covers the blind spot where a test was introduced by the same commit that
     breaks it (or by a recent ancestor): the green→red partition path returns
@@ -1359,7 +1360,23 @@ class TestBornRedTestSignal(unittest.TestCase):
         )
 
     def _empty(self, sha: str, minute: int) -> SignalCommit:
+        # Job group concluded, test absent: a baseline.
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[],
+            job_group_concluded=True,
+        )
+
+    def _unrun(self, sha: str, minute: int) -> SignalCommit:
         return SignalCommit(head_sha=sha, timestamp=ts(self.t0, minute), events=[])
+
+    def _pending(self, sha: str, minute: int) -> SignalCommit:
+        return SignalCommit(
+            head_sha=sha,
+            timestamp=ts(self.t0, minute),
+            events=[self._ev("t", SignalStatus.PENDING, minute)],
+        )
 
     def _test_signal(self, commits, key: str = "f.py::t") -> Signal:
         return Signal(
@@ -1382,7 +1399,7 @@ class TestBornRedTestSignal(unittest.TestCase):
         self.assertIsNotNone(part)
         assert part is not None  # narrow type for mypy
         self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
-        self.assertEqual([c.head_sha for c in part.successful], ["e1", "e2"])
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
         self.assertEqual(part.unknown, [])
 
     def test_partition_born_red_none_when_has_successes(self):
@@ -1408,23 +1425,44 @@ class TestBornRedTestSignal(unittest.TestCase):
         commits = [self._empty("e1", 0), self._empty("e2", -10)]
         self.assertIsNone(self._test_signal(commits).partition_born_red())
 
-    def test_partition_born_red_none_on_interleaved_empty_then_fail(self):
-        # newest=empty, older=fail violates the [FAIL...][EMPTY...] order.
+    def test_partition_born_red_none_when_recovered(self):
+        # A baseline newer than the failures: the test was removed again.
         commits = [self._empty("e1", 0), self._fail("f1", -10), self._empty("e2", -20)]
         self.assertIsNone(self._test_signal(commits).partition_born_red())
 
-    def test_partition_born_red_none_on_pending_only_commit(self):
-        # Pending-only commits are neither failures nor empty — bail.
+    def test_partition_born_red_ignores_pending_and_unrun(self):
+        # Real trunk shape: pending head, pending / unrun commits between the
+        # failures and below the suspect.
+        commits = [
+            self._pending("p1", 0),
+            self._fail("f1", -10),
+            self._pending("p2", -20),
+            self._fail("f2", -30),
+            self._unrun("u1", -40),
+            self._empty("e1", -50),
+        ]
+        part = self._test_signal(commits).partition_born_red()
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
+
+    def test_partition_born_red_unrun_is_not_a_baseline(self):
+        commits = [self._fail("f1", 0), self._fail("f2", -10), self._unrun("u1", -20)]
+        self.assertIsNone(self._test_signal(commits).partition_born_red())
+
+    def test_partition_born_red_scoped_to_newest_baseline(self):
+        # Failures older than the newest baseline are a prior, recovered episode.
         commits = [
             self._fail("f1", 0),
-            SignalCommit(
-                head_sha="p1",
-                timestamp=ts(self.t0, -10),
-                events=[self._ev("t", SignalStatus.PENDING, -10)],
-            ),
+            self._fail("f2", -10),
             self._empty("e1", -20),
+            self._fail("f3", -30),
+            self._empty("e2", -40),
         ]
-        self.assertIsNone(self._test_signal(commits).partition_born_red())
+        part = self._test_signal(commits).partition_born_red()
+        assert part is not None
+        self.assertEqual([c.head_sha for c in part.failed], ["f1", "f2"])
+        self.assertEqual([c.head_sha for c in part.successful], ["e1"])
 
     def test_partition_born_red_requires_two_commits(self):
         # Single commit can't form a partition.

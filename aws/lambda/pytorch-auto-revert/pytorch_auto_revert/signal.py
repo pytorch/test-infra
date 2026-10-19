@@ -187,6 +187,7 @@ class SignalCommit:
         timestamp: datetime,
         events: List[SignalEvent],
         advisor_result: Optional[AIAdvisorResult] = None,
+        job_group_concluded: bool = False,
     ):
         self.head_sha = head_sha
         self.timestamp = timestamp
@@ -200,6 +201,9 @@ class SignalCommit:
             self.statuses[e.status] = self.statuses.get(e.status, 0) + 1
         # Optional AI advisor result for this (commit, signal) pair
         self.advisor_result = advisor_result
+        # Test track: the test's job group finished cleanly here via a natural
+        # run (see `_build_test_signals`). With no events, the test was absent.
+        self.job_group_concluded = job_group_concluded
 
     def replace(self, **changes) -> "SignalCommit":
         """Return a copy with selected fields replaced (`dataclasses.replace`-style).
@@ -212,6 +216,9 @@ class SignalCommit:
             "timestamp": changes.pop("timestamp", self.timestamp),
             "events": changes.pop("events", self.events),
             "advisor_result": changes.pop("advisor_result", self.advisor_result),
+            "job_group_concluded": changes.pop(
+                "job_group_concluded", self.job_group_concluded
+            ),
         }
         if changes:
             raise TypeError(
@@ -529,47 +536,36 @@ class Signal:
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
     def partition_born_red(self) -> Optional[PartitionedCommits]:
-        """Partition for the test-track "born-red" pattern: failing head + empty-events tail.
+        """Partition for the test-track "born-red" pattern: a test failing since
+        its first observed run, so there is no green commit to anchor on.
 
-        Returns a partition only when the signal shape is `[FAIL...][EMPTY...]`
-        (newest → oldest) with no interleaving:
-        - At least 2 commits in window
-        - No commits with success events (otherwise the main partition path applies)
-        - At least 1 commit with failure events at the head
-        - At least 1 trailing commit with no events — these are commits where this
-          test did not run or did not yet exist, used as the implicit baseline
-          ("commits without the signal")
-        - No pending-only or other-shape commits in between
-
-        Trailing empty-events commits are placed in `successful` so the advisor
-        check / pattern construction can reuse the standard primitives. The
-        advisor JSON layer relabels them via `DispatchAdvisor.is_born_red` so
-        the model is asked about test introduction, not green→red transition.
-        `unknown` is always empty — there is no gap to bisect.
+        Baseline = the newest commit where the test's job group concluded with no
+        event for this test (the test was absent). Only commits newer than it are
+        considered; if none fails, the test recovered (removed / disabled again).
+        Pending and unrun commits are ignored. Suspect = the oldest failing one.
+        `unknown` is always empty.
         """
-        if len(self.commits) < 2 or self.has_successes():
+        if self.has_successes():
             return None
 
-        failed: List[SignalCommit] = []
-        baseline: List[SignalCommit] = []
-        for c in self.commits:
-            if c.has_failure:
-                if baseline:
-                    # Failure after an empty-events commit (newer→older order) —
-                    # out of shape.
-                    return None
-                failed.append(c)
-            elif not c.events:
-                baseline.append(c)
-            else:
-                # Pending-only or other shape — bail; the advisor needs a clean
-                # introduction-vs-baseline split.
-                return None
-
-        if not failed or not baseline:
+        baseline_idx = next(
+            (
+                i
+                for i, c in enumerate(self.commits)
+                if c.job_group_concluded and not c.events
+            ),
+            None,
+        )
+        if baseline_idx is None:
             return None
 
-        return PartitionedCommits(failed=failed, unknown=[], successful=baseline)
+        failed = [c for c in self.commits[:baseline_idx] if c.has_failure]
+        if not failed:
+            return None
+
+        return PartitionedCommits(
+            failed=failed, unknown=[], successful=[self.commits[baseline_idx]]
+        )
 
     # Minimum confidence threshold for acting on advisor verdicts
     ADVISOR_CONFIDENCE_THRESHOLD = 0.89
@@ -671,10 +667,9 @@ class Signal:
         Default behavior: emit `Ineligible(NO_SUCCESSES)` with no advisor — the
         standard green→red partition has no anchor to work from.
 
-        Test-track exception (born-red detection): when the signal shape matches
-        `[FAIL...][EMPTY...]` (`partition_born_red` returns a partition), the
-        suspect commit is likely the one that introduced the test. Defer to the
-        AI advisor:
+        Test-track exception (born-red detection): when `partition_born_red`
+        returns a partition, the suspect may have introduced the failing test.
+        Defer to the AI advisor:
         - If a prior advisor verdict exists on the suspect, act on it
           (revert/related → `AutorevertPattern`; not_related/infra_issue/garbage → blocked).
         - Otherwise, dispatch a fresh advisor request alongside the `Ineligible`

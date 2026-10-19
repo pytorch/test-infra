@@ -407,6 +407,11 @@ class SignalExtractor:
             # y-axis: commits (newest → older)
             for commit_sha, _ in commits:
                 events: List[SignalEvent] = []
+                # Born-red baseline: the first attempt of a push / schedule run
+                # where every shard passed or failed only on tests. Reruns cover
+                # only some shards and autorevert restarts are test-filtered, so
+                # neither counts.
+                group_concluded = False
 
                 # x-axis: events for the signal
                 for wf_run_id, run_attempt in run_ids_attempts.get(
@@ -419,6 +424,13 @@ class SignalExtractor:
                     if meta.is_cancelled:
                         # canceled attempts are treated as missing
                         continue
+                    if (
+                        run_attempt == 1
+                        and meta.is_natural_run
+                        and not meta.is_pending
+                        and meta.all_success_or_test_failure
+                    ):
+                        group_concluded = True
                     outcome = tests_by_group_attempt.get(
                         (
                             commit_sha,
@@ -486,6 +498,7 @@ class SignalExtractor:
                         head_sha=commit_sha,
                         timestamp=commit_timestamps[commit_sha],
                         events=events,
+                        job_group_concluded=group_concluded,
                     )
                 )
 

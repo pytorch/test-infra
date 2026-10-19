@@ -884,8 +884,8 @@ class TestBuildSignalPatternJson(unittest.TestCase):
         self.assertIn("pattern_context", result)
         ctx = result["pattern_context"]
         self.assertIn("born-red", ctx)
-        # Enumerates the four ambiguity causes the advisor must distinguish.
-        for cue in ("ADDED", "ENABLED", "MOVED", "sharding"):
+        # Enumerates the causes the advisor must distinguish.
+        for cue in ("ADDED", "ENABLED", "MOVED"):
             self.assertIn(cue, ctx)
         # Tells the advisor what to recommend in each case.
         self.assertIn("revert", ctx)

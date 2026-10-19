@@ -55,6 +55,7 @@ class JobRow:
     started_at: datetime
     created_at: datetime
     rule: str
+    workflow_event: str = ""  # push / schedule / workflow_dispatch / ...
 
     @cached_property
     def base_name(self) -> JobBaseName:
@@ -138,6 +139,11 @@ class JobRow:
         # produced no signal-bearing outcome (e.g. `if:` gate, required-check
         # skip when an upstream dependency was cancelled/failed).
         return self._conclusion_l == "skipped"
+
+    @property
+    def is_natural_run(self) -> bool:
+        # Triggered by trunk itself, not a (job/test-filtered) dispatch.
+        return self.workflow_event in ("push", "schedule")
 
     @property
     def is_failure(self) -> bool:
