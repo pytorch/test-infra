@@ -966,11 +966,17 @@ class S3Index:
         # List all objects in the subdir to find packagename/index.html patterns
         prefix_to_search = f"{resolved_subdir}/"
 
+        # Channel subdirs (e.g. cu130/, rocm3.9/) also have an index.html but
+        # hold package pages of their own; they are not packages.
+        channel_subdirs = set()
+
         # Optimize: collect package names in a single pass using cached bucket listing
         for obj in self._get_bucket_listing(prefix_to_search):
             # Check if this is a packagename/index.html file
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
+            if len(parts) == 3 and parts[2] == "index.html":
+                channel_subdirs.add(parts[0].replace("-", "_"))
             if len(parts) == 2 and parts[1] == "index.html":
                 package_name = parts[0].replace("-", "_")
                 # Convert back to the format used in wheel names (use _ not -)
@@ -978,6 +984,7 @@ class S3Index:
                 package_name_lower = package_name.lower()
                 if package_name_lower not in {p.lower() for p in packages_from_wheels}:
                     packages_with_index_only.add(package_name)
+        packages_with_index_only -= channel_subdirs
 
         # Only print if there are packages with index only
         if packages_with_index_only:
