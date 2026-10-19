@@ -1058,6 +1058,17 @@ for package_configs in PACKAGES_PER_PROJECT.values():
     if any(config.get("project") == "torch_rocm" for config in package_configs):
         package_configs.append({"project": "torch_rocm", "target": "rocm-preview"})
 
+# The preview SDK's rocm[device-all] also requires these device packages, which
+# the numeric ROCm releases do not ship.
+for pkg_name in (
+    "rocm-sdk-device-gfx900",
+    "rocm-sdk-device-gfx906",
+    "rocm-sdk-device-gfx90c",
+):
+    PACKAGES_PER_PROJECT.setdefault(pkg_name, []).append(
+        {"project": "torch_rocm", "target": "rocm-preview"}
+    )
+
 # Torch declares setuptools as a runtime dependency, so the index-only preview
 # install needs it mirrored alongside the ROCm packages.
 PACKAGES_PER_PROJECT.setdefault("setuptools", []).append(

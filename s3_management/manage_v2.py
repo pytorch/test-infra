@@ -590,6 +590,10 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "rocm-sdk-device-gfx90a",
         "rocm-sdk-device-gfx942",
         "rocm-sdk-device-gfx950",
+        # Preview-only device packages (rocm-preview target).
+        "rocm-sdk-device-gfx900",
+        "rocm-sdk-device-gfx906",
+        "rocm-sdk-device-gfx90c",
     ]
 }
 
@@ -1574,6 +1578,8 @@ class S3Index:
         print(
             f"INFO: Retrieved {len(rc.objects)} objects from S3 for prefix '{prefix}'"
         )
+        if prefix.startswith("whl"):
+            rc.subdirs.update(list_wheelless_preview_subdirs(prefix))
 
         # Apply PACKAGE_ALLOW_LIST filtering to whl, whl/nightly, and whl/test
         if prefix == "whl/nightly":
@@ -1775,6 +1781,16 @@ def list_accelerator_subdirs(prefix: str) -> List[str]:
             if any(match(f"{pat}$", name) for pat in ACCEPTED_SUBDIR_PATTERNS):
                 scan_prefixes.append(common_prefix["Prefix"])
     return scan_prefixes
+
+
+def list_wheelless_preview_subdirs(prefix: str) -> Set[str]:
+    """Existing preview subdirs, which subdirs derived from wheels would miss.
+
+    A preview channel's first torch test installs from its index before any
+    torch wheel is uploaded, so its dependency pages must already exist.
+    """
+    subdirs = (p.rstrip("/") for p in list_accelerator_subdirs(prefix))
+    return {s for s in subdirs if match(r"[a-z0-9.]+-preview$", s.rsplit("/", 1)[-1])}
 
 
 def recompute_sha256_for_pattern(
