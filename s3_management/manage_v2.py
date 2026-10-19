@@ -1574,8 +1574,10 @@ class S3Index:
         print(
             f"INFO: Retrieved {len(rc.objects)} objects from S3 for prefix '{prefix}'"
         )
+        # A channel's first test installs from its index before any wheel lands
+        # there, so index existing channel subdirs even without wheels.
         if prefix.startswith("whl"):
-            rc.subdirs.update(list_wheelless_preview_subdirs(prefix))
+            rc.subdirs.update(p.rstrip("/") for p in list_accelerator_subdirs(prefix))
 
         # Apply PACKAGE_ALLOW_LIST filtering to whl, whl/nightly, and whl/test
         if prefix == "whl/nightly":
@@ -1777,16 +1779,6 @@ def list_accelerator_subdirs(prefix: str) -> List[str]:
             if any(match(f"{pat}$", name) for pat in ACCEPTED_SUBDIR_PATTERNS):
                 scan_prefixes.append(common_prefix["Prefix"])
     return scan_prefixes
-
-
-def list_wheelless_preview_subdirs(prefix: str) -> Set[str]:
-    """Existing preview subdirs, which subdirs derived from wheels would miss.
-
-    A preview channel's first torch test installs from its index before any
-    torch wheel is uploaded, so its dependency pages must already exist.
-    """
-    subdirs = (p.rstrip("/") for p in list_accelerator_subdirs(prefix))
-    return {s for s in subdirs if match(r"[a-z0-9.]+-preview$", s.rsplit("/", 1)[-1])}
 
 
 def recompute_sha256_for_pattern(
