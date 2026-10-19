@@ -1757,6 +1757,51 @@ def create_target(
     return True
 
 
+def refresh_target_index(
+    prefix: str,
+    target: str,
+    *,
+    dry_run: bool = False,
+) -> bool:
+    """
+    Rewrite the root index.html of an existing target so it lists every package
+    folder under it.
+
+    create_target only writes the root page when the target is created, and
+    update-packages only writes per-package pages, so packages added to a target
+    later never show up in its root listing.
+
+    Returns True if the root index was written (or would be, in dry-run mode).
+    """
+    if not is_valid_target(target):
+        print(f"ERROR: Invalid target name '{target}'")
+        print(f"Valid patterns: {VALID_TARGET_PATTERNS}")
+        return False
+
+    target_path = f"{prefix}/{target}"
+    packages = set()
+    paginator = CLIENT.get_paginator("list_objects_v2")
+    for page in paginator.paginate(
+        Bucket="pytorch", Prefix=f"{target_path}/", Delimiter="/"
+    ):
+        for common_prefix in page.get("CommonPrefixes", []):
+            packages.add(common_prefix["Prefix"].rstrip("/").rsplit("/", 1)[-1])
+
+    if not packages:
+        print(f"Target '{target_path}' has no package folders; nothing to index.")
+        return False
+
+    print(f"Refreshing {target_path}/index.html with {len(packages)} packages")
+    upload_index_html(
+        target,
+        prefix,
+        generate_packages_index_html(sorted(packages)),
+        "",
+        dry_run=dry_run,
+    )
+    return True
+
+
 def main() -> None:
     from argparse import ArgumentParser
 
@@ -1792,6 +1837,12 @@ def main() -> None:
         "--create-target",
         action="store_true",
         help="Create a new target directory with torch dependencies",
+    )
+    parser.add_argument(
+        "--refresh-index",
+        action="store_true",
+        help="Rewrite the root index.html of an existing target so it lists every "
+        "package folder under it (e.g., --refresh-index --target rocm-preview)",
     )
     parser.add_argument(
         "--init-from",
@@ -1843,6 +1894,15 @@ def main() -> None:
             args.target,
             dry_run=args.dry_run,
         )
+        return
+
+    # Handle root index refresh mode
+    if args.refresh_index:
+        if not args.target:
+            print("ERROR: --target is required when using --refresh-index")
+            return
+
+        refresh_target_index(args.prefix, args.target, dry_run=args.dry_run)
         return
 
     # Handle target creation mode
