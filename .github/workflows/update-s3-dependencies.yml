@@ -11,6 +11,7 @@ on:
         options:
           - update-packages
           - create-target
+          - refresh-index
       dryrun:
         description: 'Enable dry run mode'
         required: true
@@ -33,7 +34,7 @@ on:
           - torch_rocm
           - vllm
       target:
-        description: 'Target to create (e.g., rocm7.2, cu130) - only for create-target mode'
+        description: 'Target to create or refresh (e.g., rocm7.2, cu130) - only for create-target and refresh-index modes'
         required: false
         type: string
       include-prod:
@@ -59,15 +60,15 @@ jobs:
     container:
       image: continuumio/miniconda3:23.10.0-1
     steps:
-      - name: Validate inputs for create-target mode
-        if: ${{ github.event.inputs.mode == 'create-target' }}
+      - name: Validate inputs for create-target and refresh-index modes
+        if: ${{ github.event.inputs.mode == 'create-target' || github.event.inputs.mode == 'refresh-index' }}
         shell: bash
         env:
           TARGET: ${{ github.event.inputs.target }}
         run: |
           set -e
           if [[ -z "${TARGET}" ]]; then
-            echo "ERROR: target is required for create-target mode"
+            echo "ERROR: target is required for create-target and refresh-index modes"
             exit 1
           fi
           # Validate target matches expected patterns
@@ -152,6 +153,31 @@ jobs:
 
           # shellcheck disable=SC2086
           python3 s3_management/update_dependencies.py ${ARGS}
+
+      - name: Refresh target index
+        if: ${{ github.event.inputs.mode == 'refresh-index' }}
+        shell: bash
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          DRYRUN: ${{ github.event.inputs.dryrun }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_PYTORCH_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_PYTORCH_PUBLIC_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_PYTORCH_PUBLIC_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: "pytorch-downloads"
+        run: |
+          set -ex
+
+          # Rewrite the root index.html of an existing target for nightly and test
+          for PREFIX in whl/nightly whl/test; do
+            ARGS="--refresh-index --target ${TARGET} --prefix ${PREFIX}"
+
+            if [[ "${DRYRUN}" == "enabled" ]]; then
+              ARGS="${ARGS} --dry-run"
+            fi
+
+            # shellcheck disable=SC2086
+            python3 s3_management/update_dependencies.py ${ARGS}
+          done
 
   # Prod (whl) dependency updates are gated behind the protected promote-env,
   # mirroring release-download-pytorch-org.yml. Opt-in via the include-prod
