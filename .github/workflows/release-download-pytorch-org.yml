@@ -1,4 +1,5 @@
 name: Release ecosystem library from test to production.
+run-name: Release ${{ inputs.package || 'torchvision' }} to production (dryrun=${{ inputs.dryrun || 'enabled' }})
 
 on:
   workflow_dispatch:
@@ -36,7 +37,45 @@ permissions:
   contents: read
 
 jobs:
+  # Runs before the approval gate on `trigger`: the environment approval screen does
+  # not show workflow inputs, but this job's summary is on the run page while the
+  # deployment waits for a reviewer.
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Show what approval will release
+        shell: bash
+        env:
+          PACKAGE: ${{ inputs.package || 'torchvision' }}
+          DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
+        run: |
+            set -euo pipefail
+            source ./release/release_versions.sh
+            version="${PACKAGE^^}_VERSION"
+            {
+              echo "## Release ${PACKAGE} ${!version:-unknown}"
+              echo
+              echo "| Input | Value |"
+              echo "|---|---|"
+              echo "| package | \`${PACKAGE}\` |"
+              echo "| version | \`${!version:-unknown}\` |"
+              echo "| dryrun | \`${DRY_RUN}\` |"
+              echo "| ref | \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA::7}\`) |"
+              echo "| requested by | ${GITHUB_ACTOR} |"
+              echo
+              if [[ "${DRY_RUN}" == "disabled" ]]; then
+                echo "> **Not a dry run.** Approving copies the wheels from \`whl/test\` to \`whl/\` on S3 and to R2."
+              else
+                echo "> Dry run: approving only prints what would be copied."
+              fi
+            } >> "${GITHUB_STEP_SUMMARY}"
+
   trigger:
+    needs: preview
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: promote-env
