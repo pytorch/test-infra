@@ -590,10 +590,6 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "rocm-sdk-device-gfx90a",
         "rocm-sdk-device-gfx942",
         "rocm-sdk-device-gfx950",
-        # Preview-only device packages (rocm-preview target).
-        "rocm-sdk-device-gfx900",
-        "rocm-sdk-device-gfx906",
-        "rocm-sdk-device-gfx90c",
     ]
 }
 
