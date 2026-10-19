@@ -1056,12 +1056,22 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
 # Preview mirrors the same ROCm meta, runtime library, and device package set.
 for package_configs in PACKAGES_PER_PROJECT.values():
     if any(config.get("project") == "torch_rocm" for config in package_configs):
-        package_configs.append({"project": "torch_rocm", "target": "rocm-preview"})
+        package_configs.append(
+            {
+                "project": "torch_rocm",
+                "target": "rocm-preview",
+                "prefix": "whl/nightly",
+            }
+        )
 
 # Torch declares setuptools as a runtime dependency, so the index-only preview
 # install needs it mirrored alongside the ROCm packages.
 PACKAGES_PER_PROJECT.setdefault("setuptools", []).append(
-    {"project": "torch_rocm", "target": "rocm-preview"}
+    {
+        "project": "torch_rocm",
+        "target": "rocm-preview",
+        "prefix": "whl/nightly",
+    }
 )
 
 
@@ -1357,12 +1367,13 @@ def is_valid_target(target: str) -> bool:
     return False
 
 
-def get_packages_for_target(target: str) -> List[str]:
+def get_packages_for_target(prefix: str, target: str) -> List[str]:
     """
     Get packages from PACKAGES_PER_PROJECT that should be initialized for a target.
 
     Returns packages where:
     - project is "torch" (or "torch_rocm" for ROCm targets) AND
+    - either no prefix is specified or the prefix matches
     - either no target is specified (universal packages like filelock, numpy)
     - or the target matches the specified target
     - nvidia/cuda packages are only included for CUDA targets (cu*)
@@ -1382,6 +1393,8 @@ def get_packages_for_target(target: str) -> List[str]:
 
         for config in pkg_configs:
             if config.get("project") not in allowed_projects:
+                continue
+            if config.get("prefix", prefix) != prefix:
                 continue
             pkg_target = config.get("target", "")
             # Include if no target specified (universal) or target matches
@@ -1720,7 +1733,7 @@ def create_target(
     print(f"{'[DRY RUN] ' if dry_run else ''}Creating new target: {target_path}")
 
     # Get packages from PACKAGES_PER_PROJECT for this target
-    packages = get_packages_for_target(target)
+    packages = get_packages_for_target(prefix, target)
     print(
         f"{'[DRY RUN] ' if dry_run else ''}"
         f"Initializing with {len(packages)} packages from PACKAGES_PER_PROJECT"
@@ -1874,7 +1887,8 @@ def main() -> None:
             selected_configs = [
                 config
                 for config in pkg_configs
-                if args.package == "all" or config["project"] == args.package
+                if (args.package == "all" or config["project"] == args.package)
+                and config.get("prefix", prefix) == prefix
             ]
 
             # Process each configuration for this package
