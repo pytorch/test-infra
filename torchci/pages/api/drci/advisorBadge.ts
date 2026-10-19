@@ -10,12 +10,22 @@
 import {
   ANALYZING_BADGE,
   drciSignalKeyForJob,
+  isLiveDispatch,
+  isStrictlyAfter,
+  OUTDATED_BADGE,
+  parseUtc,
   PENDING_BADGE,
   renderBadgeSvg,
   verdictBadge,
+  verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
-import { isValidSha, readDispatchStates } from "lib/advisor/advisorDispatch";
+import {
+  autoDispatchEnabled,
+  isValidSha,
+  readDispatchStates,
+  toDispatchMark,
+} from "lib/advisor/advisorDispatch";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -31,6 +41,7 @@ const LONG_CACHE =
 // GitHub owner/repo name shape, to bound the public endpoint's CH lookups.
 const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
 const MAX_JOB_LEN = 256;
+const MAX_SINCE_LEN = 64;
 
 function one(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] : value ?? "";
@@ -54,6 +65,12 @@ export default async function handler(
   const repo = one(req.query.repo);
   const sha = one(req.query.sha);
   const job = one(req.query.job);
+  // The job run's completed_at (see advisorBadgeUrl). Optional: comments
+  // rendered before it existed omit it, and an unusable value is ignored, which
+  // leaves the badge describing the latest verdict as it always did.
+  const sinceRaw = one(req.query.since);
+  const since =
+    sinceRaw.length <= MAX_SINCE_LEN && parseUtc(sinceRaw) ? sinceRaw : "";
 
   // Bad input -> a neutral pending pill (never a 4xx/5xx, which would render a
   // broken-image icon in the comment). Don't cache bad requests.
@@ -85,25 +102,45 @@ export default async function handler(
       repo: repoFull,
       sha,
       signalKey,
-    })) as { verdict: string; confidence: number }[];
+    })) as { verdict: string; confidence: number; timestamp: string }[];
 
-    if (verdictRows.length > 0) {
-      const row = verdictRows[0];
+    const row = verdictRows[0];
+    // Without `since` the latest verdict is shown, as before this parameter.
+    if (row && !since) {
       const badge = verdictBadge(row.verdict, Number(row.confidence));
       sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
       return;
     }
 
-    // No verdict yet: show "analyzing" if a dispatch is in flight, else pending.
+    // With `since`, only a verdict that covers that run is shown, by the same
+    // test the comment line and the suppression gate use.
     const states = await readDispatchStates(owner, repo, sha, [signalKey]);
     const st = states.get(signalKey);
-    const inProgress =
-      st && (st.state === "dispatching" || st.state === "dispatched");
-    sendSvg(
-      res,
-      renderBadgeSvg(inProgress ? ANALYZING_BADGE : PENDING_BADGE),
-      SHORT_CACHE
-    );
+    const dispatch = st ? toDispatchMark(st) : undefined;
+    if (row && verdictCoversRun(row.timestamp, since, dispatch)) {
+      const badge = verdictBadge(row.verdict, Number(row.confidence));
+      sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
+      return;
+    }
+
+    // Otherwise: "analyzing" while a live dispatch has no newer verdict yet;
+    // pending while one answered for an earlier run and this run's dispatch is
+    // owed, a failed dispatch will be retried, or the key has no dispatch row
+    // and auto-dispatch (which treats it as fresh) is on; otherwise "outdated"
+    // when a verdict exists. Same cases as selectAdvisorLines.
+    let badge = PENDING_BADGE;
+    if (isLiveDispatch(dispatch)) {
+      if (!isStrictlyAfter(row?.timestamp, dispatch.version)) {
+        badge = ANALYZING_BADGE;
+      }
+    } else if (
+      row &&
+      !dispatch?.retryPending &&
+      !(dispatch === undefined && autoDispatchEnabled(owner, repo))
+    ) {
+      badge = OUTDATED_BADGE;
+    }
+    sendSvg(res, renderBadgeSvg(badge), SHORT_CACHE);
   } catch (e) {
     // Fail soft: a pending pill, uncached so the next view retries. Never 500
     // (a broken image is worse than a transient "pending").

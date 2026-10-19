@@ -4,7 +4,8 @@
 -- granules.
 SELECT
     verdict,
-    confidence
+    confidence,
+    timestamp
 FROM
     misc.autorevert_advisor_verdicts
 WHERE

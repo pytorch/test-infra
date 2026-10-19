@@ -6,6 +6,7 @@
 // between the two reads make the comment and the merge gate describe the same
 // job differently. drci.ts reads once here and hands the rows to both.
 
+import { autoDispatchEnabled } from "lib/advisor/advisorDispatch";
 import {
   advisorCommentEnabled,
   advisorSuppressionEnabled,
@@ -17,9 +18,11 @@ import { RecentWorkflowsData } from "lib/types";
 /**
  * Whether this PR is worth a verdict read at all.
  *
- * Both consumers bail on an empty job list, so a PR with no new or
+ * Every consumer bails on an empty job list, so a PR with no new or
  * unclassified failures -- the common case -- must not cost a query. Each
  * consumer re-checks its own flag; this only decides whether to read.
+ * Auto-dispatch counts as a consumer: re-dispatching a rerun needs the rows
+ * even with the comment and suppression flags off.
  */
 export function shouldReadAdvisorVerdicts(
   owner: string,
@@ -30,7 +33,9 @@ export function shouldReadAdvisorVerdicts(
     return false;
   }
   return (
-    advisorCommentEnabled(owner, repo) || advisorSuppressionEnabled(owner, repo)
+    advisorCommentEnabled(owner, repo) ||
+    advisorSuppressionEnabled(owner, repo) ||
+    autoDispatchEnabled(owner, repo)
   );
 }
 

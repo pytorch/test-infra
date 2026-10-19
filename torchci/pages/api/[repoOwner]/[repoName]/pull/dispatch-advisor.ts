@@ -2,6 +2,7 @@ import { isAdvisorEnabled } from "lib/advisor/advisorConfig";
 import {
   dispatchAdvisorWorkflow,
   isValidSha,
+  nextDispatchVersion,
   readDispatchStates,
   recordDispatch,
   signalKeyForJob,
@@ -107,8 +108,17 @@ export default async function handler(
   }
 
   // Best-effort pre-dispatch marker (so the auto loop sees the manual dispatch).
+  // Its version is allocated once, before the write: the terminal rows below
+  // are stamped just after it (see recordDispatch). If the write throws after
+  // the row persisted, the terminal row still outranks it; and they are never
+  // stamped from when they are written.
+  const preVersion = nextDispatchVersion();
   try {
-    await recordDispatch({ ...record, state: "dispatching" });
+    await recordDispatch({
+      ...record,
+      state: "dispatching",
+      version: preVersion,
+    });
   } catch (e) {
     console.error("dispatch-advisor: pre-dispatch write failed", e);
   }
@@ -126,7 +136,7 @@ export default async function handler(
   } catch (error: any) {
     console.error("Failed to dispatch advisor:", error);
     try {
-      await recordDispatch({ ...record, state: "failed" });
+      await recordDispatch({ ...record, state: "failed" }, preVersion);
     } catch {
       // best-effort
     }
@@ -138,7 +148,7 @@ export default async function handler(
   }
 
   try {
-    await recordDispatch({ ...record, state: "dispatched" });
+    await recordDispatch({ ...record, state: "dispatched" }, preVersion);
   } catch (e) {
     console.error("dispatch-advisor: post-dispatch write failed", e);
   }

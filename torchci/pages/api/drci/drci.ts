@@ -1,9 +1,18 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { ADVISOR_PENDING_ALT_ATTR } from "lib/advisor/advisorBadge";
+import {
+  ADVISOR_PENDING_ALT_ATTR,
+  DispatchMark,
+} from "lib/advisor/advisorBadge";
 import { buildAdvisorVerdictLines } from "lib/advisor/advisorComment";
-import { autoDispatchAdvisorForNewFailures } from "lib/advisor/advisorDispatch";
+import {
+  autoDispatchAdvisorForNewFailures,
+  autoDispatchEnabled,
+  readDispatchStates,
+  signalKeyForJob,
+  toDispatchMark,
+} from "lib/advisor/advisorDispatch";
 import {
   extractSuppressed,
   suppressibleJobIds,
@@ -386,50 +395,22 @@ export async function updateDrciComments(
         AWAITING_APPROVAL: awaitingApprovalJobs,
       };
 
-      // Auto-dispatch the AI CI Advisor on NEW + UNCLASSIFIED failures. Both are
-      // PR failures the advisor can usefully analyze: unknownJobs (Unclassified)
-      // are failures whose job did not run on the merge base, so Dr.CI has no
-      // same-job baseline -- but the advisor builds its own recent-trunk baseline
-      // by job-name pattern, so it still has signal. They're passed as one list
-      // so the maxNewFailures outage guard bounds the combined per-PR fan-out
-      // (Unclassified were historically part of the new-failure bucket; splitting
-      // them in the Dr.CI comment was only to reduce comment noise). No-op unless
-      // the feature flag + production env + per-repo config are all set; dispatch
-      // only (no comment/merge changes), with its own ClickHouse dedup + outage
-      // guard. Wrapped so an advisor error can never break the comment.
-      try {
-        await autoDispatchAdvisorForNewFailures({
-          owner,
-          repo,
-          prNumber: pr_info.pr_number,
-          headSha: pr_info.head_sha,
-          mergeBaseSha: pr_info.merge_base,
-          newFailures: [...failedJobs, ...unknownJobs],
-        });
-      } catch (e) {
-        console.error(
-          "advisor auto-dispatch threw for PR",
-          pr_info.pr_number,
-          e
-        );
-      }
-
       // The failures either advisor consumer can say anything about. PR-state
       // gates are left out, so no verdict line renders beside one.
       const advisorJobs = [...failedJobs, ...unknownJobs].filter(
         (job) => !isExcludedFromAdvisor(job)
       );
 
-      // One read of this PR's advisor verdicts, shared by the inline "AI
-      // verdict:" line and the suppression gate below. Reading per consumer
-      // would let a verdict landing between the two reads make the badge and
-      // the merge gate describe the same job differently.
+      // One read of this PR's advisor verdicts, shared by auto-dispatch, the
+      // inline "AI verdict:" line and the suppression gate below. Reading per
+      // consumer would let a verdict landing between the reads make the badge
+      // and the merge gate describe the same job differently.
       //
-      // A read that is skipped or fails yields an empty array, which both
-      // consumers treat as "no verdict": nothing is suppressed, so every job
-      // keeps blocking. Note the comment can still render an "analyzing" line
-      // for a job with a dispatch in flight, since that state is read
-      // separately and does not depend on these rows.
+      // A read that is skipped or fails yields an empty array, which every
+      // consumer treats as "no verdict": nothing is suppressed and no rerun is
+      // re-dispatched, so every job keeps blocking. The comment can still
+      // render an "analyzing" line for a job with a dispatch in flight, since
+      // that state is read separately below.
       let advisorVerdictRows: AdvisorVerdictRow[] = [];
       if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
         try {
@@ -447,19 +428,83 @@ export async function updateDrciComments(
         }
       }
 
+      // Auto-dispatch the AI CI Advisor on NEW + UNCLASSIFIED failures. Both are
+      // PR failures the advisor can usefully analyze: unknownJobs (Unclassified)
+      // are failures whose job did not run on the merge base, so Dr.CI has no
+      // same-job baseline -- but the advisor builds its own recent-trunk baseline
+      // by job-name pattern, so it still has signal. They're passed as one list
+      // so the maxNewFailures outage guard bounds the combined per-PR fan-out
+      // (Unclassified were historically part of the new-failure bucket; splitting
+      // them in the Dr.CI comment was only to reduce comment noise). No-op unless
+      // the feature flag + production env + per-repo config are all set; dispatch
+      // only (no comment/merge changes), with its own ClickHouse dedup + outage
+      // guard. It reads the verdict rows above only to decide whether a job
+      // rerun at this head can be re-analyzed. Wrapped so an advisor error can
+      // never break the comment.
+      try {
+        await autoDispatchAdvisorForNewFailures({
+          owner,
+          repo,
+          prNumber: pr_info.pr_number,
+          headSha: pr_info.head_sha,
+          mergeBaseSha: pr_info.merge_base,
+          newFailures: [...failedJobs, ...unknownJobs],
+          verdictRows: advisorVerdictRows,
+        });
+      } catch (e) {
+        console.error(
+          "advisor auto-dispatch threw for PR",
+          pr_info.pr_number,
+          e
+        );
+      }
+
+      // The latest dispatch per job, read AFTER auto-dispatch so a dispatch it
+      // just made is seen. Shared by the verdict line and the suppression gate,
+      // which both count a verdict only if it answers a dispatch made after the
+      // job's run finished. A failed read yields null: no verdict then covers
+      // its run, so every job keeps blocking, and every line for a job whose
+      // completion time is known shows the pending sentinel so the next sweep
+      // re-renders the PR (see selectAdvisorLines).
+      let advisorDispatches: Map<string, DispatchMark> | null = new Map();
+      if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
+        try {
+          const states = await readDispatchStates(
+            owner,
+            repo,
+            pr_info.head_sha,
+            advisorJobs
+              .filter((j) => j.name)
+              .map((j) => signalKeyForJob(j.name))
+          );
+          advisorDispatches = new Map(
+            Array.from(states, ([key, st]) => [key, toDispatchMark(st)])
+          );
+        } catch (e) {
+          advisorDispatches = null;
+          console.error(
+            "advisor dispatch-state read threw for PR",
+            pr_info.pr_number,
+            e
+          );
+        }
+      }
+
       // Render the verdicts for this PR's new and unclassified failures as an
       // inline line per job. Wrapped so an advisor error can never break the
       // comment.
       let advisorLines: Map<number, string> = new Map();
       try {
-        advisorLines = await buildAdvisorVerdictLines(
+        advisorLines = buildAdvisorVerdictLines(
           HUD_URL,
           owner,
           repo,
           pr_info.pr_number,
           pr_info.head_sha,
           advisorJobs,
-          advisorVerdictRows
+          advisorVerdictRows,
+          advisorDispatches,
+          autoDispatchEnabled(owner, repo)
         );
       } catch (e) {
         console.error(
@@ -483,7 +528,8 @@ export async function updateDrciComments(
           repo,
           pr_info.head_sha,
           advisorJobs,
-          advisorVerdictRows
+          advisorVerdictRows,
+          advisorDispatches ?? new Map()
         );
         aiNotRelatedJobs.push(
           ...extractSuppressed(failedJobs, suppressible),

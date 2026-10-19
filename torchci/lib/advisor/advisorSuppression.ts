@@ -7,11 +7,11 @@
 // Everything here is fail-safe: any missing, stale, ambiguous or low-confidence
 // verdict leaves the job blocking.
 
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import {
   confidenceBucket,
+  DispatchMark,
   drciSignalKeyForJob,
+  verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 import { advisorSuppressionEnabled } from "lib/advisor/advisorFlags";
 import {
@@ -20,11 +20,8 @@ import {
   headRowsBySignalKey,
   resolveVerdict,
 } from "lib/advisorVerdictUtils";
-import { isTime0 } from "lib/bot/utils";
 import { isExcludedFromAdvisor } from "lib/drciUtils";
 import { RecentWorkflowsData } from "lib/types";
-
-dayjs.extend(utc);
 
 // Every advisor verdict and whether it stops a failure from blocking.
 //
@@ -98,30 +95,6 @@ export function confidentEnoughToSuppress(
   return confidenceBucket(confidence) === "high";
 }
 
-// A verdict describes one execution of a job, but is keyed only by (sha, job
-// name), so a rerun at the same head would otherwise inherit the previous run's
-// verdict. Requiring the verdict to be strictly newer than the job's completion
-// rejects the common case: the rerun finishes after the old verdict was
-// written, so the job blocks until a fresh analysis lands. Equality is treated
-// as stale because these timestamps are truncated and a tie cannot be told
-// apart from the unsafe ordering.
-//
-// KNOWN GAP, and the reason this ships behind a flag: a verdict for execution A
-// that lands after execution B has finished still passes this test. Closing it
-// needs the analyzed job id recorded on the verdict row -- the row's `run_id`
-// is the advisor's own dispatch run, not the job's.
-function verdictDescribesThisRun(
-  job: RecentWorkflowsData,
-  verdictTimestamp: string
-): boolean {
-  // isTime0 covers the epoch sentinel AND unparseable input (it NaN-checks), so
-  // a malformed timestamp on either side blocks rather than passing.
-  if (isTime0(job.completed_at) || isTime0(verdictTimestamp)) {
-    return false;
-  }
-  return dayjs.utc(verdictTimestamp).isAfter(dayjs.utc(job.completed_at));
-}
-
 // Only a conclusive `failure` is eligible. `cancelled`, `timed_out`,
 // `action_required` and friends did not produce a test outcome, and the advisor
 // labels much of that class `not_related` anyway -- see the shadow-mode
@@ -133,10 +106,20 @@ export function producedATestOutcome(job: RecentWorkflowsData): boolean {
   return job.conclusion === "failure";
 }
 
-/** Whether one job's verdict clears it to stop blocking. Pure, for testing. */
+/**
+ * Whether one job's verdict clears it to stop blocking. Pure, for testing.
+ *
+ * `dispatch` is the latest dispatch row for the job's signal key. The verdict
+ * must cover this run of the job (verdictCoversRun): it answers a dispatch made
+ * after the run finished. A verdict keyed by (sha, job name) would otherwise
+ * clear a rerun with the earlier run's answer, including one that lands after
+ * the rerun finished. No dispatch row, a failed one, or one made before the
+ * run all keep the job blocking.
+ */
 export function isSuppressible(
   job: RecentWorkflowsData,
-  rows: AdvisorVerdictRow[]
+  rows: AdvisorVerdictRow[],
+  dispatch: DispatchMark | undefined
 ): boolean {
   // A PR-state gate keeps blocking whatever a verdict says. Dr.CI no longer
   // dispatches on these, but verdicts from earlier or manual dispatches exist.
@@ -150,7 +133,7 @@ export function isSuppressible(
   return (
     SUPPRESSIBLE_VERDICTS.has(resolved.verdict) &&
     confidentEnoughToSuppress(resolved.verdict, resolved.confidence) &&
-    verdictDescribesThisRun(job, resolved.timestamp)
+    verdictCoversRun(resolved.timestamp, job.completed_at, dispatch)
   );
 }
 
@@ -158,10 +141,11 @@ export function isSuppressible(
  * Job ids among `jobs` that the advisor has cleared. Returns an empty set when
  * the flag is off, so the caller needs no separate check.
  *
- * Takes the PR's verdict rows rather than reading them: drci.ts reads once and
- * shares them with the badge line, so the two cannot resolve the same job to
- * different verdicts. They can still reach different DISPOSITIONS -- the gate
- * adds the confidence, freshness and conclusion tests the badge does not, so a
+ * Takes the PR's verdict rows and dispatch states rather than reading them:
+ * drci.ts reads each once and shares them with the badge line, so the two
+ * cannot resolve the same job to different verdicts or disagree on whether the
+ * verdict covers this run. They can still reach different DISPOSITIONS -- the
+ * gate adds the confidence and conclusion tests the badge does not, so a
  * confident-looking badge beside a still-blocking job is expected. Rows for any
  * other commit are dropped here, so a verdict from an earlier head can never
  * clear a job at this one.
@@ -171,7 +155,8 @@ export function suppressibleJobIds(
   repo: string,
   headSha: string,
   jobs: RecentWorkflowsData[],
-  verdictRows: AdvisorVerdictRow[]
+  verdictRows: AdvisorVerdictRow[],
+  dispatchByKey: Map<string, DispatchMark>
 ): Set<number> {
   if (!advisorSuppressionEnabled(owner, repo) || jobs.length === 0) {
     return new Set();
@@ -184,8 +169,8 @@ export function suppressibleJobIds(
     if (!job.name) {
       continue;
     }
-    const rows = rowsByKey.get(drciSignalKeyForJob(job.name)) ?? [];
-    if (isSuppressible(job, rows)) {
+    const key = drciSignalKeyForJob(job.name);
+    if (isSuppressible(job, rowsByKey.get(key) ?? [], dispatchByKey.get(key))) {
       suppressible.add(job.id);
     }
   }
