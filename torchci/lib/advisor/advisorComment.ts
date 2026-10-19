@@ -9,6 +9,7 @@
 import {
   AdvisorLineVerdict,
   DispatchMark,
+  runJobId,
   selectAdvisorLines,
 } from "lib/advisor/advisorBadge";
 import { advisorCommentEnabled } from "lib/advisor/advisorFlags";
@@ -69,7 +70,12 @@ export function buildAdvisorVerdictLines(
     repo,
     prNumber,
     headSha,
-    jobs.map((j) => ({ id: j.id, name: j.name, completedAt: j.completed_at })),
+    jobs.map((j) => ({
+      id: j.id,
+      name: j.name,
+      completedAt: j.completed_at,
+      runId: runJobId(j),
+    })),
     verdictByKey,
     dispatchByKey,
     autoDispatchOn

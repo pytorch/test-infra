@@ -11,6 +11,7 @@ import {
   confidenceBucket,
   DispatchMark,
   drciSignalKeyForJob,
+  runJobId,
   verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 import { advisorSuppressionEnabled } from "lib/advisor/advisorFlags";
@@ -133,7 +134,12 @@ export function isSuppressible(
   return (
     SUPPRESSIBLE_VERDICTS.has(resolved.verdict) &&
     confidentEnoughToSuppress(resolved.verdict, resolved.confidence) &&
-    verdictCoversRun(resolved.timestamp, job.completed_at, dispatch)
+    verdictCoversRun(
+      resolved.timestamp,
+      job.completed_at,
+      dispatch,
+      runJobId(job)
+    )
   );
 }
 

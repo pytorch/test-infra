@@ -295,6 +295,22 @@ describe("isSuppressible", () => {
     }
   );
 
+  // The ClickHouse ingest window: the dispatch came after this run (job 1)
+  // finished, but its evidence held only an earlier run (job 9), whose id it
+  // recorded. The verdict answers that run, so this one keeps blocking.
+  test("a dispatch that recorded another run's job id keeps the job blocking", () => {
+    const run = job({ workflowId: 10 });
+    expect(gate(run, [row()], { ...DISPATCHED, jobId: 9 })).toBe(false);
+    expect(gate(run, [row()], { ...DISPATCHED, jobId: 1 })).toBe(true);
+  });
+
+  // A workflow-level row's id is the workflow run's, kept across attempts, so
+  // it never binds; with no completion time the verdict cannot cover it.
+  test("a workflow-level failure never binds by id", () => {
+    const wf = job({ workflowId: 0, completed_at: "1970-01-01 00:00:00.000" });
+    expect(gate(wf, [row()], { ...DISPATCHED, jobId: 1 })).toBe(false);
+  });
+
   test("a zero completed_at keeps the job blocking", () => {
     expect(
       gate(job({ completed_at: "1970-01-01 00:00:00.000000000" }), [row()])
