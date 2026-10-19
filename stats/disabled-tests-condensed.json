@@ -55,13 +55,6 @@
       "linux"
     ]
   ],
-  "test_benchmark_combo_kernel_emits_real_num_gb (__main__.ComboKernelMetadataTests)": [
-    "195976",
-    "https://github.com/pytorch/pytorch/issues/195976",
-    [
-      "xpu"
-    ]
-  ],
   "test_benchmark_request_restores_serialized_cudagraph_policy (__main__.TestAlgorithmSelectorChoiceTypes)": [
     "199702",
     "https://github.com/pytorch/pytorch/issues/199702",
