@@ -1260,14 +1260,6 @@
       "xpu"
     ]
   ],
-  "test_reduced_type_float_copy_emits_vectorized_kernel_cuda_float16 (__main__.TestTorchCUDACUDA)": [
-    "198594",
-    "https://github.com/pytorch/pytorch/issues/198594",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_reduction_not_fused (__main__.TestNVUniversalGemmEpilogueFusion)": [
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
@@ -1334,14 +1326,6 @@
     "https://github.com/pytorch/pytorch/issues/194896",
     [
       "xpu"
-    ]
-  ],
-  "test_run2run_determinism_model_name_GoogleFnet_training_or_inference_training_precision_amp (__main__.DeterministicTest)": [
-    "198141",
-    "https://github.com/pytorch/pytorch/issues/198141",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_scaled_mm (__main__.DistMatrixOpsTest)": [
@@ -1475,6 +1459,13 @@
   "test_synchronize_event_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
     "191746",
     "https://github.com/pytorch/pytorch/issues/191746",
+    [
+      "linux"
+    ]
+  ],
+  "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
+    "192461",
+    "https://github.com/pytorch/pytorch/issues/192461",
     [
       "linux"
     ]
