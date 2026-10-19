@@ -122,6 +122,13 @@
       "rocm"
     ]
   ],
+  "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
+    "194171",
+    "https://github.com/pytorch/pytorch/issues/194171",
+    [
+      "linux"
+    ]
+  ],
   "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
     "181318",
     "https://github.com/pytorch/pytorch/issues/181318",
