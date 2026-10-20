@@ -258,13 +258,6 @@
       "rocm"
     ]
   ],
-  "test_copy_transpose_tiled_batched_layout_odd_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "199890",
-    "https://github.com/pytorch/pytorch/issues/199890",
-    [
-      "rocm"
-    ]
-  ],
   "test_copy_transpose_tiled_batched_layout_odd_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
     "199910",
     "https://github.com/pytorch/pytorch/issues/199910",
