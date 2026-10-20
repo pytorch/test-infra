@@ -608,6 +608,13 @@
       "linux"
     ]
   ],
+  "test_get_set_dir (__main__.TestHub)": [
+    "201497",
+    "https://github.com/pytorch/pytorch/issues/201497",
+    [
+      "dynamo"
+    ]
+  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
@@ -765,6 +772,27 @@
     "https://github.com/pytorch/pytorch/issues/196405",
     [
       "linux"
+    ]
+  ],
+  "test_load_from_branch (__main__.TestHub)": [
+    "201497",
+    "https://github.com/pytorch/pytorch/issues/201497",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_load_from_github (__main__.TestHub)": [
+    "201497",
+    "https://github.com/pytorch/pytorch/issues/201497",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_load_legacy_zip_checkpoint (__main__.TestHub)": [
+    "201497",
+    "https://github.com/pytorch/pytorch/issues/201497",
+    [
+      "dynamo"
     ]
   ],
   "test_load_then_compile_survives_baked_in_global_collision (__main__.TestAOTCompile)": [
@@ -946,6 +974,13 @@
     "https://github.com/pytorch/pytorch/issues/200423",
     [
       "xpu"
+    ]
+  ],
+  "test_n_threads (__main__.TestOpenMP_ParallelFor)": [
+    "125364",
+    "https://github.com/pytorch/pytorch/issues/125364",
+    [
+      "dynamo"
     ]
   ],
   "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
@@ -1141,6 +1176,13 @@
     "https://github.com/pytorch/pytorch/issues/189397",
     [
       "rocm"
+    ]
+  ],
+  "test_one_thread (__main__.TestOpenMP_ParallelFor)": [
+    "201498",
+    "https://github.com/pytorch/pytorch/issues/201498",
+    [
+      "dynamo"
     ]
   ],
   "test_oom_retry_message_logged_at_info (__main__.TestCuda)": [
@@ -1562,6 +1604,13 @@
       "linux"
     ]
   ],
+  "test_tree_flatten_with_path_roundtrip (__main__.TestPythonPytree)": [
+    "201500",
+    "https://github.com/pytorch/pytorch/issues/201500",
+    [
+      "dynamo"
+    ]
+  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
@@ -1585,6 +1634,27 @@
     "https://github.com/pytorch/pytorch/issues/198012",
     [
       "inductor"
+    ]
+  ],
+  "test_trust_repo_builtin_trusted_owners (__main__.TestHub)": [
+    "201497",
+    "https://github.com/pytorch/pytorch/issues/201497",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_trust_repo_check_yes (__main__.TestHub)": [
+    "155617",
+    "https://github.com/pytorch/pytorch/issues/155617",
+    [
+      "dynamo"
+    ]
+  ],
+  "test_trusted_repo_false_yes (__main__.TestHub)": [
+    "159627",
+    "https://github.com/pytorch/pytorch/issues/159627",
+    [
+      "dynamo"
     ]
   ],
   "test_unbacked_bindings_for_divisible_u_symint_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
