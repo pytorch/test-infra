@@ -525,6 +525,20 @@
       "linux"
     ]
   ],
+  "test_dynamic_shapes_2d_blocking_round_robin (__main__.ComboKernelDynamicShapesTests)": [
+    "201543",
+    "https://github.com/pytorch/pytorch/issues/201543",
+    [
+      "xpu"
+    ]
+  ],
+  "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTests)": [
+    "201542",
+    "https://github.com/pytorch/pytorch/issues/201542",
+    [
+      "xpu"
+    ]
+  ],
   "test_effn_attn_uniform_zero_bias (__main__.CudaReproTests)": [
     "196552",
     "https://github.com/pytorch/pytorch/issues/196552",
