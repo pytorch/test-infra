@@ -1179,8 +1179,8 @@
     ]
   ],
   "test_one_thread (__main__.TestOpenMP_ParallelFor)": [
-    "201498",
-    "https://github.com/pytorch/pytorch/issues/201498",
+    "201499",
+    "https://github.com/pytorch/pytorch/issues/201499",
     [
       "dynamo"
     ]
