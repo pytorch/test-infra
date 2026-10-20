@@ -7,9 +7,11 @@ source without importing the module, which sets up S3 and R2 clients on import.
 
 usage: is_r2_package.py PACKAGE
 """
+
 import ast
 import sys
 from pathlib import Path
+
 
 MANAGE_V2 = Path(__file__).resolve().parent.parent / "s3_management" / "manage_v2.py"
 
