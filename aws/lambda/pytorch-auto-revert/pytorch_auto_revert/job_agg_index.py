@@ -46,6 +46,11 @@ class JobMeta:
       skip when an upstream dependency was cancelled/failed). Requires
       ALL rows skipped so a real attempt that ran alongside a skipped
       shard still drives the verdict.
+    - is_natural_run: True if the run was triggered by push / schedule (not,
+      e.g., an autorevert workflow_dispatch restart). Does not affect `status`.
+    - all_success_or_test_failure: True if every grouped row succeeded or
+      failed only on tests. Does not imply completion: a pending keep-going row
+      can already count as a test failure, so pair it with `not is_pending`.
     - has_failures: True if any grouped row is a failure (KG-adjusted conclusion).
       If True, overall status resolves to FAILURE.
     - all_completed_success: True if all grouped rows completed successfully. If
@@ -60,6 +65,8 @@ class JobMeta:
     is_pending: bool = False
     is_cancelled: bool = False
     is_skipped: bool = False
+    is_natural_run: bool = False
+    all_success_or_test_failure: bool = False
     has_failures: bool = False
     all_completed_success: bool = False
     has_non_test_failures: bool = False
@@ -186,6 +193,10 @@ class JobAggIndex(Generic[KeyT]):
             is_pending=(any(r.is_pending for r in jrows)),
             is_cancelled=(any(r.is_cancelled for r in jrows)),
             is_skipped=(all(r.is_skipped for r in jrows)),
+            is_natural_run=(all(r.is_natural_run for r in jrows)),
+            all_success_or_test_failure=(
+                all(r.is_success or r.is_test_failure for r in jrows)
+            ),
             has_failures=(any(r.is_failure for r in jrows)),
             all_completed_success=(all(r.is_success for r in jrows)),
             has_non_test_failures=(

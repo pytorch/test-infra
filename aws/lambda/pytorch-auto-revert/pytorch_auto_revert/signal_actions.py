@@ -43,25 +43,19 @@ SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]
 # Said once at the top level rather than duplicated into every baseline
 # commit's `partition` label.
 _BORN_RED_PATTERN_CONTEXT = (
-    "born-red / newly-observed-red test signal: this test signal has NO "
-    "observations on any commit older than the suspect in the lookback "
-    "window. The suspect commit is the first commit on which the signal "
-    "appears, and it fails. Older commits in the `no_signal` partition "
-    "have empty events because the test was not extracted there — this "
-    "is ambiguous and could mean any of:\n"
-    "  (a) the suspect ADDED this test;\n"
-    "  (b) the suspect ENABLED / un-skipped an existing test or removed a "
-    "TD / skipping filter that previously masked it;\n"
-    "  (c) the suspect MOVED or RENAMED the test so its identity is newly "
-    "visible;\n"
-    "  (d) the suspect changed sharding / job selection so an existing "
-    "already-failing test became visible.\n"
-    "Read the suspect commit's diff and decide which of (a)-(d) applies. "
-    "Recommend `revert` only if the suspect's diff explicitly introduces "
-    "or enables the failing test (cases a / b / c). For (d) — sharding "
-    "or job-selection change exposing a pre-existing failure — recommend "
-    "`not_related` because the suspect did not cause the test to fail, "
-    "only made it observable."
+    "born-red test signal: this test has no passing run in the lookback "
+    "window. The `no_signal` commit is the newest one where the test's job "
+    "finished without reporting this test. The suspect is the oldest failing "
+    "commit newer than it. `unknown` commits were pending or not run; one "
+    "older than the suspect may be the real introducer. Read the suspect's diff "
+    "and decide whether it:\n"
+    "  (a) ADDED this test;\n"
+    "  (b) ENABLED / un-skipped it;\n"
+    "  (c) MOVED or RENAMED it so its identity is new;\n"
+    "  (d) changed code so the test's expected outcome no longer holds (e.g. "
+    "an expected-failure test now passes).\n"
+    "Recommend `revert` only if the diff does one of these in a way that "
+    "explains the failure; otherwise recommend `not_related`."
 )
 
 
@@ -778,10 +772,10 @@ class SignalActionProcessor:
         # top level (so it's said once, not duplicated per commit).
         if dispatch_advisor.is_born_red:
             LABEL_SUCCESSFUL = (
-                "no_signal: baseline commits where this test signal was not "
-                "observed (no extracted events). See top-level pattern_context."
+                "no_signal: newest commit whose job finished without this "
+                "test (baseline). See top-level pattern_context."
             )
-            LABEL_PRIOR = "prior: even older commits with no signal observation"
+            LABEL_PRIOR = "prior: commits older than the baseline"
         else:
             LABEL_SUCCESSFUL = (
                 "successful: baseline commits where this signal was GREEN "
