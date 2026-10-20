@@ -10,6 +10,8 @@ export const TRIAGE_CATEGORIES = [
 ] as const;
 export const TRIAGE_CONFIDENCES = ["high", "medium", "low"] as const;
 
+export const TRIAGE_SCHEMA_VERSION = 1;
+
 export type TriageCategory = (typeof TRIAGE_CATEGORIES)[number];
 export type TriageConfidence = (typeof TRIAGE_CONFIDENCES)[number];
 
@@ -21,6 +23,7 @@ export interface TriageEvidence {
 }
 
 export interface TriageVerdict {
+  schema_version: typeof TRIAGE_SCHEMA_VERSION;
   category: TriageCategory;
   confidence: TriageConfidence;
   summary: string;
@@ -88,6 +91,7 @@ function isTriageVerdict(value: unknown): value is TriageVerdict {
   if (!isRecord(value)) return false;
   const v = value;
   return (
+    v.schema_version === TRIAGE_SCHEMA_VERSION &&
     (TRIAGE_CATEGORIES as readonly unknown[]).includes(v.category) &&
     (TRIAGE_CONFIDENCES as readonly unknown[]).includes(v.confidence) &&
     typeof v.summary === "string" &&

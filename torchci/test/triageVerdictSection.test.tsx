@@ -2,6 +2,7 @@ import { CollapsibleTriageVerdict } from "components/crcr/TriageVerdictSection";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const VERDICT = {
+  schema_version: 1,
   category: "upstream",
   confidence: "high",
   summary: "aten::foo lost its out= overload in #194610.",

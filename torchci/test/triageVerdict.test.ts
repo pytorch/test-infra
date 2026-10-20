@@ -6,6 +6,7 @@ import {
 
 // Shape as the relay forwards it: already validated and normalized.
 const VERDICT: TriageVerdict = {
+  schema_version: 1,
   category: "upstream",
   confidence: "high",
   summary: "aten::foo lost its out= overload in #194610.",
@@ -37,7 +38,12 @@ describe("parseTriageVerdict", () => {
   });
 
   test("accepts a minimal verdict", () => {
-    const minimal = { category: "flake", confidence: "low", summary: "flaky" };
+    const minimal = {
+      schema_version: 1,
+      category: "flake",
+      confidence: "low",
+      summary: "flaky",
+    };
     expect(parseTriageVerdict(JSON.stringify(minimal))).toEqual(minimal);
   });
 
@@ -53,6 +59,9 @@ describe("parseTriageVerdict", () => {
   );
 
   test.each([
+    ["a missing schema_version", { schema_version: undefined }],
+    ["an unsupported schema_version", { schema_version: 2 }],
+    ["a string schema_version", { schema_version: "1" }],
     ["an unknown category", { category: "compiler" }],
     ["an unknown confidence", { confidence: "certain" }],
     ["an empty summary", { summary: "  " }],
