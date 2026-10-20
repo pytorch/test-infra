@@ -1359,7 +1359,7 @@ class TestBornRedTestSignal(unittest.TestCase):
             events=[self._ev("t", SignalStatus.FAILURE, minute, job_id=job_id)],
         )
 
-    def _empty(self, sha: str, minute: int) -> SignalCommit:
+    def _baseline(self, sha: str, minute: int) -> SignalCommit:
         # Job group concluded, test absent: a baseline.
         return SignalCommit(
             head_sha=sha,
@@ -1392,8 +1392,8 @@ class TestBornRedTestSignal(unittest.TestCase):
         commits = [
             self._fail("f1", 0, job_id=1),
             self._fail("f2", -10, job_id=2),
-            self._empty("e1", -20),
-            self._empty("e2", -30),
+            self._baseline("e1", -20),
+            self._baseline("e2", -30),
         ]
         part = self._test_signal(commits).partition_born_red()
         self.assertIsNotNone(part)
@@ -1422,12 +1422,16 @@ class TestBornRedTestSignal(unittest.TestCase):
 
     def test_partition_born_red_none_without_failures(self):
         # Only empty commits — nothing to act on.
-        commits = [self._empty("e1", 0), self._empty("e2", -10)]
+        commits = [self._baseline("e1", 0), self._baseline("e2", -10)]
         self.assertIsNone(self._test_signal(commits).partition_born_red())
 
     def test_partition_born_red_none_when_recovered(self):
         # A baseline newer than the failures: the test was removed again.
-        commits = [self._empty("e1", 0), self._fail("f1", -10), self._empty("e2", -20)]
+        commits = [
+            self._baseline("e1", 0),
+            self._fail("f1", -10),
+            self._baseline("e2", -20),
+        ]
         self.assertIsNone(self._test_signal(commits).partition_born_red())
 
     def test_partition_born_red_ignores_pending_and_unrun(self):
@@ -1439,7 +1443,7 @@ class TestBornRedTestSignal(unittest.TestCase):
             self._pending("p2", -20),
             self._fail("f2", -30),
             self._unrun("u1", -40),
-            self._empty("e1", -50),
+            self._baseline("e1", -50),
         ]
         part = self._test_signal(commits).partition_born_red()
         assert part is not None
@@ -1455,9 +1459,9 @@ class TestBornRedTestSignal(unittest.TestCase):
         commits = [
             self._fail("f1", 0),
             self._fail("f2", -10),
-            self._empty("e1", -20),
+            self._baseline("e1", -20),
             self._fail("f3", -30),
-            self._empty("e2", -40),
+            self._baseline("e2", -40),
         ]
         part = self._test_signal(commits).partition_born_red()
         assert part is not None
@@ -1474,7 +1478,7 @@ class TestBornRedTestSignal(unittest.TestCase):
         commits = [
             self._fail("f1", 0, job_id=11),
             self._fail("f2", -10, job_id=12),
-            self._empty("e1", -20),
+            self._baseline("e1", -20),
         ]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
@@ -1490,7 +1494,7 @@ class TestBornRedTestSignal(unittest.TestCase):
         # Single failing commit — wait for the next trunk advance before paying
         # advisor cost (REQUIRE_FAILED_COMMITS_BORN_RED == 2). Distinct
         # commits, not raw event counts, gate the dispatch.
-        commits = [self._fail("f1", 0), self._empty("e1", -10)]
+        commits = [self._fail("f1", 0), self._baseline("e1", -10)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
@@ -1508,7 +1512,7 @@ class TestBornRedTestSignal(unittest.TestCase):
                 self._ev("t", SignalStatus.FAILURE, 2, wf_run_id=3, job_id=13),
             ],
         )
-        commits = [c_multi_event, self._empty("e1", -10)]
+        commits = [c_multi_event, self._baseline("e1", -10)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.NO_SUCCESSES)
@@ -1521,7 +1525,7 @@ class TestBornRedTestSignal(unittest.TestCase):
         commits = [
             self._fail("f1", 0, job_id=21),
             self._fail("f2", -10, job_id=22),
-            self._empty("e1", -20),
+            self._baseline("e1", -20),
         ]
         s = Signal(
             key="job",
@@ -1559,7 +1563,7 @@ class TestBornRedTestSignal(unittest.TestCase):
             events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
             advisor_result=verdict,
         )
-        commits = [self._fail("f1", 0, job_id=11), suspect, self._empty("e1", -20)]
+        commits = [self._fail("f1", 0, job_id=11), suspect, self._baseline("e1", -20)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, AutorevertPattern)
         self.assertEqual(res.suspected_commit, "f2")
@@ -1583,7 +1587,7 @@ class TestBornRedTestSignal(unittest.TestCase):
             events=[self._ev("t", SignalStatus.FAILURE, -10, job_id=12)],
             advisor_result=verdict,
         )
-        commits = [self._fail("f1", 0, job_id=11), suspect, self._empty("e1", -20)]
+        commits = [self._fail("f1", 0, job_id=11), suspect, self._baseline("e1", -20)]
         res = self._test_signal(commits).process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.ADVISOR_NOT_RELATED)

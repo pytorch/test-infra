@@ -49,7 +49,8 @@ class JobMeta:
     - is_natural_run: True if the run was triggered by push / schedule (not,
       e.g., an autorevert workflow_dispatch restart). Does not affect `status`.
     - all_success_or_test_failure: True if every grouped row succeeded or
-      failed only on tests, i.e. the test harness ran to completion everywhere.
+      failed only on tests. Does not imply completion: a pending keep-going row
+      can already count as a test failure, so pair it with `not is_pending`.
     - has_failures: True if any grouped row is a failure (KG-adjusted conclusion).
       If True, overall status resolves to FAILURE.
     - all_completed_success: True if all grouped rows completed successfully. If
