@@ -210,6 +210,41 @@ CFG
     local fail_dir="${tmp_dir}/failures"
     mkdir -p "${fail_dir}"
 
+    # After a failed upload, say what is at the R2 key now: whether the object
+    # was already there, how big it is and when it was last written.
+    _r2_object_state() {
+        local bucket_key="${1#s3://}"
+        (
+            export AWS_ACCESS_KEY_ID="${R2_ACCESS_KEY_ID}"
+            export AWS_SECRET_ACCESS_KEY="${R2_SECRET_ACCESS_KEY}"
+            unset AWS_SESSION_TOKEN
+            export AWS_DEFAULT_REGION="auto"
+            ${AWS} s3api head-object \
+                --bucket "${bucket_key%%/*}" --key "${bucket_key#*/}" \
+                --endpoint-url "${R2_ENDPOINT_URL}" \
+                --query '[ContentLength, LastModified, ETag]' --output text 2>&1 \
+                | sed 's/^/    R2 object now: /'
+        ) || true
+    }
+
+    # Report one failure as a single write: workers run in parallel, and separate
+    # echoes interleave, which detaches the error text from the file it belongs
+    # to. The aws CLI can also exit non-zero without writing anything, and an
+    # empty block under "FAILED" looks like a lost log, so say so.
+    _report_failure() {
+        local kind="$1" target="$2" rc="$3" err_log="$4" extra="${5:-}"
+        local msg="- FAILED ${kind} (exit ${rc}): ${target}"
+        if [[ -s "${err_log}" ]]; then
+            msg+=$'\n'"$(sed 's/^/    /' "${err_log}")"
+        else
+            msg+=$'\n'"    (the aws command printed nothing)"
+        fi
+        if [[ -n "${extra}" ]]; then
+            msg+=$'\n'"${extra}"
+        fi
+        printf '%s\n' "${msg}" >&2
+    }
+
     # Credentials are applied per subshell rather than exported, so concurrent
     # workers cannot race each other's S3/R2 swap.
     _promote_one_file() {
@@ -220,7 +255,12 @@ CFG
         marker="${fail_dir}/${s3_key//\//_}"
         err_log="${marker}.err"
         filename=$(basename "${s3_key}")
-        local_file="${tmp_dir}/${filename}"
+        # One directory per key. A wheel is published under several arch folders
+        # with the same file name (cu126/, cu128/, ...), so a path built from the
+        # file name alone is shared by parallel workers, and the first one to
+        # finish deletes the file the others are still uploading.
+        mkdir -p "${tmp_dir}/${s3_key//\//_}"
+        local_file="${tmp_dir}/${s3_key//\//_}/${filename}"
         rel_path="${s3_key#"${s3_from_prefix}"/}"
         r2_target="${r2_dest%/}/${rel_path}"
 
@@ -236,9 +276,8 @@ CFG
                 export AWS_DEFAULT_REGION="${saved_aws_default_region}"
             fi
             ${AWS} s3 cp --quiet "${PYTORCH_S3_BUCKET}/${s3_key}" "${local_file}"
-        ) 2>"${err_log}" || {
-            echo "- FAILED download: ${PYTORCH_S3_BUCKET}/${s3_key}" >&2
-            sed 's/^/    /' "${err_log}" >&2
+        ) >"${err_log}" 2>&1 || {
+            _report_failure download "${PYTORCH_S3_BUCKET}/${s3_key}" "$?" "${err_log}"
             rm -f "${local_file}" "${err_log}"
             touch "${marker}"
             return 1
@@ -257,9 +296,9 @@ CFG
             ${AWS} s3 cp --quiet "${local_file}" "${r2_target}" \
                 --metadata "checksum-sha256=${sha256}" \
                 --endpoint-url "${R2_ENDPOINT_URL}"
-        ) 2>"${err_log}" || {
-            echo "- FAILED upload: ${r2_target}" >&2
-            sed 's/^/    /' "${err_log}" >&2
+        ) >"${err_log}" 2>&1 || {
+            _report_failure upload "${r2_target}" "$?" "${err_log}" \
+                "$(_r2_object_state "${r2_target}")"
             rm -f "${local_file}" "${err_log}"
             touch "${marker}"
             return 1
