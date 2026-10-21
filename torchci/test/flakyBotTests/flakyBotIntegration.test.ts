@@ -304,7 +304,7 @@ describe("Disable Flaky Test Integration Tests", () => {
           }),
           utils.mockPostComment("pytorch/pytorch", issue.number, [
             "Another case of trunk flakiness has been found",
-            "Replacing the previous platforms [win, dynamo] with the recently affected platforms [win]",
+            "Replacing the previous platforms [dynamo, win] with the recently affected platforms [win]",
             "Reopening issue",
           ]),
         ];
@@ -342,7 +342,7 @@ describe("Disable Flaky Test Integration Tests", () => {
           }),
           utils.mockPostComment("pytorch/pytorch", 1, [
             "Another case of trunk flakiness has been found",
-            "appears to contain",
+            "Replacing the previous platforms [win] with the recently affected platforms [win]",
             "Reopening",
           ]),
         ];
