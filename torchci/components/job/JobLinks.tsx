@@ -182,7 +182,7 @@ function formatDisableTestBody(job: JobData) {
   const examplesURL = `https://torch-ci.com/failure?failureCaptures=${encodeURIComponent(
     JSON.stringify(job.failureCaptures)
   )}`;
-  return encodeURIComponent(`Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, win, windows.>
+  return encodeURIComponent(`Platforms: <fill this in or delete. Valid labels are: asan, linux, mac, macos, rocm, xpu, win, windows.>
 
 This test was disabled because it is failing on main branch ([recent examples](${examplesURL})).`);
 }
