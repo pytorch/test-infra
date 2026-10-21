@@ -56,6 +56,13 @@ jobs:
             set -euo pipefail
             source ./release/release_versions.sh
             version="${PACKAGE^^}_VERSION"
+            if python3 ./release/is_r2_package.py "${PACKAGE}" > /dev/null; then
+              r2="promoted"
+              destinations="S3 and R2"
+            else
+              r2="not promoted (not in PT_FOUNDATION_PACKAGES)"
+              destinations="S3 only"
+            fi
             {
               echo "## Release ${PACKAGE} ${!version:-unknown}"
               echo
@@ -64,11 +71,12 @@ jobs:
               echo "| package | \`${PACKAGE}\` |"
               echo "| version | \`${!version:-unknown}\` |"
               echo "| dryrun | \`${DRY_RUN}\` |"
+              echo "| R2 | ${r2} |"
               echo "| ref | \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA::7}\`) |"
               echo "| requested by | ${GITHUB_ACTOR} |"
               echo
               if [[ "${DRY_RUN}" == "disabled" ]]; then
-                echo "> **Not a dry run.** Approving copies the wheels from \`whl/test\` to \`whl/\` on S3 and to R2."
+                echo "> **Not a dry run.** Approving copies the wheels from \`whl/test\` to \`whl/\` (${destinations})."
               else
                 echo "> Dry run: approving only prints what would be copied."
               fi
@@ -88,14 +96,27 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_promote_wheels
           aws-region: us-east-1
+      # Only PyTorch Foundation packages are mirrored to R2. Without the R2
+      # credentials the promotion below copies to S3 only.
+      - name: Decide whether to promote to R2
+        id: r2
+        shell: bash
+        env:
+          PACKAGE: ${{ inputs.package || 'torchvision' }}
+        run: |
+            if python3 release/is_r2_package.py "${PACKAGE}"; then
+              echo "enabled=true" >> "${GITHUB_OUTPUT}"
+            else
+              echo "enabled=false" >> "${GITHUB_OUTPUT}"
+            fi
       - name: Promote library to download.pytorch.org
         shell: bash
         env:
           PACKAGE: ${{ inputs.package || 'torchvision' }}
           DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ steps.r2.outputs.enabled == 'true' && secrets.R2_ACCOUNT_ID || '' }}
+          R2_ACCESS_KEY_ID: ${{ steps.r2.outputs.enabled == 'true' && secrets.R2_ACCESS_KEY_ID || '' }}
+          R2_SECRET_ACCESS_KEY: ${{ steps.r2.outputs.enabled == 'true' && secrets.R2_SECRET_ACCESS_KEY || '' }}
         run: |
             set -exo pipefail
             cd release
