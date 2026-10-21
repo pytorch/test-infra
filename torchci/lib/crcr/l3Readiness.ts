@@ -228,6 +228,22 @@ export interface ReadinessSummary {
   ready: boolean;
 }
 
+export type L3ProtectionStatus = "active" | "clear" | "unavailable" | null;
+
+export function getL3ProtectionStatus(
+  currentLevel: string | null,
+  demotionRows: CriterionRow[],
+  hasSummary: boolean,
+  error: unknown
+): L3ProtectionStatus {
+  if (currentLevel !== "L3") return null;
+  if (error) return "unavailable";
+  if (!hasSummary || demotionRows.some((row) => row.verdict === false)) {
+    return "active";
+  }
+  return "clear";
+}
+
 export function summarizeReadiness(rows: CriterionRow[]): ReadinessSummary {
   const judged = rows.filter((r) => r.verdict != null);
   const met = judged.filter((r) => r.verdict).length;
