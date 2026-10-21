@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 import requests
 import yaml
-from github import Auth, Github, GithubException
+from github import Auth, Github, GithubException, InputGitTreeElement
 from github.PullRequest import PullRequest
 from github.Repository import Repository
 from torchci.utils import get_hud_headers
@@ -36,6 +36,12 @@ DEMOTION_LABEL = "crcr-auto-demotion"
 EXTRA_LABELS = ["topic: not user facing"]
 # Mentioned on every demotion PR, besides the repo's oncalls.
 ALWAYS_CC = ["atalman"]
+# Left on a PR whose branch is rebuilt, since that drops anything pushed to it.
+REFRESH_COMMENT = (
+    f"This PR conflicted with `{BASE_BRANCH}`, so its branch was rebuilt on the "
+    "latest commit and its description updated. Commits pushed to this branch "
+    "by hand are dropped when that happens; comment here instead."
+)
 
 
 # ---- Allowlist editing ----
@@ -337,21 +343,28 @@ def open_pr(
     upstream: Repository,
     repo: str,
     text: str,
-    blob_sha: str,
     base_sha: str,
     body: str,
 ) -> PullRequest:
     branch = BRANCH_PREFIX + repo
     title = pr_title(repo)
+    # Build the demotion commit on top of main first, then point the branch at
+    # it in one step.
+    base_commit = upstream.get_git_commit(base_sha)
+    blob = upstream.create_git_blob(text, "utf-8")
+    tree = upstream.create_git_tree(
+        [InputGitTreeElement(ALLOWLIST_PATH, "100644", "blob", sha=blob.sha)],
+        base_commit.tree,
+    )
+    commit = upstream.create_git_commit(title, tree, [base_commit])
     try:
-        upstream.create_git_ref(f"refs/heads/{branch}", base_sha)
+        upstream.create_git_ref(f"refs/heads/{branch}", commit.sha)
     except GithubException as e:
         if e.status != 422:
             raise
         # Left over from an earlier demotion PR, or the branch of one that now
-        # conflicts with main: start it again from main's latest.
-        upstream.get_git_ref(f"heads/{branch}").edit(base_sha, force=True)
-    upstream.update_file(ALLOWLIST_PATH, title, text, blob_sha, branch=branch)
+        # conflicts with main: force it onto the new commit.
+        upstream.get_git_ref(f"heads/{branch}").edit(commit.sha, force=True)
     try:
         pr = upstream.create_pull(base=BASE_BRANCH, head=branch, title=title, body=body)
     except GithubException:
@@ -362,6 +375,9 @@ def open_pr(
         if not existing:
             raise
         pr = existing[0]
+        # The numbers in the body are from when the PR was opened.
+        pr.edit(body=body)
+        pr.create_issue_comment(REFRESH_COMMENT)
     pr.add_to_labels(DEMOTION_LABEL, *EXTRA_LABELS)
     return pr
 
@@ -396,7 +412,7 @@ def sync(upstream: Repository, bot: str, statuses: dict[str, dict]) -> bool:
     base_sha = upstream.get_branch(BASE_BRANCH).commit.sha
     allowlist = upstream.get_contents(ALLOWLIST_PATH, ref=base_sha)
     assert not isinstance(allowlist, list)
-    text, blob_sha = allowlist.decoded_content.decode(), allowlist.sha
+    text = allowlist.decoded_content.decode()
     l3 = l3_repos(yaml.safe_load(text) or {})
     open_prs = open_demotion_prs(upstream, bot)
     actions = plan(statuses, l3, open_prs)
@@ -416,7 +432,7 @@ def sync(upstream: Repository, bot: str, statuses: dict[str, dict]) -> bool:
                 print(f"{'Refreshing' if refresh else 'Opening'}: {pr_title(repo)}")
                 new_text = demote_in_allowlist(text, repo)
                 body = pr_body(repo, statuses[repo], l3[repo])
-                pr = open_pr(upstream, repo, new_text, blob_sha, base_sha, body)
+                pr = open_pr(upstream, repo, new_text, base_sha, body)
                 print(f"{'Refreshed' if refresh else 'Opened'} {pr.html_url}")
         except (AllowlistEditError, GithubException, requests.RequestException) as e:
             print(f"Failed to {action.kind} the demotion PR for {repo}: {e}")
