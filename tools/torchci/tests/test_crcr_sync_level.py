@@ -1,13 +1,16 @@
 from contextlib import ExitStack
 from unittest import main, mock, TestCase
 
+from github import GithubException
 from torchci.crcr_sync_level import (
     Action,
     AllowlistEditError,
     demote_in_allowlist,
     DemotionPR,
+    open_pr,
     plan,
     pr_body,
+    REFRESH_COMMENT,
     sync,
 )
 
@@ -117,7 +120,7 @@ class TestSync(TestCase):
         upstream = mock.MagicMock()
         upstream.get_branch.return_value.commit.sha = "base"
         upstream.get_contents.return_value = mock.MagicMock(
-            decoded_content=ALLOWLIST.encode(), sha="blob"
+            decoded_content=ALLOWLIST.encode()
         )
 
         def patch(name, **kwargs):
@@ -138,11 +141,11 @@ class TestSync(TestCase):
         )
         self.assertTrue(ok)
         open_pr.assert_called_once()
-        up, repo, text, blob_sha, base_sha, body = open_pr.call_args.args
+        up, repo, text, base_sha, body = open_pr.call_args.args
         self.assertIs(up, upstream)
         self.assertEqual(repo, "Ascend/pytorch")
         self.assertEqual(text, demote_in_allowlist(ALLOWLIST, "Ascend/pytorch"))
-        self.assertEqual((blob_sha, base_sha), ("blob", "base"))
+        self.assertEqual(base_sha, "base")
         self.assertIn("| Job Pass Rate | 85.0% | ≥ 90% |", body)
         self.assertIn("Over the last 7 days", body)
         # The oncalls are told, even though L2 does not keep them.
@@ -174,14 +177,85 @@ class TestSync(TestCase):
             open_prs={"Ascend/pytorch": DemotionPR(5, conflicted=True)},
         )
         self.assertTrue(ok)
-        # Built again from main's allowlist; open_pr resets the branch and
+        # Built again from main's allowlist; open_pr moves the branch and
         # reuses the open PR.
         open_pr.assert_called_once()
-        up, repo, text, blob_sha, base_sha, _ = open_pr.call_args.args
+        up, repo, text, base_sha, _ = open_pr.call_args.args
         self.assertEqual(repo, "Ascend/pytorch")
         self.assertEqual(text, demote_in_allowlist(ALLOWLIST, "Ascend/pytorch"))
-        self.assertEqual((blob_sha, base_sha), ("blob", "base"))
+        self.assertEqual(base_sha, "base")
         close_pr.assert_not_called()
+
+
+class TestOpenPr(TestCase):
+    def upstream(self):
+        upstream = mock.MagicMock()
+        upstream.create_git_blob.return_value.sha = "blob"
+        upstream.create_git_commit.return_value.sha = "new"
+        return upstream
+
+    def test_a_new_pr_gets_a_new_branch_at_the_commit(self):
+        upstream = self.upstream()
+
+        pr = open_pr(upstream, "Ascend/pytorch", "text", "base", "body")
+
+        upstream.create_git_ref.assert_called_once_with(
+            "refs/heads/crcr-demotion/Ascend/pytorch", "new"
+        )
+        upstream.get_git_ref.assert_not_called()
+        upstream.create_pull.assert_called_once()
+        self.assertIs(pr, upstream.create_pull.return_value)
+        pr.edit.assert_not_called()
+        pr.create_issue_comment.assert_not_called()
+
+    def test_refresh_moves_the_branch_straight_to_the_new_commit(self):
+        upstream = self.upstream()
+        upstream.create_git_ref.side_effect = GithubException(422)
+        upstream.create_pull.side_effect = GithubException(422)
+        existing = mock.MagicMock()
+        upstream.get_pulls.return_value = [existing]
+
+        pr = open_pr(upstream, "Ascend/pytorch", "text", "base", "body")
+
+        # The commit is built on main, and the branch is forced onto it in one
+        # step: never onto main itself, which would leave the PR empty and get
+        # it closed by GitHub.
+        upstream.get_git_commit.assert_called_once_with("base")
+        upstream.create_git_blob.assert_called_once_with("text", "utf-8")
+        parents = upstream.create_git_commit.call_args.args[2]
+        self.assertEqual(parents, [upstream.get_git_commit.return_value])
+        upstream.get_git_ref.assert_called_once_with(
+            "heads/crcr-demotion/Ascend/pytorch"
+        )
+        upstream.get_git_ref.return_value.edit.assert_called_once_with(
+            "new", force=True
+        )
+        upstream.update_file.assert_not_called()
+        names = [c[0] for c in upstream.mock_calls]
+        self.assertLess(
+            names.index("create_git_commit"), names.index("get_git_ref().edit")
+        )
+        self.assertIs(pr, existing)
+
+    def test_refresh_updates_the_body_and_says_the_branch_was_rebuilt(self):
+        upstream = self.upstream()
+        upstream.create_git_ref.side_effect = GithubException(422)
+        upstream.create_pull.side_effect = GithubException(422)
+        existing = mock.MagicMock()
+        upstream.get_pulls.return_value = [existing]
+
+        open_pr(upstream, "Ascend/pytorch", "text", "base", "new body")
+
+        existing.edit.assert_called_once_with(body="new body")
+        existing.create_issue_comment.assert_called_once_with(REFRESH_COMMENT)
+
+    def test_a_failed_create_with_no_open_pr_is_raised(self):
+        upstream = self.upstream()
+        upstream.create_pull.side_effect = GithubException(422)
+        upstream.get_pulls.return_value = []
+
+        with self.assertRaises(GithubException):
+            open_pr(upstream, "Ascend/pytorch", "text", "base", "body")
 
 
 if __name__ == "__main__":
