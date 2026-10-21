@@ -143,14 +143,6 @@
       "linux"
     ]
   ],
-  "test_col2im_uint32_overflow (__main__.TestMPS)": [
-    "187289",
-    "https://github.com/pytorch/pytorch/issues/187289",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_collective_hang (__main__.ProcessGroupGlooWrapperTest)": [
     "195960",
     "https://github.com/pytorch/pytorch/issues/195960",
