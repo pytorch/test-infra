@@ -150,16 +150,16 @@ export async function updateExistingIssueForFlakyTest(
   const platformsNotInIssueStr = platformsNotInIssue.join(", ");
 
   let comment = `Another case of trunk flakiness has been found [here](${latestTrunkJobURL}). `;
-  if (matchingIssue.state !== "open") {
-    comment += `Reopening issue. `;
-  }
   let newBody = undefined;
 
-  if (platformsNotInIssue.length === 0) {
+  if (matchingIssue.state !== "open") {
+    // A closed issue no longer disables its old platforms. Only disable the
+    // platforms affected by the new flakiness when reopening it.
+    comment += `Reopening issue. Replacing the previous platforms [${platformsInIssueStr}] with the recently affected platforms [${platformsAffectedStr}]. `;
+    newBody = `Platforms: ${platformsAffectedStr}\n\n${bodyWithoutPlatforms}`;
+  } else if (platformsNotInIssue.length === 0) {
     comment += `The list of platforms [${platformsInIssueStr}] appears to contain all the recently affected platforms [${platformsAffectedStr}]. `;
-    if (matchingIssue.state === "open") {
-      comment += `Either the change didn't propogate fast enough or disable bot might be broken. `;
-    }
+    comment += `Either the change didn't propogate fast enough or disable bot might be broken. `;
   } else {
     const allPlatformsStr = platformsInIssue
       .concat(platformsNotInIssue)

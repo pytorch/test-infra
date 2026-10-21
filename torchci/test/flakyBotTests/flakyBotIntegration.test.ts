@@ -23,11 +23,13 @@ function mockUpdateIssue({
   labels,
   state,
   bodyContains,
+  bodyNotContains,
 }: {
   issueNumber: number;
   labels?: string[];
   state?: string;
   bodyContains?: string[];
+  bodyNotContains?: string[];
 }) {
   return nock("https://api.github.com")
     .patch(`/repos/pytorch/pytorch/issues/${issueNumber}`, (body) => {
@@ -39,6 +41,9 @@ function mockUpdateIssue({
       }
       for (const containedString of bodyContains ?? []) {
         expect(body.body).toContain(containedString);
+      }
+      for (const excludedString of bodyNotContains ?? []) {
+        expect(body.body).not.toContain(excludedString);
       }
       return true;
     })
@@ -183,7 +188,7 @@ describe("Disable Flaky Test Integration Tests", () => {
         handleScope(scope);
       });
 
-      test("Reopen and modify platforms", async () => {
+      test("Reopen and replace stale platforms", async () => {
         const test = deepCopy(flakyTestA);
         const issue = genSingleIssueFor(test, {
           body: "Platforms: linux\nhello\n\na\nb",
@@ -193,13 +198,13 @@ describe("Disable Flaky Test Integration Tests", () => {
         const scope = [
           mockUpdateIssue({
             issueNumber: issue.number,
-            bodyContains: ["Platforms: linux, win"],
+            bodyContains: ["Platforms: win", "hello\n\na\nb"],
+            bodyNotContains: ["Platforms: linux"],
             state: "open",
           }),
           utils.mockPostComment("pytorch/pytorch", issue.number, [
             "Another case of trunk flakiness has been found",
-            "does not appear to contain",
-            "Adding [win]",
+            "Replacing the previous platforms [linux] with the recently affected platforms [win]",
             "Reopening issue",
           ]),
         ];
@@ -208,7 +213,7 @@ describe("Disable Flaky Test Integration Tests", () => {
         handleScope(scope);
       });
 
-      test("Reopen issue, all platforms present", async () => {
+      test("Reopen issue when the affected platforms are unchanged", async () => {
         const test = deepCopy(flakyTestA);
         const issue = genSingleIssueFor(test, {
           body: "Platforms: win\nhello\n\na\nb",
@@ -219,16 +224,40 @@ describe("Disable Flaky Test Integration Tests", () => {
           mockUpdateIssue({
             issueNumber: issue.number,
             state: "open",
+            bodyContains: ["Platforms: win", "hello\n\na\nb"],
           }),
           utils.mockPostComment("pytorch/pytorch", issue.number, [
             "Another case of trunk flakiness has been found",
-            "appears to contain all the recently affected",
+            "Replacing the previous platforms [win] with the recently affected platforms [win]",
             "Reopening issue",
           ]),
         ];
 
         await disableFlakyTestBot.handleAll(octokit, [test], [], [issue], []);
 
+        handleScope(scope);
+      });
+
+      test("Reopen issue with no platform list for only affected platforms", async () => {
+        const test = deepCopy(flakyTestA);
+        const issue = genSingleIssueFor(test, {
+          body: "hello",
+          state: "closed",
+        });
+
+        const scope = [
+          mockUpdateIssue({
+            issueNumber: issue.number,
+            state: "open",
+            bodyContains: ["Platforms: win", "hello"],
+          }),
+          utils.mockPostComment("pytorch/pytorch", issue.number, [
+            "Reopening issue",
+            "Replacing the previous platforms [all] with the recently affected platforms [win]",
+          ]),
+        ];
+
+        await disableFlakyTestBot.handleAll(octokit, [test], [], [issue], []);
         handleScope(scope);
       });
 
@@ -259,7 +288,7 @@ describe("Disable Flaky Test Integration Tests", () => {
         handleScope(scope);
       });
 
-      test("Reopen, add platforms", async () => {
+      test("Reopen and drop previously disabled platforms", async () => {
         const test = deepCopy(flakyTestA);
         const issue = genSingleIssueFor(test, {
           body: "Platforms: win, dynamo\nhello",
@@ -270,10 +299,12 @@ describe("Disable Flaky Test Integration Tests", () => {
           mockUpdateIssue({
             issueNumber: issue.number,
             state: "open",
+            bodyContains: ["Platforms: win", "hello"],
+            bodyNotContains: ["dynamo"],
           }),
           utils.mockPostComment("pytorch/pytorch", issue.number, [
             "Another case of trunk flakiness has been found",
-            "appears to contain",
+            "Replacing the previous platforms [win, dynamo] with the recently affected platforms [win]",
             "Reopening issue",
           ]),
         ];
