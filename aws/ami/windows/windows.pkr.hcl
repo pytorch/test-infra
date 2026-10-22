@@ -58,6 +58,7 @@ build {
       "${path.root}/scripts/Installers/Install-Miniconda3.ps1",
       "${path.root}/scripts/Installers/Initialize-Python3.ps1",
       "${path.root}/scripts/Installers/Install-Conda-Dependencies.ps1",
+      "${path.root}/scripts/Installers/Install-Pip-Dependencies.ps1",
     ]
   }
 
