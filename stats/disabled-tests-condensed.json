@@ -1483,6 +1483,20 @@
       "linux"
     ]
   ],
+  "test_tma_with_customer_kernel_options_selection_backend_TRITON_DECODE_xpu (__main__.TestFlexAttentionXPU)": [
+    "201711",
+    "https://github.com/pytorch/pytorch/issues/201711",
+    [
+      "xpu"
+    ]
+  ],
+  "test_tma_with_customer_kernel_options_selection_backend_TRITON_xpu (__main__.TestFlexAttentionXPU)": [
+    "201710",
+    "https://github.com/pytorch/pytorch/issues/201710",
+    [
+      "xpu"
+    ]
+  ],
   "test_torchvision_models_convnext_base (__main__.TestVisionTracing)": [
     "182259",
     "https://github.com/pytorch/pytorch/issues/182259",
