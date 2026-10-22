@@ -178,7 +178,9 @@ export async function updateExistingIssueForFlakyTest(
     comment += `Reopening issue. `;
   }
   if (canReplacePlatforms) {
-    if (_.isEqual([...platformsInIssue].sort(), [...platformsAffected].sort())) {
+    if (
+      _.isEqual([...platformsInIssue].sort(), [...platformsAffected].sort())
+    ) {
       comment += `Reopening issue for platforms [${platformsAffectedStr}]. `;
     } else {
       comment += `Reopening issue. Replacing the previous platforms [${platformsInIssueStr}] with the recently affected platforms [${platformsAffectedStr}]. `;
