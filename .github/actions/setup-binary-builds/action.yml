@@ -136,7 +136,12 @@ runs:
           # 3.14 -- which conda=25.3.0 has no build for (py314 starts at 26.1.0) --
           # and already ships a newer conda with channels configured, so leave it
           # untouched.
-          if [[ "${RUNNER_OS}" != "macOS" ]]; then
+          if [[ "${RUNNER_OS}" == "Windows" ]]; then
+            # The Windows AMI's base env is on Python 3.9, where conda=25.3.0 is
+            # unsolvable: all conda-libmamba-solver>=24.11 builds constrain
+            # certifi>=2026.10.19, which has no py39 build.
+            conda install -y python=3.11 conda=25.3.0
+          elif [[ "${RUNNER_OS}" != "macOS" ]]; then
             conda install -y conda=25.3.0
           elif [[ "${PYTHON_VERSION}" == 3.15* ]]; then
             # Newer macOS base conda 400s on the 3.15 label download; pin an older one.
