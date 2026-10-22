@@ -1155,13 +1155,6 @@
       "rocm"
     ]
   ],
-  "test_opcheck_customopdef (__main__.TestGenerateOpcheckTests)": [
-    "200213",
-    "https://github.com/pytorch/pytorch/issues/200213",
-    [
-      "dynamo"
-    ]
-  ],
   "test_opcheck_opinfo_NumpyMulScalarCustomOp_cpu_float32 (__main__.TestCustomOpTestingCPU)": [
     "180206",
     "https://github.com/pytorch/pytorch/issues/180206",
