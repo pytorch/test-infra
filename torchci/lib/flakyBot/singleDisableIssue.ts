@@ -135,9 +135,11 @@ export async function updateExistingIssueForFlakyTest(
   test: FlakyTestData
 ) {
   const platformsAffected = getPlatformsAffected(getWorkflowJobNames(test));
-  const { platformsToSkip: platformsInIssue, bodyWithoutPlatforms } = parseBody(
-    matchingIssue.body
-  );
+  const {
+    platformsToSkip: platformsInIssue,
+    invalidPlatforms,
+    bodyWithoutPlatforms,
+  } = parseBody(matchingIssue.body);
   const platformsNotInIssue = platformsAffected.filter(
     (p) => platformsInIssue.length !== 0 && !platformsInIssue.includes(p)
   );
@@ -152,14 +154,41 @@ export async function updateExistingIssueForFlakyTest(
   let comment = `Another case of trunk flakiness has been found [here](${latestTrunkJobURL}). `;
   let newBody = undefined;
 
-  if (matchingIssue.state !== "open") {
-    // A closed issue no longer disables its old platforms. Only disable the
-    // platforms affected by the new flakiness when reopening it.
-    comment += `Reopening issue. Replacing the previous platforms [${platformsInIssueStr}] with the recently affected platforms [${platformsAffectedStr}]. `;
-    newBody = `Platforms: ${platformsAffectedStr}\n\n${bodyWithoutPlatforms}`;
+  const platformsEligibleForReplacement = new Set([
+    "linux",
+    "mac",
+    "macos",
+    "rocm",
+    "xpu",
+    "win",
+    "windows",
+  ]);
+  // Only replace explicit platform restrictions. Preserve the existing behavior
+  // for all-platform issues, special conditions (e.g. asan/slow), and unknowns.
+  const canReplacePlatforms =
+    matchingIssue.state !== "open" &&
+    invalidPlatforms.length === 0 &&
+    platformsInIssue.length > 0 &&
+    platformsAffected.length > 0 &&
+    [...platformsInIssue, ...platformsAffected].every((platform) =>
+      platformsEligibleForReplacement.has(platform)
+    );
+
+  if (matchingIssue.state !== "open" && !canReplacePlatforms) {
+    comment += `Reopening issue. `;
+  }
+  if (canReplacePlatforms) {
+    if (_.isEqual([...platformsInIssue].sort(), [...platformsAffected].sort())) {
+      comment += `Reopening issue for platforms [${platformsAffectedStr}]. `;
+    } else {
+      comment += `Reopening issue. Replacing the previous platforms [${platformsInIssueStr}] with the recently affected platforms [${platformsAffectedStr}]. `;
+      newBody = `Platforms: ${platformsAffectedStr}\n\n${bodyWithoutPlatforms}`;
+    }
   } else if (platformsNotInIssue.length === 0) {
     comment += `The list of platforms [${platformsInIssueStr}] appears to contain all the recently affected platforms [${platformsAffectedStr}]. `;
-    comment += `Either the change didn't propogate fast enough or disable bot might be broken. `;
+    if (matchingIssue.state === "open") {
+      comment += `Either the change didn't propogate fast enough or disable bot might be broken. `;
+    }
   } else {
     const allPlatformsStr = platformsInIssue
       .concat(platformsNotInIssue)
