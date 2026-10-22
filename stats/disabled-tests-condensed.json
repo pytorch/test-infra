@@ -279,14 +279,6 @@
       "inductor"
     ]
   ],
-  "test_copy_transpose_tiled_batched_layout_permute_4d_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "199997",
-    "https://github.com/pytorch/pytorch/issues/199997",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_copy_transpose_tiled_small_slices_rejected_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "199891",
     "https://github.com/pytorch/pytorch/issues/199891",
@@ -1312,14 +1304,6 @@
       "rocm"
     ]
   ],
-  "test_restore_external_objects_before_backward (__main__.TestStreamExternalObjectRestore)": [
-    "198443",
-    "https://github.com/pytorch/pytorch/issues/198443",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_retained_handle_stale_after_wait_timeout_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
     "200247",
     "https://github.com/pytorch/pytorch/issues/200247",
@@ -1694,13 +1678,6 @@
     "https://github.com/pytorch/pytorch/issues/199693",
     [
       "xpu"
-    ]
-  ],
-  "test_zero_strided_emits_fill_kernel_cuda (__main__.TestTorchCUDACUDA)": [
-    "199454",
-    "https://github.com/pytorch/pytorch/issues/199454",
-    [
-      "inductor"
     ]
   ]
 }
