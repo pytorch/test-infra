@@ -850,6 +850,13 @@
       "win"
     ]
   ],
+  "test_map_pytree_in_out_device_xpu_dynamic_True_autograd_True (__main__.MapTestsCppWrapper)": [
+    "201775",
+    "https://github.com/pytorch/pytorch/issues/201775",
+    [
+      "xpu"
+    ]
+  ],
   "test_max_autotune_addmm_standalone_x_shape_4096x1_bfloat16 (__main__.TestCKBackend)": [
     "198909",
     "https://github.com/pytorch/pytorch/issues/198909",
