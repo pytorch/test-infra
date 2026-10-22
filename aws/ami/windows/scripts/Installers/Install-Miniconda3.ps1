@@ -12,9 +12,6 @@ if (-Not (Test-Path -Path $parentDir)) {
   New-Item -Path $parentDir -ItemType "directory"
 }
 
-# Python 3.11, not 3.12+: validate_binaries.sh pins conda=23.11.0, which has no
-# py312 build. conda 25.3.1 matches the conda=25.3.0 pin in setup-binary-builds
-# and predates conda 26 dropping the implicit defaults channel.
 $condaFilename = "Miniconda3-py311_25.3.1-1-Windows-x86_64.exe"
 $condaURI = "https://repo.anaconda.com/miniconda/$condaFileName"
 
