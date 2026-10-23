@@ -219,6 +219,14 @@
       "slow"
     ]
   ],
+  "test_copy_strided_chunk_alignment_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
+    "201787",
+    "https://github.com/pytorch/pytorch/issues/201787",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_copy_strided_chunk_alignment_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
     "200246",
     "https://github.com/pytorch/pytorch/issues/200246",
@@ -291,7 +299,8 @@
     "199892",
     "https://github.com/pytorch/pytorch/issues/199892",
     [
-      "inductor"
+      "inductor",
+      "rocm"
     ]
   ],
   "test_copy_transpose_tiled_small_slices_rejected_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
