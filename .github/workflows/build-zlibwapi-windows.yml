@@ -59,7 +59,7 @@ jobs:
           (cd dist && 7z a -tzip "../${ARTIFACT_NAME}.zip" dll_x64)
           sha256sum "${ARTIFACT_NAME}.zip" > "${ARTIFACT_NAME}.zip.sha256"
           echo "artifact-name=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
-          cat "${ARTIFACT_NAME}.zip.sha256" | tee -a "${GITHUB_STEP_SUMMARY}"
+          tee -a "${GITHUB_STEP_SUMMARY}" < "${ARTIFACT_NAME}.zip.sha256"
 
       - name: Upload artifact to GitHub
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
