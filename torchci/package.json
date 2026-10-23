@@ -71,7 +71,7 @@
     "trie-search": "^1.4.2",
     "urllib": "2.44.0",
     "uuid": "^8.3.2",
-    "zod": "^3.25.64",
+    "zod": "^4.6.6",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
