@@ -307,7 +307,8 @@
     "199911",
     "https://github.com/pytorch/pytorch/issues/199911",
     [
-      "inductor"
+      "inductor",
+      "rocm"
     ]
   ],
   "test_copy_transpose_tiled_small_slices_rejected_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
