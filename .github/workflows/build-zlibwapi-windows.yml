@@ -35,7 +35,7 @@ jobs:
           cmake -S "zlib-${ZLIB_VERSION}" -B build -G "Visual Studio 17 2022" -A x64
           cmake --build build --config Release --target zlib
           mkdir -p dist/dll_x64
-          cp build/Release/zlib1.dll dist/dll_x64/zlibwapi.dll
+          cp build/Release/zlib.dll dist/dll_x64/zlibwapi.dll
 
       - name: Check zlibwapi.dll
         shell: bash
