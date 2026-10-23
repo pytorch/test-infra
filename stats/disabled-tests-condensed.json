@@ -326,16 +326,6 @@
       "linux"
     ]
   ],
-  "test_cusparse_multiple_threads_same_device (__main__.TestCuda)": [
-    "127536",
-    "https://github.com/pytorch/pytorch/issues/127536",
-    [
-      "dynamo",
-      "inductor",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_ddp_optimizer_cudagraph (__main__.TestMultiProc)": [
     "199998",
     "https://github.com/pytorch/pytorch/issues/199998",
