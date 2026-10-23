@@ -923,7 +923,7 @@ TEST_RUN_REPORTS_TABLE = "fortesting.runs"
 # rows every statement would insert are counted and printed; nothing is written
 # (failures still go to errors.gen_errors). on: ingest. TEST_RUN_REPORTS_MODE
 # on the function overrides this default.
-TEST_RUN_REPORTS_MODE = "on"
+TEST_RUN_REPORTS_MODE = "off"
 # The percent of workflow runs whose reports are routed, picked by run id so
 # that the reports of a run's jobs, in every attempt, are all routed or none are.
 # TEST_RUN_REPORTS_SAMPLE_PERCENT on the function overrides this default.
