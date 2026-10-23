@@ -1296,20 +1296,6 @@
       "rocm"
     ]
   ],
-  "test_retained_handle_stale_after_wait_timeout_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
-    "200247",
-    "https://github.com/pytorch/pytorch/issues/200247",
-    [
-      "rocm"
-    ]
-  ],
-  "test_retained_handle_stale_after_watchdog_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
-    "200056",
-    "https://github.com/pytorch/pytorch/issues/200056",
-    [
-      "rocm"
-    ]
-  ],
   "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTests)": [
     "194896",
     "https://github.com/pytorch/pytorch/issues/194896",
