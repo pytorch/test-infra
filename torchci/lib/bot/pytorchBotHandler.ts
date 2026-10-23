@@ -38,6 +38,11 @@ import {
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 export const CIFLOW_PULL_LABEL = "ciflow/pull";
+// The automated PR review posts its reviews as this GitHub App.
+export const AUTOMATED_REVIEWER_LOGIN = "github-actions[bot]";
+// ShipIt (codesync) posts the merge command for a co-dev PR as this App once
+// its Phabricator diff has landed.
+export const SHIPIT_MERGE_LOGIN = "meta-codesync[bot]";
 
 export interface PytorchbotParams {
   owner: string;
@@ -182,8 +187,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return null;
   }
 
-  async getApprovalStatus(): Promise<string> {
-    const reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
+  // With ignoreAutomatedReview, the automated PR review's reviews are dropped
+  // when its own verdict is changes requested, so that request cannot block the
+  // merge. Any other verdict of its (e.g. an approval) is kept and still counts.
+  async getApprovalStatus(ignoreAutomatedReview = false): Promise<string> {
+    let reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
       this.ctx.octokit.pulls.listReviews,
       {
         owner: this.owner,
@@ -192,6 +200,18 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         per_page: 100,
       }
     );
+    const isPyTorchPyTorchRepo = isPyTorchPyTorch(this.owner, this.repo);
+    if (ignoreAutomatedReview) {
+      const isAutomated = (review: PullRequestReview) =>
+        review.user?.login === AUTOMATED_REVIEWER_LOGIN;
+      const automatedVerdict = getApprovalStatusFromReviews(
+        reviews.filter(isAutomated),
+        isPyTorchPyTorchRepo
+      );
+      if (automatedVerdict === PR_CHANGES_REQUESTED) {
+        reviews = reviews.filter((review) => !isAutomated(review));
+      }
+    }
 
     if (!reviews.length) {
       this.ctx.log("Could not find any reviews for PR");
@@ -200,7 +220,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     return getApprovalStatusFromReviews(
       reviews,
-      isPyTorchPyTorch(this.owner, this.repo),
+      isPyTorchPyTorchRepo,
       (message: string) => this.ctx.log(message)
     );
   }
@@ -230,8 +250,13 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (forceRequested) {
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
     } else if (isPyTorchbotSupportedOrg(this.owner)) {
-      // Ensure the PR has been signed off on
-      let approval_status = await this.getApprovalStatus();
+      // Ensure the PR has been signed off on. A `-i` merge that ShipIt issues
+      // after the Phabricator diff landed despite a red automated-review
+      // signal must not be refused for that review; a human's `-i` still is.
+      const ignoreAutomatedReview =
+        ignore_current &&
+        this.ctx.payload?.comment?.user?.login === SHIPIT_MERGE_LOGIN;
+      let approval_status = await this.getApprovalStatus(ignoreAutomatedReview);
       if (approval_status == PR_CHANGES_REQUESTED) {
         rejection_reason =
           "This PR has pending changes requested. Please address the comments and update the PR before merging.";

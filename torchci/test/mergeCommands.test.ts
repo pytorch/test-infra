@@ -4,6 +4,7 @@ import * as probot from "probot";
 import pytorchBot from "../lib/bot/pytorchBot";
 import PytorchBotHandler, {
   PytorchbotParams,
+  SHIPIT_MERGE_LOGIN,
 } from "../lib/bot/pytorchBotHandler";
 import * as clickhouse from "../lib/clickhouse";
 import { handleScope, requireDeepCopy } from "./common";
@@ -1508,6 +1509,169 @@ some other text lol
     await probot.receive(event);
 
     handleScope(scope);
+  });
+
+  describe("merge -i from ShipIt and the automated review", () => {
+    // A human approval followed by the automated review requesting changes,
+    // the state of a co-dev PR whose Phabricator diff landed past that review.
+    function reviewsWithAutomatedChangesRequested() {
+      const reviews = requireDeepCopy("./fixtures/pull_request_reviews.json");
+      reviews[0].state = "APPROVED";
+      reviews[0].submitted_at = "2024-01-01T00:00:00Z";
+      reviews[1].user.login = "github-actions[bot]";
+      reviews[1].state = "CHANGES_REQUESTED";
+      reviews[1].submitted_at = "2024-01-02T00:00:00Z";
+      return [reviews[0], reviews[1]];
+    }
+
+    function mergeEvent(body: string, commenter: string) {
+      const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+      event.payload.comment.body = body;
+      event.payload.comment.user.login = commenter;
+      event.payload.repository.owner.login = "pytorch";
+      return event;
+    }
+
+    async function expectRefused(
+      event: any,
+      reviews: any[],
+      perm?: string,
+      reason = "This PR has pending changes requested"
+    ) {
+      const owner = event.payload.repository.owner.login;
+      const repo = event.payload.repository.name;
+      const pr_number = event.payload.issue.number;
+      const comment_number = event.payload.comment.id;
+      const scope = nock("https://api.github.com")
+        .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
+        .reply(200, reviews);
+      if (perm) {
+        scope
+          .get(
+            `/repos/${owner}/${repo}/collaborators/${event.payload.comment.user.login}/permission`
+          )
+          .reply(200, { permission: perm });
+      }
+      scope
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"confused"}');
+            return true;
+          }
+        )
+        .reply(200, {})
+        .post(
+          `/repos/${owner}/${repo}/issues/${pr_number}/comments`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain(reason);
+            return true;
+          }
+        )
+        .reply(200);
+      await probot.receive(event);
+      handleScope(scope);
+    }
+
+    test("ShipIt's merge -i ignores the automated review's changes requested", async () => {
+      const event = mergeEvent("@pytorchbot merge -i", SHIPIT_MERGE_LOGIN);
+      const owner = event.payload.repository.owner.login;
+      const repo = event.payload.repository.name;
+      const pr_number = event.payload.issue.number;
+      const comment_number = event.payload.comment.id;
+      const scope = nock("https://api.github.com")
+        .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
+        .reply(200, reviewsWithAutomatedChangesRequested())
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+            return true;
+          }
+        )
+        .reply(200, {})
+        .post(`/repos/${owner}/${repo}/dispatches`, (body) => {
+          expect(JSON.stringify(body)).toContain(
+            `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number},"ignore_current":true}}`
+          );
+          return true;
+        })
+        .reply(200, {});
+      await probot.receive(event);
+      handleScope(scope);
+    });
+
+    test("ShipIt's merge -i still counts an approval from the automated review", async () => {
+      const event = mergeEvent("@pytorchbot merge -i", SHIPIT_MERGE_LOGIN);
+      const reviews = reviewsWithAutomatedChangesRequested();
+      reviews[1].state = "APPROVED";
+      const owner = event.payload.repository.owner.login;
+      const repo = event.payload.repository.name;
+      const pr_number = event.payload.issue.number;
+      const comment_number = event.payload.comment.id;
+      const scope = nock("https://api.github.com")
+        .get(`/repos/${owner}/${repo}/pulls/${pr_number}/reviews?per_page=100`)
+        .reply(200, [reviews[1]])
+        .post(
+          `/repos/${owner}/${repo}/issues/comments/${comment_number}/reactions`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain('{"content":"+1"}');
+            return true;
+          }
+        )
+        .reply(200, {})
+        .post(`/repos/${owner}/${repo}/dispatches`)
+        .reply(200, {});
+      await probot.receive(event);
+      handleScope(scope);
+    });
+
+    test("ShipIt's merge -i does not revive an earlier automated approval", async () => {
+      const reviews = reviewsWithAutomatedChangesRequested();
+      reviews[0].user.login = "github-actions[bot]";
+      await expectRefused(
+        mergeEvent("@pytorchbot merge -i", SHIPIT_MERGE_LOGIN),
+        reviews,
+        undefined,
+        "This PR needs to be approved by an authorized maintainer before merge."
+      );
+    });
+
+    test("ShipIt's merge -i is refused when a human also requested changes", async () => {
+      const reviews = reviewsWithAutomatedChangesRequested();
+      const human = requireDeepCopy("./fixtures/pull_request_reviews.json")[2];
+      human.user.login = "some-maintainer";
+      human.state = "CHANGES_REQUESTED";
+      human.submitted_at = "2024-01-03T00:00:00Z";
+      await expectRefused(
+        mergeEvent("@pytorchbot merge -i", SHIPIT_MERGE_LOGIN),
+        [...reviews, human]
+      );
+    });
+
+    test("ShipIt's plain merge is still refused for the automated review", async () => {
+      await expectRefused(
+        mergeEvent("@pytorchbot merge", SHIPIT_MERGE_LOGIN),
+        reviewsWithAutomatedChangesRequested()
+      );
+    });
+
+    test("A human's merge -i is still refused for the automated review", async () => {
+      await expectRefused(
+        mergeEvent("@pytorchbot merge -i", "some-maintainer"),
+        reviewsWithAutomatedChangesRequested(),
+        "write"
+      );
+    });
+
+    test("ShipIt's merge -i is still refused for a human's changes requested", async () => {
+      const reviews = reviewsWithAutomatedChangesRequested();
+      reviews[1].user.login = "some-maintainer";
+      await expectRefused(
+        mergeEvent("@pytorchbot merge -i", SHIPIT_MERGE_LOGIN),
+        reviews
+      );
+    });
   });
 
   test("Comment only workflows don't let a PR get merged in pytorch org", async () => {
