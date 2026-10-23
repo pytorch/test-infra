@@ -588,7 +588,20 @@ def test_runs_take_the_report_uuid_from_the_report_line():
         "toUUIDOrZero(JSONExtractString(report_line, 'report_uuid')) AS report_uuid"
         in runs
     )
-    assert "github_workflow_job_id, report_uuid, rerun_number" in runs
+    assert "github_workflow_job_id, report_uuid, id, rerun_number" in runs
+
+
+def test_runs_take_the_id_from_each_run_line():
+    # toUUID, not toUUIDOrZero: a missing or invalid one fails the insert rather
+    # than becoming the zero UUID.
+    *_, runs = run_test_reports_adapter("on")
+    assert "toUUID(JSONExtractString(line, 'id')) AS id" in runs
+
+
+def test_the_schema_version_gate_takes_only_0_2():
+    # 0.1 run lines have no id.
+    for sql in run_test_reports_adapter("on"):
+        assert "'schema_version') IN ('0.2')" in sql
 
 
 def test_runs_write_no_properties():

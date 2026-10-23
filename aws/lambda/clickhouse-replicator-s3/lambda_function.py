@@ -928,7 +928,8 @@ TEST_RUN_REPORTS_MODE = "on"
 # that the reports of a run's jobs, in every attempt, are all routed or none are.
 # TEST_RUN_REPORTS_SAMPLE_PERCENT on the function overrides this default.
 TEST_RUN_REPORTS_SAMPLE_PERCENT = 100
-TEST_RUN_REPORTS_SCHEMA_VERSIONS = "('0.1')"
+# 0.1 run lines have no id, so their reports are not ingested.
+TEST_RUN_REPORTS_SCHEMA_VERSIONS = "('0.2')"
 # Part of the deduplication token: bump it to ingest the same reports again
 # after a fix.
 TEST_RUN_REPORTS_INGEST_VERSION = 1
@@ -984,6 +985,9 @@ WITH
             -- ones are dropped
             mapFilter((k, v) -> v NOT IN ('0', ''),
                 JSONExtract(report_line, 'flags', 'Map(String, String)')) AS env_vars,
+            -- a missing or invalid one fails the insert, so a producer bug is
+            -- logged, not hidden
+            toUUID(JSONExtractString(line, 'id')) AS id,
             JSONExtractString(line, 'file') AS file,
             JSONExtractString(line, 'suite') AS suite,
             JSONExtractString(line, 'case_name') AS case_name,
@@ -1052,11 +1056,11 @@ TEST_RUN_REPORTS_STATEMENTS = [
     (
         "runs",
         "tests_id, environments_id, env_vars_id, github_workflow_job_id, report_uuid, "
-        "rerun_number, outcome, outcome_summary, started_at, ended_at",
+        "id, rerun_number, outcome, outcome_summary, started_at, ended_at",
         """
         select tests_id, environments_id, env_vars_id, github_workflow_job_id,
-               report_uuid, rerun_number, outcome, outcome_summary, started_at,
-               ended_at
+               report_uuid, id, rerun_number, outcome, outcome_summary,
+               started_at, ended_at
         from report_rows
         """,
     ),
