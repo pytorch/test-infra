@@ -13,18 +13,12 @@ export const PR_DISMISSED = "dismissed";
 export const PR_CHANGES_REQUESTED = "changes_requested";
 export const PR_APPROVED = "approved";
 
-/**
- * The PR's approval verdict from its reviews: "" (nobody has decided),
- * PR_APPROVED, or PR_CHANGES_REQUESTED.
- *
- * `isPyTorchPyTorchRepo` gates the App-bot exemption below and `log` receives
- * the unrecognised-review-state notice
- */
-export function getApprovalStatusFromReviews(
+// The latest decision of each authorized reviewer, keyed by login.
+function getLatestReviewStates(
   reviews: PullRequestReview[],
   isPyTorchPyTorchRepo: boolean,
-  log: (message: string) => void = () => {}
-): string {
+  log: (message: string) => void
+): { [user: string]: string } {
   // From https://docs.github.com/en/graphql/reference/enums#commentauthorassociation
   const ALLOWED_APPROVER_ASSOCIATIONS = [
     "COLLABORATOR",
@@ -42,7 +36,7 @@ export function getApprovalStatusFromReviews(
 
   // Find the latest review offered by each authorized reviewer
   // But first sort them in case Github ever returns the list unsorted
-  var latest_reviews: { [user: string]: string } = [...reviews]
+  return [...reviews]
     .sort((a: PullRequestReview, b: PullRequestReview) => {
       return Date.parse(a.submitted_at + "") < Date.parse(b.submitted_at + "")
         ? -1
@@ -95,6 +89,25 @@ export function getApprovalStatusFromReviews(
       },
       {}
     );
+}
+
+/**
+ * The PR's approval verdict from its reviews: "" (nobody has decided),
+ * PR_APPROVED, or PR_CHANGES_REQUESTED.
+ *
+ * `isPyTorchPyTorchRepo` gates the App-bot exemption above and `log` receives
+ * the unrecognised-review-state notice
+ */
+export function getApprovalStatusFromReviews(
+  reviews: PullRequestReview[],
+  isPyTorchPyTorchRepo: boolean,
+  log: (message: string) => void = () => {}
+): string {
+  const latest_reviews = getLatestReviewStates(
+    reviews,
+    isPyTorchPyTorchRepo,
+    log
+  );
 
   // Aggregate the reviews to figure out the overall status.
   // One approval is all that's needed
@@ -111,4 +124,16 @@ export function getApprovalStatusFromReviews(
   }
 
   return approval_status.toLocaleLowerCase();
+}
+
+/** The authorized reviewers whose latest review approves the PR. */
+export function getApprovingReviewers(
+  reviews: PullRequestReview[],
+  isPyTorchPyTorchRepo: boolean
+): string[] {
+  return Object.entries(
+    getLatestReviewStates(reviews, isPyTorchPyTorchRepo, () => {})
+  )
+    .filter(([_, state]) => state.toLocaleLowerCase() === PR_APPROVED)
+    .map(([login]) => login);
 }

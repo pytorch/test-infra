@@ -11,9 +11,14 @@
 // Rendering stays pure and testable; GitHub reads are isolated for fetching.
 
 import { PullRequestReview } from "@octokit/webhooks-types";
-import { isPyTorchPyTorch } from "lib/bot/utils";
+import { getFilesChangedByPr, isPyTorchPyTorch } from "lib/bot/utils";
+import {
+  fetchMergeRules,
+  fetchTeamMembership,
+} from "lib/greenlight/greenlightEligibility";
 import {
   getApprovalStatusFromReviews,
+  getApprovingReviewers,
   PR_APPROVED,
   PR_CHANGES_REQUESTED,
 } from "lib/reviewApproval";
@@ -62,6 +67,7 @@ const SAFE_REVIEWER_RE = /^[A-Za-z0-9-]+(\/[A-Za-z0-9_-]+)?$/;
 
 export type PrStatusStage =
   | "approved"
+  | "approvedNeedsMergeApproval"
   | "readyForReview"
   | "inProgress"
   | "missingActionableIssue"
@@ -73,6 +79,9 @@ export interface PrStatusState {
   labels: string[];
   // Whether the PR currently carries a live approving review.
   isApproved: boolean;
+  // Whether an approving reviewer satisfies .github/merge_rules.yaml for the
+  // changed files. Undefined when unknown, which reports a plain approval.
+  isMergeApproved?: boolean;
   // Whether an authorized reviewer has an outstanding request for changes.
   hasChangesRequested?: boolean;
   // The reviewers assigned to the PR, without the leading "@". Teams are
@@ -90,15 +99,23 @@ export interface PrStatusState {
 }
 
 // Approval outranks every label: it is a statement about the PR made by a
-// maintainer, whereas the labels are bot-maintained and can lag a review by a
-// sweep. Below it the labels are checked most-advanced first so a PR that
-// briefly carries two of them (a bot mid-transition) reports the later stage.
+// reviewer, whereas the labels are bot-maintained and can lag a review by a
+// sweep. An approval that no merge rule accepts still needs a maintainer, so
+// it does not hide a missing actionable issue. Below it the labels are checked
+// most-advanced first so a PR that briefly carries two of them (a bot
+// mid-transition) reports the later stage.
 // During a move back to in progress, this temporarily reports ready for review
 // until the bot removes that label; the next live read reports in progress.
 export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   const labels = new Set(state.labels);
-  if (state.isApproved) {
+  if (state.isApproved && state.isMergeApproved !== false) {
     return "approved";
+  }
+  if (
+    state.isApproved &&
+    !labels.has(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)
+  ) {
+    return "approvedNeedsMergeApproval";
   }
   if (labels.has(PR_STATUS_LABEL_READY_FOR_REVIEW)) {
     return "readyForReview";
@@ -140,6 +157,13 @@ export function getPrStatusMessage(state: PrStatusState): string {
         "## PR Status: Approved 🚀\n\n" +
         "Please fix all CI failures and trigger " +
         'merge by commenting "@pytorchbot merge".'
+      );
+    case "approvedNeedsMergeApproval":
+      return (
+        "## PR Status: Approved (needs additional approval to merge)\n\n" +
+        "None of the approving reviewers is listed in " +
+        "`.github/merge_rules.yaml` for the files this PR changes, so " +
+        "merging still needs an approval from a maintainer who is."
       );
     case "readyForReview":
       return (
@@ -320,6 +344,44 @@ export async function fetchLiveLabels(
   return labels.map((label) => label.name);
 }
 
+// Mirrors trymerge's find_matching_merge_rule: an approval counts for a rule
+// whose patterns match every changed file and that names the approver, or
+// names no approvers at all. trymerge reads approvers over GraphQL, where an
+// app's login lacks the "[bot]" suffix REST gives it (merge_rules.yaml names
+// "pytorchgreenlight", reviews come back from "pytorchgreenlight[bot]").
+async function hasMergeRuleApproval(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  approvers: string[]
+): Promise<boolean> {
+  const [rules, files] = await Promise.all([
+    fetchMergeRules(octokit),
+    getFilesChangedByPr(octokit, owner, repo, prNumber),
+  ]);
+  const logins = approvers.map((approver) => approver.replace(/\[bot\]$/, ""));
+  for (const rule of rules) {
+    if (rule.matches === null || !files.every(rule.matches)) {
+      continue;
+    }
+    if (rule.logins.length === 0 && rule.teams.length === 0) {
+      return true;
+    }
+    for (const login of logins) {
+      if (rule.logins.includes(login)) {
+        return true;
+      }
+      for (const team of rule.teams) {
+        if (await fetchTeamMembership(octokit, team, login)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * Fetches approval for every stage and reviewer assignments for triaged PRs.
  * Returns null when reviews are unavailable so callers preserve current status.
@@ -371,6 +433,25 @@ export async function fetchPrStatusState(
     isPyTorchPyTorch(owner, repo)
   );
 
+  // The merge rules are pytorch/pytorch's, so only its approvals are checked.
+  let isMergeApproved: boolean | undefined;
+  if (approvalStatus === PR_APPROVED && isPyTorchPyTorch(owner, repo)) {
+    try {
+      isMergeApproved = await hasMergeRuleApproval(
+        octokit,
+        owner,
+        repo,
+        prNumber,
+        getApprovingReviewers(reviews as any, true)
+      );
+    } catch (e) {
+      console.warn(
+        `fetchPrStatusState: merge rule lookup failed for ${owner}/${repo}#${prNumber}`,
+        e
+      );
+    }
+  }
+
   // Without a known author, omit recovered reviewers rather than risk listing
   // the author as responsible for reviewing their own PR.
   const author = authorLogin ?? pull?.data.user?.login;
@@ -389,6 +470,7 @@ export async function fetchPrStatusState(
   return {
     labels,
     isApproved: approvalStatus === PR_APPROVED,
+    isMergeApproved,
     hasChangesRequested: approvalStatus === PR_CHANGES_REQUESTED,
     assignedReviewers,
     reviewerLookupFailed: pullResult.status === "rejected",

@@ -74,6 +74,9 @@ async function handle(
     if (!labels.includes(PR_STATUS_LABEL_TRIAGED)) {
       return;
     }
+  } else if (payload.action === "edited" && !payload.changes?.base) {
+    // Only a new base changes the files the merge rules are checked against.
+    return;
   } else if (!hasPrStatusLabel(labels)) {
     // Reviews outside the workflow cannot change status. An unlabeled event
     // without label metadata cannot be identified as workflow-related.
@@ -183,6 +186,8 @@ export default function prStatusBot(app: Probot): void {
       "pull_request.unlabeled",
       // Reviewer requests affect pre-review status.
       "pull_request.review_requested",
+      // Retargeting changes the files an approval must cover.
+      "pull_request.edited",
       "pull_request.review_request_removed",
       // Submitted or dismissed reviews can change approval.
       "pull_request_review.submitted",
