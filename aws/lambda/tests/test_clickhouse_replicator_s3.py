@@ -348,7 +348,7 @@ def route(bucket, key, mode, percent="100"):
 )
 @pytest.mark.parametrize("mode", ["dry", "on"])
 def test_a_test_run_report_routes_to_runs(key, mode):
-    assert route("gha-artifacts", key, mode) == "fortesting.runs"
+    assert route("gha-artifacts", key, mode) == "ci.runs"
 
 
 @pytest.mark.parametrize("mode", ["off", "yes", ""])
@@ -368,7 +368,7 @@ def test_the_defaults_are_on_for_the_default_percent_of_runs():
             for run_id in range(38278237800, 38278237900)
         }
     # A run is routed when the last two digits of its id are below the percent.
-    assert tables == {n: "fortesting.runs" if n < percent else None for n in range(100)}
+    assert tables == {n: "ci.runs" if n < percent else None for n in range(100)}
 
 
 def test_the_environment_overrides_the_default_mode():
@@ -459,11 +459,8 @@ def run_test_reports_adapter(mode, fail_on=None, id_defaults=ID_DEFAULTS):
         if ID_LOOKUP in sql:
             return mock.Mock(result_rows=list(id_defaults))
         if fail_on and (
-            f"insert into fortesting.{fail_on} " in sql
-            or (
-                sql.startswith("select count()")
-                and f"from fortesting.{fail_on} final)" in sql
-            )
+            f"insert into ci.{fail_on} " in sql
+            or (sql.startswith("select count()") and f"from ci.{fail_on} final)" in sql)
         ):
             raise RuntimeError("insert failed")
         return mock.Mock(result_rows=[[7]])
@@ -473,7 +470,7 @@ def run_test_reports_adapter(mode, fail_on=None, id_defaults=ID_DEFAULTS):
     with mock.patch.object(lambda_function, "get_clickhouse_client", lambda: client):
         with mock.patch.dict("os.environ", {"TEST_RUN_REPORTS_MODE": mode}):
             lambda_function.test_run_reports_adapter(
-                "fortesting.runs", "gha-artifacts", TEST_RUN_REPORT
+                "ci.runs", "gha-artifacts", TEST_RUN_REPORT
             )
     assert ID_LOOKUP in queries[0]
     return queries[1:]
@@ -486,11 +483,23 @@ def insert_target(sql):
 def test_the_catalogs_are_written_before_runs():
     targets = [insert_target(sql) for sql in run_test_reports_adapter("on")]
     assert targets == [
-        "fortesting.tests",
-        "fortesting.environments",
-        "fortesting.env_vars",
-        "fortesting.runs",
+        "ci.tests",
+        "ci.environments",
+        "ci.env_vars",
+        "ci.runs",
     ]
+
+
+def test_the_tables_are_in_the_database_setting():
+    with mock.patch.object(lambda_function, "TEST_RUN_REPORTS_DATABASE", "sandbox"):
+        statements = run_test_reports_adapter("on")
+    assert [insert_target(sql) for sql in statements] == [
+        "sandbox.tests",
+        "sandbox.environments",
+        "sandbox.env_vars",
+        "sandbox.runs",
+    ]
+    assert "from sandbox.environments final" in statements[1]
 
 
 @pytest.mark.parametrize("mode", ["dry", "on"])
@@ -508,26 +517,25 @@ def test_only_runs_carries_the_deduplication_token():
 def test_the_catalogs_only_take_unseen_ids():
     tests, environments, env_vars, _ = run_test_reports_adapter("on")
     # tests' lookup holds only the report's own ids, not the whole catalog's.
-    lookup = "select id from fortesting.tests final where id in (select tests_id from report_rows)"
+    lookup = (
+        "select id from ci.tests final where id in (select tests_id from report_rows)"
+    )
     assert f"where tests_id not in ( {lookup} )" in " ".join(tests.split())
     assert (
-        "where environments_id not in (select id from fortesting.environments final)"
+        "where environments_id not in (select id from ci.environments final)"
         in environments
     )
-    assert (
-        "where env_vars_id not in (select id from fortesting.env_vars final)"
-        in env_vars
-    )
+    assert "where env_vars_id not in (select id from ci.env_vars final)" in env_vars
 
 
 def test_a_failed_statement_is_logged_and_nothing_after_it_runs():
     queries = run_test_reports_adapter("on", fail_on="environments")
     assert [insert_target(sql) for sql in queries] == [
-        "fortesting.tests",
-        "fortesting.environments",
+        "ci.tests",
+        "ci.environments",
         "errors.gen_errors",
     ]
-    assert '"table": "fortesting.environments"' in queries[-1]
+    assert '"table": "ci.environments"' in queries[-1]
 
 
 def test_dry_mode_counts_and_writes_nothing(capsys):
@@ -548,7 +556,7 @@ def test_dry_mode_counts_and_writes_nothing(capsys):
 def test_a_failed_dry_statement_is_logged_as_a_dry_run():
     queries = run_test_reports_adapter("dry", fail_on="environments")
     assert len(queries) == 3
-    assert '"table": "fortesting.environments (dry run)"' in queries[-1]
+    assert '"table": "ci.environments (dry run)"' in queries[-1]
 
 
 @pytest.mark.parametrize("mode", ["dry", "on"])
@@ -567,8 +575,8 @@ def test_a_missing_id_default_is_logged_and_nothing_runs(mode):
     queries = run_test_reports_adapter(mode, id_defaults=ID_DEFAULTS[:2])
     assert [insert_target(sql) for sql in queries] == ["errors.gen_errors"]
     suffix = " (dry run)" if mode == "dry" else ""
-    assert f'"table": "fortesting.runs ids{suffix}"' in queries[0]
-    assert "no id DEFAULT in fortesting: env_vars" in queries[0]
+    assert f'"table": "ci.runs ids{suffix}"' in queries[0]
+    assert "no id DEFAULT in ci: env_vars" in queries[0]
 
 
 def test_the_language_comes_from_each_run_line():
@@ -598,10 +606,10 @@ def test_runs_take_the_id_from_each_run_line():
     assert "toUUID(JSONExtractString(line, 'id')) AS id" in runs
 
 
-def test_the_schema_version_gate_takes_only_0_2():
-    # 0.1 run lines have no id.
+def test_the_schema_version_gate_takes_only_1_0():
+    # 1.0 is the first stable format.
     for sql in run_test_reports_adapter("on"):
-        assert "'schema_version') IN ('0.2')" in sql
+        assert "'schema_version') IN ('1.0')" in sql
 
 
 def test_runs_write_no_properties():

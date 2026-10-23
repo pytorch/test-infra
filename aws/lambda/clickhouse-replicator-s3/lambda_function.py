@@ -918,7 +918,10 @@ def pr_review_verdicts_adapter(table, bucket, key):
 TEST_RUN_REPORTS_KEY = re.compile(
     r"^torchci-reports/[\w.-]+/[\w.-]+/(\d+)/\d+/[\w.-]+\.report\.jsonl$"
 )
-TEST_RUN_REPORTS_TABLE = "fortesting.runs"
+# The database of the tests, environments, env_vars and runs tables the reports
+# are ingested into.
+TEST_RUN_REPORTS_DATABASE = "ci"
+TEST_RUN_REPORTS_TABLE = f"{TEST_RUN_REPORTS_DATABASE}.runs"
 # off: the reports are not routed. dry: each report is read and parsed, and the
 # rows every statement would insert are counted and printed; nothing is written
 # (failures still go to errors.gen_errors). on: ingest. TEST_RUN_REPORTS_MODE
@@ -928,8 +931,8 @@ TEST_RUN_REPORTS_MODE = "on"
 # that the reports of a run's jobs, in every attempt, are all routed or none are.
 # TEST_RUN_REPORTS_SAMPLE_PERCENT on the function overrides this default.
 TEST_RUN_REPORTS_SAMPLE_PERCENT = 100
-# 0.1 run lines have no id, so their reports are not ingested.
-TEST_RUN_REPORTS_SCHEMA_VERSIONS = "('0.2')"
+# 1.0 is the first stable report format; 0.x reports are not ingested.
+TEST_RUN_REPORTS_SCHEMA_VERSIONS = "('1.0')"
 # Part of the deduplication token: bump it to ingest the same reports again
 # after a fix.
 TEST_RUN_REPORTS_INGEST_VERSION = 1
@@ -1099,7 +1102,7 @@ def test_run_reports_id_defaults(database) -> dict:
 
 def test_run_reports_adapter(table, bucket, key) -> None:
     """Ingest one test run report into the tests, environments, env_vars and runs
-    tables of `table`'s database (or, in dry mode, count what would be
+    tables of TEST_RUN_REPORTS_DATABASE (or, in dry mode, count what would be
     inserted). ClickHouse reads the report itself, and runs' ids come from the
     catalogs' id DEFAULTs, so this holds no id logic. One attempt: the first
     failure is logged and nothing after it runs. The catalogs only get ids they
@@ -1107,7 +1110,7 @@ def test_run_reports_adapter(table, bucket, key) -> None:
     inserts nothing while the earlier runs insert is within ClickHouse's insert
     deduplication window (an hour by default); a later repeat adds a second copy
     of the report's runs until merges collapse it."""
-    database = table.split(".")[0]
+    database = TEST_RUN_REPORTS_DATABASE
     dry = test_run_reports_mode() == "dry"
     suffix = " (dry run)" if dry else ""
     try:
