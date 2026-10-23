@@ -1,0 +1,72 @@
+name: Build zlibwapi for Windows
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/build-zlibwapi-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  ZLIB_VERSION: "1.3.1"
+  ZLIB_SHA256: "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23"
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Enable MSVC dev commands to enable dumpbin.exe  # FYI incompatible with shell: bash
+        uses: ilammy/msvc-dev-cmd@dd5e2fa0a7de1e7929605d9ecc020e749d9856a3
+
+      - name: Build zlibwapi.dll
+        shell: bash
+        run: |
+          set -euxo pipefail
+          curl --retry 3 --retry-all-errors -fsSL \
+            -o zlib.tar.gz "https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz"
+          echo "${ZLIB_SHA256}  zlib.tar.gz" | sha256sum -c -
+          tar xzf zlib.tar.gz
+          cmake -S "zlib-${ZLIB_VERSION}" -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release --target zlib
+          mkdir -p dist/dll_x64
+          cp build/Release/zlib1.dll dist/dll_x64/zlibwapi.dll
+
+      - name: Check zlibwapi.dll
+        shell: bash
+        run: |
+          set -euxo pipefail
+          version=$(powershell -NoProfile -Command "(Get-Item dist/dll_x64/zlibwapi.dll).VersionInfo.FileVersion" | tr -d '\r')
+          echo "FileVersion: ${version}"
+          [[ "${version}" == "${ZLIB_VERSION}"* ]]
+          exports=$(dumpbin -exports dist/dll_x64/zlibwapi.dll)
+          for name in adler32 crc32 compress uncompress deflate deflateEnd deflateInit_ deflateInit2_ inflate inflateEnd inflateInit_ inflateInit2_ zlibVersion; do
+            grep -qw "${name}" <<<"${exports}"
+          done
+          dumpbin -dependents dist/dll_x64/zlibwapi.dll
+
+      - name: Package zlibwapi.dll
+        id: package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ARTIFACT_NAME="zlib${ZLIB_VERSION//./}dllx64"
+          (cd dist && 7z a -tzip "../${ARTIFACT_NAME}.zip" dll_x64)
+          sha256sum "${ARTIFACT_NAME}.zip" > "${ARTIFACT_NAME}.zip.sha256"
+          echo "artifact-name=${ARTIFACT_NAME}" >> "${GITHUB_OUTPUT}"
+          cat "${ARTIFACT_NAME}.zip.sha256" | tee -a "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload artifact to GitHub
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.package.outputs.artifact-name }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            ${{ steps.package.outputs.artifact-name }}.zip
+            ${{ steps.package.outputs.artifact-name }}.zip.sha256
