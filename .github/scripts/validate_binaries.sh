@@ -42,9 +42,8 @@ get_python_config() {
 update_conda() {
     if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
         conda update -y -n base -c defaults conda
-    elif [[ ${TARGET_OS} != 'linux-aarch64' ]]; then
-        # Conda pinned see issue: https://github.com/ContinuumIO/anaconda-issues/issues/13350
-        conda install -y conda=23.11.0
+    else
+        conda --version
     fi
 }
 
