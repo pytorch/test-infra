@@ -313,6 +313,16 @@ async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
     return;
   }
 
+  // Only fork PRs wait for approval. Pushing a branch to the repo, e.g. ghstack,
+  // needs write access, so the sync handler has already created the tags.
+  // Syncing them again here races with it and can fail the tag push runs.
+  if (
+    payload.workflow_run.head_repository?.full_name ===
+    payload.repository.full_name
+  ) {
+    return;
+  }
+
   // Skip runs that are gated on maintainer approval (e.g. first-time-contributor PRs).
   // GitHub may surface this as either status=waiting/action_required, or — when it
   // immediately completes the run pending approval — status=completed with
