@@ -931,7 +931,7 @@ def test_an_iteration_timeout_after_two_failures_still_propagates():
     assert scan.fetched == [1, 2, 3]
 
 
-def test_a_failed_row_read_propagates_out_of_the_pass():
+def test_a_failed_row_read_fails_the_scan():
     error = OSError("ClickHouse unreachable")
     scan = _Scan(labels={5: []}, recent=[5], eligible=[5], read_error=error)
 
