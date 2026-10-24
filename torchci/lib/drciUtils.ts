@@ -2,6 +2,7 @@ import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
+import { pinLedger } from "lib/crcr/crcrComment";
 import { buildGreenlightOpenedLine } from "lib/greenlight/greenlightComment";
 import {
   hasS3Log,
@@ -276,12 +277,16 @@ export async function upsertDrCiComment(
     (label: { name: string }) => label.name
   );
   // Open and synchronize events do not recalculate status, so preserve it while
-  // rebuilding the rest of the comment.
+  // rebuilding the rest of the comment. The CRCR results are rebuilt by the next
+  // sweep and the push may have invalidated them, so only the pin ledger is kept:
+  // it is invisible, and losing it would make that sweep page every on-call
+  // again for a failure they were already told about. The greenlight line is the
+  // only other thing this event has to say, and it shares the results slot.
   const drciComment = formDrciComment(
     prNum,
     owner,
     repo,
-    greenlightLine,
+    pinLedger(existingDrciComment) + greenlightLine,
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment),
     context.payload.pull_request?.head?.ref ?? "",

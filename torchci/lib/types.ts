@@ -120,8 +120,24 @@ export interface RecentWorkflowsData extends BasicJobData {
   failure_context: string[];
   /** CRCR downstream repo level ("L3" or "L4") — set by fetchCrcrWorkflows. */
   downstreamLevel?: string;
-  /** CRCR downstream repo ("org/repo") — set by fetchCrcrWorkflows. */
+  /**
+   * CRCR downstream repo (owner/name) — set by fetchCrcrWorkflows. The rendered
+   * CRCR section groups by this rather than parsing it back out of `name`.
+   */
   downstreamRepo?: string;
+  /**
+   * CRCR workflow run attempt — set by fetchCrcrWorkflows. A re-run of a run
+   * produces a separate row at a higher attempt, so a consumer that wants the
+   * job's current state reads it with runId: attempts number inside one run and
+   * start over at 1 for the next.
+   */
+  runAttempt?: number;
+  /**
+   * CRCR downstream workflow run id (github.run_id) — set by
+   * fetchCrcrWorkflows. Stable across a run's re-runs, so with runAttempt it
+   * identifies the attempt. 0 when the reporter sent none.
+   */
+  runId?: number;
 }
 
 export interface Artifact {

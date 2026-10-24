@@ -1,4 +1,5 @@
 import { queryClickhouse, queryClickhouseSaved } from "./clickhouse";
+import { withoutControlMarkers } from "./crcr/crcrComment";
 import { RecentWorkflowsData } from "./types";
 
 export async function fetchRecentWorkflows(
@@ -19,6 +20,14 @@ export async function fetchCrcrWorkflows(
 ): Promise<RecentWorkflowsData[]> {
   // Query the crcr_workflow_job table for CRCR downstream CI jobs on open PRs.
   // Map columns to RecentWorkflowsData shape so Dr.CI can classify them.
+  //
+  // Every job that reported is returned, passing and still-running ones
+  // included: the rendered section reports "N of M jobs failed", and a job that
+  // is still running is one of the M but not one that passed. Failures are the
+  // only rows that reach a Dr.CI bucket -- isCrCrFailure decides that on the
+  // conclusion -- so the extra rows cost one query result, not a verdict. A job
+  // that has not reported at all has no row here, so M is what the repo has
+  // reported rather than the size of the matrix.
   const rows = await queryClickhouse(
     `SELECT
       workflow_name AS name,
@@ -30,33 +39,56 @@ export async function fetchCrcrWorkflows(
       workflow_run_url AS html_url,
       pytorch_head_sha AS head_sha,
       downstream_repo,
-      downstream_repo_level
+      downstream_repo_level,
+      run_attempt,
+      run_id
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
-      AND pr_number IN ({prNumbers:Array(UInt64)})
-      AND status = 'completed'
-      AND conclusion IN ('failure', 'cancelled', 'timed_out')`,
+      AND pr_number IN ({prNumbers:Array(UInt64)})`,
     { repo, prNumbers: prNumbers.length > 0 ? prNumbers : [0] }
   );
 
   return rows.map((row: any) => ({
-    name: `crcr/${row.downstream_repo}/${row.name}/${row.jobName || row.name}`,
+    // The check run name. Its workflow and job halves come from the downstream
+    // callback, and the name is rendered into the Dr. CI comment both by the
+    // grouped CRCR section and by the generic list the section falls back to
+    // (pages/api/drci/drci.ts), where the section's own delimiters and pin
+    // markers are parsed back out of the body. Defusing the control strings here
+    // covers every consumer at once -- including the failures JSON that goes
+    // into the Dr. CI check run summary -- so no later renderer has to remember.
+    name: withoutControlMarkers(
+      `crcr/${row.downstream_repo}/${row.name}/${row.jobName || row.name}`
+    ),
     jobName: row.jobName || row.name,
     workflowId: 0,
     workflowUniqueId: 0,
     id: parseInt(row.id) || 0,
     completed_at: row.completed_at || "",
-    html_url: row.html_url || "",
+    // Also callback-supplied, and also rendered into that comment.
+    html_url: withoutControlMarkers(row.html_url || ""),
     head_sha: row.head_sha || "",
     head_sha_timestamp: "",
     head_branch: "",
     pr_number: parseInt(row.pr_number) || 0,
-    conclusion: row.conclusion || "failure",
+    // An empty conclusion stays empty: the query no longer filters on
+    // conclusion, and a job that reported completed without one is not a failure.
+    // Nothing else calls it one -- the relay passes the callback's conclusion
+    // straight through (utils/gh_helper.py only sets one when the callback sent
+    // it), and the query filtered these rows out entirely before this change.
+    // Defaulting it to "failure" here would render a red job, and for L4 a
+    // blocking one, that nothing agrees with. isCrCrFailure in drci.ts decides.
+    // Defusing cannot change a real conclusion, so the classification is safe.
+    conclusion: withoutControlMarkers(row.conclusion || ""),
     failure_captures: [],
     failure_lines: [],
     failure_context: [],
     downstreamLevel: row.downstream_repo_level || "",
     downstreamRepo: row.downstream_repo || "",
+    runAttempt: Number(row.run_attempt ?? 1) || 1,
+    // The run a row's attempt belongs to: run_attempt starts over at 1 for each
+    // new run, so the two together place the row. 0 is "no run named", which
+    // latestAttemptPerJob sorts with the oldest.
+    runId: Number(row.run_id) || 0,
   }));
 }
 
