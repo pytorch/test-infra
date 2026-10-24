@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from greenlight import constants
+from greenlight import constants, verdict_labels
 
 
 def test_status_string_values():
@@ -72,6 +72,10 @@ def test_gl_superseded_label_value():
 
 def test_gl_labels_are_exactly_the_three_status_labels():
     assert sorted(constants.GL_LABELS) == ["GL/approved", "GL/human", "GL/superseded"]
+
+
+def test_verdict_labels_cover_exactly_the_terminal_statuses():
+    assert set(verdict_labels._VERDICT_LABELS) == constants.TERMINAL_STATUSES
 
 
 def test_s3_key_prefix_value():
