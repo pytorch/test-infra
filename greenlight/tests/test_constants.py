@@ -58,6 +58,22 @@ def test_a_fingerprint_is_cached_only_two_minutes_after_its_prs_last_update():
     assert timedelta(minutes=2) == constants.FINGERPRINT_QUIET
 
 
+def test_gl_approved_label_value():
+    assert constants.GL_APPROVED_LABEL == "GL/approved"
+
+
+def test_gl_human_label_value():
+    assert constants.GL_HUMAN_LABEL == "GL/human"
+
+
+def test_gl_superseded_label_value():
+    assert constants.GL_SUPERSEDED_LABEL == "GL/superseded"
+
+
+def test_gl_labels_are_exactly_the_three_status_labels():
+    assert sorted(constants.GL_LABELS) == ["GL/approved", "GL/human", "GL/superseded"]
+
+
 def test_s3_key_prefix_value():
     assert constants.S3_KEY_PREFIX == "greenlight_pr_state"
 
