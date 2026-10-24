@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import UTC, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, cast
 
 import pytest
+from clickhouse_connect.driver.binding import bind_query
 
 from greenlight import state
 from greenlight.state import PRState
+from tests import ts_source
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -17,6 +20,8 @@ if TYPE_CHECKING:
 _REPO = "pytorch/pytorch"
 _V1 = datetime(2026, 7, 30, 12, 0, 0, 0)
 _V2 = datetime(2026, 7, 30, 13, 30, 0, 0)
+_TS_PR_STATE = "torchci/pages/api/greenlight/pr_state.ts"
+_PY_STATE = "greenlight/src/greenlight/state.py"
 
 
 class _FakeResult:
@@ -205,6 +210,171 @@ def test_query_error_propagates_and_closes_connection():
         state.read_latest_states(_REPO, connect=connect)
 
     assert client.closed == 1
+
+
+def _recorded(pr_number: int, status: str, run_id: int, version: datetime) -> PRState:
+    return PRState(
+        pr_number=pr_number, status=status, eval_hash="a" * 64, head_sha=f"sha{run_id}", version=version, run_id=run_id
+    )
+
+
+def _rows(*recorded: PRState) -> list[dict[str, object]]:
+    return [dataclasses.asdict(row) for row in recorded]
+
+
+def test_gate_rows_query_renders_the_non_shadow_selection_kept_once_per_pr_and_verdict_kind():
+    client = _FakeClient([])
+    connect, _ = _connect_seam(client)
+
+    state.read_gate_rows(_REPO, [7, 9], connect=connect)
+
+    query, params = client.queries[0]
+    assert params == {"repo": _REPO, "pr_numbers": (7, 9), "verdicts": ("LAND", "NO_LAND")}
+    assert bind_query(query, params) == (
+        "SELECT pr_number, status, eval_hash, head_sha, version, run_id FROM misc.greenlight_pr_state"
+        " WHERE repo = 'pytorch/pytorch' AND pr_number IN (7, 9) AND shadow = false"
+        " ORDER BY pr_number, run_id DESC, version DESC LIMIT 1 BY pr_number, status IN ('LAND', 'NO_LAND')",
+        {},
+    )
+
+
+def test_gate_rows_select_the_row_the_hud_pr_state_route_selects():
+    match = re.search(r"^const QUERY = `([^`$]*)`;$", ts_source.read(_TS_PR_STATE), re.MULTILINE)
+    assert match is not None, f"no `QUERY` template in {_TS_PR_STATE}: {ts_source.RESTRUCTURED}"
+    route = " ".join(match.group(1).split())
+    client = _FakeClient([])
+    connect, _ = _connect_seam(client)
+
+    state.read_gate_rows(_REPO, [7], connect=connect)
+
+    drift = ts_source.drift(
+        _TS_PR_STATE, _PY_STATE, "read_gate_rows must select the row this route returns to pytorch's land gate."
+    )
+    assert state._AUTHORITATIVE.strip() in route, drift
+    assert route.endswith(state._ORDER_LIMIT.strip()), drift
+    assert client.queries[0][0].endswith(state._AUTHORITATIVE + state._GATE_ORDER_LIMIT)
+    assert state._GATE_ORDER_LIMIT.startswith(state._ORDER_LIMIT)
+
+
+@pytest.mark.parametrize(
+    ("recorded", "verdict"),
+    [
+        # Listed in ClickHouse's output order, so the gate row comes first; ``verdict`` indexes the verdict row.
+        pytest.param((_recorded(7, "LAND", 10, _V1),), 0, id="a-lone-verdict-is-also-the-gate-row"),
+        pytest.param(
+            (_recorded(7, "REVERTED", 11, _V2), _recorded(7, "NO_LAND", 10, _V1)),
+            1,
+            id="a-reverted-row-over-an-older-verdict",
+        ),
+        pytest.param((_recorded(7, "FAILED", 21, _V2), _recorded(7, "LAND", 20, _V1)), 1, id="a-newer-failed-run"),
+        pytest.param(
+            (_recorded(7, "CANCELLED", 31, _V2), _recorded(7, "NO_LAND", 30, _V1)), 1, id="a-newer-cancelled-run"
+        ),
+        pytest.param(
+            (_recorded(7, "AI_REVIEW_DISPATCHED", 41, _V2), _recorded(7, "LAND", 40, _V1)),
+            1,
+            id="an-in-flight-run-over-an-older-verdict",
+        ),
+        pytest.param((_recorded(7, "AI_REVIEW_STARTED", 50, _V1),), None, id="a-gate-row-without-a-verdict"),
+        pytest.param(
+            (_recorded(7, "LAND", 60, _V2), _recorded(7, "AI_REVIEW_STARTED", 60, _V1)),
+            0,
+            id="within-one-run-the-later-version-is-the-gate-row",
+        ),
+        pytest.param(
+            (_recorded(7, "FAILED", 0, _V2), _recorded(7, "NO_LAND", 0, _V1)),
+            1,
+            id="legacy-run-id-zero-decided-by-version",
+        ),
+        pytest.param(
+            (_recorded(7, "AI_REVIEW_STARTED", 71, _V1), _recorded(7, "LAND", 70, _V2)),
+            1,
+            id="a-newer-run-id-beats-a-later-version",
+        ),
+    ],
+)
+@pytest.mark.parametrize("reverse", [pytest.param(False, id="clickhouse-order"), pytest.param(True, id="reversed")])
+def test_gate_rows_map_the_gate_row_and_the_verdict_whatever_order_they_arrive_in(recorded, verdict, reverse):
+    client = _FakeClient(_rows(*(recorded[::-1] if reverse else recorded)))
+    connect, _ = _connect_seam(client)
+
+    gates, verdicts = state.read_gate_rows(_REPO, [7], connect=connect)
+
+    assert gates == {7: recorded[0]}
+    assert verdicts == ({} if verdict is None else {7: recorded[verdict]})
+
+
+def test_gate_rows_key_every_pr_on_its_own_rows_and_leave_out_a_pr_without_any():
+    land = _recorded(7, "LAND", 10, _V1)
+    failed = _recorded(7, "FAILED", 11, _V2)
+    no_land = _recorded(9, "NO_LAND", 20, _V1)
+    reverted = _recorded(9, "REVERTED", 21, _V2)
+    dispatched = _recorded(11, "AI_REVIEW_DISPATCHED", 30, _V1)
+    client = _FakeClient(_rows(no_land, failed, dispatched, land, reverted))
+    connect, _ = _connect_seam(client)
+
+    gates, verdicts = state.read_gate_rows(_REPO, [7, 9, 11, 13], connect=connect)
+
+    assert gates == {7: failed, 9: reverted, 11: dispatched}
+    assert verdicts == {7: land, 9: no_land}
+
+
+def test_gate_rows_pick_the_gate_row_on_utc_versions_and_return_them_naive():
+    reviewed_at = datetime(2026, 7, 30, 12, 0, tzinfo=timezone(timedelta(hours=5)))
+    failed_at = datetime(2026, 7, 30, 8, 0, tzinfo=UTC)
+    client = _FakeClient(
+        [_row(7, "NO_LAND", "a" * 64, "sha7", reviewed_at, 5), _row(7, "FAILED", "a" * 64, "sha7", failed_at, 5)]
+    )
+    connect, _ = _connect_seam(client)
+
+    gates, verdicts = state.read_gate_rows(_REPO, [7], connect=connect)
+
+    assert gates[7].status == "FAILED"
+    assert gates[7].version == datetime(2026, 7, 30, 8, 0)
+    assert verdicts[7].version == datetime(2026, 7, 30, 7, 0)
+
+
+def test_gate_rows_with_no_rows_return_two_empty_maps():
+    client = _FakeClient([])
+    connect, _ = _connect_seam(client)
+
+    assert state.read_gate_rows(_REPO, [7], connect=connect) == ({}, {})
+
+
+def test_gate_rows_for_no_prs_return_two_empty_maps_without_connecting():
+    client = _FakeClient(_rows(_recorded(7, "LAND", 10, _V1)))
+    connect, calls = _connect_seam(client)
+
+    assert state.read_gate_rows(_REPO, [], connect=connect) == ({}, {})
+    assert calls["count"] == 0
+    assert client.queries == []
+
+
+def test_gate_rows_connection_is_closed_after_read():
+    client = _FakeClient(_rows(_recorded(7, "LAND", 10, _V1)))
+    connect, _ = _connect_seam(client)
+
+    state.read_gate_rows(_REPO, [7], connect=connect)
+
+    assert client.closed == 1
+
+
+def test_gate_rows_query_error_propagates_and_closes_connection():
+    client = _RaisingClient([])
+    connect, _ = _connect_seam(client)
+
+    with pytest.raises(RuntimeError, match="query boom"):
+        state.read_gate_rows(_REPO, [7], connect=connect)
+
+    assert client.closed == 1
+
+
+def test_gate_rows_connection_error_propagates():
+    def unreachable() -> Client:
+        raise ConnectionError("clickhouse unreachable")
+
+    with pytest.raises(ConnectionError, match="clickhouse unreachable"):
+        state.read_gate_rows(_REPO, [7], connect=unreachable)
 
 
 def test_reverted_query_asks_for_existence_not_the_authoritative_row():
