@@ -20,12 +20,11 @@ with a later ``version`` still loses to the newer dispatch's higher ``run_id``.
 row stamps to become the row these reads return.
 
 Both reads here are deliberately shadow-UNfiltered, and that is the one place this reader
-diverges from the two HUD readers (Dr. CI's ``greenlight_pr_states`` query and the
-``/api/greenlight/pr_state`` route), which both filter ``shadow = false`` in ``WHERE``. Those two
-answer "does an authoritative verdict exist"; this one answers "has a review already been
-dispatched, and at what ``run_id``". Filtering here would blind the scan to its own shadow
-markers, so every shadow PR would read as never-dispatched and be re-dispatched on every scan,
-forever.
+diverges from the two HUD readers: the ``/api/greenlight/pr_state`` route filters ``shadow = false``
+in ``WHERE``, and Dr. CI drops shadow rows after its ``greenlight_pr_states`` query sorts them last.
+Those two answer "does an authoritative verdict exist"; this one answers "has a review already been
+dispatched, and at what ``run_id``". Filtering here would blind the scan to its own shadow markers,
+so every shadow PR would read as never-dispatched and be re-dispatched on every scan, forever.
 """
 
 from __future__ import annotations
