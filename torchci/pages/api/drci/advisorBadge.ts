@@ -9,6 +9,7 @@
 
 import {
   ANALYZING_BADGE,
+  canBindRun,
   drciSignalKeyForJob,
   isLiveDispatch,
   isStrictlyAfter,
@@ -42,6 +43,7 @@ const LONG_CACHE =
 const NAME_RE = /^[A-Za-z0-9._-]{1,100}$/;
 const MAX_JOB_LEN = 256;
 const MAX_SINCE_LEN = 64;
+const JOB_ID_RE = /^[1-9][0-9]{0,15}$/;
 
 function one(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] : value ?? "";
@@ -71,6 +73,10 @@ export default async function handler(
   const sinceRaw = one(req.query.since);
   const since =
     sinceRaw.length <= MAX_SINCE_LEN && parseUtc(sinceRaw) ? sinceRaw : "";
+  // The run's job id (runJobId). Optional like `since`; an unusable value is
+  // ignored, which binds by time alone.
+  const jobIdRaw = one(req.query.job_id);
+  const jobId = JOB_ID_RE.test(jobIdRaw) ? Number(jobIdRaw) : undefined;
 
   // Bad input -> a neutral pending pill (never a 4xx/5xx, which would render a
   // broken-image icon in the comment). Don't cache bad requests.
@@ -105,19 +111,25 @@ export default async function handler(
     })) as { verdict: string; confidence: number; timestamp: string }[];
 
     const row = verdictRows[0];
-    // Without `since` the latest verdict is shown, as before this parameter.
-    if (row && !since) {
+    // Without `since` or `job_id` the latest verdict is shown, as before these
+    // parameters.
+    if (row && !since && !jobId) {
       const badge = verdictBadge(row.verdict, Number(row.confidence));
       sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
       return;
     }
 
-    // With `since`, only a verdict that covers that run is shown, by the same
-    // test the comment line and the suppression gate use.
+    // Otherwise only a verdict that covers that run is shown, by the same test
+    // the comment line and the suppression gate use, unless the run cannot be
+    // bound (canBindRun), where the line shows any verdict too.
     const states = await readDispatchStates(owner, repo, sha, [signalKey]);
     const st = states.get(signalKey);
     const dispatch = st ? toDispatchMark(st) : undefined;
-    if (row && verdictCoversRun(row.timestamp, since, dispatch)) {
+    if (
+      row &&
+      (!canBindRun(since, jobId, dispatch) ||
+        verdictCoversRun(row.timestamp, since, dispatch, jobId))
+    ) {
       const badge = verdictBadge(row.verdict, Number(row.confidence));
       sendSvg(res, renderBadgeSvg(badge), LONG_CACHE);
       return;

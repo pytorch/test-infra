@@ -95,11 +95,14 @@ export function parseUtc(ts?: string): dayjs.Dayjs | null {
 
 // The latest misc.ai_advisor_dispatches row for one (head, signal key): its
 // state and its version (UTC; for a terminal row, just after its pre-dispatch
-// row, i.e. before the dispatch captured its evidence). `retryPending` marks a
-// failed dispatch that auto-dispatch will retry.
+// row, i.e. before the dispatch captured its evidence). `jobId` is the
+// workflow_job run the dispatch analyzes; 0 or unset when unknown (rows written
+// before the column, manual dispatches, workflow-level failures).
+// `retryPending` marks a failed dispatch that auto-dispatch will retry.
 export interface DispatchMark {
   state: string;
   version: string;
+  jobId?: number;
   retryPending?: boolean;
 }
 
@@ -121,6 +124,30 @@ export function dispatchedAfterRun(
   );
 }
 
+// The workflow_job id that identifies one run of a Dr.CI job, or 0. A
+// workflow-level row (a workflow that failed to start, workflowId 0) carries
+// the workflow run id instead, which a re-run attempt keeps, so it never
+// identifies a run.
+export function runJobId(job: { id: number; workflowId?: number }): number {
+  return job.workflowId ? job.id || 0 : 0;
+}
+
+// Whether `dispatch` analyzed the job run `jobId` (see runJobId) that finished
+// at `completedAt`. When both job ids are known they decide: a dispatch that
+// records a run only goes out once its evidence holds that run, completed
+// (dispatchAdvisorWorkflow), so a matching id means the analysis saw this run,
+// and a different id means it was made for another one. Otherwise fall back to the dispatch time (dispatchedAfterRun),
+// which can be wrong for a run that finished before the dispatch but had not
+// reached ClickHouse when its evidence was read.
+export function dispatchAnalyzedRun(
+  dispatch: DispatchMark,
+  completedAt: string | undefined,
+  jobId: number | undefined
+): boolean {
+  if (dispatch.jobId && jobId) return dispatch.jobId === jobId;
+  return dispatchedAfterRun(dispatch.version, completedAt);
+}
+
 // A dispatch that was made and not superseded by a failed POST. 'dispatching'
 // counts too: its 'dispatched' confirmation write is allowed to fail.
 export function isLiveDispatch(
@@ -129,13 +156,13 @@ export function isLiveDispatch(
   return d?.state === "dispatching" || d?.state === "dispatched";
 }
 
-// Whether a verdict written at `verdictTimestamp` speaks for the job run that
-// finished at `completedAt`. Verdict rows record no analyzed run, only (head,
-// job name), so this ties the verdict to a dispatch instead: the latest
-// dispatch was made after the run finished, so it analyzed this run, and the
-// verdict is newer than that dispatch, so it is taken as that dispatch's
-// answer. Comparing the verdict with the run's completion alone is not enough:
-// an analysis of an earlier run that is still going when this run finishes
+// Whether a verdict written at `verdictTimestamp` speaks for the job run
+// `jobId` that finished at `completedAt`. Verdict rows record no analyzed run,
+// only (head, job name), so this ties the verdict to a dispatch instead: the
+// latest dispatch analyzed this run (dispatchAnalyzedRun), and the verdict is
+// newer than that dispatch, so it is taken as that dispatch's answer.
+// Comparing the verdict with the run's completion alone is not enough: an
+// analysis of an earlier run that is still going when this run finishes
 // lands later and passes.
 //
 // LIMIT: "the newest verdict after the dispatch is its answer" holds while one
@@ -143,18 +170,34 @@ export function isLiveDispatch(
 // (readyToReanalyze). It does not hold when two renders dispatch one key at
 // the same moment, or when GitHub accepted a dispatch whose POST still threw
 // (recorded 'failed', then retried). An earlier analysis can then land after a
-// later dispatch and be counted for it. Closing that needs the verdict row to
-// record which dispatch it answers.
+// later dispatch and be counted for it. That is harmless when both dispatches
+// analyzed the same run (the same job id), and wrong when they analyzed
+// different runs, e.g. a retry made after a rerun replaced the job. Closing it
+// needs the verdict row to record which dispatch it answers.
 export function verdictCoversRun(
   verdictTimestamp: string | undefined,
   completedAt: string | undefined,
-  dispatch: DispatchMark | undefined
+  dispatch: DispatchMark | undefined,
+  jobId?: number
 ): boolean {
   return (
     isLiveDispatch(dispatch) &&
-    dispatchedAfterRun(dispatch.version, completedAt) &&
+    dispatchAnalyzedRun(dispatch, completedAt, jobId) &&
     isStrictlyAfter(verdictTimestamp, dispatch.version)
   );
+}
+
+// Whether a run can be told apart from an earlier one at all: its completion
+// time is known, or both it and the dispatch carry a job id. When it cannot,
+// the comment line and the badge show any verdict, as they did before runs
+// were told apart; the suppression gate never treats such a verdict as
+// covering the run.
+export function canBindRun(
+  completedAt: string | undefined,
+  jobId: number | undefined,
+  dispatch: DispatchMark | undefined
+): boolean {
+  return parseUtc(completedAt) !== null || Boolean(jobId && dispatch?.jobId);
 }
 
 export type ConfidenceBucket = "high" | "med" | "low";
@@ -246,9 +289,10 @@ export function renderBadgeSvg(badge: AdvisorBadge): string {
 // server-side; the route resolves the live state, so the same URL flips from
 // analyzing to the verdict without the comment changing.
 //
-// `since` is the job's completed_at. The route then shows only a verdict that
-// covers that run (verdictCoversRun), so a rerun at the same commit never shows
-// the earlier run's verdict, and each run gets its own URL, which camo caches
+// `since` is the job's completed_at and `runId` its run's job id (runJobId).
+// When the route can bind the run (canBindRun) it shows only a verdict that
+// covers it (verdictCoversRun), so a rerun at the same commit never shows the
+// earlier run's verdict, and each run gets its own URL, which camo caches
 // separately.
 export function advisorBadgeUrl(
   hudBaseUrl: string,
@@ -256,10 +300,12 @@ export function advisorBadgeUrl(
   repo: string,
   sha: string,
   jobName: string,
-  since?: string
+  since?: string,
+  runId?: number
 ): string {
   const qs = new URLSearchParams({ owner, repo, sha, job: jobName });
   if (since) qs.set("since", since);
+  if (runId) qs.set("job_id", String(runId));
   return `${hudBaseUrl}/api/drci/advisorBadge?${qs.toString()}`;
 }
 
@@ -283,9 +329,18 @@ export function renderInProgressLine(
   sha: string,
   jobName: string,
   jobId: number,
-  since?: string
+  since?: string,
+  runId?: number
 ): string {
-  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName, since);
+  const badge = advisorBadgeUrl(
+    hudBaseUrl,
+    owner,
+    repo,
+    sha,
+    jobName,
+    since,
+    runId
+  );
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
   // alt = the pending sentinel: it marks this PR for re-rendering until the
   // verdict lands (see ADVISOR_PENDING_ALT_ATTR) and reads as "AI verdict:
@@ -306,9 +361,18 @@ export function renderOutdatedLine(
   sha: string,
   jobName: string,
   jobId: number,
-  since?: string
+  since?: string,
+  runId?: number
 ): string {
-  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName, since);
+  const badge = advisorBadgeUrl(
+    hudBaseUrl,
+    owner,
+    repo,
+    sha,
+    jobName,
+    since,
+    runId
+  );
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
   return `    AI verdict: <a href="${link}"><img alt="${ADVISOR_ALT_PREFIX}${OUTDATED_BADGE.label}" src="${badge}"></a> (for an earlier run of this job)\n`;
 }
@@ -326,9 +390,18 @@ export function renderVerdictLine(
   verdict: string,
   confidence: number,
   summary: string,
-  since?: string
+  since?: string,
+  runId?: number
 ): string {
-  const badge = advisorBadgeUrl(hudBaseUrl, owner, repo, sha, jobName, since);
+  const badge = advisorBadgeUrl(
+    hudBaseUrl,
+    owner,
+    repo,
+    sha,
+    jobName,
+    since,
+    runId
+  );
   const link = hudPrUrl(hudBaseUrl, owner, repo, prNumber, jobId);
   // alt encodes the concluded outcome (`AI verdict: related`, etc.) so the
   // verdict is machine-readable text in the comment AND no longer matches the
@@ -353,9 +426,10 @@ export function renderVerdictLine(
 export interface AdvisorLineJob {
   id: number;
   name: string;
-  // The job's completed_at. Unset or unparseable means the run cannot be told
-  // apart from an earlier one, and any verdict for the job is shown as before.
+  // The job's completed_at and its run's job id (runJobId). Unless one of them
+  // can bind the run (canBindRun), any verdict for the job is shown as before.
   completedAt?: string;
+  runId?: number;
 }
 export interface AdvisorLineVerdict {
   // verdict + confidence drive the badge label baked into the alt text.
@@ -368,8 +442,8 @@ export interface AdvisorLineVerdict {
 // Decide the per-job line. Pure so it is unit-testable without ClickHouse.
 // Returns job.id -> HTML. In order:
 //   - a verdict that covers this run (verdictCoversRun; the suppression gate
-//     uses the same test), or any verdict when the run's completion time is
-//     unknown: the verdict line;
+//     uses the same test), or any verdict when the run cannot be told apart
+//     from an earlier one (canBindRun): the verdict line;
 //   - any other live dispatch: the in-progress line. Either its analysis has
 //     not answered yet, or it answered for an earlier run and auto-dispatch
 //     owes this run a new one (a rerun). The pending sentinel keeps the PR in
@@ -418,7 +492,8 @@ export function selectAdvisorLines(
 
     if (
       verdict &&
-      (!since || verdictCoversRun(verdict.timestamp, since, dispatch))
+      (!canBindRun(since, job.runId, dispatch) ||
+        verdictCoversRun(verdict.timestamp, since, dispatch, job.runId))
     ) {
       out.set(
         job.id,
@@ -427,7 +502,8 @@ export function selectAdvisorLines(
           verdict.verdict,
           verdict.confidence,
           verdict.summary,
-          since
+          since,
+          job.runId
         )
       );
     } else if (
@@ -436,9 +512,9 @@ export function selectAdvisorLines(
       dispatch?.retryPending ||
       (autoDispatchOn && verdict !== undefined && dispatch === undefined)
     ) {
-      out.set(job.id, renderInProgressLine(...args, since));
+      out.set(job.id, renderInProgressLine(...args, since, job.runId));
     } else if (verdict) {
-      out.set(job.id, renderOutdatedLine(...args, since));
+      out.set(job.id, renderOutdatedLine(...args, since, job.runId));
     }
   }
   return out;
