@@ -48,8 +48,9 @@ python3 migrate.py drop                            # list every table in the san
   unrecorded file whose tables already exist is refused, `CREATE OR REPLACE`
   included, so an existing table changes through `ALTER`.
 - Plain ClickHouse SQL: statements end with `;`, `--` and `/* */` comments are
-  stripped before sending, and every name is bare. A `database.table` name
-  anywhere in a file is refused, `system.*` aside, so a sandbox run cannot
-  reach a real database. Start each file with
+  stripped before sending. Names of tables created, altered or written to
+  must be bare, including `DELETE FROM` targets; `database.table` is refused
+  there, `system.*` aside. Read-only `FROM` and `JOIN` clauses may reference
+  other databases. Start each file with
   `-- noqa: disable=CP05,LT01`, or the repository's sqlfluff check rewrites
   ClickHouse's type names into forms ClickHouse does not accept.
