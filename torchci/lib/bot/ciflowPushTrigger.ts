@@ -302,8 +302,9 @@ async function handleLabelEvent(
 }
 
 /**
- * When a workflow_run is requested (e.g. a maintainer clicks "Approve and run"),
- * check if the associated PR has pending ciflow labels and create the tags.
+ * When a workflow_run is requested for a fork PR (e.g. a maintainer clicks
+ * "Approve and run"), check if the associated PR has pending ciflow labels and
+ * create the tags. Same-repo PRs are handled by the sync handler.
  */
 async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
   const payload = context.payload;
@@ -438,7 +439,7 @@ export default function ciflowPushTrigger(app: Probot) {
   });
 
   // When a workflow run is requested (e.g. maintainer approves pending workflows),
-  // create ciflow tags for any PR that has pending ciflow labels.
+  // create ciflow tags for a fork PR that has pending ciflow labels.
   app.on(
     ["workflow_run.requested", "workflow_run.completed"],
     async (context) => {
