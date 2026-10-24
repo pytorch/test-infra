@@ -302,14 +302,25 @@ async function handleLabelEvent(
 }
 
 /**
- * When a workflow_run is requested (e.g. a maintainer clicks "Approve and run"),
- * check if the associated PR has pending ciflow labels and create the tags.
+ * When a workflow_run is requested for a fork PR (e.g. a maintainer clicks
+ * "Approve and run"), check if the associated PR has pending ciflow labels and
+ * create the tags. Same-repo PRs are handled by the sync handler.
  */
 async function handleWorkflowRunEvent(context: Context<"workflow_run">) {
   const payload = context.payload;
 
   // Only care about pull_request workflow runs
   if (payload.workflow_run.event !== "pull_request") {
+    return;
+  }
+
+  // Only fork PRs wait for approval. Pushing a branch to the repo, e.g. ghstack,
+  // needs write access, so the sync handler has already created the tags.
+  // Syncing them again here races with it and can fail the tag push runs.
+  if (
+    payload.workflow_run.head_repository?.full_name ===
+    payload.repository.full_name
+  ) {
     return;
   }
 
@@ -428,7 +439,7 @@ export default function ciflowPushTrigger(app: Probot) {
   });
 
   // When a workflow run is requested (e.g. maintainer approves pending workflows),
-  // create ciflow tags for any PR that has pending ciflow labels.
+  // create ciflow tags for a fork PR that has pending ciflow labels.
   app.on(
     ["workflow_run.requested", "workflow_run.completed"],
     async (context) => {

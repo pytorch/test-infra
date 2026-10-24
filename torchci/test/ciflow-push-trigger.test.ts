@@ -593,6 +593,36 @@ describe("Push trigger integration tests", () => {
     }
   );
 
+  test("workflow_run for a same-repo PR does not sync tags", async () => {
+    const payload = {
+      action: "requested",
+      workflow_run: {
+        event: "pull_request",
+        status: "queued",
+        conclusion: null,
+        head_sha: "abc123",
+        head_branch: "gh/suo/1/head",
+        head_repository: {
+          owner: { login: "suo" },
+          full_name: "suo/actions-test",
+        },
+        pull_requests: [{ number: 42 }],
+      },
+      repository: {
+        owner: { login: "suo" },
+        name: "actions-test",
+        full_name: "suo/actions-test",
+      },
+    };
+
+    // No requests should be made
+    await probot.receive({
+      name: "workflow_run" as any,
+      id: "790",
+      payload: payload as any,
+    });
+  });
+
   test("workflow_run with empty pull_requests falls back to SHA lookup", async () => {
     const head_sha = "abc123def456";
     const prNum = 42;
