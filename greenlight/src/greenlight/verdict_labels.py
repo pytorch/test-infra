@@ -9,9 +9,10 @@ greenlight will not review it again; from then on it carries ``GL/superseded`` a
 also keeps the label of a verdict recorded on the PR's head when the scan recorded the ``REVERTED``
 row.
 
-The scan supersedes and restores the labels of ``TARGET_REPO`` PRs: every listing tick that reaches its
-dispatch phase without a rate limit relabels the PRs it listed that are reverted, kept by the recency
-filter or Stale-skipped (``label_listed_prs``), restoring a removed label on any whose rows imply labels.
+``label_verdict`` gives a PR the label of a verdict just recorded on it, on the verdict's repo. Only ``TARGET_REPO``
+PRs get the scan's supersede and restore: every listing tick that reaches its dispatch phase without a
+rate limit relabels the PRs it listed that are reverted, kept by the recency filter or Stale-skipped
+(``label_listed_prs``), restoring a removed label on any whose rows imply labels.
 """
 
 from __future__ import annotations
@@ -31,10 +32,12 @@ from greenlight.constants import (
     IN_FLIGHT_STATUSES,
     LABEL_PASS_DEADLINE,
     LABEL_PASS_MAX_FAILURES,
+    REVERTED_LABELS,
     STATUS_LAND,
     STATUS_NO_LAND,
     STATUS_REVERTED,
     TARGET_REPO,
+    carries_any_label,
 )
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
@@ -43,7 +46,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
     from datetime import datetime, timedelta
 
-    from greenlight.github_types import _RelabelPR
+    from greenlight.github_types import VerdictPR, _RelabelPR
     from greenlight.review_gate import ReviewSkip
     from greenlight.state import PRState
 
@@ -166,6 +169,28 @@ def _remove(pr: _RelabelPR, name: str, *, number: int) -> None:
         if exc.status != 404 or not isinstance(exc.data, dict) or exc.data.get("message") != _LABEL_GONE:
             raise
         logger.info("PR #%d: %s was already removed", number, name)
+
+
+def label_verdict(pr: VerdictPR, status: str, *, reviewed_head: str, number: int) -> None:
+    """Give PR ``number`` the label of the authoritative ``status`` just recorded on it, and no other ``GL/*`` one.
+
+    A closed PR keeps its labels, and one that has moved off ``reviewed_head`` or carries ``Reverted``
+    is left to the scan. Never raises: the record job uploads the verdict's row only once the command
+    succeeds, so a failure here is logged and swallowed rather than losing the row.
+    """
+    try:
+        if pr.state != _STATE_OPEN:
+            logger.info("PR #%d is %s; its labels stay as they are", number, pr.state)
+            return
+        if not _same_commit(pr.head.sha, reviewed_head):
+            logger.info("PR #%d moved off the reviewed head %s; the scan labels it", number, reviewed_head)
+            return
+        if carries_any_label((label.name for label in pr.labels), REVERTED_LABELS):
+            logger.info("PR #%d is reverted; the scan labels it", number)
+            return
+        sync_labels(pr, frozenset({verdict_label(status)}), number=number)
+    except Exception as exc:
+        logger.error("failed to label the %s verdict on PR #%d: %s", status, number, exc, exc_info=True)
 
 
 def label_listed_prs(
