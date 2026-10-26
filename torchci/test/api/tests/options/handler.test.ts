@@ -27,6 +27,12 @@ import {
   WORKFLOW_PATH_VALUES_ROW,
 } from "../fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 function get(query: RawQuery = {}) {
   return callRoute(GET, "/api/tests/options", query);
 }
@@ -231,9 +237,12 @@ describe("app/api/tests/options", () => {
     expect(error).toHaveBeenCalled();
   });
 
-  test("may be cached briefly, like the OpenAPI document", async () => {
+  test("may be kept briefly by the caller's browser, never by a shared cache", async () => {
     const res = await get();
-    expect(res.headers.get("Cache-Control")).toMatch(/max-age=/);
+    expect(res.headers.get("Cache-Control")).toBe(
+      "private, max-age=300, stale-while-revalidate=3600"
+    );
+    expect(res.headers.get("Vary")).toBe("Authorization, Cookie");
   });
 
   test.each([

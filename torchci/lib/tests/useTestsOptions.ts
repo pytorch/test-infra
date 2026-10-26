@@ -24,8 +24,14 @@ export function useTestsOptions(): {
     {
       revalidateOnFocus: false,
       // SWR asks again on its own this many times, five seconds and more
-      // apart; after that only the Retry button asks.
+      // apart; after that only the Retry button asks. A 4xx is the API's
+      // verdict on the request, a refusal of the sign-in among them, and
+      // would only repeat.
       errorRetryCount: 3,
+      shouldRetryOnError: (error) => {
+        const status = (error as { status?: unknown })?.status;
+        return typeof status !== "number" || status >= 500;
+      },
     }
   );
   // SWR keeps the error until the request asked for has an answer.

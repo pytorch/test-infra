@@ -1,4 +1,6 @@
+import { readdirSync } from "fs";
 import type { RawQuery } from "lib/api/parameters";
+import { join } from "path";
 
 type RouteHandler = (
   _request: Request,
@@ -37,4 +39,21 @@ export async function callRoute(
     headers: response.headers,
     body: await response.json(),
   };
+}
+
+// The route files under app/api and the path each serves. A [name] folder is
+// a path parameter, written {name} like OpenAPI.
+export function routeFiles(
+  directory = join(__dirname, "../../app/api"),
+  path = "/api"
+): { file: string; path: string }[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) {
+      const segment = entry.name.replace(/^\[(\w+)\]$/, "{$1}");
+      return routeFiles(join(directory, entry.name), `${path}/${segment}`);
+    }
+    return entry.name === "route.ts"
+      ? [{ file: join(directory, entry.name), path }]
+      : [];
+  });
 }

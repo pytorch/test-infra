@@ -6,8 +6,8 @@ import type { z } from "zod/v4";
 // Request handling shared by every route under app/api: validation issues and
 // stable error codes, the paginated list flow with its cursor checks, the
 // detail flow with its 404, and query failures logged and answered without
-// details. errorResponses() documents the same
-// statuses in /api/openapi.json. Route files export only GET; Next.js answers
+// details. errorResponses() documents the same statuses in /api/openapi.json,
+// with the 401 and 403 of the GitHub gate in lib/api/auth.ts. Route files export only GET; Next.js answers
 // HEAD by running it and dropping the body, OPTIONS with 204, and the other
 // standard methods with an empty 405.
 
@@ -33,18 +33,37 @@ export async function requestQuery(
   return { ...query, ...(await params) };
 }
 
+// The path the caller asked, when the request came through the /api/authed/
+// shim, which names it in x-forwarded-path: page links keep that path, so
+// they work for the caller that follows them. Anything but a plain absolute
+// path of ordinary segments (no `.` or `..`, only complete percent-escapes,
+// no query, no scheme or host, no more than a URL's worth) is ignored, and
+// the request's own path stands.
+const PLAIN_PATH = /^(\/(?!\.\.?(\/|$))(?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})+)+$/;
+const PLAIN_PATH_LIMIT = 2048;
+
+export function forwardedPath(request: Request): string | null {
+  const path = request.headers.get("x-forwarded-path");
+  return path !== null &&
+    path.length <= PLAIN_PATH_LIMIT &&
+    PLAIN_PATH.test(path)
+    ? path
+    : null;
+}
+
 export function jsonError(
   status: number,
   code: ErrorResponse["code"],
   error: string,
-  issues?: ErrorResponse["issues"]
+  issues?: ErrorResponse["issues"],
+  headers?: HeadersInit
 ): Response {
   const body: ErrorResponse = {
     error,
     code,
     ...(issues === undefined ? {} : { issues }),
   };
-  return Response.json(body, { status });
+  return Response.json(body, { status, headers });
 }
 
 export function rejectParameters(error: z.ZodError): Response {
@@ -113,11 +132,12 @@ export async function handleList<
       query,
       cursor,
     });
+    const path = forwardedPath(request);
     const link = (token: string | null) => {
       if (token === null) return null;
       const url = new URL(request.url);
       url.searchParams.set("cursor", token);
-      return { cursor: token, url: `${url.pathname}${url.search}` };
+      return { cursor: token, url: `${path ?? url.pathname}${url.search}` };
     };
     return Response.json({
       ...page,
@@ -154,7 +174,22 @@ export async function handleDetail<Params, Detail extends object>(
 export function errorResponses(ref: SchemaRef, invalidRequest: string) {
   return {
     "400": errorResponse(ref, invalidRequest),
-    "500": errorResponse(ref, "The query failed (internal_error)."),
+    "401": errorResponse(
+      ref,
+      "No GitHub token: send an Authorization: Bearer header or sign in to HUD (unauthenticated)."
+    ),
+    "403": errorResponse(
+      ref,
+      "The GitHub user has no write access to pytorch/pytorch and is not on the allow list (forbidden)."
+    ),
+    "500": errorResponse(
+      ref,
+      "The query failed, or GitHub could not be asked about the token (internal_error)."
+    ),
+    "503": errorResponse(
+      ref,
+      "GitHub is rate limiting HUD, so the token could not be checked; retry after the Retry-After seconds (unavailable)."
+    ),
   };
 }
 

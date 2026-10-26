@@ -14,6 +14,9 @@ import type { z } from "zod/v4";
 
 // Every resource served under app/api is listed here; the document covers them
 // all. Component names are unique across the document, whatever the domain.
+// Every operation is behind the GitHub gate in lib/api/auth.ts, declared once
+// as the document's security requirement.
+const SECURITY_SCHEME = "githubToken";
 const RESOURCES: ApiResource[] = [
   testsApiOpenApi,
   testOptionsApiOpenApi,
@@ -69,7 +72,18 @@ export function buildOpenApiDocument() {
         "Generated from the zod schemas the HUD API handlers validate with. The API is unversioned: endpoints change together with their consumers, and info.version names the deploy that serves this document.",
     },
     servers: [{ url: "https://hud.pytorch.org" }],
+    security: [{ [SECURITY_SCHEME]: [] }],
     paths,
-    components: { schemas: componentSchemas(schemasByName) },
+    components: {
+      securitySchemes: {
+        [SECURITY_SCHEME]: {
+          type: "http",
+          scheme: "bearer",
+          description:
+            "A GitHub token (for example `gh auth token`) of a user with write access to pytorch/pytorch, or on the HUD allow list. A browser signed in to HUD is accepted without the header.",
+        },
+      },
+      schemas: componentSchemas(schemasByName),
+    },
   };
 }

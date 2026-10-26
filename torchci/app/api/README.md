@@ -22,6 +22,41 @@ Cursors outlive deploys in open pages: clients treat them as opaque, so their
 internals may change, but a cursor the current code cannot read must be
 rejected with 400, never misread.
 
+## Authentication
+
+Every route under `app/api/` except the OpenAPI document is behind the shared
+HUD GitHub gate in `lib/auth/githubAuth.ts`, the one `gcx-token` uses: the
+caller's GitHub token must belong to a user with write access to
+pytorch/pytorch, or on the allow list in `lib/auth/allowList.json`. The token
+comes from an `Authorization: Bearer <token>` header, else from the HUD
+session a signed-in browser sends. `lib/api/auth.ts` implements this: a route
+exports `GET = requireGithubWriteAccess(handler)`, a token that passed is
+remembered for five minutes, and `test/api/auth.test.ts` checks that every
+route refuses an anonymous request. The gate answers 401 `unauthenticated`
+with a `WWW-Authenticate: Bearer` challenge and 403 `forbidden`, and remembers
+a refusal for a minute so bad tokens do not become GitHub requests; GitHub
+rate limiting HUD is 503 `unavailable` with `Retry-After`, and GitHub being
+otherwise unreachable 500 `internal_error`. On a preview deployment the
+preview login's session passes the gate, since that login has no GitHub token
+and the preview password is the gate there. Under `next dev` the gate stands
+open, so a local checkout works without a sign-in, for whoever can reach the
+dev server (bind it with `-H 127.0.0.1` on a shared machine);
+`HUD_API_REQUIRE_AUTH=1` enforces it locally, any value but an explicit no
+does, and a production build always does. Its refusals are `no-store`, and it marks
+every handler answer `private` (or `no-store` when the handler set no
+`Cache-Control`), so a shared cache never serves one caller's answer to the
+next; a handler that wants the browser to keep its answer says `private` and
+`Vary: Authorization, Cookie` itself, as `/api/tests/options` does. The document declares the scheme once
+under `security`, and `errorResponses()` documents the statuses on every
+operation.
+
+CLI and agent callers that the Vercel bot challenge blocks use the same path
+under `/api/authed/` (`pages/api/authed/[...path].ts`), which runs the same
+gate from the same memory and forwards the request, token included, naming
+the caller's path in `x-forwarded-path` so that `handleList` builds page links
+under `/api/authed/` for them; the answer comes back with its cache, challenge
+and retry headers.
+
 ## Moving an endpoint here
 
 A `pages/api/` endpoint joins the API by moving onto `lib/api/`: give it a
@@ -34,8 +69,9 @@ old route in the same change.
 ## Conventions for new endpoints
 
 - A route is `app/api/<resource>/route.ts`, with a `[name]` folder for each
-  path parameter, and only exports `GET` and `dynamic = "force-dynamic"`,
-  which keeps Next.js from running it at build time. Next.js answers HEAD by
+  path parameter, and only exports `GET`, the handler wrapped in
+  `requireGithubWriteAccess`, and `dynamic = "force-dynamic"`, which keeps
+  Next.js from running it at build time. Next.js answers HEAD by
   running `GET` and dropping the body, OPTIONS with 204, and the other
   standard methods with an empty 405.
   Queries, schemas and handlers go in `lib/api/<resource>/`, so the library
@@ -62,7 +98,8 @@ old route in the same change.
 - Public filter names map to ClickHouse columns through the parameter
   registry. 64-bit ids are decimal strings; timestamps are ISO 8601 in UTC.
 - Every documented error includes a human-readable `error` string and a stable
-  `code`. Clients branch on `code`, not message wording. Validate every parameter
+  `code`. Clients branch on `code`, not message wording. The gate's
+  `unauthenticated` and `forbidden` come before any parameter is read. Validate every parameter
   and answer 400 with `code: "invalid_parameters"` and
   `issues: [{ "path": ["parameter", 0], "message": "..." }]`. Each issue path
   contains parameter or nested field names and numeric array indexes; an empty

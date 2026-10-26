@@ -23,6 +23,12 @@ import {
   TEST_ID,
 } from "./fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 type Scalar = string | bigint | boolean | null | Scalar[];
 type Fixture = {
   run: RunFields;

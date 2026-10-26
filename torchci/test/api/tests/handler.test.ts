@@ -5,6 +5,12 @@ import * as list from "lib/api/tests/list";
 import * as clickhouse from "lib/clickhouse";
 import { baseCursor, getTests, UNSUPPORTED_ID_SORTS } from "./fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 describe("app/api/tests", () => {
   let listPage: jest.SpyInstance;
   let queryClickhouse: jest.SpyInstance;

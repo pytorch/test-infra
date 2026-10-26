@@ -1,4 +1,5 @@
 import { Stack } from "@mui/material";
+import AccessNotice from "components/tests/AccessNotice";
 import LoadError from "components/tests/LoadError";
 import TestsHeading from "components/tests/TestsHeading";
 import TestsTable, { TESTS_TABLE_WIDTH } from "components/tests/TestsTable";
@@ -11,6 +12,7 @@ import {
   TestsFacet,
 } from "lib/tests/facets";
 import {
+  accessReasonOf,
   DEFAULT_TESTS_SORT,
   resolveTestsQuery,
   TestsQuery,
@@ -19,8 +21,9 @@ import {
 } from "lib/tests/table";
 import { useTestsListing } from "lib/tests/useTestsListing";
 import { useTestsOptions } from "lib/tests/useTestsOptions";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 // The tests of one repository, from GET /api/tests. What the page asks for,
 // the sort, the health window, the code sources, the languages, the
@@ -28,11 +31,34 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // spelled as the API spells them and left off at the API's defaults. The
 // choices, their labels and those defaults come from GET /api/tests/options;
 // the URL is resolved against them before the list is requested.
+// The API is behind the HUD GitHub gate, write access to pytorch/pytorch,
+// which the browser passes with its HUD sign-in cookie; when the API refuses,
+// the page says why in place of the table and offers the sign-in.
 // How long typing in the search may pause before the URL, and so the list,
 // follows it.
 const SEARCH_PAUSE_MS = 250;
 // The page column's padding on each side, in theme spacing units.
 const PAGE_PADDING = 2;
+
+// One fixed-width column, centered, holds the title and the table, so the
+// table does not stretch with the window: as wide as the table with every
+// column at its width, so at full width the table is whole, not scrolled
+// sideways.
+function PageColumn({ children }: { children: ReactNode }) {
+  return (
+    <Stack
+      spacing={3}
+      sx={{
+        p: PAGE_PADDING,
+        maxWidth: (theme) =>
+          `calc(${TESTS_TABLE_WIDTH}px + ${theme.spacing(2 * PAGE_PADDING)})`,
+        mx: "auto",
+      }}
+    >
+      {children}
+    </Stack>
+  );
+}
 
 export default function Page() {
   const router = useRouter();
@@ -42,6 +68,10 @@ export default function Page() {
     typeof organization === "string" && typeof repo === "string"
       ? `${organization}/${repo}`
       : undefined;
+  // The API decides from the HUD sign-in cookie the browser sends with every
+  // request, so the page asks at once, whatever the client-side session has
+  // found out yet; that only words a refusal.
+  const session = useSession();
   const {
     options,
     error: optionsError,
@@ -77,6 +107,14 @@ export default function Page() {
     query,
     pending: searchPending,
   });
+  // The API refused the sign-in or the account: said once, in place of the
+  // table, with no Retry, since asking again would only repeat it. A 401 asks
+  // a reader who is not signed in to sign in, and tells one who is that the
+  // sign-in has stopped working.
+  const signedIn = session.status === "authenticated";
+  const accessReason =
+    accessReasonOf(listing.error, signedIn) ??
+    accessReasonOf(optionsError, signedIn);
 
   // Writes the given parameters into the URL, leaving off those that are
   // undefined and keeping every other parameter as it is. Typing replaces
@@ -153,20 +191,21 @@ export default function Page() {
     commitSearch(text, false);
   };
 
-  // One fixed-width column, centered, holds the title and the table, so the
-  // table does not stretch with the window: as wide as the table with every
-  // column at its width, so at full width the table is whole, not scrolled
-  // sideways.
+  if (accessReason !== undefined) {
+    return (
+      <PageColumn>
+        <TestsHeading
+          repo={repository}
+          options={options}
+          query={query}
+          onQueryChange={handleQueryChange}
+        />
+        <AccessNotice reason={accessReason} />
+      </PageColumn>
+    );
+  }
   return (
-    <Stack
-      spacing={3}
-      sx={{
-        p: PAGE_PADDING,
-        maxWidth: (theme) =>
-          `calc(${TESTS_TABLE_WIDTH}px + ${theme.spacing(2 * PAGE_PADDING)})`,
-        mx: "auto",
-      }}
-    >
+    <PageColumn>
       <TestsHeading
         repo={repository}
         options={options}
@@ -197,6 +236,6 @@ export default function Page() {
         onSearchInput={handleSearchInput}
         onSearch={handleSearch}
       />
-    </Stack>
+    </PageColumn>
   );
 }
