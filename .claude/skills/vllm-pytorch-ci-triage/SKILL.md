@@ -107,7 +107,8 @@ For surfaced `regressed_tests`, use the complete nightly-only and shared records
 
 Rate `shared_root_cause_confidence` (high/med/low) per member as you assign it to a group.
 
-For grouping patterns, see [GROUPING.md](GROUPING.md).
+For grouping patterns, see [GROUPING.md](GROUPING.md). A `timed_out` cluster with no exception is
+still a cause: see "A job that hangs without an exception" under the gotchas below.
 
 ## Step 4: Classify each group
 
@@ -132,5 +133,70 @@ The parser filters soft-fails, `waiting_failed`, never-ran jobs, marker/timestam
 - **Compile-on vs `--enforce-eager` CI gap:** fake-kernel / Inductor stride bugs only surface when compile is on. Many gpt-oss CI lanes (`tests/evals/gpt_oss/test_gpqa_correctness.py`, `--enforce-eager` parametrizations) bypass torch.compile entirely and never trace the fake kernel. If a custom-op stride mismatch only shows up on the torch-bump test PR, the bug almost certainly exists on main too — vLLM CI is just hiding it. Call out this coverage gap in the findings.
 - **`Dockerfile.cpu` seeds `requirements/test/cpu.in` from `requirements/test/cuda.in`** (literal `COPY ... cuda.in cpu.in`), so the top-line `--extra-index-url https://download.pytorch.org/whl/test/cu130` carries over to the CPU build. Combined with `uv pip compile --torch-backend cpu` (which forces stable cpu channel), torch 2.12 wheels go missing. Fix: sed-rewrite the index-url to `whl/test/cpu` AND drop `--torch-backend cpu`.
 - **`uv --torch-backend <name>` overrides extra-index-url for torch.** Only stable channels (`cpu`, `cu128`, etc.) are presets — there is no `test-cpu` preset. To pin torch to the test channel, use `--extra-index-url` explicitly (or `UV_EXTRA_INDEX_URL` env) and *don't* pass `--torch-backend`.
+
+### Use cases the first version of this skill missed
+
+These came out of a hang that has been in the torch-nightly lane since 2026-10-08 (L4
+`Distributed Models Shard 1` and H100 `Distributed Features`, filed by hand as test-infra#9212 and
+#9213). The triage listed both as regressed clusters on 2026-10-13 and 2026-10-14, but no issue was filed:
+most of that day's causes were skipped (several as UNDETERMINED), the hang had no exception line to key on,
+an earlier CUDA-init wave (#9038) had hidden it on 10-05..10-07, and the torch-nightly image build failed on
+10-16, 10-20, 10-21 and 10-23 so the jobs were `waiting_failed` and the parser dropped them.
+
+- **A job that hangs without an exception is a finding, not "undetermined".** A `timed_out` job (`exit -1`),
+  or one whose raw tail ends with `# Received cancellation signal, interrupting` /
+  `The command was interrupted by a signal: signal: terminated`, usually has no traceback; the cause is
+  *where it stopped*. Read the last progress lines of `## raw_tail`, ignoring the shutdown lines that follow
+  the cancellation (`[shutdown] EngineCore: trigger received signal=SIGTERM` is the job being killed, not the
+  cause). If the job had been making progress (tests passing) until that line, or the tail stops at the same
+  line in two or more clusters, the stopping point is identified. Then:
+  - write the cause with `determined: true`; `classification_confidence` is at most `medium`, and
+    `new_failure_confidence` is `medium` or `high` when the baseline passes the job;
+  - **do not tag it infra** unless an infra signature is present (CUDA init, `nvidia-container-cli`, exit 125,
+    registry rate limit). Infra timeouts usually leave one of those lines; a hung engine leaves nothing;
+  - `signature` is `Job hung after: <message text of the last progress line>`, with the logger prefix
+    (process name, pid, level, timestamp, `file.py:line`) removed. This is the one exception to "copy the line
+    verbatim": the filer's `normalize_signature` does not strip those fields, so a raw log line would differ on
+    every run and file a duplicate each time. The message text itself stays byte for byte;
+  - routing is `pytorch/pytorch` when the baseline passes and the failing lane differs by torch / triton /
+    their pins; say in the summary that the owner is not confirmed without a stack dump;
+  - in the summary give how long the job ran compared with the baseline (when the report has durations) and
+    whether tests passed before the stop. `N passed` followed by silence is a hang in teardown, which is a
+    different cause from a hang mid-test.
+  Example: `(EngineCore) INFO ... [utils.py:380] Using LBNHC KV cache layout.` followed by the cancellation
+  ~35 minutes later becomes `Job hung after: Using LBNHC KV cache layout.`.
+- **A dominant cause hides the next one.** When many clusters share one cause (CUDA init, startup free memory),
+  those jobs fail before they reach the code that would fail next, so a second cause can sit behind the first
+  for days and appear only after the first is fixed. Read each cluster's own tail and do not absorb a cluster
+  into the wave unless its tail contains the wave's signature. For every cause that dominates, say in
+  `findings.md` which clusters never got past startup, so a reader knows later steps were not exercised.
+- **Cascade from an orphaned process is not GPU contention.** `Killing process N that didn't stop within 5
+  minutes` (vLLM's `data_parallel_offline.py` example kills only the parent process, so its `EngineCore`
+  children keep their GPU memory) followed by a later command in the same job failing `ValueError: Free memory on device cuda:N (X/Y GiB) ...
+  less than desired` means the earlier command is the head cause. Tells: the held memory is large (about
+  20-26 GiB per GPU, versus ~2.9 GiB for the nccl2 footprint in #8940) and nearly constant across builds, and
+  the later tests passed on the baseline. Group the later failures under the earlier hang; do not tag them
+  infra and do not file them as startup free-memory.
+- **Same job name, different cause on different days.** Match a job to a known cause by its signature, not by
+  the job name listed in an older issue: `(H100) Distributed Features` was listed under #8940 (nccl2 memory)
+  and #9038 (CUDA init), and its `test_dbo` DeepEP tests were already failing differently from 2026-09-11,
+  before the orphan cascade above appeared in it.
+- **Job names drift between builds.** A job that exists on only one side may be renamed
+  (`(H100) Distributed Features` vs `(H100) [Nightly] Distributed Features`, `(DGX) Spark` vs
+  `(DGX Spark)`). Check for a rename before concluding a job was added or removed.
+- **What this artifact cannot tell you: say so in `findings.md`.** It covers one nightly build, with no
+  history and no package manifests. For any cause where it matters, add a line `Not determinable from this
+  artifact:` plus the human follow-up:
+  - *onset* (last passing build, first failing build, and whether another cause masked it);
+  - *what changed*: diff the `Installed N packages` lists in the image-build logs of the last passing and first
+    failing builds (torch / triton / `nvidia-*`), and `git log requirements/cuda.txt` for the window;
+  - *jobs never observed*: the parser drops `waiting_failed`, so a failed image build looks like an empty
+    report rather than a blind spot.
+- **Rule a dependency out with a control, not by timing.** vLLM's own pins (`requirements/cuda.txt`:
+  `nvidia-cutlass-dsl`, `tokenspeed-mla`, `flashinfer-python`, `transformers`) reach the stable-torch lane and
+  the nightly lane alike. A package at the same version in a passing stable-lane image cannot be the whole
+  explanation for a nightly-only failure; only torch, torchvision, torchaudio, triton and what they pin differ
+  between the lanes. Several packages usually change in the same nightly window, so name every one rather
+  than the first.
 
 ---
