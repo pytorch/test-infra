@@ -364,10 +364,7 @@ describe("prStatusBot", () => {
         })
         .get(`/repos/${REPO}/pulls/${PR_NUMBER}/files?per_page=100`)
         .reply(200, [{ filename: "docs/a.md" }, { filename: "torch/foo.py" }]),
-      mockStatusRefresh(
-        [approval],
-        "## PR Status: Approved (needs additional approval to merge)"
-      ),
+      mockStatusRefresh([approval], "## PR Status: Needs additional approval"),
     ];
     await probot.receive(
       editedEvent({ base: { ref: { from: "topic" } } }, ["in progress"])
