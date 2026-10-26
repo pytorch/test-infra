@@ -268,10 +268,11 @@ describe("getPrStatusMessage", () => {
     const message = getPrStatusMessage(
       state({ isApproved: true, isMergeApproved: false })
     );
-    expect(message).toMatch(
-      /^## PR Status: Approved \(needs additional approval to merge\)\n\n/
+    expect(message).toBe(
+      "## PR Status: Needs additional approval\n\n" +
+        "This PR is missing an approval from someone with merge rights " +
+        "for the code paths it changes."
     );
-    expect(message).toContain("`.github/merge_rules.yaml`");
   });
 
   test("approved", () => {

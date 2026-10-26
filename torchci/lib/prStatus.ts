@@ -160,10 +160,9 @@ export function getPrStatusMessage(state: PrStatusState): string {
       );
     case "approvedNeedsMergeApproval":
       return (
-        "## PR Status: Approved (needs additional approval to merge)\n\n" +
-        "None of the approving reviewers is listed in " +
-        "`.github/merge_rules.yaml` for the files this PR changes, so " +
-        "merging still needs an approval from a maintainer who is."
+        "## PR Status: Needs additional approval\n\n" +
+        "This PR is missing an approval from someone with merge rights " +
+        "for the code paths it changes."
       );
     case "readyForReview":
       return (
