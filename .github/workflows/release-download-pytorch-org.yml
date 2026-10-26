@@ -26,6 +26,7 @@ on:
           - torchcomms
           - torch_tensorrt
           - torch_tensorrt_rtx
+          - torch_tensorrt_executorch_runtime
           - torchrec
           - fbgemm_gpu
           - fbgemm_gpu_genai
