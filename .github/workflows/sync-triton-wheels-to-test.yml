@@ -1,7 +1,8 @@
 name: Sync Triton wheels from a triton-lang/triton run to download.pytorch.org test channel
 
 # Copies the manylinux x86_64 / aarch64 wheels built by a triton-lang/triton
-# "Wheels" workflow run into s3://pytorch/whl/test/. Wheels that already exist
+# "Wheels" workflow run into s3://pytorch/whl/test/. Every wheel must carry
+# TRITON_VERSION from release/release_versions.sh. Wheels that already exist
 # in the test channel are overwritten. The aarch64 wheels are retagged to
 # linux_aarch64 to match the filenames the test channel already uses.
 #
@@ -15,10 +16,6 @@ on:
     inputs:
       run_id:
         description: 'Run ID of the triton-lang/triton Wheels workflow run, e.g. 39878672590'
-        required: true
-        type: string
-      version:
-        description: 'Triton version every wheel must carry, e.g. 3.9.0'
         required: true
         type: string
       source_repo:
@@ -43,15 +40,22 @@ jobs:
   prepare:
     runs-on: ubuntu-22.04
     steps:
+      - name: Checkout repository test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
       - name: Validate inputs
         shell: bash
         env:
           RUN_ID: ${{ inputs.run_id }}
-          VERSION: ${{ inputs.version }}
           SOURCE_REPO: ${{ inputs.source_repo }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+
+          # TRITON_VERSION is the single source of truth for the release.
+          source ./release/release_versions.sh
+          VERSION="${TRITON_VERSION}"
+          echo "TRITON_VERSION=${VERSION}" >> "${GITHUB_ENV}"
 
           if [[ ! "${RUN_ID}" =~ ^[0-9]+$ ]]; then
             echo "ERROR: run_id must be numeric, got '${RUN_ID}'"
@@ -97,10 +101,9 @@ jobs:
 
       - name: Prepare wheels
         shell: bash
-        env:
-          VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          VERSION="${TRITON_VERSION}"
           pip install wheel==0.45.1
 
           cd wheelhouse
@@ -148,6 +151,7 @@ jobs:
             echo "### Triton wheels to upload to \`s3://pytorch/whl/test/\`"
             echo
             echo "Source: https://github.com/${SOURCE_REPO}/actions/runs/${RUN_ID}"
+            echo "Version: ${TRITON_VERSION} (from release/release_versions.sh)"
             echo
             echo "| File | sha256 |"
             echo "|---|---|"
