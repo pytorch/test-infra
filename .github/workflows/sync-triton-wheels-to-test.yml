@@ -1,0 +1,163 @@
+name: Sync Triton wheels from a triton-lang/triton run to download.pytorch.org test channel
+
+# Copies the manylinux x86_64 / aarch64 wheels built by a triton-lang/triton
+# "Wheels" workflow run into s3://pytorch/whl/test/. Wheels that already exist
+# in the test channel are overwritten. The aarch64 wheels are retagged to
+# linux_aarch64 to match the filenames the test channel already uses.
+#
+# Dry run by default. The hourly update-s3-html workflow regenerates the
+# whl/test index once the files are uploaded.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run ID of the triton-lang/triton Wheels workflow run, e.g. 39878672590'
+        required: true
+        type: string
+      version:
+        description: 'Triton version every wheel must carry, e.g. 3.9.0'
+        required: true
+        type: string
+      source_repo:
+        description: 'Repository that owns the run'
+        required: false
+        type: string
+        default: triton-lang/triton
+      dryrun:
+        description: 'Enable dry run mode'
+        required: true
+        type: choice
+        default: enabled
+        options:
+          - enabled
+          - disabled
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-22.04
+    environment: pytorchbot-env
+    steps:
+      - name: Validate inputs
+        shell: bash
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+          VERSION: ${{ inputs.version }}
+          SOURCE_REPO: ${{ inputs.source_repo }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${RUN_ID}" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: run_id must be numeric, got '${RUN_ID}'"
+            exit 1
+          fi
+          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: version must look like 3.9.0, got '${VERSION}'"
+            exit 1
+          fi
+          if [[ "${SOURCE_REPO}" != "triton-lang/triton" ]]; then
+            echo "ERROR: only triton-lang/triton runs can be synced, got '${SOURCE_REPO}'"
+            exit 1
+          fi
+
+          # The run itself may be marked failed (its Azure DevOps publish step
+          # needs credentials we do not have); only the artifacts matter.
+          run_json=$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${SOURCE_REPO}/actions/runs/${RUN_ID}")
+          echo "${run_json}" | jq '{name, path, event, status, conclusion, head_branch, head_sha}'
+
+          path=$(echo "${run_json}" | jq -r '.path')
+          branch=$(echo "${run_json}" | jq -r '.head_branch')
+          if [[ "${path}" != ".github/workflows/wheels.yml" ]]; then
+            echo "ERROR: run is from '${path}', expected .github/workflows/wheels.yml"
+            exit 1
+          fi
+          if [[ "${branch}" != release/* ]]; then
+            echo "ERROR: run is from branch '${branch}', expected release/*"
+            exit 1
+          fi
+
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          repository: ${{ inputs.source_repo }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          pattern: cibw-wheels-manylinux_2_28_*-wheels-upload
+          merge-multiple: true
+          path: wheelhouse
+
+      - name: Prepare wheels
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          pip install wheel==0.45.1
+
+          cd wheelhouse
+          ls -la
+
+          shopt -s nullglob
+          wheels=(*.whl)
+          if [[ ${#wheels[@]} -eq 0 ]]; then
+            echo "ERROR: no wheels found in the downloaded artifacts"
+            exit 1
+          fi
+
+          for whl in "${wheels[@]}"; do
+            if [[ "${whl}" != "triton-${VERSION}-"* ]]; then
+              echo "ERROR: ${whl} is not triton ${VERSION}"
+              exit 1
+            fi
+            case "${whl}" in
+              *-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl)
+                # Same filename the test channel already uses.
+                ;;
+              *-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl)
+                # The test channel serves aarch64 triton wheels as linux_aarch64.
+                wheel tags --platform-tag linux_aarch64 --remove "${whl}"
+                ;;
+              *)
+                echo "ERROR: unexpected platform tag in ${whl}"
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "Wheels to upload:"
+          sha256sum -- *.whl
+
+      - name: Configure aws credentials (pytorch account)
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          aws-region: us-east-1
+
+      - name: Upload wheels to whl/test
+        shell: bash
+        env:
+          DRYRUN: ${{ inputs.dryrun }}
+        run: |
+          set -euo pipefail
+          pip install awscli==1.32.18
+
+          AWS_CMD="aws s3 cp --dryrun"
+          if [[ "${DRYRUN}" == "disabled" ]]; then
+            AWS_CMD="aws s3 cp"
+          fi
+
+          cd wheelhouse
+          for whl in *.whl; do
+            shm_id=$(sha256sum "${whl}" | awk '{print $1}')
+            # Existing objects with the same name are overwritten.
+            ${AWS_CMD} "${whl}" "s3://pytorch/whl/test/" --acl public-read \
+              --metadata "checksum-sha256=${shm_id}"
+          done
