@@ -2,7 +2,8 @@ name: Update Dr. CI comments
 
 on:
   schedule:
-    # Run every 15 minutes
+    # Also advances pre-review PRs after silent reviewers' one-week deadline.
+    # Neither the deadline nor reactions emit a webhook, so run every 15 minutes.
     - cron: "*/15 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:

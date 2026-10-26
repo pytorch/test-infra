@@ -1,8 +1,11 @@
 import {
   getPreReviewAcceptors,
+  getPreReviewBatch,
+  getPreReviewRejectors,
   getPreReviewStatus,
   getRotatingBatch,
   getThumbsUpReactors,
+  hasPreReviewTimedOut,
   isInPreReview,
   markInProgressIfAccepted,
   updateInProgressLabels,
@@ -25,6 +28,12 @@ jest.mock("lib/prStatus", () => {
 });
 
 const AUTHOR = "author";
+const NOW = Date.parse("2026-10-26T12:00:00Z");
+const ONE_WEEK_AGO = "2026-10-19T12:00:00Z";
+
+function triaged(created_at = ONE_WEEK_AGO) {
+  return { event: "labeled", label: { name: "triaged" }, created_at };
+}
 
 function commented(login: string, body: string) {
   return { event: "commented", actor: { login }, user: { login }, body };
@@ -34,21 +43,28 @@ function thumbsUp(login: string) {
   return { content: "+1", user: { login } };
 }
 
+function thumbsDown(login: string) {
+  return { content: "-1", user: { login } };
+}
+
+function review(login: string, state: string, submitted_at = ONE_WEEK_AGO) {
+  return { event: "reviewed", user: { login }, state, submitted_at };
+}
+
 function mockPr({
   prNumber = 1,
   requested = [] as string[],
   teams = [] as string[],
   timeline = [] as object[],
   reactions = [] as object[],
+  triagedAt = new Date(NOW).toISOString(),
 }) {
   const scope = nock("https://api.github.com")
     .get(`/repos/pytorch/pytorch/pulls/${prNumber}/reviews?per_page=100`)
     .reply(200, [])
     .get(`/repos/pytorch/pytorch/issues/${prNumber}/timeline?per_page=100`)
-    .reply(200, timeline)
-    .get(
-      `/repos/pytorch/pytorch/issues/${prNumber}/reactions?content=%2B1&per_page=100`
-    )
+    .reply(200, [triaged(triagedAt), ...timeline])
+    .get(`/repos/pytorch/pytorch/issues/${prNumber}/reactions?per_page=100`)
     .reply(200, reactions);
   return [
     scope,
@@ -61,7 +77,20 @@ function mockPr({
 }
 
 function mockMoveToInProgress(prNumber: number = 1) {
-  return [utils.mockAddLabels(["in progress"], "pytorch/pytorch", prNumber)];
+  return [
+    mockLivePr(prNumber),
+    utils.mockAddLabels(["in progress"], "pytorch/pytorch", prNumber),
+  ];
+}
+
+function mockLivePr(prNumber: number, overrides = {}) {
+  return utils.mockGetPR("pytorch/pytorch", prNumber, {
+    state: "open",
+    draft: false,
+    created_at: "2026-02-01T00:00:00Z",
+    labels: [{ name: "triaged" }],
+    ...overrides,
+  });
 }
 
 function mockTeam(slug: string, members: string[]) {
@@ -73,8 +102,70 @@ function mockTeam(slug: string, members: string[]) {
     );
 }
 
+beforeEach(() => {
+  jest.spyOn(Date, "now").mockReturnValue(NOW);
+});
+
 afterEach(() => {
   nock.cleanAll();
+  jest.restoreAllMocks();
+});
+
+describe("hasPreReviewTimedOut", () => {
+  test("expires at exactly seven days, independent of subsequent activity", () => {
+    const events = [
+      triaged(),
+      { event: "review_requested", created_at: new Date(NOW).toISOString() },
+      { event: "committed", created_at: new Date(NOW).toISOString() },
+    ];
+    expect(hasPreReviewTimedOut(events, NOW - 1)).toBe(false);
+    expect(hasPreReviewTimedOut(events, NOW)).toBe(true);
+    expect(hasPreReviewTimedOut(events, NOW + 1)).toBe(true);
+  });
+
+  test("uses the latest triage, regardless of timeline ordering", () => {
+    expect(hasPreReviewTimedOut([triaged(), triaged("2026-01-01")], NOW)).toBe(
+      true
+    );
+    expect(hasPreReviewTimedOut([triaged("2026-10-25"), triaged()], NOW)).toBe(
+      false
+    );
+  });
+
+  test("missing or invalid triage dates cannot trigger a timeout", () => {
+    expect(hasPreReviewTimedOut([], NOW)).toBe(false);
+    expect(hasPreReviewTimedOut([triaged("invalid")], NOW)).toBe(false);
+    expect(hasPreReviewTimedOut([triaged(), triaged("invalid")], NOW)).toBe(
+      false
+    );
+  });
+});
+
+describe("getPreReviewRejectors", () => {
+  test("thumbs-down remains an objection even alongside an acceptance", () => {
+    expect(
+      getPreReviewRejectors(
+        [commented("alice", "@pytorchbot pre-review accept")],
+        [thumbsUp("alice"), thumbsDown("alice"), { content: "-1", user: null }]
+      )
+    ).toEqual(new Set(["alice"]));
+  });
+
+  test("only approval or dismissal clears a request for changes", () => {
+    expect(
+      getPreReviewRejectors(
+        [
+          review("alice", "COMMENTED", "2026-10-22T12:00:00Z"),
+          review("alice", "CHANGES_REQUESTED"),
+          review("bob", "changes_requested"),
+          review("bob", "approved", "2026-10-22T12:00:00Z"),
+          review("carol", "CHANGES_REQUESTED"),
+          review("carol", "DISMISSED", "2026-10-22T12:00:00Z"),
+        ],
+        []
+      )
+    ).toEqual(new Set(["alice"]));
+  });
 });
 
 describe("getPreReviewAcceptors", () => {
@@ -118,6 +209,22 @@ describe("getRotatingBatch", () => {
     expect(getRotatingBatch(items, 1, 2)).toEqual([3, 4]);
     expect(getRotatingBatch(items, 2, 2)).toEqual([5, 1]);
     expect(getRotatingBatch(items, 0, 10)).toEqual(items);
+  });
+});
+
+describe("getPreReviewBatch", () => {
+  test("checks every potential timeout even when the batch limit is exceeded", () => {
+    const old = Array.from({ length: 150 }, (_, number) => ({
+      number,
+      created_at: ONE_WEEK_AGO,
+    }));
+    const young = Array.from({ length: 150 }, (_, number) => ({
+      number: 150 + number,
+      created_at: new Date(NOW).toISOString(),
+    }));
+    const batch = getPreReviewBatch([...young, ...old], NOW);
+    expect(batch.slice(0, old.length)).toEqual(old);
+    expect(batch.length).toBe(250);
   });
 });
 
@@ -181,10 +288,8 @@ describe("getPreReviewStatus", () => {
         },
       ])
       .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
-      .reply(200, [])
-      .get(
-        "/repos/pytorch/pytorch/issues/1/reactions?content=%2B1&per_page=100"
-      )
+      .reply(200, [triaged()])
+      .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
       .reply(200, [thumbsUp("alice")])
       .get("/repos/pytorch/pytorch/pulls/1")
       .reply(500);
@@ -207,11 +312,149 @@ describe("getPreReviewStatus", () => {
       assigned: ["alice", "pytorch/some-team"],
       agreed: ["alice", "pytorch/some-team"],
       pending: [],
+      timedOut: [],
+      rejected: [],
       countedFrom: ["alice", "carol"],
       accepted: true,
     });
     handleScope(scope);
   });
+
+  test.each([NOW - 1, NOW, NOW + 1])(
+    "silent reviewers at time %s",
+    async (now) => {
+      jest.spyOn(Date, "now").mockReturnValue(now);
+      const scope = mockPr({
+        requested: ["alice", "bob"],
+        triagedAt: ONE_WEEK_AGO,
+        reactions: [thumbsUp("alice")],
+      });
+      expect(await getStatus()).toMatchObject({
+        agreed: ["alice"],
+        timedOut: now >= NOW ? ["bob"] : [],
+        pending: now >= NOW ? [] : ["bob"],
+        countedFrom: ["alice"],
+        accepted: now >= NOW,
+      });
+      handleScope(scope);
+    }
+  );
+
+  test("entirely silent PRs, including unassigned PRs, expire", async () => {
+    for (const requested of [["alice", "bob"], []]) {
+      const scope = mockPr({ requested, triagedAt: ONE_WEEK_AGO });
+      expect(await getStatus()).toMatchObject({
+        agreed: [],
+        timedOut: requested,
+        pending: [],
+        countedFrom: [],
+        accepted: true,
+      });
+      handleScope(scope);
+    }
+  });
+
+  test.each([
+    { reactions: [thumbsDown("bob")] },
+    { timeline: [review("bob", "CHANGES_REQUESTED")] },
+    { reactions: [thumbsUp("bob"), thumbsDown("bob")] },
+  ])("explicit objections never time out: %j", async (response) => {
+    const scope = mockPr({
+      requested: ["alice", "bob"],
+      triagedAt: ONE_WEEK_AGO,
+      ...response,
+    });
+    expect(await getStatus()).toMatchObject({
+      timedOut: ["alice"],
+      rejected: ["bob"],
+      pending: ["bob"],
+      accepted: false,
+    });
+    handleScope(scope);
+  });
+
+  test("unassigned people and the author cannot veto a timeout", async () => {
+    const scope = mockPr({
+      requested: ["alice"],
+      triagedAt: ONE_WEEK_AGO,
+      reactions: [thumbsDown("outsider"), thumbsDown(AUTHOR)],
+    });
+    expect((await getStatus()).accepted).toBe(true);
+    handleScope(scope);
+  });
+
+  test("a silent team times out", async () => {
+    const scope = [
+      ...mockPr({ teams: ["some-team"], triagedAt: ONE_WEEK_AGO }),
+      mockTeam("some-team", ["bob", "carol"]),
+    ];
+    expect(await getStatus()).toMatchObject({
+      timedOut: ["pytorch/some-team"],
+      accepted: true,
+    });
+    handleScope(scope);
+  });
+
+  test("a team member's objection blocks acceptance by another member", async () => {
+    const scope = [
+      ...mockPr({
+        teams: ["some-team"],
+        triagedAt: ONE_WEEK_AGO,
+        reactions: [thumbsUp("bob"), thumbsDown("carol")],
+      }),
+      mockTeam("some-team", ["bob", "carol"]),
+    ];
+    expect(await getStatus()).toMatchObject({
+      rejected: ["pytorch/some-team"],
+      accepted: false,
+    });
+    handleScope(scope);
+  });
+
+  test("failed team lookups do not hide objections after the deadline", async () => {
+    const scope = [
+      ...mockPr({ teams: ["some-team"], triagedAt: ONE_WEEK_AGO }),
+      nock("https://api.github.com")
+        .get("/orgs/pytorch/teams/some-team/members?per_page=100")
+        .reply(500),
+    ];
+    expect(await getStatus()).toMatchObject({
+      pending: ["pytorch/some-team"],
+      timedOut: [],
+      accepted: false,
+    });
+    handleScope(scope);
+  });
+
+  test.each([
+    { isApproved: true },
+    { isApproved: true, isMergeApproved: false },
+  ])(
+    "approvals already past pre-review do not start automated review: %j",
+    async (approval) => {
+      const scope = nock("https://api.github.com")
+        .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
+        .reply(200, [triaged()])
+        .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
+        .reply(200, []);
+      const status = await getPreReviewStatus(
+        octokit,
+        "pytorch",
+        "pytorch",
+        1,
+        ["triaged"],
+        AUTHOR,
+        [],
+        {
+          labels: ["triaged"],
+          assignedReviewers: ["alice"],
+          ...approval,
+        }
+      );
+      expect(status.accepted).toBe(false);
+      handleScope(scope);
+    }
+  );
 });
 
 describe("markInProgressIfAccepted", () => {
@@ -250,12 +493,39 @@ describe("markInProgressIfAccepted", () => {
     );
     handleScope(scope);
   });
+
+  test.each([
+    { state: "closed" },
+    { draft: true },
+    { created_at: "2025-01-01T00:00:00Z" },
+    { labels: [] },
+    { labels: [{ name: "triaged" }, { name: "in progress" }] },
+    { labels: [{ name: "triaged" }, { name: "ready for review" }] },
+    { labels: [{ name: "triaged" }, { name: "missing actionable issue" }] },
+  ])(
+    "rechecks live eligibility before advancing an expired PR: %j",
+    async (live) => {
+      const scope = [
+        ...mockPr({ requested: ["alice"], triagedAt: ONE_WEEK_AGO }),
+        mockLivePr(1, live),
+      ];
+      await markInProgressIfAccepted(
+        octokit,
+        "pytorch",
+        "pytorch",
+        1,
+        ["triaged"],
+        AUTHOR
+      );
+      handleScope(scope);
+    }
+  );
 });
 
 describe("updateInProgressLabels", () => {
   const octokit = utils.testOctokit();
 
-  test("checks only thumbs-up PRs from the search and labels the accepted ones", async () => {
+  test("checks PRs without reactions and labels expired ones on the scheduled sweep", async () => {
     const search = nock("https://api.github.com")
       .get("/search/issues")
       .query((query) => {
@@ -263,17 +533,19 @@ describe("updateInProgressLabels", () => {
         expect(query.q).toContain('label:"triaged"');
         expect(query.q).toContain('-label:"in progress"');
         expect(query.q).toContain('-label:"ready for review"');
-        expect(query.q).toContain("created:>=2026-01-01");
-        expect(query.q).toContain("reactions:>0");
+        expect(query.q).toContain('-label:"missing actionable issue"');
+        expect(query.q).toContain("created:2026-01-01T00:00:00.000Z..");
+        expect(query.q).not.toContain("reactions:");
         return true;
       })
       .reply(200, {
         total_count: 3,
-        // PR 3 has reactions, but no thumbs-up, so it isn't checked
+        // PR 3 has no reactions or recent activity but has reached its deadline.
         items: [1, 2, 3].map((number) => ({
           number,
           user: { login: AUTHOR },
           labels: [{ name: "triaged" }],
+          created_at: ONE_WEEK_AGO,
           reactions: { "+1": number === 3 ? 0 : 1 },
         })),
       });
@@ -286,6 +558,8 @@ describe("updateInProgressLabels", () => {
       }),
       ...mockMoveToInProgress(1),
       ...mockPr({ prNumber: 2, requested: ["alice"] }),
+      ...mockPr({ prNumber: 3, requested: ["alice"], triagedAt: ONE_WEEK_AGO }),
+      ...mockMoveToInProgress(3),
     ];
 
     // A failed check is only logged, so catch requests for PRs that shouldn't
@@ -296,6 +570,111 @@ describe("updateInProgressLabels", () => {
     handleScope(scope);
     expect(error).not.toHaveBeenCalled();
     error.mockRestore();
+  });
+
+  test("splits searches above 1,000 results and reads every page", async () => {
+    const since = Date.parse("2026-01-01") / 1000;
+    const until = NOW / 1000;
+    const middle = Math.floor((since + until) / 2);
+    const range = (start: number, end: number) =>
+      `created:${new Date(start * 1000).toISOString()}..${new Date(
+        end * 1000
+      ).toISOString()}`;
+    const root = range(since, until);
+    const left = range(since, middle);
+    const right = range(middle + 1, until);
+    const scope = [
+      nock("https://api.github.com")
+        .get("/search/issues")
+        .query(true)
+        .times(12)
+        .reply((uri) => {
+          const params = new URL(uri, "https://api.github.com").searchParams;
+          const query = params.get("q")!;
+          if (query.includes(root)) {
+            return [200, { total_count: 1001, items: [] }];
+          }
+          if (query.includes(left)) {
+            const page = Number(params.get("page") ?? 1);
+            expect(page).toBeLessThanOrEqual(10);
+            // Deleted authors are skipped, except the last PR on page 10.
+            return [
+              200,
+              {
+                total_count: 1000,
+                items: Array.from({ length: 100 }, (_, index) => ({
+                  number: (page - 1) * 100 + index + 1,
+                  created_at: ONE_WEEK_AGO,
+                  labels: [{ name: "triaged" }],
+                  user: page === 10 && index === 99 ? { login: AUTHOR } : null,
+                })),
+              },
+            ];
+          }
+          expect(query).toContain(right);
+          return [
+            200,
+            {
+              total_count: 1,
+              items: [
+                {
+                  number: 1001,
+                  created_at: ONE_WEEK_AGO,
+                  labels: [{ name: "triaged" }],
+                  user: { login: AUTHOR },
+                },
+              ],
+            },
+          ];
+        }),
+      ...mockPr({
+        prNumber: 1000,
+        requested: ["alice"],
+        triagedAt: ONE_WEEK_AGO,
+      }),
+      ...mockMoveToInProgress(1000),
+      ...mockPr({
+        prNumber: 1001,
+        requested: ["bob"],
+        triagedAt: ONE_WEEK_AGO,
+      }),
+      ...mockMoveToInProgress(1001),
+    ];
+    const error = jest.spyOn(console, "error").mockImplementation(() => {});
+    await updateInProgressLabels(octokit, "pytorch", "pytorch");
+    handleScope(scope);
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  test("one failed PR does not prevent another PR's timeout", async () => {
+    const scope = [
+      nock("https://api.github.com")
+        .get("/search/issues")
+        .query(true)
+        .reply(200, {
+          total_count: 2,
+          items: [1, 2].map((number) => ({
+            number,
+            created_at: ONE_WEEK_AGO,
+            user: { login: AUTHOR },
+            labels: [{ name: "triaged" }],
+          })),
+        })
+        .get("/repos/pytorch/pytorch/pulls/1/reviews?per_page=100")
+        .reply(200, [])
+        .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
+        .reply(500)
+        .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
+        .reply(200, []),
+      utils.mockGetPR("pytorch/pytorch", 1, { user: { login: AUTHOR } }),
+      ...mockPr({ prNumber: 2, requested: ["alice"], triagedAt: ONE_WEEK_AGO }),
+      ...mockMoveToInProgress(2),
+    ];
+    const error = jest.spyOn(console, "error").mockImplementation(() => {});
+    await updateInProgressLabels(octokit, "pytorch", "pytorch");
+    handleScope(scope);
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error.mock.calls[0][0]).toContain("pytorch/pytorch#1");
   });
 });
 
@@ -341,21 +720,10 @@ describe("pre-review accept command", () => {
     return mockReactToComment(event, "-1");
   }
 
-  // Marks the PR for the scheduled run
-  function mockReactToPr() {
-    return nock("https://api.github.com")
-      .post("/repos/pytorch/pytorch/issues/1/reactions", (body) => {
-        expect(body.content).toBe("+1");
-        return true;
-      })
-      .reply(200, {});
-  }
-
   test("labels the PR when the last assigned reviewer accepts", async () => {
     const event = acceptEvent("alice");
     // The triggering comment isn't in the timeline yet
     const scope = [
-      mockReactToPr(),
       ...mockPr({ requested: ["alice", "bob"], reactions: [thumbsUp("bob")] }),
       ...mockMoveToInProgress(),
       mockAck(event),
@@ -368,7 +736,6 @@ describe("pre-review accept command", () => {
   test("acknowledges a member of an assigned team", async () => {
     const event = acceptEvent("carol");
     const scope = [
-      mockReactToPr(),
       ...mockPr({ requested: ["bob"], teams: ["some-team"] }),
       mockTeam("some-team", ["carol"]),
       mockAck(event),
@@ -380,11 +747,7 @@ describe("pre-review accept command", () => {
 
   test("rejects accepts from non-assigned commenters", async () => {
     const event = acceptEvent("alice");
-    const scope = [
-      mockReactToPr(),
-      ...mockPr({ requested: ["bob"] }),
-      mockReject(event),
-    ];
+    const scope = [...mockPr({ requested: ["bob"] }), mockReject(event)];
 
     await bot.receive(event);
     handleScope(scope);

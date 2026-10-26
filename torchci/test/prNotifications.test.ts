@@ -67,6 +67,39 @@ describe("getManifestKey", () => {
 describe("buildPrNotificationsManifest", () => {
   const octokit = utils.testOctokit();
 
+  test("stops reminding silent reviewers once the shared deadline expires", async () => {
+    const scope = [
+      mockSearch('label:"ready for review"', []),
+      mockSearch('label:"triaged"', [searchItem(1, ["triaged"])]),
+      mockReviews(1, []),
+      utils.mockGetPR("pytorch/pytorch", 1, {
+        user: { login: AUTHOR },
+        requested_reviewers: [{ login: "alice" }],
+      }),
+      nock("https://api.github.com")
+        .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
+        .reply(200, [
+          {
+            event: "labeled",
+            label: { name: "triaged" },
+            created_at: "2026-09-28T12:00:00Z",
+          },
+        ])
+        .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
+        .reply(200, []),
+    ];
+    const manifest = await buildPrNotificationsManifest(
+      octokit,
+      "pytorch",
+      "pytorch",
+      NOW
+    );
+    handleScope(scope);
+    expect(manifest.prs).toEqual({});
+    expect(manifest.reviewers).toEqual({});
+    expect(manifest.failed_prs).toEqual([]);
+  });
+
   test("lists pending reviewers per stage and expands teams", async () => {
     const pull = {
       user: { login: AUTHOR },
@@ -90,9 +123,7 @@ describe("buildPrNotificationsManifest", () => {
       nock("https://api.github.com")
         .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
         .reply(200, [])
-        .get(
-          "/repos/pytorch/pytorch/issues/1/reactions?content=%2B1&per_page=100"
-        )
+        .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
         .reply(200, [{ content: "+1", user: { login: "alice" } }]),
       mockLabeled(1, "triaged", "2026-10-01T00:00:00Z"),
 

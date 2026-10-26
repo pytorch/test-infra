@@ -210,15 +210,9 @@ export default async function handler(
     const validatedOrg = validateOrg(org);
     const octokit = await getOctokit(validatedOrg, repo);
 
-    const failures = await updateDrciComments(
-      octokit,
-      validatedOrg,
-      repo,
-      prNumber ? [parseInt(prNumber as string)] : []
-    );
-
-    // Reactions don't trigger webhooks, so the scheduled run also checks
-    // whether triaged PRs are ready to be marked in progress
+    // Reactions and pre-review timeouts don't trigger webhooks. Check them
+    // on every scheduled sweep, even if the subsequent CI comment update
+    // fails or there are no recent workflows.
     if (
       authorization == process.env.DRCI_BOT_KEY &&
       prNumber === undefined &&
@@ -230,6 +224,12 @@ export default async function handler(
         console.error("Failed to update in progress labels:", error);
       }
     }
+    const failures = await updateDrciComments(
+      octokit,
+      validatedOrg,
+      repo,
+      prNumber ? [parseInt(prNumber as string)] : []
+    );
     return res.status(200).json(failures);
   } catch (error) {
     console.error("Error in Dr.CI handler:", error);

@@ -72,6 +72,37 @@ them to your local server.
 
 ## Deployment and monitoring
 
+### Pre-review deadlines
+
+In `pytorch/pytorch`, reviewers have one shared week from the latest application
+of `triaged` to pre-accept a PR. A thumbs-up on the PR description or
+`@pytorchbot pre-review accept` counts immediately. After seven days, reviewers
+who have not responded count as accepting, including requested teams. Additional
+review requests, comments, commits, and reactions do not extend the deadline.
+A PR with no assigned reviewers also advances after the week.
+
+A thumbs-down on the description or an outstanding request for changes from an
+assigned reviewer blocks pre-acceptance, even after the deadline. For teams, any
+non-author member can accept, but an objection from a member takes precedence.
+Remove the thumbs-down, or approve/dismiss the change request, to clear it.
+An unavailable reviewer list, team membership, or triage history does not count
+as silence. A failed check is retried on the next sweep.
+
+The existing `update-drci-comments.yml` workflow calls `/api/drci/drci` every
+15 minutes. It checks pre-review before updating CI comments, so no webhook,
+reaction, or recent CI activity is required. Every PR old enough to have reached
+its deadline is checked each sweep; only younger PRs use rotating batches.
+Searches split creation-date ranges to cover queues larger than GitHub's
+1,000-result search limit. Advancement happens on the first successful sweep
+after the deadline, subject to GitHub Actions scheduling and API availability.
+
+The bot rechecks live PR state before adding `in progress`. Closed/draft PRs,
+PRs before the rollout date, and PRs labeled `in progress`, `ready for review`,
+or `missing actionable issue` are excluded. Pre-acceptance starts automated
+review; it does not grant merge approval.
+
+### Deployment
+
 We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.

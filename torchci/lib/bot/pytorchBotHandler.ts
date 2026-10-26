@@ -592,15 +592,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (!isInPreReview(pr)) {
       return await this.rejectComment();
     }
-    // The scheduled run only checks PRs with a thumbs-up, so this lets it retry
-    // accepts that don't complete agreement now, such as a failed check or a
-    // reviewer who is removed or triaged added later
-    await ctx.octokit.rest.reactions.createForIssue({
-      owner,
-      repo,
-      issue_number: prNum,
-      content: "+1",
-    });
+    // The scheduled run retries incomplete accepts, including PRs with no
+    // reactions, so a failed check here doesn't lose the command.
     // Only acknowledge accepts that count toward the in progress label
     if (
       (

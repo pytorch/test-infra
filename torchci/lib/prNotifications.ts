@@ -193,7 +193,8 @@ export async function buildPrNotificationsManifest(
             labels,
             author,
             [],
-            state
+            state,
+            now.getTime()
           )
         ).pending;
         break;

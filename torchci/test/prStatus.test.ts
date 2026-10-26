@@ -173,10 +173,13 @@ describe("getPrStatusMessage", () => {
       )
     ).toBe(
       "## PR Status: in pre-review\n\n" +
-        "All assigned reviewers " +
-        "(@blah, @blahb, @pytorch/team) must agree by reacting to the PR " +
-        "description that this change is worth pursuing before the PR will be " +
-        'marked "in progress".'
+        "Assigned reviewers (@blah, @blahb, @pytorch/team) " +
+        "have one week from triage to accept with a thumbs-up on the PR " +
+        "description or `@pytorchbot pre-review accept`, or object with a " +
+        "thumbs-down. After that week, silence counts as acceptance. " +
+        "Outstanding requests for changes also block acceptance. " +
+        "Once everyone accepts or times out without an objection, " +
+        'the PR is marked "in progress".'
     );
   });
 
@@ -290,9 +293,13 @@ describe("getPrStatusMessage", () => {
       )
     ).toBe(
       "## PR Status: in pre-review\n\n" +
-        "All assigned reviewers () must agree by " +
-        "reacting to the PR description that this change is worth pursuing " +
-        'before the PR will be marked "in progress".'
+        "Assigned reviewers () " +
+        "have one week from triage to accept with a thumbs-up on the PR " +
+        "description or `@pytorchbot pre-review accept`, or object with a " +
+        "thumbs-down. After that week, silence counts as acceptance. " +
+        "Outstanding requests for changes also block acceptance. " +
+        "Once everyone accepts or times out without an objection, " +
+        'the PR is marked "in progress".'
     );
   });
 
