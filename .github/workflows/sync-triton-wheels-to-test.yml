@@ -5,8 +5,10 @@ name: Sync Triton wheels from a triton-lang/triton run to download.pytorch.org t
 # in the test channel are overwritten. The aarch64 wheels are retagged to
 # linux_aarch64 to match the filenames the test channel already uses.
 #
-# Dry run by default. The hourly update-s3-html workflow regenerates the
-# whl/test index once the files are uploaded.
+# Dry run by default. Like the release promotion workflows, the upload job is
+# gated behind the protected promote-env, so a reviewer has to approve it after
+# reading the plan printed by the prepare job. The hourly update-s3-html
+# workflow regenerates the whl/test index once the files are uploaded.
 
 on:
   workflow_dispatch:
@@ -38,9 +40,8 @@ permissions:
   contents: read
 
 jobs:
-  sync:
+  prepare:
     runs-on: ubuntu-22.04
-    environment: pytorchbot-env
     steps:
       - name: Validate inputs
         shell: bash
@@ -135,10 +136,58 @@ jobs:
           echo "Wheels to upload:"
           sha256sum -- *.whl
 
+      - name: Print upload plan
+        shell: bash
+        env:
+          SOURCE_REPO: ${{ inputs.source_repo }}
+          RUN_ID: ${{ inputs.run_id }}
+          DRY_RUN: ${{ inputs.dryrun }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Triton wheels to upload to \`s3://pytorch/whl/test/\`"
+            echo
+            echo "Source: https://github.com/${SOURCE_REPO}/actions/runs/${RUN_ID}"
+            echo
+            echo "| File | sha256 |"
+            echo "|---|---|"
+            (cd wheelhouse && for whl in *.whl; do
+              echo "| \`${whl}\` | \`$(sha256sum "${whl}" | awk '{print $1}')\` |"
+            done)
+            echo
+            echo "Existing files with the same name are overwritten."
+            echo
+            if [[ "${DRY_RUN}" == "disabled" ]]; then
+              echo "> **Not a dry run.** Approving the \`upload\` job copies these wheels to \`whl/test\`."
+            else
+              echo "> Dry run: approving only prints what would be copied."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Stage prepared wheels
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: triton-wheels-to-sync
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  upload:
+    needs: prepare
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    environment: promote-env
+    steps:
+      - name: Fetch prepared wheels
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: triton-wheels-to-sync
+          path: wheelhouse
+
       - name: Configure aws credentials (pytorch account)
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_promote_wheels
           aws-region: us-east-1
 
       - name: Upload wheels to whl/test
