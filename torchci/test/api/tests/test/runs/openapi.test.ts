@@ -1,4 +1,5 @@
 import { buildOpenApiDocument } from "lib/api/openapi";
+import { LANGUAGES } from "lib/api/tests/parameters";
 import {
   RUN_FILTER_DEFINITIONS,
   RUN_SORT_FIELDS,
@@ -84,11 +85,7 @@ describe("test runs OpenAPI", () => {
       /latest retained workflow run metadata/i
     );
     expect(byName.workflow_path.description).not.toMatch(/selected window/i);
-    expect(byName.language.schema.items.enum).toEqual([
-      "unknown",
-      "python",
-      "cpp",
-    ]);
+    expect(byName.language.schema.items.enum).toEqual([...LANGUAGES]);
     for (const [name, maximum] of [
       ["device_count", 255],
       ["rerun_number", 65535],

@@ -98,7 +98,10 @@ old route in the same change.
 - Tests mirror the code: `test/api/<resource>/<module>.test.ts` for each
   module, mocking `queryClickhouse`, with shared rows in a `fixtures.ts`
   beside them. Call a route's `GET` through `callRoute` in
-  `test/api/routes.ts`. Add the endpoint to the list below.
+  `test/api/routes.ts`. Add the endpoint to the list below. The offline
+  replay of every SQL evidence bundle runs under jest too
+  (`test/scripts/validateQueries.test.ts`); a query change re-records its
+  bundle, as the validation notes describe.
 
 ## Endpoints
 
@@ -107,13 +110,14 @@ old route in the same change.
 `lib/api/openapi.ts` so its paths and schemas appear in the document;
 `test/api/openapi.test.ts` fails while a route is missing from it.
 
-| Endpoint                                      | Scope                                                                           | Implementation             |
-| --------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------- |
-| `GET /api/tests`                              | Repository tests and configuration health in a selected window and code sources | `lib/api/tests/`           |
-| `GET /api/tests/test/{test_id}`               | One catalog test, its owners, and all available configuration health            | `lib/api/tests/test/`      |
-| `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts                          | `lib/api/tests/test/runs/` |
-| `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID                    | `lib/api/tests/run/`       |
-| `GET /api/tests/commit/{sha}?repo=owner/name` | Retained run bundles across all tests on a repository commit                    | `lib/api/tests/commit/`    |
+| Endpoint                                      | Scope                                                                              | Implementation             |
+| --------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------- |
+| `GET /api/tests`                              | Repository tests and configuration health in a selected window and code sources    | `lib/api/tests/`           |
+| `GET /api/tests/options`                      | The values the list offers a reader: fixed choices and catalog values, with labels | `lib/api/tests/options/`   |
+| `GET /api/tests/test/{test_id}`               | One catalog test, its owners, and all available configuration health               | `lib/api/tests/test/`      |
+| `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts                             | `lib/api/tests/test/runs/` |
+| `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID                       | `lib/api/tests/run/`       |
+| `GET /api/tests/commit/{sha}?repo=owner/name` | Retained run bundles across all tests on a repository commit                       | `lib/api/tests/commit/`    |
 
 ## Tests endpoints
 
@@ -126,15 +130,62 @@ record across health and run responses. Keep variable names and their string
 values inside `values`, separate from the record's metadata. A known empty set
 has `values: {}`; unavailable catalog metadata has `env_vars: null`.
 
+### Options
+
+`GET /api/tests/options` publishes, for the list parameters a person chooses
+from, the accepted values, each with a label for running text, and the default
+that applies when the parameter is absent. The fixed choices (`window`,
+`ran_on`, `language` and `status`) read `WINDOWS`, `RAN_ONS`, `LANGUAGES`,
+`HEALTH_STATUSES` and the
+defaults from `lib/api/tests/parameters.ts`, the same definitions that
+validate `GET /api/tests`, so the two cannot disagree; their labels live
+beside them in `lib/api/tests/options/options.ts`, typed by the value sets, so
+a new value without a label does not compile. The catalog choices, the eleven
+environment fields and `test_config`, are the distinct values of the
+`environments` and `env_vars` catalogs, read on each request with one query
+per catalog (`groupUniqArray` per column, no `FINAL`: rows sharing an id are
+identical in these columns) and put in natural order, versions by number;
+`workflow_path` is every calling workflow path the `health` table has seen in
+its longest window on either code source (`groupUniqArrayArray` over the two
+`14d` partitions, about 0.2 s), and `owner` every label of the `owners`
+catalog (read with `FINAL`, since a file's row is replaced whole when its
+owners change), both read concurrently with them. A value is its
+own label except the proper names the catalogs spell in lowercase (`cuda` is
+`CUDA`, `linux` is `Linux`, `gcc` is `GCC`), a workflow, labelled by its
+file (`.github/workflows/pull.yml` is `pull.yml`), and the empty value,
+labelled `none`; their default is always empty, no filter. The
+tests check every offered value against the list's parser. The endpoint takes
+no parameters, answers 500 with `internal_error` when a source cannot be
+read, and is served with the same short cache lifetime as the OpenAPI
+document. HUD's tests page builds every choice in its title from it instead
+of spelling a value out.
+
 ### Test health
 
 The list returns one entry per test, environment and env var set. Health
-combines only the selected code sources for that configuration. Workflow-path
+combines only the selected code sources for that configuration. `test_config`
+is the env var set's `TEST_CONFIG`, read out of the map
+(`env_vars['TEST_CONFIG']`, the empty string for a set without it) so that it
+can be offered by the options, filtered on and sorted on like a column; the
+`env_vars` filter still matches any variable. Workflow-path
 filtering selects configurations but does not narrow their aggregated health
 to matching workflows. The detail endpoint reuses the catalog and health
 shapes, returning every observed configuration, window and code source without
 pagination. It keeps windows separate because they overlap, and keeps code
 sources separate. A known test without health is distinct from an unknown test.
+
+`health.status` says in a word how a configuration's runs went, from the
+combined counts: `failing` when a run's last attempt failed (`failed_runs`
+exceeds `flaky_runs`, which counts the failing runs that passed on retry),
+`flaky` when every failing run passed on retry, `healthy` when no run failed,
+and `skipped` when there are no runs. Nothing is stored for it: the health
+view has a row only for a configuration with attempts or skips in the window,
+and the status is derived at query time in `COMBINED_HEALTH_SQL` from the
+summed counts, so the field, the `status` filter (repeatable, applied to the
+combined rows like `workflow_path`) and the sort cannot disagree. Sorting by
+`status` uses a rank derived the same way, healthy 0, flaky 1, failing 2, so
+`-status` puts the worst first; `skipped` has no rank and sorts last either
+way, as the rates of a configuration without runs do.
 
 Health refresh timestamps come from the selected rows. An empty list performs
 a separate lookup of the current refresh timestamp; this fallback does not

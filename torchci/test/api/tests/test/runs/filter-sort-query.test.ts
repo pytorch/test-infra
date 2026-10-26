@@ -3,6 +3,7 @@ import {
   buildCommitRunsStatsQuery,
 } from "lib/api/tests/commit/query";
 import { CI_DATABASE } from "lib/api/tests/database";
+import { searchPredicateSql } from "lib/api/tests/shared-sql";
 import { runsIdentity } from "lib/api/tests/test/runs/cursor";
 import { parseRunsListParams } from "lib/api/tests/test/runs/parameters";
 import { buildRunsQuery, runSortKeys } from "lib/api/tests/test/runs/query";
@@ -140,9 +141,7 @@ describe.each(
           `environment.${field} IN {filter_${field}: Array(String)}`
         );
       }
-      expect(sql).toContain(
-        "(test.file = {search: String} OR test.suite = {search: String} OR test.case_name = {search: String} OR test.declared_case_name = {search: String})"
-      );
+      expect(sql).toContain(searchPredicateSql("test"));
       // An absent catalog row must not satisfy a filter for an empty string
       // or zero after a LEFT JOIN fills unmatched columns with defaults.
       if (sort.includes("file")) {

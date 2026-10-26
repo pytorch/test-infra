@@ -20,6 +20,7 @@ export interface EntityRow {
   has_health: number;
   tests_id_string: string;
   workflow_paths_combined: HealthSummary["workflow_paths"];
+  status: HealthSummary["status"];
   runs_combined: number;
   passed_runs_combined: number;
   failed_runs_combined: number;
@@ -135,6 +136,7 @@ function toHealth(
     window: query.window,
     ran_on: query.ran_on,
     workflow_paths: row.workflow_paths_combined,
+    status: row.status,
     runs: row.runs_combined,
     passed_runs: row.passed_runs_combined,
     failed_runs: row.failed_runs_combined,

@@ -4,6 +4,7 @@ import {
   parseTestListParams,
 } from "lib/api/tests/parameters";
 import { buildListQuery } from "lib/api/tests/query";
+import { searchPredicateSql } from "lib/api/tests/shared-sql";
 import * as clickhouse from "lib/clickhouse";
 import {
   answerQueries,
@@ -11,7 +12,8 @@ import {
   callsOf,
   entityRow,
   getTests,
-  LAST_RUN_AT,
+  LAST_FAILED_AT,
+  MEAN_PASSED_DURATION_MILLISECONDS,
   REFRESHED_AT,
   testId,
 } from "./fixtures";
@@ -354,7 +356,17 @@ describe("test list", () => {
     expect(decodeCursor(res.body.pagination.next.cursor)).toMatchObject({
       resource: "tests",
       position: {
-        values: [Date.parse(LAST_RUN_AT), testId(1), "11", "20"],
+        values: [
+          "2",
+          0.25,
+          "2",
+          Date.parse(LAST_FAILED_AT),
+          0.2,
+          String(MEAN_PASSED_DURATION_MILLISECONDS),
+          testId(1),
+          "11",
+          "20",
+        ],
       },
     });
     expect(callsOf(queryClickhouse, "tests")[0][1].filter_case_name).toEqual([
@@ -380,14 +392,20 @@ describe("test list", () => {
     expect(next.body.pagination.next).toBeNull();
     const [[sql, params]] = callsOf(queryClickhouse, "tests");
     expect(params).toMatchObject({
-      cursor_0: Date.parse(LAST_RUN_AT),
-      cursor_1: testId(1),
-      cursor_2: "11",
-      cursor_3: "20",
+      cursor_0: "2",
+      cursor_1: 0.25,
+      cursor_2: "2",
+      cursor_3: Date.parse(LAST_FAILED_AT),
+      cursor_4: 0.2,
+      cursor_5: String(MEAN_PASSED_DURATION_MILLISECONDS),
+      cursor_6: testId(1),
+      cursor_7: "11",
+      cursor_8: "20",
     });
-    expect(sql).toContain("key_0 < {cursor_0: Float64}");
-    expect(sql).toContain("key_2 = {cursor_2: UInt64}");
-    expect(sql).toContain("key_3 > {cursor_3: UInt64}");
+    expect(sql).toContain("key_0 < {cursor_0: UInt64}");
+    expect(sql).toContain("key_3 < {cursor_3: Float64}");
+    expect(sql).toContain("key_7 = {cursor_7: UInt64}");
+    expect(sql).toContain("key_8 > {cursor_8: UInt64}");
   });
 
   test("keeps observed configurations when optional catalog records are missing", async () => {
@@ -427,19 +445,19 @@ describe("test list", () => {
     );
 
     const refreshedAt = "2026-10-19T18:00:00Z";
-    const nextLastRunAt = "2026-10-19T16:00:00Z";
+    const nextMeanPassedDuration = 900;
     queryClickhouse.mockClear();
     answerQueries(queryClickhouse, {
       tests: [
         entityRow(2, "10", "20", {
           refreshed_at: refreshedAt,
-          last_run_at_combined: nextLastRunAt,
-          sort_0: Date.parse(nextLastRunAt),
+          mean_passed_duration_milliseconds_combined: nextMeanPassedDuration,
+          sort_5: String(nextMeanPassedDuration),
         }),
         entityRow(3, "10", "20", {
           refreshed_at: refreshedAt,
-          last_run_at_combined: nextLastRunAt,
-          sort_0: Date.parse(nextLastRunAt),
+          mean_passed_duration_milliseconds_combined: nextMeanPassedDuration,
+          sort_5: String(nextMeanPassedDuration),
         }),
       ],
     });
@@ -455,18 +473,33 @@ describe("test list", () => {
     expect(decodeCursor(next.body.pagination.next.cursor)).toMatchObject({
       generation: refreshedAt,
       position: {
-        values: [Date.parse(nextLastRunAt), testId(2), "10", "20"],
+        values: [
+          "2",
+          0.25,
+          "2",
+          Date.parse(LAST_FAILED_AT),
+          0.2,
+          String(nextMeanPassedDuration),
+          testId(2),
+          "10",
+          "20",
+        ],
       },
     });
     expect(queryClickhouse).toHaveBeenCalledTimes(2);
     const [[sql, params]] = callsOf(queryClickhouse, "tests");
     expect(params).toMatchObject({
-      cursor_0: Date.parse(LAST_RUN_AT),
-      cursor_1: testId(1),
-      cursor_2: "10",
-      cursor_3: "20",
+      cursor_0: "2",
+      cursor_1: 0.25,
+      cursor_2: "2",
+      cursor_3: Date.parse(LAST_FAILED_AT),
+      cursor_4: 0.2,
+      cursor_5: String(MEAN_PASSED_DURATION_MILLISECONDS),
+      cursor_6: testId(1),
+      cursor_7: "10",
+      cursor_8: "20",
     });
-    expect(sql).toContain("key_0 < {cursor_0: Float64}");
+    expect(sql).toContain("key_0 < {cursor_0: UInt64}");
   });
 
   test("answers a cursorless page from its generation without extra queries", async () => {
@@ -537,9 +570,13 @@ describe("test list query boundaries", () => {
   }
 
   test("every centrally registered filter accepts multiple distinct values in its SQL binding", () => {
+    // Values every filter's schema accepts, in canonical order: the enum
+    // filters take only their own values.
+    const samples: Record<string, string[]> = { status: ["failing", "flaky"] };
     for (const [name, definition] of Object.entries(FILTER_DEFINITIONS)) {
       const values =
-        definition.type === "String" ? ["cpp", "python"] : ["1", "2"];
+        samples[name] ??
+        (definition.type === "String" ? ["cpp", "python"] : ["1", "2"]);
       const { sql, params } = query({
         [name]: [values[1], values[0], values[1]],
       });
@@ -568,7 +605,7 @@ describe("test list query boundaries", () => {
     });
     expect(sql).not.toContain(exactName);
     expect(sql).not.toContain(exactPath);
-    expect(sql).not.toContain("positionCaseInsensitive");
+    expect(sql).toContain(searchPredicateSql("test"));
     expect(params).toMatchObject({
       search: exactName,
       filter_owner: ["autograd", "nn"],
@@ -594,6 +631,39 @@ describe("test list query boundaries", () => {
     expect(sql).toContain(
       "WHERE environment.os IN {filter_os: Array(String)} AND environment.cpu_architecture IN {filter_cpu_architecture: Array(String)} AND environment.accelerator IN {filter_accelerator: Array(String)}"
     );
+  });
+
+  test("reads the test config out of the env vars map for its filter and its sort", () => {
+    const { sql, params } = query({
+      test_config: ["slow", "default"],
+      sort: "-test_config,last_run_at",
+    });
+    expect(params.filter_test_config).toEqual(["default", "slow"]);
+    const envVars = sql.slice(sql.indexOf("env_vars_id IN ("));
+    expect(envVars).toContain(
+      "WHERE env_var_set.env_vars['TEST_CONFIG'] IN {filter_test_config: Array(String)}"
+    );
+    expect(sql).toContain("env_vars['TEST_CONFIG'] AS key_0");
+    expect(sql).toContain(
+      "toUnixTimestamp64Milli(last_run_at_combined) AS key_1"
+    );
+  });
+
+  test("filters by health status once the sources are combined and sorts by its rank", () => {
+    const { sql, params } = query({
+      status: ["flaky", "failing"],
+      sort: "-status,-failure_rate",
+    });
+    expect(params.filter_status).toEqual(["failing", "flaky"]);
+    // The status is known only once the sources are combined, so the filter
+    // applies to the combined rows, as the workflow path filter does.
+    const result = sql.slice(sql.indexOf("FROM combined_health AS health"));
+    expect(result).toContain(
+      "WHERE health.status IN {filter_status: Array(String)}"
+    );
+    expect(sql).toContain("status_rank AS key_0");
+    expect(sql).toContain("failure_rate AS key_1");
+    expect(sql).toContain("toString(key_0) AS sort_0");
   });
 
   test("applies configuration conditions before aggregating sources and paginating", () => {

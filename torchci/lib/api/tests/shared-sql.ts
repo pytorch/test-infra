@@ -1,5 +1,19 @@
 import { CI_DATABASE } from "lib/api/tests/database";
 
+// A test's name as pytest spells it, "file::suite::case_name", or
+// "file::case_name" for a module-level function, from the catalog row with
+// the given alias.
+export function testNameSql(alias: string): string {
+  return `if(${alias}.suite = '', concat(${alias}.file, '::', ${alias}.case_name), concat(${alias}.file, '::', ${alias}.suite, '::', ${alias}.case_name))`;
+}
+
+// The search parameter's predicate: the bound text occurs anywhere in the
+// test's name, ignoring ASCII case, so what the name shows is what a search
+// finds, a pasted node id included. Shared by every endpoint that searches.
+export function searchPredicateSql(alias: string): string {
+  return `positionCaseInsensitive(${testNameSql(alias)}, {search: String}) > 0`;
+}
+
 export function buildEnvVarFilters(
   envVars: Record<string, string[]> | undefined,
   params: Record<string, unknown>
@@ -20,6 +34,20 @@ export function buildEnvVarFilters(
 // Atomic health refreshes give every row the same refreshed_at, so any()
 // preserves the exact generation read with the aggregated metrics.
 // Workflow paths are a sorted set union across the selected sources.
+// The status reads the combined counts: failing when a run's last attempt
+// failed (failed_runs counts every run with a failing attempt and
+// flaky_runs those that passed on retry, so the difference is the runs that
+// stayed failed), flaky when every failing run passed on retry, healthy when
+// no run failed, and skipped when there are no runs. The health view has a
+// row only for a configuration with attempts or skips in the window, so no
+// runs means every attempt was skipped (a row of retries alone, of a run
+// started before the window, would read the same; live on 2026-10-25 no
+// window had one). The rank orders the statuses that have runs, healthy 0,
+// flaky 1, failing 2, so that descending puts the worst first; skipped has
+// no rank and sorts last either way, as its rates do. Measured live on
+// 2026-10-25 (7d, main, default page, four alternating rounds), the two
+// expressions cost nothing the run-to-run noise could tell apart, as a
+// String or as an Enum8.
 // Aggregation in the health table's identity order bounds the group states.
 export const COMBINED_HEALTH_SQL = `
         arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,
@@ -53,6 +81,21 @@ export const COMBINED_HEALTH_SQL = `
         failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,
         flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,
         skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,
+        multiIf(
+            runs_combined = 0, 'skipped',
+            failed_runs_combined > flaky_runs_combined, 'failing',
+            failed_runs_combined > 0, 'flaky',
+            'healthy'
+        ) AS status,
+        if(
+            runs_combined = 0,
+            NULL,
+            toUInt64(multiIf(
+                failed_runs_combined > flaky_runs_combined, 2,
+                failed_runs_combined > 0, 1,
+                0
+            ))
+        ) AS status_rank,
         any(refreshed_at) AS refreshed_at,
         toUInt8(1) AS has_health`;
 
@@ -72,6 +115,8 @@ const HEALTH_COLUMNS = [
   "failure_rate",
   "flaky_rate",
   "skip_rate",
+  "status",
+  "status_rank",
 ] as const;
 
 export const TEST_CATALOG_COLUMNS_SQL = `        test.id AS tests_id,

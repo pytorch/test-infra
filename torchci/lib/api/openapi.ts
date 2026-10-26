@@ -6,6 +6,7 @@ import {
 } from "lib/api/schema";
 import { commitRunsApiOpenApi } from "lib/api/tests/commit/openapi";
 import { testsApiOpenApi } from "lib/api/tests/openapi";
+import { testOptionsApiOpenApi } from "lib/api/tests/options/openapi";
 import { runDetailApiOpenApi } from "lib/api/tests/run/openapi";
 import { testDetailApiOpenApi } from "lib/api/tests/test/openapi";
 import { runsApiOpenApi } from "lib/api/tests/test/runs/openapi";
@@ -15,6 +16,7 @@ import type { z } from "zod/v4";
 // all. Component names are unique across the document, whatever the domain.
 const RESOURCES: ApiResource[] = [
   testsApiOpenApi,
+  testOptionsApiOpenApi,
   testDetailApiOpenApi,
   runsApiOpenApi,
   commitRunsApiOpenApi,

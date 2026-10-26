@@ -14,13 +14,38 @@ export type { ParameterDefinition } from "lib/api/parameters";
 
 export const WINDOWS = ["3h", "12h", "1d", "3d", "7d", "14d"] as const;
 export const RAN_ONS = ["main", "pull_request"] as const;
+// The tests catalog's language enum, in menu order; unknown is its default.
+export const LANGUAGES = ["python", "cpp", "unknown"] as const;
+// How a configuration's runs went in the window, worst first: see
+// HealthSummarySchema.status for the rules.
+export const HEALTH_STATUSES = [
+  "failing",
+  "flaky",
+  "healthy",
+  "skipped",
+] as const;
 export type HealthWindow = (typeof WINDOWS)[number];
 export type RanOn = (typeof RAN_ONS)[number];
+export type TestLanguage = (typeof LANGUAGES)[number];
+export type HealthStatus = (typeof HEALTH_STATUSES)[number];
 export type SortOrder = "asc" | "desc";
 
-export const DEFAULT_WINDOW: HealthWindow = "7d";
+// The last 12 hours: short enough to show what is failing now, long enough
+// to cover the periodic workflows, which run every few hours.
+export const DEFAULT_WINDOW: HealthWindow = "12h";
 export const DEFAULT_RAN_ON: readonly RanOn[] = ["main"];
-export const DEFAULT_SORT = ["-last_run_at"] as const;
+// Worst health first: the status, then the failure rate, the failed runs and
+// the newest failure, then the skip rate and the passing mean, which only
+// healthy rows reach. Skipped configurations, which have no rank, come last
+// either way.
+export const DEFAULT_SORT = [
+  "-status",
+  "-failure_rate",
+  "-failed_runs",
+  "-last_failed_at",
+  "-skip_rate",
+  "-mean_passed_duration_milliseconds",
+] as const;
 export const DEFAULT_LIMIT = 25;
 export const MAX_LIMIT = 100;
 export const MAX_SEARCH_LENGTH = 200;
@@ -118,6 +143,16 @@ export const FILTER_DEFINITIONS = {
     match: "array",
     sortable: false,
   },
+  // Read from the combined health like workflow_path; sorted through the
+  // status rank in HEALTH_SORT_DEFINITIONS rather than by its name.
+  status: {
+    ...exactFilter(
+      z.enum(HEALTH_STATUSES),
+      "Health status of the configuration in the selected window and code sources, as health.status reports it: failing, flaky, healthy or skipped.",
+      { target: "health", column: "status", type: "String" }
+    ),
+    sortable: false,
+  },
   file: textFilter("file", "test", "Repository-relative test file or binary."),
   suite: textFilter("suite", "test", "Test class or suite; may be empty."),
   case_name: textFilter(
@@ -130,16 +165,12 @@ export const FILTER_DEFINITIONS = {
     "test",
     "Test name as declared, before parameterization; may be empty."
   ),
-  language: exactFilter(
-    z.enum(["unknown", "python", "cpp"]),
-    "Test language.",
-    {
-      target: "test",
-      column: "language",
-      type: "String",
-      sortExpression: "toString(language)",
-    }
-  ),
+  language: exactFilter(z.enum(LANGUAGES), "Test language.", {
+    target: "test",
+    column: "language",
+    type: "String",
+    sortExpression: "toString(language)",
+  }),
   environments_id: exactFilter(
     uint64String,
     "Identity of the complete hardware and build environment.",
@@ -221,14 +252,22 @@ export const FILTER_DEFINITIONS = {
       sortExpression: "env_vars_id",
     }
   ),
+  // The one variable every set records, read out of the map so that it can
+  // be offered, filtered and sorted like a column; env_vars still matches any
+  // variable.
+  test_config: textFilter(
+    "env_vars['TEST_CONFIG']",
+    "env_vars",
+    "The env var set's TEST_CONFIG, the name the CI matrix gives the mode a test ran in, such as default, slow or inductor; empty for a set that does not record it. Equivalent to env_vars with that one variable, and sortable."
+  ),
 } as const;
 
 export type FilterField = keyof typeof FILTER_DEFINITIONS;
+// The parts of a test's name, in node id order, that search matches against.
 export const SEARCH_FIELDS = [
   "file",
   "suite",
   "case_name",
-  "declared_case_name",
 ] as const satisfies readonly FilterField[];
 
 interface SortDefinition {
@@ -237,6 +276,10 @@ interface SortDefinition {
 }
 
 const HEALTH_SORT_DEFINITIONS = {
+  // The status as a rank, healthy 0, flaky 1, failing 2, so descending puts
+  // the worst first; skipped has no rank and sorts last either way, like
+  // the rates of a configuration without runs.
+  status: { expression: "status_rank", type: "UInt64" },
   runs: { expression: "runs_combined", type: "UInt64" },
   passed_runs: { expression: "passed_runs_combined", type: "UInt64" },
   failed_runs: { expression: "failed_runs_combined", type: "UInt64" },
@@ -349,9 +392,9 @@ export const PARAMETER_DEFINITIONS = {
       })
       .optional()
       .describe(
-        `Exact, case-sensitive match against any of ${SEARCH_FIELDS.join(
-          ", "
-        )}. Whitespace and commas are literal; an empty string matches empty names.`
+        `Text search over the test's name as pytest spells it, ${SEARCH_FIELDS.join(
+          "::"
+        )} with an empty suite left out: a test matches when the text occurs anywhere in it, ignoring ASCII case. Whitespace and commas are literal; an empty string matches every test.`
       ),
   },
   ...FILTER_DEFINITIONS,
@@ -383,7 +426,7 @@ export const PARAMETER_DEFINITIONS = {
   sort: {
     encoding: "csv",
     schema: sortSchema(SORT_FIELDS, DEFAULT_SORT).describe(
-      "Ordered, comma-separated sort fields. Prefix - for descending; otherwise ascending. Nulls always sort last. IDs are internal pagination tie-breakers and cannot be selected as sort fields. Owner ordering uses the alphabetically first owner label; unowned tests sort last."
+      "Ordered, comma-separated sort fields. Prefix - for descending; otherwise ascending. Nulls always sort last. IDs are internal pagination tie-breakers and cannot be selected as sort fields. Owner ordering uses the alphabetically first owner label; unowned tests sort last. status orders healthy, flaky, failing, so -status puts the worst first; skipped configurations have no rank and sort last either way."
     ),
   },
   limit: {

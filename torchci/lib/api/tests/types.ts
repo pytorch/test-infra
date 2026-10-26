@@ -1,5 +1,10 @@
 import { PaginationSchema } from "lib/api/schema";
-import { RAN_ONS, WINDOWS } from "lib/api/tests/parameters";
+import {
+  HEALTH_STATUSES,
+  LANGUAGES,
+  RAN_ONS,
+  WINDOWS,
+} from "lib/api/tests/parameters";
 import { z } from "zod/v4";
 
 // Response schemas mirror the ci catalogs. IDs are decimal UInt64 strings
@@ -55,7 +60,7 @@ export const TestRecordSchema = z
         "Test name as declared in the code, before the runner appends parameters: test_add. Equal to case_name for an unparametrized test; empty when unknown."
       ),
     language: z
-      .enum(["unknown", "python", "cpp"])
+      .enum(LANGUAGES)
       .describe("python for a .py test, cpp for a compiled test binary."),
     first_seen_at: isoTimestamp("When the catalog first saw the test."),
   })
@@ -137,6 +142,11 @@ export const HealthSummarySchema = z
       .array(z.string())
       .describe(
         "Sorted, unique calling workflow paths observed for this test, environment and env var set in the requested window and code sources, including retry and skipped attempts. Reusable workflow references are excluded. Empty when no paths are known."
+      ),
+    status: z
+      .enum(HEALTH_STATUSES)
+      .describe(
+        "How the runs went, from the counts below: failing when a run's last attempt failed (failed_runs exceeds flaky_runs); flaky when every run with a failing attempt passed on retry (failed_runs equals flaky_runs, both above 0); healthy when no run failed; skipped when there are no runs, every attempt in the window having been skipped. Filter on it with the status parameter; sort on it worst first with -status."
       ),
     runs: count(
       "Runs of the test, retries after a failure folded into their run: passed_runs + failed_runs + runs with another outcome (xfailed, xpassed, unknown)."

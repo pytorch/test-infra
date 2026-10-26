@@ -1,7 +1,9 @@
 import { SeekKey, seekOrderBy, seekPredicate } from "lib/api/seek";
 import { CI_DATABASE } from "lib/api/tests/database";
-import { SEARCH_FIELDS } from "lib/api/tests/parameters";
-import { buildEnvVarFilters } from "lib/api/tests/shared-sql";
+import {
+  buildEnvVarFilters,
+  searchPredicateSql,
+} from "lib/api/tests/shared-sql";
 import type { RunsCursor } from "lib/api/tests/test/runs/cursor";
 import {
   RUN_FILTER_DEFINITIONS,
@@ -218,11 +220,7 @@ function selectionJoins(
   ];
   if (query.search !== undefined) {
     params.search = query.search;
-    testFilters.push(
-      `(${SEARCH_FIELDS.map((field) => `test.${field} = {search: String}`).join(
-        " OR "
-      )})`
-    );
+    testFilters.push(searchPredicateSql("test"));
   }
   const testSorts = keys.filter((key) => key.expression?.includes("run_test."));
   if (testFilters.length || testSorts.length) {

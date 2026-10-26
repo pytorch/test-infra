@@ -6,7 +6,6 @@ import {
   FilterTarget,
   getSortTerms,
   IDENTITY_SORT_FIELDS,
-  SEARCH_FIELDS,
   SORT_DEFINITIONS,
   TestListQuery,
 } from "lib/api/tests/parameters";
@@ -16,6 +15,7 @@ import {
   CONFIGURATION_COLUMNS_SQL,
   CONFIGURATION_JOINS_SQL,
   HEALTH_RESULT_COLUMNS_SQL,
+  searchPredicateSql,
   TEST_CATALOG_COLUMNS_SQL,
   TEST_RESULT_COLUMNS_SQL,
 } from "lib/api/tests/shared-sql";
@@ -85,11 +85,7 @@ export function buildListQuery(
   const healthFilters = filters(query, "health", "health", params);
   if (query.search !== undefined) {
     params.search = query.search;
-    testFilters.push(
-      `(${SEARCH_FIELDS.map(
-        (field) => `test.${FILTER_DEFINITIONS[field].column} = {search: String}`
-      ).join(" OR ")})`
-    );
+    testFilters.push(searchPredicateSql("test"));
   }
   const environmentFilters = filters(
     query,
