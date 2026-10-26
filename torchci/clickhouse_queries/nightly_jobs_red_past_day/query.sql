@@ -1,18 +1,33 @@
+-- See nightly_jobs_red for why this filters with IN subqueries, not joins.
 SELECT
     COUNT(*) AS COUNT,
     job.name AS name
 FROM
     workflow_job job
-JOIN workflow_run workflow ON workflow.id = job.run_id
-JOIN push ON push.head_commit.'id' = workflow.head_commit.'id'
 WHERE
-    job.name NOT LIKE '%generate-matrix%'
+    job.completed_at >= today() - 1
+    AND job.name NOT LIKE '%generate-matrix%'
     AND job.name NOT LIKE '%unittests%'
-    AND workflow.name NOT IN ('cron', 'Bandit', 'tests')
-    AND push.ref = 'refs/heads/nightly'
-    AND push.repository.'owner'.'name' = 'pytorch'
-    AND push.repository.'name' = {repo: String }
     AND job.conclusion IN ('failure', 'timed_out', 'cancelled')
-    AND job.completed_at >= today() - 1
+    AND job.run_id IN (
+        SELECT id
+        FROM workflow_run
+        WHERE
+            id IN (
+                SELECT run_id
+                FROM workflow_job
+                WHERE completed_at >= today() - 1
+            )
+            AND name NOT IN ('cron', 'Bandit', 'tests')
+            AND head_sha IN (
+                SELECT after
+                FROM push
+                WHERE
+                    ref = 'refs/heads/nightly'
+                    AND startsWith(
+                        dynamoKey, concat('pytorch/', {repo: String }, '/')
+                    )
+            )
+    )
 GROUP BY job.name
-ORDER BY COUNT;
+ORDER BY COUNT
