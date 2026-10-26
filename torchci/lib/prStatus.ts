@@ -67,7 +67,7 @@ const SAFE_REVIEWER_RE = /^[A-Za-z0-9-]+(\/[A-Za-z0-9_-]+)?$/;
 
 export type PrStatusStage =
   | "approved"
-  | "approvedNeedsMergeApproval"
+  | "needsAdditionalApproval"
   | "readyForReview"
   | "inProgress"
   | "missingActionableIssue"
@@ -115,7 +115,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
     state.isApproved &&
     !labels.has(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)
   ) {
-    return "approvedNeedsMergeApproval";
+    return "needsAdditionalApproval";
   }
   if (labels.has(PR_STATUS_LABEL_READY_FOR_REVIEW)) {
     return "readyForReview";
@@ -158,7 +158,7 @@ export function getPrStatusMessage(state: PrStatusState): string {
         "Please fix all CI failures and trigger " +
         'merge by commenting "@pytorchbot merge".'
       );
-    case "approvedNeedsMergeApproval":
+    case "needsAdditionalApproval":
       return (
         "## PR Status: Needs additional approval\n\n" +
         "This PR is missing an approval from someone with merge rights " +

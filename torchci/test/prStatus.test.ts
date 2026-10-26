@@ -131,7 +131,7 @@ describe("getPrStatusStage", () => {
           isMergeApproved: false,
         })
       )
-    ).toBe("approvedNeedsMergeApproval");
+    ).toBe("needsAdditionalApproval");
   });
 
   test("an approval no merge rule accepts does not hide a missing actionable issue", () => {
@@ -264,7 +264,7 @@ describe("getPrStatusMessage", () => {
     expect(message).toContain("then remove and re-add `open source`.");
   });
 
-  test("approved without a merge rule approver", () => {
+  test("needs additional approval", () => {
     const message = getPrStatusMessage(
       state({ isApproved: true, isMergeApproved: false })
     );
