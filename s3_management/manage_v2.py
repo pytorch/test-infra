@@ -487,6 +487,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
     # parent directory names through the same replace() before comparing.
     x.lower().replace("-", "_")
     for x in [
+        "certifi",
         "filelock",
         "sympy",
         "mpmath",

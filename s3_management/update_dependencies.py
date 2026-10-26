@@ -889,7 +889,11 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "antlr4-python3-runtime": [{"project": "torchtune"}],
     "attrs": [{"project": "torchtune"}],
     "blobfile": [{"project": "torchtune"}],
-    "certifi": [{"project": "torchtune"}],
+    # Mirrored from PyPI instead of served from vendored wheels: the vendored
+    # copies (2022.12.7 on stable, <= 2025.8.3 on nightly) still trust the
+    # eMudhra/emSign roots whose intermediates were compromised in Oct 2026.
+    # See pytorch/pytorch#201628.
+    "certifi": [{"project": "torch"}, {"project": "torchtune"}],
     "charset-normalizer": [{"project": "torchtune"}],
     "datasets": [{"project": "torchtune"}],
     "frozenlist": [{"project": "torchtune"}],
