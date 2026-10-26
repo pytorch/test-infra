@@ -1,6 +1,6 @@
 -- noqa: disable=CP05,LT01
 -- Queue heavy tests API queries so a burst waits instead of competing with
--- the rest of HUD. A query opts in with SETTINGS profile = 'tests_heavy'.
+-- the rest of HUD. A query opts in with SETTINGS profile = 'ci_workload_heavy'.
 -- Queries that set no workload stay unscheduled: no `default` workload exists
 -- and throw_on_unknown_workload is 0.
 --
@@ -14,20 +14,20 @@
 -- run of this file creates them for real. Every statement is safe to re-run.
 -- To lift the concurrency and queue limits without breaking callers that
 -- still pass the profile (its thread, time and memory caps stay):
---   CREATE OR REPLACE WORKLOAD tests_heavy IN all;
+--   CREATE OR REPLACE WORKLOAD ci_workload_heavy IN all;
 
 CREATE RESOURCE IF NOT EXISTS query (QUERY);
 
 CREATE WORKLOAD IF NOT EXISTS all;
 
-CREATE OR REPLACE WORKLOAD tests_heavy IN all
+CREATE OR REPLACE WORKLOAD ci_workload_heavy IN all
 SETTINGS max_concurrent_queries = 2, max_waiting_queries = 16;
 
-CREATE SETTINGS PROFILE IF NOT EXISTS tests_heavy;
+CREATE SETTINGS PROFILE IF NOT EXISTS ci_workload_heavy;
 
-ALTER SETTINGS PROFILE tests_heavy
+ALTER SETTINGS PROFILE ci_workload_heavy
 SETTINGS
-    workload = 'tests_heavy',
+    workload = 'ci_workload_heavy',
     max_threads = 4,
     max_execution_time = 60,
     max_memory_usage = 8000000000;
