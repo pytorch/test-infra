@@ -1,5 +1,6 @@
 import {
   getApprovalStatusFromReviews,
+  getApprovingReviewers,
   PR_APPROVED,
   PR_CHANGES_REQUESTED,
 } from "lib/reviewApproval";
@@ -196,5 +197,23 @@ describe("aggregation", () => {
 
   test("no reviews means no verdict", () => {
     expect(getApprovalStatusFromReviews([], false)).toBe("");
+  });
+});
+
+describe("getApprovingReviewers", () => {
+  test("lists authorized reviewers whose latest review approves", () => {
+    expect(
+      getApprovingReviewers(
+        [
+          review("a", "APPROVED"),
+          review("b", "APPROVED"),
+          review("b", "CHANGES_REQUESTED"),
+          review("c", "CHANGES_REQUESTED"),
+          review("c", "APPROVED"),
+          review("d", "APPROVED", { association: "NONE" }),
+        ],
+        false
+      )
+    ).toEqual(["a", "c"]);
   });
 });

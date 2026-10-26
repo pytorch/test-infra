@@ -40,6 +40,14 @@ function labelEvent(
   return { name: "pull_request", payload, id: "2" } as any;
 }
 
+function editedEvent(changes: any, labels: string[]) {
+  const event = labelEvent("labeled", "", labels);
+  event.payload.action = "edited";
+  delete event.payload.label;
+  event.payload.changes = changes;
+  return event;
+}
+
 function mockLiveLabels(labels: string[]) {
   return nock("https://api.github.com")
     .get(`/repos/${REPO}/issues/${PR_NUMBER}/labels?per_page=100`)
@@ -334,6 +342,40 @@ describe("prStatusBot", () => {
       ])
     );
     handleScope(scopes);
+  });
+
+  test("retargeting re-checks an approval against the new files", async () => {
+    const approval = {
+      user: { login: REVIEWER },
+      state: "APPROVED",
+      author_association: "MEMBER",
+      submitted_at: "2026-01-01T00:00:00Z",
+    };
+    const mergeRules = `
+- name: Documentation
+  patterns: ["docs/**"]
+  approved_by: [${REVIEWER}]
+`;
+    const scopes = [
+      nock("https://api.github.com")
+        .get("/repos/pytorch/pytorch/contents/.github%2Fmerge_rules.yaml")
+        .reply(200, {
+          content: Buffer.from(mergeRules).toString("base64"),
+        })
+        .get(`/repos/${REPO}/pulls/${PR_NUMBER}/files?per_page=100`)
+        .reply(200, [{ filename: "docs/a.md" }, { filename: "torch/foo.py" }]),
+      mockStatusRefresh([approval], "## PR Status: Needs additional approval"),
+    ];
+    await probot.receive(
+      editedEvent({ base: { ref: { from: "topic" } } }, ["in progress"])
+    );
+    handleScope(scopes);
+  });
+
+  test("an edit that keeps the base does not spend GitHub API calls", async () => {
+    await probot.receive(
+      editedEvent({ title: { from: "old title" } }, ["in progress"])
+    );
   });
 
   test("an unrelated label does not spend GitHub API calls", async () => {

@@ -34,7 +34,7 @@ export type EligibilityCheck = (
   _pr: EligibilityPr
 ) => Promise<GreenlightEligibility | null>;
 
-interface MergeRule {
+export interface MergeRule {
   logins: string[];
   teams: string[];
   // null when the rule's patterns are unusable: it covers nothing.
@@ -187,7 +187,7 @@ export function parseMergeRules(text: string): MergeRule[] {
   return rules.map((rule) => parseRule(rule));
 }
 
-async function fetchMergeRules(octokit: Octokit): Promise<MergeRule[]> {
+export async function fetchMergeRules(octokit: Octokit): Promise<MergeRule[]> {
   const { data } = await octokit.rest.repos.getContent(MERGE_RULES_FILE);
   if (!("content" in data)) {
     throw new Error(`${MERGE_RULES_FILE.path}: unexpected response format`);
@@ -195,7 +195,7 @@ async function fetchMergeRules(octokit: Octokit): Promise<MergeRule[]> {
   return parseMergeRules(Buffer.from(data.content, "base64").toString("utf-8"));
 }
 
-async function fetchTeamMembership(
+export async function fetchTeamMembership(
   octokit: Octokit,
   team: string,
   login: string
