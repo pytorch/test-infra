@@ -50,9 +50,7 @@ describe("crcr_level_audit", () => {
   test("returns every lifecycle event for the latest decisions", () => {
     expect(query).toContain("recent_decisions AS");
     expect(query).toContain("GROUP BY decision_id");
-    expect(query).toContain(
-      "downstream_repo = {repo: String}"
-    );
+    expect(query).toContain("downstream_repo = {repo: String}");
     expect(query).toContain("ORDER BY recorded_at DESC, event_id DESC");
     expect(query).toContain("LIMIT 1 BY event_id");
   });
