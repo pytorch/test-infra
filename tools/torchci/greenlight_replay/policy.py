@@ -42,6 +42,7 @@ from typing import Any
 
 from torchci.greenlight_decisions.loc import _REPO_PATTERN
 from torchci.greenlight_replay.checkout import SCRUBBED_GIT_VARS
+from torchci.greenlight_replay.stack_step import StackContext
 from torchci.greenlight_replay.verdict import (
     schema_support_violation,
     verdict_violation,
@@ -52,7 +53,7 @@ from torchci.greenlight_replay.workflow import (
     load,
     prompt,
     review_budgets,
-    stack_enabled,
+    stack_context,
     WORKFLOW_RELPATH,
 )
 
@@ -62,6 +63,7 @@ __all__ = [
     "GIT_REF_PATTERN",
     "HOOKS_RELPATH",
     "Policy",
+    "StackContext",
     "WORKFLOW_RELPATH",
     "materialize",
     "refspec",
@@ -107,8 +109,9 @@ class Policy:
     that is how the workflow states them; ``budget-reminder.sh`` reads absolute epochs,
     which the caller derives from these against its own start time.
 
-    ``stack_enabled`` says the workflow runs the ghstack stack step :mod:`.stack_step`
-    pins, so each replay gets that context too.
+    ``stack_context`` says which stack context each replay gets: the one the workflow's
+    stack step collects, by the :mod:`.stack_step` pin it digests to, and none without
+    the step.
     """
 
     root: Path
@@ -123,7 +126,7 @@ class Policy:
     model: str
     effort: str
     tools: str
-    stack_enabled: bool = False
+    stack_context: StackContext = StackContext.NONE
 
 
 def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> Policy:
@@ -156,10 +159,8 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
     unsupported = schema_support_violation(schema)
     if unsupported:
         raise ValueError(f"{schema_path}: {unsupported}")
-    collects_stack = stack_enabled(document, workflow_path)
-    logger.info(
-        "ghstack stack context is %s for %s", "on" if collects_stack else "off", ref
-    )
+    context = stack_context(document, workflow_path)
+    logger.info("stack context is %s for %s", context.value, ref)
 
     return Policy(
         root=root,
@@ -174,7 +175,7 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
         model=model,
         effort=effort,
         tools=tools,
-        stack_enabled=collects_stack,
+        stack_context=context,
     )
 
 

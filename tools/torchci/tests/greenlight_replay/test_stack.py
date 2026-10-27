@@ -1,17 +1,21 @@
-"""Tests for rebuilding the ghstack stack context as of the replayed verdict.
+"""Tests for the stack step, its pins and their gate, and the ghstack context rebuild.
 
-``inputs._run`` is the one process seam, shared with the rest of the reviewer's inputs,
-so most cases drive ``build_inputs`` through ``test_inputs``'s ``FakeGh`` with the
-GraphQL answered from canned pages. Nothing here reaches GitHub.
+The rebuild reads the ghstack context back as of the replayed verdict. ``inputs._run``
+is its one process seam, shared with the rest of the reviewer's inputs, so the rebuild
+cases drive ``build_inputs`` through ``test_inputs``'s ``FakeGh`` with the GraphQL
+answered from canned pages. Nothing here reaches GitHub.
 
 The parity cases do shell out, on purpose: they run the awk programs out of the
 repository's own workflow, through the same ``tr``, ``grep`` and ``sed`` the step pipes
-them through. A hand-copied program could never tell you that the port still matches
-the shell it reproduces. A missing awk fails them rather than skipping them.
+them through, and its jq selection of a GitHub stack's entries on canned responses. The
+step cases run the step's whole script under bash, with a fake ``gh``. A hand-copied
+program could never tell you that the port still matches the shell it reproduces. A
+missing awk, bash or jq fails them rather than skipping them.
 """
 
 import dataclasses
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -66,8 +70,19 @@ if ! grep -qxF "$2" <<<"$listed"; then
   echo NOT_LISTED
   exit 0
 fi
-above=$(grep -xF -B 5 "$2" <<<"$listed" | sed '$d')
+above=$(grep -xF -B "$3" "$2" <<<"$listed" | sed '$d')
 for n in $above; do printf '%s\n' "$n"; done
+"""
+
+FAKE_GH = r"""#!/bin/bash
+set -euo pipefail
+printf '%s\n' "$*" >>"$FAKE_GH_DIR/calls"
+case "$1 $2" in
+  "pr view") cat "$FAKE_GH_DIR/pr-$3.json" ;;
+  "api graphql") cat "$FAKE_GH_DIR/graphql.json" ;;
+  "api --allow-escape-sequences") printf 'diff of %s\n' "${!#}" ;;
+  *) echo "fake gh: unexpected call: $*" >&2; exit 2 ;;
+esac
 """
 
 
@@ -80,6 +95,37 @@ def shipped_awk_programs(marker):
     (step,) = shipped_steps()
     programs = re.findall(r"awk '([^']*)'", step["run"])
     return [program for program in programs if marker in program]
+
+
+def shipped_jq_programs(marker):
+    (step,) = shipped_steps()
+    programs = re.findall(r"jq [^'\n]*'([^']*)'", step["run"])
+    return [program for program in programs if marker in program]
+
+
+def head_oid(number):
+    return format(number, "040x")
+
+
+def stack_entry(position, number, state="OPEN", login=USER):
+    author = None if login is None else {"login": login}
+    pull = dict(number=number, title=f"PR {number}", state=state, author=author)
+    return {
+        "position": position,
+        "pullRequest": dict(pull, headRefOid=head_oid(number)),
+    }
+
+
+def stack_response(nodes, *, login=USER, total=None, more=False):
+    """What the step's GraphQL query answers for this PR, in a stack of ``nodes``."""
+    entries = {
+        "totalCount": len(nodes) if total is None else total,
+        "pageInfo": {"hasNextPage": more},
+        "nodes": list(nodes),
+    }
+    author = None if login is None else {"login": login}
+    pull = {"author": author, "stack": {"entries": entries}}
+    return {"data": {"repository": {"pullRequest": pull}}}
 
 
 def raw_body(*lines, header=HEADER):
@@ -221,12 +267,18 @@ class StackGh(FakeGh):
         ]
 
 
+def ghstack_policy(**caps):
+    """A policy whose workflow collects a ghstack's stack context alone."""
+    return dataclasses.replace(
+        make_policy(**caps), stack_context=stack_step.StackContext.GHSTACK
+    )
+
+
 class StackTestCase(InputsTestCase):
     """``build_inputs`` under a policy whose workflow collects stack context."""
 
     def build_stack(self, gh, cutoff=CUTOFF):
-        policy = dataclasses.replace(make_policy(), stack_enabled=True)
-        return self.build(gh, policy=policy, cutoff=cutoff)
+        return self.build(gh, policy=ghstack_policy(), cutoff=cutoff)
 
     def stack_document(self, result):
         return json.loads(result.stack_path.read_text(encoding="utf-8"))
@@ -319,7 +371,8 @@ class ListingParityTest(unittest.TestCase):
     def test_the_numbers_above_match_the_grep_and_sed_on_every_hostile_body(self):
         for name, body in self.BODIES.items():
             with self.subTest(name):
-                shell = self.shell(LISTING_PIPELINE, body, "4")
+                window = str(stack_step.SIBLINGS_ABOVE)
+                shell = self.shell(LISTING_PIPELINE, body, "4", window)
                 expected = None if shell == ["NOT_LISTED"] else shell
                 self.assertEqual(stack_step.listed_above(body, 4), expected)
 
@@ -376,6 +429,152 @@ class CapParityTest(unittest.TestCase):
         self.assertEqual(capped, b"x\n" * 2000 + b"[truncated]\n")
 
 
+class NativeSelectionTest(unittest.TestCase):
+    """The step's jq picks a GitHub stack's PRs above this one, as its listing does a
+    ghstack's: the 5 entries directly above, kept if open and by this PR's author, top
+    first, each compared against the head of the entry below it, kept or not.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        (cls.selection,) = shipped_jq_programs("sort_by(.position)")
+
+    def setUp(self):
+        self.assertIsNotNone(
+            shutil.which("jq"), "jq is required to check the workflow's selection"
+        )
+
+    def run_selection(self, response):
+        # The step's own flags: compact output, and this PR's number and the window as
+        # JSON numbers.
+        window = str(stack_step.SIBLINGS_ABOVE)
+        return subprocess.run(
+            ["jq", "-c", "--argjson", "number", str(PR_NUMBER)]
+            + ["--argjson", "window", window, self.selection],
+            input=json.dumps(response).encode("utf-8"),
+            capture_output=True,
+            check=False,
+        )
+
+    def select(self, response):
+        completed_run = self.run_selection(response)
+        self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+        return json.loads(completed_run.stdout)
+
+    def assert_refused(self, response, message):
+        completed_run = self.run_selection(response)
+        self.assertNotEqual(completed_run.returncode, 0)
+        self.assertEqual(completed_run.stdout, b"")
+        self.assertIn(message, completed_run.stderr.decode("utf-8"))
+
+    def picked(self, response):
+        """``(number, base, head)`` per PR picked, each SHA as the number it encodes."""
+        return [
+            (entry["number"], int(entry["base"], 16), int(entry["head"], 16))
+            for entry in self.select(response)
+        ]
+
+    def test_the_five_nearest_above_are_kept_top_first(self):
+        above = range(PR_NUMBER + 1, PR_NUMBER + 8)
+        nodes = [stack_entry(1, PR_NUMBER)]
+        nodes += [stack_entry(position, n) for position, n in enumerate(above, 2)]
+        expected = [
+            (n, n - 1, n) for n in reversed(range(PR_NUMBER + 1, PR_NUMBER + 6))
+        ]
+        self.assertEqual(self.picked(stack_response(nodes)), expected)
+
+    def test_a_skipped_entry_is_still_the_base_of_the_one_above_it(self):
+        nodes = [
+            stack_entry(1, 501),
+            stack_entry(2, PR_NUMBER),
+            stack_entry(3, 503, state="CLOSED"),
+            stack_entry(4, 504, login="bob"),
+            stack_entry(5, 505),
+            stack_entry(6, 506, state="MERGED"),
+            stack_entry(7, 507),
+        ]
+        expected = [(507, 506, 507), (505, 504, 505)]
+        self.assertEqual(self.picked(stack_response(nodes)), expected)
+
+    def test_this_pr_in_the_middle_ignores_the_entries_below(self):
+        nodes = [
+            stack_entry(1, 501),
+            stack_entry(2, 502),
+            stack_entry(3, PR_NUMBER),
+            stack_entry(4, 504),
+        ]
+        self.assertEqual(self.picked(stack_response(nodes)), [(504, PR_NUMBER, 504)])
+
+    def test_the_top_of_the_stack_keeps_nothing(self):
+        nodes = [stack_entry(1, 501), stack_entry(2, PR_NUMBER)]
+        self.assertEqual(self.select(stack_response(nodes)), [])
+
+    def test_entries_are_ordered_by_position_not_by_node_order(self):
+        nodes = [
+            stack_entry(4, 504),
+            stack_entry(2, 502),
+            stack_entry(1, PR_NUMBER),
+            stack_entry(3, 503),
+        ]
+        expected = [(504, 503, 504), (503, 502, 503), (502, PR_NUMBER, 502)]
+        self.assertEqual(self.picked(stack_response(nodes)), expected)
+
+    def test_a_pr_with_no_author_login_keeps_no_sibling(self):
+        nodes = [
+            stack_entry(1, PR_NUMBER, login=None),
+            stack_entry(2, 502, login=None),
+        ]
+        self.assertEqual(self.select(stack_response(nodes, login=None)), [])
+
+    def test_each_selected_pr_carries_what_the_step_reads_and_its_title_as_given(self):
+        title = "$(touch /tmp/x) `id` \"quoted\" 'single'\nsecond line"
+        nodes = [stack_entry(1, PR_NUMBER), stack_entry(2, 502)]
+        nodes[1]["pullRequest"]["title"] = title
+        self.assertEqual(
+            self.select(stack_response(nodes)),
+            [
+                {
+                    "number": 502,
+                    "title": title,
+                    "base": head_oid(PR_NUMBER),
+                    "head": head_oid(502),
+                }
+            ],
+        )
+
+    def test_outside_a_stack_the_selection_is_null(self):
+        response = stack_response([])
+        response["data"]["repository"]["pullRequest"]["stack"] = None
+        self.assertIsNone(self.select(response))
+
+    def test_an_incomplete_list_of_entries_is_refused(self):
+        nodes = [stack_entry(1, PR_NUMBER), stack_entry(2, 502)]
+        # jq sorts a null node before any position: one above this PR would otherwise
+        # have #503 compared against this PR's head, past the entry left out.
+        null_above = [stack_entry(1, PR_NUMBER), None, stack_entry(3, 503)]
+        null_below = [None, stack_entry(2, PR_NUMBER), stack_entry(3, 503)]
+        null_pull = [
+            stack_entry(1, PR_NUMBER),
+            dict(position=2, pullRequest=None),
+            stack_entry(3, 503),
+        ]
+        for name, response in (
+            ("another page", stack_response(nodes, more=True)),
+            ("fewer nodes than the count", stack_response(nodes, total=3)),
+            ("a null node above this PR", stack_response(null_above)),
+            ("a null node below this PR", stack_response(null_below)),
+            ("a null pull request", stack_response(null_pull)),
+        ):
+            with self.subTest(name):
+                self.assert_refused(response, "incomplete")
+
+    def test_a_stack_that_does_not_list_this_pr_once_is_refused(self):
+        twice = [stack_entry(1, PR_NUMBER), stack_entry(2, PR_NUMBER)]
+        for name, nodes in (("missing", [stack_entry(1, 501)]), ("twice", twice)):
+            with self.subTest(name):
+                self.assert_refused(stack_response(nodes), "this PR once")
+
+
 class PinTest(unittest.TestCase):
     """The pin matches the step the repository's workflow actually runs."""
 
@@ -385,6 +584,162 @@ class PinTest(unittest.TestCase):
     def test_the_shipped_step_digests_to_the_pin(self):
         (step,) = shipped_steps()
         self.assertEqual(stack_step.step_digest(step), stack_step.STEP_SHA256)
+
+    def test_the_step_sets_the_window_the_port_reads_above(self):
+        (step,) = shipped_steps()
+        self.assertIn(f"\nwindow={stack_step.SIBLINGS_ABOVE}\n", step["run"])
+
+
+class StepScriptTest(unittest.TestCase):
+    """The step's whole script, run with ``bash -e`` as the runner runs a ``run:``.
+
+    ``gh`` is a fake on PATH: ``gh pr view <n>`` prints ``pr-<n>.json``, ``gh api
+    graphql`` prints ``graphql.json``, and a compare prints a one-line diff naming its
+    endpoint. The script's one change is a path substitution: ``/tmp/greenlight-stack``
+    becomes a directory under the test's own root, which is also mktemp's ``TMPDIR``.
+    """
+
+    ABOVE, TOP = PR_NUMBER + 1, PR_NUMBER + 2
+    COMPARE = "repos/pytorch/pytorch/compare"
+
+    def setUp(self):
+        self.assertIsNotNone(shutil.which("jq"), "jq is required to run the step")
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.stack_dir = self.root / stack_step.STACK_DIRNAME
+        self.stack_json = self.root / stack_step.STACK_FILENAME
+        gh = self.root / "bin" / "gh"
+        gh.parent.mkdir()
+        gh.write_text(FAKE_GH, encoding="utf-8")
+        gh.chmod(0o755)
+
+    def serve(self, name, answer):
+        (self.root / name).write_text(json.dumps(answer), encoding="utf-8")
+
+    def run_step(self, pr=None, graphql=None):
+        """Run the step for ``PR_NUMBER``, ``pr`` being what ``gh pr view`` reports."""
+        shutil.rmtree(self.stack_dir, ignore_errors=True)
+        self.stack_json.unlink(missing_ok=True)
+        (self.root / "calls").unlink(missing_ok=True)
+        own = dict(
+            number=PR_NUMBER, title="Fix the thing", headRefName="a/fix", body=""
+        )
+        self.serve(f"pr-{PR_NUMBER}.json", {**own, **(pr or {})})
+        if graphql is not None:
+            self.serve("graphql.json", graphql)
+        (step,) = shipped_steps()
+        script = step["run"].replace(stack_step.CI_STACK_DIR, str(self.stack_dir))
+        (self.root / "step.sh").write_text(script, encoding="utf-8")
+        env = dict(
+            os.environ,
+            PATH=f"{self.root / 'bin'}:{os.environ['PATH']}",
+            PR_NUMBER=str(PR_NUMBER),
+            GH_TOKEN="unused",
+            FAKE_GH_DIR=str(self.root),
+            TMPDIR=str(self.root),
+        )
+        return subprocess.run(
+            ["bash", "-e", "step.sh"],
+            cwd=self.root,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def calls(self):
+        return (self.root / "calls").read_text(encoding="utf-8")
+
+    def assert_dropped(self, completed_run):
+        """Exit 0, the step's warning, and no stack file left behind."""
+        self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+        warning = "::warning::could not collect the stack context"
+        self.assertIn(warning, completed_run.stdout)
+        self.assertFalse(self.stack_dir.exists())
+        self.assertFalse(self.stack_json.exists())
+
+    def stack_of_three(self):
+        return [
+            stack_entry(1, PR_NUMBER),
+            stack_entry(2, self.ABOVE),
+            stack_entry(3, self.TOP),
+        ]
+
+    def test_a_github_stack_writes_the_json_and_each_diff(self):
+        completed_run = self.run_step(graphql=stack_response(self.stack_of_three()))
+        self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+        self.assertIn("(PRs: 3)", completed_run.stdout)
+        document = json.loads(self.stack_json.read_text(encoding="utf-8"))
+        self.assertEqual(
+            [entry["number"] for entry in document["stack"]],
+            [self.TOP, self.ABOVE, PR_NUMBER],
+        )
+        self.assertEqual(
+            document["stack"][0]["diff"], f"{self.stack_dir}/{self.TOP}.diff"
+        )
+        for number, below in ((self.TOP, self.ABOVE), (self.ABOVE, PR_NUMBER)):
+            written = (self.stack_dir / f"{number}.diff").read_text(encoding="utf-8")
+            endpoint = f"{self.COMPARE}/{head_oid(below)}...{head_oid(number)}"
+            self.assertEqual(written, f"diff of {endpoint}\n")
+
+    def test_outside_a_stack_nothing_is_written(self):
+        response = stack_response([])
+        response["data"]["repository"]["pullRequest"]["stack"] = None
+        completed_run = self.run_step(graphql=response)
+        self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+        self.assertIn("Not in a stack; no stack context.", completed_run.stdout)
+        self.assertNotIn("::warning::", completed_run.stdout)
+        self.assertFalse(self.stack_dir.exists())
+        self.assertFalse(self.stack_json.exists())
+
+    def test_a_pr_number_that_is_not_a_number_drops_the_context(self):
+        self.assert_dropped(self.run_step(pr=dict(number=f"{PR_NUMBER}a")))
+        self.assertNotIn("graphql", self.calls())
+
+    def test_a_number_or_sha_of_another_shape_in_the_plan_drops_the_context(self):
+        # The top goes first, so a bad base further down meets the step only after the
+        # top's diff is on disk, and the trap has that to remove too.
+        cases = {
+            "this PR's head, a base above it": (0, "headRefOid", "g" * 40, True),
+            "the top's head": (2, "headRefOid", head_oid(self.TOP)[:-1], False),
+            "the top's number": (2, "number", f"{self.TOP}/x", False),
+        }
+        for name, (index, key, value, top_written) in cases.items():
+            with self.subTest(name):
+                nodes = self.stack_of_three()
+                nodes[index]["pullRequest"][key] = value
+                self.assert_dropped(self.run_step(graphql=stack_response(nodes)))
+                self.assertEqual(self.COMPARE in self.calls(), top_written)
+
+    def test_a_null_entry_drops_the_context(self):
+        nodes = [stack_entry(1, PR_NUMBER), None, stack_entry(3, self.TOP)]
+        self.assert_dropped(self.run_step(graphql=stack_response(nodes)))
+        self.assertNotIn(self.COMPARE, self.calls())
+
+    def test_a_ghstack_sibling_base_outside_the_ref_rule_drops_the_context(self):
+        body = ghstack_body(f"#{self.ABOVE}", f"__->__ #{PR_NUMBER}")
+        pr = dict(headRefName=OWN_HEAD, body=body)
+        sibling = dict(
+            number=self.ABOVE,
+            title="Above",
+            state="OPEN",
+            headRefName=f"gh/{USER}/8/head",
+            headRefOid=head_oid(self.ABOVE),
+        )
+        good = f"gh/{USER}/8/base"
+        self.serve(f"pr-{self.ABOVE}.json", dict(sibling, baseRefName=good))
+        completed_run = self.run_step(pr=pr)
+        self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+        written = (self.stack_dir / f"{self.ABOVE}.diff").read_text(encoding="utf-8")
+        self.assertEqual(
+            written, f"diff of {self.COMPARE}/{good}...{head_oid(self.ABOVE)}\n"
+        )
+        for base in (f"{good}#x", f"{good}%2E%2E%2Emain", f"gh/{USER}/../base", "-x"):
+            with self.subTest(base):
+                self.serve(f"pr-{self.ABOVE}.json", dict(sibling, baseRefName=base))
+                self.assert_dropped(self.run_step(pr=pr))
+                self.assertNotIn(self.COMPARE, self.calls())
 
 
 class GateTest(unittest.TestCase):
@@ -421,16 +776,35 @@ class GateTest(unittest.TestCase):
         with mock.patch.object(policy_mod, "_checkout"):
             return policy_mod.materialize("8830", self.root)
 
-    def test_the_repositorys_own_policy_collects_stack_context(self):
+    def test_the_repositorys_own_policy_collects_both_kinds_of_stack_context(self):
         with mock.patch.object(policy_mod, "_checkout"):
-            self.assertTrue(policy_mod.materialize("main", REPO_ROOT).stack_enabled)
+            policy = policy_mod.materialize("main", REPO_ROOT)
+        self.assertIs(policy.stack_context, stack_step.StackContext.BOTH)
 
     def test_the_unchanged_step_survives_a_yaml_round_trip(self):
-        self.assertTrue(self.materialize(lambda steps, step: None).stack_enabled)
+        policy = self.materialize(lambda steps, step: None)
+        self.assertIs(policy.stack_context, stack_step.StackContext.BOTH)
 
     def test_a_policy_without_the_step_collects_none(self):
         policy = self.materialize(lambda steps, step: steps.remove(step))
-        self.assertFalse(policy.stack_enabled)
+        self.assertIs(policy.stack_context, stack_step.StackContext.NONE)
+
+    def test_the_ghstack_only_step_replays_with_ghstack_context_alone(self):
+        ghstack_only = stack_step.GHSTACK_ONLY_STEP_SHA256
+        with mock.patch.object(workflow_mod, "step_digest", return_value=ghstack_only):
+            with self.assertLogs(policy_mod.logger, "INFO") as logs:
+                policy = self.materialize(lambda steps, step: None)
+        self.assertIs(policy.stack_context, stack_step.StackContext.GHSTACK)
+        self.assertIn("stack context is on, ghstack only", "\n".join(logs.output))
+
+    def test_any_other_digest_is_refused_naming_the_pin(self):
+        with mock.patch.object(workflow_mod, "step_digest", return_value="0" * 64):
+            with self.assertRaises(ValueError) as caught:
+                self.materialize(lambda steps, step: None)
+        message = str(caught.exception)
+        self.assertIn("0" * 64, message)
+        self.assertIn(stack_step.STEP_SHA256, message)
+        self.assertIn("re-pin STEP_SHA256", message)
 
     def test_an_edited_step_is_refused_at_load(self):
         edits = {
@@ -447,12 +821,12 @@ class GateTest(unittest.TestCase):
 
     def test_a_retitled_step_is_still_the_step(self):
         policy = self.materialize(lambda steps, step: step.update(name="Renamed"))
-        self.assertTrue(policy.stack_enabled)
+        self.assertIs(policy.stack_context, stack_step.StackContext.BOTH)
 
     def test_policy_load_logs_whether_stack_context_is_on(self):
         for mutate, state in (
-            (lambda steps, step: None, "on"),
-            (lambda steps, step: steps.remove(step), "off"),
+            (lambda steps, step: None, "on for"),
+            (lambda steps, step: steps.remove(step), "off for"),
         ):
             with self.subTest(state):
                 with self.assertLogs(policy_mod.logger, "INFO") as logs:
@@ -519,8 +893,7 @@ class DeclinedDiffTest(StackTestCase):
     def test_a_declined_diff_gets_no_stack_and_github_is_not_asked(self):
         self.leave_stale_stack()
         gh = StackGh({None: listed_page()}, self.three_siblings())
-        policy = dataclasses.replace(make_policy(max_diff_lines=2), stack_enabled=True)
-        result = self.build(gh, policy=policy)
+        result = self.build(gh, policy=ghstack_policy(max_diff_lines=2))
         self.assertTrue(result.too_large)
         self.assertIsNone(result.stack_path)
         self.assertEqual(gh.queries(), [])
@@ -528,8 +901,7 @@ class DeclinedDiffTest(StackTestCase):
 
     def test_a_diff_at_the_cap_still_gets_its_stack(self):
         gh = StackGh({None: listed_page()}, self.three_siblings())
-        policy = dataclasses.replace(make_policy(max_diff_lines=3), stack_enabled=True)
-        result = self.build(gh, policy=policy)
+        result = self.build(gh, policy=ghstack_policy(max_diff_lines=3))
         self.assertFalse(result.too_large)
         self.assertEqual(
             self.stacked_numbers(result), [TOP, MIDDLE, NEAREST, PR_NUMBER]
@@ -676,8 +1048,7 @@ class CiExitTest(StackTestCase):
                 pr_returncode=1,
             )
             with self.subTest(head_ref):
-                policy = dataclasses.replace(make_policy(), stack_enabled=True)
-                result = self.build_logging("ERROR", gh, policy=policy)
+                result = self.build_logging("ERROR", gh, policy=ghstack_policy())
                 self.assertIsNone(result.metadata_path)
                 self.assertEqual(result.stack_path is not None, stacked)
                 self.assertIn("userContentEdits", gh.queries()[0][4])
