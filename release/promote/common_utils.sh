@@ -37,7 +37,8 @@ get_pytorch_version() {
 
 # PACKAGE_EXCLUDE_TARGETS: comma-separated accelerator folders to leave out of a
 # promotion, e.g. "cu130". A target is skipped both as the <target>/ folder and as
-# the "+<target>" local version in a file name (torch-2.15.0+cu130-...). Prints one
+# the "+<target>" local version in a file name (torch-2.15.0+cu130-... or
+# libtorch-shared-with-deps-2.15.0+cu130.zip). Prints one
 # target per line; exits on a name that is not a plain folder name, so a typo cannot
 # turn into a pattern that silently matches nothing or too much.
 exclude_targets() {
@@ -79,7 +80,7 @@ aws_promote() {
     local exclude_args=()
     local target
     for target in $(exclude_targets); do
-        exclude_args+=(--exclude "${target}/*" --exclude "*+${target}-*")
+        exclude_args+=(--exclude "${target}/*" --exclude "*+${target}-*" --exclude "*+${target}.*")
     done
 
     local cp_args=(
@@ -206,8 +207,8 @@ r2_promote() {
     # 15764 -- nearly all of them nightlies already mirrored on R2.
     local sub_channel_exclude="(^|[[:space:]])${s3_from_prefix}/(nightly|test)/"
 
-    # Same exclusions as aws_promote: the <target>/ folder or the "+<target>-" local
-    # version in the file name. Validated here too, since R2_ONLY skips aws_promote.
+    # Same exclusions as aws_promote: the <target>/ folder or the "+<target>-" or
+    # "+<target>." local version in the file name. Validated here too, since R2_ONLY skips aws_promote.
     exclude_targets >/dev/null
     local target_exclude_regex=""
     local target
@@ -217,7 +218,7 @@ r2_promote() {
     done
     local target_filter=(cat)
     if [[ -n "${target_exclude_regex}" ]]; then
-        target_filter=(grep -Ev "(/|\\+)(${target_exclude_regex})(/|-)")
+        target_filter=(grep -Ev "(/|\\+)(${target_exclude_regex})(/|-|\\.)")
         echo "+ R2: excluding targets: $(exclude_targets | paste -sd, -)"
     fi
 

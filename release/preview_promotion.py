@@ -96,6 +96,19 @@ def main():
         if not re.fullmatch(r"[a-z0-9.]+", t):
             sys.exit(f"invalid skip target '{t}' (expected e.g. cu130)")
 
+    if package.startswith("libtorch"):
+        # The libtorch test channel has no public index to read, so there is
+        # nothing to list from here. The promote job prints every object itself.
+        print(f"### Binaries to promote: `{package}` {version}\n")
+        print(f"Skipped targets: {', '.join(f'`{t}`' for t in targets) or 'none'}\n")
+        print(
+            "The libtorch test channel has no public index, so this preview cannot list "
+            "the archives. The approved job prints every object it will copy, from a "
+            "`--dryrun` pass, before it copies anything. Run with `dryrun=enabled` first "
+            "to read that list."
+        )
+        return
+
     url = index_url(package)
     try:
         with urllib.request.urlopen(url, timeout=60) as resp:

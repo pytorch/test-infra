@@ -12,12 +12,13 @@ on:
           - enabled
           - disabled
       package:
-        description: "Package to prepare and release. torch, torchvision and torchaudio skip the targets in RELEASE_PROMOTE_SKIP_TARGETS (release/release_versions.sh); triton releases triton, triton_rocm and triton_xpu together"
+        description: "Package to prepare and release. torch, libtorch, torchvision and torchaudio skip the targets in RELEASE_PROMOTE_SKIP_TARGETS (release/release_versions.sh); triton releases triton, triton_rocm and triton_xpu together"
         required: true
         type: choice
         default: torchvision
         options:
           - torch
+          - libtorch
           - triton
           - torchao
           - torchtune
@@ -82,7 +83,8 @@ jobs:
               echo
               # Every binary the approval would promote, so the reviewer reads the
               # list before approving instead of after.
-              for pkg in ${packages}; do
+              read -ra pkgs <<<"${packages}"
+              for pkg in "${pkgs[@]}"; do
                 python3 release/preview_promotion.py "${pkg}" "${!version}" "${skip_targets}"
                 echo
               done
@@ -154,8 +156,9 @@ jobs:
 
             # Tee the transfer output so the next step can list what moved.
             # A failure in one package stops the run, before the next one is copied.
-            for pkg in ${packages}; do
-              promote_s3 "${pkg}" whl "${!version}" 2>&1 | tee -a "${RUNNER_TEMP}/promote.log"
+            read -ra pkgs <<<"${packages}"
+            for pkg in "${pkgs[@]}"; do
+              promote_s3 "${pkg}" "${package_type}" "${!version}" 2>&1 | tee -a "${RUNNER_TEMP}/promote.log"
             done
 
       # always(): a promotion that dies partway through is exactly when you want to
@@ -188,7 +191,14 @@ jobs:
             # Backfill SHA256 metadata for wheels missing it (skips existing).
             # Bare --recompute-sha256-pattern scans all prod accelerator
             # subfolders (cu*/rocm*/cpu/xpu) for this package/version.
-            for pkg in ${packages}; do
+            # manage_v2.py only knows the whl channel; libtorch archives carry no
+            # checksum metadata.
+            if [[ "${package_type}" != "whl" ]]; then
+              echo "Nothing to recompute for ${package_type} packages."
+              exit 0
+            fi
+            read -ra pkgs <<<"${packages}"
+            for pkg in "${pkgs[@]}"; do
               python s3_management/manage_v2.py whl \
                 --recompute-sha256-pattern \
                 --package-name "${pkg}" \

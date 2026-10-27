@@ -2,8 +2,8 @@
 
 # Make sure to update these versions when doing a release first
 PYTORCH_VERSION=${PYTORCH_VERSION:-2.15.0}
-# Comma-separated accelerator folders left out when torch, torchvision and
-# torchaudio are promoted to download.pytorch.org by
+# Comma-separated accelerator folders left out when torch, libtorch, torchvision
+# and torchaudio are promoted to download.pytorch.org by
 # release-download-pytorch-org.yml. 2.15.0: cu130 is skipped. Set it to an empty
 # string to skip nothing. Remove it after 2.15.
 RELEASE_PROMOTE_SKIP_TARGETS=${RELEASE_PROMOTE_SKIP_TARGETS-cu130}
@@ -29,17 +29,28 @@ FLASH_ATTN_3_VERSION=${FLASH_ATTN_3_VERSION:-3.0.1}
 # release_package_vars <package>: what release-download-pytorch-org.yml needs to
 # promote <package>. Sets, in the caller's scope:
 #   version      name of the variable holding the version (torch is PYTORCH_VERSION)
-#   packages     the packages one promotion of <package> copies; "triton" is the
-#                whole triton family, which shares TRITON_VERSION
+#   packages     space-separated names one promotion of <package> copies; "triton" is
+#                the whole triton family, which shares TRITON_VERSION. A name can be
+#                a glob ("libtorch-*"), so split it with read -ra, not an unquoted
+#                expansion
+#   package_type the s3 channel directory: whl, or libtorch for the libtorch archives
 #   skip_targets accelerator folders left out (RELEASE_PROMOTE_SKIP_TARGETS), for the
 #                packages that have such folders
 release_package_vars() {
     local package=$1
     skip_targets=""
     packages="${package}"
+    package_type="whl"
     case "${package}" in
         torch)
             version="PYTORCH_VERSION"
+            skip_targets="${RELEASE_PROMOTE_SKIP_TARGETS:-}"
+            ;;
+        libtorch)
+            # Archives named libtorch-*-<version>*.zip under libtorch/<target>/
+            version="PYTORCH_VERSION"
+            packages="libtorch-*"
+            package_type="libtorch"
             skip_targets="${RELEASE_PROMOTE_SKIP_TARGETS:-}"
             ;;
         torchvision | torchaudio)
