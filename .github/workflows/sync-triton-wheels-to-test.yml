@@ -1,12 +1,12 @@
 name: Sync Triton wheels from a triton-lang/triton run to download.pytorch.org test channel
 
-# Copies the manylinux x86_64 / aarch64 triton wheels into s3://pytorch/whl/test/,
+# Copies the x86_64 / aarch64 triton wheels into s3://pytorch/whl/test/,
 # either from a triton-lang/triton "Wheels" workflow run (source=github-run) or
 # from the release published on PyPI (source=pypi). Every wheel must carry
 # TRITON_VERSION from release/release_versions.sh. Wheels that already exist
 # in the test channel are overwritten. Wheels are uploaded exactly as built or
-# published: no renaming and no retagging, so the files and their sha256 match
-# the source (PyPI's, for source=pypi).
+# published: no renaming and no retagging, whatever the platform tag looks like,
+# so the files and their sha256 match the source (PyPI's, for source=pypi).
 #
 # Dry run by default. Like the release promotion workflows, the upload job is
 # gated behind the protected promote-env, so a reviewer has to approve it after
@@ -127,16 +127,18 @@ jobs:
             exit 1
           fi
 
-          # Same manylinux x86_64 / aarch64 wheels the github-run source uses;
+          # Every x86_64 and aarch64 wheel of the release, whatever its tag form
+          # (manylinux_2_27.manylinux_2_28, manylinux_2_28, linux, ...). The file
+          # name is not used to pick or change anything beyond the architecture;
           # yanked files are skipped.
           echo "${json}" | jq -r '
             .urls[]
             | select(.packagetype == "bdist_wheel" and (.yanked | not))
-            | select(.filename | test("-manylinux_2_27_(x86_64\\.manylinux_2_28_x86_64|aarch64\\.manylinux_2_28_aarch64)\\.whl$"))
+            | select(.filename | test("(x86_64|aarch64)\\.whl$"))
             | [.filename, .url, .digests.sha256] | @tsv' > pypi_wheels.tsv
 
           if [[ ! -s pypi_wheels.tsv ]]; then
-            echo "ERROR: no manylinux x86_64 / aarch64 wheels for triton ${TRITON_VERSION} on PyPI"
+            echo "ERROR: no x86_64 / aarch64 wheels for triton ${TRITON_VERSION} on PyPI"
             exit 1
           fi
 
@@ -167,13 +169,12 @@ jobs:
               echo "ERROR: ${whl} is not triton ${VERSION}"
               exit 1
             fi
-            # Only check the name; the file is uploaded unchanged.
+            # Only the architecture is checked; the file is uploaded unchanged.
             case "${whl}" in
-              *-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl | \
-              *-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl)
+              *x86_64.whl | *aarch64.whl)
                 ;;
               *)
-                echo "ERROR: unexpected platform tag in ${whl}"
+                echo "ERROR: ${whl} is not an x86_64 or aarch64 wheel"
                 exit 1
                 ;;
             esac
