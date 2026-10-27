@@ -15,7 +15,7 @@ export const testOptionsApiOpenApi: ApiResource = {
         summary:
           "List the values GET /api/tests offers a reader to choose from",
         description:
-          "The windows, code sources, languages and health statuses GET /api/tests accepts, and the environment fields, test configs, calling workflow paths and owner labels found in the catalogs and the health table, each with a label for running text, and the value that applies when the parameter is absent. The fixed choices are read from the same parameter definitions that validate GET /api/tests, so a value the list accepts is offered and no other; the catalog choices are the distinct values recorded at the time of the request. Takes no parameters; the response may be cached briefly.",
+          "The windows, code sources, languages and health statuses GET /api/tests accepts, and the environment fields, test configs, calling workflow paths and owner labels found in the catalogs and the health table, each with a label for running text, and the value that applies when the parameter is absent. The fixed choices are read from the same parameter definitions that validate GET /api/tests, so a value the list accepts is offered and no other; the catalog choices are the distinct values recorded at the time of the request. Also lists named views, such as the tests flaky on main, each a set of GET /api/tests parameters to append to its URL. Takes no parameters; the response may be cached briefly.",
         parameters: testOptionsQueryParameters(),
         responses: {
           "200": jsonResponse("The options.", ref(TestOptionsSchema)),

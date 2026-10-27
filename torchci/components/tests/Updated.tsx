@@ -9,10 +9,10 @@ const REFRESHED_EVERY = "15 minutes";
 const UPDATED_WIDTH = "17.5ch";
 
 // When the table's data was last refreshed, as the table's caption: "Updated
-// 5 mins ago" in the secondary color, hugging the table's top-right corner,
-// with the exact time and the refresh cadence on hover. A skeleton as wide
-// as the label holds its row until the first page, so the table does not
-// move when the label appears.
+// 5 mins ago" in the secondary color, at the right end of the caption's line
+// above the table's top-right corner, with the exact time and the refresh
+// cadence on hover. A skeleton as wide as the label holds its place until
+// the first page, so the table does not move when the label appears.
 export default function Updated({
   refreshedAt,
 }: {
@@ -20,7 +20,7 @@ export default function Updated({
 }) {
   const time = useTimeAgo(refreshedAt);
   return (
-    <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 0.5 }}>
+    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
       <Tooltip
         title={
           time === undefined

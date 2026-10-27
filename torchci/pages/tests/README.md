@@ -95,6 +95,26 @@ for the data it shows.
   order the cell sets them; Test Config sorts by `test_config`; Owners by `owner`. A header click
   sorts the whole chain in one direction, so the URL carries all eleven
   fields; a URL ordering by some of them is a sort no header stands for.
+- A view chip (`ViewChips`, with `lib/tests/views.ts`) writes its view's
+  query: the view's `params`, served by `GET /api/tests/options`, are read
+  exactly as a page URL is (`testsQueryFromUrl`, then `resolveTestsQuery`)
+  and written back with `testsUrlParams`, so the URL carries ordinary
+  parameters, never a view id, and a shared link means the same thing after
+  a view's definition changes. Only Blocking viable/strict sets a window, 12
+  hours; choosing any other view keeps the window the reader is in
+  (`chooseView`). Every other parameter the view leaves out returns to its
+  default, the search included, and text still being typed is dropped. A
+  chip stays chosen while every parameter its view sets holds
+  (`activeViewIds`): another filter, a search or a title choice the view
+  leaves out refines it, while changing one the view sets, its sort or code
+  source, leaves it. Of two views that hold, one that sets every parameter
+  the other sets is the more specific and is shown alone, so Blocking
+  viable/strict, which starts from the default sort on main, does not also
+  light Least healthy. A click on a chosen chip returns only that view's
+  parameters to their defaults and keeps the refinements (`withoutView`).
+  The first view, Least healthy, is the list's defaults, so the page opens
+  with it chosen. Options cached from before views existed offer none, and
+  the row is empty.
 - Paging follows the API's cursors one page at a time. The table keeps the
   cursor that fetched each visited page, so previous works; any change of the
   query restarts the walk. That state is derived during render, never synced by an
@@ -332,6 +352,15 @@ for the data it shows.
   header. The pills take their greys from the palette by mode. Until the
   options arrive, three short pill-shaped skeletons hold their places, and
   the table shows its loading state.
+- The view chips sit on the caption's line, left of "Updated", 12px above
+  the table, after a muted "Query presets" label set like "Updated", with no
+  colon, which also names the chips' group for assistive technology: pills in
+  the grey of the title's, filled in the accent color for the view shown, as a
+  header's filter key is while something is chosen, and in no status color,
+  since hue is kept for status. Each chip's description is its tooltip,
+  which is where a view's caveat goes. The line keeps a chip's height
+  (`VIEW_CHIP_HEIGHT`) before the options arrive, so the table does not move
+  when the chips appear.
 - "Updated n mins ago" (`Updated`) is the table's caption: right-aligned
   just above the grid's top-right corner, in the secondary color, inside
   `TestsTable`, which has the listing's `refreshed_at`. It counts from the
@@ -459,8 +488,11 @@ for the data it shows.
   typing goes on, focus kept), a file and a suite clicked in a Name cell, the
   clear button and Escape, the environment tooltip, the softened repeats when sorted by
   Environment, next and
-  previous, a page size change, an empty repository
-  (`/tests/pytorch/no-such-repo`), an invalid sort (`?sort=bogus`) and a
+  previous, a page size change, each view chip (the title, the header keys,
+  the sort arrow and the URL follow; the chip stays chosen through a filter
+  or a window change and leaves when its own sort changes, Least healthy is
+  chosen on a bare URL, Blocking viable/strict leaves outside 12 hours, and a click on a chosen chip keeps the added filter), an
+  empty repository (`/tests/pytorch/no-such-repo`), an invalid sort (`?sort=bogus`) and a
   choice the options do not offer (`?window=5d` or `?device_name=none`, which
   show the default). `/api/tests/options` itself is a plain JSON page to look
   at. The grid only mounts on the client, so the server-rendered HTML shows

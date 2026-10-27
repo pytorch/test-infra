@@ -40,7 +40,11 @@ describe("test options OpenAPI", () => {
 
   test("describes each fixed choice with the list parameter's own enum, a default and labelled values", () => {
     const options = schemas.TestOptions;
-    expect(options.required).toEqual([...FIXED_CHOICES, ...CATALOG_CHOICES]);
+    expect(options.required).toEqual([
+      ...FIXED_CHOICES,
+      ...CATALOG_CHOICES,
+      "views",
+    ]);
     const valueEnum = (choice: string) =>
       options.properties[choice].properties.values.items.properties.value.enum;
     expect(valueEnum("window")).toEqual(listParameters.window.schema.enum);

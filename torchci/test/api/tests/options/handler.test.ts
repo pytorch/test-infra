@@ -8,7 +8,7 @@ import {
   TEST_CONFIG_VALUES_SQL,
   WORKFLOW_PATH_VALUES_SQL,
 } from "lib/api/tests/options/options";
-import { TestOptionsSchema } from "lib/api/tests/options/types";
+import { TestOptionsSchema, TestView } from "lib/api/tests/options/types";
 import {
   DEFAULT_RAN_ON,
   DEFAULT_WINDOW,
@@ -192,6 +192,37 @@ describe("app/api/tests/options", () => {
     expect(accepts({ ran_on: "nightly" })).toBe(false);
     expect(accepts({ language: "rust" })).toBe(false);
     expect(accepts({ device_count: "256" })).toBe(false);
+  });
+
+  test("offers views the list accepts, the first being its defaults", async () => {
+    const res = await get();
+    const views: TestView[] = res.body.views;
+    expect(views.length).toBeGreaterThan(1);
+    const parse = (query: RawQuery) =>
+      parseTestListParams({ repo: "pytorch/pytorch", ...query });
+    expect(parse(views[0].params)).toEqual(parse({}));
+    expect(new Set(views.map((view) => view.id)).size).toBe(views.length);
+    expect(new Set(views.map((view) => view.label)).size).toBe(views.length);
+    for (const view of views) {
+      for (const owned of ["repo", "limit", "cursor"]) {
+        expect(view.params).not.toHaveProperty(owned);
+      }
+      expect(
+        parseTestListParams({ repo: "pytorch/pytorch", ...view.params }).success
+      ).toBe(true);
+      // Every value of a choice the options offer is one they offer, so the
+      // page does not drop it; ran_on is comma-separated.
+      for (const [name, raw] of Object.entries(view.params)) {
+        if (!(name in res.body) || name === "views") continue;
+        const offered = values(res.body[name]);
+        const chosen = [raw]
+          .flat()
+          .flatMap((value) => (name === "ran_on" ? value.split(",") : value));
+        for (const value of chosen) {
+          expect(offered).toContain(value);
+        }
+      }
+    }
   });
 
   test("gives every value a distinct label for running text", async () => {

@@ -20,6 +20,7 @@ import TestName, {
   testNameParts,
 } from "components/tests/TestName";
 import Updated from "components/tests/Updated";
+import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { TestOptions } from "lib/api/tests/options/types";
 import type { TestHealthEntry } from "lib/api/tests/types";
 import type { Token } from "lib/tests/environment";
@@ -45,7 +46,7 @@ import {
   TESTS_PAGE_SIZES,
 } from "lib/tests/table";
 import type { TestsListing } from "lib/tests/useTestsListing";
-import { useMemo } from "react";
+import { ReactNode, useMemo } from "react";
 
 // A row is one API entry: a test in one environment with one env var set.
 type TestRow = TestHealthEntry & {
@@ -165,6 +166,8 @@ export interface TestsTableProps {
   onSearchInput: (_text: string) => void;
   // Search for this text now: a file or suite clicked in a cell, or Enter.
   onSearch: (_text: string) => void;
+  // What sits on the caption's line, left of "Updated": the view chips.
+  toolbar?: ReactNode;
 }
 
 // The tests of a repository from GET /api/tests, sorted, filtered and paged
@@ -181,6 +184,7 @@ export default function TestsTable({
   search,
   onSearchInput,
   onSearch,
+  toolbar,
 }: TestsTableProps) {
   const filters = currentFilters ?? noFacetValues();
   const theme = useTheme();
@@ -488,7 +492,21 @@ export default function TestsTable({
         <LoadError what="tests" error={listing.error} onRetry={listing.retry} />
       )}
       <Box>
-        <Updated refreshedAt={listing.refreshedAt} />
+        {/* The caption's line: the toolbar at the left, "Updated" at the
+            right, both on the line's bottom edge, just above the table. */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: 2,
+            minHeight: VIEW_CHIP_HEIGHT,
+            mb: 1.5,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>{toolbar}</Box>
+          <Updated refreshedAt={listing.refreshedAt} />
+        </Box>
         <DataGrid
           sx={{
             // The grid's own border color darkens the divider, which in HUD's
