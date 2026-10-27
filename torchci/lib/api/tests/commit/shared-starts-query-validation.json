@@ -1,0 +1,2067 @@
+{
+  "measured_at": "2026-10-24T20:37:30.985Z",
+  "server_version": "26.6.1.2439",
+  "database": "ci",
+  "settings": {
+    "readonly": 2,
+    "use_query_cache": 0,
+    "max_execution_time": 90,
+    "output_format_json_quote_64bit_integers": 1,
+    "date_time_output_format": "iso"
+  },
+  "pairs": 4,
+  "description": "Commit pages whose filters or ordering need replacement resolution (outcome, last_attempt_outcome, or sorting by ended_at, outcome or rerun_number) previously read every retained run with FINAL, which a job filter cannot prune. They now read FINAL only at the test starts holding more than one stored row and every other row directly through by_job, as the statistics do. before = the full-FINAL SQL the builders generated before the change; after = working-tree SQL. The test-route and by_job commit SQL are recorded under unchanged and must stay byte-identical.",
+  "fixture": {
+    "repo": "pytorch/pytorch",
+    "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+    "test_id": "199796844191533405",
+    "note": "Commit with 9,984,566 stored rows across 1,006 jobs and 28 shared test starts (56 rows) at measurement time; the test is one with a failed execution. Fixtures expire under the 14-day TTL."
+  },
+  "cases": {
+    "commit_outcome_failed": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "outcome": "failed"
+      },
+      "cursor": null,
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26,
+          "outcome": [
+            "failed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.outcome IN {outcome: Array(String)}) > 0\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26,
+          "outcome": [
+            "failed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.outcome IN {outcome: Array(String)}) > 0\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        CreatingSets (Create sets before main query execution)",
+            "          Expression ((Projection + Before ORDER BY))",
+            "            Filter (HAVING)",
+            "              Aggregating",
+            "                Expression (Before GROUP BY)",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.runs)",
+            "                    Indexes:",
+            "                      Min-Max",
+            "                        Condition: true",
+            "                        Parts: 16/16",
+            "                        Granules: 24605/24605",
+            "                      Partition",
+            "                        Condition: true",
+            "                        Parts: 16/16",
+            "                        Granules: 24605/24605",
+            "                      PrimaryKey",
+            "                        Condition: true",
+            "                        Parts: 16/16",
+            "                        Granules: 24605/24605",
+            "                      Ranges: 16",
+            "          CreatingSet (Create set for subquery)",
+            "            Expression ((Projection + Before ORDER BY))",
+            "              ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "18",
+              "rows": "201488795",
+              "marks": "24607"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "Expression ((Projection + (Before ORDER BY + (Projection + Before ORDER BY)) [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression ((Before ORDER BY + (Projection + Before ORDER BY)))",
+            "        Filter (HAVING)",
+            "          Aggregating",
+            "            Union",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression",
+            "                    ReadFromMergeTree (by_job)",
+            "                    Indexes:",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          github_workflow_job_id",
+            "                          tests_id",
+            "                          started_at",
+            "                        Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                        Parts: 6/19",
+            "                        Granules: 1254/24605",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 33",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression ((Projection + Before ORDER BY))",
+            "                    Filter (WHERE)",
+            "                      ReadFromMergeTree (ci.runs)",
+            "                      Indexes:",
+            "                        Min-Max",
+            "                          Keys:",
+            "                            started_at",
+            "                          Condition: (started_at in 28-element set)",
+            "                          Parts: 9/19",
+            "                          Granules: 13647/24608",
+            "                        Partition",
+            "                          Keys:",
+            "                            toDate(started_at)",
+            "                          Condition: (toDate(started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 13647/13647",
+            "                        PrimaryKey",
+            "                          Keys:",
+            "                            tests_id",
+            "                            started_at",
+            "                          Condition: ((tests_id, started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 238/13647",
+            "                          Search Algorithm: generic exclusion search",
+            "                        Ranges: 218",
+            "                  CreatingSet (Create set for subquery)",
+            "                    Expression ((Projection + Before ORDER BY))",
+            "                      ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 10,
+          "wall_ms": 4782,
+          "elapsed_s": 4.710729134,
+          "rows_read": 328666477,
+          "bytes_read": 9330412388,
+          "memory_usage": "385321045",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 10,
+          "wall_ms": 1905,
+          "elapsed_s": 1.830440406,
+          "rows_read": 410178668,
+          "bytes_read": 3969303683,
+          "memory_usage": "378523689",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 10,
+          "wall_ms": 1539,
+          "elapsed_s": 1.462643904,
+          "rows_read": 410178672,
+          "bytes_read": 3969303715,
+          "memory_usage": "369678265",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 10,
+          "wall_ms": 4213,
+          "elapsed_s": 4.141127053,
+          "rows_read": 328512980,
+          "bytes_read": 9324133456,
+          "memory_usage": "376864932",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 10,
+          "wall_ms": 4117,
+          "elapsed_s": 4.045427624,
+          "rows_read": 328534584,
+          "bytes_read": 9325019055,
+          "memory_usage": "373511096",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 10,
+          "wall_ms": 1336,
+          "elapsed_s": 1.26063277,
+          "rows_read": 410178699,
+          "bytes_read": 3969303931,
+          "memory_usage": "373017313",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 10,
+          "wall_ms": 1946,
+          "elapsed_s": 1.80534437,
+          "rows_read": 410178713,
+          "bytes_read": 3969304043,
+          "memory_usage": "360886257",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 10,
+          "wall_ms": 4184,
+          "elapsed_s": 4.044394297,
+          "rows_read": 328567563,
+          "bytes_read": 9326368057,
+          "memory_usage": "374375209",
+          "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d"
+        }
+      ],
+      "rows": 10,
+      "digest": "9798b9b305da230eb1fef49b280a28c7c783f2a5d864f73961fc851666f6b95d",
+      "equal_complete_rows": true
+    },
+    "commit_last_passed": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "last_attempt_outcome": "passed"
+      },
+      "cursor": null,
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26,
+          "last_attempt_outcome": [
+            "passed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26,
+          "last_attempt_outcome": [
+            "passed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        CreatingSets (Create sets before main query execution)",
+            "          Expression ((Projection + Before ORDER BY))",
+            "            Filter (HAVING)",
+            "              Aggregating",
+            "                Expression (Before GROUP BY)",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.runs)",
+            "                    Indexes:",
+            "                      Min-Max",
+            "                        Condition: true",
+            "                        Parts: 20/20",
+            "                        Granules: 24614/24614",
+            "                      Partition",
+            "                        Condition: true",
+            "                        Parts: 20/20",
+            "                        Granules: 24614/24614",
+            "                      PrimaryKey",
+            "                        Condition: true",
+            "                        Parts: 20/20",
+            "                        Granules: 24614/24614",
+            "                      Ranges: 20",
+            "          CreatingSet (Create set for subquery)",
+            "            Expression ((Projection + Before ORDER BY))",
+            "              ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "21",
+              "rows": "201528827",
+              "marks": "24615"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "Expression ((Projection + (Before ORDER BY + (Projection + Before ORDER BY)) [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression ((Before ORDER BY + (Projection + Before ORDER BY)))",
+            "        Filter (HAVING)",
+            "          Aggregating",
+            "            Union",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression",
+            "                    ReadFromMergeTree (by_job)",
+            "                    Indexes:",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          github_workflow_job_id",
+            "                          tests_id",
+            "                          started_at",
+            "                        Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                        Parts: 6/18",
+            "                        Granules: 1254/24609",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 33",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression ((Projection + Before ORDER BY))",
+            "                    Filter (WHERE)",
+            "                      ReadFromMergeTree (ci.runs)",
+            "                      Indexes:",
+            "                        Min-Max",
+            "                          Keys:",
+            "                            started_at",
+            "                          Condition: (started_at in 28-element set)",
+            "                          Parts: 9/18",
+            "                          Granules: 13647/24612",
+            "                        Partition",
+            "                          Keys:",
+            "                            toDate(started_at)",
+            "                          Condition: (toDate(started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 13647/13647",
+            "                        PrimaryKey",
+            "                          Keys:",
+            "                            tests_id",
+            "                            started_at",
+            "                          Condition: ((tests_id, started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 238/13647",
+            "                          Search Algorithm: generic exclusion search",
+            "                        Ranges: 218",
+            "                  CreatingSet (Create set for subquery)",
+            "                    Expression ((Projection + Before ORDER BY))",
+            "                      ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 7272,
+          "elapsed_s": 7.135111123,
+          "rows_read": 328744786,
+          "bytes_read": 14207896672,
+          "memory_usage": "2119494306",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 3639,
+          "elapsed_s": 3.497577041,
+          "rows_read": 410178807,
+          "bytes_read": 4214110639,
+          "memory_usage": "1934916349",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 2821,
+          "elapsed_s": 2.745197171,
+          "rows_read": 410178807,
+          "bytes_read": 4214110639,
+          "memory_usage": "2182012429",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6789,
+          "elapsed_s": 6.651024745,
+          "rows_read": 328653043,
+          "bytes_read": 14201932180,
+          "memory_usage": "2125020045",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 7954,
+          "elapsed_s": 7.81685011,
+          "rows_read": 328768807,
+          "bytes_read": 14209456612,
+          "memory_usage": "2119422951",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 2868,
+          "elapsed_s": 2.726965621,
+          "rows_read": 410178894,
+          "bytes_read": 4214112082,
+          "memory_usage": "2115998751",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 3249,
+          "elapsed_s": 3.108045703,
+          "rows_read": 410178914,
+          "bytes_read": 4214112242,
+          "memory_usage": "2117469126",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6721,
+          "elapsed_s": 6.584399535,
+          "rows_read": 328609551,
+          "bytes_read": 14199104935,
+          "memory_usage": "2120747140",
+          "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4"
+        }
+      ],
+      "rows": 26,
+      "digest": "0b1e13cc62f01aad3639ed61ff44e237843a103bede8e11fa50b1a4adbbb70a4",
+      "equal_complete_rows": true
+    },
+    "commit_ended_sort": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "sort": "-ended_at"
+      },
+      "cursor": null,
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    \n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        max(run.ended_at) AS ended_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.ended_at AS ended_at\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.ended_at AS ended_at\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    \n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        CreatingSets (Create sets before main query execution)",
+            "          Expression ((Projection + Before ORDER BY))",
+            "            Aggregating",
+            "              Expression (Before GROUP BY)",
+            "                Filter (WHERE)",
+            "                  ReadFromMergeTree (ci.runs)",
+            "                  Indexes:",
+            "                    Min-Max",
+            "                      Condition: true",
+            "                      Parts: 18/18",
+            "                      Granules: 24619/24619",
+            "                    Partition",
+            "                      Condition: true",
+            "                      Parts: 18/18",
+            "                      Granules: 24619/24619",
+            "                    PrimaryKey",
+            "                      Condition: true",
+            "                      Parts: 18/18",
+            "                      Granules: 24619/24619",
+            "                    Ranges: 18",
+            "          CreatingSet (Create set for subquery)",
+            "            Expression ((Projection + Before ORDER BY))",
+            "              ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "19",
+              "rows": "201583826",
+              "marks": "24620"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "Expression ((Projection + (Before ORDER BY + (Projection + Before ORDER BY)) [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression ((Before ORDER BY + (Projection + Before ORDER BY)))",
+            "        Aggregating",
+            "          Union",
+            "            Expression (Before GROUP BY)",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression",
+            "                  ReadFromMergeTree (by_job)",
+            "                  Indexes:",
+            "                    PrimaryKey",
+            "                      Keys:",
+            "                        github_workflow_job_id",
+            "                        tests_id",
+            "                        started_at",
+            "                      Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                      Parts: 6/19",
+            "                      Granules: 1254/24616",
+            "                      Search Algorithm: generic exclusion search",
+            "                    Ranges: 33",
+            "            Expression (Before GROUP BY)",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression ((Projection + Before ORDER BY))",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.runs)",
+            "                    Indexes:",
+            "                      Min-Max",
+            "                        Keys:",
+            "                          started_at",
+            "                        Condition: (started_at in 28-element set)",
+            "                        Parts: 9/19",
+            "                        Granules: 13647/24620",
+            "                      Partition",
+            "                        Keys:",
+            "                          toDate(started_at)",
+            "                        Condition: (toDate(started_at) in 28-element set)",
+            "                        Parts: 9/9",
+            "                        Granules: 13647/13647",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          tests_id",
+            "                          started_at",
+            "                        Condition: ((tests_id, started_at) in 28-element set)",
+            "                        Parts: 9/9",
+            "                        Granules: 238/13647",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 218",
+            "                CreatingSet (Create set for subquery)",
+            "                  Expression ((Projection + Before ORDER BY))",
+            "                    ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 4087,
+          "elapsed_s": 3.950335089,
+          "rows_read": 328756409,
+          "bytes_read": 10755862718,
+          "memory_usage": "388209956",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 1549,
+          "elapsed_s": 1.407634059,
+          "rows_read": 410178927,
+          "bytes_read": 4041308346,
+          "memory_usage": "312671025",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 1701,
+          "elapsed_s": 1.560494713,
+          "rows_read": 410178939,
+          "bytes_read": 4041308850,
+          "memory_usage": "290887793",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 4129,
+          "elapsed_s": 3.991737198,
+          "rows_read": 328778664,
+          "bytes_read": 10756938667,
+          "memory_usage": "383889734",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 4098,
+          "elapsed_s": 3.959961389,
+          "rows_read": 328885554,
+          "bytes_read": 10762064221,
+          "memory_usage": "397623923",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 1607,
+          "elapsed_s": 1.465811625,
+          "rows_read": 410178969,
+          "bytes_read": 4041309090,
+          "memory_usage": "275984865",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 1698,
+          "elapsed_s": 1.622723347,
+          "rows_read": 410178969,
+          "bytes_read": 4041309090,
+          "memory_usage": "302981369",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 4367,
+          "elapsed_s": 4.230310649,
+          "rows_read": 328895553,
+          "bytes_read": 10762543200,
+          "memory_usage": "409768236",
+          "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39"
+        }
+      ],
+      "rows": 26,
+      "digest": "6045720b43f681f565fb1156e2cf6cfb3555a018f4e402e822de6e1f63364a39",
+      "equal_complete_rows": true
+    },
+    "commit_outcome_sort": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "sort": "outcome,-started_at"
+      },
+      "cursor": null,
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_1,\n    toString(run.tests_id) AS sort_2,\n    toString(run.environments_id) AS sort_3,\n    toString(run.env_vars_id) AS sort_4,\n    toString(run.github_workflow_job_id) AS sort_5\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    \n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_1,\n    toString(run.tests_id) AS sort_2,\n    toString(run.environments_id) AS sort_3,\n    toString(run.env_vars_id) AS sort_4,\n    toString(run.github_workflow_job_id) AS sort_5\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    \n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        CreatingSets (Create sets before main query execution)",
+            "          Expression ((Projection + Before ORDER BY))",
+            "            Aggregating",
+            "              Expression (Before GROUP BY)",
+            "                Filter (WHERE)",
+            "                  ReadFromMergeTree (ci.runs)",
+            "                  Indexes:",
+            "                    Min-Max",
+            "                      Condition: true",
+            "                      Parts: 19/19",
+            "                      Granules: 24629/24629",
+            "                    Partition",
+            "                      Condition: true",
+            "                      Parts: 19/19",
+            "                      Granules: 24629/24629",
+            "                    PrimaryKey",
+            "                      Condition: true",
+            "                      Parts: 19/19",
+            "                      Granules: 24629/24629",
+            "                    Ranges: 19",
+            "          CreatingSet (Create set for subquery)",
+            "            Expression ((Projection + Before ORDER BY))",
+            "              ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "21",
+              "rows": "201658574",
+              "marks": "24631"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "Expression ((Projection + (Before ORDER BY + (Projection + Before ORDER BY)) [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression ((Before ORDER BY + (Projection + Before ORDER BY)))",
+            "        Aggregating",
+            "          Union",
+            "            Expression (Before GROUP BY)",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression",
+            "                  ReadFromMergeTree (by_job)",
+            "                  Indexes:",
+            "                    PrimaryKey",
+            "                      Keys:",
+            "                        github_workflow_job_id",
+            "                        tests_id",
+            "                        started_at",
+            "                      Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                      Parts: 6/19",
+            "                      Granules: 1254/24626",
+            "                      Search Algorithm: generic exclusion search",
+            "                    Ranges: 33",
+            "            Expression (Before GROUP BY)",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression ((Projection + Before ORDER BY))",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.runs)",
+            "                    Indexes:",
+            "                      Min-Max",
+            "                        Keys:",
+            "                          started_at",
+            "                        Condition: (started_at in 28-element set)",
+            "                        Parts: 9/19",
+            "                        Granules: 13647/24629",
+            "                      Partition",
+            "                        Keys:",
+            "                          toDate(started_at)",
+            "                        Condition: (toDate(started_at) in 28-element set)",
+            "                        Parts: 9/9",
+            "                        Granules: 13647/13647",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          tests_id",
+            "                          started_at",
+            "                        Condition: ((tests_id, started_at) in 28-element set)",
+            "                        Parts: 9/9",
+            "                        Granules: 238/13647",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 218",
+            "                CreatingSet (Create set for subquery)",
+            "                  Expression ((Projection + Before ORDER BY))",
+            "                    ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6346,
+          "elapsed_s": 6.208940147,
+          "rows_read": 328615428,
+          "bytes_read": 14199484113,
+          "memory_usage": "2119111124",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 3689,
+          "elapsed_s": 3.549450202,
+          "rows_read": 410178993,
+          "bytes_read": 4214113282,
+          "memory_usage": "2048817667",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 3038,
+          "elapsed_s": 2.962188922,
+          "rows_read": 410179050,
+          "bytes_read": 4214114578,
+          "memory_usage": "2185704349",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6535,
+          "elapsed_s": 6.398881334,
+          "rows_read": 328618683,
+          "bytes_read": 14199694569,
+          "memory_usage": "2116440856",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6625,
+          "elapsed_s": 6.553135717,
+          "rows_read": 328620228,
+          "bytes_read": 14199793170,
+          "memory_usage": "2118500257",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 2964,
+          "elapsed_s": 2.822990262,
+          "rows_read": 410179149,
+          "bytes_read": 4214115790,
+          "memory_usage": "2184613078",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 2876,
+          "elapsed_s": 2.735322797,
+          "rows_read": 410179149,
+          "bytes_read": 4214115790,
+          "memory_usage": "2117463520",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6077,
+          "elapsed_s": 5.939341569,
+          "rows_read": 328621594,
+          "bytes_read": 14199882302,
+          "memory_usage": "2117477971",
+          "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c"
+        }
+      ],
+      "rows": 26,
+      "digest": "b25118974573eab9768afa774cf5a5143c411379d073f851604439d90396680c",
+      "equal_complete_rows": true
+    },
+    "commit_rerun_sort": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "sort": "-rerun_number,-started_at"
+      },
+      "cursor": null,
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(run.rerun_number) AS sort_0,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_1,\n    toString(run.tests_id) AS sort_2,\n    toString(run.environments_id) AS sort_3,\n    toString(run.env_vars_id) AS sort_4,\n    toString(run.github_workflow_job_id) AS sort_5\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    \n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.rerun_number DESC, run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(run.rerun_number) AS sort_0,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_1,\n    toString(run.tests_id) AS sort_2,\n    toString(run.environments_id) AS sort_3,\n    toString(run.env_vars_id) AS sort_4,\n    toString(run.github_workflow_job_id) AS sort_5\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.rerun_number AS rerun_number\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.rerun_number AS rerun_number\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    \n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.rerun_number DESC, run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        CreatingSets (Create sets before main query execution)",
+            "          Expression ((Projection + Before ORDER BY))",
+            "            Aggregating",
+            "              Expression (Before GROUP BY)",
+            "                Filter (WHERE)",
+            "                  ReadFromMergeTree (ci.runs)",
+            "                  Indexes:",
+            "                    Min-Max",
+            "                      Condition: true",
+            "                      Parts: 17/17",
+            "                      Granules: 24627/24627",
+            "                    Partition",
+            "                      Condition: true",
+            "                      Parts: 17/17",
+            "                      Granules: 24627/24627",
+            "                    PrimaryKey",
+            "                      Condition: true",
+            "                      Parts: 17/17",
+            "                      Granules: 24627/24627",
+            "                    Ranges: 17",
+            "          CreatingSet (Create set for subquery)",
+            "            Expression ((Projection + Before ORDER BY))",
+            "              ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "18",
+              "rows": "201659068",
+              "marks": "24628"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "Expression ((Projection + (Before ORDER BY + (Projection + Before ORDER BY)) [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression ((Before ORDER BY + (Projection + Before ORDER BY)))",
+            "        Aggregating",
+            "          Union",
+            "            Expression (Before GROUP BY)",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression",
+            "                  ReadFromMergeTree (by_job)",
+            "                  Indexes:",
+            "                    PrimaryKey",
+            "                      Keys:",
+            "                        github_workflow_job_id",
+            "                        tests_id",
+            "                        started_at",
+            "                      Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                      Parts: 6/19",
+            "                      Granules: 1254/24626",
+            "                      Search Algorithm: generic exclusion search",
+            "                    Ranges: 33",
+            "            Expression (Before GROUP BY)",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression ((Projection + Before ORDER BY))",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.runs)",
+            "                    Indexes:",
+            "                      Min-Max",
+            "                        Keys:",
+            "                          started_at",
+            "                        Condition: (started_at in 28-element set)",
+            "                        Parts: 9/19",
+            "                        Granules: 13647/24629",
+            "                      Partition",
+            "                        Keys:",
+            "                          toDate(started_at)",
+            "                        Condition: (toDate(started_at) in 28-element set)",
+            "                        Parts: 9/9",
+            "                        Granules: 13647/13647",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          tests_id",
+            "                          started_at",
+            "                        Condition: ((tests_id, started_at) in 28-element set)",
+            "                        Parts: 9/9",
+            "                        Granules: 238/13647",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 218",
+            "                CreatingSet (Create set for subquery)",
+            "                  Expression ((Projection + Before ORDER BY))",
+            "                    ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 5659,
+          "elapsed_s": 5.521824552,
+          "rows_read": 328623311,
+          "bytes_read": 13997018296,
+          "memory_usage": "2115973570",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 2938,
+          "elapsed_s": 2.798276328,
+          "rows_read": 410179176,
+          "bytes_read": 4203912984,
+          "memory_usage": "2052856983",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 2916,
+          "elapsed_s": 2.775184683,
+          "rows_read": 410179176,
+          "bytes_read": 4203912984,
+          "memory_usage": "2187720043",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6085,
+          "elapsed_s": 5.947937579,
+          "rows_read": 328624956,
+          "bytes_read": 13997123296,
+          "memory_usage": "2117057670",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6970,
+          "elapsed_s": 6.833245729,
+          "rows_read": 328663180,
+          "bytes_read": 13999569464,
+          "memory_usage": "2114073933",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 3494,
+          "elapsed_s": 3.353768442,
+          "rows_read": 410179197,
+          "bytes_read": 4203913152,
+          "memory_usage": "2319433791",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 26,
+          "wall_ms": 3277,
+          "elapsed_s": 3.137131087,
+          "rows_read": 410179184,
+          "bytes_read": 4203913048,
+          "memory_usage": "2187845149",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 26,
+          "wall_ms": 6515,
+          "elapsed_s": 6.378715287,
+          "rows_read": 328704676,
+          "bytes_read": 14002225320,
+          "memory_usage": "2109078910",
+          "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da"
+        }
+      ],
+      "rows": 26,
+      "digest": "2eb10b6f32c2d80b437dfc80cb6161783900589d4261ade9d57c1619362c38da",
+      "equal_complete_rows": true
+    },
+    "commit_rich": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "outcome": "skipped",
+        "rerun_number": "0",
+        "last_attempt_outcome": "skipped",
+        "sort": "-ended_at,file",
+        "accelerator": "cuda",
+        "limit": "10"
+      },
+      "cursor": null,
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 11,
+          "rerun_number": [
+            0
+          ],
+          "outcome": [
+            "skipped"
+          ],
+          "filter_accelerator": [
+            "cuda"
+          ],
+          "last_attempt_outcome": [
+            "skipped"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_0,\n    toString(if(run_test.has_catalog = 1, run_test.file, NULL)) AS sort_1,\n    toString(run.tests_id) AS sort_2,\n    toString(run.environments_id) AS sort_3,\n    toString(run.env_vars_id) AS sort_4,\n    toString(run.github_workflow_job_id) AS sort_5\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nLEFT JOIN (\n    SELECT test.id AS id, test.file AS file, toUInt8(1) AS has_catalog\n    FROM ci.tests AS test FINAL\n    WHERE test.id IN (\n        SELECT run.tests_id\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids)))\n) AS run_test ON run_test.id = run.tests_id\nWHERE run.environments_id IN (\n    SELECT environment.id AS id\n    FROM ci.environments AS environment FINAL\n    WHERE environment.accelerator IN {filter_accelerator: Array(String)}\n    )\n    AND (1)\nORDER BY run.ended_at DESC, if(run_test.has_catalog = 1, run_test.file, NULL) ASC NULLS LAST, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 11,
+          "rerun_number": [
+            0
+          ],
+          "outcome": [
+            "skipped"
+          ],
+          "filter_accelerator": [
+            "cuda"
+          ],
+          "last_attempt_outcome": [
+            "skipped"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_0,\n    toString(if(run_test.has_catalog = 1, run_test.file, NULL)) AS sort_1,\n    toString(run.tests_id) AS sort_2,\n    toString(run.environments_id) AS sort_3,\n    toString(run.env_vars_id) AS sort_4,\n    toString(run.github_workflow_job_id) AS sort_5\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        max(run.ended_at) AS ended_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome, run.rerun_number AS rerun_number\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome, run.rerun_number AS rerun_number\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nLEFT JOIN (\n    SELECT test.id AS id, test.file AS file, toUInt8(1) AS has_catalog\n    FROM ci.tests AS test FINAL\n    WHERE test.id IN (\n        SELECT run.tests_id\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids)))\n) AS run_test ON run_test.id = run.tests_id\nWHERE run.environments_id IN (\n    SELECT environment.id AS id\n    FROM ci.environments AS environment FINAL\n    WHERE environment.accelerator IN {filter_accelerator: Array(String)}\n    )\n    AND (1)\nORDER BY run.ended_at DESC, if(run_test.has_catalog = 1, run_test.file, NULL) ASC NULLS LAST, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "CreatingSets (Create sets before main query execution)",
+            "  Expression ((Projection + (Before ORDER BY + ) [lifted up part]))",
+            "    Limit (preliminary LIMIT)",
+            "      Sorting (Sorting for ORDER BY)",
+            "        Expression ((Before ORDER BY + ))",
+            "          Join (JOIN FillRightFirst)",
+            "            CreatingSets (Create sets before main query execution)",
+            "              Filter ((((WHERE + Before JOIN) + (Projection + Before ORDER BY)) + HAVING))",
+            "                Aggregating",
+            "                  Expression ((((((WHERE + Before JOIN) + (Projection + Before ORDER BY)) + HAVING) + Before GROUP BY) + WHERE))",
+            "                    Filter (((((((WHERE + Before JOIN) + (Projection + Before ORDER BY)) + HAVING) + Before GROUP BY) + WHERE))[split])",
+            "                      ReadFromMergeTree (ci.runs)",
+            "                      Indexes:",
+            "                        Min-Max",
+            "                          Condition: true",
+            "                          Parts: 18/18",
+            "                          Granules: 24629/24629",
+            "                        Partition",
+            "                          Condition: true",
+            "                          Parts: 18/18",
+            "                          Granules: 24629/24629",
+            "                        PrimaryKey",
+            "                          Keys:",
+            "                            environments_id",
+            "                          Condition: and((environments_id in 22-element set), (environments_id in 22-element set))",
+            "                          Parts: 18/18",
+            "                          Granules: 24629/24629",
+            "                          Search Algorithm: generic exclusion search",
+            "                        Ranges: 18",
+            "              CreatingSet (Create set for subquery)",
+            "                Expression ((Projection + Before ORDER BY))",
+            "                  ReadFromSystemOne",
+            "            Expression ((Joined actions + Rename joined columns))",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression ((Projection + Before ORDER BY))",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.tests)",
+            "                    Indexes:",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          id",
+            "                        Condition: (id in 671118-element set)",
+            "                        Parts: 4/4",
+            "                        Granules: 84/84",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 4"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "tests",
+              "parts": "4",
+              "rows": "671469",
+              "marks": "84"
+            },
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "18",
+              "rows": "201666981",
+              "marks": "24629"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "CreatingSets (Create sets before main query execution)",
+            "  Expression ((Projection + (Before ORDER BY + ) [lifted up part]))",
+            "    Limit (preliminary LIMIT)",
+            "      Sorting (Sorting for ORDER BY)",
+            "        Expression ((Before ORDER BY + ))",
+            "          Join (JOIN FillRightFirst)",
+            "            CreatingSets (Create sets before main query execution)",
+            "              Filter ((((WHERE + Before JOIN) + (Projection + Before ORDER BY)) + HAVING))",
+            "                Aggregating",
+            "                  Union",
+            "                    CreatingSets (Create sets before main query execution)",
+            "                      Expression",
+            "                        ReadFromMergeTree (by_job)",
+            "                        Indexes:",
+            "                          PrimaryKey",
+            "                            Keys:",
+            "                              github_workflow_job_id",
+            "                              tests_id",
+            "                              started_at",
+            "                            Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                            Parts: 6/18",
+            "                            Granules: 1254/24625",
+            "                            Search Algorithm: generic exclusion search",
+            "                          Ranges: 33",
+            "                    CreatingSets (Create sets before main query execution)",
+            "                      Expression (( + Before GROUP BY))",
+            "                        Filter (((( + Before GROUP BY))[split] + (( + (Projection + Before ORDER BY)) + WHERE)))",
+            "                          ReadFromMergeTree (ci.runs)",
+            "                          Indexes:",
+            "                            Min-Max",
+            "                              Keys:",
+            "                                started_at",
+            "                              Condition: (started_at in 28-element set)",
+            "                              Parts: 9/18",
+            "                              Granules: 13647/24629",
+            "                            Partition",
+            "                              Keys:",
+            "                                toDate(started_at)",
+            "                              Condition: (toDate(started_at) in 28-element set)",
+            "                              Parts: 9/9",
+            "                              Granules: 13647/13647",
+            "                            PrimaryKey",
+            "                              Keys:",
+            "                                tests_id",
+            "                                environments_id",
+            "                                started_at",
+            "                              Condition: and(and((environments_id in 22-element set), and((environments_id in 22-element set), (environments_id in 22-element set))), ((tests_id, started_at) in 28-element set))",
+            "                              Parts: 9/9",
+            "                              Granules: 238/13647",
+            "                              Search Algorithm: generic exclusion search",
+            "                            Ranges: 218",
+            "                      CreatingSet (Create set for subquery)",
+            "                        Expression ((Projection + Before ORDER BY))",
+            "                          ReadFromSystemOne",
+            "            Expression ((Joined actions + Rename joined columns))",
+            "              CreatingSets (Create sets before main query execution)",
+            "                Expression ((Projection + Before ORDER BY))",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.tests)",
+            "                    Indexes:",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          id",
+            "                        Condition: (id in 671118-element set)",
+            "                        Parts: 4/4",
+            "                        Granules: 84/84",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 4"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "tests",
+              "parts": "4",
+              "rows": "671469",
+              "marks": "84"
+            },
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 11,
+          "wall_ms": 5491,
+          "elapsed_s": 5.415381011,
+          "rows_read": 339906822,
+          "bytes_read": 14378026023,
+          "memory_usage": "551217575",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 11,
+          "wall_ms": 1704,
+          "elapsed_s": 1.62485078,
+          "rows_read": 421381428,
+          "bytes_read": 4092348321,
+          "memory_usage": "470627493",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 11,
+          "wall_ms": 1840,
+          "elapsed_s": 1.76088107,
+          "rows_read": 421381428,
+          "bytes_read": 4092348321,
+          "memory_usage": "471474377",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 11,
+          "wall_ms": 5394,
+          "elapsed_s": 5.318179756,
+          "rows_read": 339906822,
+          "bytes_read": 14378026023,
+          "memory_usage": "556343124",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 11,
+          "wall_ms": 5537,
+          "elapsed_s": 5.461154934,
+          "rows_read": 339906837,
+          "bytes_read": 14378026491,
+          "memory_usage": "565073560",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 11,
+          "wall_ms": 1692,
+          "elapsed_s": 1.612360907,
+          "rows_read": 421381482,
+          "bytes_read": 4092349797,
+          "memory_usage": "465878164",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 11,
+          "wall_ms": 1907,
+          "elapsed_s": 1.828606817,
+          "rows_read": 421381482,
+          "bytes_read": 4092349797,
+          "memory_usage": "458439534",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 11,
+          "wall_ms": 5547,
+          "elapsed_s": 5.470983582,
+          "rows_read": 339906840,
+          "bytes_read": 14378026515,
+          "memory_usage": "545963296",
+          "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4"
+        }
+      ],
+      "rows": 11,
+      "digest": "af1818b6e759007b5d76e6c42666c4c111621ae3b5aaacc2aa84fc9644ebfcd4",
+      "equal_complete_rows": true
+    },
+    "commit_last_passed_page1": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "last_attempt_outcome": "passed",
+        "limit": "5"
+      },
+      "cursor": null,
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 6,
+          "last_attempt_outcome": [
+            "passed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 6,
+          "last_attempt_outcome": [
+            "passed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        CreatingSets (Create sets before main query execution)",
+            "          Expression ((Projection + Before ORDER BY))",
+            "            Filter (HAVING)",
+            "              Aggregating",
+            "                Expression (Before GROUP BY)",
+            "                  Filter (WHERE)",
+            "                    ReadFromMergeTree (ci.runs)",
+            "                    Indexes:",
+            "                      Min-Max",
+            "                        Condition: true",
+            "                        Parts: 19/19",
+            "                        Granules: 24630/24630",
+            "                      Partition",
+            "                        Condition: true",
+            "                        Parts: 19/19",
+            "                        Granules: 24630/24630",
+            "                      PrimaryKey",
+            "                        Condition: true",
+            "                        Parts: 19/19",
+            "                        Granules: 24630/24630",
+            "                      Ranges: 19",
+            "          CreatingSet (Create set for subquery)",
+            "            Expression ((Projection + Before ORDER BY))",
+            "              ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "19",
+              "rows": "201667126",
+              "marks": "24630"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "Expression ((Projection + (Before ORDER BY + (Projection + Before ORDER BY)) [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression ((Before ORDER BY + (Projection + Before ORDER BY)))",
+            "        Filter (HAVING)",
+            "          Aggregating",
+            "            Union",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression",
+            "                    ReadFromMergeTree (by_job)",
+            "                    Indexes:",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          github_workflow_job_id",
+            "                          tests_id",
+            "                          started_at",
+            "                        Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                        Parts: 6/19",
+            "                        Granules: 1254/24626",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 33",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression ((Projection + Before ORDER BY))",
+            "                    Filter (WHERE)",
+            "                      ReadFromMergeTree (ci.runs)",
+            "                      Indexes:",
+            "                        Min-Max",
+            "                          Keys:",
+            "                            started_at",
+            "                          Condition: (started_at in 28-element set)",
+            "                          Parts: 9/19",
+            "                          Granules: 13647/24630",
+            "                        Partition",
+            "                          Keys:",
+            "                            toDate(started_at)",
+            "                          Condition: (toDate(started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 13647/13647",
+            "                        PrimaryKey",
+            "                          Keys:",
+            "                            tests_id",
+            "                            started_at",
+            "                          Condition: ((tests_id, started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 238/13647",
+            "                          Search Algorithm: generic exclusion search",
+            "                        Ranges: 218",
+            "                  CreatingSet (Create set for subquery)",
+            "                    Expression ((Projection + Before ORDER BY))",
+            "                      ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6387,
+          "elapsed_s": 6.315418105,
+          "rows_read": 328706860,
+          "bytes_read": 14205423708,
+          "memory_usage": "2119271115",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 2679,
+          "elapsed_s": 2.601246825,
+          "rows_read": 410179221,
+          "bytes_read": 4214117818,
+          "memory_usage": "2184417660",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 3218,
+          "elapsed_s": 3.13860787,
+          "rows_read": 410179221,
+          "bytes_read": 4214117818,
+          "memory_usage": "2117368394",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6587,
+          "elapsed_s": 6.516359245,
+          "rows_read": 328706864,
+          "bytes_read": 14205423740,
+          "memory_usage": "2119272712",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6488,
+          "elapsed_s": 6.417274745,
+          "rows_read": 328706867,
+          "bytes_read": 14205423764,
+          "memory_usage": "2116624192",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 3016,
+          "elapsed_s": 2.94110366,
+          "rows_read": 410179267,
+          "bytes_read": 4214118186,
+          "memory_usage": "2188229990",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 2785,
+          "elapsed_s": 2.709430041,
+          "rows_read": 410179269,
+          "bytes_read": 4214118202,
+          "memory_usage": "2121150167",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6359,
+          "elapsed_s": 6.283781119,
+          "rows_read": 328703865,
+          "bytes_read": 14205228064,
+          "memory_usage": "2116723467",
+          "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795"
+        }
+      ],
+      "rows": 6,
+      "digest": "eea24105b4c5beca1388d781840cc9acb66269ead31ee06ab5a23028cc3e8795",
+      "equal_complete_rows": true
+    },
+    "commit_last_passed_page2": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+        "last_attempt_outcome": "passed",
+        "limit": "5"
+      },
+      "cursor": {
+        "version": 2,
+        "resource": "commit-runs",
+        "direction": "next",
+        "query": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "last_attempt_outcome": [
+            "passed"
+          ],
+          "sort": [
+            "-started_at"
+          ]
+        },
+        "position": {
+          "values": [
+            "1792871463957",
+            "11182231980660619829",
+            "2867127138932093158",
+            "11041766092962200487",
+            "120923064687"
+          ]
+        }
+      },
+      "before": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 6,
+          "cursor_0": "1792871463957",
+          "cursor_1": "11182231980660619829",
+          "cursor_2": "2867127138932093158",
+          "cursor_3": "11041766092962200487",
+          "cursor_4": "120923064687",
+          "last_attempt_outcome": [
+            "passed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND ((run.started_at < fromUnixTimestamp64Milli({cursor_0: Int64})) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id > {cursor_1: UInt64}) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id = {cursor_1: UInt64} AND run.environments_id > {cursor_2: UInt64}) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id = {cursor_1: UInt64} AND run.environments_id = {cursor_2: UInt64} AND run.env_vars_id > {cursor_3: UInt64}) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id = {cursor_1: UInt64} AND run.environments_id = {cursor_2: UInt64} AND run.env_vars_id = {cursor_3: UInt64} AND run.github_workflow_job_id > {cursor_4: Int64}))\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 6,
+          "cursor_0": "1792871463957",
+          "cursor_1": "11182231980660619829",
+          "cursor_2": "2867127138932093158",
+          "cursor_3": "11041766092962200487",
+          "cursor_4": "120923064687",
+          "last_attempt_outcome": [
+            "passed"
+          ]
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND ((run.started_at < fromUnixTimestamp64Milli({cursor_0: Int64})) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id > {cursor_1: UInt64}) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id = {cursor_1: UInt64} AND run.environments_id > {cursor_2: UInt64}) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id = {cursor_1: UInt64} AND run.environments_id = {cursor_2: UInt64} AND run.env_vars_id > {cursor_3: UInt64}) OR (run.started_at = fromUnixTimestamp64Milli({cursor_0: Int64}) AND run.tests_id = {cursor_1: UInt64} AND run.environments_id = {cursor_2: UInt64} AND run.env_vars_id = {cursor_3: UInt64} AND run.github_workflow_job_id > {cursor_4: Int64}))\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        CreatingSets (Create sets before main query execution)",
+            "          Filter (((WHERE + (Projection + Before ORDER BY)) + HAVING))",
+            "            Aggregating",
+            "              Expression (Before GROUP BY)",
+            "                Filter (WHERE)",
+            "                  ReadFromMergeTree (ci.runs)",
+            "                  Indexes:",
+            "                    Min-Max",
+            "                      Condition: true",
+            "                      Parts: 19/19",
+            "                      Granules: 24630/24630",
+            "                    Partition",
+            "                      Condition: true",
+            "                      Parts: 19/19",
+            "                      Granules: 24630/24630",
+            "                    PrimaryKey",
+            "                      Condition: true",
+            "                      Parts: 19/19",
+            "                      Granules: 24630/24630",
+            "                    Ranges: 19",
+            "          CreatingSet (Create set for subquery)",
+            "            Expression ((Projection + Before ORDER BY))",
+            "              ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "19",
+              "rows": "201669142",
+              "marks": "24630"
+            }
+          ]
+        },
+        "after": {
+          "indexes": [
+            "Expression ((Projection + Before ORDER BY [lifted up part]))",
+            "  Limit (preliminary LIMIT)",
+            "    Sorting (Sorting for ORDER BY)",
+            "      Expression (Before ORDER BY)",
+            "        Filter (((WHERE + (Projection + Before ORDER BY)) + HAVING))",
+            "          Aggregating",
+            "            Union",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression",
+            "                    ReadFromMergeTree (by_job)",
+            "                    Indexes:",
+            "                      PrimaryKey",
+            "                        Keys:",
+            "                          github_workflow_job_id",
+            "                          tests_id",
+            "                          started_at",
+            "                        Condition: and(and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)), and(((tests_id, started_at) notIn 28-element set), (github_workflow_job_id in 988-element set)))",
+            "                        Parts: 6/19",
+            "                        Granules: 1254/24626",
+            "                        Search Algorithm: generic exclusion search",
+            "                      Ranges: 33",
+            "              Expression (Before GROUP BY)",
+            "                CreatingSets (Create sets before main query execution)",
+            "                  Expression ((Projection + Before ORDER BY))",
+            "                    Filter (WHERE)",
+            "                      ReadFromMergeTree (ci.runs)",
+            "                      Indexes:",
+            "                        Min-Max",
+            "                          Keys:",
+            "                            started_at",
+            "                          Condition: (started_at in 28-element set)",
+            "                          Parts: 9/19",
+            "                          Granules: 13647/24630",
+            "                        Partition",
+            "                          Keys:",
+            "                            toDate(started_at)",
+            "                          Condition: (toDate(started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 13647/13647",
+            "                        PrimaryKey",
+            "                          Keys:",
+            "                            tests_id",
+            "                            started_at",
+            "                          Condition: ((tests_id, started_at) in 28-element set)",
+            "                          Parts: 9/9",
+            "                          Granules: 238/13647",
+            "                          Search Algorithm: generic exclusion search",
+            "                        Ranges: 218",
+            "                  CreatingSet (Create set for subquery)",
+            "                    Expression ((Projection + Before ORDER BY))",
+            "                      ReadFromSystemOne"
+          ],
+          "estimate": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "15",
+              "rows": "12222464",
+              "marks": "1492"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6052,
+          "elapsed_s": 5.976374144,
+          "rows_read": 328703873,
+          "bytes_read": 14205228332,
+          "memory_usage": "2121635035",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 2396,
+          "elapsed_s": 2.316659618,
+          "rows_read": 410179353,
+          "bytes_read": 4214121481,
+          "memory_usage": "2186834148",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 2906,
+          "elapsed_s": 2.827223193,
+          "rows_read": 410179353,
+          "bytes_read": 4214121481,
+          "memory_usage": "2054844008",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6340,
+          "elapsed_s": 6.263800486,
+          "rows_read": 328703892,
+          "bytes_read": 14205229149,
+          "memory_usage": "2119024062",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6839,
+          "elapsed_s": 6.764414034,
+          "rows_read": 328703895,
+          "bytes_read": 14205229173,
+          "memory_usage": "2115758779",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 3261,
+          "elapsed_s": 3.181968945,
+          "rows_read": 410179377,
+          "bytes_read": 4214121673,
+          "memory_usage": "2127960432",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 6,
+          "wall_ms": 2662,
+          "elapsed_s": 2.583753506,
+          "rows_read": 410179392,
+          "bytes_read": 4214122303,
+          "memory_usage": "2183391316",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 6,
+          "wall_ms": 6678,
+          "elapsed_s": 6.603242499,
+          "rows_read": 328703905,
+          "bytes_read": 14205229423,
+          "memory_usage": "2122660377",
+          "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369"
+        }
+      ],
+      "rows": 6,
+      "digest": "fe39ebb25277b9db95bd060e1924e1e5056be808ee3cc4e785d02d16b3251369",
+      "equal_complete_rows": true
+    }
+  },
+  "unchanged": {
+    "commit_default": {
+      "kind": "commit",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473"
+      },
+      "cursor": null,
+      "query": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch",
+          "entries_limit": 26
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    \n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      }
+    },
+    "commit_stats": {
+      "kind": "commit-stats",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473"
+      },
+      "cursor": null,
+      "query": {
+        "params": {
+          "sha": "97a3cf652accf801225a2a05b5b3ab19b4d65473",
+          "repo": "pytorch/pytorch"
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids,\n(\n    SELECT [(\n        groupArrayIf(job_test, stored_rows > 1),\n        [\n            countIf(stored_rows = 1),\n            countIf(stored_rows = 1 AND outcome = 'unknown'),\n            countIf(stored_rows = 1 AND outcome = 'passed'),\n            countIf(stored_rows = 1 AND outcome = 'failed'),\n            countIf(stored_rows = 1 AND outcome = 'error'),\n            countIf(stored_rows = 1 AND outcome = 'skipped'),\n            countIf(stored_rows = 1 AND outcome = 'xfailed'),\n            countIf(stored_rows = 1 AND outcome = 'xpassed'),\n            countIf(stored_rows = 1 AND outcome = 'crashed'),\n            countIf(stored_rows = 1 AND outcome = 'timed_out')\n        ]\n    )]\n    FROM (\n        SELECT (run.github_workflow_job_id, run.tests_id) AS job_test,\n            count() AS stored_rows,\n            any(run.outcome) AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n        GROUP BY run.github_workflow_job_id, run.tests_id\n    )\n) AS classified_keys,\n(SELECT tupleElement(arrayJoin(classified_keys), 1)) AS multi_row_keys,\n(SELECT tupleElement(arrayJoin(classified_keys), 2)) AS stored_once\nSELECT stored_once[1] + count() AS total,\n    stored_once[2] + countIf(final_outcome = 'unknown') AS unknown,\n    stored_once[3] + countIf(final_outcome = 'passed') AS passed,\n    stored_once[4] + countIf(final_outcome = 'failed') AS failed,\n    stored_once[5] + countIf(final_outcome = 'error') AS error,\n    stored_once[6] + countIf(final_outcome = 'skipped') AS skipped,\n    stored_once[7] + countIf(final_outcome = 'xfailed') AS xfailed,\n    stored_once[8] + countIf(final_outcome = 'xpassed') AS xpassed,\n    stored_once[9] + countIf(final_outcome = 'crashed') AS crashed,\n    stored_once[10] + countIf(final_outcome = 'timed_out') AS timed_out\nFROM (\n    SELECT argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) AS final_outcome\n    FROM (\n        SELECT any(run.tests_id) AS tests_id, any(run.environments_id) AS environments_id, any(run.env_vars_id) AS env_vars_id, any(run.github_workflow_job_id) AS github_workflow_job_id, any(run.started_at) AS started_at, any(run.ended_at) AS ended_at, any(run.id) AS id, any(run.outcome) AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n        GROUP BY run.tests_id, run.started_at\n        HAVING count() = 1\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n)\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "note": "Re-recorded on 2026-10-24 when the statistics moved to bundle counts by final outcome; see stats-query-validation.json."
+    },
+    "test_outcome_failed": {
+      "kind": "test",
+      "raw": {
+        "test_id": "199796844191533405",
+        "outcome": "failed"
+      },
+      "cursor": null,
+      "query": {
+        "params": {
+          "test_id": "199796844191533405",
+          "entries_limit": 26,
+          "outcome": [
+            "failed"
+          ]
+        },
+        "sql": "\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.environments_id) AS sort_1,\n    toString(run.env_vars_id) AS sort_2,\n    toString(run.github_workflow_job_id) AS sort_3\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.tests_id = {test_id: UInt64}\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.outcome IN {outcome: Array(String)}) > 0\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      }
+    },
+    "test_last_passed_sort": {
+      "kind": "test",
+      "raw": {
+        "test_id": "199796844191533405",
+        "last_attempt_outcome": "passed",
+        "sort": "-ended_at"
+      },
+      "cursor": null,
+      "query": {
+        "params": {
+          "test_id": "199796844191533405",
+          "entries_limit": 26,
+          "last_attempt_outcome": [
+            "passed"
+          ]
+        },
+        "sql": "\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_0,\n    toString(run.environments_id) AS sort_1,\n    toString(run.env_vars_id) AS sort_2,\n    toString(run.github_workflow_job_id) AS sort_3\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    WHERE run.tests_id = {test_id: UInt64}\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.ended_at DESC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      }
+    }
+  },
+  "pieces": {
+    "description": "Rows read by the shared parts of one request, measured alone, to explain the rows_read counters: the job-ID scalar scans default.workflow_job, and each by_job pass over the commit's runs.",
+    "measured": {
+      "job_scalar": {
+        "result": {
+          "jobs": "1006"
+        },
+        "rows_read": 125648201,
+        "bytes_read": 1006183784,
+        "elapsed": 0.200633472
+      },
+      "one_by_job_pass": {
+        "result": {
+          "rows": "9984566"
+        },
+        "rows_read": 135920969,
+        "bytes_read": 1088365928,
+        "elapsed": 0.217026653
+      },
+      "classification": {
+        "result": {
+          "shared": "28"
+        },
+        "rows_read": 135920969,
+        "bytes_read": 1250814984,
+        "elapsed": 0.441113417
+      },
+      "workflow_job_rows": {
+        "result": {
+          "rows": "125627827"
+        },
+        "rows_read": 1,
+        "bytes_read": 16,
+        "elapsed": 0.001537053
+      }
+    }
+  }
+}

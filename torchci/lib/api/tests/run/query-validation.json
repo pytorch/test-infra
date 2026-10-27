@@ -1,0 +1,789 @@
+{
+  "measured_at": "2026-10-24T16:58:00.542Z",
+  "database": "ci",
+  "server_version": "26.6.1.2439",
+  "baseline_source_commit": "a7c5b94f5e5356f46eefc5ea3ec63cc0355004e1",
+  "settings": {
+    "readonly": "2",
+    "use_query_cache": 0,
+    "max_execution_time": 90,
+    "output_format_json_quote_64bit_integers": 1,
+    "date_time_output_format": "iso"
+  },
+  "schema": "CREATE TABLE ci.runs\n(\n    `id` UUID CODEC(NONE),\n    `tests_id` UInt64 CODEC(ZSTD(1)),\n    `environments_id` UInt64 CODEC(ZSTD(1)),\n    `env_vars_id` UInt64 CODEC(ZSTD(1)),\n    `github_workflow_job_id` Int64 CODEC(Delta(8), ZSTD(1)),\n    `report_uuid` UUID CODEC(ZSTD(1)),\n    `rerun_number` UInt16,\n    `outcome` Enum8('unknown' = 0, 'passed' = 1, 'failed' = 2, 'error' = 3, 'skipped' = 4, 'xfailed' = 5, 'xpassed' = 6, 'crashed' = 7, 'timed_out' = 8) DEFAULT 'unknown',\n    `outcome_summary` String CODEC(ZSTD(1)),\n    `started_at` DateTime64(3, 'UTC') CODEC(Delta(8), ZSTD(1)),\n    `ended_at` DateTime64(3, 'UTC') CODEC(Delta(8), ZSTD(1)),\n    PROJECTION by_job\n    (\n        SELECT *\n        ORDER BY\n            github_workflow_job_id,\n            tests_id,\n            started_at,\n            rerun_number\n    )\n)\nENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')\nPARTITION BY toDate(started_at)\nPRIMARY KEY (tests_id, environments_id, env_vars_id, started_at)\nORDER BY (tests_id, environments_id, env_vars_id, started_at, github_workflow_job_id, rerun_number)\nTTL toDateTime(started_at) + toIntervalDay(14)\nSETTINGS index_granularity = 8192, deduplicate_merge_projection_mode = 'rebuild'",
+  "cases": {
+    "lookup": {
+      "params": {
+        "run_id": "53e65f6c-d68a-4b5c-a994-a2a1ce874ac4"
+      },
+      "sql": "\nWITH (\n    SELECT groupArray((tests_id, environments_id, env_vars_id, started_at))\n    FROM ci.runs\n    PREWHERE id = {run_id: UUID}\n) AS matched_keys\nSELECT run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at\nFROM ci.runs AS run FINAL\nPREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (\n    SELECT arrayJoin(matched_keys)\n)\nWHERE run.id = {run_id: UUID}\nLIMIT 2\nSETTINGS optimize_move_to_prewhere_if_final = 0\n",
+      "sql_sha256": "6d23d8f4a2dfef7fba5d0edae193c23b8d98fb988ab37396218bd18f4a2a63dc",
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 4.941453263,
+            "rows_read": 153505438,
+            "bytes_read": 16492485807
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.489673962,
+            "rows_read": 152233919,
+            "bytes_read": 2436891190
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.352525241,
+            "rows_read": 152234052,
+            "bytes_read": 2436893318
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 5.457629702,
+            "rows_read": 153539218,
+            "bytes_read": 16495925223
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 4.340134101,
+            "rows_read": 153799816,
+            "bytes_read": 16527606036
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.227566697,
+            "rows_read": 152311247,
+            "bytes_read": 2438128438
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.283183892,
+            "rows_read": 152311247,
+            "bytes_read": 2438128438
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 4.858680054,
+            "rows_read": 153676747,
+            "bytes_read": 16513015995
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        }
+      ],
+      "equal_complete_rows": true,
+      "baseline_sql": "\nSELECT run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at\nFROM ci.runs AS run FINAL\nWHERE run.id = {run_id: UUID}\nLIMIT 2\nSETTINGS optimize_move_to_prewhere_if_final = 0\n",
+      "baseline_sql_sha256": "b6125d9129068c8c32e8f554ed8064f1c9205bc52064bb856cc631bb7862df13",
+      "reference_rows": [
+        {
+          "id": "53e65f6c-d68a-4b5c-a994-a2a1ce874ac4",
+          "tests_id_string": "16276571317520",
+          "environments_id_string": "3918732538669420041",
+          "env_vars_id_string": "1688593832548410197",
+          "github_workflow_job_id_string": "120694503036",
+          "report_uuid": "75b6a7ef-cbd1-461e-85bd-3736b407ec69",
+          "rerun_number": 0,
+          "outcome": "passed",
+          "outcome_summary": "",
+          "started_at": "2026-10-23T23:16:32.063Z",
+          "ended_at": "2026-10-23T23:16:32.070Z"
+        }
+      ],
+      "plans": {
+        "before": {
+          "indexes = 1": "Expression ((Projection + Before ORDER BY))\n  Limit (preliminary LIMIT)\n    Filter (WHERE)\n      ReadFromMergeTree (ci.runs)\n      Indexes:\n        Min-Max\n          Condition: true\n          Parts: 19/19\n          Granules: 18567/18567\n        Partition\n          Condition: true\n          Parts: 19/19\n          Granules: 18567/18567\n        PrimaryKey\n          Condition: true\n          Parts: 19/19\n          Granules: 18567/18567\n        Ranges: 19",
+          "PIPELINE": "(Expression)\nExpressionTransform \u00d7 16\n  (Limit)\n  Limit 16 \u2192 16\n    (Filter)\n    FilterTransform \u00d7 16\n      (ReadFromMergeTree)\n      ExpressionTransform \u00d7 16\n        ReplacingSorted 12 \u2192 1\n          FilterSortedStreamByRange \u00d7 12\n          Description: filter values in ((17224813469708427526), +inf]\n            ExpressionTransform \u00d7 12\n              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                ReplacingSorted 12 \u2192 1\n                  FilterSortedStreamByRange \u00d7 12\n                  Description: filter values in ((15993731735240974241), (17224813469708427526)]\n                    ExpressionTransform \u00d7 12\n                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                        ReplacingSorted 12 \u2192 1\n                          FilterSortedStreamByRange \u00d7 12\n                          Description: filter values in ((14769033657089864366), (15993731735240974241)]\n                            ExpressionTransform \u00d7 12\n                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                ReplacingSorted 12 \u2192 1\n                                  FilterSortedStreamByRange \u00d7 12\n                                  Description: filter values in ((13548517431092158904), (14769033657089864366)]\n                                    ExpressionTransform \u00d7 12\n                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                        ReplacingSorted 12 \u2192 1\n                                          FilterSortedStreamByRange \u00d7 12\n                                          Description: filter values in ((12312687409042913304), (13548517431092158904)]\n                                            ExpressionTransform \u00d7 12\n                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                ReplacingSorted 12 \u2192 1\n                                                  FilterSortedStreamByRange \u00d7 12\n                                                  Description: filter values in ((11083131087118017509), (12312687409042913304)]\n                                                    ExpressionTransform \u00d7 12\n                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                        ReplacingSorted 12 \u2192 1\n                                                          FilterSortedStreamByRange \u00d7 12\n                                                          Description: filter values in ((9855880836615081600), (11083131087118017509)]\n                                                            ExpressionTransform \u00d7 12\n                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                ReplacingSorted 12 \u2192 1\n                                                                  FilterSortedStreamByRange \u00d7 12\n                                                                  Description: filter values in ((8616068659925008449), (9855880836615081600)]\n                                                                    ExpressionTransform \u00d7 12\n                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                        ReplacingSorted 12 \u2192 1\n                                                                          FilterSortedStreamByRange \u00d7 12\n                                                                          Description: filter values in ((7402836189935539472), (8616068659925008449)]\n                                                                            ExpressionTransform \u00d7 12\n                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                ReplacingSorted 12 \u2192 1\n                                                                                  FilterSortedStreamByRange \u00d7 12\n                                                                                  Description: filter values in ((6178308526317542446), (7402836189935539472)]\n                                                                                    ExpressionTransform \u00d7 12\n                                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                        ReplacingSorted 12 \u2192 1\n                                                                                          FilterSortedStreamByRange \u00d7 12\n                                                                                          Description: filter values in ((4943659393575197347), (6178308526317542446)]\n                                                                                            ExpressionTransform \u00d7 12\n                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                                ReplacingSorted 12 \u2192 1\n                                                                                                  FilterSortedStreamByRange \u00d7 12\n                                                                                                  Description: filter values in ((3694361476363235782), (4943659393575197347)]\n                                                                                                    ExpressionTransform \u00d7 12\n                                                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                                        ReplacingSorted 12 \u2192 1\n                                                                                                          FilterSortedStreamByRange \u00d7 12\n                                                                                                          Description: filter values in ((2470644279329829244), (3694361476363235782)]\n                                                                                                            ExpressionTransform \u00d7 12\n                                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                                                ReplacingSorted 11 \u2192 1\n                                                                                                                  FilterSortedStreamByRange \u00d7 11\n                                                                                                                  Description: filter values in ((1227454823943558507), (2470644279329829244)]\n                                                                                                                    ExpressionTransform \u00d7 11\n                                                                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 11 0 \u2192 1\n                                                                                                                        ReplacingSorted 11 \u2192 1\n                                                                                                                          FilterSortedStreamByRange \u00d7 11\n                                                                                                                          Description: filter values in (-inf, (1227454823943558507)]\n                                                                                                                            ExpressionTransform \u00d7 11\n                                                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 11 0 \u2192 1\n                                                                                                                                ReplacingSorted 4 \u2192 1\n                                                                                                                                  ExpressionTransform \u00d7 4\n                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 4 0 \u2192 1"
+        },
+        "after": {
+          "indexes = 1": "CreatingSets (Create sets before main query execution)\n  Expression ((Projection + Before ORDER BY))\n    Limit (preliminary LIMIT)\n      Filter (WHERE)\n        ReadFromMergeTree (ci.runs)\n        Indexes:\n          Min-Max\n            Keys:\n              started_at\n            Condition: (started_at in 1-element set)\n            Parts: 3/16\n            Granules: 51/18591\n          Partition\n            Keys:\n              toDate(started_at)\n            Condition: (toDate(started_at) in 1-element set)\n            Parts: 3/3\n            Granules: 51/51\n          PrimaryKey\n            Keys:\n              tests_id\n              environments_id\n              env_vars_id\n              started_at\n            Condition: ((tests_id, environments_id, env_vars_id, started_at) in 1-element set)\n            Parts: 1/3\n            Granules: 1/51\n            Search Algorithm: binary search\n          Ranges: 1",
+          "PIPELINE": "(CreatingSets)\n  (Expression)\n  ExpressionTransform\n    (Limit)\n    Limit\n      (Filter)\n      FilterTransform\n        (ReadFromMergeTree)\n        MergeTreeSelect(pool: PrefetchedReadPool, algorithm: Thread) 0 \u2192 1"
+        }
+      }
+    },
+    "lookup_full_key": {
+      "params": {
+        "run_id": "53e65f6c-d68a-4b5c-a994-a2a1ce874ac4"
+      },
+      "sql": "\nWITH (\n    SELECT groupArray((tests_id, environments_id, env_vars_id, started_at,\n        github_workflow_job_id, rerun_number))\n    FROM ci.runs\n    PREWHERE id = {run_id: UUID}\n) AS matched_keys\nSELECT run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at\nFROM ci.runs AS run FINAL\nPREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (\n    SELECT arrayJoin(arrayMap(key -> (key.1, key.2, key.3, key.4), matched_keys))\n)\nWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at,\n    run.github_workflow_job_id, run.rerun_number) IN (\n    SELECT arrayJoin(matched_keys)\n)\n    AND run.id = {run_id: UUID}\nLIMIT 2\nSETTINGS optimize_move_to_prewhere_if_final = 0\n",
+      "sql_sha256": "2a333cb2151bc803379c57b431c0286642fbc61823c14c8e7b68a6e5089c0943",
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 6.009305079,
+            "rows_read": 153251632,
+            "bytes_read": 16462521376
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.281682404,
+            "rows_read": 152098995,
+            "bytes_read": 2434863463
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.44070771,
+            "rows_read": 152098995,
+            "bytes_read": 2434863463
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 6.957101263,
+            "rows_read": 153270195,
+            "bytes_read": 16462647733
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 5.405980572,
+            "rows_read": 153703622,
+            "bytes_read": 16516838623
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.388959056,
+            "rows_read": 152170812,
+            "bytes_read": 2436012535
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 3,
+          "version": "after",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.368090395,
+            "rows_read": 152170830,
+            "bytes_read": 2436012823
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        },
+        {
+          "pair": 3,
+          "version": "before",
+          "rows": 1,
+          "statistics": {
+            "elapsed": 4.859436087,
+            "rows_read": 153423814,
+            "bytes_read": 16482195450
+          },
+          "digest": "8b6a14a0400de605e31f3add5fdca967c1fffe7a1f5de7ab2d8e599e922117f9"
+        }
+      ],
+      "equal_complete_rows": true,
+      "baseline_sql": "\nSELECT run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at\nFROM ci.runs AS run FINAL\nWHERE run.id = {run_id: UUID}\nLIMIT 2\nSETTINGS optimize_move_to_prewhere_if_final = 0\n",
+      "baseline_sql_sha256": "b6125d9129068c8c32e8f554ed8064f1c9205bc52064bb856cc631bb7862df13",
+      "reference_rows": [
+        {
+          "id": "53e65f6c-d68a-4b5c-a994-a2a1ce874ac4",
+          "tests_id_string": "16276571317520",
+          "environments_id_string": "3918732538669420041",
+          "env_vars_id_string": "1688593832548410197",
+          "github_workflow_job_id_string": "120694503036",
+          "report_uuid": "75b6a7ef-cbd1-461e-85bd-3736b407ec69",
+          "rerun_number": 0,
+          "outcome": "passed",
+          "outcome_summary": "",
+          "started_at": "2026-10-23T23:16:32.063Z",
+          "ended_at": "2026-10-23T23:16:32.070Z"
+        }
+      ],
+      "plans": {
+        "before": {
+          "indexes = 1": "Expression ((Projection + Before ORDER BY))\n  Limit (preliminary LIMIT)\n    Filter (WHERE)\n      ReadFromMergeTree (ci.runs)\n      Indexes:\n        Min-Max\n          Condition: true\n          Parts: 19/19\n          Granules: 18567/18567\n        Partition\n          Condition: true\n          Parts: 19/19\n          Granules: 18567/18567\n        PrimaryKey\n          Condition: true\n          Parts: 19/19\n          Granules: 18567/18567\n        Ranges: 19",
+          "PIPELINE": "(Expression)\nExpressionTransform \u00d7 16\n  (Limit)\n  Limit 16 \u2192 16\n    (Filter)\n    FilterTransform \u00d7 16\n      (ReadFromMergeTree)\n      ExpressionTransform \u00d7 16\n        ReplacingSorted 12 \u2192 1\n          FilterSortedStreamByRange \u00d7 12\n          Description: filter values in ((17224813469708427526), +inf]\n            ExpressionTransform \u00d7 12\n              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                ReplacingSorted 12 \u2192 1\n                  FilterSortedStreamByRange \u00d7 12\n                  Description: filter values in ((15993731735240974241), (17224813469708427526)]\n                    ExpressionTransform \u00d7 12\n                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                        ReplacingSorted 12 \u2192 1\n                          FilterSortedStreamByRange \u00d7 12\n                          Description: filter values in ((14769033657089864366), (15993731735240974241)]\n                            ExpressionTransform \u00d7 12\n                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                ReplacingSorted 12 \u2192 1\n                                  FilterSortedStreamByRange \u00d7 12\n                                  Description: filter values in ((13548517431092158904), (14769033657089864366)]\n                                    ExpressionTransform \u00d7 12\n                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                        ReplacingSorted 12 \u2192 1\n                                          FilterSortedStreamByRange \u00d7 12\n                                          Description: filter values in ((12312687409042913304), (13548517431092158904)]\n                                            ExpressionTransform \u00d7 12\n                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                ReplacingSorted 12 \u2192 1\n                                                  FilterSortedStreamByRange \u00d7 12\n                                                  Description: filter values in ((11083131087118017509), (12312687409042913304)]\n                                                    ExpressionTransform \u00d7 12\n                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                        ReplacingSorted 12 \u2192 1\n                                                          FilterSortedStreamByRange \u00d7 12\n                                                          Description: filter values in ((9855880836615081600), (11083131087118017509)]\n                                                            ExpressionTransform \u00d7 12\n                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                ReplacingSorted 12 \u2192 1\n                                                                  FilterSortedStreamByRange \u00d7 12\n                                                                  Description: filter values in ((8616068659925008449), (9855880836615081600)]\n                                                                    ExpressionTransform \u00d7 12\n                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                        ReplacingSorted 12 \u2192 1\n                                                                          FilterSortedStreamByRange \u00d7 12\n                                                                          Description: filter values in ((7402836189935539472), (8616068659925008449)]\n                                                                            ExpressionTransform \u00d7 12\n                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                ReplacingSorted 12 \u2192 1\n                                                                                  FilterSortedStreamByRange \u00d7 12\n                                                                                  Description: filter values in ((6178308526317542446), (7402836189935539472)]\n                                                                                    ExpressionTransform \u00d7 12\n                                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                        ReplacingSorted 12 \u2192 1\n                                                                                          FilterSortedStreamByRange \u00d7 12\n                                                                                          Description: filter values in ((4943659393575197347), (6178308526317542446)]\n                                                                                            ExpressionTransform \u00d7 12\n                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                                ReplacingSorted 12 \u2192 1\n                                                                                                  FilterSortedStreamByRange \u00d7 12\n                                                                                                  Description: filter values in ((3694361476363235782), (4943659393575197347)]\n                                                                                                    ExpressionTransform \u00d7 12\n                                                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                                        ReplacingSorted 12 \u2192 1\n                                                                                                          FilterSortedStreamByRange \u00d7 12\n                                                                                                          Description: filter values in ((2470644279329829244), (3694361476363235782)]\n                                                                                                            ExpressionTransform \u00d7 12\n                                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 12 0 \u2192 1\n                                                                                                                ReplacingSorted 11 \u2192 1\n                                                                                                                  FilterSortedStreamByRange \u00d7 11\n                                                                                                                  Description: filter values in ((1227454823943558507), (2470644279329829244)]\n                                                                                                                    ExpressionTransform \u00d7 11\n                                                                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 11 0 \u2192 1\n                                                                                                                        ReplacingSorted 11 \u2192 1\n                                                                                                                          FilterSortedStreamByRange \u00d7 11\n                                                                                                                          Description: filter values in (-inf, (1227454823943558507)]\n                                                                                                                            ExpressionTransform \u00d7 11\n                                                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 11 0 \u2192 1\n                                                                                                                                ReplacingSorted 4 \u2192 1\n                                                                                                                                  ExpressionTransform \u00d7 4\n                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) \u00d7 4 0 \u2192 1"
+        },
+        "after": {
+          "indexes = 1": "CreatingSets (Create sets before main query execution)\n  Expression ((Projection + Before ORDER BY))\n    Limit (preliminary LIMIT)\n      Filter (WHERE)\n        ReadFromMergeTree (ci.runs)\n        Indexes:\n          Min-Max\n            Keys:\n              started_at\n            Condition: and((started_at in 1-element set), (started_at in 1-element set))\n            Parts: 3/16\n            Granules: 51/18571\n          Partition\n            Keys:\n              toDate(started_at)\n            Condition: and((toDate(started_at) in 1-element set), (toDate(started_at) in 1-element set))\n            Parts: 3/3\n            Granules: 51/51\n          PrimaryKey\n            Keys:\n              tests_id\n              environments_id\n              env_vars_id\n              started_at\n            Condition: and(((tests_id, environments_id, env_vars_id, started_at) in 1-element set), ((tests_id, environments_id, env_vars_id, started_at) in 1-element set))\n            Parts: 1/3\n            Granules: 1/51\n            Search Algorithm: binary search\n          Ranges: 1",
+          "PIPELINE": "(CreatingSets)\n  (Expression)\n  ExpressionTransform\n    (Limit)\n    Limit\n      (Filter)\n      FilterTransform \u00d7 2\n        (ReadFromMergeTree)\n        MergeTreeSelect(pool: PrefetchedReadPool, algorithm: Thread) 0 \u2192 1"
+        }
+      }
+    },
+    "runs_default": {
+      "params": {
+        "test_id": "8392283225797466657",
+        "entries_limit": 26
+      },
+      "sql": "\nSELECT\n    run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.environments_id) AS sort_1,\n    toString(run.env_vars_id) AS sort_2,\n    toString(run.github_workflow_job_id) AS sort_3,\n    toString(run.rerun_number) AS sort_4\nFROM ci.runs AS run FINAL\nWHERE run.tests_id = {test_id: UInt64}\n    AND (1)\nORDER BY run.started_at DESC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC, run.rerun_number ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n",
+      "sql_sha256": "670624991929d5a5b021bc734bf75b90c4355651bb2a6aa0cd04cb49dde3f58f",
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.156469681,
+            "rows_read": 145062,
+            "bytes_read": 15219004
+          },
+          "digest": "d54203cc82e800ea676ffbdaaff85257f9563faf416fa96c9bd5687c6fd76e39"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.06710672,
+            "rows_read": 133901,
+            "bytes_read": 13902129
+          },
+          "digest": "d54203cc82e800ea676ffbdaaff85257f9563faf416fa96c9bd5687c6fd76e39"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.031284374,
+            "rows_read": 133901,
+            "bytes_read": 13902379
+          },
+          "digest": "d54203cc82e800ea676ffbdaaff85257f9563faf416fa96c9bd5687c6fd76e39"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.058791993,
+            "rows_read": 133901,
+            "bytes_read": 13902379
+          },
+          "digest": "d54203cc82e800ea676ffbdaaff85257f9563faf416fa96c9bd5687c6fd76e39"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.032227898,
+            "rows_read": 133945,
+            "bytes_read": 13905943
+          },
+          "digest": "d54203cc82e800ea676ffbdaaff85257f9563faf416fa96c9bd5687c6fd76e39"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.029046509,
+            "rows_read": 133981,
+            "bytes_read": 13909237
+          },
+          "digest": "d54203cc82e800ea676ffbdaaff85257f9563faf416fa96c9bd5687c6fd76e39"
+        }
+      ],
+      "equal_complete_rows": true,
+      "raw": {
+        "test_id": "8392283225797466657",
+        "sort": [
+          "-started_at"
+        ],
+        "limit": 25
+      },
+      "baseline": "Original builder at baseline_source_commit plus only id in RUN_COLUMNS and run.id AS id in PAGE_COLUMNS.",
+      "baseline_sql_matches_current": true,
+      "plans": {
+        "before": "Expression ((Projection + Before ORDER BY [lifted up part]))\n  Limit (preliminary LIMIT)\n    Sorting (Sorting for ORDER BY)\n      Expression (Before ORDER BY)\n        Filter (WHERE)\n          ReadFromMergeTree (ci.runs)\n          Indexes:\n            Min-Max\n              Condition: true\n              Parts: 27/27\n              Granules: 18613/18613\n            Partition\n              Condition: true\n              Parts: 27/27\n              Granules: 18613/18613\n            PrimaryKey\n              Keys:\n                tests_id\n              Condition: (tests_id in [8392283225797466657, 8392283225797466657])\n              Parts: 26/27\n              Granules: 27/18613\n              Search Algorithm: binary search\n            Ranges: 26",
+        "after": "Expression ((Projection + Before ORDER BY [lifted up part]))\n  Limit (preliminary LIMIT)\n    Sorting (Sorting for ORDER BY)\n      Expression (Before ORDER BY)\n        Filter (WHERE)\n          ReadFromMergeTree (ci.runs)\n          Indexes:\n            Min-Max\n              Condition: true\n              Parts: 28/28\n              Granules: 18614/18614\n            Partition\n              Condition: true\n              Parts: 28/28\n              Granules: 18614/18614\n            PrimaryKey\n              Keys:\n                tests_id\n              Condition: (tests_id in [8392283225797466657, 8392283225797466657])\n              Parts: 27/28\n              Granules: 28/18614\n              Search Algorithm: binary search\n            Ranges: 27"
+      }
+    },
+    "runs_join": {
+      "params": {
+        "test_id": "8392283225797466657",
+        "entries_limit": 26
+      },
+      "sql": "\nSELECT\n    run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at,\n    toString(if(run_test.has_catalog = 1, run_test.file, NULL)) AS sort_0,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4,\n    toString(run.rerun_number) AS sort_5\nFROM (\n    SELECT id, tests_id, environments_id, env_vars_id, github_workflow_job_id,\n        report_uuid, rerun_number, outcome, outcome_summary, started_at, ended_at\n    FROM ci.runs AS run FINAL\n    WHERE run.tests_id = {test_id: UInt64}\n) AS run\nLEFT JOIN (\n    SELECT test.id AS id, test.file AS file, toUInt8(1) AS has_catalog\n    FROM ci.tests AS test FINAL\n    WHERE test.id = {test_id: UInt64}\n) AS run_test ON run_test.id = run.tests_id\nWHERE 1\n    AND (1)\nORDER BY if(run_test.has_catalog = 1, run_test.file, NULL) ASC NULLS LAST, run.started_at DESC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC, run.rerun_number ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n",
+      "sql_sha256": "1a274ada88b867414953205e0812555b5617ed3ae8f9509eb5c219427e046697",
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.035159405,
+            "rows_read": 160755,
+            "bytes_read": 14352360
+          },
+          "digest": "d6c8dc7007bac00329fdf238c4b3e6d4cfef2f51ddcc5ae62ccd1404fe478cdd"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.039107166,
+            "rows_read": 160809,
+            "bytes_read": 14356734
+          },
+          "digest": "d6c8dc7007bac00329fdf238c4b3e6d4cfef2f51ddcc5ae62ccd1404fe478cdd"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.035112414,
+            "rows_read": 160809,
+            "bytes_read": 14356734
+          },
+          "digest": "d6c8dc7007bac00329fdf238c4b3e6d4cfef2f51ddcc5ae62ccd1404fe478cdd"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.036832101,
+            "rows_read": 160809,
+            "bytes_read": 14356868
+          },
+          "digest": "d6c8dc7007bac00329fdf238c4b3e6d4cfef2f51ddcc5ae62ccd1404fe478cdd"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.034707514,
+            "rows_read": 160834,
+            "bytes_read": 14358893
+          },
+          "digest": "d6c8dc7007bac00329fdf238c4b3e6d4cfef2f51ddcc5ae62ccd1404fe478cdd"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.044019079,
+            "rows_read": 161808,
+            "bytes_read": 14440753
+          },
+          "digest": "d6c8dc7007bac00329fdf238c4b3e6d4cfef2f51ddcc5ae62ccd1404fe478cdd"
+        }
+      ],
+      "equal_complete_rows": true,
+      "raw": {
+        "test_id": "8392283225797466657",
+        "sort": [
+          "file",
+          "-started_at"
+        ],
+        "limit": 25
+      },
+      "baseline": "Original builder at baseline_source_commit plus only id in RUN_COLUMNS and run.id AS id in PAGE_COLUMNS.",
+      "baseline_sql_matches_current": true,
+      "plans": {
+        "before": "Expression ((Projection + Before ORDER BY [lifted up part]))\n  Limit (preliminary LIMIT)\n    Sorting (Sorting for ORDER BY)\n      Expression (Before ORDER BY)\n        Join (JOIN FillRightFirst)\n          Expression ((Before JOIN + (Projection + Before ORDER BY)))\n            Filter (WHERE)\n              ReadFromMergeTree (ci.runs)\n              Indexes:\n                Min-Max\n                  Condition: true\n                  Parts: 33/33\n                  Granules: 18621/18621\n                Partition\n                  Condition: true\n                  Parts: 33/33\n                  Granules: 18621/18621\n                PrimaryKey\n                  Keys:\n                    tests_id\n                  Condition: (tests_id in [8392283225797466657, 8392283225797466657])\n                  Parts: 31/33\n                  Granules: 32/18621\n                  Search Algorithm: binary search\n                Ranges: 31\n          Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))\n            Filter (WHERE)\n              ReadFromMergeTree (ci.tests)\n              Indexes:\n                PrimaryKey\n                  Keys:\n                    id\n                  Condition: (id in [8392283225797466657, 8392283225797466657])\n                  Parts: 5/6\n                  Granules: 5/86\n                  Search Algorithm: binary search\n                Ranges: 5",
+        "after": "Expression ((Projection + Before ORDER BY [lifted up part]))\n  Limit (preliminary LIMIT)\n    Sorting (Sorting for ORDER BY)\n      Expression (Before ORDER BY)\n        Join (JOIN FillRightFirst)\n          Expression ((Before JOIN + (Projection + Before ORDER BY)))\n            Filter (WHERE)\n              ReadFromMergeTree (ci.runs)\n              Indexes:\n                Min-Max\n                  Condition: true\n                  Parts: 21/21\n                  Granules: 18609/18609\n                Partition\n                  Condition: true\n                  Parts: 21/21\n                  Granules: 18609/18609\n                PrimaryKey\n                  Keys:\n                    tests_id\n                  Condition: (tests_id in [8392283225797466657, 8392283225797466657])\n                  Parts: 21/21\n                  Granules: 22/18609\n                  Search Algorithm: binary search\n                Ranges: 21\n          Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))\n            Filter (WHERE)\n              ReadFromMergeTree (ci.tests)\n              Indexes:\n                PrimaryKey\n                  Keys:\n                    id\n                  Condition: (id in [8392283225797466657, 8392283225797466657])\n                  Parts: 5/6\n                  Granules: 5/86\n                  Search Algorithm: binary search\n                Ranges: 5"
+      }
+    },
+    "commit_default": {
+      "params": {
+        "sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
+        "repo": "pytorch/pytorch",
+        "entries_limit": 26
+      },
+      "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids,\n(\n    SELECT groupArray(page_entry)\n    FROM (\n        SELECT (\n            run.tests_id,\n            run.environments_id,\n            run.env_vars_id,\n            run.started_at,\n            run.github_workflow_job_id,\n            run.rerun_number,\n            run.started_at,\n            run.tests_id,\n            run.environments_id,\n            run.env_vars_id,\n            run.github_workflow_job_id,\n            run.rerun_number\n        ) AS page_entry\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (1)\n        ORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC, run.rerun_number ASC\n        LIMIT 1 BY run.tests_id, run.environments_id, run.env_vars_id, run.started_at, run.github_workflow_job_id, run.rerun_number\n        LIMIT {entries_limit: UInt64}\n    )\n) AS page_keys,\narrayFirst(\n    candidate -> (candidate.1, candidate.2, candidate.3, candidate.4, candidate.5, candidate.6) = (run.tests_id, run.environments_id, run.env_vars_id, run.started_at, run.github_workflow_job_id, run.rerun_number),\n    page_keys\n) AS page_key\nSELECT\n    run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at,\n    toString(toUnixTimestamp64Milli(page_key.7)) AS sort_0,\n    toString(page_key.8) AS sort_1,\n    toString(page_key.9) AS sort_2,\n    toString(page_key.10) AS sort_3,\n    toString(page_key.11) AS sort_4,\n    toString(page_key.12) AS sort_5\nFROM ci.runs AS run FINAL\n    PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (\n        SELECT arrayJoin(arrayMap(selected_key -> (selected_key.1, selected_key.2, selected_key.3, selected_key.4), page_keys))\n    )\n    WHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at, run.github_workflow_job_id, run.rerun_number) IN (\n        SELECT arrayJoin(arrayMap(selected_key -> (selected_key.1, selected_key.2, selected_key.3, selected_key.4, selected_key.5, selected_key.6), page_keys))\n    )\nORDER BY page_key.7 DESC, page_key.8 ASC, page_key.9 ASC, page_key.10 ASC, page_key.11 ASC, page_key.12 ASC\nSETTINGS optimize_move_to_prewhere_if_final = 0\n",
+      "sql_sha256": "7c2bf2a21bfdcb84577ccb3bdbe944173fb2140df650ae540117183be70dc9e9",
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.359323709,
+            "rows_read": 126569380,
+            "bytes_read": 1051483845
+          },
+          "digest": "5f82fd243b465a10527403d6e710ba1034cf36f60435b270b0a2ceb8c196a093"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.46499398,
+            "rows_read": 126569380,
+            "bytes_read": 1051483845
+          },
+          "digest": "5f82fd243b465a10527403d6e710ba1034cf36f60435b270b0a2ceb8c196a093"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.584001128,
+            "rows_read": 126569380,
+            "bytes_read": 1051483845
+          },
+          "digest": "5f82fd243b465a10527403d6e710ba1034cf36f60435b270b0a2ceb8c196a093"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.577694733,
+            "rows_read": 126569380,
+            "bytes_read": 1051483845
+          },
+          "digest": "5f82fd243b465a10527403d6e710ba1034cf36f60435b270b0a2ceb8c196a093"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.434096392,
+            "rows_read": 126569380,
+            "bytes_read": 1051483845
+          },
+          "digest": "5f82fd243b465a10527403d6e710ba1034cf36f60435b270b0a2ceb8c196a093"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.420718211,
+            "rows_read": 126569382,
+            "bytes_read": 1051483861
+          },
+          "digest": "5f82fd243b465a10527403d6e710ba1034cf36f60435b270b0a2ceb8c196a093"
+        }
+      ],
+      "equal_complete_rows": true,
+      "raw": {
+        "head_sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
+        "repo": "pytorch/pytorch",
+        "sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
+        "sort": [
+          "-started_at"
+        ],
+        "limit": 25
+      },
+      "baseline": "Original builder at baseline_source_commit plus only id in RUN_COLUMNS and run.id AS id in PAGE_COLUMNS.",
+      "baseline_sql_matches_current": true,
+      "plans": {
+        "before": "CreatingSets (Create sets before main query execution)\n  Expression ((Projection + Before ORDER BY [lifted up part]))\n    Sorting (Sorting for ORDER BY)\n      Expression (Before ORDER BY)\n        Filter (WHERE)\n          ReadFromMergeTree (ci.runs)\n          Indexes:\n            Min-Max\n              Keys:\n                started_at\n              Condition: and((started_at in 26-element set), (started_at in 26-element set))\n              Parts: 1/34\n              Granules: 10890/18622\n            Partition\n              Keys:\n                toDate(started_at)\n              Condition: and((toDate(started_at) in 26-element set), (toDate(started_at) in 26-element set))\n              Parts: 1/1\n              Granules: 10890/10890\n            PrimaryKey\n              Keys:\n                tests_id\n                environments_id\n                env_vars_id\n                started_at\n              Condition: and(((tests_id, environments_id, env_vars_id, started_at) in 26-element set), ((tests_id, environments_id, env_vars_id, started_at) in 26-element set))\n              Parts: 1/1\n              Granules: 26/10890\n              Search Algorithm: generic exclusion search\n            Ranges: 26",
+        "after": "CreatingSets (Create sets before main query execution)\n  Expression ((Projection + Before ORDER BY [lifted up part]))\n    Sorting (Sorting for ORDER BY)\n      Expression (Before ORDER BY)\n        Filter (WHERE)\n          ReadFromMergeTree (ci.runs)\n          Indexes:\n            Min-Max\n              Keys:\n                started_at\n              Condition: and((started_at in 26-element set), (started_at in 26-element set))\n              Parts: 1/17\n              Granules: 10890/18605\n            Partition\n              Keys:\n                toDate(started_at)\n              Condition: and((toDate(started_at) in 26-element set), (toDate(started_at) in 26-element set))\n              Parts: 1/1\n              Granules: 10890/10890\n            PrimaryKey\n              Keys:\n                tests_id\n                environments_id\n                env_vars_id\n                started_at\n              Condition: and(((tests_id, environments_id, env_vars_id, started_at) in 26-element set), ((tests_id, environments_id, env_vars_id, started_at) in 26-element set))\n              Parts: 1/1\n              Granules: 26/10890\n              Search Algorithm: generic exclusion search\n            Ranges: 26"
+      }
+    },
+    "commit_union": {
+      "params": {
+        "sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
+        "repo": "pytorch/pytorch",
+        "entries_limit": 26
+      },
+      "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids,\n(\n    SELECT groupArray(test_start)\n    FROM (\n        SELECT (run.tests_id, run.started_at) AS test_start\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n        GROUP BY run.tests_id, run.started_at\n        HAVING count() > 1\n    )\n) AS shared_starts\nSELECT\n    run.id AS id,\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    run.report_uuid AS report_uuid,\n    run.rerun_number AS rerun_number,\n    run.outcome AS outcome,\n    run.outcome_summary AS outcome_summary,\n    run.started_at AS started_at,\n    run.ended_at AS ended_at,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_4,\n    toString(run.github_workflow_job_id) AS sort_5,\n    toString(run.rerun_number) AS sort_6\nFROM (\n    SELECT id, tests_id, environments_id, env_vars_id, github_workflow_job_id,\n        report_uuid, rerun_number, outcome, outcome_summary, started_at, ended_at\n    FROM ci.runs AS run\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n        AND (run.tests_id, run.started_at) NOT IN (SELECT arrayJoin(shared_starts))\n    UNION ALL\n    SELECT id, tests_id, environments_id, env_vars_id, github_workflow_job_id,\n        report_uuid, rerun_number, outcome, outcome_summary, started_at, ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE (run.tests_id, run.started_at) IN (SELECT arrayJoin(shared_starts))\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.started_at ASC, run.github_workflow_job_id ASC, run.rerun_number ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0,\n    enable_optimize_predicate_expression = 0\n",
+      "sql_sha256": "4596e2ac79d1ac9cb32ac5aa44368a684233d4a7b642d9382682cd2a7f0e7caf",
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.60121403,
+            "rows_read": 127116635,
+            "bytes_read": 1091076684
+          },
+          "digest": "efa66cda8b87ae2dae30fb0bacdebbe775c02e5ab44ac665bf1a31890f0348c9"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.660234087,
+            "rows_read": 127116629,
+            "bytes_read": 1091076636
+          },
+          "digest": "efa66cda8b87ae2dae30fb0bacdebbe775c02e5ab44ac665bf1a31890f0348c9"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.542833561,
+            "rows_read": 127116629,
+            "bytes_read": 1091076636
+          },
+          "digest": "efa66cda8b87ae2dae30fb0bacdebbe775c02e5ab44ac665bf1a31890f0348c9"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.499799263,
+            "rows_read": 127116629,
+            "bytes_read": 1091076636
+          },
+          "digest": "efa66cda8b87ae2dae30fb0bacdebbe775c02e5ab44ac665bf1a31890f0348c9"
+        },
+        {
+          "pair": 2,
+          "version": "before",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.548682479,
+            "rows_read": 127116631,
+            "bytes_read": 1091076652
+          },
+          "digest": "efa66cda8b87ae2dae30fb0bacdebbe775c02e5ab44ac665bf1a31890f0348c9"
+        },
+        {
+          "pair": 2,
+          "version": "after",
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.558151098,
+            "rows_read": 127116631,
+            "bytes_read": 1091076652
+          },
+          "digest": "efa66cda8b87ae2dae30fb0bacdebbe775c02e5ab44ac665bf1a31890f0348c9"
+        }
+      ],
+      "equal_complete_rows": true,
+      "raw": {
+        "head_sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
+        "repo": "pytorch/pytorch",
+        "sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
+        "sort": [
+          "-ended_at"
+        ],
+        "limit": 25
+      },
+      "baseline": "Original builder at baseline_source_commit plus only id in RUN_COLUMNS and run.id AS id in PAGE_COLUMNS.",
+      "baseline_sql_matches_current": true,
+      "plans": {
+        "before": "Expression (Projection)\n  Limit (preliminary LIMIT)\n    Sorting (Sorting for ORDER BY)\n      Union\n        Expression (Before ORDER BY)\n          CreatingSets (Create sets before main query execution)\n            Expression\n              ReadFromMergeTree (by_job)\n              Indexes:\n                PrimaryKey\n                  Keys:\n                    github_workflow_job_id\n                    tests_id\n                    started_at\n                  Condition: and(((tests_id, started_at) notIn 2-element set), (github_workflow_job_id in 332-element set))\n                  Parts: 5/21\n                  Granules: 88/18607\n                  Search Algorithm: generic exclusion search\n                Ranges: 5\n        Expression (Before ORDER BY)\n          CreatingSets (Create sets before main query execution)\n            Expression ((Projection + Before ORDER BY))\n              Filter (WHERE)\n                ReadFromMergeTree (ci.runs)\n                Indexes:\n                  Min-Max\n                    Keys:\n                      started_at\n                    Condition: (started_at in 2-element set)\n                    Parts: 2/21\n                    Granules: 50/18611\n                  Partition\n                    Keys:\n                      toDate(started_at)\n                    Condition: (toDate(started_at) in 2-element set)\n                    Parts: 2/2\n                    Granules: 50/50\n                  PrimaryKey\n                    Keys:\n                      tests_id\n                      started_at\n                    Condition: ((tests_id, started_at) in 2-element set)\n                    Parts: 2/2\n                    Granules: 4/50\n                    Search Algorithm: generic exclusion search\n                  Ranges: 4\n            CreatingSet (Create set for subquery)\n              Expression ((Projection + Before ORDER BY))\n                ReadFromSystemOne",
+        "after": "Expression (Projection)\n  Limit (preliminary LIMIT)\n    Sorting (Sorting for ORDER BY)\n      Union\n        Expression (Before ORDER BY)\n          CreatingSets (Create sets before main query execution)\n            Expression\n              ReadFromMergeTree (by_job)\n              Indexes:\n                PrimaryKey\n                  Keys:\n                    github_workflow_job_id\n                    tests_id\n                    started_at\n                  Condition: and(((tests_id, started_at) notIn 2-element set), (github_workflow_job_id in 332-element set))\n                  Parts: 5/30\n                  Granules: 88/18616\n                  Search Algorithm: generic exclusion search\n                Ranges: 5\n        Expression (Before ORDER BY)\n          CreatingSets (Create sets before main query execution)\n            Expression ((Projection + Before ORDER BY))\n              Filter (WHERE)\n                ReadFromMergeTree (ci.runs)\n                Indexes:\n                  Min-Max\n                    Keys:\n                      started_at\n                    Condition: (started_at in 2-element set)\n                    Parts: 2/30\n                    Granules: 50/18621\n                  Partition\n                    Keys:\n                      toDate(started_at)\n                    Condition: (toDate(started_at) in 2-element set)\n                    Parts: 2/2\n                    Granules: 50/50\n                  PrimaryKey\n                    Keys:\n                      tests_id\n                      started_at\n                    Condition: ((tests_id, started_at) in 2-element set)\n                    Parts: 2/2\n                    Granules: 4/50\n                    Search Algorithm: generic exclusion search\n                  Ranges: 4\n            CreatingSet (Create set for subquery)\n              Expression ((Projection + Before ORDER BY))\n                ReadFromSystemOne"
+      }
+    }
+  },
+  "prefix_simplification": {
+    "before_case": "lookup_full_key",
+    "after_case": "lookup",
+    "samples": [
+      {
+        "pair": 0,
+        "variant": "before",
+        "statistics": {
+          "elapsed": 1.56820876,
+          "rows_read": 152334586,
+          "bytes_read": 2438632919
+        },
+        "rows": 1
+      },
+      {
+        "pair": 0,
+        "variant": "after",
+        "statistics": {
+          "elapsed": 0.23552625,
+          "rows_read": 152334611,
+          "bytes_read": 2438502262
+        },
+        "rows": 1
+      },
+      {
+        "pair": 1,
+        "variant": "after",
+        "statistics": {
+          "elapsed": 0.192605609,
+          "rows_read": 152334611,
+          "bytes_read": 2438502262
+        },
+        "rows": 1
+      },
+      {
+        "pair": 1,
+        "variant": "before",
+        "statistics": {
+          "elapsed": 0.188069731,
+          "rows_read": 152334612,
+          "bytes_read": 2438633335
+        },
+        "rows": 1
+      },
+      {
+        "pair": 2,
+        "variant": "before",
+        "statistics": {
+          "elapsed": 0.282044952,
+          "rows_read": 152335034,
+          "bytes_read": 2438640087
+        },
+        "rows": 1
+      },
+      {
+        "pair": 2,
+        "variant": "after",
+        "statistics": {
+          "elapsed": 0.194998151,
+          "rows_read": 152335033,
+          "bytes_read": 2438509014
+        },
+        "rows": 1
+      },
+      {
+        "pair": 3,
+        "variant": "after",
+        "statistics": {
+          "elapsed": 0.202740263,
+          "rows_read": 152335033,
+          "bytes_read": 2438509014
+        },
+        "rows": 1
+      },
+      {
+        "pair": 3,
+        "variant": "before",
+        "statistics": {
+          "elapsed": 0.316827683,
+          "rows_read": 152335518,
+          "bytes_read": 2438647831
+        },
+        "rows": 1
+      }
+    ],
+    "equal_complete_rows": true
+  },
+  "facts": {
+    "nil_ids": {
+      "sql": "SELECT count() AS total_rows, countIf(id = toUUID('00000000-0000-0000-0000-000000000000')) AS nil_ids FROM ci.runs",
+      "data": [
+        {
+          "total_rows": "152327324",
+          "nil_ids": "0"
+        }
+      ],
+      "statistics": {
+        "elapsed": 0.126486266,
+        "rows_read": 152327324,
+        "bytes_read": 2437237184
+      }
+    },
+    "metadata": {
+      "sql": "SELECT head_sha, repository.full_name AS repo FROM default.workflow_run FINAL WHERE id IN (SELECT run_id FROM default.workflow_job WHERE id = 120694503036) ORDER BY _inserted_at DESC LIMIT 1",
+      "data": [
+        {
+          "head_sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
+          "repo": "pytorch/pytorch"
+        }
+      ],
+      "statistics": {
+        "elapsed": 0.008652296,
+        "rows_read": 9239,
+        "bytes_read": 275644
+      }
+    },
+    "test_counts": {
+      "sql": "SELECT tests_id, count() FROM ci.runs FINAL WHERE tests_id IN (16276571317520,8392283225797466657) GROUP BY tests_id",
+      "data": [
+        {
+          "tests_id": "8392283225797466657",
+          "count()": "98"
+        },
+        {
+          "tests_id": "16276571317520",
+          "count()": "181"
+        }
+      ],
+      "statistics": {
+        "elapsed": 0.1535191,
+        "rows_read": 233575,
+        "bytes_read": 9343006
+      }
+    },
+    "version": {
+      "sql": "SELECT version() AS version",
+      "data": [
+        {
+          "version": "26.6.1.2439"
+        }
+      ],
+      "statistics": {
+        "elapsed": 0.000962597,
+        "rows_read": 1,
+        "bytes_read": 1
+      }
+    }
+  },
+  "missing": {
+    "rows": [],
+    "statistics": {
+      "elapsed": 0.388499076,
+      "rows_read": 152337631,
+      "bytes_read": 2437402081
+    }
+  }
+}
