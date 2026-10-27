@@ -2,7 +2,7 @@
 // lacking modules (ex fs) and required environment variables.  Run `yarn run
 // build` to see the error and where it is imported from if vercel fails to
 // deploy.
-import { createClient } from "@clickhouse/client";
+import { type ClickHouseSettings, createClient } from "@clickhouse/client";
 import { readFileSync } from "fs";
 import { v4 as uuidv4 } from "uuid";
 // Import itself to ensure that mocks can be applied, see
@@ -32,7 +32,8 @@ export async function queryClickhouse(
   query: string,
   params: Record<string, unknown>,
   query_id?: string,
-  useQueryCache?: boolean
+  useQueryCache?: boolean,
+  settings?: ClickHouseSettings
 ): Promise<any[]> {
   if (query_id === undefined) {
     query_id = "adhoc";
@@ -44,6 +45,9 @@ export async function queryClickhouse(
    * @param query: string, the sql query
    * @param params: Record<string, unknown>, the parameters to the query ex { sha: "abcd" }
    * @param useQueryCache: boolean, if true, cache the query result on Ch side (1 minute TTL)
+   * @param settings: ClickHouseSettings, server settings for this one query on
+   * top of the defaults below, such as the profile a heavy query sends (see
+   * the Heavy queries section of app/api/README.md)
    */
   const clickhouseClient = getClickhouseClient();
 
@@ -55,6 +59,7 @@ export async function queryClickhouse(
       output_format_json_quote_64bit_integers: 0,
       date_time_output_format: "iso",
       use_query_cache: useQueryCache ? 1 : 0,
+      ...settings,
     },
     query_id,
   });

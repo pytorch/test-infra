@@ -108,7 +108,7 @@ export const RunReportSchema = z
 export const RunAttemptSchema = z
   .object({
     id: RunIdSchema.describe(
-      "UUID of this individual test execution. Use as run_id in GET /api/tests/run/{run_id} to retrieve its complete attempt bundle; distinct from the report UUID and GitHub workflow run ID."
+      "UUID of this individual test execution, distinct from the report UUID and GitHub workflow run ID."
     ),
     report: RunReportSchema,
     rerun_number: RunRerunNumberSchema.describe(

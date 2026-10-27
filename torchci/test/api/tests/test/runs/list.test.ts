@@ -1,3 +1,4 @@
+import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { decodeRunsCursor } from "lib/api/tests/test/runs/cursor";
 import { listRuns } from "lib/api/tests/test/runs/list";
 import {
@@ -386,5 +387,23 @@ describe("test runs list", () => {
       query_duration_ms: 37,
     });
     expect(queryClickhouse).toHaveBeenCalledTimes(1);
+  });
+
+  test("runs only the attempts read in the heavy workload", async () => {
+    answerRunQueries(queryClickhouse, {
+      page: [groupRow()],
+      attempts: [runRow()],
+    });
+    await listRuns({ query: baseQuery, cursor: null });
+    expect(
+      Object.fromEntries(
+        queryClickhouse.mock.calls.map((call) => [call[2], call[4]])
+      )
+    ).toEqual({
+      api_test_runs_page: undefined,
+      api_run_attempts: CI_WORKLOAD_HEAVY,
+      api_run_catalog: undefined,
+      api_run_workflow: undefined,
+    });
   });
 });

@@ -57,9 +57,19 @@ describe("run detail OpenAPI", () => {
     expect(schemas.RunAttempt.required).toContain("id");
     expect(schemas.RunAttempt.properties.id).toMatchObject({ type: "string" });
     expect(schemas.RunAttempt.properties.id.pattern).toBeTruthy();
-    expect(schemas.RunAttempt.properties.id.description).toMatch(
-      /\/api\/tests\/run\/\{run_id\}/
+    // One lookup scans the whole id column, so only the run operation itself
+    // names the endpoint, together with what a call costs and that it is
+    // provisional; the lists must not send callers there attempt by attempt.
+    expect(schemas.RunAttempt.properties.id.description).not.toMatch(
+      /\/api\/tests\/run\//
     );
+    for (const [path, item] of Object.entries<any>(document.paths)) {
+      if (path === "/api/tests/run/{run_id}") continue;
+      expect(item.get.description ?? "").not.toMatch(/\/api\/tests\/run\//);
+    }
+    expect(operation.description).toMatch(/not indexed/i);
+    expect(operation.description).toMatch(/one run at a time/i);
+    expect(operation.description).toMatch(/provisional/i);
     expect(schemas.RunAttempt.properties.report).toEqual({
       $ref: "#/components/schemas/RunReport",
     });

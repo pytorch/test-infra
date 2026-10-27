@@ -116,6 +116,14 @@ describe("run detail", () => {
     expect(RunDetailSchema.parse(result)).toEqual(result);
     expect(result?.run.github_workflow).not.toHaveProperty("pull_requests");
     expect(queryClickhouse).toHaveBeenCalledTimes(4);
+    // The detail reads one bundle: none of its queries, the attempts read
+    // included, runs in the heavy workload.
+    expect(queryClickhouse.mock.calls.map((call) => call[4])).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
     const [sql, params, queryId] = queryClickhouse.mock.calls[0];
     expect(queryId).toBe("api_run_detail");
     expect(params).toEqual({ run_id: RUN_ID });

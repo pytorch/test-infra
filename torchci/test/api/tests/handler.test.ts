@@ -1,4 +1,6 @@
+import { ClickHouseError } from "@clickhouse/client";
 import { GET } from "app/api/tests/route";
+import { OVERLOADED_RETRY_AFTER_SECONDS } from "lib/api/handler";
 import { ErrorResponseSchema } from "lib/api/schema";
 import { encodeCursor } from "lib/api/tests/cursor";
 import * as list from "lib/api/tests/list";
@@ -280,4 +282,59 @@ describe("app/api/tests", () => {
     expect(res.body.error).not.toContain("private database");
     expect(consoleError).toHaveBeenCalled();
   });
+
+  test("answers 429 with Retry-After when the heavy-query queue refuses the page", async () => {
+    listPage.mockRejectedValue(
+      new ClickHouseError({
+        message: "Too many waiting queries in workload ci_workload_heavy",
+        code: "745",
+        type: "SERVER_OVERLOADED",
+      })
+    );
+    const consoleWarn = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+    const consoleError = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const res = await getTests();
+    expect(res.status).toBe(429);
+    expect(res.body).toEqual({
+      error:
+        "The database is busy with other heavy queries; try again in a moment",
+      code: "overloaded",
+    });
+    expect(res.headers.get("Retry-After")).toBe(
+      String(OVERLOADED_RETRY_AFTER_SECONDS)
+    );
+    expect(ErrorResponseSchema.parse(res.body)).toEqual(res.body);
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "GET /api/tests refused: the heavy-query queue is full"
+    );
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  test.each(["TIMEOUT_EXCEEDED", "MEMORY_LIMIT_EXCEEDED"])(
+    "answers 500 for a %s database error, as for any other failure",
+    async (type) => {
+      listPage.mockRejectedValue(
+        new ClickHouseError({
+          message: "private limit detail",
+          code: "1",
+          type,
+        })
+      );
+      const consoleError = jest
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const res = await getTests();
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({
+        error: "Failed to list tests",
+        code: "internal_error",
+      });
+      expect(res.headers.get("Retry-After")).toBeNull();
+      expect(consoleError).toHaveBeenCalled();
+    }
+  );
 });

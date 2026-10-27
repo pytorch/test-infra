@@ -2,6 +2,7 @@ import { decodeCommitRunsCursor } from "lib/api/tests/commit/cursor";
 import { listCommitRuns } from "lib/api/tests/commit/list";
 import { CommitRunsListQuery } from "lib/api/tests/commit/parameters";
 import { CommitRunListPageSchema } from "lib/api/tests/commit/types";
+import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { EntityRow, toEntry } from "lib/api/tests/mapping";
 import { listRuns } from "lib/api/tests/test/runs/list";
 import { RunListPageSchema } from "lib/api/tests/test/runs/types";
@@ -468,5 +469,33 @@ describe("commit run bundles", () => {
       "api_commit_runs_page",
       "api_commit_runs_stats",
     ]);
+  });
+
+  test("runs only the attempts read in the heavy workload", async () => {
+    answerRunQueries(queryClickhouse, {
+      page: [commitRow(), commitRow()],
+      attempts: [runRow()],
+    });
+    const first = await listCommitRuns({
+      query: { ...query, limit: 1 },
+      cursor: null,
+    });
+    await listCommitRuns({
+      query: { ...query, limit: 1 },
+      cursor: decodeCommitRunsCursor(first.next_cursor!),
+    });
+    const settingsOf = (id: string) =>
+      queryClickhouse.mock.calls
+        .filter((call) => call[2] === id)
+        .map((call) => call[4]);
+    expect(settingsOf("api_commit_runs_page")).toEqual([undefined, undefined]);
+    expect(settingsOf("api_commit_runs_page_boundary")).toEqual([undefined]);
+    expect(settingsOf("api_commit_runs_stats")).toEqual([undefined, undefined]);
+    expect(settingsOf("api_run_attempts")).toEqual([
+      CI_WORKLOAD_HEAVY,
+      CI_WORKLOAD_HEAVY,
+    ]);
+    expect(settingsOf("api_run_catalog")).toEqual([undefined, undefined]);
+    expect(settingsOf("api_run_workflow")).toEqual([undefined, undefined]);
   });
 });

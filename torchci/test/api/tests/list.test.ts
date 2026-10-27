@@ -1,4 +1,5 @@
 import { decodeCursor, encodeCursor } from "lib/api/tests/cursor";
+import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import {
   FILTER_DEFINITIONS,
   parseTestListParams,
@@ -110,6 +111,27 @@ describe("test list", () => {
       refreshed_at: null,
       query_duration_ms: expect.any(Number),
     });
+  });
+
+  test("runs the page and its boundary probe in the heavy workload, the generation lookup outside it", async () => {
+    answerQueries(queryClickhouse, {
+      tests: [entityRow(1, "10", "20"), entityRow(2, "10", "20")],
+    });
+    const first = await getTests({ limit: "1" });
+    expect(first.status).toBe(200);
+    const next = await getTests({ cursor: first.body.pagination.next.cursor });
+    expect(next.status).toBe(200);
+    answerQueries(queryClickhouse, { tests: [] });
+    expect((await getTests()).status).toBe(200);
+    const settingsOf = (kind: Parameters<typeof callsOf>[1]) =>
+      callsOf(queryClickhouse, kind).map((call) => call[4]);
+    expect(settingsOf("tests")).toEqual([
+      CI_WORKLOAD_HEAVY,
+      CI_WORKLOAD_HEAVY,
+      CI_WORKLOAD_HEAVY,
+    ]);
+    expect(settingsOf("boundary")).toEqual([CI_WORKLOAD_HEAVY]);
+    expect(settingsOf("generation")).toEqual([undefined]);
   });
 
   test("workflow filtering retains combined health and pages only the same normalized path selection", async () => {

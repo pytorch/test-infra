@@ -97,6 +97,14 @@ describe("app/api/tests/options", () => {
       "api_tests_options_owners",
       "api_tests_options_workflow_paths",
     ]);
+    // Every options read answers in well under a second, so none runs in
+    // the heavy workload, where it would wait behind list pages.
+    expect(queryClickhouse.mock.calls.map((call) => call[4])).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
     expect(values(res.body.python_version)).toEqual([
       "3.9",
       "3.10",

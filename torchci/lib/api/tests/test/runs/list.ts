@@ -1,5 +1,6 @@
 import { PageDirection, queryPage } from "lib/api/pagination";
 import type { ListPageData } from "lib/api/schema";
+import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { queryRunAttempts } from "lib/api/tests/test/runs/attempts";
 import {
   encodeRunsCursor,
@@ -40,7 +41,11 @@ export async function listRuns({
 }
 
 // A page of bundles: the grouped page query, then every attempt of the
-// selected bundles and their shared metadata.
+// selected bundles and their shared metadata. The attempts read runs in the
+// heavy workload for every list, since on a big commit it reaches tens of
+// CPU-seconds; the page query and its probe stay out, as a test's page reads
+// by primary key in milliseconds and a typical commit page costs a couple of
+// CPU-seconds (app/api/README.md, Heavy queries).
 export async function queryRunsPage<
   Cursor extends { direction?: PageDirection }
 >({
@@ -79,7 +84,7 @@ export async function queryRunsPage<
     encodeCursor,
   });
   const groups = paged.page.map(runGroup);
-  const attempts = await queryRunAttempts(groups);
+  const attempts = await queryRunAttempts(groups, CI_WORKLOAD_HEAVY);
   const expanded = await expandRunRows(attempts.rows, groups);
   return {
     runs: expanded.runs,

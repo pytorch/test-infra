@@ -29,6 +29,14 @@ function* walk(
   }
 }
 
+// The three lists run heavy queries: they alone document the 429 of a refused
+// query (app/api/README.md, Heavy queries).
+const HEAVY_PATHS = [
+  "/api/tests",
+  "/api/tests/test/{test_id}/runs",
+  "/api/tests/commit/{sha}",
+];
+
 describe("GET /api/openapi.json", () => {
   let document: any;
 
@@ -222,7 +230,7 @@ describe("GET /api/openapi.json", () => {
     ).toEqual({
       $ref: "#/components/schemas/TestListPage",
     });
-    for (const status of ["400", "401", "403", "500", "503"]) {
+    for (const status of ["400", "401", "403", "429", "500", "503"]) {
       expect(
         operation.responses[status].content["application/json"].schema
       ).toEqual({
@@ -252,6 +260,20 @@ describe("GET /api/openapi.json", () => {
       expect(item.get.responses["401"].description).toMatch(/unauthenticated/);
       expect(item.get.responses["403"].description).toMatch(/forbidden/);
       expect(item.get.responses["503"].description).toMatch(/Retry-After/);
+    }
+  });
+
+  test("documents the 429 of a refused heavy query on the lists alone", () => {
+    for (const [path, item] of Object.entries<any>(document.paths)) {
+      const overloaded = item.get.responses["429"];
+      expect({ path, documented: overloaded !== undefined }).toEqual({
+        path,
+        documented: HEAVY_PATHS.includes(path),
+      });
+      if (overloaded !== undefined) {
+        expect(overloaded.description).toMatch(/Retry-After/);
+        expect(overloaded.description).toMatch(/overloaded/);
+      }
     }
   });
 
@@ -377,6 +399,7 @@ describe("GET /api/openapi.json", () => {
         "unauthenticated",
         "forbidden",
         "not_found",
+        "overloaded",
         "internal_error",
         "unavailable",
       ],
@@ -399,7 +422,9 @@ describe("GET /api/openapi.json", () => {
       for (const [status, response] of Object.entries<any>(
         item.get.responses
       )) {
-        if (["400", "401", "403", "404", "500", "503"].includes(status)) {
+        if (
+          ["400", "401", "403", "404", "429", "500", "503"].includes(status)
+        ) {
           expect(response.content["application/json"].schema).toEqual({
             $ref: "#/components/schemas/ErrorResponse",
           });
