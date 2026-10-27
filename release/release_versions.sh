@@ -2,6 +2,9 @@
 
 # Make sure to update these versions when doing a release first
 PYTORCH_VERSION=${PYTORCH_VERSION:-2.15.0}
+# Comma-separated accelerator folders left out when torch is promoted to
+# download.pytorch.org by release-download-pytorch-org.yml. 2.15.0: cu130 is skipped.
+TORCH_PROMOTE_SKIP_TARGETS=${TORCH_PROMOTE_SKIP_TARGETS:-cu130}
 TORCHVISION_VERSION=${TORCHVISION_VERSION:-0.29.2}
 TORCHAUDIO_VERSION=${TORCHAUDIO_VERSION:-2.11.1}
 TORCHCODEC_VERSION=${TORCHCODEC_VERSION:-0.17.0}

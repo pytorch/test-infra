@@ -1,4 +1,4 @@
-name: Release ecosystem library from test to production.
+name: Release torch or an ecosystem library from test to production.
 run-name: Release ${{ inputs.package || 'torchvision' }} to production (dryrun=${{ inputs.dryrun || 'enabled' }})
 
 on:
@@ -12,11 +12,12 @@ on:
           - enabled
           - disabled
       package:
-        description: "Domain to prepare and release"
+        description: "Package to prepare and release. torch skips the targets in TORCH_PROMOTE_SKIP_TARGETS (release/release_versions.sh)"
         required: true
         type: choice
         default: torchvision
         options:
+          - torch
           - torchao
           - torchtune
           - executorch
@@ -56,7 +57,15 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            version="${PACKAGE^^}_VERSION"
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
+            # has accelerator folders that can be left out of a release.
+            if [[ "${PACKAGE}" == "torch" ]]; then
+              version="PYTORCH_VERSION"
+              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+            else
+              version="${PACKAGE^^}_VERSION"
+              skip_targets=""
+            fi
             {
               echo "## Release ${PACKAGE} ${!version:-unknown}"
               echo
@@ -64,6 +73,7 @@ jobs:
               echo "|---|---|"
               echo "| package | \`${PACKAGE}\` |"
               echo "| version | \`${!version:-unknown}\` |"
+              echo "| skipped targets | \`${skip_targets:-none}\` |"
               echo "| dryrun | \`${DRY_RUN}\` |"
               echo "| ref | \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA::7}\`) |"
               echo "| requested by | ${GITHUB_ACTOR} |"
@@ -73,6 +83,10 @@ jobs:
               else
                 echo "> Dry run: approving only prints what would be copied."
               fi
+              echo
+              # Every binary the approval would promote, so the reviewer reads the
+              # list before approving instead of after.
+              python3 release/preview_promotion.py "${PACKAGE}" "${!version}" "${skip_targets}"
             } >> "${GITHUB_STEP_SUMMARY}"
 
   trigger:
@@ -129,8 +143,18 @@ jobs:
             # Init release versions variables
             source ./release_versions.sh
             # Run promotion
-            # shellcheck disable=SC2086
-            version="${PACKAGE^^}_VERSION"
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
+            # has accelerator folders that can be left out of a release.
+            if [[ "${PACKAGE}" == "torch" ]]; then
+              version="PYTORCH_VERSION"
+              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+            else
+              version="${PACKAGE^^}_VERSION"
+              skip_targets=""
+            fi
+
+            # Read by release/promote/common_utils.sh for both the S3 and R2 copies.
+            export PACKAGE_EXCLUDE_TARGETS="${skip_targets}"
 
             # do not upload FA3 test wheels with local date suffix
             if [[ "${PACKAGE}" == "flash_attn_3" ]]; then
@@ -152,10 +176,18 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            version="${PACKAGE^^}_VERSION"
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
+            # has accelerator folders that can be left out of a release.
+            if [[ "${PACKAGE}" == "torch" ]]; then
+              version="PYTORCH_VERSION"
+              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+            else
+              version="${PACKAGE^^}_VERSION"
+              skip_targets=""
+            fi
             ./release/summarize_promoted_files.sh \
               "${RUNNER_TEMP}/promote.log" \
-              "${PACKAGE} ${!version} - promoted to download.pytorch.org" \
+              "${PACKAGE} ${!version} - promoted to download.pytorch.org${skip_targets:+ (skipped: ${skip_targets})}" \
               "${DRY_RUN}"
 
       - name: Recompute SHA256 on whl/ (prod) for promoted package
@@ -167,8 +199,15 @@ jobs:
             set -ex
             # Init release versions variables
             source ./release/release_versions.sh
-            # shellcheck disable=SC2086
-            version="${PACKAGE^^}_VERSION"
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
+            # has accelerator folders that can be left out of a release.
+            if [[ "${PACKAGE}" == "torch" ]]; then
+              version="PYTORCH_VERSION"
+              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+            else
+              version="${PACKAGE^^}_VERSION"
+              skip_targets=""
+            fi
             # Backfill SHA256 metadata for wheels missing it (skips existing).
             # Bare --recompute-sha256-pattern scans all prod accelerator
             # subfolders (cu*/rocm*/cpu/xpu) for this package/version.
