@@ -1456,13 +1456,6 @@
       "linux"
     ]
   ],
-  "test_tree_flatten_with_path_roundtrip (__main__.TestPythonPytree)": [
-    "201500",
-    "https://github.com/pytorch/pytorch/issues/201500",
-    [
-      "dynamo"
-    ]
-  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
