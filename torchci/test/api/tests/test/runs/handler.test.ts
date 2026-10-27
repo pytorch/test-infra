@@ -7,6 +7,12 @@ import { RunListPage, RunListPageSchema } from "lib/api/tests/test/runs/types";
 import { callRoute } from "test/api/routes";
 import { expandedRunRecord, runRecord } from "./fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 const TEST_ID = "18446744073709551615";
 const emptyPage: ListPageData<RunListPage> = {
   runs: [],

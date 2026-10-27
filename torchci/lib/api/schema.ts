@@ -14,11 +14,14 @@ export const ErrorResponseSchema = z
         "invalid_parameters",
         "invalid_cursor",
         "cursor_query_mismatch",
+        "unauthenticated",
+        "forbidden",
         "not_found",
         "internal_error",
+        "unavailable",
       ])
       .describe(
-        "Stable error code for programmatic handling. HTTP 400: invalid_parameters, invalid_cursor or cursor_query_mismatch; HTTP 404: not_found; HTTP 500: internal_error."
+        "Stable error code for programmatic handling. HTTP 400: invalid_parameters, invalid_cursor or cursor_query_mismatch; HTTP 401: unauthenticated; HTTP 403: forbidden; HTTP 404: not_found; HTTP 500: internal_error; HTTP 503: unavailable, retry after the Retry-After seconds."
       ),
     issues: z
       .array(
@@ -50,7 +53,7 @@ const PageLinkSchema = z
     url: z
       .string()
       .describe(
-        "Relative URL for this page. Resolve against this response's URL. Preserves the request path and query parameters, including repeated values and page size, replacing only cursor."
+        "Relative URL for this page. Resolve against this response's URL. Preserves the path the request was made to, through /api/authed/ included, and its query parameters, including repeated values and page size, replacing only cursor."
       ),
   })
   .nullable();

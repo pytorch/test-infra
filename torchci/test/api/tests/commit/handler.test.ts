@@ -13,6 +13,12 @@ import {
 import { callRoute } from "test/api/routes";
 import { expandedRunRecord, runRecord, runStats } from "../test/runs/fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 const SHA = "0123456789abcdef0123456789abcdef01234567";
 const REPO = "pytorch/pytorch";
 const emptyPage: ListPageData<CommitRunListPage> = {

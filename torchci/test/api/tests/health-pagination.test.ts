@@ -3,6 +3,12 @@ import { TestListPageSchema } from "lib/api/tests/types";
 import * as clickhouse from "lib/clickhouse";
 import { entityRow, REFRESHED_AT } from "./fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 // Interpret the health query's small keyset WHERE expression independently
 // of its cursor builder. This catches missing equality prefixes and reversed
 // null/comparison rules while the handler performs the full page round trip.

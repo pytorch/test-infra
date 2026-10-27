@@ -342,6 +342,22 @@ export function testsApiUrl({
   return `/api/tests?${params.toString()}`;
 }
 
+// The API is behind the HUD GitHub gate. Which of its refusals a failed
+// request met, if any: no accepted sign-in (401: none at all, or, for a
+// reader who is signed in, one whose GitHub token has stopped working) or a
+// GitHub account without write access to pytorch/pytorch (403). Undefined
+// for every other failure. Both hooks keep the response status on the
+// error.
+export function accessReasonOf(
+  error: unknown,
+  signedIn: boolean
+): "signed_out" | "expired" | "forbidden" | undefined {
+  const status = (error as { status?: unknown } | null)?.status;
+  if (status === 401) return signedIn ? "expired" : "signed_out";
+  if (status === 403) return "forbidden";
+  return undefined;
+}
+
 // What to tell the reader when a request to the API failed: the API's own
 // error text when the response carried one (fetcherHandleError keeps it as
 // info), else the error's message.

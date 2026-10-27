@@ -1,5 +1,4 @@
 import { GET as getOpenApiDocument } from "app/api/openapi.json/route";
-import { readdirSync } from "fs";
 import { buildOpenApiDocument } from "lib/api/openapi";
 import { ErrorResponseSchema } from "lib/api/schema";
 import {
@@ -9,25 +8,14 @@ import {
 import { testDetailPathParameters } from "lib/api/tests/test/parameters";
 import { TestListPageSchema } from "lib/api/tests/types";
 import * as clickhouse from "lib/clickhouse";
-import { join } from "path";
+import { routeFiles } from "./routes";
 import { answerQueries, entityRow, getTests } from "./tests/fixtures";
 
-// The route files under app/api and the path each serves. A [name] folder is
-// a path parameter, written {name} like OpenAPI.
-function routeFiles(
-  directory = join(__dirname, "../../app/api"),
-  path = "/api"
-): { file: string; path: string }[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory()) {
-      const segment = entry.name.replace(/^\[(\w+)\]$/, "{$1}");
-      return routeFiles(join(directory, entry.name), `${path}/${segment}`);
-    }
-    return entry.name === "route.ts"
-      ? [{ file: join(directory, entry.name), path }]
-      : [];
-  });
-}
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
 
 function* walk(
   value: unknown,
@@ -234,7 +222,7 @@ describe("GET /api/openapi.json", () => {
     ).toEqual({
       $ref: "#/components/schemas/TestListPage",
     });
-    for (const status of ["400", "500"]) {
+    for (const status of ["400", "401", "403", "500", "503"]) {
       expect(
         operation.responses[status].content["application/json"].schema
       ).toEqual({
@@ -242,6 +230,29 @@ describe("GET /api/openapi.json", () => {
       });
     }
     expect(operation.responses).not.toHaveProperty("405");
+  });
+
+  test("declares the GitHub bearer scheme every operation requires", () => {
+    expect(document.security).toEqual([{ githubToken: [] }]);
+    expect(document.components.securitySchemes).toEqual({
+      githubToken: {
+        type: "http",
+        scheme: "bearer",
+        description: expect.stringMatching(/write access to pytorch\/pytorch/),
+      },
+    });
+    expect(document.components.securitySchemes.githubToken.description).toMatch(
+      /signed in to HUD/
+    );
+    for (const [path, item] of Object.entries<any>(document.paths)) {
+      expect({ path, security: item.get.security }).toEqual({
+        path,
+        security: undefined,
+      });
+      expect(item.get.responses["401"].description).toMatch(/unauthenticated/);
+      expect(item.get.responses["403"].description).toMatch(/forbidden/);
+      expect(item.get.responses["503"].description).toMatch(/Retry-After/);
+    }
   });
 
   test("has every referenced component, free of JSON Schema headers", () => {
@@ -363,8 +374,11 @@ describe("GET /api/openapi.json", () => {
         "invalid_parameters",
         "invalid_cursor",
         "cursor_query_mismatch",
+        "unauthenticated",
+        "forbidden",
         "not_found",
         "internal_error",
+        "unavailable",
       ],
     });
     expect(error.properties.issues).toMatchObject({
@@ -385,7 +399,7 @@ describe("GET /api/openapi.json", () => {
       for (const [status, response] of Object.entries<any>(
         item.get.responses
       )) {
-        if (["400", "404", "500"].includes(status)) {
+        if (["400", "401", "403", "404", "500", "503"].includes(status)) {
           expect(response.content["application/json"].schema).toEqual({
             $ref: "#/components/schemas/ErrorResponse",
           });
@@ -415,7 +429,7 @@ describe("GET /api/openapi.json", () => {
     expect(
       operation.responses["200"].content["application/json"].schema
     ).toEqual({ $ref: "#/components/schemas/TestDetail" });
-    for (const status of ["400", "404", "500"]) {
+    for (const status of ["400", "401", "403", "404", "500", "503"]) {
       expect(
         operation.responses[status].content["application/json"].schema
       ).toEqual({ $ref: "#/components/schemas/ErrorResponse" });

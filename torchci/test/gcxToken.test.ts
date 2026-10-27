@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import * as nextAuth from "next-auth";
-import * as generalUtils from "../lib/GeneralUtils";
+import * as githubPermissions from "../lib/auth/githubPermissions";
 import * as github from "../lib/github";
 import * as serviceAccount from "../lib/grafana/serviceAccount";
 import handler from "../pages/api/gcx-token";
@@ -71,7 +71,7 @@ describe("/api/gcx-token", () => {
       .spyOn(github, "getOctokitWithUserToken")
       .mockResolvedValue(mockOctokit("someuser"));
     jest
-      .spyOn(generalUtils, "hasWritePermissionsUsingOctokit")
+      .spyOn(githubPermissions, "hasWritePermissionsUsingOctokit")
       .mockResolvedValue(false);
     const mint = jest.spyOn(serviceAccount, "mintGcxViewerToken");
 
@@ -89,7 +89,7 @@ describe("/api/gcx-token", () => {
       .spyOn(github, "getOctokitWithUserToken")
       .mockResolvedValue(mockOctokit("writeruser"));
     jest
-      .spyOn(generalUtils, "hasWritePermissionsUsingOctokit")
+      .spyOn(githubPermissions, "hasWritePermissionsUsingOctokit")
       .mockResolvedValue(true);
     jest
       .spyOn(serviceAccount, "mintGcxViewerToken")
@@ -110,7 +110,7 @@ describe("/api/gcx-token", () => {
       .spyOn(github, "getOctokitWithUserToken")
       .mockResolvedValue(mockOctokit("writeruser"));
     jest
-      .spyOn(generalUtils, "hasWritePermissionsUsingOctokit")
+      .spyOn(githubPermissions, "hasWritePermissionsUsingOctokit")
       .mockResolvedValue(true);
     jest
       .spyOn(serviceAccount, "mintGcxViewerToken")

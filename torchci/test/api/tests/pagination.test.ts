@@ -18,6 +18,12 @@ import {
   STARTED_AT,
 } from "./test/runs/fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 const SHA = "0123456789ABCDEF0123456789ABCDEF01234567";
 const FILTER_VALUES = ["a+b &=#/?Ü, value", ""];
 const endpoints = [

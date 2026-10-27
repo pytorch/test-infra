@@ -6,6 +6,12 @@ import { RunDetail, RunDetailSchema } from "lib/api/tests/run/types";
 import { callRoute } from "test/api/routes";
 import { expandedRunRecord, RUN_ID } from "../test/runs/fixtures";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 const runDetail: RunDetail = {
   run: expandedRunRecord(),
   query_duration_ms: 5,

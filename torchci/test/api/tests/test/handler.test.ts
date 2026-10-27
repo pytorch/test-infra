@@ -5,6 +5,12 @@ import * as detail from "lib/api/tests/test/detail";
 import { TestDetail, TestDetailSchema } from "lib/api/tests/test/types";
 import { callRoute } from "test/api/routes";
 
+// The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
+// here the handlers answer as themselves.
+jest.mock("lib/api/auth", () => ({
+  requireGithubWriteAccess: (handler: unknown) => handler,
+}));
+
 const TEST_ID = "18446744073709551615";
 const testDetail: TestDetail = {
   test: {
