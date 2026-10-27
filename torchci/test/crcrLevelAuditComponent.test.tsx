@@ -96,7 +96,12 @@ describe("CrcrLevelAudit", () => {
 
   test("renders the selected decision's persisted audit details", () => {
     mockUseLevelAudit.mockReturnValue({
-      decisions: [DECISION],
+      decisions: [
+        {
+          ...DECISION,
+          events: [...DECISION.events, DECISION.current],
+        },
+      ],
       error: undefined,
       loaded: true,
     });
