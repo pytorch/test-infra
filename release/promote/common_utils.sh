@@ -42,8 +42,14 @@ get_pytorch_version() {
 # turn into a pattern that silently matches nothing or too much.
 exclude_targets() {
     local raw="${PACKAGE_EXCLUDE_TARGETS:-}"
+    # Split on commas with read, not an unquoted expansion: a stray * would be
+    # expanded to file names before the check below could reject it.
+    local targets=()
+    IFS=, read -ra targets <<<"${raw}"
     local target
-    for target in ${raw//,/ }; do
+    for target in ${targets[@]+"${targets[@]}"}; do
+        target="${target// /}"
+        [[ -z "${target}" ]] && continue
         if [[ ! "${target}" =~ ^[a-z0-9.]+$ ]]; then
             >&2 echo "- ERROR: invalid PACKAGE_EXCLUDE_TARGETS entry '${target}' (expected e.g. cu130)"
             exit 1

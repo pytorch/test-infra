@@ -12,15 +12,13 @@ on:
           - enabled
           - disabled
       package:
-        description: "Package to prepare and release. torch skips the targets in TORCH_PROMOTE_SKIP_TARGETS (release/release_versions.sh)"
+        description: "Package to prepare and release. torch, torchvision and torchaudio skip the targets in RELEASE_PROMOTE_SKIP_TARGETS (release/release_versions.sh); triton releases triton, triton_rocm and triton_xpu together"
         required: true
         type: choice
         default: torchvision
         options:
           - torch
           - triton
-          - triton_rocm
-          - triton_xpu
           - torchao
           - torchtune
           - executorch
@@ -60,28 +58,16 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
-            # triton packages all share TRITON_VERSION. Only torch has accelerator
-            # folders that can be left out of a release.
-            skip_targets=""
-            case "${PACKAGE}" in
-              torch)
-                version="PYTORCH_VERSION"
-                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-                ;;
-              triton|triton_rocm|triton_xpu)
-                version="TRITON_VERSION"
-                ;;
-              *)
-                version="${PACKAGE^^}_VERSION"
-                ;;
-            esac
+            release_package_vars "${PACKAGE}"
             {
               echo "## Release ${PACKAGE} ${!version:-unknown}"
               echo
               echo "| Input | Value |"
               echo "|---|---|"
               echo "| package | \`${PACKAGE}\` |"
+              if [[ "${packages}" != "${PACKAGE}" ]]; then
+                echo "| promotes | \`${packages// /\`, \`}\` |"
+              fi
               echo "| version | \`${!version:-unknown}\` |"
               echo "| skipped targets | \`${skip_targets:-none}\` |"
               echo "| dryrun | \`${DRY_RUN}\` |"
@@ -96,7 +82,10 @@ jobs:
               echo
               # Every binary the approval would promote, so the reviewer reads the
               # list before approving instead of after.
-              python3 release/preview_promotion.py "${PACKAGE}" "${!version}" "${skip_targets}"
+              for pkg in ${packages}; do
+                python3 release/preview_promotion.py "${pkg}" "${!version}" "${skip_targets}"
+                echo
+              done
             } >> "${GITHUB_STEP_SUMMARY}"
 
   trigger:
@@ -153,22 +142,7 @@ jobs:
             # Init release versions variables
             source ./release_versions.sh
             # Run promotion
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
-            # triton packages all share TRITON_VERSION. Only torch has accelerator
-            # folders that can be left out of a release.
-            skip_targets=""
-            case "${PACKAGE}" in
-              torch)
-                version="PYTORCH_VERSION"
-                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-                ;;
-              triton|triton_rocm|triton_xpu)
-                version="TRITON_VERSION"
-                ;;
-              *)
-                version="${PACKAGE^^}_VERSION"
-                ;;
-            esac
+            release_package_vars "${PACKAGE}"
 
             # Read by release/promote/common_utils.sh for both the S3 and R2 copies.
             export PACKAGE_EXCLUDE_TARGETS="${skip_targets}"
@@ -179,8 +153,10 @@ jobs:
             fi
 
             # Tee the transfer output so the next step can list what moved.
-            # shellcheck disable=SC2086
-            promote_s3 ${PACKAGE} whl "${!version}" 2>&1 | tee -a "${RUNNER_TEMP}/promote.log"
+            # A failure in one package stops the run, before the next one is copied.
+            for pkg in ${packages}; do
+              promote_s3 "${pkg}" whl "${!version}" 2>&1 | tee -a "${RUNNER_TEMP}/promote.log"
+            done
 
       # always(): a promotion that dies partway through is exactly when you want to
       # know which files already made it to prod.
@@ -193,25 +169,10 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
-            # triton packages all share TRITON_VERSION. Only torch has accelerator
-            # folders that can be left out of a release.
-            skip_targets=""
-            case "${PACKAGE}" in
-              torch)
-                version="PYTORCH_VERSION"
-                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-                ;;
-              triton|triton_rocm|triton_xpu)
-                version="TRITON_VERSION"
-                ;;
-              *)
-                version="${PACKAGE^^}_VERSION"
-                ;;
-            esac
+            release_package_vars "${PACKAGE}"
             ./release/summarize_promoted_files.sh \
               "${RUNNER_TEMP}/promote.log" \
-              "${PACKAGE} ${!version} - promoted to download.pytorch.org${skip_targets:+ (skipped: ${skip_targets})}" \
+              "${packages// /, } ${!version} - promoted to download.pytorch.org${skip_targets:+ (skipped: ${skip_targets})}" \
               "${DRY_RUN}"
 
       - name: Recompute SHA256 on whl/ (prod) for promoted package
@@ -223,27 +184,13 @@ jobs:
             set -ex
             # Init release versions variables
             source ./release/release_versions.sh
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
-            # triton packages all share TRITON_VERSION. Only torch has accelerator
-            # folders that can be left out of a release.
-            skip_targets=""
-            case "${PACKAGE}" in
-              torch)
-                version="PYTORCH_VERSION"
-                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-                ;;
-              triton|triton_rocm|triton_xpu)
-                version="TRITON_VERSION"
-                ;;
-              *)
-                version="${PACKAGE^^}_VERSION"
-                ;;
-            esac
+            release_package_vars "${PACKAGE}"
             # Backfill SHA256 metadata for wheels missing it (skips existing).
             # Bare --recompute-sha256-pattern scans all prod accelerator
             # subfolders (cu*/rocm*/cpu/xpu) for this package/version.
-            # shellcheck disable=SC2086
-            python s3_management/manage_v2.py whl \
-              --recompute-sha256-pattern \
-              --package-name "${PACKAGE}" \
-              --package-version "${!version}"
+            for pkg in ${packages}; do
+              python s3_management/manage_v2.py whl \
+                --recompute-sha256-pattern \
+                --package-name "${pkg}" \
+                --package-version "${!version}"
+            done

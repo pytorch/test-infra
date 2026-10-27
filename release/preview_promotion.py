@@ -14,6 +14,7 @@ Usage: preview_promotion.py <package> <version> [skip_targets]
                 release/promote/common_utils.sh.
 """
 
+import http.client
 import re
 import sys
 import urllib.error
@@ -79,7 +80,9 @@ def render(package, version, targets, binaries):
         out += ["", "</details>", ""]
     out.append(
         "> From the published test-channel index, which can lag the bucket by up to "
-        "an hour. The approved job lists the exact S3 objects before copying."
+        "an hour. It counts wheels; the S3 listing in the approved job can also include "
+        "other objects named after them, such as `.metadata` files, so its count can be "
+        "higher. The approved job lists the exact S3 objects before copying."
     )
     return "\n".join(out)
 
@@ -97,7 +100,7 @@ def main():
     try:
         with urllib.request.urlopen(url, timeout=60) as resp:
             html = resp.read().decode()
-    except urllib.error.URLError as e:
+    except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
         print(f"### Binaries to promote: `{package}` {version}\n")
         print(f"Could not read `{url}` ({e}); the approved job still lists the binaries before copying.")
         return
