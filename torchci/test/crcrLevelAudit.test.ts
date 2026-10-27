@@ -51,9 +51,10 @@ describe("crcr_level_audit", () => {
     expect(query).toContain("recent_decisions AS");
     expect(query).toContain("GROUP BY decision_id");
     expect(query).toContain(
-      "WHERE decision_id IN (SELECT decision_id FROM recent_decisions)"
+      "downstream_repo = {repo: String}"
     );
     expect(query).toContain("ORDER BY recorded_at DESC, event_id DESC");
+    expect(query).toContain("LIMIT 1 BY event_id");
   });
 
   test("keeps proposal context after the applied lifecycle event arrives", () => {
@@ -74,6 +75,37 @@ describe("crcr_level_audit", () => {
     expect(decisions).toHaveLength(1);
     expect(decisions[0].current).toBe(applied);
     expect(decisions[0].events).toEqual([proposed, applied]);
+  });
+
+  test("orders same-time lifecycle events and ignores duplicate event IDs", () => {
+    const proposed = event({
+      event_id: "00000000-0000-0000-0000-000000000099",
+      recorded_at: "2026-10-15 01:00:00.000",
+    });
+    const applied = event({
+      event_id: "00000000-0000-0000-0000-000000000001",
+      event_state: "applied",
+      recorded_at: "2026-10-15 01:00:00.000",
+      effective_at: "2026-10-15 01:00:00.000",
+    });
+
+    const decisions = groupLevelAuditEvents([proposed, applied, applied]);
+
+    expect(decisions[0].current).toBe(applied);
+    expect(decisions[0].events).toEqual([proposed, applied]);
+  });
+
+  test("does not let an unparsable timestamp supersede a known event", () => {
+    const proposed = event();
+    const malformed = event({
+      event_id: "00000000-0000-0000-0000-000000000002",
+      event_state: "superseded",
+      recorded_at: "not a timestamp",
+    });
+
+    const decisions = groupLevelAuditEvents([malformed, proposed]);
+
+    expect(decisions[0].current).toBe(proposed);
   });
 
   test("parses the version-one criterion snapshot contract", () => {

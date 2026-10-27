@@ -20,10 +20,7 @@ import {
 } from "@mui/material";
 import { LocalTimeHuman } from "components/common/TimeUtils";
 import {
-  AuditDecisionKind,
-  AuditDecisionSource,
   auditDisplayTime,
-  AuditEventState,
   firstAuditValue,
   isSafeHttpUrl,
   LevelAuditDecision,
@@ -32,28 +29,29 @@ import {
 } from "lib/crcr/levelAudit";
 import { ReactNode, useState } from "react";
 
-function kindColor(kind: AuditDecisionKind) {
+function kindColor(kind: string) {
   if (kind === "promotion") return "success" as const;
   if (kind === "demotion") return "error" as const;
   return "info" as const;
 }
 
-function displayKind(kind: AuditDecisionKind) {
+function displayKind(kind: string) {
   if (kind === "initial") return "Initial onboarding";
-  return kind[0].toUpperCase() + kind.slice(1);
+  return kind ? kind[0].toUpperCase() + kind.slice(1) : "Unknown";
 }
 
-function displaySource(source: AuditDecisionSource) {
+function displaySource(source: string) {
   if (source === "automation") return "Automated";
   if (source === "maintainer") return "Manual";
-  return "Onboarding";
+  if (source === "onboarding") return "Onboarding";
+  return source ? source[0].toUpperCase() + source.slice(1) : "Unknown";
 }
 
-function displayState(state: AuditEventState) {
-  return state[0].toUpperCase() + state.slice(1);
+function displayState(state: string) {
+  return state ? state[0].toUpperCase() + state.slice(1) : "Unknown";
 }
 
-function stateColor(state: AuditEventState) {
+function stateColor(state: string) {
   if (state === "applied") return "success" as const;
   if (state === "proposed") return "info" as const;
   if (state === "closed") return "default" as const;
@@ -62,9 +60,9 @@ function stateColor(state: AuditEventState) {
 
 function decisionTitle(decision: LevelAuditDecision) {
   const event = decision.current;
-  return `${displaySource(event.decision_source)} ${event.decision_kind}: ${
+  return `${displaySource(event.decision_source)} ${displayKind(event.decision_kind)}: ${
     event.previous_level || "Unconfigured"
-  } → ${event.new_level}`;
+  } → ${event.new_level || "Unknown"}`;
 }
 
 function AuditLink({
@@ -97,23 +95,23 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
   );
   const actor = firstAuditValue(decision, "decision_actor");
   const recordedBy = firstAuditValue(decision, "recorded_by");
-  const snapshotEvent = [...decision.events]
+  let criteria = null;
+  for (const candidate of [...decision.events].reverse()) {
+    criteria = parseCriteriaSnapshot(
+      candidate.criteria_snapshot_json,
+      candidate.criteria_schema_version
+    );
+    if (criteria) break;
+  }
+  const windowEvent = [...decision.events]
     .reverse()
     .find(
       (candidate) =>
-        parseCriteriaSnapshot(
-          candidate.criteria_snapshot_json,
-          candidate.criteria_schema_version
-        ) !== null
+        candidate.evaluation_window_start && candidate.evaluation_window_end
     );
-  const criteria = snapshotEvent
-    ? parseCriteriaSnapshot(
-        snapshotEvent.criteria_snapshot_json,
-        snapshotEvent.criteria_schema_version
-      )
-    : null;
-  const windowStart = firstAuditValue(decision, "evaluation_window_start");
-  const windowEnd = firstAuditValue(decision, "evaluation_window_end");
+  const appliedEvent = [...decision.events]
+    .reverse()
+    .find((candidate) => candidate.event_state === "applied");
 
   return (
     <Paper
@@ -206,21 +204,21 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
               Effective at
             </Typography>
             <Typography variant="body2">
-              {event.effective_at ? (
-                <LocalTimeHuman timestamp={event.effective_at} />
+              {appliedEvent?.effective_at ? (
+                <LocalTimeHuman timestamp={appliedEvent.effective_at} />
               ) : (
                 "Not applied"
               )}
             </Typography>
           </Box>
-          {windowStart && windowEnd && (
+          {windowEvent && (
             <Box gridColumn={{ sm: "span 2" }}>
               <Typography variant="caption" color="text.secondary">
                 Evaluation window
               </Typography>
               <Typography variant="body2">
-                <LocalTimeHuman timestamp={windowStart} /> –{" "}
-                <LocalTimeHuman timestamp={windowEnd} />
+                <LocalTimeHuman timestamp={windowEvent.evaluation_window_start!} />{" "}
+                – <LocalTimeHuman timestamp={windowEvent.evaluation_window_end!} />
               </Typography>
             </Box>
           )}
@@ -235,11 +233,11 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
                 Applied configuration{" "}
                 {configurationCommitSha?.slice(0, 12) ?? "commit"}
               </AuditLink>
-            ) : (
+            ) : configurationCommitSha ? (
               <Typography variant="body2">
                 Applied configuration: {configurationCommitSha}
               </Typography>
-            )}
+            ) : null}
           </Stack>
         )}
 
@@ -255,8 +253,8 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {criteria.map((criterion) => (
-                  <TableRow key={criterion.name}>
+                {criteria.map((criterion, index) => (
+                  <TableRow key={`${criterion.name}-${index}`}>
                     <TableCell>{criterion.name}</TableCell>
                     <TableCell align="right">{criterion.target}</TableCell>
                     <TableCell

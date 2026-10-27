@@ -114,4 +114,86 @@ describe("CrcrLevelAudit", () => {
     expect(html).toContain("temporarily unavailable");
     expect(html).not.toContain("0 audit decisions");
   });
+
+  test("does not show an applied configuration fallback before a decision applies", () => {
+    mockUseLevelAudit.mockReturnValue({
+      decisions: [
+        {
+          ...DECISION,
+          current: DECISION.events[0],
+          events: [DECISION.events[0]],
+        },
+      ],
+      error: undefined,
+      loaded: true,
+    });
+
+    const html = renderToStaticMarkup(
+      <CrcrLevelAudit repoFullName="vendor/backend" />
+    );
+
+    expect(html).toContain("Proposal");
+    expect(html).not.toContain("Applied configuration");
+  });
+
+  test("uses the applied event for effective time and one event for a window", () => {
+    const superseded = {
+      ...DECISION.current,
+      event_id: "00000000-0000-0000-0000-000000000003",
+      event_state: "superseded",
+      recorded_at: "2026-10-17 01:00:00",
+      effective_at: null,
+      evaluation_window_start: null,
+      evaluation_window_end: "2026-10-17 01:00:00",
+      configuration_commit_sha: "",
+      configuration_commit_url: "",
+    };
+    const proposed = {
+      ...DECISION.events[0],
+      evaluation_window_start: "2026-10-01 00:00:00",
+      evaluation_window_end: null,
+    };
+    mockUseLevelAudit.mockReturnValue({
+      decisions: [
+        {
+          ...DECISION,
+          current: superseded,
+          events: [proposed, DECISION.current, superseded],
+        },
+      ],
+      error: undefined,
+      loaded: true,
+    });
+
+    const html = renderToStaticMarkup(
+      <CrcrLevelAudit repoFullName="vendor/backend" />
+    );
+
+    expect(html).toContain("2026-10-16 01:00:00");
+    expect(html).not.toContain("Evaluation window");
+  });
+
+  test("renders unknown audit enum values without throwing", () => {
+    mockUseLevelAudit.mockReturnValue({
+      decisions: [
+        {
+          ...DECISION,
+          current: {
+            ...DECISION.current,
+            decision_kind: "",
+            decision_source: "",
+            event_state: "",
+          },
+        },
+      ],
+      error: undefined,
+      loaded: true,
+    });
+
+    const html = renderToStaticMarkup(
+      <CrcrLevelAudit repoFullName="vendor/backend" />
+    );
+
+    expect(html).toContain("Unknown");
+  });
 });
