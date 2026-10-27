@@ -305,6 +305,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_NAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202260",
+    "https://github.com/pytorch/pytorch/issues/202260",
+    [
+      "xpu"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestCudaMultiGPU)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
