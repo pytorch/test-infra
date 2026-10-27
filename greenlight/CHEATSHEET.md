@@ -53,7 +53,8 @@ one-shot `verdict` and `drci-poke` subcommands:
   and no state is written, so the scan resumes if that changes. Needs
   `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
   (`CLICKHOUSE_*`). Only a PR whose author is named by a `merge_rules.yaml` rule that covers every
-  file the PR changes — for a path-scoped rule, only on a PR based on `main` or on a ghstack PR — is
+  file the PR changes — for a path-scoped rule, only on a PR based on `main`, on a ghstack PR or on a
+  PR in a GitHub-native stack whose trunk is `main` — is
   fingerprinted and dispatched. Every other listed PR is still state-read and revert-guarded but
   never dispatched, and when it is inside the review window and not labelled `Stale`, and its
   latest recorded row is a `LAND`, the scan dismisses greenlight's approval. A shadow review — the

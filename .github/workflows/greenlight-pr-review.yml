@@ -226,6 +226,15 @@ jobs:
           # Diff the PR's merge base against the pinned head SHA (not the PR's current
           # head) so the reviewed change is deterministic even if the PR moved since eval.
           base_ref=$(gh pr view "$PR_NUMBER" --repo pytorch/pytorch --json baseRefName --jq .baseRefName)
+          # The base branch name enters the compare URL below, so it must pass the replay harness's
+          # GIT_REF_PATTERN (tools/torchci/greenlight_replay/policy.py). The classes are spelled out
+          # because a range such as [A-Z] can match other characters in a UTF-8 locale.
+          ref_chars=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_
+          ref_re="^[${ref_chars}][${ref_chars}./-]*\$"
+          if [[ ! "$base_ref" =~ $ref_re ]] || [[ "$base_ref" == *..* ]]; then
+            echo "::error::The PR's base branch name is not a plain ref name; refusing to build the compare URL."
+            exit 1
+          fi
           echo "Base ref: $base_ref   Head SHA: $HEAD_SHA"
           # gh >= 2.97.0 refuses a non-JSON body containing ESC (0x1B) even when stdout is
           # redirected (CVE-2026-64654). The sink here is a file read by the model as data,

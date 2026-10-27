@@ -170,13 +170,15 @@ got.
   request object carries no `state_reason` to distinguish it.
 - `landed` — whether the code reached `main`. True when GitHub reports the PR
   merged (the merge button, how release-branch PRs land) **or** when a commit on
-  `main` carries the PR's `Pull Request resolved:` trailer (normal and ghstack
-  landings, where mergebot rebases and pushes rather than pressing merge).
+  `main` carries the PR's `Pull Request resolved:` trailer (normal, ghstack and
+  GitHub-native stack landings, where mergebot rebases and pushes rather than
+  pressing merge).
   Neither branch alone is complete. `closed-merged` holds exactly when
   `landed AND NOT open`.
-- `base_ref` — the branch the PR targets: `main`, a `release/*` branch, or a
-  `gh/<user>/<n>/base` branch for ghstack PRs. Different populations, worth
-  splitting before drawing conclusions.
+- `base_ref` — the branch the PR targets: `main`, a `release/*` branch, a
+  `gh/<user>/<n>/base` branch for ghstack PRs, or the head branch of the PR below
+  it for a PR in a GitHub-native stack. Different populations, worth splitting
+  before drawing conclusions.
 - `reverted` — whether the code was reverted off `main`, read from main's
   history and independent of which verdict the row selected. Every reverted PR
   is also `landed`. A `LAND` with `reverted = true` is a false approval, not a
@@ -204,10 +206,14 @@ got.
   `merge_rules.yaml` as greenlight read it; read that rather than a list of
   logins here, which goes stale.** Its git history says how it stood. A PR
   carries authority only when a merge rule names the author and covers every
-  file the PR changes, a path-scoped rule only on a PR based on `main` or on a
-  ghstack PR. Until the third era below, every other PR was shadow by
-  default. `--shadow` — a CLI flag, and a `workflow_dispatch` input on the
-  reviewer workflow — makes anyone shadow on demand.
+  file the PR changes, a path-scoped rule only on a PR based on `main`, on a
+  ghstack PR, or on a PR in a GitHub-native stack whose trunk is `main`. That
+  last case holds for the scan from the deployment of the `greenlight-scan`
+  release that reviews such PRs, and for workflow runs dispatched on `main`,
+  the verdict's included, from the merge (see dispatch refs below). Until the
+  third era below, every other PR was shadow by default.
+  `--shadow` — a CLI flag, and a `workflow_dispatch` input on the reviewer
+  workflow — makes anyone shadow on demand.
 
   Those rules hold in the last of three eras — a hardcoded set, then the
   trusted-authors issue plus merge rules, then merge rules alone without shadow
@@ -248,10 +254,14 @@ got.
   - one whose authority changed mid-review: its author added to or removed from
     the trusted-authors issue (issue plus merge rules), a push that moved its
     files into or out of the covering merge rule, a path-scoped author's
-    non-ghstack PR retargeted away from `main`, or a merge-rules change;
+    non-ghstack PR retargeted away from `main` other than into a GitHub-native
+    stack on `main`, a path-scoped author's non-ghstack PR on a base other than
+    `main` leaving such a stack (unstacked, or its stack's trunk changed), or a
+    merge-rules change;
   - a path-scoped author's verdict recorded after the head moved off the
-    reviewed commit, or whose base branch changed while it listed the files,
-    which is shadow;
+    reviewed commit, or whose base branch changed while it listed the files
+    (for a PR listed because it was in a GitHub-native stack on `main`, also
+    that stack's trunk changing or the PR leaving it), which is shadow;
   - a `REVERTED` row stamped differently from the PR's other rows: non-shadow on
     a shadow PR (under merge rules alone, every one; under the issue plus merge
     rules, one whose author was listed), or shadow on a PR whose author was no

@@ -160,7 +160,8 @@ def test_max_diff_files_value():
 
 
 def test_target_branch_value():
-    # A path-scoped author's PR must be based on this branch unless it is a ghstack PR, as trymerge requires.
+    # A path-scoped author's PR must be based on this branch unless it is a ghstack PR or in a GitHub-native stack
+    # whose trunk is this branch, as trymerge requires.
     assert constants.TARGET_BRANCH == "main"
 
 

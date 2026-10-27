@@ -223,8 +223,9 @@ def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, auth
 
     ``cohort.assess_rules`` decides. A path-scoped rule's files count only while the PR's head is still
     ``head_sha``, the reviewed commit, and a fresh read after the listing finds the same head commit and
-    base branch name; ``merge_authz.changed_files`` leaves them unknown for a non-ghstack PR on a base
-    other than main, or for more than ``constants.MAX_DIFF_FILES`` files.
+    base branch name on a base ``merge_authz.accepts_base`` still accepts, so a PR listed for its native
+    stack on main must still be in one; ``merge_authz.changed_files`` leaves the files unknown on any other
+    base, or for more than ``constants.MAX_DIFF_FILES`` files.
     """
     client = github_client.build_authz_client(token)
     moved: str | None = None
@@ -235,13 +236,14 @@ def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, auth
         if pull.head.sha != head_sha:
             moved = "head moved"
             return None
-        # The head and base come from this one response; the fresh read after the listing catches a push to
-        # the head or a retarget while the files page, but not a push to the base branch.
+        # The head, base and stack come from this one response; the fresh read after the listing catches a push
+        # to the head, a retarget, or the loss of the native stack on main a PR was listed for while the files
+        # page, but not a push to the base branch.
         listing = merge_authz.changed_files(pull)
         if listing is None:
             return None
         fresh = client.get_repo(repo).get_pull(pr_number)
-        if fresh.head.sha != pull.head.sha or fresh.base.ref != pull.base.ref:
+        if fresh.head.sha != pull.head.sha or fresh.base.ref != pull.base.ref or not merge_authz.accepts_base(fresh):
             moved = "head or base moved"
             return None
         return listing
