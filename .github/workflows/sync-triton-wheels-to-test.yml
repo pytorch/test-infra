@@ -4,8 +4,9 @@ name: Sync Triton wheels from a triton-lang/triton run to download.pytorch.org t
 # either from a triton-lang/triton "Wheels" workflow run (source=github-run) or
 # from the release published on PyPI (source=pypi). Every wheel must carry
 # TRITON_VERSION from release/release_versions.sh. Wheels that already exist
-# in the test channel are overwritten. The aarch64 wheels are retagged to
-# linux_aarch64 to match the filenames the test channel already uses.
+# in the test channel are overwritten. Wheels are uploaded exactly as built or
+# published: no renaming and no retagging, so the files and their sha256 match
+# the source (PyPI's, for source=pypi).
 #
 # Dry run by default. Like the release promotion workflows, the upload job is
 # gated behind the protected promote-env, so a reviewer has to approve it after
@@ -150,7 +151,6 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${TRITON_VERSION}"
-          pip install 'wheel>=0.45.1'
 
           cd wheelhouse
           ls -la
@@ -167,13 +167,10 @@ jobs:
               echo "ERROR: ${whl} is not triton ${VERSION}"
               exit 1
             fi
+            # Only check the name; the file is uploaded unchanged.
             case "${whl}" in
-              *-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl)
-                # Same filename the test channel already uses.
-                ;;
+              *-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl | \
               *-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl)
-                # The test channel serves aarch64 triton wheels as linux_aarch64.
-                wheel tags --platform-tag linux_aarch64 --remove "${whl}"
                 ;;
               *)
                 echo "ERROR: unexpected platform tag in ${whl}"
