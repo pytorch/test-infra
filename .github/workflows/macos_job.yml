@@ -21,6 +21,14 @@ on:
           under dist/ and any files under artifacts-to-be-uploaded/ will be uploaded
         default: ""
         type: string
+      upload-artifact-retention-days:
+        description: 'Number of days to retain GitHub artifacts. 0 uses the repository default.'
+        default: 0
+        type: number
+      upload-artifact-on-failure:
+        description: 'Whether to upload artifacts when an earlier step fails.'
+        default: true
+        type: boolean
       upload-artifact-to-s3:
         description: |
           Upload the artifact to S3 instead of GitHub. This is used for large artifacts like
@@ -189,7 +197,7 @@ jobs:
         shell: bash -l {0}
         working-directory: ${{ inputs.repository || github.repository }}
         id: check-artifacts
-        if: ${{ always() && inputs.upload-artifact != '' }}
+        if: ${{ always() && (inputs.upload-artifact-on-failure || success()) && inputs.upload-artifact != '' }}
         env:
           UPLOAD_ARTIFACT_NAME: ${{ inputs.upload-artifact }}
         run: |
@@ -210,16 +218,17 @@ jobs:
       # our AWS runners have access to S3
       - name: Upload artifacts to GitHub (if any)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: ${{ always() && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 }}
+        if: ${{ always() && (inputs.upload-artifact-on-failure || success()) && inputs.upload-artifact != '' && !inputs.upload-artifact-to-s3 }}
         with:
           name: ${{ inputs.upload-artifact }}
           path: ${{ runner.temp }}/artifacts/
           if-no-files-found: ${{ steps.check-artifacts.outputs.if-no-files-found }}
+          retention-days: ${{ inputs.upload-artifact-retention-days }}
 
       # NB: This only works with our AWS runners
       - name: Upload artifacts to S3 (if any)
         uses: seemethere/upload-artifact-s3@baba72d0712b404f646cebe0730933554ebce96a # v5.1.0
-        if: ${{ always() && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
+        if: ${{ always() && (inputs.upload-artifact-on-failure || success()) && inputs.upload-artifact != '' && inputs.upload-artifact-to-s3 }}
         with:
           retention-days: 14
           s3-bucket: gha-artifacts
