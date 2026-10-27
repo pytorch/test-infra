@@ -3,6 +3,8 @@ import AccessNotice from "components/tests/AccessNotice";
 import LoadError from "components/tests/LoadError";
 import TestsHeading from "components/tests/TestsHeading";
 import TestsTable, { TESTS_TABLE_WIDTH } from "components/tests/TestsTable";
+import ViewChips from "components/tests/ViewChips";
+import type { TestView } from "lib/api/tests/options/types";
 import type { Token } from "lib/tests/environment";
 import {
   facetChoice,
@@ -21,6 +23,12 @@ import {
 } from "lib/tests/table";
 import { useTestsListing } from "lib/tests/useTestsListing";
 import { useTestsOptions } from "lib/tests/useTestsOptions";
+import {
+  activeViewIds,
+  chooseView,
+  viewsOf,
+  withoutView,
+} from "lib/tests/views";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -190,6 +198,25 @@ export default function Page() {
     setTypedSearch(text);
     commitSearch(text, false);
   };
+  // A view chosen: its params, read as a page URL is, replace the page's
+  // query, the sort, the code sources, the languages, every facet and the
+  // search, so any text still being typed is dropped. The window stays
+  // unless the view sets one.
+  const handleViewChoose = (view: TestView) => {
+    if (query === undefined || options === undefined) {
+      return;
+    }
+    clearTimeout(searchTimer.current);
+    setTypedSearch(undefined);
+    handleQueryChange(chooseView(query, view, options));
+  };
+  // A chosen view's chip clicked again: the view's own parameters return to
+  // their defaults and the reader's refinements of it stay.
+  const handleViewClear = (view: TestView) => {
+    if (query !== undefined && options !== undefined) {
+      handleQueryChange(withoutView(query, view, options));
+    }
+  };
 
   if (accessReason !== undefined) {
     return (
@@ -235,6 +262,18 @@ export default function Page() {
         search={search}
         onSearchInput={handleSearchInput}
         onSearch={handleSearch}
+        toolbar={
+          options !== undefined && (
+            <ViewChips
+              views={viewsOf(options)}
+              activeIds={
+                query === undefined ? [] : activeViewIds(query, options)
+              }
+              onChoose={handleViewChoose}
+              onClear={handleViewClear}
+            />
+          )
+        }
       />
     </PageColumn>
   );

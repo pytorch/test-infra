@@ -1,5 +1,6 @@
 import { CI_DATABASE } from "lib/api/tests/database";
 import type { TestOptions } from "lib/api/tests/options/types";
+import { TEST_VIEWS } from "lib/api/tests/options/views";
 import {
   DEFAULT_RAN_ON,
   DEFAULT_WINDOW,
@@ -135,7 +136,8 @@ function catalogChoice(
 }
 
 // The options for the given catalog values: the fixed choices from the
-// list's parameter definitions, the open ones from the catalogs.
+// list's parameter definitions, the open ones from the catalogs, and the
+// named views (views.ts).
 export function testOptionsFrom(catalog: CatalogValues): TestOptions {
   return {
     window: {
@@ -163,6 +165,7 @@ export function testOptionsFrom(catalog: CatalogValues): TestOptions {
     test_config: catalogChoice("test_config", catalog.test_config),
     workflow_path: catalogChoice("workflow_path", catalog.workflow_path),
     owner: catalogChoice("owner", catalog.owner),
+    views: [...TEST_VIEWS],
   };
 }
 

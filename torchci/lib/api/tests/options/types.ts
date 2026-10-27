@@ -54,6 +54,31 @@ function catalogChoice(parameter: string, description: string) {
     .describe(description);
 }
 
+export const TestViewSchema = z
+  .object({
+    id: z
+      .string()
+      .describe("A stable identifier for the view, such as flaky_main."),
+    label: z
+      .string()
+      .describe(
+        "The view's name as a button says it, sentence case: Flaky on main."
+      ),
+    description: z
+      .string()
+      .describe(
+        "One or two sentences saying what the view lists and how it is ordered, with any caveat a reader should know."
+      ),
+    params: z
+      .record(z.string(), z.union([z.string(), z.array(z.string())]))
+      .describe(
+        "Query parameters of GET /api/tests, as a URL spells them: a repeated parameter is an array, ran_on and sort are comma-separated strings. Never repo, limit or cursor. An absent parameter takes the list's default, so the empty object is the list's defaults."
+      ),
+  })
+  .describe(
+    "A named query of GET /api/tests: a question readers ask often, such as which tests are flaky on main, answered by a set of the list's parameters."
+  );
+
 export const TestOptionsSchema = z
   .object({
     window: z
@@ -186,9 +211,15 @@ export const TestOptionsSchema = z
       "owner",
       "The owner labels in the owners catalog, without the module: prefix, such as nn or core_tests: the owner filter of GET /api/tests."
     ),
+    views: z
+      .array(TestViewSchema)
+      .describe(
+        "Named queries of GET /api/tests, in the order a page offers them. The first is the list's defaults."
+      ),
   })
   .describe(
-    "The values GET /api/tests accepts for the parameters a reader chooses from, each with a label for running text, and the value that applies when the parameter is absent. The windows, code sources, languages and health statuses are read from the list's own parameter definitions, so a value the list accepts is here and no other, and change only with the code. The environment fields and the test config are read from the catalogs when asked, the workflow paths from the health table and the owner labels from the owners catalog, so they change as new environments, env var sets, workflows and owners are recorded."
+    "The values GET /api/tests accepts for the parameters a reader chooses from, each with a label for running text, and the value that applies when the parameter is absent, plus named views that combine them. The windows, code sources, languages and health statuses are read from the list's own parameter definitions, so a value the list accepts is here and no other, and change only with the code. The environment fields and the test config are read from the catalogs when asked, the workflow paths from the health table and the owner labels from the owners catalog, so they change as new environments, env var sets, workflows and owners are recorded."
   );
 
 export type TestOptions = z.infer<typeof TestOptionsSchema>;
+export type TestView = z.infer<typeof TestViewSchema>;

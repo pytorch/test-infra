@@ -150,7 +150,7 @@ old route in the same change.
 | Endpoint                                      | Scope                                                                              | Implementation             |
 | --------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------- |
 | `GET /api/tests`                              | Repository tests and configuration health in a selected window and code sources    | `lib/api/tests/`           |
-| `GET /api/tests/options`                      | The values the list offers a reader: fixed choices and catalog values, with labels | `lib/api/tests/options/`   |
+| `GET /api/tests/options`                      | Values the list offers a reader: fixed and catalog choices, with labels, and views | `lib/api/tests/options/`   |
 | `GET /api/tests/test/{test_id}`               | One catalog test, its owners, and all available configuration health               | `lib/api/tests/test/`      |
 | `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts                             | `lib/api/tests/test/runs/` |
 | `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID                       | `lib/api/tests/run/`       |
@@ -196,6 +196,17 @@ no parameters, answers 500 with `internal_error` when a source cannot be
 read, and is served with the same short cache lifetime as the OpenAPI
 document. HUD's tests page builds every choice in its title from it instead
 of spelling a value out.
+
+`views` names the questions readers ask most, such as the tests flaky on main
+or the slowest tests, each as `{ id, label, description, params }`, where
+`params` are `GET /api/tests` query parameters as a URL spells them (an array
+for a repeated parameter; never `repo`, `limit` or `cursor`; an absent one
+takes the list's default). They are defined in
+`lib/api/tests/options/views.ts`, the first being the list's defaults, and
+the tests parse every view with the list's parser, check that the first
+parses as the defaults, and check that each value of an offered choice is
+offered. The tests page shows them as chips; an API
+caller appends a view's params to its `/api/tests` URL.
 
 ### Test health
 
