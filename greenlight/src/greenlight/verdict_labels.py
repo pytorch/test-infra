@@ -9,7 +9,7 @@ greenlight will not review it again; from then on it carries ``GL/superseded`` a
 also keeps the label of a verdict recorded on the PR's head when the scan recorded the ``REVERTED``
 row.
 
-``label_verdict`` gives a PR the label of a verdict just recorded on it, on the verdict's repo. Only ``TARGET_REPO``
+The verdict labels its own PR, on the verdict's repo, as it records (``label_verdict``). Only ``TARGET_REPO``
 PRs get the scan's supersede and restore: every listing tick that reaches its dispatch phase without a
 rate limit relabels the PRs it listed that are reverted, kept by the recency filter or Stale-skipped
 (``label_listed_prs``), restoring a removed label on any whose rows imply labels.

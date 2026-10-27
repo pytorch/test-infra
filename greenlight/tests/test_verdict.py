@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, NoReturn
 
 import pytest
-from github import UnknownObjectException
+from github import GithubException, UnknownObjectException
 
 from greenlight import comment_format, constants, github_client, verdict, verdict_input
 
@@ -1635,6 +1635,322 @@ def test_validate_message_accepts_non_blank():
 def test_validate_message_rejects_blank(bad):
     with pytest.raises(ValueError, match="non-empty message"):
         verdict_input._validate_message(bad)
+
+
+class _RecordingLabelPR(_FakePR):
+    """A PR that keeps the labels written to it and records each write call, to observe the verdict's labels."""
+
+    def __init__(
+        self,
+        head_sha: str,
+        rec: _Recorder,
+        labels: tuple[str, ...] = (),
+        *,
+        reviews: list[_FakeReview] | None = None,
+        author: str | None = _TRUSTED_AUTHOR,
+        label_error: Exception | None = None,
+    ) -> None:
+        super().__init__(head_sha, rec, reviews=reviews, author=author)
+        self.labels = [_FakeLabel(name) for name in labels]
+        self._label_error = label_error
+
+    def add_to_labels(self, *labels: str) -> None:
+        self._rec.events.append(f"label+:{','.join(labels)}")
+        if self._label_error is not None:
+            raise self._label_error
+        self.labels.extend(_FakeLabel(name) for name in labels)
+
+    def remove_from_labels(self, label: str) -> None:
+        self._rec.events.append(f"label-:{label}")
+        if self._label_error is not None:
+            raise self._label_error
+        self.labels = [held for held in self.labels if held.name != label]
+
+    def label_names(self) -> list[str]:
+        return [label.name for label in self.labels]
+
+
+_VERDICTS = [pytest.param("LAND", "clean", id="land"), pytest.param("NO_LAND", "unclear_intent", id="no-land")]
+
+
+def test_an_authoritative_land_leaves_gl_approved_as_the_prs_only_greenlight_label(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, ("module: nn", "GL/human", "GL/superseded"))
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=70, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "review:APPROVE", "label-:GL/human", "label-:GL/superseded", "label+:GL/approved"]
+    assert pr.label_names() == ["module: nn", "GL/approved"]
+    assert _decode(emit.row_gzip)["shadow"] is False
+
+
+def test_an_authoritative_no_land_leaves_gl_human_as_the_prs_only_greenlight_label(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _RecordingLabelPR("h", rec, ("GL/approved", "GL/superseded"), reviews=reviews)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="NO_LAND", reason="unclear_intent", message="needs work")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=71, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["dismiss:1", "emit", "label-:GL/approved", "label-:GL/superseded", "label+:GL/human"]
+    assert pr.label_names() == ["GL/human"]
+    assert _decode(emit.row_gzip)["shadow"] is False
+
+
+def test_a_land_greenlight_had_already_approved_still_gets_its_label(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)])
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=72, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "label+:GL/approved"]
+    assert pr.label_names() == ["GL/approved"]
+
+
+def test_a_verdict_whose_label_is_already_the_prs_only_greenlight_label_writes_none(make_config, tmp_path):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, ("GL/approved", "module: nn"))
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=73, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "review:APPROVE"]
+    assert pr.label_names() == ["GL/approved", "module: nn"]
+
+
+@pytest.mark.parametrize(
+    ("status", "reason", "review_state", "expected"),
+    [
+        pytest.param(
+            "LAND",
+            "clean",
+            "DISMISSED",
+            ["emit", "review:APPROVE", "label-:GL/superseded", "label+:GL/approved", "comment"],
+            id="land",
+        ),
+        pytest.param(
+            "NO_LAND",
+            "unclear_intent",
+            "APPROVED",
+            ["dismiss:1", "emit", "label-:GL/superseded", "label+:GL/human", "comment"],
+            id="no-land",
+        ),
+    ],
+)
+def test_the_verdict_labels_after_its_merge_gate_write_and_before_its_comment(
+    make_config, tmp_path, status, reason, review_state, expected
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, ("GL/superseded",), reviews=[_FakeReview(1, _BOT, review_state, rec)])
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="m")
+    req = VerdictRequest(
+        repo="pytorch/vision", pr_number=74, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == expected
+
+
+@pytest.mark.parametrize(("status", "reason"), _VERDICTS)
+@pytest.mark.parametrize(
+    ("requested_shadow", "author"),
+    [
+        pytest.param(False, _SHADOW_AUTHOR, id="record-time-downgrade"),
+        pytest.param(True, _TRUSTED_AUTHOR, id="requested"),
+    ],
+)
+def test_a_shadow_verdict_writes_no_label(make_config, tmp_path, status, reason, requested_shadow, author):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, ("GL/superseded",), author=author)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="m")
+    req = VerdictRequest(
+        repo="pytorch/pytorch",
+        pr_number=75,
+        head_sha="h",
+        eval_hash=_HASH,
+        verdict_file=vf,
+        bot_login=_BOT,
+        shadow=requested_shadow,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit"]
+    assert pr.label_names() == ["GL/superseded"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+
+
+@pytest.mark.parametrize(("status", "reason"), _VERDICTS)
+def test_a_dry_run_verdict_writes_no_label(make_config, tmp_path, status, reason):
+    rec = _Recorder()
+    pr = _RecordingLabelPR("h", rec, ("GL/superseded",))
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="m")
+    req = VerdictRequest(
+        repo="pytorch/pytorch",
+        pr_number=76,
+        head_sha="h",
+        eval_hash=_HASH,
+        verdict_file=vf,
+        bot_login=_BOT,
+        dry_run=True,
+    )
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=_boom_emit, now=lambda: _FIXED)
+
+    assert rec.events == []
+    assert gh.get_repo_names == []
+    assert pr.label_names() == ["GL/superseded"]
+
+
+@pytest.mark.parametrize(
+    ("status", "reason", "expected"),
+    [
+        pytest.param("LAND", "clean", ["emit", "review:APPROVE"], id="land"),
+        pytest.param("NO_LAND", "unclear_intent", ["emit"], id="no-land"),
+    ],
+)
+def test_a_verdict_on_a_pr_that_moved_off_the_reviewed_head_leaves_its_labels_to_the_scan(
+    make_config, tmp_path, caplog, status, reason, expected
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("pushed", rec, ("GL/superseded",))
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="m")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=77, head_sha="reviewed", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == expected
+    assert pr.label_names() == ["GL/superseded"]
+    assert "PR #77 moved off the reviewed head reviewed; the scan labels it" in caplog.text
+
+
+@pytest.mark.parametrize("reverted", ["Reverted", "reverted"])
+@pytest.mark.parametrize(("status", "reason"), _VERDICTS)
+def test_a_verdict_on_a_reverted_pr_leaves_its_labels_to_the_scan(
+    make_config, tmp_path, caplog, status, reason, reverted
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, (reverted, "GL/superseded"))
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="m")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=78, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert [event for event in rec.events if event.startswith("label")] == []
+    assert pr.label_names() == [reverted, "GL/superseded"]
+    assert "PR #78 is reverted; the scan labels it" in caplog.text
+
+
+@pytest.mark.parametrize(("status", "reason"), _VERDICTS)
+def test_a_verdict_on_a_closed_pr_records_and_leaves_its_labels_alone(make_config, tmp_path, caplog, status, reason):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, ("GL/superseded",))
+    pr.state = "closed"
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="m")
+    req = VerdictRequest(
+        repo="pytorch/pytorch", pr_number=81, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert [event for event in rec.events if event.startswith("label")] == []
+    assert pr.label_names() == ["GL/superseded"]
+    assert _decode(emit.row_gzip)["status"] == status
+    assert "PR #81 is closed; its labels stay as they are" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("status", "reason", "labels", "expected"),
+    [
+        pytest.param("LAND", "clean", (), ["emit", "label+:GL/approved", "comment"], id="add-fails"),
+        pytest.param(
+            "NO_LAND",
+            "unclear_intent",
+            ("GL/approved",),
+            ["dismiss:1", "emit", "label-:GL/approved", "comment"],
+            id="remove-fails",
+        ),
+    ],
+)
+def test_a_failed_label_write_is_logged_and_the_verdict_still_records_and_comments(
+    make_config, tmp_path, caplog, status, reason, labels, expected
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    error = GithubException(502, {"message": "Server Error"})
+    pr = _RecordingLabelPR("h", rec, labels, reviews=reviews, label_error=error)
+    gh = _FakeGithub(_FakeRepo(pr))
+    vf = _write_verdict(tmp_path, status=status, reason=reason, message="m")
+    req = VerdictRequest(
+        repo="pytorch/vision", pr_number=79, head_sha="h", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == expected
+    assert pr.label_names() == list(labels)
+    assert _decode(emit.row_gzip)["status"] == status
+    assert any(
+        record.exc_info is not None and f"failed to label the {status} verdict on PR #79" in record.getMessage()
+        for record in caplog.records
+    )
+
+
+@pytest.mark.parametrize("status", ["AI_REVIEW_STARTED", "CANCELLED", "FAILED"])
+def test_a_marker_leaves_the_labels_alone(make_config, status):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _RecordingLabelPR("h", rec, ("GL/approved",))
+    gh = _FakeGithub(_FakeRepo(pr))
+    req = VerdictRequest(repo="pytorch/vision", pr_number=80, head_sha="h", status=status, bot_login=_BOT, run_id=1)
+
+    verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
+
+    assert rec.events == ["emit", "comment"]
+    assert pr.label_names() == ["GL/approved"]
 
 
 _REVIEWED = "b" * 40

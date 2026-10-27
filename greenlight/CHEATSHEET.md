@@ -72,7 +72,8 @@ one-shot `verdict` and `drci-poke` subcommands:
   time-boxed pass ([STATUS_LABELS.md](STATUS_LABELS.md)).
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
-  dismiss greenlight's prior approval). It also upserts the status comment, except on
+  dismiss greenlight's prior approval, then set the `GL/approved` or `GL/human` label unless
+  shadow). It also upserts the status comment, except on
   `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. `--shadow`
   records the verdict with no authority; for `LAND`/`NO_LAND` the flag is OR-ed with a merge-rule
   check at record time (one rule naming the author and covering every file the reviewed commit
@@ -177,7 +178,7 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login; author-scopes the recheck-refusal comment and picks out greenlight's approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels); `verdict` needs PR write plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org (for its merge-rule check) |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels); `verdict` needs PR write (approval, dismissal, `GL/*` label) plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org (for its merge-rule check) |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
@@ -249,7 +250,8 @@ The end-to-end flow, per cohort PR:
    `./pytorch` (see the README's "Reviewer checkout sanitizing"). It then reviews the PR and
    records its verdict through `verdict`, which emits a row to
    `s3://gha-artifacts/greenlight_pr_state/` (ingested into `misc.greenlight_pr_state`) and,
-   for `LAND`/`NO_LAND`, approves or dismisses greenlight's prior approval.
+   for `LAND`/`NO_LAND`, approves or dismisses greenlight's prior approval and, unless shadow,
+   sets the PR's `GL/approved` or `GL/human` label.
 6. Both row-uploading jobs then run `drci-poke`, so Dr. CI rebuilds its comment — where the
    run's status is shown on `pytorch/pytorch` once both sides of the delegation gate are on —
    without waiting for its 15-minute sweep. The step is `continue-on-error`, and the sweep
@@ -262,7 +264,7 @@ The end-to-end flow, per cohort PR:
    refusing or waiting otherwise.
 
 A scan is live: it makes real GitHub and ClickHouse calls and will really dispatch the
-reviewer workflow, and a listing run writes real `GL/*` labels
+reviewer workflow, whose verdict sets a real `GL/*` label; a listing run also writes labels
 itself. Scope a trial run with `--pr N`, which skips the label pass, and cap it with `--max N`;
 add `--log-level DEBUG` to watch the flow:
 

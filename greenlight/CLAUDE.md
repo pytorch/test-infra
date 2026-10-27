@@ -114,11 +114,11 @@ state read, so an ineligible PR still loses a stale approval and still gets its 
 Approving or rejecting a PR lives in the dispatched reviewer workflow (through `verdict`),
 not in the `review` scan itself.
 
-The `GL/*` labels only display the ledger: never read one to decide anything. The scan's label pass
-(`verdict_labels`, on
+The `GL/*` labels only display the ledger: never read one to decide anything. `verdict` sets
+`GL/approved` / `GL/human` for a non-shadow verdict; the scan's label pass (`verdict_labels`, on
 listing ticks that reach their dispatch phase without a rate limit, after `_dispatch_pending`, before the error
 aggregation) supersedes and restores them, mirroring pytorch's land-time gate (`STATUS_LABELS.md`).
-Label writes are best-effort and must never fail the scan; the label pass's
+Label writes are best-effort and must never fail the scan or lose the verdict row; the label pass's
 ClickHouse read fails the scan like the scan's other reads.
 
 The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
