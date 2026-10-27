@@ -353,7 +353,7 @@ for the data it shows.
   options arrive, three short pill-shaped skeletons hold their places, and
   the table shows its loading state.
 - The view chips sit on the caption's line, left of "Updated", 12px above
-  the table, after a muted "Query presets" label set like "Updated", with no
+  the table, after a muted "Starter queries" label set like "Updated", with no
   colon, which also names the chips' group for assistive technology: pills in
   the grey of the title's, filled in the accent color for the view shown, as a
   header's filter key is while something is chosen, and in no status color,

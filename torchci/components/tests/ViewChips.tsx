@@ -24,12 +24,12 @@ export interface ViewChipsProps {
   onClear: (_view: TestView) => void;
 }
 
-// The named views as chips after a muted "Query presets" label, which names the
-// group for assistive technology. A chip at rest is the grey of the title's
-// pills; the chosen one is filled in the accent color, like a header's
-// filter key. A click on a chosen chip clears that view. Each chip's
-// description is its tooltip, describing the chip rather than replacing its
-// name.
+// The named views as chips after a muted "Starter queries" label, which
+// names the group for assistive technology. A chip at rest is the grey of
+// the title's pills; the chosen one is filled in the accent color, like a
+// header's filter key. A click on a chosen chip clears that view. Each
+// chip's description is its tooltip, describing the chip rather than
+// replacing its name.
 export default function ViewChips({
   views,
   activeIds,
@@ -50,7 +50,7 @@ export default function ViewChips({
         component="span"
         sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
       >
-        Query presets
+        Starter queries
       </Typography>
       <Stack
         direction="row"
