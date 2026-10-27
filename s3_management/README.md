@@ -40,3 +40,15 @@ every dependency of `torch` has to be reachable through that one index.
      specifier (for example `rocm==10.0.*` when only 10.0.0rc builds exist). uv's own default
      rejects that.
    - Free-threaded wheels (`cp313t`) are skipped, because uv cannot resolve for that ABI.
+
+## Checking that prod matches test
+
+After syncing a target into prod, compare its dependency packages with the test channel's:
+
+```
+python3 s3_management/compare_targets.py --source whl/test/cu134 --dest whl/cu134
+```
+
+Only the packages `update_dependencies.py` creates for the target are compared (the test channel
+also hosts vllm and its dependencies, which prod does not). It exits non-zero if the destination is
+missing a package page or any file the source lists.
