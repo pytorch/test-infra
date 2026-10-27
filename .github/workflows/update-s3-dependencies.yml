@@ -37,6 +37,14 @@ on:
         description: 'Target to create or refresh (e.g., rocm7.2, cu130) - only for create-target and refresh-index modes'
         required: false
         type: string
+      prefix:
+        description: 'Index prefix to create the target under (create-target mode only; refresh-index always does both)'
+        required: false
+        type: choice
+        default: whl/nightly
+        options:
+          - whl/nightly
+          - whl/test
       include-prod:
         description: 'Update prod (whl) dependencies only, via promote-env (skips nightly/test; update-packages mode only)'
         required: false
@@ -126,6 +134,7 @@ jobs:
         shell: bash
         env:
           TARGET: ${{ github.event.inputs.target }}
+          PREFIX: ${{ github.event.inputs.prefix || 'whl/nightly' }}
           DRYRUN: ${{ github.event.inputs.dryrun }}
           R2_ACCOUNT_ID: ${{ secrets.R2_PYTORCH_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_PYTORCH_PUBLIC_ACCESS_KEY_ID }}
@@ -135,7 +144,7 @@ jobs:
           set -ex
 
           # Create the target directory with torch dependencies
-          ARGS="--create-target --target ${TARGET}"
+          ARGS="--create-target --target ${TARGET} --prefix ${PREFIX}"
 
           if [[ "${DRYRUN}" == "enabled" ]]; then
             ARGS="${ARGS} --dry-run"
