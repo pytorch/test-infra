@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
-from github import GithubException, UnknownObjectException
+from github import BadCredentialsException, GithubException, UnknownObjectException
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import RetryError
 
 from greenlight import verdict_labels
 from greenlight.constants import (
@@ -20,11 +23,14 @@ from greenlight.constants import (
     STATUS_LAND,
     STATUS_NO_LAND,
     STATUS_REVERTED,
+    TARGET_REPO,
 )
+from greenlight.guards import IterationTimeout
+from greenlight.review_gate import HUMAN_APPROVED, ReviewSkip
 from greenlight.state import PRState
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Collection, Mapping, Sequence
 
 _LISTED_AT = datetime(2026, 10, 15, 12, 0, 0)
 _IN_TIME = timedelta(seconds=10)
@@ -33,6 +39,7 @@ _TIMEOUT = timedelta(minutes=DEFAULT_TIMEOUT_MINUTES)
 _HEAD = "a" * 40
 _REWORKED = "b" * 40
 _EARLIER = "c" * 40
+_HUMAN_DECIDED = ReviewSkip(HUMAN_APPROVED, "approved by alice")
 
 
 def _row(status: str, *, head: str = _HEAD, run_id: int = 1, age: timedelta = timedelta(hours=1)) -> PRState:
@@ -60,15 +67,23 @@ class _FakeLabel:
 
 
 class _FakePR:
-    """A PR's labels and the label writes made to it, one entry per write call.
+    """A PR's state and labels and the label writes made to it, one entry per write call.
 
-    ``fail`` makes reading the labels, a removal or an add raise.
+    ``fail`` makes reading the state or the labels, a removal or an add raise.
     """
 
-    def __init__(self, labels: Sequence[str] = (), *, fail: Mapping[str, Exception] | None = None) -> None:
+    def __init__(
+        self, labels: Sequence[str] = (), *, state: str = "open", fail: Mapping[str, Exception] | None = None
+    ) -> None:
         self._labels = list(labels)
+        self._state = state
         self._fail = dict(fail or {})
         self.calls: list[tuple[str, ...]] = []
+
+    @property
+    def state(self) -> str:
+        self._raise_if_failing("state")
+        return self._state
 
     @property
     def labels(self) -> list[_FakeLabel]:
@@ -112,6 +127,77 @@ def _desired(
         now=_NOW,
         timeout=_TIMEOUT,
     )
+
+
+@dataclass
+class _Scan:
+    """One listing tick's label pass, with its row read, PR fetches and clock faked.
+
+    ``rows`` maps a PR to the gate row and verdict the reader returns for it, ``fresh`` the labels a
+    fetched PR carries (its listed ones by default), ``closed`` the PRs a fetch finds closed,
+    ``elapsed`` the successive clock reads after ``_LISTED_AT`` (the last one repeats), and ``fail`` a
+    PR's failing step: ``fetch``, ``state``, ``labels``, ``remove`` or ``add``.
+    """
+
+    labels: Mapping[int, Sequence[str]]
+    rows: Mapping[int, tuple[PRState, PRState | None]] = field(default_factory=dict)
+    reverted: Collection[int] = ()
+    recent: Collection[int] = ()
+    eligible: Collection[int] = ()
+    ineligible: Collection[int] = ()
+    skips: Collection[int] = ()
+    fresh: Mapping[int, Sequence[str]] | None = None
+    closed: Collection[int] = ()
+    heads: Mapping[int, str | None] | None = None
+    elapsed: Sequence[timedelta] = (_IN_TIME,)
+    timeout: timedelta = _TIMEOUT
+    fail: Mapping[int, Mapping[str, Exception]] = field(default_factory=dict)
+    read_error: Exception | None = None
+    reads: list[tuple[str, list[int]]] = field(default_factory=list)
+    fetched: list[int] = field(default_factory=list)
+    prs: dict[int, _FakePR] = field(default_factory=dict)
+    clock_reads: int = 0
+
+    def run(self) -> None:
+        verdict_labels.label_listed_prs(
+            verdict_labels.LabelPass(
+                fetch_pr=self._fetch,
+                reverted=self.reverted,
+                recent=self.recent,
+                eligible=self.eligible,
+                ineligible=self.ineligible,
+                skips=[(number, _HUMAN_DECIDED) for number in self.skips],
+                labels=self.labels,
+                heads=dict.fromkeys(self.labels, _HEAD) if self.heads is None else self.heads,
+                clock=self._clock,
+                timeout=self.timeout,
+            ),
+            read_gate_rows=self._read,
+        )
+
+    def _read(self, repo: str, numbers: Sequence[int]) -> tuple[dict[int, PRState], dict[int, PRState]]:
+        self.reads.append((repo, list(numbers)))
+        if self.read_error is not None:
+            raise self.read_error
+        asked = [number for number in numbers if number in self.rows]
+        gates = {number: self.rows[number][0] for number in asked}
+        verdicts = {number: verdict for number in asked if (verdict := self.rows[number][1]) is not None}
+        return gates, verdicts
+
+    def _fetch(self, number: int) -> _FakePR:
+        self.fetched.append(number)
+        fail = self.fail.get(number, {})
+        if "fetch" in fail:
+            raise fail["fetch"]
+        fresh = self.labels if self.fresh is None else self.fresh
+        state = "closed" if number in self.closed else "open"
+        pr = self.prs[number] = _FakePR(fresh.get(number, ()), state=state, fail=fail)
+        return pr
+
+    def _clock(self) -> datetime:
+        offset = self.elapsed[min(self.clock_reads, len(self.elapsed) - 1)]
+        self.clock_reads += 1
+        return _LISTED_AT + offset
 
 
 def test_a_land_shows_gl_approved_and_a_no_land_gl_human():
@@ -402,3 +488,288 @@ def test_sync_raises_any_other_removal_failure_before_adding(error):
 
     assert raised.value is error
     assert pr.calls == [("remove", GL_APPROVED_LABEL)]
+
+
+def test_a_tick_with_no_pr_to_judge_reads_and_writes_nothing():
+    scan = _Scan(labels={11: [GL_APPROVED_LABEL], 13: ["stale", GL_HUMAN_LABEL]})
+
+    scan.run()
+
+    assert scan.reads == []
+    assert scan.fetched == []
+
+
+def test_the_pass_reads_the_rows_of_its_reverted_recent_and_stale_skipped_prs_in_one_query():
+    scan = _Scan(
+        labels={1: [], 3: ["Stale"], 5: [], 7: ["Stale"], 9: ["Reverted", "Stale"], 11: [], 13: ["stale"]},
+        reverted=[9],
+        recent=[5, 3],
+        eligible=[5, 3],
+    )
+
+    scan.run()
+
+    assert scan.reads == [(TARGET_REPO, [3, 5, 7, 9])]
+
+
+def test_an_idle_pr_keeps_its_labels_whatever_its_rows_say():
+    scan = _Scan(
+        labels={4: [GL_APPROVED_LABEL], 5: [GL_APPROVED_LABEL]},
+        rows={4: (_LAND_EARLIER, _LAND_EARLIER), 5: (_LAND_EARLIER, _LAND_EARLIER)},
+        recent=[5],
+        eligible=[5],
+        skips=[5],
+    )
+
+    scan.run()
+
+    assert scan.reads == [(TARGET_REPO, [5])]
+    assert scan.fetched == [5]
+
+
+def test_a_pr_the_reader_returns_no_verdict_for_keeps_its_labels():
+    scan = _Scan(
+        labels={5: [GL_APPROVED_LABEL], 6: [GL_APPROVED_LABEL], 8: [GL_HUMAN_LABEL]},
+        rows={5: (_LAND, _LAND), 6: (_row(STATUS_FAILED, run_id=2), None)},
+        recent=[5, 6, 8],
+        ineligible=[5, 6, 8],
+    )
+
+    scan.run()
+
+    assert scan.fetched == [5]
+    assert scan.prs[5].calls == [("remove", GL_APPROVED_LABEL), ("add", GL_SUPERSEDED_LABEL)]
+
+
+@pytest.mark.parametrize("listed", [[GL_APPROVED_LABEL], ["gl/approved", "triaged"]])
+def test_a_pr_whose_listed_labels_already_match_is_not_fetched(listed):
+    scan = _Scan(labels={5: listed}, rows={5: (_LAND, _LAND)}, recent=[5], eligible=[5])
+
+    scan.run()
+
+    assert scan.reads == [(TARGET_REPO, [5])]
+    assert scan.fetched == []
+
+
+def test_the_writes_follow_the_fetched_prs_labels_rather_than_the_listed_ones():
+    scan = _Scan(
+        labels={5: [GL_HUMAN_LABEL], 6: []},
+        fresh={5: [GL_SUPERSEDED_LABEL, "triaged"], 6: [GL_APPROVED_LABEL]},
+        rows={5: (_LAND, _LAND), 6: (_LAND, _LAND)},
+        recent=[5, 6],
+        eligible=[5, 6],
+    )
+
+    scan.run()
+
+    assert scan.prs[5].calls == [("remove", GL_SUPERSEDED_LABEL), ("add", GL_APPROVED_LABEL)]
+    assert scan.prs[6].calls == []
+
+
+def test_a_pr_whose_labels_stay_as_they_are_is_never_fetched():
+    in_progress = _row(STATUS_AI_REVIEW_STARTED, run_id=2, age=timedelta(minutes=5))
+    scan = _Scan(
+        labels={5: [GL_APPROVED_LABEL], 6: [GL_HUMAN_LABEL], 7: [GL_HUMAN_LABEL], 8: []},
+        rows={5: (_LAND_EARLIER, _LAND_EARLIER), 7: (in_progress, _NO_LAND), 8: (_LAND, _LAND)},
+        recent=[5, 6, 7, 8],
+        eligible=[5, 6, 7],
+        skips=[7],
+    )
+
+    scan.run()
+
+    assert scan.fetched == []
+
+
+def test_an_active_pr_gets_back_the_label_of_its_current_verdict():
+    scan = _Scan(labels={5: ["triaged"]}, rows={5: (_NO_LAND, _NO_LAND)}, recent=[5], eligible=[5])
+
+    scan.run()
+
+    assert scan.prs[5].calls == [("add", GL_HUMAN_LABEL)]
+
+
+def test_a_determined_ineligible_pr_is_superseded_whether_or_not_its_verdict_is_current():
+    scan = _Scan(
+        labels={3: [GL_APPROVED_LABEL], 5: [GL_HUMAN_LABEL]},
+        rows={3: (_LAND, _LAND), 5: (_NO_LAND_EARLIER, _NO_LAND_EARLIER)},
+        recent=[3, 5],
+        ineligible=[3, 5],
+    )
+
+    scan.run()
+
+    assert scan.prs[3].calls == [("remove", GL_APPROVED_LABEL), ("add", GL_SUPERSEDED_LABEL)]
+    assert scan.prs[5].calls == [("remove", GL_HUMAN_LABEL), ("add", GL_SUPERSEDED_LABEL)]
+
+
+def test_a_human_decided_pr_is_superseded_once_a_newer_run_ends_its_verdicts_currency():
+    scan = _Scan(
+        labels={5: [GL_HUMAN_LABEL]},
+        rows={5: (_row(STATUS_CANCELLED, run_id=2), _NO_LAND)},
+        recent=[5],
+        eligible=[5],
+        skips=[5],
+    )
+
+    scan.run()
+
+    assert scan.prs[5].calls == [("remove", GL_HUMAN_LABEL), ("add", GL_SUPERSEDED_LABEL)]
+
+
+def test_a_stale_skipped_pr_is_superseded_once_its_verdict_is_no_longer_current():
+    scan = _Scan(labels={7: ["Stale", GL_APPROVED_LABEL]}, rows={7: (_LAND_EARLIER, _LAND_EARLIER)})
+
+    scan.run()
+
+    assert scan.prs[7].calls == [("remove", GL_APPROVED_LABEL), ("add", GL_SUPERSEDED_LABEL)]
+
+
+def test_a_stale_skipped_pr_with_a_current_verdict_keeps_its_labels():
+    scan = _Scan(labels={7: ["Stale"]}, rows={7: (_LAND, _LAND)})
+
+    scan.run()
+
+    assert scan.reads == [(TARGET_REPO, [7])]
+    assert scan.fetched == []
+
+
+def test_a_stale_labelled_pr_the_review_window_keeps_is_not_superseded_as_stale_skipped():
+    scan = _Scan(
+        labels={7: ["Stale", GL_APPROVED_LABEL]},
+        rows={7: (_row(STATUS_FAILED, run_id=2), _LAND)},
+        recent=[7],
+        eligible=[7],
+    )
+
+    scan.run()
+
+    assert scan.reads == [(TARGET_REPO, [7])]
+    assert scan.fetched == []
+
+
+def test_an_in_flight_review_stops_counting_as_in_progress_at_the_ticks_own_timeout():
+    scan = _Scan(
+        labels={5: [GL_APPROVED_LABEL]},
+        rows={5: (_row(STATUS_AI_REVIEW_STARTED, run_id=2, age=timedelta(minutes=20)), _LAND)},
+        recent=[5],
+        eligible=[5],
+        skips=[5],
+        timeout=timedelta(minutes=10),
+    )
+
+    scan.run()
+
+    assert scan.prs[5].calls == [("remove", GL_APPROVED_LABEL), ("add", GL_SUPERSEDED_LABEL)]
+
+
+def test_a_reverted_pr_gains_superseded_beside_the_label_of_the_verdict_on_its_reverted_head():
+    scan = _Scan(
+        labels={9: ["Reverted", GL_APPROVED_LABEL]},
+        rows={9: (_row(STATUS_REVERTED, run_id=2), _LAND)},
+        reverted=[9],
+        heads={9: None},
+    )
+
+    scan.run()
+
+    assert scan.prs[9].calls == [("add", GL_SUPERSEDED_LABEL)]
+
+
+def test_a_pr_excluded_by_its_recorded_reverted_row_alone_is_labelled_as_reverted():
+    scan = _Scan(
+        labels={9: [GL_HUMAN_LABEL]},
+        rows={9: (_row(STATUS_REVERTED, run_id=2), _NO_LAND)},
+        reverted=[9],
+    )
+
+    scan.run()
+
+    assert scan.prs[9].calls == [("add", GL_SUPERSEDED_LABEL)]
+
+
+def test_a_reverted_pr_keeps_its_labels_until_its_reverted_row_is_recorded():
+    scan = _Scan(labels={9: ["Reverted", GL_APPROVED_LABEL]}, rows={9: (_LAND, _LAND)}, reverted=[9])
+
+    scan.run()
+
+    assert scan.fetched == []
+
+
+def test_a_pr_closed_since_the_listing_keeps_its_labels_and_the_pass_moves_on(caplog):
+    scan = _Scan(
+        labels={3: [GL_HUMAN_LABEL], 5: [GL_HUMAN_LABEL]},
+        rows={3: (_LAND, _LAND), 5: (_LAND, _LAND)},
+        recent=[3, 5],
+        eligible=[3, 5],
+        closed=[3],
+    )
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan.run()
+
+    assert scan.prs[3].calls == []
+    assert scan.prs[5].calls == [("remove", GL_HUMAN_LABEL), ("add", GL_APPROVED_LABEL)]
+    assert "PR #3 is now closed; its labels stay as they are" in caplog.text
+    assert all(record.levelno < logging.ERROR for record in caplog.records)
+
+
+def _failing_scan(step: str, error: Exception) -> _Scan:
+    return _Scan(
+        labels={3: [GL_HUMAN_LABEL], 5: [GL_HUMAN_LABEL]},
+        rows={3: (_LAND, _LAND), 5: (_LAND, _LAND)},
+        recent=[3, 5],
+        eligible=[3, 5],
+        fail={3: {step: error}},
+    )
+
+
+@pytest.mark.parametrize("step", ["fetch", "state", "labels", "remove", "add"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(BadCredentialsException(401, {"message": "Bad credentials"}), id="401"),
+        pytest.param(GithubException(403, {"message": "Resource not accessible by integration"}), id="403"),
+        pytest.param(UnknownObjectException(404, {"message": "Not Found"}), id="404"),
+        pytest.param(GithubException(410, {"message": "Issues are disabled for this repo"}), id="410"),
+        pytest.param(GithubException(422, {"message": "Validation Failed"}), id="422"),
+        pytest.param(GithubException(500, {"message": "Server Error"}), id="500"),
+        pytest.param(GithubException(502, None), id="502"),
+        pytest.param(RequestsConnectionError("connection reset"), id="connection"),
+        pytest.param(RetryError("too many 5xx responses"), id="retries-exhausted"),
+        pytest.param(RuntimeError("unexpected"), id="unexpected"),
+    ],
+)
+def test_a_failure_on_a_pr_is_logged_and_the_pass_moves_on(step, error, caplog):
+    scan = _failing_scan(step, error)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        scan.run()
+
+    assert scan.fetched == [3, 5]
+    assert scan.prs[5].calls == [("remove", GL_HUMAN_LABEL), ("add", GL_APPROVED_LABEL)]
+    [record] = caplog.records
+    assert record.exc_info is not None
+    assert record.exc_info[1] is error
+    assert "PR #3" in record.getMessage()
+
+
+@pytest.mark.parametrize("step", ["fetch", "state", "labels", "remove", "add"])
+def test_an_iteration_timeout_propagates_out_of_the_pass(step):
+    scan = _failing_scan(step, IterationTimeout("iteration exceeded 300 seconds"))
+
+    with pytest.raises(IterationTimeout):
+        scan.run()
+
+    assert scan.fetched == [3]
+
+
+def test_a_failed_row_read_propagates_out_of_the_pass():
+    error = OSError("ClickHouse unreachable")
+    scan = _Scan(labels={5: []}, recent=[5], eligible=[5], read_error=error)
+
+    with pytest.raises(OSError) as raised:
+        scan.run()
+
+    assert raised.value is error
+    assert scan.fetched == []
