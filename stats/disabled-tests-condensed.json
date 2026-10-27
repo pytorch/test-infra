@@ -542,13 +542,6 @@
       "rocm"
     ]
   ],
-  "test_fn_grad_nn_functional_grid_sample_xpu_float64 (__main__.TestBwdGradientsXPU)": [
-    "201996",
-    "https://github.com/pytorch/pytorch/issues/201996",
-    [
-      "xpu"
-    ]
-  ],
   "test_foreach_copy_with_different_device_inputs__foreach_copy_cuda_float64 (__main__.TestForeachDeviceCUDA)": [
     "201707",
     "https://github.com/pytorch/pytorch/issues/201707",
@@ -556,20 +549,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_forward_ad_nn_functional_grid_sample_xpu_float32 (__main__.TestCompositeComplianceXPU)": [
-    "199493",
-    "https://github.com/pytorch/pytorch/issues/199493",
-    [
-      "xpu"
-    ]
-  ],
-  "test_forward_mode_AD_nn_functional_grid_sample_xpu_float64 (__main__.TestFwdGradientsXPU)": [
-    "199494",
-    "https://github.com/pytorch/pytorch/issues/199494",
-    [
-      "xpu"
     ]
   ],
   "test_fully_shard_alloc_from_pg (__main__.TestFullyShardAllocFromPG)": [
@@ -596,13 +575,6 @@
     "https://github.com/pytorch/pytorch/issues/201497",
     [
       "dynamo"
-    ]
-  ],
-  "test_grad_nn_functional_grid_sample_xpu_float32 (__main__.TestOperatorsDeviceXPU)": [
-    "201988",
-    "https://github.com/pytorch/pytorch/issues/201988",
-    [
-      "xpu"
     ]
   ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
@@ -651,13 +623,6 @@
       "macos"
     ]
   ],
-  "test_histc_out_dtype_xpu_float32 (__main__.TestReductionsDeviceXPU)": [
-    "201994",
-    "https://github.com/pytorch/pytorch/issues/201994",
-    [
-      "xpu"
-    ]
-  ],
   "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
     "191159",
     "https://github.com/pytorch/pytorch/issues/191159",
@@ -677,13 +642,6 @@
     "https://github.com/pytorch/pytorch/issues/192284",
     [
       "dynamo"
-    ]
-  ],
-  "test_jvp_nn_functional_grid_sample_xpu_float32 (__main__.TestOperatorsDeviceXPU)": [
-    "201995",
-    "https://github.com/pytorch/pytorch/issues/201995",
-    [
-      "xpu"
     ]
   ],
   "test_kernel_metadata_field_types (__main__.TestMetadataJsonFormat)": [
@@ -805,11 +763,6 @@
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
     "188708",
     "https://github.com/pytorch/pytorch/issues/188708",
-    []
-  ],
-  "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188709",
-    "https://github.com/pytorch/pytorch/issues/188709",
     []
   ],
   "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
@@ -987,34 +940,6 @@
       "linux"
     ]
   ],
-  "test_nextafter_noncontiguous_False_xpu (__main__.TestInductorNextafterXPU)": [
-    "199724",
-    "https://github.com/pytorch/pytorch/issues/199724",
-    [
-      "xpu"
-    ]
-  ],
-  "test_nextafter_noncontiguous_False_xpu_float32 (__main__.TestInductorNextafterXPU)": [
-    "199213",
-    "https://github.com/pytorch/pytorch/issues/199213",
-    [
-      "xpu"
-    ]
-  ],
-  "test_nextafter_noncontiguous_True_xpu (__main__.TestInductorNextafterXPU)": [
-    "199723",
-    "https://github.com/pytorch/pytorch/issues/199723",
-    [
-      "xpu"
-    ]
-  ],
-  "test_nextafter_noncontiguous_True_xpu_float64 (__main__.TestInductorNextafterXPU)": [
-    "199177",
-    "https://github.com/pytorch/pytorch/issues/199177",
-    [
-      "xpu"
-    ]
-  ],
   "test_nn_functional_deprecated (__main__.TestNNFunctionalCompile)": [
     "200917",
     "https://github.com/pytorch/pytorch/issues/200917",
@@ -1154,13 +1079,6 @@
       "rocm"
     ]
   ],
-  "test_noncontiguous_samples_arange_xpu_complex64 (__main__.TestCommonXPU)": [
-    "201992",
-    "https://github.com/pytorch/pytorch/issues/201992",
-    [
-      "xpu"
-    ]
-  ],
   "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
     "189397",
     "https://github.com/pytorch/pytorch/issues/189397",
@@ -1190,13 +1108,6 @@
       "linux",
       "mac",
       "macos"
-    ]
-  ],
-  "test_operator_nn_functional_grid_sample_xpu_float32 (__main__.TestCompositeComplianceXPU)": [
-    "201990",
-    "https://github.com/pytorch/pytorch/issues/201990",
-    [
-      "xpu"
     ]
   ],
   "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
@@ -1242,26 +1153,12 @@
       "linux"
     ]
   ],
-  "test_profiler_experimental_tree_xpu (__main__.TestProfilerTreeDeviceXPU)": [
-    "201991",
-    "https://github.com/pytorch/pytorch/issues/201991",
-    [
-      "xpu"
-    ]
-  ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
     "189067",
     "https://github.com/pytorch/pytorch/issues/189067",
     [
       "linux",
       "slow"
-    ]
-  ],
-  "test_python_ref__refs_arange_xpu_complex128 (__main__.TestCommonXPU)": [
-    "201987",
-    "https://github.com/pytorch/pytorch/issues/201987",
-    [
-      "xpu"
     ]
   ],
   "test_raw_amdsmi_device_uuids (__main__.TestCudaAllocator)": [
@@ -1271,46 +1168,11 @@
       "rocm"
     ]
   ],
-  "test_redispatch_arange_xpu_complex128 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "201993",
-    "https://github.com/pytorch/pytorch/issues/201993",
-    [
-      "xpu"
-    ]
-  ],
   "test_redispatch_nn_functional_conv_transpose3d_cuda_float32 (__main__.TestTorchFunctionRedispatchOpsDeviceCUDA)": [
     "196627",
     "https://github.com/pytorch/pytorch/issues/196627",
     [
       "linux"
-    ]
-  ],
-  "test_redispatch_nn_functional_grid_sample_xpu_bfloat16 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197521",
-    "https://github.com/pytorch/pytorch/issues/197521",
-    [
-      "xpu"
-    ]
-  ],
-  "test_redispatch_nn_functional_grid_sample_xpu_float16 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197522",
-    "https://github.com/pytorch/pytorch/issues/197522",
-    [
-      "xpu"
-    ]
-  ],
-  "test_redispatch_nn_functional_grid_sample_xpu_float32 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197523",
-    "https://github.com/pytorch/pytorch/issues/197523",
-    [
-      "xpu"
-    ]
-  ],
-  "test_redispatch_nn_functional_grid_sample_xpu_float64 (__main__.TestTorchFunctionRedispatchOpsDeviceXPU)": [
-    "197524",
-    "https://github.com/pytorch/pytorch/issues/197524",
-    [
-      "xpu"
     ]
   ],
   "test_reduction_not_fused (__main__.TestNVUniversalGemmEpilogueFusion)": [
@@ -1705,13 +1567,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_vmap_autograd_grad_nn_functional_grid_sample_xpu_float64 (__main__.TestOperatorsDeviceXPU)": [
-    "201989",
-    "https://github.com/pytorch/pytorch/issues/201989",
-    [
-      "xpu"
     ]
   ],
   "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
