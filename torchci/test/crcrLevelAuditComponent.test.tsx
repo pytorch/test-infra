@@ -216,7 +216,9 @@ describe("CrcrLevelAudit", () => {
     );
 
     expect(html).toContain("2026-10-16 01:00:00");
-    expect(html).not.toContain("Evaluation window");
+    expect(html).toContain("Evaluation window");
+    expect(html).toContain("2026-10-01 00:00:00");
+    expect(html).toContain("2026-10-15 00:00:00");
   });
 
   test("renders unknown audit enum values without throwing", () => {
