@@ -1,5 +1,9 @@
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { fetcherHandleError } from "lib/GeneralUtils";
 import useSWR from "swr";
+
+dayjs.extend(utc);
 
 export const AUDIT_DECISION_KINDS = [
   "promotion",
@@ -28,9 +32,9 @@ export interface LevelAuditEvent {
   downstream_repo: string;
   previous_level: string;
   new_level: string;
-  decision_kind: AuditDecisionKind;
-  decision_source: AuditDecisionSource;
-  event_state: AuditEventState;
+  decision_kind: string;
+  decision_source: string;
+  event_state: string;
   evaluation_window_start: string | null;
   evaluation_window_end: string | null;
   criteria_snapshot_json: string;
@@ -59,20 +63,49 @@ export interface AuditCriterion {
   verdict: "met" | "failed" | "not_applicable";
 }
 
-function timestamp(event: LevelAuditEvent): number {
-  return Date.parse(event.recorded_at);
+const EVENT_STATE_ORDER: Record<string, number> = {
+  proposed: 0,
+  applied: 1,
+  closed: 1,
+  superseded: 2,
+};
+
+function timestamp(event: LevelAuditEvent): number | undefined {
+  const parsed = dayjs.utc(event.recorded_at);
+  return parsed.isValid() ? parsed.valueOf() : undefined;
 }
 
 function eventComparator(a: LevelAuditEvent, b: LevelAuditEvent): number {
-  const difference = timestamp(a) - timestamp(b);
-  return difference || a.event_id.localeCompare(b.event_id);
+  const aTimestamp = timestamp(a);
+  const bTimestamp = timestamp(b);
+  if (aTimestamp !== undefined && bTimestamp !== undefined) {
+    const difference = aTimestamp - bTimestamp;
+    if (difference) return difference;
+  } else if (aTimestamp !== undefined) {
+    return 1;
+  } else if (bTimestamp !== undefined) {
+    return -1;
+  }
+
+  const stateDifference =
+    (EVENT_STATE_ORDER[a.event_state] ?? -1) -
+    (EVENT_STATE_ORDER[b.event_state] ?? -1);
+  return stateDifference || a.event_id.localeCompare(b.event_id);
 }
 
 export function groupLevelAuditEvents(
   events: LevelAuditEvent[]
 ): LevelAuditDecision[] {
-  const byDecision = new Map<string, LevelAuditEvent[]>();
+  const uniqueEvents = new Map<string, LevelAuditEvent>();
   for (const event of events) {
+    const existing = uniqueEvents.get(event.event_id);
+    if (!existing || eventComparator(existing, event) < 0) {
+      uniqueEvents.set(event.event_id, event);
+    }
+  }
+
+  const byDecision = new Map<string, LevelAuditEvent[]>();
+  for (const event of uniqueEvents.values()) {
     const decisionEvents = byDecision.get(event.decision_id) ?? [];
     decisionEvents.push(event);
     byDecision.set(event.decision_id, decisionEvents);
@@ -120,10 +153,7 @@ export function firstAuditValue(
   decision: LevelAuditDecision,
   field: keyof LevelAuditEvent
 ): string | null {
-  for (const event of [
-    decision.current,
-    ...[...decision.events].reverse(),
-  ]) {
+  for (const event of [...decision.events].reverse()) {
     const value = event[field];
     if (typeof value === "string" && value) return value;
   }

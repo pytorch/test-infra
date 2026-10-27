@@ -35,5 +35,8 @@ SELECT
     effective_at,
     criteria_schema_version
 FROM default.crcr_level_audit
-WHERE decision_id IN (SELECT decision_id FROM recent_decisions)
+WHERE
+    downstream_repo = {repo: String}
+    AND decision_id IN (SELECT decision_id FROM recent_decisions)
 ORDER BY recorded_at DESC, event_id DESC
+LIMIT 1 BY event_id
