@@ -1,4 +1,4 @@
-name: Release torch or an ecosystem library from test to production.
+name: Release torch, triton or an ecosystem library from test to production.
 run-name: Release ${{ inputs.package || 'torchvision' }} to production (dryrun=${{ inputs.dryrun || 'enabled' }})
 
 on:
@@ -18,6 +18,9 @@ on:
         default: torchvision
         options:
           - torch
+          - triton
+          - triton_rocm
+          - triton_xpu
           - torchao
           - torchtune
           - executorch
@@ -57,15 +60,22 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
-            # has accelerator folders that can be left out of a release.
-            if [[ "${PACKAGE}" == "torch" ]]; then
-              version="PYTORCH_VERSION"
-              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-            else
-              version="${PACKAGE^^}_VERSION"
-              skip_targets=""
-            fi
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
+            # triton packages all share TRITON_VERSION. Only torch has accelerator
+            # folders that can be left out of a release.
+            skip_targets=""
+            case "${PACKAGE}" in
+              torch)
+                version="PYTORCH_VERSION"
+                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+                ;;
+              triton|triton_rocm|triton_xpu)
+                version="TRITON_VERSION"
+                ;;
+              *)
+                version="${PACKAGE^^}_VERSION"
+                ;;
+            esac
             {
               echo "## Release ${PACKAGE} ${!version:-unknown}"
               echo
@@ -143,15 +153,22 @@ jobs:
             # Init release versions variables
             source ./release_versions.sh
             # Run promotion
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
-            # has accelerator folders that can be left out of a release.
-            if [[ "${PACKAGE}" == "torch" ]]; then
-              version="PYTORCH_VERSION"
-              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-            else
-              version="${PACKAGE^^}_VERSION"
-              skip_targets=""
-            fi
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
+            # triton packages all share TRITON_VERSION. Only torch has accelerator
+            # folders that can be left out of a release.
+            skip_targets=""
+            case "${PACKAGE}" in
+              torch)
+                version="PYTORCH_VERSION"
+                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+                ;;
+              triton|triton_rocm|triton_xpu)
+                version="TRITON_VERSION"
+                ;;
+              *)
+                version="${PACKAGE^^}_VERSION"
+                ;;
+            esac
 
             # Read by release/promote/common_utils.sh for both the S3 and R2 copies.
             export PACKAGE_EXCLUDE_TARGETS="${skip_targets}"
@@ -176,15 +193,22 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
-            # has accelerator folders that can be left out of a release.
-            if [[ "${PACKAGE}" == "torch" ]]; then
-              version="PYTORCH_VERSION"
-              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-            else
-              version="${PACKAGE^^}_VERSION"
-              skip_targets=""
-            fi
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
+            # triton packages all share TRITON_VERSION. Only torch has accelerator
+            # folders that can be left out of a release.
+            skip_targets=""
+            case "${PACKAGE}" in
+              torch)
+                version="PYTORCH_VERSION"
+                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+                ;;
+              triton|triton_rocm|triton_xpu)
+                version="TRITON_VERSION"
+                ;;
+              *)
+                version="${PACKAGE^^}_VERSION"
+                ;;
+            esac
             ./release/summarize_promoted_files.sh \
               "${RUNNER_TEMP}/promote.log" \
               "${PACKAGE} ${!version} - promoted to download.pytorch.org${skip_targets:+ (skipped: ${skip_targets})}" \
@@ -199,15 +223,22 @@ jobs:
             set -ex
             # Init release versions variables
             source ./release/release_versions.sh
-            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION. Only torch
-            # has accelerator folders that can be left out of a release.
-            if [[ "${PACKAGE}" == "torch" ]]; then
-              version="PYTORCH_VERSION"
-              skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
-            else
-              version="${PACKAGE^^}_VERSION"
-              skip_targets=""
-            fi
+            # torch's version variable is PYTORCH_VERSION, not TORCH_VERSION, and the
+            # triton packages all share TRITON_VERSION. Only torch has accelerator
+            # folders that can be left out of a release.
+            skip_targets=""
+            case "${PACKAGE}" in
+              torch)
+                version="PYTORCH_VERSION"
+                skip_targets="${TORCH_PROMOTE_SKIP_TARGETS:-}"
+                ;;
+              triton|triton_rocm|triton_xpu)
+                version="TRITON_VERSION"
+                ;;
+              *)
+                version="${PACKAGE^^}_VERSION"
+                ;;
+            esac
             # Backfill SHA256 metadata for wheels missing it (skips existing).
             # Bare --recompute-sha256-pattern scans all prod accelerator
             # subfolders (cu*/rocm*/cpu/xpu) for this package/version.
