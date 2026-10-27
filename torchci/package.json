@@ -11,7 +11,8 @@
     "uploadQueryLambda": "npx node scripts/uploadQueryLambda.mjs"
   },
   "resolutions": {
-    "@babel/runtime": "^7.24.6"
+    "@babel/runtime": "^7.24.6",
+    "@types/react": "18.0.5"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1114.0",
@@ -85,6 +86,7 @@
     "@types/node": "^17.0.40",
     "@types/react": "18.0.5",
     "@types/react-dom": "^18.2.25",
+    "@types/react-test-renderer": "18.3.1",
     "@types/uuid": "^8.3.4",
     "argparse": "^2.0.1",
     "colors": "^1.4.0",
@@ -97,6 +99,7 @@
     "nock": "^13.2.6",
     "prettier": "2.8.8",
     "prettier-plugin-organize-imports": "^3.2.4",
+    "react-test-renderer": "18.3.1",
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.2"
   },

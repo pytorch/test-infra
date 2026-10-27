@@ -16,8 +16,15 @@ describe("test list parameters", () => {
     expect(parse()).toMatchObject({
       repo: "pytorch/pytorch",
       ran_on: ["main"],
-      window: "7d",
-      sort: ["-last_run_at"],
+      window: "12h",
+      sort: [
+        "-status",
+        "-failure_rate",
+        "-failed_runs",
+        "-last_failed_at",
+        "-skip_rate",
+        "-mean_passed_duration_milliseconds",
+      ],
       limit: DEFAULT_LIMIT,
       env_vars: {},
     });
@@ -25,7 +32,7 @@ describe("test list parameters", () => {
   });
 
   test.each(["test_SVD", "  test SVD\tCUDA  ", "a,b", "", "   "])(
-    "preserves the complete exact search string %j",
+    "preserves the complete search string %j",
     (search) => {
       expect(parse({ search }).search).toBe(search);
     }
@@ -148,5 +155,37 @@ describe("test list parameters", () => {
       "-device_count",
       "case_name",
     ]);
+  });
+
+  test("reads the health status as an exact filter and a ranked sort field", () => {
+    expect(parse({ status: ["flaky", "failing", "flaky"] }).status).toEqual([
+      "failing",
+      "flaky",
+    ]);
+    expect(parse({ sort: "-status,-failure_rate" }).sort).toEqual([
+      "-status",
+      "-failure_rate",
+    ]);
+    expect(
+      parseTestListParams({ repo: "pytorch/pytorch", status: "broken" }).success
+    ).toBe(false);
+  });
+
+  test("reads the test config as an exact filter and a sort field of its own", () => {
+    expect(
+      parse({ test_config: ["slow", "default", "slow"] }).test_config
+    ).toEqual(["default", "slow"]);
+    expect(parse({ test_config: "" }).test_config).toEqual([""]);
+    expect(parse({ sort: "test_config,-accelerator" }).sort).toEqual([
+      "test_config",
+      "-accelerator",
+    ]);
+    // It is a filter beside env_vars, not a replacement for it.
+    expect(
+      parse({ test_config: "slow", "env_vars[PYTORCH_TEST_WITH_SLOW]": "1" })
+    ).toMatchObject({
+      test_config: ["slow"],
+      env_vars: { PYTORCH_TEST_WITH_SLOW: ["1"] },
+    });
   });
 });

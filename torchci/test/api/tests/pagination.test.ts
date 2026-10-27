@@ -2,6 +2,7 @@ import { GET as getCommitRuns } from "app/api/tests/commit/[sha]/route";
 import { GET as getTests } from "app/api/tests/route";
 import { GET as getTestRuns } from "app/api/tests/test/[test_id]/runs/route";
 import { CommitRunListPageSchema } from "lib/api/tests/commit/types";
+import { DEFAULT_SORT } from "lib/api/tests/parameters";
 import { RunListPageSchema } from "lib/api/tests/test/runs/types";
 import { TestListPageSchema } from "lib/api/tests/types";
 import * as clickhouse from "lib/clickhouse";
@@ -25,7 +26,8 @@ const endpoints = [
     path: "/api/tests",
     get: getTests,
     schema: TestListPageSchema,
-    sort: "-last_run_at",
+    // The default chain, which the entity fixture's sort columns carry.
+    sort: DEFAULT_SORT.join(","),
   },
   {
     name: "test runs",

@@ -165,6 +165,7 @@ describe("test detail", () => {
         last_run_at_combined: null,
         last_failed_at_combined: null,
         workflow_paths_combined: [".github/workflows/pull.yml"],
+        status: "skipped",
       }),
     ]);
 
@@ -179,6 +180,7 @@ describe("test detail", () => {
           window: "3h",
           ran_on: ["pull_request"],
           workflow_paths: [".github/workflows/pull.yml"],
+          status: "skipped",
           runs: 0,
           passed_runs: 0,
           failed_runs: 0,

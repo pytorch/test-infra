@@ -128,7 +128,8 @@ describe("GET /api/openapi.json", () => {
       required: false,
       schema: { type: "string", maxLength: 200 },
     });
-    expect(byName.search.description).toMatch(/exact, case-sensitive/i);
+    expect(byName.search.description).toMatch(/occurs anywhere in it/);
+    expect(byName.search.description).toMatch(/ignoring ASCII case/);
     expect(byName.workflow_path).toMatchObject({
       in: "query",
       required: false,
@@ -177,13 +178,23 @@ describe("GET /api/openapi.json", () => {
     });
     expect(byName.window.schema).toMatchObject({
       type: "string",
-      default: "7d",
+      default: "12h",
       enum: ["3h", "12h", "1d", "3d", "7d", "14d"],
     });
     expect(byName.sort).toMatchObject({
       style: "form",
       explode: false,
-      schema: { type: "array", default: ["-last_run_at"] },
+      schema: {
+        type: "array",
+        default: [
+          "-status",
+          "-failure_rate",
+          "-failed_runs",
+          "-last_failed_at",
+          "-skip_rate",
+          "-mean_passed_duration_milliseconds",
+        ],
+      },
     });
     expect(byName.sort.schema.items.enum).toEqual(
       expect.arrayContaining([
