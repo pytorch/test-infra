@@ -1,4 +1,4 @@
-"""A ghstack pull request's context, read back to the replayed verdict's cutoff.
+"""Stack context and a ghstack body, read back to the replayed verdict's cutoff.
 
 The cutoff is the one the comment filter in :mod:`.inputs` uses. By replay time the pull
 requests above a landed one have usually closed and ghstack has rewritten the listing,
@@ -17,11 +17,14 @@ so every input but the titles is read back to it:
   request closes.
 
 **Where CI degrades, this raises.** The step is ``continue-on-error``. Here every fault
-but its own two exits -- not a ghstack pull request, or not in its own listing --
-removes whatever was written and raises, so the row lands in ``sweep.errors`` instead of
-passing for a pull request CI reviewed without a stack.
+but the step's own exits -- in no stack it covers, or not in its own listing -- removes
+whatever was written and raises, so the row lands in ``sweep.errors`` instead of passing
+for a pull request CI reviewed without a stack. Under a step that covers GitHub stacks,
+:mod:`.stack_native` rebuilds a GitHub stack's context on the helpers here, best
+effort: an entry whose head it cannot pin is skipped instead.
 
-:mod:`.inputs` imports this module, so its helpers are imported here at the call.
+:mod:`.inputs` and :mod:`.stack_native` import this module, so it imports from them at
+the call.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-from collections.abc import Hashable, Iterable, Mapping
+from collections.abc import Hashable, Iterable, Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
@@ -46,7 +49,7 @@ from torchci.greenlight_replay.stack_step import (
 )
 
 
-__all__ = ["STACK_DIRNAME", "STACK_FILENAME", "clear_stack", "read_back"]
+__all__ = ["HeadUnknown", "STACK_DIRNAME", "STACK_FILENAME", "clear_stack", "read_back"]
 
 logger = logging.getLogger(__name__)
 
@@ -66,18 +69,29 @@ query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
 }
 """
 
-# filteredCount, not totalCount: totalCount ignores both itemTypes and since, and since
-# counts only events strictly after it. Checked live 2026-09-26 on pytorch/pytorch
-# #198722 (a force-push) and #195748 (a retarget).
-_SIBLING_FIELDS = (
-    "title createdAt closedAt headRefName baseRefOid "
-    f"commits(last: {COMMITS_READ}) "
-    "{ totalCount nodes { commit { oid committedDate } } } "
-    "timelineItems(itemTypes: [HEAD_REF_FORCE_PUSHED_EVENT, BASE_REF_CHANGED_EVENT, "
-    "BASE_REF_FORCE_PUSHED_EVENT], since: $since) { filteredCount }"
+_Value = TypeVar("_Value", bound=Hashable)
+
+
+def _at_cutoff_fields(rewrites: str) -> str:
+    """The fields :func:`_open_at` and :func:`_head_at` read, ``rewrites`` counted."""
+    # filteredCount, not totalCount: totalCount ignores both itemTypes and since, and
+    # since counts only events strictly after it. Checked live 2026-09-26 on
+    # pytorch/pytorch #198722 (a force-push) and #195748 (a retarget).
+    return (
+        f"createdAt closedAt commits(last: {COMMITS_READ}) "
+        "{ totalCount nodes { commit { oid committedDate } } } "
+        f"timelineItems(itemTypes: [{rewrites}], since: $since) "
+        "{ filteredCount }"
+    )
+
+
+_SIBLING_FIELDS = "title headRefName baseRefOid " + _at_cutoff_fields(
+    "HEAD_REF_FORCE_PUSHED_EVENT, BASE_REF_CHANGED_EVENT, BASE_REF_FORCE_PUSHED_EVENT"
 )
 
-_Value = TypeVar("_Value", bound=Hashable)
+
+class HeadUnknown(ValueError):
+    """A pull request's head at the cutoff cannot be pinned to one commit."""
 
 
 def clear_stack(run_dir: Path) -> None:
@@ -104,6 +118,7 @@ def read_back(
     *,
     head_ref: str | None,
     write_stack: bool,
+    native_head: str | None = None,
 ) -> tuple[str | None, Path | None]:
     """``repo#pr_number``'s body as of ``cutoff``, and its stack context if asked for.
 
@@ -111,26 +126,40 @@ def read_back(
     or None unless ``write_stack`` and the step would have written one. ``head_ref`` is
     the head branch when the caller already has it: a non-ghstack one costs no call,
     and None costs one only when ``write_stack`` needs the answer. A naive ``cutoff`` is
-    read as UTC; ``run_dir`` must hold neither stack path yet.
+    read as UTC; ``run_dir`` must hold neither stack path yet. ``native_head`` is the
+    replayed head, given when the step also covers GitHub stacks: a pull request that is
+    not ghstack then gets its GitHub stack's context from :mod:`.stack_native`.
     """
     if not _REPO_PATTERN.fullmatch(repo):
-        raise ValueError(f"refusing to read the ghstack context of repo {repo!r}")
+        raise ValueError(f"refusing to read the stack context of repo {repo!r}")
     if head_ref is None and not write_stack:
         return None, None
-    if head_ref is not None and GHSTACK_HEAD.fullmatch(head_ref) is None:
+    native_head = native_head if write_stack else None
+    not_ghstack = head_ref is not None and GHSTACK_HEAD.fullmatch(head_ref) is None
+    if not_ghstack and native_head is None:
         return None, None
     try:
-        return _read_back(repo, pr_number, to_utc_naive(cutoff), run_dir, write_stack)
+        cutoff = to_utc_naive(cutoff)
+        if not_ghstack and native_head is not None:
+            return None, _native(repo, pr_number, cutoff, run_dir, native_head)
+        return _read_back(repo, pr_number, cutoff, run_dir, write_stack, native_head)
     except BaseException:
         clear_stack(run_dir)
         raise
 
 
 def _read_back(
-    repo: str, pr_number: int, cutoff: datetime, run_dir: Path, write_stack: bool
+    repo: str,
+    pr_number: int,
+    cutoff: datetime,
+    run_dir: Path,
+    write_stack: bool,
+    native_head: str | None,
 ) -> tuple[str | None, Path | None]:
     pull = _pull_page(repo, pr_number, cursor=None)
     head = GHSTACK_HEAD.fullmatch(pull["headRefName"])
+    if head is None and native_head is not None:
+        return None, _native(repo, pr_number, cutoff, run_dir, native_head)
     if head is None:
         logger.info("%s#%s is not a ghstack PR; no stack context", repo, pr_number)
         return None, None
@@ -154,25 +183,48 @@ def _write_stack(
     pull: dict[str, Any],
     above: list[str],
 ) -> Path:
-    from torchci.greenlight_replay.inputs import _fetch_diff
-
     siblings = _siblings(repo, above, cutoff) if above else {}
-    directory = run_dir / STACK_DIRNAME
-    directory.mkdir()
-    entries: list[dict[str, Any]] = []
+    kept: list[tuple[int, str, str, str]] = []
     for number in above:
         sibling = siblings[number]
         if not _open_ghstack_pr_of(user, sibling, cutoff):
             logger.info("skipping #%s: no open ghstack PR of %s then", number, user)
             continue
         head_sha = _head_at(number, sibling, cutoff)
-        diff = _fetch_diff(repo, sibling["baseRefOid"], head_sha)
+        kept.append((int(number), sibling["title"], sibling["baseRefOid"], head_sha))
+    return _write_files(repo, run_dir, kept, (pr_number, pull["title"]))
+
+
+def _native(
+    repo: str, pr_number: int, cutoff: datetime, run_dir: Path, head_sha: str
+) -> Path | None:
+    from torchci.greenlight_replay.stack_native import write_native_stack
+
+    return write_native_stack(repo, pr_number, cutoff, run_dir, head_sha)
+
+
+def _write_files(
+    repo: str,
+    run_dir: Path,
+    kept: list[tuple[int, str, str, str]],
+    this: tuple[int, str],
+) -> Path:
+    """The step's files: each kept PR's capped diff, then the JSON listing them.
+
+    ``kept`` is ``(number, title, base, head)`` per PR above, top of the stack first,
+    each diffed by compare from ``base`` to ``head``; ``this`` is ``(number, title)``.
+    """
+    from torchci.greenlight_replay.inputs import _fetch_diff
+
+    directory = run_dir / STACK_DIRNAME
+    directory.mkdir()
+    entries: list[dict[str, Any]] = []
+    for number, title, base, head in kept:
+        diff = _fetch_diff(repo, base, head)
         (directory / f"{number}.diff").write_bytes(cap_diff(diff))
         path = f"{CI_STACK_DIR}/{number}.diff"
-        entries.append(
-            dict(number=int(number), title=sibling["title"], this=False, diff=path)
-        )
-    entries.append(dict(number=pr_number, title=pull["title"], this=True))
+        entries.append(dict(number=number, title=title, this=False, diff=path))
+    entries.append(dict(number=this[0], title=this[1], this=True))
 
     # Written last, as the step writes it, and in jq's default rendering.
     stack_path = run_dir / STACK_FILENAME
@@ -242,12 +294,15 @@ def _body_at(
 
 
 def _siblings(
-    repo: str, numbers: list[str], cutoff: datetime
-) -> dict[str, dict[str, Any]]:
-    """One aliased query for every pull request listed above."""
-    # Numbers passed the listing row's [1-9][0-9]*, so none can carry query syntax.
+    repo: str,
+    numbers: Sequence[int | str],
+    cutoff: datetime,
+    fields: str = _SIBLING_FIELDS,
+) -> dict[int | str, dict[str, Any]]:
+    """One aliased query reading ``fields`` of every pull request in ``numbers``."""
+    # A listing row's [1-9][0-9]* or a GraphQL Int: no number can carry query syntax.
     aliased = " ".join(
-        f"pr{number}: pullRequest(number: {int(number)}) {{{_SIBLING_FIELDS}}}"
+        f"pr{number}: pullRequest(number: {int(number)}) {{{fields}}}"
         for number in numbers
     )
     query = (
@@ -262,35 +317,37 @@ def _siblings(
 def _open_ghstack_pr_of(user: str, sibling: dict[str, Any], cutoff: datetime) -> bool:
     """The step's sibling filter, with open at the cutoff standing in for ``OPEN``."""
     head = GHSTACK_HEAD.fullmatch(sibling["headRefName"])
-    closed_at = sibling["closedAt"]
-    return (
-        head is not None
-        and head.group(1) == user
-        and _instant(sibling["createdAt"]) <= cutoff
-        and (closed_at is None or _instant(closed_at) > cutoff)
+    return head is not None and head.group(1) == user and _open_at(sibling, cutoff)
+
+
+def _open_at(pull: dict[str, Any], cutoff: datetime) -> bool:
+    """Whether ``pull`` existed and was open at ``cutoff``."""
+    closed_at = pull["closedAt"]
+    return _instant(pull["createdAt"]) <= cutoff and (
+        closed_at is None or _instant(closed_at) > cutoff
     )
 
 
-def _head_at(number: str, sibling: dict[str, Any], cutoff: datetime) -> str:
+def _head_at(number: int | str, sibling: dict[str, Any], cutoff: datetime) -> str:
     """The sibling's newest commit dated at or before ``cutoff``.
 
     A force-push of its head after the cutoff can drop the commits that stood then, and
-    a retarget or a force-push of its base moves the base the diff is taken against, so
-    any of them raises.
+    a retarget or a force-push of its base moves the base a ghstack diff is taken
+    against: whichever of them the query counts raises :class:`HeadUnknown`.
     """
     if sibling["timelineItems"]["filteredCount"]:
-        raise ValueError(f"#{number}'s head or base was rewritten after the cutoff")
+        raise HeadUnknown(f"#{number}'s head or base was rewritten after the cutoff")
     commits = sibling["commits"]
     if commits["totalCount"] > COMMITS_READ:
-        raise ValueError(f"#{number} has {commits['totalCount']} commits, too many")
+        raise HeadUnknown(f"#{number} has {commits['totalCount']} commits, too many")
     nodes = [node["commit"] for node in commits["nodes"]]
     dated = ((_instant(commit["committedDate"]), commit["oid"]) for commit in nodes)
     found = _newest_at_or_before(cutoff, dated)
     if found is None:
-        raise ValueError(f"#{number} has no commit dated at or before the cutoff")
+        raise HeadUnknown(f"#{number} has no commit dated at or before the cutoff")
     committed_at, heads = found
     if len(heads) > 1:
-        raise ValueError(f"#{number}: ambiguous head, {len(heads)} at {committed_at}")
+        raise HeadUnknown(f"#{number}: ambiguous head, {len(heads)} at {committed_at}")
     return heads.pop()
 
 
