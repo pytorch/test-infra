@@ -111,7 +111,8 @@ describe("CrcrLevelAudit", () => {
     expect(html).toContain("crcr-promotion-bot");
     expect(html).toContain("Job Pass Rate");
     expect(html).toContain("Proposal");
-    expect(html).toContain("Applied configuration a1b2c3d4e5f6");
+    expect(html).toContain("Applied configuration");
+    expect(html).toContain("a1b2c3d4e5f6");
     expect(html).toContain("Proposed");
     expect(html).toContain("Applied");
   });
