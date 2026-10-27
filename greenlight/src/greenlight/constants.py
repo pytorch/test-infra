@@ -69,6 +69,14 @@ EXCLUDED_LABELS: frozenset[str] = frozenset({STALE_LABEL})
 REVERTED_LABEL = "Reverted"
 REVERTED_LABELS: frozenset[str] = frozenset({REVERTED_LABEL})
 
+# greenlight's status labels, matched case-insensitively for the same reason: a write lands in the label
+# registry's casing, so an exact comparison against a differently-cased registry label would rewrite it on
+# every sync.
+GL_APPROVED_LABEL = "GL/approved"
+GL_HUMAN_LABEL = "GL/human"
+GL_SUPERSEDED_LABEL = "GL/superseded"
+GL_LABELS: frozenset[str] = frozenset({GL_APPROVED_LABEL, GL_HUMAN_LABEL, GL_SUPERSEDED_LABEL})
+
 
 def carries_any_label(labels: Iterable[str], wanted: Iterable[str]) -> bool:
     """True when any name in ``labels`` matches one in ``wanted``, compared case-insensitively."""
