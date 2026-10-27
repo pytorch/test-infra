@@ -28,6 +28,7 @@ export interface EligibilityPr {
   changed_files: number;
   head: { ref: string };
   base: { ref: string };
+  stack?: { base: { ref: string } } | null;
 }
 
 export type EligibilityCheck = (
@@ -307,12 +308,14 @@ export function greenlightEligibilityGate(
       return waitingUnlessDecided(pr, rules);
     }
     // Mirrors trymerge, which refuses a PR on any base but main unless it is a
-    // ghstack PR, and checks each PR of a ghstack stack against that PR's own
-    // file list. That list does not bound what trymerge lands from a ghstack
-    // stack (greenlight/TRUSTED_AUTHORS.md, "Accepted risks").
+    // ghstack PR or in a GitHub-native stack whose trunk is main, and checks
+    // each PR of a stack against that PR's own file list. That list does not
+    // bound what trymerge lands from a stack (greenlight/TRUSTED_AUTHORS.md,
+    // "Accepted risks").
     if (
       pr.base.ref !== TARGET_BRANCH &&
-      !GHSTACK_HEAD_REF_RE.test(pr.head.ref)
+      !GHSTACK_HEAD_REF_RE.test(pr.head.ref) &&
+      pr.stack?.base?.ref !== TARGET_BRANCH
     ) {
       return "merge_rules";
     }
