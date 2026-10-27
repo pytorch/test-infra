@@ -22,6 +22,7 @@ from greenlight import (
     review,
     scan_runner,
     state_emit,
+    verdict_labels,
 )
 from greenlight.comment_format import RECHECK_REFUSAL_MARKER
 from greenlight.constants import (
@@ -112,6 +113,10 @@ def _open_pr(
 
 def _no_reverted(_repo: str, _numbers: Sequence[int]) -> set[int]:
     return set()
+
+
+def _no_label_pass(_scan: object) -> None:
+    pass
 
 
 def _merge_rules() -> merge_authz.MergeRulesSnapshot:
@@ -261,6 +266,7 @@ def _run_scan(
     listing_error: Exception | None = None,
     clock: Callable[[], datetime] | None = None,
     fingerprint_errors: dict[int, BaseException] | None = None,
+    label_prs: Callable[[verdict_labels.LabelPass], None] | None = None,
 ) -> _Scan:
     states = states or {}
     files = files or {}
@@ -378,6 +384,11 @@ def _run_scan(
         reverted_shadow.append((pr_number, shadow))
         events.append(f"emit_reverted:{pr_number}")
 
+    def fake_label_prs(label_pass: verdict_labels.LabelPass) -> None:
+        events.append("label_pass")
+        if label_prs is not None:
+            label_prs(label_pass)
+
     def scan() -> None:
         review.run(
             make_config(github_token="t", **(config_kwargs or {})),
@@ -403,6 +414,7 @@ def _run_scan(
             get_pr=fake_get_pr,
             dismiss_approvals=fake_dismiss,
             upsert_comment=fake_upsert,
+            label_prs=_no_label_pass if label_prs is None else fake_label_prs,
             resolve_merge_rules=fake_resolve_merge_rules,
             now=clock or (lambda: now),
             memory=memory,
@@ -1062,6 +1074,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
+            label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
@@ -1396,6 +1409,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
+            label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
@@ -1431,6 +1445,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
+            label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
@@ -1463,6 +1478,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
+            label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
@@ -1493,6 +1509,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
+            label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
@@ -1551,6 +1568,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
+            label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
@@ -1600,6 +1618,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=fake_dispatch,
+        label_prs=_no_label_pass,
         resolve_merge_rules=_merge_rules,
         now=lambda: _NOW,
     )
@@ -1643,6 +1662,7 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=fake_dispatch,
+        label_prs=_no_label_pass,
         resolve_merge_rules=_merge_rules,
         now=lambda: _NOW,
     )
@@ -1683,6 +1703,7 @@ def test_run_closes_main_and_worker_clients(make_config):
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=lambda *_args, **_kwargs: None,
+        label_prs=_no_label_pass,
         resolve_merge_rules=_merge_rules,
         now=lambda: _NOW,
     )
@@ -1929,6 +1950,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=fake_dispatch,
+            label_prs=_no_label_pass,
             resolve_merge_rules=_merge_rules,
             now=lambda: _NOW,
         )
@@ -3311,3 +3333,243 @@ def test_a_cached_pr_whose_judgment_raises_is_fingerprinted_afresh_and_the_tick_
     assert "PR #1: failed to judge its cached fingerprint; fingerprinting it afresh" in caplog.text
     assert sorted(scan.fingerprinted) == [1, 2]
     assert sorted(number for number, *_ in scan.dispatched) == [1, 2]
+
+
+def test_run_default_label_seam_is_the_label_pass():
+    import inspect
+
+    assert inspect.signature(review.run).parameters["label_prs"].default is verdict_labels.label_listed_prs
+
+
+@pytest.mark.parametrize("max_dispatches", [pytest.param(None, id="uncapped"), pytest.param(1, id="capped")])
+def test_a_listing_tick_hands_the_label_pass_each_set_it_reads(make_config, max_dispatches):
+    passes: list[verdict_labels.LabelPass] = []
+    clock = _advancing_clock(_NOW, timedelta(seconds=1))
+
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(1, updated_at=_NEW, labels=("Reverted",)),
+            _open_pr(2, updated_at=_NEW),
+            _open_pr(3, updated_at=_NEW),
+            _open_pr(4, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(5, updated_at=_NEW, labels=("Stale",)),
+            _open_pr(6, updated_at=_OLD, head_sha="idle6"),
+        ],
+        fingerprints={2: ("headsha2", _HASH_A), 3: ReviewSkip(CHANGES_REQUESTED, "changes requested by bob")},
+        states={5: _state(5, STATUS_LAND, _HASH_A, _OLD), 6: _state(6, STATUS_NO_LAND, _HASH_A, _OLD)},
+        files={4: (_TORCH_FILE,)},
+        bot_login="greenlight-app[bot]",
+        max_dispatches=max_dispatches,
+        timeout_minutes=30,
+        clock=clock,
+        label_prs=passes.append,
+    )
+
+    assert [number for number, *_ in scan.dispatched] == [2]
+    (label_pass,) = passes
+    assert label_pass.reverted == frozenset({1})
+    assert list(label_pass.recent) == [2, 3, 4]
+    assert list(label_pass.eligible) == [2, 3]
+    assert list(label_pass.ineligible) == [4]
+    assert list(label_pass.skips) == [(3, ReviewSkip(CHANGES_REQUESTED, "changes requested by bob"))]
+    assert label_pass.labels == {1: ("Reverted",), 2: (), 3: (), 4: (), 5: ("Stale",), 6: ()}
+    assert label_pass.heads == {1: "headsha1", 2: "headsha2", 3: "headsha3", 4: "headsha4", 5: "headsha5", 6: "idle6"}
+    assert label_pass.listed_at == _NOW
+    assert label_pass.clock is clock
+    assert label_pass.timeout == timedelta(minutes=30)
+
+
+def test_a_fast_tick_hands_the_label_pass_the_prs_its_listing_returned(make_config):
+    passes: list[verdict_labels.LabelPass] = []
+
+    scan = _run_scan(
+        make_config,
+        updated=[_open_pr(3, updated_at=_OLD, labels=("Reverted",)), _open_pr(4, updated_at=_FRESH)],
+        fingerprints={4: ("headsha4", _HASH_A)},
+        bot_login="greenlight-app[bot]",
+        memory=_marked_memory(_NOW - timedelta(minutes=5)),
+        label_prs=passes.append,
+    )
+
+    assert scan.listed_calls == 0
+    (label_pass,) = passes
+    assert label_pass.reverted == frozenset({3})
+    assert list(label_pass.recent) == [4]
+    assert list(label_pass.eligible) == [4]
+    assert label_pass.labels == {3: ("Reverted",), 4: ()}
+    assert label_pass.heads == {3: "headsha3", 4: "headsha4"}
+
+
+def test_an_undetermined_pr_reaches_the_label_pass_as_neither_eligible_nor_ineligible(make_config):
+    passes: list[verdict_labels.LabelPass] = []
+
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(3, updated_at=_NEW),
+        ],
+        fingerprints={3: ("headsha3", _HASH_A)},
+        files={2: (_TORCH_FILE,)},
+        files_errors={1: RuntimeError("files boom")},
+        label_prs=passes.append,
+        raises=RuntimeError,
+    )
+
+    (label_pass,) = passes
+    assert list(label_pass.recent) == [1, 2, 3]
+    assert list(label_pass.eligible) == [3]
+    assert list(label_pass.ineligible) == [2]
+    assert str(scan.error) == "1 PR(s) failed during scan: [1]"
+
+
+def test_the_label_pass_reads_a_pr_through_the_get_pr_seam_on_the_scans_main_client(make_config):
+    built: list[object] = []
+    reads: list[tuple[object, str, int]] = []
+    served: list[object] = []
+    passes: list[verdict_labels.LabelPass] = []
+
+    def factory(_token, **_kwargs):
+        client = object()
+        built.append(client)
+        return cast("Github", client)
+
+    def recording_get_pr(client, repo, number):
+        reads.append((client, repo, number))
+        served.append(_FakePR(number, _FakeHead(f"headsha{number}")))
+        return served[-1]
+
+    review.run(
+        make_config(github_token="t"),
+        build_github=factory,
+        fetch=lambda _client, _authors: [_open_pr(1)],
+        fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+        read_state=lambda _repo, _numbers: {},
+        read_reverted=_no_reverted,
+        dispatch=lambda *_args, **_kwargs: None,
+        get_pr=recording_get_pr,
+        label_prs=passes.append,
+        resolve_merge_rules=_merge_rules,
+        now=lambda: _NOW,
+    )
+
+    assert reads == []
+    assert passes[0].fetch_pr(1) is served[0]
+    assert reads == [(built[0], TARGET_REPO, 1)]
+
+
+def test_the_label_pass_runs_once_the_revocations_and_the_dispatch_phase_are_done(make_config):
+    passes: list[verdict_labels.LabelPass] = []
+
+    scan = _run_scan(
+        make_config,
+        listed=[
+            _open_pr(1, updated_at=_NEW, labels=("Reverted",)),
+            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(3, updated_at=_NEW),
+        ],
+        fingerprints={3: ("headsha3", _HASH_A)},
+        states={2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
+        files={2: (_TORCH_FILE,)},
+        bot_login="greenlight-app[bot]",
+        label_prs=passes.append,
+    )
+
+    assert len(passes) == 1
+    assert [event for event in scan.events if not event.startswith("poke:")] == [
+        "dismiss:1",
+        "emit_reverted:1",
+        "dismiss:2",
+        "dispatch:3",
+        "emit:3",
+        "label_pass",
+    ]
+
+
+def test_prs_that_failed_still_get_the_label_pass_and_the_scan_raises_after_it(make_config):
+    passes: list[verdict_labels.LabelPass] = []
+
+    def boom_fingerprint(_client, number, _authorized, _skip):
+        if number == 1:
+            raise RuntimeError("fingerprint boom")
+        return (f"headsha{number}", _HASH_A)
+
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+        raise RuntimeError("dispatch boom")
+
+    with pytest.raises(RuntimeError) as excinfo:
+        review.run(
+            make_config(github_token="t"),
+            build_github=lambda _token, **_kwargs: _CLIENT,
+            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2)],
+            fingerprint=boom_fingerprint,
+            read_state=lambda _repo, _numbers: {},
+            read_reverted=_no_reverted,
+            dispatch=boom_dispatch,
+            label_prs=passes.append,
+            resolve_merge_rules=_merge_rules,
+            now=lambda: _NOW,
+        )
+
+    assert str(excinfo.value) == "1 PR(s) failed during scan: [1]; failed to dispatch 1 PR(s): [2]"
+    assert [list(label_pass.recent) for label_pass in passes] == [[1, 2]]
+
+
+def test_a_pr_recheck_never_runs_the_label_pass(make_config):
+    passes: list[verdict_labels.LabelPass] = []
+
+    scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, label_prs=passes.append)
+
+    assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
+    assert passes == []
+
+
+def test_a_rate_limited_tick_skips_the_label_pass(make_config):
+    from github import RateLimitExceededException
+
+    passes: list[verdict_labels.LabelPass] = []
+
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={},
+        fingerprint_errors={1: RateLimitExceededException(403)},
+        label_prs=passes.append,
+        raises=RuntimeError,
+    )
+
+    assert passes == []
+    assert str(scan.error) == "1 PR(s) failed during scan: [1]"
+
+
+def test_a_label_pass_failure_fails_the_scan(make_config):
+    def unreadable(_label_pass: verdict_labels.LabelPass) -> None:
+        raise RuntimeError("gate rows unreadable")
+
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        label_prs=unreadable,
+        raises=RuntimeError,
+    )
+
+    assert str(scan.error) == "gate rows unreadable"
+    assert [number for number, *_ in scan.dispatched] == [1]
+
+
+def test_the_label_pass_lets_its_ledger_read_failure_fail_the_scan(make_config):
+    def unreadable(_repo: str, _numbers: Sequence[int]) -> tuple[dict[int, PRState], dict[int, PRState]]:
+        raise RuntimeError("clickhouse down")
+
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        label_prs=lambda label_pass: verdict_labels.label_listed_prs(label_pass, read_gate_rows=unreadable),
+        raises=RuntimeError,
+    )
+
+    assert str(scan.error) == "clickhouse down"

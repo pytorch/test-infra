@@ -1,17 +1,17 @@
-"""Deciding and syncing the ``GL/*`` status labels on a PR.
+"""The ``GL/*`` status labels greenlight puts on the PRs it reviews.
 
 The ledger decides and the labels only display it: a ``GL/*`` label is read only to work out the
 writes that bring a PR's labels to what its rows imply, never to decide anything. Those rows are the
 PR's latest non-shadow row, the one pytorch's land gate reads, and its latest non-shadow LAND or
-NO_LAND. ``desired_labels`` decides what they imply: a PR whose verdict is current must carry that
-verdict's label (``GL/approved`` for a LAND, ``GL/human`` for a NO_LAND) until greenlight's stamp
-could no longer land it on its own and greenlight will not review it again; from then on it must
-carry ``GL/superseded`` alone. A reverted PR must also keep the label of a verdict recorded on the
-PR's head when the scan recorded the ``REVERTED`` row. ``sync_labels`` makes the writes.
+NO_LAND. A PR whose verdict is current carries that verdict's label (``GL/approved`` for a LAND,
+``GL/human`` for a NO_LAND) until greenlight's stamp could no longer land it on its own and
+greenlight will not review it again; from then on it carries ``GL/superseded`` alone. A reverted PR
+also keeps the label of a verdict recorded on the PR's head when the scan recorded the ``REVERTED``
+row.
 
-A listing tick's label pass (``label_listed_prs``) relabels the ``TARGET_REPO`` PRs the tick listed
-that are reverted, kept by the recency filter or Stale-skipped, restoring a removed label on any
-whose rows imply labels.
+The scan supersedes and restores the labels of ``TARGET_REPO`` PRs: every listing tick that reaches its
+dispatch phase without a rate limit relabels the PRs it listed that are reverted, kept by the recency
+filter or Stale-skipped (``label_listed_prs``), restoring a removed label on any whose rows imply labels.
 """
 
 from __future__ import annotations
@@ -177,11 +177,11 @@ def label_listed_prs(
 ) -> None:
     """Bring the ``GL/*`` labels of a tick's reverted, ``recent`` and Stale-skipped PRs in line with their rows.
 
-    The rows are read in one query that is not guarded, so a failure to read them
-    propagates. The PRs go in number order; one is fetched only when its listed labels differ
+    The rows are read in one query that is not guarded: like the scan's other reads, its failure
+    fails the scan. The PRs go in number order; one is fetched only when its listed labels differ
     from the ones it must carry, none is started once the tick is ``LABEL_PASS_DEADLINE`` old, and
     one found closed keeps its labels. A failure on a PR is logged and, ``IterationTimeout`` aside,
-    never propagates: a rate limit stops the pass, and so does a run of ``LABEL_PASS_MAX_FAILURES``
+    never fails the scan: a rate limit stops the pass, and so does a run of ``LABEL_PASS_MAX_FAILURES``
     other failures with no PR synced between them; a failure short of that moves it on to the next
     PR. As the order is fixed, PRs that keep failing stop the pass at the same place every tick.
     Every PR the pass does not reach waits for the next tick.
