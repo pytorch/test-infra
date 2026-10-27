@@ -1,5 +1,6 @@
 import CrcrLevelAudit from "components/crcr/CrcrLevelAudit";
 import { useLevelAudit } from "lib/crcr/levelAudit";
+import { useLevelHistory } from "lib/crcr/levelHistory";
 import { renderToStaticMarkup } from "react-dom/server";
 
 jest.mock("lib/crcr/levelAudit", () => {
@@ -7,12 +8,19 @@ jest.mock("lib/crcr/levelAudit", () => {
   return { ...actual, useLevelAudit: jest.fn() };
 });
 
+jest.mock("lib/crcr/levelHistory", () => ({
+  useLevelHistory: jest.fn(),
+}));
+
 jest.mock("components/common/TimeUtils", () => ({
   LocalTimeHuman: ({ timestamp }: { timestamp: string }) => <>{timestamp}</>,
 }));
 
 const mockUseLevelAudit = useLevelAudit as jest.MockedFunction<
   typeof useLevelAudit
+>;
+const mockUseLevelHistory = useLevelHistory as jest.MockedFunction<
+  typeof useLevelHistory
 >;
 
 const DECISION = {
@@ -78,6 +86,14 @@ const DECISION = {
 };
 
 describe("CrcrLevelAudit", () => {
+  beforeEach(() => {
+    mockUseLevelHistory.mockReturnValue({
+      events: [],
+      error: undefined,
+      loaded: true,
+    });
+  });
+
   test("renders the selected decision's persisted audit details", () => {
     mockUseLevelAudit.mockReturnValue({
       decisions: [DECISION],
@@ -89,7 +105,7 @@ describe("CrcrLevelAudit", () => {
       <CrcrLevelAudit repoFullName="vendor/backend" />
     );
 
-    expect(html).toContain("Configured-Level Decision Audit");
+    expect(html).toContain("Configured-Level History");
     expect(html).toContain("Automated promotion");
     expect(html).toContain("All promotion criteria qualified.");
     expect(html).toContain("crcr-promotion-bot");
@@ -112,7 +128,36 @@ describe("CrcrLevelAudit", () => {
     );
 
     expect(html).toContain("temporarily unavailable");
-    expect(html).not.toContain("0 audit decisions");
+    expect(html).toContain("Audit unavailable");
+  });
+
+  test("presents dispatch-observed history in the same selectable timeline", () => {
+    mockUseLevelAudit.mockReturnValue({
+      decisions: [],
+      error: undefined,
+      loaded: true,
+    });
+    mockUseLevelHistory.mockReturnValue({
+      events: [
+        {
+          changed_at: "2026-10-16 01:00:00",
+          previous_level: "L2",
+          new_level: "L3",
+        },
+      ],
+      error: undefined,
+      loaded: true,
+    });
+
+    const html = renderToStaticMarkup(
+      <CrcrLevelAudit repoFullName="vendor/backend" />
+    );
+
+    expect(html).toContain("1 observed event · 0 audit decisions");
+    expect(html).toContain("Dispatch observed");
+    expect(html).toContain("Observed configured level: L2 → L3");
+    expect(html).toContain("CRCR dispatch records");
+    expect(html).not.toContain("Configured-Level Decision Audit");
   });
 
   test("does not show an applied configuration fallback before a decision applies", () => {

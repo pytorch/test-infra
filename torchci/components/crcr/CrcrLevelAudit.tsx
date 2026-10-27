@@ -27,6 +27,7 @@ import {
   parseCriteriaSnapshot,
   useLevelAudit,
 } from "lib/crcr/levelAudit";
+import { LevelHistoryEvent, useLevelHistory } from "lib/crcr/levelHistory";
 import { ReactNode, useState } from "react";
 
 function kindColor(kind: string) {
@@ -60,9 +61,11 @@ function stateColor(state: string) {
 
 function decisionTitle(decision: LevelAuditDecision) {
   const event = decision.current;
-  return `${displaySource(event.decision_source)} ${displayKind(event.decision_kind)}: ${
-    event.previous_level || "Unconfigured"
-  } → ${event.new_level || "Unknown"}`;
+  return `${displaySource(event.decision_source)} ${displayKind(
+    event.decision_kind
+  )}: ${event.previous_level || "Unconfigured"} → ${
+    event.new_level || "Unknown"
+  }`;
 }
 
 function AuditLink({
@@ -217,8 +220,13 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
                 Evaluation window
               </Typography>
               <Typography variant="body2">
-                <LocalTimeHuman timestamp={windowEvent.evaluation_window_start!} />{" "}
-                – <LocalTimeHuman timestamp={windowEvent.evaluation_window_end!} />
+                <LocalTimeHuman
+                  timestamp={windowEvent.evaluation_window_start!}
+                />{" "}
+                –{" "}
+                <LocalTimeHuman
+                  timestamp={windowEvent.evaluation_window_end!}
+                />
               </Typography>
             </Box>
           )}
@@ -314,32 +322,150 @@ function DecisionDetails({ decision }: { decision: LevelAuditDecision }) {
   );
 }
 
+type HistoryEntry =
+  | {
+      id: string;
+      kind: "audit";
+      timestamp: string;
+      decision: LevelAuditDecision;
+    }
+  | {
+      id: string;
+      kind: "observed";
+      timestamp: string;
+      event: LevelHistoryEvent;
+    };
+
+function historyEntries(
+  decisions: LevelAuditDecision[],
+  events: LevelHistoryEvent[]
+): HistoryEntry[] {
+  return [
+    ...decisions.map((decision) => ({
+      id: `audit:${decision.decision_id}`,
+      kind: "audit" as const,
+      timestamp: auditDisplayTime(decision.current),
+      decision,
+    })),
+    ...events.map((event, index) => ({
+      id: `observed:${event.changed_at}:${event.new_level}:${index}`,
+      kind: "observed" as const,
+      timestamp: event.changed_at,
+      event,
+    })),
+  ].sort(
+    (left, right) =>
+      right.timestamp.localeCompare(left.timestamp) ||
+      right.id.localeCompare(left.id)
+  );
+}
+
+function ObservedDetails({ event }: { event: LevelHistoryEvent }) {
+  return (
+    <Paper
+      aria-live="polite"
+      elevation={0}
+      sx={{ border: 1, borderColor: "divider", p: 2 }}
+    >
+      <Stack spacing={1.5}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          flexWrap="wrap"
+          gap={1}
+        >
+          <Box>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              lineHeight={1.2}
+            >
+              Selected history event
+            </Typography>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Observed configured level: {event.previous_level} →{" "}
+              {event.new_level}
+            </Typography>
+          </Box>
+          <Chip
+            label="Dispatch observed"
+            color="info"
+            size="small"
+            variant="outlined"
+          />
+        </Box>
+
+        <Box
+          sx={{
+            borderLeft: 3,
+            borderColor: "info.main",
+            bgcolor: "action.hover",
+            p: 1.25,
+          }}
+        >
+          <Typography variant="body2">
+            This level change was inferred from CRCR dispatch records. No
+            durable audit decision was recorded for this historical event.
+          </Typography>
+        </Box>
+
+        <Box
+          display="grid"
+          gridTemplateColumns={{
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+          }}
+          gap={1.5}
+        >
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Evidence source
+            </Typography>
+            <Typography variant="body2">CRCR dispatch records</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Observed at
+            </Typography>
+            <Typography variant="body2">
+              <LocalTimeHuman timestamp={event.changed_at} />
+            </Typography>
+          </Box>
+        </Box>
+
+        <Typography variant="body2" color="text.secondary">
+          Decision reason, actor, criteria, and PR links are available only for
+          configured-level changes recorded by the audit workflow.
+        </Typography>
+      </Stack>
+    </Paper>
+  );
+}
+
 export default function CrcrLevelAudit({
   repoFullName,
 }: {
   repoFullName: string;
 }) {
-  const { decisions, error, loaded } = useLevelAudit(repoFullName);
+  const {
+    decisions,
+    error: auditError,
+    loaded: auditLoaded,
+  } = useLevelAudit(repoFullName);
+  const {
+    events,
+    error: historyError,
+    loaded: historyLoaded,
+  } = useLevelHistory(repoFullName);
   const [expanded, setExpanded] = useState(false);
-  const [selectedDecisionId, setSelectedDecisionId] = useState<string>();
-  const selectedDecision =
-    decisions.find((decision) => decision.decision_id === selectedDecisionId) ??
-    decisions[0];
+  const [selectedEntryId, setSelectedEntryId] = useState<string>();
+  const entries = historyEntries(decisions, events);
+  const selectedEntry =
+    entries.find((entry) => entry.id === selectedEntryId) ?? entries[0];
 
-  if (!loaded) return <Skeleton variant="rectangular" height={80} />;
-
-  if (error) {
-    return (
-      <Paper elevation={1} sx={{ p: 2 }}>
-        <Stack spacing={0.5}>
-          <Typography variant="h6">Configured-Level Decision Audit</Typography>
-          <Typography variant="body2" color="error">
-            The configured-level decision audit is temporarily unavailable.
-            Please try again later.
-          </Typography>
-        </Stack>
-      </Paper>
-    );
+  if (!auditLoaded || !historyLoaded) {
+    return <Skeleton variant="rectangular" height={80} />;
   }
 
   return (
@@ -359,10 +485,20 @@ export default function CrcrLevelAudit({
           gap={1}
           width="100%"
         >
-          <Typography variant="h6">Configured-Level Decision Audit</Typography>
+          <Typography variant="h6">Configured-Level History</Typography>
           <Chip
-            label={`${decisions.length} audit decision${
-              decisions.length === 1 ? "" : "s"
+            label={`${
+              historyError
+                ? "Dispatch history unavailable"
+                : `${events.length} observed event${
+                    events.length === 1 ? "" : "s"
+                  }`
+            } · ${
+              auditError
+                ? "Audit unavailable"
+                : `${decisions.length} audit decision${
+                    decisions.length === 1 ? "" : "s"
+                  }`
             }`}
             size="small"
             variant="outlined"
@@ -372,17 +508,26 @@ export default function CrcrLevelAudit({
       <AccordionDetails sx={{ px: 2, pb: 2 }}>
         <Stack spacing={1.5}>
           <Typography variant="caption" color="text.secondary">
-            Durable audit records explain configured-level decisions. Each
-            decision preserves its lifecycle, actor, references, and recorded
-            criteria. Dispatch-inferred history and temporary protection remain
-            separate views because neither is itself a configured-level
-            decision.
+            Select a level event to inspect the available evidence. Audit-backed
+            decisions preserve their lifecycle, actor, references, and recorded
+            criteria; older dispatch-observed events identify the level change
+            without implying a decision record exists.
           </Typography>
 
-          {!selectedDecision ? (
+          {historyError && (
+            <Typography variant="body2" color="error">
+              Dispatch-observed history is temporarily unavailable.
+            </Typography>
+          )}
+          {auditError && (
+            <Typography variant="body2" color="error">
+              The configured-level audit is temporarily unavailable.
+            </Typography>
+          )}
+
+          {!selectedEntry ? (
             <Typography variant="body2" color="text.secondary">
-              No configured-level audit decisions have been recorded for this
-              repository.
+              No configured-level events have been recorded for this repository.
             </Typography>
           ) : (
             <Box
@@ -394,17 +539,25 @@ export default function CrcrLevelAudit({
               gap={3}
             >
               <Stack spacing={0}>
-                {decisions.map((decision) => {
-                  const event = decision.current;
-                  const selected =
-                    decision.decision_id === selectedDecision?.decision_id;
+                {entries.map((entry) => {
+                  const decision =
+                    entry.kind === "audit" ? entry.decision : undefined;
+                  const event = decision?.current;
+                  const previousLevel =
+                    entry.kind === "audit"
+                      ? entry.decision.current.previous_level
+                      : entry.event.previous_level;
+                  const newLevel =
+                    entry.kind === "audit"
+                      ? entry.decision.current.new_level
+                      : entry.event.new_level;
+                  const selected = entry.id === selectedEntry.id;
                   return (
                     <ListItemButton
-                      key={decision.decision_id}
+                      key={entry.id}
                       selected={selected}
-                      onClick={() =>
-                        setSelectedDecisionId(decision.decision_id)
-                      }
+                      aria-pressed={selected}
+                      onClick={() => setSelectedEntryId(entry.id)}
                       sx={{
                         display: "grid",
                         gridTemplateColumns: "20px minmax(0, 1fr)",
@@ -422,50 +575,62 @@ export default function CrcrLevelAudit({
                           mt: 0.5,
                           borderRadius: "50%",
                           bgcolor:
-                            event.decision_kind === "promotion"
+                            event?.decision_kind === "promotion"
                               ? "success.main"
-                              : event.decision_kind === "demotion"
+                              : event?.decision_kind === "demotion"
                               ? "error.main"
                               : "info.main",
                         }}
                       />
                       <Stack spacing={0.25}>
                         <Typography variant="caption" color="text.secondary">
-                          <LocalTimeHuman timestamp={auditDisplayTime(event)} />
+                          <LocalTimeHuman timestamp={entry.timestamp} />
                         </Typography>
                         <Typography variant="body2" fontWeight={600}>
-                          {event.previous_level || "Unconfigured"} →{" "}
-                          {event.new_level}
+                          {previousLevel || "Unconfigured"} → {newLevel}
                         </Typography>
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          flexWrap="wrap"
-                          useFlexGap
-                        >
+                        {event ? (
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            flexWrap="wrap"
+                            useFlexGap
+                          >
+                            <Chip
+                              label={`${displaySource(
+                                event.decision_source
+                              )} ${displayKind(
+                                event.decision_kind
+                              ).toLowerCase()}`}
+                              color={kindColor(event.decision_kind)}
+                              size="small"
+                              variant="outlined"
+                            />
+                            <Chip
+                              label={displayState(event.event_state)}
+                              color={stateColor(event.event_state)}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </Stack>
+                        ) : (
                           <Chip
-                            label={`${displaySource(
-                              event.decision_source
-                            )} ${displayKind(
-                              event.decision_kind
-                            ).toLowerCase()}`}
-                            color={kindColor(event.decision_kind)}
+                            label="Dispatch observed"
+                            color="info"
                             size="small"
                             variant="outlined"
                           />
-                          <Chip
-                            label={displayState(event.event_state)}
-                            color={stateColor(event.event_state)}
-                            size="small"
-                            variant="outlined"
-                          />
-                        </Stack>
+                        )}
                       </Stack>
                     </ListItemButton>
                   );
                 })}
               </Stack>
-              <DecisionDetails decision={selectedDecision} />
+              {selectedEntry.kind === "audit" ? (
+                <DecisionDetails decision={selectedEntry.decision} />
+              ) : (
+                <ObservedDetails event={selectedEntry.event} />
+              )}
             </Box>
           )}
         </Stack>

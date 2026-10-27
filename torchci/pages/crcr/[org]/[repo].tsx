@@ -15,9 +15,8 @@ import {
 } from "@mui/material";
 import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
-import CrcrLevelAudit from "components/crcr/CrcrLevelAudit";
 import CrcrL3Readiness from "components/crcr/CrcrL3Readiness";
-import CrcrLevelHistory from "components/crcr/CrcrLevelHistory";
+import CrcrLevelAudit from "components/crcr/CrcrLevelAudit";
 import TriageVerdictSection, {
   CollapsibleTriageVerdict,
 } from "components/crcr/TriageVerdictSection";
@@ -1735,7 +1734,6 @@ export default function CrcrBackendPage() {
 
             {!isNightly && <CrcrL3Readiness repoFullName={repoFullName} />}
 
-            {!isNightly && <CrcrLevelHistory repoFullName={repoFullName} />}
             {!isNightly && <CrcrLevelAudit repoFullName={repoFullName} />}
 
             {!isNightly && (
