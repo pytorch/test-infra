@@ -227,6 +227,13 @@
       "xpu"
     ]
   ],
+  "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_False_conv_offset_ (__main__.CudaReproTests)": [
+    "202393",
+    "https://github.com/pytorch/pytorch/issues/202393",
+    [
+      "xpu"
+    ]
+  ],
   "test_copy_strided_chunk_alignment_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "201787",
     "https://github.com/pytorch/pytorch/issues/201787",
@@ -318,6 +325,13 @@
     [
       "inductor",
       "rocm"
+    ]
+  ],
+  "test_correctness_Adam_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202394",
+    "https://github.com/pytorch/pytorch/issues/202394",
+    [
+      "xpu"
     ]
   ],
   "test_correctness_NAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
