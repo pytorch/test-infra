@@ -17,11 +17,12 @@ export const ErrorResponseSchema = z
         "unauthenticated",
         "forbidden",
         "not_found",
+        "overloaded",
         "internal_error",
         "unavailable",
       ])
       .describe(
-        "Stable error code for programmatic handling. HTTP 400: invalid_parameters, invalid_cursor or cursor_query_mismatch; HTTP 401: unauthenticated; HTTP 403: forbidden; HTTP 404: not_found; HTTP 500: internal_error; HTTP 503: unavailable, retry after the Retry-After seconds."
+        "Stable error code for programmatic handling. HTTP 400: invalid_parameters, invalid_cursor or cursor_query_mismatch; HTTP 401: unauthenticated; HTTP 403: forbidden; HTTP 404: not_found; HTTP 429: overloaded, retry after the Retry-After seconds; HTTP 500: internal_error; HTTP 503: unavailable, retry after the Retry-After seconds."
       ),
     issues: z
       .array(

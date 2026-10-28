@@ -5,7 +5,7 @@ import {
   listIdentity,
   TestListCursor,
 } from "lib/api/tests/cursor";
-import { CI_DATABASE } from "lib/api/tests/database";
+import { CI_DATABASE, CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { EntityRow, toEntry } from "lib/api/tests/mapping";
 import { TestListQuery } from "lib/api/tests/parameters";
 import { buildListQuery, sortKeys } from "lib/api/tests/query";
@@ -37,6 +37,10 @@ export async function listTests({
     await queryPage<EntityRow, TestListCursor>({
       build: (cursor, limit) => buildListQuery({ ...query, limit }, cursor),
       queryId: "api_tests_page",
+      // The page aggregates a whole health partition, seconds of CPU per
+      // request, so it and its probe run in the heavy workload; the
+      // generation lookup above reads one row and stays outside it.
+      settings: CI_WORKLOAD_HEAVY,
       cursor,
       limit: query.limit,
       afterQuery: async (rows) => {

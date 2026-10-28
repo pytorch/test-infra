@@ -1,3 +1,4 @@
+import { ClickHouseError } from "@clickhouse/client";
 import { parameterError, parameterIssues } from "lib/api/errors";
 import type { RawQuery } from "lib/api/parameters";
 import { ErrorResponse, errorResponse, SchemaRef } from "lib/api/schema";
@@ -6,7 +7,8 @@ import type { z } from "zod/v4";
 // Request handling shared by every route under app/api: validation issues and
 // stable error codes, the paginated list flow with its cursor checks, the
 // detail flow with its 404, and query failures logged and answered without
-// details. errorResponses() documents the same statuses in /api/openapi.json,
+// details, except a heavy query the database's queue refuses, which is a 429
+// with Retry-After. errorResponses() documents the same statuses in /api/openapi.json,
 // with the 401 and 403 of the GitHub gate in lib/api/auth.ts. Route files export only GET; Next.js answers
 // HEAD by running it and dropping the body, OPTIONS with 204, and the other
 // standard methods with an empty 405.
@@ -75,11 +77,35 @@ export function rejectParameters(error: z.ZodError): Response {
   );
 }
 
+// How long the caller of a refused heavy query should wait before asking
+// again. The workload runs two heavy queries per replica at about eight
+// seconds each, so a full queue of 16 frees a place every few seconds, and
+// half a minute leaves room for the retry.
+export const OVERLOADED_RETRY_AFTER_SECONDS = 30;
+
+// Whether the database refused the query because the heavy-query workload's
+// queue was full (app/api/README.md, Heavy queries). The Node client parses
+// the error name out of the server's message.
+export function isOverloaded(error: unknown): boolean {
+  return error instanceof ClickHouseError && error.type === "SERVER_OVERLOADED";
+}
+
 export function failQuery(
   route: string,
   message: string,
   error: unknown
 ): Response {
+  if (isOverloaded(error)) {
+    // Expected under load, not a defect: a warning, no stack.
+    console.warn(`${route} refused: the heavy-query queue is full`);
+    return jsonError(
+      429,
+      "overloaded",
+      "The database is busy with other heavy queries; try again in a moment",
+      undefined,
+      { "Retry-After": String(OVERLOADED_RETRY_AFTER_SECONDS) }
+    );
+  }
   console.error(`${route} failed:`, error);
   return jsonError(500, "internal_error", message);
 }
@@ -193,9 +219,17 @@ export function errorResponses(ref: SchemaRef, invalidRequest: string) {
   };
 }
 
+// Every list runs a heavy query (app/api/README.md, Heavy queries), so a list
+// can also be refused.
 export function listErrorResponses(ref: SchemaRef) {
-  return errorResponses(
-    ref,
-    "A missing, malformed or unsupported parameter (invalid_parameters); a malformed or unsupported cursor, including one for a different resource (invalid_cursor); or a cursor issued for a different query (cursor_query_mismatch)."
-  );
+  return {
+    ...errorResponses(
+      ref,
+      "A missing, malformed or unsupported parameter (invalid_parameters); a malformed or unsupported cursor, including one for a different resource (invalid_cursor); or a cursor issued for a different query (cursor_query_mismatch)."
+    ),
+    "429": errorResponse(
+      ref,
+      "The database's queue for heavy queries is full; retry after the Retry-After seconds (overloaded)."
+    ),
+  };
 }

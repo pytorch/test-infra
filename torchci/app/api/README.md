@@ -57,6 +57,68 @@ the caller's path in `x-forwarded-path` so that `handleList` builds page links
 under `/api/authed/` for them; the answer comes back with its cache, challenge
 and retry headers.
 
+## Heavy queries
+
+A few queries cost tens of CPU-seconds each, and a handful of people loading
+the tests page at once could take the database away from the rest of HUD. For
+them ClickHouse has the settings profile `ci_workload_heavy`, defined in
+`clickhouse_db_schema/ci/000003-ci-workload-heavy.sql`. A query that sends
+`SETTINGS profile = 'ci_workload_heavy'` runs with at most 4 threads, 60
+seconds and 8 GB of memory, inside a workload that runs two such queries per
+replica and queues up to 16 more; past that the database refuses the query at
+once with `SERVER_OVERLOADED`. The queue bounds how many queries wait, not for
+how long. A query that does not send the profile is outside the workload and
+behaves as before, so nothing else in HUD changes.
+
+Tag a query when its requests cost about ten CPU-seconds or more in
+production, measured, not guessed. Production `system.query_log` for
+2026-10-23 to 2026-10-27, CPU as user plus system time, puts the tests page at
+a median of 30 CPU-seconds, so it is tagged with its boundary probe, which
+returns one row but runs the page's whole aggregation. The attempts read is
+tagged for its worst case: it reads every retained attempt of the selected
+bundles through `FINAL`, under a second for a test's page but up to 34
+CPU-seconds on a big commit, and it is the one read both run lists make. Leave
+a query off when it is fast: the commit statistics peaked at 6.7 CPU-seconds,
+and the catalog, options and test detail reads answer in milliseconds. The
+commit page is left out deliberately although its upper tail reaches the bar,
+with a median of 2.4 CPU-seconds, one request in ten above 9.7 and a worst of
+50: its typical request is cheap, no HUD page calls it yet and it ran 63 times
+in those four days, so queueing it would hold nine pages in ten behind tests
+pages for a rare tail. Revisit that when a commit page ships. Tagged, a fast
+query could only be delayed by the queue, and fails when 16 heavy queries are
+already waiting. Do not tag a query that could not finish in 60 seconds at 4
+threads; make it cheaper first, as the run detail lookup still needs. Measure
+with the validation notes beside the queries, which record the server time of
+every case, or have an administrator rank query kinds by CPU from
+`system.query_log`, grouped on the prefix `queryClickhouse` gives every
+`query_id`; HUD's own database user cannot read those columns, and the
+attempts read shares its prefix across its callers, so attribute each to the
+page query that finished just before it. Check again after a query rewrite or
+a retention change.
+
+In code the profile is the constant `CI_WORKLOAD_HEAVY` beside `CI_DATABASE`
+in `lib/api/tests/database.ts`, passed as the settings argument of
+`queryClickhouse` at the heavy call sites and nowhere else: `queryPage`
+forwards it to both the page query and its probe, and the attempts read takes
+it from its caller, since the runs and commit lists tag that read and the run
+detail does not. Never set it on the shared client or in a named query, and
+have the tests assert that each heavy call carries it, so an untagged heavy
+query fails CI.
+
+A refusal answers 429 `overloaded` with `Retry-After`, documented on the lists
+by `listErrorResponses()`, so that a client backs off instead of retrying into
+a full queue; the tests page shows it as a failure with its Retry button
+rather than retrying by itself. A tagged query that outruns the 60 second cap
+fails like any other query, with 500. A waiter whose client has given up keeps
+its place in the queue, and HUD's client waits 180 seconds, so under load a
+page can wait minutes behind others. The limits change without a deploy:
+`CREATE OR REPLACE WORKLOAD ... SETTINGS` for the queue, `ALTER SETTINGS
+PROFILE` for the caps, and `CREATE OR REPLACE WORKLOAD ci_workload_heavy IN
+all;` removes the queue while code still names the profile. Never drop the
+profile while code names it: every tagged query would fail. The same happens
+on any server without the profile, a local ClickHouse or a preview's: apply
+`000003` there before pointing the lists at it.
+
 ## Moving an endpoint here
 
 A `pages/api/` endpoint joins the API by moving onto `lib/api/`: give it a
@@ -110,7 +172,9 @@ old route in the same change.
 - Answer 400 with `invalid_cursor` when a cursor cannot be decoded or is for
   another resource, and `cursor_query_mismatch` when its normalized query does
   not match the request. Use `not_found` for 404. Log query failures and answer
-  500 with `internal_error` and a generic message. These errors omit `issues`.
+  500 with `internal_error` and a generic message; a heavy query the
+  database's queue refuses answers 429 `overloaded` with `Retry-After` (see
+  Heavy queries). These errors omit `issues`.
   `lib/api/handler.ts` reads path and query parameters into one raw query
   (`requestQuery`), implements these responses, the paginated list flow
   (`handleList`) and the detail flow (`handleDetail`), and its
@@ -153,7 +217,7 @@ old route in the same change.
 | `GET /api/tests/options`                      | Values the list offers a reader: fixed and catalog choices, with labels, and views | `lib/api/tests/options/`   |
 | `GET /api/tests/test/{test_id}`               | One catalog test, its owners, and all available configuration health               | `lib/api/tests/test/`      |
 | `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts                             | `lib/api/tests/test/runs/` |
-| `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID                       | `lib/api/tests/run/`       |
+| `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID; provisional          | `lib/api/tests/run/`       |
 | `GET /api/tests/commit/{sha}?repo=owner/name` | Retained run bundles across all tests on a repository commit                       | `lib/api/tests/commit/`    |
 
 ## Tests endpoints
@@ -262,9 +326,13 @@ timing. An unknown or expired execution UUID returns 404. The detail lookup and
 both lists share metadata expansion in `test/runs/mapping.ts`. `runs.id` is
 neither a key column nor indexed, so the lookup first scans the UUID column of
 every retained run to find the run's primary-key prefix, then reads that prefix
-with `FINAL`. Its latency grows with retention: about 0.2 s of server time over
-191 million rows on 2026-10-24. An id-keyed lookup table filled by a
-materialized view is the remedy if that cost becomes a problem; it was deferred.
+with `FINAL`. That scan runs outside the heavy workload (see Heavy queries)
+and grows with retention: about 0.2 s over 191 million rows on 2026-10-24,
+about 12 s and 46 GB read over 2.85 billion rows on 2026-10-27, and roughly
+11 GB more a day until the 14-day TTL plateau. The endpoint is documented as
+provisional, and the list descriptions no longer point callers at it, so that
+nobody loops over it. An id-keyed lookup table filled by a materialized view
+is the remedy; it was deferred.
 
 Both lists reuse the test list's catalog shapes and owners. Form bundles before
 pagination so `limit` counts bundles and a bundle never crosses a page boundary.

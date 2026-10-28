@@ -20,6 +20,8 @@ async function commitRunsStats(
 ) {
   const { sql, params } = buildCommitRunsStatsQuery(query);
   const startedAt = performance.now();
+  // The statistics group the commit's rows through by_job in a few CPU
+  // seconds at most, under the heavy bar, so they stay out of the queue.
   const rows = await queryClickhouse(sql, params, "api_commit_runs_stats");
   const queryDurationMs = Math.round(performance.now() - startedAt);
   // An aggregate returns one row even when nothing matches. A missing or
@@ -45,6 +47,9 @@ export async function listCommitRuns({
       limit: query.limit,
       keys: runSortKeys(query, true),
       queryId: "api_commit_runs_page",
+      // The page and its probe stay out of the heavy workload: a typical
+      // commit page costs a couple of CPU-seconds, and only a big commit's
+      // reaches the bar (app/api/README.md, Heavy queries).
       createCursor: (values, direction): CommitRunsCursor => ({
         version: 2,
         resource: "commit-runs",

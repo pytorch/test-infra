@@ -1,3 +1,4 @@
+import type { ClickHouseSettings } from "@clickhouse/client";
 import { queryClickhouse } from "lib/clickhouse";
 
 export type PageDirection = "next" | "previous";
@@ -60,7 +61,10 @@ export async function paginateRows<
 // cursors, probing the opposite direction with the same query at limit 0.
 // query_duration_ms sums the individually rounded page and probe durations;
 // afterQuery runs inside the page's measured window, for reads that belong to
-// the page itself such as an empty page's refresh lookup.
+// the page itself such as an empty page's refresh lookup. Settings, when
+// given, go to the page query and to its probe alike: the probe runs the
+// page's whole query for one row, so a heavy page has an equally heavy probe
+// (app/api/README.md, Heavy queries).
 export async function queryPage<
   Row,
   Cursor extends { direction?: PageDirection }
@@ -72,6 +76,7 @@ export async function queryPage<
   afterQuery,
   createCursor,
   encodeCursor,
+  settings,
 }: {
   build: (
     _cursor: Cursor | null,
@@ -83,10 +88,17 @@ export async function queryPage<
   afterQuery?: (_rows: Row[]) => Promise<void>;
   createCursor: (_row: Row, _direction: PageDirection) => Cursor;
   encodeCursor: (_cursor: Cursor) => string;
+  settings?: ClickHouseSettings;
 }) {
   const { sql, params } = build(cursor, limit);
   const queryStartedAt = performance.now();
-  const rows: Row[] = await queryClickhouse(sql, params, queryId);
+  const rows: Row[] = await queryClickhouse(
+    sql,
+    params,
+    queryId,
+    undefined,
+    settings
+  );
   await afterQuery?.(rows);
   const queryDurationMs = Math.round(performance.now() - queryStartedAt);
   let boundaryDurationMs = 0;
@@ -102,7 +114,9 @@ export async function queryPage<
       const found = await queryClickhouse(
         probe.sql,
         probe.params,
-        `${queryId}_boundary`
+        `${queryId}_boundary`,
+        undefined,
+        settings
       );
       boundaryDurationMs = Math.round(performance.now() - started);
       return found.length > 0;
