@@ -796,6 +796,11 @@
     "https://github.com/pytorch/pytorch/issues/188710",
     []
   ],
+  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188712",
+    "https://github.com/pytorch/pytorch/issues/188712",
+    []
+  ],
   "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
     "188713",
     "https://github.com/pytorch/pytorch/issues/188713",
@@ -870,13 +875,6 @@
     "https://github.com/pytorch/pytorch/issues/192012",
     [
       "xpu"
-    ]
-  ],
-  "test_mempool_tensor_factory (__main__.NVSHMEMSymmetricMemoryTest)": [
-    "190497",
-    "https://github.com/pytorch/pytorch/issues/190497",
-    [
-      "rocm"
     ]
   ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
@@ -1097,13 +1095,6 @@
       "linux",
       "mac",
       "macos",
-      "rocm"
-    ]
-  ],
-  "test_nvshmem_get (__main__.NVSHMEMSymmetricMemoryTest)": [
-    "189397",
-    "https://github.com/pytorch/pytorch/issues/189397",
-    [
       "rocm"
     ]
   ],
