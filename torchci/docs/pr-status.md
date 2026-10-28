@@ -96,8 +96,9 @@ resetting triage. Unrelated edits do not retrigger it. Marking a draft ready,
 reopening a PR, or removing `no automated triage` rechecks existing links and
 support, including manual development links. These events use the same live
 eligibility checks and retry protection as the issue-label event. A manual link
-added through GitHub's sidebar alone has no handled webhook; the status comment
-retains manual re-triage instructions for that case.
+added through GitHub's sidebar alone has no handled webhook; for that case, or
+whenever re-triage is still needed, anyone can comment `@pytorchbot triage` on a
+PR labeled `open source` to re-run Auto PR Triage.
 
 ## Returning to maintainer review
 

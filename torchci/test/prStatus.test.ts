@@ -421,7 +421,9 @@ describe("getPrStatusMessage", () => {
       "Adding a valid actionable-issue link or `Supported by` line to the description also requests re-triage automatically."
     );
     expect(message).toContain("rechecks existing links and support");
-    expect(message).toContain("then remove and re-add `open source`.");
+    expect(message).toContain(
+      "If re-triage is still needed, comment `@pytorchbot triage`"
+    );
   });
 
   test("needs additional approval", () => {

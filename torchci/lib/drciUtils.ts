@@ -11,6 +11,7 @@ import {
   isSameFailure,
 } from "lib/jobUtils";
 import {
+  AUTO_PR_TRIAGE_LABEL,
   extractPrStatusSection,
   fetchLiveLabels,
   fetchPrStatusState,
@@ -107,7 +108,6 @@ export const CANCELLED_STEP_ERROR = "##[error]The operation was canceled.";
 // triage, and the list leaves out the runs every other label starts and skips.
 // Only plain branch names are linked, so a branch name cannot break or inject
 // Markdown into the comment.
-const AUTO_PR_TRIAGE_LABEL = "open source";
 const AUTO_PR_TRIAGE_RUNS_URL =
   "https://github.com/pytorch/pytorch/actions/workflows/auto-pr-triage.yml";
 const SAFE_BRANCH_RE = /^[A-Za-z0-9._\/-]+$/;
