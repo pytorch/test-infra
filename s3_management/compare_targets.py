@@ -54,7 +54,17 @@ def expected_packages(target: str) -> List[str]:
         compile(ast.Module(body=nodes, type_ignores=[]), "update_deps", "exec"),
         namespace,
     )
-    return sorted({normalize(p) for p in namespace["get_packages_for_target"](target)})
+    packages = set(namespace["get_packages_for_target"](target))
+    if target == "xpu":
+        # get_packages_for_target only looks at the torch (and, for ROCm, torch_rocm)
+        # projects, but the Intel runtime packages belong to torch_xpu.
+        for name, configs in namespace["PACKAGES_PER_PROJECT"].items():
+            if any(
+                c.get("project") == "torch_xpu" and c.get("target", "") in ("", "xpu")
+                for c in configs
+            ):
+                packages.add(name)
+    return sorted({normalize(p) for p in packages})
 
 
 def listed_files(url: str) -> Optional[Set[str]]:
