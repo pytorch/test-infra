@@ -28,13 +28,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
     "test": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
-    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
+    "release": ["3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"],
 }
 
 # Python versions with no torch wheels on PyPI. The release channel normally
 # validates via a bare `pip3 install torch`, which resolves against PyPI; for
 # these it must use --index-url download.pytorch.org instead.
-PYPI_UNPUBLISHED_PYTHON_ARCHES = ["3.15", "3.15t"]
+PYPI_UNPUBLISHED_PYTHON_ARCHES = []
 
 MACOS_PYTHON_POINT_VERSIONS = {
     "3.10": "3.10.19",
@@ -49,13 +49,13 @@ CUDA_ARCHES_DICT = {
     # test channel build it too.
     "nightly": ["13.0", "13.2", "13.4"],
     "test": ["13.0", "13.2", "13.4"],
-    "release": ["12.6", "13.0", "13.2"],
+    "release": ["13.2", "13.4"],
 }
 
 ROCM_ARCHES_DICT = {
     "nightly": ["7.14", "10.0"],
     "test": ["7.14", "10.0"],
-    "release": ["7.2", "7.14"],
+    "release": ["7.14", "10.0"],
 }
 
 # CUDA versions that can only produce the runtime docker image. The devel image
@@ -79,7 +79,7 @@ CUDA_CUDNN_VERSIONS = {
 STABLE_CUDA_VERSIONS = {
     "nightly": "13.2",
     "test": "13.2",
-    "release": "13.0",
+    "release": "13.2",
 }
 
 # CUDA versions with no Windows torch build to depend on; see
@@ -91,7 +91,7 @@ CUDA_ARCHES_NO_WINDOWS_DICT = {
     # nightly and in the 2.15 candidates; 2.14 releases have none.
     "nightly": ["13.0"],
     "test": ["13.0"],
-    "release": ["13.4"],
+    "release": ["13.0"],
 }
 
 # CUDA versions that are built and validated, but must not be advertised on the
@@ -105,7 +105,7 @@ CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0"]
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
-PYTHON_ARCHES_NO_GETTING_STARTED = ["3.15", "3.15t"]
+PYTHON_ARCHES_NO_GETTING_STARTED = []
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -132,7 +132,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.16.0"
 CURRENT_CANDIDATE_VERSION = "2.15.0"
-CURRENT_STABLE_VERSION = "2.14.1"
+CURRENT_STABLE_VERSION = "2.15.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
