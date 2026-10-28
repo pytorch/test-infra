@@ -220,6 +220,13 @@
       "slow"
     ]
   ],
+  "test_conv_bias_no_extra_cast_for_fp32 (__main__.CudaReproTests)": [
+    "202330",
+    "https://github.com/pytorch/pytorch/issues/202330",
+    [
+      "xpu"
+    ]
+  ],
   "test_copy_strided_chunk_alignment_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "201787",
     "https://github.com/pytorch/pytorch/issues/201787",
@@ -1562,13 +1569,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_weight_norm_1d_and_reduced_dtypes_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "199693",
-    "https://github.com/pytorch/pytorch/issues/199693",
-    [
-      "xpu"
     ]
   ]
 }
