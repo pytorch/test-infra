@@ -161,6 +161,20 @@ review.add_argument("-h", "--help", {
   help: SUPPRESS,
 });
 
+// Auto PR Triage
+const triage = commands.add_parser("triage", {
+  help: "Re-run Auto PR Triage",
+  description:
+    "Re-run Auto PR Triage on a PR labeled 'open source', e.g. after linking an\n" +
+    "actionable issue in the PR description. Only for pytorch/pytorch.",
+  formatter_class: RawTextHelpFormatter,
+  add_help: false,
+});
+triage.add_argument("-h", "--help", {
+  action: "store_true",
+  help: SUPPRESS,
+});
+
 // Pre-review
 const preReview = commands.add_parser("pre-review", {
   help: "Accept a PR in pre-review",
@@ -273,6 +287,9 @@ ${drCi.format_help()}\`\`\`
 ## Review
 \`\`\`
 ${review.format_help()}\`\`\`
+## Triage
+\`\`\`
+${triage.format_help()}\`\`\`
 ## Pre-review
 \`\`\`
 ${preReview.format_help()}\`\`\`

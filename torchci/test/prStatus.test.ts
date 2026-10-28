@@ -222,7 +222,7 @@ describe("getPrStatusMessage", () => {
       "Such PRs are a low priority for maintainers to review"
     );
     expect(message).toContain("add the matching line to the PR description");
-    expect(message).toContain("then remove and re-add `open source`.");
+    expect(message).toContain("Then comment `@pytorchbot triage`");
   });
 
   test("approved", () => {
