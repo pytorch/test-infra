@@ -801,6 +801,11 @@
     "https://github.com/pytorch/pytorch/issues/188712",
     []
   ],
+  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188713",
+    "https://github.com/pytorch/pytorch/issues/188713",
+    []
+  ],
   "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188714",
     "https://github.com/pytorch/pytorch/issues/188714",
@@ -1390,6 +1395,13 @@
     "https://github.com/pytorch/pytorch/issues/192461",
     [
       "linux"
+    ]
+  ],
+  "test_template_keeps_its_one_config (__main__.TestKernelConfigs)": [
+    "202426",
+    "https://github.com/pytorch/pytorch/issues/202426",
+    [
+      "rocm"
     ]
   ],
   "test_tma_with_customer_kernel_options_selection_backend_TRITON_DECODE_xpu (__main__.TestFlexAttentionXPU)": [
