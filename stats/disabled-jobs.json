@@ -7,14 +7,6 @@
     "",
     ""
   ],
-  "distributed/_composable/fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing": [
-    "jithunnair-amd",
-    "120945",
-    "https://github.com/pytorch/pytorch/issues/120945",
-    "distributed",
-    "_composable",
-    "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
-  ],
   "testAssertNotRegex (__main__.CPythonTest_Assertions)": [
     "pytorch-bot",
     "152869",
