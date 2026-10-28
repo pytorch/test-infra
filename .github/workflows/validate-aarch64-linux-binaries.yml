@@ -166,6 +166,7 @@ jobs:
         export USE_WHEEL_VARIANTS=${{ inputs.use-wheel-variants }}
 
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        cp release_matrix.json .ci/release_matrix.json
         eval "$(conda shell.bash hook)"
 
         # NB: The latest conda 23.11.0 pulls in some dependencies of conda-libmamba-solver that

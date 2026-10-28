@@ -166,6 +166,7 @@ jobs:
         export TARGET_OS="linux"
         eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        cp release_matrix.json .ci/release_matrix.json
 
         # Validate binaries. Poetry-based validation now lives in the
         # standalone linux-poetry job below so Poetry's own ecosystem
@@ -194,6 +195,7 @@ jobs:
         export TARGET_OS="linux"
         eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        cp release_matrix.json .ci/release_matrix.json
 
         # Poetry test is release-channel-only and covers a single
         # stable-CUDA / Python 3.11 path. The full validate-binaries
@@ -257,4 +259,7 @@ jobs:
         mkdir -p /tmp/python3.11-bin
         ln -sf "$(command -v python3.11)" /tmp/python3.11-bin/python3
         export PATH="/tmp/python3.11-bin:${PATH}"
+        export RELEASE_VERSION=${{ inputs.version }}
+        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        cp release_matrix.json .ci/release_matrix.json
         python3.11 .ci/pytorch/smoke_test/smoke_test.py ${TEST_SUFFIX}

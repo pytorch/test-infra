@@ -140,4 +140,5 @@ jobs:
         fi
 
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
+        cp release_matrix.json .ci/release_matrix.json
         source ../../test-infra/.github/scripts/validate_binaries.sh
