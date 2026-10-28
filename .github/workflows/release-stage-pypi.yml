@@ -50,10 +50,7 @@ jobs:
             set -exo pipefail
             cd release/pypi
 
-            # Every package is staged from the test channel (release/pypi/upload_pypi_to_staging.sh
-            # reads whl/test/<arch>), so its stable CUDA version is the one being released. The
-            # release channel's still describes the previous release (13.0 while 2.15 is staged),
-            # which staged cu130 builds of the domains next to a cu132 torch.
+            # Default Version to promote
             STABLE_CUDA_VERSION=$(cd ../../tools/scripts && python3 get_stable_cuda_version.py --channel test)
             CUDA_ARCH="cu${STABLE_CUDA_VERSION//./}"
             LINUX_VERSION_SUFFIX="%2B${CUDA_ARCH}"
