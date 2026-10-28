@@ -292,6 +292,27 @@ jobs:
           echo "default-mode env OK"
         fi
 
+  # hf-cache: false skips the "Resolve HF cache mode" step, so none of its env is set
+  # and the datasets dir it would warm from the mount is never created.
+  test-hf-cache-off:
+    uses: ./.github/workflows/linux_job_v3.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      job-name: "linux-hf-cache-off"
+      runner: mt-l-x86iavx512-8-64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      gpu-arch-type: cpu
+      gpu-arch-version: ""
+      hf-cache: false
+      script: |
+        set -x
+        [[ -z "${HF_CACHE_REFRESH:-}" ]] || { echo "HF_CACHE_REFRESH=${HF_CACHE_REFRESH}"; exit 1; }
+        [[ ! -e "${RUNNER_TEMP}/hf_datasets" ]] || { echo "datasets dir was created"; exit 1; }
+        echo "hf-cache off OK"
+
   test-sccache-credentials:
     uses: ./.github/workflows/linux_job_v3.yml
     permissions:

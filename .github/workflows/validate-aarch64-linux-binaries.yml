@@ -121,6 +121,7 @@ jobs:
     uses: pytorch/test-infra/.github/workflows/linux_job_v3.yml@main
     name: ${{ matrix.build_name }}
     with:
+      hf-cache: false
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
       ref: main
