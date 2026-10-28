@@ -32,6 +32,7 @@ on:
           - torchtune
           - torch_xpu
           - torch_rocm
+          - torch_tensorrt
           - vllm
       target:
         description: 'Target to create or refresh (e.g., rocm7.2, cu130) - only for create-target and refresh-index modes'
