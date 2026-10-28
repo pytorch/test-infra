@@ -600,13 +600,6 @@
     "https://github.com/pytorch/pytorch/issues/199725",
     []
   ],
-  "test_fully_shard_training_overlap (__main__.TestFullyShardOverlap)": [
-    "134139",
-    "https://github.com/pytorch/pytorch/issues/134139",
-    [
-      "rocm"
-    ]
-  ],
   "test_fused_sdp_priority_order_use_compile_False_cuda (__main__.TestSDPAAcceleratorCUDA)": [
     "197006",
     "https://github.com/pytorch/pytorch/issues/197006",
@@ -793,6 +786,11 @@
     "https://github.com/pytorch/pytorch/issues/188708",
     []
   ],
+  "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
+    "188709",
+    "https://github.com/pytorch/pytorch/issues/188709",
+    []
+  ],
   "test_main_loop_scaling_shape0_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188710",
     "https://github.com/pytorch/pytorch/issues/188710",
@@ -801,11 +799,6 @@
   "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
     "188712",
     "https://github.com/pytorch/pytorch/issues/188712",
-    []
-  ],
-  "test_main_loop_scaling_shape1_use_fast_accum_False_scaling_block_sizes2_cuda (__main__.TestFP8LoweringCUDA)": [
-    "188713",
-    "https://github.com/pytorch/pytorch/issues/188713",
     []
   ],
   "test_main_loop_scaling_shape1_use_fast_accum_True_scaling_block_sizes1_cuda (__main__.TestFP8LoweringCUDA)": [
