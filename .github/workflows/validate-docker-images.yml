@@ -57,6 +57,7 @@ jobs:
       fail-fast: false
     uses: ./.github/workflows/linux_job_v3.yml
     with:
+      hf-cache: false
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
       ref: main
