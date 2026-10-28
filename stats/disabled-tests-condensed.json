@@ -1479,13 +1479,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_inception_v3 (__main__.TestVisionTracing)": [
-    "197393",
-    "https://github.com/pytorch/pytorch/issues/197393",
-    [
-      "linux"
-    ]
-  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
