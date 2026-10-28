@@ -130,6 +130,7 @@ jobs:
     uses: ./.github/workflows/linux_job_v3.yml
     name: ${{ matrix.build_name }}
     with:
+      hf-cache: false
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
       ref: release/2.15
@@ -178,6 +179,7 @@ jobs:
     uses: ./.github/workflows/linux_job_v3.yml
     name: poetry-test
     with:
+      hf-cache: false
       runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
       ref: release/2.15
@@ -207,6 +209,7 @@ jobs:
     uses: ./.github/workflows/linux_job_v3.yml
     name: amazon-linux-2023-test
     with:
+      hf-cache: false
       runner: "mt-l-x86aavx2-11-41-a10g"
       repository: "pytorch/pytorch"
       ref: release/2.15
