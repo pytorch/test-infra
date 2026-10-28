@@ -51,17 +51,11 @@ jobs:
             cd release/pypi
 
             # Default Version to promote
-            STABLE_CUDA_VERSION=$(cd ../../tools/scripts && python3 get_stable_cuda_version.py --channel release)
+            STABLE_CUDA_VERSION=$(cd ../../tools/scripts && python3 get_stable_cuda_version.py --channel test)
             CUDA_ARCH="cu${STABLE_CUDA_VERSION//./}"
             LINUX_VERSION_SUFFIX="%2B${CUDA_ARCH}"
             CPU_VERSION_SUFFIX="%2Bcpu"
             MACOS_ARM64="macosx_.*_arm64"
-
-            # torch and executorch are staged from the test channel, whose stable CUDA
-            # version (cu132) differs from the release channel's used by the domains.
-            TORCH_STABLE_CUDA_VERSION=$(cd ../../tools/scripts && python3 get_stable_cuda_version.py --channel test)
-            TORCH_CUDA_ARCH="cu${TORCH_STABLE_CUDA_VERSION//./}"
-            TORCH_LINUX_VERSION_SUFFIX="%2B${TORCH_CUDA_ARCH}"
 
             # Install requirements
             pip install awscli==1.32.18 auditwheel==6.4.2
@@ -94,9 +88,9 @@ jobs:
 
             if [[ ${PACKAGE} == 'torch' ]]; then
               # shellcheck disable=SC2086
-              PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${TORCH_LINUX_VERSION_SUFFIX}" ARCH="${TORCH_CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
+              PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
               # shellcheck disable=SC2086
-              PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${TORCH_LINUX_VERSION_SUFFIX}" ARCH="${TORCH_CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
+              PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
               # shellcheck disable=SC2086
               PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                                   upload_pypi_to_staging ${PACKAGE} "${!version}"
               # shellcheck disable=SC2086
@@ -123,11 +117,11 @@ jobs:
 
             if [[ ${PACKAGE} == 'executorch' ]]; then
               # shellcheck disable=SC2086
-              PLATFORM="manylinux_2_28_x86_64" VERSION_SUFFIX="${TORCH_LINUX_VERSION_SUFFIX}" ARCH="${TORCH_CUDA_ARCH}" upload_pypi_to_staging executorch "${!version}"
+              PLATFORM="manylinux_2_28_x86_64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging executorch "${!version}"
               # shellcheck disable=SC2086
               PLATFORM="${MACOS_ARM64}" VERSION_SUFFIX="" upload_pypi_to_staging executorch "${!version}"
               # shellcheck disable=SC2086
-              PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${TORCH_LINUX_VERSION_SUFFIX}" ARCH="${TORCH_CUDA_ARCH}" upload_pypi_to_staging executorch "${!version}"
+              PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging executorch "${!version}"
               # shellcheck disable=SC2086
               PLATFORM="win_amd64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging executorch "${!version}"
             fi
