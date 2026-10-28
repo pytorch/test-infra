@@ -1,4 +1,4 @@
-name: Release ecosystem library from test to production.
+name: Release torch, triton or an ecosystem library from test to production.
 run-name: Release ${{ inputs.package || 'torchvision' }} to production (dryrun=${{ inputs.dryrun || 'enabled' }})
 
 on:
@@ -12,11 +12,14 @@ on:
           - enabled
           - disabled
       package:
-        description: "Domain to prepare and release"
+        description: "Package to prepare and release. torch, libtorch, torchvision and torchaudio skip the targets in RELEASE_PROMOTE_SKIP_TARGETS (release/release_versions.sh); triton releases triton, triton_rocm and triton_xpu together"
         required: true
         type: choice
         default: torchvision
         options:
+          - torch
+          - libtorch
+          - triton
           - torchao
           - torchtune
           - executorch
@@ -56,14 +59,18 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            version="${PACKAGE^^}_VERSION"
+            release_package_vars "${PACKAGE}"
             {
               echo "## Release ${PACKAGE} ${!version:-unknown}"
               echo
               echo "| Input | Value |"
               echo "|---|---|"
               echo "| package | \`${PACKAGE}\` |"
+              if [[ "${packages}" != "${PACKAGE}" ]]; then
+                echo "| promotes | \`${packages// /\`, \`}\` |"
+              fi
               echo "| version | \`${!version:-unknown}\` |"
+              echo "| skipped targets | \`${skip_targets:-none}\` |"
               echo "| dryrun | \`${DRY_RUN}\` |"
               echo "| ref | \`${GITHUB_REF_NAME}\` (\`${GITHUB_SHA::7}\`) |"
               echo "| requested by | ${GITHUB_ACTOR} |"
@@ -73,6 +80,14 @@ jobs:
               else
                 echo "> Dry run: approving only prints what would be copied."
               fi
+              echo
+              # Every binary the approval would promote, so the reviewer reads the
+              # list before approving instead of after.
+              read -ra pkgs <<<"${packages}"
+              for pkg in "${pkgs[@]}"; do
+                python3 release/preview_promotion.py "${pkg}" "${!version}" "${skip_targets}"
+                echo
+              done
             } >> "${GITHUB_STEP_SUMMARY}"
 
   trigger:
@@ -129,8 +144,10 @@ jobs:
             # Init release versions variables
             source ./release_versions.sh
             # Run promotion
-            # shellcheck disable=SC2086
-            version="${PACKAGE^^}_VERSION"
+            release_package_vars "${PACKAGE}"
+
+            # Read by release/promote/common_utils.sh for both the S3 and R2 copies.
+            export PACKAGE_EXCLUDE_TARGETS="${skip_targets}"
 
             # do not upload FA3 test wheels with local date suffix
             if [[ "${PACKAGE}" == "flash_attn_3" ]]; then
@@ -138,8 +155,11 @@ jobs:
             fi
 
             # Tee the transfer output so the next step can list what moved.
-            # shellcheck disable=SC2086
-            promote_s3 ${PACKAGE} whl "${!version}" 2>&1 | tee -a "${RUNNER_TEMP}/promote.log"
+            # A failure in one package stops the run, before the next one is copied.
+            read -ra pkgs <<<"${packages}"
+            for pkg in "${pkgs[@]}"; do
+              promote_s3 "${pkg}" "${package_type}" "${!version}" 2>&1 | tee -a "${RUNNER_TEMP}/promote.log"
+            done
 
       # always(): a promotion that dies partway through is exactly when you want to
       # know which files already made it to prod.
@@ -152,10 +172,10 @@ jobs:
         run: |
             set -euo pipefail
             source ./release/release_versions.sh
-            version="${PACKAGE^^}_VERSION"
+            release_package_vars "${PACKAGE}"
             ./release/summarize_promoted_files.sh \
               "${RUNNER_TEMP}/promote.log" \
-              "${PACKAGE} ${!version} - promoted to download.pytorch.org" \
+              "${packages// /, } ${!version} - promoted to download.pytorch.org${skip_targets:+ (skipped: ${skip_targets})}" \
               "${DRY_RUN}"
 
       - name: Recompute SHA256 on whl/ (prod) for promoted package
@@ -167,13 +187,20 @@ jobs:
             set -ex
             # Init release versions variables
             source ./release/release_versions.sh
-            # shellcheck disable=SC2086
-            version="${PACKAGE^^}_VERSION"
+            release_package_vars "${PACKAGE}"
             # Backfill SHA256 metadata for wheels missing it (skips existing).
             # Bare --recompute-sha256-pattern scans all prod accelerator
             # subfolders (cu*/rocm*/cpu/xpu) for this package/version.
-            # shellcheck disable=SC2086
-            python s3_management/manage_v2.py whl \
-              --recompute-sha256-pattern \
-              --package-name "${PACKAGE}" \
-              --package-version "${!version}"
+            # manage_v2.py only knows the whl channel; libtorch archives carry no
+            # checksum metadata.
+            if [[ "${package_type}" != "whl" ]]; then
+              echo "Nothing to recompute for ${package_type} packages."
+              exit 0
+            fi
+            read -ra pkgs <<<"${packages}"
+            for pkg in "${pkgs[@]}"; do
+              python s3_management/manage_v2.py whl \
+                --recompute-sha256-pattern \
+                --package-name "${pkg}" \
+                --package-version "${!version}"
+            done
