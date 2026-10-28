@@ -37,11 +37,11 @@ FLASH_ATTN_3_VERSION=${FLASH_ATTN_3_VERSION:-3.0.1}
 #   skip_targets accelerator folders left out (RELEASE_PROMOTE_SKIP_TARGETS), for the
 #                packages that have such folders
 release_package_vars() {
-    local package=$1
+    local pkg_name=$1
     skip_targets=""
-    packages="${package}"
+    packages="${pkg_name}"
     package_type="whl"
-    case "${package}" in
+    case "${pkg_name}" in
         torch)
             version="PYTORCH_VERSION"
             skip_targets="${RELEASE_PROMOTE_SKIP_TARGETS:-}"
@@ -54,7 +54,7 @@ release_package_vars() {
             skip_targets="${RELEASE_PROMOTE_SKIP_TARGETS:-}"
             ;;
         torchvision | torchaudio)
-            version="${package^^}_VERSION"
+            version="${pkg_name^^}_VERSION"
             skip_targets="${RELEASE_PROMOTE_SKIP_TARGETS:-}"
             ;;
         triton)
@@ -62,7 +62,7 @@ release_package_vars() {
             packages="triton triton_rocm triton_xpu"
             ;;
         *)
-            version="${package^^}_VERSION"
+            version="${pkg_name^^}_VERSION"
             ;;
     esac
 }

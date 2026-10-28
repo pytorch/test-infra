@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 from collections import defaultdict
 
+
 CHANNEL = "https://download.pytorch.org/whl/test"
 
 
@@ -115,13 +116,17 @@ def main():
             html = resp.read().decode()
     except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
         print(f"### Binaries to promote: `{package}` {version}\n")
-        print(f"Could not read `{url}` ({e}); the approved job still lists the binaries before copying.")
+        print(
+            f"Could not read `{url}` ({e}); the approved job still lists the binaries before copying."
+        )
         return
 
     binaries = list_binaries(package, version, html)
     if not binaries:
         print(f"### Binaries to promote: `{package}` {version}\n")
-        print(f"**No binaries named `{package}-{version}*` in `{url}`.** Nothing would be promoted.")
+        print(
+            f"**No binaries named `{package}-{version}*` in `{url}`.** Nothing would be promoted."
+        )
         return
     print(render(package, version, targets, binaries))
 
