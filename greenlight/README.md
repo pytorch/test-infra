@@ -136,13 +136,13 @@ PRs.
 
 **Whose verdict carries authority** is decided per PR ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)): the
 author must be named by one merge rule covering every file the PR changes, a path-scoped rule only
-on a PR based on `main` or on a ghstack PR. The listing scan fingerprints and dispatches only such
-eligible PRs, and applies that cut to the *fingerprint candidates*, after the revert guard and the
-state read, not to the listing. Every other listed PR is therefore still state-read and still
-reaches `revert_guard` — so it still loses a greenlight approval it should no longer hold and still
-gets its permanent `REVERTED` row — but is never dispatched; when it is inside the review window
-and not labelled `Stale`, and its latest recorded row is a `LAND`, the scan dismisses greenlight's
-approval.
+on a PR based on `main`, on a ghstack PR or on a PR in a GitHub-native stack whose trunk is `main`.
+The listing scan fingerprints and dispatches only such eligible PRs, and applies that cut to the
+*fingerprint candidates*, after the revert guard and the state read, not to the listing. Every other
+listed PR is therefore still state-read and still reaches `revert_guard` — so it still loses a
+greenlight approval it should no longer hold and still gets its permanent `REVERTED` row — but is
+never dispatched; when it is inside the review window and not labelled `Stale`, and its latest
+recorded row is a `LAND`, the scan dismisses greenlight's approval.
 
 A review is recorded in **shadow** when the verdict's record-time merge-rule check fails, when
 `verdict` runs with `--shadow`, or when a local `--allow-untrusted-author` run reviews an ineligible

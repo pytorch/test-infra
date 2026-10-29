@@ -219,23 +219,48 @@ def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
     return resolve_merge_rules(client).authorized
 
 
-def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
-    """Return the PR's changed paths, or None for a non-ghstack PR not based on main or too many files.
+def native_stack_trunk(pr: _FilesPR) -> str | None:
+    """Return the trunk branch of the GitHub-native stack the PR is in, or None when it is in none.
 
-    trymerge refuses a PR on any base but main unless it is a ghstack PR, and checks each PR of a ghstack
-    stack against that PR's own file list; this mirrors it. That list does not bound what trymerge lands
-    from a ghstack stack (greenlight/TRUSTED_AUTHORS.md, "Accepted risks"). Too many is more than
+    PyGithub has no attribute for the REST ``stack`` object, which GitHub omits for a PR in no stack, so
+    it is read from the raw response; any shape but a dict whose ``base`` dict holds a string ``ref``
+    reads as no stack.
+    """
+    stack = pr.raw_data.get("stack")
+    base = stack.get("base") if isinstance(stack, dict) else None
+    ref = base.get("ref") if isinstance(base, dict) else None
+    return ref if isinstance(ref, str) else None
+
+
+def accepts_base(pr: _FilesPR) -> bool:
+    """Whether trymerge accepts the PR's base: main, a ghstack PR's, or any in a GitHub-native stack on main.
+
+    trymerge refuses a PR on any other base, so only on these can the PR's own file list decide.
+    """
+    return (
+        pr.base.ref == constants.TARGET_BRANCH
+        or _GHSTACK_HEAD_REF.match(pr.head.ref) is not None
+        or native_stack_trunk(pr) == constants.TARGET_BRANCH
+    )
+
+
+def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
+    """Return the PR's changed paths, or None for a PR trymerge refuses on its base or too many files.
+
+    trymerge refuses a PR on any base ``accepts_base`` rejects, and checks each PR of a ghstack or
+    GitHub-native stack against that PR's own file list; this mirrors it. That list does not bound what
+    trymerge lands from a stack (greenlight/TRUSTED_AUTHORS.md, "Accepted risks"). Too many is more than
     ``MAX_DIFF_FILES``, a cap kept below the 3000 at which GitHub's file listing stops silently. Only
     ``filename`` (the new path) is read, so, as in trymerge, a rename's source path is never checked.
     """
-    head_ref = pr.head.ref
-    base_ref = pr.base.ref
-    if base_ref != constants.TARGET_BRANCH and not _GHSTACK_HEAD_REF.match(head_ref):
+    if not accepts_base(pr):
         logger.warning(
-            "PR base %r is not %r and head %r is not a ghstack head; its files are not listed",
-            base_ref,
+            "PR base %r is not %r, head %r is not a ghstack head and its native stack trunk is %r; "
+            "its files are not listed",
+            pr.base.ref,
             constants.TARGET_BRANCH,
-            head_ref,
+            pr.head.ref,
+            native_stack_trunk(pr),
         )
         return None
     files = tuple(file.filename for file in itertools.islice(pr.get_files(), constants.MAX_DIFF_FILES + 1))

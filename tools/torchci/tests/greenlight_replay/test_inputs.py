@@ -1,7 +1,8 @@
 """Tests for rebuilding one pull request's reviewer inputs.
 
 ``_run`` is the module's only process spawn and ``_gh_version`` its only environment
-probe; every test patches one or both, so nothing here shells out or reaches GitHub.
+probe; every test of the module patches one or both, so none shells out or reaches
+GitHub. ``DiffStepBaseRefTest`` runs the workflow's own diff step, against a fake ``gh``.
 
 The comment cases carry the corpus defect they exist to keep: ``vercel`` is an App
 whose GraphQL login has no ``[bot]`` suffix, so CI's glob lets it through. The
@@ -11,6 +12,7 @@ differ from the run it claims to reproduce.
 """
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -18,9 +20,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-from torchci.greenlight_replay import inputs as inputs_mod
+from torchci.greenlight_replay import inputs as inputs_mod, workflow as workflow_mod
 from torchci.greenlight_replay.inputs import build_inputs
-from torchci.greenlight_replay.policy import Policy
+from torchci.greenlight_replay.policy import GIT_REF_PATTERN, Policy
 
 
 RUN_SEAM = "_run"
@@ -408,3 +410,108 @@ class MetadataFailureTest(InputsTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+DIFF_STEP = "Produce PR diff pinned to head_sha"
+CI_DIFF_PATH = "/tmp/greenlight-pr.diff"
+
+# `gh pr view` prints $BASE_REF; `gh api` appends its endpoint, its last argument, to
+# $GH_CALLS and prints a diff.
+FAKE_GH = r"""#!/usr/bin/env bash
+if [ "$1" = pr ]; then
+  printf '%s\n' "$BASE_REF"
+  exit 0
+fi
+printf '%s\n' "${@: -1}" >>"$GH_CALLS"
+printf 'diff --git a/a.py b/a.py\n'
+"""
+
+
+class DiffStepBaseRefTest(unittest.TestCase):
+    """The workflow's diff step lets a base branch name into its compare URL only when
+    ``GIT_REF_PATTERN`` accepts it, the rule ``_fetch_diff`` applies to the same base.
+
+    The step's own script runs under ``bash -e``, a runner's default for a ``run:``,
+    against a fake ``gh``; its one change is ``/tmp/greenlight-pr.diff`` moved into a
+    temp directory.
+    """
+
+    ACCEPTED = (
+        "main",
+        "release/2.10",
+        "gh/alice/7/base",
+        "ezyang/dmz/bool-masks-in-index-tests",
+    )
+    REFUSED = (
+        "",
+        "issue#58739",
+        "main%2E%2E%2E" + "b" * 40 + "#",
+        "a..b",
+        "-x",
+        ".x",
+        "pr/\u0663",
+        "pr/\uff13",
+        "caf\u00e9",
+        "a b",
+        "a\tb",
+        "a\nb",
+    )
+    # [0-9] matches the Arabic-Indic and full-width digits above in a UTF-8 locale.
+    LOCALES = ("C", "C.UTF-8", "en_US.UTF-8")
+
+    @classmethod
+    def setUpClass(cls):
+        document = workflow_mod.load(REPO_ROOT / workflow_mod.WORKFLOW_RELPATH)
+        steps = workflow_mod._steps(document)
+        (step,) = [step for step in steps if step.get("name") == DIFF_STEP]
+        cls.script = step["run"]
+
+    def run_step(self, base_ref, locale="C.UTF-8"):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gh = root / "gh"
+            gh.write_text(FAKE_GH)
+            gh.chmod(0o755)
+            calls = root / "calls"
+            script = self.script.replace(CI_DIFF_PATH, str(root / "pr.diff"))
+            completed_run = subprocess.run(
+                ["bash", "-e", "-c", script],
+                env={
+                    "PATH": f"{root}{os.pathsep}{os.environ['PATH']}",
+                    "LC_ALL": locale,
+                    "BASE_REF": base_ref,
+                    "GH_CALLS": str(calls),
+                    "PR_NUMBER": str(PR_NUMBER),
+                    "HEAD_SHA": HEAD_SHA,
+                },
+                capture_output=True,
+                check=False,
+            )
+            made = calls.read_text().splitlines() if calls.exists() else []
+            return completed_run, made
+
+    def test_a_plain_ref_name_reaches_the_compare_url(self):
+        for name in self.ACCEPTED:
+            with self.subTest(name):
+                completed_run, calls = self.run_step(name)
+                self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
+                endpoint = f"repos/pytorch/pytorch/compare/{name}...{HEAD_SHA}"
+                self.assertEqual(calls, [endpoint])
+
+    def test_any_other_name_fails_the_step_before_the_compare_unechoed(self):
+        for locale in self.LOCALES:
+            for name in self.REFUSED:
+                with self.subTest(locale=locale, name=name):
+                    completed_run, calls = self.run_step(name, locale)
+                    self.assertNotEqual(completed_run.returncode, 0)
+                    self.assertEqual(calls, [])
+                    self.assertIn(b"::error::", completed_run.stdout)
+                    self.assertNotIn(b"Base ref:", completed_run.stdout)
+
+    def test_the_step_accepts_exactly_what_git_ref_pattern_accepts(self):
+        for name in self.ACCEPTED + self.REFUSED + ("A9_x.y-z/w", "x.", "x//y"):
+            with self.subTest(name):
+                completed_run, _ = self.run_step(name)
+                accepted = GIT_REF_PATTERN.fullmatch(name) is not None
+                self.assertEqual(completed_run.returncode == 0, accepted)

@@ -115,6 +115,7 @@ class _FakePR:
     ) -> None:
         self.head = _FakeHead(head_sha)
         self.base = _FakeRef(constants.TARGET_BRANCH)
+        self.raw_data: dict[str, object] = {}
         self.user = _FakeUser(author) if author is not None else None
         self.labels: list[_FakeLabel] = []
         self.state = "open"
@@ -1992,13 +1993,18 @@ class _FakeFilesPR:
         self._files = files
         self.head = _FakeHead(client.live_heads.pop(0), client.head_ref)
         self.base = _FakeRef(client.live_bases.pop(0))
+        trunk = client.live_trunks.pop(0)
+        self.raw_data: dict[str, object] = {} if trunk is None else {"stack": {"base": {"ref": trunk}}}
 
     def get_files(self) -> list[_FakeFile]:
         return [_FakeFile(name) for name in self._files]
 
 
 class _FakeRulesClient:
-    """Serves merge_rules.yaml, one team and PR #7, whose head and base at each read are ``live_*``."""
+    """Serves merge_rules.yaml, one team and PR #7, whose head, base and stack trunk at each read are ``live_*``.
+
+    A ``None`` trunk is a PR in no native stack.
+    """
 
     def __init__(
         self,
@@ -2007,12 +2013,14 @@ class _FakeRulesClient:
         files: list[str] | Exception = _UNEXPECTED_PR_READ,
         live_heads: tuple[str, ...] = (_REVIEWED, _REVIEWED),
         live_bases: tuple[str, ...] = (constants.TARGET_BRANCH, constants.TARGET_BRANCH),
+        live_trunks: tuple[str | None, ...] = (None, None),
         head_ref: str = "feature",
     ) -> None:
         self.merge_rules = merge_rules
         self.files = files
         self.live_heads = list(live_heads)
         self.live_bases = list(live_bases)
+        self.live_trunks = list(live_trunks)
         self.head_ref = head_ref
 
     def get_repo(self, full_name_or_id: str) -> _FakeRulesClient:
@@ -2067,10 +2075,18 @@ def test_has_covering_rule_passes_a_path_scoped_author_of_a_ghstack_pr_on_its_ow
     assert covers(client, "Scoped") is True
 
 
+def test_has_covering_rule_passes_a_path_scoped_author_of_a_native_stack_pr_on_its_own_base(covers):
+    base, trunk = "scoped/part-1", constants.TARGET_BRANCH
+    client = _FakeRulesClient(files=["docs/index.md"], live_bases=(base, base), live_trunks=(trunk, trunk))
+
+    assert covers(client, "Scoped") is True
+
+
 @pytest.mark.parametrize(
     "pr",
     [
         pytest.param({"live_bases": ("release/2.9",)}, id="release-base"),
+        pytest.param({"live_bases": ("scoped/part-1",), "live_trunks": ("release/2.9",)}, id="stack-on-another-trunk"),
         pytest.param({"live_heads": ("c" * 40,)}, id="head-moved"),
         pytest.param({"live_heads": (_REVIEWED, "c" * 40)}, id="head-moved-during-the-listing"),
         pytest.param({"live_bases": (constants.TARGET_BRANCH, "release/2.9")}, id="base-moved-during-the-listing"),
@@ -2078,6 +2094,44 @@ def test_has_covering_rule_passes_a_path_scoped_author_of_a_ghstack_pr_on_its_ow
 )
 def test_has_covering_rule_refuses_a_path_scoped_author_on_a_refused_base_or_a_moved_head_or_base(covers, pr):
     assert covers(_FakeRulesClient(files=["docs/index.md"], **pr), "Scoped") is False
+
+
+@pytest.mark.parametrize(
+    "live_trunks",
+    [
+        pytest.param((constants.TARGET_BRANCH, None), id="unstacked"),
+        pytest.param((constants.TARGET_BRANCH, "release/2.9"), id="trunk-changed"),
+    ],
+)
+def test_has_covering_rule_refuses_a_native_stack_pr_whose_stack_left_main_during_the_listing(
+    covers, caplog, live_trunks
+):
+    base = "scoped/part-1"
+    client = _FakeRulesClient(files=["docs/index.md"], live_bases=(base, base), live_trunks=live_trunks)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        assert covers(client, "Scoped") is False
+
+    assert "author 'Scoped' is not eligible: head or base moved" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("head_ref", "base", "live_trunks"),
+    [
+        pytest.param("feature", constants.TARGET_BRANCH, (None, constants.TARGET_BRANCH), id="main-based-stacked"),
+        pytest.param("feature", constants.TARGET_BRANCH, (constants.TARGET_BRANCH, None), id="main-based-unstacked"),
+        pytest.param("gh/scoped/1/head", "gh/scoped/1/base", (None, constants.TARGET_BRANCH), id="ghstack-stacked"),
+        pytest.param("gh/scoped/1/head", "gh/scoped/1/base", ("release/2.9", None), id="ghstack-unstacked"),
+    ],
+)
+def test_has_covering_rule_ignores_a_stack_trunk_change_on_a_main_based_or_ghstack_pr(
+    covers, head_ref, base, live_trunks
+):
+    client = _FakeRulesClient(
+        files=["docs/index.md"], head_ref=head_ref, live_bases=(base, base), live_trunks=live_trunks
+    )
+
+    assert covers(client, "Scoped") is True
 
 
 def test_has_covering_rule_raises_a_read_failure(covers):

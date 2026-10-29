@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
     from datetime import datetime
 
     class _PRUser(Protocol):
@@ -121,6 +121,8 @@ if TYPE_CHECKING:
         def head(self) -> _PRHead: ...
         @property
         def base(self) -> _PRRef: ...
+        @property
+        def raw_data(self) -> Mapping[str, object]: ...
         def get_files(self) -> Iterable[_PRFile]: ...
 
     class _LabelledPR(Protocol):

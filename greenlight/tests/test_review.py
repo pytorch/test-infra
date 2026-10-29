@@ -153,6 +153,7 @@ class _FakePR:
     files_error: Exception | None = None
     files_read: list[int] = field(default_factory=list)
     base: _FakeRef = field(default_factory=lambda: _FakeRef("main"))
+    raw_data: dict[str, object] = field(default_factory=dict)
 
     def get_files(self) -> list[_FakeFile]:
         self.files_read.append(self.number)
@@ -254,6 +255,7 @@ def _run_scan(
     files_errors: dict[int, Exception] | None = None,
     head_refs: dict[int, str] | None = None,
     base_refs: dict[int, str] | None = None,
+    stack_trunks: dict[int, str] | None = None,
     bot_login: str = "",
     config_kwargs: dict[str, object] | None = None,
     reverted: frozenset[int] = frozenset(),
@@ -273,6 +275,7 @@ def _run_scan(
     files_errors = files_errors or {}
     head_refs = head_refs or {}
     base_refs = base_refs or {}
+    stack_trunks = stack_trunks or {}
     fetched_labels = fetched_labels or {}
     dismissed_ids = dismissed_ids or {}
     dismiss_errors = dismiss_errors or {}
@@ -339,8 +342,9 @@ def _run_scan(
     def fake_get_pr(_client, _repo, number):
         # The comment upsert and the review dismissal are both faked, so the "PR" object need only
         # carry back its number, the head_sha the reverted-PR row is written from, the author the
-        # --pr gate reads, and the changed files an eligibility check reads.
+        # --pr gate reads, and the changed files and stack an eligibility check reads.
         pr_fetches.append(number)
+        trunk = stack_trunks.get(number)
         return _FakePR(
             number,
             _FakeHead(f"headsha{number}", head_refs.get(number, "feature-branch")),
@@ -349,6 +353,7 @@ def _run_scan(
             files_error=files_errors.get(number),
             files_read=files_fetched,
             base=_FakeRef(base_refs.get(number, "main")),
+            raw_data={} if trunk is None else {"stack": {"base": {"ref": trunk}}},
         )
 
     def fake_upsert(pr, *, marker, body, author_login, run_id=None):
@@ -2531,8 +2536,15 @@ def test_a_push_between_the_authority_read_and_the_fingerprint_defers_only_a_pr_
     assert scan.dispatch_shadow == [(2, False)]
 
 
-def test_a_non_ghstack_pr_on_a_non_main_base_leaves_a_path_scoped_author_undispatched_but_not_a_catch_all_one(
-    make_config,
+@pytest.mark.parametrize(
+    "stack_trunks",
+    [
+        pytest.param({}, id="in-no-stack"),
+        pytest.param({1: "release/2.9", 2: "release/2.9"}, id="in-a-native-stack-on-another-trunk"),
+    ],
+)
+def test_a_non_ghstack_pr_on_another_base_outside_a_stack_on_main_dispatches_only_a_catch_all_author(
+    make_config, stack_trunks
 ):
     scan = _run_scan(
         make_config,
@@ -2540,11 +2552,12 @@ def test_a_non_ghstack_pr_on_a_non_main_base_leaves_a_path_scoped_author_undispa
         fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
         files={1: (_DOCS_FILE,)},
         base_refs={1: "release/2.9", 2: "release/2.9"},
+        stack_trunks=stack_trunks,
     )
 
-    # trymerge refuses to land a non-ghstack PR on any base but main, so the path-scoped author's PR is
-    # not dispatched, and its files are never listed. A catch-all author's authority never depends on
-    # the files.
+    # trymerge refuses to land a PR on any base but main unless it is a ghstack PR or in a native stack on
+    # main, so the path-scoped author's PR is not dispatched, and its files are never listed. A catch-all
+    # author's authority never depends on the files.
     assert scan.fingerprinted == [2]
     assert scan.dispatch_shadow == [(2, False)]
     assert scan.files_fetched == []
@@ -2570,6 +2583,30 @@ def test_a_ghstack_pr_on_its_own_base_dispatches_a_path_scoped_author_only_when_
     )
 
     # trymerge checks each PR of a ghstack stack against that PR's own file list, whatever its base.
+    assert scan.files_fetched == [1]
+    assert scan.dispatch_shadow == dispatched
+
+
+@pytest.mark.parametrize(
+    ("changed", "dispatched"),
+    [
+        pytest.param((_DOCS_FILE,), [(1, False)], id="covered"),
+        pytest.param((_DOCS_FILE, _TORCH_FILE), [], id="uncovered"),
+    ],
+)
+def test_a_native_stack_pr_on_main_dispatches_a_path_scoped_author_only_when_its_rule_covers_the_pr(
+    make_config, changed, dispatched
+):
+    scan = _run_scan(
+        make_config,
+        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        files={1: changed},
+        base_refs={1: "carol/part-1"},
+        stack_trunks={1: "main"},
+    )
+
+    # trymerge checks each PR of a native stack on main against that PR's own file list, whatever its base.
     assert scan.files_fetched == [1]
     assert scan.dispatch_shadow == dispatched
 

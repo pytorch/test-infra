@@ -807,6 +807,7 @@ class _FakeVerdictPR:
     ) -> None:
         self.head = _FakePRPart("feature", head_sha)
         self.base = _FakePRPart("main", "base")
+        self.raw_data: dict[str, object] = {}
         self.user = _FakeActor(author) if author is not None else None
         self.labels: list[_FakeVerdictLabel] = []
         self.state = "open"
