@@ -1,5 +1,5 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { getOctokit } from "lib/github";
+import { getOctokit, getPreReviewOctokit } from "lib/github";
 import {
   buildPrNotificationsManifest,
   getManifestKey,
@@ -37,7 +37,8 @@ export default async function handler(
   }
 
   const now = new Date();
-  const octokit = await getOctokit(OWNER, REPO);
+  const octokit =
+    (await getPreReviewOctokit(OWNER, REPO)) ?? (await getOctokit(OWNER, REPO));
   const manifest = await buildPrNotificationsManifest(
     octokit,
     OWNER,

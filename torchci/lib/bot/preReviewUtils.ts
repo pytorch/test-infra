@@ -205,8 +205,11 @@ export async function getPreReviewStatus(
 // Mark a triaged PR in progress once every assigned reviewer agrees. The
 // triaged label is kept, so a PR already past automated review (ready for
 // review) is skipped, or adding in progress again would trigger another review.
+// octokit only reads. labelOctokit must be PyTorchBot's: the automated review
+// only accepts an in progress label added by pytorch-bot[bot].
 export async function markInProgressIfAccepted(
   octokit: Octokit,
+  labelOctokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
@@ -234,7 +237,7 @@ export async function markInProgressIfAccepted(
         ", "
       )}`
     );
-    await octokit.rest.issues.addLabels({
+    await labelOctokit.rest.issues.addLabels({
       owner,
       repo,
       issue_number: prNumber,
@@ -248,6 +251,7 @@ export async function markInProgressIfAccepted(
 // accept command adds one, so PRs agreed to by comment are checked too.
 export async function updateInProgressLabels(
   octokit: Octokit,
+  labelOctokit: Octokit,
   owner: string,
   repo: string
 ): Promise<void> {
@@ -277,6 +281,7 @@ export async function updateInProgressLabels(
     try {
       await markInProgressIfAccepted(
         octokit,
+        labelOctokit,
         owner,
         repo,
         pr.number,

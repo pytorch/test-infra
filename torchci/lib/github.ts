@@ -31,6 +31,21 @@ export async function getOsdcMigrationOctokit(
   return getAppOctokit(owner, repo, appId, privateKey);
 }
 
+// Authenticated as the read-only Pre-review app, so polling pre-review state
+// doesn't spend PyTorchBot's rate limit, which Dr. CI shares. Returns null
+// until the app is configured, and callers fall back to PyTorchBot.
+export async function getPreReviewOctokit(
+  owner: string,
+  repo: string
+): Promise<Octokit | null> {
+  const appId = process.env.PRE_REVIEW_APP_ID;
+  const privateKey = process.env.PRE_REVIEW_PRIVATE_KEY;
+  if (!appId || !privateKey) {
+    return null;
+  }
+  return getAppOctokit(owner, repo, appId, privateKey);
+}
+
 async function getAppOctokit(
   owner: string,
   repo: string,
