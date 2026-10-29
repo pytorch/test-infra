@@ -1,9 +1,9 @@
 name: GreenLight policy replay
 
 # Replays past GreenLight reviews under the policy before and after a pull request (PR) and comments the
-# comparison on the PR. A push changing the skill, its verdict schema or the replay machinery (this
-# workflow, its scripts, the replay harness and the sampling rank it shares with the decisions
-# export) starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
+# comparison on the PR. A push changing the policy (the skill, its hooks, the review workflow) or the
+# replay machinery (this workflow, its scripts, the replay harness and the decisions export it runs)
+# starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
 # changing only the machinery runs the same policy in both arms. Every job runs code from the pushed
 # commit's history (this workflow, its scripts, tools/, both arms' policy). Jobs naming `bedrock` deploy
 # the pushed branch, so its deployment branch policy, and who may push the branches it admits, decide
@@ -23,11 +23,12 @@ on:
     branches-ignore: [main]
     paths:
       - .claude/skills/greenlight-review/**
-      - .claude/hooks/greenlight/verdict-schema.json
+      - .claude/hooks/greenlight/**
+      - .github/workflows/greenlight-pr-review.yml
       - .github/workflows/greenlight-policy-replay.yml
       - .github/scripts/greenlight_policy_replay_*.sh
       - tools/torchci/greenlight_replay/**
-      - tools/torchci/greenlight_decisions/sample.py
+      - tools/torchci/greenlight_decisions/**
 
 permissions: {}
 
@@ -89,9 +90,10 @@ jobs:
           # The compare API lists at most 300 files, dropping the paths that sort last, so a full list without a trigger path proves nothing.
           comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base_ref...$HEAD_SHA")
           changes=$(jq -r 'if [.files[]? | .filename, (.previous_filename // empty)] | any(startswith(".claude/skills/greenlight-review/")
-            or . == ".claude/hooks/greenlight/verdict-schema.json" or . == ".github/workflows/greenlight-policy-replay.yml"
+            or startswith(".claude/hooks/greenlight/") or . == ".github/workflows/greenlight-pr-review.yml"
+            or . == ".github/workflows/greenlight-policy-replay.yml"
             or test("^\\.github/scripts/greenlight_policy_replay_[^/]*\\.sh$") or startswith("tools/torchci/greenlight_replay/")
-            or . == "tools/torchci/greenlight_decisions/sample.py")
+            or startswith("tools/torchci/greenlight_decisions/"))
             then "yes" elif (.files | length) >= 300 then "unknown" else "no" end' <<<"$comparison")
           [ "$changes" != unknown ] || { echo "::notice::#$pr_number changes too many files to check the trigger paths; nothing to compare."; exit 0; }
           [ "$changes" = yes ] || { echo "::notice::#$pr_number changes none of the trigger paths against $base_ref; nothing to compare."; exit 0; }
