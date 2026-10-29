@@ -1,10 +1,11 @@
 """Launch the greenlight reviewer over one pull request.
 
-This module owns the invocation only -- the command line, the environment and the retry
-loop. Composing the hook settings layer belongs to ``settings``, and reading what came back
-belongs to ``transcript``, which is where the failure modes that survive a clean exit code
-are documented. ``write_settings``, ``Outcome`` and ``RunResult`` are re-exported here
-because this is where callers meet them.
+This module owns the invocation only -- the command line and the retry loop. Composing the
+reviewer's environment belongs to ``reviewer_env``, composing the hook settings layer to
+``settings``, and reading what came back belongs to ``transcript``, which is where the
+failure modes that survive a clean exit code are documented. ``build_env``,
+``bedrock_enabled``, ``SUBPROCESS_PATH``, ``BEDROCK_SWITCH``, ``write_settings``,
+``Outcome`` and ``RunResult`` are re-exported here because this is where callers meet them.
 
 This is the part of the replay that spends money, so every rule below exists because a run
 that looked fine on the wire was not. Measurements are from this machine on 2026-09-18,
@@ -57,6 +58,12 @@ from typing import Any
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.inputs import ReplayInputs
 from torchci.greenlight_replay.policy import Policy, render_prompt
+from torchci.greenlight_replay.reviewer_env import (
+    bedrock_enabled,
+    BEDROCK_SWITCH,
+    build_env,
+    SUBPROCESS_PATH,
+)
 from torchci.greenlight_replay.settings import SETTINGS_FILENAME, write_settings
 from torchci.greenlight_replay.transcript import (
     classify,
@@ -71,6 +78,7 @@ from torchci.greenlight_replay.transcript import (
 
 
 __all__ = [
+    "BEDROCK_SWITCH",
     "CLAUDE_BIN",
     "DEFAULT_CONTEXT_WINDOW",
     "DEFAULT_MODEL",
@@ -79,6 +87,7 @@ __all__ = [
     "TIMEOUT_BIN",
     "Outcome",
     "RunResult",
+    "bedrock_enabled",
     "build_command",
     "build_env",
     "run_review",
@@ -98,16 +107,6 @@ TIMEOUT_BIN = "timeout"
 TIMEOUT_KILL_GRACE_S = 10
 
 MCP_CONFIG_FILENAME = "nomcp.json"
-
-SUBPROCESS_PATH = "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-_FORWARDED_ENV = (
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "NO_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "no_proxy",
-)
 
 # A corporate SessionStart hook injects context naming a file under the user's Claude
 # projects directory. restrict-read.py can never allow that path, and a deny from one hook
@@ -159,63 +158,6 @@ def build_command(
         "--mcp-config",
         str(Path(run_dir) / MCP_CONFIG_FILENAME),
     ]
-
-
-def build_env(
-    workspace: Path,
-    run_dir: Path,
-    *,
-    budget_minutes: Sequence[int] | None = None,
-    now: float | None = None,
-) -> dict[str, str]:
-    """The reviewer's entire environment. Nothing absent from here reaches it.
-
-    ``budget_minutes`` is the policy's (target, soft, hard) triple, turned into the absolute
-    epochs ``budget-reminder.sh`` reads. Those reminders are not decoration: the reviewer has
-    no Bash and therefore no clock, the skill's Time budget section tells it the reminders
-    are its only signal of elapsed time, and the last tier restates the decision rule. Left
-    unset the hook stays silent -- its documented behaviour for a run with no budget -- and
-    the reviewer paces itself against nothing while the skill claims otherwise.
-    """
-    env = {
-        "HOME": os.environ.get("HOME", ""),
-        "PATH": SUBPROCESS_PATH,
-        "TERM": "dumb",
-        # restrict-read.py denies every read when this is unset.
-        "GITHUB_WORKSPACE": str(workspace),
-        remap.RUN_DIR_ENV: str(run_dir),
-        # RUNNER_TEMP alone: it moves budget-reminder.sh's rate-limit state file off the
-        # shared /tmp, which concurrent runs would otherwise fight over.
-        #
-        # GREENLIGHT_REVIEW_VERDICT_FILE is deliberately NOT set, even though the hook
-        # honours it. Its tier-4 text quotes the path back to the model ("the verdict is
-        # due now at ..."), and the reviewer is not permitted to write anywhere but the
-        # literal /tmp/greenlight-verdict.json: restrict-write.sh compares that exact
-        # string and remap.py rewrites only that exact string. Pointing the hook at the
-        # run directory would therefore hand the model, at the hard deadline, a path
-        # contradicting both the prompt and the skill's "EXACTLY" -- and obeying it costs
-        # a blocked write and a turn it no longer has. Left unset the hook quotes the CI
-        # path, which is the one that works; the price is that its existence probe never
-        # sees the verdict, so tier 4 keeps nagging after the verdict is written. A
-        # redundant nag past 33 minutes is cheaper than a blocked write at the deadline.
-        "RUNNER_TEMP": str(run_dir),
-    }
-    for name in _FORWARDED_ENV:
-        value = os.environ.get(name)
-        if value:
-            env[name] = value
-    if budget_minutes:
-        target, soft, hard = (int(minutes) for minutes in budget_minutes)
-        start = int(now if now is not None else time.time())
-        env.update(
-            {
-                "GREENLIGHT_REVIEW_START_EPOCH": str(start),
-                "GREENLIGHT_REVIEW_TARGET_DEADLINE": str(start + target * 60),
-                "GREENLIGHT_REVIEW_SOFT_DEADLINE": str(start + soft * 60),
-                "GREENLIGHT_REVIEW_HARD_DEADLINE": str(start + hard * 60),
-            }
-        )
-    return env
 
 
 def run_review(

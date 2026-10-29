@@ -8,6 +8,7 @@ What comes BACK from a launch is classified by ``transcript`` and tested in
 
 import dataclasses
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,7 +22,12 @@ from replay_runner_fixtures import (
     result_element,
     ScratchTestCase,
 )
-from torchci.greenlight_replay import runner, stack as stack_mod, transcript
+from torchci.greenlight_replay import (
+    reviewer_env,
+    runner,
+    stack as stack_mod,
+    transcript,
+)
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.inputs import ReplayInputs
 
@@ -147,6 +153,28 @@ class TestEndToEnd(RunnerTestCase):
         # Callers meet these through runner; the split must not move them out from under it.
         self.assertIs(runner.Outcome, transcript.Outcome)
         self.assertIs(runner.RunResult, transcript.RunResult)
+
+
+class TestReExports(unittest.TestCase):
+    """``reviewer_env``'s names stay reachable through ``runner``, where callers meet them.
+
+    Identity, not equality: preflight checks the binaries on ``runner.SUBPROCESS_PATH`` and
+    sweep picks the model with ``runner.bedrock_enabled``, while the reviewer is launched
+    with what ``reviewer_env`` composes, so a copy that drifted would let the harness and
+    the CLI disagree about the PATH or the provider.
+    """
+
+    RE_EXPORTED = ("SUBPROCESS_PATH", "BEDROCK_SWITCH", "bedrock_enabled", "build_env")
+
+    def test_runner_re_exports_the_reviewer_env_objects_themselves(self):
+        for name in self.RE_EXPORTED:
+            with self.subTest(name=name):
+                self.assertIs(getattr(runner, name), getattr(reviewer_env, name))
+
+    def test_each_re_exported_name_is_published_by_runner(self):
+        for name in self.RE_EXPORTED:
+            with self.subTest(name=name):
+                self.assertIn(name, runner.__all__)
 
 
 class TestRetry(RunnerTestCase):
@@ -299,8 +327,95 @@ class TestInvocation(RunnerTestCase):
             "http_proxy",
             "https_proxy",
             "no_proxy",
+            "CLAUDE_CODE_USE_BEDROCK",
+            "AWS_REGION",
         }
         self.assertEqual(set(self.command()["env"]) - allowed, set())
+
+
+class TestBedrockMode(RunnerTestCase):
+    """CLAUDE_CODE_USE_BEDROCK puts the reviewer on Claude Code's Bedrock provider.
+
+    The reviewer's environment is built from nothing, so the switch reaches the CLI only as
+    build_env passes it on: always as "1", so the harness and the CLI cannot read one value
+    two ways. Credentials never follow it. A sweep can outlive the AWS session it started
+    with, and a forwarded key would shadow the ~/.aws files each new reviewer rereads.
+    """
+
+    SWITCH = "CLAUDE_CODE_USE_BEDROCK"
+    CREDENTIALS = {
+        "AWS_ACCESS_KEY_ID": "test-access-key-id",
+        "AWS_SECRET_ACCESS_KEY": "test-secret-access-key",
+        "AWS_SESSION_TOKEN": "test-session-token",
+        "AWS_PROFILE": "test-profile",
+    }
+
+    def env_under(self, switch, **ambient):
+        """``bedrock_enabled`` and ``build_env`` with ``switch`` and ``ambient`` exported.
+
+        None unsets a variable, so whatever the developer's own shell exports cannot leak
+        into a case that is about its absence.
+        """
+        with mock.patch.dict(os.environ, clear=False):
+            for name, value in {self.SWITCH: switch, **ambient}.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+            enabled = runner.bedrock_enabled()
+            env = runner.build_env(
+                self.workspace, self.run_dir, budget_minutes=(20, 25, 33), now=1000
+            )
+        return enabled, env
+
+    def test_one_or_true_in_any_case_hands_the_cli_the_switch_and_the_region(self):
+        for switch in ("1", "true", "TRUE", " true "):
+            with self.subTest(switch=switch):
+                enabled, env = self.env_under(switch, AWS_REGION="us-east-1")
+                self.assertTrue(enabled)
+                self.assertEqual(env[self.SWITCH], "1")
+                self.assertEqual(env["AWS_REGION"], "us-east-1")
+
+    def test_any_other_value_leaves_the_switch_and_the_region_out(self):
+        for switch in (None, "", "0", "false", "yes"):
+            with self.subTest(switch=switch):
+                enabled, env = self.env_under(switch, AWS_REGION="us-east-1")
+                self.assertFalse(enabled)
+                self.assertNotIn(self.SWITCH, env)
+                self.assertNotIn("AWS_REGION", env)
+
+    def test_credential_variables_never_reach_the_reviewer(self):
+        for switch in ("1", None):
+            with self.subTest(switch=switch):
+                _, env = self.env_under(
+                    switch, AWS_REGION="us-east-1", **self.CREDENTIALS
+                )
+                self.assertEqual(set(env) & set(self.CREDENTIALS), set())
+
+    def test_an_unset_region_is_not_invented(self):
+        _, env = self.env_under("1", AWS_REGION=None)
+        self.assertEqual(env[self.SWITCH], "1")
+        self.assertNotIn("AWS_REGION", env)
+
+    def test_the_rest_of_the_environment_is_the_same_in_both_modes(self):
+        _, baseline = self.env_under(
+            None, AWS_REGION=None, **dict.fromkeys(self.CREDENTIALS)
+        )
+        for switch in (None, "", "0", "false", "yes"):
+            with self.subTest(switch=switch):
+                _, env = self.env_under(
+                    switch, AWS_REGION="us-east-1", **self.CREDENTIALS
+                )
+                self.assertEqual(env, baseline)
+        _, env = self.env_under("1", AWS_REGION="us-east-1", **self.CREDENTIALS)
+        added = {name: env.pop(name) for name in (self.SWITCH, "AWS_REGION")}
+        self.assertEqual(added, {self.SWITCH: "1", "AWS_REGION": "us-east-1"})
+        self.assertEqual(env, baseline)
+
+    def test_the_launched_reviewer_is_given_the_switch(self):
+        with mock.patch.dict(os.environ, {self.SWITCH: "true"}, clear=False):
+            self.review((0, envelope(result_element()), GOOD_VERDICT))
+        self.assertEqual(self.last_cli.calls[0]["env"][self.SWITCH], "1")
 
 
 class TestReviewBudget(RunnerTestCase):

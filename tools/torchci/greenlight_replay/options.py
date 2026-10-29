@@ -58,7 +58,9 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
         help=f"{DEFAULT_POLICY_REPO} pull request carrying the policy under test",
     )
     policy.add_argument(
-        "--policy-ref", help=f"git ref in {DEFAULT_POLICY_REPO} to take the policy from"
+        "--policy-ref",
+        help=f"git ref in {DEFAULT_POLICY_REPO} to take the policy from, or a full "
+        "40-character commit SHA",
     )
     size = parser.add_mutually_exclusive_group(required=True)
     size.add_argument(
