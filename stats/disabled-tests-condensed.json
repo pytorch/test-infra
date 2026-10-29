@@ -250,14 +250,6 @@
       "rocm"
     ]
   ],
-  "test_copy_strided_chunk_alignment_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "201051",
-    "https://github.com/pytorch/pytorch/issues/201051",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_copy_transpose_tiled_batched_layout_batch_first_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "200381",
     "https://github.com/pytorch/pytorch/issues/200381",
