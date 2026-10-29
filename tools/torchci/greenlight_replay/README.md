@@ -29,8 +29,8 @@ The dry run makes every check a real run makes short of invoking a model, and
 prints what it checked and what it did not. It confirms the scratch root is
 usable, the reviewer's binaries are on the PATH the reviewer will get, the policy
 ref exists on the remote, and then it fetches the policy and checks it: the
-workflow parses, the diff caps and canned verdict are readable, a ghstack stack
-step, if there is one, is the one the harness reproduces, the verdict schema uses
+workflow parses, the diff caps and canned verdict are readable, a stack step, if
+there is one, is a version the harness recognises, the verdict schema uses
 only keywords the harness implements, every hook script resolves, and the
 inference profile maps to a local model. That costs a few seconds and about
 34 MB. Fetching twice is safe — materializing clears its destination and
@@ -181,25 +181,26 @@ misreading 2 before reading that column on those rows. Their decision columns ar
 re-derived as of that landing, which costs a ClickHouse query and two compare
 calls apiece — paid for the sampled rows only, not the whole frame.
 
-## ghstack stack context
+## Stack context
 
-A policy whose workflow runs the "Collect ghstack stack context" step shows the
-reviewer the open pull requests among the five directly above the reviewed one in
-its ghstack stack, each with its diff. The replay rebuilds that as of the replayed
-verdict's `decision_version`, the cutoff the comment filter uses, rather than as
-of today: by replay time the pull requests above a landed one have usually closed,
-and ghstack has rewritten the listing in the body.
+A policy whose workflow runs the "Collect stack context" step shows the reviewer
+the open pull requests among the five directly above the reviewed one in its
+ghstack or GitHub stack of pull requests, each with its diff. The replay rebuilds
+a ghstack's as of the replayed verdict's `decision_version`, the cutoff the
+comment filter uses, rather than as of today: by replay time the pull requests
+above a landed one have usually closed, and ghstack has rewritten the listing in
+the body. A GitHub stack's is not rebuilt: its pull requests replay with none.
 
-**The step is pinned.** `stack_step.py` and `stack.py` reproduce it line by
-line, so loading the policy refuses a step that no longer digests to
-`stack_step.STEP_SHA256`: every key but its `name` counts, so an edited `run:`,
-`env` or `shell`, or an added `if:`, is refused. The gate finds the step by a
-`run:` naming `/tmp/greenlight-stack`, so it refuses a second step whose `run:`
-names it too, and the step must name that path inline: moved into a script, it
-reads as a policy without the step and replays with no stack, a known limit.
-Where the step sits, its order and its job, is not checked. A policy with no such
-step, such as an older one, replays with no stack context, as CI ran it. Changing
-the step means porting the change and re-pinning.
+**The step is pinned.** `stack_step.py` and `stack.py` reproduce its ghstack
+branch line by line, bar its check of a sibling's base name, which the rebuild,
+diffing from the base's SHA, never reads. Loading a policy refuses a step
+digesting to neither `stack_step.STEP_SHA256` nor `GHSTACK_ONLY_STEP_SHA256`,
+the ghstack-only version, which replays as CI ran it. Every key but `name`
+counts: an edited `run:`, `env` or `shell`, or an added `if:`, is refused. The
+gate finds it by a `run:` naming `/tmp/greenlight-stack` and refuses a second
+one; neither its order nor its job is checked. A policy without the step replays
+with no stack context, as CI ran it, and so does one with the step moved into a
+script, a known limit. Changing the step means porting it and re-pinning.
 
 **The body is read back under every policy.** For every ghstack pull request
 whose diff the size gate lets through, the metadata document's body is the body at
@@ -222,12 +223,11 @@ with the step, one GraphQL query finds out instead. One whose diff the size gate
 declines costs nothing: its canned verdict reads no context.
 
 **Where CI degrades, the replay fails the row.** The step is `continue-on-error`,
-and any fault in it quietly drops the whole context. Here only its own two exits,
-not a ghstack pull request or not named in its own listing, write nothing and
-carry on. Anything else removes whatever was written and fails the row into the
-error count, where a rerun retries it: a GitHub error, a head or base rewritten
-after the cutoff, more than 100 commits, or a body or head that cannot be pinned
-to one revision at the cutoff.
+and any fault in it quietly drops the whole context. Here only a pull request not
+ghstack or not named in its own listing writes nothing and carries on. Anything
+else removes whatever was written and fails the row into the error count, where a
+rerun retries it: a GitHub error, a head or base rewritten after the cutoff, more
+than 100 commits, or a body or head that cannot be pinned to one revision then.
 
 ## The new columns
 
@@ -358,8 +358,8 @@ Six deviations, taken deliberately:
   before the replayed verdict, which is the point — it must not read what was
   written in response to the verdict it is reproducing. A comment whose
   `createdAt` cannot be parsed is dropped here, where CI would have shown it.
-- **Stack context read back, not captured.** Everything the stack step read is
-  re-read as of `decision_version`, with these gaps:
+- **Stack context read back, not captured.** All the stack step read of a ghstack
+  is re-read as of `decision_version`, with these gaps:
   - `decision_version` lands a median of about 8 minutes after the step ran, and
     the stack can move in between: of 50 ghstack rows measured, 3 get a different
     stack at `decision_version` than at review start. In 2 of them the listing

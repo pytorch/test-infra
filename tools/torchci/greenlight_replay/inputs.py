@@ -57,7 +57,7 @@ from typing import Any
 
 from torchci.greenlight_decisions.loc import _REPO_PATTERN, _SHA_PATTERN
 from torchci.greenlight_decisions.rows import to_utc_naive
-from torchci.greenlight_replay.policy import GIT_REF_PATTERN, Policy
+from torchci.greenlight_replay.policy import GIT_REF_PATTERN, Policy, StackContext
 from torchci.greenlight_replay.stack import clear_stack, read_back
 
 
@@ -177,7 +177,7 @@ def build_inputs(
             comments_before,
             run_dir,
             head_ref=payload.get("headRefName") if payload else None,
-            write_stack=policy.stack_enabled,
+            write_stack=policy.stack_context is not StackContext.NONE,
         )
     metadata_path = _write_metadata(
         payload, head_sha, comments_before, run_dir, body_at_cutoff
