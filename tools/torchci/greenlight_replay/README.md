@@ -150,8 +150,8 @@ variable here — a difference between `decision` and `new_decision` can come fr
 any of them as easily as from the policy. That is misreading 1's confound from a
 second direction, and another reason a measurement needs a control arm run on
 *this* harness. CI's `greenlight-policy-replay.yml` runs it on Bedrock three
-times under a policy pull request's merge base and three under its head, and
-`python3 -m torchci.greenlight_replay.compare` renders the comparison comment.
+times each under the merge base and head of a pull request changing the skill,
+its verdict schema, itself or this harness; `compare.py` writes the comment.
 
 ## What gets replayed
 

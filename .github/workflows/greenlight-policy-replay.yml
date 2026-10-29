@@ -1,11 +1,12 @@
 name: GreenLight policy replay
 
-# Replays past GreenLight reviews under the policy before and after a pull request (PR) that changes
-# it and comments the comparison on the PR. A push changing the policy paths starts it; plan compares
-# only when the branch's open PR itself changes them. Every job runs code from the pushed commit's
-# history (this workflow, tools/, both arms' policy). Jobs naming `bedrock` deploy the pushed branch,
-# so its deployment branch policy, and who may push the branches it admits, decide which code runs
-# with the Bedrock role; gate names it first, so a policy PR from another branch fails there.
+# Replays past GreenLight reviews under the policy before and after a pull request (PR) and comments the
+# comparison on the PR. A push changing the skill or its verdict schema, this workflow or the replay
+# harness starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
+# changing only this workflow or the harness runs the same policy in both arms. Every job runs code from
+# the pushed commit's history (this workflow, tools/, both arms' policy). Jobs naming `bedrock` deploy
+# the pushed branch, so its deployment branch policy, and who may push the branches it admits, decide
+# which code runs with the Bedrock role; gate names it first, so a PR from another branch fails there.
 #
 # Both arms are pinned by SHA, the base arm to the merge base so later policy on main is not
 # credited to the PR. Each replay job frames the same decisions and seed against live ClickHouse, so
@@ -18,10 +19,11 @@ on:
   push:
     # Naming branches also keeps tag pushes, which skip path filters, from starting it.
     branches-ignore: [main]
-    # The reviewer model is told to follow the skill and its verdict schema; code (hooks, workflows, tools) starts no comparison.
     paths:
       - .claude/skills/greenlight-review/**
       - .claude/hooks/greenlight/verdict-schema.json
+      - .github/workflows/greenlight-policy-replay.yml
+      - tools/torchci/greenlight_replay/**
 
 permissions: {}
 
@@ -32,20 +34,16 @@ concurrency:
 env:
   GREENLIGHT_REPLAY_SAMPLE_SIZE: "30"
   GREENLIGHT_REPLAY_SEED: "0"
-  # One replay job per entry and arm; the report compares one run directory each.
-  GREENLIGHT_REPLAY_REPLICATES: "[1, 2, 3]"
-  # Reviewer sessions per replay job; every replay job runs at once.
-  GREENLIGHT_REPLAY_PARALLELISM: "8"
-  # Change these two together: the harness rejects a run whose CLI reports another
-  # context window, and the window Bedrock's model reports depends on the CLI build.
-  # The version is the production review's (its claude-code-action pin).
+  GREENLIGHT_REPLAY_REPLICATES: "[1, 2, 3]"  # One replay job per entry and arm; the report compares one run directory each.
+  GREENLIGHT_REPLAY_PARALLELISM: "8"  # Reviewer sessions per replay job; every replay job runs at once.
+  # Change these two together: the harness rejects a run whose CLI reports another context window, and the window
+  # Bedrock's model reports depends on the CLI build. The version is the production review's (its claude-code-action pin).
   CLAUDE_CODE_VERSION: "2.1.280"
   GREENLIGHT_REPLAY_CONTEXT_WINDOW: "200000"
   AWS_REGION: us-east-1
   BEDROCK_ROLE_ARN: arn:aws:iam::308535385114:role/gha_workflow_claude_code
   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
-  # The decisions export is a public intermediate holding the whole decision history.
-  DECISIONS_RETENTION_DAYS: "1"
+  DECISIONS_RETENTION_DAYS: "1"  # The decisions export is a public intermediate holding the whole decision history.
   ARTIFACT_RETENTION_DAYS: "30"
 
 jobs:
@@ -81,12 +79,15 @@ jobs:
           [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || { echo "unexpected pull request number: '$pr_number'" >&2; exit 1; }
           base_ref=$(jq -er '.[0].base.ref | strings' <<<"$prs")
           [[ "$base_ref" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "unexpected base branch for #$pr_number: '$base_ref'" >&2; exit 1; }
-          # A push's path filter sees only that push's diff. The policy check and the merge base both come from comparing the base branch's tip
+          # A push's path filter sees only that push's diff. The path check and the merge base both come from comparing the base branch's tip
           # with the pushed commit, so a PR object that lags the push affects neither. These paths mirror on.push.paths, which cannot read env.
+          # The compare API lists at most 300 files, dropping the paths that sort last, so a full list without a trigger path proves nothing.
           comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base_ref...$HEAD_SHA")
-          changes=$(jq '[.files[]? | .filename, (.previous_filename // empty)]
-            | any(startswith(".claude/skills/greenlight-review/") or . == ".claude/hooks/greenlight/verdict-schema.json")' <<<"$comparison")
-          [ "$changes" = true ] || { echo "::notice::#$pr_number does not change the GreenLight policy against $base_ref; nothing to compare."; exit 0; }
+          changes=$(jq -r 'if [.files[]? | .filename, (.previous_filename // empty)] | any(startswith(".claude/skills/greenlight-review/")
+            or . == ".claude/hooks/greenlight/verdict-schema.json" or . == ".github/workflows/greenlight-policy-replay.yml"
+            or startswith("tools/torchci/greenlight_replay/")) then "yes" elif (.files | length) >= 300 then "unknown" else "no" end' <<<"$comparison")
+          [ "$changes" != unknown ] || { echo "::notice::#$pr_number changes too many files to check the trigger paths; nothing to compare."; exit 0; }
+          [ "$changes" = yes ] || { echo "::notice::#$pr_number changes none of the trigger paths against $base_ref; nothing to compare."; exit 0; }
           # Written first so report-unstarted can name the PR: the runner reads GITHUB_OUTPUT even if the step fails.
           printf 'pr_number=%s\nhead_sha=%s\n' "$pr_number" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
           replicates=$(jq -cen --argjson r "$GREENLIGHT_REPLAY_REPLICATES" '$r | select(type == "array" and length > 0
@@ -137,8 +138,7 @@ jobs:
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           GH_TOKEN: ${{ github.token }}
-        # Any non-zero exit fails the job, including 3: a degraded export would bias
-        # the frame the replays sample from.
+        # Any non-zero exit fails the job, including 3: a degraded export would bias the frame the replays sample from.
         run: |
           set -euo pipefail
           PYTHONPATH=. python3 -m torchci.greenlight_decisions --output "$RUNNER_TEMP/greenlight-decisions.csv"
