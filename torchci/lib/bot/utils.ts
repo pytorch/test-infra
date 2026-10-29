@@ -583,3 +583,356 @@ export function getFilesChangedByPrCached(
 export function clearFilesChangedCache(): void {
   filesChangedCache.clear();
 }
+
+const GHSTACK_HEAD_REF = /^gh\/([^/]+)\/[0-9]+\/head$/;
+const GHSTACK_LISTING_HEADER = "Stack from [ghstack]";
+const GHSTACK_LISTING_ROW = /^\* (__->__ )?#([1-9][0-9]*)$/;
+const GHSTACK_LISTING_PLACEHOLDER = "* (to be filled)";
+const MAX_STACK_PRS_PER_QUERY = 100;
+
+export type GhstackListing =
+  | { kind: "none" }
+  | { kind: "pending" }
+  | { kind: "stack"; above: number[]; below: number[] };
+
+// ghstack writes the listing top of the stack first and marks the PR itself
+// with `__->__`. It opens each new PR with the placeholder row and fills the
+// listing in moments later with an edit.
+export function parseGhstackListing(
+  body: string | null | undefined,
+  prNumber: number
+): GhstackListing {
+  const lines = (body ?? "").split("\n").map((line) => line.replace(/\r/g, ""));
+  const numbers: number[] = [];
+  const marked: number[] = [];
+  let inListing = false;
+  let firstRow = true;
+  for (const line of lines) {
+    if (line.startsWith(GHSTACK_LISTING_HEADER)) {
+      inListing = true;
+      continue;
+    }
+    if (!inListing) {
+      continue;
+    }
+    const row = line.match(GHSTACK_LISTING_ROW);
+    if (row === null) {
+      if (firstRow && line === GHSTACK_LISTING_PLACEHOLDER) {
+        return { kind: "pending" };
+      }
+      break;
+    }
+    firstRow = false;
+    const number = parseInt(row[2]);
+    if (row[1] !== undefined) {
+      marked.push(number);
+    }
+    if (!numbers.includes(number)) {
+      numbers.push(number);
+    }
+  }
+  if (marked.length !== 1 || marked[0] !== prNumber) {
+    return { kind: "none" };
+  }
+  const index = numbers.indexOf(prNumber);
+  return {
+    kind: "stack",
+    above: numbers.slice(0, index).reverse(),
+    below: numbers.slice(index + 1),
+  };
+}
+
+export interface NativeStackField {
+  position: number;
+  size: number;
+}
+
+export interface StackPr {
+  number: number;
+  isDraft: boolean;
+  labels: string[];
+  files: string[];
+}
+
+export type StackDirection = "above" | "below";
+
+export type OpenStackPrs =
+  | { kind: "none" }
+  | { kind: "pending" }
+  | { kind: "stack"; prs: StackPr[] };
+
+const STACK_PR_FIELDS = `
+fragment StackPrFields on PullRequest {
+  number
+  state
+  isDraft
+  isCrossRepository
+  headRefName
+  labels(first: 100) { nodes { name } }
+  changedFiles
+  files(first: 100) { nodes { path } }
+}`;
+
+interface StackPrNode {
+  number: number;
+  state: string;
+  isDraft: boolean;
+  isCrossRepository: boolean;
+  headRefName: string;
+  labels: { nodes: { name: string }[] };
+  changedFiles: number;
+  files: { nodes: { path: string }[] } | null;
+}
+
+function isOpenSameRepo(node: StackPrNode | null): node is StackPrNode {
+  return node !== null && node.state === "OPEN" && !node.isCrossRepository;
+}
+
+async function toStackPr(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  node: StackPrNode
+): Promise<StackPr> {
+  const files = (node.files?.nodes ?? []).map((f) => f.path);
+  return {
+    number: node.number,
+    isDraft: node.isDraft,
+    labels: node.labels.nodes.map((l) => l.name),
+    files:
+      node.changedFiles > files.length
+        ? await getFilesChangedByPr(octokit, owner, repo, node.number)
+        : files,
+  };
+}
+
+async function getOpenGhstackNodes(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  user: string,
+  numbers: number[]
+): Promise<StackPrNode[]> {
+  if (numbers.length === 0) {
+    return [];
+  }
+  if (numbers.length > MAX_STACK_PRS_PER_QUERY) {
+    throw new Error(
+      `ghstack listing names ${numbers.length} PRs, more than ${MAX_STACK_PRS_PER_QUERY}`
+    );
+  }
+  const params = numbers.map((_, i) => `$n${i}: Int!`).join(", ");
+  const fields = numbers
+    .map((_, i) => `pr${i}: pullRequest(number: $n${i}) { ...StackPrFields }`)
+    .join("\n");
+  const query = `query ($owner: String!, $repo: String!, ${params}) {
+  repository(owner: $owner, name: $repo) {
+${fields}
+  }
+}
+${STACK_PR_FIELDS}`;
+  const variables: Record<string, string | number> = { owner, repo };
+  numbers.forEach((n, i) => {
+    variables[`n${i}`] = n;
+  });
+  const res: any = await octokit.graphql(query, variables);
+  return numbers
+    .map((_, i): StackPrNode | null => res?.repository?.[`pr${i}`] ?? null)
+    .filter(isOpenSameRepo)
+    .filter((node) => node.headRefName.match(GHSTACK_HEAD_REF)?.[1] === user);
+}
+
+const NATIVE_STACK_QUERY = `
+query ($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      stack {
+        entries(first: 100) {
+          totalCount
+          pageInfo { hasNextPage }
+          nodes { position pullRequest { ...StackPrFields } }
+        }
+      }
+    }
+  }
+}
+${STACK_PR_FIELDS}`;
+
+async function getOpenNativeStackNodes(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  direction: StackDirection
+): Promise<StackPrNode[] | null> {
+  const res: any = await octokit.graphql(NATIVE_STACK_QUERY, {
+    owner,
+    repo,
+    number: prNumber,
+  });
+  const stack = res?.repository?.pullRequest?.stack;
+  if (stack === null || stack === undefined) {
+    return null;
+  }
+  const page = stack.entries;
+  const nodes: any[] = page?.nodes ?? [];
+  if (
+    page?.pageInfo?.hasNextPage ||
+    page?.totalCount !== nodes.length ||
+    nodes.some((node) => node === null || node.pullRequest === null)
+  ) {
+    throw new Error(
+      `could not read all ${page?.totalCount} PRs in the stack of PR #${prNumber}`
+    );
+  }
+  const entries: StackPrNode[] = [...nodes]
+    .sort((a, b) => a.position - b.position)
+    .map((node) => node.pullRequest);
+  const here = entries.findIndex((pr) => pr.number === prNumber);
+  if (
+    here === -1 ||
+    entries.some((pr, i) => i !== here && pr.number === prNumber)
+  ) {
+    throw new Error(`the stack entries do not list PR #${prNumber} once`);
+  }
+  const inDirection =
+    direction === "above"
+      ? entries.slice(here + 1)
+      : entries.slice(0, here).reverse();
+  return inDirection.filter(isOpenSameRepo);
+}
+
+// Ref.compare(headRef) against the lower PR's ref as base: behindBy == 0 means
+// every commit of the lower ref is in the upper ref. A ref that does not
+// exist resolves to null (base) or a NOT_FOUND error with a null comparison
+// (head); either way that pair is not contained.
+async function filterContained(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  subjectRef: string,
+  nodes: StackPrNode[],
+  refOf: (_node: StackPrNode) => string,
+  direction: StackDirection
+): Promise<StackPrNode[]> {
+  if (nodes.length === 0) {
+    return [];
+  }
+  const params = nodes.map((_, i) => `$b${i}: String!, $h${i}: String!`);
+  const fields = nodes.map(
+    (_, i) =>
+      `c${i}: ref(qualifiedName: $b${i}) { compare(headRef: $h${i}) { behindBy status } }`
+  );
+  const query = `query ($owner: String!, $repo: String!, ${params.join(", ")}) {
+  repository(owner: $owner, name: $repo) {
+${fields.join("\n")}
+  }
+}`;
+  const variables: Record<string, string> = { owner, repo };
+  nodes.forEach((node, i) => {
+    const [lower, upper] =
+      direction === "above"
+        ? [subjectRef, refOf(node)]
+        : [refOf(node), subjectRef];
+    variables[`b${i}`] = `refs/heads/${lower}`;
+    variables[`h${i}`] = `refs/heads/${upper}`;
+  });
+  let res: any;
+  try {
+    res = await octokit.graphql(query, variables);
+  } catch (error) {
+    const e = error as { data?: unknown; errors?: { type?: string }[] };
+    if (
+      e.data === undefined ||
+      e.data === null ||
+      !e.errors?.every((err) => err.type === "NOT_FOUND")
+    ) {
+      throw error;
+    }
+    res = e.data;
+  }
+  return nodes.filter(
+    (_, i) => res?.repository?.[`c${i}`]?.compare?.behindBy === 0
+  );
+}
+
+const ghstackOrigRef = (headRef: string) => headRef.replace(/\/head$/, "/orig");
+
+/**
+ * The open same-repo PRs above or below a PR in its stack, nearest first,
+ * that contain the PR's current changes (above) or whose current changes the
+ * PR contains (below): a ghstack (head ref gh/<user>/<n>/head and ghstack's
+ * listing in the body; containment of the gh/<user>/<n>/orig branches) or a
+ * GitHub-native stack (the `stack` field of the pull_request object;
+ * containment of the head branches). A cross-repository PR is never stacked.
+ * "pending" means ghstack has not filled the listing in yet.
+ */
+export async function getOpenStackPrs(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  pr: {
+    number: number;
+    body: string | null | undefined;
+    headRef: string;
+    isCrossRepository: boolean;
+    stack?: NativeStackField | null;
+  },
+  direction: StackDirection
+): Promise<OpenStackPrs> {
+  if (pr.isCrossRepository) {
+    return { kind: "none" };
+  }
+  let nodes: StackPrNode[];
+  let refOf: (_headRef: string) => string;
+  const user = pr.headRef.match(GHSTACK_HEAD_REF)?.[1];
+  if (user !== undefined) {
+    const listing = parseGhstackListing(pr.body, pr.number);
+    if (listing.kind !== "stack") {
+      return listing;
+    }
+    nodes = await getOpenGhstackNodes(
+      octokit,
+      owner,
+      repo,
+      user,
+      listing[direction]
+    );
+    refOf = ghstackOrigRef;
+  } else if (pr.stack) {
+    if (
+      (direction === "above" && pr.stack.position >= pr.stack.size) ||
+      (direction === "below" && pr.stack.position <= 1)
+    ) {
+      return { kind: "stack", prs: [] };
+    }
+    const native = await getOpenNativeStackNodes(
+      octokit,
+      owner,
+      repo,
+      pr.number,
+      direction
+    );
+    if (native === null) {
+      return { kind: "none" };
+    }
+    nodes = native;
+    refOf = (headRef) => headRef;
+  } else {
+    return { kind: "none" };
+  }
+  const contained = await filterContained(
+    octokit,
+    owner,
+    repo,
+    refOf(pr.headRef),
+    nodes,
+    (node) => refOf(node.headRefName),
+    direction
+  );
+  const prs: StackPr[] = [];
+  for (const node of contained) {
+    prs.push(await toStackPr(octokit, owner, repo, node));
+  }
+  return { kind: "stack", prs };
+}
