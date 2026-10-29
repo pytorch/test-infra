@@ -17,6 +17,7 @@ import { removeJobNameSuffix } from "lib/jobUtils";
 import { IssueData, RecentWorkflowsData } from "lib/types";
 import nock from "nock";
 import * as updateDrciBot from "../pages/api/drci/drci";
+import * as utils from "./utils";
 import { genIssueData, getDummyJob } from "./utils";
 
 nock.disableNetConnect();
@@ -1339,5 +1340,153 @@ describe("isCiGoodForReview", () => {
         ...input,
       })
     ).toBe(expected);
+  });
+});
+
+describe("addCoveredCiflowNotes", () => {
+  const octokit = utils.testOctokit();
+  const labelerConfig = {
+    "module: dynamo": ["torch/_dynamo/**"],
+    "ciflow/inductor": ["torch/_dynamo/**"],
+    "ciflow/trunk": ["third_party/**"],
+  };
+  const getLabelerConfig = async () => labelerConfig;
+  const link = (n: number) =>
+    `[${n}](https://redirect.github.com/pytorch/pytorch/pull/${n})`;
+
+  function failedJob(id: number, headBranch: string, name = `job ${id}`) {
+    return getDummyJob({
+      id,
+      name,
+      conclusion: "failure",
+      pr_number: 3,
+      head_branch: headBranch,
+    });
+  }
+
+  // PRs below #3, nearest first: [number, files, labels].
+  function mockStackBelow(below: [number, string[], string[]][]) {
+    const listing = [
+      "Stack from [ghstack](https://github.com/ezyang/ghstack/tree/0.17.0) (oldest at bottom):",
+      "* __->__ #3",
+      ...below.map(([n]) => `* #${n}`),
+    ].join("\n");
+    const repository: any = {};
+    const compared: any = {};
+    below.forEach(([n, files, labels], i) => {
+      repository[`pr${i}`] = {
+        number: n,
+        state: "OPEN",
+        isDraft: false,
+        isCrossRepository: false,
+        headRefName: `gh/alice/${n}/head`,
+        labels: { nodes: labels.map((name) => ({ name })) },
+        changedFiles: files.length,
+        files: { nodes: files.map((path) => ({ path })) },
+      };
+      compared[`c${i}`] = { compare: { behindBy: 0, status: "AHEAD" } };
+    });
+    const sameRepo = { full_name: "pytorch/pytorch" };
+    return nock("https://api.github.com")
+      .get("/repos/pytorch/pytorch/pulls/3")
+      .reply(200, {
+        number: 3,
+        body: listing,
+        head: { ref: "gh/alice/3/head", repo: sameRepo },
+        base: { ref: "main", repo: sameRepo },
+        user: { login: "alice" },
+      })
+      .post("/graphql", (body) => body.query.includes("StackPrFields"))
+      .reply(200, { data: { repository } })
+      .post("/graphql", (body) => body.query.includes("compare("))
+      .reply(200, { data: { repository: compared } });
+  }
+
+  async function notes(jobs: RecentWorkflowsData[]) {
+    const relatedInfo = new Map<number, string>([[11, "earlier note"]]);
+    await updateDrciBot.addCoveredCiflowNotes(
+      octokit,
+      "pytorch",
+      "pytorch",
+      3,
+      jobs,
+      relatedInfo,
+      getLabelerConfig
+    );
+    return relatedInfo;
+  }
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  test("notes the PRs below a failing ciflow tag run covers, once per label", async () => {
+    const scope = mockStackBelow([
+      [2, ["torch/_dynamo/a.py"], []],
+      [1, ["docs/a.md"], []],
+    ]);
+    const relatedInfo = await notes([
+      failedJob(10, "ciflow/inductor/3", "b job"),
+      failedJob(11, "ciflow/inductor/3", "a job"),
+    ]);
+    scope.done();
+    expect(relatedInfo.get(11)).toEqual(
+      `earlier note; ciflow/inductor on this PR also tests PR ${link(
+        2
+      )} below it, which needs it and does not run it itself; the failure may come from that PR, which then needs the fix`
+    );
+    expect(relatedInfo.has(10)).toBe(false);
+  });
+
+  test("caps the list of covered PRs", async () => {
+    const below: [number, string[], string[]][] = Array.from(
+      { length: 12 },
+      (_, i) => [100 - i, ["torch/_dynamo/a.py"], []]
+    );
+    const scope = mockStackBelow(below);
+    const relatedInfo = await notes([failedJob(10, "ciflow/inductor/3")]);
+    scope.done();
+    const note = relatedInfo.get(10)!;
+    expect(note).toContain(`${link(100)}, ${link(99)}`);
+    expect(note).toContain(`${link(91)} and 2 more below it`);
+    expect(note).not.toContain(link(90));
+    expect(note).not.toContain("#");
+  });
+
+  test("a nearer PR below that carries the label stops the walk", async () => {
+    const scope = mockStackBelow([
+      [2, ["torch/_dynamo/a.py"], []],
+      [1, ["docs/a.md"], ["ciflow/inductor"]],
+      [0, ["torch/_dynamo/b.py"], []],
+    ]);
+    const relatedInfo = await notes([failedJob(10, "ciflow/inductor/3")]);
+    scope.done();
+    expect(relatedInfo.get(10)).toContain(`PR ${link(2)} below it`);
+    expect(relatedInfo.get(10)).not.toContain(link(0));
+  });
+
+  test("no GitHub call for a pull_request run or a label not in the labeler config", async () => {
+    const relatedInfo = await notes([
+      failedJob(10, "gh/alice/3/head"),
+      failedJob(12, "ciflow/inductor/33"),
+      failedJob(13, "ciflow/periodic/3"),
+    ]);
+    expect(Array.from(relatedInfo.keys())).toEqual([11]);
+  });
+
+  test("no note for a label no PR below needs", async () => {
+    const scope = mockStackBelow([[2, ["torch/_dynamo/a.py"], []]]);
+    const relatedInfo = await notes([failedJob(10, "ciflow/trunk/3")]);
+    scope.done();
+    expect(relatedInfo.has(10)).toBe(false);
+  });
+
+  test("no note when the PR below carries the label itself", async () => {
+    const scope = mockStackBelow([
+      [2, ["torch/_dynamo/a.py"], ["ciflow/inductor"]],
+    ]);
+    const relatedInfo = await notes([failedJob(10, "ciflow/inductor/3")]);
+    scope.done();
+    expect(relatedInfo.has(10)).toBe(false);
   });
 });
