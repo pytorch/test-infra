@@ -122,6 +122,8 @@ export interface RecentWorkflowsData extends BasicJobData {
   downstreamLevel?: string;
   /** CRCR downstream repo ("org/repo") — set by fetchCrcrWorkflows. */
   downstreamRepo?: string;
+  /** CRCR downstream triage verdict JSON, "" when none — set by fetchCrcrWorkflows. */
+  triageVerdictJson?: string;
 }
 
 export interface Artifact {

@@ -30,7 +30,8 @@ export async function fetchCrcrWorkflows(
       workflow_run_url AS html_url,
       pytorch_head_sha AS head_sha,
       downstream_repo,
-      downstream_repo_level
+      downstream_repo_level,
+      triage_verdict_json
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
       AND pr_number IN ({prNumbers:Array(UInt64)})
@@ -57,6 +58,7 @@ export async function fetchCrcrWorkflows(
     failure_context: [],
     downstreamLevel: row.downstream_repo_level || "",
     downstreamRepo: row.downstream_repo || "",
+    triageVerdictJson: row.triage_verdict_json || "",
   }));
 }
 

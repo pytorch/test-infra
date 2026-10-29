@@ -278,6 +278,7 @@ function constructResultsCommentHelper({
   repo = "pytorch",
   prNumber = 123,
   greenlightSection = "",
+  advisorLines = new Map(),
 }: {
   pending?: number;
   failedJobs?: RecentWorkflowsData[];
@@ -296,6 +297,7 @@ function constructResultsCommentHelper({
   repo?: string;
   prNumber?: number;
   greenlightSection?: string;
+  advisorLines?: Map<number, string>;
 }) {
   return updateDrciBot.constructResultsComment(
     pending,
@@ -317,7 +319,7 @@ function constructResultsCommentHelper({
     owner,
     repo,
     prNumber,
-    new Map(),
+    advisorLines,
     greenlightSection
   );
 }
@@ -674,6 +676,46 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s))
     ).toBeTruthy();
+  });
+
+  test("test CRCR L4 jobs stay blocking and L3 jobs non-blocking, each with its triage line", async () => {
+    const l4 = getDummyJob({
+      id: 7001,
+      name: "crcr/org/l4-repo/CI/test",
+      conclusion: "failure",
+      downstreamLevel: "L4",
+    });
+    const l3 = getDummyJob({
+      id: 7002,
+      name: "crcr/Ascend/pytorch/CI/test",
+      conclusion: "failure",
+      downstreamLevel: "L3",
+    });
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      failedJobs: [l4],
+      crcrL3Jobs: [l3],
+      advisorLines: new Map([
+        [7001, "  L4 TRIAGE LINE\n"],
+        [7002, "  L3 TRIAGE LINE\n"],
+      ]),
+    });
+
+    const newFailuresAt = failureInfoComment.indexOf("NEW FAILURE");
+    const nonBlockingAt = failureInfoComment.indexOf("CRCR (non-blocking)");
+    expect(newFailuresAt).toBeGreaterThan(-1);
+    expect(nonBlockingAt).toBeGreaterThan(newFailuresAt);
+    // The L4 job and its line sit under NEW FAILURES, the L3 pair under CRCR.
+    const blocking = failureInfoComment.slice(newFailuresAt, nonBlockingAt);
+    const nonBlocking = failureInfoComment.slice(nonBlockingAt);
+    expect(blocking).toContain("l4-repo");
+    expect(blocking).toContain("L4 TRIAGE LINE");
+    expect(blocking).not.toContain("L3 TRIAGE LINE");
+    expect(nonBlocking).toContain("Ascend/pytorch");
+    expect(nonBlocking).toContain("L3 TRIAGE LINE");
+    expect(nonBlocking).not.toContain("L4 TRIAGE LINE");
+    expect(failureInfoComment).toContain("1 New Failure, 1 Unrelated Failure");
+    expect(failureInfoComment).not.toContain("CLEARED BY DOWNSTREAM TRIAGE");
   });
 
   test("test the Green Light section is absent unless one is supplied", async () => {

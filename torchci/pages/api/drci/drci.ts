@@ -25,6 +25,7 @@ import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { updateInProgressLabels } from "lib/bot/preReviewUtils";
 import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
+import { buildCrcrTriageLines } from "lib/crcr/crcrTriage";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
   CANCELLED_STEP_ERROR,
@@ -563,6 +564,18 @@ export async function updateDrciComments(
         crcrL3Jobs = classified.crcrL3Jobs;
         // L4 failures are blocking — merge them into failedJobs
         failedJobs.push(...classified.crcrL4Jobs);
+        // The downstream repo's own triage verdict is shown under each CRCR job,
+        // L3 and L4 alike. It is advisory: it never moves a job between
+        // sections, so an L4 failure blocks whatever the verdict says.
+        for (const [id, line] of buildCrcrTriageLines(
+          [...classified.crcrL3Jobs, ...classified.crcrL4Jobs],
+          HUD_URL,
+          owner,
+          repo,
+          pr_info.pr_number
+        )) {
+          advisorLines.set(id, line);
+        }
       } catch (err) {
         // If CRCR fetch fails, log and proceed — don't block the Dr.CI update
         console.error("Failed to fetch CRCR workflows:", err);
@@ -1333,9 +1346,10 @@ export function constructResultsComment(
 
   // advisorLines is threaded only into the NEW FAILURES, UNCLASSIFIED and
   // advisor-cleared sections -- those are the only failures the advisor
-  // dispatches on. Broken-trunk / flaky / unstable / awaiting-approval jobs are
-  // already explained by their own section, so they intentionally get no
-  // verdict line.
+  // dispatches on -- and into CRCR (non-blocking), where it carries the
+  // downstream repo's own triage verdict (CRCR L4 jobs are in NEW FAILURES).
+  // Broken-trunk / flaky / unstable / awaiting-approval jobs are already
+  // explained by their own section, so they intentionally get no verdict line.
   if (newFailedJobs.length) {
     output += constructResultsJobsSections(
       hudBaseUrl,
@@ -1503,7 +1517,8 @@ export function constructResultsComment(
     true,
     relatedJobs,
     relatedIssues,
-    relatedInfo
+    relatedInfo,
+    advisorLines
   );
   return output;
 }
