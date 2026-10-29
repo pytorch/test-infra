@@ -102,21 +102,20 @@ class TestArgumentParsing(unittest.TestCase):
             "one of the arguments --sample-frac --sample-n is required", message
         )
 
-    def test_two_sample_sizes_are_refused(self):
-        message = self.rejected(
+    def test_a_fraction_and_a_cap_are_accepted_together(self):
+        args = options.build_parser().parse_args(
             [
                 "--input",
                 "c.csv",
                 "--policy-pr",
                 "1",
                 "--sample-frac",
-                "0.1",
+                "0.2",
                 "--sample-n",
-                "5",
+                "1000",
             ]
         )
-        self.assertIn("not allowed with argument", message)
-        self.assertIn("--sample-frac", message)
+        self.assertEqual((args.sample_frac, args.sample_n), (0.2, 1000))
 
     def test_a_fraction_outside_the_unit_interval_is_refused(self):
         message = self.rejected(

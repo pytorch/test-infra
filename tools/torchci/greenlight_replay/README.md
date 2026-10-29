@@ -68,7 +68,7 @@ under `--workdir` and to `--output`.
 | `--policy-pr` | — | test-infra pull request carrying the policy under test |
 | `--policy-ref` | — | a git ref or full commit SHA instead (the fetch checks a SHA); exactly one of the two is required |
 | `--sample-frac` | — | fraction of the framed rows to replay |
-| `--sample-n` | — | absolute count instead; exactly one of the two is required |
+| `--sample-n` | — | absolute count, or with `--sample-frac` the most it draws; at least one is required |
 | `--seed` | `0` | the same seed over the same frame draws the same sample |
 | `--parallelism` | `4` | concurrent reviewer runs |
 | `--output` | `greenlight_replay_<timestamp>.csv` | destination |

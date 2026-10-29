@@ -281,9 +281,8 @@ def sample_rows(
 ) -> list[dict[str, str]]:
     """Draw a reproducible subset of ``rows``, keeping them in input order.
 
-    Exactly one of ``frac`` and ``n`` must be given; passing both or neither raises
-    ``ValueError``, because a harness that silently preferred one would report a sample size
-    nobody asked for.
+    Give ``frac``, ``n`` or both: with both, ``n`` caps the share ``frac`` asks for. Passing
+    neither raises ``ValueError``.
 
     **Selection is by a hash of the seed and the pull request, never by position in the
     frame.** The corpus grows every day, so re-exporting between runs is ordinary, and a
@@ -302,15 +301,15 @@ def sample_rows(
     ``frac`` rounds up, so a nonzero share of a non-empty frame never sizes to nothing and
     cannot be mistaken for the frame having admitted nothing.
     """
-    if (frac is None) == (n is None):
-        raise ValueError("pass exactly one of frac or n")
+    if frac is None and n is None:
+        raise ValueError("pass frac, n or both")
 
     if frac is not None and not 0 < frac <= 1:
         raise ValueError(f"frac must be in (0, 1], got {frac!r}")
     if n is not None and n < 0:
         raise ValueError(f"n must not be negative, got {n!r}")
     size = sample_size(len(rows), frac, n)
-    if n is not None and size < n:
+    if frac is None and n is not None and size < n:
         logger.warning(
             "asked for %d rows but the frame holds %d; sampling all of them",
             n,

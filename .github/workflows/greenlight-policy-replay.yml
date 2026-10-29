@@ -14,7 +14,8 @@ name: GreenLight policy replay
 # jobs judge one sample only while that data does not change between their starts; compare excludes
 # a PR whose replayed head differs across runs. Credentials last an hour and are rewritten every
 # 15 minutes, so while that works a reviewer (at most 37 minutes) never outlives them. Cost:
-# replicates x 2 arms x GREENLIGHT_REPLAY_SAMPLE_SIZE reviewer runs, each at the harness's estimate.
+# replicates x 2 arms x the sample reviewer runs, each at the harness's estimate; the sample is
+# GREENLIGHT_REPLAY_SAMPLE_FRACTION of the decisions the frame keeps, at most GREENLIGHT_REPLAY_SAMPLE_CAP.
 
 on:
   push:
@@ -35,9 +36,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GREENLIGHT_DECISIONS_SAMPLE_FRACTION: "0.2"
-  GREENLIGHT_DECISIONS_SAMPLE_CAP: "1000"
-  GREENLIGHT_REPLAY_SAMPLE_SIZE: "30"
+  GREENLIGHT_REPLAY_SAMPLE_FRACTION: "0.2"
+  GREENLIGHT_REPLAY_SAMPLE_CAP: "1000"
   GREENLIGHT_REPLAY_SEED: "0"
   GREENLIGHT_REPLAY_REPLICATES: "[1, 2, 3]"  # One replay job per entry and arm; the report compares one run directory each.
   GREENLIGHT_REPLAY_PARALLELISM: "8"  # Reviewer sessions per replay job; every replay job runs at once.
@@ -48,7 +48,7 @@ env:
   AWS_REGION: us-east-1
   BEDROCK_ROLE_ARN: arn:aws:iam::308535385114:role/gha_workflow_claude_code
   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
-  DECISIONS_RETENTION_DAYS: "1"  # The decisions export is a public intermediate holding a sample of the decision history.
+  DECISIONS_RETENTION_DAYS: "1"  # The decisions export is a public intermediate holding the whole decision history.
   ARTIFACT_RETENTION_DAYS: "30"
 
 jobs:
@@ -146,13 +146,9 @@ jobs:
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           GH_TOKEN: ${{ github.token }}
         # Any non-zero exit fails the job, including 3: a degraded export would bias the frame the replays sample from.
-        # The replay's seed makes the export rank decisions exactly as the harness's sample does, so the replays draw the
-        # same PRs as from a full export whenever the kept share holds GREENLIGHT_REPLAY_SAMPLE_SIZE PRs the frame admits.
         run: |
           set -euo pipefail
-          PYTHONPATH=. python3 -m torchci.greenlight_decisions --output "$RUNNER_TEMP/greenlight-decisions.csv" \
-            --sample-frac "$GREENLIGHT_DECISIONS_SAMPLE_FRACTION" --sample-cap "$GREENLIGHT_DECISIONS_SAMPLE_CAP" \
-            --seed "$GREENLIGHT_REPLAY_SEED"
+          PYTHONPATH=. python3 -m torchci.greenlight_decisions --output "$RUNNER_TEMP/greenlight-decisions.csv"
 
       - name: Upload the decisions
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -309,7 +305,8 @@ jobs:
           PYTHONPATH=. python3 -m torchci.greenlight_replay \
             --input "$RUNNER_TEMP/greenlight-decisions/greenlight-decisions.csv" \
             --policy-ref "$policy_sha" \
-            --sample-n "$GREENLIGHT_REPLAY_SAMPLE_SIZE" \
+            --sample-frac "$GREENLIGHT_REPLAY_SAMPLE_FRACTION" \
+            --sample-n "$GREENLIGHT_REPLAY_SAMPLE_CAP" \
             --seed "$GREENLIGHT_REPLAY_SEED" \
             --parallelism "$GREENLIGHT_REPLAY_PARALLELISM" \
             --context-window "$GREENLIGHT_REPLAY_CONTEXT_WINDOW" \

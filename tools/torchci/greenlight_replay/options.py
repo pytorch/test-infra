@@ -27,8 +27,16 @@ DEFAULT_TIMEOUT_MINUTES = 37
 DEFAULT_WORKDIR = "/tmp/greenlight-replay"
 
 
+class _Parser(argparse.ArgumentParser):
+    def parse_known_args(self, args=None, namespace=None):
+        parsed, extras = super().parse_known_args(args, namespace)
+        if parsed.sample_frac is None and parsed.sample_n is None:
+            self.error("one of the arguments --sample-frac --sample-n is required")
+        return parsed, extras
+
+
 def build_parser(description: str | None = None) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="greenlight_replay",
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -49,12 +57,13 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
         help=f"git ref in {DEFAULT_POLICY_REPO} to take the policy from, or a full "
         "40-character commit SHA",
     )
-    size = parser.add_mutually_exclusive_group(required=True)
-    size.add_argument(
+    parser.add_argument(
         "--sample-frac", type=fraction, help="fraction of the framed rows to replay"
     )
-    size.add_argument(
-        "--sample-n", type=positive_int, help="how many framed rows to replay"
+    parser.add_argument(
+        "--sample-n",
+        type=positive_int,
+        help="how many framed rows to replay; with --sample-frac, the most it draws",
     )
     parser.add_argument(
         "--seed",

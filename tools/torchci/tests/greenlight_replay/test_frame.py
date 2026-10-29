@@ -744,9 +744,18 @@ class TestSampleRows(unittest.TestCase):
             drawn = frame.sample_rows(rows, n=4, seed=1)
         self.assertEqual(self.numbers(drawn), self.numbers(rows))
 
-    def test_passing_both_frac_and_n_is_rejected(self):
-        with self.assertRaises(ValueError):
-            frame.sample_rows(self.rows(), frac=0.5, n=10, seed=1)
+    def test_n_caps_frac_when_both_are_given(self):
+        rows = self.rows(50)
+        share = self.numbers(frame.sample_rows(rows, frac=0.2, n=99, seed=1))
+        capped = self.numbers(frame.sample_rows(rows, frac=0.2, n=4, seed=1))
+        self.assertEqual(len(share), 10)
+        self.assertEqual(len(capped), 4)
+        self.assertLessEqual(set(capped), set(share))
+
+    def test_a_cap_above_the_share_draws_the_share_quietly(self):
+        with self.assertNoLogs(frame.logger, level="WARNING"):
+            drawn = frame.sample_rows(self.rows(50), frac=0.2, n=1000, seed=1)
+        self.assertEqual(len(drawn), 10)
 
     def test_passing_neither_frac_nor_n_is_rejected(self):
         with self.assertRaises(ValueError):

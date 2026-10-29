@@ -60,9 +60,10 @@ TRUNCATION_NOTE = (
 _CLOSE_DETAILS = "\n\n</details>"
 
 HOW_TO_READ = f"""\
-- **Sample.** The harness's replay frame: landed PRs whose original GreenLight \
-verdict is recoverable, size-gate declines excluded. It is not every PR GreenLight \
-reviewed. The PR count above is every PR seen in any run of either arm.
+- **Sample.** A seeded sample of the harness's replay frame: landed PRs whose \
+original GreenLight verdict is recoverable, size-gate declines excluded. It is not \
+every PR GreenLight reviewed. The PR count above is every PR seen in any run of \
+either arm.
 - **Outcomes.** Each run gives each PR one outcome: `{LAND}`, `{NO_LAND}`, \
 `{FAILED}` (a row with no policy verdict, reason `{HARNESS_REASON_PREFIX}<outcome>`), \
 or `{MISSING}` (no row: the PR never reached the reviewer, or the run produced nothing).
