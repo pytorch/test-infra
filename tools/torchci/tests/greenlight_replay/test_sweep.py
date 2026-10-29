@@ -31,6 +31,11 @@ from torchci.greenlight_replay import (
 from torchci.greenlight_replay.runner import DEFAULT_MODEL, Outcome
 
 
+BEDROCK_SWITCH = "CLAUDE_CODE_USE_BEDROCK"
+UNMAPPED_PROFILE = "global.anthropic.claude-something-else"
+POLICY_SHA = "be63f651c37edd81480004d96d22c4e8341456f1"
+
+
 def setUpModule():
     logging.disable(logging.CRITICAL)
 
@@ -130,10 +135,17 @@ class TestWorkspaceLayout(unittest.TestCase):
 
 class TestModelMapping(unittest.TestCase):
     """The policy names a Bedrock inference profile, read verbatim out of the CI
-    workflow. Passed through it turns every run into an API error, because the
-    runner asserts modelUsage names the model it asked for; quietly replaced by
-    a default it reviews the new policy on the model the new policy replaced,
-    and reads as a clean sweep. Neither may happen silently."""
+    workflow. Off Bedrock, passed through it turns every run into an API error,
+    because the runner asserts modelUsage names the model it asked for; quietly
+    replaced by a default it reviews the new policy on the model the new policy
+    replaced, and reads as a clean sweep. Neither may happen silently."""
+
+    def setUp(self):
+        # A developer whose own shell exports the switch must not flip these cases.
+        environ = mock.patch.dict(os.environ, clear=False)
+        environ.start()
+        self.addCleanup(environ.stop)
+        os.environ.pop(BEDROCK_SWITCH, None)
 
     def test_the_profile_is_mapped_to_the_local_name(self):
         fakes = Fakes([replay_row(194379)])
@@ -145,7 +157,7 @@ class TestModelMapping(unittest.TestCase):
     def test_an_unmapped_profile_stops_the_sweep_before_it_spends(self):
         fakes = Fakes(
             [replay_row(n) for n in (194379, 194772)],
-            policy_model="global.anthropic.claude-something-else",
+            policy_model=UNMAPPED_PROFILE,
         )
         with run_replay(fakes, ["--parallelism", "1"]) as (code, output):
             self.assertEqual(code, cli.EXIT_FAILED)
@@ -153,9 +165,7 @@ class TestModelMapping(unittest.TestCase):
         self.assertEqual(fakes.reviewed, [])
 
     def test_the_model_flag_overrides_an_unmapped_profile(self):
-        fakes = Fakes(
-            [replay_row(194379)], policy_model="global.anthropic.claude-something-else"
-        )
+        fakes = Fakes([replay_row(194379)], policy_model=UNMAPPED_PROFILE)
         with run_replay(
             fakes, ["--parallelism", "1", "--model", "claude-sonnet-5"]
         ) as (code, _):
@@ -167,6 +177,46 @@ class TestModelMapping(unittest.TestCase):
             sweep_module.local_model("nope")
         self.assertIn(POLICY_MODEL, str(caught.exception))
         self.assertIn("--model", str(caught.exception))
+
+    def test_a_switch_value_that_is_not_on_still_maps_and_refuses(self):
+        for switch in ("", "0", "false", "yes"):
+            with self.subTest(switch=switch):
+                with mock.patch.dict(os.environ, {BEDROCK_SWITCH: switch}, clear=False):
+                    self.assertEqual(
+                        sweep_module.local_model(POLICY_MODEL), DEFAULT_MODEL
+                    )
+                    with self.assertRaises(ValueError):
+                        sweep_module.local_model(UNMAPPED_PROFILE)
+
+
+class TestBedrockModel(unittest.TestCase):
+    """On Claude Code's Bedrock provider the policy's inference profile is itself
+    the model id the CLI takes, so it passes through unmapped, an unknown one
+    included. --model still overrides it, as it does off Bedrock.
+
+    run_replay hides the switch from the environment, so the cases that go
+    through it turn Bedrock on at the predicate sweep reads instead."""
+
+    def test_the_profile_passes_through_verbatim(self):
+        with mock.patch.dict(os.environ, {BEDROCK_SWITCH: "1"}, clear=False):
+            for profile in (POLICY_MODEL, UNMAPPED_PROFILE):
+                with self.subTest(profile=profile):
+                    self.assertEqual(sweep_module.local_model(profile), profile)
+
+    def test_the_reviewer_is_asked_for_the_profile(self):
+        fakes = Fakes([replay_row(194379)], policy_model=UNMAPPED_PROFILE)
+        with mock.patch.object(sweep_module, "bedrock_enabled", return_value=True):
+            with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
+                self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(fakes.models, [UNMAPPED_PROFILE])
+
+    def test_the_model_flag_still_overrides_the_profile(self):
+        fakes = Fakes([replay_row(194379)])
+        argv = ["--parallelism", "1", "--model", "claude-sonnet-5"]
+        with mock.patch.object(sweep_module, "bedrock_enabled", return_value=True):
+            with run_replay(fakes, argv) as (code, _):
+                self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(fakes.models, ["claude-sonnet-5"])
 
 
 class TestCircuitBreaker(unittest.TestCase):
@@ -317,6 +367,41 @@ class TestStartupChecks(unittest.TestCase):
         # check asked the remote about the ref the real fetch will use.
         self.assertIn("refs/pull/8830/head", str(caught.exception))
         self.assertIn("pytorch/test-infra", str(caught.exception))
+
+    def test_a_full_commit_sha_is_left_to_the_policy_fetch(self):
+        # ls-remote matches ref names only and exits 2 on any SHA, so asking it
+        # would refuse every policy pinned by commit.
+        with mock.patch.object(preflight_module.subprocess, "run") as run:
+            preflight_module.check_policy_ref(POLICY_SHA)
+        run.assert_not_called()
+
+    def test_anything_short_of_a_full_lowercase_sha_still_asks_ls_remote(self):
+        cases = {
+            POLICY_SHA.upper(): POLICY_SHA.upper(),
+            POLICY_SHA[:39]: POLICY_SHA[:39],
+            "8830": "refs/pull/8830/head",
+            "main": "main",
+        }
+        url = "https://github.com/pytorch/test-infra.git"
+        for ref, wanted in cases.items():
+            with self.subTest(ref=ref):
+                found = SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+                with mock.patch.object(
+                    preflight_module.subprocess, "run", return_value=found
+                ) as run:
+                    preflight_module.check_policy_ref(ref)
+                run.assert_called_once()
+                self.assertEqual(
+                    run.call_args.args[0],
+                    ["git", "ls-remote", "--exit-code", url, wanted],
+                )
+                missing = SimpleNamespace(returncode=2, stdout=b"", stderr=b"")
+                with mock.patch.object(
+                    preflight_module.subprocess, "run", return_value=missing
+                ):
+                    with self.assertRaises(ValueError) as caught:
+                        preflight_module.check_policy_ref(ref)
+                self.assertIn(wanted, str(caught.exception))
 
     def test_a_missing_reviewer_binary_is_named(self):
         with tempfile.TemporaryDirectory() as empty:

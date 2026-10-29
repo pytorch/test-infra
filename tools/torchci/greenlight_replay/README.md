@@ -27,14 +27,13 @@ $40 and runs for over an hour at the default parallelism.
 
 The dry run makes every check a real run makes short of invoking a model, and
 prints what it checked and what it did not. It confirms the scratch root is
-usable, the reviewer's binaries are on the PATH the reviewer will get, the policy
-ref exists on the remote, and then it fetches the policy and checks it: the
-workflow parses, the diff caps and canned verdict are readable, a stack step, if
-there is one, is a version the harness recognises, the verdict schema uses
-only keywords the harness implements, every hook script resolves, and the
-inference profile maps to a local model. That costs a few seconds and about
-34 MB. Fetching twice is safe — materializing clears its destination and
-re-extracts — so a dry run does not spoil the real run after it.
+usable, the binaries are on the reviewer's PATH and the policy ref exists on the
+remote, then fetches the policy and checks it: the workflow parses, the diff caps
+and canned verdict are readable, any stack step is a version the harness
+recognises, the verdict schema uses only keywords the harness implements, every
+hook script resolves, and the inference profile maps to a model. That costs a few
+seconds and about 34 MB. Fetching twice is safe: materializing clears its
+destination and re-extracts, so a dry run does not spoil the real run after it.
 
 What it does not do is the per-run work: the blobless pytorch clone, the worktree
 slots, and each pull request's diff, metadata and stack context. Those are
@@ -51,10 +50,10 @@ Runtime requirements:
   proxy variables are set are forwarded to the reviewer, which does need them.
 - `gh`, authenticated, for the diff, the pull request metadata and the stack
   context: its GraphQL reads through `gh api graphql`, and each sibling's diff
-  through a REST compare. `git` for the clones. `claude` and GNU `timeout` for
-  the reviewer itself — the reviewer's `PATH` is pinned rather than inherited, so
-  both must be reachable from `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`. The
-  sweep checks this before it starts.
+  through a REST compare. `git` for the clones. `claude` and GNU `timeout` for the
+  reviewer, whose `PATH` is pinned rather than inherited, so both must be
+  reachable from `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`; the sweep checks
+  this before it starts. On Bedrock, `AWS_REGION` and credentials in `~/.aws`.
 - Disk: one blobless pytorch clone plus a worktree per `--parallelism`, a second
   sparse clone of pytorch main for the sanitize step, and the policy tree.
   Roughly 1.2-1.8 GB per policy pull request at the default parallelism, kept
@@ -67,9 +66,9 @@ under `--workdir` and to `--output`.
 | --- | --- | --- |
 | `--input` | required | the CSV from `python3 -m torchci.greenlight_decisions` |
 | `--policy-pr` | — | test-infra pull request carrying the policy under test |
-| `--policy-ref` | — | a git ref instead; exactly one of the two is required |
+| `--policy-ref` | — | a git ref or full commit SHA instead (the fetch checks a SHA); exactly one of the two is required |
 | `--sample-frac` | — | fraction of the framed rows to replay |
-| `--sample-n` | — | absolute count instead; exactly one of the two is required |
+| `--sample-n` | — | absolute count, or with `--sample-frac` the most it draws; at least one is required |
 | `--seed` | `0` | the same seed over the same frame draws the same sample |
 | `--parallelism` | `4` | concurrent reviewer runs |
 | `--output` | `greenlight_replay_<timestamp>.csv` | destination |
@@ -77,8 +76,8 @@ under `--workdir` and to `--output`.
 | `--resume` | off | re-run only what has no verdict yet |
 | `--timeout-minutes` | `37` | wall clock allowed per reviewer run |
 | `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to |
-| `--model` | whatever the policy's profile maps to | model id for the local CLI |
-| `--context-window` | `1000000` | window that model must report; pair it with `--model` |
+| `--model` | the policy's profile, mapped unless on Bedrock | model id for the local CLI |
+| `--context-window` | `1000000` | window that model must report; pair it with `--model` or Bedrock |
 | `--dry-run` | off | resolve the frame and sample, check the invocation, print the bill |
 
 `.gitignore` covers `greenlight_replay_*.csv`, but pointing `--output` somewhere
@@ -113,7 +112,7 @@ the policy steps.
 
 The reviewer also does not repeat itself. Asked twice about the *same* head SHA
 it returned a different status 13 times out of 71 repeated pairs — 18.3%, 95%
-confidence interval 11.0% to 28.9%. So on a 30-row sample, five or six flips are
+confidence interval 11.0% to 28.8%. So on a 30-row sample, five or six flips are
 the expected noise floor before the policy has done anything at all.
 
 Quantifying a policy effect needs a control arm — the same sampled pull requests
@@ -145,16 +144,17 @@ the same way: `new_decision` blank and `new_decision_reason` prefixed with
 prefix before counting anything, and check the exit status: a `3` means more than
 half the runs are that shape and the file is describing an outage.
 
-**5. This is not a re-run of CI.** See the deviations below. The serving path, the
-context window and the comment set all differ, and none is a controlled variable
-here — a difference between `decision` and `new_decision` can come from any of
-them as easily as from the policy. That is the same confound as misreading 1 from
-a second direction, and another reason a control arm run on *this* harness is
-what a measurement would need.
+**5. This is not a re-run of CI.** See the deviations below. The serving path,
+the context window and the comment set can all differ, and none is a controlled
+variable here — a difference between `decision` and `new_decision` can come from
+any of them as easily as from the policy. That is misreading 1's confound from a
+second direction, and another reason a measurement needs a control arm run on
+*this* harness. CI's `greenlight-policy-replay.yml` runs that control arm beside
+the pull request's own, three times each on Bedrock; `compare.py` compares them.
 
 ## What gets replayed
 
-The input is every pull request greenlight has state for. The frame keeps the
+The input is every pull request the export kept. The frame keeps the
 ones whose stored verdict can be held against something that actually happened,
 and the run logs the funnel it applied, one counter per stage. Each row is
 charged to the first stage that rejects it, so the counts partition the input.
@@ -334,17 +334,17 @@ correct against a CLI that chains `updatedInput` between hooks, where a run
 directory outside the prefix would instead deny every read.
 
 **The model is mapped, not defaulted.** The policy names a Bedrock inference
-profile (`global.anthropic.claude-opus-5`), which does not resolve against the
-local gateway, and the runner asserts that the model which answered is the one it
-asked for — so passing the profile through turns every run into an error. Quietly
-substituting a default is worse: a policy pull request that switches models would
-be replayed on the model it replaced and read as a clean sweep of the new policy.
-So `sweep.LOCAL_MODELS` translates the profile, an unrecognised one stops the
-sweep before the clone, and `--model` is the explicit override. **Pair `--model`
-with `--context-window`**: the runner rejects a run whose reported window is not
-the one it asked for, so a model served at a different window fails every review.
-The warm-up catches that after one run rather than thirty, but setting both is
-cheaper than finding out.
+profile, which the local gateway does not resolve, and the runner asserts that the
+model which answered is the one it asked for, so passing it through fails every
+run. Quietly substituting a default is worse: a policy pull request that switches
+models would replay on the model it replaced and read as a clean sweep of the new
+policy. So `sweep.LOCAL_MODELS` translates the profile, an unrecognised one, such
+as today's, stops the sweep before the clone, and `--model` overrides it. With
+`CLAUDE_CODE_USE_BEDROCK=1` the profile passes through as the CLI's model id.
+**Pair `--model`, or Bedrock, with `--context-window`**: a run reporting any other
+window is rejected, so every review fails. The warm-up catches that after one run,
+not thirty, but setting both is cheaper than finding out. CI keeps its window
+beside its CLI pin in `greenlight-policy-replay.yml`; the two change together.
 
 ## How this differs from CI
 
@@ -352,9 +352,9 @@ Six deviations, taken deliberately:
 
 - **Different serving.** CI runs the model through Bedrock at a 200k context
   window. This runs it through a local gateway at 1M. Same model, different
-  serving path and different window.
+  serving path and different window. A Bedrock run on CI's CLI removes both.
 - **Different CLI build.** The local `claude` is whatever is installed, not the
-  build `anthropics/claude-code-action` pins.
+  build `anthropics/claude-code-action` pins, which the CI replay installs.
 - **Different comment set.** The reviewer sees only comments created strictly
   before the replayed verdict, which is the point — it must not read what was
   written in response to the verdict it is reproducing. A comment whose

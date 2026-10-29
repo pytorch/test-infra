@@ -1,8 +1,10 @@
 """Export one CSV row per pull request greenlight has evaluated.
 
 Reads the verdicts and PR metadata from ClickHouse, then measures the size of
-the diff each verdict actually judged via the GitHub compare API. See README.md
-for what the columns do and do not mean.
+the diff each verdict actually judged via the GitHub compare API. With
+--sample-frac or --sample-cap it keeps a reproducible sample of the pull
+requests before any GitHub call. See README.md for what the columns do and do
+not mean.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from torchci.greenlight_decisions.rows import (
     to_utc_naive,
     write_csv,
 )
+from torchci.greenlight_decisions.sample import DEFAULT_SEED, sample_decisions
 
 
 if TYPE_CHECKING:
@@ -62,6 +65,20 @@ def parse_as_of(text: str) -> datetime:
     return to_utc_naive(parsed)
 
 
+def fraction(text: str) -> float:
+    value = float(text)
+    if not 0.0 < value <= 1.0:
+        raise argparse.ArgumentTypeError(f"must be in (0, 1]: {text!r}")
+    return value
+
+
+def positive_int(text: str) -> int:
+    value = int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1: {text!r}")
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="greenlight_decisions",
@@ -89,6 +106,27 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-loc",
         action="store_true",
         help="skip the GitHub compare calls and leave the LOC columns blank",
+    )
+    parser.add_argument(
+        "--sample-frac",
+        type=fraction,
+        default=None,
+        help="export this share of the pull requests, in (0, 1], rounded up "
+        "(default: all of them)",
+    )
+    parser.add_argument(
+        "--sample-cap",
+        type=positive_int,
+        default=None,
+        help="export at most this many pull requests (default: no cap)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_SEED,
+        help="sampling seed, used only with --sample-frac or --sample-cap; "
+        "greenlight_replay --seed ranks pull requests the same way "
+        "(default: %(default)s)",
     )
     return parser
 
@@ -142,6 +180,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             snapshot_at,
         )
         return EXIT_FAILED
+
+    if args.sample_frac is not None or args.sample_cap is not None:
+        sampled = sample_decisions(
+            decisions, frac=args.sample_frac, cap=args.sample_cap, seed=args.seed
+        )
+        logger.info(
+            "sampled %d of %d decisions (frac=%s, cap=%s, seed=%d)",
+            len(sampled),
+            len(decisions),
+            args.sample_frac,
+            args.sample_cap,
+            args.seed,
+        )
+        decisions = sampled
 
     rows = collect_rows(args.repo, decisions, snapshot_at, skip_loc=args.skip_loc)
     try:

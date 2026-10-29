@@ -64,12 +64,9 @@ __all__ = [
     "SCRUBBED_GIT_VARS",
     "WorktreePool",
     "git_env",
-    "materialize_trusted_skills",
 ]
 
 PYTORCH_REPO_URL = "https://github.com/pytorch/pytorch.git"
-
-TRUSTED_SKILLS_SUBPATH = ".claude/skills"
 
 # restrict-read.py hardcodes <workspace>/pytorch as the checkout it will serve reads from.
 PYTORCH_CHECKOUT_DIRNAME = "pytorch"
@@ -156,64 +153,6 @@ def _git(
             f"{completed.stderr.strip()}"
         )
     return completed
-
-
-def materialize_trusted_skills(
-    dest: Path,
-    *,
-    repo_url: str = PYTORCH_REPO_URL,
-    ref: str = "main",
-) -> Path:
-    """Check out pytorch ``main``'s ``.claude/skills`` once, for the sanitize step.
-
-    ``sanitize-untrusted-checkout.sh`` takes TWO required arguments -- the untrusted
-    checkout and a directory to restore trusted skills FROM -- and exits 1 when given one.
-    CI supplies the second from a separate sparse checkout of pytorch main, and this is the
-    local equivalent. The second argument must never point at the policy tree: that would
-    copy greenlight's own reviewer skill into the tree being reviewed.
-
-    Returns ``dest``, the directory to pass as the sanitize script's second argument.
-    """
-    _require_url(repo_url)
-    dest = dest.resolve()
-    if (dest / TRUSTED_SKILLS_SUBPATH).is_dir():
-        return dest
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    # The PARENT of the directory git is asked to work in. A ceiling equal to the process
-    # working directory is ignored outright, so `ceiling=dest.parent` while cloning FROM
-    # dest.parent confines nothing.
-    ceiling = dest.parent.parent
-    if (dest / ".git").exists():
-        # Loud rather than silent, and deliberately the same stance policy._clear_destination
-        # takes: a .git here is either a half-finished clone whose skills tree never
-        # materialized -- which a silent skip would make permanent, since the guard would
-        # keep seeing .git and never re-clone -- or somebody's real checkout, which must
-        # not be written into either way.
-        raise GitError(
-            f"{dest} already holds a .git but no {TRUSTED_SKILLS_SUBPATH}; it is either a "
-            "half-finished clone or a real checkout. Remove it and re-run."
-        )
-    _git(
-        [
-            "clone",
-            "--filter=blob:none",
-            "--sparse",
-            "--depth=1",
-            "--no-tags",
-            "--branch",
-            ref,
-            repo_url,
-            str(dest),
-        ],
-        cwd=dest.parent,
-        ceiling=ceiling,
-    )
-    _git(["sparse-checkout", "set", TRUSTED_SKILLS_SUBPATH], cwd=dest, ceiling=ceiling)
-    if not (dest / TRUSTED_SKILLS_SUBPATH).is_dir():
-        raise GitError(
-            f"{ref} of {repo_url} produced no {TRUSTED_SKILLS_SUBPATH} in {dest}"
-        )
-    return dest
 
 
 class WorktreePool:

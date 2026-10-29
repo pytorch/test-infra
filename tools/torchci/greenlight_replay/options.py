@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import argparse
 
+from torchci.greenlight_decisions.__main__ import fraction, positive_int
 from torchci.greenlight_decisions.query import DEFAULT_REPO
+from torchci.greenlight_decisions.sample import DEFAULT_SEED
 from torchci.greenlight_replay.policy import DEFAULT_POLICY_REPO
 from torchci.greenlight_replay.runner import DEFAULT_CONTEXT_WINDOW
 
 
 DEFAULT_PARALLELISM = 4
-DEFAULT_SEED = 0
 DEFAULT_TIMEOUT_MINUTES = 37
 
 # Must stay under a top-level /tmp/greenlight-* directory. restrict-read.py's
@@ -26,22 +27,16 @@ DEFAULT_TIMEOUT_MINUTES = 37
 DEFAULT_WORKDIR = "/tmp/greenlight-replay"
 
 
-def fraction(text: str) -> float:
-    value = float(text)
-    if not 0.0 < value <= 1.0:
-        raise argparse.ArgumentTypeError(f"must be in (0, 1]: {text!r}")
-    return value
-
-
-def positive_int(text: str) -> int:
-    value = int(text)
-    if value < 1:
-        raise argparse.ArgumentTypeError(f"must be at least 1: {text!r}")
-    return value
+class _Parser(argparse.ArgumentParser):
+    def parse_known_args(self, args=None, namespace=None):
+        parsed, extras = super().parse_known_args(args, namespace)
+        if parsed.sample_frac is None and parsed.sample_n is None:
+            self.error("one of the arguments --sample-frac --sample-n is required")
+        return parsed, extras
 
 
 def build_parser(description: str | None = None) -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="greenlight_replay",
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -58,14 +53,17 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
         help=f"{DEFAULT_POLICY_REPO} pull request carrying the policy under test",
     )
     policy.add_argument(
-        "--policy-ref", help=f"git ref in {DEFAULT_POLICY_REPO} to take the policy from"
+        "--policy-ref",
+        help=f"git ref in {DEFAULT_POLICY_REPO} to take the policy from, or a full "
+        "40-character commit SHA",
     )
-    size = parser.add_mutually_exclusive_group(required=True)
-    size.add_argument(
+    parser.add_argument(
         "--sample-frac", type=fraction, help="fraction of the framed rows to replay"
     )
-    size.add_argument(
-        "--sample-n", type=positive_int, help="how many framed rows to replay"
+    parser.add_argument(
+        "--sample-n",
+        type=positive_int,
+        help="how many framed rows to replay; with --sample-frac, the most it draws",
     )
     parser.add_argument(
         "--seed",
