@@ -1,11 +1,12 @@
 """The markdown of the base-versus-PR replay comparison.
 
 ``compare`` validates what it reads and ``compare_stats`` counts it; this module
-only lays the result out. What keeps the comment safe to post is therefore
-stated once, over there: every value printed here is a number, a fixed string of
-this module's or ``compare_stats``', or a field of a ``Row``, which holds nothing
-that failed validation. Nothing is escaped because nothing that could need
-escaping reaches this module.
+and ``compare_tables`` only lay the result out. What keeps the comment safe to
+post is therefore stated once, over there: every value either module prints is a
+number, a fixed string, a commit SHA or the run URL ``compare`` validated, a run
+label it sanitized, or a field of a ``Row``, which holds nothing that failed
+validation. Nothing is escaped because nothing that could need escaping reaches
+these modules.
 
 GitHub rejects a comment longer than 65536 characters. The full comment is tried
 first. Past ``MAX_CHARS`` every pull request table is capped and points at the
@@ -15,42 +16,42 @@ cut, with a note saying so.
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Callable, Sequence
-from operator import attrgetter
 
 from torchci.greenlight_replay.compare_stats import (
     Arm,
     Comparison,
+    CONFIDENCE,
     FAILED,
     INVALID_REASON,
     LAND,
     MIN_VERDICTS,
     NO_LAND,
     Pr,
-    PrArm,
-    Run,
+    Proportion,
+)
+from torchci.greenlight_replay.compare_tables import (
+    BASE,
+    CHANGE,
+    Column,
+    count_table,
+    details,
+    EXCLUDED_COLUMNS,
+    FLIP_COLUMNS,
+    markdown_table,
+    MISSING,
+    pr_table,
+    run_health,
+    UNSTABLE_BASE_COLUMNS,
+    UNSTABLE_CHANGE_COLUMNS,
 )
 from torchci.greenlight_replay.verdict_cells import HARNESS_REASON_PREFIX
 
 
-Column = tuple[str, Callable[[Pr], str]]
-
 MAX_CHARS = 65000
 CAPPED_ROWS = 25
 
-# A github.com link to a pull request leaves a backlink on it; GitHub documents
-# redirect.github.com as the way to link without one.
-PR_URL = "https://redirect.github.com/{repo}/pull/{number}"
-SEPARATOR = " · "
-MISSING = "—"
 ARROW = "→"
-BASE = "Base"
-CHANGE = "This PR"
-
-# The harness's exit codes (greenlight_replay.__main__.EXIT_*), restated because the
-# entry point imports third-party packages and the report job installs none.
-EXIT_MEANINGS = {0: "complete", 1: "failed", 3: "degraded"}
 
 TRUNCATION_NOTE = (
     f"\n\n*Cut at {MAX_CHARS} characters to fit in a GitHub comment; the replay "
@@ -87,6 +88,15 @@ flips) / comparable. A direction runs from the base majority to this PR's majori
 Newly stable is the reverse.
 - **Majority LAND rate**: comparable PRs whose majority is {LAND}, over the \
 comparable PRs that have a majority in that arm.
+- **Intervals.** Each percentage comes with its {CONFIDENCE:.0%} Wilson score \
+interval (CI), whose sample size counts PRs, never runs: the runs of one PR are not \
+independent. The LAND rate and the run-to-run flip rate pool rows and pairs of runs, \
+so their intervals count the PRs that contribute to them, shown as "over k PRs". \
+Such a PR's own rate lies between 0 and 1, so its variance is at most p(1-p), p being \
+the rate, as for one yes-or-no outcome: counting each PR once gives an interval at \
+least as wide as needed when the PRs contribute equally many rows or pairs, and close \
+to it otherwise. Overlapping intervals do not show that the arms are the same: both \
+arms reviewed the same PRs, and the flips compare them PR by PR.
 - **Reason codes** count the reason of every verdict; `{INVALID_REASON}` marks a \
 reason that is not a well-formed reason code.
 - **Attribution.** Each arm uses its policy commit's skill, verdict schema, hooks and \
@@ -115,12 +125,12 @@ def _document(
     if not (c.base.runs_with_rows or c.change.runs_with_rows):
         sections += [
             "No replay run produced results, so there is nothing to compare.",
-            _run_health(c),
+            run_health(c),
         ]
         return "\n\n".join(sections) + "\n"
 
     def table(prs: Sequence[Pr], columns: Sequence[Column]) -> str:
-        return _pr_table(prs, columns, cap, run_url)
+        return pr_table(prs, columns, cap, run_url)
 
     sections += [
         _summary(c),
@@ -129,26 +139,26 @@ def _document(
         table(c.true_flips, FLIP_COLUMNS),
         "### Non-true flips",
         table(c.non_true_flips, FLIP_COLUMNS),
-        _details(
+        details(
             f"PRs unstable under this PR's policy ({len(c.unstable_change)})",
             table(c.unstable_change, UNSTABLE_CHANGE_COLUMNS),
         ),
-        _details(
+        details(
             f"PRs unstable under the base policy ({len(c.unstable_base)})",
             table(c.unstable_base, UNSTABLE_BASE_COLUMNS),
         ),
-        _details(
+        details(
             f"Excluded PRs ({len(c.excluded)})", table(c.excluded, EXCLUDED_COLUMNS)
         ),
         "### Reason codes",
-        _count_table(
+        count_table(
             "Reason",
             c.base.reasons(failed=False),
             c.change.reasons(failed=False),
             delta=True,
         ),
-        _run_health(c),
-        _details("How to read this", HOW_TO_READ),
+        run_health(c),
+        details("How to read this", HOW_TO_READ),
     ]
     return "\n\n".join(sections) + "\n"
 
@@ -170,12 +180,11 @@ def _header(c: Comparison, base_sha: str, head_sha: str, run_url: str) -> str:
 
 def _verdicts(arm: Arm) -> str:
     land, no_land = arm.total(LAND), arm.total(NO_LAND)
-    return f"{land} / {no_land} (LAND rate {_percent(land, land + no_land)})"
+    return f"{land} / {no_land} (LAND rate {_rate(arm.land_rate)})"
 
 
 def _split(arm: Arm) -> str:
-    percent = _percent(arm.split, arm.assessable)
-    return f"{arm.split} of {arm.assessable} assessable ({percent})"
+    return f"{arm.split} of {arm.assessable} assessable ({_rate(arm.unstable_rate)})"
 
 
 SUMMARY_ROWS: tuple[tuple[str, Callable[[Arm], str]], ...] = (
@@ -197,7 +206,7 @@ SUMMARY_ROWS: tuple[tuple[str, Callable[[Arm], str]], ...] = (
 
 def _summary(c: Comparison) -> str:
     rows = [[label, cell(c.base), cell(c.change)] for label, cell in SUMMARY_ROWS]
-    return "### Summary\n\n" + _table(["", BASE, CHANGE], rows)
+    return "### Summary\n\n" + markdown_table(["", BASE, CHANGE], rows)
 
 
 def _flips(c: Comparison) -> str:
@@ -221,10 +230,9 @@ def _flips(c: Comparison) -> str:
         f"Comparable PRs (consistent input, at least {MIN_VERDICTS} verdicts in both "
         f"arms): {comparable}, of which {len(c.stable)} stable and "
         f"{len(c.unstable_unflipped)} unstable without a flip",
-        f"Flip rate, base {ARROW} this PR: "
-        f"{_share((len(true) + len(non_true), comparable))}",
-        f"True flips: {_share((len(true), comparable))}; {_directions(c, true)}",
-        f"Non-true flips: {len(non_true)}; {_directions(c, non_true)}",
+        f"Flip rate, base {ARROW} this PR: {_share(c.share([*true, *non_true]))}",
+        f"True flips: {_share(c.share(true))}; {_directions(c, true)}",
+        f"Non-true flips: {_share(c.share(non_true))}; {_directions(c, non_true)}",
         "Newly unstable (split under this PR, unanimous under base): "
         f"{len(c.newly_unstable)}",
         "Newly stable (split under base, unanimous under this PR): "
@@ -240,140 +248,6 @@ def _directions(c: Comparison, prs: Sequence[Pr]) -> str:
     )
 
 
-def _pr_link(pr: Pr) -> str:
-    # A bare #N would autolink to issue N of the repository the comment is on.
-    if not pr.repo:
-        return f"`#{pr.number}`"
-    return f"[#{pr.number}]({PR_URL.format(repo=pr.repo, number=pr.number)})"
-
-
-def _outcomes(arm: PrArm) -> str:
-    return SEPARATOR.join(
-        MISSING if row is None else row.verdict for row in arm.outcomes
-    )
-
-
-def _reasons(arm: PrArm) -> str:
-    return ", ".join(f"`{reason}`" for reason in arm.reasons) or MISSING
-
-
-def _outcome_column(name: str, arm: Callable[[Pr], PrArm]) -> Column:
-    return (name, lambda pr: _outcomes(arm(pr)))
-
-
-def _reason_column(name: str, arm: Callable[[Pr], PrArm]) -> Column:
-    return (f"{name} reasons", lambda pr: _reasons(arm(pr)))
-
-
-_base = attrgetter("base")
-_change = attrgetter("change")
-PR_COLUMN: Column = ("PR", _pr_link)
-FLIP_COLUMNS = (
-    PR_COLUMN,
-    _outcome_column(BASE, _base),
-    _outcome_column(CHANGE, _change),
-    _reason_column(BASE, _base),
-    _reason_column(CHANGE, _change),
-)
-UNSTABLE_CHANGE_COLUMNS = (
-    PR_COLUMN,
-    _outcome_column(CHANGE, _change),
-    _outcome_column(BASE, _base),
-    _reason_column(CHANGE, _change),
-)
-UNSTABLE_BASE_COLUMNS = (
-    PR_COLUMN,
-    _outcome_column(BASE, _base),
-    _outcome_column(CHANGE, _change),
-    _reason_column(BASE, _base),
-)
-EXCLUDED_COLUMNS: tuple[Column, ...] = (PR_COLUMN, ("Why", attrgetter("exclusion")))
-
-
-def _pr_table(
-    prs: Sequence[Pr], columns: Sequence[Column], cap: int | None, run_url: str
-) -> str:
-    if not prs:
-        return "None."
-    shown = prs if cap is None else prs[:cap]
-    text = _table(
-        [name for name, _ in columns],
-        [[cell(pr) for _, cell in columns] for pr in shown],
-    )
-    if len(prs) > len(shown):
-        text += (
-            f"\n\n...and {len(prs) - len(shown)} more (see the replay CSV artifacts "
-            f"of the [workflow run]({run_url}))"
-        )
-    return text
-
-
-def _count_table(
-    name: str, base: Counter[str], change: Counter[str], *, delta: bool
-) -> str:
-    keys = sorted(base.keys() | change.keys(), key=lambda k: (-base[k] - change[k], k))
-    if not keys:
-        return "None."
-    rows = []
-    for key in keys:
-        row = [f"`{key}`", str(base[key]), str(change[key])]
-        if delta:
-            difference = change[key] - base[key]
-            row.append(f"{difference:+d}" if difference else "0")
-        rows.append(row)
-    return _table([name, BASE, CHANGE, *(["Change"] if delta else [])], rows)
-
-
-def _run_health(c: Comparison) -> str:
-    rows = [
-        [
-            run.label,
-            name,
-            _exit(run),
-            run.csv_note or _row_count(run),
-            *(str(run.count(verdict)) for verdict in (LAND, NO_LAND, FAILED)),
-            str(arm.missing_in(run)),
-        ]
-        for name, arm in ((BASE, c.base), (CHANGE, c.change))
-        for run in arm.runs
-    ]
-    header = ["Run", "Arm", "Exit", "Rows", LAND, NO_LAND, "Failed", "Missing"]
-    failures = _count_table(
-        "Failure reason",
-        c.base.reasons(failed=True),
-        c.change.reasons(failed=True),
-        delta=False,
-    )
-    return _details(
-        "Run health",
-        f"{_table(header, rows)}\n\nHarness failures by reason:\n\n{failures}",
-    )
-
-
-def _exit(run: Run) -> str:
-    if run.exit_code is None:
-        return run.exit_note
-    return f"{run.exit_code} {EXIT_MEANINGS.get(run.exit_code, 'other')}"
-
-
-def _row_count(run: Run) -> str:
-    return (
-        f"{len(run.rows)} ({run.skipped} skipped)"
-        if run.skipped
-        else str(len(run.rows))
-    )
-
-
-def _table(header: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
-    lines = [header, ["---"] * len(header), *rows]
-    return "\n".join(f"| {' | '.join(line)} |" for line in lines)
-
-
-def _details(summary: str, body: str) -> str:
-    # GitHub renders the markdown inside <details> only after a blank line.
-    return f"<details><summary>{summary}</summary>\n\n{body}\n\n</details>"
-
-
 def _cut(text: str) -> str:
     """Cut at a line boundary, closing an open <details> so the note shows."""
     limit = MAX_CHARS - len(TRUNCATION_NOTE) - len(_CLOSE_DETAILS)
@@ -384,15 +258,28 @@ def _cut(text: str) -> str:
     return kept + TRUNCATION_NOTE
 
 
-def _percent(part: int, whole: int) -> str:
-    return f"{100 * part / whole:.1f}%" if whole else "n/a"
+def _percent(fraction: float) -> str:
+    """The fraction in percent, to one decimal, without the % sign."""
+    return f"{100 * fraction:.1f}"
 
 
-def _share(counts: tuple[int, int], noun: str = "") -> str:
-    part, whole = counts
-    if not whole:
+def _rate(share: Proportion) -> str:
+    """The percentage and its interval, and how many PRs a pooled rate rests on."""
+    interval = share.interval
+    if interval is None:
         return "n/a"
-    return f"{part} of {whole}{' ' + noun if noun else ''} ({_percent(part, whole)})"
+    low, high = interval
+    prs = "" if share.prs is None else f" over {_plural(share.prs, 'PR')}"
+    return (
+        f"{_percent(share.part / share.whole)}%, {CONFIDENCE:.0%} CI "
+        f"{_percent(low)}–{_percent(high)}%{prs}"
+    )
+
+
+def _share(share: Proportion, noun: str = "") -> str:
+    if share.interval is None:
+        return "n/a"
+    return f"{share.part} of {share.whole}{' ' + noun if noun else ''} ({_rate(share)})"
 
 
 def _plural(count: int, noun: str) -> str:

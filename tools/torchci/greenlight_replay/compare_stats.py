@@ -4,8 +4,8 @@ The policy-replay workflow replays one sample of historical pull requests
 several times under the policy at a test-infra PR's merge base and several
 times under the PR's own policy. This module is what those runs are once read
 -- ``Run``s of validated ``Row``s -- and every number the comparison reports
-about them, each defined once: ``compare`` reads the runs and ``compare_render``
-prints the numbers.
+about them, each defined once: ``compare`` reads the runs, and ``compare_render``
+and ``compare_tables`` print the numbers.
 
 The repeated runs are the point. The reviewer does not repeat itself on the same
 input (the harness README's misreading 1), so one run per arm cannot tell a
@@ -13,6 +13,12 @@ policy effect from noise. Disagreement between the runs of one arm measures that
 noise under that policy. A true flip -- each arm unanimous, the arms disagreeing
 -- is the strongest evidence of an effect the sample can give; a flip of the
 majorities where an arm split is weaker, and is counted apart.
+
+Every share carries a Wilson score interval whose sample size counts pull
+requests, never runs: the runs of one pull request are not independent. A rate
+pooled over the rows or pairs of runs of many pull requests is sized by the pull
+requests that contribute to it. Each one's own rate lies in [0, 1], so it varies
+no more than one yes-or-no outcome with the same mean.
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ import math
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from statistics import NormalDist
 
 
 LAND = "LAND"
@@ -32,6 +39,38 @@ DIRECTIONS = ((LAND, NO_LAND), (NO_LAND, LAND))
 # A pull request needs this many verdicts in an arm before it can be called
 # stable or unstable there.
 MIN_VERDICTS = 2
+
+CONFIDENCE = 0.95
+_Z = NormalDist().inv_cdf((1 + CONFIDENCE) / 2)
+
+
+def wilson(rate: float, n: int) -> tuple[float, float]:
+    """The Wilson score interval at ``CONFIDENCE`` for ``rate`` seen over ``n`` units."""
+    z2 = _Z * _Z / n
+    centre = (rate + z2 / 2) / (1 + z2)
+    half = _Z * math.sqrt(rate * (1 - rate) / n + z2 / (4 * n)) / (1 + z2)
+    # At a rate of 0 or 1, rounding can leave a bound a hair outside [0, 1].
+    return max(0.0, centre - half), min(1.0, centre + half)
+
+
+@dataclass(frozen=True)
+class Proportion:
+    """``part`` of ``whole``, and its interval.
+
+    ``prs`` is set when ``whole`` counts rows or pairs of runs rather than pull
+    requests: it is then the number of pull requests behind them, the sample size
+    of the interval.
+    """
+
+    part: int
+    whole: int
+    prs: int | None = None
+
+    @property
+    def interval(self) -> tuple[float, float] | None:
+        """The Wilson interval; none when no pull request is behind the share."""
+        n = self.whole if self.prs is None else self.prs
+        return wilson(self.part / self.whole, n) if self.whole and n else None
 
 
 @dataclass(frozen=True)
@@ -177,6 +216,18 @@ class Arm:
     def total(self, verdict: str) -> int:
         return sum(run.count(verdict) for run in self.runs)
 
+    @property
+    def land_rate(self) -> Proportion:
+        """LAND over the verdicts of every row, from the PRs with any verdict."""
+        land, no_land = self.total(LAND), self.total(NO_LAND)
+        prs = {
+            number
+            for run in self.runs
+            for number, row in run.rows.items()
+            if row.verdict != FAILED
+        }
+        return Proportion(land, land + no_land, len(prs))
+
     def missing_in(self, run: Run) -> int:
         return self.universe - len(run.rows)
 
@@ -213,17 +264,22 @@ class Arm:
         return len(self.prs) - self.assessable
 
     @property
-    def disagreement(self) -> tuple[int, int]:
-        """Disagreeing pairs of runs and all pairs of runs, over the pull requests."""
-        return (
+    def unstable_rate(self) -> Proportion:
+        return Proportion(self.split, self.assessable)
+
+    @property
+    def disagreement(self) -> Proportion:
+        """Disagreeing pairs of runs over all pairs, from the PRs with any pair."""
+        return Proportion(
             sum(pr.count(LAND) * pr.count(NO_LAND) for pr in self.prs),
             sum(math.comb(pr.verdicts, 2) for pr in self.prs),
+            sum(1 for pr in self.prs if pr.verdicts >= 2),
         )
 
     @property
-    def majority_land(self) -> tuple[int, int]:
-        """Comparable PRs whose majority is LAND, and those with any majority."""
-        return (
+    def majority_land(self) -> Proportion:
+        """Comparable PRs whose majority is LAND, among those with any majority."""
+        return Proportion(
             sum(1 for pr in self.comparable if pr.majority == LAND),
             sum(1 for pr in self.comparable if pr.majority),
         )
@@ -240,6 +296,10 @@ class Comparison:
     @property
     def comparable(self) -> list[Pr]:
         return [pr for pr in self.prs if pr.comparable]
+
+    def share(self, prs: Sequence[Pr]) -> Proportion:
+        """``prs`` as a share of the comparable pull requests."""
+        return Proportion(len(prs), len(self.comparable))
 
     @property
     def true_flips(self) -> list[Pr]:

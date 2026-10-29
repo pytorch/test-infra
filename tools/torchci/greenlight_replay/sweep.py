@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from torchci.greenlight_decisions.__main__ import parse_as_of
-from torchci.greenlight_replay.checkout import materialize_trusted_skills, WorktreePool
+from torchci.greenlight_replay.checkout import WorktreePool
 from torchci.greenlight_replay.emit import append_checkpoint
 from torchci.greenlight_replay.inputs import build_inputs
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
@@ -40,6 +40,7 @@ from torchci.greenlight_replay.runner import (
     schema_support_violation,
 )
 from torchci.greenlight_replay.settings import assert_hooks_present
+from torchci.greenlight_replay.trusted_skills import materialize_trusted_skills
 from torchci.greenlight_replay.workspace import install_policy_half, sanitize_checkout
 
 

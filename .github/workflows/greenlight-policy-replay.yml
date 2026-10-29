@@ -1,10 +1,11 @@
 name: GreenLight policy replay
 
 # Replays past GreenLight reviews under the policy before and after a pull request (PR) and comments the
-# comparison on the PR. A push changing the skill or its verdict schema, this workflow or the replay
-# harness starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
-# changing only this workflow or the harness runs the same policy in both arms. Every job runs code from
-# the pushed commit's history (this workflow, tools/, both arms' policy). Jobs naming `bedrock` deploy
+# comparison on the PR. A push changing the skill, its verdict schema or the replay machinery (this
+# workflow, its report script, the replay harness and the sampling rank it shares with the decisions
+# export) starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
+# changing only the machinery runs the same policy in both arms. Every job runs code from the pushed
+# commit's history (this workflow, its script, tools/, both arms' policy). Jobs naming `bedrock` deploy
 # the pushed branch, so its deployment branch policy, and who may push the branches it admits, decide
 # which code runs with the Bedrock role; gate names it first, so a PR from another branch fails there.
 #
@@ -23,7 +24,9 @@ on:
       - .claude/skills/greenlight-review/**
       - .claude/hooks/greenlight/verdict-schema.json
       - .github/workflows/greenlight-policy-replay.yml
+      - .github/scripts/greenlight_policy_replay_report.sh
       - tools/torchci/greenlight_replay/**
+      - tools/torchci/greenlight_decisions/sample.py
 
 permissions: {}
 
@@ -32,6 +35,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  GREENLIGHT_DECISIONS_SAMPLE_FRACTION: "0.2"
+  GREENLIGHT_DECISIONS_SAMPLE_CAP: "1000"
   GREENLIGHT_REPLAY_SAMPLE_SIZE: "30"
   GREENLIGHT_REPLAY_SEED: "0"
   GREENLIGHT_REPLAY_REPLICATES: "[1, 2, 3]"  # One replay job per entry and arm; the report compares one run directory each.
@@ -43,7 +48,7 @@ env:
   AWS_REGION: us-east-1
   BEDROCK_ROLE_ARN: arn:aws:iam::308535385114:role/gha_workflow_claude_code
   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
-  DECISIONS_RETENTION_DAYS: "1"  # The decisions export is a public intermediate holding the whole decision history.
+  DECISIONS_RETENTION_DAYS: "1"  # The decisions export is a public intermediate holding a sample of the decision history.
   ARTIFACT_RETENTION_DAYS: "30"
 
 jobs:
@@ -85,7 +90,9 @@ jobs:
           comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base_ref...$HEAD_SHA")
           changes=$(jq -r 'if [.files[]? | .filename, (.previous_filename // empty)] | any(startswith(".claude/skills/greenlight-review/")
             or . == ".claude/hooks/greenlight/verdict-schema.json" or . == ".github/workflows/greenlight-policy-replay.yml"
-            or startswith("tools/torchci/greenlight_replay/")) then "yes" elif (.files | length) >= 300 then "unknown" else "no" end' <<<"$comparison")
+            or . == ".github/scripts/greenlight_policy_replay_report.sh" or startswith("tools/torchci/greenlight_replay/")
+            or . == "tools/torchci/greenlight_decisions/sample.py")
+            then "yes" elif (.files | length) >= 300 then "unknown" else "no" end' <<<"$comparison")
           [ "$changes" != unknown ] || { echo "::notice::#$pr_number changes too many files to check the trigger paths; nothing to compare."; exit 0; }
           [ "$changes" = yes ] || { echo "::notice::#$pr_number changes none of the trigger paths against $base_ref; nothing to compare."; exit 0; }
           # Written first so report-unstarted can name the PR: the runner reads GITHUB_OUTPUT even if the step fails.
@@ -139,9 +146,13 @@ jobs:
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           GH_TOKEN: ${{ github.token }}
         # Any non-zero exit fails the job, including 3: a degraded export would bias the frame the replays sample from.
+        # The replay's seed makes the export rank decisions exactly as the harness's sample does, so the replays draw the
+        # same PRs as from a full export whenever the kept share holds GREENLIGHT_REPLAY_SAMPLE_SIZE PRs the frame admits.
         run: |
           set -euo pipefail
-          PYTHONPATH=. python3 -m torchci.greenlight_decisions --output "$RUNNER_TEMP/greenlight-decisions.csv"
+          PYTHONPATH=. python3 -m torchci.greenlight_decisions --output "$RUNNER_TEMP/greenlight-decisions.csv" \
+            --sample-frac "$GREENLIGHT_DECISIONS_SAMPLE_FRACTION" --sample-cap "$GREENLIGHT_DECISIONS_SAMPLE_CAP" \
+            --seed "$GREENLIGHT_REPLAY_SEED"
 
       - name: Upload the decisions
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -355,28 +366,7 @@ jobs:
           BASE_SHA: ${{ needs.plan.outputs.base_sha }}
           HEAD_SHA: ${{ needs.plan.outputs.head_sha }}
           REPLICATES: ${{ needs.plan.outputs.replicates }}
-        # The run directories are listed from the replicates rather than globbed, one per
-        # replay job, so a job that uploaded nothing is reported as a failed run.
-        run: |
-          set -euo pipefail
-          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || { echo "invalid pull request number: '$PR_NUMBER'" >&2; exit 1; }
-          runs="$RUNNER_TEMP/runs"
-          numbers=$(jq -ern --argjson r "$REPLICATES" '$r[]')
-          base=() change=()
-          while IFS= read -r n; do
-            base+=("$runs/greenlight-replay-base-$n")
-            change+=("$runs/greenlight-replay-change-$n")
-          done <<<"$numbers"
-          comment="$RUNNER_TEMP/greenlight-policy-replay.md"
-          PYTHONPATH=. python3 -m torchci.greenlight_replay.compare \
-            --base "${base[@]}" \
-            --change "${change[@]}" \
-            --base-sha "$BASE_SHA" \
-            --head-sha "$HEAD_SHA" \
-            --run-url "$RUN_URL" \
-            --output "$comment"
-          cat "$comment" >>"$GITHUB_STEP_SUMMARY"
-          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$comment"
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/greenlight_policy_replay_report.sh"
 
   report-unstarted:
     needs: [plan, gate, export]

@@ -112,7 +112,7 @@ the policy steps.
 
 The reviewer also does not repeat itself. Asked twice about the *same* head SHA
 it returned a different status 13 times out of 71 repeated pairs — 18.3%, 95%
-confidence interval 11.0% to 28.9%. So on a 30-row sample, five or six flips are
+confidence interval 11.0% to 28.8%. So on a 30-row sample, five or six flips are
 the expected noise floor before the policy has done anything at all.
 
 Quantifying a policy effect needs a control arm — the same sampled pull requests
@@ -149,13 +149,12 @@ the context window and the comment set can all differ, and none is a controlled
 variable here — a difference between `decision` and `new_decision` can come from
 any of them as easily as from the policy. That is misreading 1's confound from a
 second direction, and another reason a measurement needs a control arm run on
-*this* harness. CI's `greenlight-policy-replay.yml` runs it on Bedrock three
-times each under the merge base and head of a pull request changing the skill,
-its verdict schema, itself or this harness; `compare.py` writes the comment.
+*this* harness. CI's `greenlight-policy-replay.yml` runs that control arm beside
+the pull request's own, three times each on Bedrock; `compare.py` compares them.
 
 ## What gets replayed
 
-The input is every pull request greenlight has state for. The frame keeps the
+The input is every pull request the export kept. The frame keeps the
 ones whose stored verdict can be held against something that actually happened,
 and the run logs the funnel it applied, one counter per stage. Each row is
 charged to the first stage that rejects it, so the counts partition the input.

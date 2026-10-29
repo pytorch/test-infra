@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import argparse
 
+from torchci.greenlight_decisions.__main__ import fraction, positive_int
 from torchci.greenlight_decisions.query import DEFAULT_REPO
+from torchci.greenlight_decisions.sample import DEFAULT_SEED
 from torchci.greenlight_replay.policy import DEFAULT_POLICY_REPO
 from torchci.greenlight_replay.runner import DEFAULT_CONTEXT_WINDOW
 
 
 DEFAULT_PARALLELISM = 4
-DEFAULT_SEED = 0
 DEFAULT_TIMEOUT_MINUTES = 37
 
 # Must stay under a top-level /tmp/greenlight-* directory. restrict-read.py's
@@ -24,20 +25,6 @@ DEFAULT_TIMEOUT_MINUTES = 37
 # -- so a run directory anywhere else has every read of the diff and the metadata
 # denied, and the reviewer returns a verdict about a pull request it never saw.
 DEFAULT_WORKDIR = "/tmp/greenlight-replay"
-
-
-def fraction(text: str) -> float:
-    value = float(text)
-    if not 0.0 < value <= 1.0:
-        raise argparse.ArgumentTypeError(f"must be in (0, 1]: {text!r}")
-    return value
-
-
-def positive_int(text: str) -> int:
-    value = int(text)
-    if value < 1:
-        raise argparse.ArgumentTypeError(f"must be at least 1: {text!r}")
-    return value
 
 
 def build_parser(description: str | None = None) -> argparse.ArgumentParser:

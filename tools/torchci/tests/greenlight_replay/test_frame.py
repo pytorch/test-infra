@@ -738,6 +738,12 @@ class TestSampleRows(unittest.TestCase):
             drawn = frame.sample_rows(rows, n=99, seed=1)
         self.assertEqual(self.numbers(drawn), self.numbers(rows))
 
+    def test_n_equal_to_the_frame_size_takes_everything_quietly(self):
+        rows = self.rows(4)
+        with self.assertNoLogs(frame.logger, level="WARNING"):
+            drawn = frame.sample_rows(rows, n=4, seed=1)
+        self.assertEqual(self.numbers(drawn), self.numbers(rows))
+
     def test_passing_both_frac_and_n_is_rejected(self):
         with self.assertRaises(ValueError):
             frame.sample_rows(self.rows(), frac=0.5, n=10, seed=1)

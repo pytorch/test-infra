@@ -21,8 +21,13 @@ from pathlib import Path
 from unittest import mock
 
 import torchci.greenlight_replay.__main__ as harness
-from torchci.greenlight_replay import compare, compare_render, compare_stats
-from torchci.greenlight_replay.compare_stats import FAILED, LAND, NO_LAND
+from torchci.greenlight_replay import (
+    compare,
+    compare_render,
+    compare_stats,
+    compare_tables,
+)
+from torchci.greenlight_replay.compare_stats import FAILED, LAND, NO_LAND, Proportion
 from torchci.greenlight_replay.emit import write_replay_csv
 from torchci.greenlight_replay.verdict_cells import (
     DECISION_VALUES,
@@ -140,7 +145,9 @@ class TestFlips(ReplayCase):
         )
         flips = section(self.render(comparison), "### Flips")
         self.assertIn(
-            "True flips: 2 of 2 (100.0%); LAND → NO_LAND 1, NO_LAND → LAND 1", flips
+            "True flips: 2 of 2 (100.0%, 95% CI 34.2–100.0%); LAND → NO_LAND 1, "
+            "NO_LAND → LAND 1",
+            flips,
         )
 
     def test_a_split_arm_against_a_unanimous_one_is_a_non_true_flip(self):
@@ -160,6 +167,9 @@ class TestFlips(ReplayCase):
         comparison = self.compare({1: "LLL", 2: "NNN"}, {1: "LLL", 2: "NNN"})
         self.assertEqual(numbers(comparison.stable), [1, 2])
         self.assertEqual(comparison.true_flips + comparison.non_true_flips, [])
+        flips = section(self.render(comparison), "### Flips")
+        self.assertIn("True flips: 0 of 2 (0.0%, 95% CI 0.0–65.8%);", flips)
+        self.assertIn("Non-true flips: 0 of 2 (0.0%, 95% CI 0.0–65.8%);", flips)
 
     def test_splits_with_one_majority_are_unstable_without_a_flip(self):
         comparison = self.compare({1: "LLN"}, {1: "LNL"})
@@ -181,8 +191,8 @@ class TestFlips(ReplayCase):
         self.assertEqual(numbers(comparison.unstable_unflipped), [1])
         self.assertEqual(numbers(comparison.newly_stable), [1])
         # A tie has no majority, so it is left out of the majority LAND rate.
-        self.assertEqual(comparison.base.majority_land, (0, 0))
-        self.assertEqual(comparison.change.majority_land, (0, 1))
+        self.assertEqual(comparison.base.majority_land, Proportion(0, 0))
+        self.assertEqual(comparison.change.majority_land, Proportion(0, 1))
 
 
 class TestExclusions(ReplayCase):
@@ -244,10 +254,12 @@ class TestArithmetic(ReplayCase):
         comparison = self.compare(self.BASE, self.CHANGE)
         base, change = comparison.base, comparison.change
         # Base: 8 PRs with 3 verdicts give 24 pairs; 103, 104 and 106 split 2-1,
-        # 2 disagreeing pairs each. This PR: 109 has 2 verdicts, so 25 pairs;
-        # 104 and 105 split.
-        self.assertEqual(base.disagreement, (6, 24))
-        self.assertEqual(change.disagreement, (4, 25))
+        # 2 disagreeing pairs each; 107's single verdict makes no pair. This PR:
+        # 109 has 2 verdicts, so 25 pairs from all 9 PRs; 104 and 105 split.
+        self.assertEqual(base.disagreement, Proportion(6, 24, 8))
+        self.assertEqual(change.disagreement, Proportion(4, 25, 9))
+        self.assertEqual(base.land_rate, Proportion(16, 25, 9))
+        self.assertEqual(change.land_rate, Proportion(15, 26, 9))
         self.assertEqual(
             [base.total(LAND), base.total(NO_LAND), base.total(FAILED), base.missing],
             [16, 9, 1, 1],
@@ -256,33 +268,59 @@ class TestArithmetic(ReplayCase):
             [change.total(LAND), change.total(NO_LAND), change.total(FAILED)],
             [15, 11, 1],
         )
-        self.assertEqual((base.split, base.assessable), (3, 8))
-        self.assertEqual((base.majority_land, change.majority_land), ((6, 8), (4, 8)))
+        self.assertEqual(
+            (base.unstable_rate, change.unstable_rate),
+            (Proportion(3, 8), Proportion(2, 9)),
+        )
+        self.assertEqual(
+            (base.majority_land, change.majority_land),
+            (Proportion(6, 8), Proportion(4, 8)),
+        )
         self.assertEqual(numbers(comparison.true_flips), [101, 102])
         self.assertEqual(numbers(comparison.non_true_flips), [103, 104])
         self.assertEqual(numbers(comparison.stable), [108, 109])
         self.assertEqual(numbers(comparison.unstable_unflipped), [105, 106])
         self.assertEqual(numbers(comparison.excluded), [107])
 
+        # The intervals below were computed apart from compare_stats, with the
+        # textbook count form of the Wilson interval at the n of each rate.
         markdown = self.render(comparison)
         summary = section(markdown, "### Summary")
         self.assertIn(
-            "| 16 / 9 (LAND rate 64.0%) | 15 / 11 (LAND rate 57.7%) |", summary
-        )
-        self.assertIn(
-            "| 3 of 8 assessable (37.5%) | 2 of 9 assessable (22.2%) |", summary
-        )
-        self.assertIn(
-            "| Flip rate (run to run) | 6 of 24 pairs of runs (25.0%) | 4 of 25 pairs "
-            "of runs (16.0%) |",
+            "| 16 / 9 (LAND rate 64.0%, 95% CI 33.2–86.4% over 9 PRs) | 15 / 11 (LAND "
+            "rate 57.7%, 95% CI 28.3–82.5% over 9 PRs) |",
             summary,
         )
-        self.assertIn("| 6 of 8 (75.0%) | 4 of 8 (50.0%) |", summary)
+        self.assertIn(
+            "| 3 of 8 assessable (37.5%, 95% CI 13.7–69.4%) | 2 of 9 assessable (22.2%, "
+            "95% CI 6.3–54.7%) |",
+            summary,
+        )
+        self.assertIn(
+            "| Flip rate (run to run) | 6 of 24 pairs of runs (25.0%, 95% CI 7.1–59.1% "
+            "over 8 PRs) | 4 of 25 pairs of runs (16.0%, 95% CI 3.7–48.7% over 9 PRs) |",
+            summary,
+        )
+        self.assertIn(
+            "| 6 of 8 (75.0%, 95% CI 40.9–92.9%) | 4 of 8 (50.0%, 95% CI 21.5–78.5%) |",
+            summary,
+        )
         flips = section(markdown, "### Flips")
         self.assertIn("Comparable PRs", flips)
         self.assertIn("8, of which 2 stable and 2 unstable without a flip", flips)
-        self.assertIn("Flip rate, base → this PR: 4 of 8 (50.0%)", flips)
-        self.assertIn("Non-true flips: 2; LAND → NO_LAND 2, NO_LAND → LAND 0", flips)
+        self.assertIn(
+            "Flip rate, base → this PR: 4 of 8 (50.0%, 95% CI 21.5–78.5%)", flips
+        )
+        self.assertIn(
+            "True flips: 2 of 8 (25.0%, 95% CI 7.1–59.1%); LAND → NO_LAND 1, "
+            "NO_LAND → LAND 1",
+            flips,
+        )
+        self.assertIn(
+            "Non-true flips: 2 of 8 (25.0%, 95% CI 7.1–59.1%); LAND → NO_LAND 2, "
+            "NO_LAND → LAND 0",
+            flips,
+        )
         self.assertIn(
             "Newly unstable (split under this PR, unanimous under base): 1", flips
         )
@@ -324,8 +362,91 @@ class TestArithmetic(ReplayCase):
     def test_the_land_rate_is_na_without_verdicts(self):
         comparison = self.compare({1: "FFF"}, {1: "LLL"})
         summary = section(self.render(comparison), "### Summary")
-        self.assertIn("| 0 / 0 (LAND rate n/a) | 3 / 0 (LAND rate 100.0%) |", summary)
+        self.assertIn(
+            "| 0 / 0 (LAND rate n/a) | 3 / 0 (LAND rate 100.0%, 95% CI 20.7–100.0% "
+            "over 1 PR) |",
+            summary,
+        )
         self.assertIn("| 0 of 0 assessable (n/a) |", summary)
+
+
+class TestIntervals(ReplayCase):
+    # Computed apart from compare_stats, two ways that agree to 1e-9: the textbook
+    # count form (k + z²/2) / (n + z²) ± z / (n + z²) · sqrt(k(n - k) / n + z²/4)
+    # and bisection on the score test (k/n - p)² = z² p(1 - p) / n, z = 1.959964.
+    # 1 of 30 is also R's binom::binom.confint(1, 30) "wilson": 0.00590859 to
+    # 0.16670391.
+    REFERENCES = {
+        (0, 10): (0.0, 0.27753279986288915),
+        (10, 10): (0.7224672001371107, 1.0),
+        (5, 10): (0.23659309051256405, 0.763406909487436),
+        (1, 30): (0.005908590381612441, 0.16670390991409167),
+    }
+
+    def test_wilson_matches_independent_references(self):
+        for (k, n), (low, high) in self.REFERENCES.items():
+            with self.subTest(k=k, n=n):
+                got_low, got_high = compare_stats.wilson(k / n, n)
+                self.assertAlmostEqual(got_low, low, places=12)
+                self.assertAlmostEqual(got_high, high, places=12)
+
+    def test_bounds_never_leave_zero_and_one(self):
+        # Unclamped, rounding takes the lower bound at a rate of 0 below zero for
+        # n = 61, which renders as "-0.0", and the upper bound at a rate of 1 above
+        # one for n = 9.
+        for n in range(1, 200):
+            low, _ = compare_stats.wilson(0.0, n)
+            _, high = compare_stats.wilson(1.0, n)
+            self.assertGreaterEqual(low, 0.0, f"n = {n}")
+            self.assertLessEqual(high, 1.0, f"n = {n}")
+
+    def test_no_pull_request_means_no_interval(self):
+        for share in (Proportion(0, 0), Proportion(0, 0, 0), Proportion(1, 2, 0)):
+            with self.subTest(share=share):
+                self.assertIsNone(share.interval)
+
+    def test_a_pooled_rate_is_sized_by_its_prs(self):
+        wilson = compare_stats.wilson
+        self.assertEqual(Proportion(16, 25, 9).interval, wilson(16 / 25, 9))
+        self.assertEqual(Proportion(3, 8).interval, wilson(3 / 8, 8))
+
+    def test_the_land_rate_counts_every_pr_with_a_verdict(self):
+        # PR 2 never reaches a verdict. PR 3's heads differ: that keeps it out of
+        # the PR-level numbers, the run-to-run flip rate among them, but not out of
+        # the run-level LAND rate.
+        base = [
+            write_run(
+                self.root,
+                f"base-{index}",
+                [
+                    replay_row(1, "L"),
+                    replay_row(2, "F"),
+                    replay_row(3, "N", decision_head_sha=head),
+                ],
+            )
+            for index, head in ((1, HEAD), (2, OTHER_HEAD))
+        ]
+        change = arm_dirs(self.root, "change", {1: "LL", 2: "LL", 3: "LL"})
+        comparison = compare.compare(self.load(base), self.load(change))
+        self.assertEqual(comparison.base.land_rate, Proportion(2, 4, 2))
+        self.assertEqual(comparison.base.disagreement, Proportion(0, 1, 1))
+        self.assertIn(
+            "| 2 / 2 (LAND rate 50.0%, 95% CI 9.5–90.5% over 2 PRs) |",
+            section(self.render(comparison), "### Summary"),
+        )
+
+    def test_the_run_to_run_flip_rate_counts_the_prs_with_a_pair(self):
+        comparison = self.compare(
+            {1: "LLN", 2: "L--", 3: "NN-", 4: "FFF"},
+            {1: "LLL", 2: "LLL", 3: "LLL", 4: "LLL"},
+        )
+        self.assertEqual(comparison.base.disagreement, Proportion(2, 4, 2))
+        self.assertEqual(comparison.base.land_rate, Proportion(3, 6, 3))
+        self.assertIn(
+            "| Flip rate (run to run) | 2 of 4 pairs of runs (50.0%, 95% CI 9.5–90.5% "
+            "over 2 PRs) |",
+            section(self.render(comparison), "### Summary"),
+        )
 
 
 class TestUntrustedCells(ReplayCase):
@@ -512,7 +633,7 @@ class TestRunHealth(ReplayCase):
 
     def test_exit_meanings_follow_the_harness_exit_codes(self):
         self.assertEqual(
-            compare_render.EXIT_MEANINGS,
+            compare_tables.EXIT_MEANINGS,
             {
                 harness.EXIT_OK: "complete",
                 harness.EXIT_FAILED: "failed",
@@ -533,6 +654,10 @@ class TestDegenerateRuns(ReplayCase):
         markdown = self.render(comparison)
         self.assertIn("Base and This PR had fewer than 2 runs", markdown)
         self.assertIn("| Flip rate (run to run) | n/a | n/a |", markdown)
+        self.assertIn(
+            "| Majority LAND rate, comparable PRs with a majority | n/a | n/a |",
+            markdown,
+        )
         self.assertIn("### True flips\n\nNone.", markdown)
 
     def test_no_rows_at_all(self):
@@ -597,6 +722,17 @@ class TestDegenerateRuns(ReplayCase):
         )
         self.assertIn("- **Flip rate (run to run)** is the share of pairs", how_to_read)
         self.assertIn("**Flip rate, base → this PR** = (true + non-true", how_to_read)
+        intervals = how_to_read[how_to_read.index("- **Intervals.**") :]
+        self.assertIn(
+            f"{compare_stats.CONFIDENCE:.0%} Wilson score interval (CI)", intervals
+        )
+        self.assertIn("whose sample size counts PRs, never runs", intervals)
+        self.assertIn(
+            'the PRs that contribute to them, shown as "over k PRs"', intervals
+        )
+        self.assertIn(
+            "Overlapping intervals do not show that the arms are the same", intervals
+        )
         attribution = how_to_read[how_to_read.index("- **Attribution.**") :]
         self.assertIn(
             "the CLI version and context window are the replay workflow's", attribution
