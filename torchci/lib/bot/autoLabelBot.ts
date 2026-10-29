@@ -1,9 +1,11 @@
 import { Context, Probot } from "probot";
+import shlex from "shlex";
 import {
   addLabelErrComment,
   hasRequiredLabels,
   isBotAuthor,
 } from "./checkLabelsUtils";
+import { getInputArgs, getParser } from "./cliParser";
 import {
   BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
   BOT_MANAGED_PR_LABELS,
@@ -510,6 +512,10 @@ export async function wasLabelRecentlyRemoved(
 // the run and make the merge bot refuse the merge.
 const CIFLOW_LABELS_KEPT_PER_PR = ["ciflow/docker"];
 
+// The pytorchbot merge command applies these to the PR it merges, so they are
+// never taken back.
+const CIFLOW_LABELS_APPLIED_BY_MERGE = ["ciflow/trunk", "ciflow/pull"];
+
 // ghstack fills a new PR's listing in seconds after opening it; a listing
 // still pending after this long is treated as no stack.
 const PENDING_GHSTACK_LISTING_WINDOW_MS = 10 * 60 * 1000;
@@ -556,6 +562,48 @@ async function getCoveredCiflowLabels(
     pending: false,
     covered: ciflowLabels.filter((label) => neededAbove.has(label)),
   };
+}
+
+// The labels among labelNames that a comment or a review on the PR asked for
+// with the pytorchbot label command.
+async function getLabelsRequestedByCommand(
+  context: Context,
+  prNumber: number,
+  labelNames: string[]
+): Promise<Set<string>> {
+  const [comments, reviews] = await Promise.all([
+    context.octokit.paginate(
+      context.octokit.issues.listComments,
+      context.repo({ issue_number: prNumber, per_page: 100 })
+    ),
+    context.octokit.paginate(
+      context.octokit.pulls.listReviews,
+      context.repo({ pull_number: prNumber, per_page: 100 })
+    ),
+  ]);
+  const requested = new Set<string>();
+  for (const { body } of [...comments, ...reviews]) {
+    const inputArgs = getInputArgs(body ?? "");
+    if (inputArgs.length === 0) {
+      continue;
+    }
+    let args;
+    try {
+      args = getParser().parse_args(shlex.split(inputArgs));
+    } catch {
+      // Not a valid command, so it requests nothing.
+      continue;
+    }
+    if (args.command !== "label") {
+      continue;
+    }
+    for (const label of args.labels as string[]) {
+      if (labelNames.includes(label.trim())) {
+        requested.add(label.trim());
+      }
+    }
+  }
+  return requested;
 }
 
 export async function addNewLabels(
@@ -751,6 +799,7 @@ function myBot(app: Probot): void {
           !CIFLOW_LABELS_KEPT_PER_PR.includes(label) &&
           !labelsToAdd.includes(label)
       );
+      let coveredCiflowLabels: string[] = [];
       if (stackManagedCiflowLabels.length > 0) {
         let heldBack: string[] = [];
         try {
@@ -765,6 +814,7 @@ function myBot(app: Probot): void {
           const createdAt = Date.parse(context.payload.pull_request.created_at);
           if (!pending) {
             heldBack = covered;
+            coveredCiflowLabels = covered;
           } else if (
             Date.now() - createdAt <=
             PENDING_GHSTACK_LISTING_WINDOW_MS
@@ -824,10 +874,16 @@ function myBot(app: Probot): void {
         filesChanged,
         isDraft
       ).filter((label) => labels.includes(label));
+      const coveredToTakeBack = coveredCiflowLabels.filter(
+        (label) =>
+          labels.includes(label) &&
+          !draftGatedToRemove.includes(label) &&
+          !CIFLOW_LABELS_APPLIED_BY_MERGE.includes(label)
+      );
       const botAppliedLabels = await getLabelsLastAppliedBy(
         context,
         context.payload.pull_request.number,
-        draftGatedToRemove,
+        [...draftGatedToRemove, ...coveredToTakeBack],
         (actor) => isBotAuthor(actor?.login ?? "")
       );
       for (const label of draftGatedToRemove) {
@@ -840,6 +896,47 @@ function myBot(app: Probot): void {
             name: label,
           })
         );
+      }
+
+      const botAppliedCovered = coveredToTakeBack.filter((label) =>
+        botAppliedLabels.has(label)
+      );
+      let requestedByCommand = new Set<string>(botAppliedCovered);
+      if (botAppliedCovered.length > 0) {
+        try {
+          requestedByCommand = await getLabelsRequestedByCommand(
+            context,
+            context.payload.pull_request.number,
+            botAppliedCovered
+          );
+        } catch (error) {
+          context.log.error(
+            { err: error, labels: botAppliedCovered },
+            "could not read the PR's comments and reviews, keeping its covered ciflow labels"
+          );
+        }
+      }
+      for (const label of botAppliedCovered) {
+        if (requestedByCommand.has(label)) {
+          continue;
+        }
+        context.log(
+          { label },
+          "removing a ciflow label a bot applied that a PR above in the stack runs"
+        );
+        try {
+          await context.octokit.issues.removeLabel(
+            context.repo({
+              issue_number: context.payload.pull_request.number,
+              name: label,
+            })
+          );
+        } catch (error) {
+          if ((error as { status?: number }).status !== 404) {
+            throw error;
+          }
+          context.log({ label, err: error }, "label was already removed");
+        }
       }
 
       // After auto-labeling is complete, check if the PR still needs required labels.
