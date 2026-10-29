@@ -2,10 +2,10 @@ name: GreenLight policy replay
 
 # Replays past GreenLight reviews under the policy before and after a pull request (PR) and comments the
 # comparison on the PR. A push changing the skill, its verdict schema or the replay machinery (this
-# workflow, its report script, the replay harness and the sampling rank it shares with the decisions
+# workflow, its scripts, the replay harness and the sampling rank it shares with the decisions
 # export) starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
 # changing only the machinery runs the same policy in both arms. Every job runs code from the pushed
-# commit's history (this workflow, its script, tools/, both arms' policy). Jobs naming `bedrock` deploy
+# commit's history (this workflow, its scripts, tools/, both arms' policy). Jobs naming `bedrock` deploy
 # the pushed branch, so its deployment branch policy, and who may push the branches it admits, decide
 # which code runs with the Bedrock role; gate names it first, so a PR from another branch fails there.
 #
@@ -25,7 +25,7 @@ on:
       - .claude/skills/greenlight-review/**
       - .claude/hooks/greenlight/verdict-schema.json
       - .github/workflows/greenlight-policy-replay.yml
-      - .github/scripts/greenlight_policy_replay_report.sh
+      - .github/scripts/greenlight_policy_replay_*.sh
       - tools/torchci/greenlight_replay/**
       - tools/torchci/greenlight_decisions/sample.py
 
@@ -90,7 +90,7 @@ jobs:
           comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base_ref...$HEAD_SHA")
           changes=$(jq -r 'if [.files[]? | .filename, (.previous_filename // empty)] | any(startswith(".claude/skills/greenlight-review/")
             or . == ".claude/hooks/greenlight/verdict-schema.json" or . == ".github/workflows/greenlight-policy-replay.yml"
-            or . == ".github/scripts/greenlight_policy_replay_report.sh" or startswith("tools/torchci/greenlight_replay/")
+            or test("^\\.github/scripts/greenlight_policy_replay_[^/]*\\.sh$") or startswith("tools/torchci/greenlight_replay/")
             or . == "tools/torchci/greenlight_decisions/sample.py")
             then "yes" elif (.files | length) >= 300 then "unknown" else "no" end' <<<"$comparison")
           [ "$changes" != unknown ] || { echo "::notice::#$pr_number changes too many files to check the trigger paths; nothing to compare."; exit 0; }
@@ -374,6 +374,13 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
       - name: Comment that the comparison could not start
         env:
           GH_TOKEN: ${{ github.token }}
@@ -381,7 +388,6 @@ jobs:
           HEAD_SHA: ${{ needs.plan.outputs.head_sha }}
         run: |
           set -euo pipefail
-          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] ||
-            { echo "invalid pull request number '$PR_NUMBER' or head SHA '$HEAD_SHA'" >&2; exit 1; }
-          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
-            --body "The GreenLight policy comparison for $HEAD_SHA could not start: preparing it failed. [Workflow run]($RUN_URL)"
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid head SHA '$HEAD_SHA'" >&2; exit 1; }
+          echo "The GreenLight policy comparison for $HEAD_SHA could not start: preparing it failed. [Workflow run]($RUN_URL)" >"$RUNNER_TEMP/comment.md"
+          bash .github/scripts/greenlight_policy_replay_comment.sh "$RUNNER_TEMP/comment.md"

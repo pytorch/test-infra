@@ -20,4 +20,4 @@ PYTHONPATH=. python3 -m torchci.greenlight_replay.compare \
   --run-url "$RUN_URL" \
   --output "$comment"
 cat "$comment" >>"$GITHUB_STEP_SUMMARY"
-gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$comment"
+bash "$(dirname "$0")/greenlight_policy_replay_comment.sh" "$comment"
