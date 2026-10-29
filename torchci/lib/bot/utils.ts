@@ -343,7 +343,8 @@ export async function hasWritePermissions(
   // so the collaborator permission check doesn't apply to them.
   if (
     username === "facebook-github-tools[bot]" ||
-    username === "meta-codesync[bot]"
+    username === "meta-codesync[bot]" ||
+    username === "dependabot[bot]"
   ) {
     return true;
   }

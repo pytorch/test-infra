@@ -91,6 +91,7 @@ jobs:
     uses: ./.github/workflows/linux_job_v3.yml
     name: "linux-${{ matrix.package_type }}-${{ matrix.python_version }}-${{ matrix.desired_cuda }}"
     with:
+      hf-cache: false
       runner: ${{ matrix.validation_runner }}
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref || github.ref }}

@@ -1575,6 +1575,10 @@ class S3Index:
         print(
             f"INFO: Retrieved {len(rc.objects)} objects from S3 for prefix '{prefix}'"
         )
+        # A channel's first test installs from its index before any wheel lands
+        # there, so index existing channel subdirs even without wheels.
+        if prefix.startswith("whl"):
+            rc.subdirs.update(p.rstrip("/") for p in list_accelerator_subdirs(prefix))
 
         # Apply PACKAGE_ALLOW_LIST filtering to whl, whl/nightly, and whl/test
         if prefix == "whl/nightly":

@@ -1,23 +1,27 @@
-"""The workflow's "Collect ghstack stack context" step, as the harness reproduces it.
+"""The workflow's "Collect stack context" step, as the harness reproduces it.
 
 The step lists, in ``/tmp/greenlight-stack.json``, the open pull requests among the five
-directly above the reviewed one in its ghstack stack, top first, with each one's diff at
-``/tmp/greenlight-stack/<n>.diff``. This module holds what that shell decides on its
-own: which lines of a body are the listing, which five numbers sit above, how a diff is
-cut at 2000 lines, and the pin on the step itself. It imports nothing else from the
-harness, so the policy loader can check the pin without pulling in :mod:`.stack`, which
-reads GitHub back to the replayed verdict's cutoff.
+directly above the reviewed one in its stack, a ghstack or a GitHub stack of pull
+requests, top first, with each one's diff at ``/tmp/greenlight-stack/<n>.diff``. This
+module holds what that shell decides on its own for a ghstack: which lines of a body are
+the listing, which five numbers sit above, how a diff is cut at 2000 lines, and the pins
+on the step itself, with the stack context each collects. It imports nothing else from
+the harness, so the policy loader can check a pin without pulling in :mod:`.stack`,
+which reads GitHub back to the replayed verdict's cutoff.
 
-**The pin covers the whole step but its ``name``.** :data:`STEP_SHA256` is the digest
-of every other key as canonical JSON, so an edited ``run:``, ``env`` or ``shell``, or an
-added ``if:``, is refused, while a retitled step is not. Where the step sits -- its
-order among the job's steps, and which job holds it -- is not checked. The step is
-found by a ``run:`` naming the stack path inline; moved into a script, its policy would
-read as one without the step and replay with no stack, a known limit.
+**A pin covers the whole step but its ``name``.** :data:`STEP_SHA256` is the digest of
+every other key as canonical JSON, so an edited ``run:``, ``env`` or ``shell``, or an
+added ``if:``, is refused, while a retitled step is not. The step's version collecting
+a ghstack's context alone is pinned too, by :data:`GHSTACK_ONLY_STEP_SHA256`, so a
+policy ref carrying it replays with ghstack context, as CI ran it. Where the step sits
+-- its order among the job's steps, and which job holds it -- is not checked. The step
+is found by a ``run:`` naming the stack path inline; moved into a script, its policy
+would read as one without the step and replay with no stack, a known limit.
 """
 
 from __future__ import annotations
 
+import enum
 import hashlib
 import json
 import re
@@ -29,9 +33,12 @@ __all__ = [
     "CI_STACK_DIR",
     "CI_STACK_JSON",
     "GHSTACK_HEAD",
+    "GHSTACK_ONLY_STEP_SHA256",
+    "STACK_CONTEXT_BY_PIN",
     "STACK_DIRNAME",
     "STACK_FILENAME",
     "STEP_SHA256",
+    "StackContext",
     "cap_diff",
     "listed_above",
     "listing",
@@ -46,10 +53,33 @@ STACK_DIRNAME = "greenlight-stack"
 CI_STACK_JSON = f"/tmp/{STACK_FILENAME}"
 CI_STACK_DIR = f"/tmp/{STACK_DIRNAME}"
 
-# step_digest() of the step as PyYAML loads it.
-STEP_SHA256 = "87ab279185061334eb6885620cbe9a7513a2a87fecbbd2e441869e1ad919be50"
 
-# The step's `grep -B 5`, and its `awk 'NR > 2000 { print "[truncated]"; exit } ...'`.
+class StackContext(enum.Enum):
+    """The stack context a policy collects, each value as the policy loader logs it.
+
+    ``NONE`` is a policy without the step, ``GHSTACK`` one collecting a ghstack's
+    context alone, and ``BOTH`` one collecting a ghstack's and a GitHub stack's.
+    """
+
+    NONE = "off"
+    GHSTACK = "on, ghstack only"
+    BOTH = "on"
+
+
+# step_digest() of the step as PyYAML loads it.
+STEP_SHA256 = "5fa7c0723e0ddabae1f5c0295ebbb60bf4260e89806a42d46a917f361b8f3b67"
+# step_digest() of its ghstack-only version, the "Collect ghstack stack context" step at
+# https://github.com/pytorch/test-infra/blob/9206d491d3a5507163cb9d5b77040d4c3ef5e038/.github/workflows/greenlight-pr-review.yml#L315
+GHSTACK_ONLY_STEP_SHA256 = (
+    "87ab279185061334eb6885620cbe9a7513a2a87fecbbd2e441869e1ad919be50"
+)
+STACK_CONTEXT_BY_PIN = {
+    STEP_SHA256: StackContext.BOTH,
+    GHSTACK_ONLY_STEP_SHA256: StackContext.GHSTACK,
+}
+
+# The step's `window`, for its `grep -xF -B "$window"` and its jq selection alike, and
+# its `awk 'NR > 2000 { print "[truncated]"; exit } ...'`.
 SIBLINGS_ABOVE = 5
 DIFF_LINE_CAP = 2000
 TRUNCATED_LINE = b"[truncated]\n"
@@ -108,7 +138,7 @@ def listed_above(body: str, pr_number: int) -> list[str] | None:
     """The up to five numbers listed directly above ``pr_number``, top of stack first.
 
     None when the listing does not name ``pr_number``, where the step stops. The step's
-    ``grep -xF -B 5 | sed '$d'`` is exactly this slice, because no number repeats.
+    ``grep -xF -B "$window" | sed '$d'`` is exactly this slice, as no number repeats.
     """
     numbers = listing(body)
     own = str(pr_number)

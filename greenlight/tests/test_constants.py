@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from greenlight import constants
+from greenlight import constants, verdict_labels
 
 
 def test_status_string_values():
@@ -56,6 +56,34 @@ def test_a_full_tick_is_due_fifteen_minutes_on_less_thirty_seconds_of_tolerance(
 
 def test_a_fingerprint_is_cached_only_two_minutes_after_its_prs_last_update():
     assert timedelta(minutes=2) == constants.FINGERPRINT_QUIET
+
+
+def test_gl_approved_label_value():
+    assert constants.GL_APPROVED_LABEL == "GL/approved"
+
+
+def test_gl_human_label_value():
+    assert constants.GL_HUMAN_LABEL == "GL/human"
+
+
+def test_gl_superseded_label_value():
+    assert constants.GL_SUPERSEDED_LABEL == "GL/superseded"
+
+
+def test_gl_labels_are_exactly_the_three_status_labels():
+    assert sorted(constants.GL_LABELS) == ["GL/approved", "GL/human", "GL/superseded"]
+
+
+def test_verdict_labels_cover_exactly_the_terminal_statuses():
+    assert set(verdict_labels._VERDICT_LABELS) == constants.TERMINAL_STATUSES
+
+
+def test_label_pass_deadline_value():
+    assert timedelta(seconds=150) == constants.LABEL_PASS_DEADLINE
+
+
+def test_label_pass_max_failures_value():
+    assert constants.LABEL_PASS_MAX_FAILURES == 3
 
 
 def test_s3_key_prefix_value():
@@ -132,7 +160,8 @@ def test_max_diff_files_value():
 
 
 def test_target_branch_value():
-    # A path-scoped author's PR must be based on this branch unless it is a ghstack PR, as trymerge requires.
+    # A path-scoped author's PR must be based on this branch unless it is a ghstack PR or in a GitHub-native stack
+    # whose trunk is this branch, as trymerge requires.
     assert constants.TARGET_BRANCH == "main"
 
 

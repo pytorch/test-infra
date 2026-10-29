@@ -792,6 +792,11 @@ class _FakePRPart:
         self.sha = sha
 
 
+class _FakeVerdictLabel:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
 class _FakeVerdictPR:
     def __init__(
         self,
@@ -802,7 +807,10 @@ class _FakeVerdictPR:
     ) -> None:
         self.head = _FakePRPart("feature", head_sha)
         self.base = _FakePRPart("main", "base")
+        self.raw_data: dict[str, object] = {}
         self.user = _FakeActor(author) if author is not None else None
+        self.labels: list[_FakeVerdictLabel] = []
+        self.state = "open"
         self._reviews = reviews or []
         self._existing_comments = existing_comments or []
         self.created_reviews: list[tuple[str, str]] = []
@@ -824,6 +832,10 @@ class _FakeVerdictPR:
 
     def get_files(self) -> list[_FakeVerdictFile]:
         return []
+
+    def add_to_labels(self, *labels: str) -> None: ...
+
+    def remove_from_labels(self, label: str) -> None: ...
 
 
 class _FakeVerdictRepo:

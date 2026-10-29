@@ -389,9 +389,58 @@ function getReleaseNotesCategoryAndTopic(
   return ["uncategorized", topic];
 }
 
+// Read over GraphQL: on PRs with a few hundred timeline events the REST
+// timeline stops returning newer events, so the latest applier goes missing.
+const LABELED_EVENTS_QUERY = `
+query ($owner: String!, $repo: String!, $number: Int!, $before: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      timelineItems(last: 100, before: $before, itemTypes: [LABELED_EVENT]) {
+        pageInfo {
+          hasPreviousPage
+          startCursor
+        }
+        nodes {
+          ... on LabeledEvent {
+            label {
+              name
+            }
+            actor {
+              __typename
+              login
+              ... on Bot {
+                databaseId
+              }
+              ... on User {
+                databaseId
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+type GraphQLActor = {
+  __typename: string;
+  login: string;
+  databaseId?: number;
+} | null;
+
+// Match the REST actor shape the callers check: apps log in as `name[bot]`.
+function toLabelActor(actor: GraphQLActor): LabelActor {
+  if (!actor) {
+    return undefined;
+  }
+  const login =
+    actor.__typename === "Bot" ? `${actor.login}[bot]` : actor.login;
+  return { id: actor.databaseId, login };
+}
+
 async function getLabelsLastAppliedBy(
   context: Context,
-  issueNumber: number,
+  prNumber: number,
   labelNames: string[],
   matchesActor: (actor: LabelActor) => boolean | Promise<boolean>
 ): Promise<Set<string>> {
@@ -399,18 +448,28 @@ async function getLabelsLastAppliedBy(
     return new Set();
   }
   const lastLabeledBy = new Map<string, LabelActor>();
-  const events = await context.octokit.paginate(
-    context.octokit.issues.listEventsForTimeline,
-    context.repo({
-      issue_number: issueNumber,
-      per_page: 100,
-    })
-  );
-  for (const event of events) {
-    if (event.event === "labeled" && event.label?.name) {
-      lastLabeledBy.set(event.label.name, event.actor);
+  const { owner, repo } = context.repo();
+  // Walk back from the newest event until every requested label has an applier.
+  let before: string | null = null;
+  do {
+    const res: any = await context.octokit.graphql(LABELED_EVENTS_QUERY, {
+      owner,
+      repo,
+      number: prNumber,
+      before,
+    });
+    const items = res?.repository?.pullRequest?.timelineItems;
+    const nodes: any[] = items?.nodes ?? [];
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const name = nodes[i]?.label?.name;
+      if (name && !lastLabeledBy.has(name)) {
+        lastLabeledBy.set(name, toLabelActor(nodes[i].actor));
+      }
     }
-  }
+    before = items?.pageInfo?.hasPreviousPage
+      ? items.pageInfo.startCursor
+      : null;
+  } while (before && labelNames.some((label) => !lastLabeledBy.has(label)));
   const matchingLabels = new Set<string>();
   for (const label of labelNames) {
     if (await matchesActor(lastLabeledBy.get(label))) {

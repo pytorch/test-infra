@@ -1,6 +1,5 @@
 import {
   fetchPrStatusState,
-  getPrStatusStage,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -14,10 +13,12 @@ import shlex from "shlex";
 import { getInputArgs, getParser } from "./cliParser";
 
 // Bound checks of young PRs, rotating them so comment/reaction retries are not
-// starved. Every PR old enough to time out is checked on every scheduled run.
+// starved. Potential timeouts are uncapped; only known objections or qualifying
+// merge approvals can defer a check.
 const MAX_PRS_PER_RUN = 100;
 const RUN_INTERVAL_MS = 15 * 60 * 1000;
 const PRE_REVIEW_WAIT_MS = 7 * 24 * 60 * 60 * 1000;
+const BLOCKED_RECHECK_MS = 6 * 60 * 60 * 1000;
 
 type TimelineEvent = {
   event?: string;
@@ -44,6 +45,10 @@ export interface PreReviewStatus {
   timedOut: string[];
   // Explicit objections remain pending, even after the deadline.
   rejected: string[];
+  // Only a verified merge-rules approval skips pre-review. Other approvals
+  // (or a failed merge-rules lookup) must not strand the PR here.
+  isMergeApproved: boolean;
+  lookupFailed: boolean;
   // Everyone whose agreement counted, including members agreeing for a team
   countedFrom: string[];
   // No assignments still waits for the deadline, rather than waiting forever.
@@ -141,22 +146,35 @@ export function getThumbsUpReactors(reactions: Reaction[]): Set<string> {
   return reactors;
 }
 
-// The triaged label starts one shared clock. New review requests, comments,
-// commits and reactions cannot extend it. Re-triage starts a new period.
+// Start a fresh period when the PR enters pre-review, including a return from
+// draft or a missing-actionable-issue hold. Review requests, comments, commits,
+// and reactions never extend it. A known triage event is still required.
 export function hasPreReviewTimedOut(
   events: TimelineEvent[],
   now: number = Date.now()
 ): boolean {
-  const triagedAt = events
-    .filter(
+  if (
+    !events.some(
       (event) =>
         event.event === "labeled" &&
         event.label?.name === PR_STATUS_LABEL_TRIAGED
     )
+  ) {
+    return false;
+  }
+  const enteredAt = events
+    .filter(
+      (event) =>
+        (event.event === "labeled" &&
+          event.label?.name === PR_STATUS_LABEL_TRIAGED) ||
+        event.event === "ready_for_review" ||
+        (event.event === "unlabeled" &&
+          event.label?.name === PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)
+    )
     .map((event) => Date.parse(event.created_at ?? ""));
   // Missing/invalid history must not cause an early automatic acceptance.
   return (
-    triagedAt.length > 0 && now >= Math.max(...triagedAt) + PRE_REVIEW_WAIT_MS
+    enteredAt.length > 0 && now >= Math.max(...enteredAt) + PRE_REVIEW_WAIT_MS
   );
 }
 
@@ -275,17 +293,21 @@ export async function getPreReviewStatus(
   );
   rejectedBy.delete(authorLogin);
   const timedOut = hasPreReviewTimedOut(events as TimelineEvent[], now);
+  const isMergeApproved =
+    state?.isApproved === true && state.isMergeApproved === true;
 
   const agreed: string[] = [];
   const pending: string[] = [];
   const timedOutReviewers: string[] = [];
   const rejected: string[] = [];
   const countedFrom = new Set<string>();
+  let lookupFailed = state === null || state.reviewerLookupFailed === true;
   for (const reviewer of assigned) {
     const members = reviewer.includes("/")
       ? await getTeamMembers(octokit, reviewer)
       : [reviewer];
     if (members === null) {
+      lookupFailed = true;
       pending.push(reviewer);
       continue;
     }
@@ -310,17 +332,20 @@ export async function getPreReviewStatus(
     pending,
     timedOut: timedOutReviewers,
     rejected,
+    isMergeApproved,
+    lookupFailed,
     countedFrom: [...countedFrom].sort(),
     accepted:
       state !== null &&
       !state.reviewerLookupFailed &&
-      getPrStatusStage(state) === "preReview" &&
+      hasPreReviewLabels(state.labels) &&
+      !isMergeApproved &&
       (assigned.length > 0 || timedOut) &&
       pending.length === 0,
   };
 }
 
-function hasPreReviewLabels(labels: string[]): boolean {
+export function hasPreReviewLabels(labels: string[]): boolean {
   return (
     labels.includes(PR_STATUS_LABEL_TRIAGED) &&
     !labels.includes(PR_STATUS_LABEL_IN_PROGRESS) &&
@@ -332,8 +357,11 @@ function hasPreReviewLabels(labels: string[]): boolean {
 // Mark a triaged PR in progress once every reviewer agrees or times out. The
 // triaged label is kept, so a PR already past automated review (ready for
 // review) is skipped, or adding in progress again would trigger another review.
+// Read through the pre-review app, but label as PyTorchBot: the automated
+// review workflow requires that identity to trigger a review.
 export async function markInProgressIfAccepted(
   octokit: Octokit,
+  labelOctokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
@@ -369,7 +397,7 @@ export async function markInProgressIfAccepted(
         ", "
       )}; timed out: ${status.timedOut.join(", ")}`
     );
-    await octokit.rest.issues.addLabels({
+    await labelOctokit.rest.issues.addLabels({
       owner,
       repo,
       issue_number: prNumber,
@@ -421,38 +449,78 @@ async function searchPreReviewPrs(
   return items;
 }
 
-// Reactions and the one-week deadline do not trigger webhooks. The existing
-// 15-minute Dr.CI job also checks PRs with no reactions or recent CI activity.
+export interface PreReviewRecheck {
+  updatedAt: string;
+  nextCheckAt: number;
+}
+
+export type PreReviewRechecks = Record<string, PreReviewRecheck>;
+
+export interface PreReviewSweepResult {
+  rechecks: PreReviewRechecks;
+  checked: number;
+  deferred: number;
+  failed: number[];
+}
+
+// Reactions and the one-week deadline do not trigger webhooks. An independent
+// 15-minute cron also checks PRs with no reactions or recent CI activity.
 // A PR must be at least a week old to have spent a week in pre-review, so all
 // potential timeouts are checked each run, independently of the young-PR batch.
 export async function updateInProgressLabels(
   octokit: Octokit,
+  labelOctokit: Octokit,
   owner: string,
-  repo: string
-): Promise<void> {
+  repo: string,
+  previousRechecks: PreReviewRechecks = {}
+): Promise<PreReviewSweepResult> {
+  const result: PreReviewSweepResult = {
+    rechecks: {},
+    checked: 0,
+    deferred: 0,
+    failed: [],
+  };
   const startDate = PRE_REVIEW_START_DATE;
   if (startDate === null) {
-    return;
+    return result;
   }
   const now = Date.now();
   const candidates = (
     await searchPreReviewPrs(
       octokit,
+      // Do not use -review:approved: GitHub doesn't know which approvals
+      // satisfy merge_rules.yaml, so that would hide legitimate candidates.
       `repo:${owner}/${repo} is:pr is:open draft:false label:"${PR_STATUS_LABEL_TRIAGED}" -label:"${PR_STATUS_LABEL_IN_PROGRESS}" -label:"${PR_STATUS_LABEL_READY_FOR_REVIEW}" -label:"${PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE}"`,
       Math.floor(Date.parse(startDate) / 1000),
       Math.floor(now / 1000)
     )
   ).filter((pr) => pr.user?.login);
 
+  const due = candidates.filter((pr) => {
+    const previous = previousRechecks[pr.number];
+    if (
+      previous &&
+      previous.updatedAt === pr.updated_at &&
+      previous.nextCheckAt > now
+    ) {
+      result.rechecks[pr.number] = previous;
+      result.deferred++;
+      return false;
+    }
+    return true;
+  });
+
   // Limit concurrent GitHub requests without delaying expired PRs to another
   // run. One failed PR must not prevent the remaining deadline checks.
   const limit = pLimit(5);
   await Promise.all(
-    getPreReviewBatch(candidates, now).map((pr) =>
+    getPreReviewBatch(due, now).map((pr) =>
       limit(async () => {
         try {
-          await markInProgressIfAccepted(
+          result.checked++;
+          const status = await markInProgressIfAccepted(
             octokit,
+            labelOctokit,
             owner,
             repo,
             pr.number,
@@ -461,7 +529,22 @@ export async function updateInProgressLabels(
             ),
             pr.user!.login
           );
+          if (status.lookupFailed) {
+            result.failed.push(pr.number);
+            return;
+          }
+          // Only explicit objections and verified merge approvals are deferred.
+          // Silence remains on the normal deadline path. Updated PRs invalidate
+          // this entry; the bounded retry also detects reaction removal (which
+          // emits no webhook and need not update the PR's updated_at).
+          if (status.isMergeApproved || status.rejected.length > 0) {
+            result.rechecks[pr.number] = {
+              updatedAt: pr.updated_at,
+              nextCheckAt: now + BLOCKED_RECHECK_MS,
+            };
+          }
         } catch (error) {
+          result.failed.push(pr.number);
           console.error(
             `Failed to update pre-review status for ${owner}/${repo}#${pr.number}`,
             error
@@ -470,4 +553,6 @@ export async function updateInProgressLabels(
       })
     )
   );
+  result.failed.sort((a, b) => a - b);
+  return result;
 }

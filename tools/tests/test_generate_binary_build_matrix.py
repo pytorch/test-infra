@@ -173,7 +173,7 @@ class GenerateBuildMatrixTest(TestCase):
                 self.assertIn("3.15t", versions)
 
     def test_python_3_15_enabled_on_release_channel(self):
-        # 2.14 ships 3.15 / 3.15t wheels, so they belong in the release matrix.
+        # 2.15 ships 3.15 / 3.15t wheels, so they belong in the release matrix.
         for operating_system in ("linux", "linux-aarch64", "windows", "macos-arm64"):
             versions = self._test_channel_python_versions(
                 operating_system, channel="release"
@@ -181,9 +181,9 @@ class GenerateBuildMatrixTest(TestCase):
             self.assertIn("3.15", versions)
             self.assertIn("3.15t", versions)
 
-    def test_python_3_15_excluded_from_getting_started(self):
-        # 3.15 is still a CPython pre-release, so it must stay off the
-        # getting-started page on every channel.
+    def test_python_3_15_offered_on_getting_started(self):
+        # PYTHON_ARCHES_NO_GETTING_STARTED is empty: 2.15 ships 3.15 / 3.15t
+        # wheels, so they are offered on the getting-started page on every channel.
         for channel in ("nightly", "test", "release"):
             for operating_system in (
                 "linux",
@@ -194,8 +194,8 @@ class GenerateBuildMatrixTest(TestCase):
                 versions = self._test_channel_python_versions(
                     operating_system, channel=channel, getting_started=True
                 )
-                self.assertNotIn("3.15", versions)
-                self.assertNotIn("3.15t", versions)
+                self.assertIn("3.15", versions)
+                self.assertIn("3.15t", versions)
 
     def test_python_3_15_excluded_on_windows_arm64(self):
         # windows-arm64 pins its own short version list.
@@ -206,10 +206,8 @@ class GenerateBuildMatrixTest(TestCase):
     def test_python_abi3_keeps_oldest_and_free_threaded(self):
         # A single abi3 wheel covers every later CPython, but free-threaded
         # interpreters reject abi3 wheels and still need one wheel each.
-        # The oldest interpreter differs per channel while release still ships
-        # 3.10: nightly's abi3 wheel is built against 3.11, release's against
-        # 3.10. These two expectations converge again once 3.10 leaves the
-        # release channel.
+        # 3.10 is gone from every channel, so the abi3 wheel is built against
+        # 3.11 on nightly, test and release alike.
         for operating_system in ("linux", "linux-aarch64", "windows"):
             self.assertEqual(
                 self._test_channel_python_versions(
@@ -221,7 +219,7 @@ class GenerateBuildMatrixTest(TestCase):
                 self._test_channel_python_versions(
                     operating_system, channel="release", python_abi3=True
                 ),
-                {"3.10", "3.14t", "3.15t"},
+                {"3.11", "3.14t", "3.15t"},
             )
 
         # macOS pins .0 point versions, see MACOS_PYTHON_POINT_VERSIONS.
@@ -235,7 +233,7 @@ class GenerateBuildMatrixTest(TestCase):
             self._test_channel_python_versions(
                 "macos-arm64", channel="release", python_abi3=True
             ),
-            {"3.10.19", "3.14t", "3.15t"},
+            {"3.11.14", "3.14t", "3.15t"},
         )
 
     def test_python_abi3_disabled_by_default(self):
@@ -244,16 +242,12 @@ class GenerateBuildMatrixTest(TestCase):
             {"3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"},
         )
 
-    def test_python_310_dropped_from_nightly_and_test(self):
-        # 2.15 does not build 3.10, so nightly and test (the 2.15 candidates)
-        # drop it; 2.14 publishes cp310 wheels, so release keeps validating them.
-        for channel in ("nightly", "test"):
+    def test_python_310_dropped_from_every_channel(self):
+        # 2.15 does not build 3.10, so nightly, test and release all drop it.
+        for channel in ("nightly", "test", "release"):
             self.assertNotIn(
                 "3.10", self._test_channel_python_versions("linux", channel=channel)
             )
-        self.assertIn(
-            "3.10", self._test_channel_python_versions("linux", channel="release")
-        )
 
     def test_torch_only_install_command_for_torch_only_arches(self):
         out = generate_build_matrix(
@@ -337,22 +331,16 @@ class GenerateBuildMatrixTest(TestCase):
                     f"{operating_system}/{channel}",
                 )
 
-    def test_getting_started_windows_cuda_13_4_not_in_release(self):
-        # Nightly and the 2.15 candidates on test carry win_amd64 cu134 wheels;
-        # 13.4 is not in the 2.14 release channel at all. See
+    def test_getting_started_windows_cuda_13_4(self):
+        # Nightly, test and 2.15 release all carry win_amd64 cu134 wheels. See
         # CUDA_ARCHES_NO_WINDOWS_DICT.
         for package_type in ("wheel", "libtorch"):
-            for channel in ("nightly", "test"):
+            for channel in ("nightly", "test", "release"):
                 self.assertIn(
                     "cu134",
                     self._cuda_versions(package_type, "windows", channel, "true"),
                     f"{package_type}/{channel}",
                 )
-            self.assertNotIn(
-                "cu134",
-                self._cuda_versions(package_type, "windows", "release", "true"),
-                f"{package_type}/release",
-            )
 
     def test_windows_has_no_cuda_13_0(self):
         # 13.0 is held on nightly for vLLM's cu130 lane, Linux only.
@@ -372,12 +360,19 @@ class GenerateBuildMatrixTest(TestCase):
                     f"{operating_system}/{channel}",
                 )
 
-    def test_release_channel_has_no_cuda_13_4(self):
-        # 13.4 is not published to download.pytorch.org prod.
+    def test_release_channel_cuda_arches(self):
+        # 2.15 ships cu132 and cu134 on download.pytorch.org prod, and neither
+        # cu126 nor cu130.
         for operating_system in ("linux", "linux-aarch64"):
-            self.assertNotIn(
-                "cu134",
-                self._cuda_versions("wheel", operating_system, "release", "false"),
+            self.assertEqual(
+                {"cu132", "cu134"},
+                {
+                    v
+                    for v in self._cuda_versions(
+                        "wheel", operating_system, "release", "false"
+                    )
+                    if v.startswith("cu")
+                },
                 operating_system,
             )
 

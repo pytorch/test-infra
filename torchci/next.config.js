@@ -37,6 +37,15 @@ module.exports = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/tests",
+        destination: "/tests/pytorch/pytorch",
+        permanent: false,
+      },
+    ];
+  },
   transpilePackages: [
     "@mui/x-data-grid",
     "@mui/x-data-grid-pro",

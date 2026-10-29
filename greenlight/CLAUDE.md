@@ -90,12 +90,13 @@ PyTorch Green Light has one unit of work — the `review` phase:
   two with ticks two minutes or more apart, more on a `--loop` daemon (60 s apart by default). A
   change to the approver set refetches every PR on the next tick; a `--loop` host needs a synced
   clock. `--pr` and `--force` never touch the kept results.
-  Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (PR write, for the revocation), `BOT_LOGIN`, and
-  `CLICKHOUSE_*` read access.
+  Requires `PYTORCH_GREENLIGHT_GITHUB_TOKEN` (PR write, for the revocation and the `GL/*` labels),
+  `BOT_LOGIN`, and `CLICKHOUSE_*` read access.
 
 `cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. The
 author must be named by a merge rule that covers every file the PR changes, a path-scoped rule only
-on a PR based on `main` or on a ghstack PR; the scan and the verdict (`verdict.has_covering_rule`) run
+on a PR based on `main`, on a ghstack PR or on a PR in a GitHub-native stack whose trunk is `main`
+(`merge_authz.native_stack_trunk`); the scan and the verdict (`verdict.has_covering_rule`) run
 this same check. Any other non-draft PR the scan lists is state-read and revert-guarded but never dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
@@ -113,6 +114,13 @@ state read, so an ineligible PR still loses a stale approval and still gets its 
 
 Approving or rejecting a PR lives in the dispatched reviewer workflow (through `verdict`),
 not in the `review` scan itself.
+
+The `GL/*` labels only display the ledger: never read one to decide anything. `verdict` sets
+`GL/approved` / `GL/human` for a non-shadow verdict; the scan's label pass (`verdict_labels`, on
+listing ticks that reach their dispatch phase without a rate limit, after `_dispatch_pending`, before the error
+aggregation) supersedes and restores them, mirroring pytorch's land-time gate (`STATUS_LABELS.md`).
+Label writes are best-effort and must never fail the scan or lose the verdict row; the label pass's
+ClickHouse read fails the scan like the scan's other reads.
 
 The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 `github_client.build_pr_fingerprint`) is computed by the `review` scan and recorded to

@@ -1,4 +1,3 @@
-import { Octokit } from "octokit";
 import useSWR, { SWRConfiguration } from "swr";
 import useSWRImmutable from "swr/immutable";
 import { isFailure } from "./JobClassifierUtil";
@@ -91,20 +90,9 @@ export function getFailureMessage(
   `;
 }
 
-export async function hasWritePermissionsUsingOctokit(
-  octokit: Octokit,
-  username: string,
-  owner: string,
-  repo: string
-): Promise<boolean> {
-  const res = await octokit.rest.repos.getCollaboratorPermissionLevel({
-    owner: owner,
-    repo: repo,
-    username: username,
-  });
-  const permissions = res?.data?.permission;
-  return permissions === "admin" || permissions === "write";
-}
+// Kept here for its callers; it lives in lib/auth/githubPermissions.ts so the
+// server-side gates can import it without the rest of this file.
+export { hasWritePermissionsUsingOctokit } from "./auth/githubPermissions";
 
 /**
  * This hook function is a convenience wrapper for useSWR that fetches data from

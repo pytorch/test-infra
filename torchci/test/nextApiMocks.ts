@@ -17,11 +17,19 @@ export function mockRes(): MockApiResponse {
       res._headers[name] = value;
       return res;
     },
+    removeHeader(name: string) {
+      delete res._headers[name];
+      return res;
+    },
     status(code: number) {
       res._status = code;
       return res;
     },
     json(data: any) {
+      res._json = data;
+      return res;
+    },
+    send(data: any) {
       res._json = data;
       return res;
     },

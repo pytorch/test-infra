@@ -285,6 +285,7 @@ class _FakeFilesPR:
     def __init__(self, files: Iterable[_FakePRFile], *, head_ref: str = "feature", base_ref: str = "main") -> None:
         self.head = _FakePRPart(head_ref)
         self.base = _FakePRPart(base_ref)
+        self.raw_data: dict[str, object] = {}
         self._files = files
         self.get_files_calls = 0
 
@@ -297,11 +298,73 @@ def _files_pr(*filenames: str, **refs: str) -> _FakeFilesPR:
     return _FakeFilesPR([_FakePRFile(name) for name in filenames], **refs)
 
 
+def _stack(trunk: object) -> dict[str, object]:
+    return {"base": {"ref": trunk, "sha": "1" * 40}, "id": 2533136, "number": 201848, "position": 2, "size": 5}
+
+
+def _stacked_pr(stack: object, *filenames: str, head_ref: str = "feature", base_ref: str = "part-1") -> _FakeFilesPR:
+    pr = _files_pr(*filenames, head_ref=head_ref, base_ref=base_ref)
+    pr.raw_data["stack"] = stack
+    return pr
+
+
+_NOT_A_STACK = [
+    pytest.param(None, id="null"),
+    pytest.param(constants.TARGET_BRANCH, id="a-string"),
+    pytest.param([_stack(constants.TARGET_BRANCH)], id="a-list"),
+    pytest.param({"id": 2533136}, id="no-base"),
+    pytest.param({"base": constants.TARGET_BRANCH}, id="base-a-string"),
+    pytest.param({"base": None}, id="base-null"),
+    pytest.param({"base": {"sha": "1" * 40}}, id="no-ref"),
+    pytest.param(_stack(None), id="ref-null"),
+    pytest.param(_stack(7), id="ref-a-number"),
+    pytest.param(_stack([constants.TARGET_BRANCH]), id="ref-a-list"),
+]
+
+
+@pytest.mark.parametrize("trunk", [constants.TARGET_BRANCH, "release/2.9"])
+def test_native_stack_trunk_is_the_stack_base_ref(trunk: str) -> None:
+    assert merge_authz.native_stack_trunk(_stacked_pr(_stack(trunk))) == trunk
+
+
+def test_native_stack_trunk_of_a_pr_whose_response_has_no_stack_key_is_none():
+    assert merge_authz.native_stack_trunk(_files_pr()) is None
+
+
+@pytest.mark.parametrize("stack", _NOT_A_STACK)
+def test_native_stack_trunk_of_a_stack_of_any_other_shape_is_none(stack: object) -> None:
+    assert merge_authz.native_stack_trunk(_stacked_pr(stack)) is None
+
+
+@pytest.mark.parametrize(
+    ("pr", "accepted"),
+    [
+        pytest.param(_files_pr(), True, id="based-on-main"),
+        pytest.param(
+            _files_pr(head_ref="gh/jeanschmidt/12/head", base_ref="gh/jeanschmidt/12/base"), True, id="ghstack"
+        ),
+        pytest.param(_stacked_pr(_stack(constants.TARGET_BRANCH)), True, id="native-stack-on-main"),
+        pytest.param(_stacked_pr(_stack("release/2.9")), False, id="native-stack-on-another-trunk"),
+        pytest.param(_files_pr(base_ref="release/2.9"), False, id="in-no-stack-on-another-base"),
+    ],
+)
+def test_accepts_base_is_main_a_ghstack_pr_or_a_native_stack_on_main(pr: _FakeFilesPR, accepted: bool) -> None:
+    assert merge_authz.accepts_base(pr) is accepted
+
+
 @pytest.mark.parametrize("base_ref", ["gh/jeanschmidt/12/base", constants.TARGET_BRANCH])
 def test_changed_files_lists_the_filenames_of_a_ghstack_head_on_any_base(base_ref: str) -> None:
     pr = _files_pr("a.py", "b.py", head_ref="gh/jeanschmidt/12/head", base_ref=base_ref)
 
     assert merge_authz.changed_files(pr) == ("a.py", "b.py")
+
+
+def test_changed_files_lists_the_filenames_of_a_ghstack_head_whatever_its_native_stack():
+    pr = _stacked_pr(
+        _stack("release/2.9"), "a.py", head_ref="gh/jeanschmidt/12/head", base_ref="gh/jeanschmidt/12/base"
+    )
+
+    assert merge_authz.changed_files(pr) == ("a.py",)
 
 
 @pytest.mark.parametrize("head_ref", ["feature", "gh/jeanschmidt/12/orig"])
@@ -312,8 +375,41 @@ def test_changed_files_of_a_non_ghstack_head_on_a_base_other_than_main_is_none_w
     assert pr.get_files_calls == 0
 
 
+@pytest.mark.parametrize("base_ref", ["part-1", constants.TARGET_BRANCH])
+def test_changed_files_lists_the_filenames_of_a_pr_in_a_native_stack_on_main_on_any_base(base_ref: str) -> None:
+    pr = _stacked_pr(_stack(constants.TARGET_BRANCH), "a.py", "b.py", base_ref=base_ref)
+
+    assert merge_authz.changed_files(pr) == ("a.py", "b.py")
+
+
+def test_changed_files_of_a_pr_in_a_native_stack_on_another_trunk_is_none_without_listing(caplog):
+    pr = _stacked_pr(_stack("release/2.9"), "a.py")
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        assert merge_authz.changed_files(pr) is None
+
+    assert pr.get_files_calls == 0
+    assert "its native stack trunk is 'release/2.9'" in caplog.text
+
+
+@pytest.mark.parametrize("stack", _NOT_A_STACK)
+def test_changed_files_of_a_pr_on_another_base_with_a_stack_of_any_other_shape_is_none_without_listing(
+    stack: object,
+) -> None:
+    pr = _stacked_pr(stack, "a.py")
+
+    assert merge_authz.changed_files(pr) is None
+    assert pr.get_files_calls == 0
+
+
 def test_changed_files_lists_the_filenames_of_a_branch_based_on_main():
     assert merge_authz.changed_files(_files_pr("a.py", "b.py")) == ("a.py", "b.py")
+
+
+def test_changed_files_lists_the_filenames_of_a_branch_based_on_main_whatever_its_native_stack():
+    pr = _stacked_pr(_stack("release/2.9"), "a.py", base_ref=constants.TARGET_BRANCH)
+
+    assert merge_authz.changed_files(pr) == ("a.py",)
 
 
 def test_changed_files_lists_every_filename_of_a_listing_at_the_file_cap():

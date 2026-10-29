@@ -1,0 +1,2703 @@
+{
+  "measured_at": "2026-10-26T00:04:16.584Z",
+  "server_version": "26.6.1.2439",
+  "database": "ci",
+  "settings": {
+    "readonly": 2,
+    "use_query_cache": 0,
+    "max_execution_time": 90,
+    "output_format_json_quote_64bit_integers": 1,
+    "date_time_output_format": "iso"
+  },
+  "executions": 3,
+  "description": "Working-tree SQL of GET /api/tests (list pages, the boundary probe a cursor page issues, a cursor continuation) and GET /api/tests/test/{test_id} (detail), recorded as a current-SQL fixture: there is no before/after comparison. Cursors were taken from live pages fetched the way the API fetches them. Live replays require nonempty, repeatable rows and record plans and timings; health refreshes every 15 minutes, so rows can change between executions.",
+  "fixture": {
+    "repo": "pytorch/pytorch",
+    "detail_test_id": "12347295505799784290",
+    "note": "The detail test had failed runs on main in the 7d window on 2026-10-24. Filters use owner nn, accelerator cuda, file test/test_nn.py and TEST_CONFIG=default, all present in the live catalogs then."
+  },
+  "cases": {
+    "main_default": {
+      "kind": "list",
+      "raw": {
+        "repo": "pytorch/pytorch"
+      },
+      "cursor": null,
+      "query": {
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n        WHERE repo = {repo: String}\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.repo = {repo: String}\n        \n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE window = {window: String} AND ran_on IN {ran_on: Array(String)}\n        AND tests_id IN (SELECT tests_id FROM catalog)\n        \n    GROUP BY tests_id, environments_id, env_vars_id\n)\nSELECT\n    ranked.*,\n    toString(key_0) AS sort_0,\n    key_1 AS sort_1,\n    toString(key_2) AS sort_2,\n    key_3 AS sort_3,\n    key_4 AS sort_4,\n    toString(key_5) AS sort_5,\n    toString(key_6) AS sort_6,\n    toString(key_7) AS sort_7,\n    toString(key_8) AS sort_8\nFROM (\n    SELECT\n        result.*,\n        status_rank AS key_0,\n        failure_rate AS key_1,\n        failed_runs_combined AS key_2,\n        toUnixTimestamp64Milli(last_failed_at_combined) AS key_3,\n        skip_rate AS key_4,\n        mean_passed_duration_milliseconds_combined AS key_5,\n        tests_id AS key_6,\n        environments_id AS key_7,\n        env_vars_id AS key_8\n    FROM (\n        SELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n            if(empty(owners), NULL, arraySort(owners)[1]) AS owner,\n            health.has_health AS has_health,\n            health.refreshed_at AS refreshed_at,\n            health.workflow_paths_combined AS workflow_paths_combined,\n            if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\n        FROM combined_health AS health\n        INNER JOIN catalog ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\n        \n    ) AS result\n) AS ranked\nWHERE 1\nORDER BY key_0 DESC NULLS LAST, key_1 DESC NULLS LAST, key_2 DESC NULLS LAST, key_3 DESC NULLS LAST, key_4 DESC NULLS LAST, key_5 DESC NULLS LAST, key_6 ASC NULLS LAST, key_7 ASC NULLS LAST, key_8 ASC NULLS LAST\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_aggregation_in_order = 1\n",
+        "params": {
+          "repo": "pytorch/pytorch",
+          "ran_on": [
+            "main"
+          ],
+          "window": "12h",
+          "entries_limit": 26
+        }
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + (Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))) [lifted up part]))"
+          },
+          {
+            "explain": "  Limit (preliminary LIMIT)"
+          },
+          {
+            "explain": "    Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "      Expression ((Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))))"
+          },
+          {
+            "explain": "        Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "          Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "            Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "              Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "                Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                  Expression (Before JOIN)"
+          },
+          {
+            "explain": "                    CreatingSets (Create sets before main query execution)"
+          },
+          {
+            "explain": "                      Expression ((Projection + Before ORDER BY))"
+          },
+          {
+            "explain": "                        Aggregating"
+          },
+          {
+            "explain": "                          Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                            Filter (WHERE)"
+          },
+          {
+            "explain": "                              ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                              Indexes:"
+          },
+          {
+            "explain": "                                Min-Max"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/73"
+          },
+          {
+            "explain": "                                  Granules: 1004/10804"
+          },
+          {
+            "explain": "                                Partition"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                PrimaryKey"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    tests_id"
+          },
+          {
+            "explain": "                                  Condition: (tests_id in 672032-element set)"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                  Search Algorithm: generic exclusion search"
+          },
+          {
+            "explain": "                                Ranges: 6"
+          },
+          {
+            "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
+          },
+          {
+            "explain": "                    Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                      Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 5/5"
+          },
+          {
+            "explain": "                            Granules: 85/85"
+          },
+          {
+            "explain": "                          Ranges: 5"
+          },
+          {
+            "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Keys:"
+          },
+          {
+            "explain": "                              repo"
+          },
+          {
+            "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
+          },
+          {
+            "explain": "                            Parts: 2/2"
+          },
+          {
+            "explain": "                            Granules: 2/2"
+          },
+          {
+            "explain": "                            Search Algorithm: binary search"
+          },
+          {
+            "explain": "                          Ranges: 2"
+          },
+          {
+            "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "                Indexes:"
+          },
+          {
+            "explain": "                  PrimaryKey"
+          },
+          {
+            "explain": "                    Condition: true"
+          },
+          {
+            "explain": "                    Parts: 1/1"
+          },
+          {
+            "explain": "                    Granules: 1/1"
+          },
+          {
+            "explain": "                  Ranges: 1"
+          },
+          {
+            "explain": "          Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "            ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "            Indexes:"
+          },
+          {
+            "explain": "              PrimaryKey"
+          },
+          {
+            "explain": "                Condition: true"
+          },
+          {
+            "explain": "                Parts: 1/1"
+          },
+          {
+            "explain": "                Granules: 1/1"
+          },
+          {
+            "explain": "              Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "5",
+            "rows": "672032",
+            "marks": "85"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "6",
+            "rows": "8332869",
+            "marks": "1004"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 4.644194701,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "768340571",
+          "digest": "70f4bddd9e15c21085d1cf51d84e4b0d376d2cd2bec5f7cdb6102611df05006b"
+        },
+        {
+          "execution": 1,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 5.004227381,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "868627744",
+          "digest": "70f4bddd9e15c21085d1cf51d84e4b0d376d2cd2bec5f7cdb6102611df05006b"
+        },
+        {
+          "execution": 2,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 5.253853621,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "884148674",
+          "digest": "70f4bddd9e15c21085d1cf51d84e4b0d376d2cd2bec5f7cdb6102611df05006b"
+        }
+      ],
+      "rows": 26,
+      "digest": "70f4bddd9e15c21085d1cf51d84e4b0d376d2cd2bec5f7cdb6102611df05006b",
+      "repeatable_rows": true
+    },
+    "main_both_sources": {
+      "kind": "list",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "ran_on": "main,pull_request"
+      },
+      "cursor": null,
+      "query": {
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n        WHERE repo = {repo: String}\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.repo = {repo: String}\n        \n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE window = {window: String} AND ran_on IN {ran_on: Array(String)}\n        AND tests_id IN (SELECT tests_id FROM catalog)\n        \n    GROUP BY tests_id, environments_id, env_vars_id\n)\nSELECT\n    ranked.*,\n    toString(key_0) AS sort_0,\n    key_1 AS sort_1,\n    toString(key_2) AS sort_2,\n    key_3 AS sort_3,\n    key_4 AS sort_4,\n    toString(key_5) AS sort_5,\n    toString(key_6) AS sort_6,\n    toString(key_7) AS sort_7,\n    toString(key_8) AS sort_8\nFROM (\n    SELECT\n        result.*,\n        status_rank AS key_0,\n        failure_rate AS key_1,\n        failed_runs_combined AS key_2,\n        toUnixTimestamp64Milli(last_failed_at_combined) AS key_3,\n        skip_rate AS key_4,\n        mean_passed_duration_milliseconds_combined AS key_5,\n        tests_id AS key_6,\n        environments_id AS key_7,\n        env_vars_id AS key_8\n    FROM (\n        SELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n            if(empty(owners), NULL, arraySort(owners)[1]) AS owner,\n            health.has_health AS has_health,\n            health.refreshed_at AS refreshed_at,\n            health.workflow_paths_combined AS workflow_paths_combined,\n            if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\n        FROM combined_health AS health\n        INNER JOIN catalog ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\n        \n    ) AS result\n) AS ranked\nWHERE 1\nORDER BY key_0 DESC NULLS LAST, key_1 DESC NULLS LAST, key_2 DESC NULLS LAST, key_3 DESC NULLS LAST, key_4 DESC NULLS LAST, key_5 DESC NULLS LAST, key_6 ASC NULLS LAST, key_7 ASC NULLS LAST, key_8 ASC NULLS LAST\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_aggregation_in_order = 1\n",
+        "params": {
+          "repo": "pytorch/pytorch",
+          "ran_on": [
+            "main",
+            "pull_request"
+          ],
+          "window": "12h",
+          "entries_limit": 26
+        }
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + (Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))) [lifted up part]))"
+          },
+          {
+            "explain": "  Limit (preliminary LIMIT)"
+          },
+          {
+            "explain": "    Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "      Expression ((Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))))"
+          },
+          {
+            "explain": "        Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "          Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "            Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "              Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "                Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                  Expression (Before JOIN)"
+          },
+          {
+            "explain": "                    CreatingSets (Create sets before main query execution)"
+          },
+          {
+            "explain": "                      Expression ((Projection + Before ORDER BY))"
+          },
+          {
+            "explain": "                        Aggregating"
+          },
+          {
+            "explain": "                          Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                            Filter (WHERE)"
+          },
+          {
+            "explain": "                              ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                              Indexes:"
+          },
+          {
+            "explain": "                                Min-Max"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 2-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 8/73"
+          },
+          {
+            "explain": "                                  Granules: 1674/10804"
+          },
+          {
+            "explain": "                                Partition"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 2-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 8/8"
+          },
+          {
+            "explain": "                                  Granules: 1674/1674"
+          },
+          {
+            "explain": "                                PrimaryKey"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    tests_id"
+          },
+          {
+            "explain": "                                  Condition: (tests_id in 672032-element set)"
+          },
+          {
+            "explain": "                                  Parts: 8/8"
+          },
+          {
+            "explain": "                                  Granules: 1674/1674"
+          },
+          {
+            "explain": "                                  Search Algorithm: generic exclusion search"
+          },
+          {
+            "explain": "                                Ranges: 8"
+          },
+          {
+            "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
+          },
+          {
+            "explain": "                    Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                      Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 5/5"
+          },
+          {
+            "explain": "                            Granules: 85/85"
+          },
+          {
+            "explain": "                          Ranges: 5"
+          },
+          {
+            "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Keys:"
+          },
+          {
+            "explain": "                              repo"
+          },
+          {
+            "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
+          },
+          {
+            "explain": "                            Parts: 2/2"
+          },
+          {
+            "explain": "                            Granules: 2/2"
+          },
+          {
+            "explain": "                            Search Algorithm: binary search"
+          },
+          {
+            "explain": "                          Ranges: 2"
+          },
+          {
+            "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "                Indexes:"
+          },
+          {
+            "explain": "                  PrimaryKey"
+          },
+          {
+            "explain": "                    Condition: true"
+          },
+          {
+            "explain": "                    Parts: 1/1"
+          },
+          {
+            "explain": "                    Granules: 1/1"
+          },
+          {
+            "explain": "                  Ranges: 1"
+          },
+          {
+            "explain": "          Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "            ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "            Indexes:"
+          },
+          {
+            "explain": "              PrimaryKey"
+          },
+          {
+            "explain": "                Condition: true"
+          },
+          {
+            "explain": "                Parts: 1/1"
+          },
+          {
+            "explain": "                Granules: 1/1"
+          },
+          {
+            "explain": "              Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "5",
+            "rows": "672032",
+            "marks": "85"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "8",
+            "rows": "13999630",
+            "marks": "1674"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 5.165510793,
+            "rows_read": 15822819,
+            "bytes_read": 1843947882
+          },
+          "memory_usage": "867007870",
+          "digest": "17c909000e6ba748cef95e1a9c68882fd64b7612e477f62b52a13fd398249674"
+        },
+        {
+          "execution": 1,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 5.39632568,
+            "rows_read": 15822819,
+            "bytes_read": 1843947882
+          },
+          "memory_usage": "895922668",
+          "digest": "17c909000e6ba748cef95e1a9c68882fd64b7612e477f62b52a13fd398249674"
+        },
+        {
+          "execution": 2,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 11.925285423,
+            "rows_read": 15822819,
+            "bytes_read": 1843947882
+          },
+          "memory_usage": "845622787",
+          "digest": "17c909000e6ba748cef95e1a9c68882fd64b7612e477f62b52a13fd398249674"
+        }
+      ],
+      "rows": 26,
+      "digest": "17c909000e6ba748cef95e1a9c68882fd64b7612e477f62b52a13fd398249674",
+      "repeatable_rows": true
+    },
+    "main_filtered": {
+      "kind": "list",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "owner": "nn",
+        "accelerator": "cuda",
+        "window": "14d",
+        "sort": "-failed_runs,-runs"
+      },
+      "cursor": null,
+      "query": {
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n        WHERE repo = {repo: String}\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.repo = {repo: String}\n        AND hasAny(owner.owners, {filter_owner: Array(String)})\n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE window = {window: String} AND ran_on IN {ran_on: Array(String)}\n        AND tests_id IN (SELECT tests_id FROM catalog)\n        AND environments_id IN (\n        SELECT id FROM ci.environments AS environment FINAL\n        WHERE environment.accelerator IN {filter_accelerator: Array(String)}\n    )\n    GROUP BY tests_id, environments_id, env_vars_id\n)\nSELECT\n    ranked.*,\n    toString(key_0) AS sort_0,\n    toString(key_1) AS sort_1,\n    toString(key_2) AS sort_2,\n    toString(key_3) AS sort_3,\n    toString(key_4) AS sort_4\nFROM (\n    SELECT\n        result.*,\n        failed_runs_combined AS key_0,\n        runs_combined AS key_1,\n        tests_id AS key_2,\n        environments_id AS key_3,\n        env_vars_id AS key_4\n    FROM (\n        SELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n            if(empty(owners), NULL, arraySort(owners)[1]) AS owner,\n            health.has_health AS has_health,\n            health.refreshed_at AS refreshed_at,\n            health.workflow_paths_combined AS workflow_paths_combined,\n            if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\n        FROM combined_health AS health\n        INNER JOIN catalog ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\n        \n    ) AS result\n) AS ranked\nWHERE 1\nORDER BY key_0 DESC NULLS LAST, key_1 DESC NULLS LAST, key_2 ASC NULLS LAST, key_3 ASC NULLS LAST, key_4 ASC NULLS LAST\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_aggregation_in_order = 1\n",
+        "params": {
+          "repo": "pytorch/pytorch",
+          "ran_on": [
+            "main"
+          ],
+          "window": "14d",
+          "entries_limit": 26,
+          "filter_owner": [
+            "nn"
+          ],
+          "filter_accelerator": [
+            "cuda"
+          ]
+        }
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + (Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))) [lifted up part]))"
+          },
+          {
+            "explain": "  Limit (preliminary LIMIT)"
+          },
+          {
+            "explain": "    Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "      Expression ((Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))))"
+          },
+          {
+            "explain": "        Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "          Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "            Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "              Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "                Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                  Expression (Before JOIN)"
+          },
+          {
+            "explain": "                    CreatingSets (Create sets before main query execution)"
+          },
+          {
+            "explain": "                      Expression ((Projection + Before ORDER BY))"
+          },
+          {
+            "explain": "                        Aggregating"
+          },
+          {
+            "explain": "                          Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                            Filter (WHERE)"
+          },
+          {
+            "explain": "                              ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                              Indexes:"
+          },
+          {
+            "explain": "                                Min-Max"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [6, 6]))"
+          },
+          {
+            "explain": "                                  Parts: 9/73"
+          },
+          {
+            "explain": "                                  Granules: 1088/10804"
+          },
+          {
+            "explain": "                                Partition"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [6, 6]))"
+          },
+          {
+            "explain": "                                  Parts: 9/9"
+          },
+          {
+            "explain": "                                  Granules: 1088/1088"
+          },
+          {
+            "explain": "                                PrimaryKey"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    tests_id"
+          },
+          {
+            "explain": "                                    environments_id"
+          },
+          {
+            "explain": "                                  Condition: and((environments_id in 22-element set), (tests_id in 21832-element set))"
+          },
+          {
+            "explain": "                                  Parts: 9/9"
+          },
+          {
+            "explain": "                                  Granules: 1088/1088"
+          },
+          {
+            "explain": "                                  Search Algorithm: generic exclusion search"
+          },
+          {
+            "explain": "                                Ranges: 9"
+          },
+          {
+            "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                    Filter (WHERE)"
+          },
+          {
+            "explain": "                      Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                        Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                          ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                          Indexes:"
+          },
+          {
+            "explain": "                            PrimaryKey"
+          },
+          {
+            "explain": "                              Condition: true"
+          },
+          {
+            "explain": "                              Parts: 5/5"
+          },
+          {
+            "explain": "                              Granules: 85/85"
+          },
+          {
+            "explain": "                            Ranges: 5"
+          },
+          {
+            "explain": "                        Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
+          },
+          {
+            "explain": "                          ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                          Indexes:"
+          },
+          {
+            "explain": "                            PrimaryKey"
+          },
+          {
+            "explain": "                              Keys:"
+          },
+          {
+            "explain": "                                repo"
+          },
+          {
+            "explain": "                              Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
+          },
+          {
+            "explain": "                              Parts: 2/2"
+          },
+          {
+            "explain": "                              Granules: 2/2"
+          },
+          {
+            "explain": "                              Search Algorithm: binary search"
+          },
+          {
+            "explain": "                            Ranges: 2"
+          },
+          {
+            "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "                Indexes:"
+          },
+          {
+            "explain": "                  PrimaryKey"
+          },
+          {
+            "explain": "                    Condition: true"
+          },
+          {
+            "explain": "                    Parts: 1/1"
+          },
+          {
+            "explain": "                    Granules: 1/1"
+          },
+          {
+            "explain": "                  Ranges: 1"
+          },
+          {
+            "explain": "          Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "            ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "            Indexes:"
+          },
+          {
+            "explain": "              PrimaryKey"
+          },
+          {
+            "explain": "                Condition: true"
+          },
+          {
+            "explain": "                Parts: 1/1"
+          },
+          {
+            "explain": "                Granules: 1/1"
+          },
+          {
+            "explain": "              Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "5",
+            "rows": "672032",
+            "marks": "85"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "9",
+            "rows": "8729963",
+            "marks": "1088"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 1.115428619,
+            "rows_read": 10553202,
+            "bytes_read": 1205556340
+          },
+          "memory_usage": "146741308",
+          "digest": "b5f0f6f63c81e736208a3431c8555105775cf144645695a394e3a52830bb79dd"
+        },
+        {
+          "execution": 1,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.720514484,
+            "rows_read": 10553202,
+            "bytes_read": 1205556340
+          },
+          "memory_usage": "140641712",
+          "digest": "b5f0f6f63c81e736208a3431c8555105775cf144645695a394e3a52830bb79dd"
+        },
+        {
+          "execution": 2,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 1.053919821,
+            "rows_read": 10553202,
+            "bytes_read": 1205556340
+          },
+          "memory_usage": "148956185",
+          "digest": "b5f0f6f63c81e736208a3431c8555105775cf144645695a394e3a52830bb79dd"
+        }
+      ],
+      "rows": 26,
+      "digest": "b5f0f6f63c81e736208a3431c8555105775cf144645695a394e3a52830bb79dd",
+      "repeatable_rows": true
+    },
+    "main_search": {
+      "kind": "list",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "search": "test/test_nn.py"
+      },
+      "cursor": null,
+      "query": {
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n        WHERE repo = {repo: String}\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.repo = {repo: String}\n        AND positionCaseInsensitive(if(test.suite = '', concat(test.file, '::', test.case_name), concat(test.file, '::', test.suite, '::', test.case_name)), {search: String}) > 0\n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE window = {window: String} AND ran_on IN {ran_on: Array(String)}\n        AND tests_id IN (SELECT tests_id FROM catalog)\n        \n    GROUP BY tests_id, environments_id, env_vars_id\n)\nSELECT\n    ranked.*,\n    toString(key_0) AS sort_0,\n    key_1 AS sort_1,\n    toString(key_2) AS sort_2,\n    key_3 AS sort_3,\n    key_4 AS sort_4,\n    toString(key_5) AS sort_5,\n    toString(key_6) AS sort_6,\n    toString(key_7) AS sort_7,\n    toString(key_8) AS sort_8\nFROM (\n    SELECT\n        result.*,\n        status_rank AS key_0,\n        failure_rate AS key_1,\n        failed_runs_combined AS key_2,\n        toUnixTimestamp64Milli(last_failed_at_combined) AS key_3,\n        skip_rate AS key_4,\n        mean_passed_duration_milliseconds_combined AS key_5,\n        tests_id AS key_6,\n        environments_id AS key_7,\n        env_vars_id AS key_8\n    FROM (\n        SELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n            if(empty(owners), NULL, arraySort(owners)[1]) AS owner,\n            health.has_health AS has_health,\n            health.refreshed_at AS refreshed_at,\n            health.workflow_paths_combined AS workflow_paths_combined,\n            if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\n        FROM combined_health AS health\n        INNER JOIN catalog ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\n        \n    ) AS result\n) AS ranked\nWHERE 1\nORDER BY key_0 DESC NULLS LAST, key_1 DESC NULLS LAST, key_2 DESC NULLS LAST, key_3 DESC NULLS LAST, key_4 DESC NULLS LAST, key_5 DESC NULLS LAST, key_6 ASC NULLS LAST, key_7 ASC NULLS LAST, key_8 ASC NULLS LAST\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_aggregation_in_order = 1\n",
+        "params": {
+          "repo": "pytorch/pytorch",
+          "ran_on": [
+            "main"
+          ],
+          "window": "12h",
+          "entries_limit": 26,
+          "search": "test/test_nn.py"
+        }
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + (Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))) [lifted up part]))"
+          },
+          {
+            "explain": "  Limit (preliminary LIMIT)"
+          },
+          {
+            "explain": "    Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "      Expression ((Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))))"
+          },
+          {
+            "explain": "        Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "          Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "            Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "              Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "                Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                  Expression (Before JOIN)"
+          },
+          {
+            "explain": "                    CreatingSets (Create sets before main query execution)"
+          },
+          {
+            "explain": "                      Expression ((Projection + Before ORDER BY))"
+          },
+          {
+            "explain": "                        Aggregating"
+          },
+          {
+            "explain": "                          Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                            Filter (WHERE)"
+          },
+          {
+            "explain": "                              ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                              Indexes:"
+          },
+          {
+            "explain": "                                Min-Max"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/73"
+          },
+          {
+            "explain": "                                  Granules: 1004/10804"
+          },
+          {
+            "explain": "                                Partition"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                PrimaryKey"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    tests_id"
+          },
+          {
+            "explain": "                                  Condition: (tests_id in 7559-element set)"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                  Search Algorithm: generic exclusion search"
+          },
+          {
+            "explain": "                                Ranges: 6"
+          },
+          {
+            "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
+          },
+          {
+            "explain": "                    Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                      Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 5/5"
+          },
+          {
+            "explain": "                            Granules: 85/85"
+          },
+          {
+            "explain": "                          Ranges: 5"
+          },
+          {
+            "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Keys:"
+          },
+          {
+            "explain": "                              repo"
+          },
+          {
+            "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
+          },
+          {
+            "explain": "                            Parts: 2/2"
+          },
+          {
+            "explain": "                            Granules: 2/2"
+          },
+          {
+            "explain": "                            Search Algorithm: binary search"
+          },
+          {
+            "explain": "                          Ranges: 2"
+          },
+          {
+            "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "                Indexes:"
+          },
+          {
+            "explain": "                  PrimaryKey"
+          },
+          {
+            "explain": "                    Condition: true"
+          },
+          {
+            "explain": "                    Parts: 1/1"
+          },
+          {
+            "explain": "                    Granules: 1/1"
+          },
+          {
+            "explain": "                  Ranges: 1"
+          },
+          {
+            "explain": "          Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "            ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "            Indexes:"
+          },
+          {
+            "explain": "              PrimaryKey"
+          },
+          {
+            "explain": "                Condition: true"
+          },
+          {
+            "explain": "                Parts: 1/1"
+          },
+          {
+            "explain": "                Granules: 1/1"
+          },
+          {
+            "explain": "              Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "5",
+            "rows": "672032",
+            "marks": "85"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "6",
+            "rows": "8332869",
+            "marks": "1004"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.610979965,
+            "rows_read": 10156058,
+            "bytes_read": 1235010756
+          },
+          "memory_usage": "154175391",
+          "digest": "748f59a54698c13bd53735ee65f26c5c0f53b0886993ab1196332e15b05166d1"
+        },
+        {
+          "execution": 1,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.601503737,
+            "rows_read": 10156058,
+            "bytes_read": 1235010756
+          },
+          "memory_usage": "164082916",
+          "digest": "748f59a54698c13bd53735ee65f26c5c0f53b0886993ab1196332e15b05166d1"
+        },
+        {
+          "execution": 2,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 0.670357225,
+            "rows_read": 10156058,
+            "bytes_read": 1235010756
+          },
+          "memory_usage": "162960447",
+          "digest": "748f59a54698c13bd53735ee65f26c5c0f53b0886993ab1196332e15b05166d1"
+        }
+      ],
+      "rows": 26,
+      "digest": "748f59a54698c13bd53735ee65f26c5c0f53b0886993ab1196332e15b05166d1",
+      "repeatable_rows": true
+    },
+    "main_env_vars": {
+      "kind": "list",
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "env_vars": "{\"TEST_CONFIG\":[\"default\"]}",
+        "window": "1d",
+        "sort": "file,suite,case_name"
+      },
+      "cursor": null,
+      "query": {
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n        WHERE repo = {repo: String}\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.repo = {repo: String}\n        \n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE window = {window: String} AND ran_on IN {ran_on: Array(String)}\n        AND tests_id IN (SELECT tests_id FROM catalog)\n        AND env_vars_id IN (\n        SELECT id FROM ci.env_vars AS env_var_set FINAL\n        WHERE (mapContains(env_var_set.env_vars, {env_var_name_0: String})\n        AND env_var_set.env_vars[{env_var_name_0: String}] IN {env_var_values_0: Array(String)})\n    )\n    GROUP BY tests_id, environments_id, env_vars_id\n)\nSELECT\n    ranked.*,\n    key_0 AS sort_0,\n    key_1 AS sort_1,\n    key_2 AS sort_2,\n    toString(key_3) AS sort_3,\n    toString(key_4) AS sort_4,\n    toString(key_5) AS sort_5\nFROM (\n    SELECT\n        result.*,\n        file AS key_0,\n        suite AS key_1,\n        case_name AS key_2,\n        tests_id AS key_3,\n        environments_id AS key_4,\n        env_vars_id AS key_5\n    FROM (\n        SELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n            if(empty(owners), NULL, arraySort(owners)[1]) AS owner,\n            health.has_health AS has_health,\n            health.refreshed_at AS refreshed_at,\n            health.workflow_paths_combined AS workflow_paths_combined,\n            if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\n        FROM combined_health AS health\n        INNER JOIN catalog ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\n        \n    ) AS result\n) AS ranked\nWHERE 1\nORDER BY key_0 ASC NULLS LAST, key_1 ASC NULLS LAST, key_2 ASC NULLS LAST, key_3 ASC NULLS LAST, key_4 ASC NULLS LAST, key_5 ASC NULLS LAST\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_aggregation_in_order = 1\n",
+        "params": {
+          "repo": "pytorch/pytorch",
+          "ran_on": [
+            "main"
+          ],
+          "window": "1d",
+          "entries_limit": 26,
+          "env_var_name_0": "TEST_CONFIG",
+          "env_var_values_0": [
+            "default"
+          ]
+        }
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + (Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))) [lifted up part]))"
+          },
+          {
+            "explain": "  Limit (preliminary LIMIT)"
+          },
+          {
+            "explain": "    Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "      Expression ((Before ORDER BY + (Projection + (Before ORDER BY + (Projection + Before ORDER BY)))))"
+          },
+          {
+            "explain": "        Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "          Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "            Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "              Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "                Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                  Expression (Before JOIN)"
+          },
+          {
+            "explain": "                    CreatingSets (Create sets before main query execution)"
+          },
+          {
+            "explain": "                      Expression ((Projection + Before ORDER BY))"
+          },
+          {
+            "explain": "                        Aggregating"
+          },
+          {
+            "explain": "                          Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                            Filter (WHERE)"
+          },
+          {
+            "explain": "                              ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                              Indexes:"
+          },
+          {
+            "explain": "                                Min-Max"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [3, 3]))"
+          },
+          {
+            "explain": "                                  Parts: 10/73"
+          },
+          {
+            "explain": "                                  Granules: 1088/10804"
+          },
+          {
+            "explain": "                                Partition"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [3, 3]))"
+          },
+          {
+            "explain": "                                  Parts: 10/10"
+          },
+          {
+            "explain": "                                  Granules: 1088/1088"
+          },
+          {
+            "explain": "                                PrimaryKey"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    tests_id"
+          },
+          {
+            "explain": "                                    env_vars_id"
+          },
+          {
+            "explain": "                                  Condition: and((env_vars_id in 6-element set), (tests_id in 672032-element set))"
+          },
+          {
+            "explain": "                                  Parts: 10/10"
+          },
+          {
+            "explain": "                                  Granules: 1088/1088"
+          },
+          {
+            "explain": "                                  Search Algorithm: generic exclusion search"
+          },
+          {
+            "explain": "                                Ranges: 10"
+          },
+          {
+            "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
+          },
+          {
+            "explain": "                    Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                      Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 5/5"
+          },
+          {
+            "explain": "                            Granules: 85/85"
+          },
+          {
+            "explain": "                          Ranges: 5"
+          },
+          {
+            "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Keys:"
+          },
+          {
+            "explain": "                              repo"
+          },
+          {
+            "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
+          },
+          {
+            "explain": "                            Parts: 2/2"
+          },
+          {
+            "explain": "                            Granules: 2/2"
+          },
+          {
+            "explain": "                            Search Algorithm: binary search"
+          },
+          {
+            "explain": "                          Ranges: 2"
+          },
+          {
+            "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "                Indexes:"
+          },
+          {
+            "explain": "                  PrimaryKey"
+          },
+          {
+            "explain": "                    Condition: true"
+          },
+          {
+            "explain": "                    Parts: 1/1"
+          },
+          {
+            "explain": "                    Granules: 1/1"
+          },
+          {
+            "explain": "                  Ranges: 1"
+          },
+          {
+            "explain": "          Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "            ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "            Indexes:"
+          },
+          {
+            "explain": "              PrimaryKey"
+          },
+          {
+            "explain": "                Condition: true"
+          },
+          {
+            "explain": "                Parts: 1/1"
+          },
+          {
+            "explain": "                Granules: 1/1"
+          },
+          {
+            "explain": "              Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "5",
+            "rows": "672032",
+            "marks": "85"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "10",
+            "rows": "8728536",
+            "marks": "1088"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 6.808072014,
+            "rows_read": 10551780,
+            "bytes_read": 1207297664
+          },
+          "memory_usage": "1210650941",
+          "digest": "67ef57bd6226062d39c4fd6b182c268dda003850db9ed806142438417a22eba4"
+        },
+        {
+          "execution": 1,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 6.936698435,
+            "rows_read": 10551780,
+            "bytes_read": 1207297664
+          },
+          "memory_usage": "1152541720",
+          "digest": "67ef57bd6226062d39c4fd6b182c268dda003850db9ed806142438417a22eba4"
+        },
+        {
+          "execution": 2,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 6.320291613,
+            "rows_read": 10551780,
+            "bytes_read": 1207297664
+          },
+          "memory_usage": "1191858263",
+          "digest": "67ef57bd6226062d39c4fd6b182c268dda003850db9ed806142438417a22eba4"
+        }
+      ],
+      "rows": 26,
+      "digest": "67ef57bd6226062d39c4fd6b182c268dda003850db9ed806142438417a22eba4",
+      "repeatable_rows": true
+    },
+    "main_second_page": {
+      "kind": "list",
+      "raw": {
+        "repo": "pytorch/pytorch"
+      },
+      "cursor": {
+        "version": 1,
+        "resource": "tests",
+        "direction": "next",
+        "query": {
+          "repo": "pytorch/pytorch",
+          "env_vars": {},
+          "ran_on": [
+            "main"
+          ],
+          "window": "12h",
+          "sort": [
+            "-status",
+            "-failure_rate",
+            "-failed_runs",
+            "-last_failed_at",
+            "-skip_rate",
+            "-mean_passed_duration_milliseconds"
+          ]
+        },
+        "generation": "2026-10-25T23:45:00Z",
+        "position": {
+          "values": [
+            "1",
+            1,
+            "4",
+            1792969251085,
+            0,
+            null,
+            "2538774784525891207",
+            "3918732538669420041",
+            "1688593832548410197"
+          ]
+        }
+      },
+      "query": {
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n        WHERE repo = {repo: String}\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.repo = {repo: String}\n        \n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE window = {window: String} AND ran_on IN {ran_on: Array(String)}\n        AND tests_id IN (SELECT tests_id FROM catalog)\n        \n    GROUP BY tests_id, environments_id, env_vars_id\n)\nSELECT\n    ranked.*,\n    toString(key_0) AS sort_0,\n    key_1 AS sort_1,\n    toString(key_2) AS sort_2,\n    key_3 AS sort_3,\n    key_4 AS sort_4,\n    toString(key_5) AS sort_5,\n    toString(key_6) AS sort_6,\n    toString(key_7) AS sort_7,\n    toString(key_8) AS sort_8\nFROM (\n    SELECT\n        result.*,\n        status_rank AS key_0,\n        failure_rate AS key_1,\n        failed_runs_combined AS key_2,\n        toUnixTimestamp64Milli(last_failed_at_combined) AS key_3,\n        skip_rate AS key_4,\n        mean_passed_duration_milliseconds_combined AS key_5,\n        tests_id AS key_6,\n        environments_id AS key_7,\n        env_vars_id AS key_8\n    FROM (\n        SELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n            if(empty(owners), NULL, arraySort(owners)[1]) AS owner,\n            health.has_health AS has_health,\n            health.refreshed_at AS refreshed_at,\n            health.workflow_paths_combined AS workflow_paths_combined,\n            if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\n        FROM combined_health AS health\n        INNER JOIN catalog ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\n        \n    ) AS result\n) AS ranked\nWHERE ((key_0 < {cursor_0: UInt64} OR isNull(key_0))) OR (key_0 = {cursor_0: UInt64} AND (key_1 < {cursor_1: Float64} OR isNull(key_1))) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND (key_2 < {cursor_2: UInt64} OR isNull(key_2))) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND (key_3 < {cursor_3: Float64} OR isNull(key_3))) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND (key_4 < {cursor_4: Float64} OR isNull(key_4))) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 = {cursor_4: Float64} AND isNull(key_5) AND (key_6 > {cursor_6: UInt64} OR isNull(key_6))) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 = {cursor_4: Float64} AND isNull(key_5) AND key_6 = {cursor_6: UInt64} AND (key_7 > {cursor_7: UInt64} OR isNull(key_7))) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 = {cursor_4: Float64} AND isNull(key_5) AND key_6 = {cursor_6: UInt64} AND key_7 = {cursor_7: UInt64} AND (key_8 > {cursor_8: UInt64} OR isNull(key_8)))\nORDER BY key_0 DESC NULLS LAST, key_1 DESC NULLS LAST, key_2 DESC NULLS LAST, key_3 DESC NULLS LAST, key_4 DESC NULLS LAST, key_5 DESC NULLS LAST, key_6 ASC NULLS LAST, key_7 ASC NULLS LAST, key_8 ASC NULLS LAST\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_aggregation_in_order = 1\n",
+        "params": {
+          "repo": "pytorch/pytorch",
+          "ran_on": [
+            "main"
+          ],
+          "window": "12h",
+          "entries_limit": 26,
+          "cursor_0": "1",
+          "cursor_1": 1,
+          "cursor_2": "4",
+          "cursor_3": 1792969251085,
+          "cursor_4": 0,
+          "cursor_6": "2538774784525891207",
+          "cursor_7": "3918732538669420041",
+          "cursor_8": "1688593832548410197"
+        }
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + (Before ORDER BY + ) [lifted up part]))"
+          },
+          {
+            "explain": "  Limit (preliminary LIMIT)"
+          },
+          {
+            "explain": "    Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "      Expression ((Before ORDER BY + ))"
+          },
+          {
+            "explain": "        Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "          Expression"
+          },
+          {
+            "explain": "            Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "              Filter ((((WHERE + (Projection + (Before ORDER BY + ))) + ) + (((WHERE + (Projection + (Before ORDER BY + ))) + ) + ((WHERE + (Before JOIN + (Projection + (Before ORDER BY + )))) + ((WHERE + (Before JOIN + (Projection + Before ORDER BY))) + WHERE)))))"
+          },
+          {
+            "explain": "                Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                  Expression (Before JOIN)"
+          },
+          {
+            "explain": "                    CreatingSets (Create sets before main query execution)"
+          },
+          {
+            "explain": "                      Expression ((Projection + Before ORDER BY))"
+          },
+          {
+            "explain": "                        Aggregating"
+          },
+          {
+            "explain": "                          Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                            Expression (WHERE)"
+          },
+          {
+            "explain": "                              ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                              Indexes:"
+          },
+          {
+            "explain": "                                Min-Max"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/73"
+          },
+          {
+            "explain": "                                  Granules: 1004/10804"
+          },
+          {
+            "explain": "                                Partition"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                PrimaryKey"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    tests_id"
+          },
+          {
+            "explain": "                                  Condition: (tests_id in 672032-element set)"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                  Search Algorithm: generic exclusion search"
+          },
+          {
+            "explain": "                                Ranges: 6"
+          },
+          {
+            "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
+          },
+          {
+            "explain": "                    Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                      Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 5/5"
+          },
+          {
+            "explain": "                            Granules: 85/85"
+          },
+          {
+            "explain": "                          Ranges: 5"
+          },
+          {
+            "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Keys:"
+          },
+          {
+            "explain": "                              repo"
+          },
+          {
+            "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
+          },
+          {
+            "explain": "                            Parts: 2/2"
+          },
+          {
+            "explain": "                            Granules: 2/2"
+          },
+          {
+            "explain": "                            Search Algorithm: binary search"
+          },
+          {
+            "explain": "                          Ranges: 2"
+          },
+          {
+            "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "                Indexes:"
+          },
+          {
+            "explain": "                  PrimaryKey"
+          },
+          {
+            "explain": "                    Condition: true"
+          },
+          {
+            "explain": "                    Parts: 1/1"
+          },
+          {
+            "explain": "                    Granules: 1/1"
+          },
+          {
+            "explain": "                  Ranges: 1"
+          },
+          {
+            "explain": "          Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "            ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "            Indexes:"
+          },
+          {
+            "explain": "              PrimaryKey"
+          },
+          {
+            "explain": "                Condition: true"
+          },
+          {
+            "explain": "                Parts: 1/1"
+          },
+          {
+            "explain": "                Granules: 1/1"
+          },
+          {
+            "explain": "              Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "5",
+            "rows": "672032",
+            "marks": "85"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "6",
+            "rows": "8332869",
+            "marks": "1004"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 4.711714198,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "881936900",
+          "digest": "961a4eac2a1f41ddb97760c27bd9e62126d59744a507f74a544cde8b77c02c89"
+        },
+        {
+          "execution": 1,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 4.999750529,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "878325279",
+          "digest": "961a4eac2a1f41ddb97760c27bd9e62126d59744a507f74a544cde8b77c02c89"
+        },
+        {
+          "execution": 2,
+          "rows": 26,
+          "statistics": {
+            "elapsed": 5.024108456,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "870784983",
+          "digest": "961a4eac2a1f41ddb97760c27bd9e62126d59744a507f74a544cde8b77c02c89"
+        }
+      ],
+      "rows": 26,
+      "digest": "961a4eac2a1f41ddb97760c27bd9e62126d59744a507f74a544cde8b77c02c89",
+      "repeatable_rows": true
+    },
+    "main_boundary_probe": {
+      "kind": "probe",
+      "raw": {
+        "repo": "pytorch/pytorch"
+      },
+      "cursor": {
+        "version": 1,
+        "resource": "tests",
+        "direction": "previous",
+        "query": {
+          "repo": "pytorch/pytorch",
+          "env_vars": {},
+          "ran_on": [
+            "main"
+          ],
+          "window": "12h",
+          "sort": [
+            "-status",
+            "-failure_rate",
+            "-failed_runs",
+            "-last_failed_at",
+            "-skip_rate",
+            "-mean_passed_duration_milliseconds"
+          ]
+        },
+        "generation": "2026-10-26T00:00:00Z",
+        "position": {
+          "values": [
+            "1",
+            1,
+            "4",
+            1792969205528,
+            0,
+            null,
+            "4001664229287684777",
+            "3918732538669420041",
+            "1688593832548410197"
+          ]
+        }
+      },
+      "query": {
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n        WHERE repo = {repo: String}\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.repo = {repo: String}\n        \n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE window = {window: String} AND ran_on IN {ran_on: Array(String)}\n        AND tests_id IN (SELECT tests_id FROM catalog)\n        \n    GROUP BY tests_id, environments_id, env_vars_id\n)\nSELECT\n    ranked.*,\n    toString(key_0) AS sort_0,\n    key_1 AS sort_1,\n    toString(key_2) AS sort_2,\n    key_3 AS sort_3,\n    key_4 AS sort_4,\n    toString(key_5) AS sort_5,\n    toString(key_6) AS sort_6,\n    toString(key_7) AS sort_7,\n    toString(key_8) AS sort_8\nFROM (\n    SELECT\n        result.*,\n        status_rank AS key_0,\n        failure_rate AS key_1,\n        failed_runs_combined AS key_2,\n        toUnixTimestamp64Milli(last_failed_at_combined) AS key_3,\n        skip_rate AS key_4,\n        mean_passed_duration_milliseconds_combined AS key_5,\n        tests_id AS key_6,\n        environments_id AS key_7,\n        env_vars_id AS key_8\n    FROM (\n        SELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n            if(empty(owners), NULL, arraySort(owners)[1]) AS owner,\n            health.has_health AS has_health,\n            health.refreshed_at AS refreshed_at,\n            health.workflow_paths_combined AS workflow_paths_combined,\n            if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\n        FROM combined_health AS health\n        INNER JOIN catalog ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\n        \n    ) AS result\n) AS ranked\nWHERE (key_0 > {cursor_0: UInt64}) OR (key_0 = {cursor_0: UInt64} AND key_1 > {cursor_1: Float64}) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 > {cursor_2: UInt64}) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 > {cursor_3: Float64}) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 > {cursor_4: Float64}) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 = {cursor_4: Float64} AND isNotNull(key_5)) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 = {cursor_4: Float64} AND isNull(key_5) AND key_6 < {cursor_6: UInt64}) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 = {cursor_4: Float64} AND isNull(key_5) AND key_6 = {cursor_6: UInt64} AND key_7 < {cursor_7: UInt64}) OR (key_0 = {cursor_0: UInt64} AND key_1 = {cursor_1: Float64} AND key_2 = {cursor_2: UInt64} AND key_3 = {cursor_3: Float64} AND key_4 = {cursor_4: Float64} AND isNull(key_5) AND key_6 = {cursor_6: UInt64} AND key_7 = {cursor_7: UInt64} AND key_8 < {cursor_8: UInt64})\nORDER BY key_0 ASC NULLS FIRST, key_1 ASC NULLS FIRST, key_2 ASC NULLS FIRST, key_3 ASC NULLS FIRST, key_4 ASC NULLS FIRST, key_5 ASC NULLS FIRST, key_6 DESC NULLS FIRST, key_7 DESC NULLS FIRST, key_8 DESC NULLS FIRST\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_aggregation_in_order = 1\n",
+        "params": {
+          "repo": "pytorch/pytorch",
+          "ran_on": [
+            "main"
+          ],
+          "window": "12h",
+          "entries_limit": 1,
+          "cursor_0": "1",
+          "cursor_1": 1,
+          "cursor_2": "4",
+          "cursor_3": 1792969205528,
+          "cursor_4": 0,
+          "cursor_6": "4001664229287684777",
+          "cursor_7": "3918732538669420041",
+          "cursor_8": "1688593832548410197"
+        }
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + (Before ORDER BY + ) [lifted up part]))"
+          },
+          {
+            "explain": "  Limit (preliminary LIMIT)"
+          },
+          {
+            "explain": "    Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "      Expression ((Before ORDER BY + ))"
+          },
+          {
+            "explain": "        Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "          Expression"
+          },
+          {
+            "explain": "            Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "              Filter ((((WHERE + (Projection + (Before ORDER BY + ))) + ) + (((WHERE + (Projection + (Before ORDER BY + ))) + ) + ((WHERE + (Before JOIN + (Projection + (Before ORDER BY + )))) + ((WHERE + (Before JOIN + (Projection + Before ORDER BY))) + WHERE)))))"
+          },
+          {
+            "explain": "                Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                  Expression (Before JOIN)"
+          },
+          {
+            "explain": "                    CreatingSets (Create sets before main query execution)"
+          },
+          {
+            "explain": "                      Expression ((Projection + Before ORDER BY))"
+          },
+          {
+            "explain": "                        Aggregating"
+          },
+          {
+            "explain": "                          Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                            Expression (WHERE)"
+          },
+          {
+            "explain": "                              ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                              Indexes:"
+          },
+          {
+            "explain": "                                Min-Max"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/73"
+          },
+          {
+            "explain": "                                  Granules: 1004/10804"
+          },
+          {
+            "explain": "                                Partition"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    ran_on"
+          },
+          {
+            "explain": "                                    window"
+          },
+          {
+            "explain": "                                  Condition: and((ran_on in 1-element set), (window in [2, 2]))"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                PrimaryKey"
+          },
+          {
+            "explain": "                                  Keys:"
+          },
+          {
+            "explain": "                                    tests_id"
+          },
+          {
+            "explain": "                                  Condition: (tests_id in 672032-element set)"
+          },
+          {
+            "explain": "                                  Parts: 6/6"
+          },
+          {
+            "explain": "                                  Granules: 1004/1004"
+          },
+          {
+            "explain": "                                  Search Algorithm: generic exclusion search"
+          },
+          {
+            "explain": "                                Ranges: 6"
+          },
+          {
+            "explain": "                  Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + )))))"
+          },
+          {
+            "explain": "                    Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                      Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 5/5"
+          },
+          {
+            "explain": "                            Granules: 85/85"
+          },
+          {
+            "explain": "                          Ranges: 5"
+          },
+          {
+            "explain": "                      Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + WHERE))"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Keys:"
+          },
+          {
+            "explain": "                              repo"
+          },
+          {
+            "explain": "                            Condition: and((repo in ['pytorch/pytorch', 'pytorch/pytorch']), (repo in ['pytorch/pytorch', 'pytorch/pytorch']))"
+          },
+          {
+            "explain": "                            Parts: 2/2"
+          },
+          {
+            "explain": "                            Granules: 2/2"
+          },
+          {
+            "explain": "                            Search Algorithm: binary search"
+          },
+          {
+            "explain": "                          Ranges: 2"
+          },
+          {
+            "explain": "              Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "                Indexes:"
+          },
+          {
+            "explain": "                  PrimaryKey"
+          },
+          {
+            "explain": "                    Condition: true"
+          },
+          {
+            "explain": "                    Parts: 1/1"
+          },
+          {
+            "explain": "                    Granules: 1/1"
+          },
+          {
+            "explain": "                  Ranges: 1"
+          },
+          {
+            "explain": "          Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "            ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "            Indexes:"
+          },
+          {
+            "explain": "              PrimaryKey"
+          },
+          {
+            "explain": "                Condition: true"
+          },
+          {
+            "explain": "                Parts: 1/1"
+          },
+          {
+            "explain": "                Granules: 1/1"
+          },
+          {
+            "explain": "              Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "5",
+            "rows": "672032",
+            "marks": "85"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "6",
+            "rows": "8332869",
+            "marks": "1004"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 1,
+          "statistics": {
+            "elapsed": 4.746678581,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "771043509",
+          "digest": "9a64813bd7e78fcb38b2880b182be03df33931c7d3286d16263a9951540638bb"
+        },
+        {
+          "execution": 1,
+          "rows": 1,
+          "statistics": {
+            "elapsed": 4.472338258,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "783922732",
+          "digest": "9a64813bd7e78fcb38b2880b182be03df33931c7d3286d16263a9951540638bb"
+        },
+        {
+          "execution": 2,
+          "rows": 1,
+          "statistics": {
+            "elapsed": 4.629349848,
+            "rows_read": 10156058,
+            "bytes_read": 1157061620
+          },
+          "memory_usage": "764276456",
+          "digest": "9a64813bd7e78fcb38b2880b182be03df33931c7d3286d16263a9951540638bb"
+        }
+      ],
+      "rows": 1,
+      "digest": "9a64813bd7e78fcb38b2880b182be03df33931c7d3286d16263a9951540638bb",
+      "repeatable_rows": true
+    },
+    "detail": {
+      "kind": "detail",
+      "raw": {
+        "test_id": "12347295505799784290"
+      },
+      "cursor": null,
+      "query": {
+        "params": {
+          "test_id": "12347295505799784290"
+        },
+        "sql": "\nWITH catalog AS (\n    SELECT\n        test.id AS tests_id,\n        test.repo AS repo,\n        test.file AS file,\n        test.suite AS suite,\n        test.case_name AS case_name,\n        test.declared_case_name AS declared_case_name,\n        test.language AS language,\n        test.first_seen_at AS first_seen_at,\n        owner.owners AS owners\n    FROM ci.tests AS test FINAL\n    LEFT JOIN (\n        SELECT repo, file, owners FROM ci.owners FINAL\n    ) AS owner ON owner.repo = test.repo AND owner.file = test.file\n    WHERE test.id = {test_id: UInt64}\n), combined_health AS (\n    SELECT\n        tests_id, environments_id, env_vars_id, window, ran_on,\n        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,\n        sum(runs) AS runs_combined,\n        sum(passed_runs) AS passed_runs_combined,\n        sum(failed_runs) AS failed_runs_combined,\n        sum(flaky_runs) AS flaky_runs_combined,\n        sum(skipped_runs) AS skipped_runs_combined,\n        sum(attempts) AS attempts_combined,\n        if(\n            passed_runs_combined > 0,\n            toUInt32(intDiv(\n                sum(mean_passed_duration_milliseconds * passed_runs)\n                    + intDiv(passed_runs_combined, 2),\n                greatest(passed_runs_combined, 1)\n            )),\n            NULL\n        ) AS mean_passed_duration_milliseconds_combined,\n        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,\n        if(\n            attempts_combined > 0,\n            toUInt32(intDiv(\n                total_duration_milliseconds_combined + intDiv(attempts_combined, 2),\n                greatest(attempts_combined, 1)\n            )),\n            NULL\n        ) AS mean_duration_milliseconds_combined,\n        max(last_run_at) AS last_run_at_combined,\n        max(last_failed_at) AS last_failed_at_combined,\n        passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,\n        failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,\n        flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,\n        skipped_runs_combined / nullIf(runs_combined + skipped_runs_combined, 0) AS skip_rate,\n        multiIf(\n            runs_combined = 0, 'skipped',\n            failed_runs_combined > flaky_runs_combined, 'failing',\n            failed_runs_combined > 0, 'flaky',\n            'healthy'\n        ) AS status,\n        if(\n            runs_combined = 0,\n            NULL,\n            toUInt64(multiIf(\n                failed_runs_combined > flaky_runs_combined, 2,\n                failed_runs_combined > 0, 1,\n                0\n            ))\n        ) AS status_rank,\n        any(refreshed_at) AS refreshed_at,\n        toUInt8(1) AS has_health\n    FROM ci.health\n    WHERE tests_id = {test_id: UInt64}\n    GROUP BY tests_id, environments_id, env_vars_id, window, ran_on\n)\nSELECT\n            catalog.tests_id AS tests_id,\n            catalog.repo AS repo,\n            catalog.file AS file,\n            catalog.suite AS suite,\n            catalog.case_name AS case_name,\n            catalog.declared_case_name AS declared_case_name,\n            catalog.language AS language,\n            catalog.first_seen_at AS first_seen_at,\n            catalog.owners AS owners,\n            toString(catalog.tests_id) AS tests_id_string,\n    health.window AS window,\n    health.ran_on AS ran_on,\n    health.has_health AS has_health,\n    health.refreshed_at AS refreshed_at,\n    health.workflow_paths_combined AS workflow_paths_combined,\n    if(health.has_health = 1, health.runs_combined, NULL) AS runs_combined,\n        if(health.has_health = 1, health.passed_runs_combined, NULL) AS passed_runs_combined,\n        if(health.has_health = 1, health.failed_runs_combined, NULL) AS failed_runs_combined,\n        if(health.has_health = 1, health.flaky_runs_combined, NULL) AS flaky_runs_combined,\n        if(health.has_health = 1, health.skipped_runs_combined, NULL) AS skipped_runs_combined,\n        if(health.has_health = 1, health.attempts_combined, NULL) AS attempts_combined,\n        if(health.has_health = 1, health.mean_passed_duration_milliseconds_combined, NULL) AS mean_passed_duration_milliseconds_combined,\n        if(health.has_health = 1, health.mean_duration_milliseconds_combined, NULL) AS mean_duration_milliseconds_combined,\n        if(health.has_health = 1, health.total_duration_milliseconds_combined, NULL) AS total_duration_milliseconds_combined,\n        if(health.has_health = 1, health.last_run_at_combined, NULL) AS last_run_at_combined,\n        if(health.has_health = 1, health.last_failed_at_combined, NULL) AS last_failed_at_combined,\n        if(health.has_health = 1, health.pass_rate, NULL) AS pass_rate,\n        if(health.has_health = 1, health.failure_rate, NULL) AS failure_rate,\n        if(health.has_health = 1, health.flaky_rate, NULL) AS flaky_rate,\n        if(health.has_health = 1, health.skip_rate, NULL) AS skip_rate,\n        if(health.has_health = 1, health.status, NULL) AS status,\n        if(health.has_health = 1, health.status_rank, NULL) AS status_rank,\n            health.environments_id AS environments_id,\n            health.env_vars_id AS env_vars_id,\n            toString(health.environments_id) AS environments_id_string,\n            toString(health.env_vars_id) AS env_vars_id_string,\n            toString(environment.id) AS environment_id_string,\n            environment.os AS os,\n            environment.os_version AS os_version,\n            environment.cpu_architecture AS cpu_architecture,\n            environment.cpu_capability AS cpu_capability,\n            environment.python_version AS python_version,\n            environment.cc_compiler AS cc_compiler,\n            environment.cc_compiler_version AS cc_compiler_version,\n            environment.accelerator AS accelerator,\n            environment.accelerator_version AS accelerator_version,\n            environment.device_name AS device_name,\n            environment.device_count AS device_count,\n            environment.first_seen_at AS environment_first_seen_at,\n            toString(env_var_set.id) AS env_var_set_id_string,\n            env_var_set.env_vars AS env_vars,\n            env_var_set.first_seen_at AS env_vars_first_seen_at\nFROM catalog\nLEFT JOIN combined_health AS health ON health.tests_id = catalog.tests_id\n        LEFT JOIN (\n            SELECT id, os, os_version, cpu_architecture, cpu_capability, python_version,\n                cc_compiler, cc_compiler_version, accelerator, accelerator_version,\n                device_name, device_count, first_seen_at\n            FROM ci.environments FINAL\n        ) AS environment ON environment.id = health.environments_id\n        LEFT JOIN (\n            SELECT id, env_vars, first_seen_at FROM ci.env_vars FINAL\n        ) AS env_var_set ON env_var_set.id = health.env_vars_id\nORDER BY health.environments_id, health.env_vars_id,\n    health.window, health.ran_on\nSETTINGS optimize_aggregation_in_order = 1\n"
+      },
+      "plans": {
+        "indexes = 1": [
+          {
+            "explain": "Expression ((Projection + Before ORDER BY [lifted up part]))"
+          },
+          {
+            "explain": "  Sorting (Sorting for ORDER BY)"
+          },
+          {
+            "explain": "    Expression (Before ORDER BY)"
+          },
+          {
+            "explain": "      Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "        Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "          Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "            Expression ((Before JOIN + (Projection + Before ORDER BY)))"
+          },
+          {
+            "explain": "              Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                Expression ((Before JOIN + (Projection + (Before ORDER BY + ))))"
+          },
+          {
+            "explain": "                  Join (JOIN FillRightFirst)"
+          },
+          {
+            "explain": "                    Filter ((WHERE + Before JOIN))"
+          },
+          {
+            "explain": "                      ReadFromMergeTree (ci.tests)"
+          },
+          {
+            "explain": "                      Indexes:"
+          },
+          {
+            "explain": "                        PrimaryKey"
+          },
+          {
+            "explain": "                          Keys:"
+          },
+          {
+            "explain": "                            id"
+          },
+          {
+            "explain": "                          Condition: (id in [12347295505799784290, 12347295505799784290])"
+          },
+          {
+            "explain": "                          Parts: 4/5"
+          },
+          {
+            "explain": "                          Granules: 4/85"
+          },
+          {
+            "explain": "                          Search Algorithm: binary search"
+          },
+          {
+            "explain": "                        Ranges: 4"
+          },
+          {
+            "explain": "                    Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                      ReadFromMergeTree (ci.owners)"
+          },
+          {
+            "explain": "                      Indexes:"
+          },
+          {
+            "explain": "                        PrimaryKey"
+          },
+          {
+            "explain": "                          Condition: true"
+          },
+          {
+            "explain": "                          Parts: 2/2"
+          },
+          {
+            "explain": "                          Granules: 2/2"
+          },
+          {
+            "explain": "                        Ranges: 2"
+          },
+          {
+            "explain": "                Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "                  Aggregating"
+          },
+          {
+            "explain": "                    Expression (Before GROUP BY)"
+          },
+          {
+            "explain": "                      Expression (WHERE)"
+          },
+          {
+            "explain": "                        ReadFromMergeTree (ci.health)"
+          },
+          {
+            "explain": "                        Indexes:"
+          },
+          {
+            "explain": "                          Min-Max"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 73/73"
+          },
+          {
+            "explain": "                            Granules: 10804/10804"
+          },
+          {
+            "explain": "                          Partition"
+          },
+          {
+            "explain": "                            Condition: true"
+          },
+          {
+            "explain": "                            Parts: 73/73"
+          },
+          {
+            "explain": "                            Granules: 10804/10804"
+          },
+          {
+            "explain": "                          PrimaryKey"
+          },
+          {
+            "explain": "                            Keys:"
+          },
+          {
+            "explain": "                              tests_id"
+          },
+          {
+            "explain": "                            Condition: (tests_id in [12347295505799784290, 12347295505799784290])"
+          },
+          {
+            "explain": "                            Parts: 12/73"
+          },
+          {
+            "explain": "                            Granules: 12/10804"
+          },
+          {
+            "explain": "                            Search Algorithm: binary search"
+          },
+          {
+            "explain": "                          Ranges: 12"
+          },
+          {
+            "explain": "            Expression ((Joined actions + (Rename joined columns + (Projection + Before ORDER BY))))"
+          },
+          {
+            "explain": "              ReadFromMergeTree (ci.environments)"
+          },
+          {
+            "explain": "              Indexes:"
+          },
+          {
+            "explain": "                PrimaryKey"
+          },
+          {
+            "explain": "                  Condition: true"
+          },
+          {
+            "explain": "                  Parts: 1/1"
+          },
+          {
+            "explain": "                  Granules: 1/1"
+          },
+          {
+            "explain": "                Ranges: 1"
+          },
+          {
+            "explain": "        Expression ((Joined actions + (Rename joined columns + (Projection + (Before ORDER BY + (Projection + Before ORDER BY))))))"
+          },
+          {
+            "explain": "          ReadFromMergeTree (ci.env_vars)"
+          },
+          {
+            "explain": "          Indexes:"
+          },
+          {
+            "explain": "            PrimaryKey"
+          },
+          {
+            "explain": "              Condition: true"
+          },
+          {
+            "explain": "              Parts: 1/1"
+          },
+          {
+            "explain": "              Granules: 1/1"
+          },
+          {
+            "explain": "            Ranges: 1"
+          }
+        ],
+        "ESTIMATE": [
+          {
+            "database": "ci",
+            "table": "env_vars",
+            "parts": "1",
+            "rows": "55",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "environments",
+            "parts": "1",
+            "rows": "50",
+            "marks": "1"
+          },
+          {
+            "database": "ci",
+            "table": "owners",
+            "parts": "2",
+            "rows": "2014",
+            "marks": "2"
+          },
+          {
+            "database": "ci",
+            "table": "health",
+            "parts": "12",
+            "rows": "118237",
+            "marks": "12"
+          },
+          {
+            "database": "ci",
+            "table": "tests",
+            "parts": "4",
+            "rows": "22004",
+            "marks": "4"
+          }
+        ]
+      },
+      "samples": [
+        {
+          "execution": 0,
+          "rows": 278,
+          "statistics": {
+            "elapsed": 0.412727408,
+            "rows_read": 144373,
+            "bytes_read": 17988152
+          },
+          "memory_usage": "25561949",
+          "digest": "0e3c5b3442e2b23d85b99508bebac448914455c86bb203b6cb082035ba7bec68"
+        },
+        {
+          "execution": 1,
+          "rows": 278,
+          "statistics": {
+            "elapsed": 0.075880613,
+            "rows_read": 144373,
+            "bytes_read": 17988152
+          },
+          "memory_usage": "25993846",
+          "digest": "0e3c5b3442e2b23d85b99508bebac448914455c86bb203b6cb082035ba7bec68"
+        },
+        {
+          "execution": 2,
+          "rows": 278,
+          "statistics": {
+            "elapsed": 0.072952098,
+            "rows_read": 144373,
+            "bytes_read": 17988152
+          },
+          "memory_usage": "26012758",
+          "digest": "0e3c5b3442e2b23d85b99508bebac448914455c86bb203b6cb082035ba7bec68"
+        }
+      ],
+      "rows": 278,
+      "digest": "0e3c5b3442e2b23d85b99508bebac448914455c86bb203b6cb082035ba7bec68",
+      "repeatable_rows": true
+    }
+  }
+}

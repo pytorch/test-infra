@@ -99,6 +99,10 @@ on:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
         type: boolean
+      hf-cache:
+        description: "Set up the Hugging Face cache: resolve its mode, warm the datasets dir from the mount and, on a refresh run, sync it back to S3. Set to false for jobs that never use Hugging Face."
+        default: true
+        type: boolean
       binary-matrix:
         description: "If we are calling this workflow with binary build matrix entry, will initialize matrix entries and env vars"
         required: false
@@ -227,6 +231,7 @@ jobs:
       # mount; the sync step below pushes it back to S3. Otherwise read models
       # from the mount, with everything HF writes redirected somewhere writable.
       - name: Resolve HF cache mode
+        if: ${{ inputs.hf-cache }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

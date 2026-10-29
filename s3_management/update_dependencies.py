@@ -1055,6 +1055,99 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "soundfile": [{"project": "vllm"}],
     "cffi": [{"project": "vllm"}],
     "pycparser": [{"project": "vllm"}],
+    # torch_tensorrt[executorch]; "wheel" is needed to build the tensorrt sdists
+    "cattrs": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "coremltools": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "dllist": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "expecttest": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "flatbuffers": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "hydra-core": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "hypothesis": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "joblib": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "kgb": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "narwhals": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "parameterized": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "pyaml": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "pytorch-tokenizers": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "ruamel-yaml": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "scikit-learn": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "sortedcontainers": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "tabulate": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "tensorrt": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "tensorrt-cu13": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "tensorrt-cu13-bindings": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "tensorrt-cu13-libs": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "threadpoolctl": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
+    "wheel": [
+        {"project": "torch_tensorrt", "target": "cu132"},
+        {"project": "torch_tensorrt", "target": "cu134"},
+    ],
 }
 
 # Preview mirrors the same ROCm meta, runtime library, and device package set.
@@ -1085,6 +1178,13 @@ PYPI_HOSTED_NVIDIA_PACKAGES = {
     # 2.32.3 is published to PyPI only; pypi.nvidia.com stops at 2.31.2. PyPI
     # carries every version already mirrored, so switching the source drops none.
     "nvidia-nccl-cu13",
+}
+
+# NVIDIA packages outside the nvidia-/cuda- prefix whose wheels are published to
+# pypi.nvidia.com only. PyPI carries a wheel-stub sdist that downloads the wheel
+# from pypi.nvidia.com at build time, which an index-only install cannot do.
+NVIDIA_HOSTED_PACKAGES = {
+    "tensorrt-cu13-libs",
 }
 
 
@@ -1129,6 +1229,8 @@ def is_nvidia_package(pkg_name: str) -> bool:
 
 def uses_nvidia_index(pkg_name: str) -> bool:
     """Check if a package is mirrored from pypi.nvidia.com rather than PyPI"""
+    if pkg_name in NVIDIA_HOSTED_PACKAGES:
+        return True
     return is_nvidia_package(pkg_name) and pkg_name not in PYPI_HOSTED_NVIDIA_PACKAGES
 
 

@@ -74,8 +74,10 @@ them to your local server.
 
 ### Pre-review deadlines
 
-In `pytorch/pytorch`, reviewers have one shared week from the latest application
-of `triaged` to pre-accept a PR. A thumbs-up on the PR description or
+In `pytorch/pytorch`, reviewers have one shared week after the PR enters
+pre-review to pre-accept it. The clock starts when `triaged` is applied and
+restarts after re-triage, return from draft, or removal of `missing actionable
+issue`. A thumbs-up on the PR description or
 `@pytorchbot pre-review accept` counts immediately. After seven days, reviewers
 who have not responded count as accepting, including requested teams. Additional
 review requests, comments, commits, and reactions do not extend the deadline.
@@ -88,10 +90,16 @@ Remove the thumbs-down, or approve/dismiss the change request, to clear it.
 An unavailable reviewer list, team membership, or triage history does not count
 as silence. A failed check is retried on the next sweep.
 
-The existing `update-drci-comments.yml` workflow calls `/api/drci/drci` every
-15 minutes. It checks pre-review before updating CI comments, so no webhook,
-reaction, or recent CI activity is required. Every PR old enough to have reached
-its deadline is checked each sweep; only younger PRs use rotating batches.
+The independent `pre-review-sweep.yml` workflow calls `/api/pre_review/sweep`
+every 15 minutes. Dr.CI does not run or wait for this sweep. No webhook,
+reaction, or recent CI activity is required. Every silent PR old enough to have
+reached its deadline is checked each sweep; younger PRs use rotating batches.
+Unchanged PRs with explicit objections or verified merge-rules approval are
+checked every six hours. A change to the PR's `updated_at` bypasses that delay;
+the periodic retry also catches reaction removal without an event. Backoff is
+stored in `s3://ossci-raw-job-status/pre-review/pytorch-pytorch/rechecks-v1.json`
+across invocations. Failures are retried without backoff. Approvals from people
+outside the merge rules do not exclude PRs from the search or prevent advancement.
 Searches split creation-date ranges to cover queues larger than GitHub's
 1,000-result search limit. Advancement happens on the first successful sweep
 after the deadline, subject to GitHub Actions scheduling and API availability.
@@ -100,6 +108,17 @@ The bot rechecks live PR state before adding `in progress`. Closed/draft PRs,
 PRs before the rollout date, and PRs labeled `in progress`, `ready for review`,
 or `missing actionable issue` are excluded. Pre-acceptance starts automated
 review; it does not grant merge approval.
+
+Configure `PRE_REVIEW_APP_ID` and `PRE_REVIEW_PRIVATE_KEY` in the HUD deployment
+(the same read-only app credentials as test-infra PR #9272). The private key is
+base64-encoded PEM. The app needs read access to PRs, issues, contents, and org
+members on `pytorch/pytorch`. The sweep refuses to run without these credentials;
+it never falls back to PyTorchBot for polling. PyTorchBot still writes the
+`in progress` label, since that identity triggers automated review. The workflow
+uses the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN` for endpoint authentication,
+and the HUD's existing S3 credentials persist backoff, requiring GetObject and
+PutObject access to the cache key above. Missing credentials, storage failures,
+or failed PR checks fail the cron job visibly.
 
 ### Deployment
 

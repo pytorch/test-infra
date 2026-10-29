@@ -104,8 +104,9 @@ def test_handler_happy_path(monkeypatch, fakes):
     )
     assert os.environ["PYTORCH_GREENLIGHT_GITHUB_TOKEN"] == _TOKEN
     assert os.environ["PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS"] == "0"
-    # pull_requests is write, not read: the scan revokes greenlight's own approval on a reverted PR,
-    # and identifies it by the <slug>[bot] login resolved from GET /app on the same integration.
+    # pull_requests is write, not read: the scan revokes greenlight's own approval on a reverted or
+    # ineligible PR, identified by the <slug>[bot] login resolved from GET /app on the same
+    # integration, and writes greenlight's GL/* labels.
     assert os.environ["BOT_LOGIN"] == f"{_APP_SLUG}[bot]"
     fake_github.GithubIntegration.return_value.get_app.assert_called_once_with()
 

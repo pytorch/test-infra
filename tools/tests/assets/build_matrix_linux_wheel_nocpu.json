@@ -12,7 +12,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.11",
@@ -26,7 +26,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.11",
@@ -40,7 +40,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.11",
@@ -54,7 +54,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.11",
@@ -68,7 +68,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.12",
@@ -82,7 +82,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.12",
@@ -96,7 +96,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.12",
@@ -110,7 +110,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.12",
@@ -124,7 +124,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.12",
@@ -138,7 +138,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.13",
@@ -152,7 +152,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.13",
@@ -166,7 +166,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.13",
@@ -180,7 +180,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.13",
@@ -194,7 +194,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.13",
@@ -208,7 +208,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14",
@@ -222,7 +222,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14",
@@ -236,7 +236,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14",
@@ -250,7 +250,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14",
@@ -264,7 +264,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14",
@@ -278,7 +278,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14t",
@@ -292,7 +292,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14t",
@@ -306,7 +306,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14t",
@@ -320,7 +320,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14t",
@@ -334,7 +334,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.14t",
@@ -348,7 +348,7 @@
       "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15",
@@ -362,7 +362,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15",
@@ -376,7 +376,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15",
@@ -390,7 +390,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15",
@@ -404,7 +404,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15",
@@ -418,7 +418,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15t",
@@ -432,7 +432,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15t",
@@ -446,7 +446,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15t",
@@ -460,7 +460,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15t",
@@ -474,7 +474,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.0",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     },
     {
       "python_version": "3.15t",
@@ -488,7 +488,7 @@
       "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.14.1"
+      "stable_version": "2.15.0"
     }
   ]
 }

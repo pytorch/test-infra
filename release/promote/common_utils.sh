@@ -35,6 +35,30 @@ get_pytorch_version() {
     git describe --tags | sed -e 's/^v//'
 }
 
+# PACKAGE_EXCLUDE_TARGETS: comma-separated accelerator folders to leave out of a
+# promotion, e.g. "cu130". A target is skipped both as the <target>/ folder and as
+# the "+<target>" local version in a file name (torch-2.15.0+cu130-... or
+# libtorch-shared-with-deps-2.15.0+cu130.zip). Prints one
+# target per line; exits on a name that is not a plain folder name, so a typo cannot
+# turn into a pattern that silently matches nothing or too much.
+exclude_targets() {
+    local raw="${PACKAGE_EXCLUDE_TARGETS:-}"
+    # Split on commas with read, not an unquoted expansion: a stray * would be
+    # expanded to file names before the check below could reject it.
+    local targets=()
+    IFS=, read -ra targets <<<"${raw}"
+    local target
+    for target in ${targets[@]+"${targets[@]}"}; do
+        target="${target// /}"
+        [[ -z "${target}" ]] && continue
+        if [[ ! "${target}" =~ ^[a-z0-9.]+$ ]]; then
+            >&2 echo "- ERROR: invalid PACKAGE_EXCLUDE_TARGETS entry '${target}' (expected e.g. cu130)"
+            exit 1
+        fi
+        echo "${target}"
+    done
+}
+
 aws_promote() {
     package_name=$1
     pytorch_version=$(get_pytorch_version)
@@ -45,16 +69,52 @@ aws_promote() {
         DRY_RUN_FLAG=""
     fi
     AWS=${AWS:-aws}
+
+    # Validate before anything is copied. Not inside $(...), where exit would only
+    # leave the subshell.
+    exclude_targets >/dev/null
+    local excluded_targets
+    excluded_targets=$(exclude_targets | paste -sd, -)
+    # Filters apply in order and the last match wins, so these must come after
+    # --include to take back what it matched.
+    local exclude_args=()
+    local target
+    for target in $(exclude_targets); do
+        exclude_args+=(--exclude "${target}/*" --exclude "*+${target}-*" --exclude "*+${target}.*")
+    done
+
+    local cp_args=(
+        --acl public-read
+        --recursive
+        --metadata-directive COPY
+        --exclude '*'
+        --include "*${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-*}"
+        ${exclude_args[@]+"${exclude_args[@]}"}
+        "${PYTORCH_S3_FROM/\/$//}"
+        "${PYTORCH_S3_TO/\/$//}"
+    )
+
+    # A real run lists every binary first. The dry run below already is that list,
+    # so only a real run needs the extra pass. The lines are reworded so the job
+    # summary, which counts "copy:" lines, still reports only what was transferred.
+    if [[ $DRY_RUN = "disabled" ]]; then
+        echo "=== Binaries to promote: ${package_name} ${pytorch_version} (excluded targets: ${excluded_targets:-none}) ==="
+        local planned
+        planned=$(${AWS} s3 cp --dryrun "${cp_args[@]}" \
+            | sed -E 's/^\(dryrun\) copy: (.*) to (.*)$/+ to promote: \1 -> \2/')
+        if [[ -n "${planned}" ]]; then
+            echo "${planned}"
+            echo "=== $(echo "${planned}" | grep -c '^+ to promote: ') binaries to promote ==="
+        else
+            echo "- WARNING: no binaries match ${package_name}-${pytorch_version}; nothing will be promoted"
+        fi
+    elif [[ -n "${excluded_targets}" ]]; then
+        echo "+ Excluded targets: ${excluded_targets}"
+    fi
+
     (
         set -x
-        ${AWS} s3 cp ${DRY_RUN_FLAG} \
-            --acl public-read \
-            --recursive \
-            --metadata-directive COPY \
-            --exclude '*' \
-            --include "*${package_name}-${pytorch_version}${PACKAGE_INCLUDE_SUFFIX:-*}" \
-            "${PYTORCH_S3_FROM/\/$//}" \
-            "${PYTORCH_S3_TO/\/$//}"
+        ${AWS} s3 cp ${DRY_RUN_FLAG} "${cp_args[@]}"
     )
     # ^ We grep for package_name-.*pytorch_version to avoid any situations where domain libraries have
     #   the same version on our S3 buckets
@@ -147,12 +207,28 @@ r2_promote() {
     # 15764 -- nearly all of them nightlies already mirrored on R2.
     local sub_channel_exclude="(^|[[:space:]])${s3_from_prefix}/(nightly|test)/"
 
+    # Same exclusions as aws_promote: the <target>/ folder or the "+<target>-" or
+    # "+<target>." local version in the file name. Validated here too, since R2_ONLY skips aws_promote.
+    exclude_targets >/dev/null
+    local target_exclude_regex=""
+    local target
+    for target in $(exclude_targets); do
+        target="${target//./\\.}"
+        target_exclude_regex+="${target_exclude_regex:+|}${target}"
+    done
+    local target_filter=(cat)
+    if [[ -n "${target_exclude_regex}" ]]; then
+        target_filter=(grep -Ev "(/|\\+)(${target_exclude_regex})(/|-|\\.)")
+        echo "+ R2: excluding targets: $(exclude_targets | paste -sd, -)"
+    fi
+
     if [[ $DRY_RUN = "enabled" ]]; then
         echo "+ DRY RUN: Would copy matching files from ${PYTORCH_S3_FROM} to R2 ${r2_dest}"
         # List what would be copied
         ${AWS} s3 ls "${s3_from_path}/" --recursive \
             | grep -E "${match_pattern}" \
-            | grep -Ev "${sub_channel_exclude}" || true
+            | grep -Ev "${sub_channel_exclude}" \
+            | "${target_filter[@]}" || true
         return 0
     fi
 
@@ -189,6 +265,7 @@ CFG
     ${AWS} s3 ls "${s3_from_path}/" --recursive \
         | grep -E "${match_pattern}" \
         | grep -Ev "${sub_channel_exclude}" \
+        | "${target_filter[@]}" \
         | sort -k3 -nr \
         | awk '{print $NF}' > "${file_list}" || true
 

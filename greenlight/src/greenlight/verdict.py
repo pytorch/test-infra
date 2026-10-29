@@ -25,8 +25,10 @@ not take back one collected while the PR was eligible, and a live approval is au
 the row says. The row is
 authoritative, so the comment upsert is best-effort on every path (a
 failed write is logged and swallowed); the LAND approving review and the NO_LAND dismissal are the
-merge gate and stay load-bearing -- they raise on failure. MARKER statuses (CANCELLED / FAILED /
-AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are both present,
+merge gate and stay load-bearing -- they raise on failure. An authoritative LAND or NO_LAND also
+makes that verdict's ``GL/*`` label the PR's only one (``verdict_labels``), best-effort too, unless
+the PR is closed, has moved off the reviewed head or carries ``Reverted``. MARKER statuses (CANCELLED /
+FAILED / AI_REVIEW_STARTED) always emit the row and, when a ``bot_login`` and token are both present,
 best-effort upsert that same canonical comment to show the run as in-progress (AI_REVIEW_STARTED)
 or not-completed (CANCELLED / FAILED). The command never writes to ClickHouse directly.
 
@@ -44,7 +46,17 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from greenlight import cohort, comment_format, constants, github_client, merge_authz, redact, state_emit, verdict_input
+from greenlight import (
+    cohort,
+    comment_format,
+    constants,
+    github_client,
+    merge_authz,
+    redact,
+    state_emit,
+    verdict_input,
+    verdict_labels,
+)
 from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, STATUS_NO_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
 
 if TYPE_CHECKING:
@@ -211,8 +223,9 @@ def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, auth
 
     ``cohort.assess_rules`` decides. A path-scoped rule's files count only while the PR's head is still
     ``head_sha``, the reviewed commit, and a fresh read after the listing finds the same head commit and
-    base branch name; ``merge_authz.changed_files`` leaves them unknown for a non-ghstack PR on a base
-    other than main, or for more than ``constants.MAX_DIFF_FILES`` files.
+    base branch name on a base ``merge_authz.accepts_base`` still accepts, so a PR listed for its native
+    stack on main must still be in one; ``merge_authz.changed_files`` leaves the files unknown on any other
+    base, or for more than ``constants.MAX_DIFF_FILES`` files.
     """
     client = github_client.build_authz_client(token)
     moved: str | None = None
@@ -223,13 +236,14 @@ def has_covering_rule(token: str, repo: str, pr_number: int, head_sha: str, auth
         if pull.head.sha != head_sha:
             moved = "head moved"
             return None
-        # The head and base come from this one response; the fresh read after the listing catches a push to
-        # the head or a retarget while the files page, but not a push to the base branch.
+        # The head, base and stack come from this one response; the fresh read after the listing catches a push
+        # to the head, a retarget, or the loss of the native stack on main a PR was listed for while the files
+        # page, but not a push to the base branch.
         listing = merge_authz.changed_files(pull)
         if listing is None:
             return None
         fresh = client.get_repo(repo).get_pull(pr_number)
-        if fresh.head.sha != pull.head.sha or fresh.base.ref != pull.base.ref:
+        if fresh.head.sha != pull.head.sha or fresh.base.ref != pull.base.ref or not merge_authz.accepts_base(fresh):
             moved = "head or base moved"
             return None
         return listing
@@ -319,6 +333,8 @@ def _run_full(
         else:
             github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
             logger.info("approved %s#%d", request.repo, request.pr_number)
+    if not shadow:
+        verdict_labels.label_verdict(pr, status, reviewed_head=request.head_sha, number=request.pr_number)
     _best_effort_upsert(request, config, body, build_github=build_github, pr=pr)
 
 

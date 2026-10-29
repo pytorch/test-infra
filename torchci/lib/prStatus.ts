@@ -216,7 +216,7 @@ export function getPrStatusMessage(state: PrStatusState): string {
       return (
         `## PR Status: in pre-review\n\n` +
         `Assigned reviewers (${formatReviewers(state.assignedReviewers)}) ` +
-        `have one week from triage to accept with a thumbs-up on the PR ` +
+        `have one week after entering pre-review to accept with a thumbs-up on the PR ` +
         `description or \`@pytorchbot pre-review accept\`, or object with a ` +
         `thumbs-down. After that week, silence counts as acceptance. ` +
         `Outstanding requests for changes also block acceptance. ` +

@@ -12,6 +12,34 @@ import { mockAddLabels } from "./utils";
 
 nock.disableNetConnect();
 
+// The GraphQL reply getLabelsLastAppliedBy reads, built from REST-shaped
+// labeled events (oldest first). A `[bot]` login becomes a Bot actor without
+// the suffix, as GraphQL reports it.
+function labeledEventsResponse(
+  events: any[],
+  pageInfo = { hasPreviousPage: false, startCursor: null as string | null }
+) {
+  const nodes = events
+    .filter((e) => e.event === "labeled")
+    .map((e) => {
+      const login: string = e.actor.login;
+      const isBot = login.endsWith("[bot]");
+      return {
+        label: { name: e.label.name },
+        actor: {
+          __typename: isBot ? "Bot" : "User",
+          login: isBot ? login.slice(0, -"[bot]".length) : login,
+          databaseId: e.actor.id,
+        },
+      };
+    });
+  return {
+    data: {
+      repository: { pullRequest: { timelineItems: { pageInfo, nodes } } },
+    },
+  };
+}
+
 beforeEach(() => {
   botUtils.clearFilesChangedCache();
 });
@@ -1154,8 +1182,8 @@ describe("auto-label-bot: labeler.yml config", () => {
     }));
     const events = [...leadingEvents, ...labelEvents];
     nock("https://api.github.com")
-      .get(`/repos/${repoFullName}/issues/${prNumber}/timeline?per_page=100`)
-      .reply(200, events);
+      .post("/graphql")
+      .reply(200, labeledEventsResponse(events));
   }
 
   function mockRemoveLabel(
@@ -1931,14 +1959,17 @@ describe("auto-label-bot: label restrictions", () => {
     const payload = botManagedLabelPayload();
 
     const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 1700823, login: "seemethere" },
-        },
-      ]);
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
     const permission = mockRepoPermission("seemethere", 200, {
       permission: "read",
     });
@@ -1957,14 +1988,17 @@ describe("auto-label-bot: label restrictions", () => {
     const payload = botManagedLabelPayload();
 
     const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 1700823, login: "seemethere" },
-        },
-      ]);
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
     const permission = mockRepoPermission("seemethere", 200, {
       permission: "read",
     });
@@ -1999,14 +2033,17 @@ describe("auto-label-bot: label restrictions", () => {
     const payload = botManagedLabelPayload();
 
     const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 1700823, login: "seemethere" },
-        },
-      ]);
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
     const permission = mockRepoPermission("seemethere", 200, {
       permission: "write",
     });
@@ -2032,14 +2069,17 @@ describe("auto-label-bot: label restrictions", () => {
     const payload = botManagedLabelPayload();
 
     const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 1700823, login: "seemethere" },
-        },
-      ]);
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
     const permission = mockRepoPermission("seemethere", 404, {
       message: "Not Found",
     });
@@ -2058,14 +2098,17 @@ describe("auto-label-bot: label restrictions", () => {
     const payload = botManagedLabelPayload();
 
     const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 1700823, login: "seemethere" },
-        },
-      ]);
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
     const permission = mockRepoPermission("seemethere", 200, {
       permission: "read",
     });
@@ -2089,14 +2132,17 @@ describe("auto-label-bot: label restrictions", () => {
     const payload = botManagedLabelPayload();
 
     const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 1700823, login: "seemethere" },
-        },
-      ]);
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
     const permission = mockRepoPermission("seemethere", 200, {
       permission: "read",
     });
@@ -2124,20 +2170,112 @@ describe("auto-label-bot: label restrictions", () => {
     );
 
     const scope = nock("https://api.github.com")
-      .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-      .reply(200, [
-        {
-          event: "labeled",
-          label: { name: "in progress" },
-          actor: { id: 54816060, login: "pytorch-bot[bot]" },
-        },
-      ]);
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 54816060, login: "pytorch-bot[bot]" },
+          },
+        ])
+      );
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
 
     // pytorch-bot short-circuits: no membership call is spent on it.
     expect(teamLookup).not.toHaveBeenCalled();
     expect(writeLookup).not.toHaveBeenCalled();
+    handleScope(scope);
+  });
+
+  test("judge in progress by its newest applier, not an older pytorch-bot one", async () => {
+    const payload = botManagedLabelPayload();
+
+    const scope = nock("https://api.github.com")
+      .post("/graphql")
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 54816060, login: "pytorch-bot[bot]" },
+          },
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
+    const permission = mockRepoPermission("seemethere", 200, {
+      permission: "read",
+    });
+    const membership = mockDevInfraMembership("seemethere", 404);
+    const removal = mockBotManagedLabelRemoval();
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(permission);
+    handleScope(membership);
+    handleScope([removal.deletion, removal.comment]);
+    handleScope(scope);
+  });
+
+  test("page back through labeled events until the label's applier is found", async () => {
+    const payload = botManagedLabelPayload();
+    // Newest-first paging only works with `last` + `before`; a canned reply
+    // keyed on variables alone would not notice `first` or a dropped cursor.
+    const isPage = (body: any, before: string | null) =>
+      /timelineItems\(\s*last: 100,\s*before: \$before,\s*itemTypes: \[LABELED_EVENT\]/.test(
+        body.query
+      ) &&
+      body.variables.owner === "seemethere" &&
+      body.variables.repo === "test-repo" &&
+      body.variables.number === 20 &&
+      body.variables.before === before;
+
+    const scope = nock("https://api.github.com")
+      .post("/graphql", (body) => isPage(body, null))
+      .reply(
+        200,
+        labeledEventsResponse(
+          [
+            {
+              event: "labeled",
+              label: { name: "module: cpu" },
+              actor: { id: 54816060, login: "pytorch-bot[bot]" },
+            },
+          ],
+          { hasPreviousPage: true, startCursor: "older" }
+        )
+      )
+      .post("/graphql", (body) => isPage(body, "older"))
+      .reply(
+        200,
+        labeledEventsResponse([
+          {
+            event: "labeled",
+            label: { name: "in progress" },
+            actor: { id: 1700823, login: "seemethere" },
+          },
+        ])
+      );
+    const permission = mockRepoPermission("seemethere", 200, {
+      permission: "write",
+    });
+    const anyWrite = nock("https://api.github.com")
+      .delete(/.*/)
+      .reply(200)
+      .post(/.*/)
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    expect(anyWrite.pendingMocks()).toHaveLength(2);
+    handleScope(permission);
     handleScope(scope);
   });
 
@@ -2153,14 +2291,17 @@ describe("auto-label-bot: label restrictions", () => {
       const payload = botManagedLabelPayload();
 
       const scope = nock("https://api.github.com")
-        .get("/repos/seemethere/test-repo/issues/20/timeline?per_page=100")
-        .reply(200, [
-          {
-            event: "labeled",
-            label: { name: "in progress" },
-            actor: { id: 311227100, login: botLogin },
-          },
-        ]);
+        .post("/graphql")
+        .reply(
+          200,
+          labeledEventsResponse([
+            {
+              event: "labeled",
+              label: { name: "in progress" },
+              actor: { id: 311227100, login: botLogin },
+            },
+          ])
+        );
       // Matches any membership path, not a literal one: an interceptor pinned to
       // an exact login or org goes unconsumed whenever the request differs in any
       // way, which would pass this test without proving the call was skipped.

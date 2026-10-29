@@ -196,6 +196,16 @@ describe("greenlightEligibilityGate", () => {
     base: { ref: "gh/alice/12/base" },
   };
   const RELEASE = { base: { ref: "release/2.9" } };
+  const ON_PR_BELOW = { base: { ref: "alice/below" } };
+  const inStack = (stack: unknown) =>
+    ({ ...ON_PR_BELOW, stack } as Partial<EligibilityPr>);
+  const NATIVE_STACK_ON_OWN_BASE = inStack({
+    base: { ref: "main", sha: "0123abc" },
+    id: 7,
+    number: 8,
+    position: 2,
+    size: 3,
+  });
   const by = (login: string) => ({ user: { login } });
   const reviewed = (state: string, login: string) => ({
     reviews: [{ state, user: { login, type: "User" } }],
@@ -290,6 +300,84 @@ describe("greenlightEligibilityGate", () => {
       "a ghstack orig ref on a base other than main",
       DOCS,
       { ...RELEASE, head: { ref: "gh/alice/12/orig" } },
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a native-stack PR on its own base with covered files",
+      DOCS,
+      NATIVE_STACK_ON_OWN_BASE,
+      "waiting",
+      "111",
+    ],
+    [
+      "a native-stack PR on its own base with uncovered files",
+      MIXED,
+      NATIVE_STACK_ON_OWN_BASE,
+      "merge_rules",
+      "110",
+    ],
+    [
+      "a native-stack PR whose trunk is not main",
+      DOCS,
+      inStack({ base: { ref: "release/2.9", sha: "0123abc" } }),
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a PR on another PR's branch with a null stack",
+      DOCS,
+      inStack(null),
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a PR on another PR's branch with no stack",
+      DOCS,
+      ON_PR_BELOW,
+      "merge_rules",
+      "100",
+    ],
+    ["a stack that is a string", DOCS, inStack("main"), "merge_rules", "100"],
+    [
+      "a stack that is a list",
+      DOCS,
+      inStack([{ base: { ref: "main" } }]),
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a stack with no base",
+      DOCS,
+      inStack({ ref: "main" }),
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a stack whose base is a string",
+      DOCS,
+      inStack({ base: "main" }),
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a stack whose base is null",
+      DOCS,
+      inStack({ base: null }),
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a stack whose base has no ref",
+      DOCS,
+      inStack({ base: { sha: "0123abc" } }),
+      "merge_rules",
+      "100",
+    ],
+    [
+      "a stack whose base ref is not a string",
+      DOCS,
+      inStack({ base: { ref: ["main"] } }),
       "merge_rules",
       "100",
     ],

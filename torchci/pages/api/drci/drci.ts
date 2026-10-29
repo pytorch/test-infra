@@ -22,7 +22,6 @@ import {
   shouldReadAdvisorVerdicts,
 } from "lib/advisor/advisorVerdictSource";
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
-import { updateInProgressLabels } from "lib/bot/preReviewUtils";
 import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
@@ -210,20 +209,6 @@ export default async function handler(
     const validatedOrg = validateOrg(org);
     const octokit = await getOctokit(validatedOrg, repo);
 
-    // Reactions and pre-review timeouts don't trigger webhooks. Check them
-    // on every scheduled sweep, even if the subsequent CI comment update
-    // fails or there are no recent workflows.
-    if (
-      authorization == process.env.DRCI_BOT_KEY &&
-      prNumber === undefined &&
-      isPyTorchPyTorch(validatedOrg, repo)
-    ) {
-      try {
-        await updateInProgressLabels(octokit, validatedOrg, repo);
-      } catch (error) {
-        console.error("Failed to update in progress labels:", error);
-      }
-    }
     const failures = await updateDrciComments(
       octokit,
       validatedOrg,

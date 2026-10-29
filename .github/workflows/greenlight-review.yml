@@ -75,10 +75,10 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     # Protected environment holding the Green Light App key: GREENLIGHT_APP_ID and
-    # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/test-infra with
-    # Actions: write and Pull requests: write so the minted token can dispatch the
-    # reviewer workflow, read PRs across pytorch/pytorch and pytorch/test-infra, and
-    # revoke greenlight's own approval on a reverted or no-longer-eligible PR.
+    # GREENLIGHT_APP_PRIVATE_KEY. The App must be installed on pytorch/pytorch and
+    # pytorch/test-infra with Actions: write and Pull requests: write so the minted token
+    # can dispatch the reviewer workflow, read PRs across both repos, revoke greenlight's
+    # own approval on a reverted or no-longer-eligible PR, and set greenlight's GL/* labels.
     environment: greenlight-record
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -87,8 +87,9 @@ jobs:
           working_directory: greenlight
 
       # pull-requests:write on every invocation, not just the --pr recheck: the listing scan
-      # dismisses greenlight's approving review on a reverted or no-longer-eligible PR. Keep the
-      # permission set in sync with _TOKEN_PERMISSIONS in greenlight/src/greenlight/lambda_handler.py.
+      # dismisses greenlight's approving review on a reverted or no-longer-eligible PR and runs
+      # the GL/* label pass. Keep the permission set in sync with _TOKEN_PERMISSIONS in
+      # greenlight/src/greenlight/lambda_handler.py.
       - name: Mint Green Light app token
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.2

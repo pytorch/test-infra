@@ -1,0 +1,770 @@
+{
+  "measured_at": "2026-10-24T18:24:17.569Z",
+  "server": {
+    "version": "26.6.1.2439",
+    "database": "default"
+  },
+  "settings": {
+    "output_format_json_quote_64bit_integers": 0,
+    "date_time_output_format": "iso",
+    "use_query_cache": 0,
+    "max_execution_time": 90
+  },
+  "job_ids": [
+    "119697295038",
+    "119688453924",
+    "119692775894",
+    "119692503545",
+    "119846029842",
+    "119695966254",
+    "115463861620",
+    "115564887788",
+    "119697294867",
+    "119697295038",
+    "-9223372036854775808",
+    "0",
+    "9223372036854775807",
+    "120790198655"
+  ],
+  "versions": {
+    "before": {
+      "params": {
+        "github_workflow_job_ids": [
+          "119697295038",
+          "119688453924",
+          "119692775894",
+          "119692503545",
+          "119846029842",
+          "119695966254",
+          "115463861620",
+          "115564887788",
+          "119697294867",
+          "-9223372036854775808",
+          "0",
+          "9223372036854775807",
+          "120790198655"
+        ]
+      },
+      "sql": "\nWITH jobs AS (\n    SELECT id, run_id, html_url, name\n    FROM default.workflow_job FINAL\n    WHERE id IN CAST({github_workflow_job_ids: Array(String)}, 'Array(Int64)')\n    ORDER BY _inserted_at DESC, run_id DESC, dynamoKey DESC\n    LIMIT 1 BY id\n)\nSELECT\n    toString(job.id) AS github_workflow_job_id,\n    nullIf(toString(job.run_id), '0') AS github_workflow_run_id,\n    nullIf(workflow.path, '') AS workflow_path,\n    nullIf(workflow.head_sha, '') AS commit_sha,\n    nullIf(job.html_url, '') AS github_workflow_job_url,\n    nullIf(job.name, '') AS github_workflow_job_name,\n    nullIf(workflow.event, '') AS workflow_event,\n    workflow.id != 0 AS workflow_metadata_available,\n    nullIf(toString(workflow.repository_id), '0') AS workflow_repository_id,\n    CAST(arrayZip(workflow.pull_request_numbers, workflow.pull_request_urls, arrayMap(base_repository_id -> toString(base_repository_id), workflow.pull_request_base_repository_ids)), 'Array(Tuple(number Int64, url String, base_repository_id String))') AS workflow_pull_requests\nFROM jobs AS job\nLEFT JOIN (\n    SELECT id, path, head_sha, event, repository.id AS repository_id, pull_requests.number AS pull_request_numbers, pull_requests.url AS pull_request_urls, pull_requests.base.repo.id AS pull_request_base_repository_ids\n    FROM default.workflow_run FINAL\n    WHERE id IN (\n        SELECT run_id FROM default.workflow_job\n        WHERE id IN CAST({github_workflow_job_ids: Array(String)}, 'Array(Int64)')\n    )\n    ORDER BY _inserted_at DESC, run_attempt DESC, dynamoKey DESC\n    LIMIT 1 BY id\n) AS workflow ON workflow.id = job.run_id\nSETTINGS output_format_json_named_tuples_as_objects = 1\n"
+    },
+    "after": {
+      "params": {
+        "github_workflow_job_ids": [
+          "119697295038",
+          "119688453924",
+          "119692775894",
+          "119692503545",
+          "119846029842",
+          "119695966254",
+          "115463861620",
+          "115564887788",
+          "119697294867",
+          "-9223372036854775808",
+          "0",
+          "9223372036854775807",
+          "120790198655"
+        ]
+      },
+      "sql": "\nWITH jobs AS (\n    SELECT id, run_id, html_url, name\n    FROM default.workflow_job FINAL\n    WHERE id IN CAST({github_workflow_job_ids: Array(String)}, 'Array(Int64)')\n    ORDER BY _inserted_at DESC, run_id DESC, dynamoKey DESC\n    LIMIT 1 BY id\n)\nSELECT\n    toString(job.id) AS github_workflow_job_id,\n    nullIf(toString(job.run_id), '0') AS github_workflow_run_id,\n    nullIf(workflow.path, '') AS workflow_path,\n    nullIf(workflow.head_sha, '') AS commit_sha,\n    nullIf(job.html_url, '') AS github_workflow_job_url,\n    nullIf(job.name, '') AS github_workflow_job_name,\n    nullIf(workflow.event, '') AS workflow_event,\n    workflow.id != 0 AS workflow_metadata_available,\n    nullIf(toString(workflow.repository_id), '0') AS workflow_repository_id,\n    CAST(arrayZip(workflow.pull_request_numbers, workflow.pull_request_urls, workflow.pull_request_base_repository_ids), 'Array(Tuple(number Int64, url String, base_repository_id String))') AS workflow_pull_requests\nFROM jobs AS job\nLEFT JOIN (\n    SELECT id, path, head_sha, event, repository.id AS repository_id, pull_requests.number AS pull_request_numbers, pull_requests.url AS pull_request_urls, pull_requests.base.repo.id AS pull_request_base_repository_ids\n    FROM default.workflow_run FINAL\n    WHERE id IN (\n        SELECT run_id FROM default.workflow_job\n        WHERE id IN CAST({github_workflow_job_ids: Array(String)}, 'Array(Int64)')\n    )\n    ORDER BY _inserted_at DESC, run_attempt DESC, dynamoKey DESC\n    LIMIT 1 BY id\n) AS workflow ON workflow.id = job.run_id\nSETTINGS output_format_json_named_tuples_as_objects = 1\n"
+    }
+  },
+  "plans": {
+    "before": {
+      "indexes=1": [
+        "Expression ((Projection + Before ORDER BY))",
+        "  Join (JOIN FillRightFirst)",
+        "    Expression ((Before JOIN + Projection))",
+        "      LimitBy",
+        "        Expression (Before LIMIT BY)",
+        "          Sorting (Sorting for ORDER BY)",
+        "            Expression (Before ORDER BY)",
+        "              Filter (WHERE)",
+        "                ReadFromMergeTree (default.workflow_job)",
+        "                Indexes:",
+        "                  PrimaryKey",
+        "                    Keys:",
+        "                      id",
+        "                    Condition: (id in 13-element set)",
+        "                    Parts: 9/14",
+        "                    Granules: 44/32144",
+        "                    Search Algorithm: generic exclusion search",
+        "                  Ranges: 13",
+        "    Expression ((Joined actions + Rename joined columns))",
+        "      CreatingSets (Create sets before main query execution)",
+        "        Expression (Projection)",
+        "          LimitBy",
+        "            Expression (Before LIMIT BY)",
+        "              Sorting (Sorting for ORDER BY)",
+        "                Expression (Before ORDER BY)",
+        "                  Filter (WHERE)",
+        "                    ReadFromMergeTree (default.workflow_run)",
+        "                    Indexes:",
+        "                      PrimaryKey",
+        "                        Keys:",
+        "                          id",
+        "                        Condition: (id in 9-element set)",
+        "                        Parts: 8/11",
+        "                        Granules: 11/14660",
+        "                        Search Algorithm: generic exclusion search",
+        "                      Ranges: 10"
+      ],
+      "PIPELINE": [
+        "(Expression)",
+        "ExpressionTransform",
+        "  (Join)",
+        "  JoiningTransform 2 → 1",
+        "    (Expression)",
+        "    ExpressionTransform",
+        "      (LimitBy)",
+        "      LimitByTransform",
+        "        (Expression)",
+        "        ExpressionTransform",
+        "          (Sorting)",
+        "          MergingSortedTransform 3 → 1",
+        "            MergeSortingTransform × 3",
+        "              LimitsCheckingTransform × 3",
+        "                PartialSortingTransform × 3",
+        "                  (Expression)",
+        "                  ExpressionTransform × 3",
+        "                    (Filter)",
+        "                    FilterTransform × 3",
+        "                      (ReadFromMergeTree)",
+        "                      ExpressionTransform × 3",
+        "                        ReplacingSorted 4 → 1",
+        "                          FilterSortedStreamByRange × 4",
+        "                          Description: filter values in ((119686809002), +inf]",
+        "                            ExpressionTransform × 4",
+        "                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 4 0 → 1",
+        "                                ReplacingSorted 7 → 1",
+        "                                  FilterSortedStreamByRange × 7",
+        "                                  Description: filter values in ((0), (119686809002)]",
+        "                                    ExpressionTransform × 7",
+        "                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 7 0 → 1",
+        "                                        ReplacingSorted 6 → 1",
+        "                                          FilterSortedStreamByRange × 6",
+        "                                          Description: filter values in (-inf, (0)]",
+        "                                            ExpressionTransform × 6",
+        "                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 6 0 → 1",
+        "    (Expression)",
+        "    FillingRightJoinSide",
+        "      ExpressionTransform",
+        "        (CreatingSets)",
+        "          (Expression)",
+        "          ExpressionTransform",
+        "            (LimitBy)",
+        "            LimitByTransform",
+        "              (Expression)",
+        "              ExpressionTransform",
+        "                (Sorting)",
+        "                MergingSortedTransform 2 → 1",
+        "                  MergeSortingTransform × 2",
+        "                    LimitsCheckingTransform × 2",
+        "                      PartialSortingTransform × 2",
+        "                        (Expression)",
+        "                        ExpressionTransform × 2",
+        "                          (Filter)",
+        "                          FilterTransform × 2",
+        "                            (ReadFromMergeTree)",
+        "                            ExpressionTransform × 2",
+        "                              ReplacingSorted 4 → 1",
+        "                                FilterSortedStreamByRange × 4",
+        "                                Description: filter values in ((40063959673), +inf]",
+        "                                  ExpressionTransform × 4",
+        "                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 4 0 → 1",
+        "                                      ReplacingSorted 8 → 1",
+        "                                        FilterSortedStreamByRange × 8",
+        "                                        Description: filter values in (-inf, (40063959673)]",
+        "                                          ExpressionTransform × 8",
+        "                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 8 0 → 1"
+      ]
+    },
+    "after": {
+      "indexes=1": [
+        "Expression ((Projection + Before ORDER BY))",
+        "  Join (JOIN FillRightFirst)",
+        "    Expression ((Before JOIN + Projection))",
+        "      LimitBy",
+        "        Expression (Before LIMIT BY)",
+        "          Sorting (Sorting for ORDER BY)",
+        "            Expression (Before ORDER BY)",
+        "              Filter (WHERE)",
+        "                ReadFromMergeTree (default.workflow_job)",
+        "                Indexes:",
+        "                  PrimaryKey",
+        "                    Keys:",
+        "                      id",
+        "                    Condition: (id in 13-element set)",
+        "                    Parts: 9/14",
+        "                    Granules: 44/32144",
+        "                    Search Algorithm: generic exclusion search",
+        "                  Ranges: 13",
+        "    Expression ((Joined actions + Rename joined columns))",
+        "      CreatingSets (Create sets before main query execution)",
+        "        Expression (Projection)",
+        "          LimitBy",
+        "            Expression (Before LIMIT BY)",
+        "              Sorting (Sorting for ORDER BY)",
+        "                Expression (Before ORDER BY)",
+        "                  Filter (WHERE)",
+        "                    ReadFromMergeTree (default.workflow_run)",
+        "                    Indexes:",
+        "                      PrimaryKey",
+        "                        Keys:",
+        "                          id",
+        "                        Condition: (id in 9-element set)",
+        "                        Parts: 8/11",
+        "                        Granules: 11/14660",
+        "                        Search Algorithm: generic exclusion search",
+        "                      Ranges: 10"
+      ],
+      "PIPELINE": [
+        "(Expression)",
+        "ExpressionTransform",
+        "  (Join)",
+        "  JoiningTransform 2 → 1",
+        "    (Expression)",
+        "    ExpressionTransform",
+        "      (LimitBy)",
+        "      LimitByTransform",
+        "        (Expression)",
+        "        ExpressionTransform",
+        "          (Sorting)",
+        "          MergingSortedTransform 3 → 1",
+        "            MergeSortingTransform × 3",
+        "              LimitsCheckingTransform × 3",
+        "                PartialSortingTransform × 3",
+        "                  (Expression)",
+        "                  ExpressionTransform × 3",
+        "                    (Filter)",
+        "                    FilterTransform × 3",
+        "                      (ReadFromMergeTree)",
+        "                      ExpressionTransform × 3",
+        "                        ReplacingSorted 4 → 1",
+        "                          FilterSortedStreamByRange × 4",
+        "                          Description: filter values in ((119686809002), +inf]",
+        "                            ExpressionTransform × 4",
+        "                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 4 0 → 1",
+        "                                ReplacingSorted 7 → 1",
+        "                                  FilterSortedStreamByRange × 7",
+        "                                  Description: filter values in ((0), (119686809002)]",
+        "                                    ExpressionTransform × 7",
+        "                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 7 0 → 1",
+        "                                        ReplacingSorted 6 → 1",
+        "                                          FilterSortedStreamByRange × 6",
+        "                                          Description: filter values in (-inf, (0)]",
+        "                                            ExpressionTransform × 6",
+        "                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 6 0 → 1",
+        "    (Expression)",
+        "    FillingRightJoinSide",
+        "      ExpressionTransform",
+        "        (CreatingSets)",
+        "          (Expression)",
+        "          ExpressionTransform",
+        "            (LimitBy)",
+        "            LimitByTransform",
+        "              (Expression)",
+        "              ExpressionTransform",
+        "                (Sorting)",
+        "                MergingSortedTransform 2 → 1",
+        "                  MergeSortingTransform × 2",
+        "                    LimitsCheckingTransform × 2",
+        "                      PartialSortingTransform × 2",
+        "                        (Expression)",
+        "                        ExpressionTransform × 2",
+        "                          (Filter)",
+        "                          FilterTransform × 2",
+        "                            (ReadFromMergeTree)",
+        "                            ExpressionTransform × 2",
+        "                              ReplacingSorted 4 → 1",
+        "                                FilterSortedStreamByRange × 4",
+        "                                Description: filter values in ((40063959673), +inf]",
+        "                                  ExpressionTransform × 4",
+        "                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 4 0 → 1",
+        "                                      ReplacingSorted 8 → 1",
+        "                                        FilterSortedStreamByRange × 8",
+        "                                        Description: filter values in (-inf, (40063959673)]",
+        "                                          ExpressionTransform × 8",
+        "                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 8 0 → 1"
+      ]
+    }
+  },
+  "samples": [
+    {
+      "pair": 0,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.048673973,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 0,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.052449225,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 1,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.051691743,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 1,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.055756114,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 2,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.051951933,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 2,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.050768423,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 3,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.049735437,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 3,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.045719061,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 4,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.045220366,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 4,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.053912088,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 5,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.049454776,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 5,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.056403373,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 6,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.059836721,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 6,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.047262479,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 7,
+      "version": "after",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.051680415,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    },
+    {
+      "pair": 7,
+      "version": "before",
+      "rows": 11,
+      "statistics": {
+        "elapsed": 0.04986693,
+        "rows_read": 386836,
+        "bytes_read": 28127336
+      },
+      "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+    }
+  ],
+  "result_rows": [
+    {
+      "github_workflow_job_id": "0",
+      "github_workflow_run_id": null,
+      "workflow_path": null,
+      "commit_sha": null,
+      "github_workflow_job_url": null,
+      "github_workflow_job_name": null,
+      "workflow_event": null,
+      "workflow_metadata_available": 0,
+      "workflow_repository_id": null,
+      "workflow_pull_requests": []
+    },
+    {
+      "github_workflow_job_id": "115463861620",
+      "github_workflow_run_id": "38445828306",
+      "workflow_path": ".github/workflows/trunk.yml",
+      "commit_sha": "8caf0da8a5061291f1186f976bdbf7f8eda89ab1",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/38445828306/job/115463861620",
+      "github_workflow_job_name": "get-label-type / runner-determinator",
+      "workflow_event": "push",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": [
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/botbw/pytorch/pulls/1",
+          "base_repository_id": "829850672"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/SkBlaz/pytorch/pulls/1",
+          "base_repository_id": "843886882"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/yixuqiu/pytorch/pulls/1",
+          "base_repository_id": "727000293"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/sagargulabani/pytorch/pulls/5",
+          "base_repository_id": "778669783"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/Dylynniscoding/pytorch/pulls/1",
+          "base_repository_id": "664864358"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/kkpan11/pytorch/pulls/1",
+          "base_repository_id": "638032568"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/changlan/pytorch/pulls/5",
+          "base_repository_id": "501340649"
+        }
+      ]
+    },
+    {
+      "github_workflow_job_id": "115564887788",
+      "github_workflow_run_id": "38445828306",
+      "workflow_path": ".github/workflows/trunk.yml",
+      "commit_sha": "8caf0da8a5061291f1186f976bdbf7f8eda89ab1",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/38445828306/job/115564887788",
+      "github_workflow_job_name": "macos-py3-arm64 / build",
+      "workflow_event": "push",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": [
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/botbw/pytorch/pulls/1",
+          "base_repository_id": "829850672"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/SkBlaz/pytorch/pulls/1",
+          "base_repository_id": "843886882"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/yixuqiu/pytorch/pulls/1",
+          "base_repository_id": "727000293"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/sagargulabani/pytorch/pulls/5",
+          "base_repository_id": "778669783"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/Dylynniscoding/pytorch/pulls/1",
+          "base_repository_id": "664864358"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/kkpan11/pytorch/pulls/1",
+          "base_repository_id": "638032568"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/changlan/pytorch/pulls/5",
+          "base_repository_id": "501340649"
+        }
+      ]
+    },
+    {
+      "github_workflow_job_id": "119688453924",
+      "github_workflow_run_id": "39736116699",
+      "workflow_path": ".github/workflows/pull.yml",
+      "commit_sha": "0ba1e71f550554137facf607c997a9a6cb7f4acf",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/39736116699/job/119688453924",
+      "github_workflow_job_name": "linux-jammy-py3.11-clang21-asan / test (default, 6, 18, mt-l-x86iavx512-16-128)",
+      "workflow_event": "pull_request",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": []
+    },
+    {
+      "github_workflow_job_id": "119692503545",
+      "github_workflow_run_id": "39733468204",
+      "workflow_path": ".github/workflows/trunk.yml",
+      "commit_sha": "c95c638e44e4f251d683a3694cf0f743a24b6837",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/39733468204/job/119692503545",
+      "github_workflow_job_name": "cross-compile-linux-test-cuda132 / test (aoti_cross_compile_for_windows, 1, 1, mt-l-x86aavx2-11-41-l4, win-vs2022-cuda13.2-py3)",
+      "workflow_event": "push",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": []
+    },
+    {
+      "github_workflow_job_id": "119692775894",
+      "github_workflow_run_id": "39739423949",
+      "workflow_path": ".github/workflows/hardened-pr-review.yml",
+      "commit_sha": "5421799fe0d3b6660ad966e96e54a81ec269651d",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/39739423949/job/119692775894",
+      "github_workflow_job_name": "capture",
+      "workflow_event": "pull_request_target",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": []
+    },
+    {
+      "github_workflow_job_id": "119695966254",
+      "github_workflow_run_id": "39739327262",
+      "workflow_path": ".github/workflows/inductor.yml",
+      "commit_sha": "de09df22e85a661e656e93a476d614a1779d45f6",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/39739327262/job/119695966254",
+      "github_workflow_job_name": "unit-test / inductor-cpu-core-test (3.12) / test (inductor_core, 1, 2, mt-l-x86iavx512-8-64)",
+      "workflow_event": "push",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": [
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/botbw/pytorch/pulls/1",
+          "base_repository_id": "829850672"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/SkBlaz/pytorch/pulls/1",
+          "base_repository_id": "843886882"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/yixuqiu/pytorch/pulls/1",
+          "base_repository_id": "727000293"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/sagargulabani/pytorch/pulls/5",
+          "base_repository_id": "778669783"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/Dylynniscoding/pytorch/pulls/1",
+          "base_repository_id": "664864358"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/kkpan11/pytorch/pulls/1",
+          "base_repository_id": "638032568"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/changlan/pytorch/pulls/5",
+          "base_repository_id": "501340649"
+        }
+      ]
+    },
+    {
+      "github_workflow_job_id": "119697294867",
+      "github_workflow_run_id": "39739199206",
+      "workflow_path": ".github/workflows/pull.yml",
+      "commit_sha": "0828df3908d4498d0b763a698351c603a0984c90",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/39739199206/job/119697294867",
+      "github_workflow_job_name": "linux-jammy-py3.11-clang21-asan / test (default, 15, 18, mt-l-x86iavx512-16-128)",
+      "workflow_event": "pull_request",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": [
+        {
+          "number": 115316,
+          "url": "https://api.github.com/repos/pytorch/pytorch/pulls/115316",
+          "base_repository_id": "65600975"
+        }
+      ]
+    },
+    {
+      "github_workflow_job_id": "119697295038",
+      "github_workflow_run_id": "39739199206",
+      "workflow_path": ".github/workflows/pull.yml",
+      "commit_sha": "0828df3908d4498d0b763a698351c603a0984c90",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/39739199206/job/119697295038",
+      "github_workflow_job_name": "linux-jammy-py3.11-clang21-asan / test (default, 9, 18, mt-l-x86iavx512-16-128)",
+      "workflow_event": "pull_request",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": [
+        {
+          "number": 115316,
+          "url": "https://api.github.com/repos/pytorch/pytorch/pulls/115316",
+          "base_repository_id": "65600975"
+        }
+      ]
+    },
+    {
+      "github_workflow_job_id": "119846029842",
+      "github_workflow_run_id": "39730637928",
+      "workflow_path": ".github/workflows/xpu.yml",
+      "commit_sha": "37f56e48ce431907080585a595c437f9edb23411",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/39730637928/job/119846029842",
+      "github_workflow_job_name": "linux-noble-xpu-n-py3.11 / test (default, 3, 12, linux.idc.xpu)",
+      "workflow_event": "push",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": []
+    },
+    {
+      "github_workflow_job_id": "120790198655",
+      "github_workflow_run_id": "40065629499",
+      "workflow_path": ".github/workflows/trunk.yml",
+      "commit_sha": "ce7558288b3d701e32c6789e28b826897d8a0b5c",
+      "github_workflow_job_url": "https://github.com/pytorch/pytorch/actions/runs/40065629499/job/120790198655",
+      "github_workflow_job_name": "macos-py3-arm64 / test (default, 3, 3, macos-m1-stable)",
+      "workflow_event": "push",
+      "workflow_metadata_available": 1,
+      "workflow_repository_id": "65600975",
+      "workflow_pull_requests": [
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/botbw/pytorch/pulls/1",
+          "base_repository_id": "829850672"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/SkBlaz/pytorch/pulls/1",
+          "base_repository_id": "843886882"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/yixuqiu/pytorch/pulls/1",
+          "base_repository_id": "727000293"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/sagargulabani/pytorch/pulls/5",
+          "base_repository_id": "778669783"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/Dylynniscoding/pytorch/pulls/1",
+          "base_repository_id": "664864358"
+        },
+        {
+          "number": 1,
+          "url": "https://api.github.com/repos/kkpan11/pytorch/pulls/1",
+          "base_repository_id": "638032568"
+        },
+        {
+          "number": 5,
+          "url": "https://api.github.com/repos/changlan/pytorch/pulls/5",
+          "base_repository_id": "501340649"
+        }
+      ]
+    }
+  ],
+  "named_tuple_override": {
+    "client_setting": 0,
+    "sql_setting": 1,
+    "rows": 11,
+    "statistics": {
+      "elapsed": 0.052528281,
+      "rows_read": 386836,
+      "bytes_read": 28127336
+    },
+    "digest": "c377cd405236a4d05140e06108727b2667dec7f1ecce79da7e67f059aa2eeb5f"
+  }
+}

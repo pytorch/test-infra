@@ -1,8 +1,23 @@
+import { createHash, timingSafeEqual } from "crypto";
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GithubProvider from "next-auth/providers/github";
 
 const isPreview = process.env.VERCEL_ENV === "preview";
+
+// Whether what was submitted is the configured value, compared in constant
+// time through digests so the comparison's timing says nothing about how
+// much of it matched. An unset or empty configured value matches nothing:
+// a preview without a password has no preview login.
+export function sameSecret(
+  submitted: unknown,
+  configured: string | undefined
+): boolean {
+  if (typeof submitted !== "string" || !configured) return false;
+  const digestOf = (value: string) =>
+    new Uint8Array(createHash("sha256").update(value).digest());
+  return timingSafeEqual(digestOf(submitted), digestOf(configured));
+}
 
 export const authOptions = {
   providers: [
@@ -19,8 +34,8 @@ export const authOptions = {
               if (!credentials) return null;
 
               if (
-                credentials.username === process.env.PREVIEW_USER &&
-                credentials.password === process.env.PREVIEW_PASS
+                sameSecret(credentials.username, process.env.PREVIEW_USER) &&
+                sameSecret(credentials.password, process.env.PREVIEW_PASS)
               ) {
                 return {
                   id: "preview-user",
@@ -69,9 +84,12 @@ export const authOptions = {
         token.accessToken = account.access_token;
       }
 
-      // CredentialsProvider login
+      // CredentialsProvider login. The mark tells the API gate (lib/api/auth.ts)
+      // that this session has no GitHub token to check: on a preview
+      // deployment it passes as it is.
       if (user && user.previewAccessToken) {
         token.accessToken = user.previewAccessToken;
+        token.previewLogin = true;
       }
 
       if (user && user.id) {
@@ -84,6 +102,7 @@ export const authOptions = {
     async session({ session, token, user }) {
       session.user.id = token.id;
       session.accessToken = token.accessToken;
+      session.previewLogin = token.previewLogin === true;
       session.userData = user;
       return session;
     },
