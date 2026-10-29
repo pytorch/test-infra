@@ -129,6 +129,13 @@
       "rocm"
     ]
   ],
+  "test_coalescing_window_covers_all_ops (__main__.NcclLazyCollectivesTest)": [
+    "202513",
+    "https://github.com/pytorch/pytorch/issues/202513",
+    [
+      "rocm"
+    ]
+  ],
   "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
     "194171",
     "https://github.com/pytorch/pytorch/issues/194171",
@@ -1447,16 +1454,6 @@
   "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
     "124152",
     "https://github.com/pytorch/pytorch/issues/124152",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_s (__main__.TestVisionTracing)": [
-    "182095",
-    "https://github.com/pytorch/pytorch/issues/182095",
     [
       "asan",
       "linux",
