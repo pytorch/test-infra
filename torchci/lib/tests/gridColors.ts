@@ -139,20 +139,27 @@ export function weekendBandColor(theme: Theme): string {
 }
 
 // The band over the column under the pointer and the pill naming its
-// commit in the footer: the theme's blue, the pill solid, the band a wash
-// of it, since a grey band and pill were easy to miss.
+// commit in the footer: orange, the pill solid, the band a wash of it,
+// since a grey band and pill were easy to miss. The pointer's mark is
+// transient, so the yellow pills the orange dims are under the pointer
+// only, where the hovered cell is grown and ringed anyway; the marks that
+// stay, the pins, have the blue (pinnedCommitColors).
 export function hoverBandColor(theme: Theme): string {
   return theme.palette.mode === "dark"
-    ? "rgba(74, 144, 226, 0.24)"
-    : "rgba(25, 118, 210, 0.14)";
+    ? "rgba(255, 167, 38, 0.3)"
+    : "rgba(239, 108, 0, 0.18)";
 }
 
-// The commit the header's search found: a band over its column and a pill
-// pinned in the footer, in orange, a hue the grid uses for nothing else,
-// so the found column is told from the blue of the column under the
-// pointer and from the statuses' red, yellow, green and purple. The band is a wash of
-// the pill's color; the text is dark on the orange in both modes, white on
-// it falling short of the contrast small text needs (3.1:1 in light mode).
+// The commit the header's search found, and the configuration a reader
+// came for: a band over the column or across the lane, a pill pinned in
+// the footer or a strip at the table's left edge, in the theme's blue, the
+// accent the header's keys use, so a pin reads as the page's own mark and
+// is told from the statuses' red, yellow, green and purple and from the
+// orange of the column under the pointer. An orange pin had hidden the
+// yellow flaky pills on its band and a teal one dimmed the green passes
+// (both tried 2026-10-29); the blue leaves every status legible. The band
+// is a wash of the pill's color, a step firmer than the pointer's wash had
+// been, since it stays.
 export interface PinnedCommitColors {
   band: string;
   background: string;
@@ -160,17 +167,14 @@ export interface PinnedCommitColors {
 }
 
 export function pinnedCommitColors(theme: Theme): PinnedCommitColors {
-  return theme.palette.mode === "dark"
-    ? {
-        band: "rgba(255, 167, 38, 0.3)",
-        background: "#ffa726",
-        text: "rgba(0, 0, 0, 0.87)",
-      }
-    : {
-        band: "rgba(239, 108, 0, 0.18)",
-        background: "#ef6c00",
-        text: "rgba(0, 0, 0, 0.87)",
-      };
+  return {
+    band:
+      theme.palette.mode === "dark"
+        ? "rgba(74, 144, 226, 0.26)"
+        : "rgba(25, 118, 210, 0.16)",
+    background: theme.palette.primary.main,
+    text: theme.palette.primary.contrastText,
+  };
 }
 
 export interface CommitPillColors {
@@ -178,9 +182,12 @@ export interface CommitPillColors {
   text: string;
 }
 
+// The pill naming the commit under the pointer, on the footer's grey: the
+// solid orange of the pointer's band, with dark text in both modes, white
+// on the orange falling short of the contrast small text needs (3.1:1 in
+// light mode).
 export function commitPillColors(theme: Theme): CommitPillColors {
-  return {
-    background: theme.palette.primary.main,
-    text: theme.palette.primary.contrastText,
-  };
+  return theme.palette.mode === "dark"
+    ? { background: "#ffa726", text: "rgba(0, 0, 0, 0.87)" }
+    : { background: "#ef6c00", text: "rgba(0, 0, 0, 0.87)" };
 }

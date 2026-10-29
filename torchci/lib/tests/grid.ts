@@ -57,8 +57,21 @@ export const OUTCOME_LABELS: Record<CellStatus, string> = {
   other: "Other",
 };
 
+// The configuration a reader came to the page for: the list's row whose
+// figure they clicked, named by its environment and env var set, the ids
+// the list's entries carry (testRunsHref in lib/tests/links.ts). The grid
+// marks every lane of that configuration, one per workflow, and scrolls the
+// first into view (RunGrid).
+export interface LanePin {
+  environmentId: string;
+  envVarsId: string;
+}
+
 export interface GridQuery {
-  ranOn: RanOn;
+  // The code sources whose runs are shown, in the options' order, never
+  // empty. The list can combine main and pull requests, and an evidence
+  // link from it keeps both, so the grid shows the runs the figure counted.
+  ranOn: readonly RanOn[];
   window: HealthWindow;
   // The statuses whose cells are shown, in CELL_STATUSES' order; every
   // status unless the reader narrowed the grid, to the failures say.
@@ -68,12 +81,14 @@ export interface GridQuery {
   // A commit hash, or the start of one, to find among the columns; "" when
   // none is sought.
   commit: string;
+  // The configuration to mark; null when none.
+  lane: LanePin | null;
 }
 
 // What the grid shows until the URL says otherwise: three days of main, long
 // enough to see a test turn and short enough to keep one commit a column,
-// every outcome shown, the time bar on.
-export const DEFAULT_GRID_RAN_ON: RanOn = "main";
+// every outcome shown, the time bar on, no configuration marked.
+export const DEFAULT_GRID_RAN_ON: readonly RanOn[] = ["main"];
 export const DEFAULT_GRID_WINDOW: HealthWindow = "3d";
 export const DEFAULT_GRID_TIME_BAR = true;
 
@@ -85,63 +100,99 @@ function resolveOutcomes(value: string | string[] | undefined): CellStatus[] {
   return shown.length > 0 ? shown : [...CELL_STATUSES];
 }
 
+// The values of a parameter the API takes comma-separated or repeated,
+// `ran_on=main,pull_request` or `ran_on=main&ran_on=pull_request`.
+function urlValues(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return (typeof value === "string" ? [value] : value).flatMap((each) =>
+    each.split(",")
+  );
+}
+
+// A catalog id as a URL may carry it, a UInt64 as a decimal string, as the
+// API spells ids; anything else names nothing.
+function urlId(value: string | string[] | undefined): string | null {
+  return typeof value === "string" && /^\d{1,20}$/.test(value) ? value : null;
+}
+
 // The URL's choices, checked against the options: a value they do not offer
-// falls back to the default, so the header always shows a real choice.
+// falls back to the default, so the header always shows a real choice. A
+// configuration is named by both its ids or not at all.
 export function resolveGridQuery(
   url: UrlQuery,
   options: TestOptions
 ): GridQuery {
-  const ranOn = menuOrder(
-    typeof url.ran_on === "string" ? [url.ran_on] : [],
-    options.ran_on.values
-  );
+  const ranOn = menuOrder(urlValues(url.ran_on), options.ran_on.values);
   const window = menuOrder(
     typeof url.window === "string" ? [url.window] : [],
     options.window.values
   );
+  const environmentId = urlId(url.environment);
+  const envVarsId = urlId(url.env_vars);
   return {
-    ranOn: ranOn[0] ?? DEFAULT_GRID_RAN_ON,
+    ranOn: ranOn.length > 0 ? ranOn : [...DEFAULT_GRID_RAN_ON],
     window: window[0] ?? DEFAULT_GRID_WINDOW,
     outcomes: resolveOutcomes(url.outcomes),
     timeBar: url.time_bar !== "0",
     commit: typeof url.commit === "string" ? url.commit.trim() : "",
+    lane:
+      environmentId !== null && envVarsId !== null
+        ? { environmentId, envVarsId }
+        : null,
   };
+}
+
+// Whether the code sources chosen are the default, main alone.
+function defaultSources(ranOn: readonly RanOn[]): boolean {
+  return (
+    ranOn.length === DEFAULT_GRID_RAN_ON.length &&
+    ranOn.every((source, index) => source === DEFAULT_GRID_RAN_ON[index])
+  );
 }
 
 export function allOutcomesShown(outcomes: readonly CellStatus[]): boolean {
   return CELL_STATUSES.every((status) => outcomes.includes(status));
 }
 
-// The URL parameters of a query, the defaults left off; `outcomes` and
-// `time_bar` are the page's own, the API knowing nothing of them.
+// The URL parameters of a query, the defaults left off; `outcomes`,
+// `time_bar`, `commit`, `environment` and `env_vars` are the page's own,
+// the API knowing nothing of them.
 export function gridUrlParams(
   query: GridQuery
 ): Record<
-  "ran_on" | "window" | "outcomes" | "time_bar" | "commit",
+  | "ran_on"
+  | "window"
+  | "outcomes"
+  | "time_bar"
+  | "commit"
+  | "environment"
+  | "env_vars",
   string | undefined
 > {
   return {
-    ran_on: query.ranOn === DEFAULT_GRID_RAN_ON ? undefined : query.ranOn,
+    ran_on: defaultSources(query.ranOn) ? undefined : query.ranOn.join(","),
     window: query.window === DEFAULT_GRID_WINDOW ? undefined : query.window,
     outcomes: allOutcomesShown(query.outcomes)
       ? undefined
       : query.outcomes.join(","),
     time_bar: query.timeBar ? undefined : "0",
     commit: query.commit === "" ? undefined : query.commit,
+    environment: query.lane === null ? undefined : query.lane.environmentId,
+    env_vars: query.lane === null ? undefined : query.lane.envVarsId,
   };
 }
 
-// Whether the time bar has anything to say for a code source: a stretch is
-// a sustained change along one line of commits that build on one another,
-// which main is and pull requests are not, each branching from main at its
-// own point and most running once, so in the pull request view the bar is
-// off and its key unticked and disabled.
-export function timeBarAvailable(ranOn: RanOn): boolean {
-  return ranOn !== "pull_request";
+// Whether the time bar has anything to say for the code sources shown: a
+// stretch is a sustained change along one line of commits that build on
+// one another, which main is and pull requests are not, each branching
+// from main at its own point and most running once, so with pull requests
+// among the sources the bar is off and its key unticked and disabled.
+export function timeBarAvailable(ranOn: readonly RanOn[]): boolean {
+  return !ranOn.includes("pull_request");
 }
 
 // Whether the time bar runs under the lanes: the reader's choice, kept in
-// the URL either way, where the code source allows one.
+// the URL either way, where the code sources allow one.
 export function timeBarShown(
   query: Pick<GridQuery, "ranOn" | "timeBar">
 ): boolean {
@@ -219,7 +270,7 @@ export function outcomesPhrase(outcomes: readonly CellStatus[]): string {
 export function testGridApiUrl(testId: string, query: GridQuery): string {
   const params = new URLSearchParams({
     group_by: "commit",
-    ran_on: query.ranOn,
+    ran_on: query.ranOn.join(","),
     window: query.window,
   });
   return `/api/tests/test/${encodeURIComponent(testId)}/runs?${params}`;
@@ -475,6 +526,22 @@ export function laneStatus(cells: Iterable<RunGridCell>): HealthStatus {
     }
   }
   return status;
+}
+
+// Whether a lane is the configuration the reader came for: its environment
+// and env var set are the pin's. A pin names one configuration, which has a
+// lane under each workflow that ran it.
+export function lanePinned(
+  lane: Pick<GridLane, "environment" | "envVars">,
+  pin: LanePin | null
+): boolean {
+  return (
+    pin !== null &&
+    lane.environment !== null &&
+    lane.envVars !== null &&
+    lane.environment.id === pin.environmentId &&
+    lane.envVars.id === pin.envVarsId
+  );
 }
 
 // A lane's label as the list page's Config and Environment cells set the

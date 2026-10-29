@@ -19,11 +19,16 @@ import TestName, {
 } from "components/tests/TestName";
 import { descriptionsFor } from "components/tests/TestsTable";
 import TextButton from "components/tests/TextButton";
+import TextLink from "components/tests/TextLink";
 import { timeAgoLabel, whenPhrase } from "components/tests/TimeAgo";
 import dayjs from "dayjs";
 import { testOptionsFrom } from "lib/api/tests/options/options";
 import { DEFAULT_SORT } from "lib/api/tests/parameters";
-import type { EnvironmentRecord, EnvVarsRecord } from "lib/api/tests/types";
+import type {
+  EnvironmentRecord,
+  EnvVarsRecord,
+  TestRecord,
+} from "lib/api/tests/types";
 import {
   configToken,
   environmentDetails,
@@ -60,6 +65,7 @@ import {
   rateLabel,
   statusLabel,
 } from "lib/tests/health";
+import { testPagePath, testRunsHref } from "lib/tests/links";
 import { endsTextSelection } from "lib/tests/selection";
 import {
   accessReasonOf,
@@ -82,6 +88,7 @@ import {
   TestsUrlQuery,
 } from "lib/tests/table";
 import { workflowName } from "lib/workflowName";
+import NextLink from "next/link";
 import { renderToStaticMarkup } from "react-dom/server";
 import { act, create, ReactTestRenderer } from "react-test-renderer";
 import { CATALOG_VALUES } from "test/api/tests/fixtures";
@@ -839,6 +846,22 @@ describe("MeanPassedDuration", () => {
     expect(markup).toContain('title="12,695 ms"');
   });
 
+  test("leads to the runs it averages when it has somewhere to lead", () => {
+    const href = "/tests/pytorch/pytorch/test/42?window=12h";
+    const markup = renderToStaticMarkup(
+      <MeanPassedDuration milliseconds={12695} passedRuns={8} href={href} />
+    );
+    expect(markup).toMatch(/<a [^>]*>12\.7 s<\/a>/);
+    expect(markup).toContain(`href="${href}"`);
+    expect(markup).toContain("color:var(--link-color)");
+    // A dash leads nowhere.
+    expect(
+      renderToStaticMarkup(
+        <MeanPassedDuration milliseconds={null} passedRuns={0} href={href} />
+      )
+    ).not.toContain("<a ");
+  });
+
   test("shows a dash and no tooltip when nothing passed", () => {
     const markup = renderToStaticMarkup(
       <MeanPassedDuration milliseconds={null} passedRuns={0} />
@@ -973,10 +996,11 @@ describe("health", () => {
     ).toContainEqual({ name: "Other outcome", value: "2" });
   });
 
-  test("renders the word, the rate and the counts, each word a filter", () => {
+  test("renders the word, the rate and the counts, and leads to the runs", () => {
+    const href = "/tests/pytorch/pytorch/test/42?window=12h";
     const render = (health: HealthCounts) =>
       renderToStaticMarkup(
-        <Health health={health} options={options} onFilter={() => {}} />
+        <Health health={health} options={options} href={href} />
       );
     const markup = render(failing);
     expect(texts(markup)).toEqual([
@@ -988,8 +1012,12 @@ describe("health", () => {
       "·",
       "124 skipped",
     ]);
-    // The block is a button that filters, named for what it does.
-    expect(markup).toContain('aria-label="Only failing"');
+    // The block is a link to the test's runs, not draggable, so a drag
+    // across it selects its text.
+    expect(markup).toContain(`<a `);
+    expect(markup).toContain(`href="${href}"`);
+    expect(markup).toContain('draggable="false"');
+    expect(markup).not.toContain('role="button"');
     expect(markup).toContain("background-color:#ffebe9");
     // Skipped has a block of its own, purple, and no rate.
     const skippedMarkup = render(skipped);
@@ -1000,11 +1028,20 @@ describe("health", () => {
       "62 skipped",
     ]);
     expect(skippedMarkup).toContain("background-color:#fbefff");
-    // Healthy is plain text in the same frame.
+    // The block names its hue's ink for the table's link rule.
+    expect(markup).toContain("--cell-link-color:#");
+    // Healthy is plain text in the same frame, the word the link, in the
+    // muted tone of the text around it rather than the link blue.
     const plain = render(healthy);
     expect(texts(plain)).toEqual(["Healthy", "155 runs"]);
-    expect(plain).toContain('aria-label="Only healthy"');
+    expect(plain).toMatch(/<a [^>]*>Healthy<\/a>/);
+    expect(plain).toContain("--cell-link-color:currentColor");
+    expect(plain).not.toContain("color:var(--link-color)");
     expect(plain).not.toContain("background-color:#");
+    // With nowhere to lead yet, nothing is a link.
+    expect(
+      renderToStaticMarkup(<Health health={failing} options={options} />)
+    ).not.toContain("<a ");
   });
 });
 
@@ -1084,6 +1121,29 @@ describe("TestName", () => {
     // as text does; a <button> is one box.
     expect(markup).toContain('role="button"');
     expect(markup).not.toContain("<button");
+  });
+
+  test("is a link to the test's page when it has one, the case name alone", () => {
+    const markup = renderToStaticMarkup(
+      <TestName
+        test={named}
+        href="/tests/pytorch/pytorch/test/42"
+        onSearch={() => {}}
+      />
+    );
+    expect(markup.match(/<a /g)).toHaveLength(1);
+    // The link holds the case name with its break opportunities, and is not
+    // draggable, so a drag across it selects the name; the file and the
+    // suite stay searches.
+    expect(markup).toMatch(
+      /<a [^>]*draggable="false"[^>]*href="\/tests\/pytorch\/pytorch\/test\/42"[^>]*>test_<wbr\/>add_<wbr\/>cpu_<wbr\/>float32<\/a>/
+    );
+    expect(markup).toContain('aria-label="Search for test/test_torch.py"');
+    // In HUD's link blue, so the name reads as the link it is.
+    expect(markup).toContain("color:var(--link-color)");
+    expect(renderToStaticMarkup(<TestName test={named} />)).not.toContain(
+      "<a "
+    );
   });
 
   test("keeps its text selectable, to copy", () => {
@@ -1624,36 +1684,24 @@ describe("text that acts stays selectable", () => {
     }
   };
 
-  test("TextButton and the Health block skip the click that ends a selection", async () => {
+  test("TextButton skips the click that ends a selection", async () => {
     const onClick = jest.fn();
-    const onBlock = jest.fn();
     let renderer: ReactTestRenderer;
     await act(async () => {
       renderer = create(
-        <>
-          <TextButton label="Only CPU" onClick={onClick}>
-            CPU
-          </TextButton>
-          <CellBlock
-            hue="red"
-            label="Only failing"
-            onClick={onBlock}
-            lead="Failing"
-            caption="2 of 2 runs"
-          />
-        </>
+        <TextButton label="Only CPU" onClick={onClick}>
+          CPU
+        </TextButton>
       );
     });
-    const buttons = renderer!.root.findAll(
+    const button = renderer!.root.find(
       (node) => node.type === "span" && node.props?.role === "button"
     );
-    expect(buttons).toHaveLength(2);
     const press = (
-      button: (typeof buttons)[number],
-      selection: ReturnType<typeof selectionOf> | null
+      selection: ReturnType<typeof selectionOf> | null,
+      target: object
     ) => {
       const stopPropagation = jest.fn();
-      const target = {};
       return withSelection(selection, () => {
         act(() => {
           button.props.onClick({
@@ -1664,29 +1712,72 @@ describe("text that acts stays selectable", () => {
           });
         });
         expect(stopPropagation).toHaveBeenCalled();
-      }).then(() => target);
+      });
     };
     // Plain clicks act.
-    await press(buttons[0], selectionOf());
-    await press(buttons[1], null);
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(onBlock).toHaveBeenCalledTimes(1);
-    // Clicks ending a selection of their own text do not.
+    await press(selectionOf(), {});
+    await press(null, {});
+    expect(onClick).toHaveBeenCalledTimes(2);
+    // A click ending a selection of its own text does not.
     const selected = {};
-    await withSelection(selectionOf(selected), async () => {
-      for (const button of buttons) {
-        act(() => {
-          button.props.onClick({
-            type: "click",
-            detail: 1,
-            currentTarget: selected,
-            stopPropagation: () => {},
-          });
-        });
-      }
+    await press(selectionOf(selected), selected);
+    expect(onClick).toHaveBeenCalledTimes(2);
+  });
+
+  test("a link, text or block, skips the click that ends a selection of its text", async () => {
+    // Next's link schedules its prefetch check through `self`, which the
+    // browser has and this environment does not.
+    const globals = globalThis as { self?: unknown };
+    globals.self = globalThis;
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <>
+          <TextLink href="/tests/pytorch/pytorch/test/42">test_add</TextLink>
+          <CellBlock
+            hue="red"
+            href="/tests/pytorch/pytorch/test/42?window=12h"
+            lead="Failing"
+            caption="2 of 2 runs"
+          />
+        </>
+      );
     });
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(onBlock).toHaveBeenCalledTimes(1);
+    // The handlers sit on the Next links, which follow a click unless it
+    // was prevented; neither link is draggable, so a drag across it selects.
+    const links = renderer!.root.findAllByType(NextLink);
+    expect(links).toHaveLength(2);
+    expect(links.every((link) => link.props.draggable === false)).toBe(true);
+    const click = async (
+      selection: ReturnType<typeof selectionOf> | null,
+      target: object
+    ) => {
+      const preventDefault = jest.fn();
+      await withSelection(selection, () => {
+        act(() => {
+          for (const link of links) {
+            link.props.onClick({
+              type: "click",
+              detail: 1,
+              currentTarget: target,
+              preventDefault,
+            });
+          }
+        });
+      });
+      return preventDefault.mock.calls.length;
+    };
+    const target = {};
+    // Plain clicks are followed, and so is one with a selection elsewhere.
+    expect(await click(selectionOf(), target)).toBe(0);
+    expect(await click(null, target)).toBe(0);
+    expect(await click(selectionOf({}), target)).toBe(0);
+    // A click ending a selection of the link's own text goes nowhere.
+    expect(await click(selectionOf(target), target)).toBe(2);
+    await act(async () => {
+      renderer.unmount();
+    });
+    delete globals.self;
   });
 });
 
@@ -1743,5 +1834,60 @@ describe("accessReasonOf", () => {
       accessReasonOf(new TypeError("Failed to fetch"), true)
     ).toBeUndefined();
     expect(accessReasonOf(undefined, false)).toBeUndefined();
+  });
+});
+
+describe("where the rows lead", () => {
+  const test42: TestRecord = {
+    id: "42",
+    repo: "pytorch/pytorch",
+    file: "test/test_torch.py",
+    suite: "TestTorch",
+    case_name: "test_add",
+    declared_case_name: "test_add",
+    language: "python",
+    first_seen_at: "2026-10-13T19:31:24.819Z",
+  };
+  const envVars: EnvVarsRecord = {
+    id: "7",
+    values: { TEST_CONFIG: "default" },
+    first_seen_at: "2026-10-13T19:31:24.819Z",
+  };
+  const entry = {
+    test: test42,
+    environment: gpuEnvironment,
+    env_vars: envVars,
+  };
+
+  test("the name leads to the test's page, bare", () => {
+    expect(testPagePath("pytorch/pytorch", "42")).toBe(
+      "/tests/pytorch/pytorch/test/42"
+    );
+  });
+
+  test("the figures lead to the runs they were counted over, the configuration named", () => {
+    // The grid's own defaults, three days of main, are left off as the page
+    // leaves them off its own URL.
+    expect(
+      testRunsHref("pytorch/pytorch", entry, { window: "3d", ranOn: ["main"] })
+    ).toBe(
+      "/tests/pytorch/pytorch/test/42?environment=2081130751942693630&env_vars=7"
+    );
+    expect(
+      testRunsHref("pytorch/pytorch", entry, {
+        window: "12h",
+        ranOn: ["main", "pull_request"],
+      })
+    ).toBe(
+      "/tests/pytorch/pytorch/test/42?ran_on=main%2Cpull_request&window=12h&environment=2081130751942693630&env_vars=7"
+    );
+    // A row whose catalog rows are missing names no configuration.
+    expect(
+      testRunsHref(
+        "pytorch/pytorch",
+        { ...entry, environment: null },
+        { window: "3d", ranOn: ["main"] }
+      )
+    ).toBe("/tests/pytorch/pytorch/test/42");
   });
 });

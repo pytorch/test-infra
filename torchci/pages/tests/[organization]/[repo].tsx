@@ -219,6 +219,8 @@ export default function Page() {
         />
       )}
       <TestsTable
+        repo={repository}
+        links={query}
         listing={listing}
         sort={urlQuery.sort}
         onSortChange={handleSortChange}

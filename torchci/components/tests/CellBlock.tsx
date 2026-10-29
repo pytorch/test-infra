@@ -2,6 +2,7 @@ import { Box, ButtonBase, useTheme } from "@mui/material";
 import { Hue, hueColors } from "lib/tests/blockColors";
 import { CELL_BLOCK_PADDING } from "lib/tests/rows";
 import { endsTextSelection } from "lib/tests/selection";
+import NextLink from "next/link";
 import { MouseEvent, ReactNode } from "react";
 
 // The two-line cells, Health and Mean Passed Duration, are set here one way:
@@ -116,24 +117,22 @@ export function CellFrame({ lead, caption }: CellLinesProps) {
 
 export interface CellBlockProps extends CellLinesProps {
   hue: Hue;
-  // Given a click, the block is a button that does it, named by its label
-  // for assistive technology, and shows a ring when hovered.
-  label?: string;
-  onClick?: () => void;
+  // Given, the block is a link that leads there, and shows a ring when
+  // hovered.
+  href?: string;
 }
 
-// The lines as a block of a hue. A block that acts is a span with the button
-// role (ButtonBase makes it focusable and operable by Enter and Space), not
-// a <button>, whose text not every browser lets a reader select; its text is
-// selectable, to copy, like the rest of the row, and the click that ends a
-// drag across it does nothing (endsTextSelection).
-export function CellBlock({
-  hue,
-  label,
-  onClick,
-  lead,
-  caption,
-}: CellBlockProps) {
+// The lines as a block of a hue. A block that leads somewhere is a link
+// (ButtonBase makes it focusable; the page's router follows a plain click,
+// the modifier keys and the middle button open a tab, and the status bar
+// shows where it leads). Its text is selectable, to copy, like the rest of
+// the row: the link is not draggable, so a drag across it selects instead
+// of dragging the link (Chrome lets a selection begin inside a link only
+// where `user-select: text` is set), and the click that ends the drag goes
+// nowhere (endsTextSelection). The block's text keeps its hue's ink against
+// HUD's global rule painting a grid cell's links blue: it names the ink in
+// `--cell-link-color`, which the table's own rule reads (TestsTable).
+export function CellBlock({ hue, href, lead, caption }: CellBlockProps) {
   const theme = useTheme();
   const colors = hueColors(theme, hue);
   const painted = {
@@ -142,7 +141,7 @@ export function CellBlock({
     backgroundColor: colors.background,
   };
   const lines = <Lines lead={lead} caption={caption} painted />;
-  if (onClick === undefined) {
+  if (href === undefined) {
     return (
       <Box component="span" sx={painted}>
         {lines}
@@ -151,20 +150,22 @@ export function CellBlock({
   }
   return (
     <ButtonBase
-      component="span"
-      onClick={(event: MouseEvent<HTMLElement>) => {
-        event.stopPropagation();
+      component={NextLink}
+      href={href}
+      prefetch={false}
+      draggable={false}
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
         if (endsTextSelection(event)) {
-          return;
+          event.preventDefault();
         }
-        onClick();
       }}
-      aria-label={label}
       sx={{
         ...painted,
+        "--cell-link-color": colors.text,
         font: "inherit",
         letterSpacing: "inherit",
         lineHeight: "inherit",
+        textDecoration: "none",
         // ButtonBase forbids selecting a button's text; this text is to copy.
         userSelect: "text",
         "&:hover": { boxShadow: `inset 0 0 0 1px ${colors.text}` },
