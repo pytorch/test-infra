@@ -71,13 +71,15 @@ export function draftConstraintAllowsLabel(
   return isDraft;
 }
 
-export async function getLabelsFromLabelerConfig(
-  context: Context,
-  labelerConfigTracker: CachedLabelerConfigTracker,
+export type LabelerLog = (_fields: object, _message: string) => void;
+
+/** The labels a PR with these changed files and draft state needs under a labeler config. */
+export function getLabelsNeededByFiles(
+  config: Record<string, unknown>,
   changed_files: string[],
-  isDraft: boolean = false
-): Promise<string[]> {
-  const config = await labelerConfigTracker.loadLabelsConfig(context);
+  isDraft: boolean,
+  log: LabelerLog = () => {}
+): string[] {
   const labels: string[] = [];
 
   for (const [label, rawRule] of Object.entries(config)) {
@@ -85,7 +87,7 @@ export async function getLabelsFromLabelerConfig(
     if (rule === null) {
       const skipReason = labelerRuleSkipReason(rawRule);
       if (skipReason === "invalid_draft") {
-        context.log(
+        log(
           {
             label,
             rawRule,
@@ -94,7 +96,7 @@ export async function getLabelsFromLabelerConfig(
           "getLabelsFromLabelerConfig: invalid draft type (expected boolean), skipping"
         );
       } else {
-        context.log(
+        log(
           { label, rawRule },
           "getLabelsFromLabelerConfig: unknown rule shape, skipping"
         );
@@ -114,6 +116,21 @@ export async function getLabelsFromLabelerConfig(
     }
   }
   return labels;
+}
+
+export async function getLabelsFromLabelerConfig(
+  context: Context,
+  labelerConfigTracker: CachedLabelerConfigTracker,
+  changed_files: string[],
+  isDraft: boolean = false
+): Promise<string[]> {
+  const config = await labelerConfigTracker.loadLabelsConfig(context);
+  return getLabelsNeededByFiles(
+    config as Record<string, unknown>,
+    changed_files,
+    isDraft,
+    (fields, message) => context.log(fields, message)
+  );
 }
 
 export function getDraftGatedLabelsToRemove(
