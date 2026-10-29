@@ -1535,6 +1535,284 @@ describe("auto-label-bot: labeler.yml config", () => {
     scope.done();
   });
 
+  describe("stacked PRs", () => {
+    const repoFullName = "zhouzhuojie/gha-ci-playground";
+    const prNumber = 31;
+    const ghstackHeader =
+      "Stack from [ghstack](https://github.com/ezyang/ghstack/tree/0.17.0) (oldest at bottom):";
+
+    function stackPrNode(
+      number: number,
+      files: string[],
+      { state = "OPEN", user = "alice" } = {}
+    ) {
+      return {
+        number,
+        state,
+        isDraft: false,
+        isCrossRepository: false,
+        headRefName: `gh/${user}/${number}/head`,
+        labels: { nodes: [] },
+        changedFiles: files.length,
+        files: { nodes: files.map((path) => ({ path })) },
+      };
+    }
+
+    function sameRepoEvent() {
+      const event = requireDeepCopy("./fixtures/pull_request.opened");
+      const pr = event.payload.pull_request;
+      pr.head.repo = { ...pr.base.repo };
+      return event;
+    }
+
+    function ghstackEvent(rows: string[]) {
+      const event = sameRepoEvent();
+      const pr = event.payload.pull_request;
+      pr.head.ref = `gh/alice/${prNumber}/head`;
+      pr.body = [ghstackHeader, ...rows, "", "Body."].join("\n");
+      pr.created_at = new Date().toISOString();
+      return event;
+    }
+
+    function nativeStackEvent(position: number, size: number) {
+      const event = sameRepoEvent();
+      event.payload.pull_request.stack = {
+        base: { ref: "main", sha: "abc" },
+        id: 7,
+        number: 7,
+        position,
+        size,
+      };
+      return event;
+    }
+
+    function mockDynamoPr(config?: string) {
+      const prFiles = requireDeepCopy("./fixtures/pull_files");
+      prFiles["items"] = [{ filename: "torch/_dynamo/blah.py" }];
+      const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
+      if (config === undefined) {
+        defaultMockConfig(repoFullName);
+      } else {
+        utils.mockConfig(
+          "pytorch-probot.yml",
+          "labeler_config: labeler.yml",
+          repoFullName
+        );
+        utils.mockConfig("labeler.yml", config, repoFullName);
+      }
+      utils.mockHasApprovedWorkflowRun(repoFullName);
+      return scope;
+    }
+
+    function mockStackPrs(data: any) {
+      return nock("https://api.github.com")
+        .post("/graphql", (body) => body.query.includes("StackPrFields"))
+        .reply(200, { data });
+    }
+
+    function mockContainment(behindBy: number[]) {
+      const repository: any = {};
+      behindBy.forEach((b, i) => {
+        repository[`c${i}`] = {
+          compare: { behindBy: b, status: b === 0 ? "AHEAD" : "DIVERGED" },
+        };
+      });
+      return nock("https://api.github.com")
+        .post("/graphql", (body) => body.query.includes("compare("))
+        .reply(200, { data: { repository } });
+    }
+
+    async function expectLabels(event: any, labels: string[], scopes: any[]) {
+      const addScope = utils.mockAddLabels(labels, repoFullName, prNumber);
+      const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
+      await probot.receive(event);
+      scopes.forEach((scope) => scope.done());
+      addScope.done();
+      handleScope(checkLabelsScope);
+    }
+
+    test("a covered lower ghstack PR gets its module label but no ciflow label", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        mockStackPrs({
+          repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
+        }),
+        mockContainment([0]),
+      ];
+      await expectLabels(
+        ghstackEvent(["* #32", `* __->__ #${prNumber}`]),
+        ["module: dynamo"],
+        scopes
+      );
+    });
+
+    test("the top-most ghstack PR that needs the label gets it", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        mockStackPrs({
+          repository: { pr0: stackPrNode(32, ["docs/readme.md"]) },
+        }),
+        mockContainment([0]),
+      ];
+      await expectLabels(
+        ghstackEvent(["* #32", `* __->__ #${prNumber}`, "* #30"]),
+        ["module: dynamo", "ciflow/inductor"],
+        scopes
+      );
+    });
+
+    test("an upper PR that does not contain the PR's changes holds nothing back", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        mockStackPrs({
+          repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
+        }),
+        mockContainment([1]),
+      ];
+      await expectLabels(
+        ghstackEvent(["* #32", `* __->__ #${prNumber}`]),
+        ["module: dynamo", "ciflow/inductor"],
+        scopes
+      );
+    });
+
+    test("ghstack's placeholder listing holds the ciflow label back on a new PR", async () => {
+      const filesScope = mockDynamoPr();
+      await expectLabels(
+        ghstackEvent(["* (to be filled)"]),
+        ["module: dynamo"],
+        [filesScope]
+      );
+    });
+
+    test("a placeholder listing older than the window labels as usual", async () => {
+      const filesScope = mockDynamoPr();
+      const event = ghstackEvent(["* (to be filled)"]);
+      event.payload.pull_request.created_at = new Date(
+        Date.now() - 11 * 60 * 1000
+      ).toISOString();
+      await expectLabels(
+        event,
+        ["module: dynamo", "ciflow/inductor"],
+        [filesScope]
+      );
+    });
+
+    test("closed and other-user PRs above are ignored", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        mockStackPrs({
+          repository: {
+            pr0: stackPrNode(32, ["torch/_dynamo/other.py"], {
+              state: "CLOSED",
+            }),
+            pr1: stackPrNode(33, ["torch/_dynamo/other.py"], { user: "bob" }),
+          },
+        }),
+      ];
+      await expectLabels(
+        ghstackEvent(["* #33", "* #32", `* __->__ #${prNumber}`]),
+        ["module: dynamo", "ciflow/inductor"],
+        scopes
+      );
+    });
+
+    test("a covered lower native-stack PR gets no ciflow label", async () => {
+      const own = stackPrNode(prNumber, ["torch/_dynamo/blah.py"]);
+      const scopes = [
+        mockDynamoPr(),
+        mockStackPrs({
+          repository: {
+            pullRequest: {
+              stack: {
+                entries: {
+                  totalCount: 2,
+                  pageInfo: { hasNextPage: false },
+                  nodes: [
+                    { position: 1, pullRequest: own },
+                    {
+                      position: 2,
+                      pullRequest: stackPrNode(32, ["torch/_decomp/x.py"]),
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        }),
+        mockContainment([0]),
+      ];
+      await expectLabels(nativeStackEvent(1, 2), ["module: dynamo"], scopes);
+    });
+
+    test("the top PR of a native stack gets the label with no stack query", async () => {
+      const filesScope = mockDynamoPr();
+      await expectLabels(
+        nativeStackEvent(2, 2),
+        ["module: dynamo", "ciflow/inductor"],
+        [filesScope]
+      );
+    });
+
+    test("ciflow/docker is never held back", async () => {
+      const filesScope = mockDynamoPr(`
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/docker":
+- torch/_dynamo/**
+`);
+      const stackScope = mockStackPrs({
+        repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
+      });
+      const containmentScope = mockContainment([0]);
+      await expectLabels(
+        ghstackEvent(["* #32", `* __->__ #${prNumber}`]),
+        ["module: dynamo", "ciflow/docker"],
+        [filesScope]
+      );
+      expect(stackScope.isDone()).toBe(false);
+      expect(containmentScope.isDone()).toBe(false);
+    });
+
+    test("a ciflow label the title rule also adds is not held back", async () => {
+      jest.spyOn(botUtils, "isPyTorchPyTorch").mockReturnValue(false);
+      const filesScope = mockDynamoPr(`
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/rocm":
+- torch/_dynamo/**
+`);
+      const event = ghstackEvent(["* #32", `* __->__ #${prNumber}`]);
+      event.payload.pull_request.title = "[rocm] Fix a kernel";
+      const addScope = utils.mockAddLabels(
+        ["module: rocm", "ciflow/rocm", "module: dynamo"],
+        repoFullName,
+        prNumber
+      );
+      const stackScope = mockStackPrs({
+        repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
+      });
+      await probot.receive(event);
+      filesScope.done();
+      addScope.done();
+      expect(stackScope.isDone()).toBe(false);
+    });
+
+    test("a failed stack read labels as today", async () => {
+      const filesScope = mockDynamoPr();
+      const stackScope = nock("https://api.github.com")
+        .post("/graphql")
+        .reply(502, "bad gateway");
+      await expectLabels(
+        ghstackEvent(["* #32", `* __->__ #${prNumber}`]),
+        ["module: dynamo", "ciflow/inductor"],
+        [filesScope, stackScope]
+      );
+    });
+  });
+
   test("labeler draft:true removes label on ready_for_review", async () => {
     const event = requireDeepCopy("./fixtures/pull_request.opened");
     event.payload.action = "ready_for_review";
