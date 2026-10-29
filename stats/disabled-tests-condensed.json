@@ -158,13 +158,6 @@
       "linux"
     ]
   ],
-  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
-    "187202",
-    "https://github.com/pytorch/pytorch/issues/187202",
-    [
-      "linux"
-    ]
-  ],
   "test_combo_kernel_per_config_subkernel_r0_r1 (__main__.ComboKernelTests)": [
     "198180",
     "https://github.com/pytorch/pytorch/issues/198180",
@@ -293,13 +286,6 @@
     [
       "inductor",
       "rocm"
-    ]
-  ],
-  "test_copy_transpose_tiled_batched_layout_padded_src_batch_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "200402",
-    "https://github.com/pytorch/pytorch/issues/200402",
-    [
-      "inductor"
     ]
   ],
   "test_copy_transpose_tiled_small_slices_rejected_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
