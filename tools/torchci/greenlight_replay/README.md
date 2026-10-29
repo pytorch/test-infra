@@ -49,13 +49,12 @@ Runtime requirements:
   `CLICKHOUSE_ENDPOINT="$CLICKHOUSE_HOST"`. Behind a corporate proxy the
   ClickHouse TLS handshake may need that host excluded via `NO_PROXY`; whatever
   proxy variables are set are forwarded to the reviewer, which does need them.
-- `gh`, authenticated, for the diff, the pull request metadata and the ghstack
-  context: its history through `gh api graphql`, and each sibling's diff through a
-  REST compare. `git` for the clones.
-  `claude` and GNU `timeout` for the reviewer itself — the reviewer's
-  `PATH` is pinned rather than inherited, so both must be reachable from
-  `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`. The sweep checks this before
-  it starts.
+- `gh`, authenticated, for the diff, the pull request metadata and the stack
+  context: its GraphQL reads through `gh api graphql`, and each sibling's diff
+  through a REST compare. `git` for the clones. `claude` and GNU `timeout` for
+  the reviewer itself — the reviewer's `PATH` is pinned rather than inherited, so
+  both must be reachable from `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`. The
+  sweep checks this before it starts.
 - Disk: one blobless pytorch clone plus a worktree per `--parallelism`, a second
   sparse clone of pytorch main for the sanitize step, and the policy tree.
   Roughly 1.2-1.8 GB per policy pull request at the default parallelism, kept
@@ -161,9 +160,7 @@ and the run logs the funnel it applied, one counter per stage. Each row is
 charged to the first stage that rejects it, so the counts partition the input.
 `multi_landing` is not a drop — it counts kept rows whose decision columns were
 re-derived. **The stage list is `frame.FUNNEL_STAGES`**; read that rather than a
-list in prose here, which goes stale.
-
-Three of those deserve saying out loud:
+list in prose here, which goes stale. Three of those deserve saying out loud:
 
 **Size-gate declines are excluded.** When the diff was over the workflow's line or
 byte cap, CI dropped a canned `NO_LAND` in place and never started a model.
@@ -185,11 +182,11 @@ calls apiece — paid for the sampled rows only, not the whole frame.
 
 A policy whose workflow runs the "Collect stack context" step shows the reviewer
 the open pull requests among the five directly above the reviewed one in its
-ghstack or GitHub stack of pull requests, each with its diff. The replay rebuilds
-a ghstack's as of the replayed verdict's `decision_version`, the cutoff the
-comment filter uses, rather than as of today: by replay time the pull requests
-above a landed one have usually closed, and ghstack has rewritten the listing in
-the body. A GitHub stack's is not rebuilt: its pull requests replay with none.
+ghstack or GitHub stack, each with its diff. The replay rebuilds that as of the
+replayed verdict's `decision_version`, the cutoff the comment filter uses, rather
+than as of today: by replay time the pull requests above a landed one have
+usually closed, and ghstack has rewritten the listing in the body. A GitHub
+stack's is rebuilt best effort, from its membership today, by `stack_native.py`.
 
 **The step is pinned.** `stack_step.py` and `stack.py` reproduce its ghstack
 branch line by line, bar its check of a sibling's base name, which the rebuild,
@@ -206,28 +203,32 @@ script, a known limit. Changing the step means porting it and re-pinning.
 whose diff the size gate lets through, the metadata document's body is the body at
 the cutoff: the newest revision edited at or before it. That holds whether or not
 the policy has the step, so a control arm and the stack arm show one body. Other
-pull requests keep today's body, a deviation older than the stack context.
+pull requests keep today's body, a deviation apart from the stack context.
 
 Per ghstack pull request that costs one GraphQL query for its edit history, plus
-one per further 100 revisions. Under a policy with the step it also costs:
+one per further 100 revisions; per other pull request, when the step covers GitHub
+stacks, one for its stack. In a stack the step covers, it also costs:
 
-- one aliased GraphQL query for the up to five pull requests listed above: when
-  each opened and closed, its last 100 commits, and a count of force-pushes of its
-  head or base and of retargets after the cutoff;
-- one REST compare per pull request kept, from its final `baseRefOid` to its
-  newest commit dated at or before the cutoff, capped at 2000 lines like the step.
+- one aliased GraphQL query for the up to five pull requests above it: when each
+  opened and closed, its last 100 commits, and a count of force-pushes of its
+  head, and in a ghstack of its base and of retargets, after the cutoff;
+- one REST compare per pull request kept, from its final `baseRefOid`, or in a
+  GitHub stack the head then of the entry below, to its newest commit dated at or
+  before the cutoff, capped at 2000 lines like the step.
 
-A pull request that is not ghstack costs nothing more: the `gh pr view` the
+Telling a pull request is not ghstack costs nothing more: the `gh pr view` the
 metadata already makes reports its head branch. If that call fails under a policy
 with the step, one GraphQL query finds out instead. One whose diff the size gate
 declines costs nothing: its canned verdict reads no context.
 
 **Where CI degrades, the replay fails the row.** The step is `continue-on-error`,
-and any fault in it quietly drops the whole context. Here only a pull request not
-ghstack or not named in its own listing writes nothing and carries on. Anything
-else removes whatever was written and fails the row into the error count, where a
-rerun retries it: a GitHub error, a head or base rewritten after the cutoff, more
-than 100 commits, or a body or head that cannot be pinned to one revision then.
+and any fault in it quietly drops the whole context. Here only the step's own
+exits write nothing and carry on: a pull request in no stack the step covers, or
+not named in its own listing. Anything else removes whatever was written and
+fails the row into the error count, where a rerun retries it: a GitHub error, a
+head or base rewritten after the cutoff, more than 100 commits, or a body or head
+that cannot be pinned to one revision then. A GitHub stack skips such an entry,
+and the one above.
 
 ## The new columns
 
@@ -358,15 +359,14 @@ Six deviations, taken deliberately:
   before the replayed verdict, which is the point — it must not read what was
   written in response to the verdict it is reproducing. A comment whose
   `createdAt` cannot be parsed is dropped here, where CI would have shown it.
-- **Stack context read back, not captured.** All the stack step read of a ghstack
-  is re-read as of `decision_version`, with these gaps:
+- **Stack context read back, not captured.** Everything the stack step read is
+  read again as of `decision_version`, with these gaps:
   - `decision_version` lands a median of about 8 minutes after the step ran, and
     the stack can move in between: of 50 ghstack rows measured, 3 get a different
-    stack at `decision_version` than at review start. In 2 of them the listing
-    itself changed, not just a head: #197608 gains #197618, and #197651's listing
-    named #197660, which is gone by the cutoff. The exact instant, the
-    `AI_REVIEW_STARTED` row in `misc.greenlight_pr_state`, would cost one more
-    ClickHouse lookup and is not used.
+    stack at `decision_version` than at review start. In 2, the listing itself
+    changed by the cutoff: #197608's gained #197618 and #197651's lost #197660.
+    The exact instant, the `AI_REVIEW_STARTED` row in `misc.greenlight_pr_state`,
+    would cost one more ClickHouse lookup and is not used.
   - A pull request's head at the cutoff is picked by commit date, which matched
     the actual push time in 937 of 948 cases. Over all 4,733 pushes the median
     push lag is 11 s; the 11 misses were 5 late pushes and 6 from one account
@@ -375,7 +375,7 @@ Six deviations, taken deliberately:
   - Whether it was open then is read from `closedAt`, which a later reopen
     rewrites, so one closed at the cutoff and reopened since reads as open: 1 in
     3,517 checks (pytorch/pytorch#197050).
-  - Titles are read as they are today.
+  - Titles are read as they are today, and so is a GitHub stack's membership.
 - **A channel CI does not have.** The reviewer runs with the developer's real
   `$HOME`, so user-level hooks still fire — including, on some setups, a
   `SessionStart` that injects a skills catalog. `--append-system-prompt`

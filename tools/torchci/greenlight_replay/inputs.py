@@ -5,7 +5,8 @@ fetched, a small metadata document at ``/tmp/greenlight-pr.json``. This module r
 both from GitHub for a pull request the reviewer has already judged once, and applies
 the policy's size gate to the diff exactly as the workflow's ``sizecheck`` step does.
 For a ghstack PR, :mod:`.stack` reads the body back to the cutoff the comments are
-filtered to, and rebuilds the stack context under a policy that collects it.
+filtered to, and rebuilds the stack context under a policy that collects it, as it does
+a GitHub stack's under a step that covers those.
 
 **The compare is against the base REF, not the base SHA.** Roughly 60% of the corpus is
 ghstack, whose pull requests are opened against a synthetic ``gh/<user>/<n>/base``
@@ -38,9 +39,9 @@ reviewer's inputs; it does not improve them.
 Metadata collection is best-effort, as in CI, where the step is ``continue-on-error``
 and the prompt calls the file optional. A metadata failure yields ``metadata_path=None``
 and the review still runs -- degrading it into a failed replay would discard a perfectly
-good diff over a field the reviewer may not even consult. Reading a ghstack PR back
-to the cutoff is the exception: a fault there raises, for the reasons :mod:`.stack`
-gives.
+good diff over a field the reviewer may not even consult. Reading a ghstack PR back to
+the cutoff, or a GitHub stack's context, is the exception: a fault there raises, for the
+reasons :mod:`.stack` gives, bar a GitHub stack's entry whose head cannot be pinned.
 """
 
 from __future__ import annotations
@@ -139,10 +140,10 @@ def build_inputs(
     no model, exactly as the workflow copies the canned file and skips the action step.
 
     A ghstack PR's body is read back to ``comments_before`` under every policy, and its
-    stack context rebuilt under one that collects it, but neither for a declined diff:
-    the canned verdict reads neither, and a fault there would fail a free verdict. An
-    earlier sweep's stack is removed first, so none survives into a failed run or one
-    that should have no stack.
+    stack context rebuilt under one that collects it, as is a GitHub stack's under a
+    step that covers those, but none of it for a declined diff: the canned verdict reads
+    none of it, and a fault there would fail a free verdict. An earlier sweep's stack is
+    removed first, so none survives into a failed run or one that should have no stack.
     """
     clear_stack(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -178,6 +179,7 @@ def build_inputs(
             run_dir,
             head_ref=payload.get("headRefName") if payload else None,
             write_stack=policy.stack_context is not StackContext.NONE,
+            native_head=head_sha if policy.stack_context is StackContext.BOTH else None,
         )
     metadata_path = _write_metadata(
         payload, head_sha, comments_before, run_dir, body_at_cutoff

@@ -203,8 +203,8 @@ def stack_context(document: dict[str, Any], path: Path) -> StackContext:
         raise ValueError(
             f"{path}: the step whose run: names {CI_STACK_DIR} digests to {digest}, but "
             f"greenlight_replay.stack_step pins the step digesting to {STEP_SHA256}. "
-            "Port the change to stack_step.py and stack.py and re-pin STEP_SHA256 "
-            "before replaying this policy."
+            "Port the change to stack_step.py, stack.py and stack_native.py and re-pin "
+            "STEP_SHA256 before replaying this policy."
         )
     return STACK_CONTEXT_BY_PIN[digest]
 

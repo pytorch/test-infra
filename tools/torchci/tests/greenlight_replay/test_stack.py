@@ -14,6 +14,7 @@ missing awk, bash or jq fails them rather than skipping them.
 """
 
 import dataclasses
+import functools
 import json
 import os
 import re
@@ -101,6 +102,28 @@ def shipped_jq_programs(marker):
     (step,) = shipped_steps()
     programs = re.findall(r"jq [^'\n]*'([^']*)'", step["run"])
     return [program for program in programs if marker in program]
+
+
+@functools.cache
+def shipped_selection():
+    (selection,) = shipped_jq_programs("sort_by(.position)")
+    return selection
+
+
+def run_selection(response):
+    """The step's jq selection of a GitHub stack's PRs, run on ``response``.
+
+    With the step's own flags: compact output, and this PR's number and the window as
+    JSON numbers.
+    """
+    window = str(stack_step.SIBLINGS_ABOVE)
+    return subprocess.run(
+        ["jq", "-c", "--argjson", "number", str(PR_NUMBER)]
+        + ["--argjson", "window", window, shipped_selection()],
+        input=json.dumps(response).encode("utf-8"),
+        capture_output=True,
+        check=False,
+    )
 
 
 def head_oid(number):
@@ -435,34 +458,18 @@ class NativeSelectionTest(unittest.TestCase):
     first, each compared against the head of the entry below it, kept or not.
     """
 
-    @classmethod
-    def setUpClass(cls):
-        (cls.selection,) = shipped_jq_programs("sort_by(.position)")
-
     def setUp(self):
         self.assertIsNotNone(
             shutil.which("jq"), "jq is required to check the workflow's selection"
         )
 
-    def run_selection(self, response):
-        # The step's own flags: compact output, and this PR's number and the window as
-        # JSON numbers.
-        window = str(stack_step.SIBLINGS_ABOVE)
-        return subprocess.run(
-            ["jq", "-c", "--argjson", "number", str(PR_NUMBER)]
-            + ["--argjson", "window", window, self.selection],
-            input=json.dumps(response).encode("utf-8"),
-            capture_output=True,
-            check=False,
-        )
-
     def select(self, response):
-        completed_run = self.run_selection(response)
+        completed_run = run_selection(response)
         self.assertEqual(completed_run.returncode, 0, completed_run.stderr)
         return json.loads(completed_run.stdout)
 
     def assert_refused(self, response, message):
-        completed_run = self.run_selection(response)
+        completed_run = run_selection(response)
         self.assertNotEqual(completed_run.returncode, 0)
         self.assertEqual(completed_run.stdout, b"")
         self.assertIn(message, completed_run.stderr.decode("utf-8"))
