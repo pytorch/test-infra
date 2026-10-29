@@ -14,16 +14,13 @@ export const CODE_SKIP_UNSKIP_BRANCH = "unskip-code-skips-rerun-disabled-tests";
 export const CODE_SKIP_WINDOW_DAYS = 7;
 export const CODE_SKIP_MIN_GREEN = 150;
 
-// Same phrases as torch/testing/_internal/rerun_code_skip.py. A stored reason
-// that contains one of these is "this API is not there", not a known failure.
-const UNSUPPORTED_API_MARKERS = [
-  "ptx",
-  "cuda-specific",
-  "cuda specific",
-  "hipblas",
-  "nvidia-only",
-  "nvidia only",
-];
+// The only decorators that opt a test into rerun-disabled-tests in pytorch
+// (torch/testing/_internal/rerun_code_skip.py and common_utils.py). Their
+// reason argument is stored verbatim as code_skip.
+const CODE_SKIP_DECORATORS = new Set([
+  "known_failure_skip_if",
+  "rerun_code_skip",
+]);
 
 export interface OmittedCodeSkip {
   row: PassingCodeSkipRow;
@@ -60,31 +57,6 @@ interface FunctionRecord {
 }
 
 type QuoteKind = "'" | '"' | "'''" | '"""';
-
-export function reasonIsCapabilitySkip(reason: string): boolean {
-  const text = reason.toLowerCase();
-  return UNSUPPORTED_API_MARKERS.some((marker) => text.includes(marker));
-}
-
-export function reasonIsKnownBug(reason: string): boolean {
-  const text = reason.toLowerCase();
-  if (reasonIsCapabilitySkip(text)) {
-    return false;
-  }
-  if (text.includes("github.com/") && text.includes("/issues/")) {
-    return true;
-  }
-  if (
-    text.includes("doesn't currently work") ||
-    text.includes("does not currently work")
-  ) {
-    return true;
-  }
-  if (text.includes("numerical")) {
-    return true;
-  }
-  return false;
-}
 
 export function repoPathForTestFile(filename: string): string {
   const normalized = filename.replaceAll("\\", "/").replace(/^\.\//, "");
@@ -686,48 +658,6 @@ function baseName(qualified: string): string {
   return parts[parts.length - 1] ?? qualified;
 }
 
-function isUnconditionalSkip(qualified: string): boolean {
-  if (
-    qualified === "unittest.skip" ||
-    qualified === "pytest.mark.skip" ||
-    qualified === "skip"
-  ) {
-    return true;
-  }
-  return false;
-}
-
-function isForbiddenHelper(qualified: string): boolean {
-  const base = baseName(qualified);
-  const lower = qualified.toLowerCase();
-  if (
-    base === "skipIf" ||
-    base === "skipUnless" ||
-    lower === "pytest.mark.skipif" ||
-    lower.endsWith(".skipif")
-  ) {
-    return true;
-  }
-  if (/requires/i.test(base)) {
-    return true;
-  }
-  if (lower.includes("onlycuda")) {
-    return true;
-  }
-  if (/version/i.test(base)) {
-    return true;
-  }
-  return false;
-}
-
-function isKnownBugHelper(qualified: string): boolean {
-  if (isForbiddenHelper(qualified) || isUnconditionalSkip(qualified)) {
-    return false;
-  }
-  const base = baseName(qualified);
-  return /^skip[A-Z_]/.test(base) || /^skipIf/.test(base);
-}
-
 function extractStringLiterals(text: string): string[] {
   const literals: string[] = [];
   const pattern =
@@ -740,75 +670,11 @@ function extractStringLiterals(text: string): string[] {
   return literals;
 }
 
-function literalMatchesReason(
-  codeSkip: string,
-  literal: string,
-  helperBase: string | null
-): boolean {
-  if (literal.length === 0) {
-    return false;
-  }
-  if (codeSkip === literal) {
-    return true;
-  }
-  if (helperBase && codeSkip === `${helperBase}: ${literal}`) {
-    return true;
-  }
-  return false;
-}
-
 function decoratorMatches(block: DecoratorBlock, codeSkip: string): boolean {
-  if (block.unclosed || block.name === "") {
+  if (block.unclosed || !CODE_SKIP_DECORATORS.has(baseName(block.name))) {
     return false;
   }
-  if (isForbiddenHelper(block.name)) {
-    return false;
-  }
-  const literals = extractStringLiterals(block.text);
-  if (isUnconditionalSkip(block.name)) {
-    return literals.some((literal) =>
-      literalMatchesReason(codeSkip, literal, null)
-    );
-  }
-  if (!isKnownBugHelper(block.name) || !reasonIsKnownBug(codeSkip)) {
-    return false;
-  }
-  const helper = baseName(block.name);
-  if (!codeSkip.toLowerCase().includes(helper.toLowerCase())) {
-    return false;
-  }
-  if (literals.length === 0) {
-    const prefix = `${helper}: `;
-    if (!codeSkip.startsWith(prefix)) {
-      return false;
-    }
-    const message = codeSkip.slice(prefix.length);
-    return (
-      /does(?:n't| not) currently work/i.test(message) &&
-      !reasonIsCapabilitySkip(message)
-    );
-  }
-  return literals.some((literal) =>
-    literalMatchesReason(codeSkip, literal, helper)
-  );
-}
-
-function forbiddenButPresent(
-  blocks: DecoratorBlock[],
-  codeSkip: string
-): boolean {
-  return blocks.some((block) => {
-    if (!isForbiddenHelper(block.name)) {
-      return false;
-    }
-    const helper = baseName(block.name);
-    return extractStringLiterals(block.text).some(
-      (literal) =>
-        literalMatchesReason(codeSkip, literal, null) ||
-        literalMatchesReason(codeSkip, literal, helper) ||
-        codeSkip.includes(literal)
-    );
-  });
+  return extractStringLiterals(block.text).includes(codeSkip);
 }
 
 export function removeCodeSkipDecorator(
@@ -817,13 +683,6 @@ export function removeCodeSkipDecorator(
   classname: string,
   codeSkip: string
 ): { ok: true; source: string } | { ok: false; reason: string } {
-  if (reasonIsCapabilitySkip(codeSkip)) {
-    return {
-      ok: false,
-      reason:
-        "stored reason matches a capability skip (PTX, CUDA-specific, hipBLAS, or NVIDIA-only)",
-    };
-  }
   const className = testClassName(classname);
   const records = indexFunctions(source);
   const matches = records.filter(
@@ -853,12 +712,6 @@ export function removeCodeSkipDecorator(
   let span: DecoratorBlock | null = null;
   if (functionHits.length === 1) {
     span = functionHits[0];
-  } else if (forbiddenButPresent(record.decorators, codeSkip)) {
-    return {
-      ok: false,
-      reason:
-        "decorator is skipIf, skipUnless, requires_*, onlyCUDA, or a version-floor helper",
-    };
   } else {
     const classHits = record.classDecorators.filter((block) =>
       decoratorMatches(block, codeSkip)
@@ -887,13 +740,6 @@ export function removeCodeSkipDecorator(
     return {
       ok: false,
       reason: "could not isolate one matching decorator",
-    };
-  }
-  if (reasonIsCapabilitySkip(span.text)) {
-    return {
-      ok: false,
-      reason:
-        "decorator text matches a capability skip (PTX, CUDA-specific, hipBLAS, or NVIDIA-only)",
     };
   }
   const { lines, newline, trailing } = splitSource(source);
@@ -941,14 +787,6 @@ export function planCodeSkipEdits(
         row,
         reason:
           "more than one code_skip reason in the window, or the reason is empty",
-      });
-      continue;
-    }
-    if (reasonIsCapabilitySkip(codeSkip)) {
-      omitted.push({
-        row,
-        reason:
-          "stored reason matches a capability skip (PTX, CUDA-specific, hipBLAS, or NVIDIA-only)",
       });
       continue;
     }
@@ -1043,7 +881,7 @@ export function buildPullRequestBody(plan: CodeSkipPlan): string {
     "",
     `The bar is the same one that closes a DISABLED issue: the last ${CODE_SKIP_WINDOW_DAYS} days, at least ${CODE_SKIP_MIN_GREEN} greens, zero reds, and no failing row in that window.`,
     "",
-    "Capability skips (PTX, CUDA-specific, hipBLAS, NVIDIA-only) stay in the source. A decorator that cannot be isolated to this one test stays too.",
+    "Only `known_failure_skip_if` and `rerun_code_skip` decorators whose reason matches are removed. A decorator that cannot be isolated to this one test stays in the source.",
     "",
     "## Removed",
     "",
@@ -1417,8 +1255,7 @@ async function openOrUpdateCodeSkipPullRequest(
 
   const neededPaths = new Set<string>();
   for (const row of rows) {
-    const reason = codeSkipOf(row);
-    if (reason !== null && !reasonIsCapabilitySkip(reason)) {
+    if (codeSkipOf(row) !== null) {
       neededPaths.add(repoPathForTestFile(row.filename));
     }
   }

@@ -13,8 +13,6 @@ import {
   CODE_SKIP_WINDOW_DAYS,
   handlePassingCodeSkips,
   planCodeSkipEdits,
-  reasonIsCapabilitySkip,
-  reasonIsKnownBug,
   removeCodeSkipDecorator,
   repoPathForTestFile,
 } from "lib/flakyBot/codeSkipUnskip";
@@ -62,37 +60,37 @@ function row(
 }
 
 const SOURCE = `class TestFoo(TestCase):
-    @unittest.skip("broken")
+    @rerun_code_skip("broken")
     def test_a(self):
         pass
 
-    @skipIfRocm(msg="https://github.com/pytorch/pytorch/issues/180006")
+    @known_failure_skip_if(lambda: TEST_WITH_ROCM, "https://github.com/pytorch/pytorch/issues/180006")
     def test_b(self):
         pass
 
-    @pytest.mark.skip(reason="unconditional")
+    @unittest.skip("unconditional")
     def test_c(self):
         pass
 
-    @unittest.skipIf(True, "still conditional")
+    @skipIfRocm(msg="https://github.com/pytorch/pytorch/issues/180007")
     def test_d(self):
         pass
 
-    @skipIfRocmVersionLessThan((5, 4), "https://github.com/pytorch/pytorch/issues/1")
+    @skipIfRocm
     def test_e(self):
         pass
 
-    @onlyCUDA
+    @skipIfRocmArch(MI300_ARCH)
     def test_f(self):
         pass
 
-    @requires_cuda
+    @skipIfRocmVersionAtLeast((7, 14))
     def test_g(self):
         pass
 `;
 
 describe("code skip decorator removal", () => {
-  test("removes a direct unittest.skip on that function", () => {
+  test("removes a direct rerun_code_skip on that function", () => {
     const result = removeCodeSkipDecorator(
       SOURCE,
       "test_a",
@@ -102,28 +100,28 @@ describe("code skip decorator removal", () => {
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).not.toContain('@unittest.skip("broken")');
+    expect(result.source).not.toContain('@rerun_code_skip("broken")');
     expect(result.source).toContain("def test_a(self):");
     expect(result.source).toContain("def test_b(self):");
-    expect(result.source).toContain("@skipIfRocm");
+    expect(result.source).toContain("@known_failure_skip_if");
   });
 
-  test("removes a known-bug skipIfRocm whose message is a GitHub issue", () => {
-    const reason =
-      "skipIfRocm: https://github.com/pytorch/pytorch/issues/180006";
+  test("removes a known_failure_skip_if whose reason matches", () => {
+    const reason = "https://github.com/pytorch/pytorch/issues/180006";
     const result = removeCodeSkipDecorator(SOURCE, "test_b", "TestFoo", reason);
     if (!result.ok) {
       throw new Error(result.reason);
     }
     expect(result.source).not.toContain("issues/180006");
-    expect(result.source).toContain('@unittest.skip("broken")');
+    expect(result.source).toContain('@rerun_code_skip("broken")');
   });
 
-  test("removes a multiline skipIfRocm and leaves the neighbor decorator", () => {
+  test("removes a multiline known_failure_skip_if and leaves the neighbor decorator", () => {
     const source = `class TestFoo(TestCase):
     @serialTest
-    @skipIfRocm(
-        msg="https://github.com/pytorch/pytorch/issues/180006",
+    @known_failure_skip_if(
+        lambda: TEST_WITH_ROCM,
+        "https://github.com/pytorch/pytorch/issues/180006",
     )
     def test_b(self):
         pass
@@ -132,117 +130,55 @@ describe("code skip decorator removal", () => {
       source,
       "test_b",
       "test_foo.TestFoo",
-      "skipIfRocm: https://github.com/pytorch/pytorch/issues/180006"
+      "https://github.com/pytorch/pytorch/issues/180006"
     );
     if (!result.ok) {
       throw new Error(result.reason);
     }
     expect(result.source).toContain("@serialTest");
-    expect(result.source).not.toContain("skipIfRocm");
+    expect(result.source).not.toContain("known_failure_skip_if");
     expect(result.source).toContain("def test_b(self):");
   });
 
-  test("removes pytest.mark.skip and not pytest.mark.skipif", () => {
-    const skipped = removeCodeSkipDecorator(
-      SOURCE,
-      "test_c",
-      "TestFoo",
-      "unconditional"
-    );
-    if (!skipped.ok) {
-      throw new Error(skipped.reason);
-    }
-    expect(skipped.source).not.toContain("unconditional");
-
-    const skipif = removeCodeSkipDecorator(
-      `class TestFoo(TestCase):
-    @pytest.mark.skipif(True, reason="unconditional")
-    def test_c(self):
-        pass
-`,
-      "test_c",
-      "TestFoo",
-      "unconditional"
-    );
-    expect(skipif.ok).toBe(false);
-  });
-
-  test("does not remove skipIf, requires_*, onlyCUDA, or version-floor helpers", () => {
-    for (const name of ["test_d", "test_e", "test_f", "test_g"]) {
-      const result = removeCodeSkipDecorator(SOURCE, name, "TestFoo", "unused");
-      expect(result.ok).toBe(false);
-    }
-    const version = removeCodeSkipDecorator(
-      SOURCE,
-      "test_e",
-      "TestFoo",
-      "skipIfRocmVersionLessThan: https://github.com/pytorch/pytorch/issues/1"
-    );
-    expect(version.ok).toBe(false);
-    if (!version.ok) {
-      expect(version.reason).toContain("version-floor");
-    }
-  });
-
-  test("leaves a capability reason in place", () => {
-    expect(reasonIsCapabilitySkip("skipIfRocm: PTX is not supported")).toBe(
-      true
-    );
-    expect(reasonIsCapabilitySkip("hipBLAS is missing")).toBe(true);
-    expect(reasonIsCapabilitySkip("CUDA-specific codegen")).toBe(true);
-    expect(reasonIsCapabilitySkip("NVIDIA-only kernel")).toBe(true);
-    expect(
-      reasonIsKnownBug(
-        "skipIfRocm: https://github.com/pytorch/pytorch/issues/1"
-      )
-    ).toBe(true);
-    expect(reasonIsKnownBug("test doesn't currently work")).toBe(true);
-    expect(reasonIsKnownBug("numerical mismatch")).toBe(true);
-    expect(reasonIsKnownBug("skipIfRocm: PTX is not supported")).toBe(false);
-
+  test("does not remove a known_failure_skip_if whose reason differs", () => {
     const result = removeCodeSkipDecorator(
       SOURCE,
       "test_b",
       "TestFoo",
-      "skipIfRocm: PTX is not supported"
+      "https://github.com/pytorch/pytorch/issues/1"
     );
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toContain("capability");
-    }
   });
 
-  test("removes a bare known-bug helper only for a doesn't-currently-work reason", () => {
-    const source = `class TestFoo(TestCase):
-    @skipIfRocm
-    def test_b(self):
-        pass
-`;
-    const removed = removeCodeSkipDecorator(
-      source,
-      "test_b",
-      "TestFoo",
-      "skipIfRocm: test doesn't currently work on the ROCm stack"
-    );
-    expect(removed.ok).toBe(true);
-
-    const kept = removeCodeSkipDecorator(
-      source,
-      "test_b",
-      "TestFoo",
-      "skipIfRocm: https://github.com/pytorch/pytorch/issues/180006"
-    );
-    expect(kept.ok).toBe(false);
+  test("leaves plain skips, skipIfRocm, and ROCm arch/version helpers in place", () => {
+    const cases: [string, string][] = [
+      ["test_c", "unconditional"],
+      ["test_d", "https://github.com/pytorch/pytorch/issues/180007"],
+      [
+        "test_d",
+        "skipIfRocm: https://github.com/pytorch/pytorch/issues/180007",
+      ],
+      ["test_e", "skipIfRocm: test doesn't currently work on the ROCm stack"],
+      ["test_f", "skipIfRocm: test skipped on MI300_ARCH"],
+      ["test_g", "ROCm version at least (7, 14): known failure"],
+    ];
+    for (const [name, reason] of cases) {
+      const result = removeCodeSkipDecorator(SOURCE, name, "TestFoo", reason);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.reason).toContain("could not isolate");
+      }
+    }
   });
 
   test("does not edit when two functions share the name", () => {
     const source = `class TestFoo(TestCase):
-    @unittest.skip("broken")
+    @rerun_code_skip("broken")
     def test_a(self):
         pass
 
 class TestFoo(TestCase):
-    @unittest.skip("broken")
+    @rerun_code_skip("broken")
     def test_a(self):
         pass
 `;
@@ -259,7 +195,7 @@ class TestFoo(TestCase):
   });
 
   test("does not delete a class skip that covers another test", () => {
-    const source = `@unittest.skip("broken")
+    const source = `@rerun_code_skip("broken")
 class TestFoo(TestCase):
     def test_a(self):
         pass
@@ -277,7 +213,7 @@ class TestFoo(TestCase):
     if (!result.ok) {
       expect(result.reason).toContain("class-level");
     }
-    expect(source).toContain('@unittest.skip("broken")');
+    expect(source).toContain('@rerun_code_skip("broken")');
   });
 
   test("does not delete a class skip when a parent class has tests", () => {
@@ -285,7 +221,7 @@ class TestFoo(TestCase):
     def test_one(self):
         pass
 
-@unittest.skip("broken")
+@rerun_code_skip("broken")
 class Child(Parent):
     def test_three(self):
         pass
@@ -300,7 +236,7 @@ class Child(Parent):
     if (!result.ok) {
       expect(result.reason).toContain("class-level");
     }
-    expect(source).toContain('@unittest.skip("broken")');
+    expect(source).toContain('@rerun_code_skip("broken")');
 
     const plan = planCodeSkipEdits(
       [
@@ -326,7 +262,7 @@ class Child(Parent):
     def test_one(self):
         pass
 
-@unittest.skip("broken")
+@rerun_code_skip("broken")
 class Child(Parent):
     def test_three(self):
         pass
@@ -341,11 +277,11 @@ class Child(Parent):
     if (!result.ok) {
       expect(result.reason).toContain("class-level");
     }
-    expect(source).toContain('@unittest.skip("broken")');
+    expect(source).toContain('@rerun_code_skip("broken")');
   });
 
   test("removes a class skip on a wrapped header whose only base is TestCase", () => {
-    const source = `@unittest.skip("broken")
+    const source = `@rerun_code_skip("broken")
 class TestFoo(
     TestCase,
 ):
@@ -361,14 +297,14 @@ class TestFoo(
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).not.toContain("@unittest.skip");
+    expect(result.source).not.toContain("@rerun_code_skip");
     expect(result.source).toContain("def test_a(self):");
   });
 
   test("does not delete a class skip when the base class is imported", () => {
     const source = `from other_tests import Parent
 
-@unittest.skip("broken")
+@rerun_code_skip("broken")
 class Child(Parent):
     def test_three(self):
         pass
@@ -384,11 +320,11 @@ class Child(Parent):
       expect(result.reason).toContain("imported");
       expect(result.reason).toContain("not visible");
     }
-    expect(source).toContain('@unittest.skip("broken")');
+    expect(source).toContain('@rerun_code_skip("broken")');
   });
 
   test("removes a class skip when it covers only that test", () => {
-    const source = `@unittest.skip("broken")
+    const source = `@rerun_code_skip("broken")
 class TestFoo(TestCase):
     def test_a(self):
         pass
@@ -402,18 +338,18 @@ class TestFoo(TestCase):
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).not.toContain("@unittest.skip");
+    expect(result.source).not.toContain("@rerun_code_skip");
     expect(result.source).toContain("def test_a(self):");
   });
 
   test("picks the class named by the JUnit classname", () => {
     const source = `class TestA(TestCase):
-    @unittest.skip("aaa")
+    @rerun_code_skip("aaa")
     def test_same(self):
         pass
 
 class TestB(TestCase):
-    @unittest.skip("bbb")
+    @rerun_code_skip("bbb")
     def test_same(self):
         pass
 `;
@@ -426,8 +362,8 @@ class TestB(TestCase):
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).toContain('@unittest.skip("aaa")');
-    expect(result.source).not.toContain('@unittest.skip("bbb")');
+    expect(result.source).toContain('@rerun_code_skip("aaa")');
+    expect(result.source).not.toContain('@rerun_code_skip("bbb")');
   });
 });
 
@@ -437,13 +373,13 @@ describe("code skip batch plan", () => {
       row({ name: "test_a", code_skips: ["broken"] }),
       row({
         name: "test_b",
-        code_skips: [
-          "skipIfRocm: https://github.com/pytorch/pytorch/issues/180006",
-        ],
+        code_skips: ["https://github.com/pytorch/pytorch/issues/180006"],
       }),
       row({
-        name: "test_ptx",
-        code_skips: ["skipIfRocm: PTX is not supported"],
+        name: "test_d",
+        code_skips: [
+          "skipIfRocm: https://github.com/pytorch/pytorch/issues/180007",
+        ],
         num_green: 200,
       }),
       row({
@@ -460,19 +396,21 @@ describe("code skip batch plan", () => {
       "test_b",
     ]);
     expect(plan.files).toHaveLength(1);
-    expect(plan.files[0].content).not.toContain('@unittest.skip("broken")');
+    expect(plan.files[0].content).not.toContain('@rerun_code_skip("broken")');
     expect(plan.files[0].content).not.toContain("issues/180006");
+    expect(plan.files[0].content).toContain("issues/180007");
     expect(plan.files[0].content).toContain("def test_c(self):");
     expect(plan.omitted.map((item) => item.row.name).sort()).toEqual([
+      "test_d",
       "test_mixed",
-      "test_ptx",
     ]);
 
     const body = buildPullRequestBody(plan);
     expect(body).toContain("test_a");
     expect(body).toContain("test_b");
     expect(body).toContain("greens=160");
-    expect(body).toContain("PTX");
+    expect(body).toContain("could not isolate");
+    expect(body).toContain("known_failure_skip_if");
     expect(body).toContain("more than one code_skip");
     expect(body).toContain(`${CODE_SKIP_WINDOW_DAYS} days`);
     expect(body).toContain(`${CODE_SKIP_MIN_GREEN} greens`);
@@ -745,10 +683,15 @@ describe("code skip pull request", () => {
     }
   });
 
-  test("opens no pull request when every candidate is a capability skip", async () => {
+  test("opens no pull request when no candidate has an opt-in decorator", async () => {
     const { octokit, raw } = fakeOctokit();
     await handlePassingCodeSkips(octokit, [
-      row({ name: "test_ptx", code_skips: ["PTX is not supported"] }),
+      row({
+        name: "test_d",
+        code_skips: [
+          "skipIfRocm: https://github.com/pytorch/pytorch/issues/180007",
+        ],
+      }),
     ]);
     expect(raw.rest.pulls.create).not.toHaveBeenCalled();
     expect(raw.rest.search.issuesAndPullRequests).toHaveBeenCalled();
@@ -761,11 +704,14 @@ describe("code skip pull request", () => {
       row({ name: "test_a", code_skips: ["broken"] }),
       row({
         name: "test_b",
+        code_skips: ["https://github.com/pytorch/pytorch/issues/180006"],
+      }),
+      row({
+        name: "test_e",
         code_skips: [
-          "skipIfRocm: https://github.com/pytorch/pytorch/issues/180006",
+          "skipIfRocm: test doesn't currently work on the ROCm stack",
         ],
       }),
-      row({ name: "test_ptx", code_skips: ["nvidia-only path"] }),
     ]);
     expect(raw.rest.pulls.create).toHaveBeenCalledTimes(1);
     const created = raw.rest.pulls.create.mock.calls[0][0] as {
@@ -781,7 +727,8 @@ describe("code skip pull request", () => {
     expect(created.base).toBe("main");
     expect(created.body).toContain("test_a");
     expect(created.body).toContain("test_b");
-    expect(created.body).toContain("nvidia-only");
+    expect(created.body).toContain("Left in place");
+    expect(created.body).toContain("test_e");
     expect(created.body.toLowerCase()).not.toContain("jira");
   });
 
