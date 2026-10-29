@@ -14,13 +14,10 @@ export const CODE_SKIP_UNSKIP_BRANCH = "unskip-code-skips-rerun-disabled-tests";
 export const CODE_SKIP_WINDOW_DAYS = 7;
 export const CODE_SKIP_MIN_GREEN = 150;
 
-// The only decorators that opt a test into rerun-disabled-tests in pytorch
-// (torch/testing/_internal/rerun_code_skip.py and common_utils.py). Their
-// reason argument is stored verbatim as code_skip.
-const CODE_SKIP_DECORATORS = new Set([
-  "known_failure_skip_if",
-  "rerun_code_skip",
-]);
+// The only decorator that opts a test into rerun-disabled-tests in pytorch
+// (torch/testing/_internal/common_utils.py). Its reason argument is stored
+// verbatim as code_skip.
+const CODE_SKIP_DECORATORS = new Set(["known_failure_skip_if"]);
 
 export interface OmittedCodeSkip {
   row: PassingCodeSkipRow;
@@ -881,7 +878,7 @@ export function buildPullRequestBody(plan: CodeSkipPlan): string {
     "",
     `The bar is the same one that closes a DISABLED issue: the last ${CODE_SKIP_WINDOW_DAYS} days, at least ${CODE_SKIP_MIN_GREEN} greens, zero reds, and no failing row in that window.`,
     "",
-    "Only `known_failure_skip_if` and `rerun_code_skip` decorators whose reason matches are removed. A decorator that cannot be isolated to this one test stays in the source.",
+    "Only `known_failure_skip_if` decorators whose reason matches are removed. A decorator that cannot be isolated to this one test stays in the source.",
     "",
     "## Removed",
     "",

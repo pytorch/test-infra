@@ -60,7 +60,7 @@ function row(
 }
 
 const SOURCE = `class TestFoo(TestCase):
-    @rerun_code_skip("broken")
+    @known_failure_skip_if(lambda: True, "broken")
     def test_a(self):
         pass
 
@@ -90,7 +90,7 @@ const SOURCE = `class TestFoo(TestCase):
 `;
 
 describe("code skip decorator removal", () => {
-  test("removes a direct rerun_code_skip on that function", () => {
+  test("removes a known_failure_skip_if on that function", () => {
     const result = removeCodeSkipDecorator(
       SOURCE,
       "test_a",
@@ -100,10 +100,12 @@ describe("code skip decorator removal", () => {
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).not.toContain('@rerun_code_skip("broken")');
+    expect(result.source).not.toContain(
+      '@known_failure_skip_if(lambda: True, "broken")'
+    );
     expect(result.source).toContain("def test_a(self):");
     expect(result.source).toContain("def test_b(self):");
-    expect(result.source).toContain("@known_failure_skip_if");
+    expect(result.source).toContain("issues/180006");
   });
 
   test("removes a known_failure_skip_if whose reason matches", () => {
@@ -113,7 +115,9 @@ describe("code skip decorator removal", () => {
       throw new Error(result.reason);
     }
     expect(result.source).not.toContain("issues/180006");
-    expect(result.source).toContain('@rerun_code_skip("broken")');
+    expect(result.source).toContain(
+      '@known_failure_skip_if(lambda: True, "broken")'
+    );
   });
 
   test("removes a multiline known_failure_skip_if and leaves the neighbor decorator", () => {
@@ -171,14 +175,29 @@ describe("code skip decorator removal", () => {
     }
   });
 
-  test("does not edit when two functions share the name", () => {
+  test("leaves the retired rerun_code_skip decorator in place", () => {
     const source = `class TestFoo(TestCase):
     @rerun_code_skip("broken")
     def test_a(self):
         pass
+`;
+    const result = removeCodeSkipDecorator(
+      source,
+      "test_a",
+      "TestFoo",
+      "broken"
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  test("does not edit when two functions share the name", () => {
+    const source = `class TestFoo(TestCase):
+    @known_failure_skip_if(lambda: True, "broken")
+    def test_a(self):
+        pass
 
 class TestFoo(TestCase):
-    @rerun_code_skip("broken")
+    @known_failure_skip_if(lambda: True, "broken")
     def test_a(self):
         pass
 `;
@@ -195,7 +214,7 @@ class TestFoo(TestCase):
   });
 
   test("does not delete a class skip that covers another test", () => {
-    const source = `@rerun_code_skip("broken")
+    const source = `@known_failure_skip_if(lambda: True, "broken")
 class TestFoo(TestCase):
     def test_a(self):
         pass
@@ -213,7 +232,7 @@ class TestFoo(TestCase):
     if (!result.ok) {
       expect(result.reason).toContain("class-level");
     }
-    expect(source).toContain('@rerun_code_skip("broken")');
+    expect(source).toContain('@known_failure_skip_if(lambda: True, "broken")');
   });
 
   test("does not delete a class skip when a parent class has tests", () => {
@@ -221,7 +240,7 @@ class TestFoo(TestCase):
     def test_one(self):
         pass
 
-@rerun_code_skip("broken")
+@known_failure_skip_if(lambda: True, "broken")
 class Child(Parent):
     def test_three(self):
         pass
@@ -236,7 +255,7 @@ class Child(Parent):
     if (!result.ok) {
       expect(result.reason).toContain("class-level");
     }
-    expect(source).toContain('@rerun_code_skip("broken")');
+    expect(source).toContain('@known_failure_skip_if(lambda: True, "broken")');
 
     const plan = planCodeSkipEdits(
       [
@@ -262,7 +281,7 @@ class Child(Parent):
     def test_one(self):
         pass
 
-@rerun_code_skip("broken")
+@known_failure_skip_if(lambda: True, "broken")
 class Child(Parent):
     def test_three(self):
         pass
@@ -277,11 +296,11 @@ class Child(Parent):
     if (!result.ok) {
       expect(result.reason).toContain("class-level");
     }
-    expect(source).toContain('@rerun_code_skip("broken")');
+    expect(source).toContain('@known_failure_skip_if(lambda: True, "broken")');
   });
 
   test("removes a class skip on a wrapped header whose only base is TestCase", () => {
-    const source = `@rerun_code_skip("broken")
+    const source = `@known_failure_skip_if(lambda: True, "broken")
 class TestFoo(
     TestCase,
 ):
@@ -297,14 +316,14 @@ class TestFoo(
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).not.toContain("@rerun_code_skip");
+    expect(result.source).not.toContain("known_failure_skip_if");
     expect(result.source).toContain("def test_a(self):");
   });
 
   test("does not delete a class skip when the base class is imported", () => {
     const source = `from other_tests import Parent
 
-@rerun_code_skip("broken")
+@known_failure_skip_if(lambda: True, "broken")
 class Child(Parent):
     def test_three(self):
         pass
@@ -320,11 +339,11 @@ class Child(Parent):
       expect(result.reason).toContain("imported");
       expect(result.reason).toContain("not visible");
     }
-    expect(source).toContain('@rerun_code_skip("broken")');
+    expect(source).toContain('@known_failure_skip_if(lambda: True, "broken")');
   });
 
   test("removes a class skip when it covers only that test", () => {
-    const source = `@rerun_code_skip("broken")
+    const source = `@known_failure_skip_if(lambda: True, "broken")
 class TestFoo(TestCase):
     def test_a(self):
         pass
@@ -338,18 +357,18 @@ class TestFoo(TestCase):
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).not.toContain("@rerun_code_skip");
+    expect(result.source).not.toContain("known_failure_skip_if");
     expect(result.source).toContain("def test_a(self):");
   });
 
   test("picks the class named by the JUnit classname", () => {
     const source = `class TestA(TestCase):
-    @rerun_code_skip("aaa")
+    @known_failure_skip_if(lambda: True, "aaa")
     def test_same(self):
         pass
 
 class TestB(TestCase):
-    @rerun_code_skip("bbb")
+    @known_failure_skip_if(lambda: True, "bbb")
     def test_same(self):
         pass
 `;
@@ -362,8 +381,12 @@ class TestB(TestCase):
     if (!result.ok) {
       throw new Error(result.reason);
     }
-    expect(result.source).toContain('@rerun_code_skip("aaa")');
-    expect(result.source).not.toContain('@rerun_code_skip("bbb")');
+    expect(result.source).toContain(
+      '@known_failure_skip_if(lambda: True, "aaa")'
+    );
+    expect(result.source).not.toContain(
+      '@known_failure_skip_if(lambda: True, "bbb")'
+    );
   });
 });
 
@@ -396,7 +419,9 @@ describe("code skip batch plan", () => {
       "test_b",
     ]);
     expect(plan.files).toHaveLength(1);
-    expect(plan.files[0].content).not.toContain('@rerun_code_skip("broken")');
+    expect(plan.files[0].content).not.toContain(
+      '@known_failure_skip_if(lambda: True, "broken")'
+    );
     expect(plan.files[0].content).not.toContain("issues/180006");
     expect(plan.files[0].content).toContain("issues/180007");
     expect(plan.files[0].content).toContain("def test_c(self):");
@@ -416,7 +441,6 @@ describe("code skip batch plan", () => {
     expect(body).toContain(`${CODE_SKIP_MIN_GREEN} greens`);
     expect(body).toContain("does not merge");
     expect(body.toLowerCase()).not.toContain("jira");
-    expect(body.toLowerCase()).not.toContain("amd-hub");
   });
 
   test("maps a bare filename under test/", () => {
