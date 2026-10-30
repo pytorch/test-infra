@@ -70,6 +70,7 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertIsNone(args.output)
         self.assertFalse(args.resume)
         self.assertFalse(args.dry_run)
+        self.assertFalse(args.presampled)
 
     def test_input_is_required(self):
         self.assertIn("--input", self.rejected(["--policy-pr", "1", "--sample-n", "1"]))
@@ -101,6 +102,11 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertIn(
             "one of the arguments --sample-frac --sample-n is required", message
         )
+
+    def test_a_presampled_input_needs_no_sample_size(self):
+        args = self.parse(["--input", "s.csv", "--policy-pr", "1", "--presampled"])
+        self.assertTrue(args.presampled)
+        self.assertEqual((args.sample_frac, args.sample_n), (None, None))
 
     def test_a_fraction_and_a_cap_are_accepted_together(self):
         args = options.build_parser().parse_args(

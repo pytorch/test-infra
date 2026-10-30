@@ -58,6 +58,7 @@ from typing import Any
 
 from torchci.greenlight_decisions.loc import _REPO_PATTERN, _SHA_PATTERN
 from torchci.greenlight_decisions.rows import to_utc_naive
+from torchci.greenlight_replay import gh_answers
 from torchci.greenlight_replay.policy import GIT_REF_PATTERN, Policy, StackContext
 from torchci.greenlight_replay.stack import clear_stack, read_back
 
@@ -389,12 +390,11 @@ def _normalize_utc_suffix(text: str) -> str:
 
 
 def _run(argv: list[str]) -> subprocess.CompletedProcess[bytes]:
-    """The one place this module spawns a process, and the tests' patch point.
+    """The one place this module's gh calls leave it, and the tests' patch point.
 
-    ``greenlight_decisions.loc._gh_api`` is the obvious thing to reuse and does not
-    fit: it json-decodes the response and takes no header argument, so it can fetch
-    neither a ``vnd.github.diff`` body nor anything else non-JSON.
+    Each goes through :mod:`.gh_answers`, which may answer it from a record instead of
+    spawning gh. ``greenlight_decisions.loc._gh_api`` is the obvious thing to reuse and
+    does not fit: it json-decodes the response and takes no header argument, so it can
+    fetch neither a ``vnd.github.diff`` body nor anything else non-JSON.
     """
-    return subprocess.run(
-        argv, capture_output=True, check=False, timeout=_GH_TIMEOUT_SECONDS
-    )
+    return gh_answers.run(argv, _GH_TIMEOUT_SECONDS)

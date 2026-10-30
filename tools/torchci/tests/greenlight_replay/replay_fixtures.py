@@ -1,9 +1,9 @@
-"""Stand-ins shared by the entry-point and sweep tests.
+"""Stand-ins shared by the entry-point, sweep and collect tests.
 
-Every seam that reaches outside the process lives here, patched onto both
+Every seam that reaches outside the process lives here, patched onto ``collect``,
 ``__main__`` and ``sweep``: no model is invoked, no ClickHouse connection is
-opened and no GitHub or git call is made. They live in one module because both
-test files drive the same ``main()`` and two copies would drift.
+opened and no GitHub or git call is made. They live in one module because the
+test files drive the same seams and copies would drift.
 
 ``run_replay`` builds its scratch root under ``/tmp/greenlight-`` rather than in
 an arbitrary temporary directory, because the path constraint the reviewer's
@@ -22,6 +22,7 @@ from unittest import mock
 
 import torchci.greenlight_replay.__main__ as cli
 from torchci.greenlight_replay import (
+    collect as collect_module,
     preflight as preflight_module,
     sweep as sweep_module,
 )
@@ -168,7 +169,7 @@ class Fakes:
 
     def install(self, stack, scratch):
         self.sanitize_log = Path(scratch) / "sanitize.log"
-        entry_point = {
+        framing = {
             "load_rows": self.load_rows,
             "connect": mock.MagicMock(),
             "fetch_landings": self.fetch_landings,
@@ -176,6 +177,8 @@ class Fakes:
             "apply_frame": self.apply_frame,
             "rederive_first_landing": self.rederive_first_landing,
             "sample_rows": self.sample_rows,
+        }
+        entry_point = {
             "load_checkpoint": self.load_checkpoint,
             "write_replay_csv": self.write_replay_csv,
         }
@@ -195,6 +198,7 @@ class Fakes:
             "check_policy_ref": lambda ref, repo=None: None,
         }
         for module, names in (
+            (collect_module, framing),
             (cli, entry_point),
             (sweep_module, machinery),
             (preflight_module, gates),

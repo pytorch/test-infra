@@ -30,7 +30,11 @@ DEFAULT_WORKDIR = "/tmp/greenlight-replay"
 class _Parser(argparse.ArgumentParser):
     def parse_known_args(self, args=None, namespace=None):
         parsed, extras = super().parse_known_args(args, namespace)
-        if parsed.sample_frac is None and parsed.sample_n is None:
+        if (
+            not parsed.presampled
+            and parsed.sample_frac is None
+            and parsed.sample_n is None
+        ):
             self.error("one of the arguments --sample-frac --sample-n is required")
         return parsed, extras
 
@@ -71,6 +75,12 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
         default=DEFAULT_SEED,
         help="sampling seed; the same seed reproduces the same sample "
         "(default: %(default)s)",
+    )
+    parser.add_argument(
+        "--presampled",
+        action="store_true",
+        help="the input already is a sample, such as collect's --output: no frame, "
+        "no sampling, every row replayed as written",
     )
     parser.add_argument(
         "--parallelism",

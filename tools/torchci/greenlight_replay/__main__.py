@@ -16,9 +16,10 @@ A sweep spends real money -- roughly $1.33 and ten minutes per sampled pull
 request -- so ``--dry-run`` resolves the frame and the sample and prints the
 bill without invoking a model.
 
-This module owns the shape of a run: what to replay, in what order, and what the
-exit status says about it. ``options`` holds the flags and ``sweep`` holds the
-machinery each pull request goes through.
+This module owns the shape of a run: which sampled pull requests to replay, in
+what order, and what the exit status says about it. ``options`` holds the flags,
+``collect`` draws the sample and ``sweep`` holds the machinery each pull request
+goes through.
 """
 
 from __future__ import annotations
@@ -32,25 +33,16 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from torchci.greenlight_decisions.rows import format_timestamp
+from torchci.greenlight_replay.collect import _format_counts, draw_sample
 from torchci.greenlight_replay.emit import (
     build_replay_row,
     HARNESS_REASON_PREFIX,
     load_checkpoint,
     matching_entries,
     write_replay_csv,
-)
-from torchci.greenlight_replay.frame import (
-    apply_frame,
-    fetch_first_verdicts,
-    fetch_landings,
-    is_size_gate_decline,
-    LAND,
-    load_rows,
-    rederive_first_landing,
-    sample_rows,
 )
 from torchci.greenlight_replay.options import build_parser
 from torchci.greenlight_replay.preflight import preflight
@@ -65,10 +57,6 @@ from torchci.greenlight_replay.sweep import (
     runs_are_trustworthy,
     Sweep,
 )
-
-
-if TYPE_CHECKING:
-    from clickhouse_connect.driver.client import Client
 
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -86,18 +74,6 @@ logger = logging.getLogger(__name__)
 _SLUG_UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
-def connect() -> Client:
-    """Open the ClickHouse client.
-
-    The driver import is deferred so that importing this module -- to inspect the
-    parser, or to exercise the orchestration -- does not require
-    clickhouse_connect to be installed.
-    """
-    from torchci.clickhouse import get_clickhouse_client
-
-    return get_clickhouse_client()
-
-
 def default_output_path(now: datetime) -> str:
     stamp = format_timestamp(now).replace("-", "").replace(":", "")
     return f"greenlight_replay_{stamp}.csv"
@@ -113,24 +89,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     checkpoint_path = workdir / CHECKPOINT_FILENAME
     output = args.output or default_output_path(datetime.now(timezone.utc))
 
-    try:
-        sample, framed_total, funnel = select_sample(args)
-    except Exception as exc:
-        logger.error(
-            "could not build the sample: %s",
-            exc,
-            exc_info=logger.isEnabledFor(logging.DEBUG),
-        )
-        return EXIT_FAILED
-    logger.info("frame: %s", _format_counts(funnel, by_count=False))
-    logger.info(
-        "sampled %d of %d framed rows with seed %d",
-        len(sample),
-        framed_total,
-        args.seed,
-    )
-    if not sample:
-        logger.error("the frame admitted nothing to replay")
+    sample = draw_sample(args)
+    if sample is None:
         return EXIT_FAILED
 
     pending = list(sample)
@@ -223,70 +183,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     if aborted or interrupted.is_set() or not written:
         return EXIT_FAILED
     return EXIT_OK if runs_are_trustworthy(results, sweep.errors) else EXIT_DEGRADED
-
-
-def select_sample(
-    args: argparse.Namespace,
-) -> tuple[list[dict[str, str]], int, dict[str, int]]:
-    """Load the corpus, frame it, re-derive multi-landing rows, and sample."""
-    rows = load_rows(args.input)
-    client = connect()
-    landings = fetch_landings(client, args.repo)
-    first_verdicts = fetch_first_verdicts(client, args.repo)
-    framed, funnel = apply_frame(rows, landings, first_verdicts)
-    sample = sample_rows(framed, frac=args.sample_frac, n=args.sample_n, seed=args.seed)
-    requested = len(sample)
-    # Re-deriving after sampling rather than before draws the identical sample --
-    # the draw is by index over the framed list, which re-derivation leaves in
-    # place -- while paying for only the rows that will be replayed. Each costs a
-    # decision query and two compare calls, and a LookupError on a row nobody
-    # sampled would otherwise fail the whole run, dry runs included.
-    sample, declined = rederive_multi_landing(client, args.repo, sample, landings)
-    if declined:
-        # apply_frame settles the gate only for rows whose verdict is final, so a
-        # multi-landing row reaches its canned decline only once re-derived.
-        funnel["size_gate"] += declined
-        logger.info(
-            "%d of %d sampled rows were size-gate declines at their first landing",
-            declined,
-            requested,
-        )
-    return sample, len(framed), funnel
-
-
-def rederive_multi_landing(
-    client: Client,
-    repo: str,
-    rows: Sequence[dict[str, str]],
-    landings: Mapping[int, Sequence[Any]],
-) -> tuple[list[dict[str, str]], int]:
-    """Restate the rows of pull requests whose code reached main more than once.
-
-    Such a row's verdict is the one the export selected against the PR's final
-    head, which here names a later landing than the one being replayed. The
-    first landing is what the policy under test is asked about, so the decision
-    columns are re-derived as of that instant -- the earliest event of kind
-    ``land``, since a revert can sort ahead of it.
-    """
-    rederived: list[dict[str, str]] = []
-    declined = 0
-    for row in rows:
-        lands = [
-            event for event in landings.get(pr_number(row), ()) if event.kind == LAND
-        ]
-        if len(lands) > 1:
-            restated = rederive_first_landing(
-                client, repo, dict(row), min(event.ts for event in lands)
-            )
-            # The canned decline came from a byte comparison with no model in it,
-            # so replaying it would measure the cap rather than the policy.
-            if is_size_gate_decline(restated):
-                declined += 1
-                continue
-            rederived.append(restated)
-        else:
-            rederived.append(dict(row))
-    return rederived, declined
 
 
 def log_plan(
@@ -383,13 +279,6 @@ def _pr_list(rows: Sequence[Mapping[str, str]]) -> str:
         return ", ".join(numbers) or "(none)"
     head = ", ".join(numbers[:MAX_LISTED_PRS])
     return f"{head}, and {len(numbers) - MAX_LISTED_PRS} more"
-
-
-def _format_counts(counts: Mapping[str, int], *, by_count: bool = True) -> str:
-    ordered: list[tuple[str, int]] = list(counts.items())
-    if by_count:
-        ordered.sort(key=lambda item: (-item[1], item[0]))
-    return ", ".join(f"{name}={count}" for name, count in ordered) or "(none)"
 
 
 def _slug(ref: str) -> str:
