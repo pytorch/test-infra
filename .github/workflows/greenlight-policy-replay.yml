@@ -1,0 +1,395 @@
+name: GreenLight policy replay
+
+# Replays past GreenLight reviews under the policy before and after a pull request (PR) and comments the
+# comparison on the PR. A push changing the policy (the skill, its hooks, the review workflow) or the
+# replay machinery (this workflow, its scripts, the replay harness and the decisions export it runs)
+# starts it; plan compares only when the branch's open PR itself changes one of them, and a PR
+# changing only the machinery runs the same policy in both arms. Every job runs code from the pushed
+# commit's history (this workflow, its scripts, tools/, both arms' policy). Jobs naming `bedrock` deploy
+# the pushed branch, so its deployment branch policy, and who may push the branches it admits, decide
+# which code runs with the Bedrock role; gate names it first, so a PR from another branch fails there.
+#
+# Both arms are pinned by SHA, the base arm to the merge base so later policy on main is not
+# credited to the PR. Each replay job frames the same decisions and seed against live ClickHouse, so
+# jobs judge one sample only while that data does not change between their starts; compare excludes
+# a PR whose replayed head differs across runs. Credentials last an hour and are rewritten every
+# 15 minutes, so while that works a reviewer (at most 37 minutes) never outlives them. Cost:
+# replicates x 2 arms x the sample reviewer runs, each at the harness's estimate; the sample is
+# GREENLIGHT_REPLAY_SAMPLE_FRACTION of the decisions the frame keeps, at most GREENLIGHT_REPLAY_SAMPLE_CAP.
+
+on:
+  push:
+    # Naming branches also keeps tag pushes, which skip path filters, from starting it.
+    branches-ignore: [main]
+    paths:
+      - .claude/skills/greenlight-review/**
+      - .claude/hooks/greenlight/**
+      - .github/workflows/greenlight-pr-review.yml
+      - .github/workflows/greenlight-policy-replay.yml
+      - .github/scripts/greenlight_policy_replay_*.sh
+      - tools/torchci/greenlight_replay/**
+      - tools/torchci/greenlight_decisions/**
+
+permissions: {}
+
+concurrency:
+  group: greenlight-policy-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GREENLIGHT_REPLAY_SAMPLE_FRACTION: "0.2"
+  GREENLIGHT_REPLAY_SAMPLE_CAP: "1000"
+  GREENLIGHT_REPLAY_SEED: "0"
+  GREENLIGHT_REPLAY_REPLICATES: "[1, 2, 3]"  # One replay job per entry and arm; the report compares one run directory each.
+  GREENLIGHT_REPLAY_PARALLELISM: "8"  # Reviewer sessions per replay job; every replay job runs at once.
+  # Change these two together: the harness rejects a run whose CLI reports another context window, and the window
+  # Bedrock's model reports depends on the CLI build. The version is the production review's (its claude-code-action pin).
+  CLAUDE_CODE_VERSION: "2.1.280"
+  GREENLIGHT_REPLAY_CONTEXT_WINDOW: "200000"
+  AWS_REGION: us-east-1
+  BEDROCK_ROLE_ARN: arn:aws:iam::308535385114:role/gha_workflow_claude_code
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+  DECISIONS_RETENTION_DAYS: "1"  # The decisions export is a public intermediate holding the whole decision history.
+  ARTIFACT_RETENTION_DAYS: "30"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+      base_sha: ${{ steps.resolve.outputs.base_sha }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      replicates: ${{ steps.resolve.outputs.replicates }}
+    steps:
+      - name: Resolve the pull request and its merge base
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid head SHA: '$HEAD_SHA'" >&2; exit 1; }
+          pages=$(gh api -X GET --paginate "repos/$GITHUB_REPOSITORY/pulls" \
+            -f state=open -f head="$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" -F per_page=100)
+          prs=$(jq -s -c --arg repo "$GITHUB_REPOSITORY" --arg branch "$GITHUB_REF_NAME" \
+            '[.[][] | select(.head.ref == $branch and .head.repo.full_name == $repo)]' <<<"$pages")
+          count=$(jq length <<<"$prs")
+          [ "$count" -ne 0 ] || { echo "::notice::no open pull request from $GITHUB_REF_NAME; open one, then re-run this workflow."; exit 0; }
+          [ "$count" -eq 1 ] || { numbers=$(jq -r 'map("#\(.number)") | join(", ")' <<<"$prs")
+            echo "::notice::$count open pull requests from $GITHUB_REF_NAME ($numbers); nothing to compare."; exit 0; }
+          pr_number=$(jq -r '.[0].number' <<<"$prs")
+          [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || { echo "unexpected pull request number: '$pr_number'" >&2; exit 1; }
+          base_ref=$(jq -er '.[0].base.ref | strings' <<<"$prs")
+          [[ "$base_ref" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "unexpected base branch for #$pr_number: '$base_ref'" >&2; exit 1; }
+          # A push's path filter sees only that push's diff. The path check and the merge base both come from comparing the base branch's tip
+          # with the pushed commit, so a PR object that lags the push affects neither. These paths mirror on.push.paths, which cannot read env.
+          # The compare API lists at most 300 files, dropping the paths that sort last, so a full list without a trigger path proves nothing.
+          comparison=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base_ref...$HEAD_SHA")
+          changes=$(jq -r 'if [.files[]? | .filename, (.previous_filename // empty)] | any(startswith(".claude/skills/greenlight-review/")
+            or startswith(".claude/hooks/greenlight/") or . == ".github/workflows/greenlight-pr-review.yml"
+            or . == ".github/workflows/greenlight-policy-replay.yml"
+            or test("^\\.github/scripts/greenlight_policy_replay_[^/]*\\.sh$") or startswith("tools/torchci/greenlight_replay/")
+            or startswith("tools/torchci/greenlight_decisions/"))
+            then "yes" elif (.files | length) >= 300 then "unknown" else "no" end' <<<"$comparison")
+          [ "$changes" != unknown ] || { echo "::notice::#$pr_number changes too many files to check the trigger paths; nothing to compare."; exit 0; }
+          [ "$changes" = yes ] || { echo "::notice::#$pr_number changes none of the trigger paths against $base_ref; nothing to compare."; exit 0; }
+          # Written first so report-unstarted can name the PR: the runner reads GITHUB_OUTPUT even if the step fails.
+          printf 'pr_number=%s\nhead_sha=%s\n' "$pr_number" "$HEAD_SHA" >>"$GITHUB_OUTPUT"
+          replicates=$(jq -cen --argjson r "$GREENLIGHT_REPLAY_REPLICATES" '$r | select(type == "array" and length > 0
+            and (unique | length) == length and all(.[]; type == "number" and (tostring | test("^[1-9][0-9]*$"))))') ||
+            { echo "GREENLIGHT_REPLAY_REPLICATES is not a non-empty JSON array of unique positive integers" >&2; exit 1; }
+          echo "replicates=$replicates" >>"$GITHUB_OUTPUT"
+          merge_base=$(jq -r '.merge_base_commit.sha' <<<"$comparison")
+          [[ "$merge_base" =~ ^[0-9a-f]{40}$ ]] || { echo "unexpected merge base for #$pr_number: '$merge_base'" >&2; exit 1; }
+          echo "Comparing #$pr_number: base policy at $merge_base, change at $HEAD_SHA"
+          echo "base_sha=$merge_base" >>"$GITHUB_OUTPUT"
+
+  gate:
+    needs: plan
+    if: ${{ !cancelled() && needs.plan.outputs.pr_number != '' }}
+    environment: bedrock  # A refused branch fails here, so export and replay never run for it and report-unstarted stays quiet.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - run: echo "The bedrock environment admits $GITHUB_REF_NAME."
+
+  export:
+    needs: [plan, gate]
+    if: needs.plan.outputs.pr_number != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python3 -m pip install clickhouse-connect==0.8.14 PyYAML==6.0.3
+
+      - name: Export the decisions to replay
+        working-directory: tools
+        env:
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        # Any non-zero exit fails the job, including 3: a degraded export would bias the frame the replays sample from.
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python3 -m torchci.greenlight_decisions --output "$RUNNER_TEMP/greenlight-decisions.csv"
+
+      - name: Upload the decisions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: greenlight-decisions
+          path: ${{ runner.temp }}/greenlight-decisions.csv
+          if-no-files-found: error
+          overwrite: true
+          retention-days: ${{ env.DECISIONS_RETENTION_DAYS }}
+
+  replay:
+    name: replay (${{ matrix.arm }}, ${{ matrix.replicate }})
+    needs: [plan, export]
+    environment: bedrock
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [base, change]
+        replicate: ${{ fromJSON(needs.plan.outputs.replicates) }}
+    env:
+      ARM: ${{ matrix.arm }}
+      REPLICATE: ${{ matrix.replicate }}
+      BASE_SHA: ${{ needs.plan.outputs.base_sha }}
+      HEAD_SHA: ${{ needs.plan.outputs.head_sha }}
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python3 -m pip install clickhouse-connect==0.8.14 PyYAML==6.0.3
+
+      - name: Install Claude Code
+        run: |
+          set -euo pipefail
+          installer="$RUNNER_TEMP/claude-install.sh"
+          for attempt in 1 2 3; do
+            curl -fsSL --max-time 60 -o "$installer" https://claude.ai/install.sh &&
+              timeout -k 10 300 bash "$installer" "$CLAUDE_CODE_VERSION" && break
+            [ "$attempt" -lt 3 ] || { echo "could not install Claude Code $CLAUDE_CODE_VERSION in 3 attempts" >&2; exit 1; }
+            sleep 5
+          done
+          # The harness gives the reviewer a fixed PATH that has no ~/.local/bin.
+          sudo ln -sf "$HOME/.local/bin/claude" /usr/local/bin/claude
+          version=$(/usr/local/bin/claude --version)
+          [[ "$version" == "$CLAUDE_CODE_VERSION "* ]] ||
+            { echo "/usr/local/bin/claude reports '$version', expected $CLAUDE_CODE_VERSION" >&2; exit 1; }
+          echo "Installed Claude Code $version"
+
+      - name: Download the decisions
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: greenlight-decisions
+          path: ${{ runner.temp }}/greenlight-decisions
+
+      - name: Replay
+        working-directory: tools
+        env:
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+          # Puts the reviewers on Bedrock; the harness hands them AWS_REGION from the
+          # workflow env, and their CLI reads the [default] profile of ~/.aws/credentials.
+          CLAUDE_CODE_USE_BEDROCK: "1"
+        run: |
+          set -euo pipefail
+          case "$ARM" in
+            base) policy_sha=$BASE_SHA ;;
+            change) policy_sha=$HEAD_SHA ;;
+            *) policy_sha= ;;
+          esac
+          [[ "$policy_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid policy commit for arm '$ARM': '$policy_sha'" >&2; exit 1; }
+          session="greenlight-policy-replay-$GITHUB_RUN_ID-$ARM-$REPLICATE"
+          [[ "$session" =~ ^[A-Za-z0-9_+=,.@-]{2,64}$ ]] || { echo "invalid role session name: '$session'" >&2; exit 1; }
+          out="$RUNNER_TEMP/greenlight-replay-out"
+          mkdir -p "$out" "$HOME/.aws"
+          chmod 700 "$HOME/.aws"
+
+          # Each secret goes to the runner's log masker before anything uses it, as
+          # configure-aws-credentials does; a value the workflow-command format would alter
+          # (%, CR, LF) is refused, not half-masked. Never print a secret; never set -x.
+          mask() {
+            local value
+            for value in "$@"; do
+              [[ -n "$value" && "$value" != *[%$'\r\n']* ]] || return 1
+              echo "::add-mask::$value"
+            done
+          }
+          write_credentials() {
+            local token response key secret session_token staged
+            token=$(curl -sSf --max-time 60 \
+              -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+              "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -er .value) || return 1
+            mask "$token" || return 1
+            response=$(aws sts assume-role-with-web-identity \
+              --region "$AWS_REGION" \
+              --role-arn "$BEDROCK_ROLE_ARN" \
+              --role-session-name "$session" \
+              --web-identity-token "$token" \
+              --duration-seconds 3600 \
+              --output json) || return 1
+            key=$(jq -er '.Credentials.AccessKeyId | strings' <<<"$response") || return 1
+            secret=$(jq -er '.Credentials.SecretAccessKey | strings' <<<"$response") || return 1
+            session_token=$(jq -er '.Credentials.SessionToken | strings' <<<"$response") || return 1
+            mask "$key" "$secret" "$session_token" || return 1
+            staged=$(mktemp "$HOME/.aws/credentials.XXXXXX") || return 1
+            printf '[default]\naws_access_key_id = %s\naws_secret_access_key = %s\naws_session_token = %s\n' \
+              "$key" "$secret" "$session_token" >"$staged" || { rm -f "$staged"; return 1; }
+            mv -f "$staged" "$HOME/.aws/credentials"
+          }
+
+          # Background loop until the step exits: errexit is off so a failed refresh is
+          # retried, and sleeps run in the background so the TERM on exit ends them at once.
+          refresh_credentials() {
+            set +e
+            sleeper=
+            trap '[ -z "$sleeper" ] || kill "$sleeper" 2>/dev/null; exit 0' TERM
+            while :; do
+              sleep 900 & sleeper=$!
+              wait "$sleeper"
+              sleeper=
+              until write_credentials; do
+                echo "::warning::could not refresh the Bedrock credentials; retrying in 60 seconds"
+                sleep 60 & sleeper=$!
+                wait "$sleeper"
+                sleeper=
+              done
+            done
+          }
+
+          write_credentials || { echo "could not get credentials for $BEDROCK_ROLE_ARN" >&2; exit 1; }
+          refresh_credentials &
+          refresher=$!
+          stop_refresher() { kill "$refresher" 2>/dev/null || true; wait "$refresher" 2>/dev/null || true; trap - EXIT; }
+          trap stop_refresher EXIT
+
+          # Harness output reaches the live log only after the refresher stops, with commands off: text in it
+          # could otherwise suspend commands, and a later ::add-mask:: line would then print its value.
+          echo "The replay's output is printed once it ends, and kept as harness.log in the replay artifact."
+          rc=0
+          PYTHONPATH=. python3 -m torchci.greenlight_replay \
+            --input "$RUNNER_TEMP/greenlight-decisions/greenlight-decisions.csv" \
+            --policy-ref "$policy_sha" \
+            --sample-frac "$GREENLIGHT_REPLAY_SAMPLE_FRACTION" \
+            --sample-n "$GREENLIGHT_REPLAY_SAMPLE_CAP" \
+            --seed "$GREENLIGHT_REPLAY_SEED" \
+            --parallelism "$GREENLIGHT_REPLAY_PARALLELISM" \
+            --context-window "$GREENLIGHT_REPLAY_CONTEXT_WINDOW" \
+            --output "$out/replay.csv" >"$out/harness.log" 2>&1 || rc=$?
+          stop_refresher
+          echo "$rc" >"$out/exit-code"
+          token=$(openssl rand -hex 16) || token=
+          [[ "$token" =~ ^[0-9a-f]{32}$ ]] || { echo "no stop-commands token; see harness.log in the artifact" >&2; exit "$rc"; }
+          echo "::stop-commands::$token"
+          cat "$out/harness.log"; [ -z "$(tail -c 1 "$out/harness.log")" ] || echo
+          echo "::$token::"
+          exit "$rc"
+
+      - name: Upload the replay
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: greenlight-replay-${{ matrix.arm }}-${{ matrix.replicate }}
+          path: ${{ runner.temp }}/greenlight-replay-out
+          overwrite: true
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+  report:
+    needs: [plan, export, replay]
+    if: ${{ !cancelled() && needs.export.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Download the replays
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          pattern: greenlight-replay-*
+          path: ${{ runner.temp }}/runs
+
+      - name: Compare and comment
+        working-directory: tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.plan.outputs.pr_number }}
+          BASE_SHA: ${{ needs.plan.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.plan.outputs.head_sha }}
+          REPLICATES: ${{ needs.plan.outputs.replicates }}
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/greenlight_policy_replay_report.sh"
+
+  report-unstarted:
+    needs: [plan, gate, export]
+    if: ${{ !cancelled() && needs.gate.result == 'success' && (needs.plan.result != 'success' || needs.export.result != 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Comment that the comparison could not start
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.plan.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.plan.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid head SHA '$HEAD_SHA'" >&2; exit 1; }
+          echo "The GreenLight policy comparison for $HEAD_SHA could not start: preparing it failed. [Workflow run]($RUN_URL)" >"$RUNNER_TEMP/comment.md"
+          bash .github/scripts/greenlight_policy_replay_comment.sh "$RUNNER_TEMP/comment.md"

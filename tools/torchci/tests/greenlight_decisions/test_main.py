@@ -4,7 +4,9 @@ Every case drives ``main()`` or one of its helpers with the ClickHouse and
 GitHub reaches patched out, so nothing here touches either service.
 """
 
+import contextlib
 import csv
+import io
 import subprocess
 import sys
 import tempfile
@@ -14,9 +16,10 @@ from pathlib import Path
 from unittest import mock
 
 import torchci.greenlight_decisions.__main__ as cli
-from decision_fixtures import DECIDED, UNDECIDED
+from decision_fixtures import DECIDED, MEASURED, UNDECIDED
 from torchci.greenlight_decisions.loc import LOC_STATUS_OK
 from torchci.greenlight_decisions.rows import SNAPSHOT_COLUMN, STALENESS_NO_VERDICT
+from torchci.greenlight_decisions.sample import sample_decisions
 
 
 class TestParseAsOf(unittest.TestCase):
@@ -38,6 +41,68 @@ class TestParseAsOf(unittest.TestCase):
     def test_garbage_is_rejected(self):
         with self.assertRaises(Exception):
             cli.parse_as_of("last tuesday")
+
+
+class TestSampleFlags(unittest.TestCase):
+    """A bad sampling flag stops the export at argparse, naming the flag and the rule;
+    --help says when --seed applies."""
+
+    def parse(self, *argv):
+        return cli.build_parser().parse_args(list(argv))
+
+    def rejection(self, *argv):
+        stderr = io.StringIO()
+        with self.assertRaises(SystemExit) as caught:
+            with contextlib.redirect_stderr(stderr):
+                self.parse(*argv)
+        self.assertEqual(caught.exception.code, 2)
+        return stderr.getvalue()
+
+    def test_the_flags_parse(self):
+        args = self.parse("--sample-frac", "0.2", "--sample-cap", "1000", "--seed", "7")
+        self.assertEqual((args.sample_frac, args.sample_cap, args.seed), (0.2, 1000, 7))
+
+    def test_the_bounds_are_accepted(self):
+        args = self.parse("--sample-frac", "1", "--sample-cap", "1", "--seed", "-3")
+        self.assertEqual((args.sample_frac, args.sample_cap, args.seed), (1.0, 1, -3))
+
+    def test_a_frac_outside_the_unit_interval_is_rejected(self):
+        for bad in ("0", "-0.1", "1.5", "nan", "inf"):
+            with self.subTest(frac=bad):
+                message = self.rejection("--sample-frac", bad)
+                self.assertIn("argument --sample-frac: must be in (0, 1]", message)
+
+    def test_a_frac_that_is_not_a_number_is_rejected(self):
+        for bad in ("abc", "", "20%"):
+            with self.subTest(frac=bad):
+                message = self.rejection("--sample-frac", bad)
+                self.assertIn(
+                    f"argument --sample-frac: invalid fraction value: {bad!r}", message
+                )
+
+    def test_a_cap_below_one_is_rejected(self):
+        for bad in ("0", "-1"):
+            with self.subTest(cap=bad):
+                message = self.rejection("--sample-cap", bad)
+                self.assertIn("argument --sample-cap: must be at least 1", message)
+
+    def test_a_cap_that_is_not_an_integer_is_rejected(self):
+        for bad in ("1.5", "abc", "1e3"):
+            with self.subTest(cap=bad):
+                message = self.rejection("--sample-cap", bad)
+                self.assertIn(
+                    f"argument --sample-cap: invalid positive_int value: {bad!r}",
+                    message,
+                )
+
+    def test_a_seed_that_is_not_an_integer_is_rejected(self):
+        self.assertIn("argument --seed", self.rejection("--seed", "x"))
+
+    def test_the_seed_help_says_it_needs_a_sampling_flag(self):
+        # argparse wraps at the terminal's width and may break a flag at its hyphen.
+        with mock.patch.dict("os.environ", {"COLUMNS": "1000"}):
+            text = cli.build_parser().format_help()
+        self.assertIn("used only with --sample-frac or --sample-cap", text)
 
 
 SUBPROCESS_TIMEOUT_SECONDS = 60
@@ -86,6 +151,9 @@ class TestCliWiring(unittest.TestCase):
         self.assertIsNone(args.as_of)
         self.assertIsNone(args.output)
         self.assertFalse(args.skip_loc)
+        self.assertIsNone(args.sample_frac)
+        self.assertIsNone(args.sample_cap)
+        self.assertEqual(args.seed, 0)
 
     def test_default_output_path_carries_the_as_of(self):
         self.assertEqual(
@@ -207,6 +275,71 @@ class TestMainWritesTheFile(unittest.TestCase):
         # only the return value never sees it.
         with self.assertRaises(SystemExit):
             cli.main(["--as-of", "last tuesday"])
+
+
+class TestMainSamples(unittest.TestCase):
+    """The sample is drawn before the GitHub reads, so a pull request it leaves out
+    costs no compare call, and without a sampling flag nothing changes."""
+
+    DECISIONS = [
+        {**DECIDED, "pr_number": n, "decision_head_sha": f"{n:040d}"}
+        for n in range(20, 0, -1)
+    ]
+
+    def _export(self, argv):
+        measured = []
+
+        def record(repo, base_sha, head_sha, final_head_sha):
+            measured.append(head_sha)
+            return MEASURED
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "out.csv"
+            with mock.patch.object(cli, "connect"), mock.patch.object(
+                cli, "fetch_decisions", return_value=self.DECISIONS
+            ), mock.patch.object(cli, "compute_loc", side_effect=record):
+                with self.assertLogs(cli.logger, level="INFO") as logs:
+                    code = cli.main(["--output", str(path), *argv])
+            text = path.read_bytes().decode("utf-8-sig")
+        self.assertEqual(code, cli.EXIT_OK)
+        return list(csv.DictReader(text.splitlines())), measured, logs.output
+
+    def test_only_the_sampled_pull_requests_are_measured_and_written(self):
+        cases = (
+            (["--sample-cap", "5"], dict(frac=None, cap=5, seed=0), 5),
+            (
+                ["--sample-frac", "0.3", "--seed", "9"],
+                dict(frac=0.3, cap=None, seed=9),
+                6,
+            ),
+            (
+                ["--sample-frac", "0.5", "--sample-cap", "4", "--seed", "2"],
+                dict(frac=0.5, cap=4, seed=2),
+                4,
+            ),
+        )
+        for argv, sample, size in cases:
+            with self.subTest(argv=argv):
+                rows, measured, _ = self._export(argv)
+                expected = sample_decisions(self.DECISIONS, **sample)
+                self.assertEqual(len(rows), size)
+                self.assertEqual(
+                    [row["pr_number"] for row in rows],
+                    [str(d["pr_number"]) for d in expected],
+                )
+                self.assertEqual(measured, [d["decision_head_sha"] for d in expected])
+
+    def test_the_sample_is_logged_with_its_parameters(self):
+        _, _, logs = self._export(["--sample-frac", "0.3", "--sample-cap", "4"])
+        self.assertIn(
+            "sampled 4 of 20 decisions (frac=0.3, cap=4, seed=0)", "".join(logs)
+        )
+
+    def test_without_a_sampling_flag_every_decision_is_measured(self):
+        rows, measured, logs = self._export(["--seed", "9"])
+        self.assertEqual(len(rows), len(self.DECISIONS))
+        self.assertEqual(measured, [d["decision_head_sha"] for d in self.DECISIONS])
+        self.assertNotIn("sampled", "".join(logs))
 
 
 class TestTotalGitHubFailure(unittest.TestCase):

@@ -12,6 +12,7 @@ read sandbox imposes is one of the things under test.
 
 import contextlib
 import csv
+import os
 import tempfile
 import threading
 from datetime import datetime
@@ -31,7 +32,7 @@ from torchci.greenlight_replay.frame import (
     LAND,
     Landing,
 )
-from torchci.greenlight_replay.runner import Outcome
+from torchci.greenlight_replay.runner import BEDROCK_SWITCH, Outcome
 
 
 POLICY_MODEL = "global.anthropic.claude-opus-5"
@@ -340,6 +341,10 @@ def run_replay(fakes, argv):
         output = root / "out.csv"
         with contextlib.ExitStack() as stack:
             fakes.install(stack, root)
+            # A Bedrock switch exported in the developer's shell changes the model a
+            # policy profile resolves to, so no case here may inherit one.
+            stack.enter_context(mock.patch.dict(os.environ))
+            os.environ.pop(BEDROCK_SWITCH, None)
             code = cli.main(
                 [
                     "--input",

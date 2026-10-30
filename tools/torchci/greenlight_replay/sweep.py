@@ -26,12 +26,13 @@ from pathlib import Path
 from typing import Any
 
 from torchci.greenlight_decisions.__main__ import parse_as_of
-from torchci.greenlight_replay.checkout import materialize_trusted_skills, WorktreePool
+from torchci.greenlight_replay.checkout import WorktreePool
 from torchci.greenlight_replay.emit import append_checkpoint
 from torchci.greenlight_replay.inputs import build_inputs
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
 from torchci.greenlight_replay.preflight import preflight
 from torchci.greenlight_replay.runner import (
+    bedrock_enabled,
     DEFAULT_MODEL,
     Outcome,
     run_review,
@@ -39,6 +40,7 @@ from torchci.greenlight_replay.runner import (
     schema_support_violation,
 )
 from torchci.greenlight_replay.settings import assert_hooks_present
+from torchci.greenlight_replay.trusted_skills import materialize_trusted_skills
 from torchci.greenlight_replay.workspace import install_policy_half, sanitize_checkout
 
 
@@ -53,8 +55,8 @@ BARE_CLONE_DIRNAME = "pytorch.git"
 TRUSTED_SKILLS_DIRNAME = "pytorch-main-skills"
 RUNS_DIRNAME = "runs"
 
-# The workflow names a Bedrock inference profile and the local CLI names a
-# model, so one has to be translated into the other. Mapped rather than
+# The workflow names a Bedrock inference profile and a CLI off Bedrock names a
+# model, so off Bedrock the profile is translated into a model. Mapped rather than
 # defaulted: a policy pull request that switches models would otherwise replay
 # silently on the model it replaced and read as a clean sweep of the new policy.
 LOCAL_MODELS = {"global.anthropic.claude-opus-5": DEFAULT_MODEL}
@@ -123,8 +125,8 @@ def open_sweep(
     """Materialize the policy, the shared clone and the trusted skills tree.
 
     ``model`` overrides what the policy's own inference profile maps to; without
-    one an unrecognised profile stops the sweep here, before the clone and
-    before anything is spent.
+    one an unrecognised profile stops a sweep off Bedrock here, before the clone
+    and before anything is spent.
     """
     preflight(workdir, policy_ref)
     policy, model = prepare_policy(policy_ref, workdir, model)
@@ -172,11 +174,16 @@ def prepare_policy(
 def local_model(profile: str) -> str:
     """The local CLI's name for the Bedrock inference profile the policy asks for.
 
-    Raises rather than falling back. The runner asserts that the model which
-    answered is the one it asked for, so a profile passed through verbatim fails
-    every run; a profile quietly replaced by the default reviews the new policy
-    on the old policy's model and reads as a clean sweep, which is worse.
+    On Claude Code's Bedrock provider (``runner.bedrock_enabled``) the profile is
+    itself the model id the CLI takes, so it passes through unchanged. Anywhere
+    else it is mapped, and raises rather than falling back. The runner asserts
+    that the model which answered is the one it asked for, so a profile passed
+    through to another backend fails every run; a profile quietly replaced by
+    the default reviews the new policy on the old policy's model and reads as a
+    clean sweep, which is worse.
     """
+    if bedrock_enabled():
+        return profile
     try:
         return LOCAL_MODELS[profile]
     except KeyError:

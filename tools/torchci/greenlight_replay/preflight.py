@@ -17,6 +17,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from torchci.greenlight_decisions.loc import _SHA_PATTERN
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.policy import DEFAULT_POLICY_REPO, refspec
 from torchci.greenlight_replay.runner import CLAUDE_BIN, SUBPROCESS_PATH, TIMEOUT_BIN
@@ -38,14 +39,27 @@ def preflight(workdir: Path, policy_ref: str, repo: str = DEFAULT_POLICY_REPO) -
 def check_policy_ref(ref: str, repo: str = DEFAULT_POLICY_REPO) -> None:
     """Refuse a policy ref the remote does not have.
 
-    A mistyped pull request number is the likeliest way to start a sweep wrong,
-    and materializing the policy is what would otherwise catch it -- which a dry
-    run deliberately does not do, so the dry run would price a plan that cannot
-    run. ``ls-remote`` asks the same question with no clone, no fetch and no
-    scratch directory, against the refspec ``policy.refspec`` resolves -- the same
-    one the real fetch will use, which is the whole value of asking.
+    A mistyped pull request number is the likeliest way to start a sweep wrong.
+    Materializing the policy would catch it too, but only by failing a fetch
+    into a scratch tree; ``ls-remote`` asks the same question with no clone, no
+    fetch and no scratch directory, against the refspec ``policy.refspec``
+    resolves -- the same one the real fetch will use, which is the whole value
+    of asking.
+
+    A full commit SHA is the exception. ``ls-remote`` matches ref names only, so
+    it finds nothing for one, and the policy fetch is the check instead:
+    ``prepare_policy`` makes it straight after this, in a dry run and a real run
+    alike, before the clone and before any model runs.
     """
     wanted = refspec(ref)
+    if _SHA_PATTERN.fullmatch(wanted):
+        logger.info(
+            "%s is a commit SHA, which ls-remote cannot look up; fetching the "
+            "policy from %s is the check",
+            wanted,
+            repo,
+        )
+        return
     completed = subprocess.run(
         ["git", "ls-remote", "--exit-code", _clone_url(repo), wanted],
         capture_output=True,

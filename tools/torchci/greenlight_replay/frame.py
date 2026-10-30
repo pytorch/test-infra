@@ -29,9 +29,7 @@ by time, via ``fetch_decisions(as_of=...)``.
 
 from __future__ import annotations
 
-import hashlib
 import logging
-import math
 from datetime import datetime
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence, TYPE_CHECKING
@@ -49,6 +47,7 @@ from torchci.greenlight_decisions.rows import (
     LOC_COLUMNS,
     to_utc_naive,
 )
+from torchci.greenlight_decisions.sample import lowest_ranked, sample_key, sample_size
 from torchci.greenlight_replay.cells import load_rows, to_cell
 from torchci.greenlight_replay.timeline import (
     fetch_first_verdicts,
@@ -282,9 +281,8 @@ def sample_rows(
 ) -> list[dict[str, str]]:
     """Draw a reproducible subset of ``rows``, keeping them in input order.
 
-    Exactly one of ``frac`` and ``n`` must be given; passing both or neither raises
-    ``ValueError``, because a harness that silently preferred one would report a sample size
-    nobody asked for.
+    Give ``frac``, ``n`` or both: with both, ``n`` caps the share ``frac`` asks for. Passing
+    neither raises ``ValueError``.
 
     **Selection is by a hash of the seed and the pull request, never by position in the
     frame.** The corpus grows every day, so re-exporting between runs is ordinary, and a
@@ -295,44 +293,34 @@ def sample_rows(
     ``sha256(seed, repo, pr_number)`` and taking the lowest instead means an existing row's
     rank never moves, so growth changes the selection only where a new row genuinely
     outranks an old one, and ``seed`` identifies a set of pull requests rather than a set of
-    offsets into one particular file.
+    offsets into one particular file. The export samples its decisions by the same rank
+    (:mod:`torchci.greenlight_decisions.sample`), so under one seed the ``n`` rows drawn
+    from a sampled export are the ``n`` drawn from the full one whenever at least ``n`` of
+    its rows survive the frame.
 
     ``frac`` rounds up, so a nonzero share of a non-empty frame never sizes to nothing and
     cannot be mistaken for the frame having admitted nothing.
     """
-    if (frac is None) == (n is None):
-        raise ValueError("pass exactly one of frac or n")
+    if frac is None and n is None:
+        raise ValueError("pass frac, n or both")
 
-    if frac is not None:
-        if not 0 < frac <= 1:
-            raise ValueError(f"frac must be in (0, 1], got {frac!r}")
-        size = math.ceil(len(rows) * frac)
-    elif n is not None:
-        if n < 0:
-            raise ValueError(f"n must not be negative, got {n!r}")
-        size = min(n, len(rows))
-        if size < n:
-            logger.warning(
-                "asked for %d rows but the frame holds %d; sampling all of them",
-                n,
-                size,
-            )
+    if frac is not None and not 0 < frac <= 1:
+        raise ValueError(f"frac must be in (0, 1], got {frac!r}")
+    if n is not None and n < 0:
+        raise ValueError(f"n must not be negative, got {n!r}")
+    size = sample_size(len(rows), frac, n)
+    if frac is None and n is not None and size < n:
+        logger.warning(
+            "asked for %d rows but the frame holds %d; sampling all of them",
+            n,
+            size,
+        )
 
-    ranked = sorted(range(len(rows)), key=lambda index: _sample_key(rows[index], seed))
-    drawn = set(ranked[:size])
-    return [row for index, row in enumerate(rows) if index in drawn]
-
-
-def _sample_key(row: Mapping[str, str], seed: int) -> bytes:
-    """A row's rank, fixed by the seed and the pull request it names.
-
-    NUL-joined rather than concatenated so that no two different pull requests can spell
-    the same payload, and hashed rather than seeded into a PRNG so that the rank depends on
-    nothing but this row -- not on how many rows precede it, nor on which other rows the
-    frame happens to hold today.
-    """
-    payload = "\x00".join((str(seed), row.get("repo", ""), row.get("pr_number", "")))
-    return hashlib.sha256(payload.encode("utf-8")).digest()
+    return lowest_ranked(
+        rows,
+        size,
+        lambda row: sample_key(seed, row.get("repo", ""), row.get("pr_number", "")),
+    )
 
 
 def _pr_number(row: Mapping[str, str]) -> int | None:

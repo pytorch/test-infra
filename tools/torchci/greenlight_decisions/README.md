@@ -34,6 +34,9 @@ Everything the tool does is read-only.
 | `--as-of` | now | bound **what greenlight recorded** to this ISO-8601 instant. Bounds nothing else — see misreading 2 |
 | `--output` | `greenlight_decisions_<as-of>.csv` | destination |
 | `--skip-loc` | off | skip every GitHub call and leave the LOC columns blank |
+| `--sample-frac` | off | export only this share of the pull requests, in (0, 1], rounded up |
+| `--sample-cap` | off | export at most this many pull requests |
+| `--seed` | `0` | which sample; pass the replay's `--seed` |
 
 The default output lands in the current directory. Run from inside the repo and
 you get an untracked CSV in your working tree; `.gitignore` covers
@@ -44,6 +47,16 @@ checkout is tidier.
 full run makes one GitHub compare call per decided PR, plus a second only for
 those whose head moved after the verdict — about 1.2 calls per PR today, two in
 the worst case.
+
+`--sample-frac`, `--sample-cap` or both export a reproducible sample instead:
+`min(cap, ceil(frac * n))` of the `n` pull requests the query returned, chosen
+before any GitHub call, so only the sampled ones are measured. Each is ranked by
+the sha256 of the seed and its `repo` and `pr_number` cells, and the lowest
+ranks are kept in the query's order. `greenlight_replay` samples by that same
+key, so under the same `--seed` its `--sample-n` draw from a sampled export is
+its draw from the full export whenever at least that many sampled rows survive
+its frame, and a subset of it otherwise. Without either flag `--seed` does
+nothing.
 
 Exit codes: `0` success; `1` nothing was written (could not connect, query
 failed, no rows, or the file could not be written); `3` the CSV was written but
