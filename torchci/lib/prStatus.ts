@@ -20,6 +20,7 @@ import {
 import {
   getApprovalStatusFromReviews,
   getApprovingReviewers,
+  getOutstandingChangesReviewers,
   PR_APPROVED,
   PR_CHANGES_REQUESTED,
 } from "lib/reviewApproval";
@@ -80,6 +81,8 @@ export interface PrStatusState {
   pullRequest?: { state?: string; draft?: boolean; created_at?: string };
   // Outstanding requests from the same live PR read, for final-review reminders.
   requestedReviewers?: string[];
+  // Outstanding changes reviewers who have actually been asked to review again.
+  reReviewers?: string[];
   preReview?: PreReviewStatus;
   // The PR's current labels, as fetched for the Dr.CI comment.
   labels: string[];
@@ -268,6 +271,7 @@ export function getPrStatusMessage(state: PrStatusState): string {
 }
 
 function getPrStatusStageMessage(state: PrStatusState): string {
+  const reReviewers = formatReviewers(state.reReviewers ?? []);
   switch (getPrStatusStage(state)) {
     case "draft":
       return (
@@ -290,7 +294,10 @@ function getPrStatusStageMessage(state: PrStatusState): string {
     case "readyForReview":
       return (
         "## PR Status: ready for maintainer review\n\n" +
-        (state.hasChangesRequested
+        (reReviewers
+          ? `**Waiting for re-review:** ${reReviewers}.\n\n` +
+            "These reviewers have been asked to review the latest updates."
+          : state.hasChangesRequested
           ? "A maintainer requested changes. Please address their feedback " +
             "and ask for another review."
           : "Waiting for a maintainer with merge rights for the changed paths " +
@@ -596,18 +603,28 @@ export async function fetchPrStatusState(
         )
       : [];
 
+  const requestedReviewers = pull
+    ? buildAssignedReviewers(
+        owner,
+        pull.data.requested_reviewers ?? [],
+        pull.data.requested_teams ?? [],
+        [],
+        author ?? ""
+      )
+    : undefined;
+  const outstandingChanges = new Set(
+    getOutstandingChangesReviewers(reviews, author ?? "").map((login) =>
+      login.toLowerCase()
+    )
+  );
+
   return {
     labels: liveLabels,
     authorLogin: author,
-    requestedReviewers: pull
-      ? buildAssignedReviewers(
-          owner,
-          pull.data.requested_reviewers ?? [],
-          pull.data.requested_teams ?? [],
-          [],
-          author ?? ""
-        )
-      : undefined,
+    requestedReviewers,
+    reReviewers: requestedReviewers?.filter((login) =>
+      outstandingChanges.has(login.toLowerCase())
+    ),
     pullRequest: pull
       ? {
           state: pull.data.state,

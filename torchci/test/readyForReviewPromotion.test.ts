@@ -239,6 +239,24 @@ describe("maybePromoteToReadyForReview", () => {
     return [add, remove];
   }
 
+  function mockReReviewState(requested: string[] = [], events: object[] = []) {
+    return api()
+      .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
+      .reply(200, [
+        {
+          event: "labeled",
+          label: { name: "in progress" },
+          created_at: AFTER,
+        },
+        ...events,
+      ])
+      .get("/repos/pytorch/pytorch/pulls/1/requested_reviewers?per_page=100")
+      .reply(200, {
+        users: requested.map((login) => ({ login })),
+        teams: [],
+      });
+  }
+
   const promote = (ciGreen = true, review = REVIEW) =>
     maybePromoteToReadyForReview(
       octokit,
@@ -345,6 +363,13 @@ describe("maybePromoteToReadyForReview", () => {
     const freshScope = [
       mockPr(),
       mockActivity(activity, freshStartedMs),
+      mockReReviewState(),
+      mockPermission("maint", "write"),
+      api()
+        .post("/repos/pytorch/pytorch/pulls/1/requested_reviewers", {
+          reviewers: ["maint"],
+        })
+        .reply(201, {}),
       ...mockPromote(),
     ];
 
@@ -357,6 +382,110 @@ describe("maybePromoteToReadyForReview", () => {
       })
     ).toBe("promoted");
     handleScope(freshScope);
+  });
+
+  test("a failed re-review request leaves labels untouched and retries before promotion", async () => {
+    const activity = {
+      reviews: [
+        {
+          user: { login: "maint" },
+          state: "CHANGES_REQUESTED",
+          submitted_at: BEFORE,
+        },
+      ],
+    };
+    const failed = [
+      mockPr(),
+      mockActivity(activity),
+      mockReReviewState(),
+      mockPermission("maint", "write"),
+      api()
+        .post("/repos/pytorch/pytorch/pulls/1/requested_reviewers", {
+          reviewers: ["maint"],
+        })
+        .reply(500),
+    ];
+    await expect(promote()).rejects.toThrow();
+    handleScope(failed);
+
+    // A failed response can still have created the request. Read live state
+    // on retry; no second request is needed before finishing the label move.
+    const retry = [
+      mockPr(),
+      mockActivity(activity),
+      mockReReviewState(["maint"]),
+      ...mockPromote(),
+    ];
+    expect(await promote()).toBe("promoted");
+    handleScope(retry);
+
+    const sweep = mockPr({ labels: [{ name: "ready for review" }] });
+    expect(await promote()).toBe("not_eligible");
+    handleScope(sweep);
+  });
+
+  test("a failed label write retries without re-requesting a reviewer who has since commented", async () => {
+    const reviews = [
+      {
+        user: { login: "maint" },
+        state: "CHANGES_REQUESTED",
+        submitted_at: BEFORE,
+      },
+    ];
+    const failed = [
+      mockPr(),
+      mockActivity({ reviews }),
+      mockReReviewState(),
+      mockPermission("maint", "write"),
+      api()
+        .post("/repos/pytorch/pytorch/pulls/1/requested_reviewers", {
+          reviewers: ["maint"],
+        })
+        .reply(201, {}),
+      api()
+        .post("/repos/pytorch/pytorch/issues/1/labels", {
+          labels: ["ready for review"],
+        })
+        .reply(500),
+    ];
+    await expect(promote()).rejects.toThrow();
+    handleScope(failed);
+
+    // GitHub removes the request after a comment-only review. Even when a
+    // subsequent automated review passes, this transition already notified
+    // the maintainer and must not request the same outstanding review again.
+    const freshStartedMs = Date.parse("2026-10-01T15:00:00Z");
+    const retry = [
+      mockPr(),
+      mockActivity(
+        {
+          reviews: [
+            ...reviews,
+            {
+              user: { login: "maint" },
+              state: "COMMENTED",
+              submitted_at: AFTER,
+            },
+          ],
+        },
+        freshStartedMs
+      ),
+      mockReReviewState(
+        [],
+        [
+          {
+            event: "review_requested",
+            created_at: AFTER,
+            requested_reviewer: { login: "maint" },
+          },
+        ]
+      ),
+      ...mockPromote(),
+    ];
+    expect(
+      await promote(true, { ...REVIEW, started_at_ms: String(freshStartedMs) })
+    ).toBe("promoted");
+    handleScope(retry);
   });
 
   test("checks live labels and head, not the evaluated ones", async () => {

@@ -58,12 +58,16 @@ function mockLiveLabels(labels: string[]) {
 }
 
 // Exercise real rendering; a missing Dr.CI comment stops before writing.
-function mockStatusRefresh(reviews: any[] = [], message?: string) {
+function mockStatusRefresh(
+  reviews: any[] = [],
+  message?: string,
+  pull: any = {}
+) {
   const scope = nock("https://api.github.com")
     .get(`/repos/${REPO}/pulls/${PR_NUMBER}/reviews?per_page=100`)
     .reply(200, reviews)
     .get(`/repos/${REPO}/pulls/${PR_NUMBER}`)
-    .reply(200, { state: "open", draft: false })
+    .reply(200, { state: "open", draft: false, ...pull })
     .get(`/repos/${REPO}/issues/${PR_NUMBER}/comments`)
     .reply(
       200,
@@ -95,6 +99,18 @@ function mockRemoveLabel(name: string, status = 200) {
       `/repos/${REPO}/issues/${PR_NUMBER}/labels/${encodeURIComponent(name)}`
     )
     .reply(status, []);
+}
+
+function mockOptOutPull(overrides: any = {}) {
+  return nock("https://api.github.com")
+    .get(`/repos/${REPO}/pulls/${PR_NUMBER}`)
+    .reply(200, {
+      state: "open",
+      draft: false,
+      user: { login: "author" },
+      labels: [{ name: "in progress" }, { name: "no automated review" }],
+      ...overrides,
+    });
 }
 
 describe("prStatusBot", () => {
@@ -325,6 +341,10 @@ describe("prStatusBot", () => {
         });
       const scopes = [
         mockLiveLabels(["in progress", "no automated review"]),
+        mockOptOutPull(),
+        nock("https://api.github.com")
+          .get(`/repos/${REPO}/pulls/${PR_NUMBER}/reviews?per_page=100`)
+          .reply(200, []),
         add,
         remove,
         mockLiveLabels(["ready for review", "no automated review"]),
@@ -333,6 +353,137 @@ describe("prStatusBot", () => {
       await probot.receive(
         labelEvent("labeled", label, ["in progress", "no automated review"])
       );
+      handleScope(scopes);
+    }
+  );
+
+  test.each(["labeled", "ready_for_review", "reopened"])(
+    "opt-out promotion on %s requests re-review before changing readiness labels",
+    async (action) => {
+      const review = {
+        user: { login: REVIEWER },
+        state: "CHANGES_REQUESTED",
+        submitted_at: "2026-01-01T00:00:00Z",
+        author_association: "MEMBER",
+      };
+      const request = nock("https://api.github.com")
+        .post(`/repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers`, {
+          reviewers: [REVIEWER],
+        })
+        .reply(201, {});
+      const add = nock("https://api.github.com")
+        .post(`/repos/${REPO}/issues/${PR_NUMBER}/labels`, {
+          labels: ["ready for review"],
+        })
+        .reply(() => {
+          expect(request.isDone()).toBe(true);
+          return [200, []];
+        });
+      const scopes = [
+        ...(action === "labeled"
+          ? [mockLiveLabels(["in progress", "no automated review"])]
+          : []),
+        mockOptOutPull(),
+        nock("https://api.github.com")
+          .get(`/repos/${REPO}/pulls/${PR_NUMBER}/reviews?per_page=100`)
+          .reply(200, [review])
+          .get(`/repos/${REPO}/issues/${PR_NUMBER}/timeline?per_page=100`)
+          .reply(200, [
+            {
+              id: 100,
+              event: "labeled",
+              created_at: "2026-01-01T01:00:00Z",
+              label: { name: "in progress" },
+            },
+          ])
+          .get(
+            `/repos/${REPO}/pulls/${PR_NUMBER}/requested_reviewers?per_page=100`
+          )
+          .reply(200, { users: [], teams: [] })
+          .get(`/repos/${REPO}/collaborators/${REVIEWER}/permission`)
+          .reply(200, { role_name: "write" }),
+        request,
+        add,
+        mockRemoveLabel("in progress"),
+        mockLiveLabels(["ready for review", "no automated review"]),
+        mockStatusRefresh(
+          [review],
+          `**Waiting for re-review:** \`${REVIEWER}\`.`,
+          {
+            requested_reviewers: [{ login: REVIEWER }],
+          }
+        ),
+      ];
+      const event = labelEvent("labeled", "no automated review", [
+        "in progress",
+        "no automated review",
+      ]);
+      event.payload.action = action;
+      if (action !== "labeled") delete event.payload.label;
+      await probot.receive(event);
+      handleScope(scopes);
+    }
+  );
+
+  test.each([false, true])(
+    "defers re-review requests for live drafts (webhook draft=%s)",
+    async (payloadDraft) => {
+      const event = labelEvent("labeled", "no automated review", [
+        "in progress",
+        "no automated review",
+      ]);
+      event.payload.pull_request.draft = payloadDraft;
+      const scopes = [
+        mockLiveLabels(["in progress", "no automated review"]),
+        mockOptOutPull({ draft: true }),
+        mockStatusRefresh([], "## PR Status: draft", { draft: true }),
+      ];
+      // No request-review or label-write mocks: promotion must remain retryable
+      // when the ready_for_review event arrives (covered above).
+      await probot.receive(event);
+      handleScope(scopes);
+    }
+  );
+
+  test("a live closed PR does not receive opt-out re-review requests", async () => {
+    const scopes = [
+      mockLiveLabels(["in progress", "no automated review"]),
+      mockOptOutPull({ state: "closed" }),
+    ];
+    await probot.receive(
+      labelEvent("labeled", "no automated review", [
+        "in progress",
+        "no automated review",
+      ])
+    );
+    handleScope(scopes);
+  });
+
+  test("ready lifecycle rechecks a removed opt-out before requesting reviews", async () => {
+    const event = labelEvent("labeled", "", [
+      "in progress",
+      "no automated review",
+    ]);
+    event.payload.action = "ready_for_review";
+    delete event.payload.label;
+    const scopes = [
+      mockOptOutPull({ labels: [{ name: "in progress" }] }),
+      mockStatusRefresh([], "## PR Status: in progress"),
+    ];
+    await probot.receive(event);
+    handleScope(scopes);
+  });
+
+  test.each(["review_requested", "review_request_removed"])(
+    "%s refreshes ready-only PRs without a triaged label",
+    async (action) => {
+      const event = labelEvent("labeled", "", ["ready for review"]);
+      event.payload.action = action;
+      delete event.payload.label;
+      const scopes = [
+        mockStatusRefresh([], "## PR Status: ready for maintainer review"),
+      ];
+      await probot.receive(event);
       handleScope(scopes);
     }
   );
