@@ -267,6 +267,14 @@
       "rocm"
     ]
   ],
+  "test_copy_strided_chunk_alignment_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
+    "201051",
+    "https://github.com/pytorch/pytorch/issues/201051",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_copy_transpose_tiled_batched_layout_batch_first_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "200381",
     "https://github.com/pytorch/pytorch/issues/200381",
@@ -343,6 +351,13 @@
   "test_current_device_stream_constructor_under_coor_stream_kind_cuda_use_kwarg_False (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202748",
     "https://github.com/pytorch/pytorch/issues/202748",
+    [
+      "rocm"
+    ]
+  ],
+  "test_current_device_stream_constructor_under_coor_stream_kind_cuda_use_kwarg_True (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202794",
+    "https://github.com/pytorch/pytorch/issues/202794",
     [
       "rocm"
     ]
@@ -656,6 +671,14 @@
       "inductor"
     ]
   ],
+  "test_inductor_compiles_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202795",
+    "https://github.com/pytorch/pytorch/issues/202795",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_jacfwd_different_levels_cpu (__main__.TestHessianCPU)": [
     "192284",
     "https://github.com/pytorch/pytorch/issues/192284",
@@ -913,6 +936,14 @@
     "https://github.com/pytorch/pytorch/issues/200423",
     [
       "xpu"
+    ]
+  ],
+  "test_mutating_custom_op_with_device_arg_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202796",
+    "https://github.com/pytorch/pytorch/issues/202796",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_n_threads (__main__.TestOpenMP_ParallelFor)": [
@@ -1213,6 +1244,13 @@
   "test_retained_handle_stale_after_wait_timeout_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
     "200247",
     "https://github.com/pytorch/pytorch/issues/200247",
+    [
+      "rocm"
+    ]
+  ],
+  "test_retained_handle_stale_after_watchdog_abort_backend_name_nccl-legacy (__main__.NCCLSymmetricMemoryLifecycleTest)": [
+    "202797",
+    "https://github.com/pytorch/pytorch/issues/202797",
     [
       "rocm"
     ]
