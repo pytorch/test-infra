@@ -44,6 +44,7 @@ import {
   NAME_MIN_WIDTH,
   TABLE_BORDER,
 } from "lib/tests/layout";
+import { ListContext, testPagePath, testRunsHref } from "lib/tests/links";
 import { CELL_VERTICAL_PADDING, ROW_HEIGHT } from "lib/tests/rows";
 import {
   DEFAULT_TESTS_SORT,
@@ -126,6 +127,13 @@ function sectionsOf(
 // band), holds its two-line label as a row holds its two-line cells.
 
 export interface TestsTableProps {
+  // The repository as owner/name, for the rows' links to their tests' pages;
+  // undefined until the router knows it, when the cells are plain text.
+  repo: string | undefined;
+  // What the list is showing, which the Health and duration cells' links
+  // carry to the test's page; undefined until the options have resolved the
+  // URL, when those cells are plain text.
+  links: ListContext | undefined;
   // The page to show and the means to turn its pages.
   listing: TestsListing;
   // The API sort parameter in force; the headers change it.
@@ -159,6 +167,8 @@ export interface TestsTableProps {
 // The tests of a repository from GET /api/tests, sorted, filtered and paged
 // by the API.
 export default function TestsTable({
+  repo,
+  links,
   listing,
   sort,
   onSortChange,
@@ -211,8 +221,17 @@ export default function TestsTable({
   // hovered or sorted, so a label set against the right edge moves left to
   // make room for it, while a left-aligned one stays put and the arrow
   // appears after it.)
-  const columns = useMemo<GridColDef<TestRow>[]>(
-    () => [
+  const columns = useMemo<GridColDef<TestRow>[]>(() => {
+    // Where a row's cells lead (lib/tests/links.ts): the name to the test's
+    // page, the Health and duration figures to that page opened on the runs
+    // they were counted over, the row's configuration marked.
+    const nameHref = (row: TestRow) =>
+      repo === undefined ? undefined : testPagePath(repo, row.test.id);
+    const runsHref = (row: TestRow) =>
+      repo === undefined || links === undefined
+        ? undefined
+        : testRunsHref(repo, row, links);
+    return [
       {
         field: "name",
         headerName: "Name",
@@ -242,7 +261,7 @@ export default function TestsTable({
         valueGetter: (_value, row) =>
           testNameParts(row.test).join(TEST_NAME_SEPARATOR),
         renderCell: ({ row }) => (
-          <TestName test={row.test} onSearch={onSearch} />
+          <TestName test={row.test} href={nameHref(row)} onSearch={onSearch} />
         ),
       },
       {
@@ -277,7 +296,7 @@ export default function TestsTable({
         sortingOrder: ["desc", "asc"],
         valueGetter: (_value, row) => row.health.status,
         renderCell: ({ row }) => (
-          <Health health={row.health} options={options} onFilter={onFilter} />
+          <Health health={row.health} options={options} href={runsHref(row)} />
         ),
       },
       {
@@ -383,6 +402,7 @@ export default function TestsTable({
           <MeanPassedDuration
             milliseconds={row.health.mean_passed_duration_milliseconds}
             passedRuns={row.health.passed_runs}
+            href={runsHref(row)}
           />
         ),
       },
@@ -440,18 +460,19 @@ export default function TestsTable({
             <LastRun timestamp={row.health.last_run_at} />
           ),
       },
-    ],
-    [
-      options,
-      descriptions,
-      filters,
-      onFiltersChange,
-      onFilter,
-      search,
-      onSearchInput,
-      onSearch,
-    ]
-  );
+    ];
+  }, [
+    repo,
+    links,
+    options,
+    descriptions,
+    filters,
+    onFiltersChange,
+    onFilter,
+    search,
+    onSearchInput,
+    onSearch,
+  ]);
 
   const handleSortModelChange = (model: GridSortModel) => {
     onSortChange(sortParamOf(model) ?? DEFAULT_TESTS_SORT);
@@ -569,6 +590,17 @@ export default function TestsTable({
             },
             "& .MuiDataGrid-columnHeader--sorted .MuiDataGrid-columnHeaderTitle, & .MuiDataGrid-columnHeader--sorted .MuiDataGrid-iconButtonContainer .MuiIconButton-root, & .MuiDataGrid-columnHeader--sorted .MuiDataGrid-sortIcon":
               { color: sortedHeaderText },
+            // HUD's global stylesheet paints every link in a grid cell in
+            // the link blue (`.MuiDataGrid-root .MuiDataGrid-cell a` in
+            // globals.css), which is what the name and the duration figure
+            // want; said here too, so the table does not lean on that
+            // sheet. A cell whose link wants another color names it in
+            // `--cell-link-color`, which the rule reads first: the Health
+            // block its hue's ink, the healthy word the text around it. The
+            // rule outranks the global one by the root class.
+            "&.MuiDataGrid-root .MuiDataGrid-cell a": {
+              color: "var(--cell-link-color, var(--link-color))",
+            },
             // A row's cells are as tall as its tallest, `ROW_HEIGHT` at least,
             // and keep a little air above and below a name that wraps.
             "& .MuiDataGrid-cell": {

@@ -49,6 +49,7 @@ import {
   labelLayout,
   laneHeightFor,
   laneLines,
+  lanePinned,
   laneStatus,
   laneTimes,
   MIN_CELL_WIDTH,
@@ -1169,19 +1170,21 @@ describe("the header's choices", () => {
   const every = CELL_STATUSES;
 
   test("keeps the time bar for main and takes it from pull requests", () => {
-    expect(timeBarAvailable("main")).toBe(true);
-    expect(timeBarAvailable("pull_request")).toBe(false);
+    expect(timeBarAvailable(["main"])).toBe(true);
+    expect(timeBarAvailable(["pull_request"])).toBe(false);
+    // Pull requests among the sources take the bar too.
+    expect(timeBarAvailable(["main", "pull_request"])).toBe(false);
     const chosen = resolveGridQuery({}, options);
     expect(timeBarShown(chosen)).toBe(true);
-    expect(timeBarShown({ ...chosen, ranOn: "pull_request" })).toBe(false);
+    expect(timeBarShown({ ...chosen, ranOn: ["pull_request"] })).toBe(false);
     expect(timeBarShown({ ...chosen, timeBar: false })).toBe(false);
     // The reader's choice stays in the URL while pull requests hide the
     // bar, so main shows it again on return.
     expect(
-      gridUrlParams({ ...chosen, ranOn: "pull_request" }).time_bar
+      gridUrlParams({ ...chosen, ranOn: ["pull_request"] }).time_bar
     ).toBeUndefined();
     expect(
-      gridUrlParams({ ...chosen, ranOn: "pull_request", timeBar: false })
+      gridUrlParams({ ...chosen, ranOn: ["pull_request"], timeBar: false })
         .time_bar
     ).toBe("0");
   });
@@ -1193,6 +1196,7 @@ describe("the header's choices", () => {
       outcomes: every,
       timeBar: true,
       commit: "",
+      lane: null,
     });
     expect(
       resolveGridQuery(
@@ -1200,11 +1204,12 @@ describe("the header's choices", () => {
         options
       )
     ).toEqual({
-      ranOn: "pull_request",
+      ranOn: ["pull_request"],
       window: "14d",
       outcomes: ["failed", "flaky"],
       timeBar: true,
       commit: "",
+      lane: null,
     });
     expect(
       resolveGridQuery(
@@ -1212,12 +1217,22 @@ describe("the header's choices", () => {
         options
       )
     ).toEqual({
-      ranOn: "main",
+      ranOn: ["main"],
       window: "3d",
       outcomes: every,
       timeBar: true,
       commit: "",
+      lane: null,
     });
+    // Both code sources, comma-separated or repeated as the API takes them,
+    // in the options' order whatever the URL's, the unknown dropped.
+    expect(
+      resolveGridQuery({ ran_on: "pull_request,main" }, options).ranOn
+    ).toEqual(["main", "pull_request"]);
+    expect(
+      resolveGridQuery({ ran_on: ["pull_request", "main,trunk"] }, options)
+        .ranOn
+    ).toEqual(["main", "pull_request"]);
     // The hash sought, trimmed; one value only.
     expect(resolveGridQuery({ commit: " 8f3a1 " }, options).commit).toBe(
       "8f3a1"
@@ -1230,14 +1245,50 @@ describe("the header's choices", () => {
     ).toEqual(every);
   });
 
+  test("name the configuration to mark by both its ids, or not at all", () => {
+    expect(
+      resolveGridQuery(
+        { environment: "2081130751942693630", env_vars: "7" },
+        options
+      ).lane
+    ).toEqual({ environmentId: "2081130751942693630", envVarsId: "7" });
+    expect(resolveGridQuery({ environment: "1" }, options).lane).toBeNull();
+    expect(resolveGridQuery({ env_vars: "7" }, options).lane).toBeNull();
+    // An id is a UInt64 as a decimal string, as the API spells ids, and one
+    // value only.
+    expect(
+      resolveGridQuery({ environment: "abc", env_vars: "7" }, options).lane
+    ).toBeNull();
+    expect(
+      resolveGridQuery({ environment: ["1", "2"], env_vars: "7" }, options).lane
+    ).toBeNull();
+    // A lane is the pin's when both its ids are.
+    const lane = {
+      environment: { id: "1" } as EnvironmentRecord,
+      envVars: { id: "7" } as EnvVarsRecord,
+    };
+    expect(lanePinned(lane, { environmentId: "1", envVarsId: "7" })).toBe(true);
+    expect(lanePinned(lane, { environmentId: "1", envVarsId: "8" })).toBe(
+      false
+    );
+    expect(lanePinned(lane, null)).toBe(false);
+    expect(
+      lanePinned(
+        { environment: null, envVars: lane.envVars },
+        { environmentId: "1", envVarsId: "7" }
+      )
+    ).toBe(false);
+  });
+
   test("go back into the URL without the defaults", () => {
     expect(
       gridUrlParams({
-        ranOn: "main",
+        ranOn: ["main"],
         window: "3d",
         outcomes: every,
         timeBar: true,
         commit: "",
+        lane: null,
       })
     ).toEqual({
       ran_on: undefined,
@@ -1245,14 +1296,17 @@ describe("the header's choices", () => {
       outcomes: undefined,
       time_bar: undefined,
       commit: undefined,
+      environment: undefined,
+      env_vars: undefined,
     });
     expect(
       gridUrlParams({
-        ranOn: "pull_request",
+        ranOn: ["pull_request"],
         window: "3h",
         outcomes: ["failed", "flaky"],
         timeBar: false,
         commit: "8f3a1",
+        lane: { environmentId: "2081130751942693630", envVarsId: "7" },
       })
     ).toEqual({
       ran_on: "pull_request",
@@ -1260,7 +1314,20 @@ describe("the header's choices", () => {
       outcomes: "failed,flaky",
       time_bar: "0",
       commit: "8f3a1",
+      environment: "2081130751942693630",
+      env_vars: "7",
     });
+    // Both code sources, comma-separated.
+    expect(
+      gridUrlParams({
+        ranOn: ["main", "pull_request"],
+        window: "7d",
+        outcomes: every,
+        timeBar: true,
+        commit: "",
+        lane: null,
+      }).ran_on
+    ).toBe("main,pull_request");
   });
 
   test("find the commit a hash names, or say why there is none", () => {
@@ -1299,16 +1366,30 @@ describe("the header's choices", () => {
     );
   });
 
-  test("address the grid at the runs endpoint, the outcomes being the page's own", () => {
+  test("address the grid at the runs endpoint, the outcomes and the pin being the page's own", () => {
     expect(
       testGridApiUrl("42", {
-        ranOn: "main",
+        ranOn: ["main"],
         window: "7d",
         outcomes: ["failed"],
         timeBar: true,
         commit: "",
+        lane: { environmentId: "1", envVarsId: "7" },
       })
     ).toBe("/api/tests/test/42/runs?group_by=commit&ran_on=main&window=7d");
+    // Both code sources go as the API takes them, comma-separated.
+    expect(
+      testGridApiUrl("42", {
+        ranOn: ["main", "pull_request"],
+        window: "7d",
+        outcomes: every,
+        timeBar: true,
+        commit: "",
+        lane: null,
+      })
+    ).toBe(
+      "/api/tests/test/42/runs?group_by=commit&ran_on=main%2Cpull_request&window=7d"
+    );
   });
 
   test("name the outcomes shown on the key and in the empty sentence", () => {
@@ -1396,11 +1477,12 @@ describe("useTestGrid", () => {
     fetchMock = stubFetch(async () => Response.json(emptyGrid));
     global.fetch = fetchMock as unknown as typeof fetch;
     const query = {
-      ranOn: "main",
+      ranOn: ["main"],
       window: "7d",
       outcomes: CELL_STATUSES,
       timeBar: true,
       commit: "",
+      lane: null,
     } as const;
     expect(await render(undefined, query)).toEqual({
       loading: true,
@@ -1424,11 +1506,12 @@ describe("useTestGrid", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     expect(
       await render("42", {
-        ranOn: "main",
+        ranOn: ["main"],
         window: "7d",
         outcomes: CELL_STATUSES,
         timeBar: true,
         commit: "",
+        lane: null,
       })
     ).toEqual({
       loading: false,

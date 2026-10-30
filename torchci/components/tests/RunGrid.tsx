@@ -17,6 +17,7 @@ import HeaderSearch from "components/tests/HeaderSearch";
 import HeaderSelect from "components/tests/HeaderSelect";
 import LoadError from "components/tests/LoadError";
 import LoadTime from "components/tests/LoadTime";
+import TextButton from "components/tests/TextButton";
 import dayjs from "dayjs";
 import type { TestOptions } from "lib/api/tests/options/types";
 import type { HealthWindow, RanOn } from "lib/api/tests/parameters";
@@ -69,6 +70,7 @@ import {
   LABEL_AIR,
   LABEL_SEPARATOR,
   labelLayout,
+  lanePinned,
   laneTimes,
   LaneTimes,
   OUTCOME_LABELS,
@@ -105,7 +107,7 @@ import {
   HEADER_TITLE_TOOLTIP_DELAY_MS,
   TABLE_BORDER,
 } from "lib/tests/layout";
-import { durationLabel, integerLabel } from "lib/tests/table";
+import { durationLabel, integerLabel, ranOnPhrase } from "lib/tests/table";
 import type { PageTiming } from "lib/tests/useTestsListing";
 import {
   Fragment,
@@ -159,6 +161,10 @@ interface Hover {
 // The ring around the cell under the pointer, the list's health blocks'
 // hover ring, drawn inside the grown box as the cells' edge is.
 const HOVER_RING = 1.5;
+// The strip at the table's left edge along a pinned lane, and the air left
+// between the header and a pinned lane scrolled into view.
+const PIN_STRIP_WIDTH = 6;
+const PIN_SCROLL_AIR = 16;
 // The card and the pill are placed by measures read from the drawing, so
 // the layout effect; on the server, where there is nothing to measure and a
 // layout effect only warns, a plain effect (MUI's useEnhancedEffect).
@@ -354,8 +360,12 @@ function Swatch({ theme, status }: { theme: Theme; status: CellStatus }) {
 // around rounded corners, a header band in the same grey with small bold
 // uppercase muted titles and a short rule between its columns, hairlines
 // between rows. The band's right end holds the table's choices as keys in
-// the headers' filter-key style: a commit to find, the code source, the
-// window, the outcomes shown and the time bar. Each
+// the headers' filter-key style: a commit to find, the code sources, the
+// window, the outcomes shown and the time bar. A configuration named in the
+// URL, the list's row a reader came from, has its lanes banded in the
+// pinned blue with a strip at the table's left edge that unpins them, and
+// the first is scrolled into view; a pin that names no lane is said so
+// above the rows. Each
 // workflow is a section: a row in the band's grey with its name in mono,
 // its configurations beneath in the caption size, a skip-only lane muted;
 // beside each lane its passed, failed and skipped cells
@@ -699,7 +709,7 @@ export default function RunGrid({
     const text = commitSearchMessage(
       search,
       commitText,
-      labelOf(choices.query.ranOn, choices.options.ran_on.values),
+      ranOnPhrase(choices.query.ranOn, choices.options),
       `last ${labelOf(choices.query.window, choices.options.window.values)}`
     );
     return text === null
@@ -721,14 +731,15 @@ export default function RunGrid({
     if (other !== null && other.scrollLeft !== left) other.scrollLeft = left;
     setScrollLeft((current) => (current === left ? current : left));
   };
-  // New choices of code source or window start at the plot's left end,
-  // the newest commits.
-  const ranOn = query?.ranOn;
+  // New choices of code sources or window start at the plot's left end,
+  // the newest commits (the sources as text, since the query's array is
+  // new at every change of URL).
+  const sourcesKey = query?.ranOn.join(",");
   const windowChoice = query?.window;
   useEffect(() => {
     const scroller = plotScrollerRef.current;
     if (scroller !== null) scroller.scrollLeft = 0;
-  }, [ranOn, windowChoice]);
+  }, [sourcesKey, windowChoice]);
   // The commit the search found is brought into view, centred in the room.
   useEffect(() => {
     const scroller = plotScrollerRef.current;
@@ -738,6 +749,53 @@ export default function RunGrid({
       Math.round(pinnedColumn * step) + cellWidth / 2 - room / 2
     );
   }, [pinnedColumn, step, cellWidth, room]);
+  // The configuration the reader came for, named in the URL by the list's
+  // evidence links: its lanes, one per workflow, are banded in the pinned
+  // blue with a strip at the table's left edge, which unpins them.
+  const pin = choices === null ? null : choices.query.lane;
+  const pinnedRows =
+    pin === null ? [] : laneRows.filter((row) => lanePinned(row.lane, pin));
+  const unpin = () => {
+    if (choices !== null) onQueryChange({ ...choices.query, lane: null });
+  };
+  // The first pinned lane is brought into view once the grid is drawn, once
+  // per grid and pin, so a re-render never pulls back a reader who has
+  // scrolled on; a lane already in view, between the header stuck to the
+  // viewport's top and the footer stuck to its bottom, is left where it is.
+  const pinKey = pin === null ? null : `${pin.environmentId}|${pin.envVarsId}`;
+  const scrolledTo = useRef<{ grid: RunGridData; pinKey: string } | null>(null);
+  const firstPinnedRow = pinnedRows[0];
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (
+      grid === undefined ||
+      pinKey === null ||
+      svg === null ||
+      firstPinnedRow === undefined
+    ) {
+      return;
+    }
+    if (
+      scrolledTo.current?.grid === grid &&
+      scrolledTo.current.pinKey === pinKey
+    ) {
+      return;
+    }
+    scrolledTo.current = { grid, pinKey };
+    const laneTop = svg.getBoundingClientRect().top + firstPinnedRow.top;
+    const laneBottom = laneTop + firstPinnedRow.height;
+    const visibleTop = GRID_SIZES.headerHeight;
+    const visibleBottom =
+      window.innerHeight - footerHeight(pinnedCommit !== null, scrollable);
+    if (laneTop >= visibleTop && laneBottom <= visibleBottom) return;
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({
+      top: window.scrollY + laneTop - visibleTop - PIN_SCROLL_AIR,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  }, [grid, pinKey, firstPinnedRow, pinnedCommit, scrollable]);
   // The frame's corners, and the band's inside them.
   const radius = Number(theme.shape.borderRadius);
 
@@ -808,9 +866,9 @@ export default function RunGrid({
           ? "No runs."
           : `No ${
               narrowed ? `${outcomesPhrase(shownOutcomes)} ` : ""
-            }runs on ${labelOf(
+            }runs on ${ranOnPhrase(
               choices.query.ranOn,
-              choices.options.ran_on.values
+              choices.options
             )} in the last ${labelOf(
               choices.query.window,
               choices.options.window.values
@@ -825,6 +883,43 @@ export default function RunGrid({
       // below it, as the header band is stuck to the top (a tall grid
       // would otherwise scroll both out of sight).
       <>
+        {/* A pin that names no lane of this grid: said above the rows, in
+          the pin's band and strip, with the choices in force, since the
+          configuration may have run outside them. */}
+        {pin !== null && pinnedRows.length === 0 && choices !== null && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              px: 1.5,
+              py: 0.75,
+              fontSize: captionSize,
+              color: "text.secondary",
+              backgroundColor: pinned.band,
+              borderLeft: `${PIN_STRIP_WIDTH}px solid ${pinned.background}`,
+              borderBottom: `1px solid ${hairline}`,
+            }}
+          >
+            <span>
+              {`No runs ${
+                narrowed ? "shown " : ""
+              }for the configuration you came from on ${ranOnPhrase(
+                choices.query.ranOn,
+                choices.options
+              )} in the last ${labelOf(
+                choices.query.window,
+                choices.options.window.values
+              )}.`}
+            </span>
+            <TextButton
+              label="Unpin the configuration you came from"
+              onClick={unpin}
+            >
+              Unpin
+            </TextButton>
+          </Box>
+        )}
         <Box sx={{ position: "relative" }}>
           {width > 0 && (
             <Box sx={{ display: "flex", alignItems: "flex-start" }}>
@@ -845,7 +940,7 @@ export default function RunGrid({
                 {/* The badges' hover and focus, which the SVG's styles cannot
                 say inline: a step darker under the pointer, the keys' ring
                 when reached from the keyboard. */}
-                <style>{`g[data-badge]:hover > rect { fill: ${badge.activeFill}; } g[data-badge]:focus-visible > rect[data-pill] { stroke: ${theme.palette.primary.main}; stroke-width: 2px; }`}</style>
+                <style>{`g[data-badge]:hover > rect { fill: ${badge.activeFill}; } g[data-badge]:focus-visible > rect[data-pill] { stroke: ${theme.palette.primary.main}; stroke-width: 2px; } g[data-pin]:focus-visible > rect { stroke: ${theme.palette.primary.main}; stroke-width: 2px; }`}</style>
                 {/* Each workflow's row in the band's grey, continued in the
                 plot. */}
                 {sections.map((row) => (
@@ -856,6 +951,20 @@ export default function RunGrid({
                     width={plotX}
                     height={GRID_SIZES.sectionHeight}
                     fill={band}
+                    style={SHAPE_STYLE}
+                  />
+                ))}
+                {/* The lanes of the configuration the reader came for, banded
+                  across in the pinned blue, the found column's hue; the band
+                  continues in the plot. */}
+                {pinnedRows.map((row) => (
+                  <rect
+                    key={row.lane.key}
+                    x={0}
+                    y={row.top}
+                    width={plotX}
+                    height={row.height}
+                    fill={pinned.band}
                     style={SHAPE_STYLE}
                   />
                 ))}
@@ -1147,6 +1256,41 @@ export default function RunGrid({
                     </g>
                   );
                 })}
+                {/* The pin's strip along each of its lanes at the table's left
+                edge, solid in the pinned blue, over the rest: a control,
+                like the badge, that unpins by click, Enter or Space. */}
+                {pinnedRows.map((row) => (
+                  <g
+                    key={row.lane.key}
+                    data-pin
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Unpin the configuration you came from"
+                    style={{ cursor: "pointer", outline: "none" }}
+                    onClick={(event: ReactMouseEvent<SVGGElement>) => {
+                      event.stopPropagation();
+                      unpin();
+                    }}
+                    onKeyDown={(event: ReactKeyboardEvent<SVGGElement>) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        unpin();
+                      }
+                    }}
+                  >
+                    <title>
+                      The configuration you came from. Click to unpin it.
+                    </title>
+                    <rect
+                      x={0}
+                      y={row.top}
+                      width={PIN_STRIP_WIDTH}
+                      height={row.height}
+                      fill={pinned.background}
+                    />
+                  </g>
+                ))}
               </svg>
               {/* The plot: the runs on the commits, scrolling sideways under
               the fixed columns when the commits outnumber the room; its own
@@ -1235,6 +1379,20 @@ export default function RunGrid({
                         </g>
                       );
                     })}
+                    {/* The lanes of the configuration the reader came for,
+                      banded across in the pinned blue, continued from the
+                      fixed drawing. */}
+                    {pinnedRows.map((row) => (
+                      <rect
+                        key={row.lane.key}
+                        x={0}
+                        y={row.top}
+                        width={plotWidth}
+                        height={row.height}
+                        fill={pinned.band}
+                        style={SHAPE_STYLE}
+                      />
+                    ))}
                     {hover !== null && (
                       <rect
                         x={x(hover.column) - gap / 2}
@@ -1246,7 +1404,7 @@ export default function RunGrid({
                       />
                     )}
                     {/* The column of the commit the search found, banded in the
-                pinned orange, apart from the hover's blue. */}
+                pinned blue, apart from the hover's orange. */}
                     {pinnedColumn !== null && (
                       <rect
                         x={x(pinnedColumn) - gap / 2}
@@ -1762,7 +1920,7 @@ export default function RunGrid({
                   pointerEvents: "none",
                   px: 1,
                   borderRadius: "999px",
-                  // Blue, as the band over the column is, so the commit under
+                  // Orange, as the band over the column is, so the commit under
                   // the pointer is not missed on the footer's grey.
                   backgroundColor: pill.background,
                   color: pill.text,
@@ -1937,13 +2095,15 @@ export default function RunGrid({
                   }
                   message={searchMessage}
                 />
+                {/* The code sources: one or both, as the list's title
+                    combines them, so an evidence link from the list shows
+                    the runs its figure counted. */}
                 <HeaderSelect<RanOn>
-                  label="Code source"
-                  display={labelOf(
-                    choices.query.ranOn,
-                    choices.options.ran_on.values
-                  )}
+                  label="Code sources"
+                  display={ranOnPhrase(choices.query.ranOn, choices.options)}
                   options={choices.options.ran_on.values}
+                  multiple
+                  allLabel="All code sources"
                   value={choices.query.ranOn}
                   onChange={(ranOn) =>
                     onQueryChange({ ...choices.query, ranOn })

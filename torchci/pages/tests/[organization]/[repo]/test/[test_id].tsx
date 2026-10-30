@@ -22,8 +22,9 @@ import { useMemo } from "react";
 // workflow configuration and one column per commit. The id in the URL is
 // the API's stable test id, the one the list's entries carry. What the grid
 // shows travels in the URL's query parameters, left off at the page's
-// defaults: the code source and the window as the API spells them, and the
-// page's own, the outcomes shown, the time bar and the commit sought
+// defaults: the code sources and the window as the API spells them, and the
+// page's own, the outcomes shown, the time bar, the commit sought and the
+// configuration marked, which the list's evidence links name
 // (gridUrlParams), resolved against GET /api/tests/options, which also
 // labels the language and the choices, like every label on the list page;
 // the choices are keys in the grid's header. The API is behind

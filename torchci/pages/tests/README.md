@@ -224,15 +224,56 @@ for the data it shows.
   "CUDA 13.2" sets `accelerator` and `accelerator_version` and nothing else;
   the header's key then shows it. Tokens have no active state: a filtered
   value is the same in every row, and marking it would stripe the column.
+- Where a row leads (`lib/tests/links.ts`): a row's cells follow one rule,
+  text that describes the test narrows the list and the test's own figures
+  open the test. The case name is a link to the test's page
+  (`testPagePath`), bare, so its URL is short and the same from every row of
+  the test, as the name is the way in on any list of things; the file and
+  the suite beneath it search. The Health block, or the word of a healthy
+  cell, and the Mean Passed Duration figure are evidence links
+  (`testRunsHref`): a reader who clicks "Failing 92%" is asking to see the
+  failures, so the link opens the test's page on the list's window and code
+  sources, which the figure was counted over, with the row's configuration
+  named (`environment=` and `env_vars=`, the row's catalog ids), which the
+  grid marks among the others; the page's own defaults are left off, as
+  the page leaves them off its own URL. Narrowing the list by status stays
+  in the Health header's key, where the status filter already was. The
+  links are real links (`TextLink`, and `CellBlock` given an `href`, both
+  on `next/link` with prefetch off): the modifier keys and the middle
+  button open a tab, the context menu copies the address, the status bar
+  shows where they lead, Tab reaches them and Enter follows. The name and the duration figure are in HUD's link blue
+  (`--link-color`, the color of the links in HUD's other tables, following
+  the theme's mode), so a reader sees at a glance what can be followed; a
+  first version kept them in the text color and the user asked for the blue
+  (2026-10-29). The Health block keeps its hue's ink and the healthy word
+  the muted text around it, so the Health column stays about status: HUD's
+  global stylesheet paints a grid cell's links blue with a rule the table's
+  own restates and outranks, `color: var(--cell-link-color, var(--link-color))`,
+  and those two name their color in the variable (`TextLink`'s `tone`,
+  `CellBlock`). The links announce themselves on hover with a
+  full-strength underline in the text's own color, where the text that
+  filters underlines in the disabled grey: the one hover says the table
+  narrows, the other that the page changes. The whole row is not a link:
+  the cells are copyable, and a row click would turn the first click of a
+  double-click into a navigation; nor is there a hover-revealed arrow,
+  since faint affordances failed in the headers. The Health tooltip ends
+  with where a click leads.
 - Every cell's text can be selected and copied, the text that acts included:
-  a drag across a token, a file, a suite or a Health block selects it like
-  any other text, and the click that ends the drag does nothing
-  (`endsTextSelection` in `lib/tests/selection.ts`, which `TextButton` and
-  `CellBlock` consult), so the table does not reload under a selection the
-  reader just made; a plain click, or Enter or Space on the control, still
-  acts. The controls are spans with the button role, not `<button>`s, whose
-  text not every browser lets a reader select, and they override MUI
-  ButtonBase's `user-select: none`. Ctrl+C with text selected copies the
+  a drag across a token, a file, a suite, a Health block or a link selects
+  it like any other text, and the click that ends the drag does nothing
+  (`endsTextSelection` in `lib/tests/selection.ts`, which `TextButton`,
+  `TextLink` and `CellBlock` consult; a link prevents its default then), so
+  the table does not reload, and the page does not change, under a
+  selection the reader just made; a plain click, or Enter or Space on a
+  control, still acts. The filtering controls are spans with the button
+  role, not `<button>`s, whose text not every browser lets a reader select,
+  and they override MUI ButtonBase's `user-select: none`; the links are
+  marked not draggable, since dragging across a link drags the link in most
+  browsers, and set `user-select: text`, since Chrome lets a selection begin
+  inside a link only there (measured 2026-10-29: without it a drag across
+  the name selected nothing and the mouse-up followed the link), and the
+  case name's link is an inline block, for the Chrome selection reason the
+  Name cell notes. Ctrl+C with text selected copies the
   selection; without one the grid copies the focused cell's value (the full
   node id for a Name cell).
 - The Name header holds the column's filter the same way the others do: a
@@ -434,10 +475,12 @@ for the data it shows.
   frame pads its text by the remaining 7px, so the text starts where the
   other cells' text does, and is rounded like the header's keys (6px).
   Healthy is plain muted text in the same
-  frame, the unremarkable case the blocks stand out of. Every word is a
-  filter token: clicking it, or the block, shows only that status, and the
-  header's key offers all four. The tooltip lists every count and rate
-  (`DetailList`, which the Environment tooltip shares). The header sorts
+  frame, the unremarkable case the blocks stand out of. The block, or the
+  healthy word, is the row's evidence link to the test's runs (above);
+  filtering by status is the header's key, which offers all four. The
+  tooltip lists every count and rate
+  (`DetailList`, which the Environment tooltip shares) and ends with where
+  a click leads. The header sorts
   worst first by what makes a test unhealthy: the status first, since a
   failure that survives its retries makes CI red while flakiness only costs
   retries; then the failure rate the cell shows; then how many runs failed;
@@ -463,7 +506,7 @@ for the data it shows.
   (`durationLabel`: "625 ms" under a second, then "12.7 s", "32.3 min",
   "1.5 h", rounding up into the next unit rather than saying "60.0 s"), full
   strength, over the number of passed runs it averages in caption-size muted
-  text, with the mean to the millisecond ("12,695 ms") as the tooltip. The two lines are the Health cell's (`CellLines` in `CellBlock.tsx`) without its frame, placed by the cell's own padding. Coloring slow means by tiers (yellow over 10 minutes, orange over 15, red over 20, in the Health cell's blocks) was tried on 2026-10-25 and taken out again as too much: the figures stay plain. The line heights are tightened to 1.25 so the two lines fit the row, and the
+  text, with the mean to the millisecond ("12,695 ms") as the tooltip. The figure is the row's evidence link to the test's runs (above), where the time bar times them; the dash is not. The two lines are the Health cell's (`CellLines` in `CellBlock.tsx`) without its frame, placed by the cell's own padding. Coloring slow means by tiers (yellow over 10 minutes, orange over 15, red over 20, in the Health cell's blocks) was tried on 2026-10-25 and taken out again as too much: the figures stay plain. The line heights are tightened to 1.25 so the two lines fit the row, and the
   column is a flex cell (`display: "flex"`): a text cell centers one line
   through its line height and would hang the stack from its baseline. Its
   label is too long for one line of a column as narrow as its figures allow,
@@ -593,10 +636,14 @@ the grid of its runs by commit.
   (`headerKeyColors`, `headerKeySx` in `lib/tests/headerColors.ts`, shared
   with the list's keys):
 
-  - `HeaderSelect` keys for the code source and the window: the page's
+  - `HeaderSelect` keys for the code sources and the window: the page's
     background with a ruled edge, the choice as text with a chevron,
     "main", "Last 3 days", a menu of one list, the accent edge while open,
-    a tooltip naming what it chooses.
+    a tooltip naming what it chooses. The code sources key chooses one or
+    both (`ranOnPhrase`, the list title's own phrase: "main and pull
+    requests"), as the list's title combines them: an evidence link from
+    the list keeps both, so the grid shows the runs the figure counted,
+    and the API takes them comma-separated.
   - An "All outcomes" `HeaderSelect` choosing which outcomes' cells are
     shown, several at once, so a reader can show only the failures: its
     menu lists Failed, Flaky, Passed, Skipped and Other, each led by the
@@ -615,8 +662,9 @@ the grid of its runs by commit.
     edge with a small checkbox), turns the time bar off and on, on by
     default, `time_bar=0` in the URL while off; the lanes keep their height
     either way, since the Outcomes column's time line needs the second
-    line. In the pull request view the bar is off and the key unticked and
-    disabled, its tooltip saying so (`timeBarAvailable`, `timeBarShown`):
+    line. With pull requests among the code sources shown the bar is off
+    and the key unticked and disabled, its tooltip saying so
+    (`timeBarAvailable`, `timeBarShown`):
     a stretch is a sustained change along one line of commits that build
     on one another, which pull requests are not, each branching from main
     at its own point and most running once. The reader's choice stays in
@@ -625,8 +673,8 @@ the grid of its runs by commit.
     glyph, the hash in the monospace, a clear button, Escape clearing too)
     finds a commit by its hash or the start of one, `commit=` in the URL:
     the column it names is banded and its pill pinned in the footer in
-    orange, a hue the grid uses for nothing else, apart from the hover's
-    blue and the statuses' hues (`commitSearch`, `pinnedCommitColors`), and
+    the theme's blue, the accent the keys use, so a pin reads as the page's own mark (an orange pin had hidden the yellow flaky pills and a teal one dimmed the green passes, 2026-10-29); the column under the pointer is banded in orange instead, a transient mark that dims only what is under the pointer, apart from the hover's
+    orange and the statuses' hues (`commitSearch`, `pinnedCommitColors`), and
     a hash no column starts with is told so on a small sheet under the key
     while the key is focused or hovered, the key's edge red, "No commit
     starting with 8f3a1 in the last 3 days of main. Widen the window, or
@@ -640,9 +688,27 @@ the grid of its runs by commit.
 
   The choices are read from the URL's `ran_on` and `window` as the API
   spells them and the page's own `outcomes` (comma-separated, in the menu's
-  order), `time_bar` (`0` while off) and `commit`, left off at the page's
-  defaults (main, 3d, every outcome, the time bar on, no commit sought) and
-  resolved against the options. The window holds jobs, not attempts: the
+  order), `time_bar` (`0` while off), `commit`, and `environment` with
+  `env_vars`, the catalog ids of the configuration to mark (`LanePin`, both
+  or neither), left off at the page's defaults (main, 3d, every outcome,
+  the time bar on, no commit sought, no configuration marked) and resolved
+  against the options. The marked configuration is the list's row a reader
+  came from, named by its evidence links (`testRunsHref` in
+  `lib/tests/links.ts`): every lane of it, one per workflow (`lanePinned`),
+  is banded across in the pinned commit's blue (`pinnedCommitColors`,
+  the band under the hover's orange) with a 6px strip of the solid blue at
+  the table's left edge, and the first is scrolled into view under the
+  header stuck to the viewport's top, once per grid and pin and only when
+  it is not already in view, smoothly unless motion is reduced, so a
+  reader who scrolls on is never pulled back. The strip is a control like
+  the badge, click, Enter or Space, that unpins, taking the two parameters
+  out of the URL; it is not a filter, since seeing the lane among its
+  siblings is the point of the page, though the API could narrow to it. A
+  pin that names no lane of the grid shown, the configuration having run
+  outside the window or code sources, or its cells being among the
+  outcomes left out, is said above the rows in the band and strip, "No
+  runs for the configuration you came from on main in the last 3 days.",
+  with an Unpin. The window holds jobs, not attempts: the
   API keeps the jobs whose first attempt started in it, with every attempt
   of theirs, as the health table assigns a run to its windows, so a run is
   never cut at the window's start. The grid is
@@ -879,10 +945,13 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
   workflows' names, the labels, the counts and the day labels: nothing sets
   `user-select`, and the SVG's texts select as HTML text does.
 
-  Hovering a column bands it across every lane in a wash of the theme's
-  blue and names the commit in a solid blue pill in the footer, its short
-  SHA and the time of the test's first attempt on it (a grey band and pill
-  were easy to miss). The cell under the pointer grows by 2px on every side
+  Hovering a column bands it across every lane in a wash of orange and
+  names the commit in a solid orange pill in the footer, its short SHA and
+  the time of the test's first attempt on it, in dark text, white on the
+  orange falling short of the contrast small text needs (a grey band and
+  pill were easy to miss; the blue is the pins', which stay, while the
+  pointer's mark is transient, so the yellow pills the orange dims are only
+  under the pointer). The cell under the pointer grows by 2px on every side
   over its neighbors (`CELL_HOVER_GROWTH`), its fill steps a shade deeper
   than its edge and a ring in the block's text shade, the block's ink,
   surrounds it (`cellHoverColors`), the ring the list's health blocks show
@@ -924,7 +993,12 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
   key and the URL follow), text typed in the Name header's search (the
   skeleton at once, the URL after the pause, the earlier request aborted when
   typing goes on, focus kept), a file and a suite clicked in a Name cell, the
-  clear button and Escape, the environment tooltip, the softened repeats when sorted by
+  clear button and Escape, the environment tooltip, the case name, the
+  Health block or healthy word and the duration figure as links (the name
+  bare, the two figures carrying `window=`, `ran_on=`, `environment=` and
+  `env_vars=`; underlined at full strength on hover where the tokens are
+  grey; a drag across each selecting its text without leaving the page;
+  Cmd-click opening a tab), the softened repeats when sorted by
   Environment, next and
   previous, a page size change, each view chip (the title, the header keys,
   the sort arrow and the URL follow; the chip stays chosen through a filter
@@ -956,5 +1030,11 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
   it stays clear of the header stuck to the viewport's top on a grid taller
   than the window; a click opening the decisive job; the `+N vars` badge
   opening its panel by click, Enter and Space; the pinned commit's band and
-  footer pill; the sticky header and footer while scrolling; and the Retry
-  of a failed options load asking the options again.
+  footer pill; the code sources key with both chosen
+  (`ran_on=main,pull_request`, the key reading "main and pull requests"); a
+  Health block clicked on the list landing on its configuration's lanes
+  banded in blue and scrolled into view, the strip unpinning by click,
+  Enter and Space, and a pin naming no lane (`?environment=1&env_vars=1`)
+  said above the rows with its Unpin; the sticky header and footer while
+  scrolling; and the Retry of a failed options load asking the options
+  again.
