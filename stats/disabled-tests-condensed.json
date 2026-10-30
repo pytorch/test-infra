@@ -298,20 +298,6 @@
       "rocm"
     ]
   ],
-  "test_correctness_Adam_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
-    "202394",
-    "https://github.com/pytorch/pytorch/issues/202394",
-    [
-      "xpu"
-    ]
-  ],
-  "test_correctness_NAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
-    "202260",
-    "https://github.com/pytorch/pytorch/issues/202260",
-    [
-      "xpu"
-    ]
-  ],
   "test_cpp_custom_op_runtime_dispatch_stays_in_cpp (__main__.TestCppWrapperCustomOps)": [
     "202322",
     "https://github.com/pytorch/pytorch/issues/202322",
@@ -863,13 +849,6 @@
       "win"
     ]
   ],
-  "test_map_pytree_in_out_device_xpu_dynamic_True_autograd_True (__main__.MapTestsCppWrapper)": [
-    "201775",
-    "https://github.com/pytorch/pytorch/issues/201775",
-    [
-      "xpu"
-    ]
-  ],
   "test_memory_aware_partition_count (__main__.TestPartitionedScatterOpt)": [
     "192011",
     "https://github.com/pytorch/pytorch/issues/192011",
@@ -910,30 +889,9 @@
       "dynamo"
     ]
   ],
-  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsXPU)": [
-    "200421",
-    "https://github.com/pytorch/pytorch/issues/200421",
-    [
-      "xpu"
-    ]
-  ],
   "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes (__main__._cls)": [
     "200422",
     "https://github.com/pytorch/pytorch/issues/200422",
-    [
-      "xpu"
-    ]
-  ],
-  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "199495",
-    "https://github.com/pytorch/pytorch/issues/199495",
-    [
-      "xpu"
-    ]
-  ],
-  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_xpu (__main__.GPUTests)": [
-    "200423",
-    "https://github.com/pytorch/pytorch/issues/200423",
     [
       "xpu"
     ]
@@ -1152,27 +1110,6 @@
       "linux"
     ]
   ],
-  "test_pointwise_query_producer_head_dims0_xpu (__main__.TestFlexDecodingXPU)": [
-    "198712",
-    "https://github.com/pytorch/pytorch/issues/198712",
-    [
-      "xpu"
-    ]
-  ],
-  "test_pointwise_query_producer_head_dims1_xpu (__main__.TestFlexDecodingXPU)": [
-    "199703",
-    "https://github.com/pytorch/pytorch/issues/199703",
-    [
-      "xpu"
-    ]
-  ],
-  "test_pointwise_query_producer_head_dims2_xpu (__main__.TestFlexDecodingXPU)": [
-    "199704",
-    "https://github.com/pytorch/pytorch/issues/199704",
-    [
-      "xpu"
-    ]
-  ],
   "test_profiler_experimental_tree_with_stack_and_modules (__main__.TestProfilerTree)": [
     "200705",
     "https://github.com/pytorch/pytorch/issues/200705",
@@ -1206,13 +1143,6 @@
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
     []
-  ],
-  "test_regional_fallback_by_default_invoke_subgraph_xpu (__main__.GPUTests)": [
-    "195876",
-    "https://github.com/pytorch/pytorch/issues/195876",
-    [
-      "xpu"
-    ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
@@ -1515,13 +1445,6 @@
       "mac",
       "macos",
       "rocm"
-    ]
-  ],
-  "test_update_weights (__main__.TestAOTInductorPackage_xpu)": [
-    "194562",
-    "https://github.com/pytorch/pytorch/issues/194562",
-    [
-      "xpu"
     ]
   ],
   "test_upper_bound_i64_cuda (__main__.AOTInductorTestDualWrapper)": [
