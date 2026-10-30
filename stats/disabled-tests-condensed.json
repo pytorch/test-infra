@@ -333,6 +333,14 @@
       "linux"
     ]
   ],
+  "test_cuda_memory_leak_detection (__main__.TestMultiGPUCudaOnly)": [
+    "104695",
+    "https://github.com/pytorch/pytorch/issues/104695",
+    [
+      "linux",
+      "slow"
+    ]
+  ],
   "test_cuda_use_mem_pool_stream_order_inductor (__main__.CUDACtxManagerTests)": [
     "191702",
     "https://github.com/pytorch/pytorch/issues/191702",
