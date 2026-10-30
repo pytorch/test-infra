@@ -22,8 +22,17 @@ import {
   shouldReadAdvisorVerdicts,
 } from "lib/advisor/advisorVerdictSource";
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
+import {
+  getLabelsNeededByFiles,
+  loadLabelerConfig,
+} from "lib/bot/labelerConfigUtils";
 import { updateInProgressLabels } from "lib/bot/preReviewUtils";
-import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
+import {
+  fetchJSON,
+  getOpenStackPrs,
+  isPyTorchPyTorch,
+  isTime0,
+} from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
@@ -348,6 +357,12 @@ export async function updateDrciComments(
   const prReviewHeadVerdicts = await prReviewHeadVerdictsPromise;
   const crcrAllowlist = await crcrAllowlistPromise;
 
+  // Read once per run, and only when some PR has a failing ciflow tag run.
+  let labelerConfigPromise: Promise<Record<string, unknown> | null> | null =
+    null;
+  const getLabelerConfig = () =>
+    (labelerConfigPromise ??= loadLabelerConfig(octokit, owner, repo));
+
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
     {};
@@ -394,6 +409,24 @@ export async function updateDrciComments(
         UNKNOWN: unknownJobs,
         AWAITING_APPROVAL: awaitingApprovalJobs,
       };
+
+      try {
+        await addCoveredCiflowNotes(
+          octokit,
+          owner,
+          repo,
+          pr_info.pr_number,
+          [...failedJobs, ...unknownJobs],
+          relatedInfo,
+          getLabelerConfig
+        );
+      } catch (e) {
+        console.error(
+          "covered ciflow note build threw for PR",
+          pr_info.pr_number,
+          e
+        );
+      }
 
       // The failures either advisor consumer can say anything about. PR-state
       // gates are left out, so no verdict line renders beside one.
@@ -753,6 +786,110 @@ function removeFailureContext(failure: {
     });
   }
   return result;
+}
+
+const MAX_COVERED_PRS_IN_NOTE = 10;
+
+/**
+ * Notes, on one failing job of a ciflow label's tag run on this PR, the open
+ * PRs below it in its stack that need that label and do not carry it, up to
+ * the nearest one that carries it: this PR's run tests them too, so the
+ * failure may come from one of them. A tag push records the tag,
+ * `<label>/<PR number>`, as the job's head_branch. The PRs are linked through
+ * redirect.github.com so the comment adds no cross-references to them.
+ */
+export async function addCoveredCiflowNotes(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  failures: RecentWorkflowsData[],
+  relatedInfo: Map<number, string>,
+  getLabelerConfig: () => Promise<Record<string, unknown> | null>
+): Promise<void> {
+  const tagSuffix = `/${prNumber}`;
+  const failuresByLabel = new Map<string, RecentWorkflowsData[]>();
+  for (const job of failures) {
+    const branch = job.head_branch ?? "";
+    if (!branch.startsWith("ciflow/") || !branch.endsWith(tagSuffix)) {
+      continue;
+    }
+    const label = branch.slice(0, -tagSuffix.length);
+    failuresByLabel.set(label, [...(failuresByLabel.get(label) ?? []), job]);
+  }
+  if (failuresByLabel.size === 0) {
+    return;
+  }
+  const labelerConfig = await getLabelerConfig();
+  if (labelerConfig === null) {
+    return;
+  }
+  for (const label of failuresByLabel.keys()) {
+    if (!Object.hasOwn(labelerConfig, label)) {
+      failuresByLabel.delete(label);
+    }
+  }
+  if (failuresByLabel.size === 0) {
+    return;
+  }
+
+  const { data: pr } = await octokit.rest.pulls.get({
+    owner,
+    repo,
+    pull_number: prNumber,
+  });
+  const below = await getOpenStackPrs(
+    octokit,
+    owner,
+    repo,
+    {
+      number: prNumber,
+      body: pr.body,
+      headRef: pr.head.ref,
+      isCrossRepository: pr.head.repo?.full_name !== pr.base.repo.full_name,
+      stack: (pr as any).stack,
+    },
+    "below"
+  );
+  if (below.kind !== "stack" || below.prs.length === 0) {
+    return;
+  }
+
+  for (const [label, jobs] of failuresByLabel) {
+    const covered: number[] = [];
+    for (const p of below.prs) {
+      if (p.labels.includes(label)) {
+        break;
+      }
+      if (
+        getLabelsNeededByFiles(labelerConfig, p.files, p.isDraft).includes(
+          label
+        )
+      ) {
+        covered.push(p.number);
+      }
+    }
+    if (covered.length === 0) {
+      continue;
+    }
+    const links = covered
+      .slice(0, MAX_COVERED_PRS_IN_NOTE)
+      .map(
+        (n) => `[${n}](https://redirect.github.com/${owner}/${repo}/pull/${n})`
+      )
+      .join(", ");
+    const more =
+      covered.length > MAX_COVERED_PRS_IN_NOTE
+        ? ` and ${covered.length - MAX_COVERED_PRS_IN_NOTE} more`
+        : "";
+    const note =
+      covered.length === 1
+        ? `${label} on this PR also tests PR ${links} below it, which needs it and does not run it itself; the failure may come from that PR, which then needs the fix`
+        : `${label} on this PR also tests PRs ${links}${more} below it, which need it and do not run it themselves; the failure may come from one of them, which then needs the fix`;
+    const job = _.sortBy(jobs, ["name", "id"])[0];
+    const existing = relatedInfo.get(job.id);
+    relatedInfo.set(job.id, existing ? `${existing}; ${note}` : note);
+  }
 }
 
 /**
