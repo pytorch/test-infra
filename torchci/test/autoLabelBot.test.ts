@@ -1800,6 +1800,142 @@ describe("auto-label-bot: labeler.yml config", () => {
       expect(stackScope.isDone()).toBe(false);
     });
 
+    function coveredSynchronizeEvent(label = "ciflow/inductor") {
+      const event = ghstackEvent(["* #32", `* __->__ #${prNumber}`]);
+      event.payload.action = "synchronize";
+      event.payload.pull_request.labels = [
+        { name: "module: dynamo" },
+        { name: label },
+      ];
+      return event;
+    }
+
+    function mockCoveringPrAbove() {
+      return [
+        mockStackPrs({
+          repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
+        }),
+        mockContainment([0]),
+      ];
+    }
+
+    function mockLabelTimeline(actor: string, label = "ciflow/inductor") {
+      return nock("https://api.github.com")
+        .post("/graphql", (body) => body.query.includes("timelineItems"))
+        .reply(
+          200,
+          labeledEventsResponse([
+            {
+              event: "labeled",
+              label: { name: label },
+              actor: { login: actor },
+            },
+          ])
+        );
+    }
+
+    function mockRequests(comments: string[], reviews: string[] = []) {
+      return nock("https://api.github.com")
+        .get(`/repos/${repoFullName}/issues/${prNumber}/comments`)
+        .query({ per_page: "100" })
+        .reply(
+          200,
+          comments.map((body, id) => ({ id, body }))
+        )
+        .get(`/repos/${repoFullName}/pulls/${prNumber}/reviews`)
+        .query({ per_page: "100" })
+        .reply(
+          200,
+          reviews.map((body, id) => ({ id, body }))
+        );
+    }
+
+    test("a covered ciflow label pytorch-bot applied is taken back", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        ...mockCoveringPrAbove(),
+        mockLabelTimeline("pytorch-bot[bot]"),
+        mockRequests(["lgtm", "@pytorchbot label ciflow/trunk"], ["LGTM"]),
+        mockRemoveLabel("ciflow/inductor", repoFullName, prNumber),
+      ];
+      await probot.receive(coveredSynchronizeEvent());
+      scopes.forEach((scope) => scope.done());
+    });
+
+    test("a covered ciflow label a person applied stays", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        ...mockCoveringPrAbove(),
+        mockLabelTimeline("alice"),
+      ];
+      const requestsScope = mockRequests([]);
+      const removeScope = mockRemoveLabel(
+        "ciflow/inductor",
+        repoFullName,
+        prNumber
+      );
+      await probot.receive(coveredSynchronizeEvent());
+      scopes.forEach((scope) => scope.done());
+      expect(requestsScope.isDone()).toBe(false);
+      expect(removeScope.isDone()).toBe(false);
+    });
+
+    test("a covered ciflow label requested with the label command in a comment stays", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        ...mockCoveringPrAbove(),
+        mockLabelTimeline("pytorch-bot[bot]"),
+        mockRequests([
+          "@pytorchbot not-a-command",
+          'Please run it.\n@pytorchbot label "ciflow/inductor"',
+        ]),
+      ];
+      await probot.receive(coveredSynchronizeEvent());
+      scopes.forEach((scope) => scope.done());
+    });
+
+    test("a covered ciflow label requested with the label command in a review stays", async () => {
+      const scopes = [
+        mockDynamoPr(),
+        ...mockCoveringPrAbove(),
+        mockLabelTimeline("pytorch-bot[bot]"),
+        mockRequests(
+          ["lgtm"],
+          ["Looks good.\n@pytorchbot label ciflow/inductor"]
+        ),
+      ];
+      await probot.receive(coveredSynchronizeEvent());
+      scopes.forEach((scope) => scope.done());
+    });
+
+    test("ciflow/trunk is never taken back", async () => {
+      const scopes = [
+        mockDynamoPr(`
+"module: dynamo":
+- torch/_dynamo/**
+
+"ciflow/trunk":
+- torch/_dynamo/**
+`),
+        ...mockCoveringPrAbove(),
+      ];
+      const timelineScope = mockLabelTimeline(
+        "pytorch-bot[bot]",
+        "ciflow/trunk"
+      );
+      const requestsScope = mockRequests([]);
+      const removeScope = mockRemoveLabel(
+        "ciflow/trunk",
+        repoFullName,
+        prNumber
+      );
+      await probot.receive(coveredSynchronizeEvent("ciflow/trunk"));
+      scopes.forEach((scope) => scope.done());
+      expect(timelineScope.isDone()).toBe(false);
+      expect(requestsScope.isDone()).toBe(false);
+      expect(removeScope.isDone()).toBe(false);
+    });
+
     test("a failed stack read labels as today", async () => {
       const filesScope = mockDynamoPr();
       const stackScope = nock("https://api.github.com")

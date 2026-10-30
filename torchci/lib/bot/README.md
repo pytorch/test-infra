@@ -140,6 +140,7 @@ ciflow_push_tags:
   - `ciflow/docker` keeps per-PR labeling: the merge bot requires its run on the topmost landing PR that changes `.ci/docker`.
   - A label another rule in the handler also adds (such as the title-based `ciflow/rocm`) is left alone.
   - If the stack cannot be read, the PR is labeled as usual.
+  - When a PR above needs a ciflow/\* label the PR already carries, the bot takes the label back if a bot applied it last. It never takes back a label added by hand, one asked for with the pytorchbot label command in a comment or a review, `ciflow/trunk` and `ciflow/pull` (which the merge command applies), `ciflow/docker`, or a label another rule adds.
 - **Release notes categorization**: Automatically categorizes PRs for release notes (PyTorch-specific)
 - **Permission filtering**: Only applies CI flow labels if the author has appropriate permissions
 
