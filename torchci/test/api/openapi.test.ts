@@ -8,7 +8,7 @@ import {
 import { testDetailPathParameters } from "lib/api/tests/test/parameters";
 import { TestListPageSchema } from "lib/api/tests/types";
 import * as clickhouse from "lib/clickhouse";
-import { routeFiles } from "./routes";
+import { pageFiles, routeFiles } from "./routes";
 import { answerQueries, entityRow, getTests } from "./tests/fixtures";
 
 // The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
@@ -36,6 +36,14 @@ const HEAVY_PATHS = [
   "/api/tests/test/{test_id}/runs",
   "/api/tests/commit/{sha}",
 ];
+
+// The document's paths under one tag: `tests` for the JSON API served by
+// app/api, `pages` for the HUD pages under pages/tests built on it.
+function pathsTagged(document: any, tag: string): [string, any][] {
+  return Object.entries<any>(document.paths).filter(([, item]) =>
+    item.get.tags.includes(tag)
+  );
+}
 
 describe("GET /api/openapi.json", () => {
   let document: any;
@@ -74,11 +82,15 @@ describe("GET /api/openapi.json", () => {
     }
   });
 
-  test("documents exactly the routes under app/api, with their path parameter names", () => {
+  test("documents exactly the routes under app/api as the API, with their path parameter names", () => {
     const served = routeFiles()
       .map(({ path }) => path)
       .filter((path) => path !== "/api/openapi.json");
-    expect(Object.keys(document.paths).sort()).toEqual(served.sort());
+    expect(
+      pathsTagged(document, "tests")
+        .map(([path]) => path)
+        .sort()
+    ).toEqual(served.sort());
     for (const [route, item] of Object.entries<any>(document.paths)) {
       const templated = Array.from(
         route.matchAll(/\{(\w+)\}/g),
@@ -89,6 +101,17 @@ describe("GET /api/openapi.json", () => {
         .map((parameter: any) => parameter.name);
       expect(declared).toEqual(templated);
     }
+  });
+
+  test("documents exactly the hub's pages under pages/tests as pages, and nothing else", () => {
+    const served = pageFiles().map(({ path }) => path);
+    const pages = pathsTagged(document, "pages").map(([path]) => path);
+    expect(pages.sort()).toEqual(served.sort());
+    expect(Object.keys(document.paths).sort()).toEqual(
+      [...pathsTagged(document, "tests"), ...pathsTagged(document, "pages")]
+        .map(([path]) => path)
+        .sort()
+    );
   });
 
   test("routes export only GET and dynamic = force-dynamic, so they never run at build time", async () => {
@@ -252,7 +275,7 @@ describe("GET /api/openapi.json", () => {
     expect(document.components.securitySchemes.githubToken.description).toMatch(
       /signed in to HUD/
     );
-    for (const [path, item] of Object.entries<any>(document.paths)) {
+    for (const [path, item] of pathsTagged(document, "tests")) {
       expect({ path, security: item.get.security }).toEqual({
         path,
         security: undefined,
@@ -260,6 +283,14 @@ describe("GET /api/openapi.json", () => {
       expect(item.get.responses["401"].description).toMatch(/unauthenticated/);
       expect(item.get.responses["403"].description).toMatch(/forbidden/);
       expect(item.get.responses["503"].description).toMatch(/Retry-After/);
+    }
+    // The pages need no token of their own: the browser's sign-in is theirs.
+    for (const [path, item] of pathsTagged(document, "pages")) {
+      expect({ path, security: item.get.security }).toEqual({
+        path,
+        security: [],
+      });
+      expect(Object.keys(item.get.responses)).toEqual(["200"]);
     }
   });
 
@@ -352,6 +383,7 @@ describe("GET /api/openapi.json", () => {
     expect(schemas.TestListPage.required).toEqual([
       "tests",
       "pagination",
+      "hud_url",
       "refreshed_at",
       "query_duration_ms",
     ]);

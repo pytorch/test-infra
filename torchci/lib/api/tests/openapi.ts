@@ -28,7 +28,7 @@ export const testsApiOpenApi: ApiResource = {
         tags: ["tests"],
         summary: "List a repository's tests with their health",
         description:
-          "One entry per test, environment and env var set observed in the requested window and code sources. Each entry includes the test, nullable environment and env var set objects with their IDs, and health combined across the selected code sources. Exact filters combine with AND across fields and OR within a repeated field. All configuration and environment-variable conditions must match the same configuration. Opaque cursors remain usable after health refreshes. Pages read current data and may skip or repeat entries when data or sort values change; they do not enumerate a fixed snapshot.",
+          "One entry per test, environment and env var set observed in the requested window and code sources. Each entry includes the test, nullable environment and env var set objects with their IDs, and health combined across the selected code sources. Exact filters combine with AND across fields and OR within a repeated field. All configuration and environment-variable conditions must match the same configuration. Opaque cursors remain usable after health refreshes. Pages read current data and may skip or repeat entries when data or sort values change; they do not enumerate a fixed snapshot. The HUD page for a request is its hud_url, the testsPage operation, which takes the same parameters but environments_id, env_vars_id and env_vars, and each entry carries its test's page as test.hud_url and the page opened on its runs as hud_url.",
         parameters: testListQueryParameters(),
         responses: {
           "200": jsonResponse("A page of entries.", ref(TestListPageSchema)),

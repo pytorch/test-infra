@@ -49,7 +49,9 @@ import {
   FacetValues,
   labelOf,
   menuOrder,
+  NAME_FILTERS,
   noFacetValues,
+  noNameFilterValues,
   OWNER_COLUMN_FACETS,
   pairText,
   phraseAlternatives,
@@ -65,11 +67,13 @@ import {
   rateLabel,
   statusLabel,
 } from "lib/tests/health";
+import { COLUMN_HEADER_HEIGHT, NAME_FILTER_ROW_HEIGHT } from "lib/tests/layout";
 import { testPagePath, testRunsHref } from "lib/tests/links";
 import { endsTextSelection } from "lib/tests/selection";
 import {
   accessReasonOf,
   apiErrorMessage,
+  columnHeaderHeightFor,
   DEFAULT_TESTS_SORT,
   durationLabel,
   integerLabel,
@@ -103,6 +107,7 @@ const defaultQuery: TestsQuery = {
   ranOn: [...options.ran_on.default],
   languages: [...options.language.default],
   filters: noFacetValues(),
+  nameFilters: noNameFilterValues(),
   search: "",
 };
 // The facet filters with the given facets chosen and the rest empty.
@@ -253,6 +258,7 @@ describe("testsQueryFromUrl", () => {
       ranOn: [],
       languages: [],
       filters: noFacetValues(),
+      nameFilters: noNameFilterValues(),
       search: "",
     });
   });
@@ -267,6 +273,8 @@ describe("testsQueryFromUrl", () => {
         accelerator: "cuda",
         device_name: ["Tesla T4", "NVIDIA L4"],
         test_config: "default",
+        file: "test/test_torch.py",
+        case_name: ["test_add", "test_sub"],
         search: "Conv",
       })
     ).toEqual({
@@ -279,6 +287,11 @@ describe("testsQueryFromUrl", () => {
         device_name: ["Tesla T4", "NVIDIA L4"],
         test_config: ["default"],
       }),
+      nameFilters: {
+        ...noNameFilterValues(),
+        file: ["test/test_torch.py"],
+        case_name: ["test_add", "test_sub"],
+      },
       search: "Conv",
     });
   });
@@ -307,6 +320,7 @@ describe("testsQueryFromUrl", () => {
       ranOn: ["nightly"],
       languages: ["rust"],
       filters: noFacetValues(),
+      nameFilters: noNameFilterValues(),
       search: "",
     });
     expect(testsQueryFromUrl({ sort: "-runs" }).sort).toBe("-runs");
@@ -336,6 +350,7 @@ describe("resolveTestsQuery", () => {
       ranOn: ["main", "pull_request"],
       languages: ["python", "unknown"],
       filters: filtersWith({ python_version: ["3.9", "3.14"] }),
+      nameFilters: noNameFilterValues(),
       search: "",
     });
   });
@@ -407,6 +422,7 @@ describe("resolveTestsQuery", () => {
       ranOn: ["pull_request"],
       languages: ["cpp"],
       filters: filtersWith({ accelerator: ["cuda"] }),
+      nameFilters: noNameFilterValues(),
       search: "",
     });
   });
@@ -421,6 +437,7 @@ describe("testsUrlParams", () => {
       language: undefined,
       search: undefined,
       ...Object.fromEntries(TESTS_FACETS.map((facet) => [facet, undefined])),
+      ...Object.fromEntries(NAME_FILTERS.map((name) => [name, undefined])),
     });
   });
 
@@ -436,6 +453,7 @@ describe("testsUrlParams", () => {
             accelerator: ["rocm", "cuda"],
             device_count: ["4"],
           }),
+          nameFilters: { ...noNameFilterValues(), suite: ["TestTorch"] },
           search: "conv",
         },
         options
@@ -449,6 +467,8 @@ describe("testsUrlParams", () => {
       accelerator: ["cuda", "rocm"],
       device_count: ["4"],
       device_name: undefined,
+      suite: ["TestTorch"],
+      file: undefined,
     });
   });
 
@@ -464,6 +484,11 @@ describe("testsUrlParams", () => {
         device_name: ["NVIDIA L4", "Tesla T4"],
         test_config: ["default"],
       }),
+      nameFilters: {
+        ...noNameFilterValues(),
+        file: ["test/test_torch.py"],
+        declared_case_name: ["test_add"],
+      },
       search: "Conv Test",
     };
     expect(
@@ -560,6 +585,7 @@ describe("testsApiUrl", () => {
           device_name: ["NVIDIA L4", "Tesla T4"],
           test_config: ["default"],
         }),
+        nameFilters: { ...noNameFilterValues(), file: ["test/test_nn.py"] },
         search: "nn",
       },
       limit: 100,
@@ -573,6 +599,8 @@ describe("testsApiUrl", () => {
     expect(params.getAll("language")).toEqual(["python", "cpp"]);
     expect(params.getAll("device_name")).toEqual(["NVIDIA L4", "Tesla T4"]);
     expect(params.getAll("test_config")).toEqual(["default"]);
+    expect(params.getAll("file")).toEqual(["test/test_nn.py"]);
+    expect(params.has("suite")).toBe(false);
     expect(params.has("accelerator")).toBe(false);
     expect(params.get("sort")).toBe("file,suite,case_name");
     expect(params.get("limit")).toBe("100");
@@ -1800,6 +1828,102 @@ describe("NameSearch", () => {
       )
     ).not.toContain("Clear search");
   });
+
+  test("shows the URL's exact name filters as chips, each with its remove button", () => {
+    const markup = renderToStaticMarkup(
+      <NameSearch
+        value=""
+        onChange={() => {}}
+        onSubmit={() => {}}
+        filters={{
+          ...noNameFilterValues(),
+          file: ["test/test_torch.py"],
+          case_name: ["test_add", "test_sub"],
+        }}
+        onRemoveFilter={() => {}}
+      />
+    );
+    expect(markup).toContain('title="File: test/test_torch.py"');
+    expect(markup).toContain('title="Case name: test_add"');
+    expect(markup).toContain('title="Case name: test_sub"');
+    expect(markup).toContain(
+      'aria-label="Remove file filter test/test_torch.py"'
+    );
+    expect(markup).toContain('aria-label="Remove case name filter test_sub"');
+    expect(markup).not.toContain("Remove suite filter");
+    // The field still searches beside the chips.
+    expect(markup).toContain('placeholder="Search names"');
+  });
+
+  test("a chip's remove button names its filter and value", async () => {
+    const onRemoveFilter = jest.fn();
+    let renderer: ReactTestRenderer | undefined;
+    await act(async () => {
+      renderer = create(
+        <NameSearch
+          value=""
+          onChange={() => {}}
+          onSubmit={() => {}}
+          filters={{ ...noNameFilterValues(), suite: ["TestTorch"] }}
+          onRemoveFilter={onRemoveFilter}
+        />
+      );
+    });
+    const button = renderer!.root.findByProps({
+      "aria-label": "Remove suite filter TestTorch",
+    });
+    await act(async () => {
+      button.props.onClick();
+    });
+    expect(onRemoveFilter).toHaveBeenCalledWith("suite", "TestTorch");
+    await act(async () => {
+      renderer!.unmount();
+    });
+  });
+
+  test("grows the header band by what the field reports, never shrinks it", () => {
+    expect(columnHeaderHeightFor(0)).toBe(COLUMN_HEADER_HEIGHT);
+    expect(columnHeaderHeightFor(NAME_FILTER_ROW_HEIGHT)).toBe(
+      COLUMN_HEADER_HEIGHT + NAME_FILTER_ROW_HEIGHT
+    );
+    expect(columnHeaderHeightFor(2 * NAME_FILTER_ROW_HEIGHT)).toBe(
+      COLUMN_HEADER_HEIGHT + 2 * NAME_FILTER_ROW_HEIGHT
+    );
+    expect(columnHeaderHeightFor(-3)).toBe(COLUMN_HEADER_HEIGHT);
+  });
+
+  test("reports no extra height while there are no chips", async () => {
+    const onExtraHeightChange = jest.fn();
+    let renderer: ReactTestRenderer | undefined;
+    await act(async () => {
+      renderer = create(
+        <NameSearch
+          value=""
+          onChange={() => {}}
+          onSubmit={() => {}}
+          filters={noNameFilterValues()}
+          onExtraHeightChange={onExtraHeightChange}
+        />
+      );
+    });
+    expect(onExtraHeightChange).toHaveBeenCalledWith(0);
+    await act(async () => {
+      renderer!.unmount();
+    });
+  });
+
+  test("shows no chips without filters", () => {
+    const markup = renderToStaticMarkup(
+      <NameSearch
+        value=""
+        onChange={() => {}}
+        onSubmit={() => {}}
+        filters={noNameFilterValues()}
+      />
+    );
+    expect(markup).not.toContain("Remove ");
+    expect(markup).not.toContain('title="File');
+  });
 });
 
 // A URL query the page could not have written is still resolved, never
@@ -1840,6 +1964,7 @@ describe("accessReasonOf", () => {
 describe("where the rows lead", () => {
   const test42: TestRecord = {
     id: "42",
+    hud_url: "https://hud.pytorch.org/tests/pytorch/pytorch/test/42",
     repo: "pytorch/pytorch",
     file: "test/test_torch.py",
     suite: "TestTorch",

@@ -2,8 +2,10 @@
 
 `app/api/` holds the HUD API: endpoints built on `lib/api/` and described by
 the generated [OpenAPI document](https://hud.pytorch.org/api/openapi.json).
-Every route under `app/api/` except the document's own is in that document,
-and every documented path is a route here. The endpoints under `pages/api/`
+Every route under `app/api/` except the document's own is in that document
+under the `tests` tag, and every path under that tag is a route here. The
+document's `pages` tag lists the HUD pages built on the API, which live under
+`pages/tests/` (see [HUD pages](#hud-pages)). The endpoints under `pages/api/`
 predate it: they are not in the OpenAPI document and follow none of the
 conventions below. New endpoints go here, whatever their domain.
 
@@ -119,6 +121,56 @@ profile while code names it: every tagged query would fail. The same happens
 on any server without the profile, a local ClickHouse or a preview's: apply
 `000003` there before pointing the lists at it.
 
+## HUD pages
+
+The document lists the HUD pages built on the tests endpoints, the tests
+table and a test's own page, as operations tagged `pages`: HTML for people,
+with `security: []`, one `text/html` answer, and a summary that starts with
+"HUD page", so that a caller of the API can give a reader the page that shows
+what it fetched and knows which parameters that page takes. Nothing under
+`app/api/` serves them; `test/api/openapi.test.ts` checks the `pages` paths
+against the files under `pages/tests/[organization]/` as it checks the
+`tests` paths against the route files.
+
+A page's parameters are not written for the document: `lib/api/tests/pages/parameters.ts`
+defines each page's URL query as parameter definitions, the table page's
+picked by name from the list's own registry (`TESTS_PAGE_PARAMETER_NAMES`),
+the test page's adding the page's own (`TEST_PAGE_PARAMETER_DEFINITIONS`),
+and three things read that one module: the pages, which decode and write
+their URLs with it (`decodePageQuery`, `pageUrlParams` in `lib/tests/table.ts`
+and `lib/tests/grid.ts`), the document (`pages/openapi.ts`, through the same
+`parameterQueryParameters` the endpoints use), and the links below. The module
+is zod and the registry only, nothing of the server, since the pages import it
+into the browser. The list parameters the table page has no equivalent for
+are the complement, `TESTS_PAGE_UNSUPPORTED_PARAMETERS`: the catalog ids and
+`env_vars`, which the page shows only as `test_config`; `limit` and `cursor`
+are paging, which the page does by itself. Give the page a new list parameter
+by adding its name to `TESTS_PAGE_PARAMETER_NAMES` and reading it on the
+page; the document and the links follow.
+
+A response that has a page carries it as `hud_url`, an absolute URL written by
+`lib/api/tests/pages/links.ts` from the same definitions, the page's defaults
+left off, on the origin the `/api/authed/` shim names itself with
+(`HUD_SELF_URL`, else production). `TestRecord.hud_url` is the test's page,
+bare, so every endpoint that returns a test carries it there; a run, a commit's
+runs and the options have no page of their own and no other link;
+`TestHealthEntry.hud_url` is that page opened on the runs the entry's health
+was counted over, the list's window and code sources with the entry's
+configuration marked; `TestListPage.hud_url` is the table for the request and
+`RunGrid.hud_url` the test page for the grid's `ran_on` and `window`. The last
+two are nullable, and null rather than approximate: a link that shows more than
+the request selected is worse than none. The table's is null when the request
+used an unsupported parameter (an `env_vars` filter on `TEST_CONFIG` is spelled
+as `test_config` instead, narrowed to the values a `test_config` filter beside
+it shares, and null when they share none); the grid's when the grid is empty,
+the test's repository being read with its lanes, or when a filter on the
+configuration narrowed the lanes, any but one `environments_id` with one
+`env_vars_id`, which becomes the page's marked configuration. A filter on the
+test itself or its owner costs no link: one test's lanes all share it, so it
+leaves the grid as it is or empties it. A grid request that left `ran_on` or
+`window` out gets the widest page choice, both code sources and `14d`, which
+the field's description says. The tests are in `test/api/tests/pages/`.
+
 ## Moving an endpoint here
 
 A `pages/api/` endpoint joins the API by moving onto `lib/api/`: give it a
@@ -219,6 +271,13 @@ old route in the same change.
 | `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration | `lib/api/tests/test/runs/` |
 | `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID; provisional                                             | `lib/api/tests/run/`       |
 | `GET /api/tests/commit/{sha}?repo=owner/name` | Retained run bundles across all tests on a repository commit                                                          | `lib/api/tests/commit/`    |
+
+The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
+
+| Page                                              | Shows                                                                                        | Implementation                                                                |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/` |
+| `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit` | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                        |
 
 ## Tests endpoints
 

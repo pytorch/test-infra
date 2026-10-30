@@ -1,28 +1,43 @@
 import type { GridSortModel } from "@mui/x-data-grid";
 import type { TestOptions } from "lib/api/tests/options/types";
+import {
+  decodePageQuery,
+  PageQueryValues,
+  pageUrlParams,
+  TESTS_PAGE_PARAMETER_DEFINITIONS,
+  TestsPageParameterName,
+} from "lib/api/tests/pages/parameters";
 import type {
   HealthWindow,
   RanOn,
   TestLanguage,
 } from "lib/api/tests/parameters";
+import { DEFAULT_SORT } from "lib/api/tests/parameters";
 import {
   facetChoice,
   FacetValues,
   labelOf,
   menuOrder,
+  NAME_FILTERS,
+  NameFilterValues,
   noFacetValues,
+  noNameFilterValues,
   phraseList,
   TESTS_FACETS,
-  TestsFacet,
 } from "lib/tests/facets";
+import { COLUMN_HEADER_HEIGHT } from "lib/tests/layout";
 import type { UrlQuery } from "lib/tests/url";
 
 // The tests table on /tests/[organization]/[repo] sorts, filters and pages
 // on the server through GET /api/tests. This is the glue between the page's
 // state and that API's query parameters, kept free of React so it can be
-// tested as plain functions. Only types come from lib/api: the choices a
-// reader makes, their labels and their defaults arrive at run time from
-// GET /api/tests/options, so nothing here spells out an API value.
+// tested as plain functions. The parameters the page reads from its URL are
+// the list's own definitions, picked by name in
+// lib/api/tests/pages/parameters.ts, so each is spelled, encoded and
+// defaulted as the API spells it and the OpenAPI document lists the page
+// with them; the choices a reader makes, their labels and the catalogs'
+// values arrive at run time from GET /api/tests/options, so nothing here
+// spells out a catalog value.
 
 export const TESTS_PAGE_SIZES: readonly number[] = [25, 50, 100];
 export const DEFAULT_TESTS_PAGE_SIZE = 25;
@@ -74,13 +89,10 @@ export const TESTS_TABLE_SORT_FIELDS: Record<string, readonly string[]> = {
   last_run_at: ["last_run_at"],
 };
 
-// The API's own default sort, spelled out so the page can leave it off its
-// URL; the options do not cover the sort. It is the Health header's chain,
-// worst first, so a fresh page opens on the failing tests with the arrow on
-// that header.
-export const DEFAULT_TESTS_SORT = TESTS_TABLE_SORT_FIELDS.health
-  .map((field) => `-${field}`)
-  .join(",");
+// The API's own default sort, which the page leaves off its URL. It is the
+// Health header's chain, worst first, so a fresh page opens on the failing
+// tests with the arrow on that header.
+export const DEFAULT_TESTS_SORT = DEFAULT_SORT.join(",");
 
 // What a page URL asks for, as written: the sort, and the choices
 // unchecked. The options say what they mean (resolveTestsQuery).
@@ -95,6 +107,8 @@ export interface TestsUrlQuery {
   languages: string[];
   // The facet filters, each empty for the API's default, no filter.
   filters: FacetValues;
+  // The exact filters on the test's name, each empty for none.
+  nameFilters: NameFilterValues;
   // Text the names are searched for; empty for none.
   search: string;
 }
@@ -111,6 +125,9 @@ export interface TestsQuery {
   languages: TestLanguage[];
   // Each empty for no filter on that facet.
   filters: FacetValues;
+  // Each empty for no filter on that part of the name. Taken as written,
+  // once each: the API matches them exactly, and only a URL sets them.
+  nameFilters: NameFilterValues;
   // Empty for no search. Taken as written: the API reads it literally.
   search: string;
 }
@@ -141,32 +158,40 @@ export function languagesPhrase(
       );
 }
 
-// The query a page URL asks for, as written. The sort is taken as written,
-// since the API validates it. ran_on may be comma-separated or repeated, as
-// the API reads it; language and the facets are only repeated, because the
-// API reads a comma in them literally.
+// The query a page URL asks for, as written, read through the page's
+// parameter definitions: ran_on may be comma-separated or repeated, as the
+// API reads it; language, the facets and the name filters are only
+// repeated, because the API reads a comma in them literally. The sort is
+// taken as written, since the API validates it.
 export function testsQueryFromUrl(url: UrlQuery): TestsUrlQuery {
-  const sort =
-    typeof url.sort === "string" && url.sort !== ""
-      ? url.sort
-      : DEFAULT_TESTS_SORT;
-  const window =
-    typeof url.window === "string" && url.window !== ""
-      ? url.window
-      : undefined;
-  const ranOn = [url.ran_on ?? []].flat().flatMap((value) => value.split(","));
-  const languages = [url.language ?? []].flat();
+  const decoded = decodePageQuery(url, TESTS_PAGE_PARAMETER_DEFINITIONS);
+  const sort = (decoded.sort ?? []).filter((term) => term !== "");
   const filters = noFacetValues();
   for (const facet of TESTS_FACETS) {
-    filters[facet] = [url[facet] ?? []].flat();
+    filters[facet] = decoded[facet] ?? [];
   }
-  const search = typeof url.search === "string" ? url.search : "";
-  return { sort, window, ranOn, languages, filters, search };
+  const nameFilters = noNameFilterValues();
+  for (const name of NAME_FILTERS) {
+    nameFilters[name] = decoded[name] ?? [];
+  }
+  return {
+    sort: sort.length === 0 ? DEFAULT_TESTS_SORT : sort.join(","),
+    window:
+      decoded.window === undefined || decoded.window === ""
+        ? undefined
+        : decoded.window,
+    ranOn: decoded.ran_on ?? [],
+    languages: decoded.language ?? [],
+    filters,
+    nameFilters,
+    search: decoded.search ?? "",
+  };
 }
 
 // The URL's query checked against the options: a value they do not offer is
 // dropped, a choice left empty falls back to the API's default, and the rest
-// is put in menu order.
+// is put in menu order. The name filters have no options to check against
+// and are kept as written, once each.
 export function resolveTestsQuery(
   url: TestsUrlQuery,
   options: TestOptions
@@ -183,18 +208,23 @@ export function resolveTestsQuery(
     const chosen = menuOrder(url.filters[facet], choice.values);
     filters[facet] = chosen.length > 0 ? chosen : [...choice.default];
   }
+  const nameFilters = noNameFilterValues();
+  for (const name of NAME_FILTERS) {
+    nameFilters[name] = Array.from(new Set(url.nameFilters[name]));
+  }
   return {
     sort: url.sort,
     window: window[0] ?? options.window.default,
     ranOn: ranOn.length > 0 ? ranOn : [...options.ran_on.default],
     languages: languages.length > 0 ? languages : [...options.language.default],
     filters,
+    nameFilters,
     search: url.search,
   };
 }
 
 export type TestsUrlParams = Record<
-  "sort" | "window" | "ran_on" | "language" | "search" | TestsFacet,
+  TestsPageParameterName,
   string | string[] | undefined
 >;
 
@@ -211,9 +241,11 @@ function sameValues(
   );
 }
 
-// The URL parameters for a query, in the API's spelling, undefined at the
-// defaults so they are left off. language and the facets repeat once per
-// chosen value.
+// The URL parameters for a query, each in the API's spelling by the page's
+// parameter definitions (pageUrlParams: ran_on and sort comma-separated,
+// language, the facets and the name filters repeated once per value), and
+// undefined at the defaults so they are left off: the options' defaults for
+// the choices they cover, the definitions' for the rest.
 export function testsUrlParams(
   query: TestsQuery,
   options: TestOptions
@@ -225,22 +257,23 @@ export function testsUrlParams(
     options.language.default,
     options.language.values
   );
-  const facets = Object.fromEntries(
-    TESTS_FACETS.map((facet) => {
-      const choice = facetChoice(options, facet);
-      const values = menuOrder(query.filters[facet], choice.values);
-      const defaults = menuOrder(choice.default, choice.values);
-      return [facet, sameValues(values, defaults) ? undefined : values];
-    })
-  ) as Record<TestsFacet, string[] | undefined>;
-  return {
-    sort: query.sort === DEFAULT_TESTS_SORT ? undefined : query.sort,
+  const values: PageQueryValues<typeof TESTS_PAGE_PARAMETER_DEFINITIONS> = {
+    sort: query.sort.split(","),
     window: query.window === options.window.default ? undefined : query.window,
-    ran_on: sameValues(ranOn, defaultRanOn) ? undefined : ranOn.join(","),
+    ran_on: sameValues(ranOn, defaultRanOn) ? undefined : ranOn,
     language: sameValues(languages, defaultLanguages) ? undefined : languages,
-    search: query.search === "" ? undefined : query.search,
-    ...facets,
+    search: query.search,
   };
+  for (const facet of TESTS_FACETS) {
+    const choice = facetChoice(options, facet);
+    const chosen = menuOrder(query.filters[facet], choice.values);
+    const defaults = menuOrder(choice.default, choice.values);
+    values[facet] = sameValues(chosen, defaults) ? undefined : chosen;
+  }
+  for (const name of NAME_FILTERS) {
+    values[name] = query.nameFilters[name];
+  }
+  return pageUrlParams(values, TESTS_PAGE_PARAMETER_DEFINITIONS);
 }
 
 // One string per distinct query, for state that must restart when it changes.
@@ -252,7 +285,18 @@ export function testsQueryKey(query: TestsQuery): string {
     [...query.languages].sort().join(","),
     query.search,
     ...TESTS_FACETS.map((facet) => [...query.filters[facet]].sort().join(",")),
+    ...NAME_FILTERS.map((name) =>
+      [...query.nameFilters[name]].sort().join(",")
+    ),
   ].join("|");
+}
+
+// The header band's height: taller by however much the Name header's search
+// field has grown past a key's height to hold its rows of name-filter chips
+// (NameSearch measures that and reports it), so the field fits and the other
+// headers' labels and keys stay centered.
+export function columnHeaderHeightFor(searchFieldExtraHeight: number): number {
+  return COLUMN_HEADER_HEIGHT + Math.max(0, searchFieldExtraHeight);
 }
 
 export type SortDirection = "asc" | "desc";
@@ -308,9 +352,9 @@ export interface TestsApiRequest {
 }
 
 // The request for one page. It names the window, the code sources, any
-// languages and any facet values explicitly, as resolved from the options, so
-// it asks for exactly what the title says, even if a deploy lands between the
-// two requests.
+// languages, any facet values and any name filters explicitly, as resolved
+// from the options, so it asks for exactly what the title says, even if a
+// deploy lands between the two requests.
 export function testsApiUrl({
   repo,
   query,
@@ -330,6 +374,11 @@ export function testsApiUrl({
   for (const facet of TESTS_FACETS) {
     for (const value of query.filters[facet]) {
       params.append(facet, value);
+    }
+  }
+  for (const name of NAME_FILTERS) {
+    for (const value of query.nameFilters[name]) {
+      params.append(name, value);
     }
   }
   if (query.search !== "") {

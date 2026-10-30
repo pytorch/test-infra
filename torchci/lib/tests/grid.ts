@@ -1,4 +1,14 @@
+import type { ParameterDefinition } from "lib/api/parameters";
 import type { TestOptions } from "lib/api/tests/options/types";
+import {
+  decodePageQuery,
+  GRID_OUTCOMES,
+  GridOutcome,
+  pageUrlParams,
+  TEST_PAGE_DEFAULT_RAN_ON,
+  TEST_PAGE_DEFAULT_WINDOW,
+  TEST_PAGE_PARAMETER_DEFINITIONS,
+} from "lib/api/tests/pages/parameters";
 import type {
   HealthStatus,
   HealthWindow,
@@ -37,18 +47,15 @@ import { workflowName } from "lib/workflowName";
 
 // How a cell reads: passed, flaky when a failing attempt was followed by a
 // pass, failed for any failing final outcome, skipped when nothing executed,
-// other for the expected failures, unexpected passes and unknowns.
-export type CellStatus = "passed" | "flaky" | "failed" | "skipped" | "other";
+// other for the expected failures, unexpected passes and unknowns. These
+// are the values of the URL's `outcomes`, defined with the page's other
+// parameters in lib/api/tests/pages/parameters.ts, where the document lists
+// them.
+export type CellStatus = GridOutcome;
 
 // The statuses as the header's menu lists them, worst first, with the word
 // for each.
-export const CELL_STATUSES: readonly CellStatus[] = [
-  "failed",
-  "flaky",
-  "passed",
-  "skipped",
-  "other",
-];
+export const CELL_STATUSES: readonly CellStatus[] = GRID_OUTCOMES;
 export const OUTCOME_LABELS: Record<CellStatus, string> = {
   failed: "Failed",
   flaky: "Flaky",
@@ -85,56 +92,60 @@ export interface GridQuery {
   lane: LanePin | null;
 }
 
-// What the grid shows until the URL says otherwise: three days of main, long
-// enough to see a test turn and short enough to keep one commit a column,
-// every outcome shown, the time bar on, no configuration marked.
-export const DEFAULT_GRID_RAN_ON: readonly RanOn[] = ["main"];
-export const DEFAULT_GRID_WINDOW: HealthWindow = "3d";
+// What the grid shows until the URL says otherwise, as the page's parameter
+// definitions default them: three days of main, long enough to see a test
+// turn and short enough to keep one commit a column, every outcome shown,
+// the time bar on, no configuration marked.
+export const DEFAULT_GRID_RAN_ON = TEST_PAGE_DEFAULT_RAN_ON;
+export const DEFAULT_GRID_WINDOW = TEST_PAGE_DEFAULT_WINDOW;
 export const DEFAULT_GRID_TIME_BAR = true;
 
-// The statuses named in the URL's `outcomes`, comma-separated, put in the
-// menu's order with the unknown dropped; every status when none is left.
-function resolveOutcomes(value: string | string[] | undefined): CellStatus[] {
-  const named = new Set(typeof value === "string" ? value.split(",") : []);
-  const shown = CELL_STATUSES.filter((status) => named.has(status));
+// The statuses named in the URL's `outcomes`, put in the menu's order with
+// the unknown dropped; every status when none is left.
+function resolveOutcomes(named: readonly string[] | undefined): CellStatus[] {
+  const shown = CELL_STATUSES.filter((status) => named?.includes(status));
   return shown.length > 0 ? shown : [...CELL_STATUSES];
 }
 
-// The values of a parameter the API takes comma-separated or repeated,
-// `ran_on=main,pull_request` or `ran_on=main&ran_on=pull_request`.
-function urlValues(value: string | string[] | undefined): string[] {
-  if (value === undefined) return [];
-  return (typeof value === "string" ? [value] : value).flatMap((each) =>
-    each.split(",")
-  );
-}
-
 // A catalog id as a URL may carry it, a UInt64 as a decimal string, as the
-// API spells ids; anything else names nothing.
-function urlId(value: string | string[] | undefined): string | null {
-  return typeof value === "string" && /^\d{1,20}$/.test(value) ? value : null;
+// API spells ids and the page's definition of the parameter checks it;
+// anything else names nothing.
+function urlId(
+  definition: ParameterDefinition,
+  value: string | undefined
+): string | null {
+  const parsed = definition.schema.safeParse(value);
+  return parsed.success && typeof parsed.data === "string" ? parsed.data : null;
 }
 
-// The URL's choices, checked against the options: a value they do not offer
-// falls back to the default, so the header always shows a real choice. A
-// configuration is named by both its ids or not at all.
+// The URL's choices, read through the page's parameter definitions
+// (decodePageQuery) and checked against the options: a value they do not
+// offer falls back to the default, so the header always shows a real
+// choice. A configuration is named by both its ids or not at all.
 export function resolveGridQuery(
   url: UrlQuery,
   options: TestOptions
 ): GridQuery {
-  const ranOn = menuOrder(urlValues(url.ran_on), options.ran_on.values);
+  const decoded = decodePageQuery(url, TEST_PAGE_PARAMETER_DEFINITIONS);
+  const ranOn = menuOrder(decoded.ran_on ?? [], options.ran_on.values);
   const window = menuOrder(
-    typeof url.window === "string" ? [url.window] : [],
+    decoded.window === undefined ? [] : [decoded.window],
     options.window.values
   );
-  const environmentId = urlId(url.environment);
-  const envVarsId = urlId(url.env_vars);
+  const environmentId = urlId(
+    TEST_PAGE_PARAMETER_DEFINITIONS.environment,
+    decoded.environment
+  );
+  const envVarsId = urlId(
+    TEST_PAGE_PARAMETER_DEFINITIONS.env_vars,
+    decoded.env_vars
+  );
   return {
     ranOn: ranOn.length > 0 ? ranOn : [...DEFAULT_GRID_RAN_ON],
     window: window[0] ?? DEFAULT_GRID_WINDOW,
-    outcomes: resolveOutcomes(url.outcomes),
-    timeBar: url.time_bar !== "0",
-    commit: typeof url.commit === "string" ? url.commit.trim() : "",
+    outcomes: resolveOutcomes(decoded.outcomes),
+    timeBar: decoded.time_bar !== "0",
+    commit: decoded.commit?.trim() ?? "",
     lane:
       environmentId !== null && envVarsId !== null
         ? { environmentId, envVarsId }
@@ -142,44 +153,31 @@ export function resolveGridQuery(
   };
 }
 
-// Whether the code sources chosen are the default, main alone.
-function defaultSources(ranOn: readonly RanOn[]): boolean {
-  return (
-    ranOn.length === DEFAULT_GRID_RAN_ON.length &&
-    ranOn.every((source, index) => source === DEFAULT_GRID_RAN_ON[index])
-  );
-}
-
 export function allOutcomesShown(outcomes: readonly CellStatus[]): boolean {
   return CELL_STATUSES.every((status) => outcomes.includes(status));
 }
 
-// The URL parameters of a query, the defaults left off; `outcomes`,
+// The URL parameters of a query, each spelled by the page's definition of
+// it and left off at the page's defaults (pageUrlParams); `outcomes`,
 // `time_bar`, `commit`, `environment` and `env_vars` are the page's own,
 // the API knowing nothing of them.
 export function gridUrlParams(
   query: GridQuery
-): Record<
-  | "ran_on"
-  | "window"
-  | "outcomes"
-  | "time_bar"
-  | "commit"
-  | "environment"
-  | "env_vars",
-  string | undefined
-> {
-  return {
-    ran_on: defaultSources(query.ranOn) ? undefined : query.ranOn.join(","),
-    window: query.window === DEFAULT_GRID_WINDOW ? undefined : query.window,
-    outcomes: allOutcomesShown(query.outcomes)
-      ? undefined
-      : query.outcomes.join(","),
-    time_bar: query.timeBar ? undefined : "0",
-    commit: query.commit === "" ? undefined : query.commit,
-    environment: query.lane === null ? undefined : query.lane.environmentId,
-    env_vars: query.lane === null ? undefined : query.lane.envVarsId,
-  };
+): Record<keyof typeof TEST_PAGE_PARAMETER_DEFINITIONS, string | undefined> {
+  return pageUrlParams(
+    {
+      ran_on: [...query.ranOn],
+      window: query.window,
+      outcomes: allOutcomesShown(query.outcomes)
+        ? undefined
+        : [...query.outcomes],
+      time_bar: query.timeBar ? "1" : "0",
+      commit: query.commit,
+      environment: query.lane === null ? undefined : query.lane.environmentId,
+      env_vars: query.lane === null ? undefined : query.lane.envVarsId,
+    },
+    TEST_PAGE_PARAMETER_DEFINITIONS
+  ) as Record<keyof typeof TEST_PAGE_PARAMETER_DEFINITIONS, string | undefined>;
 }
 
 // Whether the time bar has anything to say for the code sources shown: a

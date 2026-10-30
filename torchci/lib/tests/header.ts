@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { testsPagePath } from "lib/api/tests/pages/parameters";
 import type { TestLanguage } from "lib/api/tests/parameters";
 import type { TestRecord } from "lib/api/tests/types";
 import type { Detail } from "lib/tests/environment";
@@ -57,7 +58,7 @@ export interface Crumb {
 export function headerCrumbs(
   test: Pick<TestRecord, "repo" | "file" | "suite">
 ): Crumb[] {
-  const list = `/tests/${test.repo}`;
+  const list = testsPagePath(test.repo);
   const searched = (text: string) =>
     `${list}?search=${encodeURIComponent(text)}`;
   const crumbs: Crumb[] = [

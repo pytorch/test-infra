@@ -68,6 +68,7 @@ describe("test runs grid OpenAPI", () => {
     expect(Object.keys(schemas.RunGrid.properties)).toEqual([
       "commits",
       "lanes",
+      "hud_url",
       "query_duration_ms",
     ]);
     expect(schemas.RunGrid.properties.lanes.items).toEqual({

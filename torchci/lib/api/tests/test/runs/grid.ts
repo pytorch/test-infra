@@ -1,3 +1,4 @@
+import { testPageLinkForGrid } from "lib/api/tests/pages/links";
 import {
   catalogRecords,
   configurationKey,
@@ -256,6 +257,11 @@ export async function queryRunGrid(
     Array.from(lanes.values(), configurationOf)
   );
   queryDurationMs += catalog.query_duration_ms;
+  // The test's repository, for the link to its page, comes with the lanes'
+  // catalog rows; an empty grid has none.
+  const repo = Array.from(catalog.byConfiguration.values()).find(
+    (row) => row.has_test === 1
+  )?.repo;
 
   const sortedLanes = Array.from(lanes.values()).sort(
     (left, right) =>
@@ -285,6 +291,7 @@ export async function queryRunGrid(
         ),
       })
     ),
+    hud_url: testPageLinkForGrid(repo, query),
     query_duration_ms: queryDurationMs,
   };
 }

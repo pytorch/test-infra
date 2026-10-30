@@ -16,7 +16,7 @@ export const testDetailApiOpenApi: ApiResource = {
         tags: ["tests"],
         summary: "Get a test with its owners and all available health",
         description:
-          "Returns the catalog test and its owners, with every observed environment, env var set, health window and code source. Each health entry uses the same environment, env var set and health shapes as GET /api/tests. Windows and code sources are kept separate: ran_on contains one source per health entry. No filtering or pagination is applied. A known test without health returns an empty health array; an unknown test returns 404.",
+          "Returns the catalog test and its owners, with every observed environment, env var set, health window and code source. Each health entry uses the same environment, env var set and health shapes as GET /api/tests. Windows and code sources are kept separate: ran_on contains one source per health entry. No filtering or pagination is applied. A known test without health returns an empty health array; an unknown test returns 404. The test's HUD page is test.hud_url, the testPage operation.",
         parameters: testDetailPathParameters(),
         responses: {
           "200": jsonResponse(

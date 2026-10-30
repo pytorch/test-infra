@@ -13,7 +13,12 @@ jest.mock("lib/api/auth", () => ({
   requireGithubWriteAccess: (handler: unknown) => handler,
 }));
 
-const emptyGrid: RunGrid = { commits: [], lanes: [], query_duration_ms: 3 };
+const emptyGrid: RunGrid = {
+  commits: [],
+  lanes: [],
+  hud_url: null,
+  query_duration_ms: 3,
+};
 
 function get(query: RawQuery) {
   return callRoute(GET, "/api/tests/test/{test_id}/runs", {

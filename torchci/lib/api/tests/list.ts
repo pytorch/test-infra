@@ -7,6 +7,7 @@ import {
 } from "lib/api/tests/cursor";
 import { CI_DATABASE, CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { EntityRow, toEntry } from "lib/api/tests/mapping";
+import { testsPageLink } from "lib/api/tests/pages/links";
 import { TestListQuery } from "lib/api/tests/parameters";
 import { buildListQuery, sortKeys } from "lib/api/tests/query";
 import { TestListPage } from "lib/api/tests/types";
@@ -65,6 +66,9 @@ export async function listTests({
     tests: page.map((row) => toEntry(row, query)),
     next_cursor,
     previous_cursor,
+    // The page that shows this selection, or null when the request used a
+    // parameter the page has no equivalent for (pages/links.ts).
+    hud_url: testsPageLink(query),
     refreshed_at: generation || null,
     query_duration_ms,
   };

@@ -45,6 +45,7 @@ function catalogRow(environmentsId: string, hasEnvironment = 1) {
     environments_id_string: environmentsId,
     env_vars_id_string: ENV_VARS_ID,
     has_test: 1,
+    repo: "pytorch/pytorch",
     has_environment: hasEnvironment,
     has_env_vars: 1,
     environment_id_string: environmentsId,
@@ -498,6 +499,11 @@ describe("queryRunGrid", () => {
 
     const grid = await queryRunGrid(query, new Date("2026-10-28T18:00:00Z"));
     expect(RunGridSchema.safeParse(grid).success).toBe(true);
+    // The page showing these runs: the repository from the lanes' catalog
+    // rows, the window spelled, main left off as the page's default.
+    expect(grid.hud_url).toBe(
+      `https://hud.pytorch.org/tests/pytorch/pytorch/test/${TEST_ID}?window=7d`
+    );
     expect(grid.commits).toEqual([
       { sha: SHA_A, started_at: "2026-10-24T05:50:00.000Z" },
       { sha: SHA_B, started_at: "2026-10-25T10:00:00.000Z" },
@@ -601,6 +607,7 @@ describe("queryRunGrid", () => {
     expect(grid).toEqual({
       commits: [],
       lanes: [],
+      hud_url: null,
       query_duration_ms: expect.any(Number),
     });
     expect(queryClickhouse).toHaveBeenCalledTimes(1);

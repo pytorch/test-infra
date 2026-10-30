@@ -1,3 +1,4 @@
+import { testPagePath } from "lib/api/tests/pages/parameters";
 import type { HealthWindow, RanOn } from "lib/api/tests/parameters";
 import type { TestHealthEntry } from "lib/api/tests/types";
 import {
@@ -11,16 +12,17 @@ import {
 // cells follow one rule: text that describes the test, its environment,
 // config and owners, narrows the list, and the test's own figures open the
 // test. The name is the test's home, the canonical page with no
-// parameters, so its URL is short and the same from every row of the test.
-// The Health and duration cells are evidence links: a reader who clicks
-// "Failing 92%" is asking to see the failures, so the link carries the
-// list's window and code sources, which the figure was counted over, and
-// names the row's configuration, which the page marks among the others
-// (LanePin). Free of React, so the table and the tests can read it.
+// parameters, so its URL is short and the same from every row of the test
+// (testPagePath, defined with the page's parameters in
+// lib/api/tests/pages/parameters.ts, where the API writes the same link as
+// every test record's hud_url). The Health and duration cells are evidence
+// links: a reader who clicks "Failing 92%" is asking to see the failures,
+// so the link carries the list's window and code sources, which the figure
+// was counted over, and names the row's configuration, which the page
+// marks among the others (LanePin). Free of React, so the table and the
+// tests can read it.
 
-export function testPagePath(repo: string, testId: string): string {
-  return `/tests/${repo}/test/${encodeURIComponent(testId)}`;
-}
+export { testPagePath };
 
 // What the list is showing that an evidence link carries along.
 export interface ListContext {

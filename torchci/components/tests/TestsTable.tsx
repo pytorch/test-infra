@@ -32,13 +32,14 @@ import {
   facetsPhrase,
   FacetValues,
   HEALTH_COLUMN_FACETS,
+  NameFilter,
+  NameFilterValues,
   noFacetValues,
   OWNER_COLUMN_FACETS,
   TestsFacet,
 } from "lib/tests/facets";
 import { headerBandColor, headerRuleColor } from "lib/tests/headerColors";
 import {
-  COLUMN_HEADER_HEIGHT,
   COLUMN_WIDTHS,
   HEADER_TITLE_STYLE,
   NAME_MIN_WIDTH,
@@ -47,6 +48,7 @@ import {
 import { ListContext, testPagePath, testRunsHref } from "lib/tests/links";
 import { CELL_VERTICAL_PADDING, ROW_HEIGHT } from "lib/tests/rows";
 import {
+  columnHeaderHeightFor,
   DEFAULT_TESTS_SORT,
   displayedRowsLabel,
   sortModelOf,
@@ -54,7 +56,7 @@ import {
   TESTS_PAGE_SIZES,
 } from "lib/tests/table";
 import type { TestsListing } from "lib/tests/useTestsListing";
-import { ReactNode, useMemo } from "react";
+import { ReactNode, useMemo, useState } from "react";
 
 // A row is one API entry: a test in one environment with one env var set.
 type TestRow = TestHealthEntry & {
@@ -160,6 +162,12 @@ export interface TestsTableProps {
   onSearchInput: (_text: string) => void;
   // Search for this text now: a file or suite clicked in a cell, or Enter.
   onSearch: (_text: string) => void;
+  // The exact name filters the URL carries, which the Name header shows as
+  // chips beside the search; undefined until the options have resolved the
+  // URL.
+  nameFilters: NameFilterValues | undefined;
+  // A chip's remove button: take this value of this filter out of the URL.
+  onNameFilterRemove: (_name: NameFilter, _value: string) => void;
   // What sits on the caption's line, left of "Updated": the view chips.
   toolbar?: ReactNode;
 }
@@ -180,6 +188,8 @@ export default function TestsTable({
   search,
   onSearchInput,
   onSearch,
+  nameFilters,
+  onNameFilterRemove,
   toolbar,
 }: TestsTableProps) {
   const filters = currentFilters ?? noFacetValues();
@@ -206,6 +216,9 @@ export default function TestsTable({
       : theme.palette.primary.dark;
 
   const sortModel = useMemo(() => sortModelOf(sort), [sort]);
+  // How much taller than a key the Name header's search field is, holding
+  // its rows of name-filter chips; the header band grows by it.
+  const [searchExtraHeight, setSearchExtraHeight] = useState(0);
   const descriptions = useMemo(
     () => descriptionsFor(windowLabel),
     [windowLabel]
@@ -246,6 +259,9 @@ export default function TestsTable({
               value={search}
               onChange={onSearchInput}
               onSubmit={onSearch}
+              filters={nameFilters}
+              onRemoveFilter={onNameFilterRemove}
+              onExtraHeightChange={setSearchExtraHeight}
             />
           </>
         ),
@@ -472,6 +488,8 @@ export default function TestsTable({
     search,
     onSearchInput,
     onSearch,
+    nameFilters,
+    onNameFilterRemove,
   ]);
 
   const handleSortModelChange = (model: GridSortModel) => {
@@ -633,7 +651,8 @@ export default function TestsTable({
           // `rowHeight` is what the grid assumes for a row it has not measured.
           getRowHeight={() => "auto"}
           rowHeight={ROW_HEIGHT}
-          columnHeaderHeight={COLUMN_HEADER_HEIGHT}
+          // Taller by the Name header's rows of name-filter chips.
+          columnHeaderHeight={columnHeaderHeightFor(searchExtraHeight)}
           disableColumnMenu
           disableColumnResize
           disableRowSelectionOnClick

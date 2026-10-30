@@ -65,6 +65,7 @@ describe("test list", () => {
       "env_vars",
       "environment",
       "health",
+      "hud_url",
       "owners",
       "test",
     ]);
@@ -108,6 +109,7 @@ describe("test list", () => {
     expect(res.body).toEqual({
       tests: [],
       pagination: { next: null, previous: null },
+      hud_url: "https://hud.pytorch.org/tests/pytorch/pytorch",
       refreshed_at: null,
       query_duration_ms: expect.any(Number),
     });
@@ -563,6 +565,7 @@ describe("test list", () => {
     expect(res.body).toEqual({
       tests: [],
       pagination: { next: null, previous: null },
+      hud_url: "https://hud.pytorch.org/tests/pytorch/pytorch",
       refreshed_at: refreshedAt,
       query_duration_ms: 30,
     });
@@ -583,6 +586,8 @@ describe("test list", () => {
     expect(res.body).toEqual({
       tests: [],
       pagination: { next: null, previous: null },
+      hud_url:
+        "https://hud.pytorch.org/tests/pytorch/pytorch?search=no_such_test",
       refreshed_at: REFRESHED_AT,
       query_duration_ms: expect.any(Number),
     });

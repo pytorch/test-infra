@@ -108,6 +108,7 @@ describe("app/api/tests/commit/[sha]", () => {
           },
           test: {
             id: run.tests_id,
+            hud_url: `https://hud.pytorch.org/tests/${REPO}/test/${run.tests_id}`,
             repo: REPO,
             file: "test/test_torch.py",
             suite: "TestTorch",

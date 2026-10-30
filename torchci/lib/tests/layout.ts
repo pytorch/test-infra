@@ -36,6 +36,13 @@ export const PAGE_PADDING = 2;
 // in the secondary text color set where they are drawn; and how long the
 // pointer rests on a title before its tooltip opens.
 export const COLUMN_HEADER_HEIGHT = 44;
+// A row of the chips the Name header's search field shows beneath its text
+// while the URL carries exact name filters (NameSearch): a chip and the air
+// under it. The chips wrap onto as many rows as they need, the field grows
+// by them, and the list's header band follows the field's measured height
+// (columnHeaderHeightFor in lib/tests/table.ts), so the other headers'
+// labels and keys stay centered.
+export const NAME_FILTER_ROW_HEIGHT = 22;
 export const HEADER_TITLE_STYLE = {
   fontWeight: 600,
   letterSpacing: "0.08em",

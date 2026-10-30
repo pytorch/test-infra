@@ -344,6 +344,12 @@ export const RunGridSchema = z
       .describe(
         "The lanes with at least one cell, ordered by workflow path, a lane without a path first, then by environment ID and env var set ID as numbers."
       ),
+    hud_url: z
+      .url()
+      .nullable()
+      .describe(
+        "The test's HUD page (testPage) showing these runs, as an absolute URL: ran_on and window carried, each spelled as the widest choice when the request left it out (both code sources, which leaves out only the jobs that belong to neither; 14d, the retention), and one environments_id with one env_vars_id as the page's marked configuration, shown among the others. Null when the grid is empty, since the test's repository is read with its lanes, and when the request narrowed the lanes in a way the page cannot show: any other catalog filter, env_vars, workflow_path, or several ids."
+      ),
     query_duration_ms: TestListPageSchema.shape.query_duration_ms.describe(
       "Sum of the individually rounded elapsed milliseconds of the grouped read and the catalog lookup. Includes client and network overhead and decoding; excludes SQL construction, mapping and API transport."
     ),

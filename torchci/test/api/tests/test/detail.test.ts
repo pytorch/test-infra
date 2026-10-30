@@ -50,6 +50,9 @@ describe("test detail", () => {
 
     expect(result?.test).toEqual({
       id: testId(1),
+      hud_url: `https://hud.pytorch.org/tests/pytorch/pytorch/test/${testId(
+        1
+      )}`,
       repo: "pytorch/pytorch",
       file: "test/test_torch.py",
       suite: "TestTorch",
@@ -102,7 +105,14 @@ describe("test detail", () => {
       const res = await getTests({ window, ran_on });
 
       expect(res.status).toBe(200);
-      const { test: identity, owners, ...configuration } = res.body.tests[0];
+      // The list's entry carries the page link for its runs; the detail's
+      // configurations do not, the test's own page being the detail's.
+      const {
+        test: identity,
+        owners,
+        hud_url: _runsPage,
+        ...configuration
+      } = res.body.tests[0];
       expect(result?.test).toEqual(identity);
       expect(result?.owners).toEqual(owners);
       expect(result?.health).toEqual([configuration]);

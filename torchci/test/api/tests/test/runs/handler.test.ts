@@ -100,6 +100,7 @@ describe("app/api/tests/test/[test_id]/runs", () => {
           },
           test: {
             id: run.tests_id,
+            hud_url: `https://hud.pytorch.org/tests/pytorch/pytorch/test/${run.tests_id}`,
             repo: "pytorch/pytorch",
             file: "test/test_torch.py",
             suite: "TestTorch",

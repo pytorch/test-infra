@@ -57,3 +57,24 @@ export function routeFiles(
       : [];
   });
 }
+
+// The test hub's page files under pages/tests/[organization] and the path
+// each serves, written as the route files' are: a [name] folder or file is
+// a {name} segment. The other files in pages/tests predate the hub and are
+// not pages of the API's document.
+export function pageFiles(
+  directory = join(__dirname, "../../pages/tests/[organization]"),
+  path = "/tests/{organization}"
+): { file: string; path: string }[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const segment = entry.name
+      .replace(/\.tsx$/, "")
+      .replace(/^\[(\w+)\]$/, "{$1}");
+    if (entry.isDirectory()) {
+      return pageFiles(join(directory, entry.name), `${path}/${segment}`);
+    }
+    return entry.name.endsWith(".tsx")
+      ? [{ file: join(directory, entry.name), path: `${path}/${segment}` }]
+      : [];
+  });
+}
