@@ -7,6 +7,7 @@
 import { hasTriageOrHigherPermissions } from "lib/bot/utils";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { isBot } from "lib/greenlight/greenlightReviewGate";
+import { requestOutstandingChangesReviewers } from "lib/prReview/reReviewRequests";
 import {
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -116,14 +117,14 @@ export function activeUsersSince(
   return Array.from(logins);
 }
 
-async function hasMaintainerActivitySince(
+async function fetchMaintainerActivitySince(
   octokit: Octokit,
   owner: string,
   repo: string,
   prNumber: number,
   author: string,
   sinceMs: number
-): Promise<boolean> {
+) {
   // `since` filters on updated_at, a superset of what activeUsersSince keeps.
   const since = new Date(sinceMs).toISOString();
   const [comments, reviews, reviewComments] = await Promise.all([
@@ -158,10 +159,10 @@ async function hasMaintainerActivitySince(
   ];
   for (const login of activeUsersSince(activities, sinceMs, author)) {
     if (await hasTriageOrHigherPermissions(octokit, owner, repo, login)) {
-      return true;
+      return { hasMaintainerActivity: true, reviews };
     }
   }
-  return false;
+  return { hasMaintainerActivity: false, reviews };
 }
 
 export type PromotionOutcome =
@@ -218,18 +219,26 @@ export async function maybePromoteToReadyForReview(
   ) {
     return "not_eligible";
   }
-  if (
-    await hasMaintainerActivitySince(
-      octokit,
-      owner,
-      repo,
-      prNumber,
-      author,
-      Number(review.started_at_ms)
-    )
-  ) {
+  const { hasMaintainerActivity, reviews } = await fetchMaintainerActivitySince(
+    octokit,
+    owner,
+    repo,
+    prNumber,
+    author,
+    Number(review.started_at_ms)
+  );
+  if (hasMaintainerActivity) {
     return "maintainer_activity";
   }
+
+  await requestOutstandingChangesReviewers(
+    octokit,
+    owner,
+    repo,
+    prNumber,
+    author,
+    reviews
+  );
 
   console.log(
     `Adding "${PR_STATUS_LABEL_READY_FOR_REVIEW}" to ${owner}/${repo}#${prNumber}: automated review passed on ${evaluatedHeadSha} and CI is green`
