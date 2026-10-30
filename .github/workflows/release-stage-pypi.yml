@@ -116,7 +116,7 @@ jobs:
             fi
 
             if [[ ${PACKAGE} == 'executorch' ]]; then
-              # ExecuTorch's PyPI release uses CUDA 13.2 on Linux and Windows.
+              # ExecuTorch's PyPI release uses CUDA 13.2 on Linux.
               EXECUTORCH_CUDA_ARCH="cu132"
               EXECUTORCH_VERSION_SUFFIX="%2B${EXECUTORCH_CUDA_ARCH}"
               # shellcheck disable=SC2086
@@ -126,7 +126,7 @@ jobs:
               # shellcheck disable=SC2086
               PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX="${EXECUTORCH_VERSION_SUFFIX}" ARCH="${EXECUTORCH_CUDA_ARCH}" upload_pypi_to_staging executorch "${!version}"
               # shellcheck disable=SC2086
-              PLATFORM="win_amd64" VERSION_SUFFIX="${EXECUTORCH_VERSION_SUFFIX}" ARCH="${EXECUTORCH_CUDA_ARCH}" upload_pypi_to_staging executorch "${!version}"
+              PLATFORM="win_amd64" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging executorch "${!version}"
             fi
 
             if [[ ${PACKAGE} == 'torchcodec' ]]; then
