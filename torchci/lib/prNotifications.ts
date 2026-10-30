@@ -1,7 +1,8 @@
-import { getPreReviewStatus, hasPreReviewLabels } from "lib/bot/preReviewUtils";
+import { getPreReviewStatus } from "lib/bot/preReviewUtils";
 import {
   fetchPrStatusState,
   getPrStatusStage,
+  hasPreReviewLabels,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_TRIAGED,
@@ -180,7 +181,7 @@ export async function buildPrNotificationsManifest(
       case "preReview":
         // An approval outside the merge rules doesn't end pre-review. Only
         // include this stage when the PR is still carrying pre-review labels.
-        if (!hasPreReviewLabels(labels)) {
+        if (!hasPreReviewLabels(state.labels)) {
           return null;
         }
         // getPreReviewStatus reads a failed lookup as no reviewers, which
@@ -207,17 +208,10 @@ export async function buildPrNotificationsManifest(
       case "readyForReview": {
         stage = "final_review";
         stageLabel = PR_STATUS_LABEL_READY_FOR_REVIEW;
-        const pull = await octokit.rest.pulls.get({
-          owner,
-          repo,
-          pull_number: pr.number,
-        });
-        pending = [
-          ...(pull.data.requested_reviewers ?? []).map((user) => user.login),
-          ...(pull.data.requested_teams ?? []).map(
-            (team) => `${owner}/${team.slug}`
-          ),
-        ];
+        if (state.reviewerLookupFailed) {
+          throw new Error("reviewer lookup failed");
+        }
+        pending = state.requestedReviewers ?? [];
         break;
       }
       default:

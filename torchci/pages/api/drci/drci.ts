@@ -35,6 +35,7 @@ import {
   getActiveSEVs,
   getDrciComment,
   getPRMergeCommits,
+  getPrStatusForCi,
   getSuppressedLabels,
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
@@ -83,14 +84,6 @@ import {
   PrReviewHeadVerdictRow,
   withStaleReviewNote,
 } from "lib/prReview/readyForReviewPromotion";
-import {
-  extractPrStatusSection,
-  fetchLiveLabels,
-  fetchPrStatusState,
-  hasPrStatusLabel,
-  PR_STATUS_START,
-  renderPrStatusSection,
-} from "lib/prStatus";
 import { drCIRateLimitExceeded, incrementDrCIRateLimit } from "lib/rateLimit";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
@@ -609,45 +602,19 @@ export async function updateDrciComments(
         }
       }
 
-      // Use live labels so a lagging ClickHouse snapshot cannot overwrite a
-      // newer webhook update. Mirrored labels and an existing section only gate
-      // the GitHub read; live labels determine what renders. On an API failure,
-      // preserve the existing section and let a later update retry.
-      let prStatusSection = "";
-      if (isPyTorchPyTorch(owner, repo)) {
-        const existingComment =
-          existingDrCiComments.get(pr_info.pr_number)?.body ?? "";
-        prStatusSection = extractPrStatusSection(existingComment);
-        try {
-          if (
-            hasPrStatusLabel(labels || []) ||
-            existingComment.includes(PR_STATUS_START)
-          ) {
-            const liveLabels = await fetchLiveLabels(
-              octokit,
-              owner,
-              repo,
-              pr_info.pr_number
-            );
-
-            if (hasPrStatusLabel(liveLabels)) {
-              const state = await fetchPrStatusState(
-                octokit,
-                owner,
-                repo,
-                pr_info.pr_number,
-                liveLabels
-              );
-              if (state !== null) {
-                prStatusSection = renderPrStatusSection(state);
-              }
-            } else {
-              prStatusSection = "";
-            }
-          }
-        } catch (e) {
-          console.error("PR status build threw for PR", pr_info.pr_number, e);
-        }
+      const status = await getPrStatusForCi(
+        octokit,
+        owner,
+        repo,
+        pr_info.pr_number
+      );
+      if (status === null) {
+        // CI classifications are still returned, but a failed status read must
+        // not let this rebuild overwrite the live comment with mirrored data.
+        return;
+      }
+      if (status.comment) {
+        existingDrCiComments.set(pr_info.pr_number, status.comment);
       }
 
       const comment = formDrciComment(
@@ -656,7 +623,7 @@ export async function updateDrciComments(
         repo,
         failureInfo,
         formDrciSevBody(sevs),
-        prStatusSection,
+        status.section,
         pr_info.headRef,
         labels,
         withStaleReviewNote(

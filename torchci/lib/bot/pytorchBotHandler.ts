@@ -22,7 +22,8 @@ import {
   cherryPickClassifications,
 } from "./Constants";
 import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
-import { isInPreReview, markInProgressIfAccepted } from "./preReviewUtils";
+import { markInProgressIfAccepted } from "./preReviewSweep";
+import { isInPreReview } from "./preReviewUtils";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,

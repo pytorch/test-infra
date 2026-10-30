@@ -1,4 +1,4 @@
-import * as preReview from "lib/bot/preReviewUtils";
+import * as preReview from "lib/bot/preReviewSweep";
 import * as clickhouse from "lib/clickhouse";
 import * as workflows from "lib/fetchRecentWorkflows";
 import * as github from "lib/github";

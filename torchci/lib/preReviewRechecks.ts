@@ -1,5 +1,5 @@
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { PreReviewRechecks } from "lib/bot/preReviewUtils";
+import { PreReviewRechecks } from "lib/bot/preReviewSweep";
 import { getS3Client } from "lib/s3";
 import { z } from "zod";
 
