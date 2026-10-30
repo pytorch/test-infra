@@ -1,6 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import * as drciUtils from "lib/drciUtils";
 import { OWNER, REPO } from "lib/drciUtils";
+import * as github from "lib/github";
 import * as greenlightEligibility from "lib/greenlight/greenlightEligibility";
 import { renderGreenlightEligibility } from "lib/greenlight/greenlightEligibility";
 import * as getS3Client from "lib/s3";
@@ -211,6 +212,9 @@ describe("verify-drci-functionality", () => {
   test("Dr. CI edits existing comment if an explicit update request is made", async () => {
     probot = utils.testProbot();
     probot.load(pytorchBot);
+    jest
+      .spyOn(github, "getPreReviewOctokit")
+      .mockResolvedValue(utils.testOctokit());
 
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
@@ -265,6 +269,8 @@ describe("verify-drci-functionality", () => {
           },
         },
       })
+      .get(`/repos/${OWNER}/${REPO}/issues/1000/labels?per_page=100`)
+      .reply(200, [])
       .get(`/repos/${OWNER}/${REPO}/issues/1000/comments`)
       .reply(200, [
         {
