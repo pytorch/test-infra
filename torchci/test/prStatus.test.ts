@@ -366,8 +366,9 @@ describe("getPrStatusMessage", () => {
       "already-linked issue automatically requests re-triage"
     );
     expect(message).toContain(
-      "If you add the link afterward or use `Supported by`"
+      "Adding a valid actionable-issue link or `Supported by` line to the description also requests re-triage automatically."
     );
+    expect(message).toContain("rechecks existing links and support");
     expect(message).toContain("then remove and re-add `open source`.");
   });
 

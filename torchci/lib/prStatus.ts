@@ -337,8 +337,11 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         "already-linked issue automatically requests re-triage of open, " +
         "non-draft PRs with `open source` and " +
         "`missing actionable issue`, unless automated triage is disabled. " +
-        "If you add the link afterward or use `Supported by`, ask a " +
-        "maintainer to triage the PR again: they remove the `triaged`, " +
+        "Adding a valid actionable-issue link or `Supported by` line to " +
+        "the description also requests re-triage automatically. Marking " +
+        "the PR ready, reopening it, or re-enabling automated triage " +
+        "rechecks existing links and support. If re-triage is still needed, " +
+        "ask a maintainer: they remove the `triaged`, " +
         "`bot-triaged`, and `missing actionable issue` labels, then " +
         "remove and re-add `open source`."
       );
