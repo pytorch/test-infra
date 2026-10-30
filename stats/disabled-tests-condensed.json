@@ -282,24 +282,9 @@
       "inductor"
     ]
   ],
-  "test_copy_transpose_tiled_batched_layout_broadcast_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "200382",
-    "https://github.com/pytorch/pytorch/issues/200382",
-    [
-      "rocm"
-    ]
-  ],
   "test_copy_transpose_tiled_batched_layout_padded_dst_batch_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "200383",
     "https://github.com/pytorch/pytorch/issues/200383",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
-  "test_copy_transpose_tiled_batched_layout_padded_dst_batch_cuda_uint8 (__main__.TestTorchDeviceTypeCUDA)": [
-    "200401",
-    "https://github.com/pytorch/pytorch/issues/200401",
     [
       "inductor",
       "rocm"
@@ -383,6 +368,13 @@
   "test_current_device_context_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202716",
     "https://github.com/pytorch/pytorch/issues/202716",
+    [
+      "rocm"
+    ]
+  ],
+  "test_current_device_stream_constructor_under_coor_stream_kind_cuda_use_kwarg_False (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202748",
+    "https://github.com/pytorch/pytorch/issues/202748",
     [
       "rocm"
     ]
@@ -478,6 +470,14 @@
   "test_del_subscr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195166",
     "https://github.com/pytorch/pytorch/issues/195166",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
+  "test_device_properties_graph_break_is_explicit_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202749",
+    "https://github.com/pytorch/pytorch/issues/202749",
     [
       "linux",
       "rocm"
@@ -583,11 +583,25 @@
       "slow"
     ]
   ],
+  "test_extract_gradients_from_optimizer_set_to_none_cpu (__main__.TestIdentifyGradientsCPU)": [
+    "202747",
+    "https://github.com/pytorch/pytorch/issues/202747",
+    [
+      "linux"
+    ]
+  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
     [
       "dynamo"
+    ]
+  ],
+  "test_flattened_submesh_no_getattr_compile_on_one_rank (__main__.TestDTensorCompileWithCompiledAutograd)": [
+    "193002",
+    "https://github.com/pytorch/pytorch/issues/193002",
+    [
+      "rocm"
     ]
   ],
   "test_float8_e4m3fn_uint8_decode_codegen_cuda (__main__.TestFP8TypesCUDA)": [
@@ -1451,16 +1465,6 @@
     [
       "asan",
       "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_m (__main__.TestVisionTracing)": [
-    "124152",
-    "https://github.com/pytorch/pytorch/issues/124152",
-    [
-      "asan",
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
