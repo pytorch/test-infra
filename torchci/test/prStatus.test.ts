@@ -1,3 +1,4 @@
+import { PreReviewStatus } from "lib/bot/preReviewUtils";
 import {
   buildAssignedReviewers,
   extractPrStatusSection,
@@ -32,6 +33,23 @@ function state(overrides: Partial<PrStatusState> = {}): PrStatusState {
   };
 }
 
+function preReview(overrides: Partial<PreReviewStatus> = {}): PreReviewStatus {
+  return {
+    assigned: ["alice", "bob", "pytorch/core"],
+    agreed: ["alice"],
+    pending: ["bob", "pytorch/core"],
+    rejected: [],
+    timedOut: [],
+    countedFrom: ["alice"],
+    expiresAt: "2026-11-05T16:30:00.000Z",
+    deadlinePassed: false,
+    isMergeApproved: false,
+    lookupFailed: false,
+    accepted: false,
+    ...overrides,
+  };
+}
+
 describe("getPrStatusStage", () => {
   test("no status label means no stage", () => {
     expect(getPrStatusStage(state({ labels: ["module: cuda"] }))).toBe("none");
@@ -54,6 +72,33 @@ describe("getPrStatusStage", () => {
         state({ labels: [PR_STATUS_LABEL_TRIAGED], assignedReviewers: [] })
       )
     ).toBe("preReview");
+  });
+
+  test.each([false, undefined])(
+    "an approval with merge rights %s cannot hide pre-review",
+    (isMergeApproved) => {
+      expect(
+        getPrStatusStage(
+          state({ labels: ["triaged"], isApproved: true, isMergeApproved })
+        )
+      ).toBe("preReview");
+    }
+  );
+
+  test("drafts pause pre-review and pre-rollout PRs are excluded", () => {
+    expect(
+      getPrStatusStage(
+        state({ labels: ["triaged"], pullRequest: { draft: true } })
+      )
+    ).toBe("draft");
+    expect(
+      getPrStatusStage(
+        state({
+          labels: ["triaged"],
+          pullRequest: { created_at: "2026-08-01T00:00:00Z" },
+        })
+      )
+    ).toBe("none");
   });
 
   test("approval outranks every label", () => {
@@ -163,24 +208,65 @@ describe("getPrStatusStage", () => {
 });
 
 describe("getPrStatusMessage", () => {
-  test("pre-review names the assigned reviewers", () => {
-    expect(
-      getPrStatusMessage(
-        state({
-          labels: [PR_STATUS_LABEL_TRIAGED],
-          assignedReviewers: ["blah", "blahb", "pytorch/team"],
-        })
-      )
-    ).toBe(
-      "## PR Status: in pre-review\n\n" +
-        "Assigned reviewers (@blah, @blahb, @pytorch/team) " +
-        "have one week after entering pre-review to accept with a thumbs-up on the PR " +
-        "description or `@pytorchbot pre-review accept`, or object with a " +
-        "thumbs-down. After that week, silence counts as acceptance. " +
-        "Outstanding requests for changes also block acceptance. " +
-        "Once everyone accepts or times out without an objection, " +
-        'the PR is marked "in progress".'
+  test("pre-review names only outstanding reviewers without mentions and shows the shared deadline", () => {
+    const message = getPrStatusMessage(
+      state({ labels: ["triaged"], preReview: preReview() })
     );
+    expect(message).toContain(
+      "**Waiting for pre-review:** `bob`, `pytorch/core`."
+    );
+    expect(message).toContain("**Pre-review accepted:** `alice`.");
+    expect(message).toContain(
+      "**Pre-review deadline:** 2026-11-05 16:30:00 UTC."
+    );
+    expect(message).toContain("Adding reviewers does not extend this deadline");
+    expect(message).not.toMatch(/@(alice|bob|pytorch\/core)/);
+    expect(message).toContain(
+      "Pre-review is a quick check of the PR's overall direction"
+    );
+    expect(message).toContain("it does not grant merge approval");
+    expect(message).toContain("👍 on the PR description");
+    expect(message).toContain("`@pytorchbot pre-review accept` comment");
+    expect(message).toContain(
+      "request changes with a 👎 on the PR description"
+    );
+  });
+
+  test("silent reviewers disappear after expiry without being credited as accepting", () => {
+    const message = getPrStatusMessage(
+      state({
+        labels: ["triaged"],
+        preReview: preReview({
+          pending: ["bob"],
+          rejected: ["bob"],
+          timedOut: ["pytorch/core"],
+          deadlinePassed: true,
+        }),
+      })
+    );
+    expect(message).toContain("**Pre-review request changes:** `bob`.");
+    expect(message).toContain("These block pre-review and do not expire");
+    expect(message).not.toContain("`pytorch/core`");
+    expect(message).not.toContain("accepted after timeout");
+    expect(message).toContain("**Pre-review accepted:** `alice`.");
+    expect(message).toContain("This deadline has passed");
+    expect(message).not.toContain("Waiting for pre-review:");
+  });
+
+  test("missing history and failed lookups never display successful acceptance", () => {
+    const unknown = getPrStatusMessage(
+      state({ labels: ["triaged"], preReview: preReview({ expiresAt: null }) })
+    );
+    expect(unknown).toContain("deadline:** unavailable");
+    expect(unknown).not.toContain("Invalid Date");
+    const failed = getPrStatusMessage(
+      state({
+        labels: ["triaged"],
+        preReview: preReview({ lookupFailed: true }),
+      })
+    );
+    expect(failed).toContain("could not be checked yet");
+    expect(failed).not.toContain("**Pre-review accepted:");
   });
 
   test("in progress explains maintainer feedback and CI readiness criteria", () => {
@@ -230,7 +316,7 @@ describe("getPrStatusMessage", () => {
     );
     expect(message).toBe(
       "## PR Status: ready for maintainer review\n\n" +
-        "Please address comments left by our maintainers until the PR is accepted."
+        "A maintainer requested changes. Please address their feedback and ask for another review."
     );
   });
 
@@ -239,8 +325,8 @@ describe("getPrStatusMessage", () => {
       getPrStatusMessage(state({ labels: [PR_STATUS_LABEL_READY_FOR_REVIEW] }))
     ).toBe(
       "## PR Status: ready for maintainer review\n\n" +
-        "Please address comments " +
-        "left by our maintainers until the PR is accepted."
+        "Waiting for a maintainer with merge rights for the changed paths " +
+        "to review this PR. Please address any feedback they leave."
     );
   });
 
@@ -286,32 +372,36 @@ describe("getPrStatusMessage", () => {
     );
   });
 
-  test("pre-review renders an empty list when no reviewer is assigned", () => {
-    expect(
-      getPrStatusMessage(
-        state({ labels: [PR_STATUS_LABEL_TRIAGED], assignedReviewers: [] })
-      )
-    ).toBe(
-      "## PR Status: in pre-review\n\n" +
-        "Assigned reviewers () " +
-        "have one week after entering pre-review to accept with a thumbs-up on the PR " +
-        "description or `@pytorchbot pre-review accept`, or object with a " +
-        "thumbs-down. After that week, silence counts as acceptance. " +
-        "Outstanding requests for changes also block acceptance. " +
-        "Once everyone accepts or times out without an objection, " +
-        'the PR is marked "in progress".'
+  test("no assigned reviewers still has a deadline", () => {
+    const message = getPrStatusMessage(
+      state({
+        labels: ["triaged"],
+        preReview: preReview({
+          assigned: [],
+          agreed: [],
+          pending: [],
+          countedFrom: [],
+        }),
+      })
     );
+    expect(message).toContain(
+      "No reviewers are assigned; the shared deadline still applies."
+    );
+    expect(message).toContain("2026-11-05 16:30:00 UTC");
+    expect(message).not.toContain("()");
   });
 
   test("reviewer names that did not come from GitHub are dropped", () => {
-    expect(
-      getPrStatusMessage(
-        state({
-          labels: [PR_STATUS_LABEL_TRIAGED],
-          assignedReviewers: ["alice", "](https://evil.example) [x", "bob"],
-        })
-      )
-    ).toContain("(@alice, @bob)");
+    const message = getPrStatusMessage(
+      state({
+        labels: ["triaged"],
+        preReview: preReview({
+          pending: ["alice", "](https://evil.example) [x", "bob"],
+        }),
+      })
+    );
+    expect(message).toContain("**Waiting for pre-review:** `alice`, `bob`.");
+    expect(message).not.toContain("evil.example");
   });
 });
 
@@ -320,7 +410,7 @@ describe("hasPrStatusLabel", () => {
     expect(hasPrStatusLabel([])).toBe(false);
     expect(hasPrStatusLabel(["module: cuda"])).toBe(false);
     expect(hasPrStatusLabel(["module: cuda", PR_STATUS_LABEL_TRIAGED])).toBe(
-      false // change to true after rolling out the triaged label
+      true
     );
     expect(hasPrStatusLabel([PR_STATUS_LABEL_IN_PROGRESS])).toBe(true);
     expect(hasPrStatusLabel([PR_STATUS_LABEL_READY_FOR_REVIEW])).toBe(true);
@@ -724,7 +814,7 @@ describe("fetchPrStatusState", () => {
     expect(octokit._getContent).not.toHaveBeenCalled();
   });
 
-  test("reads approval for a non-triaged PR without fetching reviewers", async () => {
+  test("reads metadata for non-triaged PRs without building the assigned reviewer list", async () => {
     const octokit = octokitStub({ reviews: [approvingReview("alice")] });
     const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
       "in progress",
@@ -733,7 +823,7 @@ describe("fetchPrStatusState", () => {
     expect(state!.isApproved).toBe(true);
     expect(state!.hasChangesRequested).toBe(false);
     expect(state!.assignedReviewers).toEqual([]);
-    expect(octokit._get).not.toHaveBeenCalled();
+    expect(octokit._get).toHaveBeenCalled();
   });
 
   test("fetches reviewers for a triaged PR", async () => {

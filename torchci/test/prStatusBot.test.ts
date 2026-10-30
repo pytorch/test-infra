@@ -62,6 +62,8 @@ function mockStatusRefresh(reviews: any[] = [], message?: string) {
   const scope = nock("https://api.github.com")
     .get(`/repos/${REPO}/pulls/${PR_NUMBER}/reviews?per_page=100`)
     .reply(200, reviews)
+    .get(`/repos/${REPO}/pulls/${PR_NUMBER}`)
+    .reply(200, { state: "open", draft: false })
     .get(`/repos/${REPO}/issues/${PR_NUMBER}/comments`)
     .reply(
       200,
@@ -256,6 +258,8 @@ describe("prStatusBot", () => {
       nock("https://api.github.com")
         .get(`/repos/${REPO}/pulls/${PR_NUMBER}/reviews?per_page=100`)
         .reply(200, [])
+        .get(`/repos/${REPO}/pulls/${PR_NUMBER}`)
+        .reply(200, { state: "open", draft: false })
         .get(`/repos/${REPO}/issues/${PR_NUMBER}/comments`)
         .reply(500),
     ];

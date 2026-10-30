@@ -5,6 +5,7 @@ import { upsertPrStatusSection } from "lib/drciUtils";
 import { getPreReviewOctokit } from "lib/github";
 import {
   fetchLiveLabels,
+  hasPreReviewLabels,
   hasPrStatusLabel,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -14,7 +15,8 @@ import {
 } from "lib/prStatus";
 import { PR_CHANGES_REQUESTED } from "lib/reviewApproval";
 import { Context, Probot } from "probot";
-import { isInPreReview, markInProgressIfAccepted } from "./preReviewUtils";
+import { markInProgressIfAccepted } from "./preReviewSweep";
+import { isInPreReview } from "./preReviewUtils";
 import { hasVerifiedHumanWritePermissions, isPyTorchPyTorch } from "./utils";
 
 async function removeLabelIfPresent(
@@ -151,21 +153,10 @@ async function handle(
     );
   }
 
-  await upsertPrStatusSection(
-    context.octokit as any,
-    owner,
-    repo,
-    pullRequest.number,
-    labels,
-    pullRequest.user?.login
-  );
-
-  // Removing a pending reviewer, or assigning one who already commented an
-  // accept, can complete agreement without a reaction or accept command. This
-  // runs after the upsert so the labeled webhook renders the newer status.
+  // Share the policy read with the live comment and handle changes to reviewer
+  // requests, objections, or the deadline without waiting for CI activity.
   if (
-    (payload.action === "review_requested" ||
-      payload.action === "review_request_removed") &&
+    hasPreReviewLabels(labels) &&
     pullRequest.user?.login &&
     isInPreReview(pullRequest)
   ) {
@@ -178,7 +169,17 @@ async function handle(
       labels,
       pullRequest.user.login
     );
+    return;
   }
+
+  await upsertPrStatusSection(
+    context.octokit as any,
+    owner,
+    repo,
+    pullRequest.number,
+    labels,
+    pullRequest.user?.login
+  );
 }
 
 export default function prStatusBot(app: Probot): void {
@@ -191,6 +192,9 @@ export default function prStatusBot(app: Probot): void {
       // Retargeting changes the files an approval must cover.
       "pull_request.edited",
       "pull_request.review_request_removed",
+      "pull_request.converted_to_draft",
+      "pull_request.ready_for_review",
+      "pull_request.reopened",
       // Submitted or dismissed reviews can change approval.
       "pull_request_review.submitted",
       "pull_request_review.dismissed",

@@ -265,6 +265,8 @@ describe("verify-drci-functionality", () => {
           },
         },
       })
+      .get(`/repos/${OWNER}/${REPO}/issues/1000/labels?per_page=100`)
+      .reply(200, [])
       .get(`/repos/${OWNER}/${REPO}/issues/1000/comments`)
       .reply(200, [
         {

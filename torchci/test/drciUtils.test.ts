@@ -780,7 +780,10 @@ describe("upsertPrStatusSection", () => {
   test("fetches status inputs before reading the Dr.CI comment", async () => {
     const apiCallOrder: string[] = [];
     const octokit = {
-      paginate: jest.fn(async () => {
+      paginate: jest.fn(async (route: any) => {
+        if (route === octokit.rest.issues.listComments) {
+          return (await route()).data;
+        }
         apiCallOrder.push("fetch status inputs");
         return [];
       }),

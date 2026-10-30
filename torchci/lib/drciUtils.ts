@@ -1,7 +1,9 @@
 import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { getPreReviewStatus } from "lib/bot/preReviewUtils";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
+import { getPreReviewOctokit } from "lib/github";
 import { buildGreenlightOpenedLine } from "lib/greenlight/greenlightComment";
 import {
   hasS3Log,
@@ -10,8 +12,12 @@ import {
 } from "lib/jobUtils";
 import {
   extractPrStatusSection,
+  fetchLiveLabels,
   fetchPrStatusState,
+  getPrStatusStage,
+  hasPreReviewLabels,
   hasPrStatusLabel,
+  PrStatusState,
   renderPrStatusSection,
   splicePrStatusSection,
 } from "lib/prStatus";
@@ -175,18 +181,24 @@ export async function getDrciComment(
   repo: string,
   prNum: number
 ): Promise<{ id: number; body: string }> {
-  const commentsRes = await octokit.rest.issues.listComments({
-    owner: owner,
-    repo: repo,
-    issue_number: prNum,
-  });
-  for (const comment of commentsRes.data) {
-    if (
-      comment.user?.login === DRCI_COMMENT_AUTHOR &&
-      comment.body!.includes(DRCI_COMMENT_START)
-    ) {
-      return { id: comment.id, body: comment.body! };
+  const comments = await octokit.paginate(
+    octokit.rest.issues.listComments,
+    { owner, repo, issue_number: prNum },
+    (response, done) => {
+      const comment = response.data.find(
+        (comment) =>
+          comment.user?.login === DRCI_COMMENT_AUTHOR &&
+          comment.body?.includes(DRCI_COMMENT_START)
+      );
+      if (comment) {
+        done();
+        return [comment];
+      }
+      return [];
     }
+  );
+  if (comments.length) {
+    return { id: comments[0].id, body: comments[0].body! };
   }
   return { id: 0, body: "" };
 }
@@ -320,8 +332,8 @@ export async function upsertDrCiComment(
 }
 
 /**
- * Updates only PR Status after a label or review webhook. Does nothing until
- * the sweep creates the Dr.CI comment, avoiding a resultless placeholder.
+ * Updates only PR Status, preserving the existing CI results. A precomputed
+ * state lets the pre-review sweep reuse its policy reads and its dedicated app.
  */
 export async function upsertPrStatusSection(
   octokit: Octokit,
@@ -330,32 +342,61 @@ export async function upsertPrStatusSection(
   prNum: number,
   labels: string[],
   // Used to exclude the author from recovered reviewers if PR lookup fails.
-  authorLogin?: string
+  authorLogin?: string,
+  options: { reader?: Octokit; state?: PrStatusState } = {}
 ) {
   if (!isPyTorchPyTorch(owner, repo)) {
     return;
   }
 
+  const reader =
+    options.reader ??
+    (hasPreReviewLabels(labels)
+      ? (await getPreReviewOctokit(owner, repo)) ?? octokit
+      : octokit);
   // No workflow label means remove stale status without fetching reviews.
   let section = "";
   if (hasPrStatusLabel(labels)) {
-    const state = await fetchPrStatusState(
-      octokit,
-      owner,
-      repo,
-      prNum,
-      labels,
-      authorLogin
-    );
+    const state =
+      options.state ??
+      (await fetchPrStatusState(
+        reader,
+        owner,
+        repo,
+        prNum,
+        labels,
+        authorLogin
+      ));
     // Preserve published status when review state is unavailable.
-    if (state === null) {
+    if (state === null || state.reviewerLookupFailed) {
       return;
     }
-    section = renderPrStatusSection(state);
+    if (state.pullRequest?.state === "closed") {
+      return;
+    }
+    if (
+      hasPrStatusLabel(state.labels) &&
+      getPrStatusStage(state) === "preReview" &&
+      !state.preReview
+    ) {
+      state.preReview = await getPreReviewStatus(
+        reader,
+        owner,
+        repo,
+        prNum,
+        labels,
+        authorLogin ?? state.authorLogin ?? "",
+        [],
+        state
+      );
+    }
+    section = hasPrStatusLabel(state.labels)
+      ? renderPrStatusSection(state)
+      : "";
   }
 
   // Read the comment last to reduce lost updates from the concurrent CI sweep.
-  const { id, body } = await getDrciComment(octokit, owner, repo, prNum);
+  const { id, body } = await getDrciComment(reader, owner, repo, prNum);
   if (id === 0) {
     return;
   }
@@ -371,6 +412,68 @@ export async function upsertPrStatusSection(
     repo,
     comment_id: id,
   });
+}
+
+/**
+ * Refresh the status for a full CI-comment rebuild. Null means skip the write:
+ * the mirrored body must never replace progress after a failed live read.
+ * Pre-review progress is read from the bot's current comment, avoiding a
+ * second reaction/timeline poll outside the independent pre-review sweep.
+ */
+export async function getPrStatusForCi(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<{
+  section: string;
+  comment?: { id: number; body: string };
+} | null> {
+  if (!isPyTorchPyTorch(owner, repo)) {
+    return { section: "" };
+  }
+  try {
+    // Even the workflow's presence must be read live: a pre-triage mirror
+    // cannot tell us whether a webhook has already published pre-review status.
+    const liveLabels = await fetchLiveLabels(octokit, owner, repo, prNumber);
+    if (!hasPrStatusLabel(liveLabels)) {
+      return { section: "" };
+    }
+    const state = await fetchPrStatusState(
+      octokit,
+      owner,
+      repo,
+      prNumber,
+      liveLabels
+    );
+    if (
+      !state ||
+      state.reviewerLookupFailed ||
+      state.pullRequest?.state === "closed"
+    ) {
+      return null;
+    }
+    if (!hasPrStatusLabel(state.labels)) {
+      return { section: "" };
+    }
+    if (getPrStatusStage(state) !== "preReview") {
+      return { section: renderPrStatusSection(state) };
+    }
+    const comment = await getDrciComment(octokit, owner, repo, prNumber);
+    const currentStatus = extractPrStatusSection(comment.body);
+    return {
+      section: currentStatus.includes("## PR Status: in pre-review\n")
+        ? currentStatus
+        : renderPrStatusSection(state),
+      comment,
+    };
+  } catch (error) {
+    console.error(
+      `PR status read failed for ${owner}/${repo}#${prNumber}`,
+      error
+    );
+    return null;
+  }
 }
 
 export async function hasSimilarFailures(
