@@ -2,8 +2,14 @@ import {
   draftConstraintAllowsLabel,
   getDraftGatedLabelsToRemove,
   getLabelsFromLabelerConfig,
+  getLabelsNeededByFiles,
+  loadLabelerConfig,
   normalizeLabelerRule,
 } from "lib/bot/labelerConfigUtils";
+import nock from "nock";
+import * as utils from "./utils";
+
+nock.disableNetConnect();
 
 describe("labelerConfigUtils", () => {
   describe("normalizeLabelerRule", () => {
@@ -167,6 +173,72 @@ describe("labelerConfigUtils", () => {
       expect(getDraftGatedLabelsToRemove(config, ["docs/a.md"], true)).toEqual(
         []
       );
+    });
+  });
+  describe("getLabelsNeededByFiles", () => {
+    const config = {
+      "module: dynamo": ["torch/_dynamo/**"],
+      "ciflow/inductor": { globs: ["torch/_dynamo/**"], draft: false },
+      broken: { globs: "bad" },
+    };
+
+    test("matches globs and respects the draft constraint", () => {
+      expect(
+        getLabelsNeededByFiles(config, ["torch/_dynamo/a.py"], false)
+      ).toEqual(["module: dynamo", "ciflow/inductor"]);
+      expect(
+        getLabelsNeededByFiles(config, ["torch/_dynamo/a.py"], true)
+      ).toEqual(["module: dynamo"]);
+      expect(getLabelsNeededByFiles(config, ["docs/a.md"], false)).toEqual([]);
+    });
+
+    test("logs skipped rules through the callback", () => {
+      const log = jest.fn();
+      getLabelsNeededByFiles(config, ["torch/_dynamo/a.py"], false, log);
+      expect(log).toHaveBeenCalledWith(
+        { label: "broken", rawRule: { globs: "bad" } },
+        "getLabelsFromLabelerConfig: unknown rule shape, skipping"
+      );
+    });
+  });
+
+  describe("loadLabelerConfig", () => {
+    const octokit = utils.testOctokit();
+
+    function mockFile(path: string, content: string) {
+      return nock("https://api.github.com")
+        .get(`/repos/pytorch/pytorch/contents/${encodeURIComponent(path)}`)
+        .reply(200, {
+          type: "file",
+          encoding: "base64",
+          path,
+          content: Buffer.from(content).toString("base64"),
+        });
+    }
+
+    afterEach(() => {
+      nock.cleanAll();
+    });
+
+    test("reads the labeler config named in pytorch-probot.yml", async () => {
+      const scope = mockFile(
+        ".github/pytorch-probot.yml",
+        "mergebot: True\nlabeler_config: labeler.yml\n"
+      );
+      mockFile(
+        ".github/labeler.yml",
+        '"ciflow/inductor":\n- torch/_dynamo/**\n'
+      );
+      expect(await loadLabelerConfig(octokit, "pytorch", "pytorch")).toEqual({
+        "ciflow/inductor": ["torch/_dynamo/**"],
+      });
+      scope.done();
+    });
+
+    test("is null without a labeler_config key", async () => {
+      const scope = mockFile(".github/pytorch-probot.yml", "mergebot: True\n");
+      expect(await loadLabelerConfig(octokit, "pytorch", "pytorch")).toBeNull();
+      scope.done();
     });
   });
 });
