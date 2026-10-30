@@ -1,0 +1,28 @@
+name: Recover PR status comments
+
+on:
+  schedule:
+    # Offset from the independent pre-review deadline sweep.
+    - cron: "11,26,41,56 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: pr-status-sweep
+  cancel-in-progress: false
+
+jobs:
+  pr-status-sweep:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Refresh workflow PRs using the dedicated read-only GitHub App
+        env:
+          DRCI_BOT_KEY: ${{ secrets.DRCI_BOT_KEY }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+        run: |
+          curl --request POST \
+            --url 'https://hud.pytorch.org/api/pr_status/sweep' \
+            --header "Authorization: ${DRCI_BOT_KEY}" \
+            --header "x-hud-internal-bot: ${HUD_API_TOKEN}" \
+            --max-time 910 \
+            --silent --show-error --fail-with-body

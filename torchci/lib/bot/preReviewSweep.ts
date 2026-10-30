@@ -1,6 +1,7 @@
 // Scheduled and webhook-driven advancement and status updates. Policy reads
 // live in preReviewUtils so rendering can share them without invoking writes.
 import { upsertPrStatusSection } from "lib/drciUtils";
+import { searchPullRequestsByCreatedAt } from "lib/githubSearch";
 import {
   fetchPrStatusState,
   hasPreReviewLabels,
@@ -99,48 +100,6 @@ export async function markInProgressIfAccepted(
   return status;
 }
 
-type SearchItems = Awaited<
-  ReturnType<Octokit["rest"]["search"]["issuesAndPullRequests"]>
->["data"]["items"];
-
-// GitHub search only exposes the first 1,000 results. Split busy creation-date
-// ranges so PRs beyond that limit cannot be permanently missed by the sweep.
-async function searchPreReviewPrs(
-  octokit: Octokit,
-  query: string,
-  since: number,
-  until: number
-): Promise<SearchItems> {
-  const params = {
-    q: `${query} created:${new Date(since * 1000).toISOString()}..${new Date(
-      until * 1000
-    ).toISOString()}`,
-    sort: "created" as const,
-    order: "asc" as const,
-    per_page: 100,
-  };
-  const { data } = await octokit.rest.search.issuesAndPullRequests(params);
-  if (data.total_count > 1000) {
-    if (since >= until) {
-      throw new Error("Too many pre-review PRs created in the same second");
-    }
-    const middle = Math.floor((since + until) / 2);
-    return [
-      ...(await searchPreReviewPrs(octokit, query, since, middle)),
-      ...(await searchPreReviewPrs(octokit, query, middle + 1, until)),
-    ];
-  }
-  const items = [...data.items];
-  for (let page = 2; page <= Math.ceil(data.total_count / 100); page++) {
-    const response = await octokit.rest.search.issuesAndPullRequests({
-      ...params,
-      page,
-    });
-    items.push(...response.data.items);
-  }
-  return items;
-}
-
 export interface PreReviewRecheck {
   updatedAt: string;
   nextCheckAt: number;
@@ -178,7 +137,7 @@ export async function updateInProgressLabels(
   }
   const now = Date.now();
   const candidates = (
-    await searchPreReviewPrs(
+    await searchPullRequestsByCreatedAt(
       octokit,
       // Do not use -review:approved: GitHub doesn't know which approvals
       // satisfy merge_rules.yaml, so that would hide legitimate candidates.
