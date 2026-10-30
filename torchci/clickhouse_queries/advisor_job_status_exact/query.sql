@@ -2,6 +2,7 @@
 -- Used for the advisor's PR head commit, where the full job name is known.
 SELECT
     job.head_sha AS sha,
+    job.id AS jobId,
     job.conclusion_kg AS conclusion,
     CONCAT(job.workflow_name, ' / ', job.name) AS fullName,
     job.html_url AS htmlUrl,

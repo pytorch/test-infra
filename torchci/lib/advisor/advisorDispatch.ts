@@ -9,11 +9,12 @@ import { createHash } from "crypto";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import {
-  dispatchedAfterRun,
+  dispatchAnalyzedRun,
   DispatchMark,
   isLiveDispatch,
   isStrictlyAfter,
   parseUtc,
+  runJobId,
 } from "lib/advisor/advisorBadge";
 import {
   getAdvisorRepoConfig,
@@ -87,6 +88,8 @@ function jobNameToBasePattern(jobName: string): string {
 }
 
 interface JobEvent {
+  // workflow_job.id; 0 when the query does not return it.
+  jobId: number;
   conclusion: string;
   fullName: string;
   htmlUrl: string;
@@ -103,6 +106,7 @@ function groupJobRows(rows: any[]): Record<string, JobEvent[]> {
     const sha = row.sha as string;
     if (!result[sha]) result[sha] = [];
     result[sha].push({
+      jobId: Number(row.jobId ?? 0) || 0,
       conclusion: (row.conclusion as string) || "pending",
       fullName: (row.fullName as string) || "",
       htmlUrl: row.htmlUrl as string,
@@ -174,6 +178,10 @@ export interface DispatchParams {
   jobName: string;
   mergeBaseSha?: string;
   workflowName?: string;
+  // The job run (workflow_job.id, see runJobId) the caller records as
+  // analyzed. When set, the dispatch is refused unless the PR head evidence
+  // holds that run, completed.
+  jobId?: number;
 }
 
 /**
@@ -228,6 +236,22 @@ export async function dispatchAdvisorWorkflow(
   const headStatus = await fetchJobStatusExact(repoFullName, jobName, [
     headSha,
   ]);
+  // The caller records `jobId` as the run this analysis saw. If this read does
+  // not hold that run completed (ClickHouse is behind the caller's read, or
+  // has only an in-progress snapshot, whose completed_at is the epoch), the
+  // analysis would see an earlier run under its id: refuse, so the caller
+  // records a failed dispatch and a later pass retries it, up to
+  // MAX_DISPATCH_RETRIES.
+  if (
+    params.jobId &&
+    !(headStatus[headSha] || []).some(
+      (e) => e.jobId === params.jobId && parseUtc(e.completedAt) !== null
+    )
+  ) {
+    throw new Error(
+      `job ${params.jobId} is not completed in the ClickHouse evidence for ${headSha}`
+    );
+  }
 
   const baseAndTrunkShas = [
     ...(resolvedMergeBase ? [resolvedMergeBase] : []),
@@ -320,6 +344,8 @@ export interface DispatchStateRow {
   // is its pre-dispatch row's version + 1ms, just before the dispatch captured
   // its evidence, not when the row was written.
   version: string;
+  // The job run the dispatch analyzed; 0 when unknown.
+  jobId: number;
 }
 
 /**
@@ -336,8 +362,8 @@ export async function readDispatchStates(
   const result = new Map<string, DispatchStateRow>();
   if (signalKeys.length === 0) return result;
 
-  // Reads state + retry_count from the SAME latest row as one argMax tuple, so
-  // a shared version timestamp can't pair fields from different rows.
+  // Reads state, retry_count and job_id from the SAME latest row as one argMax
+  // tuple, so a shared version timestamp can't pair fields from different rows.
   const rows = await queryClickhouseSaved("advisor_dispatch_states", {
     owner,
     repo,
@@ -346,12 +372,14 @@ export async function readDispatchStates(
   });
 
   for (const row of rows) {
-    // ClickHouse returns a tuple as a positional array: [state, retry_count].
-    const sr = row.sr as [string, number];
+    // ClickHouse returns a tuple as a positional array: [state, retry_count,
+    // job_id], with the UInt64 job_id quoted as a string.
+    const sr = row.sr as [string, number, string | number];
     result.set(row.signal_key as string, {
       state: sr[0] as DispatchState,
       retryCount: Number(sr[1] ?? 0),
       version: String(row.latest_version ?? ""),
+      jobId: Number(sr[2] ?? 0) || 0,
     });
   }
   return result;
@@ -366,6 +394,9 @@ export interface DispatchRecord {
   retryCount: number;
   prNumber: number;
   jobName: string;
+  // The job run the dispatch analyzes (see DispatchParams.jobId). Unset
+  // writes 0: unknown.
+  jobId?: number;
   // An exact version to write, allocated by the caller beforehand (see the
   // manual endpoint). Unset: recordDispatch allocates one.
   version?: string;
@@ -423,6 +454,7 @@ export async function recordDispatch(
         retry_count: record.retryCount,
         pr_number: record.prNumber,
         job_name: record.jobName,
+        job_id: record.jobId ?? 0,
         version,
       },
     ],
@@ -502,30 +534,41 @@ export interface AutoDispatchArgs {
 }
 
 /**
- * Whether `job` may have finished after the dispatch recorded at `version`
- * (the negation of dispatchedAfterRun, for known times), i.e. it is a rerun at
- * the same commit that the dispatched analysis may not have seen.
- * Dedup is keyed by (head, job name), so without this a rerun is never
- * analyzed, and the suppression gate, which ignores a verdict written before
- * the job finished, keeps the job blocking for good. A dispatch within the
- * run's completion second counts as before the run, as it does for the gate.
+ * Whether `job` is a run at the same commit that the latest dispatch did not
+ * analyze (the negation of dispatchAnalyzedRun, for known inputs), i.e. a
+ * rerun. Dedup is keyed by (head, job name), so without this a rerun is never
+ * analyzed, and the suppression gate, which only accepts a verdict for a
+ * dispatch that analyzed this run, keeps the job blocking for good.
  *
- * False when either time is missing or unparseable, so an unknown completion
- * time can never re-dispatch. The new dispatch's version is later than the
- * run's completion, so each run is re-dispatched once, assuming this server's
- * clock is not behind GitHub's by more than the time from the run finishing to
- * its dispatch. If it is, the dispatch looks older than the run: the run can be
+ * When the dispatch row and the job both carry a job id (runJobId), any other
+ * id is a rerun, including a lower one: Dr.CI picks the highest job id within
+ * the newest workflow run, so its pick can move to a lower id once that
+ * workflow run reaches ClickHouse, and refusing it would leave the job pending
+ * for good. The cost is that two overlapping renders holding different runs
+ * can each re-dispatch, at most once per answered analysis (readyToReanalyze),
+ * until the stale one ends. Otherwise the job is a rerun when it may have finished after the
+ * dispatch: a dispatch within the run's completion second counts as before the
+ * run, as it does for the gate. False when either time is missing or
+ * unparseable, so an unknown completion time can never re-dispatch.
+ *
+ * Under the time fallback, the new dispatch's version is later than the run's
+ * completion, so each run is re-dispatched once, assuming this server's clock
+ * is not behind GitHub's by more than the time from the run finishing to its
+ * dispatch. If it is, the dispatch looks older than the run: the run can be
  * re-dispatched again on later passes, at most once per answered analysis, and
- * no verdict covers it, so the job keeps blocking.
+ * no verdict covers it, so the job keeps blocking. The new dispatch records the
+ * run's job id, so this only affects dispatch rows without one.
  */
 export function ranAfterDispatch(
   job: RecentWorkflowsData,
-  version: string
+  dispatch: DispatchMark
 ): boolean {
+  const runId = runJobId(job);
+  if (dispatch.jobId && runId) return runId !== dispatch.jobId;
   return (
     parseUtc(job.completed_at) !== null &&
-    parseUtc(version) !== null &&
-    !dispatchedAfterRun(version, job.completed_at)
+    parseUtc(dispatch.version) !== null &&
+    !dispatchAnalyzedRun(dispatch, job.completed_at, runId)
   );
 }
 
@@ -538,6 +581,7 @@ export function toDispatchMark(row: DispatchStateRow): DispatchMark {
   return {
     state: row.state,
     version: row.version,
+    jobId: row.jobId,
     retryPending:
       row.state === "failed" && row.retryCount < MAX_DISPATCH_RETRIES,
   };
@@ -586,7 +630,12 @@ export function autoDispatchEnabled(owner: string, repo: string): boolean {
  *     failures are eligible than the budget, the subset is the lowest-sha1 of
  *     their signal_keys -- stable across cron passes and across PR updates,
  *   - skips PRs that are not open (closed/merged) or, by default, draft -- the
- *     PR state is only looked up once there is fresh work to dispatch.
+ *     PR state is only looked up once there is fresh work to dispatch,
+ *   - records on each row the job run it analyzes (runJobId, the run Dr.CI
+ *     picked), so a verdict binds to that run (verdictCoversRun) and a later
+ *     run of the job is re-dispatched (ranAfterDispatch). The dispatch is
+ *     refused, and retried like a failed POST, while ClickHouse does not hold
+ *     that run completed.
  */
 export async function autoDispatchAdvisorForNewFailures(
   args: AutoDispatchArgs,
@@ -652,13 +701,25 @@ export async function autoDispatchAdvisorForNewFailures(
     }
     if (
       isLiveDispatch(prev) &&
-      ranAfterDispatch(job, prev.version) &&
+      ranAfterDispatch(job, prev) &&
       readyToReanalyze(verdictsByKey.get(signalKey) ?? [], prev.version)
     ) {
       rerun.push({ signalKey, job });
       continue;
     }
     if (prev.state === "dispatching" || prev.state === "dispatched") continue;
+    // A failed row for another run of the job (e.g. refused while ClickHouse
+    // lacked that run, until retries ran out) does not hold back this one: it
+    // gets its own retries.
+    if (
+      prev.state === "failed" &&
+      prev.jobId &&
+      runJobId(job) &&
+      prev.jobId !== runJobId(job)
+    ) {
+      failedRetry.push({ signalKey, job, retryCount: 0 });
+      continue;
+    }
     if (prev.state === "failed") {
       if (prev.retryCount >= MAX_DISPATCH_RETRIES) continue;
       failedRetry.push({ signalKey, job, retryCount: prev.retryCount + 1 });
@@ -755,6 +816,7 @@ export async function autoDispatchAdvisorForNewFailures(
   if (toDispatch.length === 0) return;
 
   for (const { signalKey, job, retryCount } of toDispatch) {
+    const runId = runJobId(job);
     const base = {
       owner,
       repo,
@@ -763,6 +825,7 @@ export async function autoDispatchAdvisorForNewFailures(
       retryCount,
       prNumber,
       jobName: job.name,
+      jobId: runId,
     };
 
     // Pre-dispatch write gates the dispatch on write-path health: if we cannot
@@ -789,6 +852,7 @@ export async function autoDispatchAdvisorForNewFailures(
         mergeBaseSha,
         jobName: job.name,
         workflowName: job.name.split(" / ")[0],
+        jobId: runId || undefined,
       });
     } catch (e) {
       console.error(

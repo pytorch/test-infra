@@ -3,6 +3,7 @@ import {
   ADVISOR_PENDING_ALT_ATTR,
   advisorBadgeUrl,
   ANALYZING_BADGE,
+  canBindRun,
   confidenceBucket,
   dispatchedAfterRun,
   DispatchMark,
@@ -11,6 +12,7 @@ import {
   renderBadgeSvg,
   renderInProgressLine,
   renderVerdictLine,
+  runJobId,
   selectAdvisorLines,
   verdictBadge,
   verdictCoversRun,
@@ -276,6 +278,45 @@ describe("selectAdvisorLines", () => {
       expect(line).toContain("since=2026-10-16+01%3A13%3A57");
     });
 
+    // The ClickHouse ingest window: this dispatch came 13s after the rerun
+    // finished, but its evidence held only the first run (job 6), not the
+    // rerun (job 7). The job id on the row keeps the verdict off the rerun.
+    it("binds by job id when the dispatch row carries one", () => {
+      const AFTER_RERUN = "2026-10-16 01:14:10.000";
+      const verdict = verdictAt("2026-10-16 01:15:00.000");
+      const line = (dispatchJobId: number, completedAt?: string) =>
+        selectAdvisorLines(
+          HUD,
+          "pytorch",
+          "pytorch",
+          1,
+          "sha",
+          [{ id: 7, name: JOB, completedAt, runId: 7 }],
+          verdict,
+          new Map([
+            [
+              KEY,
+              {
+                state: "dispatched",
+                version: AFTER_RERUN,
+                jobId: dispatchJobId,
+              },
+            ],
+          ])
+        ).get(7);
+      const other = line(6, RERUN_DONE);
+      expect(other).toContain(ADVISOR_PENDING_ALT_ATTR);
+      expect(other).not.toContain("not related");
+      expect(other).toContain("job_id=7");
+      expect(line(7, RERUN_DONE)).toContain("<details>");
+      // Without a completion time the ids still bind the run.
+      expect(line(6)).not.toContain("<details>");
+      expect(line(7)).toContain("<details>");
+      // With neither a completion time nor a dispatch job id, any verdict
+      // shows, as before runs were told apart.
+      expect(line(0)).toContain("<details>");
+    });
+
     it("keeps the sentinel while a failed dispatch will be retried", () => {
       const line = select(verdictAt("2026-10-16 00:54:54.000"), {
         state: "failed",
@@ -453,6 +494,56 @@ describe("verdictCoversRun", () => {
       false
     );
     expect(verdictCoversRun("2026-10-16 01:30:00", "", after)).toBe(false);
+  });
+});
+
+describe("runJobId / canBindRun", () => {
+  it("uses the id only for a job row, never a workflow-level one", () => {
+    expect(runJobId({ id: 7, workflowId: 3 })).toBe(7);
+    expect(runJobId({ id: 7, workflowId: 0 })).toBe(0);
+    expect(runJobId({ id: 7 })).toBe(0);
+  });
+
+  it("binds with a completion time, or ids on both sides", () => {
+    const d = { state: "dispatched", version: "2026-10-16 01:14:10.000" };
+    expect(canBindRun("2026-10-16 01:13:57", undefined, d)).toBe(true);
+    expect(canBindRun(undefined, 7, { ...d, jobId: 6 })).toBe(true);
+    expect(canBindRun(undefined, 7, d)).toBe(false);
+    expect(canBindRun(undefined, 0, { ...d, jobId: 6 })).toBe(false);
+    expect(canBindRun("1970-01-01 00:00:00", 7, undefined)).toBe(false);
+  });
+});
+
+describe("verdictCoversRun with job ids", () => {
+  const DONE = "2026-10-16 01:13:57";
+  const AFTER = "2026-10-16 01:14:10.000";
+  const VERDICT = "2026-10-16 01:15:00";
+  const d = (jobId: number, version = AFTER) => ({
+    state: "dispatched",
+    version,
+    jobId,
+  });
+  it("decides by job id when both sides know it", () => {
+    // By time alone the dispatch looks like it analyzed this run.
+    expect(verdictCoversRun(VERDICT, DONE, d(0), 7)).toBe(true);
+    expect(verdictCoversRun(VERDICT, DONE, d(6), 7)).toBe(false);
+    expect(verdictCoversRun(VERDICT, DONE, d(7), 7)).toBe(true);
+    // A matching id holds even if the dispatch time reads as before the run.
+    expect(
+      verdictCoversRun(VERDICT, DONE, d(7, "2026-10-16 01:13:00.000"), 7)
+    ).toBe(true);
+  });
+
+  it("still needs a live dispatch and a verdict after it", () => {
+    expect(
+      verdictCoversRun(VERDICT, DONE, { ...d(7), state: "failed" }, 7)
+    ).toBe(false);
+    expect(verdictCoversRun("2026-10-16 01:14:00", DONE, d(7), 7)).toBe(false);
+  });
+
+  it("falls back to time when either side has no job id", () => {
+    expect(verdictCoversRun(VERDICT, DONE, d(6), undefined)).toBe(true);
+    expect(verdictCoversRun(VERDICT, DONE, d(6), 0)).toBe(true);
   });
 });
 
