@@ -5,7 +5,8 @@ page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`.
 `/tests/[organization]/[repo]/test/[test_id]` is one test's own page, built on
 `GET /api/tests/test/{test_id}`; its section is [below](#test-page).
 `/tests` redirects to `/tests/pytorch/pytorch` (a `redirects()` entry in
-`next.config.js`); the HUD navigation bar does not link to the page. The other
+`next.config.js`), and the HUD navigation bar's Tests link, left of Help, goes
+straight to `/tests/pytorch/pytorch` (`components/layout/NavBar.tsx`). The other
 files in `pages/tests/` (`search.tsx`, `fileReport.tsx`, `testInfo.tsx`)
 predate it, read `pages/api/flaky-tests/`, and follow none of the conventions
 below.

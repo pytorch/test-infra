@@ -174,6 +174,11 @@ function NavBar() {
       >
         <ul className={styles.navbarlinkslist}>
           <li>
+            <Link prefetch={false} href="/tests/pytorch/pytorch">
+              Tests
+            </Link>
+          </li>
+          <li>
             <Link href="https://github.com/pytorch/pytorch/wiki/Using-hud.pytorch.org">
               Help
             </Link>
