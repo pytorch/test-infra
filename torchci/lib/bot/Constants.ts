@@ -8,6 +8,7 @@ export const revertClassifications = {
 };
 
 export const BOT_MANAGED_PR_LABELS = new Set(["in progress"]);
+export const PYTORCH_BOT_USER_ID = 54816060;
 
 // People with write access to the repo, and members of this pytorch org team,
 // may still apply BOT_MANAGED_PR_LABELS by hand, so they can drive and test the
