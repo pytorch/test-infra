@@ -194,17 +194,29 @@ describe("getPrStatusStage", () => {
     ).toBe("missingActionableIssue");
   });
 
-  test("an unknown merge rule result reports a plain approval", () => {
-    expect(
-      getPrStatusStage(
-        state({
-          labels: [PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE],
-          isApproved: true,
-          isMergeApproved: undefined,
-        })
-      )
-    ).toBe("approved");
-  });
+  test.each([
+    { labels: ["ready for review"], stage: "readyForReview" },
+    { labels: ["in progress"], stage: "inProgress" },
+    {
+      labels: ["triaged", "missing actionable issue"],
+      stage: "missingActionableIssue",
+    },
+    { labels: ["triaged"], stage: "preReview" },
+  ])(
+    "failed merge verification preserves the workflow phase: %j",
+    ({ labels, stage }) => {
+      const current = state({
+        labels,
+        isApproved: true,
+        mergeApprovalLookupFailed: true,
+      });
+      expect(getPrStatusStage(current)).toBe(stage);
+      const message = getPrStatusMessage(current);
+      expect(message).toContain("merge eligibility could not be verified");
+      expect(message).not.toContain("## PR Status: Approved");
+      expect(message).not.toContain("@pytorchbot merge");
+    }
+  );
 });
 
 describe("getPrStatusMessage", () => {
@@ -797,6 +809,11 @@ describe("fetchPrStatusState", () => {
 
     expect(state!.isApproved).toBe(true);
     expect(state!.isMergeApproved).toBeUndefined();
+    expect(state!.mergeApprovalLookupFailed).toBe(true);
+    expect(getPrStatusStage(state!)).toBe("inProgress");
+    expect(getPrStatusMessage(state!)).toContain(
+      "merge eligibility could not be verified"
+    );
   });
 
   test("does not read the merge rules without an approval", async () => {
@@ -817,6 +834,8 @@ describe("fetchPrStatusState", () => {
 
     expect(state!.isApproved).toBe(true);
     expect(state!.isMergeApproved).toBeUndefined();
+    expect(state!.mergeApprovalLookupFailed).toBe(false);
+    expect(getPrStatusStage(state!)).toBe("approved");
     expect(octokit._getContent).not.toHaveBeenCalled();
   });
 
