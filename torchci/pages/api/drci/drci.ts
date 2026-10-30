@@ -32,6 +32,7 @@ import {
   getOpenStackPrs,
   isPyTorchPyTorch,
   isTime0,
+  StackPr,
 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
@@ -273,6 +274,25 @@ export async function updateDrciComments(
     recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
+  const existingDrCiComments = await getExistingDrCiComments(
+    `${owner}/${repo}`,
+    workflowsByPR
+  );
+  let coverage: CiflowCoverage;
+  try {
+    coverage = await getCiflowCoverage(
+      octokit,
+      owner,
+      repo,
+      workflowsByPR,
+      existingDrCiComments,
+      prNumbers.length === 0
+    );
+  } catch (e) {
+    console.error("ciflow coverage threw for", owner, repo, e);
+    coverage = { ...emptyCiflowCoverage(), stepFailed: true };
+  }
+
   // The Green Light verdict is per-PR, not per-job, so it is read for the whole
   // sweep in one batched query. This must stay outside forAllPRs, which fans out
   // concurrently and would multiply the query by the PR count. It needs nothing
@@ -342,10 +362,6 @@ export async function updateDrciComments(
   );
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const baseCommitJobNames = await getBaseCommitJobNames(workflowsByPR);
-  const existingDrCiComments = await getExistingDrCiComments(
-    `${owner}/${repo}`,
-    workflowsByPR
-  );
   const prMergeCommits = await getPRMergeCommits(
     owner,
     repo,
@@ -357,11 +373,38 @@ export async function updateDrciComments(
   const prReviewHeadVerdicts = await prReviewHeadVerdictsPromise;
   const crcrAllowlist = await crcrAllowlistPromise;
 
-  // Read once per run, and only when some PR has a failing ciflow tag run.
-  let labelerConfigPromise: Promise<Record<string, unknown> | null> | null =
-    null;
-  const getLabelerConfig = () =>
-    (labelerConfigPromise ??= loadLabelerConfig(octokit, owner, repo));
+  // Memoized per PR, so a PR's render can read the classification of the PRs
+  // above it that cover it. A render awaits other PRs' classifications, never
+  // their renders, so no two PRs can wait on each other. newAndUnclassified is
+  // copied here because the render later moves jobs out of failedJobs and
+  // unknownJobs (AI suppression) and pushes CRCR jobs into failedJobs.
+  const getClassification = _.memoize(
+    async (pr_info: PRandJobs) => {
+      const labels = await fetchPRLabels(
+        pr_info.owner,
+        pr_info.repo,
+        pr_info.pr_number
+      );
+      // Find the merge commits of the PR to check if it has already been merged before
+      const mergeCommits = prMergeCommits.get(pr_info.pr_number) || [];
+      const statuses = await getWorkflowJobsStatuses(
+        pr_info,
+        flakyRules,
+        baseCommitJobs.get(pr_info.merge_base) || new Map(),
+        labels || [],
+        unstableIssues || [],
+        disabledTestIssues || [],
+        mergeCommits || [],
+        baseCommitJobNames.get(pr_info.merge_base)
+      );
+      return {
+        labels,
+        ...statuses,
+        newAndUnclassified: [...statuses.failedJobs, ...statuses.unknownJobs],
+      };
+    },
+    (pr_info: PRandJobs) => pr_info.pr_number
+  );
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -370,16 +413,8 @@ export async function updateDrciComments(
   await forAllPRs(
     workflowsByPR,
     async (pr_info: PRandJobs) => {
-      // Find the merge commits of the PR to check if it has already been merged before
-      const mergeCommits = prMergeCommits.get(pr_info.pr_number) || [];
-
-      const labels = await fetchPRLabels(
-        pr_info.owner,
-        pr_info.repo,
-        pr_info.pr_number
-      );
-
       const {
+        labels,
         pending,
         failedJobs,
         flakyJobs,
@@ -390,16 +425,8 @@ export async function updateDrciComments(
         relatedJobs,
         relatedIssues,
         relatedInfo,
-      } = await getWorkflowJobsStatuses(
-        pr_info,
-        flakyRules,
-        baseCommitJobs.get(pr_info.merge_base) || new Map(),
-        labels || [],
-        unstableIssues || [],
-        disabledTestIssues || [],
-        mergeCommits || [],
-        baseCommitJobNames.get(pr_info.merge_base)
-      );
+        newAndUnclassified,
+      } = await getClassification(pr_info);
 
       failures[pr_info.pr_number] = {
         FAILED: failedJobs,
@@ -411,14 +438,13 @@ export async function updateDrciComments(
       };
 
       try {
-        await addCoveredCiflowNotes(
-          octokit,
+        addCoveredCiflowNotes(
           owner,
           repo,
           pr_info.pr_number,
-          [...failedJobs, ...unknownJobs],
+          newAndUnclassified,
           relatedInfo,
-          getLabelerConfig
+          coverage.coversBelow.get(pr_info.pr_number)
         );
       } catch (e) {
         console.error(
@@ -605,6 +631,48 @@ export async function updateDrciComments(
         failures[pr_info.pr_number].CRCR_L3 = crcrL3Jobs;
       }
 
+      const coverFailures = await Promise.all(
+        (coverage.coveredBy.get(pr_info.pr_number) ?? []).map(
+          async ({ cover, label }) => {
+            try {
+              const { newAndUnclassified } = await getClassification(
+                workflowsByPR.get(cover)!
+              );
+              return { cover, label, failures: newAndUnclassified };
+            } catch (e) {
+              console.error(
+                "classification of PR",
+                cover,
+                "above PR",
+                pr_info.pr_number,
+                "threw",
+                e
+              );
+              return { cover, label, failures: null };
+            }
+          }
+        )
+      );
+      const oldComment =
+        existingDrCiComments.get(pr_info.pr_number) ||
+        (await getDrciComment(octokit, owner, repo, pr_info.pr_number));
+      const failuresAbove = renderFailuresAbove(
+        HUD_URL,
+        owner,
+        repo,
+        {
+          headSha: pr_info.head_sha,
+          labels: labels || [],
+          comment: oldComment.body,
+        },
+        coverFailures,
+        (cover) =>
+          !coverage.noLabelerConfig &&
+          (coverage.stepFailed ||
+            coverage.failed.has(cover) ||
+            !workflowsByPR.has(cover))
+      );
+
       const failureInfo = constructResultsComment(
         pending,
         failedJobs,
@@ -626,7 +694,8 @@ export async function updateDrciComments(
         repo,
         pr_info.pr_number,
         advisorLines,
-        greenlightSections.get(pr_info.pr_number) ?? ""
+        greenlightSections.get(pr_info.pr_number) ?? "",
+        failuresAbove
       );
 
       // Runs before the PR status section below so it renders the new stage.
@@ -713,9 +782,7 @@ export async function updateDrciComments(
         )
       );
 
-      const { id, body } =
-        existingDrCiComments.get(pr_info.pr_number) ||
-        (await getDrciComment(octokit, owner, repo, pr_info.pr_number));
+      const { id, body } = oldComment;
 
       // The comment is there and remains unchanged, so there is no need to do anything
       if (body === comment) {
@@ -789,61 +856,144 @@ function removeFailureContext(failure: {
 }
 
 const MAX_COVERED_PRS_IN_NOTE = 10;
+const MAX_FAILURES_ABOVE_PER_SECTION = 10;
+const MAX_FAILURES_ABOVE_SECTIONS = 3;
+const CIFLOW_COVERAGE_BUDGET_MS = 120_000;
+const CIFLOW_LABEL_PATTERN = "ciflow/[A-Za-z0-9._/-]+";
+const CIFLOW_LABEL_RE = new RegExp(`^${CIFLOW_LABEL_PATTERN}$`);
+const CIFLOW_ABOVE_END = "<!-- drci-ciflow-above-end -->";
+const CIFLOW_ABOVE_BLOCK_RE = new RegExp(
+  `^<!-- drci-ciflow-above ([1-9][0-9]{0,9}) (${CIFLOW_LABEL_PATTERN}) ([0-9a-f]{40}) ([1-9][0-9]{0,9}) -->\\n[\\s\\S]*?\\n${_.escapeRegExp(
+    CIFLOW_ABOVE_END
+  )}$`,
+  "gm"
+);
+const CODE_FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+const CLOSING_CODE_FENCE_RE = /^ {0,3}(`{3,}|~{3,}) *$/;
+
+function redirectPrUrl(owner: string, repo: string, prNumber: number): string {
+  return `https://redirect.github.com/${owner}/${repo}/pull/${prNumber}`;
+}
+
+function ciflowAboveKey(cover: number, label: string): string {
+  return `${cover} ${label}`;
+}
+
+// Dr.CI embeds untrusted text in its comment: job names and log captures,
+// which never start a line; the Green Light and PR review texts, as whole
+// lines inside fences or HTML-escaped; and AI advisor summaries, escaped but
+// able to start a line with a fence. So a block counts only when its start
+// line is outside every fenced region. Fenced lines are blanked before the
+// match, so a start marker inside a fence cannot run on into a real block.
+function parseCiflowAboveBlocks(comment: string | undefined) {
+  let fence: string | undefined;
+  const unfenced = (comment ?? "")
+    .split("\n")
+    .map((line) => {
+      if (fence === undefined) {
+        fence = line.match(CODE_FENCE_RE)?.[1];
+        return fence === undefined ? line : "";
+      }
+      const closing = line.match(CLOSING_CODE_FENCE_RE)?.[1];
+      if (closing?.[0] === fence[0] && closing.length >= fence.length) {
+        fence = undefined;
+      }
+      return "";
+    })
+    .join("\n");
+  return _.uniqBy(
+    Array.from(unfenced.matchAll(CIFLOW_ABOVE_BLOCK_RE), (match) => ({
+      cover: parseInt(match[1]),
+      label: match[2],
+      sha: match[3],
+      count: parseInt(match[4]),
+      text: match[0],
+    })),
+    ({ cover, label }) => ciflowAboveKey(cover, label)
+  );
+}
 
 /**
- * Notes, on one failing job of a ciflow label's tag run on this PR, the open
- * PRs below it in its stack that need that label and do not carry it, up to
- * the nearest one that carries it: this PR's run tests them too, so the
- * failure may come from one of them. A tag push records the tag,
- * `<label>/<PR number>`, as the job's head_branch. The PRs are linked through
- * redirect.github.com so the comment adds no cross-references to them.
+ * The ciflow label of a job of this PR's tag run: a tag push records the tag,
+ * `<label>/<PR number>`, as the job's head_branch.
  */
-export async function addCoveredCiflowNotes(
+function getCiflowTagLabel(
+  headBranch: string | null | undefined,
+  prNumber: number
+): string | undefined {
+  const suffix = `/${prNumber}`;
+  if (!headBranch?.endsWith(suffix)) {
+    return undefined;
+  }
+  const label = headBranch.slice(0, -suffix.length);
+  return label.startsWith("ciflow/") ? label : undefined;
+}
+
+function isConfigCiflowLabel(
+  labelerConfig: Record<string, unknown>,
+  label: string
+): boolean {
+  return label.startsWith("ciflow/") && Object.hasOwn(labelerConfig, label);
+}
+
+function isFailedOrCancelled(job: RecentWorkflowsData): boolean {
+  return job.conclusion === "failure" || job.conclusion === "cancelled";
+}
+
+/**
+ * The PRs a run of a ciflow label covers among the open PRs below its PR in
+ * the stack, nearest first: the ones that need the label, down to the nearest
+ * one that carries it, whose own run covers the PRs below it.
+ */
+function getCoveredPrs(
+  below: StackPr[],
+  label: string,
+  labelerConfig: Record<string, unknown>
+): number[] {
+  const covered: number[] = [];
+  for (const p of below) {
+    if (p.labels.includes(label)) {
+      break;
+    }
+    if (
+      getLabelsNeededByFiles(labelerConfig, p.files, p.isDraft).includes(label)
+    ) {
+      covered.push(p.number);
+    }
+  }
+  return covered;
+}
+
+/**
+ * For each labeler-config ciflow label the cover carries, the open PRs below
+ * it in its stack that the label's run on it covers. Labels that cover no PR
+ * are left out.
+ */
+async function walkCiflowCover(
   octokit: Octokit,
   owner: string,
   repo: string,
-  prNumber: number,
-  failures: RecentWorkflowsData[],
-  relatedInfo: Map<number, string>,
-  getLabelerConfig: () => Promise<Record<string, unknown> | null>
-): Promise<void> {
-  const tagSuffix = `/${prNumber}`;
-  const failuresByLabel = new Map<string, RecentWorkflowsData[]>();
-  for (const job of failures) {
-    const branch = job.head_branch ?? "";
-    if (!branch.startsWith("ciflow/") || !branch.endsWith(tagSuffix)) {
-      continue;
-    }
-    const label = branch.slice(0, -tagSuffix.length);
-    failuresByLabel.set(label, [...(failuresByLabel.get(label) ?? []), job]);
-  }
-  if (failuresByLabel.size === 0) {
-    return;
-  }
-  const labelerConfig = await getLabelerConfig();
-  if (labelerConfig === null) {
-    return;
-  }
-  for (const label of failuresByLabel.keys()) {
-    if (!Object.hasOwn(labelerConfig, label)) {
-      failuresByLabel.delete(label);
-    }
-  }
-  if (failuresByLabel.size === 0) {
-    return;
-  }
-
+  cover: number,
+  labelerConfig: Record<string, unknown>
+): Promise<Map<string, number[]>> {
+  const coveredByLabel = new Map<string, number[]>();
   const { data: pr } = await octokit.rest.pulls.get({
     owner,
     repo,
-    pull_number: prNumber,
+    pull_number: cover,
   });
+  const labels = pr.labels
+    .map((label) => label.name)
+    .filter((label) => isConfigCiflowLabel(labelerConfig, label));
+  if (labels.length === 0) {
+    return coveredByLabel;
+  }
   const below = await getOpenStackPrs(
     octokit,
     owner,
     repo,
     {
-      number: prNumber,
+      number: cover,
       body: pr.body,
       headRef: pr.head.ref,
       isCrossRepository: pr.head.repo?.full_name !== pr.base.repo.full_name,
@@ -851,32 +1001,281 @@ export async function addCoveredCiflowNotes(
     },
     "below"
   );
-  if (below.kind !== "stack" || below.prs.length === 0) {
-    return;
+  if (below.kind !== "stack") {
+    return coveredByLabel;
+  }
+  for (const label of labels) {
+    const covered = getCoveredPrs(below.prs, label, labelerConfig);
+    if (covered.length > 0) {
+      coveredByLabel.set(label, covered);
+    }
+  }
+  return coveredByLabel;
+}
+
+/**
+ * The open PRs among prNumbers, each with every job at its current head, and
+ * their Dr.CI comments.
+ */
+async function fetchCoveragePrs(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumbers: number[]
+): Promise<{
+  prs: Map<number, PRandJobs>;
+  comments: Map<number, { id: number; body: string }>;
+}> {
+  const wanted = new Set(prNumbers);
+  const rows = await fetchRecentWorkflows(
+    `${owner}/${repo}`,
+    prNumbers,
+    NUM_MINUTES + ""
+  );
+  // The query also returns the other open PRs that share a requested head SHA.
+  const prs = await reorganizeWorkflows(
+    owner,
+    repo,
+    rows.filter((row) => wanted.has(row.pr_number)),
+    octokit
+  );
+  return {
+    prs,
+    comments:
+      prs.size === 0
+        ? new Map()
+        : await getExistingDrCiComments(`${owner}/${repo}`, prs),
+  };
+}
+
+export interface CiflowCoverage {
+  coversBelow: Map<number, Map<string, number[]>>;
+  coveredBy: Map<number, { cover: number; label: string }[]>;
+  walked: Set<number>;
+  failed: Set<number>;
+  stepFailed: boolean;
+  noLabelerConfig: boolean;
+}
+
+function emptyCiflowCoverage(): CiflowCoverage {
+  return {
+    coversBelow: new Map(),
+    coveredBy: new Map(),
+    walked: new Set(),
+    failed: new Set(),
+    stepFailed: false,
+    noLabelerConfig: false,
+  };
+}
+
+/**
+ * Which PRs of the run cover which open PRs below them in their stacks, for
+ * which ciflow labels: coversBelow maps a cover to its labels and the PRs each
+ * covers, nearest first, and coveredBy maps a covered PR to its covers.
+ *
+ * A PR of the run is walked (see walkCiflowCover) when its own tag run of a
+ * labeler-config ciflow label has a failed or cancelled job. With fanOut, the
+ * PRs a walked cover covers for its failing labels, and the open PRs whose
+ * comment shows a block of a PR in the run, are fetched into the run (added to
+ * workflowsByPR and existingDrCiComments), and the covers among them are
+ * walked without fanning out. Work not done within budgetMs counts as failed:
+ * octokit waits out an exhausted rate limit, which can outlast the function.
+ */
+export async function getCiflowCoverage(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  workflowsByPR: Map<number, PRandJobs>,
+  existingDrCiComments: Map<number, { id: number; body: string }>,
+  fanOut: boolean,
+  budgetMs: number = CIFLOW_COVERAGE_BUDGET_MS
+): Promise<CiflowCoverage> {
+  const coverage = emptyCiflowCoverage();
+  const runPrs = new Set(workflowsByPR.keys());
+  const failingTagRunLabels = (pr: PRandJobs) =>
+    new Set(
+      pr.jobs
+        .filter(isFailedOrCancelled)
+        .map((job) => getCiflowTagLabel(job.head_branch, pr.pr_number))
+        .filter((label): label is string => label !== undefined)
+    );
+  const hasFailingTagRun = Array.from(workflowsByPR.values()).some(
+    (pr) => failingTagRunLabels(pr).size > 0
+  );
+  if (!hasFailingTagRun && !fanOut) {
+    return coverage;
+  }
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<"expired">((resolve) => {
+    timer = setTimeout(() => resolve("expired"), budgetMs);
+  });
+  const withinBudget = async <T>(work: Promise<T>, what: string) => {
+    const result = await Promise.race([
+      work.then((value) => ({ value })),
+      expired,
+    ]);
+    if (result === "expired") {
+      throw new Error(`${what} did not finish within ${budgetMs} ms`);
+    }
+    return result.value;
+  };
+  try {
+    const blockTargets: Promise<number[]> = fanOut
+      ? withinBudget(
+          getPRsShowingCiflowAbove(`${owner}/${repo}`),
+          "looking up the PRs that show a run above"
+        )
+          .then((rows) =>
+            rows
+              .filter(
+                ({ prNumber, body }) =>
+                  !runPrs.has(prNumber) &&
+                  parseCiflowAboveBlocks(body).some(({ cover }) =>
+                    runPrs.has(cover)
+                  )
+              )
+              .map(({ prNumber }) => prNumber)
+          )
+          .catch((e) => {
+            console.error(
+              "could not look up the PRs that show a ciflow run above in",
+              owner,
+              repo,
+              e
+            );
+            return [];
+          })
+      : Promise.resolve([]);
+    if (!hasFailingTagRun && (await blockTargets).length === 0) {
+      return coverage;
+    }
+
+    let labelerConfig: Record<string, unknown> | null;
+    try {
+      labelerConfig = await withinBudget(
+        loadLabelerConfig(octokit, owner, repo),
+        "reading the labeler config"
+      );
+    } catch (e) {
+      console.error(
+        "could not read the labeler config of",
+        owner,
+        repo,
+        "for ciflow coverage",
+        e
+      );
+      return { ...coverage, stepFailed: true };
+    }
+    if (labelerConfig === null) {
+      return { ...coverage, noLabelerConfig: true };
+    }
+    const config = labelerConfig;
+    const walkCovers = (prs: PRandJobs[]) =>
+      Promise.all(
+        prs
+          .filter((pr) =>
+            Array.from(failingTagRunLabels(pr)).some((label) =>
+              isConfigCiflowLabel(config, label)
+            )
+          )
+          .map(async ({ pr_number: cover }) => {
+            try {
+              const coveredByLabel = await withinBudget(
+                walkCiflowCover(octokit, owner, repo, cover, config),
+                `the walk of PR ${cover}`
+              );
+              coverage.walked.add(cover);
+              if (coveredByLabel.size > 0) {
+                coverage.coversBelow.set(cover, coveredByLabel);
+              }
+              coveredByLabel.forEach((covered, label) =>
+                covered.forEach((prNumber) =>
+                  coverage.coveredBy.set(prNumber, [
+                    ...(coverage.coveredBy.get(prNumber) ?? []),
+                    { cover, label },
+                  ])
+                )
+              );
+            } catch (e) {
+              console.error(
+                "could not read the stack below PR",
+                cover,
+                "for ciflow coverage",
+                e
+              );
+              coverage.failed.add(cover);
+            }
+          })
+      );
+
+    await walkCovers(Array.from(workflowsByPR.values()));
+    if (!fanOut) {
+      return coverage;
+    }
+    const walkTargets = Array.from(coverage.walked).flatMap((cover) => {
+      const failing = failingTagRunLabels(workflowsByPR.get(cover)!);
+      return Array.from(coverage.coversBelow.get(cover) ?? [])
+        .filter(([label]) => failing.has(label))
+        .flatMap(([, prs]) => prs);
+    });
+    const wanted = _.uniq([...walkTargets, ...(await blockTargets)]).filter(
+      (prNumber) => !workflowsByPR.has(prNumber)
+    );
+    let added = new Map<number, PRandJobs>();
+    if (wanted.length > 0) {
+      try {
+        const { prs, comments } = await withinBudget(
+          fetchCoveragePrs(octokit, owner, repo, wanted),
+          "fetching the covered PRs"
+        );
+        prs.forEach((pr, prNumber) => workflowsByPR.set(prNumber, pr));
+        comments.forEach((comment, prNumber) =>
+          existingDrCiComments.set(prNumber, comment)
+        );
+        added = prs;
+      } catch (e) {
+        console.error("could not fetch PRs", wanted, "for ciflow coverage", e);
+      }
+    }
+    await walkCovers(Array.from(added.values()));
+    return coverage;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Notes, on one failing job of each ciflow label's tag run on this PR, the
+ * open PRs below it in its stack that the run covers (from getCiflowCoverage):
+ * the run tests them too, so the failure may come from one of them. The PRs
+ * are linked through redirect.github.com so the comment adds no
+ * cross-references to them.
+ */
+export function addCoveredCiflowNotes(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  failures: RecentWorkflowsData[],
+  relatedInfo: Map<number, string>,
+  coveredByLabel: Map<string, number[]> | undefined
+): void {
+  const failuresByLabel = new Map<string, RecentWorkflowsData[]>();
+  for (const job of failures) {
+    const label = getCiflowTagLabel(job.head_branch, prNumber);
+    if (label !== undefined) {
+      failuresByLabel.set(label, [...(failuresByLabel.get(label) ?? []), job]);
+    }
   }
 
   for (const [label, jobs] of failuresByLabel) {
-    const covered: number[] = [];
-    for (const p of below.prs) {
-      if (p.labels.includes(label)) {
-        break;
-      }
-      if (
-        getLabelsNeededByFiles(labelerConfig, p.files, p.isDraft).includes(
-          label
-        )
-      ) {
-        covered.push(p.number);
-      }
-    }
+    const covered = coveredByLabel?.get(label) ?? [];
     if (covered.length === 0) {
       continue;
     }
     const links = covered
       .slice(0, MAX_COVERED_PRS_IN_NOTE)
-      .map(
-        (n) => `[${n}](https://redirect.github.com/${owner}/${repo}/pull/${n})`
-      )
+      .map((n) => `[${n}](${redirectPrUrl(owner, repo, n)})`)
       .join(", ");
     const more =
       covered.length > MAX_COVERED_PRS_IN_NOTE
@@ -890,6 +1289,126 @@ export async function addCoveredCiflowNotes(
     const existing = relatedInfo.get(job.id);
     relatedInfo.set(job.id, existing ? `${existing}; ${note}` : note);
   }
+}
+
+function renderCiflowAboveBlock(
+  hudBaseUrl: string,
+  owner: string,
+  repo: string,
+  headSha: string,
+  cover: number,
+  label: string,
+  jobs: RecentWorkflowsData[]
+): string {
+  const shown = jobs.slice(0, MAX_FAILURES_ABOVE_PER_SECTION);
+  const which =
+    shown.length < jobs.length
+      ? `${shown.length} of ${jobs.length} jobs`
+      : pluralize("job", jobs.length);
+  const coverLink = `<a href="${redirectPrUrl(
+    owner,
+    repo,
+    cover
+  )}">${cover}</a>`;
+  return (
+    `<!-- drci-ciflow-above ${cover} ${label} ${headSha} ${jobs.length} -->` +
+    constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      cover,
+      `${pluralize("FAILURE", jobs.length).toLocaleUpperCase()} ABOVE`,
+      `This PR needs <code>${label}</code> and does not run it. PR ${coverLink} above runs it, and that run also tests this PR. The following ${which} did not pass there; the cause may be in this PR, in PR ${cover} or in a PR between them`,
+      shown
+    ) +
+    `\n${CIFLOW_ABOVE_END}`
+  );
+}
+
+/**
+ * The sections, on a lower PR, for the failing runs of its covers above: a
+ * fresh one for each cover and label whose classification resolved in this run
+ * (failures is null when it did not), then the blocks kept from the PR's
+ * comment, at most MAX_FAILURES_ABOVE_SECTIONS of them shown. isUnresolved
+ * says whether this run could not look a cover up. count is the number of
+ * failures of every block, shown or not.
+ */
+export function renderFailuresAbove(
+  hudBaseUrl: string,
+  owner: string,
+  repo: string,
+  lowerPr: { headSha: string; labels: string[]; comment: string | undefined },
+  covers: {
+    cover: number;
+    label: string;
+    failures: RecentWorkflowsData[] | null;
+  }[],
+  isUnresolved: (_cover: number) => boolean
+): { sections: string; count: number } {
+  const decided = new Set<string>();
+  const unclassified = new Set<number>();
+  const fresh: { count: number; text: string }[] = [];
+  for (const { cover, label, failures } of _.sortBy(covers, [
+    "cover",
+    "label",
+  ])) {
+    if (failures === null) {
+      unclassified.add(cover);
+      continue;
+    }
+    decided.add(ciflowAboveKey(cover, label));
+    const jobs = _.sortBy(
+      failures.filter(
+        (job) => getCiflowTagLabel(job.head_branch, cover) === label
+      ),
+      ["name", "id"]
+    );
+    if (jobs.length > 0 && CIFLOW_LABEL_RE.test(label)) {
+      fresh.push({
+        count: jobs.length,
+        text: renderCiflowAboveBlock(
+          hudBaseUrl,
+          owner,
+          repo,
+          lowerPr.headSha,
+          cover,
+          label,
+          jobs
+        ),
+      });
+    }
+  }
+  // A block survives only while this run could not look its cover up, so a
+  // failed walk or classification, or a run without the cover, never turns
+  // this PR green. A new head or the label on this PR ends it either way: the
+  // run above then no longer tests this PR's changes in its place.
+  const carried = _.sortBy(
+    parseCiflowAboveBlocks(lowerPr.comment).filter(
+      (block) =>
+        !decided.has(ciflowAboveKey(block.cover, block.label)) &&
+        (unclassified.has(block.cover) || isUnresolved(block.cover)) &&
+        block.sha === lowerPr.headSha &&
+        !lowerPr.labels.includes(block.label)
+    ),
+    ["cover", "label"]
+  );
+  const blocks = [...fresh, ...carried];
+  const hidden = blocks.length - MAX_FAILURES_ABOVE_SECTIONS;
+  const notShown =
+    hidden > 0
+      ? `\n<p>${hidden} more failing ${pluralize(
+          "run",
+          hidden
+        )} above ${pluralize("is", hidden, "are")} not shown.</p>`
+      : "";
+  return {
+    sections:
+      blocks
+        .slice(0, MAX_FAILURES_ABOVE_SECTIONS)
+        .map(({ text }) => `\n${text}`)
+        .join("") + notShown,
+    count: _.sumBy(blocks, "count"),
+  };
 }
 
 /**
@@ -959,6 +1478,40 @@ where
     prReviewPendingAltAttr: PR_REVIEW_PENDING_ALT_ATTR,
   });
   return results.map((v) => parseInt(v.issue_url.split("/").pop()));
+}
+
+/**
+ * The open PRs of the repo whose Dr.CI comment has a line starting a block of
+ * a failing run above (see renderCiflowAboveBlock), each with that comment,
+ * under the same guards as getPRsNeedingCommentRefresh. The match is only a
+ * prefilter: parseCiflowAboveBlocks decides which blocks count.
+ */
+async function getPRsShowingCiflowAbove(
+  repo: string
+): Promise<{ prNumber: number; body: string }[]> {
+  const query = `
+select
+    issue_comment.issue_url,
+    issue_comment.body
+from
+    default.issue_comment final
+    join default.pull_request on issue_comment.issue_url = pull_request.issue_url
+where
+    body like '<!-- drci-comment-start -->%'
+    and issue_comment.user.login = {drciCommentAuthor: String}
+    and match(body, '(?m)^<!-- drci-ciflow-above [0-9]+ ')
+    and issue_comment.updated_at > now() - interval 1 month
+    and issue_url like {repo: String }
+    and pull_request.state = 'open'
+`;
+  const results = await queryClickhouse(query, {
+    repo: `%${repo}%`,
+    drciCommentAuthor: DRCI_COMMENT_AUTHOR,
+  });
+  return results.map((v) => ({
+    prNumber: parseInt(v.issue_url.split("/").pop()),
+    body: v.body,
+  }));
 }
 
 async function forAllPRs(
@@ -1331,7 +1884,13 @@ export function constructResultsComment(
   advisorLines: Map<number, string> = new Map(),
   // Pre-rendered Green Light section or eligibility line for this PR, already
   // carrying its own leading newline (empty when the PR has neither).
-  greenlightSection: string = ""
+  greenlightSection: string = "",
+  // Pre-rendered sections for the failing ciflow runs of the PRs above that also
+  // test this PR, and their number of failures (see renderFailuresAbove).
+  failuresAbove: { sections: string; count: number } = {
+    sections: "",
+    count: 0,
+  }
 ): string {
   let output = `\n`;
   // Filter out unstable pending jobs
@@ -1377,6 +1936,10 @@ export function constructResultsComment(
   )}`;
   const pendingJobs = `${pending} Pending`;
   const awaitingApprovalMsg = `${awaitingApprovalJobs.length} Awaiting Approval`;
+  const failuresAboveMsg = `${failuresAbove.count} ${pluralize(
+    "Failure",
+    failuresAbove.count
+  )} Above`;
 
   const hasAnyFailing = failing > 0;
   const hasSignificantFailures = newFailedJobs.length > 0;
@@ -1385,11 +1948,21 @@ export function constructResultsComment(
   const hasUnrelatedFailures = unrelatedFailureCount > 0;
   const hasUnknownFailures = unknownJobs.length > 0;
   const hasAwaitingApproval = awaitingApprovalJobs.length > 0;
+  const hasFailuresAbove = failuresAbove.count > 0;
+  const nothingFailing =
+    !hasAnyFailing &&
+    !hasAwaitingApproval &&
+    !hasUnknownFailures &&
+    !hasFailuresAbove;
 
   let icon = "";
-  if (isDrciGreen({ pending, failedJobs, unknownJobs, awaitingApprovalJobs })) {
+  if (
+    !hasFailuresAbove &&
+    isDrciGreen({ pending, failedJobs, unknownJobs, awaitingApprovalJobs })
+  ) {
     icon = successIcon;
   } else if (
+    hasFailuresAbove ||
     hasSignificantFailures ||
     hasCancelledFailures ||
     hasUnknownFailures
@@ -1411,7 +1984,10 @@ export function constructResultsComment(
   if (hasCancelledFailures) {
     title_messages.push(cancelledFailures);
   }
-  if (!hasAnyFailing && !hasAwaitingApproval && !hasUnknownFailures) {
+  if (hasFailuresAbove) {
+    title_messages.push(failuresAboveMsg);
+  }
+  if (nothingFailing) {
     title_messages.push(noneFailing);
   }
   if (hasPending) {
@@ -1441,13 +2017,14 @@ export function constructResultsComment(
   }
   output += ":";
 
-  if (!hasAnyFailing && !hasAwaitingApproval && !hasUnknownFailures) {
+  if (nothingFailing) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
   }
 
   // A verdict on the PR as a whole rather than a job bucket, so it reads before
   // the per-bucket failure lists.
   output += greenlightSection;
+  output += failuresAbove.sections;
 
   if (awaitingApprovalJobs.length) {
     output += constructResultsJobsSections(
@@ -1784,7 +2361,7 @@ export async function getWorkflowJobsStatuses(
           getOpenUnstableIssues(job.name, unstableIssues)
         );
       }
-    } else if (job.conclusion === "failure" || job.conclusion === "cancelled") {
+    } else if (isFailedOrCancelled(job)) {
       const suppressedLabels = await getSuppressedLabels(job, labels);
       if (prInfo.repo === "pytorch" && suppressedLabels.length !== 0) {
         flakyJobs.push(job);
