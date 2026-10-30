@@ -3,7 +3,11 @@ import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import FacetMenu, { FacetSection } from "components/tests/FacetMenu";
 import type { FacetValues } from "lib/tests/facets";
-import { headerRuleColor } from "lib/tests/headerColors";
+import {
+  headerKeyColors,
+  headerKeyFocusRing,
+  headerKeySx,
+} from "lib/tests/headerColors";
 import { KeyboardEvent, MouseEvent, useId, useState } from "react";
 
 export interface HeaderFilterProps {
@@ -48,26 +52,10 @@ export default function HeaderFilter({
     ? `Filtering ${column} by ${summary}`
     : `Filter ${column}`;
   const Icon = active ? FilterAltIcon : FilterAltOutlinedIcon;
-  const accent = theme.palette.primary.main;
   // The key's colors by state: filled while something is chosen; on the
   // page's background otherwise, edged in the accent while its menu is open
-  // and in the band's rule color at rest. Hovering darkens the fill or
-  // strengthens the edge.
-  const key = active
-    ? {
-        background: accent,
-        edge: accent,
-        color: theme.palette.primary.contrastText,
-        hoverBackground: theme.palette.primary.dark,
-        hoverEdge: theme.palette.primary.dark,
-      }
-    : {
-        background: theme.palette.background.default,
-        edge: open ? accent : headerRuleColor(theme),
-        color: open ? accent : theme.palette.text.primary,
-        hoverBackground: theme.palette.background.default,
-        hoverEdge: open ? accent : theme.palette.text.secondary,
-      };
+  // and in the band's rule color at rest (headerKeyColors).
+  const key = headerKeyColors(theme, { active, open });
   return (
     <Box
       component="span"
@@ -101,24 +89,10 @@ export default function HeaderFilter({
             width: HEADER_FILTER_SIZE,
             height: HEADER_FILTER_SIZE,
             p: 0,
-            borderRadius: "6px",
-            border: `1px solid ${key.edge}`,
-            backgroundColor: key.background,
-            color: key.color,
-            transition: theme.transitions.create(
-              ["background-color", "border-color", "color"],
-              { duration: theme.transitions.duration.shortest }
-            ),
             // The button's own hover would wash the key with a translucent
-            // grey and let the band through; it stays opaque.
-            "&:hover": {
-              backgroundColor: key.hoverBackground,
-              borderColor: key.hoverEdge,
-            },
-            "&.Mui-focusVisible": {
-              outline: `2px solid ${accent}`,
-              outlineOffset: 2,
-            },
+            // grey and let the band through; the keys' frame stays opaque.
+            ...headerKeySx(theme, key),
+            "&.Mui-focusVisible": headerKeyFocusRing(theme),
           }}
         >
           <Icon sx={{ fontSize: 18 }} />

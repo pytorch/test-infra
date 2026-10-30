@@ -4,22 +4,14 @@ import {
   TestListPageSchema,
   TestRecordSchema,
 } from "lib/api/tests/types";
+import { RUN_OUTCOMES } from "lib/runOutcomes";
 import { z } from "zod/v4";
 
 // Undecorated validators are shared with query filters. Response descriptions
-// belong on the record fields, not on filter parameter item schemas.
+// belong on the record fields, not on filter parameter item schemas. The
+// outcomes are the page's too (lib/runOutcomes.ts).
 export const RunRerunNumberSchema = z.number().int().min(0).max(65535);
-export const RunOutcomeSchema = z.enum([
-  "unknown",
-  "passed",
-  "failed",
-  "error",
-  "skipped",
-  "xfailed",
-  "xpassed",
-  "crashed",
-  "timed_out",
-]);
+export const RunOutcomeSchema = z.enum(RUN_OUTCOMES);
 
 export const GithubWorkflowSchema = z
   .object({
@@ -152,8 +144,8 @@ export const RunRecordSchema = z
   );
 
 // Records, filters, statistics and SQL aggregation share the same outcomes.
-type RunOutcome = z.infer<typeof RunOutcomeSchema>;
-export const RUN_OUTCOMES = RunOutcomeSchema.options;
+export type RunOutcome = z.infer<typeof RunOutcomeSchema>;
+export { RUN_OUTCOMES };
 
 const runCount = z.number().int().nonnegative();
 export const RunStatsSchema = z
@@ -224,3 +216,144 @@ export type RunCatalogRecord = Omit<
 > &
   Pick<RunRecord, "test" | "environment" | "env_vars" | "owners">;
 export type RunListPage = z.infer<typeof RunListPageSchema>;
+
+// ---------------------------------------------------------------------------
+// The runs grouped by commit (group_by=commit)
+// ---------------------------------------------------------------------------
+
+export const RunGridCommitSchema = z
+  .object({
+    sha: z
+      .string()
+      .regex(/^[0-9a-f]{40}$/i)
+      .describe(
+        "Commit SHA from workflow_run.head_sha, as the bundles' github_workflow.commit_sha."
+      ),
+    started_at: z.iso
+      .datetime()
+      .describe(
+        "Start of the earliest attempt of this test on the commit among the lanes and jobs returned, in ISO 8601 UTC with millisecond precision. Commits are ordered by it, then by SHA."
+      ),
+  })
+  .describe("A commit the test ran on, in at least one lane.");
+
+export const RunGridJobSchema = z
+  .object({
+    job_id: GithubWorkflowSchema.shape.job_id,
+    job_url: GithubWorkflowSchema.shape.job_url,
+    job_name: GithubWorkflowSchema.shape.job_name,
+    outcome: RunOutcomeSchema.describe(
+      "The job's final outcome, the rule of the commit statistics' bundles: the recorded outcome of its chronologically last executed attempt, or skipped when every attempt in the job was skipped. A skip never overrides an executed attempt."
+    ),
+    attempts: z
+      .array(RunOutcomeSchema)
+      .min(1)
+      .describe(
+        "The recorded outcome of each attempt the test had in this job, in chronological order (started_at, ended_at, id): the first execution and the launcher's reruns of it in fresh processes. A failure followed by passed is a run that recovered on a rerun."
+      ),
+    started_at: z.iso
+      .datetime()
+      .describe(
+        "Start of the job's earliest attempt, in ISO 8601 UTC with millisecond precision."
+      ),
+    duration_milliseconds: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Sum of this job's executed attempts' durations, each max(0, ended_at - started_at); 0 when every attempt was skipped."
+      ),
+    passed_duration_milliseconds: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Sum of this job's passed attempts' durations alone, each max(0, ended_at - started_at); 0 when none passed."
+      ),
+    decisive: z
+      .boolean()
+      .describe(
+        "True for the one job that holds the cell's deciding attempt: in the retry sequence the cell's outcome comes from, the last job that executed anything, or the last job when none did (see the cell's outcome)."
+      ),
+  })
+  .describe(
+    "One GitHub job's attempts of the test in the cell's configuration and calling workflow on the commit, the launcher's reruns included: a chain of attempts in one job."
+  );
+
+export const RunGridCellSchema = z
+  .object({
+    commit_sha: RunGridCommitSchema.shape.sha,
+    outcome: RunOutcomeSchema.describe(
+      "The cell's final outcome. Jobs with the same name are one retry sequence in time order, a job and its re-run, whether in one workflow run or across runs of the same workflow on the commit (a scheduled workflow repeating on an unchanged head reruns its jobs too), judged as the commit statistics judge a bundle: the recorded outcome of the sequence's last executed attempt, or skipped when nothing in it executed, a skip never overriding an executed attempt. Jobs with different names are siblings, shards that each ran the test, and the worst sibling's outcome is the cell's: a failing final outcome (failed, error, crashed or timed_out) before a pass that followed a failing attempt, before xfailed, xpassed or unknown, before passed, before skipped; among equals, the sequence whose last job started last, then the one with the greater job id. The decisive job is the job of that sequence's deciding attempt: its last job, by start, that executed anything, or its last job when none did; the bundle rule's last executed attempt, since a re-run starts after the job it re-runs ended."
+    ),
+    started_at: z.iso
+      .datetime()
+      .describe(
+        "Start of the cell's earliest attempt, in ISO 8601 UTC with millisecond precision."
+      ),
+    duration_milliseconds: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Sum over every job of the executed attempts' durations, each max(0, ended_at - started_at): the commit's whole spend on the test in this configuration and workflow; 0 when every attempt was skipped."
+      ),
+    passed_duration_milliseconds: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "The test's time when it passed on the commit, one run's time: each retry sequence that ended passing contributes the mean over its jobs that passed of their passed attempts' summed durations, without the failed attempts a rerun recovered from, and the cell takes the mean over those sequences, rounded to the millisecond, so sibling shards, and a job and its re-run, that each passed count as one run; 0 when no retry sequence ended passing."
+      ),
+    jobs: z
+      .array(RunGridJobSchema)
+      .min(1)
+      .describe(
+        "The jobs whose attempts make the cell, ordered by their earliest attempt, then job id; exactly one is decisive."
+      ),
+  })
+  .describe(
+    "Every attempt of the test, in one configuration and calling workflow, on one commit, folded into one cell, job by job."
+  );
+
+export const RunGridLaneSchema = z
+  .object({
+    workflow_path: GithubWorkflowSchema.shape.path,
+    environment: TestHealthEntrySchema.shape.environment,
+    env_vars: TestHealthEntrySchema.shape.env_vars,
+    cells: z
+      .array(RunGridCellSchema)
+      .min(1)
+      .describe(
+        "The lane's cells, ordered by started_at, then commit SHA; one per commit."
+      ),
+  })
+  .describe(
+    "One calling workflow, environment and env var set the test ran in, with a cell for each commit it ran on. Lanes are ordered by workflow path, a lane without a path first, then by environment ID and env var set ID as numbers."
+  );
+
+export const RunGridSchema = z
+  .object({
+    commits: z
+      .array(RunGridCommitSchema)
+      .describe(
+        "Every commit with a cell in some lane, ordered by the start of the test's earliest attempt on it, oldest first."
+      ),
+    lanes: z
+      .array(RunGridLaneSchema)
+      .describe(
+        "The lanes with at least one cell, ordered by workflow path, a lane without a path first, then by environment ID and env var set ID as numbers."
+      ),
+    query_duration_ms: TestListPageSchema.shape.query_duration_ms.describe(
+      "Sum of the individually rounded elapsed milliseconds of the grouped read and the catalog lookup. Includes client and network overhead and decoding; excludes SQL construction, mapping and API transport."
+    ),
+  })
+  .describe(
+    "A test's retained runs as a grid: lanes down, commits across, every attempt of a configuration on a commit folded into one cell. Replacement rows are deduplicated before grouping. Runs whose job has no retained metadata row, or whose workflow run is not retained or has no commit, are left out, and appear once it lands. With a window, jobs whose first attempt started before it are left out whole, so no job's chain is cut. Empty lanes and commits for a test with no matching runs."
+  );
+
+export type RunGridCommit = z.infer<typeof RunGridCommitSchema>;
+export type RunGridJob = z.infer<typeof RunGridJobSchema>;
+export type RunGridCell = z.infer<typeof RunGridCellSchema>;
+export type RunGridLane = z.infer<typeof RunGridLaneSchema>;
+export type RunGrid = z.infer<typeof RunGridSchema>;

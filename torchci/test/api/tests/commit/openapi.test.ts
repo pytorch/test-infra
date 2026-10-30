@@ -139,7 +139,12 @@ describe("commit runs OpenAPI", () => {
     ).toEqual({ $ref: "#/components/schemas/CommitRunListPage" });
     expect(
       testRunsOperation.responses["200"].content["application/json"].schema
-    ).toEqual({ $ref: "#/components/schemas/RunListPage" });
+    ).toEqual({
+      oneOf: [
+        { $ref: "#/components/schemas/RunListPage" },
+        { $ref: "#/components/schemas/RunGrid" },
+      ],
+    });
     expect(schemas.RunListPage.properties.runs.items).toEqual({
       $ref: "#/components/schemas/RunRecord",
     });

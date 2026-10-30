@@ -12,6 +12,8 @@ import {
   exactValues,
   FILTER_DEFINITIONS,
   PARAMETER_DEFINITIONS,
+  RanOnValuesSchema,
+  WindowSchema,
 } from "lib/api/tests/parameters";
 import { TestIdSchema } from "lib/api/tests/test/parameters";
 import {
@@ -137,28 +139,117 @@ export const RUN_LIST_PARAMETER_DEFINITIONS = {
   },
 } as const;
 
-export const RUNS_PARAMETER_DEFINITIONS = {
+const TEST_ID_DEFINITION = {
   test_id: { encoding: "single", schema: TestIdSchema },
+} as const;
+
+const RUNS_LIST_PARAMETER_DEFINITIONS = {
+  ...TEST_ID_DEFINITION,
   ...RUN_LIST_PARAMETER_DEFINITIONS,
 } as const;
 
-export const RunsListParamsSchema = parameterSchema(RUNS_PARAMETER_DEFINITIONS);
+export const RunsListParamsSchema = parameterSchema(
+  RUNS_LIST_PARAMETER_DEFINITIONS
+);
 export const RunsListQuerySchema = RunsListParamsSchema.omit({ cursor: true });
 export type RunsListQuery = z.infer<typeof RunsListQuerySchema>;
 
 export function parseRunsListParams(rawQuery: RawQuery) {
   return parseParameters(
     rawQuery,
-    RUNS_PARAMETER_DEFINITIONS,
+    RUNS_LIST_PARAMETER_DEFINITIONS,
     RunsListParamsSchema
   );
 }
 
+// The runs grouped by commit, for a grid of a test's history: the same
+// endpoint with group_by=commit, where every bundle filter that selects a
+// configuration or a workflow still applies, and the parameters of a page of
+// bundles do not.
+const RUN_GRID_ONLY_PARAMETER_DEFINITIONS = {
+  group_by: {
+    encoding: "single",
+    schema: z
+      .literal("commit", { error: "group_by must be commit" })
+      .describe(
+        "Group the runs by commit instead of listing bundles: the response is a grid with one lane per calling workflow, environment and env var set, and in each lane one cell per commit, the cell holding every attempt of that test, configuration and commit across its jobs. Only commit is accepted. With it, sort, limit, cursor, search, outcome, last_attempt_outcome and rerun_number are not accepted; the configuration and workflow_path filters select lanes."
+      ),
+  },
+  ran_on: {
+    encoding: "csv",
+    schema: RanOnValuesSchema.transform(canonicalValues)
+      .optional()
+      .describe(
+        "Only with group_by=commit. Code sources whose runs to keep, comma-separated or repeated, as GET /api/tests defines them from the job's branch and the workflow run's trigger: main covers pushes and schedules on main; pull_request covers pull requests and ciflow tag pushes. Jobs named with rerun_disabled_tests belong to neither. Omit to keep every run that has a commit, whatever triggered it."
+      ),
+  },
+  window: {
+    encoding: "single",
+    schema: WindowSchema.optional().describe(
+      "Only with group_by=commit. Keep the jobs whose first attempt of the test started within this long before the request, with every attempt of those jobs, as the health table assigns a run to its windows; a job that started earlier and was rerun within the window is left out whole. Omit to keep every retained attempt."
+    ),
+  },
+} as const;
+
+const RUNS_GRID_PARAMETER_DEFINITIONS = {
+  ...TEST_ID_DEFINITION,
+  ...RUN_GRID_ONLY_PARAMETER_DEFINITIONS,
+  ...RUN_FILTER_DEFINITIONS,
+  env_vars: RUN_LIST_PARAMETER_DEFINITIONS.env_vars,
+  workflow_path: RUN_LIST_PARAMETER_DEFINITIONS.workflow_path,
+} as const;
+
+const RunsGridParamsSchema = parameterSchema(RUNS_GRID_PARAMETER_DEFINITIONS);
+export type RunsGridQuery = z.infer<typeof RunsGridParamsSchema>;
+
+// The parameters of a page of bundles that a grid request may not carry.
+const LIST_ONLY_PARAMETERS = Object.keys(RUN_LIST_PARAMETER_DEFINITIONS).filter(
+  (name) => !(name in RUNS_GRID_PARAMETER_DEFINITIONS)
+);
+
+export function parseRunsGridParams(rawQuery: RawQuery) {
+  const given = LIST_ONLY_PARAMETERS.find(
+    (name) => rawQuery[name] !== undefined
+  );
+  if (given !== undefined) {
+    return {
+      success: false as const,
+      error: new z.ZodError([
+        {
+          code: "custom",
+          input: rawQuery[given],
+          path: [given],
+          message: `${given} does not apply with group_by=commit`,
+        },
+      ]),
+    };
+  }
+  return parseParameters(
+    rawQuery,
+    RUNS_GRID_PARAMETER_DEFINITIONS,
+    RunsGridParamsSchema
+  );
+}
+
+// Every parameter the endpoint accepts in either form, for the document:
+// the grid's own first, then the shared filters and the page's.
+export const RUNS_PARAMETER_DEFINITIONS = {
+  ...TEST_ID_DEFINITION,
+  ...RUN_GRID_ONLY_PARAMETER_DEFINITIONS,
+  // Required of a grid request, optional of the endpoint.
+  group_by: {
+    ...RUN_GRID_ONLY_PARAMETER_DEFINITIONS.group_by,
+    schema: RUN_GRID_ONLY_PARAMETER_DEFINITIONS.group_by.schema.optional(),
+  },
+  ...RUN_LIST_PARAMETER_DEFINITIONS,
+} as const;
+
 export function runsListParameters() {
+  const schema = parameterSchema(RUNS_PARAMETER_DEFINITIONS);
   return [
-    pathParameter("test_id", RunsListParamsSchema.shape.test_id),
+    pathParameter("test_id", schema.shape.test_id),
     ...parameterQueryParameters(
-      RunsListParamsSchema.omit({ test_id: true }),
+      schema.omit({ test_id: true }),
       RUNS_PARAMETER_DEFINITIONS
     ),
   ];

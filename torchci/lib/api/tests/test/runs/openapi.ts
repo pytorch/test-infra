@@ -4,6 +4,11 @@ import { runsListParameters } from "lib/api/tests/test/runs/parameters";
 import {
   GithubWorkflowSchema,
   RunAttemptSchema,
+  RunGridCellSchema,
+  RunGridCommitSchema,
+  RunGridJobSchema,
+  RunGridLaneSchema,
+  RunGridSchema,
   RunListPageSchema,
   RunRecordSchema,
   RunReportSchema,
@@ -20,6 +25,8 @@ const runReportDescription =
 const runOptionsDescription =
   "Optional test, owner, environment, environment-variable, workflow_path, outcome, last_attempt_outcome and rerun_number filters select bundles before pagination. Exact, case-sensitive filters match any repeated value within a field and combine with AND across fields; all configuration conditions must match the bundle's own configuration. Search matches an entire file, suite, case_name or declared_case_name. Outcome and rerun_number must match the same attempt after replacement deduplication; every attempt in a matching bundle is returned, including attempts that do not match those filters. last_attempt_outcome independently checks the last retained attempt by started_at, ended_at and execution UUID string; outcome and rerun_number may match a different attempt. For example, outcome=failed&last_attempt_outcome=passed selects bundles containing a failure whose last retained attempt passed. This does not establish that a retry chain is complete. Sort by the documented run and catalog fields in ascending or descending order. started_at uses the earliest attempt start, ended_at the latest attempt end, and outcome and rerun_number the last attempt in chronological order. The default is newest bundle started_at first. Nulls always sort last, and owner ordering uses the alphabetically first label. Bundle identity fields break ties internally.";
 export const RUNS_PAGE_DESCRIPTION = `${runGroupingDescription} ${runCatalogDescription} ${runWorkflowDescription} ${runReportDescription} ${runOptionsDescription}`;
+const RUNS_GRID_DESCRIPTION =
+  "With group_by=commit the same runs come back as a grid instead of pages: one lane per calling workflow path, environment and env var set, each with one cell per commit the test ran on, every attempt of that configuration on that commit folded into the cell job by job. A cell lists its jobs, each with the chronological outcomes of its own attempts, its final outcome by the bundle rule (the last executed attempt's recorded outcome, or skipped when every attempt was skipped), its earliest start and its executed and passed time, and carries the cell's final outcome: jobs with the same name are one retry sequence, a job and its re-run, in one workflow run or across runs of the same workflow on the commit, judged by the bundle rule over the sequence; jobs with different names are siblings, shards that each ran the test, and the worst sibling decides, the job of its deciding attempt marked decisive. The cell's passed time is one run's time, the mean over the sequences that ended passing, each the mean over its jobs that passed, so siblings and re-runs count as one run, and its duration the whole spend across every job. commits lists every commit with a cell, oldest first by the test's earliest attempt on it. Lanes carry the same environment and env_vars shapes as the bundles. The ran_on filter keeps the runs of the chosen code sources, classified from the job's branch and the workflow run's trigger exactly as the health view classifies them, so a push to a ciflow tag is a pull request's run; window keeps the jobs whose first attempt started within that long before the request, with every attempt of those jobs, as the health table assigns a run to its windows, so no job's chain is cut at the window's start. The test, owner, configuration and workflow_path filters still apply, the configuration and workflow_path ones selecting lanes; sort, limit, cursor, search, outcome, last_attempt_outcome and rerun_number are rejected with 400. Runs whose job has no retained metadata row, or whose workflow run is not retained or has no commit, are left out. An unknown test or a selection matching nothing returns empty lanes and commits with 200.";
 
 export const runsApiOpenApi: ApiResource = {
   schemas: {
@@ -28,19 +35,24 @@ export const runsApiOpenApi: ApiResource = {
     RunAttempt: RunAttemptSchema,
     RunRecord: RunRecordSchema,
     RunListPage: RunListPageSchema,
+    RunGridCommit: RunGridCommitSchema,
+    RunGridJob: RunGridJobSchema,
+    RunGridCell: RunGridCellSchema,
+    RunGridLane: RunGridLaneSchema,
+    RunGrid: RunGridSchema,
   },
   paths: (ref) => ({
     "/api/tests/test/{test_id}/runs": {
       get: {
         operationId: "listRuns",
         tags: ["tests"],
-        summary: "List runs of a test",
-        description: `Returns retained test runs with their attempts bundled by configuration and GitHub job. By default every environment, env var set, outcome, time and code source is eligible. ${RUNS_PAGE_DESCRIPTION} Cursors bind the test ID, normalized filters and ordering. Cursors issued before attempt bundling are rejected with 400. Each page reads current data and may skip or repeat entries when data changes; pagination does not enumerate a fixed snapshot. An unknown test ID or filters matching no runs returns an empty page with 200.`,
+        summary: "List runs of a test, or group them by commit",
+        description: `Returns retained test runs with their attempts bundled by configuration and GitHub job. By default every environment, env var set, outcome, time and code source is eligible. ${RUNS_PAGE_DESCRIPTION} Cursors bind the test ID, normalized filters and ordering. Cursors issued before attempt bundling are rejected with 400. Each page reads current data and may skip or repeat entries when data changes; pagination does not enumerate a fixed snapshot. An unknown test ID or filters matching no runs returns an empty page with 200. ${RUNS_GRID_DESCRIPTION}`,
         parameters: runsListParameters(),
         responses: {
           "200": jsonResponse(
-            "A page of test run bundles with all attempts, shared catalog details, owners and workflow metadata.",
-            ref(RunListPageSchema)
+            "A page of test run bundles with all attempts, shared catalog details, owners and workflow metadata; or, with group_by=commit, the grid of the test's runs by commit.",
+            { oneOf: [ref(RunListPageSchema), ref(RunGridSchema)] }
           ),
           ...listErrorResponses(ref),
         },

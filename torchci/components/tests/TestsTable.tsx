@@ -37,6 +37,13 @@ import {
   TestsFacet,
 } from "lib/tests/facets";
 import { headerBandColor, headerRuleColor } from "lib/tests/headerColors";
+import {
+  COLUMN_HEADER_HEIGHT,
+  COLUMN_WIDTHS,
+  HEADER_TITLE_STYLE,
+  NAME_MIN_WIDTH,
+  TABLE_BORDER,
+} from "lib/tests/layout";
 import { CELL_VERTICAL_PADDING, ROW_HEIGHT } from "lib/tests/rows";
 import {
   DEFAULT_TESTS_SORT,
@@ -110,34 +117,13 @@ function sectionsOf(
 }
 
 // The columns' widths in pixels, each sized to what it shows, as its
-// definition says. The Name column takes the width the others leave,
-// NAME_MIN_WIDTH at least. Together they must fit what a 1920px display
-// shows without sideways scrolling: 1905px after the scrollbar, less the
-// body's 5px padding and the layout's 2px margin each side, the page
-// column's 16px padding each side and the table's border, 1855px for the
-// columns (1853px with Windows' wider scrollbar).
-const NAME_MIN_WIDTH = 480;
-const COLUMN_WIDTHS = {
-  health: 170,
-  environment: 430,
-  test_config: 200,
-  mean_passed_duration_milliseconds: 180,
-  owners: 200,
-  last_run_at: 180,
-};
-const TABLE_BORDER = 1;
-// The table's width with every column at its width and the Name column at
-// its minimum. The page's column is this wide, so at full width the table
-// is whole and not scrolled sideways.
-export const TESTS_TABLE_WIDTH =
-  NAME_MIN_WIDTH +
-  Object.values(COLUMN_WIDTHS).reduce((sum, width) => sum + width, 0) +
-  2 * TABLE_BORDER;
+// definition says, and the table's width they add up to, which the page
+// column is cut to, are in lib/tests/layout.ts.
 
 // The row geometry is in lib/tests/rows.ts, shared with the Health cell,
-// whose block is sized to it. The header, set in pixels the same way, holds
-// its two-line label as a row holds its two-line cells.
-const COLUMN_HEADER_HEIGHT = 44;
+// whose block is sized to it. The header, set in pixels the same way
+// (COLUMN_HEADER_HEIGHT in lib/tests/layout.ts, shared with the grid's
+// band), holds its two-line label as a row holds its two-line cells.
 
 export interface TestsTableProps {
   // The page to show and the means to turn its pages.
@@ -519,9 +505,7 @@ export default function TestsTable({
               { backgroundColor: "transparent" },
             // The grid's own font size, which HUD's other tables keep too.
             "& .MuiDataGrid-columnHeaderTitle": {
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
+              ...HEADER_TITLE_STYLE,
               color: theme.palette.text.secondary,
             },
             "& .MuiDataGrid-columnHeaders .MuiDataGrid-row--borderBottom .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaders .MuiDataGrid-row--borderBottom .MuiDataGrid-filler":

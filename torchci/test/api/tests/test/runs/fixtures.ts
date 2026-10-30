@@ -6,6 +6,7 @@ import {
   RunStats,
   RunWorkflowFields,
 } from "lib/api/tests/test/runs/types";
+import { RUN_OUTCOMES } from "lib/runOutcomes";
 
 export const TEST_ID = "18446744073709551615";
 export const RUN_ID = "0199fcc8-7748-7c24-b4d9-523079306ed4";
@@ -13,17 +14,7 @@ export const ENVIRONMENT_ID = "18446744073709551614";
 export const ENV_VARS_ID = "18446744073709551613";
 export const STARTED_AT = "2026-10-19T16:28:13.575Z";
 export const ENDED_AT = "2026-10-19T16:28:13.576Z";
-export const RUN_OUTCOMES: RunFields["outcome"][] = [
-  "unknown",
-  "passed",
-  "failed",
-  "error",
-  "skipped",
-  "xfailed",
-  "xpassed",
-  "crashed",
-  "timed_out",
-];
+export { RUN_OUTCOMES };
 
 export function runStats(outcomes: readonly unknown[] = []): RunStats {
   return {

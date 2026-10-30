@@ -1,6 +1,6 @@
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import { ButtonBase, useTheme } from "@mui/material";
-import { headerBandColor } from "lib/tests/headerColors";
+import { headerBandColor, headerBandHoverColor } from "lib/tests/headerColors";
 import { MouseEvent } from "react";
 
 export interface InlinePillProps {
@@ -26,7 +26,6 @@ export default function InlinePill({
   onOpen,
 }: InlinePillProps) {
   const theme = useTheme();
-  const dark = theme.palette.mode === "dark";
   return (
     <ButtonBase
       onClick={(event: MouseEvent<HTMLElement>) => onOpen(event.currentTarget)}
@@ -50,9 +49,7 @@ export default function InlinePill({
           duration: theme.transitions.duration.shortest,
         }),
         "&:hover": {
-          backgroundColor: dark
-            ? theme.palette.grey[700]
-            : theme.palette.grey[300],
+          backgroundColor: headerBandHoverColor(theme),
         },
         "&.Mui-focusVisible": {
           outline: `2px solid ${theme.palette.primary.main}`,

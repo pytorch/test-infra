@@ -6,7 +6,7 @@ import {
   useTheme,
 } from "@mui/material";
 import type { TestView } from "lib/api/tests/options/types";
-import { headerBandColor } from "lib/tests/headerColors";
+import { headerBandColor, headerBandHoverColor } from "lib/tests/headerColors";
 import { useId } from "react";
 
 // The height of a chip in pixels: a line of body2 text and its padding. The
@@ -37,7 +37,6 @@ export default function ViewChips({
   onClear,
 }: ViewChipsProps) {
   const theme = useTheme();
-  const dark = theme.palette.mode === "dark";
   const labelId = useId();
   if (views.length === 0) {
     return null;
@@ -89,9 +88,7 @@ export default function ViewChips({
                   "&:hover": {
                     backgroundColor: active
                       ? theme.palette.primary.dark
-                      : dark
-                      ? theme.palette.grey[700]
-                      : theme.palette.grey[300],
+                      : headerBandHoverColor(theme),
                   },
                   "&.Mui-focusVisible": {
                     outline: `2px solid ${theme.palette.primary.main}`,

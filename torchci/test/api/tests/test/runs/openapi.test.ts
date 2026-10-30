@@ -210,7 +210,12 @@ describe("test runs OpenAPI", () => {
     expect(operation.description).toMatch(/never split across pages/i);
     expect(
       operation.responses["200"].content["application/json"].schema
-    ).toEqual({ $ref: "#/components/schemas/RunListPage" });
+    ).toEqual({
+      oneOf: [
+        { $ref: "#/components/schemas/RunListPage" },
+        { $ref: "#/components/schemas/RunGrid" },
+      ],
+    });
     for (const status of ["400", "500"]) {
       expect(
         operation.responses[status].content["application/json"].schema

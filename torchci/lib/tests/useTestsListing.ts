@@ -1,5 +1,6 @@
 import type { GridPaginationModel } from "@mui/x-data-grid";
 import type { TestHealthEntry, TestListPage } from "lib/api/tests/types";
+import { mayPassOnRetry, requestJson } from "lib/tests/request";
 import {
   DEFAULT_TESTS_PAGE_SIZE,
   pageCounts,
@@ -83,34 +84,6 @@ export interface TestsListing {
 // is unlikely to pass on a third; the grid keeps its loading state meanwhile.
 export const RETRY_DELAYS_MS = [1000, 3000];
 
-// One attempt at a page from the API, or its error with the API's text as
-// info, which apiErrorMessage reads. Aborting the signal rejects.
-async function requestTestsPage(
-  url: string,
-  signal: AbortSignal
-): Promise<TestListPage> {
-  const response = await fetch(url, { signal });
-  if (!response.ok) {
-    const body = await response.json().catch(() => undefined);
-    throw Object.assign(
-      new Error("An error occurred while fetching the data"),
-      {
-        status: response.status,
-        info: body?.error,
-      }
-    );
-  }
-  return response.json();
-}
-
-// Whether a failed attempt may pass if made again: the connection failed, so
-// there is no status, or the server failed (5xx). A 4xx is the API's verdict
-// on the request itself, a bad parameter or cursor, and would only repeat.
-function mayPassOnRetry(error: unknown): boolean {
-  const status = (error as { status?: unknown } | null)?.status;
-  return typeof status !== "number" || status >= 500;
-}
-
 // Resolves after the given time, unless the signal aborts first: then it
 // rejects at once with the signal's reason, as fetch does, so an abandoned
 // request is not asked again.
@@ -137,7 +110,7 @@ async function fetchTestsPage(
 ): Promise<TestListPage> {
   for (let failures = 0; ; failures++) {
     try {
-      return await requestTestsPage(url, signal);
+      return await requestJson<TestListPage>(url, { signal });
     } catch (error) {
       if (
         signal.aborted ||

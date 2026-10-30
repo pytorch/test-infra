@@ -1,4 +1,5 @@
 import { Tooltip } from "@mui/material";
+import { HEADER_TITLE_TOOLTIP_DELAY_MS } from "lib/tests/layout";
 
 export interface ColumnTitleProps {
   // The label, set as the grid sets every header's.
@@ -16,7 +17,7 @@ export default function ColumnTitle({ title, description }: ColumnTitleProps) {
   return (
     <Tooltip
       title={description}
-      enterDelay={600}
+      enterDelay={HEADER_TITLE_TOOLTIP_DELAY_MS}
       placement="bottom-start"
       slotProps={{ tooltip: { sx: { whiteSpace: "pre-line" } } }}
     >

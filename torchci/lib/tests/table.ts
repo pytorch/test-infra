@@ -15,6 +15,7 @@ import {
   TESTS_FACETS,
   TestsFacet,
 } from "lib/tests/facets";
+import type { UrlQuery } from "lib/tests/url";
 
 // The tests table on /tests/[organization]/[repo] sorts, filters and pages
 // on the server through GET /api/tests. This is the glue between the page's
@@ -113,8 +114,6 @@ export interface TestsQuery {
   // Empty for no search. Taken as written: the API reads it literally.
   search: string;
 }
-
-type UrlQuery = Record<string, string | string[] | undefined>;
 
 // The code sources as the title's sentence says them.
 export function ranOnPhrase(

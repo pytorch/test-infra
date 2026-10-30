@@ -1,10 +1,12 @@
-import { Checkbox, ListItemText, MenuItem } from "@mui/material";
-import { forwardRef } from "react";
+import { Box, Checkbox, ListItemText, MenuItem } from "@mui/material";
+import { forwardRef, ReactNode } from "react";
 
 export interface CheckMenuItemProps {
   checked: boolean;
   label: string;
   onClick: () => void;
+  // Something small set before the label: the swatch of a status.
+  adornment?: ReactNode;
   disabled?: boolean;
   // Set tight, as the headers' menus are.
   dense?: boolean;
@@ -23,6 +25,7 @@ const CheckMenuItem = forwardRef<HTMLLIElement, CheckMenuItemProps>(
       checked,
       label,
       onClick,
+      adornment,
       disabled = false,
       dense = false,
       indented = false,
@@ -46,6 +49,14 @@ const CheckMenuItem = forwardRef<HTMLLIElement, CheckMenuItemProps>(
           disableRipple
           sx={{ p: 0, mr: 1 }}
         />
+        {adornment !== undefined && (
+          <Box
+            component="span"
+            sx={{ display: "inline-flex", alignItems: "center", mr: 1 }}
+          >
+            {adornment}
+          </Box>
+        )}
         <ListItemText primary={label} />
       </MenuItem>
     );

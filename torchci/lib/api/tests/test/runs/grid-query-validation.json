@@ -1,0 +1,914 @@
+{
+  "description": "GET /api/tests/test/{test_id}/runs?group_by=commit: the grid query, one grouped read of a test's runs with its jobs' and workflow runs' latest metadata. Each case records the raw request, the fixed window start (since_ms, Unix milliseconds; the handler computes it from the request time), the generated SQL and bindings, EXPLAIN plans, alternating timing samples of the kept query and the rejected rewrite without FINAL on the metadata reads, and a summary of the rows.",
+  "database": "ci",
+  "settings": {
+    "use_query_cache": 0,
+    "output_format_json_quote_64bit_integers": 0,
+    "date_time_output_format": "iso"
+  },
+  "cases": [
+    {
+      "name": "main_7d",
+      "raw": {
+        "test_id": "10798099672608881194",
+        "group_by": "commit",
+        "ran_on": "main",
+        "window": "7d"
+      },
+      "since_ms": 1792605600000,
+      "query": {
+        "params": {
+          "test_id": "10798099672608881194",
+          "ran_on": [
+            "main"
+          ],
+          "since": 1792605600000,
+          "chains_since": 1792519200000
+        },
+        "sql": "\nWITH jobs AS (\n    SELECT id, run_id, html_url, name, head_branch\n    FROM default.workflow_job FINAL\n    WHERE id IN (\n        SELECT DISTINCT run.github_workflow_job_id\n        FROM ci.runs AS run\n        WHERE run.tests_id = {test_id: UInt64}\n            AND run.started_at >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\n    )\n    ORDER BY _inserted_at DESC, run_id DESC, dynamoKey DESC\n    LIMIT 1 BY id\n), workflows AS (\n    SELECT id, path, head_sha, event\n    FROM default.workflow_run FINAL\n    WHERE id IN (\n        SELECT run_id FROM default.workflow_job\n        WHERE id IN (\n        SELECT DISTINCT run.github_workflow_job_id\n        FROM ci.runs AS run\n        WHERE run.tests_id = {test_id: UInt64}\n            AND run.started_at >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\n        )\n    )\n    ORDER BY _inserted_at DESC, run_attempt DESC, dynamoKey DESC\n    LIMIT 1 BY id\n)\nSELECT\n    workflow.head_sha AS commit_sha,\n    nullIf(workflow.path, '') AS workflow_path,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS job_id_string,\n    any(job.html_url) AS job_url,\n    any(job.name) AS job_name,\n    min(run.started_at) AS started_at,\n    argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) AS outcome,\n    arrayMap(attempt -> attempt.4, arraySort(groupArray((run.started_at, run.ended_at, toString(run.id), toString(run.outcome))))) AS attempt_outcomes,\n    sumIf(greatest(0, dateDiff('millisecond', run.started_at, run.ended_at)), run.outcome != 'skipped') AS duration_milliseconds,\n    sumIf(greatest(0, dateDiff('millisecond', run.started_at, run.ended_at)), run.outcome = 'passed') AS passed_duration_milliseconds\nFROM (\n    SELECT run.id, run.environments_id, run.env_vars_id, run.github_workflow_job_id,\n        run.outcome, run.started_at, run.ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE run.tests_id = {test_id: UInt64}\n        AND run.started_at >= fromUnixTimestamp64Milli({chains_since: Int64}, 'UTC')\n) AS run\nINNER JOIN jobs AS job ON job.id = run.github_workflow_job_id\nINNER JOIN workflows AS workflow ON workflow.id = job.run_id\nWHERE workflow.head_sha != ''\n    AND multiIf(\n        job.name LIKE '%rerun_disabled_tests%', 'other',\n        job.head_branch = 'main' AND workflow.event IN ('push', 'schedule'), 'main',\n        workflow.event = 'pull_request'\n            OR (workflow.event = 'push' AND startsWith(job.head_branch, 'ciflow/')), 'pull_request',\n        'other'\n    ) IN {ran_on: Array(String)}\nGROUP BY commit_sha, workflow_path, run.environments_id, run.env_vars_id, run.github_workflow_job_id\nHAVING min(run.started_at) >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\nORDER BY started_at, commit_sha, workflow_path, run.environments_id, run.env_vars_id, run.github_workflow_job_id\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "indexes = 1": [
+          "Expression ((Projection + Before ORDER BY [lifted up part]))",
+          "  Sorting (Sorting for ORDER BY)",
+          "    Expression (Before ORDER BY)",
+          "      Filter (HAVING)",
+          "        Aggregating",
+          "          Expression (Before GROUP BY)",
+          "            Filter (WHERE)",
+          "              Join (JOIN FillRightFirst)",
+          "                Expression ((Before JOIN + (Projection + Before ORDER BY)))",
+          "                  Join (JOIN FillRightFirst)",
+          "                    Expression ((Before JOIN + (Projection + Before ORDER BY)))",
+          "                      ReadFromMergeTree (ci.runs)",
+          "                      Indexes:",
+          "                        Min-Max",
+          "                          Keys:",
+          "                            started_at",
+          "                          Condition: (started_at in ['1792519200', +Inf))",
+          "                          Parts: 181/181",
+          "                          Granules: 653924/653924",
+          "                        Partition",
+          "                          Keys:",
+          "                            toDate(started_at)",
+          "                          Condition: (toDate(started_at) in [20746, +Inf))",
+          "                          Parts: 181/181",
+          "                          Granules: 653924/653924",
+          "                        PrimaryKey",
+          "                          Keys:",
+          "                            tests_id",
+          "                            started_at",
+          "                          Condition: and((started_at in ['1792519200', +Inf)), (tests_id in [10798099672608881194, 10798099672608881194]))",
+          "                          Parts: 161/181",
+          "                          Granules: 161/653924",
+          "                          Search Algorithm: generic exclusion search",
+          "                        Ranges: 161",
+          "                    Expression ((Joined actions + Rename joined columns))",
+          "                      CreatingSets (Create sets before main query execution)",
+          "                        Expression (Projection)",
+          "                          LimitBy",
+          "                            Expression (Before LIMIT BY)",
+          "                              Sorting (Sorting for ORDER BY)",
+          "                                Expression (Before ORDER BY)",
+          "                                  Filter (WHERE)",
+          "                                    ReadFromMergeTree (default.workflow_job)",
+          "                                    Indexes:",
+          "                                      PrimaryKey",
+          "                                        Keys:",
+          "                                          id",
+          "                                        Condition: (id in 13055-element set)",
+          "                                        Parts: 9/14",
+          "                                        Granules: 334/32435",
+          "                                        Search Algorithm: generic exclusion search",
+          "                                      Ranges: 14",
+          "                CreatingSets (Create sets before main query execution)",
+          "                  Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + (WHERE + Projection)))",
+          "                    LimitBy",
+          "                      Expression (Before LIMIT BY)",
+          "                        Sorting (Sorting for ORDER BY)",
+          "                          Expression (Before ORDER BY)",
+          "                            Filter (WHERE)",
+          "                              ReadFromMergeTree (default.workflow_run)",
+          "                              Indexes:",
+          "                                PrimaryKey",
+          "                                  Keys:",
+          "                                    id",
+          "                                  Condition: (id in 3150-element set)",
+          "                                  Parts: 3/7",
+          "                                  Granules: 167/14795",
+          "                                  Search Algorithm: generic exclusion search",
+          "                                Ranges: 4"
+        ],
+        "ESTIMATE": [
+          "{\"database\":\"default\",\"table\":\"workflow_run\",\"parts\":3,\"rows\":163239,\"marks\":167}",
+          "{\"database\":\"default\",\"table\":\"workflow_job\",\"parts\":10,\"rows\":1431364,\"marks\":335}",
+          "{\"database\":\"ci\",\"table\":\"runs\",\"parts\":143,\"rows\":618246,\"marks\":143}"
+        ]
+      },
+      "samples": [
+        {
+          "round": 0,
+          "variant": "kept",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.69709984,
+            "rows_read": 3588573,
+            "bytes_read": 325655387
+          },
+          "memory_usage": 186025738
+        },
+        {
+          "round": 0,
+          "variant": "without_final",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.682847238,
+            "rows_read": 3348064,
+            "bytes_read": 275095962
+          },
+          "memory_usage": 84352947
+        },
+        {
+          "round": 1,
+          "variant": "without_final",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.72702674,
+            "rows_read": 3348064,
+            "bytes_read": 275095962
+          },
+          "memory_usage": 89294042
+        },
+        {
+          "round": 1,
+          "variant": "kept",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.858421987,
+            "rows_read": 3588573,
+            "bytes_read": 325655387
+          },
+          "memory_usage": 184668429
+        },
+        {
+          "round": 2,
+          "variant": "kept",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.516584,
+            "rows_read": 3588573,
+            "bytes_read": 325655387
+          },
+          "memory_usage": 185791399
+        },
+        {
+          "round": 2,
+          "variant": "without_final",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.505376449,
+            "rows_read": 3348064,
+            "bytes_read": 275095962
+          },
+          "memory_usage": 95161603
+        },
+        {
+          "round": 3,
+          "variant": "without_final",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.546952763,
+            "rows_read": 3348064,
+            "bytes_read": 275095962
+          },
+          "memory_usage": 90104203
+        },
+        {
+          "round": 3,
+          "variant": "kept",
+          "rows": 3055,
+          "statistics": {
+            "elapsed": 0.587134132,
+            "rows_read": 3588573,
+            "bytes_read": 325655047
+          },
+          "memory_usage": 177436496
+        }
+      ],
+      "result": {
+        "rows": 3055,
+        "cells": 2474,
+        "commits": 196,
+        "digest": "2531b3e82bd82315d04ec2bf626469a3df0d679dc1a4cc97fac8860f8b768d24",
+        "lanes": [
+          {
+            "lane": ".github/workflows/inductor.yml|1330642599293943726|7641918176405818545",
+            "chains": 383,
+            "cells": 192,
+            "outcomes": {
+              "skipped": 383
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor.yml|16117143120203384649|7641918176405818545",
+            "chains": 382,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 352,
+              "timed_out": 30
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor.yml|17266170437131304125|7641918176405818545",
+            "chains": 384,
+            "cells": 192,
+            "outcomes": {
+              "skipped": 384
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|14985026198735433233|1688593832548410197",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "passed": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|16587728777290062428|1688593832548410197",
+            "chains": 192,
+            "cells": 190,
+            "outcomes": {
+              "skipped": 192
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|17266170437131304125|1688593832548410197",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|17266170437131304125|2928777656300840299",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|3900401099675026449|1688593832548410197",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|8205838994554724426|1688593832548410197",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/slow.yml|17266170437131304125|13035663146313902916",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/slow.yml|17266170437131304125|13350071727722117082",
+            "chains": 190,
+            "cells": 190,
+            "outcomes": {
+              "skipped": 190
+            }
+          },
+          {
+            "lane": ".github/workflows/trunk.yml|13992165449836525717|1688593832548410197",
+            "chains": 191,
+            "cells": 186,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/trunk.yml|3918732538669420041|1688593832548410197",
+            "chains": 187,
+            "cells": 187,
+            "outcomes": {
+              "skipped": 187
+            }
+          }
+        ]
+      },
+      "until_ms": 1793213284539
+    },
+    {
+      "name": "all_sources_3d",
+      "raw": {
+        "test_id": "10798099672608881194",
+        "group_by": "commit",
+        "window": "3d"
+      },
+      "since_ms": 1792951200000,
+      "query": {
+        "params": {
+          "test_id": "10798099672608881194",
+          "since": 1792951200000,
+          "chains_since": 1792864800000
+        },
+        "sql": "\nWITH jobs AS (\n    SELECT id, run_id, html_url, name, head_branch\n    FROM default.workflow_job FINAL\n    WHERE id IN (\n        SELECT DISTINCT run.github_workflow_job_id\n        FROM ci.runs AS run\n        WHERE run.tests_id = {test_id: UInt64}\n            AND run.started_at >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\n    )\n    ORDER BY _inserted_at DESC, run_id DESC, dynamoKey DESC\n    LIMIT 1 BY id\n), workflows AS (\n    SELECT id, path, head_sha, event\n    FROM default.workflow_run FINAL\n    WHERE id IN (\n        SELECT run_id FROM default.workflow_job\n        WHERE id IN (\n        SELECT DISTINCT run.github_workflow_job_id\n        FROM ci.runs AS run\n        WHERE run.tests_id = {test_id: UInt64}\n            AND run.started_at >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\n        )\n    )\n    ORDER BY _inserted_at DESC, run_attempt DESC, dynamoKey DESC\n    LIMIT 1 BY id\n)\nSELECT\n    workflow.head_sha AS commit_sha,\n    nullIf(workflow.path, '') AS workflow_path,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS job_id_string,\n    any(job.html_url) AS job_url,\n    any(job.name) AS job_name,\n    min(run.started_at) AS started_at,\n    argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) AS outcome,\n    arrayMap(attempt -> attempt.4, arraySort(groupArray((run.started_at, run.ended_at, toString(run.id), toString(run.outcome))))) AS attempt_outcomes,\n    sumIf(greatest(0, dateDiff('millisecond', run.started_at, run.ended_at)), run.outcome != 'skipped') AS duration_milliseconds,\n    sumIf(greatest(0, dateDiff('millisecond', run.started_at, run.ended_at)), run.outcome = 'passed') AS passed_duration_milliseconds\nFROM (\n    SELECT run.id, run.environments_id, run.env_vars_id, run.github_workflow_job_id,\n        run.outcome, run.started_at, run.ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE run.tests_id = {test_id: UInt64}\n        AND run.started_at >= fromUnixTimestamp64Milli({chains_since: Int64}, 'UTC')\n) AS run\nINNER JOIN jobs AS job ON job.id = run.github_workflow_job_id\nINNER JOIN workflows AS workflow ON workflow.id = job.run_id\nWHERE workflow.head_sha != ''\nGROUP BY commit_sha, workflow_path, run.environments_id, run.env_vars_id, run.github_workflow_job_id\nHAVING min(run.started_at) >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\nORDER BY started_at, commit_sha, workflow_path, run.environments_id, run.env_vars_id, run.github_workflow_job_id\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "indexes = 1": [
+          "Expression ((Projection + Before ORDER BY [lifted up part]))",
+          "  Sorting (Sorting for ORDER BY)",
+          "    Expression (Before ORDER BY)",
+          "      Filter (HAVING)",
+          "        Aggregating",
+          "          Expression ((Before GROUP BY + ))",
+          "            Join (JOIN FillRightFirst)",
+          "              Expression ((Before JOIN + (Projection + Before ORDER BY)))",
+          "                Join (JOIN FillRightFirst)",
+          "                  Expression ((Before JOIN + (Projection + Before ORDER BY)))",
+          "                    ReadFromMergeTree (ci.runs)",
+          "                    Indexes:",
+          "                      Min-Max",
+          "                        Keys:",
+          "                          started_at",
+          "                        Condition: (started_at in ['1792864800', +Inf))",
+          "                        Parts: 106/110",
+          "                        Granules: 635522/653934",
+          "                      Partition",
+          "                        Keys:",
+          "                          toDate(started_at)",
+          "                        Condition: (toDate(started_at) in [20750, +Inf))",
+          "                        Parts: 106/106",
+          "                        Granules: 635522/635522",
+          "                      PrimaryKey",
+          "                        Keys:",
+          "                          tests_id",
+          "                          started_at",
+          "                        Condition: and((started_at in ['1792864800', +Inf)), (tests_id in [10798099672608881194, 10798099672608881194]))",
+          "                        Parts: 101/106",
+          "                        Granules: 101/635522",
+          "                        Search Algorithm: generic exclusion search",
+          "                      Ranges: 101",
+          "                  Expression ((Joined actions + Rename joined columns))",
+          "                    CreatingSets (Create sets before main query execution)",
+          "                      Expression (Projection)",
+          "                        LimitBy",
+          "                          Expression (Before LIMIT BY)",
+          "                            Sorting (Sorting for ORDER BY)",
+          "                              Expression (Before ORDER BY)",
+          "                                Filter (WHERE)",
+          "                                  ReadFromMergeTree (default.workflow_job)",
+          "                                  Indexes:",
+          "                                    PrimaryKey",
+          "                                      Keys:",
+          "                                        id",
+          "                                      Condition: (id in 12164-element set)",
+          "                                      Parts: 7/12",
+          "                                      Granules: 310/32433",
+          "                                      Search Algorithm: generic exclusion search",
+          "                                    Ranges: 10",
+          "              CreatingSets (Create sets before main query execution)",
+          "                Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + (WHERE + Projection)))",
+          "                  LimitBy",
+          "                    Expression (Before LIMIT BY)",
+          "                      Sorting (Sorting for ORDER BY)",
+          "                        Expression (Before ORDER BY)",
+          "                          Filter (WHERE)",
+          "                            ReadFromMergeTree (default.workflow_run)",
+          "                            Indexes:",
+          "                              PrimaryKey",
+          "                                Keys:",
+          "                                  id",
+          "                                Condition: (id in 2932-element set)",
+          "                                Parts: 3/7",
+          "                                Granules: 151/14795",
+          "                                Search Algorithm: generic exclusion search",
+          "                              Ranges: 5"
+        ],
+        "ESTIMATE": [
+          "{\"database\":\"default\",\"table\":\"workflow_run\",\"parts\":3,\"rows\":147511,\"marks\":151}",
+          "{\"database\":\"default\",\"table\":\"workflow_job\",\"parts\":7,\"rows\":1307376,\"marks\":310}",
+          "{\"database\":\"ci\",\"table\":\"runs\",\"parts\":90,\"rows\":526965,\"marks\":90}"
+        ]
+      },
+      "samples": [
+        {
+          "round": 0,
+          "variant": "kept",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.50733642,
+            "rows_read": 3055777,
+            "bytes_read": 264182897
+          },
+          "memory_usage": 182470805
+        },
+        {
+          "round": 0,
+          "variant": "without_final",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.547442779,
+            "rows_read": 2820742,
+            "bytes_read": 220380283
+          },
+          "memory_usage": 80131663
+        },
+        {
+          "round": 1,
+          "variant": "without_final",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.651147823,
+            "rows_read": 2820742,
+            "bytes_read": 220380283
+          },
+          "memory_usage": 91998853
+        },
+        {
+          "round": 1,
+          "variant": "kept",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.580592665,
+            "rows_read": 3055777,
+            "bytes_read": 264182897
+          },
+          "memory_usage": 178786045
+        },
+        {
+          "round": 2,
+          "variant": "kept",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.548768653,
+            "rows_read": 3055777,
+            "bytes_read": 264182897
+          },
+          "memory_usage": 175487681
+        },
+        {
+          "round": 2,
+          "variant": "without_final",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.458966955,
+            "rows_read": 2820742,
+            "bytes_read": 220380283
+          },
+          "memory_usage": 34881208
+        },
+        {
+          "round": 3,
+          "variant": "without_final",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.450644567,
+            "rows_read": 2820742,
+            "bytes_read": 220380283
+          },
+          "memory_usage": 87786721
+        },
+        {
+          "round": 3,
+          "variant": "kept",
+          "rows": 8775,
+          "statistics": {
+            "elapsed": 0.484873254,
+            "rows_read": 3055777,
+            "bytes_read": 264182897
+          },
+          "memory_usage": 171276702
+        }
+      ],
+      "result": {
+        "rows": 8775,
+        "cells": 6332,
+        "commits": 1047,
+        "digest": "427e2836d27389ae850143d1f2cb75e06a4ee712e6b3897458458fcf20fe5b17",
+        "lanes": [
+          {
+            "lane": ".github/workflows/inductor-unittest.yml|1330642599293943726|7641918176405818545",
+            "chains": 8,
+            "cells": 4,
+            "outcomes": {
+              "skipped": 8
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor-unittest.yml|16117143120203384649|7641918176405818545",
+            "chains": 8,
+            "cells": 4,
+            "outcomes": {
+              "skipped": 8
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor-unittest.yml|17266170437131304125|7641918176405818545",
+            "chains": 8,
+            "cells": 4,
+            "outcomes": {
+              "skipped": 8
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor.yml|1330642599293943726|7641918176405818545",
+            "chains": 1546,
+            "cells": 765,
+            "outcomes": {
+              "skipped": 1546
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor.yml|16117143120203384649|7641918176405818545",
+            "chains": 1550,
+            "cells": 780,
+            "outcomes": {
+              "skipped": 1442,
+              "timed_out": 108
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor.yml|17266170437131304125|7641918176405818545",
+            "chains": 1578,
+            "cells": 775,
+            "outcomes": {
+              "skipped": 1578
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|14985026198735433233|1688593832548410197",
+            "chains": 474,
+            "cells": 468,
+            "outcomes": {
+              "passed": 474
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|16587728777290062428|1688593832548410197",
+            "chains": 565,
+            "cells": 557,
+            "outcomes": {
+              "skipped": 565
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|17266170437131304125|1688593832548410197",
+            "chains": 461,
+            "cells": 457,
+            "outcomes": {
+              "skipped": 461
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|17266170437131304125|2928777656300840299",
+            "chains": 461,
+            "cells": 459,
+            "outcomes": {
+              "skipped": 461
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|3900401099675026449|1688593832548410197",
+            "chains": 475,
+            "cells": 465,
+            "outcomes": {
+              "skipped": 475
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|8205838994554724426|1688593832548410197",
+            "chains": 472,
+            "cells": 462,
+            "outcomes": {
+              "skipped": 472
+            }
+          },
+          {
+            "lane": ".github/workflows/slow.yml|17266170437131304125|13035663146313902916",
+            "chains": 170,
+            "cells": 170,
+            "outcomes": {
+              "skipped": 170
+            }
+          },
+          {
+            "lane": ".github/workflows/slow.yml|17266170437131304125|13350071727722117082",
+            "chains": 171,
+            "cells": 171,
+            "outcomes": {
+              "skipped": 171
+            }
+          },
+          {
+            "lane": ".github/workflows/trunk.yml|13992165449836525717|1688593832548410197",
+            "chains": 359,
+            "cells": 331,
+            "outcomes": {
+              "skipped": 359
+            }
+          },
+          {
+            "lane": ".github/workflows/trunk.yml|3918732538669420041|1688593832548410197",
+            "chains": 469,
+            "cells": 460,
+            "outcomes": {
+              "skipped": 469
+            }
+          }
+        ]
+      },
+      "until_ms": 1793213284539
+    },
+    {
+      "name": "main_7d_filtered",
+      "raw": {
+        "test_id": "10798099672608881194",
+        "group_by": "commit",
+        "ran_on": "main",
+        "window": "7d",
+        "workflow_path": [
+          ".github/workflows/pull.yml",
+          ".github/workflows/inductor.yml"
+        ],
+        "python_version": [
+          "3.11",
+          "3.13"
+        ],
+        "env_vars": "{\"TEST_CONFIG\":[\"default\",\"inductor_core\"]}"
+      },
+      "since_ms": 1792605600000,
+      "query": {
+        "params": {
+          "test_id": "10798099672608881194",
+          "filter_python_version": [
+            "3.11",
+            "3.13"
+          ],
+          "env_var_name_0": "TEST_CONFIG",
+          "env_var_values_0": [
+            "default",
+            "inductor_core"
+          ],
+          "ran_on": [
+            "main"
+          ],
+          "workflow_path": [
+            ".github/workflows/inductor.yml",
+            ".github/workflows/pull.yml"
+          ],
+          "since": 1792605600000,
+          "chains_since": 1792519200000
+        },
+        "sql": "\nWITH jobs AS (\n    SELECT id, run_id, html_url, name, head_branch\n    FROM default.workflow_job FINAL\n    WHERE id IN (\n        SELECT DISTINCT run.github_workflow_job_id\n        FROM ci.runs AS run\n        WHERE run.tests_id = {test_id: UInt64}\n            AND run.environments_id IN (\n        SELECT environment.id\n        FROM ci.environments AS environment FINAL\n        WHERE environment.python_version IN {filter_python_version: Array(String)}\n    )\n            AND run.env_vars_id IN (\n        SELECT id FROM ci.env_vars AS env_var_set FINAL\n        WHERE (mapContains(env_var_set.env_vars, {env_var_name_0: String})\n        AND env_var_set.env_vars[{env_var_name_0: String}] IN {env_var_values_0: Array(String)})\n    )\n            AND run.started_at >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\n    )\n    ORDER BY _inserted_at DESC, run_id DESC, dynamoKey DESC\n    LIMIT 1 BY id\n), workflows AS (\n    SELECT id, path, head_sha, event\n    FROM default.workflow_run FINAL\n    WHERE id IN (\n        SELECT run_id FROM default.workflow_job\n        WHERE id IN (\n        SELECT DISTINCT run.github_workflow_job_id\n        FROM ci.runs AS run\n        WHERE run.tests_id = {test_id: UInt64}\n            AND run.environments_id IN (\n        SELECT environment.id\n        FROM ci.environments AS environment FINAL\n        WHERE environment.python_version IN {filter_python_version: Array(String)}\n    )\n            AND run.env_vars_id IN (\n        SELECT id FROM ci.env_vars AS env_var_set FINAL\n        WHERE (mapContains(env_var_set.env_vars, {env_var_name_0: String})\n        AND env_var_set.env_vars[{env_var_name_0: String}] IN {env_var_values_0: Array(String)})\n    )\n            AND run.started_at >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\n        )\n    )\n    ORDER BY _inserted_at DESC, run_attempt DESC, dynamoKey DESC\n    LIMIT 1 BY id\n)\nSELECT\n    workflow.head_sha AS commit_sha,\n    nullIf(workflow.path, '') AS workflow_path,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS job_id_string,\n    any(job.html_url) AS job_url,\n    any(job.name) AS job_name,\n    min(run.started_at) AS started_at,\n    argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) AS outcome,\n    arrayMap(attempt -> attempt.4, arraySort(groupArray((run.started_at, run.ended_at, toString(run.id), toString(run.outcome))))) AS attempt_outcomes,\n    sumIf(greatest(0, dateDiff('millisecond', run.started_at, run.ended_at)), run.outcome != 'skipped') AS duration_milliseconds,\n    sumIf(greatest(0, dateDiff('millisecond', run.started_at, run.ended_at)), run.outcome = 'passed') AS passed_duration_milliseconds\nFROM (\n    SELECT run.id, run.environments_id, run.env_vars_id, run.github_workflow_job_id,\n        run.outcome, run.started_at, run.ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE run.tests_id = {test_id: UInt64}\n        AND run.environments_id IN (\n        SELECT environment.id\n        FROM ci.environments AS environment FINAL\n        WHERE environment.python_version IN {filter_python_version: Array(String)}\n    )\n        AND run.env_vars_id IN (\n        SELECT id FROM ci.env_vars AS env_var_set FINAL\n        WHERE (mapContains(env_var_set.env_vars, {env_var_name_0: String})\n        AND env_var_set.env_vars[{env_var_name_0: String}] IN {env_var_values_0: Array(String)})\n    )\n        AND run.started_at >= fromUnixTimestamp64Milli({chains_since: Int64}, 'UTC')\n) AS run\nINNER JOIN jobs AS job ON job.id = run.github_workflow_job_id\nINNER JOIN workflows AS workflow ON workflow.id = job.run_id\nWHERE workflow.head_sha != ''\n    AND multiIf(\n        job.name LIKE '%rerun_disabled_tests%', 'other',\n        job.head_branch = 'main' AND workflow.event IN ('push', 'schedule'), 'main',\n        workflow.event = 'pull_request'\n            OR (workflow.event = 'push' AND startsWith(job.head_branch, 'ciflow/')), 'pull_request',\n        'other'\n    ) IN {ran_on: Array(String)}\n    AND nullIf(workflow.path, '') IN {workflow_path: Array(String)}\nGROUP BY commit_sha, workflow_path, run.environments_id, run.env_vars_id, run.github_workflow_job_id\nHAVING min(run.started_at) >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\nORDER BY started_at, commit_sha, workflow_path, run.environments_id, run.env_vars_id, run.github_workflow_job_id\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "indexes = 1": [
+          "Expression ((Projection + Before ORDER BY [lifted up part]))",
+          "  Sorting (Sorting for ORDER BY)",
+          "    Expression (Before ORDER BY)",
+          "      Filter (HAVING)",
+          "        Aggregating",
+          "          Expression ((Before GROUP BY + WHERE))",
+          "            Filter ((WHERE)[split])",
+          "              Join (JOIN FillRightFirst)",
+          "                Expression ((Before JOIN + (Projection + Before ORDER BY)))",
+          "                  Join (JOIN FillRightFirst)",
+          "                    Expression (Before JOIN)",
+          "                      CreatingSets (Create sets before main query execution)",
+          "                        Expression ((Projection + Before ORDER BY))",
+          "                          ReadFromMergeTree (ci.runs)",
+          "                          Indexes:",
+          "                            Min-Max",
+          "                              Keys:",
+          "                                started_at",
+          "                              Condition: (started_at in ['1792519200', +Inf))",
+          "                              Parts: 82/82",
+          "                              Granules: 653918/653918",
+          "                            Partition",
+          "                              Keys:",
+          "                                toDate(started_at)",
+          "                              Condition: (toDate(started_at) in [20746, +Inf))",
+          "                              Parts: 82/82",
+          "                              Granules: 653918/653918",
+          "                            PrimaryKey",
+          "                              Keys:",
+          "                                tests_id",
+          "                                environments_id",
+          "                                env_vars_id",
+          "                                started_at",
+          "                              Condition: and((started_at in ['1792519200', +Inf)), and((env_vars_id in 7-element set), and((environments_id in 35-element set), (tests_id in [10798099672608881194, 10798099672608881194]))))",
+          "                              Parts: 82/82",
+          "                              Granules: 82/653918",
+          "                              Search Algorithm: generic exclusion search",
+          "                            Ranges: 82",
+          "                    Expression ((Joined actions + Rename joined columns))",
+          "                      CreatingSets (Create sets before main query execution)",
+          "                        Expression (Projection)",
+          "                          LimitBy",
+          "                            Expression (Before LIMIT BY)",
+          "                              Sorting (Sorting for ORDER BY)",
+          "                                Expression (Before ORDER BY)",
+          "                                  Filter (WHERE)",
+          "                                    ReadFromMergeTree (default.workflow_job)",
+          "                                    Indexes:",
+          "                                      PrimaryKey",
+          "                                        Keys:",
+          "                                          id",
+          "                                        Condition: (id in 7970-element set)",
+          "                                        Parts: 7/12",
+          "                                        Granules: 328/32433",
+          "                                        Search Algorithm: generic exclusion search",
+          "                                      Ranges: 13",
+          "                CreatingSets (Create sets before main query execution)",
+          "                  Filter (((WHERE + (Joined actions + (Rename joined columns + (Projection + Before ORDER BY)))) + (WHERE + Projection)))",
+          "                    LimitBy",
+          "                      Expression (Before LIMIT BY)",
+          "                        Sorting (Sorting for ORDER BY)",
+          "                          Expression (Before ORDER BY)",
+          "                            Filter (WHERE)",
+          "                              ReadFromMergeTree (default.workflow_run)",
+          "                              Indexes:",
+          "                                PrimaryKey",
+          "                                  Keys:",
+          "                                    id",
+          "                                  Condition: (id in 2457-element set)",
+          "                                  Parts: 4/10",
+          "                                  Granules: 165/14798",
+          "                                  Search Algorithm: generic exclusion search",
+          "                                Ranges: 6"
+        ],
+        "ESTIMATE": [
+          "{\"database\":\"default\",\"table\":\"workflow_run\",\"parts\":4,\"rows\":160294,\"marks\":165}",
+          "{\"database\":\"default\",\"table\":\"workflow_job\",\"parts\":7,\"rows\":1411346,\"marks\":328}",
+          "{\"database\":\"ci\",\"table\":\"runs\",\"parts\":90,\"rows\":597906,\"marks\":90}"
+        ]
+      },
+      "samples": [
+        {
+          "round": 0,
+          "variant": "kept",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.698584269,
+            "rows_read": 3544596,
+            "bytes_read": 333207126
+          },
+          "memory_usage": 160210093
+        },
+        {
+          "round": 0,
+          "variant": "without_final",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.587307644,
+            "rows_read": 3304087,
+            "bytes_read": 284146413
+          },
+          "memory_usage": 85960252
+        },
+        {
+          "round": 1,
+          "variant": "without_final",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.608348054,
+            "rows_read": 3304087,
+            "bytes_read": 284146413
+          },
+          "memory_usage": 85335258
+        },
+        {
+          "round": 1,
+          "variant": "kept",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.61514127,
+            "rows_read": 3544596,
+            "bytes_read": 333207126
+          },
+          "memory_usage": 164763168
+        },
+        {
+          "round": 2,
+          "variant": "kept",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.658390772,
+            "rows_read": 3544596,
+            "bytes_read": 333207126
+          },
+          "memory_usage": 178874618
+        },
+        {
+          "round": 2,
+          "variant": "without_final",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.59057676,
+            "rows_read": 3304087,
+            "bytes_read": 284146413
+          },
+          "memory_usage": 83051568
+        },
+        {
+          "round": 3,
+          "variant": "without_final",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.611230355,
+            "rows_read": 3304087,
+            "bytes_read": 284146413
+          },
+          "memory_usage": 84758322
+        },
+        {
+          "round": 3,
+          "variant": "kept",
+          "rows": 1530,
+          "statistics": {
+            "elapsed": 0.571028114,
+            "rows_read": 3544596,
+            "bytes_read": 333207126
+          },
+          "memory_usage": 171360313
+        }
+      ],
+      "result": {
+        "rows": 1530,
+        "cells": 1147,
+        "commits": 195,
+        "digest": "8eae6bc22b43931f129209039d8ae2ec5bb89ad9970b0db0d377ef3e3f644e6f",
+        "lanes": [
+          {
+            "lane": ".github/workflows/inductor.yml|16117143120203384649|7641918176405818545",
+            "chains": 382,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 352,
+              "timed_out": 30
+            }
+          },
+          {
+            "lane": ".github/workflows/inductor.yml|17266170437131304125|7641918176405818545",
+            "chains": 384,
+            "cells": 192,
+            "outcomes": {
+              "skipped": 384
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|14985026198735433233|1688593832548410197",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "passed": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|17266170437131304125|1688593832548410197",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|17266170437131304125|2928777656300840299",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          },
+          {
+            "lane": ".github/workflows/pull.yml|3900401099675026449|1688593832548410197",
+            "chains": 191,
+            "cells": 191,
+            "outcomes": {
+              "skipped": 191
+            }
+          }
+        ]
+      },
+      "until_ms": 1793213284539
+    }
+  ],
+  "measured_at": "2026-10-29T18:48:04.553Z",
+  "server": {
+    "version": "26.6.1.2446",
+    "database": "default"
+  }
+}

@@ -11,6 +11,7 @@ const SCRIPTS = [
   "validateTestsApiQueries",
   "validateRunAttemptsQueries",
   "validateRunWorkflowQuery",
+  "validateRunGridQuery",
   "validateLastAttemptOutcomeQueries",
   "validateCommitStatsQueries",
   "validateCommitSharedStartsQueries",
