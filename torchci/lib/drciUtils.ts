@@ -333,7 +333,8 @@ export async function upsertDrCiComment(
 
 /**
  * Updates only PR Status, preserving the existing CI results. A precomputed
- * state lets the pre-review sweep reuse its policy reads and its dedicated app.
+ * state lets a status sweep reuse its policy reads and its dedicated app.
+ * Creation is opt-in: recovery can publish status before any CI results exist.
  */
 export async function upsertPrStatusSection(
   octokit: Octokit,
@@ -343,7 +344,11 @@ export async function upsertPrStatusSection(
   labels: string[],
   // Used to exclude the author from recovered reviewers if PR lookup fails.
   authorLogin?: string,
-  options: { reader?: Octokit; state?: PrStatusState } = {}
+  options: {
+    reader?: Octokit;
+    state?: PrStatusState;
+    createIfMissing?: boolean;
+  } = {}
 ) {
   if (!isPyTorchPyTorch(owner, repo)) {
     return;
@@ -356,17 +361,16 @@ export async function upsertPrStatusSection(
       : octokit);
   // No workflow label means remove stale status without fetching reviews.
   let section = "";
+  let state: PrStatusState | null | undefined = options.state;
   if (hasPrStatusLabel(labels)) {
-    const state =
-      options.state ??
-      (await fetchPrStatusState(
-        reader,
-        owner,
-        repo,
-        prNum,
-        labels,
-        authorLogin
-      ));
+    state ??= await fetchPrStatusState(
+      reader,
+      owner,
+      repo,
+      prNum,
+      labels,
+      authorLogin
+    );
     // Preserve published status when review state is unavailable.
     if (state === null || state.reviewerLookupFailed) {
       return;
@@ -398,6 +402,23 @@ export async function upsertPrStatusSection(
   // Read the comment last to reduce lost updates from the concurrent CI sweep.
   const { id, body } = await getDrciComment(reader, owner, repo, prNum);
   if (id === 0) {
+    if (options.createIfMissing && section && state) {
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: prNum,
+        body: formDrciComment(
+          prNum,
+          owner,
+          repo,
+          "",
+          "",
+          section,
+          state.pullRequest?.headRef,
+          state.labels
+        ),
+      });
+    }
     return;
   }
 

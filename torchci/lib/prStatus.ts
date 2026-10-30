@@ -78,7 +78,12 @@ export type PrStatusStage =
 
 export interface PrStatusState {
   authorLogin?: string;
-  pullRequest?: { state?: string; draft?: boolean; created_at?: string };
+  pullRequest?: {
+    state?: string;
+    draft?: boolean;
+    created_at?: string;
+    headRef?: string;
+  };
   // Outstanding requests from the same live PR read, for final-review reminders.
   requestedReviewers?: string[];
   // Outstanding changes reviewers who have actually been asked to review again.
@@ -630,6 +635,7 @@ export async function fetchPrStatusState(
           state: pull.data.state,
           draft: pull.data.draft,
           created_at: pull.data.created_at,
+          headRef: pull.data.head?.ref,
         }
       : undefined,
     isApproved: approvalStatus === PR_APPROVED,
