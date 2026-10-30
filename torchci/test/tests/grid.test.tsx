@@ -472,6 +472,7 @@ describe("laneLines", () => {
     const [group] = gridGroups({
       commits: [],
       lanes: [slow],
+      hud_url: null,
       query_duration_ms: 1,
     });
     expect(group.lanes[0].variables).toEqual([
@@ -557,6 +558,7 @@ describe("laneLines", () => {
           environment: environment({ id: "9", python_version: "3.14" }),
         }),
       ],
+      hud_url: null,
       query_duration_ms: 1,
     });
     // Label order puts "default" before "slow".
@@ -631,6 +633,7 @@ describe("gridGroups", () => {
         cell(SHA_C, "2026-10-26T10:03:00.000Z", "passed", ["failed", "passed"]),
       ]),
     ],
+    hud_url: null,
     query_duration_ms: 1,
   };
 
@@ -679,6 +682,7 @@ describe("gridGroups", () => {
           }),
         }),
       ],
+      hud_url: null,
       query_duration_ms: 1,
     });
     // Numbers compare as numbers: ROCm 7.1 before 10.1.
@@ -1240,9 +1244,10 @@ describe("the header's choices", () => {
     expect(resolveGridQuery({ commit: ["a", "b"] }, options).commit).toBe("");
     expect(resolveGridQuery({ time_bar: "0" }, options).timeBar).toBe(false);
     expect(resolveGridQuery({ time_bar: "1" }, options).timeBar).toBe(true);
+    // Repeated as well as comma-separated, as the API reads such parameters.
     expect(
       resolveGridQuery({ outcomes: ["failed", "flaky"] }, options).outcomes
-    ).toEqual(every);
+    ).toEqual(["failed", "flaky"]);
   });
 
   test("name the configuration to mark by both its ids, or not at all", () => {
@@ -1406,7 +1411,12 @@ describe("the header's choices", () => {
 });
 
 describe("useTestGrid", () => {
-  const emptyGrid: RunGrid = { commits: [], lanes: [], query_duration_ms: 1 };
+  const emptyGrid: RunGrid = {
+    commits: [],
+    lanes: [],
+    hud_url: null,
+    query_duration_ms: 1,
+  };
   let fetchMock: jest.Mock;
 
   function stubFetch(respond: () => Promise<Response>) {
@@ -1574,7 +1584,12 @@ describe("narrowing the outcomes shown", () => {
         cell(SHA_C, commits[2].started_at, "passed"),
       ],
     };
-    const groups = gridGroups({ commits, lanes: [lane], query_duration_ms: 0 });
+    const groups = gridGroups({
+      commits,
+      lanes: [lane],
+      hud_url: null,
+      query_duration_ms: 0,
+    });
     expect(groups[0].lanes[0].status).toBe("failing");
     expect(outcomeSwatchStatus("failed", groups[0].lanes[0])).toBe("failed");
     // Only the recoveries shown: a flaky lane with one failed count under a

@@ -15,6 +15,7 @@ const TEST_ID = "18446744073709551615";
 const testDetail: TestDetail = {
   test: {
     id: TEST_ID,
+    hud_url: `https://hud.pytorch.org/tests/pytorch/pytorch/test/${TEST_ID}`,
     repo: "pytorch/pytorch",
     file: "test/test_torch.py",
     suite: "TestTorch",

@@ -1,3 +1,4 @@
+import { testPageLinkForEntry, testPageUrl } from "lib/api/tests/pages/links";
 import {
   EnvironmentRecord,
   EnvVarsRecord,
@@ -92,6 +93,7 @@ export type EnvVarsRow = Pick<
 export function toTest(row: TestRow): TestRecord {
   return {
     id: row.tests_id_string,
+    hud_url: testPageUrl(row.repo, row.tests_id_string),
     repo: row.repo,
     file: row.file,
     suite: row.suite,
@@ -171,9 +173,10 @@ export function toEntry(
   row: EntityRow,
   query: Pick<HealthSummary, "window" | "ran_on">
 ): TestHealthEntry {
-  return {
+  const entry = {
     test: toTest(row),
     ...toConfigurationHealth(row, query),
     owners: row.owners,
   };
+  return { ...entry, hud_url: testPageLinkForEntry(entry, query) };
 }

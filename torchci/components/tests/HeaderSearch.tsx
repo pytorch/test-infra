@@ -14,10 +14,12 @@ import { MONOSPACE_FONT_FAMILY } from "lib/tests/header";
 import { headerKeyColors, headerKeySx } from "lib/tests/headerColors";
 import { KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 
-// How long typing may pause before the text goes out, as the list page's
-// search waits before the URL follows it (SEARCH_PAUSE_MS there): the page
-// replaces the URL with the text, and a replace per keystroke is a render
-// of the whole grid per keystroke. Clearing goes out at once.
+// How long typing may pause before the text goes out: the page replaces
+// the URL with the text, and a replace per keystroke is a render of the
+// whole grid per keystroke. Shorter than the list page's pause before its
+// URL follows the search (SEARCH_PAUSE_MS there), since this text is found
+// among the commits the page already has and asks the database for nothing.
+// Clearing goes out at once.
 export const SEARCH_PAUSE_MS = 250;
 
 export interface HeaderSearchMessage {

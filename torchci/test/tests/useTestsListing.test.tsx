@@ -3,7 +3,7 @@
 // stub whose requests are answered by hand, one at a time.
 
 import type { TestHealthEntry, TestListPage } from "lib/api/tests/types";
-import { noFacetValues } from "lib/tests/facets";
+import { noFacetValues, noNameFilterValues } from "lib/tests/facets";
 import { DEFAULT_TESTS_SORT, TestsQuery } from "lib/tests/table";
 import {
   RETRY_DELAYS_MS,
@@ -18,6 +18,7 @@ const query: TestsQuery = {
   ranOn: ["main"],
   languages: [],
   filters: noFacetValues(),
+  nameFilters: noNameFilterValues(),
   search: "",
 };
 
@@ -34,6 +35,7 @@ function page(
       next: next === null ? null : { cursor: next, url: `?cursor=${next}` },
       previous: null,
     },
+    hud_url: null,
     refreshed_at: "2026-10-25T12:00:00Z",
     query_duration_ms: queryDurationMs,
   };

@@ -7,16 +7,20 @@ import {
 import { commitRunsApiOpenApi } from "lib/api/tests/commit/openapi";
 import { testsApiOpenApi } from "lib/api/tests/openapi";
 import { testOptionsApiOpenApi } from "lib/api/tests/options/openapi";
+import { PAGES_TAG, testsPagesOpenApi } from "lib/api/tests/pages/openapi";
 import { runDetailApiOpenApi } from "lib/api/tests/run/openapi";
 import { testDetailApiOpenApi } from "lib/api/tests/test/openapi";
 import { runsApiOpenApi } from "lib/api/tests/test/runs/openapi";
 import type { z } from "zod/v4";
 
-// Every resource served under app/api is listed here; the document covers them
-// all. Component names are unique across the document, whatever the domain.
-// Every operation is behind the GitHub gate in lib/api/auth.ts, declared once
-// as the document's security requirement.
+// Every resource served under app/api is listed here, and the HUD pages
+// built on them; the document covers them all. Component names are unique
+// across the document, whatever the domain. Every operation under the
+// `tests` tag is behind the GitHub gate in lib/api/auth.ts, declared once as
+// the document's security requirement; the pages, under the `pages` tag,
+// declare none, since the browser's sign-in is theirs.
 const SECURITY_SCHEME = "githubToken";
+export const API_TAG = "tests";
 const RESOURCES: ApiResource[] = [
   testsApiOpenApi,
   testOptionsApiOpenApi,
@@ -24,6 +28,7 @@ const RESOURCES: ApiResource[] = [
   runsApiOpenApi,
   commitRunsApiOpenApi,
   runDetailApiOpenApi,
+  testsPagesOpenApi,
 ];
 
 const SHARED_SCHEMAS: Record<string, z.ZodType> = {
@@ -69,9 +74,21 @@ export function buildOpenApiDocument() {
       // The API has no version; the document describes what this deploy serves.
       version: process.env.VERCEL_GIT_COMMIT_SHA || "development",
       description:
-        "Generated from the zod schemas the HUD API handlers validate with. The API is unversioned: endpoints change together with their consumers, and info.version names the deploy that serves this document.",
+        "Generated from the zod schemas the HUD API handlers validate with. The API is unversioned: endpoints change together with their consumers, and info.version names the deploy that serves this document. Operations tagged `tests` are the JSON API; those tagged `pages` are the HUD pages built on it, listed so that a caller can give a reader the page that shows what it fetched.",
     },
     servers: [{ url: "https://hud.pytorch.org" }],
+    tags: [
+      {
+        name: API_TAG,
+        description:
+          "The tests API: JSON, behind the GitHub gate, for programs.",
+      },
+      {
+        name: PAGES_TAG,
+        description:
+          "HUD pages built on the tests API: HTML, for people. Give a reader the URL; do not fetch it from a program. Each page's parameters are the ones it reads from its URL, generated from the same definitions the API validates with. A response that has a page carries it as hud_url: each test, each list entry, the list and the grid.",
+      },
+    ],
     security: [{ [SECURITY_SCHEME]: [] }],
     paths,
     components: {

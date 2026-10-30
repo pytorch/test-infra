@@ -35,7 +35,14 @@ function rate(description: string) {
 
 export const TestRecordSchema = z
   .object({
-    id: uint64String("Stable identity of the test, used in hub URLs."),
+    id: uint64String(
+      "Stable identity of the test: the test_id of the test endpoints and of the test's HUD page."
+    ),
+    hud_url: z
+      .url()
+      .describe(
+        "The test's page on HUD, the testPage operation, as an absolute URL with no parameters: the same from everywhere the test is named."
+      ),
     repo: z
       .string()
       .describe("Repository the test lives in, e.g. pytorch/pytorch."),
@@ -219,6 +226,11 @@ export const TestHealthEntrySchema = z
         'Owner labels of the test\'s file from the owners table, without the "module: " prefix, e.g. ["nn"] or ["core_tests"]; empty when the file has none.'
       ),
     health: HealthSummarySchema,
+    hud_url: z
+      .url()
+      .describe(
+        "The test's HUD page (testPage) opened on the runs this entry's health was counted over: the requested window and code sources, with this configuration marked by environment and env_vars when its catalog rows are known. Absolute."
+      ),
   })
   .describe(
     "One test in one environment with one env var set, and its health."
@@ -234,6 +246,12 @@ export const TestListPageSchema = z
     pagination: PaginationSchema.describe(
       "Next and previous page links; each is null when no entries were found in that direction. Both are null on an empty page; restart without cursor. Cursors remain usable after health refreshes. Pages read current data and may skip or repeat entries when data or sort values change; they do not enumerate a fixed snapshot."
     ),
+    hud_url: z
+      .url()
+      .nullable()
+      .describe(
+        "The HUD tests page (testsPage) showing this request's selection, as an absolute URL: the repository in the path, the request's parameters that the page reads carried with the defaults left off, limit and cursor dropped since the page pages by itself, and an env_vars filter on TEST_CONFIG alone spelled as test_config. Null when the request used a parameter the page has no equivalent for: environments_id, env_vars_id, or env_vars on another variable or beside test_config."
+      ),
     refreshed_at: isoTimestamp("Health-table refresh timestamp.")
       .nullable()
       .describe(

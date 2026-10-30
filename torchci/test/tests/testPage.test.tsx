@@ -29,6 +29,7 @@ import { SWRConfig } from "swr";
 
 const record: TestRecord = {
   id: "42",
+  hud_url: "https://hud.pytorch.org/tests/pytorch/pytorch/test/42",
   repo: "pytorch/pytorch",
   file: "test/test_torch.py",
   suite: "TestTorch",

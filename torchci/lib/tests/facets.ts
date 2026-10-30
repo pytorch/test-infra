@@ -1,11 +1,14 @@
 import type { TestOptions } from "lib/api/tests/options/types";
+import type { TestsPageParameterName } from "lib/api/tests/pages/parameters";
 
 // The exact filters of GET /api/tests that the tests page offers from the
 // options, by API parameter name, grouped by the column whose header offers
 // them: the Health column's status, the Environment column's eleven fields,
 // in the order its cell sets them, the Test Config column's test config and
 // calling workflow, and the Owners column's owner. Only the names are known
-// here; every value comes from GET /api/tests/options at run time.
+// here, each one the page's parameter definitions list
+// (lib/api/tests/pages/parameters.ts), or this does not compile; every
+// value comes from GET /api/tests/options at run time.
 
 export const HEALTH_COLUMN_FACETS = ["status"] as const;
 export const ENVIRONMENT_COLUMN_FACETS = [
@@ -28,8 +31,39 @@ export const TESTS_FACETS = [
   ...ENVIRONMENT_COLUMN_FACETS,
   ...CONFIG_COLUMN_FACETS,
   ...OWNER_COLUMN_FACETS,
-] as const;
+] as const satisfies readonly TestsPageParameterName[];
 export type TestsFacet = (typeof TESTS_FACETS)[number];
+
+// The exact filters of GET /api/tests on a test's name, which the Name
+// header shows as chips when the URL carries them (NameSearch): the file,
+// the suite, the case name and the name as declared in the code. No menu
+// sets them and the options do not list their values; a link does, the
+// API's hud_url for one, and the chip shows what the link asked for and
+// takes it out.
+export const NAME_FILTERS = [
+  "file",
+  "suite",
+  "case_name",
+  "declared_case_name",
+] as const satisfies readonly TestsPageParameterName[];
+export type NameFilter = (typeof NAME_FILTERS)[number];
+
+// The chosen values of every name filter; empty means no filter on it.
+export type NameFilterValues = Record<NameFilter, string[]>;
+
+export function noNameFilterValues(): NameFilterValues {
+  return Object.fromEntries(
+    NAME_FILTERS.map((name) => [name, []])
+  ) as unknown as NameFilterValues;
+}
+
+// What each name filter is called on its chip.
+export const NAME_FILTER_TITLES: Record<NameFilter, string> = {
+  file: "File",
+  suite: "Suite",
+  case_name: "Case name",
+  declared_case_name: "Declared name",
+};
 
 // The options for the facets alone. Every facet must be a choice the options
 // publish, or this does not compile.

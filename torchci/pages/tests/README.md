@@ -13,7 +13,10 @@ below.
 This file is for the people who work on the page: the rules it keeps, where
 its pieces live, and the decisions that are not obvious from the code. The
 [OpenAPI document](https://hud.pytorch.org/api/openapi.json) is the reference
-for the data it shows.
+for the data it shows, and lists both pages under its `pages` tag with the
+parameters they read from their URLs (the API README's
+[HUD pages](../../app/api/README.md#hud-pages)); every API response carries
+the page that shows it as `hud_url`.
 
 ## Best Practice
 
@@ -24,23 +27,30 @@ for the data it shows.
   its response, hands out cursors, and is where queries are measured and
   optimized. When the page needs data the API does not have, extend the API
   first, following its README, then the page.
-- Import only types from `lib/api/` (`import type { ... }`), so the server's
-  zod schemas and database client stay out of the client bundle. The page
-  depends on the API's response shape, nothing deeper.
-- Spell out no API value. The title's choices, their labels and their
+- From `lib/api/` import types (`import type { ... }`) and, at run time, only
+  the parameter definitions in `lib/api/tests/pages/parameters.ts`: the
+  page's URL query defined as the API's own zod definitions, picked by name
+  for the table page and added to for the test page, so the page reads its
+  URL (`decodePageQuery`) and writes it (`pageUrlParams`) with exactly what
+  the API validates with, and the OpenAPI document lists the page from the
+  same objects. That module is zod and the registry alone; no handler, query
+  or database client reaches the client bundle. The page depends on the API's
+  response shape and parameter definitions, nothing deeper.
+- Spell out no catalog value. The title's choices, their labels and their
   defaults come from `GET /api/tests/options` at run time
   (`useTestsOptions`), so a window, code source or language added to or
   removed from the API, a device, Python version or workflow newly recorded,
   or a default changed there, reaches the page with no page change.
   The page reads the options first, resolves the URL against them
   (`resolveTestsQuery`), and only then asks for the list, naming its
-  `window`, `ran_on`, any `language` and any facet value explicitly: the
-  request says exactly what the sentence shows, even if a deploy lands
-  between the two requests. The page knows the API's parameter _names_, the
-  fifteen facets in `lib/tests/facets.ts`, which the compiler checks against
-  the options' type, and never their values; the labels of the environment
-  cells come from the options too. The one API default still written down is
-  the sort, `DEFAULT_TESTS_SORT`, which the options do not cover.
+  `window`, `ran_on`, any `language`, any facet value and any name filter
+  explicitly: the request says exactly what the sentence shows, even if a
+  deploy lands between the two requests. The page knows the API's parameter
+  _names_, the fifteen facets and the four name filters in
+  `lib/tests/facets.ts`, each checked by the compiler against the page's
+  parameter definitions, and never their catalog values; the labels of the
+  environment cells come from the options too. The sort's default,
+  `DEFAULT_TESTS_SORT`, is the API's own `DEFAULT_SORT`.
 - Both themes, always. Colors come from the theme palette through
   `useTheme()`: text colors, the divider for hairlines, the greys of the
   pills. Nothing is painted a fixed color.
@@ -76,13 +86,35 @@ for the data it shows.
   parameters. A value the options do not offer is dropped like any other.
   The title never shows them: they belong to their columns, and their
   headers show them.
+- `file`, `suite`, `case_name` and `declared_case_name` carry the API's exact
+  filters on the test's name, repeated once per value and left off when none
+  (`NAME_FILTERS` in `lib/tests/facets.ts`, `nameFilters` in the query):
+  `?file=test%2Ftest_torch.py&case_name=test_add`. No menu sets them: a link
+  does, the API's `hud_url` for a request that used them, say. The Name
+  header shows each as a chip on the search field's rows beneath the text
+  (`NameSearch`), the filter's name muted, then the value, then a button that
+  takes that value out of the URL. A chip is as wide as its text, and the
+  chips wrap onto as many rows as they need (`NAME_FILTER_ROW_HEIGHT` each),
+  so nothing is cut off; only a value wider than the whole field ends in an
+  ellipsis, whole in the chip's title. The field measures its own height with
+  a `ResizeObserver` and reports how much taller than a key it is, and the
+  header band grows by that (`columnHeaderHeightFor`), so the other headers'
+  labels and keys stay centered. They go to the API as written, once each, and
+  a view chip clears them as it clears the search. Without them a link for a
+  request filtered by file would have shown the whole table; the API's
+  `hud_url` is null rather than that for the list filters the page still
+  lacks, the catalog ids and `env_vars`.
 - `search` carries the Name header's search text as typed, under the API's
   own parameter, and is left off when empty. Typing does not write the URL at
   once: the text is held on the page (`typedSearch`) and the URL follows
-  after a 250 ms pause in typing, by `router.replace`, so a keystroke neither
-  fetches a page nor adds a history entry. A file or suite clicked in a cell,
-  or Enter in the field, writes the URL at once with `router.push`. Until the
-  URL has caught up the listing is told the query is pending.
+  after a 750 ms pause in typing (`SEARCH_PAUSE_MS`), by `router.replace`,
+  so a keystroke neither fetches a page nor adds a history entry. The pause
+  is long because each search the URL takes is a full query that the
+  database runs to the end whether or not the browser still wants it, and
+  the half-second hesitations of a name typed from memory fired four queries
+  per search at 250 ms. A file or suite clicked in a cell, or Enter in the
+  field, writes the URL at once with `router.push`. Until the URL has caught
+  up the listing is told the query is pending.
 - Headers toggle between ascending and descending with no unsorted state. An
   unsorted state would fall back to the default and make ascending Health
   unreachable from the default. Name sorts by `file`, `suite`, `case_name`
@@ -341,7 +373,10 @@ for the data it shows.
   `rowHeight` (44) is what it assumes for a row it has not measured yet. The
   Last run cell is a flex cell for that reason too: a text cell would set
   its label at the top of a grown row. The header is 44
-  (`columnHeaderHeight`) and holds its two-line label the same way. The separator is a grey two steps off the band in each mode: the
+  (`columnHeaderHeight`) and holds its two-line label the same way, and grows
+  by the rows of name-filter chips the Name header's search field holds, 22px
+  each, while the URL carries exact name filters. The separator is a grey two
+  steps off the band in each mode: the
   divider color is for lines on the page background and disappears on the
   band in dark mode. Column resizing is off, so the separator is only a
   divider. Every header and every cell is left-aligned, the figures too, so
@@ -692,7 +727,13 @@ the grid of its runs by commit.
   `env_vars`, the catalog ids of the configuration to mark (`LanePin`, both
   or neither), left off at the page's defaults (main, 3d, every outcome,
   the time bar on, no commit sought, no configuration marked) and resolved
-  against the options. The marked configuration is the list's row a reader
+  against the options. The seven are defined once, with their defaults and
+  descriptions, as `TEST_PAGE_PARAMETER_DEFINITIONS` in
+  `lib/api/tests/pages/parameters.ts`, which `resolveGridQuery` reads the
+  URL through and `gridUrlParams` writes it through, and which the OpenAPI
+  document lists as the `testPage` operation; the API's `hud_url` for a
+  grid request is this page with `ran_on` and `window` and, for one
+  configuration asked for by its ids, the mark. The marked configuration is the list's row a reader
   came from, named by its evidence links (`testRunsHref` in
   `lib/tests/links.ts`): every lane of it, one per workflow (`lanePinned`),
   is banded across in the pinned commit's blue (`pinnedCommitColors`,
@@ -1006,8 +1047,12 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
   chosen on a bare URL, Blocking viable/strict leaves outside 12 hours, and a click on a chosen chip keeps the added filter), an
   empty repository (`/tests/pytorch/no-such-repo`), an invalid sort (`?sort=bogus`) and a
   choice the options do not offer (`?window=5d` or `?device_name=none`, which
-  show the default). `/api/tests/options` itself is a plain JSON page to look
-  at. The grid only mounts on the client, so the server-rendered HTML shows
+  show the default), and a URL carrying exact name filters
+  (`?file=test/test_torch.py&case_name=test_add`: chips in the Name header,
+  the table narrowed to them, each chip's button taking its value out, and
+  the `hud_url` of `/api/tests?repo=pytorch/pytorch&file=test/test_torch.py`
+  opening the same table). `/api/tests/options` itself is a plain JSON page
+  to look at. The grid only mounts on the client, so the server-rendered HTML shows
   the heading alone; judge the table in a browser.
 - For the test page, open `/tests/pytorch/pytorch/test/<id>` with an id from
   the list (`/api/tests?repo=pytorch/pytorch&limit=1`) and check the header
