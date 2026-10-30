@@ -115,8 +115,10 @@ it, and the change is trivial only if the answer to both is no:
 
 1. **Would a reviewer have learned anything, or asked a question that would plausibly
    have changed the code?** If so, that question is the review, and it belongs to a
-   human. For a change that fits **Explained test changes**, being narrower than its
-   guard does not raise such a question.
+   human. For a change that fits **Explained test changes**, only a defect in the change
+   raises such a question. Being narrower than its guard, or a possible alternative such
+   as a tighter guard, a different threshold or another fix, does not: the class already
+   bounds what such a change may do.
 2. **Does someone need to know this landed?** You cannot infer who cares about what, so
    answer it from evidence, as you do for every claim, by asking whether the change:
    - moves a default or a limit;
