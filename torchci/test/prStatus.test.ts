@@ -350,6 +350,12 @@ describe("getPrStatusMessage", () => {
       "Such PRs are a low priority for maintainers to review"
     );
     expect(message).toContain("add the matching line to the PR description");
+    expect(message).toContain(
+      "already-linked issue automatically requests re-triage"
+    );
+    expect(message).toContain(
+      "If you add the link afterward or use `Supported by`"
+    );
     expect(message).toContain("then remove and re-add `open source`.");
   });
 
