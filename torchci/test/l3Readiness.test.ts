@@ -7,6 +7,7 @@ import {
   RepoTenure,
   summarizeReadiness,
   TenureInfo,
+  tenureInfoFromL2Since,
   tenureInfoFromRow,
 } from "../lib/crcr/l3Readiness";
 import { evaluateL3Threshold, L3_THRESHOLDS } from "../lib/crcr/l3Thresholds";
@@ -34,6 +35,14 @@ describe("tenureInfoFromRow", () => {
 
   it("returns null when the repo was never seen at L2", () => {
     expect(tenureInfoFromRow(repoTenure({ l2_since: EPOCH }))).toBeNull();
+  });
+
+  it("uses the same l2_since calculation for all-repository summaries", () => {
+    const l2Since = new Date(
+      Date.now() - 60 * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    expect(tenureInfoFromL2Since(l2Since)?.tenureDays).toBeCloseTo(60, 0);
   });
 
   it("computes tenure from l2_since regardless of current level", () => {
