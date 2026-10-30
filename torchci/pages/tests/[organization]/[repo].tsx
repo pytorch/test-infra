@@ -1,8 +1,8 @@
-import { Stack } from "@mui/material";
 import AccessNotice from "components/tests/AccessNotice";
 import LoadError from "components/tests/LoadError";
+import PageColumn from "components/tests/PageColumn";
 import TestsHeading from "components/tests/TestsHeading";
-import TestsTable, { TESTS_TABLE_WIDTH } from "components/tests/TestsTable";
+import TestsTable from "components/tests/TestsTable";
 import ViewChips from "components/tests/ViewChips";
 import type { TestView } from "lib/api/tests/options/types";
 import type { Token } from "lib/tests/environment";
@@ -21,6 +21,7 @@ import {
   testsQueryFromUrl,
   testsUrlParams,
 } from "lib/tests/table";
+import { mergedUrlQuery, UrlQuery } from "lib/tests/url";
 import { useTestsListing } from "lib/tests/useTestsListing";
 import { useTestsOptions } from "lib/tests/useTestsOptions";
 import {
@@ -31,7 +32,7 @@ import {
 } from "lib/tests/views";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // The tests of one repository, from GET /api/tests. What the page asks for,
 // the sort, the health window, the code sources, the languages, the
@@ -43,30 +44,10 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 // which the browser passes with its HUD sign-in cookie; when the API refuses,
 // the page says why in place of the table and offers the sign-in.
 // How long typing in the search may pause before the URL, and so the list,
-// follows it.
+// follows it. The hub's fixed-width column (PageColumn) holds the title and
+// the table, so the table does not stretch with the window and is whole at
+// full width.
 const SEARCH_PAUSE_MS = 250;
-// The page column's padding on each side, in theme spacing units.
-const PAGE_PADDING = 2;
-
-// One fixed-width column, centered, holds the title and the table, so the
-// table does not stretch with the window: as wide as the table with every
-// column at its width, so at full width the table is whole, not scrolled
-// sideways.
-function PageColumn({ children }: { children: ReactNode }) {
-  return (
-    <Stack
-      spacing={3}
-      sx={{
-        p: PAGE_PADDING,
-        maxWidth: (theme) =>
-          `calc(${TESTS_TABLE_WIDTH}px + ${theme.spacing(2 * PAGE_PADDING)})`,
-        mx: "auto",
-      }}
-    >
-      {children}
-    </Stack>
-  );
-}
 
 export default function Page() {
   const router = useRouter();
@@ -127,23 +108,14 @@ export default function Page() {
   // Writes the given parameters into the URL, leaving off those that are
   // undefined and keeping every other parameter as it is. Typing replaces
   // the history entry rather than adding one per keystroke.
-  const updateUrl = (
-    params: Record<string, string | string[] | undefined>,
-    replace = false
-  ) => {
+  const updateUrl = (params: UrlQuery, replace = false) => {
     if (repository === undefined) {
       return;
     }
-    const next: Record<string, string | string[]> = {};
-    for (const [name, value] of Object.entries({
-      ...router.query,
-      ...params,
-    })) {
-      if (value !== undefined) {
-        next[name] = value;
-      }
-    }
-    const location = { pathname: router.pathname, query: next };
+    const location = {
+      pathname: router.pathname,
+      query: mergedUrlQuery(router.query, params),
+    };
     void (replace
       ? router.replace(location, undefined, { shallow: true })
       : router.push(location, undefined, { shallow: true }));

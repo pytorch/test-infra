@@ -2,6 +2,8 @@
 
 `/tests/[organization]/[repo]` lists a repository's tests: the test hub's main
 page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`.
+`/tests/[organization]/[repo]/test/[test_id]` is one test's own page, built on
+`GET /api/tests/test/{test_id}`; its section is [below](#test-page).
 `/tests` redirects to `/tests/pytorch/pytorch` (a `redirects()` entry in
 `next.config.js`); the HUD navigation bar does not link to the page. The other
 files in `pages/tests/` (`search.tsx`, `fileReport.tsx`, `testInfo.tsx`)
@@ -267,10 +269,12 @@ for the data it shows.
 - The page computes the grid's row count itself (`pageCounts`): a controlled
   `rowCount={-1}` can never be corrected by the grid, which then says "more
   than" forever and keeps next enabled on empty pages.
-- The page is one fixed-width column, centered, so the table does not
-  stretch with the window: as wide as the table with every column at its
-  width (`TESTS_TABLE_WIDTH`, the Name column at its 480px minimum), so at
-  full width the table is whole and never scrolled sideways. The widths are
+- The page is one fixed-width column, centered (`PageColumn`, which the
+  test page shares), so the table does not stretch with the window: as wide
+  as the table with every column at its width (`TESTS_TABLE_WIDTH` in
+  `lib/tests/layout.ts`, with the column widths, the Name column at its
+  480px minimum), so at full width the table is whole and never scrolled
+  sideways. The widths are
   budgeted to fit a 1920px display: 1905px after the scrollbar, less the
   body's 5px padding and the layout's 2px margin each side, the column's
   16px padding each side and the table's border, leaves 1855px for the
@@ -397,7 +401,11 @@ for the data it shows.
   pass on retry, the connection dropped or the server answering 5xx, is asked
   again after one second and once more after three (`RETRY_DELAYS_MS`), the
   grid keeping its loading state; a 4xx is the API's verdict on the request
-  and shows at once. Once the retries are spent the API's error text shows
+  and shows at once (`mayPassOnRetry` in `lib/tests/request.ts`, the one
+  retry rule every hook of the hub applies, beside `requestJson`, the one
+  request the listing and the test page share, whose error carries the
+  status, the API's text and its code). Once the retries are spent the API's
+  error text shows
   above the table with a Retry button (`LoadError`) that asks again. A
   failure of the options request shows the same way and leaves the list
   unrequested; SWR asks again three times on its own, five seconds and more
@@ -471,9 +479,439 @@ for the data it shows.
   `mean_passed_duration_milliseconds` renders one over "0 passed runs", which
   says why there is no mean.
 
+## Test page
+
+`/tests/[organization]/[repo]/test/[test_id]` is one test's page, under its
+repository's list, addressed by the API's stable test id, the `test.id` of
+the list's entries. It keeps the rules above: nothing but `/api/tests`
+endpoints, types only from `lib/api/`, the theme's colors, logic in
+`lib/tests/` (`lib/tests/header.ts`, tested in `test/tests/testPage.test.tsx`).
+It shows the test's header, where it lives, its name and a few facts, and
+the grid of its runs by commit.
+
+- The data is `GET /api/tests/test/{test_id}`, read by `useTestDetail` in
+  `lib/tests/useTestDetail.ts` through the hooks' shared `useApiResource`
+  (`lib/tests/useApiResource.ts`, which `useTestsOptions` and `useTestGrid`
+  read through too): fetched once per page load through SWR, nothing until
+  the router knows the id, and asked again on its own only after a failure
+  that may pass on retry (`mayPassOnRetry`). An unknown test, the API's 404
+  with the code `not_found`, is a state of the page, not an error, and is
+  never asked again; the hook reports it as `notFound`. The page branches on
+  the API's code, as the API asks, not on its text.
+- The gate is handled as the list page handles it: the page asks at once,
+  whatever the client-side session has found out, and a 401 or 403 from the
+  API (`accessReasonOf`, which reads the status the hook keeps on the error)
+  shows the `AccessNotice` in place of the test, under the bare title, with
+  the sign-in where it helps.
+- The URL names a repository and the page shows only that repository's test:
+  a test whose `repo` is another is treated as not found, so a pytorch test's
+  id under a vision URL shows no pytorch test.
+- The header (`TestHeader`) is three quiet lines over a hairline; hierarchy
+  is carried by weight and tone, not size, and code is set in the system's
+  monospace (`MONOSPACE_FONT_FAMILY`) at small sizes. A case name at a
+  heading size reads as a row of underscores and gives the runner's
+  parameters the same billing as the name. Neither the exact node id,
+  `file::suite::case_name`, nor the test's id is shown: the breadcrumb and
+  the headline carry the one, and the other means nothing to a reader.
+
+  - A breadcrumb (MUI `Breadcrumbs`, monospace at HUD's `body2` size, the
+    size of the table's captions and the view chips, secondary tone, `›`
+    separators in the disabled tone): the repository, the file, the suite,
+    each a link back to the list (`headerCrumbs`): the repository to its
+    tests, the file to the list searched for its path, as a file clicked in
+    the Name cell searches, and the suite to the list searched for
+    `file::suite`, which the search, matching anywhere in the node id,
+    narrows to that suite. A module-level function has no suite crumb.
+  - The headline (`TestTitle`, the `h1`): the case name at HUD's `h5` size,
+    a step under the list page's `h4`, in one line of two weights. The name
+    as declared in the code is at weight 600 with the tracking drawn in; the
+    parameters the runner appended follow at weight 400 in the secondary
+    tone (`splitCaseName`: the declared name when it is how the case name
+    starts, else the whole name, so an unparametrized test or one whose
+    declared name is unknown reads whole). Selecting the line copies the
+    whole case name. It wraps after a `_` or `/` (`Breakable`, shared with
+    `TestName`), and each piece of the parameters is its own one-text-node
+    span, for the Chrome selection reason the cell notes. Hovering the line
+    tells the two names apart: a tooltip in the cells' style (`DetailList`,
+    `caseNameDetails`) lists "Declared name" and "Case name" in full, the
+    declared name reading "unknown" when the catalog has none, in a tooltip
+    wide enough for a long name on a line or two.
+  - A row of facts as pills (`FactPill`): `body2` text in the grey of the
+    title's pills and the table's header band (`headerBandColor`), a view
+    chip's height (`VIEW_CHIP_HEIGHT`), a muted word in title case for what
+    each is and then the value a step heavier. They are read, not pressed,
+    so they have no hover and no chevron. The language as the options label
+    it (`labelOf`, a skeleton until they arrive, the raw value should they
+    fail), which is its own word and has no label, marked with a dot in
+    GitHub's color for the language (`LANGUAGE_COLORS`, linguist's Python
+    blue and C++ pink, typed by the API's languages so a new one without a
+    color does not compile; none for `unknown`). The mark is a dot, as
+    GitHub sets it, not a tint of the pill: the hub keeps hue for status,
+    and a tinted pill would read as one more status. Then "First Seen" with
+    the date the catalog first saw the test in the viewer's zone and the
+    time of day as its tooltip (`firstSeenLabel`, filled in on the client in
+    an effect, as the Last run cell is); and "Owner" or "Owners" with the
+    labels of its file. A value the catalog does not have is said rather
+    than hidden, so the row always has its three pills: a file without
+    owner labels reads "Owner Unknown" and a language the catalog could not
+    tell reads "Language Unknown" (the options' own label for it, under a
+    "Language" label the known languages do not need, with no dot), the
+    word muted so a value that is there stands out (`UNKNOWN_LANGUAGE`, the
+    one language value the page spells, and `UNKNOWN_VALUE`).
+  - A hairline (`Divider`) closes the header.
+
+  Until the test arrives a skeleton holds each line's place, so nothing
+  moves when it comes; with no test to show the headline says "Test" and
+  the rest is left out.
+
+- Not found shows a warning beneath the title, "No test in pytorch/pytorch
+  has the id 1.", with no Retry: the answer would be the same. Any other
+  failure, a malformed id (the API's 400) or the server failing, shows the
+  API's error text with a Retry button (`LoadError`), as the list page does;
+  a failure of the options has its own Retry, which asks the options again.
+- The page is set in the same column as the list (`PageColumn`), so the two
+  pages share a measure and a reader moving between them sees the title stay
+  put.
+
+- Under the header, the grid of the test's runs (`RunGrid`; the decisions
+  in `lib/tests/grid.ts`, the colors in `lib/tests/gridColors.ts`, the data
+  in `lib/tests/useTestGrid.ts`, tested in `test/tests/grid.test.tsx`): the
+  HUD grid turned on its side for one test, since a grid has no bucket to
+  choose, aligns the workflows on the commits they share, and shows the
+  lanes that only skip as faint rows. It is set as a table in the list
+  table's frame: HUD's shared border around rounded corners, a header band
+  in the same grey with the list's column titles (`HEADER_TITLE_STYLE` and
+  `COLUMN_HEADER_HEIGHT` in `lib/tests/layout.ts`; Configuration, Outcomes,
+  Runs: the cells are the test's runs and the commits are the axis, named
+  in the footer; each title's tooltip is its column's description,
+  `headerDescriptions`: a sentence, then a legend line per color, Outcomes
+  naming the window and saying that expected failures, unexpected passes
+  and unknowns are shown but not counted, Runs adding a line about the time
+  bar while it is on), its short rule between columns, hairlines between
+  rows, and a footer band in the header's grey. The band's right end holds
+  the table's choices as keys in the headers' filter-key style
+  (`headerKeyColors`, `headerKeySx` in `lib/tests/headerColors.ts`, shared
+  with the list's keys):
+
+  - `HeaderSelect` keys for the code source and the window: the page's
+    background with a ruled edge, the choice as text with a chevron,
+    "main", "Last 3 days", a menu of one list, the accent edge while open,
+    a tooltip naming what it chooses.
+  - An "All outcomes" `HeaderSelect` choosing which outcomes' cells are
+    shown, several at once, so a reader can show only the failures: its
+    menu lists Failed, Flaky, Passed, Skipped and Other, each led by the
+    swatch of its cells, under an item that chooses every one; the last
+    outcome chosen cannot be unchosen, so the table always shows something;
+    the key reads the one or two shown by name, "Failed, Flaky", or "3
+    outcomes", and is filled in the accent while the grid is narrowed, as a
+    header's filter key is while something is chosen. Narrowing is the
+    page's own (`filterGroups`): the cells of the other outcomes are left
+    out, the commits across stay so the axis does not move, each lane
+    counts the cells shown and takes its status from them, so the failed
+    swatch and the muting follow what is shown, a lane with no cell left
+    and a workflow with no lane left drop out, and the order and the labels
+    stay; the API is not asked again.
+  - A `HeaderCheck` key, "Time bar" (the keys' height, background and ruled
+    edge with a small checkbox), turns the time bar off and on, on by
+    default, `time_bar=0` in the URL while off; the lanes keep their height
+    either way, since the Outcomes column's time line needs the second
+    line. In the pull request view the bar is off and the key unticked and
+    disabled, its tooltip saying so (`timeBarAvailable`, `timeBarShown`):
+    a stretch is a sustained change along one line of commits that build
+    on one another, which pull requests are not, each branching from main
+    at its own point and most running once. The reader's choice stays in
+    the URL meanwhile, so main shows the bar again on return.
+  - At the keys' left a `HeaderSearch` field (the keys' frame with a search
+    glyph, the hash in the monospace, a clear button, Escape clearing too)
+    finds a commit by its hash or the start of one, `commit=` in the URL:
+    the column it names is banded and its pill pinned in the footer in
+    orange, a hue the grid uses for nothing else, apart from the hover's
+    blue and the statuses' hues (`commitSearch`, `pinnedCommitColors`), and
+    a hash no column starts with is told so on a small sheet under the key
+    while the key is focused or hovered, the key's edge red, "No commit
+    starting with 8f3a1 in the last 3 days of main. Widen the window, or
+    check the hash." (`commitSearchMessage`, the key labels of the choices
+    in force); a start several commits share asks for more of the hash in
+    the muted text, and anything but hex digits is refused as no hash. The
+    field keeps its own text: it goes out once typing has paused
+    (`SEARCH_PAUSE_MS`), and the URL's echo of it is taken as the echo it
+    is, as the list's `NameSearch` does, so typing never waits on the URL
+    round trip and is never reset by it.
+
+  The choices are read from the URL's `ran_on` and `window` as the API
+  spells them and the page's own `outcomes` (comma-separated, in the menu's
+  order), `time_bar` (`0` while off) and `commit`, left off at the page's
+  defaults (main, 3d, every outcome, the time bar on, no commit sought) and
+  resolved against the options. The window holds jobs, not attempts: the
+  API keeps the jobs whose first attempt started in it, with every attempt
+  of theirs, as the health table assigns a run to its windows, so a run is
+  never cut at the window's start. The grid is
+  `GET /api/tests/test/{test_id}/runs?group_by=commit` for those choices,
+  asked for as soon as they are known and shown once the test is known to
+  be this repository's; a change of choice replaces the URL in place
+  (`mergedUrlQuery`, shared with the list page), and the cache shows a grid
+  returned to at once. The frame and its header stay while the body
+  changes, so the keys never leave under the pointer: the body is the
+  skeleton before any grid has arrived, the empty sentence ("No runs on
+  main in the last 3 days.", or "No failed or flaky runs on main in the
+  last 3 days." while the grid is narrowed), the load error with its Retry,
+  or the rows. While new choices load, a progress bar in the theme's blue
+  runs under the header band, as the list's grid shows one over its rows,
+  and the grid shown last stays beneath it until the new one arrives
+  (`keepPreviousData` in `useTestGrid`), since a skeleton's shimmer at every
+  change of window is no obvious sign of loading. Under the frame's
+  bottom-right corner, "Loaded in 1.2 s" (`LoadTime`, the list's own
+  caption, the exact figures and the database's share in its tooltip) says
+  how long the grid shown took to arrive, its skeleton holding the row
+  while one loads.
+
+  One column per commit the test ran on, newest left, so the latest runs
+  stand beside the counts and come first in a reading from the left
+  (`columnCommits`; the API lists commits oldest first), each column at
+  least `MIN_CELL_WIDTH` (4px) wide: when the commits fit the room after
+  the fixed columns they share it; when they do not, the step holds at a
+  4px pill and a 1px gap and the plot grows past the room and scrolls
+  sideways under the fixed label and Outcomes columns, the newest commits
+  in view at first (`columnLayout`'s `plotWidth`; fitted to the room, a
+  cell under 3px lost its width to its edge and the whole runs area was
+  blank, as every pull request view was and the main view on a 1440px
+  screen). The fixed columns are one SVG and the plot another, in a
+  scroller whose own scrollbar is hidden, the footer strip's thin
+  scrollbar standing for both and the two kept in step on scroll; only
+  the columns in view are drawn (a pull request week is some 1,400
+  columns), the day marks and the time bar in full, a wide stretch's label
+  riding along inside the part of its block in view; a new code source or
+  window starts at the newest commits, and a found commit is scrolled into
+  the middle of the room. One row per
+  workflow configuration, grouped under the workflow's file. Each workflow
+  is a
+  section: a row in the header band's grey with the file's name in the
+  monospace at the `body2` size, so where one workflow ends and the next
+  begins is seen as a change of color, the configurations beneath on the
+  page background in the caption size. A lane's label is two lines, as the
+  list page's Config and Environment cells set the same things
+  (`laneLines`, on `environmentTokens` with the options' labels): the
+  config, then what torch was built for and ran on, "default · CUDA 13.2 ·
+  NVIDIA L4"; muted beneath, the Python and the platform, `Python 3.11 ·
+Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
+  distinguishing token had been thinner than the list's Environment column.
+  The whole environment, field by field, is in the label's tooltip. Two
+  lines make a lane 40px with or without a time bar; a lane without an
+  environment keeps one line, 20px, or 26px when it carries a badge, so the
+  badge has air (`foldedLaneHeight`, `GRID_SIZES.twoLineLaneHeight`,
+  `badgedLaneHeight`). The variables set besides the config are counted in
+  a badge at the label column's right edge on the label's last line, "+3
+  vars" (`badgeLabel`, `badgeColors`: the header band's grey in a pill, as
+  the list page's Config cell counts them; as words on the first line they
+  had made the label column 500px wide at the runs' expense and named a
+  variable without its value), that a click, or Enter or Space with the
+  keys' focus ring on it, opens: the pill's lower half squares off into a
+  panel of the same grey hanging from it, the label's width across, its
+  top-right corner square where the tab meets it (`panelPath`), that lists
+  the variables in full, `PYTORCH_TEST_WITH_SLOW=1`, one a line in the
+  monospace between 6px of padding (`labelLayout`: baselines, badge top,
+  panel top and height; `laneHeightFor`; `gridRows` with the expanded
+  keys). The lane grows downward by the panel and 6px of air while the
+  label, the badge, the pills, the time bar and the figures stay where they
+  were, so the badge is still under the pointer for the click that folds it
+  and nothing a reader is looking at moves; the expansion is the page's own
+  state, not the URL's. The run pills keep their height in an expanded
+  lane: their height says nothing, and growing them would make the one
+  expanded lane's runs read as different from the rest. The hover card
+  lists the variables one a line in the monospace, as the list page's
+  tooltip does. Groups are worst first (`gridGroups`, the health view's
+  statuses from the cells: failing with a failure that stood, flaky when
+  every failure recovered, healthy, skipped; a cell folds a job and its
+  re-run, GitHub's or a later run of the same workflow on the commit, into
+  one sequence where the health table counts each job's run on its own, so
+  a configuration whose job failed and whose re-run passed reads flaky here
+  and failing in the list's Health column); within a workflow the lanes are
+  in label order, the config first, then the environment, then the
+  variables (`compareLanes`, numbers compared as numbers), so one config's
+  environments sit together where worst first had scattered them. The label
+  column is as wide as its longest label once the browser has set them
+  (`getComputedTextLength`), estimated before, so no label is cut off or
+  runs into the counts; the header's titles and rules follow the same
+  measure (`gridColumns`).
+
+  Beside each lane one Outcomes column: its passed, failed and skipped
+  cells counted in three fixed slots (`gridColumns`), each count led by a
+  swatch in the color of the cells it counts (`outcomeSwatchStatus`: the
+  failed swatch yellow when every failure shown recovered) with the figure
+  a short gap after it, a zero left blank, so the swatches and the figures
+  align down the column and the swatches say what the colors mean; there
+  is no legend, since the counts' swatches and the hover card, which names
+  a cell's outcome beside its swatch, make one unnecessary. Under the
+  counts, on the column's second line, the median window time: the median
+  time of the lane's passing cells (`LaneTimes.typical`; the code keeps
+  `typical` in its identifiers) with a bar after it that is its share of
+  the slowest configuration's (`typicalBarColor`), which is how the
+  configurations compare with each other; nothing when nothing passed. The
+  figure is left-aligned under the first swatch and the bar a short gap
+  after the widest figure in the grid (`estimatedTextWidth`), cut to the
+  column's right inset should the figures ever run wide. It is a median
+  because that is the statistic the time bar's blocks use, so a lane with
+  one stretch shows the same figure in both places, and because a median
+  shrugs off the odd slow cell. It is the grid's own figure, not the list's
+  Mean Passed Duration, and the two differ: a lane is one calling workflow
+  where a health entity spans every workflow the configuration ran in, a
+  cell keeps a commit's shards and re-runs as jobs of their own and takes
+  their mean, and the health view is refreshed on its own clock (one CUDA
+  configuration read 1484 ms as a health entity across periodic.yml and
+  trunk.yml where the grid's two lanes read 3029 ms and 1490 ms). The
+  tooltip says what the figure is and what the bar compares; the rule
+  behind the figure is in `laneTimes`' comment.
+
+  A cell is every attempt of that configuration on that commit, a small
+  pill 12px tall (`GRID_SIZES.cellHeight`; `cellRadius`: half its shorter
+  side, so a cell taller than wide is a capsule and a thin one nearly
+  round) colored by how it ended (`cellStatus`); a run whose first attempt
+  ended differently from how the run ended is two capsules with 2px of the
+  page between them, the first attempt's status above how the run ended,
+  red over yellow for the usual flake (`attemptSplit`, `splitBoxes`,
+  `cellParts`, `GRID_SIZES.splitGap`; one pill otherwise: a failure retried
+  and failed again, a timeout whose rerun was skipped, since a skip never
+  overrides an executed attempt, a run skipped twice). Two capsules rather
+  than the attempts banded inside one pill, which were too hard to read at
+  the 3 to 5px cells a week of main gives; the cells are 12px tall and the
+  bare lane 20px (`laneHeight`) to give the capsules room, 5px each. The
+  attempts read are the deciding jobs' alone: a cell's jobs of one name are
+  a job and its re-run, one chain; jobs of different names are sibling
+  shards, the worst of which decides the cell, and a sibling's run is no
+  rerun of another's (`decisiveSequence`, `decisiveAttempts`; two
+  inductor_core shards' runs on one commit, a timeout whose rerun skipped
+  beside a shard that skipped on its own, had read as one chain, timed out
+  then skipped twice). A cell is at least a pixel wide and at most 14
+  (`columnLayout`): below three pixels a step it is the one pixel its step
+  leaves it, since a wider cell would be painted over by the next column's.
+  The pill is a small pill of its status's hue from the hub's one palette
+  (`PILL_COLORS` in `lib/tests/blockColors.ts`, so the grid's cells and the
+  list page's Health blocks move together): every hue holds, in each mode,
+  the big pill, the Health block (a pale background and its text's deep
+  shade), and the small pill, a cell (a tint for its fill, a mid shade for
+  its edge, a deeper shade for its fill under the pointer), and the grid
+  reads the small one (`gridColors`: failed red, flaky yellow, passed
+  green, skipped purple; an expected failure or an unknown is unfilled with
+  an edge in the disabled tone). The small fills are the blocks'
+  backgrounds, the pale yellow of a Flaky block, the pale purple of a
+  Skipped block, except where a few pixels need more color: the failed cell
+  is two steps stronger in fill and edge, since at a cell's size the
+  block's pale red was mistaken for the skipped purple, and a pass, which
+  has no block on the list page, is a pale green, rgb(213, 245, 222), a
+  wash of the same strength as the other fills in dark mode (a grey read as
+  a run that did not happen; stronger greens overwhelmed the failures).
+  Every cell has a one-pixel edge drawn inside its box (`edgedBox`, so it
+  does not eat the gap to the next cell), since the pale yellow alone was
+  hard to see, in the hue's mid shade (halfway between GitHub's first and
+  second steps in light mode, a step short of its saturated mid step in
+  dark); the Outcomes swatches and the card's swatch carry the same edge. A
+  lane that only ever skipped is muted, so that skipping is seen rather
+  than read, and its pills are the height of every other, since a pill's
+  height says nothing.
+
+  Under a configuration's pills runs its time bar, which says how long the
+  test takes, whether that changed and whether the change held. The
+  configuration's passes, oldest first, a run that passed only on a
+  retry among them with the time of the attempts that passed
+  (`passedEventually`, `passed_duration_milliseconds`: a cell's summed time
+  would be the failed attempt's, a 300 s crash against a 1 s pass; the
+  field is one run's time, the mean over the sibling jobs that passed and
+  over a job and its re-run that both passed, so neither counts twice; the
+  card times such a run by the pass and gives the whole on a line of its
+  own, "N in all", when it is more), are cut into stretches of one typical
+  time (`laneTimes`, `stretches`: the level at a pass is the median of the
+  five passes around it, a new stretch begins at the first of six passes in
+  a row whose level sits more than 15% off the current stretch's median,
+  the difference judged against at least a tenth of a second so that a
+  fast test's millisecond jitter is no change (`TIME_FLOOR_MS`), and
+  neighbours whose medians end up within 15% are merged closest pair first
+  until none are; a first stretch shorter than five passes is folded into
+  the one after it, since its level would rest on fewer passes than the
+  rolling median every other boundary is judged by, so a lane's first run
+  alone never makes a stretch; `TIME_ROLL`, `TIME_THRESHOLD`, `TIME_HOLD`).
+  Each stretch is a block from its newest pass's column to its oldest's,
+  the oldest stretch at the right end of the bar, labelled with its median
+  time, "42 s", the oldest in a neutral grey and the newer ones tinted
+  against its time (`stretchTone`, `stretchColors`: within a tenth the same
+  grey, slower the failed hue's pale background and edge, faster the passed
+  hue's, since slower is the bad news), the change on the stretch before,
+  the block to its right, written at the block's left end, "+44% · 1.0
+  min", the figure in the hue's ink; a block too narrow for both shows its
+  time alone, a narrower one its change alone, a narrower one nothing
+  (`estimatedTextWidth`; the time before the change, since the tint already
+  says which way a change went). A block with no room for any of it writes
+  its label to its right, in the room before the older block or the plot's
+  end, with the same order of preference (`stretchLabel`), and a lone pass
+  or two make a block at least `GRID_SIZES.stretchMinWidth` wide, a stub
+  for the label to follow, the stub reaching rightward under the older
+  block, which is drawn over it. The
+  pointer on any block outlines the block in its ink and brings the card
+  with the stretch's time, its change, how many passes it spans and from
+  when to when (`Hover.part`, `stretchAtColumn`), so a stretch too short
+  for a label is still read by sweeping the bar; a click there opens
+  nothing. A configuration with passes is a 40px lane, its pills on the
+  upper row (`laneHeightFor`, `gridRows`, `GRID_SIZES.pillRowCenter`,
+  `timeBarTop`). One slow run never makes a stretch, so a stretch is by
+  construction a sustained change, and its length says how long the change
+  has held: the two things wanted, whether the time changed and whether the
+  change held, are facts about stretches of runs, which a graph of each
+  run's time would leave to the reader. The hover card gives each run's own
+  time in its headline, "Passed · Oct 27, 10:33 AM · 4.2 s", and names its
+  stretch, "In a stretch at 1.0 min, +44% on the stretch before".
+
+  Days are marked by a hairline and a label in the footer, "Wed, Oct 28",
+  when the day is wide enough for it, weekends by a faint band. The footer
+  is its own strip under the drawing, the day labels with a short tick
+  where the day changes and the commit pills, and it sticks to the bottom
+  of the viewport while the grid runs taller than the screen, as the header
+  band sticks to the top with the titles and the keys (`position: sticky`),
+  so neither scrolls out of sight; the pointer over the strip still names
+  the column under it. While a commit is pinned from the search field the
+  strip has a second row, 22px, for the pinned pill, under the day labels
+  and the pointer's pill (`footerHeight`, `GRID_SIZES.pinnedRowHeight`), so
+  the two pills never cover each other. While the plot is wider than its
+  room the strip has a row at its bottom edge, 10px, for the thin
+  scrollbar that scrolls the plot and the day labels together
+  (`GRID_SIZES.scrollbarRowHeight`), in reach however tall the grid, since
+  the strip sticks to the viewport's bottom.
+
+  Every text in the table can be selected and copied, the titles, the
+  workflows' names, the labels, the counts and the day labels: nothing sets
+  `user-select`, and the SVG's texts select as HTML text does.
+
+  Hovering a column bands it across every lane in a wash of the theme's
+  blue and names the commit in a solid blue pill in the footer, its short
+  SHA and the time of the test's first attempt on it (a grey band and pill
+  were easy to miss). The cell under the pointer grows by 2px on every side
+  over its neighbors (`CELL_HOVER_GROWTH`), its fill steps a shade deeper
+  than its edge and a ring in the block's text shade, the block's ink,
+  surrounds it (`cellHoverColors`), the ring the list's health blocks show
+  when hovered, drawn inside the grown box as the edge is, so a split run's
+  two capsules grow as two with their gap kept. Hovering a cell opens a
+  card above it, or beneath it when the card would climb out of the body or
+  under the header stuck to the viewport's top: how it ended ("Flaky" for a
+  run that recovered, else its recorded outcome, "Timed out") and when, the
+  workflow and lane, then each job of the cell under its name, the jobs
+  that decided it first (`cardJobs`), with its attempts in order as pills
+  in their outcomes' colors with an arrow from one to the next, "Crashed →
+  Passed" (`AttemptPills`, `attemptStatus`, `attemptPillColors`: the health
+  blocks' background and ink) and its time when it executed anything, the
+  whole spend on a line of its own, "N in all", when it is more than the
+  headline's (`cellTime`), and that a click opens the job that decided it
+  on GitHub, which it does. A lane with no run on that commit says so ("No
+  run shown" while the grid is narrowed, since the run may be one of the
+  outcomes left out). The grid is drawn in SVG from the page's own column
+  width (a `ResizeObserver`); a skeleton holds its place while it loads, a
+  failure is a `LoadError` with Retry, and a grid with no lane says "No runs
+  on main in the last 3 days." in the sentence's own words. Not yet done:
+  keyboard access to the cells, and the commit's title or a link to its HUD
+  page, which the runs tables do not carry.
+
 ## Verifying a change
 
-- `yarn test test/tests` runs the unit tests for the glue and the cells.
+- `yarn test test/tests` runs the unit tests for the glue and the cells, and
+  for the test page's title, hook and request helpers
+  (`test/tests/testPage.test.tsx`).
 - `npx tsc --noEmit` and `npx eslint` on the touched files; `yarn format`.
 - `yarn dev` with the ClickHouse credentials local development uses, then open
   `/tests/pytorch/pytorch` and check both themes, each header in both
@@ -497,3 +935,26 @@ for the data it shows.
   show the default). `/api/tests/options` itself is a plain JSON page to look
   at. The grid only mounts on the client, so the server-rendered HTML shows
   the heading alone; judge the table in a browser.
+- For the test page, open `/tests/pytorch/pytorch/test/<id>` with an id from
+  the list (`/api/tests?repo=pytorch/pytorch&limit=1`) and check the header
+  in both themes, each crumb's link (the list, then searched by file, then by
+  file and suite), a long case name wrapping at its joints, the three pills
+  and the first-seen tooltip, a
+  module-level function (no suite crumb), an unknown id (`/test/1`, the
+  warning), a malformed id (`/test/abc`, the API's error with Retry), a test
+  of another repository (its id under `/tests/pytorch/vision/`, the warning)
+  and, with `HUD_API_REQUIRE_AUTH=1`, the access notice when signed out.
+  Then the grid, in both themes: the five header keys and their URL
+  parameters (the commit search with a hash in and out of the window and
+  its messages, `commit=`; code source and window, `ran_on=`, `window=`;
+  the outcomes shown, `outcomes=`, and its empty sentence; the time bar
+  checkbox, `time_bar=0`, unticked and disabled on pull requests); the plot
+  scrolling under the fixed columns on pull requests, the footer's
+  scrollbar and day labels in step with it and a found commit scrolled
+  into view; a split run's two capsules; the hover card over
+  a cell, over a stretch of the time bar and over an empty column, and that
+  it stays clear of the header stuck to the viewport's top on a grid taller
+  than the window; a click opening the decisive job; the `+N vars` badge
+  opening its panel by click, Enter and Space; the pinned commit's band and
+  footer pill; the sticky header and footer while scrolling; and the Retry
+  of a failed options load asking the options again.

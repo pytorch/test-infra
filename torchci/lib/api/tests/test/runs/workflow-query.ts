@@ -1,5 +1,8 @@
-const WORKFLOW_JOB_ORDER_SQL = "_inserted_at DESC, run_id DESC, dynamoKey DESC";
-const WORKFLOW_RUN_ORDER_SQL =
+// The latest retained metadata row of a job and of a workflow run, for every
+// read that picks one: the bundle pages here and the grid (grid-query.ts).
+export const WORKFLOW_JOB_ORDER_SQL =
+  "_inserted_at DESC, run_id DESC, dynamoKey DESC";
+export const WORKFLOW_RUN_ORDER_SQL =
   "_inserted_at DESC, run_attempt DESC, dynamoKey DESC";
 
 // The path workflow_path filters and sorting compare, and enrichment returns.

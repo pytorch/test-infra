@@ -366,6 +366,16 @@ const RAN_ON_ERROR = `ran_on must be a comma-separated or repeated subset of: ${
 )}`;
 const LIMIT_ERROR = `limit must be an integer between 1 and ${MAX_LIMIT}`;
 
+// The values of ran_on and of window as every endpoint validates them,
+// undecorated: the list adds its defaults below, the runs grouped by commit
+// (test/runs/parameters.ts) their optionality.
+export const RanOnValuesSchema = z
+  .array(z.enum(RAN_ONS, { error: RAN_ON_ERROR }))
+  .min(1, { error: RAN_ON_ERROR });
+export const WindowSchema = z.enum(WINDOWS, {
+  error: `window must be one of: ${WINDOWS.join(", ")}`,
+});
+
 export const PARAMETER_DEFINITIONS = {
   repo: {
     encoding: "single",
@@ -405,10 +415,7 @@ export const PARAMETER_DEFINITIONS = {
   },
   ran_on: {
     encoding: "csv",
-    schema: z
-      .array(z.enum(RAN_ONS, { error: RAN_ON_ERROR }))
-      .min(1, { error: RAN_ON_ERROR })
-      .default([...DEFAULT_RAN_ON])
+    schema: RanOnValuesSchema.default([...DEFAULT_RAN_ON])
       .transform(canonicalValues)
       .describe(
         "Code sources whose health to combine, comma-separated or repeated. main covers pushes and schedules on main; pull_request covers pull requests and ciflow tag pushes."
@@ -416,12 +423,9 @@ export const PARAMETER_DEFINITIONS = {
   },
   window: {
     encoding: "single",
-    schema: z
-      .enum(WINDOWS, { error: `window must be one of: ${WINDOWS.join(", ")}` })
-      .default(DEFAULT_WINDOW)
-      .describe(
-        "Rolling health window ending at the queried health data's refresh time. Returns configurations observed in this window on the selected code sources."
-      ),
+    schema: WindowSchema.default(DEFAULT_WINDOW).describe(
+      "Rolling health window ending at the queried health data's refresh time. Returns configurations observed in this window on the selected code sources."
+    ),
   },
   sort: {
     encoding: "csv",

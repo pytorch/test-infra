@@ -19,6 +19,7 @@ record design experiments; their measurements are historical.
 | Commit statistics: bundles by final outcome        | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitStatsQueries.cjs`                                                 |
 | Previous-page cursors                              | [bidirectional-pagination-query-validation.md](bidirectional-pagination-query-validation.md), `scripts/validateBidirectionalPaginationQueries.cjs` |
 | Workflow metadata lookup                           | [workflow-query-validation.md](test/runs/workflow-query-validation.md), `scripts/validateRunWorkflowQuery.cjs`                                     |
+| Runs grouped by commit (`group_by=commit`)         | [grid-query-validation.md](test/runs/grid-query-validation.md), `scripts/validateRunGridQuery.cjs`                                                 |
 | Run detail by execution UUID                       | [run/query-validation.md](run/query-validation.md)                                                                                                 |
 
 ## Current contract

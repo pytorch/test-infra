@@ -23,8 +23,9 @@ export function breakPieces(part: string): string[] {
 
 // A part set so a line may break after any "_" or "/" in it: a break
 // opportunity (<wbr>) between its pieces, which keeps a wrapped name reading
-// as its pieces rather than breaking mid-word.
-function Breakable({ text }: { text: string }) {
+// as its pieces rather than breaking mid-word. The title of a test's page
+// (TestTitle) sets its case name the same way.
+export function Breakable({ text }: { text: string }) {
   return (
     <>
       {breakPieces(text).map((piece, index) => (

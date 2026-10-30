@@ -58,7 +58,7 @@ const RUN_START = "run.tests_id, run.started_at";
 // A bundle's attempts in chronological order, as the attempts query and the
 // mapping sort them. Timestamps have millisecond precision; the UUID string
 // breaks the rare tie.
-const RUN_CHRONOLOGY = "run.started_at, run.ended_at, toString(run.id)";
+export const RUN_CHRONOLOGY = "run.started_at, run.ended_at, toString(run.id)";
 
 // The outcome a bundle settled on: its chronologically last executed attempt's,
 // or skipped when no attempt executed. A skip never overrides an executed
@@ -164,7 +164,7 @@ interface RunPageScope {
 
 // Reuse the list API's column and type registry. Request values are bound;
 // only metadata from that registry can become SQL syntax.
-function catalogFilters(
+export function catalogFilters(
   query: RunSelectionQuery,
   target: "test" | "owner" | "environment",
   alias: string,

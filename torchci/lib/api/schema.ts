@@ -167,7 +167,10 @@ export function pathParameter(name: string, schema: z.ZodType) {
   };
 }
 
-export function jsonResponse(description: string, schema: { $ref: string }) {
+export function jsonResponse(
+  description: string,
+  schema: { $ref: string } | { oneOf: { $ref: string }[] }
+) {
   return {
     description,
     content: { "application/json": { schema } },

@@ -5,7 +5,7 @@ import {
   HEADER_FILTER_INSET,
   HEADER_FILTER_SIZE,
 } from "components/tests/HeaderFilter";
-import { headerRuleColor } from "lib/tests/headerColors";
+import { headerKeyColors, headerKeySx } from "lib/tests/headerColors";
 import {
   ChangeEvent,
   KeyboardEvent,
@@ -71,6 +71,12 @@ export default function NameSearch({
   };
   const active = focused || draft !== "";
   const accent = theme.palette.primary.main;
+  // The keys' frame, edged in the accent while the field has focus or text,
+  // as a key with its menu open is; the text keeps its own color.
+  const { color: _keyColor, ...frame } = headerKeySx(
+    theme,
+    headerKeyColors(theme, { open: active })
+  );
   const keep = (event: MouseEvent | KeyboardEvent) => event.stopPropagation();
   return (
     <Box
@@ -92,15 +98,7 @@ export default function NameSearch({
         height: HEADER_FILTER_SIZE,
         pl: "6px",
         pr: "2px",
-        borderRadius: "6px",
-        border: `1px solid ${active ? accent : headerRuleColor(theme)}`,
-        backgroundColor: theme.palette.background.default,
-        transition: theme.transitions.create("border-color", {
-          duration: theme.transitions.duration.shortest,
-        }),
-        "&:hover": {
-          borderColor: active ? accent : theme.palette.text.secondary,
-        },
+        ...frame,
       }}
     >
       <SearchRoundedIcon

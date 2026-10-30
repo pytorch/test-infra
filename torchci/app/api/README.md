@@ -211,14 +211,14 @@ old route in the same change.
 `lib/api/openapi.ts` so its paths and schemas appear in the document;
 `test/api/openapi.test.ts` fails while a route is missing from it.
 
-| Endpoint                                      | Scope                                                                              | Implementation             |
-| --------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------- |
-| `GET /api/tests`                              | Repository tests and configuration health in a selected window and code sources    | `lib/api/tests/`           |
-| `GET /api/tests/options`                      | Values the list offers a reader: fixed and catalog choices, with labels, and views | `lib/api/tests/options/`   |
-| `GET /api/tests/test/{test_id}`               | One catalog test, its owners, and all available configuration health               | `lib/api/tests/test/`      |
-| `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts                             | `lib/api/tests/test/runs/` |
-| `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID; provisional          | `lib/api/tests/run/`       |
-| `GET /api/tests/commit/{sha}?repo=owner/name` | Retained run bundles across all tests on a repository commit                       | `lib/api/tests/commit/`    |
+| Endpoint                                      | Scope                                                                                                                 | Implementation             |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `GET /api/tests`                              | Repository tests and configuration health in a selected window and code sources                                       | `lib/api/tests/`           |
+| `GET /api/tests/options`                      | Values the list offers a reader: fixed and catalog choices, with labels, and views                                    | `lib/api/tests/options/`   |
+| `GET /api/tests/test/{test_id}`               | One catalog test, its owners, and all available configuration health                                                  | `lib/api/tests/test/`      |
+| `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration | `lib/api/tests/test/runs/` |
+| `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID; provisional                                             | `lib/api/tests/run/`       |
+| `GET /api/tests/commit/{sha}?repo=owner/name` | Retained run bundles across all tests on a repository commit                                                          | `lib/api/tests/commit/`    |
 
 ## Tests endpoints
 
@@ -402,6 +402,37 @@ the association ambiguous. Use the event to identify a PR trigger: push runs can
 have an associated PR, and GitHub can omit associations for PR-triggered runs.
 These fields share the latest retained workflow record across attempts and do
 not infer PRs from branch names or a commit's current PR membership.
+
+### Runs grouped by commit
+
+`GET /api/tests/test/{test_id}/runs?group_by=commit` answers the same runs as
+a grid for the test page. The OpenAPI document describes the response and the
+parameters (the `RunGrid*` schemas in `lib/api/tests/test/runs/types.ts`;
+`group_by`, `ran_on` and `window` in `parameters.ts`); what it does not say:
+
+- `runsHandler` (`handler.ts`) branches on `group_by`; `parseRunsGridParams`
+  (`parameters.ts`) rejects the page's parameters with 400 and the page
+  rejects the grid's; `queryRunGrid` and `foldCell` (`grid.ts`) fold a cell
+  from its jobs' chains. Jobs with the same name on a commit are one retry
+  sequence whether GitHub re-ran the job or the same workflow ran again on
+  the commit, kept over siblings per workflow run, which would match the
+  health table's count of each job on its own.
+- `ran_on` is classified in SQL (`RAN_ON_SQL` in `grid-query.ts`, mirroring
+  `clickhouse_db_schema/ci/000002-health-materialized-view.sql`), since
+  `github_workflow.event` alone cannot tell a ciflow tag push from main:
+  three in four of one test's timed-out inductor.yml pushes in a week were
+  ciflow's.
+- `window` holds jobs, not attempts: the jobs whose first attempt started in
+  it, with every attempt of theirs, as the health table assigns a run to its
+  windows, so a chain is never cut at the window's start. The handler binds
+  the window's start as Unix milliseconds, so the statement is deterministic.
+- One grouped read of the test's runs by primary key through `FINAL` with the
+  key filters in `PREWHERE`, the window's jobs found first and their chains
+  read from a day before it, joined to the latest retained job and workflow
+  run rows as the bundle pages read them, then one batched catalog lookup;
+  about a second server-side for a week of main, so it is not tagged heavy.
+  Evidence and measurements:
+  [grid notes](../../lib/api/tests/test/runs/grid-query-validation.md).
 
 ### Commit membership and performance
 
