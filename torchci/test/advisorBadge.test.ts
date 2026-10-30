@@ -13,6 +13,7 @@ import {
   renderVerdictLine,
   selectAdvisorLines,
   verdictBadge,
+  verdictBadgeForBucket,
   verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 
@@ -48,6 +49,20 @@ describe("verdictBadge", () => {
     });
     expect(verdictBadge("related", 0.8).label).toBe("probably related");
     expect(verdictBadge("related", 0.5).label).toBe("related (uncertain)");
+  });
+
+  it("verdictBadgeForBucket gives the badge verdictBadge gives for that bucket's scores", () => {
+    for (const verdict of ["related", "not_related", "infra_issue", "unsure"]) {
+      expect(verdictBadgeForBucket(verdict, "high")).toEqual(
+        verdictBadge(verdict, 0.95)
+      );
+      expect(verdictBadgeForBucket(verdict, "med")).toEqual(
+        verdictBadge(verdict, 0.8)
+      );
+      expect(verdictBadgeForBucket(verdict, "low")).toEqual(
+        verdictBadge(verdict, 0.5)
+      );
+    }
   });
 
   it("treats legacy 'revert' as the related pole", () => {

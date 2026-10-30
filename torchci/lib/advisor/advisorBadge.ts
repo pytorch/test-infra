@@ -175,6 +175,15 @@ export function verdictBadge(
   verdict: string,
   confidence: number
 ): AdvisorBadge {
+  return verdictBadgeForBucket(verdict, confidenceBucket(confidence));
+}
+
+// The same badge for a caller that already has the bucket, e.g. a confidence
+// that arrives as a word rather than a score.
+export function verdictBadgeForBucket(
+  verdict: string,
+  bucket: ConfidenceBucket
+): AdvisorBadge {
   const v = (verdict || "").toLowerCase();
 
   if (v === "garbage") {
@@ -189,8 +198,6 @@ export function verdictBadge(
   if (v === "unsure") {
     return { label: "inconclusive", color: "#8b949e", darkText: false };
   }
-
-  const bucket = confidenceBucket(confidence);
 
   // `related` is the context-neutral successor to `revert`; treat both as the
   // "related to this PR" pole.
