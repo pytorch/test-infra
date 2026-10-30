@@ -1,4 +1,5 @@
 import { PullRequestReview } from "@octokit/webhooks-types";
+import { getPreReviewOctokit } from "lib/github";
 import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
@@ -605,6 +606,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     if (
       (
         await markInProgressIfAccepted(
+          (await getPreReviewOctokit(owner, repo)) ?? ctx.octokit,
           ctx.octokit,
           owner,
           repo,

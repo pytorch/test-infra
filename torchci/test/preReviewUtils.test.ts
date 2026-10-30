@@ -225,6 +225,7 @@ describe("markInProgressIfAccepted", () => {
 
     await markInProgressIfAccepted(
       octokit,
+      octokit,
       "pytorch",
       "pytorch",
       1,
@@ -234,6 +235,30 @@ describe("markInProgressIfAccepted", () => {
     handleScope(scope);
   });
 
+  test("reads with the pre-review octokit and labels with PyTorchBot's", async () => {
+    const labelOctokit = utils.testOctokit();
+    const readerLabels = jest.spyOn(octokit.rest.issues, "addLabels");
+    const labelerReads = jest.spyOn(labelOctokit, "paginate");
+    const scope = [
+      ...mockPr({ requested: ["alice"], reactions: [thumbsUp("alice")] }),
+      ...mockMoveToInProgress(),
+    ];
+
+    await markInProgressIfAccepted(
+      octokit,
+      labelOctokit,
+      "pytorch",
+      "pytorch",
+      1,
+      ["triaged"],
+      AUTHOR
+    );
+    handleScope(scope);
+    expect(readerLabels).not.toHaveBeenCalled();
+    expect(labelerReads).not.toHaveBeenCalled();
+    readerLabels.mockRestore();
+  });
+
   test("does not label a PR that is already ready for review", async () => {
     const scope = mockPr({
       requested: ["alice"],
@@ -241,6 +266,7 @@ describe("markInProgressIfAccepted", () => {
     });
 
     await markInProgressIfAccepted(
+      octokit,
       octokit,
       "pytorch",
       "pytorch",
@@ -292,7 +318,7 @@ describe("updateInProgressLabels", () => {
     // be checked this way
     const error = jest.spyOn(console, "error").mockImplementation(() => {});
 
-    await updateInProgressLabels(octokit, "pytorch", "pytorch");
+    await updateInProgressLabels(octokit, octokit, "pytorch", "pytorch");
     handleScope(scope);
     expect(error).not.toHaveBeenCalled();
     error.mockRestore();

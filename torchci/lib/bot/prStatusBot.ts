@@ -2,6 +2,7 @@
 // CI-driven sweep. Only that section changes, preserving existing CI results.
 
 import { upsertPrStatusSection } from "lib/drciUtils";
+import { getPreReviewOctokit } from "lib/github";
 import {
   fetchLiveLabels,
   hasPrStatusLabel,
@@ -169,6 +170,7 @@ async function handle(
     isInPreReview(pullRequest)
   ) {
     await markInProgressIfAccepted(
+      (await getPreReviewOctokit(owner, repo)) ?? (context.octokit as any),
       context.octokit as any,
       owner,
       repo,

@@ -58,7 +58,11 @@ import {
   fetchJobNamesFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
-import { getOctokit, getOctokitWithUserToken } from "lib/github";
+import {
+  getOctokit,
+  getOctokitWithUserToken,
+  getPreReviewOctokit,
+} from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import {
   GREENLIGHT_PENDING_ALT_ATTR,
@@ -225,7 +229,9 @@ export default async function handler(
       isPyTorchPyTorch(validatedOrg, repo)
     ) {
       try {
-        await updateInProgressLabels(octokit, validatedOrg, repo);
+        const reader =
+          (await getPreReviewOctokit(validatedOrg, repo)) ?? octokit;
+        await updateInProgressLabels(reader, octokit, validatedOrg, repo);
       } catch (error) {
         console.error("Failed to update in progress labels:", error);
       }
