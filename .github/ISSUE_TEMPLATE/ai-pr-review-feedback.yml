@@ -1,0 +1,56 @@
+# Feedback on PyTorch's automated PR review. Every review links here with the
+# PR, commit and run filled in (scripts/pr_review/post_review.py in
+# pytorch/pytorch, torchci/lib/prReview/prReviewRender.ts here), so the field
+# ids below are part of those links: rename one and its prefill stops working.
+# The label puts the issue on the feedback board, github.com/orgs/pytorch/projects/181.
+name: Automated PR review feedback
+description: Report a wrong, unhelpful or missing finding from the automated PR review
+title: "[AI PR review] "
+labels: ["AI PR review: feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Reports go to the [feedback board](https://github.com/orgs/pytorch/projects/181), where they are triaged and used to improve the review.
+        This issue is public: don't paste internal links or logs.
+  - type: input
+    id: pr
+    attributes:
+      label: Pull request
+      placeholder: https://github.com/pytorch/pytorch/pull/12345
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Reviewed commit
+  - type: input
+    id: run
+    attributes:
+      label: Review run
+      placeholder: https://github.com/pytorch/pytorch/actions/runs/...
+  - type: input
+    id: finding
+    attributes:
+      label: Finding
+      description: The file and line of the finding you are reporting, if it is one finding.
+      placeholder: torch/foo.py:42
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What went wrong
+      options:
+        - A finding is wrong
+        - A finding is right but should not block
+        - The review missed a real problem
+        - Re-reviews keep raising new or repeated findings
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What the review said, and why it is wrong or unhelpful.
+    validations:
+      required: true
