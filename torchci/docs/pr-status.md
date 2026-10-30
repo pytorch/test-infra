@@ -7,6 +7,8 @@ commands and the independent scheduled pre-review check also refresh it, so
 reactions and deadlines do not depend on a webhook or CI activity. PRs created
 before `PRE_REVIEW_START_DATE` are outside this workflow and get no PR Status
 section, including drafts and approved PRs.
+An independent status recovery job also revisits every workflow phase, including
+quiet PRs and PRs whose Dr.CI comment is missing.
 
 ## Coverage audit
 
@@ -14,10 +16,10 @@ section, including drafts and approved PRs.
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Before triage                    | No PR Status section without a workflow label. Helpful Links includes Auto PR Triage runs for PRs labeled `open source`.                                                                    |
 | Draft within the workflow        | `draft`: explicitly waiting for the author to mark it ready; pre-review cannot advance while draft.                                                                                         |
-| Missing actionable issue         | Explains the actionable-issue / supporting-maintainer requirement, automatic re-triage when a linked issue gains `actionable`, and the manual fallback.                                     |
+| Missing actionable issue         | Explains the actionable-issue / supporting-maintainer requirement, automatic re-triage when eligibility changes, and the manual fallback.                                                   |
 | Pre-review                       | Enabled for `triaged` PRs after the rollout date. Shows actual response progress and the shared deadline, rather than all assignments with mentions.                                        |
 | In progress                      | Explains author action, automated review, maintainer feedback, and CI readiness. The separate automated-review and CI sections provide running, completed, failed, and stale-review detail. |
-| Ready for maintainer review      | Explicitly waiting for a maintainer with merge rights. Outstanding change requests instead ask the author to address feedback and request another review.                                   |
+| Ready for maintainer review      | Explicitly waiting for a maintainer with merge rights. Shows reviewers asked for re-review after fixes; otherwise asks the author to address outstanding feedback.                          |
 | Needs additional approval        | Explains that an approver needs merge rights for the changed paths. Such an approval no longer hides active pre-review.                                                                     |
 | Approved                         | Gives the merge command and CI guidance.                                                                                                                                                    |
 | Merge underway / merged / closed | No dedicated PR Status stage. GitHub's PR state and the merge bot's separate output cover these; the Dr.CI section is not a terminal-state record.                                          |
@@ -31,8 +33,45 @@ from waiting on the author.
 
 The top-level in-progress explanation remains guidance, not a consolidated live
 checklist. Before-triage and merge/closed coverage remain opportunities for a
-separate change. PR Status still updates an existing Dr.CI comment; the opened
-handler or CI sweep creates that comment if absent.
+separate change. The opened handler and CI sweep create Dr.CI comments, and the
+status recovery job repairs missing comments for PRs in the workflow.
+
+## Periodic status recovery
+
+`.github/workflows/pr-status-sweep.yml` calls `POST /api/pr_status/sweep` every
+15 minutes, at minutes 11, 26, 41, and 56. It has a separate concurrency group
+from the pre-review deadline job. ClickHouse selects open post-rollout PRs with
+a workflow label (including drafts and missing comments), plus open PRs whose
+bot-authored Dr.CI comment still contains the PR Status marker. The second group
+includes older PRs and PRs that lost their last workflow label, so stale status
+can still be removed. The recovery job makes no GitHub search calls.
+
+Each run checks a rotating batch of 100 candidates in numeric order. A stable
+set of 1,200 candidates takes 12 runs (about three hours) to cover. ClickHouse
+only selects candidates: live GitHub reads still determine the current phase,
+reviewers, and comment body before writing. Mirror lag may delay discovering a
+candidate until a later run. Webhooks and the normal CI sweep refresh active
+PRs sooner; the separate pre-review sweep still handles all potential silent
+review timeouts each run.
+
+Recovery reads live labels, reviews, PR state, and pre-review responses, then
+updates only the PR Status section. It preserves existing CI results and skips
+unchanged comment bodies. A missing comment is recreated with current status
+and standard HUD/helpful links, including the branch-specific Auto PR Triage
+link for `open source` PRs. PRs outside the workflow do not get new comments.
+For PRs created before the rollout date, recovery removes any stale PR Status
+section while preserving the rest of the comment.
+CI classification is populated by the normal
+CI update. Closed PRs and failed state reads are left alone, and one PR's
+failure does not prevent checking the rest of the batch.
+
+GitHub reads use the dedicated pre-review app; writes use PyTorchBot. The job
+reuses the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN` secrets, requires configured
+pre-review app credentials, and needs no persisted cursor. The endpoint reports
+failed PR numbers with HTTP 502, and configuration or candidate-query failures
+with 503. A ClickHouse failure does not fall back to searching all GitHub PRs.
+[Query validation](../clickhouse_queries/pr_status_sweep_candidates/validation.md)
+records the live selection and performance checks.
 
 ## Pre-review refresh behavior
 
