@@ -1044,7 +1044,8 @@ export default function CrcrSummaryPage() {
   const nightlyHasError =
     activeTab === "nightly" &&
     (!!nightlyOverviewError || !!nightlyErrorMessage);
-  const hasError = !!overviewError || !!alError || !!overviewErrorMessage || nightlyHasError;
+  const hasError =
+    !!overviewError || !!alError || !!overviewErrorMessage || nightlyHasError;
 
   return (
     <>
