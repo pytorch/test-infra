@@ -829,11 +829,9 @@ export default function CrcrSummaryPage() {
       ? `/api/crcr/overview?days=${days}&view=nightly`
       : null;
   const { data: nightlyOverview, error: nightlyOverviewError } =
-    useSWR<CrcrOverviewResponse>(
-      nightlyOverviewUrl,
-      fetcherHandleError,
-      { refreshInterval: 60_000 }
-    );
+    useSWR<CrcrOverviewResponse>(nightlyOverviewUrl, fetcherHandleError, {
+      refreshInterval: 60_000,
+    });
   const { data: allowlist, error: alError } = useSWR<AllowlistResponse>(
     "/api/crcr/allowlist",
     fetcherHandleError,
@@ -1046,11 +1044,7 @@ export default function CrcrSummaryPage() {
   const nightlyHasError =
     activeTab === "nightly" &&
     (!!nightlyOverviewError || !!nightlyErrorMessage);
-  const hasError =
-    !!overviewError ||
-    !!alError ||
-    !!overviewErrorMessage ||
-    nightlyHasError;
+  const hasError = !!overviewError || !!alError || !!overviewErrorMessage || nightlyHasError;
 
   return (
     <>
