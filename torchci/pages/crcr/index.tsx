@@ -824,6 +824,16 @@ export default function CrcrSummaryPage() {
     fetcherHandleError,
     { refreshInterval: 60_000 }
   );
+  const nightlyOverviewUrl =
+    activeTab === "nightly"
+      ? `/api/crcr/overview?days=${days}&view=nightly`
+      : null;
+  const { data: nightlyOverview, error: nightlyOverviewError } =
+    useSWR<CrcrOverviewResponse>(
+      nightlyOverviewUrl,
+      fetcherHandleError,
+      { refreshInterval: 60_000 }
+    );
   const { data: allowlist, error: alError } = useSWR<AllowlistResponse>(
     "/api/crcr/allowlist",
     fetcherHandleError,
@@ -831,10 +841,16 @@ export default function CrcrSummaryPage() {
   );
 
   const ciData = overview?.data.prSummary;
-  const nightlyData = overview?.data.nightlySummary;
+  const nightlyData = nightlyOverview?.data.nightlySummary;
   const healthPrs = overview?.data.prHealth;
   const nightlyHealthJobs = overview?.data.nightlyHealth;
   const overviewErrorMessage = Object.entries(overview?.errors ?? {})
+    .map(
+      ([section, message]) =>
+        `${OVERVIEW_SECTION_LABELS[section as CrcrOverviewSection]}: ${message}`
+    )
+    .join("; ");
+  const nightlyErrorMessage = Object.entries(nightlyOverview?.errors ?? {})
     .map(
       ([section, message]) =>
         `${OVERVIEW_SECTION_LABELS[section as CrcrOverviewSection]}: ${message}`
@@ -845,7 +861,9 @@ export default function CrcrSummaryPage() {
     () => nightlyData?.filter((r) => r.repo !== CRCR_HEALTH_REPO) ?? [],
     [nightlyData]
   );
-  const nightlyRepoCount = visibleNightlyData.length;
+  const nightlyRepoCount = nightlyOverview
+    ? visibleNightlyData.length
+    : undefined;
 
   // L3 readiness uses fixed promotion/demotion windows, independent of the
   // Time Range selector above. The overview endpoint returns each aggregate
@@ -1023,7 +1041,16 @@ export default function CrcrSummaryPage() {
   }, [ciData, metricsMap, allowlist, days]);
 
   const isLoading = !overview && !overviewError && !allowlist && !alError;
-  const hasError = !!overviewError || !!alError || !!overviewErrorMessage;
+  const nightlyIsLoading =
+    activeTab === "nightly" && !nightlyOverview && !nightlyOverviewError;
+  const nightlyHasError =
+    activeTab === "nightly" &&
+    (!!nightlyOverviewError || !!nightlyErrorMessage);
+  const hasError =
+    !!overviewError ||
+    !!alError ||
+    !!overviewErrorMessage ||
+    nightlyHasError;
 
   return (
     <>
@@ -1084,6 +1111,8 @@ export default function CrcrSummaryPage() {
             {overviewError?.message ||
               alError?.message ||
               overviewErrorMessage ||
+              nightlyOverviewError?.message ||
+              nightlyErrorMessage ||
               "Failed to load data"}
           </Typography>
         )}
@@ -1145,7 +1174,7 @@ export default function CrcrSummaryPage() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 Nightly
                 <Chip
-                  label={nightlyRepoCount || "–"}
+                  label={nightlyRepoCount ?? "–"}
                   size="small"
                   variant="outlined"
                   sx={{ height: 20, fontSize: "0.75rem" }}
@@ -1262,14 +1291,16 @@ export default function CrcrSummaryPage() {
               </Typography>
             </Paper>
 
-            {visibleNightlyData.length > 0 ? (
+            {nightlyIsLoading ? (
+              <Skeleton variant="rectangular" height={240} sx={{ mt: 2 }} />
+            ) : !nightlyHasError && visibleNightlyData.length > 0 ? (
               <>
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days
                 </Typography>
                 <NightlyTable nightlyData={visibleNightlyData} days={days} />
               </>
-            ) : (
+            ) : !nightlyHasError ? (
               <Paper
                 elevation={0}
                 sx={{
@@ -1286,7 +1317,7 @@ export default function CrcrSummaryPage() {
                   the callback action.
                 </Typography>
               </Paper>
-            )}
+            ) : null}
           </>
         )}
       </Stack>

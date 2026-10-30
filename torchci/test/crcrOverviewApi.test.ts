@@ -21,7 +21,7 @@ describe("/api/crcr/overview", () => {
     jest.clearAllMocks();
   });
 
-  it("runs the fixed overview query plan serially", async () => {
+  it("runs the initial overview query plan serially", async () => {
     let activeQueries = 0;
     let maxActiveQueries = 0;
     mockQuery.mockImplementation(async () => {
@@ -38,7 +38,6 @@ describe("/api/crcr/overview", () => {
     expect(maxActiveQueries).toBe(1);
     expect(mockQuery.mock.calls.map(([queryName]) => queryName)).toEqual([
       "crcr_summary",
-      "crcr_nightly_summary",
       "crcr_health_last_prs",
       "crcr_nightly_dashboard",
       "crcr_l3_summary",
@@ -52,7 +51,7 @@ describe("/api/crcr/overview", () => {
       true
     );
     expect(mockQuery).toHaveBeenNthCalledWith(
-      7,
+      6,
       "crcr_repo_tenure_summary",
       {},
       true
@@ -63,10 +62,29 @@ describe("/api/crcr/overview", () => {
     );
   });
 
+  it("loads the nightly table only for the nightly view", async () => {
+    mockQuery.mockResolvedValue([{ repo: "example/nightly" }]);
+
+    const res = await get({ days: "7", view: "nightly" });
+
+    expect(res._status).toBe(200);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(mockQuery).toHaveBeenCalledWith(
+      "crcr_nightly_summary",
+      { days: 7 },
+      true
+    );
+    expect(res._json.data.nightlySummary).toEqual([
+      { repo: "example/nightly" },
+    ]);
+    expect(res._json.data.nightlyHealth).toEqual([]);
+    expect(res._json.data.prSummary).toEqual([]);
+  });
+
   it("returns partial data when one section is unavailable", async () => {
     mockQuery.mockImplementation(async (queryName: string) => {
-      if (queryName === "crcr_nightly_summary") {
-        throw new Error("nightly unavailable");
+      if (queryName === "crcr_nightly_dashboard") {
+        throw new Error("nightly health unavailable");
       }
       return [{ queryName }];
     });
@@ -75,17 +93,17 @@ describe("/api/crcr/overview", () => {
 
     expect(res._status).toBe(200);
     expect(res._json.errors).toEqual({
-      nightlySummary: "nightly unavailable",
+      nightlyHealth: "nightly health unavailable",
     });
     expect(res._json.data.prSummary).toEqual([{ queryName: "crcr_summary" }]);
-    expect(res._json.data.nightlySummary).toEqual([]);
+    expect(res._json.data.nightlyHealth).toEqual([]);
     expect(res._json.data.demotionReadiness).toEqual([
       { queryName: "crcr_l3_summary" },
     ]);
     expect(res._json.data.tenure).toEqual([
       { queryName: "crcr_repo_tenure_summary" },
     ]);
-    expect(mockQuery).toHaveBeenCalledTimes(7);
+    expect(mockQuery).toHaveBeenCalledTimes(6);
     expect(res._headers["Cache-Control"]).toBe("no-store");
   });
 
@@ -94,6 +112,14 @@ describe("/api/crcr/overview", () => {
 
     expect(res._status).toBe(400);
     expect(res._json).toEqual({ error: "Invalid CRCR time range" });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unsupported view before querying ClickHouse", async () => {
+    const res = await get({ days: "7", view: "unknown" });
+
+    expect(res._status).toBe(400);
+    expect(res._json).toEqual({ error: "Invalid CRCR overview view" });
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
