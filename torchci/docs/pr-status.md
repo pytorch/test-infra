@@ -56,7 +56,7 @@ phase, including PRs without `triaged`. CI rebuilds always read live workflow
 labels for `pytorch/pytorch`, so a mirror that predates triage cannot erase
 newly published pre-review progress.
 
-## Re-triage when an issue becomes actionable
+## Re-triage when eligibility changes
 
 When an issue in `pytorch/pytorch` gains `actionable`, the bot finds connected
 PRs from its paginated timeline, including GitHub's manual development links and
@@ -75,15 +75,25 @@ issue label does not itself grant pre-review or merge approval.
 If a trigger write fails after removing `open source`, a redelivered webhook
 can resume the reset. With that label absent, the bot checks the PR's label
 history and proceeds only if its own removal is the latest `open source` event
-and happened after this issue's actionable event. A maintainer's later removal
+and happened at or after the triggering event. PR events use the original webhook's
+update timestamp, so retrying after a failed write does not move the recovery
+boundary. A maintainer's later removal
 prevents recovery. This uses existing label history and leaves the missing-issue
 hold in place on failures.
 
 For example, if PR #10 already says `Fixes #5` and was marked `missing actionable
 issue`, labeling issue #5 `actionable` automatically requests re-triage for PR
-#10. The new triage result and its label webhooks update PR Status. Adding the
-link after the issue was labeled still requires the manual re-triage steps in
-the status comment.
+#10. The new triage result and its label webhooks update PR Status.
+
+Editing a PR description to add a valid actionable-issue link or `Supported by
+@<maintainer>` also requests re-triage. The bot verifies current issue labels,
+GitHub closing links, and the named maintainer's current permissions before
+resetting triage. Unrelated edits do not retrigger it. Marking a draft ready,
+reopening a PR, or removing `no automated triage` rechecks existing links and
+support, including manual development links. These events use the same live
+eligibility checks and retry protection as the issue-label event. A manual link
+added through GitHub's sidebar alone has no handled webhook; the status comment
+retains manual re-triage instructions for that case.
 
 ## Examples
 
