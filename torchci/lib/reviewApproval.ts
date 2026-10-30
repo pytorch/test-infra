@@ -7,6 +7,7 @@
 // Pure: takes an already-fetched review list that the caller is responsible for.
 
 import { PullRequestReview } from "@octokit/webhooks-types";
+import { isBot } from "lib/greenlight/greenlightReviewGate";
 
 export const PR_COMMENTED = "commented";
 export const PR_DISMISSED = "dismissed";
@@ -136,4 +137,47 @@ export function getApprovingReviewers(
   )
     .filter(([_, state]) => state.toLocaleLowerCase() === PR_APPROVED)
     .map(([login]) => login);
+}
+
+// Shared by pulls.listReviews and the already-fetched maintainer activity.
+export interface ReReviewReview {
+  id?: number;
+  state: string;
+  submitted_at?: string | null;
+  user: { login: string; type?: string } | null;
+}
+
+// A comment-only review does not withdraw a request for changes. Approval or
+// dismissal does. Association on an old review does not establish permission
+// today; the caller verifies each remaining reviewer's current permissions.
+export function getOutstandingChangesReviewers(
+  reviews: ReReviewReview[],
+  author: string
+): string[] {
+  const outstanding = new Map<string, string>();
+  for (const review of [...reviews].sort(
+    (a, b) =>
+      Date.parse(a.submitted_at ?? "") - Date.parse(b.submitted_at ?? "") ||
+      (a.id ?? 0) - (b.id ?? 0)
+  )) {
+    const login = review.user?.login;
+    if (
+      !login ||
+      login.toLowerCase() === author.toLowerCase() ||
+      isBot(login, review.user?.type)
+    ) {
+      continue;
+    }
+    const key = login.toLowerCase();
+    switch (review.state.toLowerCase()) {
+      case "changes_requested":
+        outstanding.set(key, login);
+        break;
+      case "approved":
+      case "dismissed":
+        outstanding.delete(key);
+        break;
+    }
+  }
+  return [...outstanding.values()].sort();
 }

@@ -342,6 +342,22 @@ describe("getPrStatusMessage", () => {
     );
   });
 
+  test("ready status names reviewers actually asked for re-review without mentions", () => {
+    const message = getPrStatusMessage(
+      state({
+        labels: [PR_STATUS_LABEL_READY_FOR_REVIEW],
+        hasChangesRequested: true,
+        reReviewers: ["bob", "alice", "@unsafe"],
+      })
+    );
+    expect(message).toContain("**Waiting for re-review:** `bob`, `alice`.");
+    expect(message).toContain(
+      "These reviewers have been asked to review the latest updates."
+    );
+    expect(message).not.toContain("@");
+    expect(message).not.toContain("ask for another review");
+  });
+
   test("missing actionable issue explains how to link one", () => {
     const message = getPrStatusMessage(
       state({
@@ -745,6 +761,40 @@ describe("fetchPrStatusState", () => {
   });
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  test("re-review lists only outstanding change requests with a current assignment", async () => {
+    const review = (login: string, state: string, day = 1) => ({
+      user: { login },
+      state,
+      author_association: "MEMBER",
+      submitted_at: `2026-01-0${day}T00:00:00Z`,
+    });
+    const octokit = octokitStub({
+      reviews: [
+        review("alice", "CHANGES_REQUESTED"),
+        review("alice", "COMMENTED", 2),
+        review("bob", "CHANGES_REQUESTED"),
+        review("cleared", "CHANGES_REQUESTED"),
+        review("cleared", "DISMISSED", 2),
+        review("author", "CHANGES_REQUESTED"),
+        review("automation[bot]", "CHANGES_REQUESTED"),
+      ],
+      pull: {
+        user: { login: "author" },
+        requested_reviewers: [
+          { login: "Alice" },
+          { login: "cleared" },
+          { login: "new-reviewer" },
+          { login: "author" },
+          { login: "automation[bot]" },
+        ],
+      },
+    });
+    const result = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
+      "ready for review",
+    ]);
+    expect(result!.reReviewers).toEqual(["Alice"]);
   });
 
   test.each([

@@ -95,6 +95,20 @@ eligibility checks and retry protection as the issue-label event. A manual link
 added through GitHub's sidebar alone has no handled webhook; the status comment
 retains manual re-triage instructions for that case.
 
+## Returning to maintainer review
+
+When a PR moves from `in progress` back to `ready for review`, the bot requests
+another review from human reviewers whose requests for changes remain
+outstanding and who still have triage or higher permissions. This also applies
+when disabling automated review advances an in-progress PR. Comment-only reviews
+do not clear a changes request; an approval or dismissal does.
+
+Each reviewer is requested at most once per in-progress cycle. Current requests
+and requests added, answered, or explicitly removed during that cycle are left
+alone. A failed request prevents promotion so the operation can be retried.
+The status names currently requested reviewers with outstanding changes,
+without `@` mentions. Responding or removing a request refreshes the list.
+
 ## Examples
 
 These use fictional reviewer names. The UTC deadline is calculated from the PR's
@@ -159,4 +173,14 @@ its message then becomes:
 ## PR Status: ready for maintainer review
 
 A maintainer requested changes. Please address their feedback and ask for another review.
+```
+
+After fixes pass the readiness checks and the bot requests another review:
+
+```markdown
+## PR Status: ready for maintainer review
+
+**Waiting for re-review:** `alice`, `bob`.
+
+These reviewers have been asked to review the latest updates.
 ```
