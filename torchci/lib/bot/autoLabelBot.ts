@@ -11,12 +11,14 @@ import {
 import {
   getDraftGatedLabelsToRemove,
   getLabelsFromLabelerConfig,
+  getLabelsNeededByFiles,
 } from "./labelerConfigUtils";
 import {
   addLabels,
   CachedIssueTracker,
   CachedLabelerConfigTracker,
   getFilesChangedByPrCached,
+  getOpenStackPrs,
   hasApprovedPullRuns,
   hasVerifiedHumanWritePermissions,
   hasWritePermissions,
@@ -24,6 +26,7 @@ import {
   isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
   LabelToLabelConfigTracker,
+  NativeStackField,
 } from "./utils";
 
 export { getLabelsFromLabelerConfig };
@@ -501,6 +504,60 @@ export async function wasLabelRecentlyRemoved(
   );
 }
 
+// pytorch's merge bot requires the docker-builds run (ciflow/docker) on the
+// topmost landing PR that changes .ci/docker. The label's labeler globs are
+// broader than .ci/docker, so moving it up the stack can leave that PR without
+// the run and make the merge bot refuse the merge.
+const CIFLOW_LABELS_KEPT_PER_PR = ["ciflow/docker"];
+
+// ghstack fills a new PR's listing in seconds after opening it; a listing
+// still pending after this long is treated as no stack.
+const PENDING_GHSTACK_LISTING_WINDOW_MS = 10 * 60 * 1000;
+
+// A ciflow label's run on a PR tests every PR below it in its stack, so a PR
+// is covered for a label when an open PR above it, containing the PR's
+// changes, needs that label too.
+async function getCoveredCiflowLabels(
+  octokit: Context["octokit"],
+  owner: string,
+  repo: string,
+  pr: {
+    number: number;
+    body: string | null;
+    head: { ref: string; repo: { full_name: string } | null };
+    base: { repo: { full_name: string } };
+    stack?: NativeStackField | null;
+  },
+  labelerConfig: Record<string, unknown>,
+  ciflowLabels: string[]
+): Promise<{ pending: boolean; covered: string[] }> {
+  const above = await getOpenStackPrs(
+    octokit,
+    owner,
+    repo,
+    {
+      number: pr.number,
+      body: pr.body,
+      headRef: pr.head.ref,
+      isCrossRepository: pr.head.repo?.full_name !== pr.base.repo.full_name,
+      stack: pr.stack,
+    },
+    "above"
+  );
+  if (above.kind !== "stack") {
+    return { pending: above.kind === "pending", covered: [] };
+  }
+  const neededAbove = new Set(
+    above.prs.flatMap((p) =>
+      getLabelsNeededByFiles(labelerConfig, p.files, p.isDraft)
+    )
+  );
+  return {
+    pending: false,
+    covered: ciflowLabels.filter((label) => neededAbove.has(label)),
+  };
+}
+
 export async function addNewLabels(
   existingLabels: string[],
   labelsToAdd: string[],
@@ -685,6 +742,56 @@ function myBot(app: Probot): void {
         filesChanged,
         isDraft
       );
+      const labelerConfig = (await labelerConfigTracker.loadLabelsConfig(
+        context
+      )) as Record<string, unknown>;
+      const stackManagedCiflowLabels = labelsFromLabelerConfig.filter(
+        (label) =>
+          label.startsWith("ciflow/") &&
+          !CIFLOW_LABELS_KEPT_PER_PR.includes(label) &&
+          !labelsToAdd.includes(label)
+      );
+      if (stackManagedCiflowLabels.length > 0) {
+        let heldBack: string[] = [];
+        try {
+          const { pending, covered } = await getCoveredCiflowLabels(
+            context.octokit,
+            owner,
+            repo,
+            context.payload.pull_request,
+            labelerConfig,
+            stackManagedCiflowLabels
+          );
+          const createdAt = Date.parse(context.payload.pull_request.created_at);
+          if (!pending) {
+            heldBack = covered;
+          } else if (
+            Date.now() - createdAt <=
+            PENDING_GHSTACK_LISTING_WINDOW_MS
+          ) {
+            heldBack = stackManagedCiflowLabels;
+          } else {
+            context.log(
+              { pr: context.payload.pull_request.number },
+              "ghstack listing is still pending long after the PR opened, applying ciflow labels as usual"
+            );
+          }
+        } catch (error) {
+          context.log.error(
+            { err: error, pr: context.payload.pull_request.number },
+            "could not read the PRs above in the stack, applying ciflow labels as usual"
+          );
+        }
+        if (heldBack.length > 0) {
+          context.log(
+            { heldBack },
+            "holding back ciflow labels a PR above in the stack runs"
+          );
+          labelsFromLabelerConfig = labelsFromLabelerConfig.filter(
+            (label) => !heldBack.includes(label)
+          );
+        }
+      }
       labelsToAdd.push(...labelsFromLabelerConfig);
 
       if (
@@ -712,11 +819,8 @@ function myBot(app: Probot): void {
 
       await addNewLabels(labels, labelsToAdd, context);
 
-      const labelerConfig = await labelerConfigTracker.loadLabelsConfig(
-        context
-      );
       const draftGatedToRemove = getDraftGatedLabelsToRemove(
-        labelerConfig as Record<string, unknown>,
+        labelerConfig,
         filesChanged,
         isDraft
       ).filter((label) => labels.includes(label));
