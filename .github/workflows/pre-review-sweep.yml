@@ -1,0 +1,29 @@
+name: Check pre-review deadlines
+
+on:
+  schedule:
+    # Neither reactions nor the one-week deadline emits a webhook.
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+# This endpoint persists polling backoff. Avoid overlapping scheduled/manual runs.
+concurrency:
+  group: pre-review-sweep
+  cancel-in-progress: false
+
+jobs:
+  pre-review-sweep:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Check pre-review with its dedicated read-only GitHub App
+        env:
+          DRCI_BOT_KEY: ${{ secrets.DRCI_BOT_KEY }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+        run: |
+          curl --request POST \
+            --url 'https://hud.pytorch.org/api/pre_review/sweep' \
+            --header "Authorization: ${DRCI_BOT_KEY}" \
+            --header "x-hud-internal-bot: ${HUD_API_TOKEN}" \
+            --max-time 910 \
+            --silent --show-error --fail-with-body

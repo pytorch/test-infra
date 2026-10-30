@@ -1,4 +1,4 @@
-import { getPreReviewStatus } from "lib/bot/preReviewUtils";
+import { getPreReviewStatus, hasPreReviewLabels } from "lib/bot/preReviewUtils";
 import {
   fetchPrStatusState,
   getPrStatusStage,
@@ -176,7 +176,13 @@ export async function buildPrNotificationsManifest(
     // Approved PRs are skipped, and a PR carrying two status labels mid-move
     // counts as the later stage, as in the PR Status section
     switch (getPrStatusStage(state)) {
+      case "needsAdditionalApproval":
       case "preReview":
+        // An approval outside the merge rules doesn't end pre-review. Only
+        // include this stage when the PR is still carrying pre-review labels.
+        if (!hasPreReviewLabels(labels)) {
+          return null;
+        }
         // getPreReviewStatus reads a failed lookup as no reviewers, which
         // would drop the PR without recording it as failed
         if (state.reviewerLookupFailed) {
@@ -193,7 +199,8 @@ export async function buildPrNotificationsManifest(
             labels,
             author,
             [],
-            state
+            state,
+            now.getTime()
           )
         ).pending;
         break;
