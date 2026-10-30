@@ -251,6 +251,14 @@
       "slow"
     ]
   ],
+  "test_cooperative_reduction_workspace_name_not_baked (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202715",
+    "https://github.com/pytorch/pytorch/issues/202715",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_copy_strided_chunk_alignment_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
     "201787",
     "https://github.com/pytorch/pytorch/issues/201787",
@@ -368,6 +376,13 @@
   "test_cudagraphs_under_coor_runs_on_nonzero_device (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202684",
     "https://github.com/pytorch/pytorch/issues/202684",
+    [
+      "rocm"
+    ]
+  ],
+  "test_current_device_context_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202716",
+    "https://github.com/pytorch/pytorch/issues/202716",
     [
       "rocm"
     ]
