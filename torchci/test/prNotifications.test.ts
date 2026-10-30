@@ -284,6 +284,31 @@ describe("buildPrNotificationsManifest", () => {
     });
   });
 
+  test("keeps final-review reminders when merge verification is unavailable", async () => {
+    jest.spyOn(prStatus, "fetchPrStatusState").mockResolvedValue({
+      labels: ["ready for review"],
+      isApproved: true,
+      mergeApprovalLookupFailed: true,
+      assignedReviewers: [],
+      requestedReviewers: ["bob"],
+    });
+    const scopes = [
+      mockSearch('label:"ready for review"', [
+        searchItem(1, ["ready for review"]),
+      ]),
+      mockSearch('label:"triaged"', []),
+      mockLabeled(1, "ready for review", "2026-10-01T00:00:00Z"),
+    ];
+    const manifest = await buildPrNotificationsManifest(
+      octokit,
+      "pytorch",
+      "pytorch",
+      NOW
+    );
+    handleScope(scopes);
+    expect(manifest.reviewers.bob.final_review).toEqual([{ pr: 1 }]);
+  });
+
   test("records PRs that could not be checked", async () => {
     const scope = [
       mockSearch('label:"ready for review"', [

@@ -86,8 +86,10 @@ export interface PrStatusState {
   // Whether the PR currently carries a live approving review.
   isApproved: boolean;
   // Whether an approving reviewer satisfies .github/merge_rules.yaml for the
-  // changed files. Undefined when unknown, which reports a plain approval.
+  // changed files. Undefined if verification failed or this repository does
+  // not use PyTorch's merge rules; the failure flag distinguishes the two.
   isMergeApproved?: boolean;
+  mergeApprovalLookupFailed?: boolean;
   // Whether an authorized reviewer has an outstanding request for changes.
   hasChangesRequested?: boolean;
   // The reviewers assigned to the PR, without the leading "@". Teams are
@@ -131,11 +133,16 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
     }
     return "preReview";
   }
-  if (state.isApproved && state.isMergeApproved !== false) {
+  if (
+    state.isApproved &&
+    state.isMergeApproved !== false &&
+    !state.mergeApprovalLookupFailed
+  ) {
     return "approved";
   }
   if (
     state.isApproved &&
+    !state.mergeApprovalLookupFailed &&
     !labels.has(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)
   ) {
     return "needsAdditionalApproval";
@@ -245,6 +252,22 @@ function getPreReviewMessage(status?: PreReviewStatus): string {
 // Contributor-facing explanations of the workflow. The pre-review details use
 // the same snapshot as the advancement policy, including team responses.
 export function getPrStatusMessage(state: PrStatusState): string {
+  const message = getPrStatusStageMessage(state);
+  if (
+    !message ||
+    !state.mergeApprovalLookupFailed ||
+    state.pullRequest?.draft
+  ) {
+    return message;
+  }
+  return (
+    message +
+    "\n\nAn approval was received, but merge eligibility could not be verified. " +
+    "The bot will retry; this approval does not yet mark the PR ready to merge."
+  );
+}
+
+function getPrStatusStageMessage(state: PrStatusState): string {
   switch (getPrStatusStage(state)) {
     case "draft":
       return (
@@ -536,6 +559,7 @@ export async function fetchPrStatusState(
 
   // The merge rules are pytorch/pytorch's, so only its approvals are checked.
   let isMergeApproved: boolean | undefined;
+  let mergeApprovalLookupFailed = false;
   if (approvalStatus === PR_APPROVED && isPyTorchPyTorch(owner, repo)) {
     try {
       isMergeApproved = await hasMergeRuleApproval(
@@ -546,6 +570,7 @@ export async function fetchPrStatusState(
         getApprovingReviewers(reviews as any, true)
       );
     } catch (e) {
+      mergeApprovalLookupFailed = true;
       console.warn(
         `fetchPrStatusState: merge rule lookup failed for ${owner}/${repo}#${prNumber}`,
         e
@@ -589,6 +614,7 @@ export async function fetchPrStatusState(
       : undefined,
     isApproved: approvalStatus === PR_APPROVED,
     isMergeApproved,
+    mergeApprovalLookupFailed,
     hasChangesRequested: approvalStatus === PR_CHANGES_REQUESTED,
     assignedReviewers,
     reviewerLookupFailed: pullResult.status === "rejected",
