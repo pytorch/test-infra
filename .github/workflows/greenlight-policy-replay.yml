@@ -9,13 +9,12 @@ name: GreenLight policy replay
 # the pushed branch, so its deployment branch policy, and who may push the branches it admits, decide
 # which code runs with the Bedrock role; gate names it first, so a PR from another branch fails there.
 #
-# Both arms are pinned by SHA, the base arm to the merge base so later policy on main is not
-# credited to the PR. Each replay job frames the same decisions and seed against live ClickHouse, so
-# jobs judge one sample only while that data does not change between their starts; compare excludes
-# a PR whose replayed head differs across runs. Credentials last an hour and are rewritten every
-# 15 minutes, so while that works a reviewer (at most 37 minutes) never outlives them. Cost:
-# replicates x 2 arms x the sample reviewer runs, each at the harness's estimate; the sample is
-# GREENLIGHT_REPLAY_SAMPLE_FRACTION of the decisions the frame keeps, at most GREENLIGHT_REPLAY_SAMPLE_CAP.
+# Both arms are pinned by SHA, the base arm to the merge base so later policy on main is not credited to
+# the PR. collect draws the sample and records both arms' GitHub reads once, and each replay job reads
+# only that, so all judge the same inputs. Credentials last an hour and are rewritten every 15 minutes, so
+# while that works a reviewer (at most 37 minutes) never outlives them. Cost: replicates x 2 arms x the
+# sample reviewer runs, each at the harness's estimate; the sample is GREENLIGHT_REPLAY_SAMPLE_FRACTION of
+# the decisions the frame keeps, at most GREENLIGHT_REPLAY_SAMPLE_CAP.
 
 on:
   push:
@@ -41,7 +40,7 @@ env:
   GREENLIGHT_REPLAY_SAMPLE_CAP: "1000"
   GREENLIGHT_REPLAY_SEED: "0"
   GREENLIGHT_REPLAY_REPLICATES: "[1, 2, 3]"  # One replay job per entry and arm; the report compares one run directory each.
-  GREENLIGHT_REPLAY_PARALLELISM: "8"  # Reviewer sessions per replay job; every replay job runs at once.
+  GREENLIGHT_REPLAY_PARALLELISM: "8"  # Reviewer sessions per replay job (all replay jobs run at once), and PRs collect fetches from GitHub at once.
   # Change these two together: the harness rejects a run whose CLI reports another context window, and the window
   # Bedrock's model reports depends on the CLI build. The version is the production review's (its claude-code-action pin).
   CLAUDE_CODE_VERSION: "2.1.280"
@@ -49,7 +48,7 @@ env:
   AWS_REGION: us-east-1
   BEDROCK_ROLE_ARN: arn:aws:iam::308535385114:role/gha_workflow_claude_code
   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
-  DECISIONS_RETENTION_DAYS: "1"  # The decisions export is a public intermediate holding the whole decision history.
+  COLLECTED_RETENTION_DAYS: "1"  # What collect uploads is a public intermediate holding the whole decision history.
   ARTIFACT_RETENTION_DAYS: "30"
 
 jobs:
@@ -111,14 +110,14 @@ jobs:
   gate:
     needs: plan
     if: ${{ !cancelled() && needs.plan.outputs.pr_number != '' }}
-    environment: bedrock  # A refused branch fails here, so export and replay never run for it and report-unstarted stays quiet.
+    environment: bedrock  # A refused branch fails here, so collect and replay never run for it and report-unstarted stays quiet.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
     steps:
       - run: echo "The bedrock environment admits $GITHUB_REF_NAME."
 
-  export:
+  collect:
     needs: [plan, gate]
     if: needs.plan.outputs.pr_number != ''
     runs-on: ubuntu-latest
@@ -140,30 +139,29 @@ jobs:
       - name: Install Python dependencies
         run: python3 -m pip install clickhouse-connect==0.8.14 PyYAML==6.0.3
 
-      - name: Export the decisions to replay
+      - name: Export and sample the decisions, and record both arms' GitHub reads
         working-directory: tools
         env:
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           GH_TOKEN: ${{ github.token }}
-        # Any non-zero exit fails the job, including 3: a degraded export would bias the frame the replays sample from.
-        run: |
-          set -euo pipefail
-          PYTHONPATH=. python3 -m torchci.greenlight_decisions --output "$RUNNER_TEMP/greenlight-decisions.csv"
+          BASE_SHA: ${{ needs.plan.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.plan.outputs.head_sha }}
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/greenlight_policy_replay_collect.sh"
 
-      - name: Upload the decisions
+      - name: Upload what was collected
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: greenlight-decisions
-          path: ${{ runner.temp }}/greenlight-decisions.csv
+          name: greenlight-collected
+          path: ${{ runner.temp }}/greenlight-collected
           if-no-files-found: error
           overwrite: true
-          retention-days: ${{ env.DECISIONS_RETENTION_DAYS }}
+          retention-days: ${{ env.COLLECTED_RETENTION_DAYS }}
 
   replay:
     name: replay (${{ matrix.arm }}, ${{ matrix.replicate }})
-    needs: [plan, export]
+    needs: [plan, collect]
     environment: bedrock
     runs-on: ubuntu-latest
     timeout-minutes: 240
@@ -193,7 +191,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Python dependencies
-        run: python3 -m pip install clickhouse-connect==0.8.14 PyYAML==6.0.3
+        run: python3 -m pip install PyYAML==6.0.3
 
       - name: Install Claude Code
         run: |
@@ -212,19 +210,16 @@ jobs:
             { echo "/usr/local/bin/claude reports '$version', expected $CLAUDE_CODE_VERSION" >&2; exit 1; }
           echo "Installed Claude Code $version"
 
-      - name: Download the decisions
+      - name: Download what was collected
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
-          name: greenlight-decisions
-          path: ${{ runner.temp }}/greenlight-decisions
+          name: greenlight-collected
+          path: ${{ runner.temp }}/greenlight-collected
 
       - name: Replay
         working-directory: tools
         env:
-          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
-          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
-          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
-          GH_TOKEN: ${{ github.token }}
+          GREENLIGHT_REPLAY_GITHUB_ANSWERS: ${{ runner.temp }}/greenlight-collected/github
           # Puts the reviewers on Bedrock; the harness hands them AWS_REGION from the
           # workflow env, and their CLI reads the [default] profile of ~/.aws/credentials.
           CLAUDE_CODE_USE_BEDROCK: "1"
@@ -305,11 +300,8 @@ jobs:
           echo "The replay's output is printed once it ends, and kept as harness.log in the replay artifact."
           rc=0
           PYTHONPATH=. python3 -m torchci.greenlight_replay \
-            --input "$RUNNER_TEMP/greenlight-decisions/greenlight-decisions.csv" \
+            --input "$RUNNER_TEMP/greenlight-collected/sample.csv" --presampled \
             --policy-ref "$policy_sha" \
-            --sample-frac "$GREENLIGHT_REPLAY_SAMPLE_FRACTION" \
-            --sample-n "$GREENLIGHT_REPLAY_SAMPLE_CAP" \
-            --seed "$GREENLIGHT_REPLAY_SEED" \
             --parallelism "$GREENLIGHT_REPLAY_PARALLELISM" \
             --context-window "$GREENLIGHT_REPLAY_CONTEXT_WINDOW" \
             --output "$out/replay.csv" >"$out/harness.log" 2>&1 || rc=$?
@@ -332,8 +324,8 @@ jobs:
           retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 
   report:
-    needs: [plan, export, replay]
-    if: ${{ !cancelled() && needs.export.result == 'success' }}
+    needs: [plan, collect, replay]
+    if: ${{ !cancelled() && needs.collect.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -368,8 +360,8 @@ jobs:
         run: bash "$GITHUB_WORKSPACE/.github/scripts/greenlight_policy_replay_report.sh"
 
   report-unstarted:
-    needs: [plan, gate, export]
-    if: ${{ !cancelled() && needs.gate.result == 'success' && (needs.plan.result != 'success' || needs.export.result != 'success') }}
+    needs: [plan, gate, collect]
+    if: ${{ !cancelled() && needs.gate.result == 'success' && (needs.plan.result != 'success' || needs.collect.result != 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
