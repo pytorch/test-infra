@@ -575,14 +575,6 @@
       "dynamo"
     ]
   ],
-  "test_flattened_submesh_no_getattr_compile_on_one_rank (__main__.TestDTensorCompileWithCompiledAutograd)": [
-    "193002",
-    "https://github.com/pytorch/pytorch/issues/193002",
-    [
-      "rocm",
-      "xpu"
-    ]
-  ],
   "test_float8_e4m3fn_uint8_decode_codegen_cuda (__main__.TestFP8TypesCUDA)": [
     "188676",
     "https://github.com/pytorch/pytorch/issues/188676",
@@ -1269,13 +1261,6 @@
     "https://github.com/pytorch/pytorch/issues/190088",
     [
       "linux"
-    ]
-  ],
-  "test_sdpa_rewriter_11_gpu (__main__.SDPAPatternRewriterGpuTests)": [
-    "179213",
-    "https://github.com/pytorch/pytorch/issues/179213",
-    [
-      "xpu"
     ]
   ],
   "test_sdpa_rewriter_stacked_layers_with_mask_gpu (__main__.SDPAPatternRewriterGpuDynamicTests)": [
