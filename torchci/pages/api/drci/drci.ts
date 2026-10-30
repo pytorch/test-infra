@@ -22,7 +22,6 @@ import {
   shouldReadAdvisorVerdicts,
 } from "lib/advisor/advisorVerdictSource";
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
-import { updateInProgressLabels } from "lib/bot/preReviewUtils";
 import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
@@ -58,11 +57,7 @@ import {
   fetchJobNamesFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
-import {
-  getOctokit,
-  getOctokitWithUserToken,
-  getPreReviewOctokit,
-} from "lib/github";
+import { getOctokit, getOctokitWithUserToken } from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import {
   GREENLIGHT_PENDING_ALT_ATTR,
@@ -220,22 +215,6 @@ export default async function handler(
       repo,
       prNumber ? [parseInt(prNumber as string)] : []
     );
-
-    // Reactions don't trigger webhooks, so the scheduled run also checks
-    // whether triaged PRs are ready to be marked in progress
-    if (
-      authorization == process.env.DRCI_BOT_KEY &&
-      prNumber === undefined &&
-      isPyTorchPyTorch(validatedOrg, repo)
-    ) {
-      try {
-        const reader =
-          (await getPreReviewOctokit(validatedOrg, repo)) ?? octokit;
-        await updateInProgressLabels(reader, octokit, validatedOrg, repo);
-      } catch (error) {
-        console.error("Failed to update in progress labels:", error);
-      }
-    }
     return res.status(200).json(failures);
   } catch (error) {
     console.error("Error in Dr.CI handler:", error);
