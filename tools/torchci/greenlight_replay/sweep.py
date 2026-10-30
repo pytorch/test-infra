@@ -28,7 +28,7 @@ from typing import Any
 from torchci.greenlight_decisions.__main__ import parse_as_of
 from torchci.greenlight_replay.checkout import WorktreePool
 from torchci.greenlight_replay.emit import append_checkpoint
-from torchci.greenlight_replay.inputs import build_inputs
+from torchci.greenlight_replay.inputs import build_inputs, ReplayInputs
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
 from torchci.greenlight_replay.preflight import preflight
 from torchci.greenlight_replay.runner import (
@@ -270,15 +270,7 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
         head_sha = row["decision_head_sha"]
         run_dir = sweep.workdir / RUNS_DIRNAME / str(number)
         run_dir.mkdir(parents=True, exist_ok=True)
-        replay_inputs = build_inputs(
-            sweep.repo,
-            number,
-            row["base_ref"],
-            head_sha,
-            parse_as_of(row["decision_version"]),
-            run_dir,
-            sweep.policy,
-        )
+        replay_inputs = row_inputs(sweep.repo, row, run_dir, sweep.policy)
 
         def review(workspace: Path) -> RunResult:
             return run_review(
@@ -313,6 +305,26 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
         sweep.errors.append((label, type(exc).__name__))
         return None
     return result.outcome
+
+
+def row_inputs(
+    repo: str, row: Mapping[str, str], run_dir: Path, policy: Policy
+) -> ReplayInputs:
+    """Build one sampled row's reviewer inputs into ``run_dir``.
+
+    The collect job records the GitHub calls this makes and every replay job is
+    answered from that record, so both ask through here: a call made any other way
+    is one the record does not hold.
+    """
+    return build_inputs(
+        repo,
+        pr_number(row),
+        row["base_ref"],
+        row["decision_head_sha"],
+        parse_as_of(row["decision_version"]),
+        run_dir,
+        policy,
+    )
 
 
 def prepare_workspace(sweep: Sweep, worktree: Path) -> Path:

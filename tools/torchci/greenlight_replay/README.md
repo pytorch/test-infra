@@ -60,7 +60,10 @@ Runtime requirements:
   under `--workdir` and never cleaned up automatically.
 
 Everything the tool does to GitHub and ClickHouse is read-only. It writes only
-under `--workdir` and to `--output`.
+under `--workdir`, to `--output` and, run as `collect.py`, to `--answers`. In CI,
+`collect.py` frames and samples once and records every GitHub read both policies
+make; replay jobs run `--presampled` with `GREENLIGHT_REPLAY_GITHUB_ANSWERS`
+naming that record, so they need neither ClickHouse nor an authenticated `gh`.
 
 | flag | default | effect |
 | --- | --- | --- |
@@ -70,8 +73,9 @@ under `--workdir` and to `--output`.
 | `--sample-frac` | — | fraction of the framed rows to replay |
 | `--sample-n` | — | absolute count, or with `--sample-frac` the most it draws; at least one is required |
 | `--seed` | `0` | the same seed over the same frame draws the same sample |
+| `--presampled` | off | the input already is a sample, such as `collect.py`'s `--output`: no frame, no sampling, every row replayed as written |
 | `--parallelism` | `4` | concurrent reviewer runs |
-| `--output` | `greenlight_replay_<timestamp>.csv` | destination |
+| `--output` | `greenlight_replay_<timestamp>.csv` | destination; `.gitignore` covers `greenlight_replay_*.csv`, but one outside the checkout is tidier |
 | `--workdir` | `/tmp/greenlight-replay` | scratch root; keep it under `/tmp/greenlight-*` |
 | `--resume` | off | re-run only what has no verdict yet |
 | `--timeout-minutes` | `37` | wall clock allowed per reviewer run |
@@ -79,9 +83,6 @@ under `--workdir` and to `--output`.
 | `--model` | the policy's profile, mapped unless on Bedrock | model id for the local CLI |
 | `--context-window` | `1000000` | window that model must report; pair it with `--model` or Bedrock |
 | `--dry-run` | off | resolve the frame and sample, check the invocation, print the bill |
-
-`.gitignore` covers `greenlight_replay_*.csv`, but pointing `--output` somewhere
-outside the checkout is tidier.
 
 `--sample-n` is an upper bound rather than a promise. A sampled row can still be
 dropped when its first-landing verdict turns out to be a size-gate decline, which
@@ -135,7 +136,7 @@ greenlight.** The frame drops pull requests that never landed, ones with no
 verdict, size-gate declines, and stale single-landing verdicts. That is a large
 share of the export and it is not a fixed one — it moves with the corpus.
 Whatever you compute, say which population it is over, and put the run's own
-funnel line beside it.
+funnel line beside it; in CI, that line is in the collect job's log.
 
 **4. An empty `new_decision` is the harness, not a refusal.** The reviewer timing
 out, tripping its budget, returning malformed JSON, or coming back empty all land
@@ -247,8 +248,7 @@ writes; every other cell is the input row, untouched.
 
 A sampled pull request that never reached the reviewer at all — the checkout
 failed, the diff could not be fetched — has no row in the output. The count is
-logged and folded into the exit-status ratio, but the file carries no placeholder
-for it.
+logged and folded into the exit-status ratio; the file has no placeholder for it.
 
 ## Cost, time and stopping early
 
