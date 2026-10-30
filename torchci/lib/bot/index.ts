@@ -1,4 +1,5 @@
 import { Probot } from "probot";
+import actionableIssueBot from "./actionableIssueBot";
 import autoCcBot from "./autoCcBot";
 import autoLabelBot from "./autoLabelBot";
 import autoLabelCodevTrunk from "./autoLabelCodevTrunk";
@@ -18,6 +19,7 @@ import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import webhookToDynamo from "./webhookToDynamo";
 
 export default function bot(app: Probot) {
+  actionableIssueBot(app);
   autoCcBot(app);
   autoLabelCodevTrunk(app);
   autoLabelBot(app);

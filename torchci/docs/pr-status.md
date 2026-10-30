@@ -12,7 +12,7 @@ reactions and deadlines do not depend on a webhook or CI activity.
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Before triage                    | No PR Status section without a workflow label. Helpful Links includes Auto PR Triage runs for PRs labeled `open source`.                                                                    |
 | Draft within the workflow        | `draft`: explicitly waiting for the author to mark it ready; pre-review cannot advance while draft.                                                                                         |
-| Missing actionable issue         | Explains the actionable-issue / supporting-maintainer requirement and how to request re-triage.                                                                                             |
+| Missing actionable issue         | Explains the actionable-issue / supporting-maintainer requirement, automatic re-triage when a linked issue gains `actionable`, and the manual fallback.                                     |
 | Pre-review                       | Enabled for `triaged` PRs after the rollout date. Shows actual response progress and the shared deadline, rather than all assignments with mentions.                                        |
 | In progress                      | Explains author action, automated review, maintainer feedback, and CI readiness. The separate automated-review and CI sections provide running, completed, failed, and stale-review detail. |
 | Ready for maintainer review      | Explicitly waiting for a maintainer with merge rights. Outstanding change requests instead ask the author to address feedback and request another review.                                   |
@@ -55,6 +55,35 @@ classifications are still returned. Draft metadata is checked for every workflow
 phase, including PRs without `triaged`. CI rebuilds always read live workflow
 labels for `pytorch/pytorch`, so a mirror that predates triage cannot erase
 newly published pre-review progress.
+
+## Re-triage when an issue becomes actionable
+
+When an issue in `pytorch/pytorch` gains `actionable`, the bot finds connected
+PRs from its paginated timeline, including GitHub's manual development links and
+references from PR descriptions. It verifies each current closing link or
+`Part of #<issue>` / `Part of pytorch/pytorch#<issue>` claim before requesting
+re-triage. Old links, comment-only mentions, code, and HTML comments do not count.
+
+Only open, non-draft PRs against `main` or a `gh/.../base` branch carrying both
+`open source` and `missing actionable issue` are re-triaged. PRs with
+`no automated triage`, `in progress`, or `ready for review` are left alone. The
+bot removes the old triage outcome labels and re-adds `open source` to start the existing Auto PR
+Triage workflow. The missing-issue hold stays in place until that entry event
+has been sent. Normal triage then rechecks the issue and routes reviewers; the
+issue label does not itself grant pre-review or merge approval.
+
+If a trigger write fails after removing `open source`, a redelivered webhook
+can resume the reset. With that label absent, the bot checks the PR's label
+history and proceeds only if its own removal is the latest `open source` event
+and happened after this issue's actionable event. A maintainer's later removal
+prevents recovery. This uses existing label history and leaves the missing-issue
+hold in place on failures.
+
+For example, if PR #10 already says `Fixes #5` and was marked `missing actionable
+issue`, labeling issue #5 `actionable` automatically requests re-triage for PR
+#10. The new triage result and its label webhooks update PR Status. Adding the
+link after the issue was labeled still requires the manual re-triage steps in
+the status comment.
 
 ## Examples
 

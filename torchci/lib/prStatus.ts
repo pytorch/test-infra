@@ -310,10 +310,14 @@ export function getPrStatusMessage(state: PrStatusState): string {
         "If one of these applies, add the matching line to the PR " +
         "description. If there is no `actionable` issue for this change " +
         "yet, you can open one (or comment on an existing one) and wait for " +
-        "a maintainer to label it `actionable`. Then ask a maintainer to " +
-        "triage the PR again: they remove the `triaged`, `bot-triaged`, and " +
-        "`missing actionable issue` labels, then remove and re-add " +
-        "`open source`."
+        "a maintainer to label it `actionable`. Adding `actionable` to an " +
+        "already-linked issue automatically requests re-triage of open, " +
+        "non-draft PRs with `open source` and " +
+        "`missing actionable issue`, unless automated triage is disabled. " +
+        "If you add the link afterward or use `Supported by`, ask a " +
+        "maintainer to triage the PR again: they remove the `triaged`, " +
+        "`bot-triaged`, and `missing actionable issue` labels, then " +
+        "remove and re-add `open source`."
       );
     case "preReview":
       return getPreReviewMessage(state.preReview);
