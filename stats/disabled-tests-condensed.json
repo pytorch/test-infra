@@ -1116,14 +1116,6 @@
       "macos"
     ]
   ],
-  "test_output_grad_match_combinations_mps_float16 (__main__.TestConsistencyMPS)": [
-    "188985",
-    "https://github.com/pytorch/pytorch/issues/188985",
-    [
-      "mac",
-      "macos"
-    ]
-  ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
     "193150",
     "https://github.com/pytorch/pytorch/issues/193150",
