@@ -34,7 +34,7 @@ Examples::
     # Bring a whole cluster up to another's contents. Carries both top-level
     # prefixes -- the hub/ repos and the datasets/ cache -- which is what a
     # brand new region needs.
-    hf_cache_sync.py --mirror --source meta-prod-aws-ue1 --to meta-prod-aws-uw1 --apply
+    hf_cache_sync.py --mirror --source meta-prod-aws-ue1 --to meta-prod-aws-uw2 --apply
 
     # Make several clusters hold the union of what any of them holds. This is
     # what the scheduled hf-cache-sync workflow runs; it never deletes.
@@ -64,11 +64,9 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Set, Tu
 CLUSTERS: Dict[str, str] = {
     "meta-prod-aws-ue1": "us-east-1",
     "meta-prod-aws-ue2": "us-east-2",
-    "meta-prod-aws-uw1": "us-west-1",
     "meta-prod-aws-uw2": "us-west-2",
     "meta-staging-aws-ue1": "us-east-1",
     "meta-staging-aws-ue2": "us-east-2",
-    "meta-staging-aws-uw1": "us-west-1",
 }
 
 PROD = [c for c in CLUSTERS if c.startswith("meta-prod-")]
