@@ -1,4 +1,12 @@
 import { TIME_0 } from "lib/bot/utils";
+import {
+  crcrSectionForSweep,
+  crcrSectionHasBlocks,
+  extractCrcrSection,
+  notifiedHandles,
+  pinLedger,
+  withoutControlMarkers,
+} from "lib/crcr/crcrComment";
 import { CrcrAllowlist } from "lib/crcrAllowlist";
 import * as drciUtils from "lib/drciUtils";
 import {
@@ -279,6 +287,7 @@ function constructResultsCommentHelper({
   prNumber = 123,
   greenlightSection = "",
   advisorLines = new Map(),
+  crcrSection = "",
 }: {
   pending?: number;
   failedJobs?: RecentWorkflowsData[];
@@ -298,6 +307,7 @@ function constructResultsCommentHelper({
   prNumber?: number;
   greenlightSection?: string;
   advisorLines?: Map<number, string>;
+  crcrSection?: string;
 }) {
   return updateDrciBot.constructResultsComment(
     pending,
@@ -320,7 +330,8 @@ function constructResultsCommentHelper({
     repo,
     prNumber,
     advisorLines,
-    greenlightSection
+    greenlightSection,
+    crcrSection
   );
 }
 
@@ -383,6 +394,167 @@ describe("Update Dr. CI Bot Unit Tests", () => {
 * [z-docs / build-docs (cpp)](${HUD_URL}/pr/pytorch/pytorch/123#1) ([gh](a))
     \`bababa\``;
     expect(failureInfo.includes(expectedFailureOrder)).toBeTruthy();
+  });
+
+  test("Check that the pre-rendered CRCR section replaces the generic job list", () => {
+    const crcrJob = getDummyJob({
+      name: "crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-checkrun-creation",
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "https://github.com/pytorch/crcr-test/actions/runs/555",
+      head_sha: "abcdefg",
+      pr_number: 1001,
+      id: 999,
+      downstreamLevel: "L3",
+      downstreamRepo: "pytorch/crcr-test",
+    });
+    // The real section, not a fixture: the renderer's header, the delimiters and
+    // the pin have to come through the splice into the comment as written.
+    const crcrSection = crcrSectionForSweep(
+      "",
+      new Map([["pytorch/crcr-test", [crcrJob]]]),
+      new Map([["pytorch/crcr-test", 1]]),
+      `${HUD_URL}/pr/pytorch/pytorch/1001`,
+      () => ["oncall_a"],
+      true
+    );
+
+    const grouped = constructResultsCommentHelper({
+      crcrL3Jobs: [crcrJob],
+      crcrSection,
+    });
+
+    // The grouped section is spliced in as rendered, and the flat list that the
+    // generic renderer would have produced for the same jobs is gone.
+    expect(grouped).toContain(crcrSection);
+    expect(grouped).toContain(
+      "<b>pytorch/crcr-test</b> · L3 · 1 of 1 jobs failed · on-call @oncall_a"
+    );
+    expect(grouped).toContain(
+      "<!-- crcr-pinned:pytorch/crcr-test:oncall_a -->"
+    );
+    expect(notifiedHandles(grouped)).toEqual(new Set(["oncall_a"]));
+    // The generic list's header is what the grouped section replaces.
+    expect(grouped).not.toContain("<b>CRCR (non-blocking)</b>");
+    // The failure still counts towards the unrelated-failure tally.
+    expect(grouped).toContain("1 Unrelated Failure");
+  });
+
+  test("Check that CRCR failures fall back to the generic list without a section", () => {
+    const crcrJob = getDummyJob({
+      name: "crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-checkrun-creation",
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "https://github.com/pytorch/crcr-test/actions/runs/555",
+      head_sha: "abcdefg",
+      pr_number: 1001,
+      id: 999,
+      downstreamLevel: "L3",
+      downstreamRepo: "pytorch/crcr-test",
+    });
+
+    const flat = constructResultsCommentHelper({ crcrL3Jobs: [crcrJob] });
+
+    expect(flat).toContain("<b>CRCR (non-blocking)</b>");
+    expect(flat).toContain("crcr/pytorch/crcr-test/CRCR L3 CI");
+  });
+
+  test("Check that a bare pin ledger does not hide the generic CRCR list", () => {
+    const crcrJob = getDummyJob({
+      name: "crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-checkrun-creation",
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "https://github.com/pytorch/crcr-test/actions/runs/555",
+      head_sha: "abcdefg",
+      pr_number: 1001,
+      id: 999,
+      downstreamLevel: "L3",
+      downstreamRepo: "pytorch/crcr-test",
+    });
+    const failedByRepo = new Map([["pytorch/crcr-test", [crcrJob]]]);
+    const totals = new Map([["pytorch/crcr-test", 1]]);
+    const hudPrUrl = `${HUD_URL}/pr/pytorch/pytorch/1001`;
+
+    // A push rewrote the comment, leaving the pins behind as a ledger.
+    const ledger = pinLedger(
+      crcrSectionForSweep(
+        "",
+        failedByRepo,
+        totals,
+        hudPrUrl,
+        () => ["oncall_a"],
+        true
+      )
+    );
+    expect(ledger).toContain("<!-- crcr-pinned:pytorch/crcr-test:oncall_a -->");
+    expect(ledger).not.toContain("<details");
+
+    // The next sweep reads the rows but not the allowlist, so it keeps the
+    // ledger. A ledger renders nothing, so the failures still need the generic
+    // list -- counting them in the title and listing none of them is the hole
+    // this covers -- while the markers have to stay for the pin to survive.
+    const comment = constructResultsCommentHelper({
+      crcrL3Jobs: [crcrJob],
+      crcrSection: crcrSectionForSweep(
+        ledger,
+        failedByRepo,
+        totals,
+        hudPrUrl,
+        null,
+        true
+      ),
+    });
+
+    expect(comment).toContain("<b>CRCR (non-blocking)</b>");
+    expect(comment).toContain("crcr/pytorch/crcr-test/CRCR L3 CI");
+    expect(comment).toContain("1 Unrelated Failure");
+    expect(notifiedHandles(comment)).toEqual(new Set(["oncall_a"]));
+  });
+
+  test("Check that a job name cannot fake the section delimiters in the fallback list", () => {
+    // Defused at the row (lib/fetchRecentWorkflows.ts), so this is the text that
+    // actually reaches the comment. Without that, the start delimiter in this
+    // name would sit in the generic list, which round 3 renders alongside the
+    // ledger, and extractCrcrSection would parse from there instead of the ledger.
+    const taintedName = withoutControlMarkers(
+      "crcr/pytorch/crcr-test/<!-- crcr-section-start -->/<!-- crcr-pinned:alice -->"
+    );
+    const crcrJob = getDummyJob({
+      name: taintedName,
+      conclusion: "failure",
+      completed_at: "2022-07-13 19:34:03",
+      html_url: "https://github.com/pytorch/crcr-test/actions/runs/555",
+      head_sha: "abcdefg",
+      pr_number: 1001,
+      id: 999,
+      downstreamLevel: "L3",
+      downstreamRepo: "pytorch/crcr-test",
+    });
+    const failedByRepo = new Map([["pytorch/crcr-test", [crcrJob]]]);
+    const ledger = pinLedger(
+      crcrSectionForSweep(
+        "",
+        failedByRepo,
+        new Map([["pytorch/crcr-test", 1]]),
+        `${HUD_URL}/pr/pytorch/pytorch/1001`,
+        () => ["oncall_a"],
+        true
+      )
+    );
+
+    const comment = constructResultsCommentHelper({
+      crcrL3Jobs: [crcrJob],
+      crcrSection: ledger,
+    });
+
+    // The forged marker is rendered as inert text, the real section is still
+    // found whole, and the forged handle never becomes a pin.
+    expect(comment).toContain("<!- -crcr-section-start -->");
+    expect(comment).toContain("<!- -crcr-pinned:alice -->");
+    expect(comment).not.toContain("<!-- crcr-pinned:alice -->");
+    expect(comment).toContain("crcr/pytorch/crcr-test");
+    expect(extractCrcrSection(comment)).toBe(ledger);
+    expect(notifiedHandles(comment)).toEqual(new Set(["oncall_a"]));
   });
 
   test("Check that reorganizeWorkflows works correctly", async () => {
@@ -1218,6 +1390,174 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(brokenTrunkJobs.length).toBe(0);
     expect(flakyJobs.length).toBe(0);
     expect(unstableJobs.length).toBe(0);
+  });
+});
+
+describe("pinBodyForSweep", () => {
+  const hudPrUrl = `${HUD_URL}/pr/pytorch/pytorch/1001`;
+
+  const failedByRepo = () =>
+    new Map([
+      [
+        "pytorch/crcr-test",
+        [
+          getDummyJob({
+            name: "crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-checkrun-creation",
+            conclusion: "failure",
+            completed_at: "2022-07-13 19:34:03",
+            html_url: "https://github.com/pytorch/crcr-test/actions/runs/555",
+            head_sha: "abcdefg",
+            pr_number: 1001,
+            id: 999,
+            downstreamLevel: "L3",
+            downstreamRepo: "pytorch/crcr-test",
+          }),
+        ],
+      ],
+    ]);
+
+  test("does not read GitHub for a PR with nothing to pin", async () => {
+    const readLive = jest.fn();
+
+    // No failures and the rows were read: the section is cleared, so there is
+    // nothing to carry and nothing to read.
+    expect(
+      await updateDrciBot.pinBodyForSweep(new Map(), true, "replica", readLive)
+    ).toBe("replica");
+    expect(readLive).not.toHaveBeenCalled();
+  });
+
+  test("carries the pins through a failed CRCR query, reading them live", async () => {
+    // A failed query leaves no failures to report, but the sweep still carries the
+    // previous pins forward -- the ledger is the only thing it can put back. That
+    // ledger is built from whatever body the pins were read from, and the replica
+    // can lag the write that spent them: read the replica here and the marker is
+    // gone, so the next healthy sweep mentions alice again. This is the call site
+    // (updateDrciComments passes exactly these facts).
+    const pinSpent = crcrSectionForSweep(
+      "",
+      failedByRepo(),
+      new Map([["pytorch/crcr-test", 2]]),
+      hudPrUrl,
+      () => ["alice"],
+      true
+    );
+    const replicaBody = "## results, no crcr section";
+    const readLive = jest.fn(async () => pinSpent);
+
+    const section = await updateDrciBot.crcrSectionForPr({
+      failedByRepo: new Map(),
+      totalByRepo: new Map(),
+      rowsRead: false,
+      hudPrUrl,
+      onCallsFor: () => ["alice"],
+      replicaBody,
+      readLive,
+    });
+
+    expect(readLive).toHaveBeenCalledTimes(1);
+    expect(crcrSectionHasBlocks(section)).toBe(false);
+    expect(notifiedHandles(section)).toEqual(new Set(["alice"]));
+
+    // What a replica-only build would have put back, for contrast: no pin at all,
+    // which is what re-pages alice on the next sweep.
+    expect(
+      notifiedHandles(
+        crcrSectionForSweep(
+          replicaBody,
+          new Map(),
+          new Map(),
+          hudPrUrl,
+          () => ["alice"],
+          false
+        )
+      )
+    ).toEqual(new Set());
+
+    // The next healthy sweep renders her bare.
+    const recovered = crcrSectionForSweep(
+      section,
+      failedByRepo(),
+      new Map([["pytorch/crcr-test", 2]]),
+      hudPrUrl,
+      () => ["alice"],
+      true
+    );
+    expect(recovered).toContain("On-call alice has been notified.");
+    expect(recovered).not.toContain("@alice");
+  });
+
+  test("prefers the live comment, where a fresh pin is", async () => {
+    // The replica lags GitHub by a sweep at worst; drciBot writes the pin ledger
+    // straight to GitHub on every push. Reading the replica here would render
+    // alice with an `@` again for a failure she was already told about.
+    const replicaBody = "## results, no crcr section";
+    const ledger = pinLedger(
+      crcrSectionForSweep(
+        "",
+        failedByRepo(),
+        new Map([["pytorch/crcr-test", 2]]),
+        `${HUD_URL}/pr/pytorch/pytorch/1001`,
+        () => ["alice"],
+        true
+      )
+    );
+
+    const body = await updateDrciBot.pinBodyForSweep(
+      failedByRepo(),
+      true,
+      replicaBody,
+      async () => ledger
+    );
+    expect(body).toBe(ledger);
+
+    const reRendered = crcrSectionForSweep(
+      body,
+      failedByRepo(),
+      new Map([["pytorch/crcr-test", 2]]),
+      `${HUD_URL}/pr/pytorch/pytorch/1001`,
+      () => ["alice"],
+      true
+    );
+    expect(reRendered).not.toContain("@alice");
+    expect(reRendered).toContain("On-call alice has been notified.");
+    // What the replica alone would have produced, for contrast.
+    expect(
+      crcrSectionForSweep(
+        replicaBody,
+        failedByRepo(),
+        new Map([["pytorch/crcr-test", 2]]),
+        `${HUD_URL}/pr/pytorch/pytorch/1001`,
+        () => ["alice"],
+        true
+      )
+    ).toContain("@alice");
+  });
+
+  test("falls back to the replica rather than dropping pins", async () => {
+    expect(
+      await updateDrciBot.pinBodyForSweep(
+        failedByRepo(),
+        true,
+        "replica",
+        async () => {
+          throw new Error("GitHub is down");
+        }
+      )
+    ).toBe("replica");
+  });
+
+  test("falls back when there is no comment to read", async () => {
+    // getDrciComment answers {id: 0, body: ""} when the PR has no Dr. CI comment
+    // yet; the replica may still hold one written since the last query.
+    expect(
+      await updateDrciBot.pinBodyForSweep(
+        failedByRepo(),
+        true,
+        "replica",
+        async () => ""
+      )
+    ).toBe("replica");
   });
 });
 
