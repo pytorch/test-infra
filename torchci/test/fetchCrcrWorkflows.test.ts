@@ -165,4 +165,16 @@ describe("fetchCrcrActivityPRs", () => {
     // A row without a PR cannot wake one.
     expect(prs).toEqual([123]);
   });
+
+  test("falls back to an empty set instead of rejecting when the query fails", async () => {
+    // The waker is awaited inside the sweep's argument list, so a rejection
+    // would break the Promise.all and stop every Dr. CI comment from
+    // updating, not only the CRCR ones. A lost wake delays one comment; the
+    // sweep must survive the query's failure.
+    queryClickhouseMock.mockRejectedValue(new Error("ClickHouse timeout"));
+
+    await expect(
+      fetchCrcrActivityPRs("pytorch/pytorch", "30")
+    ).resolves.toEqual([]);
+  });
 });

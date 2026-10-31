@@ -280,13 +280,13 @@ export async function upsertDrCiComment(
   // rebuilding the rest of the comment. The CRCR results are rebuilt by the next
   // sweep and the push may have invalidated them, so only the pin ledger is kept:
   // it is invisible, and losing it would make that sweep page every on-call
-  // again for a failure they were already told about.
+  // again for a failure they were already told about. The greenlight line is the
+  // only other thing this event has to say, and it shares the results slot.
   const drciComment = formDrciComment(
     prNum,
     owner,
     repo,
-    greenlightLine,
-    pinLedger(existingDrciComment),
+    pinLedger(existingDrciComment) + greenlightLine,
     formDrciSevBody(sev),
     extractPrStatusSection(existingDrciComment),
     context.payload.pull_request?.head?.ref ?? "",

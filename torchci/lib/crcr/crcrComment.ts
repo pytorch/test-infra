@@ -9,11 +9,15 @@
 // the summary says which this block is.
 //
 // The on-call pin lives in the summary line and in one sentence under the jobs,
-// rather than in the standalone comment crcrOncallBot used to post. GitHub
-// notifies every @-mention in a comment whenever that comment is EDITED, and the
-// Dr. CI comment is rewritten every 15 minutes, so a pin has to be spent exactly
-// once per (repo, person) -- one repo's recovery must not leave another repo's
-// mention unspent. `notifiedHandlesByRepo` and `takeUnnotified` are that logic.
+// rather than in the standalone comment crcrOncallBot used to post. A plain
+// comment edit notifies nobody, but an edit that ADDS a new @mention notifies
+// that handle, once per handle per comment -- later edits never re-notify the
+// same handle (undocumented; the running experiment is
+// stackoverflow.com/questions/38986589). The Dr. CI comment is rewritten every
+// 15 minutes, so a pin has to be spent exactly once per (repo, person): a
+// repeat mention of an already-paged handle would stay silent, and one repo's
+// recovery must not leave another repo's first mention unspent.
+// `notifiedHandlesByRepo` and `takeUnnotified` are that logic.
 
 import { RecentWorkflowsData } from "lib/types";
 

@@ -24,8 +24,6 @@ import {
 import { AdvisorVerdictRow } from "lib/advisorVerdictUtils";
 import { fetchJSON, isPyTorchPyTorch, isTime0 } from "lib/bot/utils";
 import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
-import { buildCrcrTriageLines } from "lib/crcr/crcrTriage";
-import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
   CRCR_JOBS_IN_FLIGHT,
   crcrSectionForSweep,
@@ -33,6 +31,8 @@ import {
   isCrcrInFlight,
   latestAttemptsForHead,
 } from "lib/crcr/crcrComment";
+import { buildCrcrTriageLines } from "lib/crcr/crcrTriage";
+import { CrcrAllowlist, fetchCrcrAllowlist } from "lib/crcrAllowlist";
 import {
   CANCELLED_STEP_ERROR,
   DRCI_COMMENT_AUTHOR,
@@ -358,18 +358,11 @@ export async function updateDrciComments(
   const greenlightSections = await greenlightSectionsPromise;
   const prReviewSections = await prReviewSectionsPromise;
   const prReviewHeadVerdicts = await prReviewHeadVerdictsPromise;
+  // Null is "could not read", which is not the same as an allowlist with no
+  // on-calls in it -- see the section build below. The on-call pin needs it, so
+  // it is read once for the whole sweep, before any PR is rendered: a read that
+  // fails once would otherwise be retried for every PR with CRCR failures.
   const crcrAllowlist = await crcrAllowlistPromise;
-
-  // Loaded once for the whole sweep, before any PR is rendered: the on-call pin
-  // needs it, and a read that fails once would otherwise be retried for every PR
-  // with CRCR failures. Null is "could not read", which is not the same as an
-  // allowlist with no on-calls in it -- see the section build below.
-  let crcrAllowlist: CrcrAllowlist | null = null;
-  try {
-    crcrAllowlist = await fetchCrcrAllowlist(octokit);
-  } catch (err) {
-    console.error("Failed to load CRCR allowlist for pins:", err);
-  }
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -1744,42 +1737,6 @@ export function constructResultsComment(
         relatedIssues,
         relatedInfo,
         advisorLines
-      );
-  // The CRCR section is rendered by lib/crcr/crcrComment so the failures can be
-  // grouped by downstream repo and pinned to that repo's on-calls. It is empty
-  // unless the PR has failing downstream jobs, in which case crcrL3Jobs is
-  // non-empty too -- keeping the fallback means a CRCR section is still shown if
-  // the pre-rendered one was dropped by the caller.
-  //
-  // Only a section with blocks replaces the generic list, not merely a non-empty
-  // one: a sweep that could not rebuild the section passes on the pin ledger,
-  // which renders nothing at all. Treating that as the section would count the
-  // failures in the title and list none of them, so it keeps the list -- and is
-  // spliced anyway, because its markers are the only record of who has been
-  // paged.
-  const crcrBlocks = crcrSectionHasBlocks(crcrSection);
-  output += crcrBlocks
-    ? `\n${crcrSection}`
-    : constructResultsJobsSections(
-        hudBaseUrl,
-        owner,
-        repo,
-        prNumber,
-        "CRCR (non-blocking)",
-        `The following CRCR downstream CI ${pluralize(
-          "job",
-          crcrL3Jobs.length
-        )} failed but ${pluralize(
-          "is",
-          crcrL3Jobs.length,
-          "are"
-        )} non-blocking`,
-        crcrL3Jobs,
-        "",
-        true,
-        relatedJobs,
-        relatedIssues,
-        relatedInfo
       );
   if (crcrSection && !crcrBlocks) {
     output += `\n${crcrSection}`;

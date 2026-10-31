@@ -113,13 +113,26 @@ export async function fetchCrcrActivityPRs(
   // merge keeps the read off the merges. An in-flight job's PR is also kept
   // wakeable by the in-flight sentinel the sweep writes into its comment; this
   // query is what gives that sentinel its first sweep.
-  const rows = await queryClickhouse(
-    `SELECT DISTINCT pr_number
+  //
+  // This runs in the sweep's argument list, so a rejection here would take the
+  // whole Promise.all -- every Dr. CI comment, not only the CRCR ones -- down
+  // with it. The waker is best-effort: a lost wake costs one delayed comment,
+  // not a broken sweep, so the error is logged and the fallback is an empty
+  // set. Every other CRCR read in the sweep is guarded the same way.
+  let rows: any[];
+  try {
+    rows = await queryClickhouse(
+      `SELECT DISTINCT pr_number
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
       AND _inserted_at > now() - INTERVAL {numMinutes:Int64} MINUTE`,
-    { repo, numMinutes: parseInt(numMinutes, 10) }
-  );
+      { repo, numMinutes: parseInt(numMinutes, 10) }
+    );
+  } catch (err) {
+    // If the wake query fails, log and proceed — don't block the Dr.CI update
+    console.error("Failed to fetch recent CRCR activity PRs:", err);
+    return [];
+  }
   // A row without a PR cannot wake one.
   return rows
     .map((row: any) => parseInt(row.pr_number) || 0)
