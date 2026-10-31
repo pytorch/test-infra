@@ -326,6 +326,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_RAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202889",
+    "https://github.com/pytorch/pytorch/issues/202889",
+    [
+      "xpu"
+    ]
+  ],
   "test_cpp_custom_op_runtime_dispatch_stays_in_cpp (__main__.TestCppWrapperCustomOps)": [
     "202322",
     "https://github.com/pytorch/pytorch/issues/202322",
