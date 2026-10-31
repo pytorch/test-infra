@@ -1,4 +1,6 @@
+import yaml from "js-yaml";
 import { minimatch } from "minimatch";
+import { Octokit } from "octokit";
 import { Context } from "probot";
 import { CachedLabelerConfigTracker } from "./utils";
 
@@ -71,13 +73,15 @@ export function draftConstraintAllowsLabel(
   return isDraft;
 }
 
-export async function getLabelsFromLabelerConfig(
-  context: Context,
-  labelerConfigTracker: CachedLabelerConfigTracker,
+export type LabelerLog = (_fields: object, _message: string) => void;
+
+/** The labels a PR with these changed files and draft state needs under a labeler config. */
+export function getLabelsNeededByFiles(
+  config: Record<string, unknown>,
   changed_files: string[],
-  isDraft: boolean = false
-): Promise<string[]> {
-  const config = await labelerConfigTracker.loadLabelsConfig(context);
+  isDraft: boolean,
+  log: LabelerLog = () => {}
+): string[] {
   const labels: string[] = [];
 
   for (const [label, rawRule] of Object.entries(config)) {
@@ -85,7 +89,7 @@ export async function getLabelsFromLabelerConfig(
     if (rule === null) {
       const skipReason = labelerRuleSkipReason(rawRule);
       if (skipReason === "invalid_draft") {
-        context.log(
+        log(
           {
             label,
             rawRule,
@@ -94,7 +98,7 @@ export async function getLabelsFromLabelerConfig(
           "getLabelsFromLabelerConfig: invalid draft type (expected boolean), skipping"
         );
       } else {
-        context.log(
+        log(
           { label, rawRule },
           "getLabelsFromLabelerConfig: unknown rule shape, skipping"
         );
@@ -116,6 +120,21 @@ export async function getLabelsFromLabelerConfig(
   return labels;
 }
 
+export async function getLabelsFromLabelerConfig(
+  context: Context,
+  labelerConfigTracker: CachedLabelerConfigTracker,
+  changed_files: string[],
+  isDraft: boolean = false
+): Promise<string[]> {
+  const config = await labelerConfigTracker.loadLabelsConfig(context);
+  return getLabelsNeededByFiles(
+    config as Record<string, unknown>,
+    changed_files,
+    isDraft,
+    (fields, message) => context.log(fields, message)
+  );
+}
+
 export function getDraftGatedLabelsToRemove(
   config: Record<string, unknown>,
   changed_files: string[],
@@ -135,4 +154,57 @@ export function getDraftGatedLabelsToRemove(
     }
   }
   return toRemove;
+}
+
+async function readRepoYaml(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  path: string
+): Promise<unknown> {
+  let data;
+  try {
+    data = (await octokit.rest.repos.getContent({ owner, repo, path })).data;
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) {
+      return null;
+    }
+    throw error;
+  }
+  if (!("content" in data)) {
+    throw new Error(`${owner}/${repo} ${path}: unexpected response format`);
+  }
+  return yaml.load(Buffer.from(data.content, "base64").toString("utf-8"));
+}
+
+/**
+ * The labeler config named by `labeler_config` in .github/pytorch-probot.yml on
+ * the repo's default branch, for callers outside probot. Null when the repo has
+ * no labeler config.
+ */
+export async function loadLabelerConfig(
+  octokit: Octokit,
+  owner: string,
+  repo: string
+): Promise<Record<string, unknown> | null> {
+  const probotConfig: any = await readRepoYaml(
+    octokit,
+    owner,
+    repo,
+    ".github/pytorch-probot.yml"
+  );
+  const labelerFile = probotConfig?.labeler_config;
+  if (typeof labelerFile !== "string") {
+    return null;
+  }
+  const labelerConfig = await readRepoYaml(
+    octokit,
+    owner,
+    repo,
+    `.github/${labelerFile}`
+  );
+  if (labelerConfig === null || typeof labelerConfig !== "object") {
+    return null;
+  }
+  return labelerConfig as Record<string, unknown>;
 }
