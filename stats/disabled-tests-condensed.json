@@ -242,6 +242,34 @@
       "xpu"
     ]
   ],
+  "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_True_conv_offset_ (__main__.CudaReproTests)": [
+    "202874",
+    "https://github.com/pytorch/pytorch/issues/202874",
+    [
+      "xpu"
+    ]
+  ],
+  "test_conv_bias_rounds_before_log_softmax_float16_emulate_precision_casts_False_conv_offset_ (__main__.CudaReproTests)": [
+    "202875",
+    "https://github.com/pytorch/pytorch/issues/202875",
+    [
+      "xpu"
+    ]
+  ],
+  "test_conv_bias_rounds_before_log_softmax_float16_emulate_precision_casts_True_conv_offset_ (__main__.CudaReproTests)": [
+    "202876",
+    "https://github.com/pytorch/pytorch/issues/202876",
+    [
+      "xpu"
+    ]
+  ],
+  "test_conv_bias_single_roundtrip_when_saved_bfloat16 (__main__.CudaReproTests)": [
+    "202877",
+    "https://github.com/pytorch/pytorch/issues/202877",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv_unary_fusion_nnc (__main__.TestMkldnnFusion)": [
     "123905",
     "https://github.com/pytorch/pytorch/issues/123905",
@@ -1103,6 +1131,13 @@
       "linux"
     ]
   ],
+  "test_persistent_and_looped_reductions_benchmark (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
+    "202873",
+    "https://github.com/pytorch/pytorch/issues/202873",
+    [
+      "xpu"
+    ]
+  ],
   "test_profiler_experimental_tree_with_stack_and_modules (__main__.TestProfilerTree)": [
     "200705",
     "https://github.com/pytorch/pytorch/issues/200705",
@@ -1136,6 +1171,13 @@
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
     []
+  ],
+  "test_regional_fallback_by_default_invoke_subgraph_xpu (__main__.GPUTests)": [
+    "195876",
+    "https://github.com/pytorch/pytorch/issues/195876",
+    [
+      "xpu"
+    ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
