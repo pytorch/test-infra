@@ -1502,13 +1502,6 @@
       "inductor"
     ]
   ],
-  "test_variable_sharing_cuda (__main__.TestMultiprocessingDeviceCUDA)": [
-    "199889",
-    "https://github.com/pytorch/pytorch/issues/199889",
-    [
-      "rocm"
-    ]
-  ],
   "test_variant_consistency_jit_nn_functional_grid_sample_cuda_float32 (__main__.TestJitCUDA)": [
     "197511",
     "https://github.com/pytorch/pytorch/issues/197511",
