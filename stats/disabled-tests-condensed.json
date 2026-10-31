@@ -868,13 +868,6 @@
     "https://github.com/pytorch/pytorch/issues/188692",
     []
   ],
-  "test_mm_submatrix_offline_tunableop_cuda_float32 (__main__.TestLinalgCudaOnlyCUDA)": [
-    "186873",
-    "https://github.com/pytorch/pytorch/issues/186873",
-    [
-      "rocm"
-    ]
-  ],
   "test_multi_kernel_nesting_and_global_constexpr (__main__.FxGraphRunnableTest)": [
     "196392",
     "https://github.com/pytorch/pytorch/issues/196392",
