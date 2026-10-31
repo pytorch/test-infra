@@ -917,6 +917,20 @@
       "xpu"
     ]
   ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "199495",
+    "https://github.com/pytorch/pytorch/issues/199495",
+    [
+      "xpu"
+    ]
+  ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_xpu (__main__.GPUTests)": [
+    "200423",
+    "https://github.com/pytorch/pytorch/issues/200423",
+    [
+      "xpu"
+    ]
+  ],
   "test_mutating_custom_op_with_device_arg_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202796",
     "https://github.com/pytorch/pytorch/issues/202796",
@@ -1126,6 +1140,13 @@
   "test_persistent_and_looped_reductions_benchmark (__main__.ComboKernelBenchmarkTestsPerSubkernelBlocks)": [
     "202873",
     "https://github.com/pytorch/pytorch/issues/202873",
+    [
+      "xpu"
+    ]
+  ],
+  "test_pointwise_query_producer_head_dims0_xpu (__main__.TestFlexDecodingXPU)": [
+    "198712",
+    "https://github.com/pytorch/pytorch/issues/198712",
     [
       "xpu"
     ]
