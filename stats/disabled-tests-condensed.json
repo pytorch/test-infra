@@ -1142,6 +1142,13 @@
       "xpu"
     ]
   ],
+  "test_pointwise_query_producer_head_dims1_xpu (__main__.TestFlexDecodingXPU)": [
+    "199703",
+    "https://github.com/pytorch/pytorch/issues/199703",
+    [
+      "xpu"
+    ]
+  ],
   "test_profiler_experimental_tree_with_stack_and_modules (__main__.TestProfilerTree)": [
     "200705",
     "https://github.com/pytorch/pytorch/issues/200705",
