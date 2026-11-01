@@ -296,6 +296,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_AdamW_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202933",
+    "https://github.com/pytorch/pytorch/issues/202933",
+    [
+      "xpu"
+    ]
+  ],
   "test_correctness_RAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "202889",
     "https://github.com/pytorch/pytorch/issues/202889",
@@ -623,6 +630,13 @@
     "https://github.com/pytorch/pytorch/issues/158443",
     [
       "linux"
+    ]
+  ],
+  "test_graph_checkpoint_preserve_rng_state (__main__.TestXpu)": [
+    "196308",
+    "https://github.com/pytorch/pytorch/issues/196308",
+    [
+      "xpu"
     ]
   ],
   "test_graph_empty_cache_after_side_stream_free_during_capture (__main__.TestXpu)": [
