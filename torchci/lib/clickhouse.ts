@@ -60,6 +60,7 @@ export async function queryClickhouse(
       date_time_output_format: "iso",
       use_query_cache: useQueryCache ? 1 : 0,
       ...settings,
+      query_cache_nondeterministic_function_handling: "ignore",
     },
     query_id,
   });

@@ -27,6 +27,7 @@ describe("queryClickhouse", () => {
       output_format_json_quote_64bit_integers: 0,
       date_time_output_format: "iso",
       use_query_cache: 0,
+      query_cache_nondeterministic_function_handling: "ignore",
     });
   });
 
@@ -41,6 +42,7 @@ describe("queryClickhouse", () => {
         date_time_output_format: "iso",
         use_query_cache: 1,
         profile: "ci_workload_heavy",
+        query_cache_nondeterministic_function_handling: "ignore",
       },
     });
   });

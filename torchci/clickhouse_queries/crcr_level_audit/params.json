@@ -1,0 +1,12 @@
+{
+  "params": {
+    "repo": "String",
+    "limit": "UInt32"
+  },
+  "tests": [
+    {
+      "repo": "<company>/<repo>",
+      "limit": "100"
+    }
+  ]
+}
