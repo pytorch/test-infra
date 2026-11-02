@@ -40,6 +40,12 @@ export const PR_STATUS_LABEL_REVIEW_OPT_OUT = "no automated review";
 // actionable issue nor a supporting maintainer.
 export const PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE =
   "missing actionable issue";
+// Adding this label starts an Auto PR Triage run.
+export const AUTO_PR_TRIAGE_LABEL = "open source";
+export const BOT_TRIAGED_LABEL = "bot-triaged";
+export const BOT_TRIAGE_ERROR_LABEL = "bot-triage-error";
+// Auto PR Triage leaves a PR with this label as is.
+export const AUTO_PR_TRIAGE_OPT_OUT_LABEL = "no automated triage";
 
 export const PR_STATUS_LABELS = [
   PR_STATUS_LABEL_TRIAGED,
@@ -351,9 +357,7 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         "the description also requests re-triage automatically. Marking " +
         "the PR ready, reopening it, or re-enabling automated triage " +
         "rechecks existing links and support. If re-triage is still needed, " +
-        "ask a maintainer: they remove the `triaged`, " +
-        "`bot-triaged`, and `missing actionable issue` labels, then " +
-        "remove and re-add `open source`."
+        "comment `@pytorchbot triage` to run Auto PR Triage again."
       );
     case "preReview":
       return getPreReviewMessage(state.preReview);
