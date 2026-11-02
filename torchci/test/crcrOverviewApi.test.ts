@@ -120,7 +120,19 @@ describe("/api/crcr/overview", () => {
   });
 
   it("retains a section's last good data when a later response reports an error", () => {
-    const previousPrSummary = [{ repo: "example/pr" }];
+    const previousPrSummary = [
+      {
+        repo: "example/pr",
+        downstream_repo_level: "L2",
+        successes: 1,
+        failures: 0,
+        timed_out: 0,
+        total: 1,
+        pass_rate: 1,
+        avg_duration_s: 1,
+        last_run: "2026-11-02T00:00:00Z",
+      },
+    ];
     const failedData: CrcrOverviewData = {
       prSummary: null,
       nightlySummary: null,
@@ -159,7 +171,21 @@ describe("/api/crcr/overview", () => {
     };
 
     const retained = mergeCrcrOverviewData(
-      { prSummary: [{ repo: "stale/repo" }] },
+      {
+        prSummary: [
+          {
+            repo: "stale/repo",
+            downstream_repo_level: "L2",
+            successes: 1,
+            failures: 0,
+            timed_out: 0,
+            total: 1,
+            pass_rate: 1,
+            avg_duration_s: 1,
+            last_run: "2026-11-02T00:00:00Z",
+          },
+        ],
+      },
       succeededResponse
     );
 

@@ -1142,8 +1142,10 @@ export default function CrcrSummaryPage() {
         {stats && (
           <Stack spacing={2}>
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-              <CrcrTestHealthCard healthPrs={healthPrs} />
-              <CrcrNightlyHealthCard nightlyJobs={nightlyHealthJobs} />
+              <CrcrTestHealthCard healthPrs={healthPrs ?? undefined} />
+              <CrcrNightlyHealthCard
+                nightlyJobs={nightlyHealthJobs ?? undefined}
+              />
               <StatCard
                 label="Total Probe Runs"
                 value={stats.totalRuns}
