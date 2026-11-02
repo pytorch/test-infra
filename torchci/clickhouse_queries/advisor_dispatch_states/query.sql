@@ -1,13 +1,14 @@
--- Latest AI advisor dispatch state + retry_count per signal_key for one PR head
--- commit. Used to dedup auto-dispatch. argMax over the replacing version returns
--- the latest row; reading (state, retry_count) as one tuple keeps them paired
--- even if two writes ever share a version timestamp. `latest_version` is when
+-- Latest AI advisor dispatch state, retry_count and analyzed job id per
+-- signal_key for one PR head commit. Used to dedup auto-dispatch. argMax over
+-- the replacing version returns the latest row; reading (state, retry_count,
+-- job_id) as one tuple keeps them paired even if two writes ever share a
+-- version timestamp. `latest_version` is when
 -- that dispatch captured its evidence (a terminal row carries its pre-dispatch
 -- row's time); auto-dispatch compares it with the job's completed_at to spot a
 -- rerun that finished after the last analysis was dispatched.
 SELECT
     signal_key,
-    argMax((state, retry_count), version) AS sr,
+    argMax((state, retry_count, job_id), version) AS sr,
     max(version) AS latest_version
 FROM misc.ai_advisor_dispatches
 WHERE

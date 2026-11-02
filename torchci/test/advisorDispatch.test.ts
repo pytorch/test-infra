@@ -564,6 +564,67 @@ describe("rerun re-dispatch", () => {
     );
   });
 
+  // The ClickHouse ingest window: the rerun finished 12s before the dispatch
+  // but was not in ClickHouse yet, so the dispatch analyzed the first run. Its
+  // row records the first run's job id, so the rerun is still re-dispatched.
+  it("re-dispatches a rerun the dispatch did not analyze, by job id", async () => {
+    const states = new Map([
+      [
+        signalKeyForJob("wf / a"),
+        {
+          state: "dispatched" as const,
+          retryCount: 0,
+          version: DISPATCHED_AT,
+          jobId: 1,
+        },
+      ],
+    ]);
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+    });
+    const rerun = {
+      ...job("wf / a", "failure", [], "2026-10-16 00:53:24"),
+      id: 2,
+      workflowId: 10,
+    };
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [rerun], verdictRows: ANSWERED },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: 2 })
+    );
+  });
+
+  it("does not re-dispatch the run the dispatch analyzed", async () => {
+    const states = new Map([
+      [
+        signalKeyForJob("wf / a"),
+        {
+          state: "dispatched" as const,
+          retryCount: 0,
+          version: DISPATCHED_AT,
+          jobId: 2,
+        },
+      ],
+    ]);
+    const deps = makeDeps({
+      readDispatchStates: jest.fn().mockResolvedValue(states),
+    });
+    // Finished "after" the dispatch by this server's clock, but it is the run
+    // the dispatch recorded.
+    const same = {
+      ...job("wf / a", "failure", [], RERUN_DONE),
+      id: 2,
+      workflowId: 10,
+    };
+    await autoDispatchAdvisorForNewFailures(
+      { ...baseArgs, newFailures: [same], verdictRows: ANSWERED },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).not.toHaveBeenCalled();
+  });
+
   it("waits for the previous analysis to answer before re-dispatching", async () => {
     const deps = makeDeps({
       readDispatchStates: jest
@@ -698,12 +759,38 @@ describe("rerun re-dispatch", () => {
   });
 });
 
+// A live dispatch row as readers see it.
+function mark(version: string, jobId = 0) {
+  return { state: "dispatched", version, jobId };
+}
+
 describe("ranAfterDispatch / readyToReanalyze", () => {
   it("treats a tie as a rerun and an unknown time as not one", () => {
     const at = "2026-10-16 01:13:57.000";
-    expect(ranAfterDispatch(job("x", "failure", [], at), at)).toBe(true);
-    expect(ranAfterDispatch(job("x", "failure", [], ""), at)).toBe(false);
-    expect(ranAfterDispatch(job("x", "failure", [], at), "")).toBe(false);
+    expect(ranAfterDispatch(job("x", "failure", [], at), mark(at))).toBe(true);
+    expect(ranAfterDispatch(job("x", "failure", [], ""), mark(at))).toBe(false);
+    expect(ranAfterDispatch(job("x", "failure", [], at), mark(""))).toBe(false);
+  });
+
+  // The ClickHouse ingest window: the rerun finished 12s before the dispatch
+  // but was not in ClickHouse when the dispatch read its evidence. By time it
+  // looks analyzed; by job id it is not.
+  it("decides by job id when both sides carry one", () => {
+    const at = "2026-10-09 10:00:12.500";
+    const rerun = {
+      ...job("x", "failure", [], "2026-10-09 10:00:00"),
+      id: 2,
+      workflowId: 10,
+    };
+    expect(ranAfterDispatch(rerun, mark(at))).toBe(false);
+    expect(ranAfterDispatch(rerun, mark(at, 1))).toBe(true);
+    expect(ranAfterDispatch(rerun, mark(at, 2))).toBe(false);
+    // Dr.CI's pick can move to a lower id (a newer workflow run arrived).
+    expect(ranAfterDispatch(rerun, mark(at, 3))).toBe(true);
+    // Same id, even if this server's clock put the dispatch before the run.
+    expect(ranAfterDispatch(rerun, mark("2026-10-09 09:59:00.000", 2))).toBe(
+      false
+    );
   });
 
   it("is ready only when a verdict is strictly newer than the dispatch", () => {
@@ -747,6 +834,68 @@ describe("dispatch row versions", () => {
     ]);
   });
 
+  it("records the run on every row and names it to the dispatch", async () => {
+    const recordDispatch = jest
+      .fn()
+      .mockResolvedValue("2026-10-16 00:53:36.569");
+    const deps = makeDeps({ recordDispatch });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [{ ...job("wf / a"), id: 7, workflowId: 10 }],
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: 7 })
+    );
+    expect(
+      recordDispatch.mock.calls.map((c) => [c[0].state, c[0].jobId])
+    ).toEqual([
+      ["dispatching", 7],
+      ["dispatched", 7],
+    ]);
+  });
+
+  it("records the run on a failed row too", async () => {
+    const deps = makeDeps({
+      dispatchAdvisorWorkflow: jest
+        .fn()
+        .mockRejectedValue(new Error("refused")),
+    });
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [{ ...job("wf / a"), id: 7, workflowId: 10 }],
+      },
+      deps
+    );
+    expect((deps.recordDispatch as jest.Mock).mock.calls[1][0]).toEqual(
+      expect.objectContaining({ state: "failed", jobId: 7 })
+    );
+  });
+
+  // A workflow that failed to start has no job: its id is the workflow run's,
+  // which a re-run attempt keeps, so it is not recorded or named.
+  it("records no run for a workflow-level failure", async () => {
+    const deps = makeDeps();
+    await autoDispatchAdvisorForNewFailures(
+      {
+        ...baseArgs,
+        newFailures: [
+          { ...job(".github/workflows/trunk.yml"), id: 555, workflowId: 0 },
+        ],
+      },
+      deps
+    );
+    expect(deps.dispatchAdvisorWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ jobId: undefined })
+    );
+    expect((deps.recordDispatch as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({ state: "dispatching", jobId: 0 })
+    );
+  });
+
   it("stamps a failed row from the pre-dispatch row's version too", async () => {
     const PRE = "2026-10-16 00:53:36.569";
     const recordDispatch = jest.fn().mockResolvedValue(PRE);
@@ -769,7 +918,7 @@ describe("toDispatchMark", () => {
   const v = "2026-10-16 00:53:36.569";
   it("marks a failed row under the retry limit as retry-pending", () => {
     expect(
-      toDispatchMark({ state: "failed", retryCount: 0, version: v })
+      toDispatchMark({ state: "failed", retryCount: 0, version: v, jobId: 0 })
         .retryPending
     ).toBe(true);
     expect(
@@ -777,12 +926,28 @@ describe("toDispatchMark", () => {
         state: "failed",
         retryCount: MAX_DISPATCH_RETRIES,
         version: v,
+        jobId: 0,
       }).retryPending
     ).toBe(false);
     expect(
-      toDispatchMark({ state: "dispatched", retryCount: 0, version: v })
-        .retryPending
+      toDispatchMark({
+        state: "dispatched",
+        retryCount: 0,
+        version: v,
+        jobId: 0,
+      }).retryPending
     ).toBe(false);
+  });
+
+  it("carries the dispatch row's job id", () => {
+    expect(
+      toDispatchMark({
+        state: "dispatched",
+        retryCount: 0,
+        version: v,
+        jobId: 7,
+      }).jobId
+    ).toBe(7);
   });
 });
 
@@ -790,10 +955,10 @@ describe("ranAfterDispatch boundary", () => {
   const v = "2026-10-16 00:53:36.569";
   it("a rerun within the dispatch's second counts as a rerun", () => {
     expect(
-      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:36"), v)
+      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:36"), mark(v))
     ).toBe(true);
     expect(
-      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:35"), v)
+      ranAfterDispatch(job("x", "failure", [], "2026-10-16 00:53:35"), mark(v))
     ).toBe(false);
   });
 });

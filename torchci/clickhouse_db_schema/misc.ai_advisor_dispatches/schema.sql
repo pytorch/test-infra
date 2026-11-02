@@ -16,6 +16,10 @@
 -- and post-dispatch rows for a single dispatch collapse into one row (putting
 -- the timestamp in the sort key is the bug that stops misc.autorevert_events_v2
 -- rows from collapsing).
+--
+-- job_id is the workflow_job run the dispatch analyzed (0: unknown, e.g. rows
+-- written before the column existed). A verdict binds to a run by this id when
+-- both sides know it, and by dispatch time otherwise.
 CREATE TABLE misc.ai_advisor_dispatches
 (
     `owner` LowCardinality(String),
@@ -26,6 +30,7 @@ CREATE TABLE misc.ai_advisor_dispatches
     `retry_count` UInt8 DEFAULT 0,
     `pr_number` Int64,
     `job_name` String,
+    `job_id` UInt64 DEFAULT 0,
     `version` DateTime64(3),
     `_inserted_at` DateTime MATERIALIZED now()
 )
