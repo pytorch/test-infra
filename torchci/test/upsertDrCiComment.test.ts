@@ -34,16 +34,20 @@ function crcrJob(): RecentWorkflowsData {
 }
 
 function octokitFor(body: string) {
+  const botComment = {
+    id: 456,
+    body,
+    user: { login: "pytorch-bot[bot]" },
+  };
   return {
     rest: {
       issues: {
-        listComments: jest.fn().mockResolvedValue({
-          data: [{ id: 456, body, user: { login: "pytorch-bot[bot]" } }],
-        }),
+        listComments: jest.fn(),
       },
     },
-    // getDrciComment reads through `octokit.rest.issues` while the upsert writes
-    // through the legacy shorthand `context.octokit.issues`.
+    // getDrciComment paginates through `octokit.paginate` while the upsert
+    // writes through the legacy shorthand `context.octokit.issues`.
+    paginate: jest.fn().mockResolvedValue([botComment]),
     issues: {
       updateComment: jest.fn(),
       createComment: jest.fn(),

@@ -886,26 +886,82 @@ describe("crcrSectionForSweep", () => {
 });
 
 describe("in-flight jobs keep the PR wakeable", () => {
-  test("marks the section while a job is in flight, and nothing once all report", () => {
-    const oncalls = (repo: string) =>
-      repo === "pytorch/crcr-test" ? ["oncall-a"] : [];
-    const failedByRepo = (jobs: RecentWorkflowsData[]) => {
-      const map = new Map<string, RecentWorkflowsData[]>();
-      for (const job of jobs) {
-        const repo = job.downstreamRepo!;
-        map.set(repo, [...(map.get(repo) ?? []), job]);
-      }
-      return map;
-    };
-    // An in_progress write sets no completed_at, so ClickHouse keeps the
-    // column's epoch-0 default -- what a real in-flight row carries.
-    const running = crcrJob({
+  const oncalls = (repo: string) =>
+    repo === "pytorch/crcr-test" ? ["oncall-a"] : [];
+
+  function failedByRepo(jobs: RecentWorkflowsData[]) {
+    const map = new Map<string, RecentWorkflowsData[]>();
+    for (const job of jobs) {
+      const repo = job.downstreamRepo!;
+      map.set(repo, [...(map.get(repo) ?? []), job]);
+    }
+    return map;
+  }
+
+  // A job the relay has reported in_progress on: it wrote a row and has not
+  // concluded yet. A matrix that outlasts the wake window keeps a row like this
+  // standing, and the marker is what keeps the sweep visiting the PR until it
+  // resolves.
+  function running() {
+    return crcrJob({
       id: 222,
       jobName: "test-L3-still-running",
       conclusion: "",
       completed_at: "",
     });
-    expect(isCrcrInFlight(running)).toBe(true);
+  }
+
+  test("carries the in-flight marker while a job is still running", () => {
+    const section = crcrSectionForSweep(
+      "",
+      failedByRepo([crcrJob()]),
+      new Map(),
+      HUD_PR_URL,
+      oncalls,
+      true,
+      [running()]
+    );
+    expect(section).toContain(CRCR_JOBS_IN_FLIGHT);
+    expect(crcrSectionHasBlocks(section)).toBe(true);
+  });
+
+  test("keeps a PR with no failures wakeable while its jobs are in flight", () => {
+    // Upstream CI is long done and the matrix is still going: no failures to
+    // render, but the PR must stay in the sweep set until the matrix reports,
+    // or a late failure lands on a comment nobody refreshes.
+    const section = crcrSectionForSweep(
+      "",
+      new Map(),
+      new Map(),
+      HUD_PR_URL,
+      oncalls,
+      true,
+      [running()]
+    );
+    expect(section).toContain(CRCR_JOBS_IN_FLIGHT);
+    // The section renders nothing, so the generic list stays authoritative and
+    // the sentinel-only section travels the same splice the pin ledger does.
+    expect(crcrSectionHasBlocks(section)).toBe(false);
+  });
+
+  test("drops the marker once every job has reported", () => {
+    const section = crcrSectionForSweep(
+      "",
+      failedByRepo([crcrJob()]),
+      new Map(),
+      HUD_PR_URL,
+      oncalls,
+      true
+    );
+    expect(section).not.toContain(CRCR_JOBS_IN_FLIGHT);
+    expect(crcrSectionHasBlocks(section)).toBe(true);
+  });
+
+  test("classifies in-flight rows", () => {
+    expect(isCrcrInFlight(running())).toBe(true);
+    expect(isCrcrInFlight(crcrJob())).toBe(false);
+    // The in_progress write sets no completed_at, so ClickHouse keeps the
+    // column's epoch-0 default -- that is what a real in-flight row carries.
     expect(
       isCrcrInFlight(
         crcrJob({
@@ -914,42 +970,12 @@ describe("in-flight jobs keep the PR wakeable", () => {
         })
       )
     ).toBe(true);
-    expect(isCrcrInFlight(crcrJob())).toBe(false);
-
-    const withFailure = crcrSectionForSweep(
-      "",
-      failedByRepo([crcrJob()]),
-      new Map(),
-      HUD_PR_URL,
-      oncalls,
-      true,
-      [running]
-    );
-    expect(withFailure).toContain(CRCR_JOBS_IN_FLIGHT);
-    // The marker must not outlive the rows it describes, or the PR stays in
-    // the sweep set after everything has reported.
-    const allReported = crcrSectionForSweep(
-      "",
-      failedByRepo([crcrJob()]),
-      new Map(),
-      HUD_PR_URL,
-      oncalls,
-      true
-    );
-    expect(allReported).not.toContain(CRCR_JOBS_IN_FLIGHT);
-    // No failures but a matrix still going: the marker alone, rendering
-    // nothing, so the generic list stays authoritative.
-    const noFailures = crcrSectionForSweep(
-      "",
-      new Map(),
-      new Map(),
-      HUD_PR_URL,
-      oncalls,
-      true,
-      [running]
-    );
-    expect(noFailures).toContain(CRCR_JOBS_IN_FLIGHT);
-    expect(crcrSectionHasBlocks(noFailures)).toBe(false);
+    // A job whose run ended without a conclusion is done, not running.
+    expect(
+      isCrcrInFlight(
+        crcrJob({ conclusion: "", completed_at: "2023-08-08 06:03:21" })
+      )
+    ).toBe(false);
   });
 });
 

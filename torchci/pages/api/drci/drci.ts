@@ -769,10 +769,12 @@ export async function updateDrciComments(
         repo,
         pr_info.pr_number
       );
+      // The live read is memoized and shared with the section's pin read, so a
+      // PR costs at most one GitHub comment read per sweep.
       const { id, body } =
         status?.comment ??
         existingDrCiComments.get(pr_info.pr_number) ??
-        (await getDrciComment(octokit, owner, repo, pr_info.pr_number));
+        (await readLiveComment());
 
       const comment = formDrciComment(
         pr_info.pr_number,
@@ -790,14 +792,6 @@ export async function updateDrciComments(
         )
       );
 
-      // The status source wins when it read the comment itself; otherwise the
-      // batched replica body decides skip-vs-rewrite, and only without one is
-      // the comment read live. The live read is memoized, shared with the
-      // section's pin read, so a PR costs at most one GitHub comment read.
-      const { id, body } =
-        status?.comment ??
-        replicaComment ??
-        (await readLiveComment());
       // The comment is there and remains unchanged, so there is no need to do anything
       if (body === comment) {
         return;
