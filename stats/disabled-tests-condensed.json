@@ -352,6 +352,7 @@
     "202748",
     "https://github.com/pytorch/pytorch/issues/202748",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -469,6 +470,13 @@
     "https://github.com/pytorch/pytorch/issues/195166",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_device_observations_track_current_device_under_coor_origin_factory (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "203017",
+    "https://github.com/pytorch/pytorch/issues/203017",
+    [
       "rocm"
     ]
   ],
@@ -1158,13 +1166,6 @@
       "xpu"
     ]
   ],
-  "test_profiler_experimental_tree_with_stack_and_modules (__main__.TestProfilerTree)": [
-    "200705",
-    "https://github.com/pytorch/pytorch/issues/200705",
-    [
-      "linux"
-    ]
-  ],
   "test_pyobject_redispatch_requires_keyset (__main__.TestCustomOpWithCompiledAutograd)": [
     "189067",
     "https://github.com/pytorch/pytorch/issues/189067",
@@ -1406,15 +1407,6 @@
   "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
     "182397",
     "https://github.com/pytorch/pytorch/issues/182397",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_v2_l (__main__.TestVisionTracing)": [
-    "152632",
-    "https://github.com/pytorch/pytorch/issues/152632",
     [
       "asan",
       "linux",
