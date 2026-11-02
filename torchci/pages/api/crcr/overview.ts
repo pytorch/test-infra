@@ -43,13 +43,13 @@ function getView(req: NextApiRequest): OverviewView | null {
 
 function emptyData(): CrcrOverviewData {
   return {
-    prSummary: [],
-    nightlySummary: [],
-    prHealth: [],
-    nightlyHealth: [],
-    promotionReadiness: [],
-    demotionReadiness: [],
-    tenure: [],
+    prSummary: null,
+    nightlySummary: null,
+    prHealth: null,
+    nightlyHealth: null,
+    promotionReadiness: null,
+    demotionReadiness: null,
+    tenure: null,
   };
 }
 

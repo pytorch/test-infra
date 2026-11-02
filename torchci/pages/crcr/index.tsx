@@ -47,12 +47,14 @@ import {
 import { L3_DEMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
 import type {
   CiMetricsRow,
+  CrcrOverviewData,
   CrcrOverviewResponse,
   CrcrOverviewSection,
   HealthPrRow,
   NightlyHealthJobRow,
   NightlyMetricsRow,
 } from "lib/crcr/overview";
+import { mergeCrcrOverviewData } from "lib/crcr/overview";
 import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   CRCR_HEALTH_REPO,
@@ -62,7 +64,7 @@ import {
 import { fetcherHandleError } from "lib/GeneralUtils";
 import Head from "next/head";
 import NextLink from "next/link";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 import type { AllowlistEntry, AllowlistResponse } from "../api/crcr/allowlist";
@@ -92,6 +94,26 @@ const OVERVIEW_SECTION_LABELS: Record<CrcrOverviewSection, string> = {
   demotionReadiness: "Demotion readiness",
   tenure: "Configured-level tenure",
 };
+
+function useRetainedOverviewData(
+  url: string | null,
+  response: CrcrOverviewResponse | undefined
+) {
+  const dataByUrl = useRef(
+    new Map<string, Partial<CrcrOverviewData>>()
+  );
+  const responseByUrl = useRef(new Map<string, CrcrOverviewResponse>());
+
+  if (url === null) return undefined;
+  if (responseByUrl.current.get(url) !== response && response !== undefined) {
+    dataByUrl.current.set(
+      url,
+      mergeCrcrOverviewData(dataByUrl.current.get(url), response)
+    );
+    responseByUrl.current.set(url, response);
+  }
+  return dataByUrl.current.get(url);
+}
 
 const LEVEL_META: Record<
   Level,
@@ -838,10 +860,15 @@ export default function CrcrSummaryPage() {
     { refreshInterval: 5 * 60_000 }
   );
 
-  const ciData = overview?.data.prSummary;
-  const nightlyData = nightlyOverview?.data.nightlySummary;
-  const healthPrs = overview?.data.prHealth;
-  const nightlyHealthJobs = overview?.data.nightlyHealth;
+  const overviewData = useRetainedOverviewData(overviewUrl, overview);
+  const nightlyOverviewData = useRetainedOverviewData(
+    nightlyOverviewUrl,
+    nightlyOverview
+  );
+  const ciData = overviewData?.prSummary;
+  const nightlyData = nightlyOverviewData?.nightlySummary;
+  const healthPrs = overviewData?.prHealth;
+  const nightlyHealthJobs = overviewData?.nightlyHealth;
   const overviewErrorMessage = Object.entries(overview?.errors ?? {})
     .map(
       ([section, message]) =>
@@ -869,29 +896,29 @@ export default function CrcrSummaryPage() {
   const l3SummaryMap = useMemo(
     () =>
       new Map(
-        (overview?.data.promotionReadiness ?? []).map((row) => [row.repo, row])
+        (overviewData?.promotionReadiness ?? []).map((row) => [row.repo, row])
       ),
-    [overview?.data.promotionReadiness]
+    [overviewData?.promotionReadiness]
   );
   const l3SummaryMapDemotion = useMemo(
     () =>
       new Map(
-        (overview?.data.demotionReadiness ?? []).map((row) => [row.repo, row])
+        (overviewData?.demotionReadiness ?? []).map((row) => [row.repo, row])
       ),
-    [overview?.data.demotionReadiness]
+    [overviewData?.demotionReadiness]
   );
   const l3SummaryDemotionHasResult =
-    overview?.data.demotionReadiness !== undefined &&
-    overview.errors.demotionReadiness === undefined;
+    overviewData?.demotionReadiness !== undefined &&
+    overview?.errors.demotionReadiness === undefined;
   const tenureMap = useMemo(
     () =>
       new Map(
-        (overview?.data.tenure ?? []).map((row) => [
+        (overviewData?.tenure ?? []).map((row) => [
           row.repo,
           tenureInfoFromL2Since(row.l2_since),
         ])
       ),
-    [overview?.data.tenure]
+    [overviewData?.tenure]
   );
 
   const metricsMap = useMemo(() => {
@@ -1288,7 +1315,7 @@ export default function CrcrSummaryPage() {
 
             {nightlyIsLoading ? (
               <Skeleton variant="rectangular" height={240} sx={{ mt: 2 }} />
-            ) : !nightlyHasError && visibleNightlyData.length > 0 ? (
+            ) : visibleNightlyData.length > 0 ? (
               <>
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days

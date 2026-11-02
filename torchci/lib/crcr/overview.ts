@@ -51,17 +51,41 @@ export type CrcrOverviewSection =
   | "demotionReadiness"
   | "tenure";
 
+export const CRCR_OVERVIEW_SECTIONS: CrcrOverviewSection[] = [
+  "prSummary",
+  "nightlySummary",
+  "prHealth",
+  "nightlyHealth",
+  "promotionReadiness",
+  "demotionReadiness",
+  "tenure",
+];
+
 export interface CrcrOverviewData {
-  prSummary: CiMetricsRow[];
-  nightlySummary: NightlyMetricsRow[];
-  prHealth: HealthPrRow[];
-  nightlyHealth: NightlyHealthJobRow[];
-  promotionReadiness: L3SummaryRow[];
-  demotionReadiness: L3SummaryRow[];
-  tenure: RepoTenureSummaryRow[];
+  prSummary: CiMetricsRow[] | null;
+  nightlySummary: NightlyMetricsRow[] | null;
+  prHealth: HealthPrRow[] | null;
+  nightlyHealth: NightlyHealthJobRow[] | null;
+  promotionReadiness: L3SummaryRow[] | null;
+  demotionReadiness: L3SummaryRow[] | null;
+  tenure: RepoTenureSummaryRow[] | null;
 }
 
 export interface CrcrOverviewResponse {
   data: CrcrOverviewData;
   errors: Partial<Record<CrcrOverviewSection, string>>;
+}
+
+export function mergeCrcrOverviewData(
+  previous: Partial<CrcrOverviewData> | undefined,
+  response: CrcrOverviewResponse
+): Partial<CrcrOverviewData> {
+  const next = { ...previous };
+  for (const section of CRCR_OVERVIEW_SECTIONS) {
+    const value = response.data[section];
+    if (response.errors[section] === undefined && value !== null) {
+      Object.assign(next, { [section]: value });
+    }
+  }
+  return next;
 }

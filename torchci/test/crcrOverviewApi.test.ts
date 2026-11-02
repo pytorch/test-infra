@@ -1,6 +1,11 @@
 import type { ClickHouseSettings } from "@clickhouse/client";
 import { NextApiRequest } from "next";
 import * as clickhouseModule from "../lib/clickhouse";
+import {
+  mergeCrcrOverviewData,
+  type CrcrOverviewData,
+  type CrcrOverviewResponse,
+} from "../lib/crcr/overview";
 import handler from "../pages/api/crcr/overview";
 import { mockRes } from "./nextApiMocks";
 
@@ -84,7 +89,7 @@ describe("/api/crcr/overview", () => {
     expect(res._json.data.nightlySummary).toEqual([
       { repo: "example/nightly" },
     ]);
-    expect(res._json.data.nightlyHealth).toEqual([]);
+    expect(res._json.data.nightlyHealth).toBeNull();
     expect(res._json.data.prSummary).toEqual([]);
   });
 
@@ -112,6 +117,53 @@ describe("/api/crcr/overview", () => {
     ]);
     expect(mockQuery).toHaveBeenCalledTimes(6);
     expect(res._headers["Cache-Control"]).toBe("no-store");
+  });
+
+  it("retains a section's last good data when a later response reports an error", () => {
+    const previousPrSummary = [{ repo: "example/pr" }];
+    const failedData: CrcrOverviewData = {
+      prSummary: null,
+      nightlySummary: null,
+      prHealth: null,
+      nightlyHealth: null,
+      promotionReadiness: null,
+      demotionReadiness: null,
+      tenure: null,
+    };
+    const failedResponse: CrcrOverviewResponse = {
+      data: failedData,
+      errors: { prSummary: "ClickHouse unavailable" },
+    };
+
+    const retained = mergeCrcrOverviewData(
+      { prSummary: previousPrSummary },
+      failedResponse
+    );
+
+    expect(retained.prSummary).toBe(previousPrSummary);
+    expect(retained.nightlyHealth).toBeUndefined();
+  });
+
+  it("replaces a section with an empty result when its query succeeded", () => {
+    const succeededResponse: CrcrOverviewResponse = {
+      data: {
+        prSummary: [],
+        nightlySummary: null,
+        prHealth: null,
+        nightlyHealth: null,
+        promotionReadiness: null,
+        demotionReadiness: null,
+        tenure: null,
+      },
+      errors: {},
+    };
+
+    const retained = mergeCrcrOverviewData(
+      { prSummary: [{ repo: "stale/repo" }] },
+      succeededResponse
+    );
+
+    expect(retained.prSummary).toEqual([]);
   });
 
   it("rejects an unsupported time range before querying ClickHouse", async () => {
