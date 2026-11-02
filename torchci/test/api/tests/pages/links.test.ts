@@ -1,5 +1,6 @@
 import type { RawQuery } from "lib/api/parameters";
 import {
+  commitPageUrl,
   DEFAULT_HUD_ORIGIN,
   hudOrigin,
   testPageLinkForEntry,
@@ -53,6 +54,19 @@ describe("hudOrigin", () => {
     expect(hudOrigin()).toBe("http://localhost:3000");
     expect(testPageUrl("pytorch/pytorch", "42")).toBe(
       "http://localhost:3000/tests/pytorch/pytorch/test/42"
+    );
+  });
+});
+
+describe("commitPageUrl", () => {
+  test("is the bare commit page on the HUD origin", () => {
+    expect(
+      commitPageUrl(
+        "pytorch/pytorch",
+        "ce6ff46d8ca967ef333ba9b804e081f26b432796"
+      )
+    ).toBe(
+      "https://hud.pytorch.org/tests/pytorch/pytorch/commit/ce6ff46d8ca967ef333ba9b804e081f26b432796"
     );
   });
 });

@@ -24,6 +24,7 @@ import type {
 } from "lib/api/tests/test/runs/types";
 import type { EnvironmentRecord, EnvVarsRecord } from "lib/api/tests/types";
 import { FAILING_OUTCOMES } from "lib/runOutcomes";
+import { BundleStatus, bundleStatusOf } from "lib/tests/bundle";
 import {
   CONFIG_VARIABLE,
   environmentTokens,
@@ -370,15 +371,22 @@ export function cardJobs(cell: CellJobs): RunGridJob[] {
 export function cellStatus(
   cell: Pick<RunGridCell, "outcome" | "jobs">
 ): CellStatus {
-  if (cell.outcome === "skipped") return "skipped";
-  if (cell.outcome === "passed") {
-    const failedBefore = decisiveAttempts(cell).some((outcome) =>
-      FAILING_OUTCOMES.has(outcome)
-    );
-    return failedBefore ? "flaky" : "passed";
-  }
-  return FAILING_OUTCOMES.has(cell.outcome) ? "failed" : "other";
+  return CELL_STATUS_OF[bundleStatusOf(cell.outcome, decisiveAttempts(cell))];
 }
+
+// The grid's statuses are the bundle statuses (lib/tests/bundle.ts) with
+// the two that are red, a failure that stood and a timeout, as one, and the
+// two it has no hue for, an expected failure and an unexpected pass or
+// unknown, as other.
+const CELL_STATUS_OF: Record<BundleStatus, CellStatus> = {
+  failed: "failed",
+  timed_out: "failed",
+  flaky: "flaky",
+  passed: "passed",
+  other: "other",
+  xfailed: "other",
+  skipped: "skipped",
+};
 
 // Whether the test passed on the commit in the end, on its first attempt
 // or a retry: the cells that have a passing time, for the time bar.

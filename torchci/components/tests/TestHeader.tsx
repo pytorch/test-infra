@@ -1,26 +1,22 @@
+import { Box, Skeleton } from "@mui/material";
+import FactPill from "components/tests/FactPill";
 import {
-  Box,
-  Breadcrumbs,
-  Divider,
-  Link,
-  Skeleton,
-  useTheme,
-} from "@mui/material";
+  FactsRow,
+  HeaderCrumbs,
+  HeaderRule,
+  HeaderSkeleton,
+} from "components/tests/PageHeader";
 import TestTitle from "components/tests/TestTitle";
-import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { TestRecord } from "lib/api/tests/types";
 import {
   firstSeenExact,
   firstSeenLabel,
   headerCrumbs,
   LANGUAGE_COLORS,
-  MONOSPACE_FONT_FAMILY,
   UNKNOWN_LANGUAGE,
   UNKNOWN_VALUE,
 } from "lib/tests/header";
-import { headerBandColor } from "lib/tests/headerColors";
-import NextLink from "next/link";
-import { ReactNode, useEffect, useState } from "react";
+import { useMounted } from "lib/tests/useMounted";
 
 export interface TestHeaderProps {
   // The test shown; undefined while there is none to show.
@@ -35,68 +31,16 @@ export interface TestHeaderProps {
   loading?: boolean;
 }
 
-// The header's small text, the breadcrumb and the pills, is HUD's body2,
-// the size of the table's captions and the view chips, and a pill is a
-// chip's height. The language's mark is a dot this wide.
-const SMALL_TEXT = "body2" as const;
+// The language's mark is a dot this wide.
 const LANGUAGE_DOT = 10;
 
 // When the catalog first saw the test, filled in on the client only: the
 // server does not know the viewer's time zone.
 function FirstSeen({ timestamp }: { timestamp: string }) {
-  const [display, setDisplay] = useState<{ label: string; exact: string }>();
-  useEffect(() => {
-    setDisplay({
-      label: firstSeenLabel(timestamp),
-      exact: firstSeenExact(timestamp),
-    });
-  }, [timestamp]);
-  return <span title={display?.exact}>{display?.label}</span>;
-}
-
-// One fact of the row, as a pill in the grey of the title's pills and the
-// table's header band, a view chip's height: a mark, when the fact has
-// one, a muted word in title case for what it is, "First Seen", then the
-// value a step heavier; a fact that is its own word, the language, has no
-// label. A value the catalog does not have is said, "Unknown", and stays
-// muted, so a value that is there stands out. The pill is a plain span: it
-// is read, not pressed, so it has no hover and no chevron.
-function FactPill({
-  mark,
-  label,
-  muted = false,
-  children,
-}: {
-  mark?: ReactNode;
-  label?: string;
-  muted?: boolean;
-  children: ReactNode;
-}) {
-  const theme = useTheme();
+  const mounted = useMounted();
+  if (!mounted) return <span />;
   return (
-    <Box
-      component="span"
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 0.75,
-        height: VIEW_CHIP_HEIGHT,
-        px: 1.25,
-        borderRadius: "999px",
-        backgroundColor: headerBandColor(theme),
-        color: "text.secondary",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {mark}
-      {label !== undefined && <span>{label}</span>}
-      <Box
-        component="span"
-        sx={muted ? undefined : { color: "text.primary", fontWeight: 500 }}
-      >
-        {children}
-      </Box>
-    </Box>
+    <span title={firstSeenExact(timestamp)}>{firstSeenLabel(timestamp)}</span>
   );
 }
 
@@ -119,16 +63,14 @@ function LanguageDot({ color }: { color: string }) {
   );
 }
 
-// The header of a test's page, in three quiet lines over a hairline: where
-// the test lives, as a monospace breadcrumb of links back to the list; its
-// name, the headline (TestTitle); and a row of facts as pills, the
-// language, when the catalog first saw the test and the owners of its file,
-// each said even when unknown, so the row always has its three pills.
-// Hierarchy is carried by weight and tone, not size: the breadcrumb and the
-// pills in the secondary tone, the headline alone at full weight. Until the
-// test arrives a skeleton holds each line's place, so nothing moves when it
-// comes; with no test to show the headline says "Test" and the rest is
-// left out.
+// The header of a test's page, set from the hub's header pieces
+// (PageHeader): where the test lives, as a monospace breadcrumb of links
+// back to the list; its name, the headline (TestTitle); and a row of facts
+// as pills, the language, when the catalog first saw the test and the
+// owners of its file, each said even when unknown, so the row always has
+// its three pills. Until the test arrives a skeleton holds each line's
+// place, so nothing moves when it comes; with no test to show the headline
+// says "Test" and the rest is left out.
 export default function TestHeader({
   test,
   owners,
@@ -139,27 +81,7 @@ export default function TestHeader({
     if (!loading) {
       return <TestTitle test={undefined} />;
     }
-    return (
-      <Box>
-        <Skeleton width="44ch" sx={{ typography: SMALL_TEXT }} />
-        <Skeleton
-          width="60ch"
-          sx={{ fontSize: (theme) => theme.typography.h5.fontSize, mt: 1.25 }}
-        />
-        <Box sx={{ display: "flex", gap: 1, mt: 1.75 }}>
-          {["9ch", "22ch", "16ch"].map((width) => (
-            <Skeleton
-              key={width}
-              variant="rounded"
-              width={width}
-              height={VIEW_CHIP_HEIGHT}
-              sx={{ borderRadius: "999px" }}
-            />
-          ))}
-        </Box>
-        <Divider sx={{ mt: 2.5 }} />
-      </Box>
-    );
+    return <HeaderSkeleton pillWidths={["9ch", "22ch", "16ch"]} />;
   }
   const languageColor = LANGUAGE_COLORS[test.language];
   // A language the catalog could not tell has no dot and no name of its
@@ -167,39 +89,9 @@ export default function TestHeader({
   const languageUnknown = test.language === UNKNOWN_LANGUAGE;
   return (
     <Box>
-      <Breadcrumbs
-        separator="›"
-        sx={{
-          typography: SMALL_TEXT,
-          fontFamily: MONOSPACE_FONT_FAMILY,
-          color: "text.secondary",
-          mb: 1.25,
-          "& .MuiBreadcrumbs-separator": { color: "text.disabled", mx: 1.25 },
-        }}
-      >
-        {headerCrumbs(test).map((crumb) => (
-          <Link
-            key={crumb.href}
-            component={NextLink}
-            href={crumb.href}
-            prefetch={false}
-            underline="hover"
-            color="inherit"
-          >
-            {crumb.text}
-          </Link>
-        ))}
-      </Breadcrumbs>
+      <HeaderCrumbs crumbs={headerCrumbs(test)} />
       <TestTitle test={test} />
-      <Box
-        sx={{
-          typography: SMALL_TEXT,
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 1,
-          mt: 1.75,
-        }}
-      >
+      <FactsRow>
         <FactPill
           mark={
             languageColor === null ? undefined : (
@@ -222,8 +114,8 @@ export default function TestHeader({
         >
           {owners.length === 0 ? UNKNOWN_VALUE : owners.join(" · ")}
         </FactPill>
-      </Box>
-      <Divider sx={{ mt: 2.5 }} />
+      </FactsRow>
+      <HeaderRule />
     </Box>
   );
 }

@@ -1,4 +1,5 @@
 import {
+  commitPagePath,
   pageQueryString,
   PageQueryValues,
   pageUrlParams,
@@ -50,6 +51,13 @@ export function testPageUrl(
   return `${hudOrigin()}${testPagePath(repo, testId)}${pageQueryString(
     pageUrlParams(values, TEST_PAGE_PARAMETER_DEFINITIONS)
   )}`;
+}
+
+// The commit's page, bare: the page chooses the outcomes it lists, its
+// filters and its sort itself, so every response about a commit links the
+// same URL.
+export function commitPageUrl(repo: string, sha: string): string {
+  return `${hudOrigin()}${commitPagePath(repo, sha)}`;
 }
 
 // The test's page opened on the runs an entry's health was counted over,

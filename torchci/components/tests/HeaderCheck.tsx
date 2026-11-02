@@ -1,10 +1,10 @@
 import { Checkbox, FormControlLabel, Tooltip, useTheme } from "@mui/material";
-import { HEADER_FILTER_SIZE } from "components/tests/HeaderFilter";
 import {
   headerKeyColors,
   headerKeyFocusRing,
   headerKeySx,
 } from "lib/tests/headerColors";
+import { HEADER_FILTER_SIZE } from "lib/tests/layout";
 
 export interface HeaderCheckProps {
   // What the key shows: "Time bar".

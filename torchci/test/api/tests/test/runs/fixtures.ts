@@ -3,7 +3,6 @@ import { RunsListQuery } from "lib/api/tests/test/runs/parameters";
 import {
   RunFields,
   RunRecord,
-  RunStats,
   RunWorkflowFields,
 } from "lib/api/tests/test/runs/types";
 import { RUN_OUTCOMES } from "lib/runOutcomes";
@@ -16,24 +15,6 @@ export const STARTED_AT = "2026-10-19T16:28:13.575Z";
 export const ENDED_AT = "2026-10-19T16:28:13.576Z";
 export { RUN_OUTCOMES };
 
-export function runStats(outcomes: readonly unknown[] = []): RunStats {
-  return {
-    total: outcomes.length,
-    unknown: outcomes.filter((outcome) => outcome === "unknown").length,
-    passed: outcomes.filter((outcome) => outcome === "passed").length,
-    failed: outcomes.filter((outcome) => outcome === "failed").length,
-    error: outcomes.filter((outcome) => outcome === "error").length,
-    skipped: outcomes.filter((outcome) => outcome === "skipped").length,
-    xfailed: outcomes.filter((outcome) => outcome === "xfailed").length,
-    xpassed: outcomes.filter((outcome) => outcome === "xpassed").length,
-    crashed: outcomes.filter((outcome) => outcome === "crashed").length,
-    timed_out: outcomes.filter((outcome) => outcome === "timed_out").length,
-  };
-}
-
-// The final outcome of each bundle among `records`, as the statistics count
-// them: the last executed attempt's outcome in chronological order, or skipped
-// when no attempt executed. Bundles keep their first-appearance order.
 export function bundleOutcomes(
   records: readonly RunFields[]
 ): RunFields["outcome"][] {
@@ -208,7 +189,6 @@ export function answerRunQueries(
     attempts?: Record<string, unknown>[];
     catalog?: Record<string, unknown>[];
     workflow?: Record<string, unknown>[];
-    stats?: RunStats;
     detail?: Record<string, unknown>[];
   } = {}
 ) {
@@ -227,8 +207,6 @@ export function answerRunQueries(
           return answers.catalog ?? [];
         case "api_run_workflow":
           return answers.workflow ?? [];
-        case "api_commit_runs_stats":
-          return [answers.stats ?? runStats()];
         case "api_run_detail":
           return answers.detail ?? [];
         default:

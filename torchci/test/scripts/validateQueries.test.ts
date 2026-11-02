@@ -13,8 +13,8 @@ const SCRIPTS = [
   "validateRunWorkflowQuery",
   "validateRunGridQuery",
   "validateLastAttemptOutcomeQueries",
-  "validateCommitStatsQueries",
   "validateCommitSharedStartsQueries",
+  "validateCommitSummaryQueries",
   "validateBidirectionalPaginationQueries",
 ];
 

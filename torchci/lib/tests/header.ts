@@ -1,3 +1,4 @@
+import type { Theme } from "@mui/material/styles";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { testsPagePath } from "lib/api/tests/pages/parameters";
@@ -52,7 +53,9 @@ export function splitCaseName(
 // function has no suite crumb.
 export interface Crumb {
   text: string;
-  href: string;
+  // Where the crumb leads; left off for the last crumb when it names the
+  // page itself, as the commit page's does.
+  href?: string;
 }
 
 export function headerCrumbs(
@@ -122,3 +125,16 @@ export const UNKNOWN_LANGUAGE: TestLanguage = "unknown";
 // What a pill says for a value the catalog does not have, a file without
 // owner labels: the word the options use for a language it could not tell.
 export const UNKNOWN_VALUE = "Unknown";
+
+// The headline's measure, shared by the pages' h1s (TestTitle, the commit
+// page's title): HUD's h5 size, a step under the list page's h4, but
+// heavier and with the tracking drawn in, so an identifier anchors the page
+// without filling it.
+export const HEADLINE_SX = {
+  fontSize: (theme: Theme) => theme.typography.h5.fontSize,
+  fontWeight: 600,
+  letterSpacing: "-0.02em",
+  lineHeight: 1.25,
+  overflowWrap: "anywhere",
+  color: "text.primary",
+} as const;

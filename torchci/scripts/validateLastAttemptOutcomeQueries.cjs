@@ -137,7 +137,7 @@ async function main() {
     url: process.env.CLICKHOUSE_HUD_USER_URL,
     username: process.env.CLICKHOUSE_HUD_USER_USERNAME,
     password: process.env.CLICKHOUSE_HUD_USER_PASSWORD,
-    request_timeout: 105000,
+    request_timeout: 330000,
   });
   const report = {
     measured_at: new Date().toISOString(),

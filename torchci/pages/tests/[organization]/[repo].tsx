@@ -18,6 +18,7 @@ import {
   accessReasonOf,
   DEFAULT_TESTS_SORT,
   resolveTestsQuery,
+  SEARCH_PAUSE_MS,
   TestsQuery,
   testsQueryFromUrl,
   testsUrlParams,
@@ -44,16 +45,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // The API is behind the HUD GitHub gate, write access to pytorch/pytorch,
 // which the browser passes with its HUD sign-in cookie; when the API refuses,
 // the page says why in place of the table and offers the sign-in.
-// How long typing in the search may pause before the URL, and so the list,
-// follows it. Each search the URL takes is a full query, the name scan over
-// the catalog and the window's health aggregation, which the database runs
-// to the end even when the browser has moved on, so a pause within one
-// search must not fire: the half-second hesitations at the underscores and
-// digits of a name typed from memory fired four queries per search at
-// 250 ms, one at this. A longer pause would only hold up a finished search.
+// The search field follows typing after SEARCH_PAUSE_MS (lib/tests/table.ts).
 // The hub's fixed-width column (PageColumn) holds the title and the table,
 // so the table does not stretch with the window and is whole at full width.
-const SEARCH_PAUSE_MS = 750;
 
 export default function Page() {
   const router = useRouter();

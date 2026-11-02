@@ -16,7 +16,7 @@ record design experiments; their measurements are historical.
 | Run bundles, attempt fetch (test and commit pages) | [attempts-query-validation.md](test/runs/attempts-query-validation.md), `scripts/validateRunAttemptsQueries.cjs`                                   |
 | `last_attempt_outcome` filter                      | [last-attempt-outcome-query-validation.md](test/runs/last-attempt-outcome-query-validation.md), `scripts/validateLastAttemptOutcomeQueries.cjs`    |
 | Commit pages reading `FINAL` only at shared starts | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitSharedStartsQueries.cjs`                                          |
-| Commit statistics: bundles by final outcome        | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitStatsQueries.cjs`                                                 |
+| Commit summary: counts by status and lookups       | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitSummaryQueries.cjs`                                               |
 | Previous-page cursors                              | [bidirectional-pagination-query-validation.md](bidirectional-pagination-query-validation.md), `scripts/validateBidirectionalPaginationQueries.cjs` |
 | Workflow metadata lookup                           | [workflow-query-validation.md](test/runs/workflow-query-validation.md), `scripts/validateRunWorkflowQuery.cjs`                                     |
 | Runs grouped by commit (`group_by=commit`)         | [grid-query-validation.md](test/runs/grid-query-validation.md), `scripts/validateRunGridQuery.cjs`                                                 |

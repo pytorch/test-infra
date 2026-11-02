@@ -729,19 +729,244 @@ seconds; `optimize_aggregation_in_order = 1` for the first pass, 15–19 seconds
 because the planner then reads the base table in primary-key order instead of
 the projection.
 
-From `torchci/`, with dependencies installed and Node 22:
+The commit list's `stats` field, its builder (`buildRunStatsQuery`),
+`scripts/validateCommitStatsQueries.cjs` and its evidence file were removed on
+2026-11-02: the summary endpoint carries the commit's counts by status, and no
+page read the field. The sections above record how the statistics were
+measured while they existed.
 
-```sh
-node scripts/validateCommitStatsQueries.cjs
-node scripts/validateCommitStatsQueries.cjs --live > stats-validation.json
+## Rare-outcome filters read a pruned FINAL (2026-10-30)
+
+The commit page's sections are the API's `status` filter (`section` until
+2026-11-01), a bundle status after replacement resolution (`failed`,
+`timed_out`, `flaky`, `passed`, `other`, `xfailed`, `skipped`;
+`BUNDLE_STATUS_SQL` in `lib/api/tests/test/runs/query.ts`). A status, like an
+`outcome` or `last_attempt_outcome` filter, needs every attempt of a bundle,
+so until now any of them took the grouped read above: by_job for the keys
+holding one stored row, `FINAL` at the shared test starts for the rest, two
+scans of the commit's rows.
+
+When every bundle the filters admit must hold at least one row with a rare
+outcome (anything but `passed` and `skipped`: a failed, timed-out or flaky
+bundle holds a failing row; an `xfailed` section an xfailed row), the query
+now reads `FINAL` only for the tests that hold such a row in the commit's
+jobs, found in one by_job pass (`candidateOutcomes` and `prunedRunsSource` in
+`buildRunPageQuery`):
+
+```sql
+FROM ci.runs AS run FINAL
+PREWHERE run.tests_id IN (
+    SELECT run.tests_id FROM ci.runs AS run
+    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))
+        AND run.outcome IN {candidate_outcomes: Array(String)}
+    GROUP BY run.tests_id)
 ```
 
-The first command regenerates each case's SQL from the builder and the
-baseline from the recorded membership clause and checks both against
-[the evidence](stats-query-validation.json). Live mode repeats the plans and
-alternating comparisons with `CLICKHOUSE_HUD_USER_*` from the environment or
-`.env.local` and prints the complete evidence document. The commit cases expire
-with the 14-day retention; choose new commits rather than relaxing the
-comparison. The `commit_stats` entry of
-[the shared-start evidence](shared-starts-query-validation.json) was re-recorded
-from the new builder on the same date.
+`tests_id` leads the primary key, so the `FINAL` read keeps 5,266 of 945,976
+granules on ce6ff46 (`EXPLAIN indexes = 1`), and the bundles of a candidate
+test are complete: `FINAL` resolves replacements within the test's rows,
+which the pruning keeps whole. A filter admitting `passed` or `skipped`
+bundles, or a sort needing every bundle's final attempt, keeps the grouped
+read; the plain by_job read is unchanged.
+
+Measured on ce6ff46 (`outcome=failed`, 10 rows, 2026-10-30, alternating
+pairs): grouped read 2.27 to 2.67 s and 413M rows read; pruned read 0.67 to
+1.34 s and 181M rows; identical rows. Against the full-`FINAL` baseline, which
+reads 7.9 billion rows (506 GB) in 80 to 127 s on 2026-10-30, the pruned read
+returns the same rows for `outcome=failed`
+(`shared-starts-query-validation.json`, case `commit_outcome_failed`),
+`outcome=failed` with `last_attempt_outcome=passed`
+(`../test/runs/last-attempt-outcome-query-validation.json`, case
+`commit_failed_last_passed`) and the combined attempt filter
+(`../test/runs/attempts-query-validation.json`, case
+`commit_combined_attempt_filter`). The full-`FINAL` comparisons now exceed the
+bundles' former 90-second cap, so those two bundles run live with
+`max_execution_time` 300.
+
+Rejected: a scalar holding the candidate (job, test) keys exceeded 15 GB of
+memory, the old analyzer copying the nested scalar into every subquery; an
+inline `IN` on (job, test) without `PREWHERE` read 552M rows for no gain.
+
+### Expected failures are not pruned (2026-11-01)
+
+The pruned read costs about one granule per candidate test and part, since a
+test's rows sit in every part written while it ran: a set of 80 failing tests
+kept 5,266 granules, but the 10,443 tests with an expected failure on ce6ff46
+kept 253,925 of 1,082,531, read 2.2 billion rows and took 35.6 to 36.5 s,
+where the grouped read of the same page took 2.0 to 2.7 s. So `xfailed` is no longer among the
+outcomes a key set is drawn by (`PRUNABLE_OUTCOMES`: the failing outcomes,
+`xpassed` and `unknown`); the expected-failures section and an
+`outcome=xfailed` filter take the grouped read. The
+`commit_status_xfailed` case of
+[the shared-start evidence](shared-starts-query-validation.json) records the
+pruned SQL as before and the grouped SQL as after, with identical rows. A
+commit with thousands of failing tests would cost the pruned read the same
+way; nothing decides by the count yet.
+
+## The worst_status filter ranks a test's bundles in one pass (2026-11-01)
+
+The API's `worst_status` filter selects the bundles of the tests whose worst
+status over every bundle on the commit, in any job, is one of the given, the
+tests the summary's `by_worst_status` counts once each; with `status` set to
+the same value it lists the bundles those counts' jobs come from. The commit
+page's folded sections sent both while its summary counted tests once; since
+the summary moved to run counts later on 2026-11-01 the page sends `status`
+alone, and the filter stays in the API.
+
+The test's worst status needs every bundle of the test, not only the bundles
+the other filters keep, and the summary's `by_worst_status` counts are over
+the whole commit. With the filter, `buildRunPageQuery` therefore groups the
+scope's rows into bundles as before but keeps the bundle filters out of the
+source and the `HAVING`: the status rule, the attempt filters and the last
+attempt's outcome become columns of the grouped rows, the identity filters
+move out of the source, and a window over the grouped rows ranks each test's
+bundles before the outer `WHERE` selects among them:
+
+```sql
+FROM (
+    SELECT tests_id, environments_id, env_vars_id, github_workflow_job_id, duration_milliseconds, status,
+        ['failed', 'timed_out', 'flaky', 'passed', 'other', 'xfailed', 'skipped'][min(indexOf([...], status)) OVER (PARTITION BY tests_id)] AS worst_status
+    FROM (
+        SELECT run.tests_id AS tests_id, ..., sum(...) AS duration_milliseconds, multiIf(...) AS status
+        FROM <the grouped read> GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id
+    )
+) AS run
+WHERE run.status IN {status: Array(String)}
+    AND run.worst_status IN {worst_status: Array(String)}
+```
+
+Measured on ce6ff46 (2026-11-01, 25 rows, longest first, three alternating
+pairs each): the passed section with the filter 2.0 to 2.4 s, 159M rows read
+and 2.6 to 2.7 GB of memory, against the plain passed section's 2.2 to 2.9 s,
+414M rows and 2.0 to 2.3 GB; the expected-failures section 2.1 to 2.4 s and
+the skipped section 1.8 to 2.2 s, with one 6.9 s sample under load. The rows
+are identical to the filter's direct form, the same page with the qualifying
+tests found by a second grouped read inside an `IN`, which took 7.9 to 12.7 s
+(`commit_worst_passed`, `commit_worst_xfailed` and `commit_worst_skipped` in
+[the shared-start evidence](shared-starts-query-validation.json), before and
+after). Rejected first: that `IN` form with the second read pruned by
+primary key, which lost the pruning inside the set-building subquery and
+read 4.3 billion rows in 70 s for the expected-failures section; and, for
+the passed section alone, excluding the tests with a failed, timed-out or
+flaky bundle through the pruned read, 6.8 s under the same load.
+
+## The summary's lookups (2026-11-01)
+
+The pull request lookup selects by `base.repo.full_name` as well as by
+number, since `default.pull_request` holds every repository's pull requests
+under their own numbers. The commit lookup gathers the push runs' branches
+as an array (`groupUniqArrayIf`) so the summary names main, else the first
+by name, deterministically. The neighbours query gathers its twenty
+candidates a side once, into an array scalar, since a named subquery runs
+again at every reference, and finds their test jobs through
+`materialized_views.workflow_job_by_head_sha` and the job table by id instead
+of a scan of the job table for test names: 139 million rows and 0.8 to 1.5 s
+before, 4 to 6 million rows and 0.15 to 0.37 s after, 65 to 105 MB of memory
+before and 4 to 19 MB after, with the same rows on six commits of main,
+nightly and viable/strict, one of them 24 days old
+([the summary evidence](summary-query-validation.json), `lookups`). The newer
+side prunes the push table by its timestamp key as the key spells it,
+`tupleElement(head_commit, 'timestamp')`, which the dotted form does not;
+the older side keeps the dotted subcolumn, since the key's spelling reads
+the whole `head_commit` tuple, 700 MB over the older rows, for 2.6 million
+rows the subcolumn reads in about 100 ms. On a push run a job's `head_sha`
+is its run's (111,248 of 111,248 test jobs of the week before), so the
+candidates with a test job are the ones the runs name.
+
+Two more lookups were added on 2026-11-02 for the page's "Newer commit
+available" pill, `branch_head` (the newest push to a pull request's head
+branch after the commit, for a branch in the repository) and `record_head`
+(the time of the commit a pull request record names, since a record misses a
+push now and then: #202963's still named 7a43f10 an hour after 31e73b6 was
+pushed), and removed the same day with the pill and with
+`pull_request.head_sha`; the info query no longer gathers each recorded pull
+request's head repository, and the record lookups no longer read `head.sha`.
+
+A fourth lookup since 2026-11-02, `pull_request_by_head`
+(`buildCommitPullRequestByHeadQuery`), runs for a commit whose runs record no
+pull request and that no push run put on a branch: the pull requests whose
+head the commit has been, through `materialized_views.pr_by_sha` (ordered by
+`head_sha`), and the repository's record of the lowest numbered of them, with
+its head branch. It exists because every run of a pull request from a fork records no pull request at
+all: of the workflow runs created in the two days before, the 1,482
+`pull_request` runs from forks (333 head commits) had an empty `pull_requests`
+array, their ciflow tag push runs too, while the 3,199 from branches in the
+repository (440 heads) all recorded theirs, and `pr_by_sha` knew all 333.
+Until then a fork head was described as a branch commit with no branch, no
+pull request and no neighbours. The lookup reads 16 to 19 thousand rows in
+14 to 120 ms on the three lookup cases, `fork_head_c7ee7fb5` among them
+(#189727, head branch `xpu_serial_ci` in the fork: its info lookup records no
+pull request and this lookup finds the record). A commit with push runs on a
+branch is never looked up, so a main commit costs nothing more, and a record
+whose number another repository's pull request shares is ruled out by the
+base repository.
+
+## Commit summary counts (2026-10-30)
+
+`GET /api/tests/commit/{sha}/summary` counts the commit's tests by status
+for the commit page's header row (`lib/api/tests/commit/summary/query.ts`):
+per worst result the tests and the distinct jobs of their bundles with that
+result, and for the whole commit (the rollup row) the tests, jobs and
+bundles of each status and the span of the runs. Membership is the runs
+endpoint's; bundles are read as the statistics read them, one-row keys
+straight off by_job and the rest through `FINAL` at shared starts, and each
+test's bundles are aggregated as one array of (job, status) pairs.
+
+Measured on ce6ff46 (9,177,729 bundles, 2026-10-30): the per-status
+`groupUniqArrayIf` form took 7.5 to 7.8 s elapsed; the one-array form 3.1 to
+3.6 s, identical rows (7 rows, digest `12e5949c2ee7e03e`), 150M rows and 1.6
+GB read, about 105 MB of memory. One thread takes 16.3 s, so the query costs
+about 16 CPU-seconds and runs in the heavy workload (`CI_WORKLOAD_HEAVY`).
+The full-`FINAL` baseline, every row of the commit's jobs read through `FINAL`
+and grouped into bundles, returns the same rows: recorded in
+`summary-query-validation.json` (`scripts/validateCommitSummaryQueries.cjs`,
+two alternating pairs on 2026-10-31 UTC), the baseline took 112 to 124 s
+reading 7.9 billion rows (507 GB) against 3.1 to 3.2 s and 150M rows for the
+working query on ce6ff46, and 110 to 112 s against 1.5 s on the pull request
+head 06b5f47 (224,867 tests in 108 jobs, none failed), identical complete rows
+both times. The commit's own lookup, its pull request's title and its branch
+neighbours, recorded beside them, answer in 0.2 s, 6 ms and 1.3 s. The counts agree with the commit
+statistics' bundle counts (5 failed, 8 timed out, 87 flaky bundles) and with
+the plan's figures (672,763 tests in 333 jobs; 4, 8 and 68 tests failed,
+timed out and flaky; 529,412 passed; 10,270 expected failures; 133,001
+skipped in every job).
+
+## Commit page in outcome order (2026-11-01)
+
+The commit page lists its runs as one list in the hub's outcome order,
+failed, timed out, flaky, passed, other, expected failures, skipped, and
+within each outcome the page's sort, longest first by default. The runs
+endpoint gained a `status` sort field for it: the bundle status rule
+(`BUNDLE_STATUS_SQL`) as a column of the grouped rows, ranked by its index in
+`BUNDLE_STATUSES` (`indexOf`, a UInt8 cursor key), so one request with one
+cursor pages across the outcomes. The status filter already read the rule in
+`HAVING`; the sort reads it once more as a column, with the chronology and
+outcome columns the rule needs, and like the other mutable sorts takes the
+deduplicated read.
+
+Measured on ce6ff46 (`commit_status_sort` in
+[the shared-starts evidence](shared-starts-query-validation.json), four
+alternating pairs): the page's default request, `status=failed,timed_out,
+flaky,other` with `sort=status,-duration_milliseconds`, took 0.74 to 1.69 s
+reading 192M rows and 32 to 73 MB of memory, with the same index pruning as
+the request without the sort (6,452 of 1,087,526 granules through the
+80-element test set). The baseline, what the page did until this day, one
+page per outcome concatenated in that order, written as one statement (a
+UNION ALL of the per-status pages with their own parameters and the same
+ORDER BY), returned identical complete rows (100) and took 1.66 to 2.36 s
+reading 283M rows and 163 to 172 MB. The request without the status sort,
+the problem statuses sorted by duration alone, measured in alternating runs
+beside the sorted one: 0.60 to 1.42 s against 0.70 to 1.01 s, the same rows
+read, noise. On a test's own page the sort is as cheap as any other (6 rows,
+0.05 s).
+
+On 2026-11-02 the rank was turned around: `status` ranks best first, skipped
+through failed, so `-status` puts the worst first as the tests list's `status`
+sort does, and the page asks for `sort=-status,-duration_milliseconds`. The
+case was re-recorded with that request against the same baseline, its
+per-status pages ordered as the new sort orders (four alternating pairs,
+identical complete rows, 100): the page's request took 0.63 to 0.87 s reading
+191M rows and 65 to 83 MB; the baseline 1.38 to 1.73 s after a first cold run
+of 7.6 s, reading 280M rows and 168 to 205 MB. The commit list's `stats`
+field and its `commit_stats` unchanged entry left the bundle the same day (see
+the statistics section above).

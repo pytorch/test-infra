@@ -143,28 +143,9 @@ export const RunRecordSchema = z
     "A bundle of executions sharing the internal test ID, environment ID, env var set ID and GitHub job ID. Shared metadata appears once; individual executions are in attempts. Replacement rows are deduplicated before grouping. Catalogs and owners reflect current data. Missing catalogs or workflow metadata do not remove a bundle or merge it with another configuration. Workflow metadata uses the latest retained records."
   );
 
-// Records, filters, statistics and SQL aggregation share the same outcomes.
+// Records, filters and SQL aggregation share the same outcomes.
 export type RunOutcome = z.infer<typeof RunOutcomeSchema>;
 export { RUN_OUTCOMES };
-
-const runCount = z.number().int().nonnegative();
-export const RunStatsSchema = z
-  .object({
-    total: runCount.describe(
-      "Exact number of retained bundles in the requested scope after replacement deduplication: one per test, environment, env var set and GitHub job, however many attempts it holds."
-    ),
-    ...(Object.fromEntries(
-      RUN_OUTCOMES.map((outcome) => [
-        outcome,
-        runCount.describe(
-          `Number of retained bundles whose final outcome is ${outcome}: the recorded outcome of the bundle's chronologically last executed attempt, or skipped when every attempt was skipped.`
-        ),
-      ])
-    ) as Record<RunOutcome, typeof runCount>),
-  })
-  .describe(
-    "Exact bundle counts by final outcome for the entire requested scope. Retries are flattened: each bundle counts once, under the outcome of its last executed attempt in started_at, ended_at and id order, so a test that failed and then passed on retry counts as passed. A skipped attempt never overrides an executed one: a test that timed out or failed and was then skipped in its rerun did not recover, so that bundle keeps its timed_out or failed outcome. A bundle whose attempts were all skipped counts as skipped. This is the only way the final outcome differs from the last_attempt_outcome filter. Each counter counts only its named outcome; the counters sum to total. Bundles that ended passing are counted in passed. failed counts only a final failed outcome; error, crashed, timed_out, xfailed and xpassed are reported separately. Search and all run filters, including outcome and last_attempt_outcome, are ignored. Ordering and pagination do not affect counts. A scope with no retained bundles has zero in every field."
-  );
 
 export const RunListPageSchema = z
   .object({
@@ -186,7 +167,6 @@ export const RunListPageSchema = z
 
 export type RunRecord = z.infer<typeof RunRecordSchema>;
 export type RunAttempt = z.infer<typeof RunAttemptSchema>;
-export type RunStats = z.infer<typeof RunStatsSchema>;
 export type GithubWorkflow = z.infer<typeof GithubWorkflowSchema>;
 // Flat metadata fields are internal to the batched workflow lookup.
 export type RunWorkflowFields = {

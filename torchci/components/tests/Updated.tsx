@@ -15,8 +15,12 @@ const UPDATED_WIDTH = "17.5ch";
 // the first page, so the table does not move when the label appears.
 export default function Updated({
   refreshedAt,
+  cadence = REFRESHED_EVERY,
 }: {
   refreshedAt: string | null;
+  // How often the data is refreshed, for the tooltip's second sentence; null
+  // for data read live, which has no cadence.
+  cadence?: string | null;
 }) {
   const time = useTimeAgo(refreshedAt);
   return (
@@ -25,7 +29,11 @@ export default function Updated({
         title={
           time === undefined
             ? ""
-            : `Refreshed ${time.when}.\nThe data is refreshed every ${REFRESHED_EVERY}.`
+            : `Refreshed ${time.when}.${
+                cadence === null
+                  ? ""
+                  : `\nThe data is refreshed every ${cadence}.`
+              }`
         }
         enterDelay={600}
         placement="bottom-end"

@@ -848,13 +848,17 @@ describe("the duration cell's labels", () => {
     expect(durationLabel(125000)).toBe("2.1 min");
     expect(durationLabel(1939503)).toBe("32.3 min");
     expect(durationLabel(3596999)).toBe("59.9 min");
-    expect(durationLabel(5400000)).toBe("1.5 h");
-    expect(durationLabel(90000000)).toBe("25.0 h");
+    expect(durationLabel(5400000)).toBe("1 h 30 min");
+    expect(durationLabel(90000000)).toBe("25 h");
+    expect(durationLabel(15720000)).toBe("4 h 22 min");
+    expect(durationLabel(7200000)).toBe("2 h");
+    expect(durationLabel(7229999)).toBe("2 h");
+    expect(durationLabel(7230000)).toBe("2 h 1 min");
   });
 
   test("round up into the next unit rather than saying 60.0 of this one", () => {
     expect(durationLabel(59950)).toBe("1.0 min");
-    expect(durationLabel(3599999)).toBe("1.0 h");
+    expect(durationLabel(3599999)).toBe("1 h");
   });
 
   test("count the passed runs in the singular or the plural", () => {

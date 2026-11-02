@@ -13,6 +13,7 @@ import type {
   TestLanguage,
 } from "lib/api/tests/parameters";
 import { DEFAULT_SORT } from "lib/api/tests/parameters";
+import { SHARED_COLUMN_SORT_FIELDS } from "lib/tests/columns";
 import {
   facetChoice,
   FacetValues,
@@ -39,14 +40,23 @@ import type { UrlQuery } from "lib/tests/url";
 // values arrive at run time from GET /api/tests/options, so nothing here
 // spells out a catalog value.
 
+// How long typing in a Name header's search field may pause before the URL,
+// and so the table, follows it. Each search the URL takes is a full query,
+// which the database runs to the end even when the browser has moved on, so
+// a pause within one search must not fire: the half-second hesitations at
+// the underscores and digits of a name typed from memory fired four queries
+// per search at 250 ms, one at this. A longer pause would only hold up a
+// finished search. The list and the commit page share it.
+export const SEARCH_PAUSE_MS = 750;
 export const TESTS_PAGE_SIZES: readonly number[] = [25, 50, 100];
 export const DEFAULT_TESTS_PAGE_SIZE = 25;
 
 // Each sortable column of the table and the API sort fields, in order, that
 // sorting by it means. A header click sorts every field the same way and the
-// API orders by them left to right.
+// API orders by them left to right. The columns shared with the commit page
+// bring their fields from lib/tests/columns.ts.
 export const TESTS_TABLE_SORT_FIELDS: Record<string, readonly string[]> = {
-  name: ["file", "suite", "case_name"],
+  name: SHARED_COLUMN_SORT_FIELDS.name,
   // Worst first by what makes a test unhealthy: the status, since a failure
   // that survives its retries makes CI red while flakiness only costs
   // retries, then the share of runs with a failing attempt, the rate the
@@ -66,26 +76,10 @@ export const TESTS_TABLE_SORT_FIELDS: Record<string, readonly string[]> = {
     "skip_rate",
     "mean_passed_duration_milliseconds",
   ],
-  // Like with like: what torch was built for, then the device, the Python,
-  // then the platform details, in the order the cell sets them.
-  environment: [
-    "accelerator",
-    "accelerator_version",
-    "device_name",
-    "device_count",
-    "python_version",
-    "os",
-    "os_version",
-    "cpu_architecture",
-    "cpu_capability",
-    "cc_compiler",
-    "cc_compiler_version",
-  ],
-  test_config: ["test_config"],
+  environment: SHARED_COLUMN_SORT_FIELDS.environment,
+  test_config: SHARED_COLUMN_SORT_FIELDS.test_config,
   mean_passed_duration_milliseconds: ["mean_passed_duration_milliseconds"],
-  // The API orders by the alphabetically first label and puts unowned tests
-  // last either way.
-  owners: ["owner"],
+  owners: SHARED_COLUMN_SORT_FIELDS.owners,
   last_run_at: ["last_run_at"],
 };
 
@@ -304,12 +298,15 @@ export type SortDirection = "asc" | "desc";
 // The API sort parameter for the table's sort model: the column's fields,
 // comma-separated, each prefixed with - when descending. undefined when the
 // model is empty or names a column the table does not sort on.
-export function sortParamOf(model: GridSortModel): string | undefined {
+export function sortParamOf(
+  model: GridSortModel,
+  columnFields: Record<string, readonly string[]> = TESTS_TABLE_SORT_FIELDS
+): string | undefined {
   const [item] = model;
   if (!item?.sort) {
     return undefined;
   }
-  const fields = TESTS_TABLE_SORT_FIELDS[item.field];
+  const fields = columnFields[item.field];
   if (fields === undefined) {
     return undefined;
   }
@@ -322,7 +319,13 @@ export function sortParamOf(model: GridSortModel): string | undefined {
 // the parameter lists, in order and all in one direction. Empty when the
 // parameter orders by anything else, which the table still sends to the API
 // but has no header to show on.
-export function sortModelOf(sortParam: string): GridSortModel {
+export function sortModelOf(
+  sortParam: string,
+  columnFieldsByName: Record<
+    string,
+    readonly string[]
+  > = TESTS_TABLE_SORT_FIELDS
+): GridSortModel {
   const terms = sortParam.split(",");
   const direction: SortDirection = terms[0].startsWith("-") ? "desc" : "asc";
   const descending = direction === "desc";
@@ -330,8 +333,8 @@ export function sortModelOf(sortParam: string): GridSortModel {
     return [];
   }
   const fields = terms.map((term) => term.replace(/^-/, ""));
-  const column = Object.keys(TESTS_TABLE_SORT_FIELDS).find((name) => {
-    const columnFields = TESTS_TABLE_SORT_FIELDS[name];
+  const column = Object.keys(columnFieldsByName).find((name) => {
+    const columnFields = columnFieldsByName[name];
     return (
       columnFields.length === fields.length &&
       columnFields.every((field, index) => field === fields[index])
@@ -433,9 +436,9 @@ export function integerLabel(value: number): string {
 }
 
 // A duration in the largest unit it fills, to three figures or so: "625 ms"
-// under a second, then "12.7 s", "32.3 min" and "1.5 h". A value that would
-// round up to the next unit, 59,950 ms say, is said in that unit, "1.0 min",
-// never as "60.0 s".
+// under a second, then "12.7 s" and "32.3 min"; an hour or more in hours and
+// minutes, "4 h 22 min". A value that would round up to the next unit,
+// 59,950 ms say, is said in that unit, "1.0 min", never as "60.0 s".
 export function durationLabel(milliseconds: number): string {
   if (milliseconds < 1000) {
     return `${integerLabel(milliseconds)} ms`;
@@ -448,7 +451,14 @@ export function durationLabel(milliseconds: number): string {
   if (minutes < 59.95) {
     return `${minutes.toFixed(1)} min`;
   }
-  return `${(minutes / 60).toFixed(1)} h`;
+  // An hour or more is read off a clock, so it is said in whole hours and
+  // minutes, "4 h 22 min", and "2 h" on the hour.
+  const wholeMinutes = Math.round(minutes);
+  const hours = Math.floor(wholeMinutes / 60);
+  const rest = wholeMinutes % 60;
+  return rest === 0
+    ? `${integerLabel(hours)} h`
+    : `${integerLabel(hours)} h ${rest} min`;
 }
 
 // How many passed runs a mean duration is over, as the cell says it beneath

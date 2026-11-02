@@ -116,6 +116,12 @@ export function smallPillColors(theme: Theme, hue: Hue): SmallPillColors {
   return pillColors(theme, hue).small;
 }
 
+// A solid of the hue, for the commit summary's bar segments and legend
+// dots: the small pill's hover fill, the strongest of its shades.
+export function solidHueColor(theme: Theme, hue: Hue): string {
+  return pillColors(theme, hue).small.hoverFill;
+}
+
 // The hue of each status that is a block: failing red, flaky yellow,
 // skipped purple.
 export const STATUS_HUES: Record<BlockStatus, Hue> = {

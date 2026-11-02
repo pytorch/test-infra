@@ -7,14 +7,20 @@ import {
 import type { RunsCursor } from "lib/api/tests/test/runs/cursor";
 import {
   RUN_FILTER_DEFINITIONS,
+  RUN_LIST_PARAMETER_DEFINITIONS,
   RUN_SORT_FIELDS,
   RunsListQuery,
 } from "lib/api/tests/test/runs/parameters";
-import { RUN_OUTCOMES } from "lib/api/tests/test/runs/types";
 import {
   WORKFLOW_PATH_SQL,
   workflowMetadataSql,
 } from "lib/api/tests/test/runs/workflow-query";
+import {
+  BUNDLE_STATUSES,
+  BundleStatus,
+  FAILING_OUTCOMES,
+  RunOutcome,
+} from "lib/runOutcomes";
 
 const SORT_COLUMNS = {
   started_at: "timestamp",
@@ -25,6 +31,7 @@ const SORT_COLUMNS = {
   github_workflow_job_id: "Int64",
   rerun_number: "UInt16",
   outcome: "String",
+  duration_milliseconds: "Int64",
 } as const;
 type RunSortField =
   | keyof typeof SORT_COLUMNS
@@ -53,7 +60,7 @@ export const RUN_GROUP_FIELDS = [
 
 // Versions of one run share its test start, so a start holding one stored row
 // holds that run's only version. Pages and statistics resolve replacements by it.
-const RUN_START = "run.tests_id, run.started_at";
+export const RUN_START = "run.tests_id, run.started_at";
 
 // A bundle's attempts in chronological order, as the attempts query and the
 // mapping sort them. Timestamps have millisecond precision; the UUID string
@@ -67,6 +74,110 @@ export const RUN_CHRONOLOGY = "run.started_at, run.ended_at, toString(run.id)";
 // too. The recorded last attempt alone would call such a bundle skipped.
 export const FINAL_OUTCOME = `argMax(run.outcome, (run.outcome != 'skipped', ${RUN_CHRONOLOGY}))`;
 
+const FAILING_OUTCOMES_SQL = `(${[...FAILING_OUTCOMES]
+  .map((outcome) => `'${outcome}'`)
+  .join(", ")})`;
+
+// A bundle's status over its grouped attempts, the rule of BUNDLE_STATUSES in
+// lib/runOutcomes.ts (bundleStatusOf in lib/tests/bundle.ts is the same rule
+// for the pages): skipped when nothing executed; by the final outcome
+// otherwise, a failure, error or crash failed, a timeout timed_out, a pass
+// after a failing attempt flaky and without one passed, an expected failure
+// xfailed, anything else other.
+export const BUNDLE_STATUS_SQL = `multiIf(countIf(run.outcome != 'skipped') = 0, 'skipped', ${FINAL_OUTCOME} IN ('failed', 'error', 'crashed'), 'failed', ${FINAL_OUTCOME} = 'timed_out', 'timed_out', ${FINAL_OUTCOME} = 'passed', if(countIf(run.outcome IN ${FAILING_OUTCOMES_SQL}) > 0, 'flaky', 'passed'), ${FINAL_OUTCOME} = 'xfailed', 'xfailed', 'other')`;
+
+// A bundle's executed time in milliseconds: each attempt's end less its start,
+// never negative, skipped attempts left out.
+export const BUNDLE_DURATION_SQL =
+  "sum(if(run.outcome != 'skipped', greatest(0, toUnixTimestamp64Milli(run.ended_at) - toUnixTimestamp64Milli(run.started_at)), 0))";
+
+// The stored outcomes a bundle of each status must hold a row of, after
+// replacement deduplication: a failed bundle's final attempt failed, errored
+// or crashed; a flaky bundle had a failing attempt; and so on. A key with no
+// such row cannot have the status, so these prune a by_job read.
+const STATUS_OUTCOMES: Record<BundleStatus, readonly RunOutcome[]> = {
+  failed: ["failed", "error", "crashed"],
+  timed_out: ["timed_out"],
+  flaky: [...FAILING_OUTCOMES],
+  passed: ["passed"],
+  other: ["xpassed", "unknown"],
+  xfailed: ["xfailed"],
+  skipped: ["skipped"],
+};
+
+// The outcomes a key set drawn by prunes a by_job read: a failing outcome,
+// an unexpected pass or an unknown. Passes and skips are most of a commit's
+// rows, so a set drawn by them prunes nothing and costs a pass; expected
+// failures, rare among rows, belong to thousands of tests on a main commit
+// (10,443 of 672,763 on ce6ff46), each read whole from every part, 254K
+// granules and 36 s on 2026-11-01 against 2.7 s for the grouped read.
+const PRUNABLE_OUTCOMES: ReadonlySet<RunOutcome> = new Set<RunOutcome>([
+  ...FAILING_OUTCOMES,
+  "xpassed",
+  "unknown",
+]);
+
+// The stored outcomes a bundle of any of the statuses must hold a row of.
+function statusOutcomes(statuses: readonly BundleStatus[]): RunOutcome[] {
+  return Array.from(
+    new Set(statuses.flatMap((status) => STATUS_OUTCOMES[status]))
+  ).sort();
+}
+
+// Whether a key set drawn by the outcomes prunes a by_job read.
+function rare(outcomes: readonly RunOutcome[]): boolean {
+  return outcomes.every((outcome) => PRUNABLE_OUTCOMES.has(outcome));
+}
+
+export interface RunStatusFilter {
+  // Bundle statuses to select, the outcomes the commit page lists.
+  status?: readonly BundleStatus[];
+  // Bundle statuses a selected bundle's test must have as its worst over
+  // every bundle of the test in the scope, as the commit summary counts
+  // tests once.
+  worst_status?: readonly BundleStatus[];
+}
+
+// The stored outcomes that every bundle a query's attempt filters can select
+// must hold a row of, when they are rare enough to prune a by_job read by: the
+// outcome filter's own values, else the last_attempt_outcome filter's (the
+// final attempt's latest version holds that outcome), else the statuses'
+// (STATUS_OUTCOMES), else the worst statuses' (a test whose worst status is
+// one of them has a bundle of it). Undefined when no filter qualifies.
+function candidateOutcomes(
+  query: Pick<RunPageQuery, "outcome" | "last_attempt_outcome"> &
+    RunStatusFilter
+): RunOutcome[] | undefined {
+  const candidates: (readonly RunOutcome[] | undefined)[] = [
+    query.outcome,
+    query.last_attempt_outcome,
+    query.status === undefined ? undefined : statusOutcomes(query.status),
+    query.worst_status === undefined
+      ? undefined
+      : statusOutcomes(query.worst_status),
+  ];
+  return candidates.find(
+    (outcomes) => outcomes !== undefined && rare(outcomes)
+  ) as RunOutcome[] | undefined;
+}
+
+const BUNDLE_STATUSES_SQL = `[${BUNDLE_STATUSES.map(
+  (status) => `'${status}'`
+).join(", ")}]`;
+
+// The statuses best first, skipped through failed: the status sort's rank,
+// so ascending is best first and -status puts the worst first, as the tests
+// list's status sort does.
+const STATUS_RANK_SQL = `[${[...BUNDLE_STATUSES]
+  .reverse()
+  .map((status) => `'${status}'`)
+  .join(", ")}]`;
+
+// A test's worst status over its bundles, each grouped row one bundle with
+// its status: the first of BUNDLE_STATUSES any of them has, as the commit
+// summary ranks them, found over the test's rows in one pass by a window.
+const WORST_STATUS_SQL = `${BUNDLE_STATUSES_SQL}[min(indexOf(${BUNDLE_STATUSES_SQL}, status)) OVER (PARTITION BY tests_id)]`;
+
 export function runSortKeys(
   query: Pick<RunsListQuery, "sort">,
   includeTestId = false
@@ -77,13 +188,33 @@ export function runSortKeys(
       throw new Error(`Unknown run sort field: ${field}`);
     }
     const direction = sort.startsWith("-") ? "DESC" : "ASC";
-    if (field === "workflow_path") {
+    if (field === "status") {
+      // The bundle's status, a column of the grouped rows, ranked best
+      // first: 1 for skipped through 7 for failed.
+      return {
+        field,
+        type: "UInt8",
+        direction,
+        expression: `indexOf(${STATUS_RANK_SQL}, run.status)`,
+      };
+    }
+    if (field === "workflow_path" || field === "job_name") {
       return {
         field,
         type: "String",
         direction,
         nullable: true,
-        expression: "run_workflow.workflow_path",
+        expression: `run_workflow.${field}`,
+      };
+    }
+    if (field === "test_config") {
+      return {
+        field,
+        type: "String",
+        direction,
+        nullable: true,
+        expression:
+          "if(run_env_vars.has_catalog = 1, run_env_vars.test_config, NULL)",
       };
     }
     if (field in RUN_FILTER_DEFINITIONS) {
@@ -151,7 +282,7 @@ function seekKeys(keys: RunSortKey[]): SeekKey[] {
 
 type RunPageQuery = Omit<RunsListQuery, "test_id">;
 type RunSelectionQuery = Omit<RunPageQuery, "sort" | "limit">;
-interface RunPageScope {
+export interface RunPageScope {
   params: Record<string, unknown>;
   // Replacement-key predicates that select the scope's runs.
   filters: string[];
@@ -202,6 +333,7 @@ function selectionJoins(
   filters: string[],
   params: Record<string, unknown>
 ) {
+  const TEST_CONFIG_COLUMN = `env_var_set.${RUN_LIST_PARAMETER_DEFINITIONS.test_config.column}`;
   const joins: string[] = [];
   // These IDs are replacement-key columns. Reading without FINAL discovers
   // a safe superset. The actual records, including mutable outcomes, are
@@ -290,24 +422,48 @@ function selectionJoins(
   }
 
   const envVarFilters = buildEnvVarFilters(query.env_vars, params);
-  if (envVarFilters.length) {
+  if (query.test_config !== undefined) {
+    params.filter_test_config = query.test_config;
+    envVarFilters.push(
+      `${TEST_CONFIG_COLUMN} IN {filter_test_config: Array(String)}`
+    );
+  }
+  const envVarSorts = keys.filter((key) =>
+    key.expression?.includes("run_env_vars.")
+  );
+  if (envVarSorts.length) {
+    joins.push(
+      `LEFT JOIN (
+    SELECT env_var_set.id AS id, ${TEST_CONFIG_COLUMN} AS test_config, toUInt8(1) AS has_catalog
+    FROM ${CI_DATABASE}.env_vars AS env_var_set FINAL
+    WHERE ${envVarFilters.length ? envVarFilters.join(" AND ") : "1"}
+) AS run_env_vars ON run_env_vars.id = run.env_vars_id`
+    );
+    if (envVarFilters.length) filters.push("run_env_vars.has_catalog = 1");
+  } else if (envVarFilters.length) {
     filters.push(`run.env_vars_id IN (
         SELECT id FROM ${CI_DATABASE}.env_vars AS env_var_set FINAL
         WHERE ${envVarFilters.join(" AND ")}
     )`);
   }
 
+  const jobNameSorted = keys.some((key) => key.field === "job_name");
   if (
     query.workflow_path !== undefined ||
-    keys.some((key) => key.field === "workflow_path")
+    keys.some((key) => key.field === "workflow_path") ||
+    jobNameSorted
   ) {
     // Bound both metadata tables by jobs in this selection, through the lookup
     // page enrichment uses, so filters and sorting see the returned path.
     const workflow = workflowMetadataSql({
       jobIds: `(${discover("github_workflow_job_id")})`,
-      jobColumns: [],
+      jobColumns: jobNameSorted ? ["name"] : [],
       workflowColumns: ["path"],
-      columns: ["job.id AS id", `${WORKFLOW_PATH_SQL} AS workflow_path`],
+      columns: [
+        "job.id AS id",
+        `${WORKFLOW_PATH_SQL} AS workflow_path`,
+        ...(jobNameSorted ? ["nullIf(job.name, '') AS job_name"] : []),
+      ],
     });
     joins.push(
       `LEFT JOIN (\n${workflow}\n) AS run_workflow ON run_workflow.id = run.github_workflow_job_id`
@@ -385,7 +541,7 @@ export const PAGE_COLUMNS = `run.id AS id,
     run.ended_at AS ended_at`;
 
 export function buildRunPageQuery(
-  query: RunPageQuery,
+  query: RunPageQuery & RunStatusFilter,
   cursor: Pick<RunsCursor, "position" | "direction"> | null,
   scope: RunPageScope,
   keys = runSortKeys(query)
@@ -394,22 +550,77 @@ export function buildRunPageQuery(
     ...scope.params,
     entries_limit: query.limit + 1,
   };
+  // A by_job scope whose attempt filters admit only bundles holding a rare
+  // outcome reads FINAL by primary key instead: one by_job pass finds the
+  // tests that hold such a row on the commit, a superset of the tests the
+  // filters select, and the deduplicated read is pruned to those tests'
+  // key ranges, as a test's own page reads. A filtered commit page then
+  // costs one pass and a few hundred thousand rows instead of the shared
+  // start classification over the commit's hundreds of millions. A scalar
+  // holding the keys was tried first: the old analyzer copies the WITH
+  // clause into every subquery, and the nested evaluations took gigabytes.
+  const candidates = scope.byJob ? candidateOutcomes(query) : undefined;
+  if (candidates !== undefined) params.candidate_outcomes = candidates;
   const { identityFilters, attemptFilters, joinFilters, joins } =
     selectionFilters(query, scope, keys, params);
+  // A worst_status filter ranks every bundle of a test on the commit, in any
+  // job, so the grouped bundles carry their statuses and are ranked by a
+  // window over the test's rows before anything selects among them: the
+  // bundle filters, the identity filters among them, apply after the
+  // ranking rather than in the source or the HAVING, as columns of the
+  // grouped rows. Without the filter the grouped read is as before.
+  const ranking = query.worst_status !== undefined;
   const runFilters = [...scope.filters, ...identityFilters];
   const seek = seekKeys(keys);
   const predicate = seekPredicate(seek, cursor, params);
   const chronology = `(${RUN_CHRONOLOGY})`;
-  const groupFilters = attemptFilters.length
-    ? [`countIf(${attemptFilters.join(" AND ")}) > 0`]
-    : [];
+  // The bundle filters: HAVING conditions of the grouping, or with ranking
+  // columns of the grouped rows and conditions on them after the window.
+  const groupFilters: string[] = [];
+  const rankedColumns: string[] = [];
+  const rankedFilters: string[] = [];
+  const bundleFilter = (
+    aggregate: string,
+    column: string,
+    condition: (_value: string) => string
+  ) => {
+    if (ranking) {
+      rankedColumns.push(`${aggregate} AS ${column}`);
+      rankedFilters.push(condition(`run.${column}`));
+    } else {
+      groupFilters.push(condition(aggregate));
+    }
+  };
+  if (attemptFilters.length) {
+    bundleFilter(
+      `countIf(${attemptFilters.join(" AND ")}) > 0`,
+      "attempt_matched",
+      (value) => value
+    );
+  }
   if (query.last_attempt_outcome !== undefined) {
     params.last_attempt_outcome = query.last_attempt_outcome;
     // Choose the last retained execution from the complete group, independently
     // of which execution satisfies the outcome and rerun-number filters.
-    groupFilters.push(
-      `argMax(run.outcome, ${chronology}) IN {last_attempt_outcome: Array(String)}`
+    bundleFilter(
+      `argMax(run.outcome, ${chronology})`,
+      "last_outcome",
+      (value) => `${value} IN {last_attempt_outcome: Array(String)}`
     );
+  }
+  if (query.status !== undefined) {
+    params.status = query.status;
+    bundleFilter(
+      BUNDLE_STATUS_SQL,
+      "status",
+      (value) => `${value} IN {status: Array(String)}`
+    );
+  } else if (ranking) {
+    rankedColumns.push(`${BUNDLE_STATUS_SQL} AS status`);
+  }
+  if (query.worst_status !== undefined) {
+    params.worst_status = query.worst_status;
+    rankedFilters.push("run.worst_status IN {worst_status: Array(String)}");
   }
   const aggregates = keys.flatMap((key) => {
     if (key.field === "started_at")
@@ -417,6 +628,14 @@ export function buildRunPageQuery(
     if (key.field === "ended_at") return ["max(run.ended_at) AS ended_at"];
     if (key.field === "outcome" || key.field === "rerun_number") {
       return [`argMax(run.${key.field}, ${chronology}) AS ${key.field}`];
+    }
+    if (key.field === "duration_milliseconds") {
+      return [`${BUNDLE_DURATION_SQL} AS duration_milliseconds`];
+    }
+    // A status sort reads the status rule as a column; with ranking the
+    // grouped rows carry it already.
+    if (key.field === "status") {
+      return ranking ? [] : [`${BUNDLE_STATUS_SQL} AS status`];
     }
     return [];
   });
@@ -433,11 +652,57 @@ export function buildRunPageQuery(
     scope.byJob &&
     query.outcome === undefined &&
     query.last_attempt_outcome === undefined &&
+    query.status === undefined &&
+    query.worst_status === undefined &&
     !keys.some((key) =>
-      ["ended_at", "outcome", "rerun_number"].includes(key.field)
+      [
+        "ended_at",
+        "outcome",
+        "status",
+        "rerun_number",
+        "duration_milliseconds",
+      ].includes(key.field)
     );
-  const classify = scope.byJob && !useProjection;
-  const where = `WHERE ${runFilters.join("\n        AND ")}`;
+  const pruned = scope.byJob && !useProjection && candidates !== undefined;
+  const classify = scope.byJob && !useProjection && !pruned;
+  // With ranking the source holds every bundle of the scope's tests, the
+  // identity filters applying after the window.
+  const where = `WHERE ${(ranking ? scope.filters : runFilters).join(
+    "\n        AND "
+  )}`;
+  const grouped = `SELECT ${[
+    ...RUN_GROUP_FIELDS.map((field) => `run.${field} AS ${field}`),
+    ...aggregates,
+    ...rankedColumns,
+  ].join(",\n        ")}
+    FROM ${
+      classify
+        ? classifiedRunsSource(where, attemptColumns(query, keys))
+        : pruned
+        ? prunedRunsSource(scope, where, "candidate_outcomes")
+        : `${CI_DATABASE}.runs AS run${
+            useProjection ? "" : " FINAL"
+          }\n    ${where}`
+    }
+    GROUP BY ${RUN_GROUP_FIELDS.map((field) => `run.${field}`).join(", ")}
+    ${
+      groupFilters.length ? `HAVING ${groupFilters.join("\n        AND ")}` : ""
+    }`;
+  // The grouped rows ranked: each with its test's worst status beside it.
+  const ranked = `SELECT ${[
+    ...RUN_GROUP_FIELDS,
+    ...[...aggregates, ...rankedColumns].map((column) =>
+      column.slice(column.lastIndexOf(" AS ") + " AS ".length)
+    ),
+  ].join(", ")},
+        ${WORST_STATUS_SQL} AS worst_status
+    FROM (
+    ${grouped}
+    )`;
+  const outerFilters = [
+    ...(ranking ? [...identityFilters, ...rankedFilters] : []),
+    ...joinFilters,
+  ];
   return {
     params,
     // Attempt predicates are HAVING conditions so a matching failure keeps
@@ -454,23 +719,9 @@ SELECT
       )
       .join(",\n    ")}
 FROM (
-    SELECT ${[
-      ...RUN_GROUP_FIELDS.map((field) => `run.${field} AS ${field}`),
-      ...aggregates,
-    ].join(",\n        ")}
-    FROM ${
-      classify
-        ? classifiedRunsSource(where, attemptColumns(query, keys))
-        : `${CI_DATABASE}.runs AS run${
-            useProjection ? "" : " FINAL"
-          }\n    ${where}`
-    }
-    GROUP BY ${RUN_GROUP_FIELDS.map((field) => `run.${field}`).join(", ")}
-    ${
-      groupFilters.length ? `HAVING ${groupFilters.join("\n        AND ")}` : ""
-    }
+    ${ranking ? ranked : grouped}
 ) AS run${joins}
-WHERE ${joinFilters.length ? joinFilters.join("\n    AND ") : "1"}
+WHERE ${outerFilters.length ? outerFilters.join("\n    AND ") : "1"}
     AND (${predicate})
 ORDER BY ${seekOrderBy(seek, cursor?.direction === "previous")}
 LIMIT {entries_limit: UInt64}
@@ -480,7 +731,7 @@ SETTINGS optimize_move_to_prewhere_if_final = 0
 }
 
 // Starts a WITH clause after the scope's prefix, which may already open one.
-function withClause(scope: RunPageScope) {
+export function withClause(scope: Pick<RunPageScope, "prefix">) {
   return scope.prefix ? `${scope.prefix},` : "\nWITH";
 }
 
@@ -491,7 +742,7 @@ function withClause(scope: RunPageScope) {
 // a WITH scalar: the old analyzer copies the WITH clause into every nested
 // subquery, and a scalar holding this text overflows the AST size limit.
 // Both membership tests below carry the same text, so one set serves both.
-function sharedStartsSubquery(where: string) {
+export function sharedStartsSubquery(where: string) {
   return `SELECT ${RUN_START}
             FROM ${CI_DATABASE}.runs AS run
             ${where}
@@ -499,10 +750,30 @@ function sharedStartsSubquery(where: string) {
             HAVING count() > 1`;
 }
 
+// The scope's rows read through FINAL, pruned by primary key to the tests
+// holding a row of the outcomes bound as the named parameter, found in one
+// by_job pass: a superset of the tests the filters select, and complete for
+// each, since FINAL resolves replacements within a test's rows, which the
+// pruning keeps whole. tests_id leads the primary key, so the read keeps
+// the candidate tests' granules alone (query-validation.md, 2026-10-30).
+export function prunedRunsSource(
+  scope: Pick<RunPageScope, "filters">,
+  where: string,
+  outcomesParameter: string
+) {
+  return `${CI_DATABASE}.runs AS run FINAL
+    PREWHERE run.tests_id IN (SELECT run.tests_id
+        FROM ${CI_DATABASE}.runs AS run
+        WHERE ${scope.filters.join("\n            AND ")}
+            AND run.outcome IN {${outcomesParameter}: Array(String)}
+        GROUP BY run.tests_id)
+    ${where}`;
+}
+
 // The scope's runs as FINAL would return them: rows at unique starts read
 // directly through by_job, rows at shared starts deduplicated by a FINAL
 // read pruned to those starts. Only the columns the grouping uses are read.
-function classifiedRunsSource(where: string, columns: string[]) {
+export function classifiedRunsSource(where: string, columns: string[]) {
   const select = `SELECT ${[...RUN_GROUP_FIELDS, ...columns]
     .map((field) => `run.${field} AS ${field}`)
     .join(", ")}`;
@@ -522,103 +793,40 @@ function classifiedRunsSource(where: string, columns: string[]) {
 
 // The attempt columns the grouped page reads besides its group keys: the
 // sort aggregates, the attempt filters, and the chronology argMax orders by.
-function attemptColumns(query: RunPageQuery, keys: RunSortKey[]) {
+function attemptColumns(
+  query: RunPageQuery & RunStatusFilter,
+  keys: RunSortKey[]
+) {
   const sorted = (field: RunSortField) =>
     keys.some((key) => key.field === field);
+  // The status rule, a filter's or a sort's, reads every attempt's outcome
+  // and the chronology.
+  const status =
+    query.status !== undefined ||
+    query.worst_status !== undefined ||
+    sorted("status");
   const chronology =
     query.last_attempt_outcome !== undefined ||
+    status ||
     sorted("outcome") ||
     sorted("rerun_number");
   return [
-    ...(chronology || sorted("started_at") ? ["started_at"] : []),
-    ...(chronology || sorted("ended_at") ? ["ended_at"] : []),
+    ...(chronology || sorted("started_at") || sorted("duration_milliseconds")
+      ? ["started_at"]
+      : []),
+    ...(chronology || sorted("ended_at") || sorted("duration_milliseconds")
+      ? ["ended_at"]
+      : []),
     ...(chronology ? ["id"] : []),
     ...(query.outcome !== undefined ||
     query.last_attempt_outcome !== undefined ||
-    sorted("outcome")
+    status ||
+    sorted("outcome") ||
+    sorted("duration_milliseconds")
       ? ["outcome"]
       : []),
     ...(query.rerun_number !== undefined || sorted("rerun_number")
       ? ["rerun_number"]
       : []),
   ];
-}
-
-// Counts a by_job scope's bundles by final outcome, independently of page
-// filters, ordering or pagination. A bundle lies within one job and test, so
-// one by_job pass groups the scope's stored rows by that key. A key holding one
-// stored row is a one-attempt bundle in its only version and is counted from
-// that pass. The rows of the other keys, pruned by key on by_job, are read as
-// FINAL would return them and grouped into bundles. The keys partition the
-// rows, so no bundle is counted twice.
-export function buildRunStatsQuery(scope: RunPageScope) {
-  const where = `WHERE ${scope.filters.join("\n            AND ")}`;
-  const multiRowWhere = `${where}
-            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))`;
-  const columns = [
-    ...RUN_GROUP_FIELDS,
-    "started_at",
-    "ended_at",
-    "id",
-    "outcome",
-  ];
-  return {
-    params: { ...scope.params },
-    // classified_keys is an array of one tuple because the server materializes
-    // a tuple-typed scalar as one value, which cannot hold over 1,000,000
-    // keys. Tuple positions: the keys holding more than one stored row; the
-    // keys holding one, in total and then per outcome in RUN_OUTCOMES order.
-    // The direct branch below groups the remaining rows by test start and
-    // keeps the starts holding one stored row, that run's only version, which
-    // any() returns unchanged; the FINAL branch deduplicates the other starts.
-    sql: `${withClause(scope)}
-(
-    SELECT [(
-        groupArrayIf(job_test, stored_rows > 1),
-        [
-            countIf(stored_rows = 1),
-            ${RUN_OUTCOMES.map(
-              (outcome) => `countIf(stored_rows = 1 AND outcome = '${outcome}')`
-            ).join(",\n            ")}
-        ]
-    )]
-    FROM (
-        SELECT (run.github_workflow_job_id, run.tests_id) AS job_test,
-            count() AS stored_rows,
-            any(run.outcome) AS outcome
-        FROM ${CI_DATABASE}.runs AS run
-        ${where}
-        GROUP BY run.github_workflow_job_id, run.tests_id
-    )
-) AS classified_keys,
-(SELECT tupleElement(arrayJoin(classified_keys), 1)) AS multi_row_keys,
-(SELECT tupleElement(arrayJoin(classified_keys), 2)) AS stored_once
-SELECT stored_once[1] + count() AS total,
-    ${RUN_OUTCOMES.map(
-      (outcome, index) =>
-        `stored_once[${
-          index + 2
-        }] + countIf(final_outcome = '${outcome}') AS ${outcome}`
-    ).join(",\n    ")}
-FROM (
-    SELECT ${FINAL_OUTCOME} AS final_outcome
-    FROM (
-        SELECT ${columns
-          .map((field) => `any(run.${field}) AS ${field}`)
-          .join(", ")}
-        FROM ${CI_DATABASE}.runs AS run
-        ${multiRowWhere}
-        GROUP BY ${RUN_START}
-        HAVING count() = 1
-        UNION ALL
-        SELECT ${columns.map((field) => `run.${field} AS ${field}`).join(", ")}
-        FROM ${CI_DATABASE}.runs AS run FINAL
-        PREWHERE (${RUN_START}) IN (${sharedStartsSubquery(multiRowWhere)})
-        ${multiRowWhere}
-    ) AS run
-    GROUP BY ${RUN_GROUP_FIELDS.map((field) => `run.${field}`).join(", ")}
-)
-SETTINGS optimize_move_to_prewhere_if_final = 0
-`,
-  };
 }

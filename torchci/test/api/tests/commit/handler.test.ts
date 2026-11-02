@@ -11,7 +11,7 @@ import {
   CommitRunListPageSchema,
 } from "lib/api/tests/commit/types";
 import { callRoute } from "test/api/routes";
-import { expandedRunRecord, runRecord, runStats } from "../test/runs/fixtures";
+import { expandedRunRecord, runRecord } from "../test/runs/fixtures";
 
 // The routes are behind the GitHub gate, which has its own tests (auth.test.ts);
 // here the handlers answer as themselves.
@@ -23,10 +23,10 @@ const SHA = "0123456789abcdef0123456789abcdef01234567";
 const REPO = "pytorch/pytorch";
 const emptyPage: ListPageData<CommitRunListPage> = {
   runs: [],
+  hud_url: `https://hud.pytorch.org/tests/pytorch/pytorch/commit/${SHA}`,
   next_cursor: null,
   previous_cursor: null,
   query_duration_ms: 7,
-  stats: runStats(),
 };
 const cursor: CommitRunsCursor = {
   version: 2,
@@ -90,7 +90,6 @@ describe("app/api/tests/commit/[sha]", () => {
     const run = runRecord({ github_workflow_job_id: "120104808456" });
     const page: ListPageData<CommitRunListPage> = {
       ...emptyPage,
-      stats: runStats(Array(147).fill("failed")),
       runs: [
         {
           ...expandedRunRecord(run),
@@ -164,11 +163,6 @@ describe("app/api/tests/commit/[sha]", () => {
       "pull_requests"
     );
     expect(CommitRunListPageSchema.parse(res.body)).toEqual(res.body);
-    expect(res.body.stats).toEqual(runStats(Array(147).fill("failed")));
-    expect(res.body.stats).toMatchObject({ total: 147, failed: 147 });
-    expect(
-      Object.keys(res.body.stats).some((field) => field.endsWith("_runs"))
-    ).toBe(false);
     expect(res.body).not.toHaveProperty("total_runs");
     for (const name of [
       "tests_id",

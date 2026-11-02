@@ -2,10 +2,6 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import { Box, IconButton, InputBase, useTheme } from "@mui/material";
 import {
-  HEADER_FILTER_INSET,
-  HEADER_FILTER_SIZE,
-} from "components/tests/HeaderFilter";
-import {
   NAME_FILTER_TITLES,
   NAME_FILTERS,
   NameFilter,
@@ -16,7 +12,11 @@ import {
   headerKeyColors,
   headerKeySx,
 } from "lib/tests/headerColors";
-import { NAME_FILTER_ROW_HEIGHT } from "lib/tests/layout";
+import {
+  HEADER_FILTER_INSET,
+  HEADER_FILTER_SIZE,
+  NAME_FILTER_ROW_HEIGHT,
+} from "lib/tests/layout";
 import {
   ChangeEvent,
   KeyboardEvent,

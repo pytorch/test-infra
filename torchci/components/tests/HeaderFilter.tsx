@@ -8,6 +8,7 @@ import {
   headerKeyFocusRing,
   headerKeySx,
 } from "lib/tests/headerColors";
+import { HEADER_FILTER_INSET, HEADER_FILTER_SIZE } from "lib/tests/layout";
 import { KeyboardEvent, MouseEvent, useId, useState } from "react";
 
 export interface HeaderFilterProps {
@@ -21,12 +22,6 @@ export interface HeaderFilterProps {
   value: FacetValues;
   onChange: (_next: Partial<FacetValues>) => void;
 }
-
-// The key's side, in pixels: the funnel with its padding and edge. The
-// header leaves this much room, plus a gap, at its right.
-export const HEADER_FILTER_SIZE = 26;
-// How far the key sits in from the header's right edge, in pixels.
-export const HEADER_FILTER_INSET = 6;
 
 // A column's filter, in its header: a small key at the header's right edge
 // that opens the column's facet menu. The key is a rounded square in the

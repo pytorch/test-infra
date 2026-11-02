@@ -14,7 +14,6 @@ import {
   ENVIRONMENT_ID,
   groupRow,
   runRecord,
-  runStats,
   STARTED_AT,
 } from "./test/runs/fixtures";
 
@@ -106,7 +105,6 @@ describe.each(endpoints)("$name bidirectional navigation", (endpoint) => {
         })
       ),
       attempts: records.slice(0, 1).map(attemptRow),
-      stats: runStats(["failed", "failed", "failed"]),
     });
   }
 
@@ -380,7 +378,6 @@ describe.each(endpoints)("$name bidirectional navigation", (endpoint) => {
         const body = await response.json();
         expect(body.runs).toEqual([]);
         expect(body.pagination).toEqual({ next: null, previous: null });
-        if (endpoint.name === "commit runs") expect(body.stats.total).toBe(3);
       }
     );
   }

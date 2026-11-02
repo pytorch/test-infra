@@ -1,6 +1,10 @@
 import { parameterQueryParameters } from "lib/api/parameters";
 import { ApiResource, pathParameter } from "lib/api/schema";
 import {
+  COMMIT_PAGE_PARAMETER_DEFINITIONS,
+  COMMIT_PAGE_PATH,
+  COMMIT_PAGE_PATH_PARAMETERS,
+  CommitPageQuerySchema,
   TEST_PAGE_PARAMETER_DEFINITIONS,
   TEST_PAGE_PATH,
   TEST_PAGE_PATH_PARAMETERS,
@@ -71,6 +75,25 @@ export const testsPagesOpenApi: ApiResource = {
           ...parameterQueryParameters(
             TestPageQuerySchema,
             TEST_PAGE_PARAMETER_DEFINITIONS
+          ),
+        ],
+        responses: { "200": HTML_RESPONSE },
+        security: [],
+      },
+    },
+    [COMMIT_PAGE_PATH]: {
+      get: {
+        operationId: "commitPage",
+        tags: [PAGES_TAG],
+        summary: "HUD page: what happened to the tests on a commit",
+        description: `One commit's page: its header and summary row from getCommitSummary (GET /api/tests/commit/{sha}/summary), and under them the commit's runs from listCommitRuns (GET /api/tests/commit/{sha}) as one list in outcome order, failed, timed_out, flaky, passed, other, xfailed, skipped, and within each outcome in the page's sort, each run's attempts one click away. ${PAGE_NATURE} The commit is addressed by its full SHA, as the endpoints take it, and CommitSummary.hud_url and CommitRunListPage.hud_url are this page's URL with no parameters. The filters are the endpoint's own, spelled as it spells them; status and sort are the page's view: which outcomes are listed, and the rows' order within each.`,
+        parameters: [
+          ...Object.entries(COMMIT_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
+            pathParameter(name, schema)
+          ),
+          ...parameterQueryParameters(
+            CommitPageQuerySchema,
+            COMMIT_PAGE_PARAMETER_DEFINITIONS
           ),
         ],
         responses: { "200": HTML_RESPONSE },
