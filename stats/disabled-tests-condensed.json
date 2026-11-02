@@ -189,6 +189,22 @@
       "linux"
     ]
   ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "199423",
+    "https://github.com/pytorch/pytorch/issues/199423",
+    [
+      "inductor",
+      "linux"
+    ]
+  ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "199424",
+    "https://github.com/pytorch/pytorch/issues/199424",
+    [
+      "inductor",
+      "linux"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -280,6 +296,13 @@
       "xpu"
     ]
   ],
+  "test_correctness_Adam_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202394",
+    "https://github.com/pytorch/pytorch/issues/202394",
+    [
+      "xpu"
+    ]
+  ],
   "test_correctness_RAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "202889",
     "https://github.com/pytorch/pytorch/issues/202889",
@@ -321,6 +344,7 @@
     "202716",
     "https://github.com/pytorch/pytorch/issues/202716",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -341,6 +365,13 @@
   "test_current_device_stream_constructor_under_coor_stream_kind_generic_use_kwarg_False (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202975",
     "https://github.com/pytorch/pytorch/issues/202975",
+    [
+      "rocm"
+    ]
+  ],
+  "test_current_device_stream_constructor_under_coor_stream_kind_generic_use_kwarg_True (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202995",
+    "https://github.com/pytorch/pytorch/issues/202995",
     [
       "rocm"
     ]
@@ -1336,13 +1367,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
-    "192461",
-    "https://github.com/pytorch/pytorch/issues/192461",
-    [
-      "linux"
     ]
   ],
   "test_template_keeps_its_one_config (__main__.TestKernelConfigs)": [
