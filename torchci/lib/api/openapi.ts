@@ -5,6 +5,7 @@ import {
   SchemaRef,
 } from "lib/api/schema";
 import { commitRunsApiOpenApi } from "lib/api/tests/commit/openapi";
+import { costApiOpenApi } from "lib/api/tests/cost/openapi";
 import { testsApiOpenApi } from "lib/api/tests/openapi";
 import { testOptionsApiOpenApi } from "lib/api/tests/options/openapi";
 import { PAGES_TAG, testsPagesOpenApi } from "lib/api/tests/pages/openapi";
@@ -28,6 +29,7 @@ const RESOURCES: ApiResource[] = [
   runsApiOpenApi,
   commitRunsApiOpenApi,
   runDetailApiOpenApi,
+  costApiOpenApi,
   testsPagesOpenApi,
 ];
 

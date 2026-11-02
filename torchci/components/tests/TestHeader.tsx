@@ -61,7 +61,7 @@ function FirstSeen({ timestamp }: { timestamp: string }) {
 // label. A value the catalog does not have is said, "Unknown", and stays
 // muted, so a value that is there stands out. The pill is a plain span: it
 // is read, not pressed, so it has no hover and no chevron.
-function FactPill({
+export function FactPill({
   mark,
   label,
   muted = false,
