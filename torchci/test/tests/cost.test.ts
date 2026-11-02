@@ -1,0 +1,399 @@
+import type { RunnerHours } from "lib/api/tests/cost/types";
+import {
+  costApiUrl,
+  costUrlParams,
+  resolveCostQuery,
+} from "lib/tests/cost/query";
+import {
+  NOT_PROBED,
+  cellDetail,
+  cellShade,
+  computeView,
+  factsOf,
+  highlightName,
+  joinNames,
+  knownChoices,
+  machineKeyRows,
+  matrixGroups,
+  ownerRows,
+  prepareRunnerHours,
+  rowsCsv,
+  scopeName,
+  segments,
+  toggled,
+  workflowRows,
+} from "lib/tests/cost/runnerHours";
+
+const machine = (
+  name: string,
+  family: RunnerHours["machines"][number]["family"],
+  short: string
+) => ({
+  machine: name,
+  family,
+  short,
+  labels: [`${short}.label`],
+});
+
+// Eight probed machines, so one falls outside the seven hues, and Not probed.
+const MACHINES = [
+  machine("Linux x86_64 avx512", "Linux CPU", "x86_64 avx512"),
+  machine("NVIDIA L4", "CUDA", "L4"),
+  machine("AMD Instinct MI350X VF", "ROCm", "AMD Instinct MI350X VF"),
+  machine("Windows x86_64 avx512", "Windows CPU", "x86_64 avx512"),
+  machine("Apple M1", "MPS", "Apple M1"),
+  machine("NVIDIA A10G", "CUDA", "A10G"),
+  machine("Linux aarch64 sve128", "Linux CPU", "aarch64 sve128"),
+  machine("Tesla T4", "CUDA", "Tesla T4"),
+];
+
+const row = (
+  owner: string,
+  workflow: string,
+  m: string,
+  runner_hours: number
+) => ({
+  owner,
+  workflow,
+  machine: m,
+  runner_hours,
+});
+
+const ANSWER: RunnerHours = {
+  repo: "pytorch/pytorch",
+  workflow_presets: [],
+  days: 14,
+  start: "2026-10-18T00:00:00.000Z",
+  end: "2026-11-01T00:00:00.000Z",
+  rows: [
+    row("inductor", "trunk", "NVIDIA L4", 100),
+    row("inductor", "pull", "Linux x86_64 avx512", 80),
+    row("inductor", "inductor", "AMD Instinct MI350X VF", 60),
+    row("nn", "pull", "Linux x86_64 avx512", 40),
+    row("nn", "trunk", "Windows x86_64 avx512", 30),
+    row("fx", "pull", "Apple M1", 20),
+    row("fx", "pull", "NVIDIA A10G", 15),
+    row("sparse", "periodic", "Linux aarch64 sve128", 12),
+    row("sparse", "periodic", "Tesla T4", 1),
+    row("shared:build", "pull", "", 90),
+    row("shared:other", "lint", "", 10),
+    row("unattributed:no_owner", "trunk", "NVIDIA L4", 5),
+  ],
+  machines: MACHINES,
+  unprobed_labels: [{ label: "linux.12xlarge", runner_hours: 100 }],
+  time_to_signal: [],
+  method: "",
+  query_duration_ms: 1,
+};
+
+const prepared = prepareRunnerHours(ANSWER);
+const none = { workflows: [], owners: [], machines: [] };
+const names = (ms: number[]) => ms.map((m) => prepared.machines[m]);
+
+describe("prepared runner-hours", () => {
+  test("workflows largest first; machines largest first with Not probed last; seven hues in name order", () => {
+    expect(prepared.workflows).toEqual([
+      "pull",
+      "trunk",
+      "inductor",
+      "periodic",
+      "lint",
+    ]);
+    expect(prepared.total).toBe(463);
+    expect(names(prepared.machineOrder)).toEqual([
+      "Linux x86_64 avx512",
+      "NVIDIA L4",
+      "AMD Instinct MI350X VF",
+      "Windows x86_64 avx512",
+      "Apple M1",
+      "NVIDIA A10G",
+      "Linux aarch64 sve128",
+      "Tesla T4",
+      NOT_PROBED,
+    ]);
+    expect(names(prepared.colored)).toEqual([
+      "AMD Instinct MI350X VF",
+      "Apple M1",
+      "Linux aarch64 sve128",
+      "Linux x86_64 avx512",
+      "NVIDIA A10G",
+      "NVIDIA L4",
+      "Windows x86_64 avx512",
+    ]);
+    expect(prepared.family[prepared.notProbed]).toBe(NOT_PROBED);
+    expect(prepared.labels[prepared.notProbed]).toEqual(["linux.12xlarge"]);
+  });
+
+  test("names the answer does not hold are dropped", () => {
+    expect(
+      knownChoices(prepared, {
+        workflows: ["pull", "gone"],
+        owners: ["nobody"],
+        machines: [NOT_PROBED],
+      })
+    ).toEqual({ workflows: ["pull"], owners: [], machines: [NOT_PROBED] });
+  });
+});
+
+describe("view", () => {
+  test("the scope changes the totals; a highlight does not", () => {
+    const all = computeView(prepared, none);
+    const pr = computeView(prepared, { ...none, workflows: ["pull", "trunk"] });
+    const lit = computeView(prepared, {
+      workflows: ["pull", "trunk"],
+      owners: ["inductor"],
+      machines: ["NVIDIA L4"],
+    });
+    expect([all.scopeTotal, pr.scopeTotal, lit.scopeTotal]).toEqual([
+      463, 380, 380,
+    ]);
+    expect(lit.highlightTotal).toBe(100);
+    expect(lit.ownerScope).toEqual(pr.ownerScope);
+    // The workflows card reads highlighted hours over the whole window.
+    expect(
+      lit.workflowHighlighted[prepared.workflows.indexOf("inductor")]
+    ).toBe(0);
+    const owner = computeView(prepared, { ...none, owners: ["inductor"] });
+    expect(
+      owner.workflowHighlighted[prepared.workflows.indexOf("inductor")]
+    ).toBe(60);
+    expect(scopeName(prepared, pr)).toBe("pull + trunk");
+    expect(highlightName(prepared, lit)).toBe("inductor on NVIDIA L4");
+  });
+
+  test("facts are of the scope", () => {
+    const facts = factsOf(
+      prepared,
+      computeView(prepared, { ...none, workflows: ["pull", "trunk"] }),
+      14
+    );
+    expect(facts.scopeTotal).toBe(380);
+    expect(facts.perDay).toBeCloseTo(380 / 14);
+    expect(facts.annualized).toBeCloseTo((380 / 14) * 365);
+    expect(facts.attributedShare).toBeCloseTo((380 - 90 - 5) / 380);
+  });
+});
+
+describe("owner rows", () => {
+  const view = computeView(prepared, none);
+
+  test("top owners, the rest folded, then shared and unattributed together", () => {
+    expect(
+      ownerRows(view, false, "grouped", 2).map((r) => [r.label, r.hours])
+    ).toEqual([
+      ["inductor", 240],
+      ["nn", 70],
+      ["2 more owners", 48],
+      ["Shared: build and other jobs", 100],
+      ["Unattributed", 5],
+    ]);
+  });
+
+  test("a highlighted owner keeps its row wherever it ranks; expanded lists every owner and offers fewer", () => {
+    const lit = computeView(prepared, { ...none, owners: ["sparse"] });
+    expect(ownerRows(lit, false, "grouped", 2).map((r) => r.key)).toEqual([
+      "inductor",
+      "nn",
+      "sparse",
+      "more",
+      "shared",
+      "unattributed",
+    ]);
+    expect(ownerRows(view, true, "each", 2).map((r) => r.key)).toEqual([
+      "inductor",
+      "nn",
+      "fx",
+      "sparse",
+      "less",
+      "shared:build",
+      "shared:other",
+      "unattributed:no_owner",
+    ]);
+  });
+});
+
+describe("segments", () => {
+  const view = computeView(prepared, none);
+  const mix = (owner: string) =>
+    view.ownerMachines.get(owner) ?? new Float64Array(0);
+
+  test("in the fixed machine order, then other machines, then Not probed", () => {
+    const all = new Float64Array(prepared.machines.length).fill(1);
+    expect(
+      segments(prepared, all, new Set()).map((s) => [s.label, s.paint.kind])
+    ).toEqual([
+      ["Linux x86_64 avx512", "machine"],
+      ["NVIDIA L4", "machine"],
+      ["AMD Instinct MI350X VF", "machine"],
+      ["Windows x86_64 avx512", "machine"],
+      ["Apple M1", "machine"],
+      ["NVIDIA A10G", "machine"],
+      ["Linux aarch64 sve128", "machine"],
+      ["Other machines", "other"],
+      [NOT_PROBED, "not_probed"],
+    ]);
+  });
+
+  test("a highlighted machine without a hue takes the accent, not the others' grey", () => {
+    const t4 = prepared.machines.indexOf("Tesla T4");
+    expect(
+      segments(prepared, mix("sparse"), new Set([t4])).map((s) => [
+        s.label,
+        s.paint.kind,
+      ])
+    ).toEqual([
+      ["Tesla T4", "accent"],
+      ["other machines", "pale"],
+    ]);
+    const view = computeView(prepared, { ...none, machines: ["Tesla T4"] });
+    expect(
+      machineKeyRows(prepared, view, true).find((r) => r.label === "Tesla T4")
+        ?.paint.kind
+    ).toBe("accent");
+  });
+
+  test("highlighted machines move to the start, the rest one pale piece", () => {
+    const l4 = prepared.machines.indexOf("NVIDIA L4");
+    expect(
+      segments(prepared, mix("inductor"), new Set([l4])).map((s) => [
+        s.label,
+        s.hours,
+      ])
+    ).toEqual([
+      ["NVIDIA L4", 100],
+      ["other machines", 140],
+    ]);
+  });
+});
+
+describe("machine key and workflows", () => {
+  test("colored machines, other machines (listed while open), Not probed; owners' hours on each", () => {
+    const view = computeView(prepared, { ...none, owners: ["sparse"] });
+    const rows = machineKeyRows(prepared, view, true);
+    expect(rows.map((r) => [r.label, r.kind, r.hours, r.highlighted])).toEqual([
+      ["Linux x86_64 avx512", "machine", 120, 0],
+      ["NVIDIA L4", "machine", 105, 0],
+      ["AMD Instinct MI350X VF", "machine", 60, 0],
+      ["Windows x86_64 avx512", "machine", 30, 0],
+      ["Apple M1", "machine", 20, 0],
+      ["NVIDIA A10G", "machine", 15, 0],
+      ["Linux aarch64 sve128", "machine", 12, 12],
+      ["Other machines (1)", "group", 1, 1],
+      ["Tesla T4", "member", 1, 1],
+      [NOT_PROBED, "machine", 100, 0],
+    ]);
+  });
+
+  test("the top workflows with ticked ones pinned; expanded, the search narrows", () => {
+    const view = computeView(prepared, { ...none, workflows: ["lint"] });
+    expect(workflowRows(prepared, view, false, "", 2)).toEqual({
+      shown: [0, 1, 4],
+      hidden: 2,
+    });
+    expect(workflowRows(prepared, view, true, "per", 2)).toEqual({
+      shown: [3, 4],
+      hidden: 3,
+    });
+  });
+});
+
+describe("matrix", () => {
+  test("columns grouped by family, largest first, Not probed last", () => {
+    const groups = matrixGroups(prepared, computeView(prepared, none));
+    expect(groups.map((g) => [g.family, names(g.machines)])).toEqual([
+      ["Linux CPU", ["Linux x86_64 avx512", "Linux aarch64 sve128"]],
+      ["CUDA", ["NVIDIA L4", "NVIDIA A10G", "Tesla T4"]],
+      ["ROCm", ["AMD Instinct MI350X VF"]],
+      ["Windows CPU", ["Windows x86_64 avx512"]],
+      ["MPS", ["Apple M1"]],
+      [NOT_PROBED, [NOT_PROBED]],
+    ]);
+  });
+
+  test("cells shade by share of machine, owner, or root of hours", () => {
+    expect(cellShade("machine", 25, 100, 50, 80)).toBe(0.5);
+    expect(cellShade("owner", 25, 100, 50, 80)).toBe(0.25);
+    expect(cellShade("hours", 20, 100, 50, 80)).toBe(0.5);
+  });
+
+  test("a cell's workflows and owners within the scope", () => {
+    const view = computeView(prepared, {
+      ...none,
+      workflows: ["pull", "trunk"],
+    });
+    const avx512 = prepared.machines.indexOf("Linux x86_64 avx512");
+    expect(cellDetail(prepared, view, ["inductor", "nn"], avx512)).toEqual({
+      hours: 120,
+      byWorkflow: [["pull", 120]],
+      byOwner: [
+        ["inductor", 80],
+        ["nn", 40],
+      ],
+    });
+  });
+
+  test("CSV holds the rows in the scope and the highlight", () => {
+    const view = computeView(prepared, {
+      workflows: ["pull"],
+      owners: ["inductor", "nn"],
+      machines: [],
+    });
+    expect(rowsCsv(prepared, view)).toEqual({
+      csv: "owner,workflow,machine,runner_hours\ninductor,pull,Linux x86_64 avx512,80.00\nnn,pull,Linux x86_64 avx512,40.00\n",
+      rows: 2,
+    });
+  });
+});
+
+describe("helpers", () => {
+  test("joins names and toggles selections", () => {
+    expect(joinNames(["a", "b", "c", "d"])).toBe("a + b + 2 more");
+    expect(toggled(["a", "b"], ["b"])).toEqual(["a"]);
+    expect(toggled(["a"], ["b", "c"])).toEqual(["a", "b", "c"]);
+    expect(toggled(["a", "b"], ["a", "b"])).toEqual([]);
+  });
+});
+
+describe("cost page query", () => {
+  test("a bare URL is the defaults and writes back bare", () => {
+    const query = resolveCostQuery({});
+    expect(query).toEqual({
+      workflows: [],
+      owners: [],
+      machines: [],
+      split: true,
+      cells: "machine",
+      only: false,
+    });
+    expect(
+      Object.values(costUrlParams(query)).filter((v) => v !== undefined)
+    ).toEqual([]);
+  });
+
+  test("choices round-trip; the PR preset is two workflow parameters", () => {
+    const query = resolveCostQuery({
+      workflow: ["pull", "Trunk"],
+      owner: "inductor",
+      machine: ["NVIDIA L4", NOT_PROBED],
+      split_by: "none",
+      cells: "hours",
+      only: "1",
+      organization: "pytorch",
+    });
+    expect(query).toMatchObject({
+      workflows: ["pull", "trunk"],
+      split: false,
+      cells: "hours",
+      only: true,
+    });
+    expect(resolveCostQuery(costUrlParams(query) as never)).toEqual(query);
+    expect(costUrlParams(query).workflow).toEqual(["pull", "trunk"]);
+    expect(resolveCostQuery({ cells: "x", only: "yes" })).toMatchObject({
+      cells: "machine",
+      only: false,
+    });
+    expect(costApiUrl("pytorch/pytorch")).toBe(
+      "/api/tests/cost?repo=pytorch%2Fpytorch"
+    );
+  });
+});

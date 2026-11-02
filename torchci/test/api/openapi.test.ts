@@ -29,12 +29,13 @@ function* walk(
   }
 }
 
-// The three lists run heavy queries: they alone document the 429 of a refused
-// query (app/api/README.md, Heavy queries).
+// The three lists and the cost runner-hours run heavy queries: they alone document
+// the 429 of a refused query (app/api/README.md, Heavy queries).
 const HEAVY_PATHS = [
   "/api/tests",
   "/api/tests/test/{test_id}/runs",
   "/api/tests/commit/{sha}",
+  "/api/tests/cost",
 ];
 
 // The document's paths under one tag: `tests` for the JSON API served by
@@ -294,7 +295,7 @@ describe("GET /api/openapi.json", () => {
     }
   });
 
-  test("documents the 429 of a refused heavy query on the lists alone", () => {
+  test("documents the 429 of a refused heavy query on the heavy endpoints alone", () => {
     for (const [path, item] of Object.entries<any>(document.paths)) {
       const overloaded = item.get.responses["429"];
       expect({ path, documented: overloaded !== undefined }).toEqual({
