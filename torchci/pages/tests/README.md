@@ -1164,7 +1164,7 @@ The API README's [Cost](../../app/api/README.md#cost) section has the method.
   right is legend, machine picker and machine shares in one.
 - Workflows: the four largest, ticked ones pinned, "+ N more" with a search;
   ticking makes a custom scope.
-- All owner–machine pairs: the matrix, folded until its band opens it. Cells
+- All owner–machine pairs: the matrix, open until its band folds it. Cells
   show an owner's share of the machine (default), the machine's share of the
   owner, or hours on a square-root scale, by one sequential blue ramp in
   light and dark steps; "Only selected" hides what is not highlighted, every

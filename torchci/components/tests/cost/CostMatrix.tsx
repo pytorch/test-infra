@@ -108,7 +108,7 @@ export interface CostMatrixProps {
 // in hours. Cells are shaded by their share of the machine (default), of
 // the owner, or by hours. Highlights underline headers and dim the rest;
 // "Only selected" hides what is not highlighted, every number unchanged. A
-// cell opens its detail in the drawer. The card starts folded.
+// cell opens its detail in the drawer. The card starts open.
 export default function CostMatrix({
   prepared,
   view,
@@ -127,8 +127,9 @@ export default function CostMatrix({
   onCellChange,
 }: CostMatrixProps) {
   const theme = useTheme();
-  // Folded until asked for: the chart above answers most questions.
-  const [open, setOpen] = useState(false);
+  // Open from the start: it names every machine, which the chart's seven
+  // hues cannot.
+  const [open, setOpen] = useState(true);
   const [toast, setToast] = useState("");
   const rows = ownerRows(view, expanded, "each");
   const groups = matrixGroups(prepared, view);
