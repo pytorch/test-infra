@@ -367,6 +367,7 @@
     "202794",
     "https://github.com/pytorch/pytorch/issues/202794",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -483,6 +484,13 @@
   "test_device_observations_track_current_device_under_coor_origin_factory (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "203017",
     "https://github.com/pytorch/pytorch/issues/203017",
+    [
+      "rocm"
+    ]
+  ],
+  "test_device_observations_track_current_device_under_coor_origin_input (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "203058",
+    "https://github.com/pytorch/pytorch/issues/203058",
     [
       "rocm"
     ]
