@@ -177,7 +177,6 @@ export async function buildPrNotificationsManifest(
     // Approved PRs are skipped, and a PR carrying two status labels mid-move
     // counts as the later stage, as in the PR Status section
     switch (getPrStatusStage(state)) {
-      case "needsAdditionalApproval":
       case "preReview":
         // An approval outside the merge rules doesn't end pre-review. Only
         // include this stage when the PR is still carrying pre-review labels.
@@ -205,7 +204,13 @@ export async function buildPrNotificationsManifest(
           )
         ).pending;
         break;
+      case "needsAdditionalApproval":
       case "readyForReview": {
+        // An insufficient approval must not hide outstanding final-review
+        // requests. Earlier phases still wait for their normal promotion.
+        if (!state.labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW)) {
+          return null;
+        }
         stage = "final_review";
         stageLabel = PR_STATUS_LABEL_READY_FOR_REVIEW;
         if (state.reviewerLookupFailed) {

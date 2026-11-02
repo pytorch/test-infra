@@ -131,6 +131,59 @@ describe("buildPrNotificationsManifest", () => {
     expect(manifest.failed_prs).toEqual([]);
   });
 
+  test.each([
+    {
+      labels: ["triaged", "ready for review"],
+      isMergeApproved: false,
+      waiting: true,
+    },
+    { labels: ["ready for review"], isMergeApproved: true, waiting: false },
+    {
+      labels: ["triaged", "in progress"],
+      isMergeApproved: false,
+      waiting: false,
+    },
+  ])(
+    "only a valid merge approval ends final-review reminders: %j",
+    async ({ labels, isMergeApproved, waiting }) => {
+      jest.spyOn(prStatus, "fetchPrStatusState").mockResolvedValue({
+        labels,
+        isApproved: true,
+        isMergeApproved,
+        assignedReviewers: [],
+        requestedReviewers: ["bob"],
+      });
+      const scopes = [
+        // Search can lag a transition back to in progress; the live labels win.
+        mockSearch('label:"ready for review"', [
+          searchItem(1, ["ready for review"]),
+        ]),
+        mockSearch('label:"triaged"', []),
+        ...(waiting
+          ? [mockLabeled(1, "ready for review", "2026-10-01T00:00:00Z")]
+          : []),
+      ];
+      const manifest = await buildPrNotificationsManifest(
+        octokit,
+        "pytorch",
+        "pytorch",
+        NOW
+      );
+      handleScope(scopes);
+      if (waiting) {
+        expect(manifest.prs[1].stage).toBe("final_review");
+        expect(manifest.reviewers.bob).toEqual({
+          pre_review: [],
+          final_review: [{ pr: 1 }],
+        });
+      } else {
+        expect(manifest.prs).toEqual({});
+        expect(manifest.reviewers).toEqual({});
+      }
+      expect(manifest.failed_prs).toEqual([]);
+    }
+  );
+
   test("lists pending reviewers per stage and expands teams", async () => {
     const pull = {
       user: { login: AUTHOR },
