@@ -1,16 +1,19 @@
 import {
+  markInProgressIfAccepted,
+  updateInProgressLabels,
+} from "lib/bot/preReviewSweep";
+import {
   getPreReviewAcceptors,
   getPreReviewBatch,
+  getPreReviewDeadline,
   getPreReviewRejectors,
   getPreReviewStatus,
   getRotatingBatch,
   getThumbsUpReactors,
-  hasPreReviewTimedOut,
   isInPreReview,
-  markInProgressIfAccepted,
-  updateInProgressLabels,
 } from "lib/bot/preReviewUtils";
 import pytorchBot from "lib/bot/pytorchBot";
+import * as drciUtils from "lib/drciUtils";
 import * as prStatus from "lib/prStatus";
 import nock from "nock";
 import * as probot from "probot";
@@ -60,6 +63,7 @@ function mockPr({
   timeline = [] as object[],
   reactions = [] as object[],
   triagedAt = new Date(NOW).toISOString(),
+  labels = ["triaged"],
 }) {
   const scope = nock("https://api.github.com")
     .get(`/repos/pytorch/pytorch/pulls/${prNumber}/reviews?per_page=100`)
@@ -72,6 +76,8 @@ function mockPr({
     scope,
     utils.mockGetPR("pytorch/pytorch", prNumber, {
       user: { login: AUTHOR },
+      labels: labels.map((name) => ({ name })),
+      created_at: "2026-10-01T00:00:00Z",
       requested_reviewers: requested.map((login) => ({ login })),
       requested_teams: teams.map((slug) => ({ slug })),
     }),
@@ -106,6 +112,7 @@ function mockTeam(slug: string, members: string[]) {
 
 beforeEach(() => {
   jest.spyOn(Date, "now").mockReturnValue(NOW);
+  jest.spyOn(drciUtils, "upsertPrStatusSection").mockResolvedValue();
 });
 
 afterEach(() => {
@@ -113,33 +120,29 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe("hasPreReviewTimedOut", () => {
-  test("expires at exactly seven days, independent of subsequent activity", () => {
+describe("getPreReviewDeadline", () => {
+  test("deadline is seven days after entry, independent of subsequent activity", () => {
     const events = [
       triaged(),
       { event: "review_requested", created_at: new Date(NOW).toISOString() },
       { event: "committed", created_at: new Date(NOW).toISOString() },
     ];
-    expect(hasPreReviewTimedOut(events, NOW - 1)).toBe(false);
-    expect(hasPreReviewTimedOut(events, NOW)).toBe(true);
-    expect(hasPreReviewTimedOut(events, NOW + 1)).toBe(true);
+    expect(getPreReviewDeadline(events)).toBe(new Date(NOW).toISOString());
   });
 
   test("uses the latest triage, regardless of timeline ordering", () => {
-    expect(hasPreReviewTimedOut([triaged(), triaged("2026-01-01")], NOW)).toBe(
-      true
+    expect(getPreReviewDeadline([triaged(), triaged("2026-01-01")])).toBe(
+      new Date(NOW).toISOString()
     );
-    expect(hasPreReviewTimedOut([triaged("2026-10-25"), triaged()], NOW)).toBe(
-      false
+    expect(getPreReviewDeadline([triaged("2026-10-25"), triaged()])).toBe(
+      "2026-11-01T00:00:00.000Z"
     );
   });
 
-  test("missing or invalid triage dates cannot trigger a timeout", () => {
-    expect(hasPreReviewTimedOut([], NOW)).toBe(false);
-    expect(hasPreReviewTimedOut([triaged("invalid")], NOW)).toBe(false);
-    expect(hasPreReviewTimedOut([triaged(), triaged("invalid")], NOW)).toBe(
-      false
-    );
+  test("missing or invalid triage dates cannot produce a deadline", () => {
+    expect(getPreReviewDeadline([])).toBeNull();
+    expect(getPreReviewDeadline([triaged("invalid")])).toBeNull();
+    expect(getPreReviewDeadline([triaged(), triaged("invalid")])).toBeNull();
   });
 
   test.each([
@@ -147,13 +150,11 @@ describe("hasPreReviewTimedOut", () => {
     { event: "unlabeled", label: { name: "missing actionable issue" } },
   ])("restarts when a PR re-enters pre-review: %j", (event) => {
     const resumed = { ...event, created_at: new Date(NOW).toISOString() };
-    const events = [triaged(), resumed];
-    const week = 7 * 24 * 60 * 60 * 1000;
-    expect(hasPreReviewTimedOut(events, NOW)).toBe(false);
-    expect(hasPreReviewTimedOut(events, NOW + week - 1)).toBe(false);
-    expect(hasPreReviewTimedOut(events, NOW + week)).toBe(true);
+    expect(getPreReviewDeadline([triaged(), resumed])).toBe(
+      "2026-11-02T12:00:00.000Z"
+    );
     // Returning to ready doesn't itself replace triage.
-    expect(hasPreReviewTimedOut([resumed], NOW + week)).toBe(false);
+    expect(getPreReviewDeadline([resumed])).toBeNull();
   });
 });
 
@@ -324,7 +325,7 @@ describe("getPreReviewStatus", () => {
       mockTeam("some-team", ["bob", "carol"]),
     ];
 
-    expect(await getStatus()).toEqual({
+    expect(await getStatus()).toMatchObject({
       assigned: ["alice", "pytorch/some-team"],
       agreed: ["alice", "pytorch/some-team"],
       pending: [],
@@ -348,6 +349,8 @@ describe("getPreReviewStatus", () => {
         reactions: [thumbsUp("alice")],
       });
       expect(await getStatus()).toMatchObject({
+        expiresAt: new Date(NOW).toISOString(),
+        deadlinePassed: now >= NOW,
         agreed: ["alice"],
         timedOut: now >= NOW ? ["bob"] : [],
         pending: now >= NOW ? [] : ["bob"],
@@ -512,6 +515,7 @@ describe("markInProgressIfAccepted", () => {
 
   test("does not label a PR that is already in progress", async () => {
     const scope = mockPr({
+      labels: ["triaged", "in progress"],
       requested: ["alice"],
       reactions: [thumbsUp("alice")],
     });
@@ -554,6 +558,7 @@ describe("markInProgressIfAccepted", () => {
 
   test("does not label a PR that is already ready for review", async () => {
     const scope = mockPr({
+      labels: ["triaged", "ready for review"],
       requested: ["alice"],
       reactions: [thumbsUp("alice")],
     });

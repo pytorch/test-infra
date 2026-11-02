@@ -168,6 +168,7 @@ describe("buildPrNotificationsManifest", () => {
       mockLabeled(2, "ready for review", "2026-10-04T00:00:00Z"),
 
       // PR 3 is approved, so it isn't waiting on anyone
+      utils.mockGetPR("pytorch/pytorch", 3, { draft: false }),
       mockReviews(3, [
         {
           user: { login: "dave" },
@@ -240,6 +241,7 @@ describe("buildPrNotificationsManifest", () => {
       nock("https://api.github.com")
         .get("/repos/pytorch/pytorch/pulls/4/reviews?per_page=100")
         .reply(500),
+      utils.mockGetPR("pytorch/pytorch", 4, { draft: false }),
       mockReviews(5, []),
       nock("https://api.github.com")
         .get("/repos/pytorch/pytorch/pulls/5")

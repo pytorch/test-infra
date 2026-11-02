@@ -104,6 +104,14 @@ Searches split creation-date ranges to cover queues larger than GitHub's
 1,000-result search limit. Advancement happens on the first successful sweep
 after the deadline, subject to GitHub Actions scheduling and API availability.
 
+The same checks refresh the existing PyTorchBot `PR Status` section with silent,
+explicitly accepting, and objecting reviewers (without mentions) and the exact
+UTC deadline. Silent reviewers are omitted after the deadline. A short
+introduction explains pre-review and how to respond. Status and advancement
+share one policy snapshot. No-op refreshes do not edit the comment. All polling reads, including paginated comment lookup,
+use the dedicated app; PyTorchBot performs label and comment writes. See
+[PR status coverage and examples](docs/pr-status.md) for the lifecycle audit.
+
 The bot rechecks live PR state before adding `in progress`. Closed/draft PRs,
 PRs before the rollout date, and PRs labeled `in progress`, `ready for review`,
 or `missing actionable issue` are excluded. Pre-acceptance starts automated

@@ -36,6 +36,7 @@ import {
   getActiveSEVs,
   getDrciComment,
   getPRMergeCommits,
+  getPrStatusForCi,
   getSuppressedLabels,
   hasSimilarFailures,
   hasSimilarFailuresInSamePR,
@@ -58,7 +59,11 @@ import {
   fetchJobNamesFromCommits,
   fetchRecentWorkflows,
 } from "lib/fetchRecentWorkflows";
-import { getOctokit, getOctokitWithUserToken } from "lib/github";
+import {
+  getOctokit,
+  getOctokitWithUserToken,
+  getPreReviewOctokit,
+} from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import {
   GREENLIGHT_PENDING_ALT_ATTR,
@@ -84,14 +89,7 @@ import {
   PrReviewHeadVerdictRow,
   withStaleReviewNote,
 } from "lib/prReview/readyForReviewPromotion";
-import {
-  extractPrStatusSection,
-  fetchLiveLabels,
-  fetchPrStatusState,
-  hasPrStatusLabel,
-  PR_STATUS_START,
-  renderPrStatusSection,
-} from "lib/prStatus";
+import { extractPrStatusSection } from "lib/prStatus";
 import { drCIRateLimitExceeded, incrementDrCIRateLimit } from "lib/rateLimit";
 import { getS3Client } from "lib/s3";
 import { IssueData, PRandJobs, RecentWorkflowsData } from "lib/types";
@@ -302,6 +300,16 @@ export async function updateDrciComments(
     console.error("CRCR allowlist fetch failed for", owner, repo, e);
     return null;
   });
+  // Reuse one dedicated reader for the sweep. Missing credentials or a failed
+  // app lookup must not move status reads back onto PyTorchBot's rate limit.
+  const prStatusReaderPromise = (
+    isPyTorchPyTorch(owner, repo) && workflowsByPR.size > 0
+      ? getPreReviewOctokit(owner, repo)
+      : Promise.resolve(null)
+  ).catch((e) => {
+    console.error("PR status reader unavailable for", owner, repo, e);
+    return null;
+  });
 
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, owner, repo, head, workflowsByPR);
@@ -333,6 +341,7 @@ export async function updateDrciComments(
   const prReviewSections = await prReviewSectionsPromise;
   const prReviewHeadVerdicts = await prReviewHeadVerdictsPromise;
   const crcrAllowlist = await crcrAllowlistPromise;
+  const prStatusReader = await prStatusReaderPromise;
 
   // Return the list of all failed jobs grouped by their classification
   const failures: { [pr: number]: { [cat: string]: RecentWorkflowsData[] } } =
@@ -622,46 +631,16 @@ export async function updateDrciComments(
         }
       }
 
-      // Use live labels so a lagging ClickHouse snapshot cannot overwrite a
-      // newer webhook update. Mirrored labels and an existing section only gate
-      // the GitHub read; live labels determine what renders. On an API failure,
-      // preserve the existing section and let a later update retry.
-      let prStatusSection = "";
-      if (isPyTorchPyTorch(owner, repo)) {
-        const existingComment =
-          existingDrCiComments.get(pr_info.pr_number)?.body ?? "";
-        prStatusSection = extractPrStatusSection(existingComment);
-        try {
-          if (
-            hasPrStatusLabel(labels || []) ||
-            existingComment.includes(PR_STATUS_START)
-          ) {
-            const liveLabels = await fetchLiveLabels(
-              octokit,
-              owner,
-              repo,
-              pr_info.pr_number
-            );
-
-            if (hasPrStatusLabel(liveLabels)) {
-              const state = await fetchPrStatusState(
-                octokit,
-                owner,
-                repo,
-                pr_info.pr_number,
-                liveLabels
-              );
-              if (state !== null) {
-                prStatusSection = renderPrStatusSection(state);
-              }
-            } else {
-              prStatusSection = "";
-            }
-          }
-        } catch (e) {
-          console.error("PR status build threw for PR", pr_info.pr_number, e);
-        }
-      }
+      const status = await getPrStatusForCi(
+        prStatusReader,
+        owner,
+        repo,
+        pr_info.pr_number
+      );
+      const { id, body } =
+        status?.comment ??
+        existingDrCiComments.get(pr_info.pr_number) ??
+        (await getDrciComment(octokit, owner, repo, pr_info.pr_number));
 
       const comment = formDrciComment(
         pr_info.pr_number,
@@ -669,7 +648,8 @@ export async function updateDrciComments(
         repo,
         failureInfo,
         formDrciSevBody(sevs),
-        prStatusSection,
+        // Status read failures must not suppress CI comments or check runs.
+        status?.section ?? extractPrStatusSection(body),
         pr_info.headRef,
         labels,
         withStaleReviewNote(
@@ -677,10 +657,6 @@ export async function updateDrciComments(
           promotion
         )
       );
-
-      const { id, body } =
-        existingDrCiComments.get(pr_info.pr_number) ||
-        (await getDrciComment(octokit, owner, repo, pr_info.pr_number));
 
       // The comment is there and remains unchanged, so there is no need to do anything
       if (body === comment) {

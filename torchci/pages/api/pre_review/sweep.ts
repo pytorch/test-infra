@@ -1,4 +1,4 @@
-import { updateInProgressLabels } from "lib/bot/preReviewUtils";
+import { updateInProgressLabels } from "lib/bot/preReviewSweep";
 import { getOctokit, getPreReviewOctokit } from "lib/github";
 import {
   loadPreReviewRechecks,
