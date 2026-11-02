@@ -3,6 +3,7 @@
 
 import { upsertPrStatusSection } from "lib/drciUtils";
 import { getPreReviewOctokit } from "lib/github";
+import { requestOutstandingChangesReviewers } from "lib/prReview/reReviewRequests";
 import {
   fetchLiveLabels,
   hasPreReviewLabels,
@@ -73,8 +74,11 @@ async function handle(
     payload.action === "review_requested" ||
     payload.action === "review_request_removed"
   ) {
-    // Reviewer assignments only affect pre-review status.
-    if (!labels.includes(PR_STATUS_LABEL_TRIAGED)) {
+    // Assignments also change the live list of maintainers asked for re-review.
+    if (
+      !labels.includes(PR_STATUS_LABEL_TRIAGED) &&
+      !labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW)
+    ) {
       return;
     }
   } else if (payload.action === "edited" && !payload.changes?.base) {
@@ -108,22 +112,52 @@ async function handle(
   }
 
   // Opting out skips the readiness checks, whichever of the two labels
-  // arrived second. Opted-out ready PRs stay ready after a change request.
+  // arrived second. Draft/closed PRs resume on ready/reopen. Opted-out ready
+  // PRs stay ready after a change request.
   if (
-    isOptOutLabelEvent &&
+    (isOptOutLabelEvent ||
+      payload.action === "ready_for_review" ||
+      payload.action === "reopened") &&
     labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT) &&
     labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
   ) {
-    await context.octokit.issues.addLabels(
-      context.issue({ labels: [PR_STATUS_LABEL_READY_FOR_REVIEW] })
-    );
-    await removeLabelIfPresent(context, PR_STATUS_LABEL_IN_PROGRESS);
-    labels = await fetchLiveLabels(
-      context.octokit as any,
-      owner,
-      repo,
-      pullRequest.number
-    );
+    // GitHub rejects review requests on drafts. A delayed webhook can predate
+    // a draft conversion or label change, so verify eligibility before writes.
+    const live = (
+      await context.octokit.pulls.get({
+        owner,
+        repo,
+        pull_number: pullRequest.number,
+      })
+    ).data;
+    if (live.state !== "open") return;
+    labels = live.labels.map((label) => label.name);
+    if (
+      !live.draft &&
+      live.user?.login &&
+      labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT) &&
+      labels.includes(PR_STATUS_LABEL_IN_PROGRESS)
+    ) {
+      if (!labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW)) {
+        await requestOutstandingChangesReviewers(
+          context.octokit as any,
+          owner,
+          repo,
+          pullRequest.number,
+          live.user.login
+        );
+      }
+      await context.octokit.issues.addLabels(
+        context.issue({ labels: [PR_STATUS_LABEL_READY_FOR_REVIEW] })
+      );
+      await removeLabelIfPresent(context, PR_STATUS_LABEL_IN_PROGRESS);
+      labels = await fetchLiveLabels(
+        context.octokit as any,
+        owner,
+        repo,
+        pullRequest.number
+      );
+    }
   }
 
   // A maintainer requesting changes sends a ready PR back to in progress,
@@ -187,7 +221,7 @@ export default function prStatusBot(app: Probot): void {
     [
       "pull_request.labeled",
       "pull_request.unlabeled",
-      // Reviewer requests affect pre-review status.
+      // Reviewer requests affect pre-review and re-review status.
       "pull_request.review_requested",
       // Retargeting changes the files an approval must cover.
       "pull_request.edited",
