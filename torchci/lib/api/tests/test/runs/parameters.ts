@@ -59,15 +59,22 @@ export const RUN_SORT_FIELDS = [
   "started_at",
   "ended_at",
   "outcome",
+  "status",
   "rerun_number",
   ...RUN_CATALOG_SORT_FIELDS,
   "workflow_path",
+  "test_config",
+  "duration_milliseconds",
+  "job_name",
 ] as const;
 export const DEFAULT_RUN_SORT = ["-started_at"] as const;
 
 export const RUN_LIST_PARAMETER_DEFINITIONS = {
   search: PARAMETER_DEFINITIONS.search,
   ...RUN_FILTER_DEFINITIONS,
+  // The env var set's TEST_CONFIG, as the test list filters and sorts on it;
+  // a page of bundles only, since a grid's lanes are the configurations.
+  test_config: FILTER_DEFINITIONS.test_config,
   env_vars: {
     ...PARAMETER_DEFINITIONS.env_vars,
     // Preserve the distinction between an omitted filter and a supplied one.
@@ -122,7 +129,7 @@ export const RUN_LIST_PARAMETER_DEFINITIONS = {
   sort: {
     encoding: "csv",
     schema: sortSchema(RUN_SORT_FIELDS, DEFAULT_RUN_SORT).describe(
-      "Ordered, comma-separated bundle sort fields. Prefix - for descending; otherwise ascending. started_at uses the earliest attempt start and ended_at the latest attempt end. outcome and rerun_number use the last attempt in chronological order (started_at, ended_at, id), including attempts that do not match filters. Defaults to newest bundle started_at first. Nulls always sort last. Owner ordering uses the alphabetically first owner label; unowned tests sort last. Text and outcome ordering is lexicographic; device_count and rerun_number ordering is numeric. Bundle identity fields break ties internally; IDs cannot be selected."
+      "Ordered, comma-separated bundle sort fields. Prefix - for descending; otherwise ascending. started_at uses the earliest attempt start and ended_at the latest attempt end. outcome and rerun_number use the last attempt in chronological order (started_at, ended_at, id), including attempts that do not match filters. status ranks the bundle's status, as GET /api/tests/commit/{sha}'s status filter defines it, best first: skipped, xfailed, other, passed, flaky, timed_out, failed, so -status puts the worst first, as the tests list's status sort does. duration_milliseconds is the bundle's executed time: the sum over its attempts of max(0, ended_at - started_at) in milliseconds, skipped attempts left out. job_name is the GitHub job's name and test_config the env var set's TEST_CONFIG, each from the same metadata the bundle returns. Defaults to newest bundle started_at first. Nulls always sort last. Owner ordering uses the alphabetically first owner label; unowned tests sort last. Text and outcome ordering is lexicographic; device_count, rerun_number and duration_milliseconds ordering is numeric. Bundle identity fields break ties internally; IDs cannot be selected."
     ),
   },
   limit: {

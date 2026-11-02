@@ -80,13 +80,21 @@ returns one row but runs the page's whole aggregation. The attempts read is
 tagged for its worst case: it reads every retained attempt of the selected
 bundles through `FINAL`, under a second for a test's page but up to 34
 CPU-seconds on a big commit, and it is the one read both run lists make. Leave
-a query off when it is fast: the commit statistics peaked at 6.7 CPU-seconds,
-and the catalog, options and test detail reads answer in milliseconds. The
-commit page is left out deliberately although its upper tail reaches the bar,
-with a median of 2.4 CPU-seconds, one request in ten above 9.7 and a worst of
-50: its typical request is cheap, no HUD page calls it yet and it ran 63 times
-in those four days, so queueing it would hold nine pages in ten behind tests
-pages for a rare tail. Revisit that when a commit page ships. Tagged, a fast
+a query off when it is fast: the catalog, options and test detail reads answer
+in milliseconds. The
+commit runs list is left out deliberately although its upper tail reaches the
+bar, with a median of 2.4 CPU-seconds, one request in ten above 9.7 and a
+worst of 50: its typical request is cheap, and queueing it would hold nine
+commit pages in ten behind tests pages for a rare tail; its failing-outcome
+filters, the ones the commit page's default outcomes use, read a pruned
+`FINAL` and cost about a second, and its `worst_status` filter costs no more
+than the grouped read
+(`lib/api/tests/commit/query-validation.md`). The
+commit summary's counts query is tagged: it reads every retained run of the
+commit once, about 16 CPU-seconds on a main commit's 9 million bundles,
+measured with one thread on 2026-10-30
+(`lib/api/tests/commit/summary-query-validation.json`); its other lookups
+answer in well under a second and stay untagged. Tagged, a fast
 query could only be delayed by the queue, and fails when 16 heavy queries are
 already waiting. Do not tag a query that could not finish in 60 seconds at 4
 threads; make it cheaper first, as the run detail lookup still needs. Measure
@@ -108,8 +116,8 @@ have the tests assert that each heavy call carries it, so an untagged heavy
 query fails CI.
 
 A refusal answers 429 `overloaded` with `Retry-After`, documented on the lists
-by `listErrorResponses()`, so that a client backs off instead of retrying into
-a full queue; the tests page shows it as a failure with its Retry button
+by `listErrorResponses()` and on the commit summary by hand, so that a client
+backs off instead of retrying into a full queue; the tests page shows it as a failure with its Retry button
 rather than retrying by itself. A tagged query that outruns the 60 second cap
 fails like any other query, with 500. A waiter whose client has given up keeps
 its place in the queue, and HUD's client waits 180 seconds, so under load a
@@ -124,7 +132,7 @@ on any server without the profile, a local ClickHouse or a preview's: apply
 ## HUD pages
 
 The document lists the HUD pages built on the tests endpoints, the tests
-table and a test's own page, as operations tagged `pages`: HTML for people,
+table, a test's own page and a commit's page, as operations tagged `pages`: HTML for people,
 with `security: []`, one `text/html` answer, and a summary that starts with
 "HUD page", so that a caller of the API can give a reader the page that shows
 what it fetched and knows which parameters that page takes. Nothing under
@@ -152,8 +160,10 @@ A response that has a page carries it as `hud_url`, an absolute URL written by
 `lib/api/tests/pages/links.ts` from the same definitions, the page's defaults
 left off, on the origin the `/api/authed/` shim names itself with
 (`HUD_SELF_URL`, else production). `TestRecord.hud_url` is the test's page,
-bare, so every endpoint that returns a test carries it there; a run, a commit's
-runs and the options have no page of their own and no other link;
+bare, so every endpoint that returns a test carries it there; a run and the
+options have no page of their own and no other link; the commit's runs and
+summary carry the commit's page, bare, since the page chooses its outcomes,
+filters and sort itself;
 `TestHealthEntry.hud_url` is that page opened on the runs the entry's health
 was counted over, the list's window and code sources with the entry's
 configuration marked; `TestListPage.hud_url` is the table for the request and
@@ -263,21 +273,23 @@ old route in the same change.
 `lib/api/openapi.ts` so its paths and schemas appear in the document;
 `test/api/openapi.test.ts` fails while a route is missing from it.
 
-| Endpoint                                      | Scope                                                                                                                 | Implementation             |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `GET /api/tests`                              | Repository tests and configuration health in a selected window and code sources                                       | `lib/api/tests/`           |
-| `GET /api/tests/options`                      | Values the list offers a reader: fixed and catalog choices, with labels, and views                                    | `lib/api/tests/options/`   |
-| `GET /api/tests/test/{test_id}`               | One catalog test, its owners, and all available configuration health                                                  | `lib/api/tests/test/`      |
-| `GET /api/tests/test/{test_id}/runs`          | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration | `lib/api/tests/test/runs/` |
-| `GET /api/tests/run/{run_id}`                 | One full run bundle, selected by any retained execution UUID; provisional                                             | `lib/api/tests/run/`       |
-| `GET /api/tests/commit/{sha}?repo=owner/name` | Retained run bundles across all tests on a repository commit                                                          | `lib/api/tests/commit/`    |
+| Endpoint                                              | Scope                                                                                                                 | Implementation                  |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `GET /api/tests`                                      | Repository tests and configuration health in a selected window and code sources                                       | `lib/api/tests/`                |
+| `GET /api/tests/options`                              | Values the list offers a reader: fixed and catalog choices, with labels, and views                                    | `lib/api/tests/options/`        |
+| `GET /api/tests/test/{test_id}`                       | One catalog test, its owners, and all available configuration health                                                  | `lib/api/tests/test/`           |
+| `GET /api/tests/test/{test_id}/runs`                  | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration | `lib/api/tests/test/runs/`      |
+| `GET /api/tests/run/{run_id}`                         | One full run bundle, selected by any retained execution UUID; provisional                                             | `lib/api/tests/run/`            |
+| `GET /api/tests/commit/{sha}?repo=owner/name`         | Retained run bundles across all tests on a repository commit                                                          | `lib/api/tests/commit/`         |
+| `GET /api/tests/commit/{sha}/summary?repo=owner/name` | The commit as GitHub described it, its test counts by status, and the span of its runs                                | `lib/api/tests/commit/summary/` |
 
 The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 
-| Page                                              | Shows                                                                                        | Implementation                                                                |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/` |
-| `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit` | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                        |
+| Page                                              | Shows                                                                                                       | Implementation                                                                |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                               | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/` |
+| `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                        |
+| `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                          |
 
 ## Tests endpoints
 
@@ -419,25 +431,17 @@ After selecting a page, a batched request loads all attempts for only the return
 bundles, excluding the pagination lookahead. Catalog and workflow details are
 loaded in two concurrent batched requests. An empty page skips all three requests.
 The detail endpoint first resolves an execution UUID, then loads its bundle's
-attempts and shared metadata. The commit endpoint also aggregates total
-and per-outcome bundle counts into `stats` for the requested repository and
-commit. Retries are flattened: a bundle counts once under its final outcome, the
-outcome of its last executed attempt in `started_at`, `ended_at` and `id` order,
-or `skipped` when every attempt was skipped. A skip never overrides an executed
-attempt: a test that timed out or failed and was then skipped in its rerun did
-not recover, so that bundle keeps its `timed_out` or `failed` outcome, as the
-health view's retry chains count it. This is the one way the final outcome
-differs from the `last_attempt_outcome` filter, which reads the last attempt as
-recorded.
-One independent request starts concurrently with the page query and shares its
-commit membership and replacement deduplication rules; it groups the commit's
-rows by job and test once, so no bundle is counted twice. Search, run filters
-including `outcome` and `last_attempt_outcome`, cursor, limit and ordering affect
-only the runs list. Statistics and the page can observe different data during
-updates.
+attempts and shared metadata. The commit endpoint's `status` filter and sort
+read a bundle's final outcome: the outcome of its last executed attempt in
+`started_at`, `ended_at` and `id` order, or `skipped` when every attempt was
+skipped. A skip never overrides an executed attempt: a test that timed out or
+failed and was then skipped in its rerun did not recover, so that bundle keeps
+its `timed_out` or `failed` status, as the health view's retry chains count it.
+This is the one way the final outcome differs from the `last_attempt_outcome`
+filter, which reads the last attempt as recorded. The commit's counts by status
+are the summary endpoint's; the commit list carries none.
 Both endpoints measure `query_duration_ms` as the sum of their individually
-rounded request durations, including commit statistics and client, network and
-decoding overhead. Overlapping requests mean this sum can exceed wall-clock time.
+rounded request durations, including client, network and decoding overhead. Overlapping requests mean this sum can exceed wall-clock time.
 SQL construction, mapping, cursor encoding and API transport are outside that
 measurement.
 

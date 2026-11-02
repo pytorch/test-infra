@@ -89,6 +89,20 @@ export function headerKeySx(theme: Theme, colors: HeaderKeyColors) {
   };
 }
 
+// The accent pill of a page header, the commit page's pull request number:
+// GitHub's blue, its accent emphasis in each mode, with white ink, which
+// reads at 5.3:1 on the light blue and 4.7:1 on the dark one.
+export interface AccentPillColors {
+  background: string;
+  text: string;
+}
+
+export function accentPillColors(theme: Theme): AccentPillColors {
+  return theme.palette.mode === "dark"
+    ? { background: "#1f6feb", text: "#ffffff" }
+    : { background: "#0969da", text: "#ffffff" };
+}
+
 // The keys' focus ring, for the keyboard.
 export function headerKeyFocusRing(theme: Theme) {
   return {

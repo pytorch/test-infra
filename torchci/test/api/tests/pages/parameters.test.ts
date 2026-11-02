@@ -1,4 +1,9 @@
+import { parameterSchema } from "lib/api/parameters";
 import {
+  COMMIT_PAGE_DEFAULT_STATUSES,
+  COMMIT_PAGE_FILTER_NAMES,
+  COMMIT_PAGE_PARAMETER_DEFINITIONS,
+  commitPagePath,
   decodePageQuery,
   GRID_OUTCOMES,
   pageQueryString,
@@ -17,6 +22,7 @@ import {
   DEFAULT_WINDOW,
   PARAMETER_DEFINITIONS,
 } from "lib/api/tests/parameters";
+import { RUN_LIST_PARAMETER_DEFINITIONS } from "lib/api/tests/test/runs/parameters";
 import { NAME_FILTERS, TESTS_FACETS } from "lib/tests/facets";
 
 describe("the table page's parameters", () => {
@@ -92,6 +98,83 @@ describe("the test page's parameters", () => {
     expect(schema.parse("007")).toBe("7");
     expect(schema.safeParse("abc").success).toBe(false);
     expect(schema.safeParse("99999999999999999999").success).toBe(false);
+  });
+});
+
+describe("the commit page's parameters", () => {
+  test("take the commit runs endpoint's filters, the very same objects", () => {
+    for (const name of COMMIT_PAGE_FILTER_NAMES) {
+      expect(COMMIT_PAGE_PARAMETER_DEFINITIONS[name]).toBe(
+        RUN_LIST_PARAMETER_DEFINITIONS[name]
+      );
+    }
+    expect(Object.keys(COMMIT_PAGE_PARAMETER_DEFINITIONS)).toEqual([
+      ...COMMIT_PAGE_FILTER_NAMES,
+      "status",
+      "sort",
+    ]);
+    // Every facet the list's column filters hold but the health status,
+    // whose place the Outcome filter takes: the environment fields, the
+    // test config, the workflow and the owner.
+    for (const facet of TESTS_FACETS) {
+      if (facet !== "status") {
+        expect(COMMIT_PAGE_FILTER_NAMES).toContain(facet);
+      }
+    }
+    expect(COMMIT_PAGE_FILTER_NAMES).not.toContain("status");
+  });
+
+  test("default to the problem statuses and the rare other outcomes, longest first", () => {
+    const parsed = parameterSchema(COMMIT_PAGE_PARAMETER_DEFINITIONS).parse({});
+    expect(parsed).toEqual({
+      status: [...COMMIT_PAGE_DEFAULT_STATUSES],
+      sort: ["-duration_milliseconds"],
+    });
+    expect(COMMIT_PAGE_DEFAULT_STATUSES).toEqual([
+      "failed",
+      "timed_out",
+      "flaky",
+      "other",
+    ]);
+    const definitions = COMMIT_PAGE_PARAMETER_DEFINITIONS;
+    expect(
+      definitions.status.schema.safeParse(["failed", "nope"]).success
+    ).toBe(false);
+    expect(definitions.status.schema.safeParse([]).success).toBe(false);
+    expect(
+      definitions.sort.schema.safeParse(["-duration_milliseconds", "job_name"])
+        .data
+    ).toEqual(["-duration_milliseconds", "job_name"]);
+    // The outcome order comes first in every list; the page adds the
+    // endpoint's status sort itself, so its own sort never names it.
+    expect(definitions.sort.schema.safeParse(["status"]).success).toBe(false);
+    // The page writes only what differs from these defaults.
+    expect(
+      pageUrlParams(
+        {
+          status: ["failed", "timed_out", "flaky", "other"],
+          sort: ["-duration_milliseconds"],
+          owner: ["inductor"],
+        },
+        definitions
+      )
+    ).toMatchObject({
+      status: undefined,
+      sort: undefined,
+      owner: ["inductor"],
+    });
+    expect(
+      pageUrlParams(
+        {
+          status: ["failed", "passed"],
+          sort: ["file", "suite", "case_name"],
+        },
+        definitions
+      )
+    ).toMatchObject({
+      status: ["failed", "passed"],
+      sort: "file,suite,case_name",
+    });
   });
 });
 
@@ -268,5 +351,13 @@ describe("the pages' paths", () => {
       "/tests/pytorch/vision/test/42"
     );
     expect(testPagePath("a b/c", "1")).toBe("/tests/a%20b/c/test/1");
+    expect(
+      commitPagePath(
+        "pytorch/pytorch",
+        "ce6ff46d8ca967ef333ba9b804e081f26b432796"
+      )
+    ).toBe(
+      "/tests/pytorch/pytorch/commit/ce6ff46d8ca967ef333ba9b804e081f26b432796"
+    );
   });
 });

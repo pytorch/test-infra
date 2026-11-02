@@ -1,7 +1,7 @@
 import { daySpan, timeAgoLabel } from "components/tests/TimeAgo";
 import dayjs, { Dayjs } from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { useEffect, useState } from "react";
+import { useMounted } from "lib/tests/useMounted";
 
 dayjs.extend(utc);
 
@@ -24,12 +24,7 @@ export function lastRunLabel(timestamp: string, now: Dayjs = dayjs()): string {
 export default function LastRun({ timestamp }: { timestamp: string }) {
   // Filled in on the client only: the server does not know the viewer's
   // time zone, so it would render the wrong wall-clock time.
-  const [display, setDisplay] = useState<{ label: string; ago: string }>();
-  useEffect(() => {
-    setDisplay({
-      label: lastRunLabel(timestamp),
-      ago: timeAgoLabel(timestamp),
-    });
-  }, [timestamp]);
-  return <span title={display?.ago}>{display?.label}</span>;
+  const mounted = useMounted();
+  if (!mounted) return <span />;
+  return <span title={timeAgoLabel(timestamp)}>{lastRunLabel(timestamp)}</span>;
 }

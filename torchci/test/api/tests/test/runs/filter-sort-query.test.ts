@@ -1,7 +1,4 @@
-import {
-  buildCommitRunsQuery,
-  buildCommitRunsStatsQuery,
-} from "lib/api/tests/commit/query";
+import { buildCommitRunsQuery } from "lib/api/tests/commit/query";
 import { CI_DATABASE } from "lib/api/tests/database";
 import { searchPredicateSql } from "lib/api/tests/shared-sql";
 import { runsIdentity } from "lib/api/tests/test/runs/cursor";
@@ -65,23 +62,25 @@ describe.each(
       { ...shared, sha: SHA, repo: "pytorch/pytorch" },
       null
     );
-    const statsForCommit = buildCommitRunsStatsQuery({
-      ...shared,
-      sha: SHA,
-      repo: "pytorch/pytorch",
-    });
     const { test_id: _testParameter, ...testParams } = forTest.params;
-    const { sha: _sha, repo: _repo, ...commitParams } = forCommit.params;
+    const {
+      sha: _sha,
+      repo: _repo,
+      candidate_outcomes: candidateOutcomes,
+      ...commitParams
+    } = forCommit.params;
     expect(testParams).toEqual(commitParams);
-    // Supplying every filter family still counts the whole commit. The stats
-    // boundary only reads repository and SHA, even from a full page request.
-    expect(statsForCommit).toEqual(
-      buildCommitRunsStatsQuery({ sha: SHA, repo: "pytorch/pytorch" })
+    // The commit's page reads FINAL pruned to the tests that hold a row of
+    // the rare outcomes the outcome filter admits; a test's page, pinned by
+    // its key, needs no such pruning.
+    expect(candidateOutcomes).toEqual(["error", "failed"]);
+    expect(forCommit.sql).toContain(
+      "PREWHERE run.tests_id IN (SELECT run.tests_id"
     );
-    expect(statsForCommit.params).toEqual({
-      sha: SHA,
-      repo: "pytorch/pytorch",
-    });
+    expect(forCommit.sql).toContain(
+      "AND run.outcome IN {candidate_outcomes: Array(String)}"
+    );
+    expect(forTest.sql).not.toContain("candidate_outcomes");
     expect(testParams).toMatchObject({
       entries_limit: 2,
       filter_file: query.file,

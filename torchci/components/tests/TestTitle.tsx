@@ -1,9 +1,8 @@
 import { Box, Tooltip, Typography } from "@mui/material";
-import type { Theme } from "@mui/material/styles";
 import DetailList from "components/tests/DetailList";
 import { Breakable, breakPieces } from "components/tests/TestName";
 import type { TestRecord } from "lib/api/tests/types";
-import { caseNameDetails, splitCaseName } from "lib/tests/header";
+import { caseNameDetails, HEADLINE_SX, splitCaseName } from "lib/tests/header";
 import { Fragment } from "react";
 
 export interface TestTitleProps {
@@ -11,18 +10,6 @@ export interface TestTitleProps {
   // what the page is.
   test: Pick<TestRecord, "case_name" | "declared_case_name"> | undefined;
 }
-
-// The headline's measure: HUD's h5 size, a step under the list page's h4,
-// but heavier and with the tracking drawn in, so an identifier anchors the
-// page without filling it.
-const HEADLINE_SX = {
-  fontSize: (theme: Theme) => theme.typography.h5.fontSize,
-  fontWeight: 600,
-  letterSpacing: "-0.02em",
-  lineHeight: 1.25,
-  overflowWrap: "anywhere",
-  color: "text.primary",
-} as const;
 
 // The headline of a test's page is its case name, the exact string the
 // runner selects, in one line of two weights: the name as declared in the

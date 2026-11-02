@@ -15,10 +15,8 @@ import * as clickhouse from "lib/clickhouse";
 import { callRoute } from "../../../routes";
 import {
   attemptRow,
-  bundleOutcomes,
   groupedRunRecord,
   runRecord,
-  runStats,
   SORT_CASES,
   TEST_ID,
 } from "./fixtures";
@@ -487,8 +485,6 @@ describe.each([false, true])(
               ? []
               : queryId === "api_run_attempts"
               ? matchingAttempts(params)
-              : queryId === "api_commit_runs_stats"
-              ? [runStats(bundleOutcomes(fixtures.map(({ run }) => run)))]
               : answerFixtureQuery([...fixtures].reverse(), sql, params)
           );
         const identity = [
@@ -561,14 +557,7 @@ describe.each([false, true])(
           const limit = pages++ % 2 === 0 ? 1 : 2;
           const page = await readPage(token, limit);
           expect(pages).toBeLessThanOrEqual(fixtures.length);
-          if (commit) {
-            expect(page).toHaveProperty(
-              "stats",
-              runStats(bundleOutcomes(fixtures.map(({ run }) => run)))
-            );
-          } else {
-            expect(page).not.toHaveProperty("stats");
-          }
+          expect(page).not.toHaveProperty("stats");
           expect(page).not.toHaveProperty("total_runs");
           expect(page.pagination.previous === null).toBe(actual.length === 0);
           actual.push(...page.runs);
@@ -666,7 +655,6 @@ describe.each([false, true])("last-attempt filtering (commit=%s)", (commit) => {
     { ...first(8, { outcome: "passed" }), insert_order: 2 },
   ];
   const retained = finalFixtures(stored);
-  const stats = runStats(bundleOutcomes(retained.map(({ run }) => run)));
   const cases: {
     name: string;
     filters: Pick<
@@ -724,13 +712,6 @@ describe.each([false, true])("last-attempt filtering (commit=%s)", (commit) => {
             expect(params).not.toHaveProperty("rerun_number");
             return matchingAttempts(params, stored).reverse();
           }
-          if (queryId === "api_commit_runs_stats") {
-            expect(params).toEqual({
-              repo: "pytorch/pytorch",
-              sha: "0123456789abcdef0123456789abcdef01234567",
-            });
-            return [stats];
-          }
           return answerFixtureQuery([...stored].reverse(), sql, params);
         });
       let token: string | null = null;
@@ -770,7 +751,6 @@ describe.each([false, true])("last-attempt filtering (commit=%s)", (commit) => {
             .filter(([key]) => key.endsWith("github_workflow_job_id"))
             .map(([, job]) => job)
         ).toEqual(expectedJobs.map(String));
-        if (commit) expect(page).toHaveProperty("stats", stats);
         offset += page.runs.length;
         expect(offset).toBeLessThanOrEqual(jobs.length);
         expect(page.next_cursor !== null).toBe(offset < jobs.length);

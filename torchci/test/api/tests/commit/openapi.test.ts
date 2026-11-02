@@ -157,27 +157,8 @@ describe("commit runs OpenAPI", () => {
       $ref: "#/components/schemas/RunRecord",
     });
     expect(schemas.CommitRunListPage.required).toEqual(
-      expect.arrayContaining([
-        "runs",
-        "pagination",
-        "query_duration_ms",
-        "stats",
-      ])
+      expect.arrayContaining(["runs", "pagination", "query_duration_ms"])
     );
-    expect(schemas.CommitRunListPage.properties.stats).toMatchObject({
-      $ref: "#/components/schemas/RunStats",
-    });
-    const countFields = ["total", ...RUN_OUTCOMES];
-    expect(schemas.RunStats.required).toEqual(countFields);
-    expect(Object.keys(schemas.RunStats.properties)).toEqual(countFields);
-    for (const field of countFields) {
-      expect(schemas.RunStats.properties[field]).toMatchObject({
-        type: "integer",
-        minimum: 0,
-        maximum: Number.MAX_SAFE_INTEGER,
-      });
-      expect(schemas.RunStats.properties).not.toHaveProperty(`${field}_runs`);
-    }
     expect(schemas.CommitRunListPage.properties).not.toHaveProperty(
       "total_runs"
     );
@@ -258,12 +239,6 @@ describe("commit runs OpenAPI", () => {
     expect(operation.description).toMatch(/empty page with 200/i);
     expect(operation.description).toMatch(/fixed snapshot/i);
     expect(operation.description).toMatch(
-      /Search, all run filters including outcome and last_attempt_outcome, cursor, limit and ordering affect only the runs list, not stats/i
-    );
-    expect(operation.description).toMatch(
-      /filters matching no retained runs.*stats still describe the entire commit/i
-    );
-    expect(operation.description).toMatch(
       /filters select bundles before pagination/i
     );
     expect(operation.description).toMatch(
@@ -271,15 +246,6 @@ describe("commit runs OpenAPI", () => {
     );
     expect(operation.description).toMatch(
       /every attempt in a matching bundle is returned/i
-    );
-    expect(operation.description).toMatch(
-      /each bundle counts once under its final outcome/i
-    );
-    expect(operation.description).toMatch(
-      /failed and then passed on retry counts as passed/i
-    );
-    expect(operation.description).toMatch(
-      /skip recorded in a rerun after a timeout or failure does not override it/i
     );
     expect(operation.description).toMatch(/AND across fields/i);
     expect(operation.description).toMatch(
@@ -311,28 +277,5 @@ describe("commit runs OpenAPI", () => {
     expect(
       schemas.CommitRunListPage.properties.query_duration_ms.description
     ).toMatch(/catalog and workflow requests .*omitted for an empty page/i);
-    expect(
-      schemas.CommitRunListPage.properties.query_duration_ms.description
-    ).toMatch(/statistics/i);
-    expect(schemas.CommitRunListPage.properties.stats.description).toMatch(
-      /Search, all run filters including outcome and last_attempt_outcome, cursor, limit and sort order do not affect statistics/i
-    );
-    expect(schemas.CommitRunListPage.properties.stats.description).toMatch(
-      /counts once, under its final outcome/i
-    );
-    expect(schemas.RunStats.description).toMatch(
-      /bundles that ended passing are counted in passed/i
-    );
-    expect(schemas.RunStats.description).toMatch(
-      /a skipped attempt never overrides an executed one/i
-    );
-    expect(schemas.RunStats.description).toMatch(
-      /only way the final outcome differs from the last_attempt_outcome filter/i
-    );
-    expect(schemas.RunStats.description).toMatch(/sum to total/i);
-    expect(schemas.RunStats.description).toMatch(
-      /Search and all run filters, including outcome and last_attempt_outcome, are ignored/i
-    );
-    expect(schemas.RunStats.description).toMatch(/zero in every field/i);
   });
 });

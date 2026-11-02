@@ -20,6 +20,24 @@ export const COLUMN_WIDTHS = {
   owners: 200,
   last_run_at: 180,
 };
+// The commit page's table keeps the same width: its Outcome column takes
+// Health's, and Duration and Job share what Mean Passed Duration and Last
+// run have; the four shared columns keep theirs.
+// Duration holds its header, "DURATION" with the sort arrow, and figures
+// like "30.0 min"; Job takes the rest, enough for a build name on two
+// lines.
+const DURATION_WIDTH = 140;
+export const COMMIT_COLUMN_WIDTHS = {
+  outcome: COLUMN_WIDTHS.health,
+  duration: DURATION_WIDTH,
+  environment: COLUMN_WIDTHS.environment,
+  test_config: COLUMN_WIDTHS.test_config,
+  job:
+    COLUMN_WIDTHS.mean_passed_duration_milliseconds +
+    COLUMN_WIDTHS.last_run_at -
+    DURATION_WIDTH,
+  owners: COLUMN_WIDTHS.owners,
+};
 export const TABLE_BORDER = 1;
 // The table's width with every column at its width and the Name column at
 // its minimum. The page column is this wide, so at full width the table is
@@ -49,3 +67,8 @@ export const HEADER_TITLE_STYLE = {
   textTransform: "uppercase",
 } as const;
 export const HEADER_TITLE_TOOLTIP_DELAY_MS = 600;
+// A header's filter key (HeaderFilter): its side in pixels, the funnel with
+// its padding and edge, which the header leaves room for plus a gap; and
+// how far it sits in from the header's right edge.
+export const HEADER_FILTER_SIZE = 26;
+export const HEADER_FILTER_INSET = 6;

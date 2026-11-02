@@ -11,16 +11,13 @@ import { entityRow } from "../fixtures";
 import {
   answerRunQueries,
   attemptRow,
-  bundleOutcomes,
   ENV_VARS_ID,
   ENVIRONMENT_ID,
   expandedRunRecord,
   groupedRunRecord,
   groupRow,
-  RUN_OUTCOMES,
   runRecord,
   runRow,
-  runStats,
   STARTED_AT,
   TEST_ID,
   workflowRow,
@@ -103,7 +100,6 @@ describe("commit run bundles", () => {
       attempts: records.map(attemptRow),
       catalog: [catalog],
       workflow: [workflow],
-      stats: runStats(bundleOutcomes(records)),
     });
     const page = await listCommitRuns({ query, cursor: null });
     const { test, environment, env_vars, owners } = toEntry(catalog, {
@@ -132,7 +128,6 @@ describe("commit run bundles", () => {
           `https://gha-artifacts.s3.amazonaws.com/torchci-reports/pytorch/pytorch/38278237839/114912897697/dynamo.test_benchmark_runner-${run.report_uuid}.report.jsonl`
       )
     );
-    expect(page.stats).toEqual(runStats(["passed"]));
     expect(CommitRunListPageSchema.shape.runs.parse(page.runs)).toEqual(
       page.runs
     );
@@ -142,7 +137,6 @@ describe("commit run bundles", () => {
       cursor: null,
     });
     expect(forTest.runs).toEqual(page.runs);
-    expect(forTest).not.toHaveProperty("stats");
   });
 
   test("keeps tests with the same environment and job separate even when catalogs are missing", async () => {
@@ -164,14 +158,12 @@ describe("commit run bundles", () => {
         }),
       ],
       attempts: [second, firstAttempt, first].map(attemptRow),
-      stats: runStats(["passed", "failed"]),
     });
     const page = await listCommitRuns({ query, cursor: null });
     expect(page.runs).toEqual([
       groupedRunRecord([first, firstAttempt]),
       expandedRunRecord(second),
     ]);
-    expect(page.stats.total).toBe(2);
     expect(page.runs).toHaveLength(2);
   });
 
@@ -185,7 +177,6 @@ describe("commit run bundles", () => {
         commitRow({ tests_id_string: "3", sort_1: "3" }),
       ],
       attempts: [first, second].map(attemptRow),
-      stats: runStats(Array(17).fill("failed")),
     });
     const page = await listCommitRuns({ query, cursor: null });
     expect(page.runs).toEqual([
@@ -211,13 +202,8 @@ describe("commit run bundles", () => {
       (call) => call[2] === "api_run_attempts"
     )![1];
     expect(JSON.stringify(attemptParams)).not.toContain('"3"');
-    const firstStatsCall = queryClickhouse.mock.calls.find(
-      (call) => call[2] === "api_commit_runs_stats"
-    );
     queryClickhouse.mockClear();
-    answerRunQueries(queryClickhouse, {
-      stats: runStats(Array(17).fill("failed")),
-    });
+    answerRunQueries(queryClickhouse);
     const next = await listCommitRuns({
       query: { ...query, limit: 3 },
       cursor: decodeCommitRunsCursor(page.next_cursor!),
@@ -226,46 +212,8 @@ describe("commit run bundles", () => {
       runs: [],
       next_cursor: null,
       previous_cursor: null,
-      stats: page.stats,
     });
-    expect(
-      queryClickhouse.mock.calls.find(
-        (call) => call[2] === "api_commit_runs_stats"
-      )
-    ).toEqual(firstStatsCall);
-    expect(queryClickhouse).toHaveBeenCalledTimes(2);
-  });
-
-  test("keeps bundle statistics over the full commit when filters select a bundle", async () => {
-    const failed = runRecord();
-    const passed = runRecord({
-      id: "00000000-0000-4000-8000-000000000001",
-      rerun_number: 1,
-      outcome: "passed",
-      started_at: "2026-10-19T16:29:00.000Z",
-      ended_at: "2026-10-19T16:29:01.000Z",
-    });
-    const stats = runStats([...RUN_OUTCOMES, "passed"]);
-    answerRunQueries(queryClickhouse, {
-      page: [commitRow()],
-      attempts: [failed, passed].map(attemptRow),
-      stats,
-    });
-    const filtered: CommitRunsListQuery = {
-      ...query,
-      outcome: ["failed"],
-      last_attempt_outcome: ["passed"],
-      rerun_number: [0],
-      limit: 1,
-    };
-    const page = await listCommitRuns({ query: filtered, cursor: null });
-    expect(page.runs).toEqual([groupedRunRecord([failed, passed])]);
-    expect(page.stats).toEqual(stats);
-    expect(
-      queryClickhouse.mock.calls.find(
-        (call) => call[2] === "api_commit_runs_stats"
-      )![1]
-    ).toEqual({ sha: query.sha, repo: query.repo });
+    expect(queryClickhouse).toHaveBeenCalledTimes(1);
   });
 
   test.each([
@@ -333,100 +281,16 @@ describe("commit run bundles", () => {
       if (queryId === failingQuery) throw new Error("Database unavailable");
       if (queryId === "api_commit_runs_page") return [commitRow()];
       if (queryId === "api_run_attempts") return [runRow()];
-      return queryId === "api_commit_runs_stats" ? [runStats()] : [];
+      return [];
     });
     await expect(listCommitRuns({ query, cursor: null })).rejects.toThrow(
       "Database unavailable"
     );
   });
-  test("propagates stats failures instead of inventing totals", async () => {
-    queryClickhouse.mockImplementation(async (_sql, _params, queryId) => {
-      if (queryId === "api_commit_runs_stats")
-        throw new Error("Stats unavailable");
-      return [];
-    });
-    await expect(listCommitRuns({ query, cursor: null })).rejects.toThrow(
-      "Stats unavailable"
-    );
-  });
-
-  test.each(
-    [
-      [],
-      [{}],
-      [{ ...runStats(), total: -1 }],
-      [{ ...runStats(), total: 1.5 }],
-      [{ ...runStats(), total: "12" }],
-      [{ ...runStats(), total: null }],
-      [{ ...runStats(), total: Number.MAX_SAFE_INTEGER + 1 }],
-    ].map((statsRows) => ({ statsRows }))
-  )("rejects missing or invalid stats rows %j", async ({ statsRows }) => {
-    queryClickhouse.mockImplementation(async (_sql, _params, queryId) =>
-      queryId === "api_commit_runs_stats" ? statsRows : []
-    );
-    await expect(listCommitRuns({ query, cursor: null })).rejects.toThrow();
-  });
-
-  test.each(RUN_OUTCOMES)(
-    "requires a valid count for the %s outcome",
-    async (outcome) => {
-      for (const value of [
-        undefined,
-        -1,
-        1.5,
-        "12",
-        null,
-        Number.MAX_SAFE_INTEGER + 1,
-      ]) {
-        queryClickhouse.mockImplementation(async (_sql, _params, queryId) =>
-          queryId === "api_commit_runs_stats"
-            ? [{ ...runStats(), [outcome]: value }]
-            : []
-        );
-        await expect(listCommitRuns({ query, cursor: null })).rejects.toThrow();
-      }
-    }
-  );
-
-  test("requires stats in the response schema instead of the old flat count", () => {
-    const oldPage = {
-      runs: [],
-      pagination: { next: null, previous: null },
-      query_duration_ms: 0,
-      total_runs: 0,
-    };
-    expect(CommitRunListPageSchema.safeParse(oldPage).success).toBe(false);
-    expect(
-      CommitRunListPageSchema.parse({ ...oldPage, stats: runStats() })
-    ).not.toHaveProperty("total_runs");
-  });
-
-  test("requires the concise stats fields instead of the old suffixed counts", () => {
-    const stats = runStats();
-    const oldStats = Object.fromEntries(
-      Object.entries(stats).map(([field, count]) => [`${field}_runs`, count])
-    );
-    const page = {
-      runs: [],
-      pagination: { next: null, previous: null },
-      query_duration_ms: 0,
-    };
-    expect(
-      CommitRunListPageSchema.safeParse({ ...page, stats: oldStats }).success
-    ).toBe(false);
-    expect(
-      CommitRunListPageSchema.parse({
-        ...page,
-        stats: { ...oldStats, ...stats },
-      }).stats
-    ).toEqual(stats);
-  });
-
-  test("sums all query durations while statistics overlap the page and enrichment", async () => {
+  test("sums all query durations while the catalog and workflow reads overlap", async () => {
     jest.useFakeTimers();
     const durations: Record<string, number> = {
       api_commit_runs_page: 37,
-      api_commit_runs_stats: 71,
       api_run_attempts: 13,
       api_run_catalog: 11,
       api_run_workflow: 7,
@@ -435,39 +299,34 @@ describe("commit run bundles", () => {
       await new Promise((resolve) => setTimeout(resolve, durations[queryId]));
       if (queryId === "api_commit_runs_page") return [commitRow()];
       if (queryId === "api_run_attempts") return [runRow()];
-      return queryId === "api_commit_runs_stats"
-        ? [runStats(Array(17).fill("failed"))]
-        : [];
+      return [];
     });
     const startedAt = performance.now();
     const response = listCommitRuns({ query, cursor: null });
     await jest.runAllTimersAsync();
     const page = await response;
-    expect(page.query_duration_ms).toBe(139);
-    expect(page.stats.total).toBe(17);
-    expect(performance.now() - startedAt).toBe(71);
-    expect(queryClickhouse).toHaveBeenCalledTimes(5);
+    expect(page.query_duration_ms).toBe(68);
+    expect(performance.now() - startedAt).toBe(61);
+    expect(queryClickhouse).toHaveBeenCalledTimes(4);
   });
 
   test("reports database time for an empty commit without fetching attempts or metadata", async () => {
     jest.useFakeTimers();
-    queryClickhouse.mockImplementation(async (_sql, _params, queryId) => {
-      const isStats = queryId === "api_commit_runs_stats";
-      await new Promise((resolve) => setTimeout(resolve, isStats ? 19 : 37));
-      return isStats ? [runStats()] : [];
+    queryClickhouse.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 37));
+      return [];
     });
     const response = listCommitRuns({ query, cursor: null });
     await jest.runAllTimersAsync();
     expect(await response).toEqual({
       runs: [],
+      hud_url: `https://hud.pytorch.org/tests/pytorch/pytorch/commit/${query.sha}`,
       next_cursor: null,
       previous_cursor: null,
-      query_duration_ms: 56,
-      stats: runStats(),
+      query_duration_ms: 37,
     });
     expect(queryClickhouse.mock.calls.map((call) => call[2])).toEqual([
       "api_commit_runs_page",
-      "api_commit_runs_stats",
     ]);
   });
 
@@ -490,7 +349,6 @@ describe("commit run bundles", () => {
         .map((call) => call[4]);
     expect(settingsOf("api_commit_runs_page")).toEqual([undefined, undefined]);
     expect(settingsOf("api_commit_runs_page_boundary")).toEqual([undefined]);
-    expect(settingsOf("api_commit_runs_stats")).toEqual([undefined, undefined]);
     expect(settingsOf("api_run_attempts")).toEqual([
       CI_WORKLOAD_HEAVY,
       CI_WORKLOAD_HEAVY,

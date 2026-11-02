@@ -8,15 +8,13 @@ import {
   useTheme,
 } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
+import AttemptPills from "components/tests/AttemptPill";
 import HeaderCheck from "components/tests/HeaderCheck";
-import {
-  HEADER_FILTER_INSET,
-  HEADER_FILTER_SIZE,
-} from "components/tests/HeaderFilter";
 import HeaderSearch from "components/tests/HeaderSearch";
 import HeaderSelect from "components/tests/HeaderSelect";
 import LoadError from "components/tests/LoadError";
 import LoadTime from "components/tests/LoadTime";
+import Swatch from "components/tests/Swatch";
 import TextButton from "components/tests/TextButton";
 import dayjs from "dayjs";
 import type { TestOptions } from "lib/api/tests/options/types";
@@ -24,13 +22,11 @@ import type { HealthWindow, RanOn } from "lib/api/tests/parameters";
 import type {
   RunGridCell,
   RunGrid as RunGridData,
-  RunOutcome,
 } from "lib/api/tests/test/runs/types";
 import { environmentDetails, variableLines } from "lib/tests/environment";
 import { labelOf } from "lib/tests/facets";
 import {
   allOutcomesShown,
-  attemptStatus,
   badgeLabel,
   cardJobs,
   CELL_EDGE,
@@ -74,7 +70,6 @@ import {
   laneTimes,
   LaneTimes,
   OUTCOME_LABELS,
-  OUTCOME_WORDS,
   outcomesLabel,
   outcomesPhrase,
   outcomeSwatchStatus,
@@ -88,7 +83,6 @@ import {
   timeBarShown,
 } from "lib/tests/grid";
 import {
-  attemptPillColors,
   badgeColors,
   cellFill,
   cellHoverColors,
@@ -103,19 +97,20 @@ import {
 import { MONOSPACE_FONT_FAMILY } from "lib/tests/header";
 import { headerBandColor, headerRuleColor } from "lib/tests/headerColors";
 import {
+  HEADER_FILTER_INSET,
+  HEADER_FILTER_SIZE,
   HEADER_TITLE_STYLE,
   HEADER_TITLE_TOOLTIP_DELAY_MS,
   TABLE_BORDER,
 } from "lib/tests/layout";
 import { durationLabel, integerLabel, ranOnPhrase } from "lib/tests/table";
+import { useIsomorphicLayoutEffect } from "lib/tests/useIsomorphicLayoutEffect";
 import type { PageTiming } from "lib/tests/useTestsListing";
 import {
-  Fragment,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
   ReactNode,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -165,63 +160,8 @@ const HOVER_RING = 1.5;
 // between the header and a pinned lane scrolled into view.
 const PIN_STRIP_WIDTH = 6;
 const PIN_SCROLL_AIR = 16;
-// The card and the pill are placed by measures read from the drawing, so
-// the layout effect; on the server, where there is nothing to measure and a
-// layout effect only warns, a plain effect (MUI's useEnhancedEffect).
-const useIsomorphicLayoutEffect =
-  typeof window === "undefined" ? useEffect : useLayoutEffect;
-
 function formatWhen(iso: string): string {
   return dayjs(iso).format("MMM D, h:mm A");
-}
-
-// A run's attempts on the card as a row of pills, each the word of its
-// outcome in its status's colors, an arrow from one to the next: "Crashed →
-// Passed".
-function AttemptPills({
-  attempts,
-  theme,
-}: {
-  attempts: readonly RunOutcome[];
-  theme: Theme;
-}) {
-  return (
-    <Box
-      component="span"
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 0.5,
-      }}
-    >
-      {attempts.map((outcome, index) => {
-        const colors = attemptPillColors(theme, attemptStatus(outcome));
-        return (
-          <Fragment key={index}>
-            {index > 0 && (
-              <Box component="span" sx={{ color: "text.disabled" }}>
-                →
-              </Box>
-            )}
-            <Box
-              component="span"
-              sx={{
-                px: 0.75,
-                borderRadius: 999,
-                backgroundColor: colors.background,
-                color: colors.text,
-                fontWeight: 500,
-                lineHeight: 1.6,
-              }}
-            >
-              {OUTCOME_WORDS[outcome]}
-            </Box>
-          </Fragment>
-        );
-      })}
-    </Box>
-  );
 }
 
 // A configuration's lines on a card: its workflow and label, the muted
@@ -321,25 +261,6 @@ function HeaderTitle({
     >
       {text}
     </Tooltip>
-  );
-}
-
-// A swatch of a status, as the card shows it: a cell, fill and edge.
-function Swatch({ theme, status }: { theme: Theme; status: CellStatus }) {
-  return (
-    <Box
-      component="span"
-      aria-hidden
-      sx={{
-        flex: "none",
-        boxSizing: "border-box",
-        width: GRID_SIZES.swatchWidth,
-        height: GRID_SIZES.cellHeight,
-        borderRadius: "999px",
-        backgroundColor: cellFill(theme, status),
-        border: `${CELL_EDGE}px solid ${cellStroke(theme, status)}`,
-      }}
-    />
   );
 }
 

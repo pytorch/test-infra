@@ -1,0 +1,1373 @@
+{
+  "measured_at": "2026-10-31T02:27:15.657Z",
+  "server_version": "26.6.1.2446",
+  "database": "ci",
+  "settings": {
+    "readonly": 2,
+    "use_query_cache": 0,
+    "max_execution_time": 300,
+    "output_format_json_quote_64bit_integers": 1,
+    "date_time_output_format": "iso"
+  },
+  "pairs": 2,
+  "description": "The commit summary's test counts (GET /api/tests/commit/{sha}/summary): per worst result the tests and their jobs, and for the whole commit the tests, jobs and bundles of each status and the span of the runs. before: every retained run of the commit's jobs read with FINAL and grouped into bundles, the functional baseline. after: the working-tree SQL, which groups the commit's rows by job and test through by_job, classifies the keys holding one stored row straight off their outcome and reads FINAL only for the other keys' rows, each test's bundles aggregated as one array of (job, status) pairs. Each case runs alternating pairs and requires identical complete rows. The lookups, the commit's own, its pull request's title, the pull request its SHA has been the head of (a fork head's) and its branch neighbours, are recorded for SQL drift and run once live.",
+  "fixtures": {
+    "commit_ce6ff46": "A main commit (PR #202376) with 9,177,729 bundles: 672,763 tests in 333 jobs, 4 failed, 8 timed out, 68 flaky.",
+    "pull_request_head_06b5f47": "A pull request head whose tests all passed."
+  },
+  "cases": {
+    "commit_ce6ff46": {
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "ce6ff46d8ca967ef333ba9b804e081f26b432796"
+      },
+      "before": {
+        "params": {
+          "sha": "ce6ff46d8ca967ef333ba9b804e081f26b432796",
+          "repo": "pytorch/pytorch"
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    category,\n    count() AS tests,\n    uniqExactArray(category_jobs) AS jobs,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'failed', pairs))) AS failed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'timed_out', pairs))) AS timed_out_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'flaky', pairs))) AS flaky_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'passed', pairs))) AS passed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'other', pairs))) AS other_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'xfailed', pairs))) AS xfailed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'skipped', pairs))) AS skipped_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_bundles,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), pairs)) AS any_jobs,\n    min(first_started_at) AS first_started_at,\n    max(last_ended_at) AS last_ended_at\nFROM (\n    SELECT\n        tests_id,\n        groupArray((job_id, status)) AS pairs,\n        multiIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs), 'failed', arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs), 'timed_out', arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs), 'flaky', arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs), 'passed', arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs), 'other', arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs), 'xfailed', 'skipped') AS category,\n        arrayDistinct(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = category, pairs))) AS category_jobs,\n        min(started_at) AS first_started_at,\n        max(ended_at) AS last_ended_at\n    FROM (\n        SELECT run.tests_id AS tests_id,\n            run.github_workflow_job_id AS job_id,\n            multiIf(countIf(run.outcome != 'skipped') = 0, 'skipped', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) IN ('failed', 'error', 'crashed'), 'failed', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'timed_out', 'timed_out', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'passed', if(countIf(run.outcome IN ('failed', 'error', 'crashed', 'timed_out')) > 0, 'flaky', 'passed'), argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'xfailed', 'xfailed', 'other') AS status,\n            min(run.started_at) AS started_at,\n            max(run.ended_at) AS ended_at\n        FROM ci.runs AS run FINAL\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n        GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    )\n    GROUP BY tests_id\n)\nGROUP BY category WITH ROLLUP\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "ce6ff46d8ca967ef333ba9b804e081f26b432796",
+          "repo": "pytorch/pytorch"
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids,\n(\n    SELECT groupArray(job_test)\n    FROM (\n        SELECT (run.github_workflow_job_id, run.tests_id) AS job_test\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n        GROUP BY run.github_workflow_job_id, run.tests_id\n        HAVING count() > 1\n    )\n) AS multi_row_keys\nSELECT\n    category,\n    count() AS tests,\n    uniqExactArray(category_jobs) AS jobs,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'failed', pairs))) AS failed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'timed_out', pairs))) AS timed_out_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'flaky', pairs))) AS flaky_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'passed', pairs))) AS passed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'other', pairs))) AS other_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'xfailed', pairs))) AS xfailed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'skipped', pairs))) AS skipped_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_bundles,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), pairs)) AS any_jobs,\n    min(first_started_at) AS first_started_at,\n    max(last_ended_at) AS last_ended_at\nFROM (\n    SELECT\n        tests_id,\n        groupArray((job_id, status)) AS pairs,\n        multiIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs), 'failed', arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs), 'timed_out', arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs), 'flaky', arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs), 'passed', arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs), 'other', arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs), 'xfailed', 'skipped') AS category,\n        arrayDistinct(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = category, pairs))) AS category_jobs,\n        min(started_at) AS first_started_at,\n        max(ended_at) AS last_ended_at\n    FROM (\n        SELECT run.tests_id AS tests_id,\n            run.github_workflow_job_id AS job_id,\n            multiIf(run.outcome = 'skipped', 'skipped', run.outcome IN ('failed', 'error', 'crashed'), 'failed', run.outcome = 'timed_out', 'timed_out', run.outcome = 'passed', 'passed', run.outcome = 'xfailed', 'xfailed', 'other') AS status,\n            run.started_at AS started_at,\n            run.ended_at AS ended_at\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) NOT IN (SELECT arrayJoin(multi_row_keys))\n        UNION ALL\n        SELECT run.tests_id AS tests_id,\n            run.github_workflow_job_id AS job_id,\n            multiIf(countIf(run.outcome != 'skipped') = 0, 'skipped', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) IN ('failed', 'error', 'crashed'), 'failed', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'timed_out', 'timed_out', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'passed', if(countIf(run.outcome IN ('failed', 'error', 'crashed', 'timed_out')) > 0, 'flaky', 'passed'), argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'xfailed', 'xfailed', 'other') AS status,\n            min(run.started_at) AS started_at,\n            max(run.ended_at) AS ended_at\n        FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n    ) AS run\n        GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    )\n    GROUP BY tests_id\n)\nGROUP BY category WITH ROLLUP\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes = 1": [
+            {
+              "explain": "Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "  Rollup"
+            },
+            {
+              "explain": "    Aggregating"
+            },
+            {
+              "explain": "      Expression ((Before GROUP BY + (Projection + Before ORDER BY)))"
+            },
+            {
+              "explain": "        Aggregating"
+            },
+            {
+              "explain": "          Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "            CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "              Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                Aggregating"
+            },
+            {
+              "explain": "                  Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "                    Filter (WHERE)"
+            },
+            {
+              "explain": "                      ReadFromMergeTree (ci.runs)"
+            },
+            {
+              "explain": "                      Indexes:"
+            },
+            {
+              "explain": "                        Min-Max"
+            },
+            {
+              "explain": "                          Condition: true"
+            },
+            {
+              "explain": "                          Parts: 113/113"
+            },
+            {
+              "explain": "                          Granules: 950829/950829"
+            },
+            {
+              "explain": "                        Partition"
+            },
+            {
+              "explain": "                          Condition: true"
+            },
+            {
+              "explain": "                          Parts: 113/113"
+            },
+            {
+              "explain": "                          Granules: 950829/950829"
+            },
+            {
+              "explain": "                        PrimaryKey"
+            },
+            {
+              "explain": "                          Condition: true"
+            },
+            {
+              "explain": "                          Parts: 113/113"
+            },
+            {
+              "explain": "                          Granules: 950829/950829"
+            },
+            {
+              "explain": "                        Ranges: 113"
+            },
+            {
+              "explain": "              CreatingSet (Create set for subquery)"
+            },
+            {
+              "explain": "                Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                  ReadFromSystemOne"
+            }
+          ],
+          "ESTIMATE": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "103",
+              "rows": "7788649667",
+              "marks": "950819"
+            }
+          ]
+        },
+        "after": {
+          "indexes = 1": [
+            {
+              "explain": "Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "  Rollup"
+            },
+            {
+              "explain": "    Aggregating"
+            },
+            {
+              "explain": "      Expression ((Before GROUP BY + (Projection + Before ORDER BY)))"
+            },
+            {
+              "explain": "        Aggregating"
+            },
+            {
+              "explain": "          Union"
+            },
+            {
+              "explain": "            Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "              CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "                Expression"
+            },
+            {
+              "explain": "                  ReadFromMergeTree (by_job)"
+            },
+            {
+              "explain": "                  Indexes:"
+            },
+            {
+              "explain": "                    PrimaryKey"
+            },
+            {
+              "explain": "                      Keys:"
+            },
+            {
+              "explain": "                        github_workflow_job_id"
+            },
+            {
+              "explain": "                        tests_id"
+            },
+            {
+              "explain": "                      Condition: and(((github_workflow_job_id, tests_id) notIn 4993-element set), (github_workflow_job_id in 1164-element set))"
+            },
+            {
+              "explain": "                      Parts: 2/112"
+            },
+            {
+              "explain": "                      Granules: 1218/950809"
+            },
+            {
+              "explain": "                      Search Algorithm: generic exclusion search"
+            },
+            {
+              "explain": "                    Ranges: 82"
+            },
+            {
+              "explain": "            Expression ((Before GROUP BY + (Projection + Before ORDER BY)))"
+            },
+            {
+              "explain": "              Aggregating"
+            },
+            {
+              "explain": "                Union"
+            },
+            {
+              "explain": "                  Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "                    CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "                      Expression"
+            },
+            {
+              "explain": "                        ReadFromMergeTree (by_job)"
+            },
+            {
+              "explain": "                        Indexes:"
+            },
+            {
+              "explain": "                          PrimaryKey"
+            },
+            {
+              "explain": "                            Keys:"
+            },
+            {
+              "explain": "                              github_workflow_job_id"
+            },
+            {
+              "explain": "                              tests_id"
+            },
+            {
+              "explain": "                              started_at"
+            },
+            {
+              "explain": "                            Condition: and(((github_workflow_job_id, tests_id) in 4993-element set), and((github_workflow_job_id in 1164-element set), ((tests_id, started_at) notIn 0-element set)))"
+            },
+            {
+              "explain": "                            Parts: 2/114"
+            },
+            {
+              "explain": "                            Granules: 119/950811"
+            },
+            {
+              "explain": "                            Search Algorithm: generic exclusion search"
+            },
+            {
+              "explain": "                          Ranges: 71"
+            },
+            {
+              "explain": "                  Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "                    CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "                      Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                        Filter (WHERE)"
+            },
+            {
+              "explain": "                          ReadFromMergeTree (ci.runs)"
+            },
+            {
+              "explain": "                          Indexes:"
+            },
+            {
+              "explain": "                            Min-Max"
+            },
+            {
+              "explain": "                              Keys:"
+            },
+            {
+              "explain": "                                started_at"
+            },
+            {
+              "explain": "                              Condition: (started_at in 0-element set)"
+            },
+            {
+              "explain": "                              Parts: 0/114"
+            },
+            {
+              "explain": "                              Granules: 0/950831"
+            },
+            {
+              "explain": "                            Partition"
+            },
+            {
+              "explain": "                              Keys:"
+            },
+            {
+              "explain": "                                toDate(started_at)"
+            },
+            {
+              "explain": "                              Condition: (toDate(started_at) in 0-element set)"
+            },
+            {
+              "explain": "                              Parts: 0/0"
+            },
+            {
+              "explain": "                              Granules: 0/0"
+            },
+            {
+              "explain": "                            PrimaryKey"
+            },
+            {
+              "explain": "                              Keys:"
+            },
+            {
+              "explain": "                                tests_id"
+            },
+            {
+              "explain": "                                started_at"
+            },
+            {
+              "explain": "                              Condition: and((tests_id in 4993-element set), ((tests_id, started_at) in 0-element set))"
+            },
+            {
+              "explain": "                              Parts: 0/0"
+            },
+            {
+              "explain": "                              Granules: 0/0"
+            },
+            {
+              "explain": "                            Ranges: 0"
+            },
+            {
+              "explain": "                      CreatingSet (Create set for subquery)"
+            },
+            {
+              "explain": "                        Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                          ReadFromSystemOne"
+            }
+          ],
+          "ESTIMATE": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "4",
+              "rows": "10952704",
+              "marks": "1337"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 7,
+          "statistics": {
+            "elapsed": 112.287818207,
+            "rows_read": 7918333734,
+            "bytes_read": 507424567017
+          },
+          "memory_usage": "261828991",
+          "digest": "a5eb33d41bbeefa53644f3c5c71f533ac53b6d256defbbf3831faf085b3e775c"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 7,
+          "statistics": {
+            "elapsed": 3.126130774,
+            "rows_read": 150454737,
+            "bytes_read": 1594432197
+          },
+          "memory_usage": "102698656",
+          "digest": "a5eb33d41bbeefa53644f3c5c71f533ac53b6d256defbbf3831faf085b3e775c"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 7,
+          "statistics": {
+            "elapsed": 3.229498014,
+            "rows_read": 150454731,
+            "bytes_read": 1594431963
+          },
+          "memory_usage": "88158904",
+          "digest": "a5eb33d41bbeefa53644f3c5c71f533ac53b6d256defbbf3831faf085b3e775c"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 7,
+          "statistics": {
+            "elapsed": 124.209599582,
+            "rows_read": 7919300793,
+            "bytes_read": 507487382496
+          },
+          "memory_usage": "267588094",
+          "digest": "a5eb33d41bbeefa53644f3c5c71f533ac53b6d256defbbf3831faf085b3e775c"
+        }
+      ],
+      "rows": [
+        {
+          "category": "timed_out",
+          "tests": "8",
+          "jobs": "4",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "8",
+          "timed_out_distinct_jobs": "4",
+          "timed_out_bundles": "8",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "8",
+          "passed_distinct_jobs": "5",
+          "passed_bundles": "8",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "0",
+          "xfailed_distinct_jobs": "0",
+          "xfailed_bundles": "0",
+          "skipped_tests": "8",
+          "skipped_distinct_jobs": "15",
+          "skipped_bundles": "112",
+          "any_jobs": "20",
+          "first_started_at": "2026-10-30T12:38:49.963Z",
+          "last_ended_at": "2026-10-30T14:17:39.968Z"
+        },
+        {
+          "category": "xfailed",
+          "tests": "10270",
+          "jobs": "284",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "0",
+          "passed_distinct_jobs": "0",
+          "passed_bundles": "0",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "10270",
+          "xfailed_distinct_jobs": "284",
+          "xfailed_bundles": "80366",
+          "skipped_tests": "7542",
+          "skipped_distinct_jobs": "230",
+          "skipped_bundles": "50145",
+          "any_jobs": "296",
+          "first_started_at": "2026-10-30T12:23:06.510Z",
+          "last_ended_at": "2026-10-30T16:28:48.366Z"
+        },
+        {
+          "category": "failed",
+          "tests": "4",
+          "jobs": "5",
+          "failed_tests": "4",
+          "failed_distinct_jobs": "5",
+          "failed_bundles": "5",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "4",
+          "passed_distinct_jobs": "29",
+          "passed_bundles": "35",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "0",
+          "xfailed_distinct_jobs": "0",
+          "xfailed_bundles": "0",
+          "skipped_tests": "2",
+          "skipped_distinct_jobs": "15",
+          "skipped_bundles": "15",
+          "any_jobs": "49",
+          "first_started_at": "2026-10-30T12:32:54.109Z",
+          "last_ended_at": "2026-10-30T15:38:19.146Z"
+        },
+        {
+          "category": "passed",
+          "tests": "529412",
+          "jobs": "333",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "529412",
+          "passed_distinct_jobs": "333",
+          "passed_bundles": "4721101",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "173",
+          "xfailed_distinct_jobs": "148",
+          "xfailed_bundles": "634",
+          "skipped_tests": "455821",
+          "skipped_distinct_jobs": "319",
+          "skipped_bundles": "2750780",
+          "any_jobs": "333",
+          "first_started_at": "2026-10-30T12:22:39.421Z",
+          "last_ended_at": "2026-10-30T16:45:00.825Z"
+        },
+        {
+          "category": "flaky",
+          "tests": "68",
+          "jobs": "46",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "68",
+          "flaky_distinct_jobs": "46",
+          "flaky_bundles": "87",
+          "passed_tests": "65",
+          "passed_distinct_jobs": "111",
+          "passed_bundles": "430",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "0",
+          "xfailed_distinct_jobs": "0",
+          "xfailed_bundles": "0",
+          "skipped_tests": "67",
+          "skipped_distinct_jobs": "80",
+          "skipped_bundles": "310",
+          "any_jobs": "154",
+          "first_started_at": "2026-10-30T12:25:33.813Z",
+          "last_ended_at": "2026-10-30T16:30:16.691Z"
+        },
+        {
+          "category": "skipped",
+          "tests": "133001",
+          "jobs": "326",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "0",
+          "passed_distinct_jobs": "0",
+          "passed_bundles": "0",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "0",
+          "xfailed_distinct_jobs": "0",
+          "xfailed_bundles": "0",
+          "skipped_tests": "133001",
+          "skipped_distinct_jobs": "326",
+          "skipped_bundles": "1573693",
+          "any_jobs": "326",
+          "first_started_at": "2026-10-30T12:23:10.522Z",
+          "last_ended_at": "2026-10-30T16:31:39.751Z"
+        },
+        {
+          "category": "",
+          "tests": "672763",
+          "jobs": "333",
+          "failed_tests": "4",
+          "failed_distinct_jobs": "5",
+          "failed_bundles": "5",
+          "timed_out_tests": "8",
+          "timed_out_distinct_jobs": "4",
+          "timed_out_bundles": "8",
+          "flaky_tests": "68",
+          "flaky_distinct_jobs": "46",
+          "flaky_bundles": "87",
+          "passed_tests": "529489",
+          "passed_distinct_jobs": "333",
+          "passed_bundles": "4721574",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "10443",
+          "xfailed_distinct_jobs": "290",
+          "xfailed_bundles": "81000",
+          "skipped_tests": "596441",
+          "skipped_distinct_jobs": "326",
+          "skipped_bundles": "4375055",
+          "any_jobs": "333",
+          "first_started_at": "2026-10-30T12:22:39.421Z",
+          "last_ended_at": "2026-10-30T16:45:00.825Z"
+        }
+      ],
+      "digest": "a5eb33d41bbeefa53644f3c5c71f533ac53b6d256defbbf3831faf085b3e775c",
+      "equal_complete_rows": true
+    },
+    "pull_request_head_06b5f47": {
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "06b5f47da23c348085cbbf8b47c69be4de330501"
+      },
+      "before": {
+        "params": {
+          "sha": "06b5f47da23c348085cbbf8b47c69be4de330501",
+          "repo": "pytorch/pytorch"
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    category,\n    count() AS tests,\n    uniqExactArray(category_jobs) AS jobs,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'failed', pairs))) AS failed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'timed_out', pairs))) AS timed_out_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'flaky', pairs))) AS flaky_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'passed', pairs))) AS passed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'other', pairs))) AS other_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'xfailed', pairs))) AS xfailed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'skipped', pairs))) AS skipped_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_bundles,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), pairs)) AS any_jobs,\n    min(first_started_at) AS first_started_at,\n    max(last_ended_at) AS last_ended_at\nFROM (\n    SELECT\n        tests_id,\n        groupArray((job_id, status)) AS pairs,\n        multiIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs), 'failed', arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs), 'timed_out', arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs), 'flaky', arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs), 'passed', arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs), 'other', arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs), 'xfailed', 'skipped') AS category,\n        arrayDistinct(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = category, pairs))) AS category_jobs,\n        min(started_at) AS first_started_at,\n        max(ended_at) AS last_ended_at\n    FROM (\n        SELECT run.tests_id AS tests_id,\n            run.github_workflow_job_id AS job_id,\n            multiIf(countIf(run.outcome != 'skipped') = 0, 'skipped', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) IN ('failed', 'error', 'crashed'), 'failed', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'timed_out', 'timed_out', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'passed', if(countIf(run.outcome IN ('failed', 'error', 'crashed', 'timed_out')) > 0, 'flaky', 'passed'), argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'xfailed', 'xfailed', 'other') AS status,\n            min(run.started_at) AS started_at,\n            max(run.ended_at) AS ended_at\n        FROM ci.runs AS run FINAL\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n        GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    )\n    GROUP BY tests_id\n)\nGROUP BY category WITH ROLLUP\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "after": {
+        "params": {
+          "sha": "06b5f47da23c348085cbbf8b47c69be4de330501",
+          "repo": "pytorch/pytorch"
+        },
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids,\n(\n    SELECT groupArray(job_test)\n    FROM (\n        SELECT (run.github_workflow_job_id, run.tests_id) AS job_test\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n        GROUP BY run.github_workflow_job_id, run.tests_id\n        HAVING count() > 1\n    )\n) AS multi_row_keys\nSELECT\n    category,\n    count() AS tests,\n    uniqExactArray(category_jobs) AS jobs,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'failed', pairs))) AS failed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'failed', pairs)) AS failed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'timed_out', pairs))) AS timed_out_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'timed_out', pairs)) AS timed_out_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'flaky', pairs))) AS flaky_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'flaky', pairs)) AS flaky_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'passed', pairs))) AS passed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'passed', pairs)) AS passed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'other', pairs))) AS other_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'other', pairs)) AS other_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'xfailed', pairs))) AS xfailed_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'xfailed', pairs)) AS xfailed_bundles,\n    countIf(arrayExists(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_tests,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = 'skipped', pairs))) AS skipped_distinct_jobs,\n    sum(arrayCount(pair -> tupleElement(pair, 2) = 'skipped', pairs)) AS skipped_bundles,\n    uniqExactArray(arrayMap(pair -> tupleElement(pair, 1), pairs)) AS any_jobs,\n    min(first_started_at) AS first_started_at,\n    max(last_ended_at) AS last_ended_at\nFROM (\n    SELECT\n        tests_id,\n        groupArray((job_id, status)) AS pairs,\n        multiIf(arrayExists(pair -> tupleElement(pair, 2) = 'failed', pairs), 'failed', arrayExists(pair -> tupleElement(pair, 2) = 'timed_out', pairs), 'timed_out', arrayExists(pair -> tupleElement(pair, 2) = 'flaky', pairs), 'flaky', arrayExists(pair -> tupleElement(pair, 2) = 'passed', pairs), 'passed', arrayExists(pair -> tupleElement(pair, 2) = 'other', pairs), 'other', arrayExists(pair -> tupleElement(pair, 2) = 'xfailed', pairs), 'xfailed', 'skipped') AS category,\n        arrayDistinct(arrayMap(pair -> tupleElement(pair, 1), arrayFilter(pair -> tupleElement(pair, 2) = category, pairs))) AS category_jobs,\n        min(started_at) AS first_started_at,\n        max(ended_at) AS last_ended_at\n    FROM (\n        SELECT run.tests_id AS tests_id,\n            run.github_workflow_job_id AS job_id,\n            multiIf(run.outcome = 'skipped', 'skipped', run.outcome IN ('failed', 'error', 'crashed'), 'failed', run.outcome = 'timed_out', 'timed_out', run.outcome = 'passed', 'passed', run.outcome = 'xfailed', 'xfailed', 'other') AS status,\n            run.started_at AS started_at,\n            run.ended_at AS ended_at\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) NOT IN (SELECT arrayJoin(multi_row_keys))\n        UNION ALL\n        SELECT run.tests_id AS tests_id,\n            run.github_workflow_job_id AS job_id,\n            multiIf(countIf(run.outcome != 'skipped') = 0, 'skipped', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) IN ('failed', 'error', 'crashed'), 'failed', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'timed_out', 'timed_out', argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'passed', if(countIf(run.outcome IN ('failed', 'error', 'crashed', 'timed_out')) > 0, 'flaky', 'passed'), argMax(run.outcome, (run.outcome != 'skipped', run.started_at, run.ended_at, toString(run.id))) = 'xfailed', 'xfailed', 'other') AS status,\n            min(run.started_at) AS started_at,\n            max(run.ended_at) AS ended_at\n        FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))\n    ) AS run\n        GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    )\n    GROUP BY tests_id\n)\nGROUP BY category WITH ROLLUP\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+      },
+      "plans": {
+        "before": {
+          "indexes = 1": [
+            {
+              "explain": "Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "  Rollup"
+            },
+            {
+              "explain": "    Aggregating"
+            },
+            {
+              "explain": "      Expression ((Before GROUP BY + (Projection + Before ORDER BY)))"
+            },
+            {
+              "explain": "        Aggregating"
+            },
+            {
+              "explain": "          Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "            CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "              Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                Aggregating"
+            },
+            {
+              "explain": "                  Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "                    Filter (WHERE)"
+            },
+            {
+              "explain": "                      ReadFromMergeTree (ci.runs)"
+            },
+            {
+              "explain": "                      Indexes:"
+            },
+            {
+              "explain": "                        Min-Max"
+            },
+            {
+              "explain": "                          Condition: true"
+            },
+            {
+              "explain": "                          Parts: 122/122"
+            },
+            {
+              "explain": "                          Granules: 951119/951119"
+            },
+            {
+              "explain": "                        Partition"
+            },
+            {
+              "explain": "                          Condition: true"
+            },
+            {
+              "explain": "                          Parts: 122/122"
+            },
+            {
+              "explain": "                          Granules: 951119/951119"
+            },
+            {
+              "explain": "                        PrimaryKey"
+            },
+            {
+              "explain": "                          Condition: true"
+            },
+            {
+              "explain": "                          Parts: 122/122"
+            },
+            {
+              "explain": "                          Granules: 951119/951119"
+            },
+            {
+              "explain": "                        Ranges: 122"
+            },
+            {
+              "explain": "              CreatingSet (Create set for subquery)"
+            },
+            {
+              "explain": "                Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                  ReadFromSystemOne"
+            }
+          ],
+          "ESTIMATE": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "139",
+              "rows": "7790993716",
+              "marks": "951138"
+            }
+          ]
+        },
+        "after": {
+          "indexes = 1": [
+            {
+              "explain": "Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "  Rollup"
+            },
+            {
+              "explain": "    Aggregating"
+            },
+            {
+              "explain": "      Expression ((Before GROUP BY + (Projection + Before ORDER BY)))"
+            },
+            {
+              "explain": "        Aggregating"
+            },
+            {
+              "explain": "          Union"
+            },
+            {
+              "explain": "            Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "              CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "                Expression"
+            },
+            {
+              "explain": "                  ReadFromMergeTree (by_job)"
+            },
+            {
+              "explain": "                  Indexes:"
+            },
+            {
+              "explain": "                    PrimaryKey"
+            },
+            {
+              "explain": "                      Keys:"
+            },
+            {
+              "explain": "                        github_workflow_job_id"
+            },
+            {
+              "explain": "                        tests_id"
+            },
+            {
+              "explain": "                      Condition: and(((github_workflow_job_id, tests_id) notIn 33-element set), (github_workflow_job_id in 186-element set))"
+            },
+            {
+              "explain": "                      Parts: 8/124"
+            },
+            {
+              "explain": "                      Granules: 281/951106"
+            },
+            {
+              "explain": "                      Search Algorithm: generic exclusion search"
+            },
+            {
+              "explain": "                    Ranges: 35"
+            },
+            {
+              "explain": "            Expression ((Before GROUP BY + (Projection + Before ORDER BY)))"
+            },
+            {
+              "explain": "              Aggregating"
+            },
+            {
+              "explain": "                Union"
+            },
+            {
+              "explain": "                  Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "                    CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "                      Expression"
+            },
+            {
+              "explain": "                        ReadFromMergeTree (by_job)"
+            },
+            {
+              "explain": "                        Indexes:"
+            },
+            {
+              "explain": "                          PrimaryKey"
+            },
+            {
+              "explain": "                            Keys:"
+            },
+            {
+              "explain": "                              github_workflow_job_id"
+            },
+            {
+              "explain": "                              tests_id"
+            },
+            {
+              "explain": "                              started_at"
+            },
+            {
+              "explain": "                            Condition: and(((github_workflow_job_id, tests_id) in 33-element set), and((github_workflow_job_id in 186-element set), ((tests_id, started_at) notIn 0-element set)))"
+            },
+            {
+              "explain": "                            Parts: 6/123"
+            },
+            {
+              "explain": "                            Granules: 10/951105"
+            },
+            {
+              "explain": "                            Search Algorithm: generic exclusion search"
+            },
+            {
+              "explain": "                          Ranges: 10"
+            },
+            {
+              "explain": "                  Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "                    CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "                      Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                        Filter (WHERE)"
+            },
+            {
+              "explain": "                          ReadFromMergeTree (ci.runs)"
+            },
+            {
+              "explain": "                          Indexes:"
+            },
+            {
+              "explain": "                            Min-Max"
+            },
+            {
+              "explain": "                              Keys:"
+            },
+            {
+              "explain": "                                started_at"
+            },
+            {
+              "explain": "                              Condition: (started_at in 0-element set)"
+            },
+            {
+              "explain": "                              Parts: 0/124"
+            },
+            {
+              "explain": "                              Granules: 0/951124"
+            },
+            {
+              "explain": "                            Partition"
+            },
+            {
+              "explain": "                              Keys:"
+            },
+            {
+              "explain": "                                toDate(started_at)"
+            },
+            {
+              "explain": "                              Condition: (toDate(started_at) in 0-element set)"
+            },
+            {
+              "explain": "                              Parts: 0/0"
+            },
+            {
+              "explain": "                              Granules: 0/0"
+            },
+            {
+              "explain": "                            PrimaryKey"
+            },
+            {
+              "explain": "                              Keys:"
+            },
+            {
+              "explain": "                                tests_id"
+            },
+            {
+              "explain": "                                started_at"
+            },
+            {
+              "explain": "                              Condition: and((tests_id in 33-element set), ((tests_id, started_at) in 0-element set))"
+            },
+            {
+              "explain": "                              Parts: 0/0"
+            },
+            {
+              "explain": "                              Granules: 0/0"
+            },
+            {
+              "explain": "                            Ranges: 0"
+            },
+            {
+              "explain": "                      CreatingSet (Create set for subquery)"
+            },
+            {
+              "explain": "                        Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                          ReadFromSystemOne"
+            }
+          ],
+          "ESTIMATE": [
+            {
+              "database": "ci",
+              "table": "runs",
+              "parts": "14",
+              "rows": "2359836",
+              "marks": "291"
+            }
+          ]
+        }
+      },
+      "samples": [
+        {
+          "pair": 0,
+          "version": "before",
+          "rows": 4,
+          "statistics": {
+            "elapsed": 109.869017205,
+            "rows_read": 7920705378,
+            "bytes_read": 507578298952
+          },
+          "memory_usage": "32360758",
+          "digest": "165d50534d588d3c328b8a299e35e1ea33b802f73b4d5542d24f3985bec3fb1c"
+        },
+        {
+          "pair": 0,
+          "version": "after",
+          "rows": 4,
+          "statistics": {
+            "elapsed": 1.463530315,
+            "rows_read": 132368977,
+            "bytes_read": 1133554074
+          },
+          "memory_usage": "84554446",
+          "digest": "165d50534d588d3c328b8a299e35e1ea33b802f73b4d5542d24f3985bec3fb1c"
+        },
+        {
+          "pair": 1,
+          "version": "after",
+          "rows": 4,
+          "statistics": {
+            "elapsed": 1.51480019,
+            "rows_read": 132368977,
+            "bytes_read": 1133554074
+          },
+          "memory_usage": "46273362",
+          "digest": "165d50534d588d3c328b8a299e35e1ea33b802f73b4d5542d24f3985bec3fb1c"
+        },
+        {
+          "pair": 1,
+          "version": "before",
+          "rows": 4,
+          "statistics": {
+            "elapsed": 111.679079027,
+            "rows_read": 7922441694,
+            "bytes_read": 507691112919
+          },
+          "memory_usage": "271547124",
+          "digest": "165d50534d588d3c328b8a299e35e1ea33b802f73b4d5542d24f3985bec3fb1c"
+        }
+      ],
+      "rows": [
+        {
+          "category": "xfailed",
+          "tests": "3908",
+          "jobs": "99",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "0",
+          "passed_distinct_jobs": "0",
+          "passed_bundles": "0",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "3908",
+          "xfailed_distinct_jobs": "99",
+          "xfailed_bundles": "22148",
+          "skipped_tests": "2553",
+          "skipped_distinct_jobs": "32",
+          "skipped_bundles": "8953",
+          "any_jobs": "100",
+          "first_started_at": "2026-10-28T23:53:30.882Z",
+          "last_ended_at": "2026-10-29T00:55:28.491Z"
+        },
+        {
+          "category": "passed",
+          "tests": "172935",
+          "jobs": "107",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "172935",
+          "passed_distinct_jobs": "107",
+          "passed_bundles": "1157748",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "24",
+          "xfailed_distinct_jobs": "18",
+          "xfailed_bundles": "57",
+          "skipped_tests": "113127",
+          "skipped_distinct_jobs": "81",
+          "skipped_bundles": "366352",
+          "any_jobs": "107",
+          "first_started_at": "2026-10-28T23:53:06.949Z",
+          "last_ended_at": "2026-10-29T00:56:17.337Z"
+        },
+        {
+          "category": "skipped",
+          "tests": "48024",
+          "jobs": "104",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "0",
+          "passed_distinct_jobs": "0",
+          "passed_bundles": "0",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "0",
+          "xfailed_distinct_jobs": "0",
+          "xfailed_bundles": "0",
+          "skipped_tests": "48024",
+          "skipped_distinct_jobs": "104",
+          "skipped_bundles": "414984",
+          "any_jobs": "104",
+          "first_started_at": "2026-10-28T23:53:17.302Z",
+          "last_ended_at": "2026-10-29T00:55:28.116Z"
+        },
+        {
+          "category": "",
+          "tests": "224867",
+          "jobs": "108",
+          "failed_tests": "0",
+          "failed_distinct_jobs": "0",
+          "failed_bundles": "0",
+          "timed_out_tests": "0",
+          "timed_out_distinct_jobs": "0",
+          "timed_out_bundles": "0",
+          "flaky_tests": "0",
+          "flaky_distinct_jobs": "0",
+          "flaky_bundles": "0",
+          "passed_tests": "172935",
+          "passed_distinct_jobs": "107",
+          "passed_bundles": "1157748",
+          "other_tests": "0",
+          "other_distinct_jobs": "0",
+          "other_bundles": "0",
+          "xfailed_tests": "3932",
+          "xfailed_distinct_jobs": "100",
+          "xfailed_bundles": "22205",
+          "skipped_tests": "163704",
+          "skipped_distinct_jobs": "104",
+          "skipped_bundles": "790289",
+          "any_jobs": "108",
+          "first_started_at": "2026-10-28T23:53:06.949Z",
+          "last_ended_at": "2026-10-29T00:56:17.337Z"
+        }
+      ],
+      "digest": "165d50534d588d3c328b8a299e35e1ea33b802f73b4d5542d24f3985bec3fb1c",
+      "equal_complete_rows": true
+    }
+  },
+  "lookups": {
+    "commit_ce6ff46": {
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "ce6ff46d8ca967ef333ba9b804e081f26b432796"
+      },
+      "pull_request_number": 202376,
+      "branch": "main",
+      "committed_at_ms": 1793362199000,
+      "queries": {
+        "info": {
+          "params": {
+            "sha": "ce6ff46d8ca967ef333ba9b804e081f26b432796",
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nWITH\n    (\n        SELECT (\n            count(),\n            any(head_commit.message),\n            any(head_commit.author.name),\n            toUnixTimestamp64Milli(any(head_commit.timestamp)),\n            groupUniqArrayIf(head_branch, event = 'push' AND NOT startsWith(head_branch, 'ciflow/')),\n            groupUniqArrayArray(arrayMap(pull_request -> (tupleElement(pull_request, 1), tupleElement(pull_request, 2)), arrayFilter(pull_request -> tupleElement(pull_request, 3) = repository.id, arrayZip(pull_requests.number, pull_requests.url, pull_requests.base.repo.id)))),\n            anyIf(head_branch, event = 'pull_request')\n        )\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    ) AS workflow,\n    (\n        SELECT (\n            count(),\n            any(head_commit.author.username),\n            any(head_commit.message),\n            any(head_commit.author.name),\n            toUnixTimestamp64Milli(any(head_commit.timestamp)),\n            groupUniqArray(ref)\n        )\n        FROM default.push\n        WHERE head_commit.id = {sha: String}\n            AND repository.full_name = {repo: String}\n    ) AS push\nSELECT\n    tupleElement(workflow, 1) AS workflow_runs,\n    tupleElement(workflow, 2) AS workflow_message,\n    tupleElement(workflow, 3) AS workflow_author_name,\n    tupleElement(workflow, 4) AS workflow_committed_at_ms,\n    tupleElement(workflow, 5) AS push_branches,\n    tupleElement(workflow, 6) AS pull_requests,\n    tupleElement(workflow, 7) AS pull_request_branch,\n    tupleElement(push, 1) AS pushes,\n    tupleElement(push, 2) AS author_login,\n    tupleElement(push, 3) AS push_message,\n    tupleElement(push, 4) AS push_author_name,\n    tupleElement(push, 5) AS push_committed_at_ms,\n    tupleElement(push, 6) AS refs\n"
+        },
+        "pull_request": {
+          "params": {
+            "number": 202376,
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nSELECT title, html_url\nFROM default.pull_request\nWHERE number = {number: Int64}\n    AND base.repo.full_name = {repo: String}\nORDER BY updated_at DESC\nLIMIT 1\n"
+        },
+        "pull_request_by_head": {
+          "params": {
+            "sha": "ce6ff46d8ca967ef333ba9b804e081f26b432796",
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nSELECT number, title, html_url, head.ref AS head_branch\nFROM default.pull_request\nWHERE number IN (\n    SELECT number\n    FROM materialized_views.pr_by_sha\n    WHERE head_sha = {sha: String}\n)\n    AND base.repo.full_name = {repo: String}\nORDER BY number ASC, updated_at DESC\nLIMIT 1\n"
+        },
+        "neighbours": {
+          "params": {
+            "repo": "pytorch/pytorch",
+            "ref": "refs/heads/main",
+            "committed_at_ms": 1793362199000
+          },
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND head_commit.timestamp < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY head_commit.timestamp DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    tupleElement(candidate, 1) AS direction,\n    if(direction = 'newer', argMin(tupleElement(candidate, 2), tupleElement(candidate, 3)), argMax(tupleElement(candidate, 2), tupleElement(candidate, 3))) AS neighbour\nFROM (SELECT arrayJoin(candidates) AS candidate)\nWHERE tupleElement(candidate, 2) IN (\n    SELECT head_sha\n    FROM default.workflow_run\n    WHERE id IN (\n        SELECT run_id\n        FROM default.workflow_job\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_job_by_head_sha\n            WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n        )\n            AND name LIKE '% / test (%'\n    )\n        AND repository.full_name = {repo: String}\n)\nGROUP BY direction\nORDER BY direction\n"
+        }
+      },
+      "results": {
+        "info": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 2.29444291,
+            "rows_read": 2656232,
+            "bytes_read": 132550571
+          },
+          "memory_usage": "1118544",
+          "digest": "62e335ccf73c3e8c801b15b45b18a569db3e136484ef53b881b3d590f23e8c55"
+        },
+        "pull_request": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.054526973,
+            "rows_read": 1559,
+            "bytes_read": 163972
+          },
+          "memory_usage": "5691111",
+          "digest": "fad8538b3d26e0abd548a8a3f29e0f454f52cf038020909d92e09d9ef3b64d5c"
+        },
+        "pull_request_by_head": {
+          "rows": 0,
+          "statistics": {
+            "elapsed": 0.117702893,
+            "rows_read": 16392,
+            "bytes_read": 704851
+          },
+          "memory_usage": "3827598",
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "neighbours": {
+          "rows": 2,
+          "statistics": {
+            "elapsed": 2.418628225,
+            "rows_read": 6643997,
+            "bytes_read": 443297609
+          },
+          "memory_usage": "2830076",
+          "digest": "38a8a94af81678a393eaed8452e731547aae93e6c4e7a4e1d88dfa9af835996a"
+        }
+      },
+      "measured_at": "2026-11-02T19:39:51.611Z",
+      "note": "2026-11-01: the pull request lookup is scoped to the commit's repository (base.repo.full_name), the commit lookup gathers the push runs' branches as an array, and the neighbours query gathers its candidates once and finds their test jobs through the job table's head_sha view instead of a scan of the job table (139 million rows before, about 5 million after; same rows on five commits of main, nightly and viable/strict). Later that day the case's committed_at_ms was corrected to the commit's own head_commit.timestamp (2026-10-30T12:09:59Z, which both the push and the workflow runs record and the summary passes to the neighbours query); the 12:09:17Z recorded before made the commit its own newer neighbour in the recorded result. 2026-11-02: a fourth lookup, branch_head, the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02: a fourth and a fifth lookup, branch_head and record_head (the time of a commit a record names, by its runs; recorded here on the case's own commit), the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02 (later): a sixth lookup, pull_request_by_head (buildCommitPullRequestByHeadQuery): the pull request a commit is or was the head of, through materialized_views.pr_by_sha and the repository's record, which the summary runs for a commit whose runs record no pull request and that no push run put on a branch. Every run of a pull request from a fork records none (333 of 333 fork head commits of the two days before, their ciflow tag pushes included, against 440 of 440 heads in the repository), so until this lookup a fork head was described as a branch commit with no branch; the fork_head_c7ee7fb5 case is such a head (#189727, branch xpu_serial_ci in the fork), on which the lookup finds the record where the info lookup's pull_requests is empty. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded."
+    },
+    "commit_7a43f10": {
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "7a43f10d11966e7d9b80f4212f77469452424886"
+      },
+      "pull_request_number": 202963,
+      "branch": "gh/desertfire/822/head",
+      "committed_at_ms": 1793586462000,
+      "queries": {
+        "info": {
+          "params": {
+            "sha": "7a43f10d11966e7d9b80f4212f77469452424886",
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nWITH\n    (\n        SELECT (\n            count(),\n            any(head_commit.message),\n            any(head_commit.author.name),\n            toUnixTimestamp64Milli(any(head_commit.timestamp)),\n            groupUniqArrayIf(head_branch, event = 'push' AND NOT startsWith(head_branch, 'ciflow/')),\n            groupUniqArrayArray(arrayMap(pull_request -> (tupleElement(pull_request, 1), tupleElement(pull_request, 2)), arrayFilter(pull_request -> tupleElement(pull_request, 3) = repository.id, arrayZip(pull_requests.number, pull_requests.url, pull_requests.base.repo.id)))),\n            anyIf(head_branch, event = 'pull_request')\n        )\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    ) AS workflow,\n    (\n        SELECT (\n            count(),\n            any(head_commit.author.username),\n            any(head_commit.message),\n            any(head_commit.author.name),\n            toUnixTimestamp64Milli(any(head_commit.timestamp)),\n            groupUniqArray(ref)\n        )\n        FROM default.push\n        WHERE head_commit.id = {sha: String}\n            AND repository.full_name = {repo: String}\n    ) AS push\nSELECT\n    tupleElement(workflow, 1) AS workflow_runs,\n    tupleElement(workflow, 2) AS workflow_message,\n    tupleElement(workflow, 3) AS workflow_author_name,\n    tupleElement(workflow, 4) AS workflow_committed_at_ms,\n    tupleElement(workflow, 5) AS push_branches,\n    tupleElement(workflow, 6) AS pull_requests,\n    tupleElement(workflow, 7) AS pull_request_branch,\n    tupleElement(push, 1) AS pushes,\n    tupleElement(push, 2) AS author_login,\n    tupleElement(push, 3) AS push_message,\n    tupleElement(push, 4) AS push_author_name,\n    tupleElement(push, 5) AS push_committed_at_ms,\n    tupleElement(push, 6) AS refs\n"
+        },
+        "pull_request": {
+          "params": {
+            "number": 202963,
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nSELECT title, html_url\nFROM default.pull_request\nWHERE number = {number: Int64}\n    AND base.repo.full_name = {repo: String}\nORDER BY updated_at DESC\nLIMIT 1\n"
+        },
+        "pull_request_by_head": {
+          "params": {
+            "sha": "7a43f10d11966e7d9b80f4212f77469452424886",
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nSELECT number, title, html_url, head.ref AS head_branch\nFROM default.pull_request\nWHERE number IN (\n    SELECT number\n    FROM materialized_views.pr_by_sha\n    WHERE head_sha = {sha: String}\n)\n    AND base.repo.full_name = {repo: String}\nORDER BY number ASC, updated_at DESC\nLIMIT 1\n"
+        },
+        "neighbours": {
+          "params": {
+            "repo": "pytorch/pytorch",
+            "ref": "refs/heads/gh/desertfire/822/head",
+            "committed_at_ms": 1793586462000
+          },
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND head_commit.timestamp < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY head_commit.timestamp DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    tupleElement(candidate, 1) AS direction,\n    if(direction = 'newer', argMin(tupleElement(candidate, 2), tupleElement(candidate, 3)), argMax(tupleElement(candidate, 2), tupleElement(candidate, 3))) AS neighbour\nFROM (SELECT arrayJoin(candidates) AS candidate)\nWHERE tupleElement(candidate, 2) IN (\n    SELECT head_sha\n    FROM default.workflow_run\n    WHERE id IN (\n        SELECT run_id\n        FROM default.workflow_job\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_job_by_head_sha\n            WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n        )\n            AND name LIKE '% / test (%'\n    )\n        AND repository.full_name = {repo: String}\n)\nGROUP BY direction\nORDER BY direction\n"
+        }
+      },
+      "results": {
+        "info": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.469257009,
+            "rows_read": 2654113,
+            "bytes_read": 130547900
+          },
+          "memory_usage": "955344",
+          "digest": "fccd4f708e1106edc78e1691c8aea16d8f411dedd2d7ee0f8661866b24ad5e15"
+        },
+        "pull_request": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.006810066,
+            "rows_read": 654,
+            "bytes_read": 72340
+          },
+          "memory_usage": "4585458",
+          "digest": "2de767e24489ab8fc41c15619340a10c5a3e707586d209e1b1cae1fbb19e2aea"
+        },
+        "pull_request_by_head": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.013882167,
+            "rows_read": 17038,
+            "bytes_read": 853439
+          },
+          "memory_usage": "8981566",
+          "digest": "90483244b61e74347f4afa93e7bc70aede1a80b7ee9944f9e03443564fb765ac"
+        },
+        "neighbours": {
+          "rows": 2,
+          "statistics": {
+            "elapsed": 0.299795471,
+            "rows_read": 3199047,
+            "bytes_read": 122586098
+          },
+          "memory_usage": "2089222",
+          "digest": "55570e140897f48c0f7e29cf524b51562979940ecd7c1ce0a4c23e59e8c9e8da"
+        }
+      },
+      "measured_at": "2026-11-02T19:39:52.710Z",
+      "note": "2026-11-02: a fourth lookup, branch_head, the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02: a fourth and a fifth lookup, branch_head and record_head (the time of a commit a record names, by its runs; recorded here on the case's own commit), the newest push to the branch after the commit, which the summary runs for a pull request head whose head branch is in the repository and takes as the pull request's head before the record's (the record of #202963 still named 7a43f10 an hour after 31e73b6 was pushed); the commit_7a43f10 case is such a head. 2026-11-02 (later): a sixth lookup, pull_request_by_head (buildCommitPullRequestByHeadQuery): the pull request a commit is or was the head of, through materialized_views.pr_by_sha and the repository's record, which the summary runs for a commit whose runs record no pull request and that no push run put on a branch. Every run of a pull request from a fork records none (333 of 333 fork head commits of the two days before, their ciflow tag pushes included, against 440 of 440 heads in the repository), so until this lookup a fork head was described as a branch commit with no branch; the fork_head_c7ee7fb5 case is such a head (#189727, branch xpu_serial_ci in the fork), on which the lookup finds the record where the info lookup's pull_requests is empty. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded."
+    },
+    "fork_head_c7ee7fb5": {
+      "raw": {
+        "repo": "pytorch/pytorch",
+        "sha": "c7ee7fb58aab629270694497c5d7ae0274374d4d"
+      },
+      "pull_request_number": 189727,
+      "branch": "xpu_serial_ci",
+      "committed_at_ms": 1793644001000,
+      "note": "Added 2026-11-02: a pull request head from a fork (#189727, head branch xpu_serial_ci in the fork), whose seven runs (pull_request, pull_request_target and its ciflow/xpu tag push) record no pull request; the info lookup's pull_requests is empty and pull_request_by_head finds the record. The neighbours and branch_head lookups are recorded for completeness; the summary makes neither for a pull request head, and the fork's branch has no pushes here. 2026-11-02 (later still): the branch_head and record_head lookups were removed with the page's \"Newer commit available\" pill and the response's pull_request.head_sha; the info lookup no longer gathers each recorded pull request's head repository, and the pull_request and pull_request_by_head lookups no longer read head.sha. The remaining four lookups were re-recorded.",
+      "queries": {
+        "info": {
+          "params": {
+            "sha": "c7ee7fb58aab629270694497c5d7ae0274374d4d",
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nWITH\n    (\n        SELECT (\n            count(),\n            any(head_commit.message),\n            any(head_commit.author.name),\n            toUnixTimestamp64Milli(any(head_commit.timestamp)),\n            groupUniqArrayIf(head_branch, event = 'push' AND NOT startsWith(head_branch, 'ciflow/')),\n            groupUniqArrayArray(arrayMap(pull_request -> (tupleElement(pull_request, 1), tupleElement(pull_request, 2)), arrayFilter(pull_request -> tupleElement(pull_request, 3) = repository.id, arrayZip(pull_requests.number, pull_requests.url, pull_requests.base.repo.id)))),\n            anyIf(head_branch, event = 'pull_request')\n        )\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    ) AS workflow,\n    (\n        SELECT (\n            count(),\n            any(head_commit.author.username),\n            any(head_commit.message),\n            any(head_commit.author.name),\n            toUnixTimestamp64Milli(any(head_commit.timestamp)),\n            groupUniqArray(ref)\n        )\n        FROM default.push\n        WHERE head_commit.id = {sha: String}\n            AND repository.full_name = {repo: String}\n    ) AS push\nSELECT\n    tupleElement(workflow, 1) AS workflow_runs,\n    tupleElement(workflow, 2) AS workflow_message,\n    tupleElement(workflow, 3) AS workflow_author_name,\n    tupleElement(workflow, 4) AS workflow_committed_at_ms,\n    tupleElement(workflow, 5) AS push_branches,\n    tupleElement(workflow, 6) AS pull_requests,\n    tupleElement(workflow, 7) AS pull_request_branch,\n    tupleElement(push, 1) AS pushes,\n    tupleElement(push, 2) AS author_login,\n    tupleElement(push, 3) AS push_message,\n    tupleElement(push, 4) AS push_author_name,\n    tupleElement(push, 5) AS push_committed_at_ms,\n    tupleElement(push, 6) AS refs\n"
+        },
+        "pull_request": {
+          "params": {
+            "number": 189727,
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nSELECT title, html_url\nFROM default.pull_request\nWHERE number = {number: Int64}\n    AND base.repo.full_name = {repo: String}\nORDER BY updated_at DESC\nLIMIT 1\n"
+        },
+        "pull_request_by_head": {
+          "params": {
+            "sha": "c7ee7fb58aab629270694497c5d7ae0274374d4d",
+            "repo": "pytorch/pytorch"
+          },
+          "sql": "\nSELECT number, title, html_url, head.ref AS head_branch\nFROM default.pull_request\nWHERE number IN (\n    SELECT number\n    FROM materialized_views.pr_by_sha\n    WHERE head_sha = {sha: String}\n)\n    AND base.repo.full_name = {repo: String}\nORDER BY number ASC, updated_at DESC\nLIMIT 1\n"
+        },
+        "neighbours": {
+          "params": {
+            "repo": "pytorch/pytorch",
+            "ref": "refs/heads/xpu_serial_ci",
+            "committed_at_ms": 1793644001000
+          },
+          "sql": "\nWITH (\n    SELECT groupArray((direction, sha, committed_at))\n    FROM (\n        SELECT 'newer' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC\n        LIMIT 20\n        UNION ALL\n        SELECT 'older' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at\n        FROM default.push\n        WHERE ref = {ref: String}\n            AND repository.full_name = {repo: String}\n            AND head_commit.timestamp < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY head_commit.timestamp DESC\n        LIMIT 20\n    )\n) AS candidates\nSELECT\n    tupleElement(candidate, 1) AS direction,\n    if(direction = 'newer', argMin(tupleElement(candidate, 2), tupleElement(candidate, 3)), argMax(tupleElement(candidate, 2), tupleElement(candidate, 3))) AS neighbour\nFROM (SELECT arrayJoin(candidates) AS candidate)\nWHERE tupleElement(candidate, 2) IN (\n    SELECT head_sha\n    FROM default.workflow_run\n    WHERE id IN (\n        SELECT run_id\n        FROM default.workflow_job\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_job_by_head_sha\n            WHERE head_sha IN (SELECT tupleElement(candidate, 2) FROM (SELECT arrayJoin(candidates) AS candidate))\n        )\n            AND name LIKE '% / test (%'\n    )\n        AND repository.full_name = {repo: String}\n)\nGROUP BY direction\nORDER BY direction\n"
+        }
+      },
+      "results": {
+        "info": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.257025184,
+            "rows_read": 2652408,
+            "bytes_read": 130874566
+          },
+          "memory_usage": "960776",
+          "digest": "d21abe213c565cd49e5fe7b7ed2f821780158af49f19023667550df6f2dd45aa"
+        },
+        "pull_request": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.010739011,
+            "rows_read": 2757,
+            "bytes_read": 153554
+          },
+          "memory_usage": "6857736",
+          "digest": "3083311832d0a4106ea5d1466b131b9249f372729c22eceddf49cccb9da02ba3"
+        },
+        "pull_request_by_head": {
+          "rows": 1,
+          "statistics": {
+            "elapsed": 0.023566408,
+            "rows_read": 19142,
+            "bytes_read": 940113
+          },
+          "memory_usage": "3203539",
+          "digest": "1aec84b6c047f4898ee3904789a13d3adb9e3f20ba56db11ee5fef3d14d1e764"
+        },
+        "neighbours": {
+          "rows": 0,
+          "statistics": {
+            "elapsed": 0.222003771,
+            "rows_read": 2627590,
+            "bytes_read": 87406033
+          },
+          "memory_usage": "1678728",
+          "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      "measured_at": "2026-11-02T19:39:53.532Z"
+    }
+  }
+}

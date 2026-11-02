@@ -4,6 +4,9 @@
 page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`.
 `/tests/[organization]/[repo]/test/[test_id]` is one test's own page, built on
 `GET /api/tests/test/{test_id}`; its section is [below](#test-page).
+`/tests/[organization]/[repo]/commit/[sha]` is one commit's page, built on
+`GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`; its
+section is [below](#commit-page).
 `/tests` redirects to `/tests/pytorch/pytorch` (a `redirects()` entry in
 `next.config.js`), and the HUD navigation bar's Tests link, left of Help, goes
 straight to `/tests/pytorch/pytorch` (`components/layout/NavBar.tsx`). The other
@@ -14,7 +17,7 @@ below.
 This file is for the people who work on the page: the rules it keeps, where
 its pieces live, and the decisions that are not obvious from the code. The
 [OpenAPI document](https://hud.pytorch.org/api/openapi.json) is the reference
-for the data it shows, and lists both pages under its `pages` tag with the
+for the data it shows, and lists the three pages under its `pages` tag with the
 parameters they read from their URLs (the API README's
 [HUD pages](../../app/api/README.md#hud-pages)); every API response carries
 the page that shows it as `hud_url`.
@@ -1017,6 +1020,114 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
   on main in the last 3 days." in the sentence's own words. Not yet done:
   keyboard access to the cells, and the commit's title or a link to its HUD
   page, which the runs tables do not carry.
+
+## Commit page
+
+`/tests/[organization]/[repo]/commit/[sha]` is one commit's page: what happened
+to the repository's tests on that commit, built on
+`GET /api/tests/commit/{sha}/summary` for its header and summary row and
+`GET /api/tests/commit/{sha}` for its table. It keeps the rules above: nothing
+but `/api/tests` endpoints, types and parameter definitions only from
+`lib/api/`, the theme's colors, logic in `lib/tests/` (`lib/tests/commit.ts`,
+`lib/tests/commitPage.ts`, `lib/tests/bundle.ts`, `lib/tests/jobName.ts`,
+tested in `test/tests/`), and the hub's components: the header pieces
+(`PageHeader`, `FactPill`), the Name, Environment, Test Config and Owners
+columns (`sharedColumns`), the hub's grid (`HubDataGrid`), the Health cell's
+block (`CellBlock`), the grid's swatches and attempt pills.
+
+- The summary (`useCommitSummary`) and the runs (`useRunsListing`) are
+  asked for at once, in parallel. The summary's counts read every run of the
+  commit, a few seconds on a main commit, in the database's heavy workload;
+  the runs come a page of the API's largest size at a time, in outcome order
+  (the API's `-status` sort, worst first, which the page puts before its
+  own), and with
+  the default outcomes the read is pruned to the tests holding a failing
+  row, in about a second. A commit GitHub never reported (the API's 404) is
+  a state of the page, not an error; a known commit with no runs says
+  whether they expired (`retention_starts_at` against `committed_at`) or
+  have not arrived, and shows no summary row. When the summary fails (its
+  counts run in the database's heavy queue, which can refuse or time out),
+  its error shows above the table and the runs are listed all the same,
+  since the two are separate requests (2026-11-02).
+- The header (`CommitHeader`): the breadcrumb is the repository, the branch
+  (HUD's view of it) or the pull request's number for a pull request head,
+  and the short SHA, the page itself, which is not a link. The headline is
+  the commit title with its trailing `(#N)` taken off; backtick
+  spans are code; a `#N` inside
+  the title, as the merge bot's reverts name the reverted pull request,
+  links that pull request too (`headline`). The facts are, first, the
+  pull request's number in a GitHub-blue pill linking the pull request
+  (`FactPill` with `tone="accent"` and `href`; `accentPillColors`, GitHub's
+  accent emphasis with white ink), for a pull request head and a merged
+  commit alike (`commitPullRequestNumber`: the API's pull request, else the
+  title's; 2026-11-02, after a muted number behind the title and a pill
+  before it), labelled "PR". A pull request from a fork gets it too: its
+  runs record no pull request at all (2026-11-02: 333 of 333 fork heads in
+  two days had an empty `pull_requests` array, their ciflow tag pushes
+  included), so the API finds it by the commit's SHA through
+  `materialized_views.pr_by_sha` and names the fork's branch as Branch; then "Commit" with the short SHA in monospace,
+  the full SHA as its tooltip, linking the commit on GitHub; then the author, when
+  it was committed, and on a branch the nearest commits with test jobs
+  either way, the older to the left and the newer to the right, each by its
+  short SHA, or for a pull request head its branch. A bright orange "Newer
+  commit available" pill, shown on a pull request head the pull request had
+  been pushed to since, was built and then removed on 2026-11-02 at the
+  user's ask; the header has no attention tone.
+- The summary row (`CommitSummaryRow`) is two lines. The counts line: at
+  left the statuses with runs, "5 failed · 8 timed out · 87 flaky ·
+  4,721,574 passed …", each figure large (22px) and each a button that has
+  the table list that outcome alone, led by a green "Every test passed" when
+  nothing failed, timed out or was flaky; at right the facts, the total
+  tests ("9,177,729 total tests", the API's `counts.total.runs`), the unique
+  tests ("672,763 unique tests", `counts.total.tests`), the jobs and the
+  wall time (2026-11-02: the total moved from a hero figure at left into the
+  facts, and the counts took its place, at the user's ask). In a window too
+  narrow for both to share the line, the counts' figures shrink a pixel at a
+  time from 22px to the facts' 15px, the gaps between counts in proportion
+  (`fittingCountSize` and `countGap` in `lib/tests/commit.ts`, measured in
+  place when the row is laid out, resized or gets its fonts), and only past
+  that do the facts wrap under the counts (2026-11-02, at the user's ask: the
+  second line read as an overflow). Under it a bar of the
+  statuses with runs. A run is one test in one environment, env var set and
+  job with all its attempts, so a test run in twelve jobs counts twelve
+  times, and the counts add up to the total tests. The bar is NOT to scale: a
+  segment's width is
+  log10(runs + 1), the user's choice (2026-11-01) so that five failures stay
+  visible beside millions of passes; nothing on the page says so, and only
+  a segment's hover title gives the true share ("Failed: 5 of 9,177,729
+  tests, under 0.01%"). The summary's `by_worst_status` counts stay in the
+  API; the page does not read them. The row covers the whole commit; the
+  search and the column filters narrow the table only.
+- The table (`CommitTable`) is the hub's grid with one list of runs in
+  outcome order, failed, timed out, flaky, passed, other, expected failures,
+  skipped, and within each outcome the headers' sort, longest first by
+  default; rows of attempts under an expanded run and a "Show more" row are
+  rows of the grid too (`commitTableRows`). The Outcome header's filter
+  chooses the outcomes listed: passes, skips and expected failures are off
+  by default (`COMMIT_PAGE_DEFAULT_STATUSES`), so its key reads active. A
+  run is listed once under its own status, so a test failed in one job and
+  flaky in another has a row in each while the summary counts it once. The
+  page asks for the pages after the first by itself, under the table's
+  progress bar, while the last row loaded is not of a common outcome
+  (passed, skipped, expected failures) and the list holds fewer than
+  `AUTO_LIMIT` rows (`autoLoads`; three pages since 2026-11-02, ten before,
+  which on a commit that broke trunk meant ten reads of its runs and a
+  thousand unvirtualized rows before "Show more"); from a page ending in one of those on,
+  "Show more" asks a page at a time, though `other` follows passed in the
+  order, so a page ending on an other row resumes the loading. The
+  API does every sort; Duration is the run's executed time, skips left out,
+  the API's `duration_milliseconds`. The chevron before a name opens the
+  run's attempts, lined up with the columns; consecutive attempts with one
+  outcome and one first message line, temp paths ignored, share a row
+  (`attemptGroups`).
+- The URL keeps the view: `search`, the column filters named as on the list
+  (`owner`, `test_config`, `workflow_path`, the environment facets),
+  `status`, repeated once per outcome as the API's is, and `sort`, defined
+  in `lib/api/tests/pages/parameters.ts` and
+  documented by the `commitPage` operation; defaults are left off and
+  changes replace the entry in place, read from the state in force when the
+  change is made, so a filter chosen during the search's pause is kept.
+  Expanded attempts are not kept, and another commit starts them over.
 
 ## Verifying a change
 

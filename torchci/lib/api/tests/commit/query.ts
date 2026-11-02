@@ -1,10 +1,6 @@
 import type { CommitRunsCursor } from "lib/api/tests/commit/cursor";
 import { CommitRunsListQuery } from "lib/api/tests/commit/parameters";
-import {
-  buildRunPageQuery,
-  buildRunStatsQuery,
-  runSortKeys,
-} from "lib/api/tests/test/runs/query";
+import { buildRunPageQuery, runSortKeys } from "lib/api/tests/test/runs/query";
 
 export function buildCommitRunsQuery(
   query: CommitRunsListQuery,
@@ -18,13 +14,9 @@ export function buildCommitRunsQuery(
   );
 }
 
-export function buildCommitRunsStatsQuery(
+export function commitRunsScope(
   query: Pick<CommitRunsListQuery, "repo" | "sha">
 ) {
-  return buildRunStatsQuery(commitRunsScope(query));
-}
-
-function commitRunsScope(query: Pick<CommitRunsListQuery, "repo" | "sha">) {
   return {
     params: { sha: query.sha, repo: query.repo },
     // Workflow IDs and their job associations are immutable; IN also removes

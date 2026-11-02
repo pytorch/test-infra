@@ -31,10 +31,7 @@ require.extensions[".ts"] = (module, filename) => {
 };
 
 const { buildRunsQuery } = require("lib/api/tests/test/runs/query");
-const {
-  buildCommitRunsQuery,
-  buildCommitRunsStatsQuery,
-} = require("lib/api/tests/commit/query");
+const { buildCommitRunsQuery } = require("lib/api/tests/commit/query");
 const { parseRunsListParams } = require("lib/api/tests/test/runs/parameters");
 const {
   parseCommitRunsListParams,
@@ -52,7 +49,6 @@ function generate({ kind, raw, cursor = null }) {
   const parsed = parser(raw);
   assert(parsed.success, "Recorded parameters no longer pass validation");
   const { cursor: _cursor, ...query } = parsed.data;
-  if (kind === "commit-stats") return buildCommitRunsStatsQuery(query);
   return (kind === "test" ? buildRunsQuery : buildCommitRunsQuery)(
     query,
     cursor

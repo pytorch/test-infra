@@ -1,5 +1,7 @@
 import { buildOpenApiDocument } from "lib/api/openapi";
 import {
+  COMMIT_PAGE_FILTER_NAMES,
+  COMMIT_PAGE_PARAMETER_DEFINITIONS,
   GRID_OUTCOMES,
   TEST_PAGE_PARAMETER_DEFINITIONS,
   TESTS_PAGE_PARAMETER_NAMES,
@@ -35,7 +37,14 @@ describe("the pages in /api/openapi.json", () => {
     expect(
       document.paths["/tests/{organization}/{repo}/test/{test_id}"].get
     ).toBe(operations.testPage);
-    for (const page of [operations.testsPage, operations.testPage]) {
+    expect(
+      document.paths["/tests/{organization}/{repo}/commit/{sha}"].get
+    ).toBe(operations.commitPage);
+    for (const page of [
+      operations.testsPage,
+      operations.testPage,
+      operations.commitPage,
+    ]) {
       expect(page.tags).toEqual(["pages"]);
       expect(page.summary).toMatch(/^HUD page/);
       expect(page.description).toMatch(/for people/);
@@ -111,6 +120,61 @@ describe("the pages in /api/openapi.json", () => {
     }
   });
 
+  test("the commit page takes the commit runs endpoint's filters, the very same objects, and its own view", () => {
+    const page = byName(operations.commitPage);
+    const runs = byName(operations.listCommitRuns);
+    expect(
+      operations.commitPage.parameters.map((parameter: any) => [
+        parameter.in,
+        parameter.name,
+      ])
+    ).toEqual([
+      ["path", "organization"],
+      ["path", "repo"],
+      ["path", "sha"],
+      ...Object.keys(COMMIT_PAGE_PARAMETER_DEFINITIONS).map((name) => [
+        "query",
+        name,
+      ]),
+    ]);
+    expect(page.sha.schema).toEqual(runs.sha.schema);
+    for (const name of COMMIT_PAGE_FILTER_NAMES) {
+      expect(page[name]).toEqual(runs[name]);
+    }
+    expect(page.status.schema).toMatchObject({
+      type: "array",
+      default: ["failed", "timed_out", "flaky", "other"],
+      items: {
+        enum: [
+          "failed",
+          "timed_out",
+          "flaky",
+          "passed",
+          "other",
+          "xfailed",
+          "skipped",
+        ],
+      },
+    });
+    expect(page.status).toMatchObject({ style: "form", explode: true });
+    expect(page.sort.schema).toMatchObject({
+      type: "array",
+      default: ["-duration_milliseconds"],
+    });
+    // The page puts the endpoint's status sort first itself, so its own
+    // sort offers every other field.
+    expect(page.sort.schema.items.enum).toEqual(
+      runs.sort.schema.items.enum.filter(
+        (field: string) => field !== "status" && field !== "-status"
+      )
+    );
+    expect(runs.sort.schema.items.enum).toContain("status");
+    for (const parameter of operations.commitPage.parameters) {
+      expect(parameter.description).toBeTruthy();
+      expect(parameter.required).toBe(parameter.in === "path");
+    }
+  });
+
   test("the API and the pages name each other", () => {
     expect(operations.listTests.description).toMatch(/testsPage/);
     expect(operations.getTest.description).toMatch(/testPage/);
@@ -118,6 +182,9 @@ describe("the pages in /api/openapi.json", () => {
     expect(operations.testsPage.description).toMatch(/listTests/);
     expect(operations.testPage.description).toMatch(/getTest/);
     expect(operations.testPage.description).toMatch(/listRuns/);
+    expect(operations.commitPage.description).toMatch(/getCommitSummary/);
+    expect(operations.commitPage.description).toMatch(/listCommitRuns/);
+    expect(operations.getCommitSummary.description).toMatch(/commit page/);
   });
 
   test("every response that leads to a page says so", () => {
@@ -145,5 +212,15 @@ describe("the pages in /api/openapi.json", () => {
     expect(schemas.TestConfigurationHealth.properties).not.toHaveProperty(
       "hud_url"
     );
+    for (const name of ["CommitSummary", "CommitRunListPage"]) {
+      expect(schemas[name].properties.hud_url).toMatchObject({
+        type: "string",
+        format: "uri",
+      });
+      expect(schemas[name].required).toContain("hud_url");
+      expect(schemas[name].properties.hud_url.description).toMatch(
+        /commitPage/
+      );
+    }
   });
 });

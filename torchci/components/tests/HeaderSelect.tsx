@@ -8,13 +8,13 @@ import {
   useTheme,
 } from "@mui/material";
 import CheckMenuItem from "components/tests/CheckMenuItem";
-import { HEADER_FILTER_SIZE } from "components/tests/HeaderFilter";
 import type { InlineSelectOption } from "components/tests/InlineSelect";
 import {
   headerKeyColors,
   headerKeyFocusRing,
   headerKeySx,
 } from "lib/tests/headerColors";
+import { HEADER_FILTER_SIZE } from "lib/tests/layout";
 import { MouseEvent, ReactNode, useId, useState } from "react";
 
 export interface HeaderSelectOption<Value extends string>

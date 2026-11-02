@@ -5,6 +5,11 @@ import type { ClickHouseSettings } from "@clickhouse/client";
 // Every tests API query qualifies its tables with this database.
 export const CI_DATABASE = "ci";
 
+// How long the runs table keeps a run: its TTL, 14 days from the run's start
+// (000001-create-tables.sql). A commit older than this has no runs left, which
+// is not the same as a commit that had none.
+export const RUNS_RETENTION_DAYS = 14;
+
 // What a heavy query sends: the ci_workload_heavy settings profile (DDL in
 // clickhouse_db_schema/ci/000003-ci-workload-heavy.sql) runs it with at most
 // 4 threads, 60 seconds and 8 GB of memory, two at a time per replica with a

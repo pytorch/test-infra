@@ -9,9 +9,9 @@ import {
   Tooltip,
   useTheme,
 } from "@mui/material";
-import { HEADER_FILTER_SIZE } from "components/tests/HeaderFilter";
 import { MONOSPACE_FONT_FAMILY } from "lib/tests/header";
 import { headerKeyColors, headerKeySx } from "lib/tests/headerColors";
+import { HEADER_FILTER_SIZE } from "lib/tests/layout";
 import { KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 
 // How long typing may pause before the text goes out: the page replaces

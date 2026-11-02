@@ -3,7 +3,9 @@ import {
   ParameterDefinition,
   parameterSchema,
   RawQuery,
+  sortSchema,
 } from "lib/api/parameters";
+import { CommitShaSchema } from "lib/api/tests/commit/sha";
 import {
   HealthWindow,
   PARAMETER_DEFINITIONS,
@@ -13,6 +15,11 @@ import {
   WindowSchema,
 } from "lib/api/tests/parameters";
 import { TestIdSchema } from "lib/api/tests/test/parameters";
+import {
+  RUN_LIST_PARAMETER_DEFINITIONS,
+  RUN_SORT_FIELDS,
+} from "lib/api/tests/test/runs/parameters";
+import { BUNDLE_STATUSES, BundleStatus } from "lib/runOutcomes";
 import { z } from "zod/v4";
 
 // The HUD pages built on the tests endpoints, defined where the endpoints
@@ -34,6 +41,7 @@ import { z } from "zod/v4";
 // segments, {organization}/{repo}, where the API takes one repo value.
 export const TESTS_PAGE_PATH = "/tests/{organization}/{repo}";
 export const TEST_PAGE_PATH = "/tests/{organization}/{repo}/test/{test_id}";
+export const COMMIT_PAGE_PATH = "/tests/{organization}/{repo}/commit/{sha}";
 
 // The table page of a repository given as owner/name.
 export function testsPagePath(repo: string): string {
@@ -47,6 +55,11 @@ export function testsPagePath(repo: string): string {
 // from everywhere the test is named.
 export function testPagePath(repo: string, testId: string): string {
   return `${testsPagePath(repo)}/test/${encodeURIComponent(testId)}`;
+}
+
+// The page of one commit's tests: the canonical page, with no parameters.
+export function commitPagePath(repo: string, sha: string): string {
+  return `${testsPagePath(repo)}/commit/${encodeURIComponent(sha)}`;
 }
 
 // Each half of the API's repo, owner/name, as a path segment.
@@ -67,6 +80,11 @@ export const TESTS_PAGE_PATH_PARAMETERS = {
 export const TEST_PAGE_PATH_PARAMETERS = {
   ...TESTS_PAGE_PATH_PARAMETERS,
   test_id: TestIdSchema,
+};
+
+export const COMMIT_PAGE_PATH_PARAMETERS = {
+  ...TESTS_PAGE_PATH_PARAMETERS,
+  sha: CommitShaSchema,
 };
 
 // ---------------------------------------------------------------------------
@@ -241,6 +259,87 @@ export const TestPageQuerySchema = parameterSchema(
   TEST_PAGE_PARAMETER_DEFINITIONS
 );
 export type TestPageQuery = z.infer<typeof TestPageQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// The commit page: a commit's runs in one list, as a page
+// ---------------------------------------------------------------------------
+
+// The commit runs parameters the page reads from its URL: the name search,
+// then the column filters as their headers hold them, the environment
+// fields, the test config and the workflow, and the owner. Each is the
+// endpoint's own definition, so the page spells and encodes it as
+// GET /api/tests/commit/{sha} does.
+export const COMMIT_PAGE_FILTER_NAMES = [
+  "search",
+  "accelerator",
+  "accelerator_version",
+  "device_name",
+  "device_count",
+  "python_version",
+  "os",
+  "os_version",
+  "cpu_architecture",
+  "cpu_capability",
+  "cc_compiler",
+  "cc_compiler_version",
+  "test_config",
+  "workflow_path",
+  "owner",
+] as const satisfies readonly (keyof typeof RUN_LIST_PARAMETER_DEFINITIONS)[];
+export type CommitPageFilterName = (typeof COMMIT_PAGE_FILTER_NAMES)[number];
+
+// The outcomes the page lists until the URL says otherwise: the problem
+// statuses and the rare other outcomes. Passes, expected failures and skips,
+// most of a commit's runs, are off, so the Outcome header's key shows that
+// something is hidden.
+export const COMMIT_PAGE_DEFAULT_STATUSES: readonly BundleStatus[] = [
+  "failed",
+  "timed_out",
+  "flaky",
+  "other",
+];
+// Longest first: the rows a reader looking for slow tests wants on top. The
+// list is in outcome order first (the endpoint's status sort, which the page
+// adds itself), so the page's sort never names it.
+export const COMMIT_PAGE_DEFAULT_SORT = ["-duration_milliseconds"] as const;
+export const COMMIT_PAGE_SORT_FIELDS = RUN_SORT_FIELDS.filter(
+  (field) => field !== "status"
+);
+
+const COMMIT_ENDPOINT = "GET /api/tests/commit/{sha}";
+
+export const COMMIT_PAGE_PARAMETER_DEFINITIONS = {
+  ...(Object.fromEntries(
+    COMMIT_PAGE_FILTER_NAMES.map((name) => [
+      name,
+      RUN_LIST_PARAMETER_DEFINITIONS[name],
+    ])
+  ) as Pick<typeof RUN_LIST_PARAMETER_DEFINITIONS, CommitPageFilterName>),
+  status: {
+    encoding: "repeat",
+    schema: z
+      .array(z.enum(BUNDLE_STATUSES))
+      .min(1)
+      .default([...COMMIT_PAGE_DEFAULT_STATUSES])
+      .describe(
+        `The outcomes listed, repeated once per outcome as ${COMMIT_ENDPOINT}'s status filter is, each a bundle status as that filter defines it: failed, timed_out, flaky, passed, other, xfailed, skipped. The Outcome header's filter chooses them. failed, timed_out, flaky and other when absent.`
+      ),
+  },
+  sort: {
+    encoding: "csv",
+    schema: sortSchema(
+      COMMIT_PAGE_SORT_FIELDS,
+      COMMIT_PAGE_DEFAULT_SORT
+    ).describe(
+      `The order of the rows within each outcome, as ${COMMIT_ENDPOINT}'s sort spells it; the rows are in outcome order first, failed, timed_out, flaky, passed, other, xfailed, skipped, whatever this says. -duration_milliseconds, longest first, when absent.`
+    ),
+  },
+} as const satisfies Record<string, ParameterDefinition>;
+
+export const CommitPageQuerySchema = parameterSchema(
+  COMMIT_PAGE_PARAMETER_DEFINITIONS
+);
+export type CommitPageQuery = z.infer<typeof CommitPageQuerySchema>;
 
 // ---------------------------------------------------------------------------
 // Reading and writing a page's URL
