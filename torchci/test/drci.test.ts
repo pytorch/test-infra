@@ -1600,6 +1600,62 @@ L4:
     expect(crcrL4Jobs).toEqual([]);
   });
 
+  // The in-flight marker is visibility-gated with the same predicate: an
+  // unlabeled L3 leg in progress must not write crcr-jobs-in-flight, or the
+  // marker pins the PR into every sweep for a job the comment never shows.
+  describe("isCrcrJobPrVisible", () => {
+    function inFlightJob(
+      overrides: Partial<RecentWorkflowsData>
+    ): RecentWorkflowsData {
+      return crcrJob({
+        conclusion: "",
+        completed_at: "1970-01-01 00:00:00",
+        ...overrides,
+      });
+    }
+
+    test("drops an unlabeled L3 row that is still in flight", () => {
+      const job = inFlightJob({});
+      expect(
+        updateDrciBot.isCrcrJobPrVisible(job, ["ciflow/crcr/npu"], allowlist)
+      ).toBe(false);
+    });
+
+    test("keeps a labeled L3 row, any L4 row, and no other level", () => {
+      expect(
+        updateDrciBot.isCrcrJobPrVisible(
+          inFlightJob({}),
+          ["ciflow/crcr/crcr-test"],
+          allowlist
+        )
+      ).toBe(true);
+      expect(
+        updateDrciBot.isCrcrJobPrVisible(
+          inFlightJob({ downstreamLevel: "L4", downstreamRepo: "org/l4-repo" }),
+          [],
+          allowlist
+        )
+      ).toBe(true);
+      expect(
+        updateDrciBot.isCrcrJobPrVisible(
+          inFlightJob({ downstreamLevel: "L1" }),
+          ["ciflow/crcr/crcr-test"],
+          allowlist
+        )
+      ).toBe(false);
+    });
+
+    test("fails closed for L3 when the allowlist could not be read", () => {
+      expect(
+        updateDrciBot.isCrcrJobPrVisible(
+          inFlightJob({}),
+          ["ciflow/crcr/crcr-test"],
+          null
+        )
+      ).toBe(false);
+    });
+  });
+
   test("keeps an L3 job when the PR carries the matching ciflow/crcr/<device> label", () => {
     const job = crcrJob({});
     const { crcrL3Jobs, crcrL4Jobs } = updateDrciBot.classifyCrcrJobs(

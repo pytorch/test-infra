@@ -98,21 +98,30 @@ export async function fetchCrcrActivityPRs(
   repo: string = "pytorch/pytorch",
   numMinutes: string = "30"
 ): Promise<number[]> {
-  // The PRs the relay reported on recently, by row write time. A CRCR row is
-  // not upstream workflow activity, so the sweep otherwise never visits a PR
-  // whose only fresh signal is a downstream callback -- a failure landing
-  // after upstream CI has gone quiet would sit unreported until something else
-  // woke the PR. _inserted_at is the row's write time: the in_progress write
-  // and the completed rewrite of the same key both refresh it, so a matrix
-  // keeps its PR wakeable for as long as it reports. Filtering on the
-  // conclusion or the status would blind the wake to exactly those runs.
-  // Rows only exist once the relay has heard from a job (queued jobs write
-  // none), so this wakes on what is observable, not on what is queued.
+  // The PRs the relay reported on recently, by row write time, bounded to the
+  // events that can change a PR-visible CRCR section: an in_progress L3/L4 leg
+  // (the write that gives the in-flight sentinel its first sweep) or a
+  // concluded failure on one. A CRCR row is not upstream workflow activity, so
+  // the sweep otherwise never visits a PR whose only fresh signal is a
+  // downstream callback -- a failure landing after upstream CI has gone quiet
+  // would sit unreported until something else woke the PR. _inserted_at is the
+  // row's write time: the in_progress write and the completed rewrite of the
+  // same key both refresh it. Rows only exist once the relay has heard from a
+  // job (queued jobs write none), so this wakes on what is observable, not on
+  // what is queued.
+  //
+  // Everything else stays out, because it cannot render anything:
+  // - a pass, or a completion without a conclusion: while the matrix is still
+  //   going the in-flight marker -- written by the earlier in_progress wake --
+  //   keeps the PR in the sweep set on its own, and the sweep that clears it
+  //   re-renders the ratio; once every leg is done there is nothing to show.
+  // - L1/L2 shadow traffic, in flight or concluded: those levels never render.
+  // - an L3 leg is kept even though the label gate is invisible to ClickHouse:
+  //   a labeled L3 failure landing after upstream CI went quiet must still
+  //   wake, and the cost is one sweep visit that isCrcrJobPrVisible drops.
   //
   // No FINAL: duplicates of one key collapse in the DISTINCT, and skipping the
-  // merge keeps the read off the merges. An in-flight job's PR is also kept
-  // wakeable by the in-flight sentinel the sweep writes into its comment; this
-  // query is what gives that sentinel its first sweep.
+  // merge keeps the read off the merges.
   //
   // This runs in the sweep's argument list, so a rejection here would take the
   // whole Promise.all -- every Dr. CI comment, not only the CRCR ones -- down
@@ -125,7 +134,11 @@ export async function fetchCrcrActivityPRs(
       `SELECT DISTINCT pr_number
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
-      AND _inserted_at > now() - INTERVAL {numMinutes:Int64} MINUTE`,
+      AND _inserted_at > now() - INTERVAL {numMinutes:Int64} MINUTE
+      AND (status = 'in_progress'
+           OR (status = 'completed'
+               AND conclusion IN ('failure', 'cancelled', 'timed_out')
+               AND downstream_repo_level IN ('L3', 'L4')))`,
       { repo, numMinutes: parseInt(numMinutes, 10) }
     );
   } catch (err) {

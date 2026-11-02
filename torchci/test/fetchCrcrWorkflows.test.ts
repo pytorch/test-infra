@@ -141,13 +141,14 @@ describe("fetchCrcrActivityPRs", () => {
     queryClickhouseMock.mockReset();
   });
 
-  test("wakes a PR on any recent row write, verdict or not", async () => {
-    // An in_progress write and the completed rewrite of the same key both
-    // refresh _inserted_at, so "written recently" covers a matrix still going
-    // as well as a failure that just landed. Filtering on the conclusion or
-    // the status would blind the wake to exactly the runs it exists for: a
-    // downstream report is not upstream workflow activity, so this query is
-    // the only thing telling the sweep the PR moved at all.
+  test("wakes on an in-flight leg or a visible failure, and on nothing else", async () => {
+    // The wake must reach what can change a PR-visible section: an in_progress
+    // L3/L4 leg -- the write that gives the in-flight sentinel its first
+    // sweep -- or a concluded failure on one. A pass, a conclusion-less
+    // completion, and L1/L2 shadow traffic cannot render anything while the
+    // sentinel carries the matrix's tail, so none of them may buy a PR a
+    // sweep visit. The label gate is invisible to ClickHouse, so an L3
+    // failure still wakes and isCrcrJobPrVisible drops it when unlabeled.
     queryClickhouseMock.mockResolvedValue([
       { pr_number: "123" },
       { pr_number: "0" },
@@ -157,7 +158,11 @@ describe("fetchCrcrActivityPRs", () => {
     const sql = queryClickhouseMock.mock.calls[0][0];
     expect(sql).toContain("_inserted_at");
     expect(sql).toContain("upstream_repo");
-    expect(sql).not.toMatch(/conclusion\s*=|status\s*=/i);
+    expect(sql).toContain("status = 'in_progress'");
+    expect(sql).toContain(
+      "conclusion IN ('failure', 'cancelled', 'timed_out')"
+    );
+    expect(sql).toContain("downstream_repo_level IN ('L3', 'L4')");
     expect(queryClickhouseMock.mock.calls[0][1]).toEqual({
       repo: "pytorch/pytorch",
       numMinutes: 30,

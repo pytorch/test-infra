@@ -592,14 +592,23 @@ export async function updateDrciComments(
       let crcrRowsRead = true;
       // This commit's rows that have not concluded yet. They write the
       // in-flight marker into the section, which is what keeps the sweep
-      // visiting the PR while a matrix outlasts the wake window.
+      // visiting the PR while a matrix outlasts the wake window. The marker is
+      // visibility-gated exactly like the failures: an unlabeled L3 shadow leg
+      // or an L1/L2 row in flight is invisible, and writing the marker for it
+      // would pin the PR into every sweep for a job the comment never shows.
+      // With the allowlist unreadable the gate fails closed for L3 -- the
+      // marker returns on the next sweep, the way the section itself does.
       let crcrInFlightJobs: RecentWorkflowsData[] = [];
       try {
         const crcrWorkflows = latestAttemptsForHead(
           await fetchCrcrWorkflows(`${owner}/${repo}`, [pr_info.pr_number]),
           pr_info.head_sha
         );
-        crcrInFlightJobs = crcrWorkflows.filter(isCrcrInFlight);
+        crcrInFlightJobs = crcrWorkflows.filter(
+          (job) =>
+            isCrcrInFlight(job) &&
+            isCrcrJobPrVisible(job, labels || [], crcrAllowlist)
+        );
         for (const job of crcrWorkflows) {
           const downstreamRepo = job.downstreamRepo || "";
           if (downstreamRepo) {
@@ -1806,6 +1815,29 @@ function isCrCrFailure(job: RecentWorkflowsData): boolean {
  * though the PR never opted in and no check run was ever created for it.
  * L4 has no such gate: it always blocks, regardless of labels.
  */
+/**
+ * Whether a CRCR job can become PR-visible at all: an L4 failure always blocks,
+ * and an L3 repo only surfaces when the PR carries that repo's
+ * `ciflow/crcr/<device>` label -- the same gate classifyCrcrJobs applies to
+ * failures. Rows of any other level never render, so neither their failures nor
+ * their in-flight state may spend a wake or write the in-flight marker.
+ */
+export function isCrcrJobPrVisible(
+  job: RecentWorkflowsData,
+  labels: string[],
+  crcrAllowlist: CrcrAllowlist | null
+): boolean {
+  const level = job.downstreamLevel || "";
+  if (level === "L4") {
+    return true;
+  }
+  if (level !== "L3") {
+    return false;
+  }
+  const device = crcrAllowlist?.getDeviceForRepo(job.downstreamRepo || "");
+  return Boolean(device && labels.includes(`ciflow/crcr/${device}`));
+}
+
 export function classifyCrcrJobs(
   crcrWorkflows: RecentWorkflowsData[],
   labels: string[],
@@ -1814,15 +1846,10 @@ export function classifyCrcrJobs(
   const crcrL3Jobs: RecentWorkflowsData[] = [];
   const crcrL4Jobs: RecentWorkflowsData[] = [];
   for (const job of crcrWorkflows) {
-    const level = job.downstreamLevel || "";
-    if (level === "L3") {
-      const device = crcrAllowlist?.getDeviceForRepo(job.downstreamRepo || "");
-      if (device && labels.includes(`ciflow/crcr/${device}`)) {
-        crcrL3Jobs.push(job);
-      }
-    } else if (level === "L4") {
-      crcrL4Jobs.push(job);
+    if (!isCrcrJobPrVisible(job, labels, crcrAllowlist)) {
+      continue;
     }
+    (job.downstreamLevel === "L4" ? crcrL4Jobs : crcrL3Jobs).push(job);
   }
   return { crcrL3Jobs, crcrL4Jobs };
 }
