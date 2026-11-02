@@ -71,7 +71,8 @@ export async function queryClickhouse(
 export async function queryClickhouseSaved(
   queryName: string,
   inputParams: Record<string, unknown>,
-  useQueryCache?: boolean
+  useQueryCache?: boolean,
+  settings?: ClickHouseSettings
 ) {
   /**
    * queryClickhouseSaved
@@ -104,6 +105,7 @@ export async function queryClickhouseSaved(
     query,
     Object.fromEntries(queryParams),
     queryName,
-    useQueryCache
+    useQueryCache,
+    settings
   );
 }

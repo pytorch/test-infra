@@ -38,17 +38,23 @@ import {
   CRCR_HEALTH_WINDOW_MINUTES,
   summarizeCrcrHealth,
 } from "lib/crcr/healthProbe";
+import type { L3SummaryRow, TenureInfo } from "lib/crcr/l3Readiness";
 import {
   buildCriteriaRows,
   buildDemotionRows,
-  L3SummaryRow,
-  useL3SummaryMap,
-  useTenure,
+  tenureInfoFromL2Since,
 } from "lib/crcr/l3Readiness";
-import {
-  L3_DEMOTION_WINDOW_DAYS,
-  L3_PROMOTION_WINDOW_DAYS,
-} from "lib/crcr/l3Thresholds";
+import { L3_DEMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
+import type {
+  CiMetricsRow,
+  CrcrOverviewData,
+  CrcrOverviewResponse,
+  CrcrOverviewSection,
+  HealthPrRow,
+  NightlyHealthJobRow,
+  NightlyMetricsRow,
+} from "lib/crcr/overview";
+import { mergeCrcrOverviewData } from "lib/crcr/overview";
 import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import {
   CRCR_HEALTH_REPO,
@@ -58,45 +64,10 @@ import {
 import { fetcherHandleError } from "lib/GeneralUtils";
 import Head from "next/head";
 import NextLink from "next/link";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 import type { AllowlistEntry, AllowlistResponse } from "../api/crcr/allowlist";
-
-interface CiMetricsRow {
-  repo: string;
-  downstream_repo_level: string;
-  successes: number;
-  failures: number;
-  timed_out: number;
-  total: number;
-  pass_rate: number;
-  avg_duration_s: number;
-  last_run: string;
-}
-
-interface NightlyMetricsRow {
-  repo: string;
-  downstream_repo_level: string;
-  successes: number;
-  failures: number;
-  timed_out: number;
-  total: number;
-  pass_rate: number;
-  avg_duration_s: number;
-  last_run: string;
-  latest_sha: string;
-}
-
-interface HealthPrRow {
-  pr_number: number;
-  last_run: string;
-  successes: number;
-  total: number;
-  pending: number;
-  overdue_in_progress: number;
-  pass_rate: number | null;
-}
 
 interface HealthPrDetailRow {
   pr_number: number;
@@ -113,6 +84,34 @@ interface HealthPrDetailRow {
 type EventTab = "pr" | "nightly";
 
 type Level = "L1" | "L2" | "L3" | "L4";
+
+const OVERVIEW_SECTION_LABELS: Record<CrcrOverviewSection, string> = {
+  prSummary: "Pull request summary",
+  nightlySummary: "Nightly summary",
+  prHealth: "Pull request relay health",
+  nightlyHealth: "Nightly relay health",
+  promotionReadiness: "Promotion readiness",
+  demotionReadiness: "Demotion readiness",
+  tenure: "Configured-level tenure",
+};
+
+function useRetainedOverviewData(
+  url: string | null,
+  response: CrcrOverviewResponse | undefined
+) {
+  const dataByUrl = useRef(new Map<string, Partial<CrcrOverviewData>>());
+  const responseByUrl = useRef(new Map<string, CrcrOverviewResponse>());
+
+  if (url === null) return undefined;
+  if (responseByUrl.current.get(url) !== response && response !== undefined) {
+    dataByUrl.current.set(
+      url,
+      mergeCrcrOverviewData(dataByUrl.current.get(url), response)
+    );
+    responseByUrl.current.set(url, response);
+  }
+  return dataByUrl.current.get(url);
+}
 
 const LEVEL_META: Record<
   Level,
@@ -177,14 +176,15 @@ function timeAgo(dateStr: string): string {
 
 function ReadinessChip({
   repo,
+  tenure,
   l3SummaryMap,
   l3SummaryMapDemotion,
 }: {
   repo: string;
+  tenure: TenureInfo | null;
   l3SummaryMap: Map<string, L3SummaryRow>;
   l3SummaryMapDemotion: Map<string, L3SummaryRow>;
 }) {
-  const { tenure } = useTenure(repo);
   const promotionRows = buildCriteriaRows(
     l3SummaryMap.get(repo) ?? null,
     tenure
@@ -209,6 +209,7 @@ function CiHealthTable({
   level,
   repos,
   metricsMap,
+  tenureMap,
   l3SummaryMap,
   l3SummaryMapDemotion,
   activeDotColor = "success.main",
@@ -217,6 +218,7 @@ function CiHealthTable({
   level: Level;
   repos: AllowlistEntry[];
   metricsMap: Map<string, CiMetricsRow>;
+  tenureMap: Map<string, TenureInfo | null>;
   l3SummaryMap: Map<string, L3SummaryRow>;
   l3SummaryMapDemotion: Map<string, L3SummaryRow>;
   // Red for the Temporary Demotion section — every row there is already
@@ -354,6 +356,7 @@ function CiHealthTable({
                 <TableCell align="center">
                   <ReadinessChip
                     repo={entry.repo}
+                    tenure={tenureMap.get(entry.repo) ?? null}
                     l3SummaryMap={l3SummaryMap}
                     l3SummaryMapDemotion={l3SummaryMapDemotion}
                   />
@@ -655,20 +658,9 @@ function CrcrTestHealthCard({
   );
 }
 
-interface NightlyJobRow {
-  pytorch_head_sha: string;
-  job_name: string;
-  status: string;
-  conclusion: string;
-  started_at: string;
-  completed_at: string | null;
-  workflow_run_url: string | null;
-  check_run_id: string | null;
-}
-
 const NIGHTLY_HEALTH_COUNT = 5;
 
-function isNightlyJobPassing(job: NightlyJobRow): boolean {
+function isNightlyJobPassing(job: NightlyHealthJobRow): boolean {
   return isHealthJobPassing({
     jobName: job.job_name,
     status: job.status,
@@ -683,7 +675,7 @@ function isNightlyJobPassing(job: NightlyJobRow): boolean {
 function CrcrNightlyHealthCard({
   nightlyJobs,
 }: {
-  nightlyJobs: NightlyJobRow[] | undefined;
+  nightlyJobs: NightlyHealthJobRow[] | undefined;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   if (!nightlyJobs || nightlyJobs.length === 0) {
@@ -723,7 +715,7 @@ function CrcrNightlyHealthCard({
     );
   }
 
-  const shaMap = new Map<string, NightlyJobRow[]>();
+  const shaMap = new Map<string, NightlyHealthJobRow[]>();
   for (const job of nightlyJobs) {
     if (!job.pytorch_head_sha) continue;
     const jobs = shaMap.get(job.pytorch_head_sha) ?? [];
@@ -846,70 +838,86 @@ export default function CrcrSummaryPage() {
   const [days, setDays] = useState(7);
   const [activeTab, setActiveTab] = useState<EventTab>("pr");
 
-  const ciUrl = `/api/clickhouse/crcr_summary?parameters=${encodeURIComponent(
-    JSON.stringify({ days: String(days) })
-  )}`;
-  const { data: ciData, error: ciError } = useSWR<CiMetricsRow[]>(
-    ciUrl,
+  const overviewUrl = `/api/crcr/overview?days=${days}`;
+  const { data: overview, error: overviewError } = useSWR<CrcrOverviewResponse>(
+    overviewUrl,
     fetcherHandleError,
     { refreshInterval: 60_000 }
   );
+  const nightlyOverviewUrl =
+    activeTab === "nightly"
+      ? `/api/crcr/overview?days=${days}&view=nightly`
+      : null;
+  const { data: nightlyOverview, error: nightlyOverviewError } =
+    useSWR<CrcrOverviewResponse>(nightlyOverviewUrl, fetcherHandleError, {
+      refreshInterval: 60_000,
+    });
   const { data: allowlist, error: alError } = useSWR<AllowlistResponse>(
     "/api/crcr/allowlist",
     fetcherHandleError,
     { refreshInterval: 5 * 60_000 }
   );
 
-  const nightlyUrl =
-    `/api/clickhouse/crcr_nightly_summary?parameters=` +
-    encodeURIComponent(JSON.stringify({ days: String(days) }));
-  const { data: nightlyData, error: nightlyError } = useSWR<
-    NightlyMetricsRow[]
-  >(nightlyUrl, fetcherHandleError, { refreshInterval: 60_000 });
-
-  const healthUrl =
-    `/api/clickhouse/crcr_health_last_prs?parameters=` +
-    encodeURIComponent(
-      JSON.stringify({
-        window_minutes: String(CRCR_HEALTH_WINDOW_MINUTES),
-        stale_after_minutes: String(CRCR_HEALTH_STALE_AFTER_MINUTES),
-      })
-    );
-  const { data: healthPrs, error: healthError } = useSWR<HealthPrRow[]>(
-    healthUrl,
-    fetcherHandleError,
-    { refreshInterval: 60_000 }
+  const overviewData = useRetainedOverviewData(overviewUrl, overview);
+  const nightlyOverviewData = useRetainedOverviewData(
+    nightlyOverviewUrl,
+    nightlyOverview
   );
-
-  // Window matches L3_PROMOTION_WINDOW_DAYS (the 2-week promotion window)
-  // rather than an independent magic number.
-  const nightlyHealthUrl =
-    `/api/clickhouse/crcr_nightly_dashboard?parameters=` +
-    encodeURIComponent(
-      JSON.stringify({
-        repo: "pytorch/crcr-test",
-        days: String(L3_PROMOTION_WINDOW_DAYS),
-        limit: "101",
-        offset: "0",
-      })
-    );
-  const { data: nightlyHealthJobs, error: nightlyHealthError } = useSWR<
-    NightlyJobRow[]
-  >(nightlyHealthUrl, fetcherHandleError, {
-    refreshInterval: 60_000,
-  });
+  const ciData = overviewData?.prSummary;
+  const nightlyData = nightlyOverviewData?.nightlySummary;
+  const healthPrs = overviewData?.prHealth;
+  const nightlyHealthJobs = overviewData?.nightlyHealth;
+  const overviewErrorMessage = Object.entries(overview?.errors ?? {})
+    .map(
+      ([section, message]) =>
+        `${OVERVIEW_SECTION_LABELS[section as CrcrOverviewSection]}: ${message}`
+    )
+    .join("; ");
+  const nightlyErrorMessage = Object.entries(nightlyOverview?.errors ?? {})
+    .map(
+      ([section, message]) =>
+        `${OVERVIEW_SECTION_LABELS[section as CrcrOverviewSection]}: ${message}`
+    )
+    .join("; ");
 
   const visibleNightlyData = useMemo(
     () => nightlyData?.filter((r) => r.repo !== CRCR_HEALTH_REPO) ?? [],
     [nightlyData]
   );
-  const nightlyRepoCount = visibleNightlyData.length;
+  const nightlyRepoCount = nightlyOverview
+    ? visibleNightlyData.length
+    : undefined;
 
-  // L3 readiness — fixed promotion/demotion windows, independent of the
-  // Time Range selector above.
-  const { map: l3SummaryMap } = useL3SummaryMap(L3_PROMOTION_WINDOW_DAYS);
-  const { map: l3SummaryMapDemotion, hasResult: l3SummaryDemotionHasResult } =
-    useL3SummaryMap(L3_DEMOTION_WINDOW_DAYS);
+  // L3 readiness uses fixed promotion/demotion windows, independent of the
+  // Time Range selector above. The overview endpoint returns each aggregate
+  // window in its serial query plan rather than fetching per table row.
+  const l3SummaryMap = useMemo(
+    () =>
+      new Map(
+        (overviewData?.promotionReadiness ?? []).map((row) => [row.repo, row])
+      ),
+    [overviewData?.promotionReadiness]
+  );
+  const l3SummaryMapDemotion = useMemo(
+    () =>
+      new Map(
+        (overviewData?.demotionReadiness ?? []).map((row) => [row.repo, row])
+      ),
+    [overviewData?.demotionReadiness]
+  );
+  const l3SummaryDemotionHasResult =
+    overviewData?.demotionReadiness !== undefined &&
+    overview?.errors.demotionReadiness === undefined;
+  const tenureMap = useMemo(
+    () =>
+      new Map(
+        (overviewData?.tenure ?? []).map((row) => [
+          row.repo,
+          tenureInfoFromL2Since(row.l2_since),
+        ])
+      ),
+    [overviewData?.tenure]
+  );
 
   const metricsMap = useMemo(() => {
     const map = new Map<string, CiMetricsRow>();
@@ -1055,9 +1063,14 @@ export default function CrcrSummaryPage() {
     };
   }, [ciData, metricsMap, allowlist, days]);
 
-  const isLoading = !ciData && !ciError && !allowlist && !alError;
+  const isLoading = !overview && !overviewError && !allowlist && !alError;
+  const nightlyIsLoading =
+    activeTab === "nightly" && !nightlyOverview && !nightlyOverviewError;
+  const nightlyHasError =
+    activeTab === "nightly" &&
+    (!!nightlyOverviewError || !!nightlyErrorMessage);
   const hasError =
-    ciError || alError || nightlyError || healthError || nightlyHealthError;
+    !!overviewError || !!alError || !!overviewErrorMessage || nightlyHasError;
 
   return (
     <>
@@ -1115,11 +1128,11 @@ export default function CrcrSummaryPage() {
 
         {hasError && (
           <Typography color="error">
-            {ciError?.message ||
+            {overviewError?.message ||
               alError?.message ||
-              nightlyError?.message ||
-              healthError?.message ||
-              nightlyHealthError?.message ||
+              overviewErrorMessage ||
+              nightlyOverviewError?.message ||
+              nightlyErrorMessage ||
               "Failed to load data"}
           </Typography>
         )}
@@ -1129,8 +1142,10 @@ export default function CrcrSummaryPage() {
         {stats && (
           <Stack spacing={2}>
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-              <CrcrTestHealthCard healthPrs={healthPrs} />
-              <CrcrNightlyHealthCard nightlyJobs={nightlyHealthJobs} />
+              <CrcrTestHealthCard healthPrs={healthPrs ?? undefined} />
+              <CrcrNightlyHealthCard
+                nightlyJobs={nightlyHealthJobs ?? undefined}
+              />
               <StatCard
                 label="Total Probe Runs"
                 value={stats.totalRuns}
@@ -1181,7 +1196,7 @@ export default function CrcrSummaryPage() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 Nightly
                 <Chip
-                  label={nightlyRepoCount || "–"}
+                  label={nightlyRepoCount ?? "–"}
                   size="small"
                   variant="outlined"
                   sx={{ height: 20, fontSize: "0.75rem" }}
@@ -1225,6 +1240,7 @@ export default function CrcrSummaryPage() {
                           level={level}
                           repos={repos}
                           metricsMap={metricsMap}
+                          tenureMap={tenureMap}
                           l3SummaryMap={l3SummaryMap}
                           l3SummaryMapDemotion={l3SummaryMapDemotion}
                         />
@@ -1245,6 +1261,7 @@ export default function CrcrSummaryPage() {
                         level="L3"
                         repos={pendingDemotionRepos}
                         metricsMap={metricsMap}
+                        tenureMap={tenureMap}
                         l3SummaryMap={l3SummaryMap}
                         l3SummaryMapDemotion={l3SummaryMapDemotion}
                         activeDotColor="error.main"
@@ -1296,14 +1313,16 @@ export default function CrcrSummaryPage() {
               </Typography>
             </Paper>
 
-            {visibleNightlyData.length > 0 ? (
+            {nightlyIsLoading ? (
+              <Skeleton variant="rectangular" height={240} sx={{ mt: 2 }} />
+            ) : visibleNightlyData.length > 0 ? (
               <>
                 <Typography variant="h6" sx={{ mt: 2 }}>
                   Nightly CI Runs — Last {days} Days
                 </Typography>
                 <NightlyTable nightlyData={visibleNightlyData} days={days} />
               </>
-            ) : (
+            ) : !nightlyHasError ? (
               <Paper
                 elevation={0}
                 sx={{
@@ -1320,7 +1339,7 @@ export default function CrcrSummaryPage() {
                   the callback action.
                 </Typography>
               </Paper>
-            )}
+            ) : null}
           </>
         )}
       </Stack>

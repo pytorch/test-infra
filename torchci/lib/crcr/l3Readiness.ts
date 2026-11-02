@@ -50,13 +50,18 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // "Time at L2" is cumulative from when the repo first reached L2, not reset
 // by later promotions.
+export function tenureInfoFromL2Since(
+  l2SinceValue: string | null | undefined
+): TenureInfo | null {
+  const l2Since = new Date(l2SinceValue ?? "").getTime();
+  if (!(l2Since > 0)) return null;
+  return { tenureDays: (Date.now() - l2Since) / MS_PER_DAY };
+}
+
 export function tenureInfoFromRow(
   row: RepoTenure | null | undefined
 ): TenureInfo | null {
-  if (!row) return null;
-  const l2Since = new Date(row.l2_since).getTime();
-  if (!(l2Since > 0)) return null;
-  return { tenureDays: (Date.now() - l2Since) / MS_PER_DAY };
+  return tenureInfoFromL2Since(row?.l2_since);
 }
 
 // Same crcr_repo_tenure query + params used by the per-repo panel, the
