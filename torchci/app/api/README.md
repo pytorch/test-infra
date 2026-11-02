@@ -88,8 +88,10 @@ CPU-seconds on a big commit, and it is the one read both run lists make.
 Since 2026-11-03 it reads `FINAL` only at the bundles' own starts, 2.2
 million rows instead of 61 million for a commit page of 100 bundles
 (`lib/api/tests/test/runs/attempts-query-validation.md`), so measure it again
-before deciding whether it still needs the tag. Leave
-a query off when it is fast: the catalog, options and test detail reads answer
+before deciding whether it still needs the tag. The runner-hours query of
+`GET /api/tests/cost` is tagged too: about 15 CPU-seconds for its 7 days, 4.4
+seconds under the profile's caps (`lib/api/tests/cost/query-validation.md`).
+Leave a query off when it is fast: the catalog, options and test detail reads answer
 in milliseconds. The
 commit runs list is left out deliberately although its upper tail reaches the
 bar, with a median of 2.4 CPU-seconds, one request in ten above 9.7 and a
@@ -285,23 +287,25 @@ old route in the same change.
 `lib/api/openapi.ts` so its paths and schemas appear in the document;
 `test/api/openapi.test.ts` fails while a route is missing from it.
 
-| Endpoint                                              | Scope                                                                                                                 | Implementation                  |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `GET /api/tests`                                      | Repository tests and configuration health in a selected window and code sources                                       | `lib/api/tests/`                |
-| `GET /api/tests/options`                              | Values the list offers a reader: fixed and catalog choices, with labels, and views                                    | `lib/api/tests/options/`        |
-| `GET /api/tests/test/{test_id}`                       | One catalog test, its owners, and all available configuration health                                                  | `lib/api/tests/test/`           |
-| `GET /api/tests/test/{test_id}/runs`                  | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration | `lib/api/tests/test/runs/`      |
-| `GET /api/tests/run/{run_id}`                         | One full run bundle, selected by any retained execution UUID; provisional                                             | `lib/api/tests/run/`            |
-| `GET /api/tests/commit/{sha}?repo=owner/name`         | Retained run bundles across all tests on a repository commit                                                          | `lib/api/tests/commit/`         |
-| `GET /api/tests/commit/{sha}/summary?repo=owner/name` | The commit as GitHub described it, its test counts by status, and the span of its runs                                | `lib/api/tests/commit/summary/` |
+| Endpoint                                              | Scope                                                                                                                     | Implementation                  |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| `GET /api/tests`                                      | Repository tests and configuration health in a selected window and code sources                                           | `lib/api/tests/`                |
+| `GET /api/tests/options`                              | Values the list offers a reader: fixed and catalog choices, with labels, and views                                        | `lib/api/tests/options/`        |
+| `GET /api/tests/test/{test_id}`                       | One catalog test, its owners, and all available configuration health                                                      | `lib/api/tests/test/`           |
+| `GET /api/tests/test/{test_id}/runs`                  | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration     | `lib/api/tests/test/runs/`      |
+| `GET /api/tests/run/{run_id}`                         | One full run bundle, selected by any retained execution UUID; provisional                                                 | `lib/api/tests/run/`            |
+| `GET /api/tests/commit/{sha}?repo=owner/name`         | Retained run bundles across all tests on a repository commit                                                              | `lib/api/tests/commit/`         |
+| `GET /api/tests/commit/{sha}/summary?repo=owner/name` | The commit as GitHub described it, its test counts by status, and the span of its runs                                    | `lib/api/tests/commit/summary/` |
+| `GET /api/tests/cost`                                 | Runner-hours of the last 7 whole UTC days by owner, workflow and machine, with the PR update and merge signals; prototype | `lib/api/tests/cost/`           |
 
 The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 
-| Page                                              | Shows                                                                                                       | Implementation                                                                |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                               | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/` |
-| `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                        |
-| `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                          |
+| Page                                              | Shows                                                                                                       | Implementation                                                                           |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                               | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/`            |
+| `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                                   |
+| `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
+| `GET /tests/{organization}/{repo}/cost`           | Runner-hours by owner, machine and workflow: `GET /api/tests/cost`                                          | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
 
 ## Tests endpoints
 
@@ -557,3 +561,47 @@ command. The [commit notes](../../lib/api/tests/commit/query-validation.md)
 and other notes beside the queries record earlier design experiments; their
 measurements are historical. Preserve the correctness guarantees and measure
 working-tree SQL with fixed, nonempty inputs when evaluating a rewrite.
+
+### Cost
+
+`GET /api/tests/cost` is a prototype: where a repository's CI
+runner-hours go, as one small fact table of runner-hours by owner, workflow
+and machine (about 2,000 rows), which the cost page sums for any scope itself.
+It counts runner time only, no queue. Its SQL is in `lib/api/tests/cost/query.ts`;
+costs, `EXPLAIN` and equality evidence are in
+[query-validation.md](../../lib/api/tests/cost/query-validation.md).
+
+- Runner-hours are job wall time, `started_at` to `completed_at`, of every
+  completed, not skipped job that started in the window on a runner, capped at
+  24 hours. The window is the last 7 whole UTC days, fixed until a daily
+  rollup holds the hours (below).
+- Test jobs' hours go to test file owners by each owner's share of the test
+  time `ci.health` recorded for the job's test config on the job's machine over
+  7 days (`ci.owners`, split evenly among a file's owners). Shares are pooled
+  over every workflow, so one workflow's owner split is approximate while
+  workflow and machine totals are exact. Build and other jobs are
+  `shared:build` and `shared:other`; test jobs whose config recorded no tests
+  on their machine, and files without owners, are `unattributed:*`. Job kind
+  and test config come from job names (`test (<config>, …)`, "build").
+- A machine is what the tests catalog records (`ci.environments`): the device,
+  or a CPU-only machine's OS, architecture and CPU capability. A runner label
+  takes the machine most of up to 20 of the window's test jobs on it recorded;
+  labels whose sampled jobs recorded nothing are Not probed, listed in
+  `unprobed_labels`. A machine's family comes from the same columns: its
+  accelerator when it has a device (CUDA, ROCm, XPU, MPS, a new accelerator
+  under its own name), otherwise its OS's CPUs. Device short names drop the
+  leading words other devices of their family share. No list of machines,
+  vendors or labels is kept in code.
+- `time_to_signal` names two signals and the workflow that gives each: PR
+  update signals (pull, on every pull request update) and PR merge signals
+  (trunk, which gates a merge), each as HUD's `workflow_duration_percentile` on
+  pushes to main, median and 90th percentile. Pushes to main stand in for a
+  pull request's wait: not exact, but the numbers readers know.
+  `workflow_presets` names scopes such as the PR Critical Path, pull and
+  trunk.
+- The runner-hours query runs in the heavy workload (see
+  [Heavy queries](#heavy-queries)), so the endpoint can answer 429.
+- Planned: a daily rollup in `ci`, refreshed on a schedule, holding each day's
+  hours by owner, workflow and machine and the label-to-machine map it used,
+  so the window becomes a date range over the rollup, shares and machines
+  outlive `ci.runs`' 14 days, and the per-request sampling goes away.

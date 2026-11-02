@@ -119,6 +119,20 @@ export function catalogLabel(facet: CatalogFacet, value: string): string {
   return PROPER_NAMES[facet]?.[value] ?? value;
 }
 
+// catalogLabel for an environment facet as SQL over a column, so a query
+// names a value as the page does: the proper names, any other value as it is.
+export function catalogLabelSql(
+  facet: EnvironmentFacet,
+  column: string
+): string {
+  const names = Object.entries(PROPER_NAMES[facet] ?? {});
+  if (names.length === 0) return column;
+  const cases = names.map(
+    ([value, label]) => `${column} = '${value}', '${label}'`
+  );
+  return `multiIf(${cases.join(", ")}, ${column})`;
+}
+
 function catalogChoice(
   facet: CatalogFacet,
   values: readonly (string | number)[]

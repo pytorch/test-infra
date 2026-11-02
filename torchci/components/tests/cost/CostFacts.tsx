@@ -1,0 +1,167 @@
+import {
+  Box,
+  ButtonBase,
+  Skeleton,
+  Stack,
+  Tooltip,
+  useTheme,
+} from "@mui/material";
+import FactPill from "components/tests/FactPill";
+import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
+import type { CostSignal } from "lib/api/tests/cost/types";
+import { hoursLabel, shareLabel } from "lib/tests/cost/query";
+
+// A duration as the facts say it: "4.0 h", "27 min".
+export function signalLabel(seconds: number): string {
+  return seconds >= 3600
+    ? `${(seconds / 3600).toFixed(1)} h`
+    : `${Math.round(seconds / 60)} min`;
+}
+
+export interface CostFactsProps {
+  // undefined until the runner-hours arrive.
+  facts:
+    | {
+        scopeTotal: number;
+        scopeShare: number;
+        perDay: number;
+        annualized: number;
+        attributedShare: number;
+      }
+    | undefined;
+  days: number;
+  dates: string;
+  // The scope in words, null for every workflow.
+  scope: string | null;
+  // The PR update and merge signals, from the API.
+  signals: CostSignal[] | undefined;
+  onClearScope: () => void;
+}
+
+// The headline figures as the test page's facts: pills in the band's grey.
+// The first says what the hours cover, in the accent with a clear button
+// while a scope of workflows is in force; the next four follow the scope;
+// the PR update and merge signals are their workflows' whatever is scoped.
+export default function CostFacts({
+  facts,
+  days,
+  dates,
+  scope,
+  signals,
+  onClearScope,
+}: CostFactsProps) {
+  const theme = useTheme();
+  if (facts === undefined) {
+    return (
+      <Stack direction="row" spacing={1}>
+        {[16, 22, 18, 18, 15, 22].map((width, i) => (
+          <Skeleton
+            key={i}
+            variant="rounded"
+            sx={{
+              width: `${width}ch`,
+              height: VIEW_CHIP_HEIGHT,
+              borderRadius: "999px",
+            }}
+          />
+        ))}
+      </Stack>
+    );
+  }
+  const where = scope === null ? "" : ` in ${scope}`;
+  const pill = (label: string, title: string, value: string) => (
+    <Tooltip
+      key={label}
+      title={title}
+      enterDelay={300}
+      slotProps={{ tooltip: { sx: { whiteSpace: "pre-line" } } }}
+    >
+      <span>
+        <FactPill label={label}>{value}</FactPill>
+      </span>
+    </Tooltip>
+  );
+  return (
+    <Box
+      sx={{ display: "flex", flexWrap: "wrap", gap: 1, typography: "body2" }}
+    >
+      {scope === null ? (
+        pill("Across", "Every workflow's runner-hours", "all workflows")
+      ) : (
+        <Tooltip
+          title="The page counts only these workflows' hours."
+          enterDelay={300}
+        >
+          <Box
+            component="span"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.75,
+              height: VIEW_CHIP_HEIGHT,
+              pl: 1.25,
+              pr: 0.5,
+              borderRadius: "999px",
+              color: "primary.main",
+              boxShadow: `inset 0 0 0 1px ${theme.palette.primary.main}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Across
+            <Box component="span" sx={{ fontWeight: 500 }}>
+              {scope}
+            </Box>
+            <span>· {shareLabel(facts.scopeShare)} of all runner-hours</span>
+            <ButtonBase
+              aria-label="Show all workflows"
+              onClick={onClearScope}
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                color: "primary.main",
+                "&:hover": { backgroundColor: "action.hover" },
+                "&.Mui-focusVisible": {
+                  outline: `2px solid ${theme.palette.primary.main}`,
+                },
+              }}
+            >
+              ✕
+            </ButtonBase>
+          </Box>
+        </Tooltip>
+      )}
+      {pill(
+        "Annualized",
+        `${hoursLabel(
+          facts.scopeTotal
+        )} runner-hours${where} over ${dates}, scaled to a year`,
+        `${hoursLabel(facts.annualized)} runner-hours a year`
+      )}
+      {pill(
+        "Per day",
+        `Daily average over the last ${days} ${days === 1 ? "day" : "days"}`,
+        `${hoursLabel(facts.perDay)} runner-hours`
+      )}
+      {pill(
+        "Attributed to owners",
+        "Hours split among test owners; the rest is shared or unattributed",
+        shareLabel(facts.attributedShare)
+      )}
+      {(signals ?? []).map((signal) =>
+        pill(
+          signal.label,
+          [
+            `Median ${signal.workflow} run time on main, queue included`,
+            signal.p90_seconds === null
+              ? ""
+              : `p90 ${signalLabel(signal.p90_seconds)} · ${signal.runs} runs`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          signal.p50_seconds === null ? "none" : signalLabel(signal.p50_seconds)
+        )
+      )}
+    </Box>
+  );
+}
