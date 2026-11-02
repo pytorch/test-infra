@@ -12,6 +12,7 @@ import {
   renderInProgressLine,
   renderVerdictLine,
   selectAdvisorLines,
+  staticVerdictBadge,
   verdictBadge,
   verdictBadgeForBucket,
   verdictCoversRun,
@@ -64,6 +65,29 @@ describe("verdictBadge", () => {
       );
     }
   });
+
+  it("staticVerdictBadge draws the advisor's badge for a verdict and bucket", () => {
+    expect(staticVerdictBadge("not_related", "high")).toEqual(
+      verdictBadgeForBucket("not_related", "high")
+    );
+    expect(staticVerdictBadge("related", "med")?.label).toBe(
+      "probably related"
+    );
+  });
+
+  it.each([
+    ["", "high"],
+    ["<script>", "high"],
+    ["revert", "high"],
+    ["not_related", ""],
+    ["not_related", "medium"],
+    ["not_related", "0.95"],
+  ])(
+    "staticVerdictBadge rejects verdict %j at bucket %j",
+    (verdict, bucket) => {
+      expect(staticVerdictBadge(verdict, bucket)).toBeNull();
+    }
+  );
 
   it("treats legacy 'revert' as the related pole", () => {
     expect(verdictBadge("revert", 0.95).label).toBe("related");

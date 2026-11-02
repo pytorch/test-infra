@@ -16,6 +16,7 @@ import {
   parseUtc,
   PENDING_BADGE,
   renderBadgeSvg,
+  staticVerdictBadge,
   verdictBadge,
   verdictCoversRun,
 } from "lib/advisor/advisorBadge";
@@ -61,6 +62,23 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // A pill whose verdict is in the URL, not looked up (CRCR downstream triage,
+  // lib/crcr/crcrTriage.crcrBadgeUrl). Served from this path rather than its
+  // own: hud.pytorch.org's firewall lets GitHub's image proxy (camo) fetch this
+  // path but answers it with a bot challenge on other API paths, so a badge
+  // served anywhere else renders as its alt text. In-tree badge URLs never
+  // carry `verdict` (advisorBadgeUrl), so they never take this branch.
+  const staticVerdict = one(req.query.verdict);
+  if (staticVerdict) {
+    const badge = staticVerdictBadge(staticVerdict, one(req.query.confidence));
+    sendSvg(
+      res,
+      renderBadgeSvg(badge ?? PENDING_BADGE),
+      badge ? LONG_CACHE : "no-store"
+    );
+    return;
+  }
+
   const owner = one(req.query.owner);
   const repo = one(req.query.repo);
   const sha = one(req.query.sha);

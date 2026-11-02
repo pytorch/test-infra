@@ -233,6 +233,38 @@ export function verdictBadgeForBucket(
   return { label: "inconclusive", color: "#8b949e", darkText: false };
 }
 
+// The verdicts a badge URL may carry, and the buckets it may carry them at. A
+// pill whose verdict rides in the URL (CRCR downstream triage, see
+// lib/crcr/crcrTriage) is limited to these so the public endpoint only draws
+// labels verdictBadge already has, never caller-chosen text.
+const STATIC_BADGE_VERDICTS: ReadonlySet<string> = new Set([
+  "not_related",
+  "infra_issue",
+  "garbage",
+  "related",
+  "unsure",
+]);
+const STATIC_BADGE_BUCKETS: ReadonlySet<string> = new Set([
+  "high",
+  "med",
+  "low",
+]);
+
+// The badge for a verdict and bucket given as URL query values, or null when
+// either is not one of the allowed values.
+export function staticVerdictBadge(
+  verdict: string,
+  bucket: string
+): AdvisorBadge | null {
+  if (
+    !STATIC_BADGE_VERDICTS.has(verdict) ||
+    !STATIC_BADGE_BUCKETS.has(bucket)
+  ) {
+    return null;
+  }
+  return verdictBadgeForBucket(verdict, bucket as ConfidenceBucket);
+}
+
 // A minimal flat single-segment SVG pill (shields "flat" look, no left label).
 export function renderBadgeSvg(badge: AdvisorBadge): string {
   const text = badge.label;

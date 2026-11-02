@@ -85,7 +85,7 @@ describe("renderCrcrTriageLine", () => {
   test("has the shape of the in-tree 'AI verdict:' line", () => {
     const line = render(verdict({ analyzer: { name: "ascend-ci-triage" } }));
     expect(line).toContain(
-      `<details><summary>AI verdict: <a href="${RUN}"><img alt="AI verdict: not related" src="${HUD}/api/drci/crcrBadge?verdict=not_related&amp;confidence=high"></a></summary><blockquote>`
+      `<details><summary>AI verdict: <a href="${RUN}"><img alt="AI verdict: not related" src="${HUD}/api/drci/advisorBadge?verdict=not_related&amp;confidence=high"></a></summary><blockquote>`
     );
     expect(line).toContain("NPU kernel registration regressed");
     expect(line).toContain(
@@ -164,7 +164,7 @@ describe("crcrBadgeUrl", () => {
         confidence: "med",
       })
     ).toBe(
-      "https://hud.pytorch.org/api/drci/crcrBadge?verdict=infra_issue&confidence=med"
+      "https://hud.pytorch.org/api/drci/advisorBadge?verdict=infra_issue&confidence=med"
     );
   });
 });

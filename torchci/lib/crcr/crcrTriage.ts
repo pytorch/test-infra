@@ -91,7 +91,9 @@ function oneLine(text: string): string {
 }
 
 // The pill. Unlike the advisor's, it is a pure function of the verdict, so the
-// URL carries it instead of naming a job to look up (see api/drci/crcrBadge).
+// URL carries it instead of naming a job to look up. It shares the advisor's
+// route because that is the path GitHub's image proxy can reach (see
+// api/drci/advisorBadge).
 export function crcrBadgeUrl(
   hudBaseUrl: string,
   mapped: AdvisorStyleVerdict
@@ -100,7 +102,7 @@ export function crcrBadgeUrl(
     verdict: mapped.verdict,
     confidence: mapped.confidence,
   });
-  return `${hudBaseUrl}/api/drci/crcrBadge?${qs.toString()}`;
+  return `${hudBaseUrl}/api/drci/advisorBadge?${qs.toString()}`;
 }
 
 /**
