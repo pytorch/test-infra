@@ -17,14 +17,21 @@ Required env vars:
     JOB_NAME          Job identifier for the check run name
     SCHEMA_VERSION    Payload schema version (currently "1")
 
+A late report (EVENT_TYPE_OVERRIDE="late-report") adds triage verdicts to rows
+reported earlier, for several jobs at once. It needs only OIDC_TOKEN, CALLBACK_URL
+and TRIAGE_VERDICT_LIST, a JSON array (or "@path" to a file holding one) of
+{delivery_id, workflow_name, job_name, check_run_id?, triage_verdict}. Nothing is
+taken from the job running this script.
+
 Optional env vars:
     CONCLUSION              Job conclusion (required when STATUS=completed)
     CLIENT_PAYLOAD          JSON string of the dispatch payload (PR/push mode)
     DELIVERY_ID_OVERRIDE    Upstream commit SHA (nightly/periodic self-report)
-    EVENT_TYPE_OVERRIDE     "nightly" or "periodic" (self-report)
+    EVENT_TYPE_OVERRIDE     "nightly" or "periodic" (self-report), or "late-report"
     CHECK_RUN_ID            GitHub check run ID (falls back to RUN_ID-RUN_ATTEMPT)
     TEST_RESULTS            JSON string with test result summary
     TRIAGE_VERDICT          JSON object with a triage verdict for this job
+    TRIAGE_VERDICT_LIST     JSON array of reports (or "@path") for a late report
     ARTIFACT_URL            URL to downstream artifacts
     MAX_TIME                curl --max-time (default 10)
     RATE_LIMIT_RETRIES      Retries on the relay's rate-limit 429 (default 5)
@@ -40,6 +47,13 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from typing import NamedTuple
+
+
+LATE_REPORT_EVENT_TYPE = "late-report"
+# Reports per request (the relay accepts up to 100).
+LATE_REPORT_CHUNK = 50
+# HUD does a write per report, so allow more than a plain callback's default.
+LATE_REPORT_MIN_MAX_TIME = 60
 
 
 def build_payload() -> str:
@@ -146,6 +160,113 @@ def build_payload() -> str:
     return json.dumps(client_payload)
 
 
+def read_late_reports() -> list:
+    """The reports of a late report, from TRIAGE_VERDICT_LIST.
+
+    A JSON array, or "@path" to a file holding one (an environment value is capped
+    at about 128 KB). The relay checks each report's fields.
+    """
+    raw = os.environ.get("TRIAGE_VERDICT_LIST", "").strip()
+    if not raw:
+        sys.exit(
+            "Error: event-type 'late-report' needs 'triage-verdict-list': a JSON "
+            "array of reports, or @path to a file holding one"
+        )
+    if raw.startswith("@"):
+        path = raw[1:].strip()
+        try:
+            with open(path) as f:
+                raw = f.read()
+        except OSError as exc:
+            sys.exit(f"Error: cannot read the triage-verdict-list file {path!r}: {exc}")
+    try:
+        reports = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        sys.exit(f"Error: triage-verdict-list is not valid JSON: {exc}")
+    if not isinstance(reports, list):
+        sys.exit("Error: triage-verdict-list must be a JSON array")
+    for index, entry in enumerate(reports):
+        if not isinstance(entry, dict):
+            sys.exit(f"Error: triage-verdict-list[{index}] must be an object")
+    return reports
+
+
+def build_late_report_payloads() -> list[str]:
+    """One request body per LATE_REPORT_CHUNK reports; none when there are none."""
+    reports = read_late_reports()
+    return [
+        json.dumps(
+            {
+                "event_type": LATE_REPORT_EVENT_TYPE,
+                "reports": reports[start : start + LATE_REPORT_CHUNK],
+            }
+        )
+        for start in range(0, len(reports), LATE_REPORT_CHUNK)
+    ]
+
+
+def summarize_late_results(bodies: list[str], sent: list[int]) -> bool:
+    """Print what happened to each report. False when any ended in an error.
+
+    ``sent[i]`` is how many reports request ``i`` carried. A missing or unfinished
+    row is only a warning, as is a request answered for fewer reports than it
+    carried (the relay answers 200 when HUD is down). An existing verdict is fine:
+    sending a report again is safe.
+    """
+    counts: dict[str, int] = {}
+    ok = True
+    for body, expected in zip(bodies, sent):
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            data = {}
+        if data.get("status") == "ignored":
+            print(
+                "::warning::The relay ignored the late report: "
+                "this repo is not allowlisted for CRCR."
+            )
+            counts["ignored"] = counts.get("ignored", 0) + 1
+        answered = data.get("results") or []
+        if data.get("status") != "ignored" and len(answered) < expected:
+            print(
+                f"::warning::The relay answered for {len(answered)} "
+                f"of {expected} reports (HUD may be unavailable); "
+                "send the list again."
+            )
+            counts["unanswered"] = (
+                counts.get("unanswered", 0) + expected - len(answered)
+            )
+        for report in answered:
+            result = str(report.get("result", "unknown"))
+            counts[result] = counts.get(result, 0) + 1
+            label = f"{report.get('job_name')} ({report.get('delivery_id')})"
+            if result == "attached":
+                print(f"  attached             {label}")
+            elif result == "already_has_verdict":
+                print(f"  already has a verdict {label}")
+            elif result == "error":
+                print(f"::error::The late report failed for {label}.")
+                ok = False
+            else:
+                print(f"::warning::{result}: {label}")
+    summary = ", ".join(f"{n} {name}" for name, n in sorted(counts.items()))
+    print(f"Late report: {summary or 'nothing to report'}")
+    return ok
+
+
+def late_report_main() -> None:
+    payloads = build_late_report_payloads()
+    if not payloads:
+        print("Late report: no reports to send.")
+        return
+    configured = float(os.environ.get("MAX_TIME", "10") or "10")
+    os.environ["MAX_TIME"] = str(max(configured, LATE_REPORT_MIN_MAX_TIME))
+    bodies = [send_callback(payload).body for payload in payloads]
+    sent = [len(json.loads(payload)["reports"]) for payload in payloads]
+    if not summarize_late_results(bodies, sent):
+        sys.exit(1)
+
+
 # The relay rate-limits per repo over a sliding 60 s window, so the backoff
 # has to add up to about a minute for the last retry to land in a fresh window.
 RATE_LIMIT_BACKOFF_S = (2, 4, 8, 16, 32)
@@ -218,7 +339,7 @@ def post_once(payload_file: str) -> Response:
         )
 
 
-def send_callback(payload: str) -> None:
+def send_callback(payload: str) -> Response:
     retries = int(os.environ.get("RATE_LIMIT_RETRIES", str(len(RATE_LIMIT_BACKOFF_S))))
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -261,8 +382,21 @@ def send_callback(payload: str) -> None:
         sys.exit(resp.returncode)
 
     print(f"Relay server response HTTP: {resp.http_code}")
+    return resp
+
+
+def main() -> None:
+    if os.environ.get("EVENT_TYPE_OVERRIDE", "").strip() == LATE_REPORT_EVENT_TYPE:
+        late_report_main()
+        return
+    if os.environ.get("TRIAGE_VERDICT_LIST", "").strip():
+        # Not sending a list the caller handed over would lose every verdict in it.
+        sys.exit(
+            "Error: 'triage-verdict-list' is only used with event-type "
+            f"'{LATE_REPORT_EVENT_TYPE}'"
+        )
+    send_callback(build_payload())
 
 
 if __name__ == "__main__":
-    payload = build_payload()
-    send_callback(payload)
+    main()

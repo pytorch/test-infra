@@ -25,6 +25,8 @@ from utils.triage_verdict import validate_triage_verdict
 logger = logging.getLogger(__name__)
 
 _NIGHTLY_EVENT_TYPES = frozenset({"nightly", "periodic"})
+_LATE_REPORT_EVENT_TYPE = "late-report"
+MAX_LATE_REPORTS = 100
 
 
 def _sanitize_triage_verdict(body: dict, verified_repo: str) -> None:
@@ -372,6 +374,87 @@ def _handle_nightly_callback(
     return {"ok": True, "status": status}
 
 
+def _required_str(obj: dict, field: str, where: str) -> str:
+    value = obj.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise HTTPException(400, f"{where} is missing {field!r}")
+    return value
+
+
+def _late_report_entry(entry: object, index: int) -> dict:
+    """Validate one report of a late-report callback, or raise a 400 naming it."""
+    where = f"reports[{index}]"
+    if not isinstance(entry, dict):
+        raise HTTPException(400, f"{where} must be an object")
+
+    report = {
+        "delivery_id": _required_str(entry, "delivery_id", where),
+        "workflow_name": _required_str(entry, "workflow_name", where),
+        "job_name": _required_str(entry, "job_name", where),
+    }
+    check_run_id = entry.get("check_run_id")
+    if check_run_id is not None:
+        if isinstance(check_run_id, bool) or not isinstance(check_run_id, (str, int)):
+            raise HTTPException(
+                400, f"{where}.check_run_id must be a string or a number"
+            )
+        report["check_run_id"] = str(check_run_id)
+
+    verdict = validate_triage_verdict(entry.get("triage_verdict"))
+    if verdict is None:
+        raise HTTPException(400, f"{where}.triage_verdict is missing or invalid")
+    report["triage_verdict"] = verdict
+    return report
+
+
+def _handle_late_report(
+    config: RelayConfig,
+    body: dict,
+    verified_repo: str,
+    repo_level: AllowlistLevel,
+) -> dict:
+    """Add triage verdicts to rows that were reported earlier (a late report).
+
+    A row is write-once, so a verdict that only exists later (an agent summary
+    hours after the build) cannot ride on its callback. Each of ``reports`` names a
+    row by the values that keyed its original callback (``delivery_id``,
+    ``workflow_name``, ``job_name`` and, for a GitHub row, ``check_run_id``) and
+    carries that job's ``triage_verdict``. Every row belongs to the OIDC-verified
+    repo. The request is validated in full before anything is forwarded; HUD then
+    answers for each report in ``results``.
+    """
+    entries = body.get("reports")
+    if not isinstance(entries, list) or not entries:
+        raise HTTPException(
+            400, "late-report callback needs a non-empty 'reports' list"
+        )
+    if len(entries) > MAX_LATE_REPORTS:
+        raise HTTPException(
+            400,
+            f"late-report callback has {len(entries)} reports; "
+            f"the limit is {MAX_LATE_REPORTS} per request",
+        )
+    reports = [_late_report_entry(entry, i) for i, entry in enumerate(entries)]
+
+    hud_response = forward_to_hud(
+        config,
+        _build_trusted(verified_repo, repo_level),
+        {
+            "callback_payload": {
+                "event_type": _LATE_REPORT_EVENT_TYPE,
+                "reports": reports,
+            }
+        },
+    )
+    results = (hud_response or {}).get("results")
+    logger.info("late report repo=%s reports=%d", verified_repo, len(reports))
+    return {
+        "ok": True,
+        "status": _LATE_REPORT_EVENT_TYPE,
+        "results": results if isinstance(results, list) else [],
+    }
+
+
 def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     """Forward a downstream callback to HUD.
 
@@ -404,6 +487,8 @@ def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:
     # state machine bypass for PR events).  HUD treats nightly rows as
     # informational, attributed to the OIDC-verified repo.
     event_type = body.get("event_type", "")
+    if event_type == _LATE_REPORT_EVENT_TYPE:
+        return _handle_late_report(config, body, verified_repo, repo_level)
     if event_type in _NIGHTLY_EVENT_TYPES:
         return _handle_nightly_callback(config, body, verified_repo, repo_level)
 

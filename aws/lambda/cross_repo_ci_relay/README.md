@@ -151,6 +151,41 @@ Trust boundaries inside `untrusted.callback_payload`:
   either sees a normalized verdict or none at all.  It is advisory — it never gates a merge, never
   changes a conclusion, and never adjusts the raw pass rate.
 
+### Late reports: adding triage verdicts afterwards
+
+A row is written by the callback that finalizes it (`completed`) and is then write-once, so a verdict that only exists later cannot ride on that callback. An agent summary that runs hours after the build is the typical case. When the verdict does exist at report time, send it in the callback (`workflow.triage_verdict`) and skip this.
+
+A **late report** is a callback with `event_type: "late-report"`, sent to the same endpoint as any other, with the same OIDC authentication, allowlist (L2+) and rate limit. One request carries the verdicts of **several jobs**, since one triage usually explains many failures. HUD fills in a verdict **only** on a row that already exists, is finished, and has none: it never creates a row and never changes the reported result. It works for PR rows and nightly/periodic rows alike. For a PR row the verdict reaches the HUD only: the upstream check run and comment were written when the job completed and are not redone.
+
+In the action the reports go in the `triage-verdict-list` input: a JSON array with one element per job, or `@path` to a file holding one (an environment value is capped at about 128 KB). For example, `verdicts.json`:
+
+```json
+[
+  {
+    "delivery_id": "buildkite-91827-0194a4f1-aaaa",
+    "workflow_name": "ci",
+    "job_name": "Kernels",
+    "triage_verdict": { "schema_version": 1, "category": "upstream", "confidence": "high", "summary": "..." }
+  },
+  {
+    "delivery_id": "d-1",
+    "workflow_name": "ci",
+    "job_name": "build",
+    "check_run_id": "9001",
+    "triage_verdict": { "schema_version": 1, "category": "infra", "confidence": "medium", "summary": "..." }
+  }
+]
+```
+
+```yaml
+- uses: pytorch/test-infra/.github/actions/cross-repo-ci-relay-callback@main
+  with:
+    event-type: late-report
+    triage-verdict-list: "@verdicts.json"
+```
+
+Each report names its row by the values that keyed the original callback: `delivery_id`, `workflow_name`, `job_name` and, for a GitHub row, its job's `check_run_id`, which is part of its key (a Buildkite nightly row has none). Every row belongs to the OIDC-verified repo, so a repo can only add verdicts to its own rows. Only these fields are forwarded to HUD. Each verdict is validated and normalized as in any callback, except that an invalid one is an error here (it is the whole point of the request) rather than silently dropped.
+
 ### Error propagation back to the downstream workflow
 
 | HUD response | Relay behaviour | Effect on downstream CI step |

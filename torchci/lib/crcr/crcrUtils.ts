@@ -3,6 +3,10 @@ import { getDynamoClient } from "lib/dynamo";
 
 const CRCR_TABLE = "torchci-oot-workflow-job";
 const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2MB
+// The relay caps the raw verdict at 16 KiB and only shrinks it while
+// normalizing, so double that never drops a verdict the relay accepted. Over
+// the cap it is dropped.
+const MAX_TRIAGE_VERDICT_BYTES = 32 * 1024;
 
 // ---- Types ----
 
@@ -109,6 +113,19 @@ export function validatePayloadSize(bodyString: string): void {
 
 // ---- Extraction ----
 
+// A late report must land on exactly the row the original callback created, so
+// both build the key here. Nightly/periodic rows have no check run: checkRunId
+// is empty.
+export function buildDynamoKey(
+  verifiedRepo: string,
+  deliveryId: string,
+  workflowName: string,
+  jobName: string,
+  checkRunId: string
+): string {
+  return `${verifiedRepo}/${deliveryId}/${workflowName}/${jobName}/${checkRunId}`;
+}
+
 // The tag `@pytorchbot merge` pushes to trigger trunk validation before
 // landing, e.g. refs/tags/ciflow/trunk/12345 -- the PR number is the
 // trailing path segment.
@@ -162,7 +179,13 @@ export function extractDynamoRecord(
   const jobName = wf.job_name;
   const checkRunId = wf.check_run_id == null ? "" : String(wf.check_run_id);
   const runAttempt = Number(wf.run_attempt ?? 1) || 1;
-  const dynamoKey = `${trusted.verified_repo}/${cb.delivery_id}/${wf.name}/${jobName}/${checkRunId}`;
+  const dynamoKey = buildDynamoKey(
+    trusted.verified_repo,
+    cb.delivery_id,
+    wf.name,
+    jobName,
+    checkRunId
+  );
 
   const record: CrcrWorkflowJobRecord = {
     dynamoKey,
@@ -261,10 +284,6 @@ export function extractDynamoRecord(
       }
     }
 
-    // The relay caps the raw verdict at 16 KiB and only shrinks it while
-    // normalizing, so double that never drops a verdict the relay accepted.
-    // Over the cap it is dropped.
-    const MAX_TRIAGE_VERDICT_BYTES = 32 * 1024;
     const verdict = wf.triage_verdict;
     if (verdict && typeof verdict === "object" && !Array.isArray(verdict)) {
       const verdictJson = JSON.stringify(verdict);
@@ -325,6 +344,200 @@ export async function writeToDynamo(
     }
     throw err;
   }
+}
+
+// ---- Late report: triage verdicts added after the results were reported ----
+//
+// A row is write-once (writeToDynamo), but a downstream's triage can finish long
+// after it was reported. A late report fills in `triage_verdict_json` on an
+// existing, finalized row that has none and changes nothing else. It works for PR
+// and nightly/periodic rows; for a PR row the verdict only reaches the HUD (the
+// check run and comment are not redone).
+
+export const LATE_REPORT_EVENT_TYPE = "late-report";
+// Same cap as the relay, so a request cannot make HUD do unbounded work.
+export const MAX_LATE_REPORTS = 100;
+
+export function isLateReport(body: any): boolean {
+  return (
+    body?.untrusted?.callback_payload?.event_type === LATE_REPORT_EVENT_TYPE
+  );
+}
+
+export interface LateReport {
+  dynamoKey: string;
+  triage_verdict_json: string;
+  // Identify the report in its result.
+  delivery_id: string;
+  job_name: string;
+  check_run_id?: string;
+}
+
+// Only "error" is a failure of ours. The rest describe the row, and sending a
+// report again is always safe.
+export type LateReportOutcome =
+  | "attached"
+  | "no_such_row"
+  | "not_finalized"
+  | "already_has_verdict"
+  | "error";
+
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new ApiError(400, `Missing required field: ${field}`);
+  }
+  return value;
+}
+
+function extractOneLateReport(
+  verifiedRepo: string,
+  entry: any,
+  index: number
+): LateReport {
+  const at = (field: string) => `reports[${index}].${field}`;
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+    throw new ApiError(400, `reports[${index}] must be an object`);
+  }
+  const deliveryId = requireString(entry.delivery_id, at("delivery_id"));
+  const workflowName = requireString(entry.workflow_name, at("workflow_name"));
+  const jobName = requireString(entry.job_name, at("job_name"));
+  const checkRunId = entry.check_run_id ?? "";
+  if (typeof checkRunId !== "string" && typeof checkRunId !== "number") {
+    throw new ApiError(
+      400,
+      `${at("check_run_id")} must be a string or a number`
+    );
+  }
+
+  const verdict = entry.triage_verdict;
+  if (
+    typeof verdict !== "object" ||
+    verdict === null ||
+    Array.isArray(verdict)
+  ) {
+    throw new ApiError(400, `${at("triage_verdict")} must be an object`);
+  }
+  const verdictJson = JSON.stringify(verdict);
+  if (Buffer.byteLength(verdictJson, "utf-8") > MAX_TRIAGE_VERDICT_BYTES) {
+    throw new ApiError(
+      400,
+      `${at("triage_verdict")} is over the ${MAX_TRIAGE_VERDICT_BYTES} byte cap`
+    );
+  }
+
+  return {
+    dynamoKey: buildDynamoKey(
+      verifiedRepo,
+      deliveryId,
+      workflowName,
+      jobName,
+      String(checkRunId)
+    ),
+    triage_verdict_json: verdictJson,
+    delivery_id: deliveryId,
+    job_name: jobName,
+    ...(checkRunId === "" ? {} : { check_run_id: String(checkRunId) }),
+  };
+}
+
+// `trusted.verified_repo` (the OIDC-verified repo) owns every row, so a repo can
+// only reach its own. `untrusted.callback_payload.reports` names each row by the
+// values that keyed its original callback (see extractDynamoRecord) and carries
+// its verdict, which the relay has validated. One bad entry rejects the whole
+// request before anything is written.
+export function extractLateReports(body: any): LateReport[] {
+  const verifiedRepo = requireString(
+    body?.trusted?.verified_repo,
+    "trusted.verified_repo"
+  );
+  const reports = body?.untrusted?.callback_payload?.reports;
+  if (!Array.isArray(reports) || reports.length === 0) {
+    throw new ApiError(400, "reports must be a non-empty array");
+  }
+  if (reports.length > MAX_LATE_REPORTS) {
+    throw new ApiError(
+      400,
+      `reports has ${reports.length} entries, over the ${MAX_LATE_REPORTS} cap`
+    );
+  }
+  return reports.map((entry, i) =>
+    extractOneLateReport(verifiedRepo, entry, i)
+  );
+}
+
+export async function writeLateReport(
+  report: LateReport
+): Promise<LateReportOutcome> {
+  const client = getDynamoClient();
+  const key = { dynamoKey: report.dynamoKey };
+  const names = { "#verdict": "triage_verdict_json", "#status": "status" };
+
+  try {
+    await client.update({
+      TableName: CRCR_TABLE,
+      Key: key,
+      UpdateExpression: "SET #verdict = :verdict",
+      // attribute_exists keeps UpdateItem from creating a row for a job that was
+      // never reported.
+      ConditionExpression:
+        "attribute_exists(dynamoKey) AND #status = :completed AND " +
+        "attribute_not_exists(#verdict)",
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: {
+        ":verdict": report.triage_verdict_json,
+        ":completed": "completed",
+      },
+    });
+    return "attached";
+  } catch (err: unknown) {
+    if (!(err instanceof ConditionalCheckFailedException)) throw err;
+    // Tell which condition failed.
+    const existing = (
+      await client.get({
+        TableName: CRCR_TABLE,
+        Key: key,
+        ProjectionExpression: "#status, #verdict",
+        ExpressionAttributeNames: names,
+      })
+    ).Item;
+    if (!existing) return "no_such_row";
+    if (existing.status !== "completed") return "not_finalized";
+    return "already_has_verdict";
+  }
+}
+
+// Reports written at once.
+const LATE_REPORT_CONCURRENCY = 10;
+
+async function writeLateReportSafely(
+  report: LateReport
+): Promise<Record<string, string>> {
+  let result: LateReportOutcome;
+  try {
+    result = await writeLateReport(report);
+  } catch (err) {
+    console.error(`CRCR late report failed (key=${report.dynamoKey}):`, err);
+    result = "error";
+  }
+  return {
+    delivery_id: report.delivery_id,
+    job_name: report.job_name,
+    ...(report.check_run_id ? { check_run_id: report.check_run_id } : {}),
+    result,
+  };
+}
+
+// Results are in request order. One report failing does not stop the rest: it is
+// "error", and sending the request again is safe.
+export async function writeLateReports(
+  reports: LateReport[]
+): Promise<Array<Record<string, string>>> {
+  const results: Array<Record<string, string>> = [];
+  for (let i = 0; i < reports.length; i += LATE_REPORT_CONCURRENCY) {
+    const batch = reports.slice(i, i + LATE_REPORT_CONCURRENCY);
+    results.push(...(await Promise.all(batch.map(writeLateReportSafely))));
+  }
+  return results;
 }
 
 // ---- UI Helpers ----
