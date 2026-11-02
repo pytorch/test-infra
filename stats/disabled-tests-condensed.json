@@ -289,6 +289,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_AdamW_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "203044",
+    "https://github.com/pytorch/pytorch/issues/203044",
+    [
+      "xpu"
+    ]
+  ],
   "test_correctness_AdamW_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "202933",
     "https://github.com/pytorch/pytorch/issues/202933",
