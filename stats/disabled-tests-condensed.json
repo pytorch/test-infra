@@ -189,22 +189,6 @@
       "linux"
     ]
   ],
-  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "199423",
-    "https://github.com/pytorch/pytorch/issues/199423",
-    [
-      "inductor",
-      "linux"
-    ]
-  ],
-  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestDualWrapper)": [
-    "199424",
-    "https://github.com/pytorch/pytorch/issues/199424",
-    [
-      "inductor",
-      "linux"
-    ]
-  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -273,13 +257,6 @@
       "rocm"
     ]
   ],
-  "test_copy_transpose_tiled_batched_layout_batch_first_cuda_bfloat16 (__main__.TestTorchDeviceTypeCUDA)": [
-    "200381",
-    "https://github.com/pytorch/pytorch/issues/200381",
-    [
-      "inductor"
-    ]
-  ],
   "test_copy_transpose_tiled_small_slices_rejected_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
     "199892",
     "https://github.com/pytorch/pytorch/issues/199892",
@@ -336,6 +313,7 @@
     "202684",
     "https://github.com/pytorch/pytorch/issues/202684",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -356,6 +334,13 @@
   "test_current_device_stream_constructor_under_coor_stream_kind_cuda_use_kwarg_True (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202794",
     "https://github.com/pytorch/pytorch/issues/202794",
+    [
+      "rocm"
+    ]
+  ],
+  "test_current_device_stream_constructor_under_coor_stream_kind_generic_use_kwarg_False (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "202975",
+    "https://github.com/pytorch/pytorch/issues/202975",
     [
       "rocm"
     ]
@@ -1149,6 +1134,13 @@
       "xpu"
     ]
   ],
+  "test_pointwise_query_producer_head_dims2_xpu (__main__.TestFlexDecodingXPU)": [
+    "199704",
+    "https://github.com/pytorch/pytorch/issues/199704",
+    [
+      "xpu"
+    ]
+  ],
   "test_profiler_experimental_tree_with_stack_and_modules (__main__.TestProfilerTree)": [
     "200705",
     "https://github.com/pytorch/pytorch/issues/200705",
@@ -1387,16 +1379,6 @@
     "123889",
     "https://github.com/pytorch/pytorch/issues/123889",
     [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b3 (__main__.TestVisionTracing)": [
-    "123891",
-    "https://github.com/pytorch/pytorch/issues/123891",
-    [
-      "asan",
       "linux",
       "rocm",
       "slow"
