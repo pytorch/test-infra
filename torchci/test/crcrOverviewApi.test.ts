@@ -90,7 +90,7 @@ describe("/api/crcr/overview", () => {
       { repo: "example/nightly" },
     ]);
     expect(res._json.data.nightlyHealth).toBeNull();
-    expect(res._json.data.prSummary).toEqual([]);
+    expect(res._json.data.prSummary).toBeNull();
   });
 
   it("returns partial data when one section is unavailable", async () => {
@@ -108,7 +108,7 @@ describe("/api/crcr/overview", () => {
       nightlyHealth: "nightly health unavailable",
     });
     expect(res._json.data.prSummary).toEqual([{ queryName: "crcr_summary" }]);
-    expect(res._json.data.nightlyHealth).toEqual([]);
+    expect(res._json.data.nightlyHealth).toBeNull();
     expect(res._json.data.demotionReadiness).toEqual([
       { queryName: "crcr_l3_summary" },
     ]);
