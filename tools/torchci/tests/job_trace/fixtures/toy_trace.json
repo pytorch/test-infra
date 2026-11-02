@@ -1,0 +1,21 @@
+{"displayTimeUnit": "ms", "traceEvents": [
+{"ph": "M", "pid": 1, "name": "process_name", "args": {"name": "linux-jammy-py3.10-gcc11 / test (default, 1, 1, linux.2xlarge) (1)"}},
+{"ph": "M", "pid": 1, "name": "process_sort_index", "args": {"sort_index": 1}},
+{"ph": "M", "pid": 1, "tid": 1000, "name": "thread_name", "args": {"name": "job"}},
+{"ph": "M", "pid": 1, "tid": 1000, "name": "thread_sort_index", "args": {"sort_index": 0}},
+{"ph": "X", "ts": 1800000000000000, "dur": 120000000, "name": "job", "cat": "job", "args": {"url": "https://github.com/pytorch/pytorch/actions/runs/1/job/1", "conclusion": "success", "runner": "runner-1", "labels": "linux.2xlarge"}, "pid": 1, "tid": 1000},
+{"ph": "X", "ts": 1800000000000000, "dur": 10000000, "name": "Set up job", "cat": "step", "args": {"conclusion": "success"}, "pid": 1, "tid": 1000},
+{"ph": "X", "ts": 1800000010000000, "dur": 100000000, "name": "Test", "cat": "step", "args": {"conclusion": "success"}, "pid": 1, "tid": 1000},
+{"ph": "X", "ts": 1800000110000000, "dur": 10000000, "name": "Upload test artifacts", "cat": "step", "args": {"conclusion": "success"}, "pid": 1, "tid": 1000},
+{"ph": "M", "pid": 1, "tid": 1001, "name": "thread_name", "args": {"name": "lane 1"}},
+{"ph": "M", "pid": 1, "tid": 1001, "name": "thread_sort_index", "args": {"sort_index": 1}},
+{"ph": "X", "ts": 1800000020000000, "dur": 20000006, "name": "test/test_a.py", "cat": "report", "args": {"report_uuid": "r-a", "owners": "core", "passed": 2, "failed": 1, "skipped": 1}, "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000020000001, "dur": 20000000, "name": "TestA", "cat": "suite", "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000020000002, "dur": 4999998, "name": "test_one", "cat": "passed", "args": {"outcome": "passed", "rerun_number": 0}, "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000025000001, "dur": 9999999, "name": "test_two", "cat": "failed", "args": {"outcome": "failed", "rerun_number": 0, "summary": "AssertionError: 1 != 2"}, "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000035000001, "dur": 4999999, "name": "test_two", "cat": "passed", "args": {"outcome": "passed", "rerun_number": 1}, "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000040000002, "dur": 3, "name": "TestB", "cat": "suite", "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000040000003, "dur": 1, "name": "test_skip", "cat": "skipped", "args": {"outcome": "skipped", "rerun_number": 0, "summary": "requires CUDA"}, "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000050000000, "dur": 10000001, "name": "test/test_b.py", "cat": "report", "args": {"report_uuid": "r-b", "owners": "inductor", "passed": 1}, "pid": 1, "tid": 1001},
+{"ph": "X", "ts": 1800000050000001, "dur": 9999999, "name": "test_four", "cat": "passed", "args": {"outcome": "passed", "rerun_number": 0}, "pid": 1, "tid": 1001}
+]}
