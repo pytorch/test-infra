@@ -273,22 +273,6 @@
       "rocm"
     ]
   ],
-  "test_copy_transpose_tiled_small_slices_rejected_cuda_float32 (__main__.TestTorchDeviceTypeCUDA)": [
-    "199892",
-    "https://github.com/pytorch/pytorch/issues/199892",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
-  "test_copy_transpose_tiled_small_slices_rejected_cuda_float64 (__main__.TestTorchDeviceTypeCUDA)": [
-    "199911",
-    "https://github.com/pytorch/pytorch/issues/199911",
-    [
-      "inductor",
-      "rocm"
-    ]
-  ],
   "test_correctness_AdamW_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "203044",
     "https://github.com/pytorch/pytorch/issues/203044",
