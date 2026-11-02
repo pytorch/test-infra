@@ -1,5 +1,5 @@
-import { NextApiRequest } from "next";
 import type { ClickHouseSettings } from "@clickhouse/client";
+import { NextApiRequest } from "next";
 import * as clickhouseModule from "../lib/clickhouse";
 import handler from "../pages/api/crcr/overview";
 import { mockRes } from "./nextApiMocks";
