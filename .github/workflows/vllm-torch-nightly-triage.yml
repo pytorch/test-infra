@@ -200,7 +200,7 @@ jobs:
             {"causes": [{
               "title":      "<one line, no build numbers or dates>",
               "summary":    "<2-4 sentences: what breaks and why>",
-              "signature":  "<the verbatim exception/assert line>",
+              "signature":  "<chosen by the rules below>",
               "clusters":   ["<cluster name>", ...],
               "job_urls":   ["<buildkite job url>", ...],
               "routing":    "pytorch/pytorch" | "vllm-project/vllm" | "infra",
@@ -213,10 +213,24 @@ jobs:
             exception outright. A cause you inferred, or one that could plausibly be
             infrastructure, is at most "medium".
 
-            `signature` is the deduplication key across runs, so copy the exception
-            line out of the log **verbatim** -- byte for byte, as a single line.
+            `signature` is the deduplication key across runs. Choose it from the
+            root cause:
 
-            Do not tidy it up. Specifically, do not replace numbers with `N` or any
+            - If the root cause has an exception/assert line, copy that line out of
+              the log **verbatim** -- byte for byte, as a single line.
+            - For a silent hang (a timed-out or cancelled job with no exception),
+              including an earlier hang that causes an orphan-process cascade, use
+              `Job hung after: <stable progress message>`. The message is the text
+              of the last progress line, byte for byte, with the logger prefix
+              (process name, pid, level, timestamp, `file.py:line`) removed. If that
+              line is a pytest summary, also remove the elapsed-time suffix
+              (` in <duration>`) and keep the original line in the summary.
+            - For an orphan-process cascade (`Killing process N that didn't stop
+              within 5 minutes`, then a later `Free memory ... less than desired`),
+              use the earlier hang's signature, not the downstream free-memory
+              exception.
+
+            For an exception line, do not tidy it up. Specifically, do not replace numbers with `N` or any
             other placeholder, do not abbreviate a list with `...`, do not shorten a
             repr, and do not reword the message. Two runs did exactly that four
             hours apart and filed the same three causes twice: `expected: [6]` came
@@ -229,7 +243,8 @@ jobs:
 
             Build numbers, dates, agent names and file paths do not belong in the
             signature -- but they do not appear in an exception line either, so
-            copying verbatim gets this right on its own.
+            copying verbatim gets this right on its own. The same placeholder rule
+            applies to a hang message: copy its text, do not replace numbers.
 
             `clusters` is not part of the key: list every cluster you saw the cause
             on and the filer accumulates them onto the existing issue, so one cause

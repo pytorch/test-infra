@@ -72,6 +72,14 @@ surfaced pytest failure tagged `test_is_infra: true` is transient infrastructure
 evidence; call it out as infra. Do not let a high-scoring infra message such as a
 low-GPU-memory startup failure override the explicit infra tag.
 
+**Exception: a hang and its orphan cascade is not infra.** A `Free memory on device cuda:N
+... less than desired` failure carries the infra tag from its message text alone, which
+cannot see that an earlier command in the same job hung. When a `Killing process N that
+didn't stop within 5 minutes` line precedes it and about 20 GiB or more is held, the earlier
+hang is the head cause and the tag does not stand: attach the failure to that hang (see
+"Cascade from an orphaned process is not GPU contention" below). A `timed_out` job with no
+exception is likewise not infra unless an infra signature is present.
+
 **Contested infra is not infra.** A header line `# infra_contested: /<pattern>/ matched
 on N regressed clusters ...` means the triage withheld the infra tag: a CUDA-init or
 startup free-memory signature hit N regressed clusters, every one of which passes on
@@ -154,10 +162,18 @@ an earlier CUDA-init wave (#9038) had hidden it on 10-05..10-07, and the torch-n
     `new_failure_confidence` is `medium` or `high` when the baseline passes the job;
   - **do not tag it infra** unless an infra signature is present (CUDA init, `nvidia-container-cli`, exit 125,
     registry rate limit). Infra timeouts usually leave one of those lines; a hung engine leaves nothing;
-  - `signature` is `Job hung after: <message text of the last progress line>`, with the logger prefix
-    (process name, pid, level, timestamp, `file.py:line`) removed. This is the one exception to "copy the line
-    verbatim": the filer's `normalize_signature` does not strip those fields, so a raw log line would differ on
-    every run and file a duplicate each time. The message text itself stays byte for byte;
+  - choose `signature` from the root cause, as the workflow prompt does:
+    - an exception or assert line: copy it verbatim, byte for byte;
+    - a silent hang, including an earlier hang that causes an orphan-process cascade:
+      `Job hung after: <message text of the last progress line>`, with the logger prefix (process name, pid,
+      level, timestamp, `file.py:line`) removed. This is an exception to "copy the line verbatim": the filer's
+      `normalize_signature` does not strip those fields, so a raw log line would differ on every run and file a
+      duplicate each time. The message text itself stays byte for byte;
+    - an orphan-process cascade: the earlier hang's signature, not the downstream free-memory exception;
+    - when the last progress line is a pytest summary, remove the elapsed-time suffix (` in <duration>`) from the
+      signature so reruns of the same hang give one signature, and keep the original line in the summary (for
+      example `5 passed, 2 skipped in 312.45s` gives `Job hung after: 5 passed, 2 skipped`). Doing this in
+      `normalize_signature` is a follow-up;
   - routing is `pytorch/pytorch` when the baseline passes and the failing lane differs by torch / triton /
     their pins; say in the summary that the owner is not confirmed without a stack dump;
   - in the summary give how long the job ran compared with the baseline (when the report has durations) and
@@ -175,8 +191,9 @@ an earlier CUDA-init wave (#9038) had hidden it on 10-05..10-07, and the torch-n
   children keep their GPU memory) followed by a later command in the same job failing `ValueError: Free memory on device cuda:N (X/Y GiB) ...
   less than desired` means the earlier command is the head cause. Tells: the held memory is large (about
   20-26 GiB per GPU, versus ~2.9 GiB for the nccl2 footprint in #8940) and nearly constant across builds, and
-  the later tests passed on the baseline. Group the later failures under the earlier hang; do not tag them
-  infra and do not file them as startup free-memory.
+  the later tests passed on the baseline. This is the exception to the infra tag described in Step 1. Group
+  the later failures under the earlier hang and use the hang's `Job hung after: ...` signature, not the
+  free-memory exception; do not tag them infra and do not file them as startup free-memory.
 - **Same job name, different cause on different days.** Match a job to a known cause by its signature, not by
   the job name listed in an older issue: `(H100) Distributed Features` was listed under #8940 (nccl2 memory)
   and #9038 (CUDA init), and its `test_dbo` DeepEP tests were already failing differently from 2026-09-11,
