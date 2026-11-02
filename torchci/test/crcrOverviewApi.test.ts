@@ -1,4 +1,5 @@
 import { NextApiRequest } from "next";
+import type { ClickHouseSettings } from "@clickhouse/client";
 import * as clickhouseModule from "../lib/clickhouse";
 import handler from "../pages/api/crcr/overview";
 import { mockRes } from "./nextApiMocks";
@@ -8,6 +9,9 @@ jest.mock("../lib/clickhouse", () => ({
 }));
 
 const mockQuery = clickhouseModule.queryClickhouseSaved as jest.Mock;
+const crcrQueryCacheSettings: ClickHouseSettings = {
+  query_cache_nondeterministic_function_handling: "save",
+};
 
 function get(query: Record<string, string> = { days: "7" }) {
   const res = mockRes();
@@ -48,13 +52,15 @@ describe("/api/crcr/overview", () => {
       1,
       "crcr_summary",
       { days: 7 },
-      true
+      true,
+      crcrQueryCacheSettings
     );
     expect(mockQuery).toHaveBeenNthCalledWith(
       6,
       "crcr_repo_tenure_summary",
       {},
-      true
+      true,
+      crcrQueryCacheSettings
     );
     expect(res._json.errors).toEqual({});
     expect(res._headers["Cache-Control"]).toBe(
@@ -72,7 +78,8 @@ describe("/api/crcr/overview", () => {
     expect(mockQuery).toHaveBeenCalledWith(
       "crcr_nightly_summary",
       { days: 7 },
-      true
+      true,
+      crcrQueryCacheSettings
     );
     expect(res._json.data.nightlySummary).toEqual([
       { repo: "example/nightly" },

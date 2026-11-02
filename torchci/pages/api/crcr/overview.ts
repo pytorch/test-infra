@@ -1,3 +1,4 @@
+import { type ClickHouseSettings } from "@clickhouse/client";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   CRCR_HEALTH_STALE_AFTER_MINUTES,
@@ -19,6 +20,9 @@ const NIGHTLY_HEALTH_REPO = "pytorch/crcr-test";
 const NIGHTLY_HEALTH_LIMIT = 101;
 const VALID_DAYS = new Set(CRCR_TIME_RANGES.map(({ days }) => days));
 const VIEWS = new Set(["summary", "nightly"]);
+const CRCR_QUERY_CACHE_SETTINGS: ClickHouseSettings = {
+  query_cache_nondeterministic_function_handling: "save",
+};
 
 type OverviewView = "summary" | "nightly";
 
@@ -60,7 +64,8 @@ async function runSection<K extends CrcrOverviewSection>(
     data[section] = (await queryClickhouseSaved(
       queryName,
       parameters,
-      true
+      true,
+      CRCR_QUERY_CACHE_SETTINGS
     )) as CrcrOverviewData[K];
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
