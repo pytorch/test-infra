@@ -99,9 +99,7 @@ function useRetainedOverviewData(
   url: string | null,
   response: CrcrOverviewResponse | undefined
 ) {
-  const dataByUrl = useRef(
-    new Map<string, Partial<CrcrOverviewData>>()
-  );
+  const dataByUrl = useRef(new Map<string, Partial<CrcrOverviewData>>());
   const responseByUrl = useRef(new Map<string, CrcrOverviewResponse>());
 
   if (url === null) return undefined;
