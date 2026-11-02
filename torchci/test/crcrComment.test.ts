@@ -15,6 +15,7 @@ import {
   pinLedger,
   renderCrcrSection,
 } from "../lib/crcr/crcrComment";
+import { buildCrcrTriageLines } from "../lib/crcr/crcrTriage";
 
 const HUD_PR_URL = "https://hud.pytorch.org/pr/pytorch/pytorch/42";
 
@@ -257,6 +258,56 @@ describe("pins across a sequence of sweeps", () => {
 });
 
 describe("renderCrcrSection", () => {
+  test("appends the downstream triage verdict under its job's bullet", () => {
+    // The grouped section replaced the generic list, the only place these
+    // verdict lines were drawn: without threading them in, an L3 job's verdict
+    // silently vanished whenever the section had blocks. An L4 job keeps its
+    // verdict through NEW FAILURES, so only L3 regressed.
+    const job = crcrJob({
+      id: 999,
+      triageVerdictJson: JSON.stringify({
+        schema_version: 1,
+        category: "backend",
+        confidence: "high",
+        summary: "the device backend is down",
+        analyzer: { name: "crcr triage" },
+      }),
+    });
+    const advisorLines = buildCrcrTriageLines(
+      [job],
+      "https://hud.pytorch.org",
+      "pytorch",
+      "pytorch",
+      42
+    );
+    expect(advisorLines.get(999)).toContain("AI verdict:");
+
+    const section = renderCrcrSection(
+      new Map([["pytorch/crcr-test", [job]]]),
+      new Map([["pytorch/crcr-test", 1]]),
+      HUD_PR_URL,
+      () => [],
+      new Map(),
+      [],
+      advisorLines
+    );
+    expect(section).toContain(
+      `* [crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-checkrun-creation](${HUD_PR_URL}#999)`
+    );
+    expect(section).toContain("AI verdict:");
+    expect(section).toContain("the device backend is down");
+
+    // No verdict, no line, and none invented.
+    const plain = renderCrcrSection(
+      new Map([["pytorch/crcr-test", [crcrJob({ id: 999 })]]]),
+      new Map([["pytorch/crcr-test", 1]]),
+      HUD_PR_URL,
+      () => [],
+      new Map()
+    );
+    expect(plain).not.toContain("AI verdict:");
+  });
+
   test("renders nothing when no downstream repo failed", () => {
     expect(render([])).toBe("");
   });

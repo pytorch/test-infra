@@ -698,6 +698,7 @@ export async function updateDrciComments(
         replicaBody: replicaComment?.body ?? "",
         readLive: async () => (await readLiveComment()).body,
         pendingJobs: crcrInFlightJobs,
+        advisorLines,
       });
 
       const failureInfo = constructResultsComment(
@@ -1174,6 +1175,10 @@ export async function crcrSectionForPr(opts: {
   // in-flight marker, which is what keeps a matrix that outlasts upstream CI
   // in the sweep set -- see CRCR_JOBS_IN_FLIGHT.
   pendingJobs?: RecentWorkflowsData[];
+  // job.id -> the downstream triage verdict line for that job, drawn under its
+  // bullet. Without it the grouped section would drop the verdict the generic
+  // list shows.
+  advisorLines?: Map<number, string>;
 }): Promise<string> {
   const pinBody = await pinBodyForSweep(
     opts.failedByRepo,
@@ -1188,7 +1193,8 @@ export async function crcrSectionForPr(opts: {
     opts.hudPrUrl,
     opts.onCallsFor,
     opts.rowsRead,
-    opts.pendingJobs ?? []
+    opts.pendingJobs ?? [],
+    opts.advisorLines
   );
 }
 

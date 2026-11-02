@@ -368,7 +368,11 @@ export function renderCrcrSection(
   notified: Map<string, Set<string>>,
   // This commit's CRCR rows that have not concluded yet; non-empty writes the
   // in-flight marker (see CRCR_JOBS_IN_FLIGHT).
-  pendingJobs: RecentWorkflowsData[] = []
+  pendingJobs: RecentWorkflowsData[] = [],
+  // job.id -> the downstream triage verdict line, appended under that job's
+  // bullet. Keyed like the advisor lines the generic list draws, so a verdict
+  // follows its job whichever section renders it.
+  advisorLines: Map<number, string> = new Map()
 ): string {
   if (failedByRepo.size === 0) {
     return "";
@@ -386,7 +390,8 @@ export function renderCrcrSection(
         // This repo's own pins: a handle on call for two repos is mentioned for
         // each of them, so one repo recovering does not silence the other's
         // next outage.
-        notified.get(repo) ?? new Set()
+        notified.get(repo) ?? new Set(),
+        advisorLines
       )
     )
     .join("");
@@ -445,7 +450,9 @@ export function crcrSectionForSweep(
   // False when the CRCR rows could not be read at all.
   rowsRead: boolean,
   // This commit's CRCR rows with no conclusion yet.
-  pendingJobs: RecentWorkflowsData[] = []
+  pendingJobs: RecentWorkflowsData[] = [],
+  // job.id -> the downstream triage verdict line for that job.
+  advisorLines: Map<number, string> = new Map()
 ): string {
   if (!rowsRead) {
     return pinLedger(previousBody);
@@ -471,7 +478,8 @@ export function crcrSectionForSweep(
     // The pins are read out of the section being replaced, so it is also what
     // keeps this render from re-notifying anyone.
     notifiedHandlesByRepo(previousBody),
-    pendingJobs
+    pendingJobs,
+    advisorLines
   );
 }
 
@@ -483,7 +491,9 @@ function renderRepoBlock(
   onCallsFor: (_repo: string) => string[],
   // Handles already notified for THIS repo, whose markers this block carries
   // forward so the next sweep still reads the pin.
-  notified: Set<string>
+  notified: Set<string>,
+  // job.id -> the downstream triage verdict line for that job.
+  advisorLines: Map<number, string> = new Map()
 ): string {
   const jobs = [...failed].sort((a, b) => a.name.localeCompare(b.name));
   // A repo's level is fixed in the allowlist and flips as a whole, so taking it
@@ -526,6 +536,13 @@ function renderRepoBlock(
     const url = withoutControlMarkers(job.html_url);
     const conclusion = withoutControlMarkers(job.conclusion ?? "");
     out += `* [${name}](${hudPrUrl}#${job.id}) ([gh](${url})) — \`${conclusion}\`\n`;
+    // The downstream repo's own triage verdict, advisory: it never moves a job
+    // between sections. Pre-rendered and escaped by buildCrcrTriageLines, so it
+    // cannot forge one of this section's control markers.
+    const advisorLine = advisorLines.get(job.id);
+    if (advisorLine) {
+      out += advisorLine;
+    }
   }
   if (jobs.length > MAX_JOB_BULLETS_PER_REPO) {
     out += `* …and ${jobs.length - MAX_JOB_BULLETS_PER_REPO} more\n`;
