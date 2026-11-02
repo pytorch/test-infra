@@ -7,6 +7,7 @@ import {
 import {
   BOT_MANAGED_PR_LABEL_EXEMPT_TEAM,
   BOT_MANAGED_PR_LABELS,
+  PYTORCH_BOT_USER_ID,
 } from "./Constants";
 import {
   getDraftGatedLabelsToRemove,
@@ -28,7 +29,6 @@ import {
 
 export { getLabelsFromLabelerConfig };
 
-const PYTORCH_BOT_USER_ID = 54816060;
 const PYTORCH_BOT_LOGINS = new Set(["pytorch-bot", "pytorch-bot[bot]"]);
 
 type LabelActor = { id?: number; login?: string } | null | undefined;
