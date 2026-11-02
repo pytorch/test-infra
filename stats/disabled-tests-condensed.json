@@ -853,20 +853,6 @@
       "win"
     ]
   ],
-  "test_memory_aware_partition_count (__main__.TestPartitionedScatterOpt)": [
-    "192011",
-    "https://github.com/pytorch/pytorch/issues/192011",
-    [
-      "xpu"
-    ]
-  ],
-  "test_memory_budget_shared_across_scatters (__main__.TestPartitionedScatterOpt)": [
-    "192012",
-    "https://github.com/pytorch/pytorch/issues/192012",
-    [
-      "xpu"
-    ]
-  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
