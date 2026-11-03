@@ -342,14 +342,31 @@ class GenerateBuildMatrixTest(TestCase):
                     f"{package_type}/{channel}",
                 )
 
-    def test_windows_has_no_cuda_13_0(self):
-        # 13.0 is held on nightly for vLLM's cu130 lane, Linux only.
+    def test_nightly_has_no_cuda_13_0(self):
+        # 13.0 was removed from nightly (pytorch/pytorch#190385): 13.2.2 fixes a
+        # silent-miscompilation compiler bug that 13.0 still has.
+        for package_type in ("wheel", "libtorch"):
+            for operating_system in ("linux", "linux-aarch64", "windows"):
+                for getting_started in ("true", "false"):
+                    self.assertNotIn(
+                        "cu130",
+                        self._cuda_versions(
+                            package_type, operating_system, "nightly", getting_started
+                        ),
+                        f"{package_type}/{operating_system}/nightly",
+                    )
+
+    def test_windows_has_no_cuda_13_0_on_test(self):
+        # The 2.15 candidates on the test channel still build 13.0, Linux only.
         for package_type in ("wheel", "libtorch"):
             self.assertNotIn(
                 "cu130",
-                self._cuda_versions(package_type, "windows", "nightly", "true"),
-                f"{package_type}/nightly",
+                self._cuda_versions(package_type, "windows", "test", "true"),
+                f"{package_type}/test",
             )
+
+    def test_cuda_13_0_still_built_for_test_candidates(self):
+        self.assertIn("cu130", self._cuda_versions("wheel", "linux", "test", "false"))
 
     def test_cuda_13_4_still_built_on_nightly_and_test(self):
         for operating_system in ("linux", "linux-aarch64"):
