@@ -15,6 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict
 
+
 BASE_DIR = Path(__file__).parent.parent
 
 
@@ -190,7 +191,9 @@ def update_versions(versions, release_matrix, release_version):
                     # ROCm version in the matrix): don't keep a stale command.
                     if not instr.get("note"):
                         instr["note"] = UNAVAILABLE_NOTE
-                    instr["command" if package_type != "libtorch" else "versions"] = None
+                    instr["command" if package_type != "libtorch" else "versions"] = (
+                        None
+                    )
                     continue
 
                 if pkg_arch_matrix:
@@ -211,7 +214,9 @@ def update_versions(versions, release_matrix, release_version):
                             f"<b>NOTE:</b> CUDA {gpu_arch_version} is not available "
                             f"on {os_key.capitalize()}"
                         )
-                        instr["command" if package_type != "libtorch" else "versions"] = None
+                        instr[
+                            "command" if package_type != "libtorch" else "versions"
+                        ] = None
 
                 if pkg_arch_matrix:
                     if package_type != "libtorch":
@@ -246,9 +251,7 @@ def update_versions(versions, release_matrix, release_version):
                                 instr["versions"][LIBTORCH_DWNL_INSTR[RELEASE]] = (
                                     rel_entry_dict[RELEASE]
                                 )
-                                instr["versions"].pop(
-                                    LIBTORCH_DWNL_INSTR[DEBUG], None
-                                )
+                                instr["versions"].pop(LIBTORCH_DWNL_INSTR[DEBUG], None)
                         elif os_key == OperatingSystem.MACOS.value:
                             if instr["versions"] is not None:
                                 instr["versions"][LIBTORCH_DWNL_INSTR[MACOS]] = (
@@ -323,7 +326,7 @@ def extract_arch_ver_map(release_matrix):
             acc_arch_ver_map[chan][label] = ("cuda", cuda_ver)
         # Drop labels the channel has no CUDA version for, so the page hides
         # them instead of showing the hard-coded defaults.
-        for label in CUDA_LABELS[len(cuda_list):]:
+        for label in CUDA_LABELS[len(cuda_list) :]:
             acc_arch_ver_map[chan].pop(label, None)
 
 
@@ -354,7 +357,7 @@ def main():
     versions_str = json.dumps(gen_install_matrix(versions))
     template = template.replace("{{ installMatrix }}", versions_str)
     template = template.replace(
-        "{{ VERSION }}", f"\"Stable ({versions['latest_stable']})\""
+        "{{ VERSION }}", f'"Stable ({versions["latest_stable"]})"'
     )
     print(template.replace("{{ ACC ARCH MAP }}", json.dumps(acc_arch_ver_map)))
 

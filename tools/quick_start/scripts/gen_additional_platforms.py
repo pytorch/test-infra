@@ -24,10 +24,11 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Any, Set, List
+from typing import Any, Dict, List, Set
 
 import markdown
 from markdown.extensions.codehilite import CodeHiliteExtension
+
 
 BASE_DIR = Path(__file__).parent.parent
 ADDITIONAL_PLATFORM_DIR = BASE_DIR / "_additional_platforms"
@@ -49,7 +50,9 @@ ALLOWED_INSTALL_KEYS: Set[str] = {"linux", "windows"}
 MAX_MARKDOWN_LINES: int = 200
 
 
-def validate_platform_json(platform_id: str, data: Dict[str, Any], filename: str) -> None:
+def validate_platform_json(
+    platform_id: str, data: Dict[str, Any], filename: str
+) -> None:
     """Validate a platform JSON against the schema defined in additional_platforms.md.
 
     Checks that:
@@ -117,7 +120,7 @@ def validate_platform_json(platform_id: str, data: Dict[str, Any], filename: str
 
 def read_platform_json_files() -> Dict[str, Any]:
     """Read all JSON files from _additional_platforms directory and validate them."""
-    platform_data = {}
+    platform_data: Dict[str, Any] = {}
 
     if not ADDITIONAL_PLATFORM_DIR.exists():
         print(f"Warning: {ADDITIONAL_PLATFORM_DIR} does not exist")
@@ -145,20 +148,20 @@ def convert_markdown_to_html(markdown_text: str) -> str:
     This produces HTML similar to Jekyll's markdownify filter.
     """
     # Remove Jekyll/Kramdown special syntax (e.g., {:.no_toc}, {: #id})
-    html_text = re.sub(r'\{:[^}]*\}', '', markdown_text)
+    html_text = re.sub(r"\{:[^}]*\}", "", markdown_text)
 
     # Convert markdown to HTML with codehilite extension
     # Codehilite uses Pygments for syntax highlighting (similar to Rouge used by Jekyll)
-    md = markdown.Markdown(extensions=[
-        CodeHiliteExtension(
-            css_class='highlight',
-            guess_lang=False,
-            linenums=False
-        ),
-        'fenced_code',
-        'tables',
-        'toc'
-    ])
+    md = markdown.Markdown(
+        extensions=[
+            CodeHiliteExtension(
+                css_class="highlight", guess_lang=False, linenums=False
+            ),
+            "fenced_code",
+            "tables",
+            "toc",
+        ]
+    )
 
     html = md.convert(html_text)
     return html
@@ -191,7 +194,7 @@ def validate_markdown_file(platform_id: str, content: str, filename: str) -> Non
 def read_markdown_files() -> Dict[str, str]:
     """Read all markdown files from _get_started/additional_platforms directory,
     validate them, and convert them to HTML with syntax highlighting."""
-    html_content = {}
+    html_content: Dict[str, str] = {}
 
     if not MARKDOWN_DIR.exists():
         print(f"Warning: {MARKDOWN_DIR} does not exist")
@@ -221,14 +224,20 @@ def read_template() -> str:
     return template_path.read_text()
 
 
-def generate_js_output(platform_data: Dict[str, Any], markdown_content: Dict[str, str]) -> str:
+def generate_js_output(
+    platform_data: Dict[str, Any], markdown_content: Dict[str, str]
+) -> str:
     """Generate the final JS file by replacing template placeholders."""
     template = read_template()
 
     # Replace placeholders
-    template = template.replace("{{ platformData }}", json.dumps(platform_data, indent=2))
+    template = template.replace(
+        "{{ platformData }}", json.dumps(platform_data, indent=2)
+    )
     # Now embedding pre-converted HTML content instead of raw markdown
-    template = template.replace("{{ markdownContent }}", json.dumps(markdown_content, indent=2))
+    template = template.replace(
+        "{{ markdownContent }}", json.dumps(markdown_content, indent=2)
+    )
 
     return template
 
@@ -246,7 +255,9 @@ def write_platforms_json(platforms: dict, html: dict, out_path: str) -> None:
     """
     payload = {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(
+            timespec="seconds"
+        ),
         "generator_commit": os.environ.get("GITHUB_SHA", "")[:7],
         "platforms": platforms,
         "html": html,
