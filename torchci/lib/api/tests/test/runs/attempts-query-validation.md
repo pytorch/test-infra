@@ -7,8 +7,13 @@ All requests were read-only with query caching disabled. No schema, retention
 range or approximate function changed.
 
 The response collection was subsequently renamed from `retries` to `attempts`.
-The generated SQL and bound parameters remain identical to the measured versions;
+The generated SQL and bound parameters remained identical to the measured versions;
 the renamed replay script verifies that identity without new timing claims.
+On 2026-11-03 the attempt fetch began reading `FINAL` only at the bundles' own
+starts and the commit cases began finding the commit's jobs through the
+`head_sha` view; those cases were regenerated and remeasured that day, a
+commit page's fetch was added, and each says so in its `regenerated` or
+`note` field (see Exact starts below).
 
 ## Semantics and baseline
 
@@ -48,11 +53,12 @@ columns are read. In particular, the fast
 path reads no mutable execution values. Catalog and workflow fields depend only
 on group foreign keys. Every returned execution is still fetched with `FINAL`.
 
-Attempt fetching explicitly filters the first three group columns, which form the
-primary-key prefix, in `PREWHERE`. These are replacement-key columns, so all
-versions of each selected execution remain eligible. The complete group predicate
-in `WHERE` also selects the job. This reduces payload columns read without
-changing the selected granules or allowing old versions to survive.
+Attempt fetching explicitly filtered the first three group columns, which form the
+primary-key prefix, in `PREWHERE`, until 2026-11-03 (see Exact starts below).
+These are replacement-key columns, so all versions of each selected execution
+remain eligible. The complete group predicate in `WHERE` also selects the job.
+This reduced payload columns read without changing the selected granules or
+allowing old versions to survive.
 
 ## Alternating comparison
 
@@ -93,6 +99,58 @@ mutable commit pages in another three alternating pairs each. All rows matched,
 but it did not improve latency or prune materially, so it was rejected. Its SQL,
 plans and measurements are retained under `rejected_alternatives`. No additional
 rewrite was retained after the measured improvements above.
+
+## Exact starts (2026-11-03)
+
+Until 2026-11-03 the attempt fetch filtered the configurations' primary-key
+prefix, `(tests_id, environments_id, env_vars_id)`, in `PREWHERE`, and the
+complete group keys in `WHERE`. That kept every version of each selected
+execution, but it read every retained run of every selected configuration, in
+every part: on a commit page of 100 bundles, 95 configurations of 80 tests in
+54 jobs on commit `ce6ff46`, `FINAL` kept 7,462 granules in 138 of 140 parts
+and read 61 million rows, 3.2 GB, to return 235 attempts. A busy test runs in
+every commit, so the read grew with the retention, not with the page.
+
+Now a plain read of the bundles' rows, without `FINAL`, finds the
+`(tests_id, environments_id, env_vars_id, started_at)` of every execution they
+hold. The group columns lead the `by_job` projection's key, job and then test,
+so that read takes only those jobs' rows. Those four columns are the primary
+key, so `FINAL` then reads only the granules holding these starts, in the
+partitions of their days: 178 granules in the 2 parts of the commit's days,
+2.5 million rows and 125 MB in all. It is the same set of rows. Every stored
+version of an execution shares its replacement key, so it shares its start,
+and the plain read finds the start of every execution of the bundles. The
+`PREWHERE` filters replacement-key columns only, so every version of a
+selected execution stays eligible and `FINAL` resolves it as before. The
+complete group keys in `WHERE` then drop other jobs' executions that share a
+start. No time window bounds the read, and there is still no report, outcome
+or rerun-number restriction on the returned attempts.
+
+The replay compared the three fetch cases with their baselines in three
+alternating pairs each, at the server's default thread count, and every
+execution returned identical complete rows:
+
+| Case                   | Bundles | Attempts |     Before, server seconds |               After | Rows read, before → after |
+| ---------------------- | ------: | -------: | -------------------------: | ------------------: | ------------------------: |
+| `attempts_commit_page` |     100 |      235 | 1.070 (0.877–15.012, cold) | 0.300 (0.223–0.419) |           61.1 M → 2.53 M |
+| `attempts_page`        |      26 |       26 |        2.361 (0.621–5.181) | 0.107 (0.076–0.113) |           23.3 M → 0.25 M |
+| `attempts_group`       |       1 |        2 |        0.262 (0.219–0.363) | 0.018 (0.018–0.021) |           1.05 M → 0.04 M |
+
+`attempts_commit_page` is new: the first 100 bundles of `ce6ff46`'s default
+page, its before the fetch as the builder wrote it until this change, so its
+first, cold execution (15 s) is what a commit page paid. The other two cases
+keep the functional baseline they were recorded with on 2026-10-24, a `FINAL`
+read matching each complete group in `WHERE`. Measured alone at the heavy
+workload's four threads the same day, the commit page's fetch took 2.5 to 22
+s before (the first cold) and 0.37 to 0.55 s after, and a test page's 0.25 to
+0.61 s against 0.06 to 0.13 s.
+
+The same day the commit cases were regenerated for the commit job lookup (see
+the [commit notes](../../commit/query-validation.md)) and replayed against
+their 2026-10-24 baselines, with identical complete rows. Those baselines
+group every row of the commit's partitions through `FINAL`, which now reads
+10.6 billion rows, 420 GB, in 110 to 255 s per execution, against 0.2 to 1.8 s
+for the pages; replaying them is the expensive part of this bundle.
 
 ## Real attempts across reports
 

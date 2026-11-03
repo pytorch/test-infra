@@ -13,6 +13,7 @@ record design experiments; their measurements are historical.
 | Queries                                            | Evidence and replay script                                                                                                                         |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Tests list, boundary probe, test detail            | [query-validation.json](query-validation.json), `scripts/validateTestsApiQueries.cjs`                                                              |
+| Tests list pages chosen before the catalog joins   | [page-first-query-validation.json](page-first-query-validation.json), `scripts/validateListPageFirstQueries.cjs`                                   |
 | Run bundles, attempt fetch (test and commit pages) | [attempts-query-validation.md](test/runs/attempts-query-validation.md), `scripts/validateRunAttemptsQueries.cjs`                                   |
 | `last_attempt_outcome` filter                      | [last-attempt-outcome-query-validation.md](test/runs/last-attempt-outcome-query-validation.md), `scripts/validateLastAttemptOutcomeQueries.cjs`    |
 | Commit pages reading `FINAL` only at shared starts | [commit/query-validation.md](commit/query-validation.md), `scripts/validateCommitSharedStartsQueries.cjs`                                          |
@@ -42,11 +43,26 @@ it to a string array with `indexOf` invokes numeric conversion and produces the
 wrong order. A known test without health still returns its catalog identity and
 owners, so the detail query must keep its catalog-first **LEFT JOIN**.
 
-The list's **INNER JOIN** puts the aggregated health relation first and the
-smaller catalog on the right. This changes the hash-table build side on the live
-service's old analyzer. It does not change health aggregation, source selection,
-workflow-path filtering or pagination. Preserve ordered health aggregation and
-the existing exact distinct workflow-path union.
+The list chooses its page before it joins the catalogs. One code source is
+one `(ran_on, window)` partition, which holds one row per configuration, so
+its rows are read as they are (`SINGLE_SOURCE_HEALTH_SQL`, each aggregate
+read off the row at the aggregate's type); several sources are combined in
+the health table's identity order (`COMBINED_HEALTH_SQL`), with the exact
+distinct workflow-path union. The tests a page may show are matched by ID
+against the tests catalog read without `FINAL`, which is exact because the
+test filters read only the columns a test ID hashes. The page's rows are then
+chosen from the health rows alone: every filter has applied by then, a health
+or ID sort key is a column of the row, and a catalog sort key is read from its
+catalog's row of the health row's ID (`KEY_CATALOGS` in `query.ts`), the test
+catalog's with an `INNER JOIN` since every matched test is in it, an
+environment's or env var set's with a `LEFT JOIN` that reads a missing record
+as empty, as the results do. The page names every health column with an
+alias: with keys from two catalogs its `SELECT` joins three or more tables,
+which the old analyzer rewrites into nested subqueries, and a column selected
+without an alias, as `health.*` selects them, comes out under its qualified
+name. Only the page's rows, at most 101, are joined to the tests, environment
+and env var catalogs for the response. See the 2026-11-03 history entry for
+the before/after comparison.
 
 For one test's runs, the test catalog can use the already-bound test ID directly.
 Commit runs still discover matching test IDs from their scoped runs. Both endpoints
@@ -67,8 +83,12 @@ and resolves only the other keys' rows before grouping them into bundles.
 
 ## Reproduce the list and detail validation
 
-The list and detail queries have no before/after comparison: their evidence is a
-current-SQL fixture. [query-validation.json](query-validation.json) records each
+The list and detail queries' standing evidence is a current-SQL fixture; the
+list's 2026-11-03 rewrite has its own before/after comparison,
+[page-first-query-validation.json](page-first-query-validation.json), replayed
+the same way with `scripts/validateListPageFirstQueries.cjs` (with `--live`
+and optional case names, three alternating pairs at four threads).
+[query-validation.json](query-validation.json) records each
 request, the exact generated SQL and bound parameters, the cursors taken from
 live pages the way the API builds them, `EXPLAIN indexes = 1` and
 `EXPLAIN ESTIMATE` plans, three executions with server timing, rows read and
@@ -92,24 +112,70 @@ then fails, and the comparison is repeated rather than relaxed. Cursor cases
 embed the recorded cursor and expire with the entries they point at; record a
 new cursor from a live page rather than editing one.
 
-## List and detail results (2026-10-26)
+## List and detail results (2026-11-03)
 
-Every case returned the same nonempty complete rows in all three executions on 2026-10-26 against `ci` on ClickHouse 26.6.1.2439. Memory is the HTTP summary peak; rows read include the catalog joins. Health granules are the final primary-key selection within the partitions `window` and `ran_on` prune.
+Every case returned the same nonempty complete rows in all three executions on 2026-11-03 against `ci` on ClickHouse 26.6.1.2446, at the server's default thread count. Memory is the HTTP summary peak; rows read include the catalog joins. Health granules are the final primary-key selection within the partitions `window` and `ran_on` prune, kept of total.
 
 | Case                  | Request                                                                                                                                                    | Rows | Server seconds, median (range) | Rows read, millions | Memory MB | Health granules |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---: | -----------------------------: | ------------------: | --------: | --------------: |
-| `main_default`        | defaults: `window=12h`, `ran_on=main`, `sort=-status,-failure_rate,-failed_runs,-last_failed_at,-skip_rate,-mean_passed_duration_milliseconds`, `limit=25` |   26 |            5.004 (4.644–5.254) |                10.2 |       884 |             1/1 |
-| `main_both_sources`   | `ran_on=main,pull_request`                                                                                                                                 |   26 |           5.396 (5.166–11.925) |                15.8 |       896 |             1/1 |
-| `main_filtered`       | `owner=nn`, `accelerator=cuda`, `window=14d`, `sort=-failed_runs,-runs`                                                                                    |   26 |            1.054 (0.721–1.115) |                10.6 |       149 |             1/1 |
-| `main_search`         | `search=test/test_nn.py`                                                                                                                                   |   26 |            0.611 (0.602–0.670) |                10.2 |       164 |             1/1 |
-| `main_env_vars`       | `env_vars={"TEST_CONFIG":["default"]}`, `window=1d`, `sort=file,suite,case_name`                                                                           |   26 |            6.808 (6.320–6.937) |                10.6 |      1211 |             1/1 |
-| `main_second_page`    | defaults continued from the first page cursor                                                                                                              |   26 |            5.000 (4.712–5.024) |                10.2 |       882 |             1/1 |
-| `main_boundary_probe` | previous-direction probe the second page issues, one row                                                                                                   |    1 |            4.629 (4.472–4.747) |                10.2 |       784 |             1/1 |
-| `detail`              | test `12347295505799784290`                                                                                                                                |  278 |            0.076 (0.073–0.413) |                 0.1 |        26 |             1/1 |
+| `main_default`        | defaults: `window=12h`, `ran_on=main`, `sort=-status,-failure_rate,-failed_runs,-last_failed_at,-skip_rate,-mean_passed_duration_milliseconds`, `limit=25` |   26 |            0.700 (0.672–0.776) |                10.1 |       503 |         985/985 |
+| `main_both_sources`   | `ran_on=main,pull_request`                                                                                                                                 |   26 |            5.086 (4.998–5.616) |                16.7 |       784 |       1773/1773 |
+| `main_filtered`       | `owner=nn`, `accelerator=cuda`, `window=14d`, `sort=-failed_runs,-runs`                                                                                    |   26 |            0.762 (0.595–0.853) |                11.2 |       180 |       1161/1161 |
+| `main_search`         | `search=test/test_nn.py`                                                                                                                                   |   26 |            0.618 (0.571–0.726) |                10.1 |       161 |         985/985 |
+| `main_env_vars`       | `env_vars={"TEST_CONFIG":["default"]}`, `window=1d`, `sort=file,suite,case_name`                                                                           |   26 |            0.843 (0.799–1.117) |                11.5 |       768 |       1084/1084 |
+| `main_second_page`    | defaults continued from the first page cursor                                                                                                              |   26 |            0.886 (0.750–1.149) |                10.1 |       491 |         985/985 |
+| `main_boundary_probe` | previous-direction probe the second page issues, one row                                                                                                   |    1 |            0.674 (0.559–0.848) |                10.1 |       465 |         985/985 |
+| `detail`              | test `12347295505799784290`                                                                                                                                |  332 |            0.136 (0.128–0.461) |                 0.1 |        21 |        12/12635 |
 
-The default page aggregates the whole `(main, 12h)` partition, 8.33 million health rows on 2026-10-26 (half of them configurations whose every attempt in the window was skipped, which is why the 12 hour partition is nearly as large as the 7 day one, 8.73 million), and sorts it by the six-field health chain before taking 26 rows, so its cost is the partition size rather than the page; the boundary probe a cursor page issues runs the same aggregation for one row and costs a comparable amount. Catalog filters, search and the env-var set shrink the aggregation and run in 0.6 to 6.8 seconds. The detail query prunes health to 12 granules through its test ID.
+The default page reads the whole `(main, 12h)` partition, 985 granules on 2026-11-03, and sorts its rows by the six-field health chain before taking 26, so its cost is still the partition size rather than the page; since 2026-11-03 it reads one source's rows as they are and joins the catalogs to the page's rows alone (see History), and the boundary probe a cursor page issues reads and sorts the same rows for one. Both sources still combine two partitions' rows by configuration, 5.1 seconds. The detail query prunes health to 12 granules through its test ID. On 2026-10-26 the same cases took 5.0, 5.4, 1.1, 0.6, 6.8, 5.0, 4.6 and 0.08 seconds; the 2026-11-03 comparison of the old and new list SQL at the heavy workload's four threads is [the page-first evidence](page-first-query-validation.json).
 
 ## History
+
+On 2026-11-03 the list began choosing its page before it joins the
+catalogs (`buildListQuery` in `query.ts`; [the comparison
+evidence](page-first-query-validation.json),
+`scripts/validateListPageFirstQueries.cjs`). Until then every request built
+the combined health of every configuration in its window, grouped by
+configuration even when one code source made each group a single row,
+joined all of them, 8.4 million on the default page, to the tests catalog,
+the environments and the env var sets, and only then sorted them for 26
+rows; the catalog `CTE` was also evaluated a second time for the `IN` that
+matched tests. Now one source's rows are read as they are, the tests are
+matched by ID without `FINAL`, the page's rows are chosen from the health
+rows with any catalog sort key read beside them from a narrow subquery of
+its catalog, and the catalogs are joined to the page's rows alone. The
+`ORDER BY` and every filter are unchanged, so the rows are the same: the
+evidence runs 23 cases' old and new SQL in three alternating pairs at the
+heavy workload's four threads and requires identical complete ordered rows,
+cursor keys included, which every case returned. Medians, old against new:
+the default page 8.3 against 1.2 seconds, its second page 8.2 against 1.4
+and its boundary probe 5.6 against 0.9; the saved views 3.7 to 9.6 against
+0.6 to 1.3 seconds (4.6 to 8.0 times); name, owner, language, OS and
+`TEST_CONFIG` sorts 3.1 to 6.4 times faster, and sorts by keys from two or
+three catalogs 8.0 to 8.5 against 1.6 to 1.7 seconds; both code sources,
+which still combine two partitions, 10.4 against 5.3 seconds (14 days, 12.4
+against 6.4); the owner and accelerator filter and the search page, already
+narrow, 1.56 against 1.33 and 1.25 against 1.14 seconds. Peak memory fell
+from 600 to 900 MB to under 400 MB on the single-source pages sorted by
+health values, and to 540 to 630 MB with catalog sort keys. Measured with
+one thread the same day, the default page took 36.4 against 4.3 seconds, the
+owner sort 28.8 against 4.8 and both sources 38.3 against 18.1, so the page
+now costs a few CPU-seconds where it cost thirty. Two further rewrites were
+measured and dropped: joining the catalog with the page's rows on the hash
+side, and reading the catalog for the page's rows in a second request; the
+catalog's own read takes 0.09 seconds, so neither could save more than a few
+percent.
+
+The first committed form of this change (26b19b27b) selected `health.*` in
+the page, and a sort with keys from two catalogs, such as `sort=os,file`,
+failed there with "There's no column 'health.tests_id' in table 'health'":
+the page's `SELECT` then joins three tables, which the old analyzer rewrites
+into nested subqueries, and only aliased columns keep their names through
+the rewrite. Review found it the same day; the page now names every health
+column with an alias, and the evidence gained four such cases
+(`two_catalog_sort`, its second page, `three_catalog_sort` and
+`two_catalog_boundary_probe`), whose old SQL had read the keys off the
+aliased result columns and worked.
 
 On 2026-10-25 the default sort changed from `-last_run_at` to
 `-mean_passed_duration_milliseconds`, slowest passing tests first. The five

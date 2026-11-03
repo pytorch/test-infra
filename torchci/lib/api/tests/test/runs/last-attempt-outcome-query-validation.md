@@ -21,10 +21,23 @@ No approximate functions or narrower retention ranges were introduced.
 
 | Request                                                                        | Rows | Baseline median (range), seconds | Candidate median (range), seconds |
 | ------------------------------------------------------------------------------ | ---: | -------------------------------- | --------------------------------- |
-| Test, last passed                                                              |   26 | 0.022 (0.022–0.203)              | 0.024 (0.024–0.025)               |
-| Test, failed attempt at rerun 0 and last passed; outcome/rerun/end-time sort   |    2 | 0.028 (0.026–0.044)              | 0.028 (0.027–0.028)               |
-| Commit, last passed                                                            |   26 | 1.025 (0.983–1.061)              | 4.508 (4.453–4.558)               |
-| Commit, failed attempt at rerun 0 and last passed; outcome/rerun/end-time sort |    7 | 1.122 (1.109–1.177)              | 4.430 (4.244–4.536)               |
+| Test, last passed                                                              |   26 | 0.142 (0.112–0.236)              | 0.378 (0.134–0.429)               |
+| Test, failed attempt at rerun 0 and last passed; outcome/rerun/end-time sort   |   20 | 0.243 (0.117–0.283)              | 0.183 (0.159–0.191)               |
+| Commit, last passed                                                            |   26 | 1.205 (0.894–1.331)              | 157.566 (146.761–237.149)         |
+| Commit, failed attempt at rerun 0 and last passed; outcome/rerun/end-time sort |    7 | 1.771 (0.821–2.358)              | 193.601 (192.535–227.864)         |
+
+The table is the 2026-11-03 replay, when the commit cases were regenerated for
+the commit job lookup (the commit's jobs through the `head_sha` view, see the
+[commit notes](../../commit/query-validation.md)) and the whole bundle was
+remeasured against ClickHouse 26.6.1.2446: every execution returned the same
+rows as before. The full `FINAL` read the commit candidates keep now reads the
+whole retention, 150 to 240 s, where it took about 4.5 s on 2026-10-24; the
+test fixture's failed-then-passed request returns 20 bundles where it returned 2. The functional checks below fetched their bundles' attempts with the
+attempt fetch of that day, which reads `FINAL` only at the bundles' own starts
+([attempt notes](attempts-query-validation.md)); the four checks whose
+bundles were the same as on 2026-10-24 returned attempts identical to that
+day's (equal digests), and the other two selected more bundles from the
+newer data.
 
 The two commit rows were remeasured on 2026-10-24 after the shared-start change:
 their baseline is the working-tree SQL reading `FINAL` only at shared starts, while

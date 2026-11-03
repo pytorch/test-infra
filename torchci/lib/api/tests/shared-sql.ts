@@ -49,24 +49,36 @@ export function buildEnvVarFilters(
 // expressions cost nothing the run-to-run noise could tell apart, as a
 // String or as an Enum8.
 // Aggregation in the health table's identity order bounds the group states.
-export const COMBINED_HEALTH_SQL = `
-        arraySort(arrayDistinct(groupArrayArray(workflow_paths))) AS workflow_paths_combined,
-        sum(runs) AS runs_combined,
-        sum(passed_runs) AS passed_runs_combined,
-        sum(failed_runs) AS failed_runs_combined,
-        sum(flaky_runs) AS flaky_runs_combined,
-        sum(skipped_runs) AS skipped_runs_combined,
-        sum(attempts) AS attempts_combined,
+function healthSummarySql(read: {
+  // A count or total, summed at UInt64.
+  sum: (_column: string) => string;
+  // The newest timestamp.
+  max: (_column: string) => string;
+  // The generation, the same on every row.
+  any: (_column: string) => string;
+  // The sorted set of workflow paths.
+  union: (_column: string) => string;
+}): string {
+  return `
+        ${read.union("workflow_paths")} AS workflow_paths_combined,
+        ${read.sum("runs")} AS runs_combined,
+        ${read.sum("passed_runs")} AS passed_runs_combined,
+        ${read.sum("failed_runs")} AS failed_runs_combined,
+        ${read.sum("flaky_runs")} AS flaky_runs_combined,
+        ${read.sum("skipped_runs")} AS skipped_runs_combined,
+        ${read.sum("attempts")} AS attempts_combined,
         if(
             passed_runs_combined > 0,
             toUInt32(intDiv(
-                sum(mean_passed_duration_milliseconds * passed_runs)
+                ${read.sum("mean_passed_duration_milliseconds * passed_runs")}
                     + intDiv(passed_runs_combined, 2),
                 greatest(passed_runs_combined, 1)
             )),
             NULL
         ) AS mean_passed_duration_milliseconds_combined,
-        sum(total_duration_milliseconds) AS total_duration_milliseconds_combined,
+        ${read.sum(
+          "total_duration_milliseconds"
+        )} AS total_duration_milliseconds_combined,
         if(
             attempts_combined > 0,
             toUInt32(intDiv(
@@ -75,8 +87,8 @@ export const COMBINED_HEALTH_SQL = `
             )),
             NULL
         ) AS mean_duration_milliseconds_combined,
-        max(last_run_at) AS last_run_at_combined,
-        max(last_failed_at) AS last_failed_at_combined,
+        ${read.max("last_run_at")} AS last_run_at_combined,
+        ${read.max("last_failed_at")} AS last_failed_at_combined,
         passed_runs_combined / nullIf(runs_combined, 0) AS pass_rate,
         failed_runs_combined / nullIf(runs_combined, 0) AS failure_rate,
         flaky_runs_combined / nullIf(runs_combined, 0) AS flaky_rate,
@@ -96,8 +108,31 @@ export const COMBINED_HEALTH_SQL = `
                 0
             ))
         ) AS status_rank,
-        any(refreshed_at) AS refreshed_at,
+        ${read.any("refreshed_at")} AS refreshed_at,
         toUInt8(1) AS has_health`;
+}
+
+export const COMBINED_HEALTH_SQL = healthSummarySql({
+  sum: (column) => `sum(${column})`,
+  max: (column) => `max(${column})`,
+  any: (column) => `any(${column})`,
+  union: (column) => `arraySort(arrayDistinct(groupArrayArray(${column})))`,
+});
+
+// The same projection over the rows of one code source, without GROUP BY: a
+// (ran_on, window) partition holds one row per configuration, since the
+// health view groups by test, configuration and source and writes one row
+// per window, so each aggregate above would read a single row. Each reads
+// that row's value at the aggregate's type instead, which returns what the
+// GROUP BY does at a fraction of the cost: the default page's aggregation
+// of its 8.4 million rows took most of its time (query-validation.md,
+// 2026-11-03).
+export const SINGLE_SOURCE_HEALTH_SQL = healthSummarySql({
+  sum: (column) => `toUInt64(${column})`,
+  max: (column) => column,
+  any: (column) => column,
+  union: (column) => `arraySort(arrayDistinct(${column}))`,
+});
 
 const HEALTH_COLUMNS = [
   "runs_combined",
@@ -117,6 +152,14 @@ const HEALTH_COLUMNS = [
   "skip_rate",
   "status",
   "status_rank",
+] as const;
+
+// Every column the combined health rows hold (healthSummarySql), by name.
+export const HEALTH_SUMMARY_COLUMNS = [
+  "workflow_paths_combined",
+  ...HEALTH_COLUMNS,
+  "refreshed_at",
+  "has_health",
 ] as const;
 
 export const TEST_CATALOG_COLUMNS_SQL = `        test.id AS tests_id,

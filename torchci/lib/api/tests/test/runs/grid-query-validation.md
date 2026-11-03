@@ -115,26 +115,54 @@ against the superseded builder and is not in the bundle, which records only
 the kept statement against the FINAL-less rewrite; its timings are from an
 earlier run than the Measurements section's.
 
-## Measurements (2026-10-29, ClickHouse Cloud 26.6.1)
+## The window's job ids read once (2026-11-03)
 
-The chains read prunes to the test: 161 of 653,924 granules of `ci.runs` for
-a week of main, by `tests_id` and `started_at`. The two metadata reads prune
-by id set: 334 of 32,435 granules of `workflow_job` and 167 of 14,795 of
-`workflow_run`. Server time for the week of main, 3,055 chains in 2,474
-cells over 196 commits, was 0.52 to 0.86 s over four alternating rounds,
-reading about 3.6 million rows, peak memory 186 MB; 0.49 to 0.58 s for
-three days of every source (8,775 chains, 6,332 cells, 1,047 commits) and
-0.57 to 0.70 s narrowed (1,530 chains, 1,147 cells).
+Until 2026-11-03 each metadata read took the window's job ids from a
+subquery of its own, `SELECT DISTINCT run.github_workflow_job_id FROM ci.runs
+...`, so the statement read the test's runs in the window twice before its
+chains read, about a third of its time. Both now take them from one array
+scalar, `grid_job_ids`, read once with `groupUniqArray` and unnested where
+each read used the subquery, as the commit's jobs are read
+(`commitRunsScope`). It is the same set of ids, so the same jobs and
+workflow runs are read and joined.
+
+The change was checked against the statement it replaced on the three
+recorded cases with the recorded window starts, both bounded above by the
+same instant a day back (2026-11-02 05:20 UTC), in four alternating rounds:
+every execution returned identical rows (6,547, 21,198 and 3,279 chains,
+equal digests). The old statement took 1.32 to 1.37 s for the week of main,
+the new one 0.84 to 0.88 s; 1.16 to 1.31 against 0.76 to 0.87 s for three
+days of every source, and 1.35 to 1.58 against 0.91 to 1.08 s narrowed,
+reading 7.3 against 6.5 million rows at the same peak memory. That
+comparison was a one-off against the superseded builder and is not in the
+bundle, which records only the kept statement against the FINAL-less
+rewrite.
+
+## Measurements (2026-11-03, ClickHouse Cloud 26.6.1)
+
+The chains read prunes to the test: 165 of 1,280,197 granules of `ci.runs`
+for a week of main, by `tests_id` and `started_at`. The two metadata reads
+prune by id set: 500 of 32,596 granules of `workflow_job` and 327 of 14,951
+of `workflow_run`. Server time for the week of main, 6,547 chains in 5,300
+cells over 415 commits, was 0.56 to 0.74 s over four alternating rounds,
+reading about 6.8 million rows, peak memory 163 MB; 0.50 to 0.62 s for
+three days of every source (21,198 chains, 15,438 cells, 2,563 commits) and
+0.62 to 0.73 s narrowed (3,279 chains, 2,459 cells). The window starts are
+the ones recorded on 2026-10-29 (2026-10-21 18:00 UTC for the two cases of
+main, 2026-10-25 18:00 for every source) and the reads end a day before the
+run, so the "week" of main now spans eleven days, which is why it holds
+twice the chains of that day's run.
 
 One rewrite was measured: the two metadata reads without `FINAL`, since their
 `ORDER BY _inserted_at DESC ... LIMIT 1 BY id` already keeps one newest row
 per id. It returned the same rows in every case (equal digests, asserted by
-the replay) and lowered peak memory (186 to 95 MB for the week of main), but
-its time, 0.51 to 0.73 s against 0.52 to 0.86 s there and 0.45 to 0.65
-against 0.49 to 0.58 s and 0.59 to 0.61 against 0.57 to 0.70 s elsewhere, is
-inside the run-to-run spread. The `FINAL` version is kept so the grid reads
-a job's metadata exactly as the bundle pages read it; the replay keeps
-comparing the two.
+the replay) and lowered peak memory (163 to 102 MB for the week of main), but
+its time, 0.42 to 0.74 s against 0.56 to 0.74 s there and 0.45 to 0.50
+against 0.50 to 0.62 s and 0.46 to 0.76 against 0.62 to 0.73 s elsewhere, is
+inside or near the run-to-run spread. The `FINAL` version is kept so the grid
+reads a job's metadata exactly as the bundle pages read it; the replay keeps
+comparing the two. The 2026-10-29 run of the same cases measured the kept
+statement at 0.52 to 0.86 s and the rewrite at 0.51 to 0.73 s.
 
 The query is not tagged with the heavy-query profile: it answers in about a
 second at a few threads, far under the ten CPU-seconds the profile is for
@@ -155,6 +183,6 @@ runs it that way. With `--live` it needs `CLICKHOUSE_HUD_USER_*` in
 `.env.local`, records the working tree's SQL and writes a new bundle to
 replace the checked-in one after a query change. The statements it times and
 compares are bounded above by one instant a day before the run (`until_ms`
-in each case) wherever they bound the attempts below, the two job reads and
+in each case) wherever they bound the attempts below, the job ids read and
 the chains read, so the two variants read the same rows; the recorded SQL is
 the production statement, open-ended as the handler sends it.

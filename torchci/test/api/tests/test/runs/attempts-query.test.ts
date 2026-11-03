@@ -161,10 +161,29 @@ describe("group selection and attempt retrieval", () => {
         if (id.length > 1) expect(sql).not.toContain(id);
       }
     }
-    const where = sql.slice(sql.indexOf("WHERE"), sql.lastIndexOf("ORDER BY"));
-    expect(where).not.toMatch(
-      /outcome|report_uuid|rerun_number|started_at|ended_at/
-    );
+    // FINAL reads the starts a plain read of the bundles finds, and the
+    // complete group keys alone select the executions.
+    const membership = `(run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id) IN (${[
+      0, 1,
+    ]
+      .map(
+        (index) =>
+          `({group_${index}_tests_id: UInt64}, {group_${index}_environments_id: UInt64}, {group_${index}_env_vars_id: UInt64}, {group_${index}_github_workflow_job_id: Int64})`
+      )
+      .join(", ")})`;
+    expect(
+      sql.slice(
+        sql.indexOf("FROM ci.runs AS run FINAL"),
+        sql.lastIndexOf("ORDER BY")
+      )
+    ).toBe(`FROM ci.runs AS run FINAL
+PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (
+    SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at
+    FROM ci.runs AS run
+    WHERE ${membership}
+)
+WHERE ${membership}
+`);
     expect(sql).not.toMatch(
       /\bLIMIT\b|cursor_|\b(?:now|today)\s*\(|\bINTERVAL\b/
     );

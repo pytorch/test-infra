@@ -500,6 +500,11 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
     expect(buildCommitInfoQuery(query).sql).toContain(
       "arrayFilter(pull_request -> tupleElement(pull_request, 3) = repository.id, arrayZip(pull_requests.number, pull_requests.url, pull_requests.base.repo.id))"
     );
+    // The pushes are read by the push table's timestamp key, which the
+    // commit-id view finds, never by a scan of the head commit ids.
+    expect(buildCommitInfoQuery(query).sql).toContain(
+      "FROM default.push\n        WHERE tupleElement(head_commit, 'timestamp') IN (\n            SELECT timestamp FROM materialized_views.push_by_sha WHERE id = {sha: String}\n        )\n            AND head_commit.id = {sha: String}"
+    );
     const pullRequest = buildCommitPullRequestQuery(202376, REPO);
     expect(pullRequest.params).toEqual({ number: 202376, repo: REPO });
     // The table holds every repository's pull requests by number.
@@ -531,8 +536,9 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
     expect(neighbours.sql).toContain("name LIKE '% / test (%'");
     // The candidates are gathered once, into an array scalar; their jobs
     // are found through the job table's head_sha view and read by id, never
-    // by a scan of the job table. The newer side prunes by the timestamp
-    // key as the key spells it; the older side reads the subcolumn.
+    // by a scan of the job table. Each side reads the push table in its
+    // key order, the timestamp spelled as the key is, and stops at its
+    // twentieth push.
     expect(neighbours.sql).toMatch(
       /^\s*WITH \(\s+SELECT groupArray\(\(direction, sha, committed_at\)\)/
     );
@@ -550,7 +556,10 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
       "AND tupleElement(head_commit, 'timestamp') > fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') ASC"
     );
     expect(neighbours.sql).toContain(
-      "AND head_commit.timestamp < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY head_commit.timestamp DESC"
+      "AND tupleElement(head_commit, 'timestamp') < fromUnixTimestamp64Milli({committed_at_ms: Int64})\n        ORDER BY tupleElement(head_commit, 'timestamp') DESC"
+    );
+    expect(neighbours.sql).not.toMatch(
+      /(?:<|>|ORDER BY) head_commit\.timestamp/
     );
     // The counts read the commit's jobs as the runs endpoint does, resolve
     // replacements by key, and roll the categories up.

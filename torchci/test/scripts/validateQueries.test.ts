@@ -16,6 +16,7 @@ const SCRIPTS = [
   "validateCommitSharedStartsQueries",
   "validateCommitSummaryQueries",
   "validateBidirectionalPaginationQueries",
+  "validateListPageFirstQueries",
 ];
 
 describe("offline SQL replays", () => {

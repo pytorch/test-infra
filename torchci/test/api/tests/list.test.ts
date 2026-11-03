@@ -5,7 +5,12 @@ import {
   parseTestListParams,
 } from "lib/api/tests/parameters";
 import { buildListQuery } from "lib/api/tests/query";
-import { searchPredicateSql } from "lib/api/tests/shared-sql";
+import {
+  COMBINED_HEALTH_SQL,
+  HEALTH_SUMMARY_COLUMNS,
+  searchPredicateSql,
+  SINGLE_SOURCE_HEALTH_SQL,
+} from "lib/api/tests/shared-sql";
 import * as clickhouse from "lib/clickhouse";
 import {
   answerQueries,
@@ -357,7 +362,11 @@ describe("test list", () => {
       expect(next.status).toBe(200);
       const [[sql, params]] = callsOf(queryClickhouse, "tests");
       // ClickHouse Enum8 ordering follows numeric enum values unless cast.
-      expect(sql).toContain("toString(language) AS key_0");
+      // The page reads the label off the test's catalog row.
+      expect(sql).toContain(
+        "SELECT tests_id AS page_id, toString(language) AS value_0"
+      );
+      expect(sql).toContain("page_test.value_0 AS key_0");
       expect(sql).toContain("{cursor_0: String}");
       expect(params.cursor_0).toBe("cpp");
     }
@@ -676,7 +685,12 @@ describe("test list query boundaries", () => {
     expect(envVars).toContain(
       "WHERE env_var_set.env_vars['TEST_CONFIG'] IN {filter_test_config: Array(String)}"
     );
-    expect(sql).toContain("env_vars['TEST_CONFIG'] AS key_0");
+    // The page reads the sort's value off the env var set, not the map off
+    // every row.
+    expect(sql).toContain(
+      "SELECT id AS page_id, env_vars['TEST_CONFIG'] AS value_0\n            FROM ci.env_vars FINAL"
+    );
+    expect(sql).toContain("page_env_vars.value_0 AS key_0");
     expect(sql).toContain(
       "toUnixTimestamp64Milli(last_run_at_combined) AS key_1"
     );
@@ -703,6 +717,7 @@ describe("test list query boundaries", () => {
     const { sql } = query({
       accelerator: "cpu",
       "env_vars[TEST_CONFIG]": "default",
+      ran_on: "main,pull_request",
     });
     const health = sql.slice(sql.indexOf("combined_health AS"));
     const grouping = health.indexOf(
@@ -712,11 +727,80 @@ describe("test list query boundaries", () => {
     expect(health.indexOf("environments_id IN")).toBeLessThan(grouping);
     expect(health.indexOf("env_vars_id IN")).toBeLessThan(grouping);
     expect(health.indexOf("LIMIT {entries_limit:")).toBeGreaterThan(grouping);
-    expect(sql).toContain(
-      "FROM combined_health AS health\n        INNER JOIN catalog"
+    // The catalogs are joined to the page's rows, after its LIMIT.
+    for (const { sql: text } of [{ sql }, query()]) {
+      const page = text.indexOf("), page AS (");
+      expect(text.indexOf("LIMIT {entries_limit:", page)).toBeLessThan(
+        text.indexOf("FROM page AS health\n    INNER JOIN catalog")
+      );
+    }
+  });
+
+  test("reads each catalog sort key from its catalog beside the health rows", () => {
+    const page = (sort: string) => {
+      const { sql } = query({ sort });
+      return sql.slice(sql.indexOf("), page AS ("), sql.indexOf("\n)\nSELECT"));
+    };
+    // Health values and IDs are columns of the health rows: no join.
+    expect(page("-failure_rate,last_run_at")).not.toContain("JOIN");
+    const owner = page("owner,-runs");
+    expect(owner).toContain(
+      "INNER JOIN (\n            SELECT tests_id AS page_id, owner AS value_0\n            FROM (SELECT *, if(empty(owners), NULL, arraySort(owners)[1]) AS owner FROM catalog)\n        ) AS page_test ON page_test.page_id = health.tests_id"
     );
-    expect(query().sql).toContain(
-      "FROM combined_health AS health\n        INNER JOIN catalog"
+    expect(owner).toContain("page_test.value_0 AS key_0");
+    expect(owner).toContain("runs_combined AS key_1");
+    // An environment may be missing from its catalog and then sorts as the
+    // results show it, empty.
+    const environment = page("os,file");
+    expect(environment).toContain(
+      "LEFT JOIN (\n            SELECT id AS page_id, os AS value_0\n            FROM ci.environments FINAL\n        ) AS page_environment ON page_environment.page_id = health.environments_id"
+    );
+    expect(environment).toContain(
+      "SELECT tests_id AS page_id, file AS value_1"
+    );
+    // Two catalog keys join three tables, which the old analyzer rewrites;
+    // only aliased columns keep their names through it, so the page names
+    // every health column (health.* would come out as health.tests_id).
+    expect(environment).not.toContain("health.*");
+    for (const column of [
+      "tests_id",
+      "environments_id",
+      "env_vars_id",
+      ...HEALTH_SUMMARY_COLUMNS,
+    ]) {
+      expect(environment).toContain(`health.${column} AS ${column},`);
+    }
+  });
+
+  test("reads one source's rows as they are and combines several", () => {
+    const single = query().sql;
+    expect(single).toContain(SINGLE_SOURCE_HEALTH_SQL);
+    expect(single).not.toContain("GROUP BY");
+    const both = query({ ran_on: "main,pull_request" }).sql;
+    expect(both).toContain(COMBINED_HEALTH_SQL);
+    expect(both).toContain("GROUP BY tests_id, environments_id, env_vars_id");
+  });
+
+  test("matches the tests a page may show by ID and joins the catalog to the page's rows", () => {
+    const matchedTests = (text: string) =>
+      text.slice(
+        text.indexOf("AND tests_id IN ("),
+        text.indexOf("), page AS (")
+      );
+    const matched = matchedTests(
+      query({ owner: "nn", file: "test/test_nn.py" }).sql
+    );
+    expect(matched).toContain(
+      "SELECT test.id\n            FROM ci.tests AS test\n"
+    );
+    expect(matched).toContain("FROM ci.owners FINAL");
+    expect(matched).toContain("AND test.file IN {filter_file: Array(String)}");
+    expect(matched).toContain(
+      "AND hasAny(owner.owners, {filter_owner: Array(String)})"
+    );
+    // No owner filter, no owners join.
+    expect(matchedTests(query({ file: "test/test_nn.py" }).sql)).not.toContain(
+      "ci.owners"
     );
   });
 });

@@ -16,8 +16,11 @@ Local read-only ClickHouse credentials were used without logging credentials.
 The commit identity is `default.workflow_run.head_sha` plus
 `repository.full_name`. The SHA materialized view finds workflow IDs; all job IDs
 attached to those workflows are included. There are no event, workflow-name,
-conclusion, latest-attempt, or job-head-SHA filters. `IN` membership prevents
-duplicate metadata updates from multiplying returned test runs.
+conclusion or latest-attempt filters. Since 2026-11-03 the jobs are read
+through the job table's `head_sha` view, which holds the same jobs because a
+job's `head_sha` is its run's (see that day's section below). `IN`
+membership prevents duplicate metadata updates from multiplying returned test
+runs.
 
 The live runs table's replacement key (then `fortesting.runs`, now `ci.runs`, same definition) is
 `(tests_id, environments_id, env_vars_id, started_at, github_workflow_job_id, rerun_number)`.
@@ -631,6 +634,14 @@ plans and alternating comparisons with `CLICKHOUSE_HUD_USER_*` from the
 environment or `.env.local`; fixtures expire under the 14-day TTL, so an empty
 result means choosing a new commit, not relaxing the comparison.
 
+On 2026-11-03 every case's before became the query the page ran until that
+day, with the old job lookup, and its after the query with the new one (see
+the 2026-11-03 section below): the full `FINAL` baseline reads every
+partition, which took 4 to 8 s on the one-day-old table of 2026-10-24 and
+over four minutes on 2026-11-03, past the replay's 90-second limit. Each
+replaced baseline had been shown equal to the full one when its case was
+last recorded; the git history holds those recordings.
+
 ## Statistics count bundles by final outcome (2026-10-24)
 
 The statistics counted individual executions, so a test that failed and then
@@ -869,7 +880,8 @@ side prunes the push table by its timestamp key as the key spells it,
 `tupleElement(head_commit, 'timestamp')`, which the dotted form does not;
 the older side keeps the dotted subcolumn, since the key's spelling reads
 the whole `head_commit` tuple, 700 MB over the older rows, for 2.6 million
-rows the subcolumn reads in about 100 ms. On a push run a job's `head_sha`
+rows the subcolumn reads in about 100 ms (until 2026-11-03, when it began
+reading in key order; see that day's section). On a push run a job's `head_sha`
 is its run's (111,248 of 111,248 test jobs of the week before), so the
 candidates with a test job are the ones the runs name.
 
@@ -924,7 +936,10 @@ two alternating pairs on 2026-10-31 UTC), the baseline took 112 to 124 s
 reading 7.9 billion rows (507 GB) against 3.1 to 3.2 s and 150M rows for the
 working query on ce6ff46, and 110 to 112 s against 1.5 s on the pull request
 head 06b5f47 (224,867 tests in 108 jobs, none failed), identical complete rows
-both times. The commit's own lookup, its pull request's title and its branch
+both times. The bundle was recorded again on 2026-11-03 with the
+commit job lookup, the info query's push read by key and the key-ordered
+neighbours, in one pair with a 900-second limit, since the baseline now takes
+over four minutes (see the 2026-11-03 sections below). The commit's own lookup, its pull request's title and its branch
 neighbours, recorded beside them, answer in 0.2 s, 6 ms and 1.3 s. The counts agree with the commit
 statistics' bundle counts (5 failed, 8 timed out, 87 flaky bundles) and with
 the plan's figures (672,763 tests in 333 jobs; 4, 8 and 68 tests failed,
@@ -970,3 +985,132 @@ identical complete rows, 100): the page's request took 0.63 to 0.87 s reading
 of 7.6 s, reading 280M rows and 168 to 205 MB. The commit list's `stats`
 field and its `commit_stats` unchanged entry left the bundle the same day (see
 the statistics section above).
+
+## The commit's jobs come from the `head_sha` view (2026-11-03)
+
+Every commit query begins with `matched_job_ids`, the IDs of the jobs of the
+commit's workflow runs (`commitRunsScope` in `query.ts`): the runs page and
+its probe, and the summary's counts. It found the jobs in `default.workflow_job`
+by `run_id IN (...)`, but the job table is ordered by job ID, so the scalar
+read every one of its 128 million rows, about a gigabyte, at every request.
+The jobs now come from `materialized_views.workflow_job_by_head_sha`, which
+is ordered by `head_sha`, `run_id` and `id`: its rows of the commit's SHA
+whose run is one of the commit's runs, the runs still matched by their own
+`head_sha` and repository through `workflow_run_by_head_sha` as before.
+
+That reads the same jobs because a job's `head_sha` is its run's. The
+comment this replaces said a pull request job's SHA could name its merge
+commit instead; nothing in the job table does. Of the 3.66 million jobs
+created in the 15 days before 2026-11-03, of every event, and of the 26
+million created from July to October, none has a `head_sha` that differs
+from its run's (latest versions of both). And over every workflow run
+version created in the 16 days before 2026-11-03 04:30 UTC (433,682), the
+(SHA, job) pairs the old lookup finds and the pairs the view finds are the
+same set, 3,761,197 pairs, with nothing in either difference. The view is
+fed by a materialized view of every insert into the job table, with no
+filter. The comparison query:
+
+```sql
+WITH runs AS (
+    SELECT DISTINCT id, head_sha FROM default.workflow_run
+    WHERE created_at >= now() - INTERVAL 16 DAY
+)
+SELECT
+    (SELECT count() FROM runs) AS run_versions,
+    (SELECT count() FROM (SELECT DISTINCT run.head_sha AS sha, job.id AS job
+        FROM default.workflow_job AS job INNER JOIN runs AS run ON run.id = job.run_id)) AS job_table_pairs,
+    (SELECT count() FROM (SELECT DISTINCT run.head_sha AS sha, head_sha_job.id AS job
+        FROM materialized_views.workflow_job_by_head_sha AS head_sha_job
+        INNER JOIN runs AS run ON run.id = head_sha_job.run_id AND run.head_sha = head_sha_job.head_sha)) AS view_pairs,
+    (SELECT count() FROM (
+        SELECT DISTINCT run.head_sha AS sha, job.id AS job
+        FROM default.workflow_job AS job INNER JOIN runs AS run ON run.id = job.run_id
+        EXCEPT
+        SELECT DISTINCT run.head_sha AS sha, head_sha_job.id AS job
+        FROM materialized_views.workflow_job_by_head_sha AS head_sha_job
+        INNER JOIN runs AS run ON run.id = head_sha_job.run_id AND run.head_sha = head_sha_job.head_sha
+    )) AS only_in_job_table,
+    (SELECT count() FROM (
+        SELECT DISTINCT run.head_sha AS sha, head_sha_job.id AS job
+        FROM materialized_views.workflow_job_by_head_sha AS head_sha_job
+        INNER JOIN runs AS run ON run.id = head_sha_job.run_id AND run.head_sha = head_sha_job.head_sha
+        EXCEPT
+        SELECT DISTINCT run.head_sha AS sha, job.id AS job
+        FROM default.workflow_job AS job INNER JOIN runs AS run ON run.id = job.run_id
+    )) AS only_in_view
+```
+
+Measured on ce6ff46 and 06b5f47, the lookup alone fell from 128 million rows
+and 1 GB read, 0.13 to 0.44 s, to some 70 thousand rows and 2 MB, 0.015 to
+0.02 s, with the same job IDs. Alternating runs of whole statements the same
+day, at the default thread count, returned identical rows: ce6ff46's default
+page 1.2 to 8.9 s (median 5.0) before against 1.1 to 1.2 s after, its page
+without filters 0.9 to 1.6 against 0.5 to 0.8 s, 06b5f47's default page 0.39
+to 0.48 against 0.10 to 0.25 s; and at the heavy workload's four threads the
+summary counts 6.8 to 9.2 against 6.3 to 6.4 s on ce6ff46 and 2.0 to 2.5
+against 1.6 to 1.7 s on 06b5f47. Every commit case of the evidence was
+regenerated with the new scope and replayed live with identical complete
+rows. The
+[attempt bundle](../test/runs/attempts-query-validation.json) and
+[last-attempt outcome](../test/runs/last-attempt-outcome-query-validation.json)
+commit cases ran against their full `FINAL` baselines, which now read about 10
+billion rows in two to four minutes per execution; each regenerated case says
+so in its `regenerated` field. The 13
+[shared-starts](shared-starts-query-validation.json) cases ran against the
+queries they replace, the working queries with the old job lookup, since
+their full baselines no longer finish in the replay's limit (see that
+section above): they read 149 to 428 million rows before and 21 to 73
+million after, the difference being the old lookup's 128-million-row scan,
+which ran once in some statements and three times in the others. The
+[summary](summary-query-validation.json) counts ran against their full
+baseline in one pair, which now takes 250 to 256 s and reads 10.6 billion
+rows, 690 GB, per execution, against 6.6 and 1.7 s for the counts: identical
+complete rows, the same as the old counts query and the baseline returned on
+2026-10-31 (equal digests). Its lookups were recorded again with the new info
+and neighbours queries; eleven of the twelve returned what they returned on
+2026-10-31, and the twelfth, the fork head's info, a workflow run more, which
+the old info query returns too.
+
+## Both neighbour sides read in key order (2026-11-03)
+
+Until 2026-11-03 the neighbours query's older side read the push table by
+the dotted subcolumn, `head_commit.timestamp`, which the table's sort key does
+not match, so it read the timestamp of every push, 2.6 million rows, to keep
+the twenty newest older ones. It now spells the key as the newer side does,
+`tupleElement(head_commit, 'timestamp')`, in its `WHERE` and its
+`ORDER BY ... DESC`, so the read runs in reverse key order (`ReadType:
+InReverseOrder`) and stops at the branch's twentieth older push: about 140
+thousand rows on main. The concern recorded above, that the key's spelling
+reads the whole `head_commit` tuple, did not reproduce for this read: on a
+branch with two pushes, where it still reads every older push, it read 3.39
+million rows and 109 MB against the old 108 MB, with 2 MB of memory.
+
+Compared with the old query on seven fixtures, four alternating rounds each,
+every execution returned the same rows. Medians, old against new: main at
+ce6ff46's time 0.50 against 0.33 s, two days earlier 0.53 against 0.39 s, 24
+days earlier 0.68 against 0.49 s, at the newest pushes 0.49 against 0.30 s;
+viable/strict 0.56 against 0.42 s; nightly, whose commits have no test job,
+0.56 against 0.52 s; and the two-push branch 0.25 against 0.24 s. The
+candidates' job lookups are unchanged.
+
+## The commit's pushes are read by key (2026-11-03)
+
+Until 2026-11-03 the info query found the commit's pushes by a scan of the
+push table's head commit ids, 2.6 million rows and 130 MB, since the table is
+ordered by commit timestamp, then id. It now finds the timestamp through
+`materialized_views.push_by_sha`, ordered by commit id and fed by a
+materialized view of every push insert, and reads the push table by its
+timestamp key and the id: some 50 thousand rows and 8 to 19 MB. The view
+holds every push: of the 1,876,574 push rows with a head commit on
+2026-11-03, none lacked its (id, timestamp) pair there, and both timestamps
+are `DateTime64(9)`. The curated `pr_commits` and `recent_pr_workflows_query`
+queries read pushes the same way.
+
+Compared with the old query on eight commits, a main commit, a pull request
+head, a fork head, viable/strict and nightly commits, a main commit 2,000
+pushes back and an unknown SHA, four alternating rounds each, the query took
+0.19 to 0.24 s before and 0.020 to 0.054 s after (medians). Every row was the
+same once `refs`, a `groupUniqArray`, is sorted. For the pull request head the
+two reads returned its three refs in a different order. `groupUniqArray`
+defines no order, and the summary sorts the branches it takes from the refs.
+The other seven rows were identical as returned.

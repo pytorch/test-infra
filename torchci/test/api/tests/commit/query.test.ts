@@ -39,7 +39,12 @@ describe("commit runs query", () => {
       repo: query.repo,
       entries_limit: 3,
     });
-    expect(sql).toMatch(/FROM default\.workflow_job\s+WHERE run_id IN/);
+    // The jobs come from the head_sha view, by the commit's SHA and its runs'
+    // IDs, never from a scan of the job table by run ID.
+    expect(sql).toMatch(
+      /FROM materialized_views\.workflow_job_by_head_sha\s+WHERE head_sha = \{sha: String\}\s+AND run_id IN/
+    );
+    expect(sql).not.toMatch(/FROM default\.workflow_job\b/);
     expect(sql).toContain("FROM default.workflow_run");
     expect(sql).toContain("FROM materialized_views.workflow_run_by_head_sha");
     expect(sql).toContain("head_sha = {sha: String}");
@@ -48,8 +53,8 @@ describe("commit runs query", () => {
     expect(sql).not.toContain(query.sha);
     expect(sql).not.toContain(query.repo);
     expect(sql).not.toMatch(/run\.tests_id = \{test_id/);
-    // Workflows can have multiple attempts and PR jobs can carry a merge SHA.
-    // Selecting those jobs by workflow association preserves all attempts.
+    // Workflows can have multiple attempts. Selecting the jobs by their
+    // runs preserves all attempts.
     expect(sql).not.toMatch(/(?:job|workflow_job)\.head_sha\s*=/);
     expect(sql).not.toMatch(/(?:run_attempt|rerun_number)\s*=\s*(?:0|1)\b/);
     expect(sql).not.toMatch(/\b(?:event|head_branch|conclusion)\s*(?:=|IN)/);
