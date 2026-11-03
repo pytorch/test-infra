@@ -50,10 +50,12 @@ MACOS_PYTHON_POINT_VERSIONS = {
     "3.14": "3.14.3",
 }
 CUDA_ARCHES_DICT = {
-    # 13.0 is kept on nightly for vLLM's torch-nightly lane, which pins the
-    # cu130 index. release/2.15 was cut with it, so the 2.15 candidates on the
-    # test channel build it too.
-    "nightly": ["13.0", "13.2", "13.4"],
+    # 13.0 is gone from nightly: CUDA 13.2.2 fixes a compiler bug present since
+    # 12.8 that can silently miscompile kernels with nested thread divergence
+    # (pytorch/pytorch#190385), and 13.2 covers the same GPU architectures.
+    # release/2.15 was cut with 13.0, so the 2.15 candidates on the test
+    # channel still build it.
+    "nightly": ["13.2", "13.4"],
     "test": ["13.0", "13.2", "13.4"],
     "release": ["13.2", "13.4"],
 }
@@ -87,13 +89,13 @@ STABLE_CUDA_VERSIONS = {
 }
 
 # CUDA versions with no Windows torch build to depend on; see
-# CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch. Per channel, because 13.0 is held
-# on nightly for vLLM's cu130 lane and that hold is Linux-only, while 13.0 on
-# the release channel does have Windows wheels and must keep being validated.
+# CUDA_ARCHES_NO_WINDOWS in pytorch/pytorch. Per channel, because 13.0 on the
+# release channel does have Windows wheels and must keep being validated.
 CUDA_ARCHES_NO_WINDOWS_DICT = {
-    # 13.0 is the vLLM hold and is Linux-only. 13.4 has Windows wheels on
-    # nightly and in the 2.15 candidates; 2.14 releases have none.
-    "nightly": ["13.0"],
+    # 13.0 is no longer built on nightly, so nothing is excluded there. On the
+    # test channel it is Linux-only. 13.4 has Windows wheels on nightly and in
+    # the 2.15 candidates; 2.14 releases have none.
+    "nightly": [],
     "test": ["13.0"],
     "release": ["13.0"],
 }
@@ -103,8 +105,8 @@ CUDA_ARCHES_NO_WINDOWS_DICT = {
 # in pytorch/pytorch.github.io publishes an install selector for a CUDA version
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
-# 13.0 is held on nightly for vLLM's cu130 lane only; it must not reappear in
-# the pytorch.org install selector.
+# 13.0 is only still built for the 2.15 candidates on the test channel; it must
+# not appear in the pytorch.org install selector.
 CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0"]
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
