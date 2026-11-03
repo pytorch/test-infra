@@ -1,9 +1,12 @@
 -- Queueing alerts for autoscaled machines
 -- ("Jobs are Queued - autoscaled-machines").
 --
--- One query, one row per runner group. Grafana makes a separate alert instance
--- per row, so an alert says which group is queueing instead of reporting one
--- max over every runner.
+-- One query, one row per runner fleet: mt- (Meta clusters), lf- (Linux
+-- Foundation fleet), windows (Windows runners) and other. Grafana makes a
+-- separate alert instance per row, so an alert says which fleet is queueing
+-- instead of reporting one max over every runner. GitHub-hosted runners
+-- (ubuntu-*, windows-*, xcode-*, linux.24_04.*) are left out: their queues
+-- are not ours to fix.
 --
 -- Two rules read it, both with Teams = pytorch-dev-infra:
 --
@@ -20,9 +23,10 @@
 SELECT
     multiIf(
         startsWith(machine_type, 'mt-'), 'mt-',
-        startsWith(machine_type, 'linux.'), 'linux.',
+        startsWith(machine_type, 'lf-'), 'lf-',
+        position(machine_type, 'windows.') > 0, 'windows',
         'other'
-    ) AS runner_group,
+    ) AS runner_fleet,
     sum(machines_queueing) AS jobs_queued,
     max(max_queue_time_mins) AS max_wait_mins
 FROM materialized_views.queued_runners_mv
@@ -37,4 +41,9 @@ WHERE
         'h100',
         'macos'
     ])
-GROUP BY runner_group
+    -- exclude GitHub-hosted runners
+    AND NOT startsWith(machine_type, 'ubuntu-')
+    AND NOT startsWith(machine_type, 'windows-')
+    AND NOT startsWith(machine_type, 'xcode-')
+    AND NOT startsWith(machine_type, 'linux.24_04')
+GROUP BY runner_fleet
