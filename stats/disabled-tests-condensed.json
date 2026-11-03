@@ -130,13 +130,6 @@
       "rocm"
     ]
   ],
-  "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
-    "194171",
-    "https://github.com/pytorch/pytorch/issues/194171",
-    [
-      "linux"
-    ]
-  ],
   "test_col2im_uint32_overflow (__main__.TestMPS)": [
     "187289",
     "https://github.com/pytorch/pytorch/issues/187289",
@@ -359,6 +352,7 @@
     "202975",
     "https://github.com/pytorch/pytorch/issues/202975",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -475,6 +469,13 @@
   "test_device_observations_track_current_device_under_coor_origin_input (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "203058",
     "https://github.com/pytorch/pytorch/issues/203058",
+    [
+      "rocm"
+    ]
+  ],
+  "test_device_passthrough_still_reuses_compile_under_coor_origin_input (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "203138",
+    "https://github.com/pytorch/pytorch/issues/203138",
     [
       "rocm"
     ]
@@ -683,6 +684,13 @@
     [
       "mac",
       "macos"
+    ]
+  ],
+  "test_grouped_gemm_strided_True_a_row_major_False_b_row_major_False_2d_3d_gemv_cpu_bfloat16 (__main__.TestGroupedMMCPU)": [
+    "203137",
+    "https://github.com/pytorch/pytorch/issues/203137",
+    [
+      "linux"
     ]
   ],
   "test_index_propagation_to_dtype_inf_cpu (__main__.CpuTritonTests)": [
