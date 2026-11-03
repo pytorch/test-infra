@@ -130,22 +130,10 @@ export default function CellDrawer({
     const name = scopeName(prepared, view);
     const column = view.machineScope[m];
     const notProbed = m === prepared.notProbed;
-    // Owners' hours, and the time of files without owners, are job hours
-    // times shares pooled over every workflow; shared hours and jobs without
-    // test reports are whole jobs, exact in any scope.
-    const pooled = cell.row.owners.some(
-      (o) => !o.startsWith("shared:") && o !== "unattributed:no_test_reports"
-    );
     const caveats = [
-      pooled &&
-        (view.scope.size === 0
-          ? "Owner shares are pooled across workflows, so the workflow split is approximate."
-          : "Owner shares are pooled across workflows, so hours within a scope are approximate."),
       notProbed
-        ? "Not probed: these labels' sampled test jobs recorded no machine."
-        : "The machine is inferred from 20 sampled test jobs per runner label.",
-      cell.row.owners.some((o) => o.startsWith("shared:")) &&
-        "Build and other jobs, not split among owners.",
+        ? "Not probed: no test job on these labels recorded a machine."
+        : "The machine is the one the jobs' test reports recorded, or for jobs without reports, their runner label's.",
       cell.row.owners.includes("unattributed:no_test_reports") &&
         "Test jobs with no recorded tests, so no owner split.",
       cell.row.owners.includes("unattributed:no_owner") &&

@@ -21,7 +21,7 @@ import { queryClickhouse } from "lib/clickhouse";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const METHOD =
-  "Each test job's wall time split among its test files by occupancy (the runner time each file's reports held, setup and idle time shared alike), then evenly among each file's owners (test_cost). Builds and other jobs are shared; test jobs without test reports and files without owners are unattributed. Machines come from each job's test reports, or for jobs without them, from their runner label's reporting jobs.";
+  "Each test job's wall time split among its test files by occupancy (the runner time each file's reports held, setup and idle time shared alike), then evenly among each file's owners (test_cost). Builds and other jobs are left out; test jobs without test reports and files without owners are unattributed. Machines come from each job's test reports, or for jobs without them, from their runner label's reporting jobs.";
 
 interface RunnerHoursQueryRow {
   owner: string;
@@ -222,8 +222,7 @@ export async function getRunnerHours(
   const queryParams = { repo: params.repo, ...bounds.params };
   const started = performance.now();
   // The runner-hours, the machines' names and HUD's time to signal, asked at once.
-  // The runner-hours query reads the window's rows of test_cost and its build
-  // and other jobs; it stays in the heavy workload
+  // The runner-hours query reads the window's rows of test_cost; it stays in the heavy workload
   // (app/api/README.md, Heavy queries) until measured; the other two are cheap.
   const [rows, machineRows, signalRows]: [
     RunnerHoursQueryRow[],

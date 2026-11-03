@@ -1,8 +1,6 @@
 import { z } from "zod/v4";
 
 export const OWNER_BUCKETS = [
-  "shared:build",
-  "shared:other",
   "unattributed:no_test_reports",
   "unattributed:no_owner",
 ] as const;

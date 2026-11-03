@@ -501,7 +501,7 @@ export default function OwnerChart({
         }}
       >
         <span>
-          Machines are inferred from each runner label&apos;s sampled test jobs.
+          Machines come from each job&apos;s test reports, or its runner label&apos;s.
         </span>
         <span>
           {name.charAt(0).toUpperCase() + name.slice(1)} · {dates}

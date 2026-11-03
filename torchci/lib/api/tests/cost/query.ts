@@ -7,25 +7,6 @@ import { catalogLabelSql } from "lib/api/tests/options/options";
 // the sandbox until it moves to ci.
 const TEST_COST = "fortesting.test_cost";
 
-// Runner-hours are job wall time, started_at to completed_at, of every
-// completed, not skipped job of the repository that started in the window
-// on a runner, by the latest version of each job. Three kinds of rows never
-// ran and are left out: a job cancelled before a runner took it has no
-// runner, and its time is queue time; a rerun carries forward the jobs it did
-// not repeat with their original started_at, before the rerun's created_at;
-// and GitHub closes a job that never started 30 days later, which the 24 hour
-// cap removes (no real job runs that long). test_cost counts test jobs by the
-// same rules.
-const COMPLETED_JOBS = `status = 'completed'
-      AND conclusion NOT IN ('skipped', '')
-      AND runner_name != ''
-      AND started_at >= created_at
-      AND dateDiff('second', started_at, completed_at) BETWEEN 0 AND 86400`;
-
-// A test job's name ends in "test (<config>, <shard>, <shards>, <runner>)",
-// possibly after a calling workflow's prefix ("dynamo-test (3.12) / test (...)").
-const TEST_JOB = String.raw`'(?:^|/ )test \\('`;
-
 // A test environment's machine, named as the tests page names its device:
 // the device the test process probed, or for a CPU-only environment, which
 // probes none, its OS, architecture and CPU capability ("Linux x86_64
@@ -49,8 +30,8 @@ const LATEST = `latest AS (
   )`;
 
 // Each runner label's machine: the one its jobs' test reports recorded for
-// most of their hours. It names the machine of test jobs without reports and
-// of build and other jobs; a label no reporting test job ran on has none.
+// most of their hours. It names the machine of test jobs without reports; a
+// label no reporting test job ran on has none.
 const LABEL_MACHINES = `label_machines AS (
     SELECT t.runner_labels AS label, argMax(m.machine, t.seconds) AS machine
     FROM (
@@ -63,13 +44,11 @@ const LABEL_MACHINES = `label_machines AS (
     GROUP BY label
   )`;
 
-// The runner-hours of the window by owner (or bucket), workflow, machine and
-// runner label. Test jobs come from test_cost: each file's share of its jobs'
+// The runner-hours of the window's test jobs by owner (or bucket), workflow,
+// machine and runner label, from test_cost: each file's share of its jobs'
 // wall time by occupancy, split evenly among the file's owners (ci.owners,
 // read now), or the bucket of hours no owner is given, by why. Build and
-// other jobs come from workflow_job and serve every owner. A job whose name
-// is not a test job's but which sent test reports is in test_cost too, and
-// would count twice; none did on the days checked.
+// other jobs are not test cost and are left out.
 export function runnerHoursQuery(): string {
   return `
 WITH
@@ -93,34 +72,12 @@ WITH
     ) AS o ON o.file = t.test_file
     LEFT JOIN env_machines AS m ON m.id = t.environments_id
     LEFT JOIN label_machines AS lm ON lm.label = t.runner_labels
-  ),
-  other_jobs AS (
-    SELECT
-      if(positionCaseInsensitive(name, 'build') > 0, 'shared:build', 'shared:other') AS owner,
-      lower(workflow_name) AS workflow,
-      arrayStringConcat(arraySort(labels), ',') AS label,
-      toFloat64(dateDiff('second', started_at, completed_at)) AS seconds
-    FROM (
-      SELECT name, workflow_name, labels, status, conclusion, runner_name,
-        created_at, started_at, completed_at
-      FROM default.workflow_job
-      WHERE repository_full_name = {repo: String}
-        AND started_at >= {start: DateTime64(3)}
-        AND started_at < {end: DateTime64(3)}
-      ORDER BY _inserted_at DESC
-      LIMIT 1 BY id
-    )
-    WHERE ${COMPLETED_JOBS} AND NOT match(name, ${TEST_JOB})
   )
 SELECT owner, workflow, machine, label, sum(seconds) / 3600 AS runner_hours
 FROM (
   SELECT owner, workflow, machine, label, seconds / length(owner_list) AS seconds
   FROM test_rows
   ARRAY JOIN owner_list AS owner
-  UNION ALL
-  SELECT o.owner, o.workflow, lm.machine, o.label, o.seconds
-  FROM other_jobs AS o
-  LEFT JOIN label_machines AS lm ON lm.label = o.label
 )
 GROUP BY owner, workflow, machine, label
 SETTINGS join_use_nulls = 0`;
