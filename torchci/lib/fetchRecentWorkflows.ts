@@ -16,18 +16,27 @@ export async function fetchRecentWorkflows(
 
 export async function fetchCrcrWorkflows(
   repo: string = "pytorch/pytorch",
-  prNumbers: Array<number> = []
+  prNumbers: Array<number> = [],
+  // The commit the comment reports on. Rows of other commits are dropped in
+  // SQL already; rows with no head SHA stay in, because only the caller knows
+  // whether this commit still needs one of them (see latestAttemptsForHead).
+  headSha: string = ""
 ): Promise<RecentWorkflowsData[]> {
   // Query the crcr_workflow_job table for CRCR downstream CI jobs on open PRs.
   // Map columns to RecentWorkflowsData shape so Dr.CI can classify them.
   //
-  // Every job that reported is returned, passing and still-running ones
-  // included: the rendered section reports "N of M jobs failed", and a job that
-  // is still running is one of the M but not one that passed. Failures are the
-  // only rows that reach a Dr.CI bucket -- isCrCrFailure decides that on the
-  // conclusion -- so the extra rows cost one query result, not a verdict. A job
-  // that has not reported at all has no row here, so M is what the repo has
-  // reported rather than the size of the matrix.
+  // Narrowed in SQL, this runs once per PR per sweep: L3/L4 rows only -- L1/L2
+  // shadow traffic never renders, in flight or concluded -- and of those, the
+  // commit's rows plus rows with no head SHA. Every job of the commit that
+  // reported is returned, passing and still-running ones included: the rendered
+  // section reports "N of M jobs failed", and a job that is still running is
+  // one of the M but not one that passed. Failures are the only rows that reach
+  // a Dr.CI bucket -- isCrCrFailure decides that on the conclusion -- so the
+  // extra rows cost one query result, not a verdict. A job that has not
+  // reported at all has no row here, so M is what the repo has reported rather
+  // than the size of the matrix. A repo renders at a single level, so the level
+  // filter cannot drop one repo's denominator rows without dropping all of
+  // them.
   const rows = await queryClickhouse(
     `SELECT
       workflow_name AS name,
@@ -45,8 +54,10 @@ export async function fetchCrcrWorkflows(
       run_id
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
-      AND pr_number IN ({prNumbers:Array(UInt64)})`,
-    { repo, prNumbers: prNumbers.length > 0 ? prNumbers : [0] }
+      AND pr_number IN ({prNumbers:Array(UInt64)})
+      AND downstream_repo_level IN ('L3', 'L4')
+      AND (pytorch_head_sha = {headSha:String} OR pytorch_head_sha = '')`,
+    { repo, prNumbers: prNumbers.length > 0 ? prNumbers : [0], headSha }
   );
 
   return rows.map((row: any) => ({
@@ -121,7 +132,13 @@ export async function fetchCrcrActivityPRs(
   //   wake, and the cost is one sweep visit that isCrcrJobPrVisible drops.
   //
   // No FINAL: duplicates of one key collapse in the DISTINCT, and skipping the
-  // merge keeps the read off the merges.
+  // merge keeps the read off the merges. `started_at` bounds the read for the
+  // skip index it carries: a row written in the last 30 minutes describes a leg
+  // that started within the last two days, so the granules older than that
+  // never enter the read. Rows whose start is unknown (the relay never set
+  // started_at) are kept rather than dropped -- a missed wake is costlier than
+  // a swept row. Still unoptimised and unverified: no ClickHouse access in this
+  // environment, so there is no EXPLAIN or timing yet.
   //
   // This runs in the sweep's argument list, so a rejection here would take the
   // whole Promise.all -- every Dr. CI comment, not only the CRCR ones -- down
@@ -138,7 +155,9 @@ export async function fetchCrcrActivityPRs(
       AND (status = 'in_progress'
            OR (status = 'completed'
                AND conclusion IN ('failure', 'cancelled', 'timed_out')
-               AND downstream_repo_level IN ('L3', 'L4')))`,
+               AND downstream_repo_level IN ('L3', 'L4')))
+      AND (started_at > now() - INTERVAL 2 DAY
+           OR started_at < toDateTime64('1970-01-02 00:00:00', 9))`,
       { repo, numMinutes: parseInt(numMinutes, 10) }
     );
   } catch (err) {

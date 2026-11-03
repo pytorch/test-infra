@@ -601,7 +601,11 @@ export async function updateDrciComments(
       let crcrInFlightJobs: RecentWorkflowsData[] = [];
       try {
         const crcrWorkflows = latestAttemptsForHead(
-          await fetchCrcrWorkflows(`${owner}/${repo}`, [pr_info.pr_number]),
+          await fetchCrcrWorkflows(
+            `${owner}/${repo}`,
+            [pr_info.pr_number],
+            pr_info.head_sha
+          ),
           pr_info.head_sha
         );
         crcrInFlightJobs = crcrWorkflows.filter(

@@ -46,17 +46,23 @@ describe("fetchCrcrWorkflows", () => {
       row({ conclusion: "success", jobName: "test-L3-cancel-checkrun" }),
     ]);
 
-    const jobs = await fetchCrcrWorkflows("pytorch/pytorch", [123]);
+    const jobs = await fetchCrcrWorkflows("pytorch/pytorch", [123], "abcdef1");
     expect(jobs).toHaveLength(2);
 
     // The denominator of "N of M jobs failed" needs the passing rows, so the
     // query must not filter on the conclusion. It must not filter on the status
     // either: a job still running is one of the M, and leaving it out makes a
     // matrix mid-flight read as a small matrix that all failed. run_id places a
-    // row in its run, which run_attempt alone cannot.
+    // row in its run, which run_attempt alone cannot. It does narrow to the
+    // levels that can render and to this commit's rows -- rows with no head SHA
+    // stay in, because only latestAttemptsForHead knows whether this commit
+    // still needs one of them.
     const sql = queryClickhouseMock.mock.calls[0][0];
-    expect(sql).not.toMatch(/conclusion\s+IN/i);
+    expect(sql).not.toMatch(/\bconclusion\s+IN/i);
     expect(sql).not.toMatch(/status\s*=/i);
+    expect(sql).toContain("downstream_repo_level IN ('L3', 'L4')");
+    expect(sql).toContain("pytorch_head_sha = {headSha:String}");
+    expect(sql).toContain("pytorch_head_sha = ''");
     expect(sql).toContain("run_attempt");
     expect(sql).toContain("run_id");
     expect(sql).toContain("downstream_repo");
@@ -132,6 +138,7 @@ describe("fetchCrcrWorkflows", () => {
     expect(queryClickhouseMock.mock.calls[0][1]).toEqual({
       repo: "pytorch/pytorch",
       prNumbers: [0],
+      headSha: "",
     });
   });
 });
@@ -163,6 +170,13 @@ describe("fetchCrcrActivityPRs", () => {
       "conclusion IN ('failure', 'cancelled', 'timed_out')"
     );
     expect(sql).toContain("downstream_repo_level IN ('L3', 'L4')");
+    // started_at carries the only skip index this predicate family touches, so
+    // the wake read is bounded to two days of granules instead of the table's
+    // 100; rows with an unknown start stay in, a missed wake being costlier.
+    expect(sql).toContain("started_at > now() - INTERVAL 2 DAY");
+    expect(sql).toContain(
+      "started_at < toDateTime64('1970-01-02 00:00:00', 9)"
+    );
     expect(queryClickhouseMock.mock.calls[0][1]).toEqual({
       repo: "pytorch/pytorch",
       numMinutes: 30,
