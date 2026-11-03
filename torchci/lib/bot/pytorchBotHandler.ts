@@ -4,6 +4,7 @@ import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
 import { queryClickhouseSaved } from "../clickhouse";
+import { downstreamRepoFromCheckRunName } from "../crcr/crcrUtils";
 import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
   AUTO_PR_TRIAGE_LABEL,
@@ -28,7 +29,6 @@ import {
   BOT_MANAGED_PR_LABELS,
   cherryPickClassifications,
 } from "./Constants";
-import { downstreamRepoFromCheckRunName } from "./crcrOncallBot";
 import { markInProgressIfAccepted } from "./preReviewSweep";
 import { isInPreReview } from "./preReviewUtils";
 import PytorchBotLogger from "./pytorchbotLogger";

@@ -1,4 +1,5 @@
 import { queryClickhouse, queryClickhouseSaved } from "./clickhouse";
+import { withoutControlMarkers } from "./crcr/crcrComment";
 import { RecentWorkflowsData } from "./types";
 
 export async function fetchRecentWorkflows(
@@ -15,10 +16,27 @@ export async function fetchRecentWorkflows(
 
 export async function fetchCrcrWorkflows(
   repo: string = "pytorch/pytorch",
-  prNumbers: Array<number> = []
+  prNumbers: Array<number> = [],
+  // The commit the comment reports on. Rows of other commits are dropped in
+  // SQL already; rows with no head SHA stay in, because only the caller knows
+  // whether this commit still needs one of them (see latestAttemptsForHead).
+  headSha: string = ""
 ): Promise<RecentWorkflowsData[]> {
   // Query the crcr_workflow_job table for CRCR downstream CI jobs on open PRs.
   // Map columns to RecentWorkflowsData shape so Dr.CI can classify them.
+  //
+  // Narrowed in SQL, this runs once per PR per sweep: L3/L4 rows only -- L1/L2
+  // shadow traffic never renders, in flight or concluded -- and of those, the
+  // commit's rows plus rows with no head SHA. Every job of the commit that
+  // reported is returned, passing and still-running ones included: the rendered
+  // section reports "N of M jobs failed", and a job that is still running is
+  // one of the M but not one that passed. Failures are the only rows that reach
+  // a Dr.CI bucket -- isCrCrFailure decides that on the conclusion -- so the
+  // extra rows cost one query result, not a verdict. A job that has not
+  // reported at all has no row here, so M is what the repo has reported rather
+  // than the size of the matrix. A repo renders at a single level, so the level
+  // filter cannot drop one repo's denominator rows without dropping all of
+  // them.
   const rows = await queryClickhouse(
     `SELECT
       workflow_name AS name,
@@ -31,35 +49,126 @@ export async function fetchCrcrWorkflows(
       pytorch_head_sha AS head_sha,
       downstream_repo,
       downstream_repo_level,
-      triage_verdict_json
+      triage_verdict_json,
+      run_attempt,
+      run_id
     FROM default.crcr_workflow_job
     WHERE upstream_repo = {repo:String}
       AND pr_number IN ({prNumbers:Array(UInt64)})
-      AND status = 'completed'
-      AND conclusion IN ('failure', 'cancelled', 'timed_out')`,
-    { repo, prNumbers: prNumbers.length > 0 ? prNumbers : [0] }
+      AND downstream_repo_level IN ('L3', 'L4')
+      AND (pytorch_head_sha = {headSha:String} OR pytorch_head_sha = '')`,
+    { repo, prNumbers: prNumbers.length > 0 ? prNumbers : [0], headSha }
   );
 
   return rows.map((row: any) => ({
-    name: `crcr/${row.downstream_repo}/${row.name}/${row.jobName || row.name}`,
+    // The check run name. Its workflow and job halves come from the downstream
+    // callback, and the name is rendered into the Dr. CI comment both by the
+    // grouped CRCR section and by the generic list the section falls back to
+    // (pages/api/drci/drci.ts), where the section's own delimiters and pin
+    // markers are parsed back out of the body. Defusing the control strings here
+    // covers every consumer at once -- including the failures JSON that goes
+    // into the Dr. CI check run summary -- so no later renderer has to remember.
+    name: withoutControlMarkers(
+      `crcr/${row.downstream_repo}/${row.name}/${row.jobName || row.name}`
+    ),
     jobName: row.jobName || row.name,
     workflowId: 0,
     workflowUniqueId: 0,
     id: parseInt(row.id) || 0,
     completed_at: row.completed_at || "",
-    html_url: row.html_url || "",
+    // Also callback-supplied, and also rendered into that comment.
+    html_url: withoutControlMarkers(row.html_url || ""),
     head_sha: row.head_sha || "",
     head_sha_timestamp: "",
     head_branch: "",
     pr_number: parseInt(row.pr_number) || 0,
-    conclusion: row.conclusion || "failure",
+    // An empty conclusion stays empty: the query no longer filters on
+    // conclusion, and a job that reported completed without one is not a failure.
+    // Nothing else calls it one -- the relay passes the callback's conclusion
+    // straight through (utils/gh_helper.py only sets one when the callback sent
+    // it), and the query filtered these rows out entirely before this change.
+    // Defaulting it to "failure" here would render a red job, and for L4 a
+    // blocking one, that nothing agrees with. isCrCrFailure in drci.ts decides.
+    // Defusing cannot change a real conclusion, so the classification is safe.
+    conclusion: withoutControlMarkers(row.conclusion || ""),
     failure_captures: [],
     failure_lines: [],
     failure_context: [],
     downstreamLevel: row.downstream_repo_level || "",
     downstreamRepo: row.downstream_repo || "",
     triageVerdictJson: row.triage_verdict_json || "",
+    runAttempt: Number(row.run_attempt ?? 1) || 1,
+    // The run a row's attempt belongs to: run_attempt starts over at 1 for each
+    // new run, so the two together place the row. 0 is "no run named", which
+    // latestAttemptPerJob sorts with the oldest.
+    runId: Number(row.run_id) || 0,
   }));
+}
+
+export async function fetchCrcrActivityPRs(
+  repo: string = "pytorch/pytorch",
+  numMinutes: string = "30"
+): Promise<number[]> {
+  // The PRs the relay reported on recently, by row write time, bounded to the
+  // events that can change a PR-visible CRCR section: an in_progress L3/L4 leg
+  // (the write that gives the in-flight sentinel its first sweep) or a
+  // concluded failure on one. A CRCR row is not upstream workflow activity, so
+  // the sweep otherwise never visits a PR whose only fresh signal is a
+  // downstream callback -- a failure landing after upstream CI has gone quiet
+  // would sit unreported until something else woke the PR. _inserted_at is the
+  // row's write time: the in_progress write and the completed rewrite of the
+  // same key both refresh it. Rows only exist once the relay has heard from a
+  // job (queued jobs write none), so this wakes on what is observable, not on
+  // what is queued.
+  //
+  // Everything else stays out, because it cannot render anything:
+  // - a pass, or a completion without a conclusion: while the matrix is still
+  //   going the in-flight marker -- written by the earlier in_progress wake --
+  //   keeps the PR in the sweep set on its own, and the sweep that clears it
+  //   re-renders the ratio; once every leg is done there is nothing to show.
+  // - L1/L2 shadow traffic, in flight or concluded: those levels never render.
+  // - an L3 leg is kept even though the label gate is invisible to ClickHouse:
+  //   a labeled L3 failure landing after upstream CI went quiet must still
+  //   wake, and the cost is one sweep visit that isCrcrJobPrVisible drops.
+  //
+  // No FINAL: duplicates of one key collapse in the DISTINCT, and skipping the
+  // merge keeps the read off the merges. `started_at` bounds the read for the
+  // skip index it carries: a row written in the last 30 minutes describes a leg
+  // that started within the last two days, so the granules older than that
+  // never enter the read. Rows whose start is unknown (the relay never set
+  // started_at) are kept rather than dropped -- a missed wake is costlier than
+  // a swept row. Still unoptimised and unverified: no ClickHouse access in this
+  // environment, so there is no EXPLAIN or timing yet.
+  //
+  // This runs in the sweep's argument list, so a rejection here would take the
+  // whole Promise.all -- every Dr. CI comment, not only the CRCR ones -- down
+  // with it. The waker is best-effort: a lost wake costs one delayed comment,
+  // not a broken sweep, so the error is logged and the fallback is an empty
+  // set. Every other CRCR read in the sweep is guarded the same way.
+  let rows: any[];
+  try {
+    rows = await queryClickhouse(
+      `SELECT DISTINCT pr_number
+    FROM default.crcr_workflow_job
+    WHERE upstream_repo = {repo:String}
+      AND _inserted_at > now() - INTERVAL {numMinutes:Int64} MINUTE
+      AND (status = 'in_progress'
+           OR (status = 'completed'
+               AND conclusion IN ('failure', 'cancelled', 'timed_out')
+               AND downstream_repo_level IN ('L3', 'L4')))
+      AND (started_at > now() - INTERVAL 2 DAY
+           OR started_at < toDateTime64('1970-01-02 00:00:00', 9))`,
+      { repo, numMinutes: parseInt(numMinutes, 10) }
+    );
+  } catch (err) {
+    // If the wake query fails, log and proceed — don't block the Dr.CI update
+    console.error("Failed to fetch recent CRCR activity PRs:", err);
+    return [];
+  }
+  // A row without a PR cannot wake one.
+  return rows
+    .map((row: any) => parseInt(row.pr_number) || 0)
+    .filter((pr: number) => pr > 0);
 }
 
 export async function fetchFailedJobsFromCommits(
