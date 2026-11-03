@@ -121,6 +121,7 @@ PACKAGE_ALLOW_LIST = {
         "oneccl_devel",
         "oneccl",
         "impi_rt",
+        "modified_libfabric",
         "onemkl_sycl_blas",
         "onemkl_sycl_dft",
         "onemkl_sycl_lapack",
