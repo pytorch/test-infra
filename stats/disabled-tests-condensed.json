@@ -130,6 +130,20 @@
       "rocm"
     ]
   ],
+  "test_codegen_per_stream_alignment_copy_multi_stream (__main__.TestUserStreamCompile)": [
+    "194171",
+    "https://github.com/pytorch/pytorch/issues/194171",
+    [
+      "linux"
+    ]
+  ],
+  "test_codegen_structure_three_stream_pipeline (__main__.TestUserStreamCompile)": [
+    "181318",
+    "https://github.com/pytorch/pytorch/issues/181318",
+    [
+      "linux"
+    ]
+  ],
   "test_col2im_uint32_overflow (__main__.TestMPS)": [
     "187289",
     "https://github.com/pytorch/pytorch/issues/187289",
@@ -436,25 +450,9 @@
       "rocm"
     ]
   ],
-  "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
-    "195094",
-    "https://github.com/pytorch/pytorch/issues/195094",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_del_same_stream_no_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195553",
     "https://github.com/pytorch/pytorch/issues/195553",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_del_subscr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
-    "195166",
-    "https://github.com/pytorch/pytorch/issues/195166",
     [
       "linux",
       "rocm"
@@ -464,6 +462,7 @@
     "203017",
     "https://github.com/pytorch/pytorch/issues/203017",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -1256,6 +1255,13 @@
       "rocm"
     ]
   ],
+  "test_retained_handle_stale_after_watchdog_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
+    "200056",
+    "https://github.com/pytorch/pytorch/issues/200056",
+    [
+      "rocm"
+    ]
+  ],
   "test_retained_handle_stale_after_watchdog_abort_backend_name_nccl-legacy (__main__.NCCLSymmetricMemoryLifecycleTest)": [
     "202797",
     "https://github.com/pytorch/pytorch/issues/202797",
@@ -1427,15 +1433,6 @@
   "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
     "182418",
     "https://github.com/pytorch/pytorch/issues/182418",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b6 (__main__.TestVisionTracing)": [
-    "182397",
-    "https://github.com/pytorch/pytorch/issues/182397",
     [
       "asan",
       "linux",
