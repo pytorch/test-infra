@@ -6,8 +6,8 @@
 // query cache off, and compares the rows of the kept query with the rewrite
 // that was measured and rejected (the metadata reads without FINAL). Runs
 // keep arriving while it works, so the timed and compared statements are
-// bounded above by one instant, a day before the run (`until_ms`), in
-// the two places the window start is bound and where the chains read
+// bounded above by one instant, a day before the run (`until_ms`), where
+// the job ids read binds the window start and where the chains read
 // starts; the recorded SQL is the production statement, open-ended as the
 // handler sends it.
 const assert = require("node:assert/strict");
@@ -72,8 +72,8 @@ const UNTIL =
 function boundedUntil(query, until) {
   assert.equal(
     query.sql.split(WINDOW_START).length - 1,
-    2,
-    "Expected the window start bound in the two job reads"
+    1,
+    "Expected the window start bound in the job ids read"
   );
   assert.equal(
     query.sql.split(CHAINS_START).length - 1,

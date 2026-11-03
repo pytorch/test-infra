@@ -125,14 +125,28 @@ function factoredCandidate(recorded) {
     tail =
       strict && equalTail ? `(${strict} OR ${equalTail})` : strict ?? equalTail;
   }
+  // The tests list seeks in its page subquery, whose WHERE holds the
+  // predicate alone when no health filter applies, as in these fixtures.
+  if (kind === "tests") {
+    const page = baseline.sql.indexOf("), page AS (");
+    const start = baseline.sql.indexOf("\n    WHERE (", page);
+    const end = baseline.sql.indexOf("\n    ORDER BY ", start);
+    assert(page >= 0 && start > page && end > start);
+    return {
+      sql:
+        baseline.sql.slice(0, start) +
+        `\n    WHERE (${tail})` +
+        baseline.sql.slice(end),
+      params: baseline.params,
+    };
+  }
   const end = baseline.sql.lastIndexOf("\nORDER BY ");
-  const marker = kind === "tests" ? "\nWHERE " : "\n    AND (";
-  const start = baseline.sql.lastIndexOf(marker, end);
+  const start = baseline.sql.lastIndexOf("\n    AND (", end);
   assert(start >= 0 && end > start);
   return {
     sql:
       baseline.sql.slice(0, start) +
-      (kind === "tests" ? `\nWHERE ${tail}` : `\n    AND (${tail})`) +
+      `\n    AND (${tail})` +
       baseline.sql.slice(end),
     params: baseline.params,
   };

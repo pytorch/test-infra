@@ -15,8 +15,11 @@ import { BUNDLE_STATUSES } from "lib/runOutcomes";
 // requests its runs record whose base repository is its own, the head branch
 // of its pull_request runs, and from the push the author's login and the
 // refs. The workflow runs are read by id through the head_sha view and the
-// pushes by a scan of the push table's head commit id, about 2.6 million
-// rows.
+// pushes by the push table's timestamp key, found through
+// materialized_views.push_by_sha (ordered by commit id), whose view records
+// every push's commit id and timestamp: on 2026-11-03 it held all 1,876,574
+// pushes with a head commit. A scan of the push table's head commit id read
+// 2.6 million rows (commit/query-validation.md, 2026-11-03).
 export function buildCommitInfoQuery(query: CommitSummaryQuery) {
   // Tuple positions of a zipped pull request: number, API url and base
   // repository id; of a gathered one: number and API url.
@@ -53,7 +56,10 @@ WITH
             groupUniqArray(ref)
         )
         FROM default.push
-        WHERE head_commit.id = {sha: String}
+        WHERE tupleElement(head_commit, 'timestamp') IN (
+            SELECT timestamp FROM materialized_views.push_by_sha WHERE id = {sha: String}
+        )
+            AND head_commit.id = {sha: String}
             AND repository.full_name = {repo: String}
     ) AS push
 SELECT
@@ -128,12 +134,14 @@ LIMIT 1
 // jobs: the newest of those before and the oldest after. Twenty candidates
 // a side come from the push table, gathered once into an array scalar, as
 // the commit's jobs are (commitRunsScope), since a named subquery runs
-// again at every reference. The newer side is read by the timestamp key,
-// spelled as the key is, tupleElement(head_commit, 'timestamp'), which the
-// dotted form does not prune by; the older side reads the timestamp
-// subcolumn over every push instead, 2.6 million rows in about 100 ms,
-// since the key's spelling reads the whole head_commit tuple, 700 MB of
-// memory over the older rows (2026-11-01). The candidates' jobs come
+// again at every reference. Each side reads the push table in its key
+// order, the commit timestamp spelled as the key is,
+// tupleElement(head_commit, 'timestamp'), which the dotted form neither
+// prunes nor orders by, and stops at its twentieth push: the older side,
+// which read the timestamp of every push, 2.6 million rows, until
+// 2026-11-03, reads some 140 thousand on main, and every push only on a
+// branch with fewer than twenty older ones (commit/query-validation.md,
+// 2026-11-03). The candidates' jobs come
 // through the head_sha view of the job table and are read by id, the jobs
 // with a test name give their workflow runs, and the runs are read by id
 // and matched to the candidates by head_sha; a scan of the job table for
@@ -155,22 +163,19 @@ export function buildCommitNeighboursQuery({
   const CANDIDATE_DIRECTION = "tupleElement(candidate, 1)";
   const CANDIDATE_SHA = "tupleElement(candidate, 2)";
   const CANDIDATE_COMMITTED_AT = "tupleElement(candidate, 3)";
-  const candidates = (direction: "newer" | "older") => {
-    const timestamp =
-      direction === "newer"
-        ? "tupleElement(head_commit, 'timestamp')"
-        : "head_commit.timestamp";
-    return `
+  // The push table's sort key leads with the commit timestamp, spelled here
+  // as the key spells it.
+  const timestamp = "tupleElement(head_commit, 'timestamp')";
+  const candidates = (direction: "newer" | "older") => `
         SELECT '${direction}' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at
         FROM default.push
         WHERE ref = {ref: String}
             AND repository.full_name = {repo: String}
             AND ${timestamp} ${
-      direction === "newer" ? ">" : "<"
-    } fromUnixTimestamp64Milli({committed_at_ms: Int64})
+    direction === "newer" ? ">" : "<"
+  } fromUnixTimestamp64Milli({committed_at_ms: Int64})
         ORDER BY ${timestamp} ${direction === "newer" ? "ASC" : "DESC"}
         LIMIT ${NEIGHBOUR_CANDIDATES}`;
-  };
   return {
     params: {
       repo,

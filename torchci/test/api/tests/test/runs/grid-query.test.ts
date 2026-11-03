@@ -79,13 +79,14 @@ describe("buildRunGridQuery", () => {
       "PREWHERE run.tests_id = {test_id: UInt64}\n        AND run.started_at >= fromUnixTimestamp64Milli({chains_since: Int64}, 'UTC')\n) AS run"
     );
     // The jobs with an attempt in the window are found by primary key, without
-    // FINAL, for the two metadata reads; the inner join to them keeps their
-    // chains.
+    // FINAL, once, into an array both metadata reads take; the inner join to
+    // them keeps their chains.
+    expect(sql).toContain(
+      "WITH (\n    SELECT groupUniqArray(run.github_workflow_job_id)\n    FROM ci.runs AS run\n    WHERE run.tests_id = {test_id: UInt64}\n        AND run.started_at >= fromUnixTimestamp64Milli({since: Int64}, 'UTC')\n) AS grid_job_ids,\njobs AS ("
+    );
     expect(
-      sql.match(
-        /SELECT DISTINCT run\.github_workflow_job_id\n\s+FROM ci\.runs AS run\n\s+WHERE run\.tests_id = \{test_id: UInt64\}\n\s+AND run\.started_at >= fromUnixTimestamp64Milli\(\{since: Int64\}, 'UTC'\)/g
-      )
-    ).toHaveLength(2);
+      sql.split("WHERE id IN (SELECT arrayJoin(grid_job_ids))")
+    ).toHaveLength(3);
     // A job whose first attempt started before the window is left out whole,
     // as the health table leaves it out of the window: no chain is cut.
     expect(sql).toContain(
@@ -95,7 +96,7 @@ describe("buildRunGridQuery", () => {
     // start is read with its first attempt.
     expect(
       sql.split("fromUnixTimestamp64Milli({since: Int64}, 'UTC')")
-    ).toHaveLength(4);
+    ).toHaveLength(3);
   });
 
   test("classifies code sources as the health view does and filters on them after the joins", () => {

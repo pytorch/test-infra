@@ -96,11 +96,14 @@ describe("health-list bidirectional keyset pagination", () => {
       .mockImplementation(async (sql, params, queryId) => {
         if (queryId === "api_tests_generation")
           return [{ refreshed_at: REFRESHED_AT }];
-        const [predicate, ordering] = sql
-          .slice(sql.lastIndexOf("\nWHERE ") + 7)
-          .split("\nORDER BY ");
+        // The keyset predicate and order choose the page's rows before the
+        // catalogs are joined to them.
+        const page = sql.slice(sql.indexOf("), page AS ("));
+        const [predicate, ordering] = page
+          .slice(page.indexOf("\n    WHERE ") + 11)
+          .split("\n    ORDER BY ");
         const previous = ordering.startsWith("key_0 ASC NULLS FIRST");
-        expect(ordering.split("\nLIMIT")[0]).toBe(
+        expect(ordering.split("\n    LIMIT")[0]).toBe(
           previous
             ? "key_0 ASC NULLS FIRST, key_1 DESC NULLS FIRST, key_2 DESC NULLS FIRST, key_3 DESC NULLS FIRST, key_4 DESC NULLS FIRST"
             : "key_0 DESC NULLS LAST, key_1 ASC NULLS LAST, key_2 ASC NULLS LAST, key_3 ASC NULLS LAST, key_4 ASC NULLS LAST"

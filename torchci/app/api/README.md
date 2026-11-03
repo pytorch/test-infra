@@ -76,15 +76,27 @@ Tag a query when its requests cost about ten CPU-seconds or more in
 production, measured, not guessed. Production `system.query_log` for
 2026-10-23 to 2026-10-27, CPU as user plus system time, puts the tests page at
 a median of 30 CPU-seconds, so it is tagged with its boundary probe, which
-returns one row but runs the page's whole aggregation. The attempts read is
-tagged for its worst case: it reads every retained attempt of the selected
+returns one row but reads and sorts as many health rows as the page. Since
+2026-11-03 the page is chosen before the catalogs are joined: measured with
+one thread, the default page fell from 36 to 4.3 CPU-seconds and a page of
+both code sources from 38 to 18 (`lib/api/tests/query-validation.md`), so
+measure production again before deciding whether a one-source page still
+needs the tag. The attempts read is
+tagged for its worst case: it returns every retained attempt of the selected
 bundles through `FINAL`, under a second for a test's page but up to 34
-CPU-seconds on a big commit, and it is the one read both run lists make. Leave
+CPU-seconds on a big commit, and it is the one read both run lists make.
+Since 2026-11-03 it reads `FINAL` only at the bundles' own starts, 2.2
+million rows instead of 61 million for a commit page of 100 bundles
+(`lib/api/tests/test/runs/attempts-query-validation.md`), so measure it again
+before deciding whether it still needs the tag. Leave
 a query off when it is fast: the catalog, options and test detail reads answer
 in milliseconds. The
 commit runs list is left out deliberately although its upper tail reaches the
 bar, with a median of 2.4 CPU-seconds, one request in ten above 9.7 and a
-worst of 50: its typical request is cheap, and queueing it would hold nine
+worst of 50 (before 2026-11-03, when its jobs began coming from the `head_sha`
+view instead of a gigabyte scan of the job table,
+`lib/api/tests/commit/query-validation.md`): its typical request is cheap,
+and queueing it would hold nine
 commit pages in ten behind tests pages for a rare tail; its failing-outcome
 filters, the ones the commit page's default outcomes use, read a pruned
 `FINAL` and cost about a second, and its `worst_status` filter costs no more

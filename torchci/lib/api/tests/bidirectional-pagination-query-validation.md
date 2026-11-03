@@ -1,6 +1,6 @@
 # Bidirectional pagination SQL validation
 
-Recorded on 2026-10-26 (03:28 to 03:30 UTC) against ClickHouse 26.6.1.2439,
+Recorded on 2026-11-03 (18:02 to 18:05 UTC) against ClickHouse 26.6.1.2446,
 database `ci`, with SQL generated from the working-tree builders for the test
 list, test runs and commit runs. The
 [evidence bundle](validation/bidirectional-pagination-2026-10-26.json) records
@@ -10,7 +10,11 @@ execution limit. No credentials are recorded. The bundle was first recorded on
 2026-10-24, when the previous-page support was added, and re-recorded after the
 list gained its `status` and `status_rank` columns and its 12-hour default
 window; the tests fixtures now pin `window=7d`, the window they were first
-recorded with, so a change of the default leaves them as they are.
+recorded with, so a change of the default leaves them as they are. It was
+re-recorded again on 2026-11-03, when the list began choosing its page before
+it joins the catalogs and the commit's jobs began coming from the `head_sha`
+view, and once more that day when the page began naming its health columns
+(the file keeps the 2026-10-26 name).
 
 The functional baseline reverses every sort comparison and SQL sort direction
 for a previous-page cursor. It reverses null placement from `NULLS LAST` to
@@ -31,20 +35,24 @@ received `EXPLAIN indexes=1` and `EXPLAIN PIPELINE`, followed by three alternati
 pairs with pair order reversed on alternate iterations. All **60** measured
 executions returned exactly equal, nonempty, complete ordered rows, including
 cursor values. Timings overlap, so the baseline is retained with no speedup claim.
+This recording ran while the server was busy, with the user's 64-query limit
+reached minutes before, and its timings run two to six times those of the
+05:07 UTC recording before it; they compare the two versions with each other,
+not with earlier recordings.
 No approximate functions, narrower time ranges or optimizer changes were added.
 
 | Selection                                                     | Rows | Baseline median (range), seconds | Candidate median (range), seconds |
 | ------------------------------------------------------------- | ---: | -------------------------------- | --------------------------------- |
-| Tests, failure rate then descending run count                 |    4 | 0.418 (0.412–0.419)              | 0.446 (0.431–0.468)               |
-| Tests, same selection, one-row probe                          |    1 | 0.493 (0.484–0.519)              | 0.620 (0.520–0.672)               |
-| Tests, crossing the null-owner boundary                       |    4 | 0.314 (0.262–0.361)              | 0.310 (0.296–0.368)               |
-| Test runs, ascending start time                               |    4 | 0.032 (0.026–0.043)              | 0.047 (0.031–0.068)               |
-| Test runs, same selection, one-row probe                      |    1 | 0.030 (0.029–0.043)              | 0.039 (0.029–0.070)               |
-| Test runs, null owner then descending start time              |    4 | 0.035 (0.034–0.035)              | 0.037 (0.037–0.038)               |
-| Test runs, owner/time sort and repeated last-attempt outcomes |    4 | 0.053 (0.050–0.058)              | 0.051 (0.044–0.058)               |
-| Commit runs, ascending start time                             |    4 | 0.378 (0.321–0.385)              | 0.367 (0.287–0.418)               |
-| Commit runs, same selection, one-row probe                    |    1 | 0.392 (0.272–0.457)              | 0.371 (0.343–0.378)               |
-| Commit runs, owner then descending start time                 |    4 | 0.733 (0.622–0.933)              | 1.134 (0.551–1.277)               |
+| Tests, failure rate then descending run count                 |    4 | 1.444 (1.145–1.704)              | 1.207 (1.141–1.644)               |
+| Tests, same selection, one-row probe                          |    1 | 0.934 (0.889–1.004)              | 1.014 (0.950–1.331)               |
+| Tests, crossing the null-owner boundary                       |    4 | 1.154 (1.147–1.488)              | 1.133 (0.930–2.013)               |
+| Test runs, ascending start time                               |    4 | 0.404 (0.349–0.943)              | 0.488 (0.417–0.854)               |
+| Test runs, same selection, one-row probe                      |    1 | 0.675 (0.602–0.742)              | 0.737 (0.523–1.006)               |
+| Test runs, null owner then descending start time              |    4 | 0.329 (0.288–0.546)              | 0.321 (0.238–0.418)               |
+| Test runs, owner/time sort and repeated last-attempt outcomes |    4 | 0.474 (0.447–0.646)              | 0.570 (0.503–0.741)               |
+| Commit runs, ascending start time                             |    4 | 0.523 (0.432–0.691)              | 0.499 (0.315–0.513)               |
+| Commit runs, same selection, one-row probe                    |    1 | 0.584 (0.446–0.938)              | 0.626 (0.527–0.750)               |
+| Commit runs, owner then descending start time                 |    4 | 0.833 (0.814–1.118)              | 0.853 (0.826–0.938)               |
 
 The **35** independent navigation checks compare every returned column against
 contiguous slices of the reference forward queries, read live in the same run.
@@ -53,26 +61,31 @@ before the first row, both directions of one-row probes, and an empty probe
 after the fully enumerated health fixture. Real null owners, tied sort values,
 mixed ascending/descending keys, and decimal IDs above JavaScript's safe integer
 range are represented. Each standard reference has 13 rows and anchors its pages
-at row 8; the null-owner health fixture enumerates whole (40 rows at this
+at row 8; the null-owner health fixture enumerates whole (42 rows at this
 recording, the last three with a null owner) and anchors at its second-to-last
 row, so one backward page returns both null and nonnull rows and the end probe
 reads past its last row; the null-owner run case checks tie-breaking within
 null values. The normal commit fixture exercises the `by_job` projection. These
 checks validate SQL selection; endpoint tests separately validate encoded
-links, enrichment and response boundaries.
+links, enrichment and response boundaries. Each check slices a fresh forward
+read at the positions the first read gave, so rows that land above an anchor
+between the two fail it although the page is right; the newest-first
+`test_last_attempt` fixture, a busy test, does this when CI is busy (three
+`--record` runs failed so on 2026-11-03 before one passed), and a rerun is the
+remedy.
 
 EXPLAIN retained the existing access paths: the sample test run pruned to
-42 of 64,097 granules by test ID; the default and catalog-sorted commit pages
-used `by_job`, pruning to 88 of 64,099 granules. The filtered health request
-selected its window/source partitions (1,086 of 10,781 granules) and then its
-test IDs (934 of 1,086; 4 of 1,086 for the null-owner fixture). Cursor
-comparison does not avoid the underlying group aggregation.
+197 of 1,372,321 granules by test ID; the default and catalog-sorted commit
+pages used `by_job`, pruning to 88 of about 1,372,300 granules. The filtered
+health request selected its window/source partitions (1,127 of 12,636
+granules) and then its test IDs (957 of 1,127; 4 of 1,127 for the null-owner
+fixture). Cursor comparison does not avoid reading the page's health rows.
 
 For accurate boundary links on a nonempty cursor page, the list makes one
 opposite-direction selection with internal `limit=0`, yielding SQL `LIMIT 1`.
 It fetches no attempts or other enrichment. The measurements show that this
 probe can cost about as much as the page-selection query itself: limiting output
-to one row still reads and aggregates the matching scope. It adds latency on
+to one row still reads and sorts the matching scope. It adds latency on
 cursor pages; initial and empty pages do not make this extra query. The recorded
 figures are fixed filtered examples, not a latency guarantee for broad requests.
 

@@ -13,23 +13,35 @@ export function buildRunAttemptsQuery(groups: readonly RunGroup[]) {
       }}`;
     })
   );
-  const groupColumns = RUN_GROUP_FIELDS.map((field) => `run.${field}`);
-  const membership = (length: number) =>
-    `(${groupColumns.slice(0, length).join(", ")}) IN (${values
-      .map((group) => `(${group.slice(0, length).join(", ")})`)
-      .join(", ")})`;
+  const membership = `(${RUN_GROUP_FIELDS.map((field) => `run.${field}`).join(
+    ", "
+  )}) IN (${values.map((group) => `(${group.join(", ")})`).join(", ")})`;
   return {
     params,
-    // The first three group columns are the primary-key prefix. Filtering
-    // them before FINAL keeps every version of each selected execution; the
-    // full group predicate also selects the job. There is no report, outcome,
-    // rerun-number, timestamp or page restriction on the returned attempts.
+    // A plain read of the bundles finds the test, configuration and start of
+    // every execution they hold: the group columns lead the by_job
+    // projection's key, so it reads only these jobs' rows, and every stored
+    // version of an execution shares its replacement key. Those four columns
+    // are the primary key, so FINAL then reads only the granules holding
+    // these starts, in their days' partitions, instead of every configuration's
+    // whole retained history: 2.2 million rows instead of 61 million for a
+    // commit page of 100 bundles (attempts-query-validation.md, 2026-11-03).
+    // They are replacement-key columns, so every version of a selected
+    // execution stays eligible and FINAL resolves it as before; the full group
+    // predicate then drops other jobs' executions at those starts. There is no
+    // report, outcome, rerun-number, time-window or page restriction on the
+    // returned attempts.
     sql: `
 SELECT ${PAGE_COLUMNS}
 FROM ${CI_DATABASE}.runs AS run FINAL
 ${
   values.length
-    ? `PREWHERE ${membership(3)}\nWHERE ${membership(4)}`
+    ? `PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (
+    SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at
+    FROM ${CI_DATABASE}.runs AS run
+    WHERE ${membership}
+)
+WHERE ${membership}`
     : "WHERE 0"
 }
 ORDER BY run.started_at ASC, run.ended_at ASC, toString(run.id) ASC

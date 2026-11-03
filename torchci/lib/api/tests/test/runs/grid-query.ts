@@ -78,9 +78,10 @@ const CHAINS_START =
 // jobs with an attempt in the window are found first, by the runs' primary
 // key, and their metadata read; the chain read takes the test's attempts
 // from a day before the window (CHAIN_REACH_MS), through FINAL so a
-// replaced attempt counts once, the join to those jobs keeps theirs (a
-// third read of the jobs' ids in the chain read cost more than it saved), and the jobs whose first attempt is older go in
-// HAVING. The key-column filters go before FINAL, which keeps every version
+// replaced attempt counts once, the join to those jobs keeps theirs
+// (filtering the chain read by the jobs' ids too, a third read of them when
+// each metadata read had its own, cost more than it saved on 2026-10-29),
+// and the jobs whose first attempt is older go in HAVING. The key-column filters go before FINAL, which keeps every version
 // of each selected attempt, as the attempts read does. The handler
 // folds the jobs of a cell (queryRunGrid in grid.ts): which of two shards
 // decides, what a re-run recovers, what a pass took. The jobs' branch, name
@@ -154,17 +155,18 @@ export function buildRunGridQuery(query: RunsGridQuery, since: number | null) {
   // The jobs with an attempt in the window, read without FINAL: a superset
   // of ids is harmless, since a job outside the selection matches no
   // selected run. The `jobs` read keeps one row per id, so a group's job
-  // has one URL and one name and any() is exact.
+  // has one URL and one name and any() is exact. They are read once, into
+  // an array scalar both metadata reads take, as the commit's jobs are
+  // (commitRunsScope): written as a subquery in each, the runs were read
+  // twice, a third of the statement's time (grid-query-validation.md,
+  // 2026-11-03).
   if (since !== null) {
     params.since = since;
     params.chains_since = since - CHAIN_REACH_MS;
   }
   const windowFilters =
     since === null ? runFilters : [...runFilters, WINDOW_START];
-  const jobIds = `
-        SELECT DISTINCT run.github_workflow_job_id
-        FROM ${CI_DATABASE}.runs AS run
-        WHERE ${windowFilters.join("\n            AND ")}`;
+  const jobIds = "(SELECT arrayJoin(grid_job_ids))";
   // The chains read: the test's attempts from a day before the window, of
   // which the join keeps the jobs with an attempt in it.
   const chainFilters =
@@ -172,11 +174,15 @@ export function buildRunGridQuery(query: RunsGridQuery, since: number | null) {
   return {
     params,
     sql: `
-WITH jobs AS (
+WITH (
+    SELECT groupUniqArray(run.github_workflow_job_id)
+    FROM ${CI_DATABASE}.runs AS run
+    WHERE ${windowFilters.join("\n        AND ")}
+) AS grid_job_ids,
+jobs AS (
     SELECT id, run_id, html_url, name, head_branch
     FROM default.workflow_job FINAL
-    WHERE id IN (${jobIds}
-    )
+    WHERE id IN ${jobIds}
     ORDER BY ${WORKFLOW_JOB_ORDER_SQL}
     LIMIT 1 BY id
 ), workflows AS (
@@ -184,8 +190,7 @@ WITH jobs AS (
     FROM default.workflow_run FINAL
     WHERE id IN (
         SELECT run_id FROM default.workflow_job
-        WHERE id IN (${jobIds}
-        )
+        WHERE id IN ${jobIds}
     )
     ORDER BY ${WORKFLOW_RUN_ORDER_SQL}
     LIMIT 1 BY id
