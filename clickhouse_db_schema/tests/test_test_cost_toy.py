@@ -6,7 +6,8 @@ numbers the view writes. Times are seconds after the harness's BASE. A report
 (one test process) spans its runs' first start to last end on each file,
 skipped runs included, clipped to the job; at every instant the job's time is
 split evenly among the spans running then (held_seconds), and each job's wall
-time is split by held time (occupancy) and by executed test time (test ratio).
+time is split by held time (occupancy) and by test time, executed and skipped
+runs both (test ratio).
 
 Run (read-only; each query reads no real table):
     cd clickhouse_db_schema/tests && python3 -m unittest test_test_cost_toy -v
@@ -336,7 +337,7 @@ class Occupancy(ToyCase):
 
 class Skips(ToyCase):
     def test_skips_at_report_edges_set_span_bounds(self):
-        """Skipped runs widen the span but are not executed time.
+        """Skipped runs widen the span and count as test time, not executed time.
 
             time   0    5         10        20   25   30            100
             A      [ss)[===================)[ss)                         a.py: skip 0-5, pass 5-25, skip 25-30
@@ -347,7 +348,8 @@ class Skips(ToyCase):
             held A 25, B 5; busy 30.
 
         Occupancy: 100 x 25/30 = 83.333333, 100 x 5/30 = 16.666667.
-        Executed A 20 (skipped 10), B 10: test ratio 100 x 20/30, 100 x 10/30.
+        Test time, executed and skipped: A 20 + 10 = 30, B 10, job 40.
+        Test ratio: 100 x 30/40 = 75, 100 x 10/40 = 25.
         """
         rows = run_view(
             [Job(1, 0, 100)],
@@ -365,7 +367,7 @@ class Skips(ToyCase):
             executed_test_seconds=20.0,
             skipped_test_seconds=10.0,
             occupancy_runner_seconds=100 * 25 / 30,
-            test_ratio_runner_seconds=100 * 20 / 30,
+            test_ratio_runner_seconds=75.0,
         )
         self.assertRow(
             r["b.py"],
@@ -373,7 +375,7 @@ class Skips(ToyCase):
             executed_test_seconds=10.0,
             skipped_test_seconds=0.0,
             occupancy_runner_seconds=100 * 5 / 30,
-            test_ratio_runner_seconds=100 * 10 / 30,
+            test_ratio_runner_seconds=25.0,
         )
         self.assertInvariants(rows, wall=100, busy=30)
 
@@ -387,7 +389,8 @@ class Skips(ToyCase):
             0-20: A 20; 20-30: A, B 5 each; 30-40: A 10. held A 35, B 5; busy 40.
 
         Occupancy: 60 x 35/40 = 52.5, 60 x 5/40 = 7.5.
-        Test ratio: only A executed (40 of 40): A 60, B 0.
+        Test ratio, by test time executed and skipped (A 40, B 10, job 50):
+        60 x 40/50 = 48, 60 x 10/50 = 12.
         """
         rows = run_view(
             [Job(1, 0, 60)],
@@ -401,7 +404,7 @@ class Skips(ToyCase):
             r["a.py"],
             held_seconds=35.0,
             occupancy_runner_seconds=52.5,
-            test_ratio_runner_seconds=60.0,
+            test_ratio_runner_seconds=48.0,
         )
         self.assertRow(
             r["b.py"],
@@ -409,13 +412,15 @@ class Skips(ToyCase):
             executed_test_seconds=0.0,
             skipped_test_seconds=10.0,
             occupancy_runner_seconds=7.5,
-            test_ratio_runner_seconds=0.0,
+            test_ratio_runner_seconds=12.0,
         )
         self.assertInvariants(rows, wall=60, busy=40)
 
-    def test_all_skipped_job_falls_back_to_occupancy(self):
-        """No executed time anywhere in the job, so the test ratio has nothing
-        to divide by and uses occupancy instead.
+    def test_all_skipped_job_splits_by_skipped_time(self):
+        """No executed time anywhere in the job: the test ratio splits by
+        skipped time, which is test time too. (It falls back to occupancy only
+        when the runs took no time at all; see
+        test_zero_duration_runs_far_apart_still_make_a_span.)
 
             time   0         10        20                     50
             A      [ss======)                                     a.py skip 0-10
@@ -423,7 +428,8 @@ class Skips(ToyCase):
 
             0-10: A, B 5 each; 10-20: B 10. held A 5, B 15; busy 20.
 
-        Occupancy (and test ratio): 50 x 5/20 = 12.5, 50 x 15/20 = 37.5.
+        Occupancy: 50 x 5/20 = 12.5, 50 x 15/20 = 37.5.
+        Test ratio (skipped A 10, B 20, job 30): 50 x 10/30, 50 x 20/30.
         """
         rows = run_view(
             [Job(1, 0, 50)],
@@ -433,7 +439,7 @@ class Skips(ToyCase):
             ],
         )
         r = by_file(rows)
-        for name, held, charged, skipped in (
+        for name, held, occupancy, skipped in (
             ("a.py", 5.0, 12.5, 10.0),
             ("b.py", 15.0, 37.5, 20.0),
         ):
@@ -442,8 +448,8 @@ class Skips(ToyCase):
                 held_seconds=held,
                 executed_test_seconds=0.0,
                 skipped_test_seconds=skipped,
-                occupancy_runner_seconds=charged,
-                test_ratio_runner_seconds=charged,
+                occupancy_runner_seconds=occupancy,
+                test_ratio_runner_seconds=50 * skipped / 30,
             )
         self.assertInvariants(rows, wall=50, busy=20)
 
@@ -671,6 +677,69 @@ class Jobs(ToyCase):
             test_ratio_runner_seconds=20.0,
         )
         self.assertInvariants(rows, wall=120, busy=10)
+
+    def test_runner_labels_split_rows(self):
+        """Every row carries its jobs' runner labels, sorted and comma-joined (so
+        their order in a workflow file does not matter): the same file
+        on the same environment splits by label, and test jobs without reports
+        get one row per label set.
+
+            job 1  linux.2xlarge             a.py 0-30
+            job 2  lf.linux.2xlarge          a.py 0-60
+            job 3  linux.idc.xpu             no reports, 0-40
+            job 4  self-hosted, linux.g5     no reports, 0-20 (stored linux.g5,self-hosted)
+        """
+        rows = run_view(
+            [
+                Job(1, 0, 30, labels=["linux.2xlarge"]),
+                Job(2, 0, 60, labels=["lf.linux.2xlarge"]),
+                Job(3, 0, 40, labels=["linux.idc.xpu"]),
+                Job(4, 0, 20, labels=["self-hosted", "linux.g5"]),
+            ],
+            [Run(1, "A", "a.py", 0, 30), Run(2, "A", "a.py", 0, 60)],
+        )
+        got = {(r["test_file"], r["runner_labels"]): r for r in rows}
+        self.assertEqual(
+            sorted(got),
+            [
+                ("", "linux.g5,self-hosted"),
+                ("", "linux.idc.xpu"),
+                ("a.py", "lf.linux.2xlarge"),
+                ("a.py", "linux.2xlarge"),
+            ],
+        )
+        self.assertRow(got[("a.py", "linux.2xlarge")], occupancy_runner_seconds=30.0)
+        self.assertRow(got[("a.py", "lf.linux.2xlarge")], occupancy_runner_seconds=60.0)
+        self.assertRow(
+            got[("", "linux.idc.xpu")], environments_id=0, occupancy_runner_seconds=40.0
+        )
+        self.assertRow(
+            got[("", "linux.g5,self-hosted")], test_ratio_runner_seconds=20.0
+        )
+        self.assertInvariants(rows, wall=150, busy=90)
+
+    def test_days_ci_runs_no_longer_holds_are_not_computed(self):
+        """A day before the first day ci.runs holds in full gets no rows at all,
+        not even rows for test jobs without reports: its runs are gone, so
+        every job would look report-less, and that computation would replace
+        the day's real one.
+
+            retention floor 2026-11-02; window 2026-11-01 .. 11-03
+            job 1  starts 11-01 00:00   a.py 0-10      excluded (before the floor)
+            job 2  starts 11-02 00:00   b.py 0-10      counted
+        """
+        day = 86400
+        rows = run_view(
+            [Job(1, 0, 10), Job(2, day, day + 10)],
+            [Run(1, "A", "a.py", 0, 10), Run(2, "A", "b.py", day, day + 10)],
+            day_from="2026-11-01",
+            day_to="2026-11-03",
+            retention_floor="2026-11-02",
+        )
+        self.assertEqual(
+            [(r["day"], r["test_file"]) for r in rows], [("2026-11-02", "b.py")]
+        )
+        self.assertInvariants(rows, wall=10, busy=10)
 
     def test_excluded_jobs(self):
         """Jobs the cost API does not count are left out with their runs:

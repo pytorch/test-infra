@@ -1,9 +1,9 @@
 -- noqa: disable=CP05,LT01
 -- Every 3 hours, recompute test_cost (000004) for the jobs that started today
 -- and in the 3 days before, so reports up to 3 days late land. Days older
--- than that are filled once by hand: the same query with fixed dates,
--- inserted into test_cost. Reads ci.runs, ci.tests, ci.owners and
--- default.workflow_job.
+-- than that are filled once by hand, while ci.runs still holds them: the same
+-- query with fixed dates, inserted into test_cost. Reads ci.runs, ci.tests,
+-- ci.owners and default.workflow_job.
 CREATE MATERIALIZED VIEW test_cost_mv
 REFRESH EVERY 3 HOUR OFFSET 30 MINUTE
 SETTINGS refresh_retries = 3, refresh_retry_initial_backoff_ms = 30000,
@@ -14,21 +14,26 @@ WITH
     -- Completed jobs that started in the window, every repository, as the
     -- cost API counts them (lib/api/tests/cost/query.ts, COMPLETED_JOBS):
     -- the latest version of each, with its runner window in milliseconds.
+    -- Only days ci.runs still holds in full (its first day may be partly
+    -- expired): computing a day after ci.runs dropped it would find jobs but
+    -- no runs, and that computation would replace the day's real one.
     jobs AS (
         SELECT
             id,
             toDate(started_at) AS day,
             repository_full_name AS repo,
             lower(workflow_name) AS workflow_name,
+            arrayStringConcat(arraySort(labels), ',') AS runner_labels,
             match(name, '(?:^|/ )test \\(') AS is_test_job,
             toUnixTimestamp64Milli(toDateTime64(started_at, 3)) AS job_start,
             toUnixTimestamp64Milli(toDateTime64(completed_at, 3)) AS job_end
         FROM (
             SELECT
-                id, repository_full_name, workflow_name, name, status, conclusion,
+                id, repository_full_name, workflow_name, labels, name, status, conclusion,
                 runner_name, created_at, started_at, completed_at
             FROM default.workflow_job
             WHERE started_at >= today() - 3 AND started_at < today() + 1
+                AND started_at >= (SELECT toDate(min(started_at)) + 1 FROM ci.runs)
             ORDER BY _inserted_at DESC
             LIMIT 1 BY id
         )
@@ -86,6 +91,7 @@ WITH
             j.day AS day,
             j.repo AS repo,
             j.workflow_name AS workflow_name,
+            j.runner_labels AS runner_labels,
             j.is_test_job AS is_test_job,
             (j.job_end - j.job_start) / 1000 AS wall_seconds,
             arrayFilter(x -> x.2 > x.1, f.spans) AS spans
@@ -99,7 +105,7 @@ WITH
     -- at its start. A job without spans holds nothing.
     swept AS (
         SELECT
-            day, job_id, repo, workflow_name, is_test_job, wall_seconds, spans,
+            day, job_id, repo, workflow_name, runner_labels, is_test_job, wall_seconds, spans,
             arraySort(arrayFlatten(arrayMap(
                 (x, i) -> [(x.1, 1, i), (x.2, -1, i)], spans, arrayEnumerate(spans)))) AS events,
             arrayMap(x -> x.1, events) AS times,
@@ -114,9 +120,9 @@ WITH
                 arrayFilter((h, k) -> k % 2 = 1, by_span, arrayEnumerate(by_span)),
                 arrayFilter((h, k) -> k % 2 = 0, by_span, arrayEnumerate(by_span))) AS held,
             -- The job's busy time (its spans' held time adds up to it) and
-            -- executed test time.
+            -- test time, executed and skipped runs both.
             arraySum(held) AS busy_seconds,
-            arraySum(arrayMap(x -> arraySum(arrayMap(m -> m.2, x.5)), spans)) AS job_executed_seconds
+            arraySum(arrayMap(x -> arraySum(arrayMap(m -> m.2 + m.3, x.5)), spans)) AS job_test_seconds
         FROM job_spans
     ),
     -- One row per job, file and module as (file, module, environment,
@@ -125,7 +131,7 @@ WITH
     -- ('', '', 0, 0, 0, 0) row, other jobs without spans none.
     job_rows AS (
         SELECT
-            day, repo, workflow_name, wall_seconds, busy_seconds, job_executed_seconds,
+            day, repo, workflow_name, runner_labels, wall_seconds, busy_seconds, job_test_seconds,
             if(empty(spans),
                 if(is_test_job, [('', '', toUInt64(0), 0., 0., 0.)], []),
                 arrayFlatten(arrayMap(
@@ -150,6 +156,7 @@ SELECT
     g.test_file AS test_file,
     g.test_module AS test_module,
     g.environments_id AS environments_id,
+    g.runner_labels AS runner_labels,
     multiIf(notEmpty(owner_module.owners), owner_module.owners, notEmpty(owner_file.owners), owner_file.owners, [])
         AS owners_snapshot,
     g.executed_test_seconds AS executed_test_seconds,
@@ -160,7 +167,7 @@ SELECT
     now64(3, 'UTC') AS computed_at
 FROM (
     SELECT
-        day, repo, workflow_name, test_file, test_module, environments_id,
+        day, repo, workflow_name, test_file, test_module, environments_id, runner_labels,
         sum(executed) AS executed_test_seconds,
         sum(skipped) AS skipped_test_seconds,
         sum(held) AS held_seconds,
@@ -168,11 +175,11 @@ FROM (
         sum(test_ratio) AS test_ratio_runner_seconds
     FROM (
         -- Each row's share of its job's wall time: by occupancy (held over
-        -- busy time) and by test-time ratio (executed over the job's executed
-        -- time, or by occupancy when every run was skipped). A test job
-        -- without spans keeps its whole wall time either way.
+        -- busy time) and by test-time ratio (test time, executed and skipped,
+        -- over the job's, or by occupancy when its runs took no time). A test
+        -- job without spans keeps its whole wall time either way.
         SELECT
-            day, repo, workflow_name,
+            day, repo, workflow_name, runner_labels,
             row.1 AS test_file,
             row.2 AS test_module,
             row.3 AS environments_id,
@@ -181,16 +188,16 @@ FROM (
             row.6 AS held,
             if(busy_seconds > 0, wall_seconds * row.6 / busy_seconds, wall_seconds) AS occupancy,
             multiIf(busy_seconds = 0, wall_seconds,
-                job_executed_seconds > 0, wall_seconds * row.4 / job_executed_seconds,
+                job_test_seconds > 0, wall_seconds * (row.4 + row.5) / job_test_seconds,
                 wall_seconds * row.6 / busy_seconds) AS test_ratio
         FROM (
             -- Only the rows and per-job values, so unrolling them stays O(S).
-            SELECT day, repo, workflow_name, wall_seconds, busy_seconds, job_executed_seconds, rows
+            SELECT day, repo, workflow_name, runner_labels, wall_seconds, busy_seconds, job_test_seconds, rows
             FROM job_rows
         )
         ARRAY JOIN rows AS row
     )
-    GROUP BY day, repo, workflow_name, test_file, test_module, environments_id
+    GROUP BY day, repo, workflow_name, test_file, test_module, environments_id, runner_labels
 ) AS g
 LEFT JOIN owners_by_key AS owner_module
     ON owner_module.repo = g.repo AND owner_module.file = g.test_file AND owner_module.module = g.test_module

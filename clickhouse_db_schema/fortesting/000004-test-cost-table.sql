@@ -3,10 +3,11 @@
 -- (/tests/[org]/[repo]/cost), staged in the sandbox before ci. 000005 adds
 -- the view that fills it.
 
--- Runner time of test jobs by day, repository, workflow, test file and
--- machine: raw test time and both attributions, occupancy and test-time
--- ratio, each computed per job and then summed. Rows with test_file '' are
--- test jobs without test reports: their whole wall time, machine unknown.
+-- Runner time of test jobs by day, repository, workflow, test file, test
+-- environment and runner labels: raw test time and both attributions,
+-- occupancy and test-time ratio, each computed per job and then summed. Rows
+-- with test_file '' are test jobs without test reports: their whole wall
+-- time, environment unknown (their runner labels still name the runner).
 -- Owners are joined at read time on (test_file, test_module), then
 -- test_file; owners_snapshot keeps them as of the computation. Filled by
 -- test_cost_mv (000005), which recomputes recent days many times: readers
@@ -25,8 +26,12 @@ CREATE TABLE test_cost
     -- The owner key below the file: the gtest suite (ci.tests.suite) for C++
     -- tests, '' for Python.
     `test_module` LowCardinality(String),
-    -- ci.environments.id of the jobs; 0 for test jobs without test reports.
+    -- ci.environments.id of the jobs: the environment the tests probed, not
+    -- the runner's instance type; 0 for test jobs without test reports.
     `environments_id` UInt64,
+    -- The jobs' runner labels, sorted and comma-joined
+    -- (default.workflow_job.labels): the runner they asked for, on every row.
+    `runner_labels` LowCardinality(String),
     -- The file's owners from ci.owners when the day was computed, by
     -- (test_file, test_module), then test_file; empty when none.
     `owners_snapshot` Array(LowCardinality(String)),
@@ -41,12 +46,21 @@ CREATE TABLE test_cost
     -- Job wall time split by occupancy: held_seconds plus a share of setup
     -- and idle time (occupancy_runner_seconds - held_seconds).
     `occupancy_runner_seconds` Float64,
-    -- Job wall time split by executed test time instead. Sums to the same
+    -- Job wall time split by test time instead, executed and skipped runs
+    -- both (by occupancy when a job's runs took no time). Sums to the same
     -- total as occupancy_runner_seconds.
     `test_ratio_runner_seconds` Float64,
     `computed_at` DateTime64(3, 'UTC')
 )
 ENGINE = ReplacingMergeTree(computed_at)
 PARTITION BY toYYYYMM(day)
-ORDER BY (repo, day, workflow_name, test_file, test_module, environments_id)
+ORDER BY (
+    repo,
+    day,
+    workflow_name,
+    test_file,
+    test_module,
+    environments_id,
+    runner_labels
+)
 ;

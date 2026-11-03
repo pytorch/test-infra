@@ -16,7 +16,7 @@ python3 -m unittest -v
 
 | File | Checks |
 | --- | --- |
-| `test_test_cost_toy.py` | Timelines small enough for pencil and paper, each drawn in its docstring with the arithmetic: overlapping, touching and identical spans; reports with many tests; gaps inside and between reports; skipped runs; C++ modules and xdist reports; multi-file reports; clipping to the job; which jobs count; owners. |
+| `test_test_cost_toy.py` | Timelines small enough for pencil and paper, each drawn in its docstring with the arithmetic: overlapping, touching and identical spans; reports with many tests; gaps inside and between reports; skipped runs; C++ modules and xdist reports; multi-file reports; clipping to the job; which jobs count; runner labels; days `ci.runs` no longer holds; owners. |
 | `test_test_cost_realistic.py` | CI-sized shards (setup, serial phase, a pool of 3, stragglers, skips, C++) and one real job (`fixtures/`) against `reference.py`, a separate brute-force statement of the same definitions, to 1e-6 s per row and column. |
 | `check_test_cost.py` | Read-only sanity checks of the filled table after a refresh or backfill: freshness, both methods' totals agree, totals match job wall time in `default.workflow_job`, row bounds, rows for test jobs without reports, executed time against `ci.runs`, owner drift, parallelism and overhead. `python3 check_test_cost.py --days 2026-11-01:2026-11-03` |
 

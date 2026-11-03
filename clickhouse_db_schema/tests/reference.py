@@ -37,12 +37,16 @@ def _ms(seconds: float) -> int:
     return round(seconds * 1000)
 
 
-def counted_jobs(jobs: Sequence[Job], day_from: str, day_to: str) -> List[Job]:
-    """The jobs the cost page counts: started in [day_from, day_to), the newest
+def counted_jobs(
+    jobs: Sequence[Job], day_from: str, day_to: str, retention_floor: str = "1970-01-01"
+) -> List[Job]:
+    """The jobs the cost page counts: started in [day_from, day_to) and not
+    before retention_floor (the first day ci.runs holds in full), the newest
     version of each id, completed and not skipped, on a runner, not a rerun
     with a stale start, and at most a day long. workflow_job keeps whole
     seconds."""
-    lo, hi = _seconds_of_day(day_from), _seconds_of_day(day_to)
+    lo = max(_seconds_of_day(day_from), _seconds_of_day(retention_floor))
+    hi = _seconds_of_day(day_to)
     newest: Dict[int, Job] = {}
     for job in jobs:
         in_window = lo <= round(job.start) < hi
@@ -81,9 +85,10 @@ def expected_rows(
     owners: Optional[Dict[str, List[str]]] = None,
     day_from: str = "2026-11-01",
     day_to: str = "2026-11-02",
+    retention_floor: str = "1970-01-01",
 ) -> List[dict]:
     owners = owners or {}
-    included = counted_jobs(jobs, day_from, day_to)
+    included = counted_jobs(jobs, day_from, day_to, retention_floor)
     by_id = {job.id: job for job in included}
     run_lo, run_hi = _seconds_of_day(day_from), _seconds_of_day(day_to) + 86400
 
@@ -108,6 +113,7 @@ def expected_rows(
             file,
             module,
             env,
+            ",".join(sorted(job.labels)),
         )
         for column, value in seconds.items():
             totals[key][column] += value
@@ -165,7 +171,8 @@ def expected_rows(
 
         held = [h / 1000 for h in held_by_brute_force(spans)]
         busy = sum(held)
-        job_executed = sum(m[2] for modules in span_modules for m in modules)
+        # The test-time ratio splits by test time, executed and skipped runs both.
+        job_test = sum(m[2] + m[3] for modules in span_modules for m in modules)
         for span_held, modules, env in zip(held, span_modules, span_env):
             run_time = sum(executed + skipped for _, _, executed, skipped in modules)
             for file, module, executed, skipped in modules:
@@ -177,7 +184,9 @@ def expected_rows(
                 row_held = span_held * share
                 occupancy = wall * row_held / busy
                 ratio = (
-                    wall * executed / job_executed if job_executed > 0 else occupancy
+                    wall * (executed + skipped) / job_test
+                    if job_test > 0
+                    else occupancy
                 )
                 add(
                     job,
@@ -192,7 +201,9 @@ def expected_rows(
                 )
 
     rows = []
-    for (day, repo, workflow, file, module, env), values in sorted(totals.items()):
+    for (day, repo, workflow, file, module, env, labels), values in sorted(
+        totals.items()
+    ):
         file_owners = owners.get(file, []) if repo == "pytorch/pytorch" else []
         rows.append(
             {
@@ -202,6 +213,7 @@ def expected_rows(
                 "test_file": file,
                 "test_module": module,
                 "environments_id": env,
+                "runner_labels": labels,
                 "owners_snapshot": list(file_owners),
                 **{
                     column: values[column]

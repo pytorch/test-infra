@@ -174,7 +174,8 @@ SELECT
     countIf(test_file = '' AND (held_seconds != 0 OR executed_test_seconds != 0 OR skipped_test_seconds != 0
         OR environments_id != 0)) AS bad_no_report_rows,
     countIf(test_file != '' AND held_seconds = 0 AND executed_test_seconds = 0 AND skipped_test_seconds = 0)
-        AS empty_file_rows
+        AS empty_file_rows,
+    countIf(runner_labels = '') AS unlabeled_rows
 FROM latest
 GROUP BY day, workflow_name
 ORDER BY day, workflow_name""")
@@ -300,6 +301,7 @@ ORDER BY day, workflow_name""")
                 "held_over_occupancy_rows",
                 "bad_no_report_rows",
                 "empty_file_rows",
+                "unlabeled_rows",
             )
         }
         day_held: Dict[str, List[float]] = {}
@@ -312,7 +314,8 @@ ORDER BY day, workflow_name""")
         text = (
             f"{rows} rows: {counts['negative_rows']} negative, {counts['held_over_occupancy_rows']} with held > "
             f"occupancy, {counts['bad_no_report_rows']} no-report rows with test time or a machine, "
-            f"{counts['empty_file_rows']} file rows with no time; days with held > occupancy: {over_days or 'none'}"
+            f"{counts['empty_file_rows']} file rows with no time, {counts['unlabeled_rows']} rows without "
+            f"runner labels; days with held > occupancy: {over_days or 'none'}"
         )
         if (
             any(
@@ -321,6 +324,7 @@ ORDER BY day, workflow_name""")
                     "negative_rows",
                     "held_over_occupancy_rows",
                     "bad_no_report_rows",
+                    "unlabeled_rows",
                 )
             )
             or over_days

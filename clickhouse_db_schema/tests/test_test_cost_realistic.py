@@ -179,10 +179,14 @@ class Shard:
         end_s = -(
             -(self.now + self.rng.randint(30_000, 120_000)) // 1000
         )  # teardown, whole seconds
+        # Runner pools share a test environment, so rows also split by label.
+        kwargs.setdefault("labels", [self.rng.choice(RUNNER_LABELS)])
         return Job(
             self.job_id, self.start_s, end_s, name=name, workflow=workflow, **kwargs
         )
 
+
+RUNNER_LABELS = ["linux.2xlarge", "lf.linux.2xlarge", "mt-l-x86iavx512-16-128"]
 
 PY_FILES = [
     f"test/test_{name}.py"
@@ -296,6 +300,7 @@ class RealisticCase(harness.ClickHouseTestCase):
             scenario.owners,
             scenario.day_from,
             scenario.day_to,
+            scenario.retention_floor,
         )
 
         def key(row):
@@ -306,6 +311,7 @@ class RealisticCase(harness.ClickHouseTestCase):
                 row["test_file"],
                 row["test_module"],
                 row["environments_id"],
+                row["runner_labels"],
             )
 
         got_by_key, want_by_key = {key(r): r for r in got}, {key(r): r for r in want}
@@ -361,7 +367,12 @@ class RealisticCase(harness.ClickHouseTestCase):
     def spans_by_job(scenario: Scenario) -> Dict[int, List[Tuple[int, int]]]:
         included = {
             j.id: j
-            for j in counted_jobs(scenario.jobs, scenario.day_from, scenario.day_to)
+            for j in counted_jobs(
+                scenario.jobs,
+                scenario.day_from,
+                scenario.day_to,
+                scenario.retention_floor,
+            )
         }
         lo = (
             datetime.strptime(scenario.day_from, "%Y-%m-%d").replace(
@@ -402,7 +413,12 @@ class RealisticCase(harness.ClickHouseTestCase):
         spans = self.spans_by_job(scenario)
         return [
             j
-            for j in counted_jobs(scenario.jobs, scenario.day_from, scenario.day_to)
+            for j in counted_jobs(
+                scenario.jobs,
+                scenario.day_from,
+                scenario.day_to,
+                scenario.retention_floor,
+            )
             if spans.get(j.id) or "/ test (" in j.name or j.name.startswith("test (")
         ]
 
@@ -432,12 +448,32 @@ class TestRealisticShards(RealisticCase):
         ):
             jobs.append(job)
             runs += job_runs
+        # Test jobs without reports: one '' row per runner label set.
         jobs.append(
             Job(
                 104,
                 9_000,
                 10_800,
                 name="linux-jammy-py3.11 / test (inductor_torchbench, 1, 2, a10g)",
+                labels=["linux.g5.4xlarge.nvidia.gpu"],
+            )
+        )
+        jobs.append(
+            Job(
+                107,
+                9_500,
+                10_100,
+                name="linux-jammy-py3.11 / test (inductor_torchbench, 2, 2, a10g)",
+                labels=["linux.g5.4xlarge.nvidia.gpu"],
+            )
+        )
+        jobs.append(
+            Job(
+                108,
+                9_000,
+                9_900,
+                name="linux-jammy-xpu / test (default, 1, 4, linux.idc.xpu)",
+                labels=["linux.idc.xpu"],
             )
         )
         jobs.append(

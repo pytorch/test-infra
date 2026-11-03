@@ -51,6 +51,8 @@ class Job:
     status: str = "completed"
     conclusion: str = "success"
     runner: str = "runner-1"
+    # The runner labels the job asked for; the view sorts and joins them with ','.
+    labels: List[str] = field(default_factory=lambda: ["linux.2xlarge"])
     # Defaults to start; later than start marks a rerun with a stale start.
     created: Optional[float] = None
     # Higher wins when a job id appears more than once (newer version).
@@ -80,6 +82,8 @@ class Scenario:
     owners: Dict[str, List[str]] = field(default_factory=dict)
     day_from: str = "2026-11-01"
     day_to: str = "2026-11-02"
+    # The first day ci.runs holds in full; the view computes no earlier day.
+    retention_floor: str = "1970-01-01"
 
 
 def _ts(seconds: float) -> str:
@@ -118,6 +122,7 @@ def sources(scenario: Scenario) -> Dict[str, str]:
             j.id,
             j.repo,
             j.workflow,
+            list(j.labels),
             j.name,
             j.status,
             j.conclusion,
@@ -146,11 +151,12 @@ def sources(scenario: Scenario) -> Dict[str, str]:
     owners = [(REPO, f, o) for f, o in scenario.owners.items()]
     return {
         "workflow_job": _values(
-            "id Int64, repository_full_name String, workflow_name String, name String, status String, "
+            "id Int64, repository_full_name String, workflow_name String, labels Array(String), "
+            "name String, status String, "
             "conclusion String, runner_name String, created_at DateTime, started_at DateTime, "
             "completed_at DateTime, _inserted_at DateTime64(3)",
             jobs,
-            (0, "", "", "", "", "", "", _ts_s(0), _ts_s(0), _ts_s(0), _ts(0)),
+            (0, "", "", [], "", "", "", "", _ts_s(0), _ts_s(0), _ts_s(0), _ts(0)),
         ),
         "runs": _values(
             "github_workflow_job_id Int64, report_uuid UUID, tests_id UInt64, environments_id UInt64, "
@@ -171,6 +177,11 @@ def sources(scenario: Scenario) -> Dict[str, str]:
 
 # (pattern, replacement key, occurrences in the committed SQL)
 REWRITES = [
+    (
+        "(SELECT toDate(min(started_at)) + 1 FROM ci.runs)",
+        "toDate('{retention_floor}')",
+        1,
+    ),
     ("FROM default.workflow_job\n", "FROM ({workflow_job})\n", 1),
     ("FROM ci.runs AS r FINAL\n", "FROM ({runs}) AS r\n", 1),
     ("FROM ci.tests FINAL)", "FROM ({tests}))", 1),
@@ -190,7 +201,12 @@ def view_select() -> str:
 
 def scenario_sql(scenario: Scenario) -> str:
     sql = view_select()
-    params = dict(sources(scenario), day_from=scenario.day_from, day_to=scenario.day_to)
+    params = dict(
+        sources(scenario),
+        day_from=scenario.day_from,
+        day_to=scenario.day_to,
+        retention_floor=scenario.retention_floor,
+    )
     for pattern, replacement, count in REWRITES:
         found = sql.count(pattern)
         if found != count:
@@ -237,9 +253,12 @@ def run_view(
     owners: Optional[Dict[str, List[str]]] = None,
     day_from: str = "2026-11-01",
     day_to: str = "2026-11-02",
+    retention_floor: str = "1970-01-01",
 ) -> List[dict]:
     """run_scenario for a scenario given as its parts."""
-    return run_scenario(Scenario(jobs, runs, owners or {}, day_from, day_to))
+    return run_scenario(
+        Scenario(jobs, runs, owners or {}, day_from, day_to, retention_floor)
+    )
 
 
 class ClickHouseTestCase(unittest.TestCase):
