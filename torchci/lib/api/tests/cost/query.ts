@@ -1,38 +1,30 @@
 import { CI_DATABASE } from "lib/api/tests/database";
 import { catalogLabelSql } from "lib/api/tests/options/options";
 
+// The rollup that holds test jobs' runner time by day, workflow, test file,
+// environment and runner labels, both attributions computed per job
+// (clickhouse_db_schema/fortesting/000004-test-cost-table.sql). It lives in
+// the sandbox until it moves to ci.
+const TEST_COST = "fortesting.test_cost";
+
 // Runner-hours are job wall time, started_at to completed_at, of every
 // completed, not skipped job of the repository that started in the window
-// on a runner. started_at has a minmax index, so the window prunes granules.
-// Three kinds of rows never ran and are left out: a job cancelled before a
-// runner took it has no runner, and its time is queue time; a rerun carries
-// forward the jobs it did not repeat with their original started_at, before
-// the rerun's created_at; and GitHub closes a job that never started 30 days
-// later, which the 24 hour cap removes (no real job runs that long). Over
-// 2026-10-23 to 10-29 these hours matched OSDC's own count of running jobs
-// to about 1%.
-const COMPLETED_JOBS = `repository_full_name = {repo: String}
-    AND status = 'completed'
-    AND conclusion NOT IN ('skipped', '')
-    AND runner_name != ''
-    AND started_at >= {start: DateTime64(3)}
-    AND started_at < {end: DateTime64(3)}
-    AND started_at >= created_at
-    AND dateDiff('second', started_at, completed_at) BETWEEN 0 AND 86400`;
-
-const JOB_SECONDS = "dateDiff('second', started_at, completed_at)";
-
-// The job's runner labels as one value; a job almost always asks for one.
-const LABEL = "arrayStringConcat(labels, ',')";
+// on a runner, by the latest version of each job. Three kinds of rows never
+// ran and are left out: a job cancelled before a runner took it has no
+// runner, and its time is queue time; a rerun carries forward the jobs it did
+// not repeat with their original started_at, before the rerun's created_at;
+// and GitHub closes a job that never started 30 days later, which the 24 hour
+// cap removes (no real job runs that long). test_cost counts test jobs by the
+// same rules.
+const COMPLETED_JOBS = `status = 'completed'
+      AND conclusion NOT IN ('skipped', '')
+      AND runner_name != ''
+      AND started_at >= created_at
+      AND dateDiff('second', started_at, completed_at) BETWEEN 0 AND 86400`;
 
 // A test job's name ends in "test (<config>, <shard>, <shards>, <runner>)",
 // possibly after a calling workflow's prefix ("dynamo-test (3.12) / test (...)").
 const TEST_JOB = String.raw`'(?:^|/ )test \\('`;
-const TEST_CONFIG = String.raw`extract(name, '(?:^|/ )test \\(([^,]+),')`;
-const JOB_KIND_SQL = `multiIf(
-      match(name, ${TEST_JOB}), 'test',
-      positionCaseInsensitive(name, 'build') > 0, 'build',
-      'other')`;
 
 // A test environment's machine, named as the tests page names its device:
 // the device the test process probed, or for a CPU-only environment, which
@@ -44,143 +36,92 @@ const MACHINE = `if(device_name != '', device_name,
         "os"
       )}, ' ', cpu_architecture, ' ', cpu_capability))`;
 
-// How many test jobs per runner label the machine map samples.
-export const MACHINE_SAMPLE_PER_LABEL = 20;
+// The window's rows of test_cost, each day as last computed.
+const LATEST = `latest AS (
+    SELECT * FROM ${TEST_COST}
+    WHERE repo = {repo: String}
+      AND day >= toDate({start: DateTime64(3)}) AND day < toDate({end: DateTime64(3)})
+      AND (day, computed_at) IN (
+        SELECT day, max(computed_at) FROM ${TEST_COST}
+        WHERE repo = {repo: String}
+          AND day >= toDate({start: DateTime64(3)}) AND day < toDate({end: DateTime64(3)})
+        GROUP BY day)
+  )`;
 
-// Each runner label's machine, from a sample of the window's test jobs on it:
-// up to MACHINE_SAMPLE_PER_LABEL of them, chosen by a hash of the job id, are
-// looked up in ci.runs (by_job projection) for the environment their tests
-// recorded, and the label takes the machine most of them ran on. A label
-// none of whose sampled jobs recorded tests (builds, benchmarks, runners whose
-// reports do not reach ci) has no row, so its jobs come out with machine ''.
-// Test rows are read to a day past the window, since a job that starts at its
-// end runs on. This is the prototype's approximation: one machine per label.
+// Each runner label's machine: the one its jobs' test reports recorded for
+// most of their hours. It names the machine of test jobs without reports and
+// of build and other jobs; a label no reporting test job ran on has none.
 const LABEL_MACHINES = `label_machines AS (
-    SELECT label, argMax(machine, jobs) AS machine
+    SELECT t.runner_labels AS label, argMax(m.machine, t.seconds) AS machine
     FROM (
-      SELECT s.label AS label, m.machine AS machine, count() AS jobs
-      FROM (
-        SELECT github_workflow_job_id AS job_id, any(environments_id) AS environments_id
-        FROM ${CI_DATABASE}.runs
-        WHERE github_workflow_job_id IN (SELECT id FROM machine_sample)
-          AND started_at >= {start: DateTime64(3)}
-          AND started_at < {end: DateTime64(3)} + INTERVAL 1 DAY
-        GROUP BY job_id
-      ) AS r
-      INNER JOIN machine_sample AS s ON s.id = r.job_id
-      INNER JOIN (
-        SELECT id, ${MACHINE} AS machine FROM ${CI_DATABASE}.environments FINAL
-      ) AS m ON m.id = r.environments_id
-      GROUP BY label, machine
-    )
+      SELECT runner_labels, environments_id, sum(occupancy_runner_seconds) AS seconds
+      FROM latest
+      WHERE environments_id != 0
+      GROUP BY runner_labels, environments_id
+    ) AS t
+    INNER JOIN env_machines AS m ON m.id = t.environments_id
     GROUP BY label
   )`;
-// The sample keeps each label's smallest hashes as it reads (groupArraySorted)
-// rather than sorting the window's test jobs, which picks the same jobs with
-// less CPU and half the memory (lib/api/tests/cost/query-validation.md).
-const MACHINE_SAMPLE = `machine_sample AS (
-    SELECT tupleElement(sampled, 2) AS id, label
-    FROM (
-      SELECT ${LABEL} AS label,
-        groupArraySorted(${MACHINE_SAMPLE_PER_LABEL})((cityHash64(id), id)) AS sample
-      FROM default.workflow_job
-      WHERE ${COMPLETED_JOBS} AND match(name, ${TEST_JOB})
-      GROUP BY label
-    )
-    ARRAY JOIN sample AS sampled
-  )`;
 
-// Each owner's share of a test config's test time on a machine. A test job's
-// hours go to owners in proportion to each owner's share of the test time
-// recorded for the job's test config on the job's machine in ci.health's
-// window of the same length: the total duration of every attempt, summed by
-// file, the file's owners from ci.owners (split evenly when a file has
-// several). Shares are taken per machine because test sets differ by machine:
-// many tests only run on GPUs and are skipped on CPU jobs of the same config.
-// A job whose machine is unknown takes its config's shares over every
-// machine (the second grouping set, machine ''). Jobs whose config records no
-// tests on their machine (benchmarks, XPU and s390x, whose reports do not
-// arrive, configs without test reports) stay unattributed, as does the time
-// of files without owners (C++ test binaries are named by binary and match
-// no file); build and other jobs serve every owner and are returned as
-// shared. ci.health windows end at its last refresh, at most 15 minutes ago,
-// while the jobs' window ends at the start of today: the shares come from a
-// window up to a day later than the hours.
-const OWNER_SHARES = `owner_shares AS (
-    SELECT test_config, machine, owner,
-      seconds / sum(seconds) OVER (PARTITION BY test_config, machine) AS share
-    FROM (
-      SELECT s.test_config AS test_config, s.machine AS machine,
-        arrayJoin(if(empty(o.owners), [''], o.owners)) AS owner,
-        sum(s.seconds / greatest(length(o.owners), 1)) AS seconds
-      FROM (
-        SELECT e.test_config AS test_config, m.machine AS machine, t.file AS file,
-          sum(h.total_duration_milliseconds) / 1000 AS seconds
-        FROM ${CI_DATABASE}.health AS h
-        INNER JOIN (
-          SELECT id, env_vars['TEST_CONFIG'] AS test_config
-          FROM ${CI_DATABASE}.env_vars FINAL
-        ) AS e ON e.id = h.env_vars_id
-        INNER JOIN (
-          SELECT id, ${MACHINE} AS machine FROM ${CI_DATABASE}.environments FINAL
-        ) AS m ON m.id = h.environments_id
-        INNER JOIN (
-          SELECT id, file FROM ${CI_DATABASE}.tests FINAL WHERE repo = {repo: String}
-        ) AS t ON t.id = h.tests_id
-        WHERE h.window = {window: String} AND e.test_config != ''
-        GROUP BY test_config, machine, file
-      ) AS s
-      LEFT JOIN (
-        SELECT file, owners FROM ${CI_DATABASE}.owners FINAL WHERE repo = {repo: String}
-      ) AS o ON o.file = s.file
-      GROUP BY GROUPING SETS ((test_config, machine, owner), (test_config, owner))
-    )
-  )`;
-
-// The owner a share of a job's hours goes to, or the bucket of hours no
-// owner is given, by why.
-const OWNER_KEY = `multiIf(
-    j.kind = 'build', 'shared:build',
-    j.kind = 'other', 'shared:other',
-    s.test_config = '', 'unattributed:no_test_reports',
-    s.owner = '', 'unattributed:no_owner',
-    s.owner)`;
-
-// The runner-hours of the window by owner (or bucket), workflow and
-// machine, so one answer serves every workflow scope, owner and machine. Every
-// row keeps its runner label too, which the API folds into each machine's
-// labels and the labels of hours on no known machine. Owner shares are per
-// test config and machine over every workflow, so a single workflow's split
-// among owners is approximate, while its total is exact.
+// The runner-hours of the window by owner (or bucket), workflow, machine and
+// runner label. Test jobs come from test_cost: each file's share of its jobs'
+// wall time by occupancy, split evenly among the file's owners (ci.owners,
+// read now), or the bucket of hours no owner is given, by why. Build and
+// other jobs come from workflow_job and serve every owner. A job whose name
+// is not a test job's but which sent test reports is in test_cost too, and
+// would count twice; none did on the days checked.
 export function runnerHoursQuery(): string {
   return `
 WITH
-  ${MACHINE_SAMPLE},
+  ${LATEST},
+  env_machines AS (
+    SELECT id, ${MACHINE} AS machine FROM ${CI_DATABASE}.environments FINAL
+  ),
   ${LABEL_MACHINES},
-  ${OWNER_SHARES},
-  job_hours AS (
-    SELECT j.kind AS kind, j.test_config AS test_config, j.workflow AS workflow,
-      lm.machine AS machine, j.label AS label,
-      sum(j.seconds) / 3600 AS runner_hours
+  test_rows AS (
+    SELECT
+      multiIf(t.test_file = '', 'unattributed:no_test_reports',
+        empty(o.owners), 'unattributed:no_owner', '') AS bucket,
+      if(bucket = '', o.owners, [bucket]) AS owner_list,
+      t.workflow_name AS workflow,
+      if(t.environments_id = 0, lm.machine, m.machine) AS machine,
+      t.runner_labels AS label,
+      t.occupancy_runner_seconds AS seconds
+    FROM latest AS t
+    LEFT JOIN (
+      SELECT file, owners FROM ${CI_DATABASE}.owners FINAL WHERE repo = {repo: String}
+    ) AS o ON o.file = t.test_file
+    LEFT JOIN env_machines AS m ON m.id = t.environments_id
+    LEFT JOIN label_machines AS lm ON lm.label = t.runner_labels
+  ),
+  other_jobs AS (
+    SELECT
+      if(positionCaseInsensitive(name, 'build') > 0, 'shared:build', 'shared:other') AS owner,
+      lower(workflow_name) AS workflow,
+      arrayStringConcat(arraySort(labels), ',') AS label,
+      toFloat64(dateDiff('second', started_at, completed_at)) AS seconds
     FROM (
-      SELECT ${JOB_KIND_SQL} AS kind,
-        if(kind = 'test', ${TEST_CONFIG}, '') AS test_config,
-        lower(workflow_name) AS workflow,
-        ${LABEL} AS label, ${JOB_SECONDS} AS seconds
+      SELECT name, workflow_name, labels, status, conclusion, runner_name,
+        created_at, started_at, completed_at
       FROM default.workflow_job
-      WHERE ${COMPLETED_JOBS}
-    ) AS j
-    LEFT JOIN label_machines AS lm ON lm.label = j.label
-    GROUP BY kind, test_config, workflow, machine, label
+      WHERE repository_full_name = {repo: String}
+        AND started_at >= {start: DateTime64(3)}
+        AND started_at < {end: DateTime64(3)}
+      ORDER BY _inserted_at DESC
+      LIMIT 1 BY id
+    )
+    WHERE ${COMPLETED_JOBS} AND NOT match(name, ${TEST_JOB})
   )
-SELECT
-  ${OWNER_KEY} AS owner,
-  j.workflow AS workflow,
-  j.machine AS machine,
-  j.label AS label,
-  sum(j.runner_hours * if(s.test_config = '', 1, s.share)) AS runner_hours
-FROM job_hours AS j
-LEFT JOIN owner_shares AS s ON s.test_config = j.test_config AND s.machine = j.machine
+SELECT owner, workflow, machine, label, sum(seconds) / 3600 AS runner_hours
+FROM (
+  SELECT owner, workflow, machine, label, seconds / length(owner_list) AS seconds
+  FROM test_rows
+  ARRAY JOIN owner_list AS owner
+  UNION ALL
+  SELECT o.owner, o.workflow, lm.machine, o.label, o.seconds
+  FROM other_jobs AS o
+  LEFT JOIN label_machines AS lm ON lm.label = o.label
+)
 GROUP BY owner, workflow, machine, label
 SETTINGS join_use_nulls = 0`;
 }

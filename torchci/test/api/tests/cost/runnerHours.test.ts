@@ -187,9 +187,8 @@ describe("cost runner-hours", () => {
     ]);
     expect(query.mock.calls[0][1]).toEqual({
       repo: "pytorch/pytorch",
-      start: "2026-10-23 00:00:00.000",
+      start: "2026-10-29 00:00:00.000",
       end: "2026-10-30 00:00:00.000",
-      window: "7d",
     });
     expect(query.mock.calls[0][4]).toBe(CI_WORKLOAD_HEAVY);
     expect(query.mock.calls[1][4]).toBeUndefined();
@@ -198,8 +197,8 @@ describe("cost runner-hours", () => {
     });
     expect(RunnerHoursSchema.safeParse(answer).success).toBe(true);
     expect([answer.days, answer.start, answer.end]).toEqual([
-      7,
-      "2026-10-23T00:00:00.000Z",
+      1,
+      "2026-10-29T00:00:00.000Z",
       "2026-10-30T00:00:00.000Z",
     ]);
     expect(answer.workflow_presets).toEqual([

@@ -1,6 +1,6 @@
 import {
   COST_DAYS,
-  COST_HEALTH_WINDOW,
+  COST_WINDOW_END,
   type CostParams,
   SIGNALS,
   WORKFLOW_PRESETS,
@@ -21,7 +21,7 @@ import { queryClickhouse } from "lib/clickhouse";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const METHOD =
-  "Test-job hours split by each owner's share of test time for the job's config and machine (ci.health). Builds and other jobs are shared; jobs without recorded tests and unowned files are unattributed. Machines are inferred from each runner label's sampled test jobs.";
+  "Each test job's wall time split among its test files by occupancy (the runner time each file's reports held, setup and idle time shared alike), then evenly among each file's owners (test_cost). Builds and other jobs are shared; test jobs without test reports and files without owners are unattributed. Machines come from each job's test reports, or for jobs without them, from their runner label's reporting jobs.";
 
 interface RunnerHoursQueryRow {
   owner: string;
@@ -216,19 +216,15 @@ export function costSignals(rows: SignalRow[]): CostSignal[] {
 
 export async function getRunnerHours(
   params: CostParams,
-  now: Date = new Date()
+  now: Date = COST_WINDOW_END
 ): Promise<RunnerHours> {
   const bounds = windowBounds(COST_DAYS, now);
-  const queryParams = {
-    repo: params.repo,
-    ...bounds.params,
-    window: COST_HEALTH_WINDOW,
-  };
+  const queryParams = { repo: params.repo, ...bounds.params };
   const started = performance.now();
   // The runner-hours, the machines' names and HUD's time to signal, asked at once.
-  // The runner-hours query reads the window's jobs three times and every health row of the
-  // window, about 15 CPU-seconds, so it runs in the heavy workload
-  // (app/api/README.md, Heavy queries); the other two are cheap.
+  // The runner-hours query reads the window's rows of test_cost and its build
+  // and other jobs; it stays in the heavy workload
+  // (app/api/README.md, Heavy queries) until measured; the other two are cheap.
   const [rows, machineRows, signalRows]: [
     RunnerHoursQueryRow[],
     MachineRow[],

@@ -261,8 +261,8 @@ export default function Page() {
           />
           <Typography variant="body2" color="text.secondary">
             Runner-hours: job wall time on the runner, no queue, every branch,
-            last {answer.days} full UTC days. Per-workflow owner splits are
-            approximate; totals are exact. Prototype.
+            last {answer.days} full UTC days. Owner splits are computed per
+            job, so every scope's split is exact. Prototype.
           </Typography>
           <CellDrawer
             prepared={prepared}

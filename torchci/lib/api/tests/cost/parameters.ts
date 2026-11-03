@@ -8,13 +8,11 @@ import {
 import { PARAMETER_DEFINITIONS as TEST_PARAMETERS } from "lib/api/tests/parameters";
 import { z } from "zod/v4";
 
-// The runner-hours cover the last seven whole UTC days, ending at the start of
-// today; owner shares come from ci.health's window of the same length. A
-// fixed span until a daily rollup holds the hours, when the endpoint will read a
-// date range from it instead: ci.runs keeps 14 days, so the machines and
-// shares of anything older are gone.
-export const COST_DAYS = 7;
-export const COST_HEALTH_WINDOW = "7d";
+// The runner-hours cover one whole UTC day of the test_cost rollup, fixed
+// while the page is checked against it, until the endpoint reads a date
+// range from it.
+export const COST_DAYS = 1;
+export const COST_WINDOW_END = new Date("2026-11-03T00:00:00Z");
 
 // The endpoint takes only the repository: its answer holds every owner,
 // workflow and machine of its days, so whatever a reader scopes or
