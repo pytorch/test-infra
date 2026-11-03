@@ -125,11 +125,12 @@ inputs:
       Nothing is taken from the job running this action, and its `status`,
       `conclusion`, `job-name` and the like are ignored.  HUD adds a verdict only
       to a row that exists, is finished, and has none; it never creates a row or
-      changes a result.  The step prints the outcome of each report and fails only
-      on an error: a missing row, an unfinished one or an existing verdict are not
-      failures, and sending the same list again is safe.  A long list is split
-      into several requests.  An environment value is capped at about 128 KB, so
-      pass `@path/to/file.json` to read the array from a file.
+      changes a result.  A bad report does not affect the others.  The step sends
+      every report, prints the outcome of each, and fails if a report is invalid
+      or hit an error or a request failed; a missing row, an unfinished one or an
+      existing verdict are not failures, and sending the same list again is safe.
+      A long list is split into several requests.  An environment value is capped
+      at about 128 KB, so pass `@path/to/file.json` to read the array from a file.
     required: false
     default: ''
   callback-url:

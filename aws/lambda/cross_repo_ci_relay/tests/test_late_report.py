@@ -69,16 +69,47 @@ class TestLateReport(unittest.TestCase):
             {"event_type": "late-report", "reports": reports},
         )
 
-    def test_a_bad_report_rejects_the_whole_request_and_names_it(self):
-        for bad in (
-            {k: v for k, v in _entry().items() if k != "job_name"},
-            _entry(triage_verdict={"category": "nope"}),
-        ):
-            with self.subTest(bad=bad), self.assertRaises(HTTPException) as ctx:
-                self.handle(_late([_entry(), bad]))
-            self.assertEqual(ctx.exception.status_code, 400)
-            self.assertIn("reports[1]", ctx.exception.detail)
+    def test_a_bad_report_is_invalid_and_the_others_still_go_through(self):
+        self.hud.return_value = {
+            "ok": True,
+            "results": [
+                {"delivery_id": "d-a", "job_name": "A", "result": "attached"},
+                {"delivery_id": "d-d", "job_name": "D", "result": "attached"},
+            ],
+        }
+        no_job = _entry(delivery_id="d-b")
+        del no_job["job_name"]
+        bad_verdict = _entry(
+            delivery_id="d-c", job_name="C", triage_verdict={"category": "nope"}
+        )
+        reports = [
+            _entry(delivery_id="d-a", job_name="A"),
+            no_job,
+            bad_verdict,
+            _entry(delivery_id="d-d", job_name="D"),
+        ]
+
+        results = self.handle(_late(reports))["results"]
+
+        forwarded = self.hud.call_args.args[2]["callback_payload"]["reports"]
+        self.assertEqual([r["job_name"] for r in forwarded], ["A", "D"])
+        self.assertEqual(
+            [(r.get("job_name"), r["result"]) for r in results],
+            [("A", "attached"), (None, "invalid"), ("C", "invalid"), ("D", "attached")],
+        )
+        self.assertIn("job_name", results[1]["detail"])
+        self.assertIn("triage_verdict", results[2]["detail"])
+
+    def test_nothing_is_forwarded_when_every_report_is_invalid(self):
+        results = self.handle(_late([{"job_name": "A"}, "x"]))["results"]
+        self.assertEqual([r["result"] for r in results], ["invalid", "invalid"])
         self.hud.assert_not_called()
+
+    def test_a_request_that_is_not_a_non_empty_list_is_rejected(self):
+        for reports in ([], None, "x"):
+            with self.subTest(reports=reports), self.assertRaises(HTTPException) as ctx:
+                self.handle({"event_type": "late-report", "reports": reports})
+            self.assertEqual(ctx.exception.status_code, 400)
 
     def test_a_repo_that_is_not_allowlisted_is_ignored(self):
         self.allowlist.get_repo_level.return_value = None

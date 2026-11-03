@@ -213,6 +213,28 @@ class TestLateReport(unittest.TestCase):
         self.assertIn("::warning::no_such_row", out)
         self.assertIn("::error::", out)
 
+    def test_an_invalid_report_fails_the_step_and_says_why(self):
+        body = {"results": [{"job_name": "job-0", "result": "invalid", "detail": "x"}]}
+        code, _, out = self.run_main(
+            [_report("job-0")], [_resp("200", json.dumps(body))]
+        )
+        self.assertEqual(code, 1)
+        self.assertIn("::error::Invalid report, job-0 (None): x", out)
+
+    def test_a_failed_request_does_not_stop_the_later_ones(self):
+        n = rc.LATE_REPORT_CHUNK * 2
+        code, post, out = self.run_main(
+            [_report(f"job-{i}") for i in range(n)],
+            [
+                _results(*["attached"] * rc.LATE_REPORT_CHUNK),
+                _resp("500", "boom"),
+            ],
+        )
+        self.assertEqual(code, 1)
+        self.assertEqual(post.call_count, 2)
+        self.assertIn(f"{rc.LATE_REPORT_CHUNK} attached", out)
+        self.assertIn(f"{rc.LATE_REPORT_CHUNK} failed", out)
+
     def test_a_hud_outage_is_called_out(self):
         # The relay answers 200 with no results when HUD is down.
         code, _, out = self.run_main([_report("job-0")], [_results()])

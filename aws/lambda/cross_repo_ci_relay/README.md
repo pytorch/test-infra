@@ -184,7 +184,7 @@ In the action the reports go in the `triage-verdict-list` input: a JSON array wi
     triage-verdict-list: "@verdicts.json"
 ```
 
-Each report names its row by the values that keyed the original callback: `delivery_id`, `workflow_name`, `job_name` and, for a GitHub row, its job's `check_run_id`, which is part of its key (a Buildkite nightly row has none). Every row belongs to the OIDC-verified repo, so a repo can only add verdicts to its own rows. Only these fields are forwarded to HUD. Each verdict is validated and normalized as in any callback, except that an invalid one is an error here (it is the whole point of the request) rather than silently dropped.
+Each report names its row by the values that keyed the original callback: `delivery_id`, `workflow_name`, `job_name` and, for a GitHub row, its job's `check_run_id`, which is part of its key (a Buildkite nightly row has none). Every row belongs to the OIDC-verified repo, so a repo can only add verdicts to its own rows. Only these fields are forwarded to HUD. Each verdict is validated and normalized as in any callback. A verdict is advisory, so a report that is invalid (a missing field or a bad verdict) does not fail the request: it gets `"result": "invalid"` with a `detail` in `results`, and the other reports are applied. Only a request that is not a non-empty list of at most 100 reports is rejected, with a `400`.
 
 ### Error propagation back to the downstream workflow
 

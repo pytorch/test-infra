@@ -374,37 +374,44 @@ def _handle_nightly_callback(
     return {"ok": True, "status": status}
 
 
-def _required_str(obj: dict, field: str, where: str) -> str:
+def _required_str(obj: dict, field: str) -> str:
     value = obj.get(field)
     if not isinstance(value, str) or not value.strip():
-        raise HTTPException(400, f"{where} is missing {field!r}")
+        raise ValueError(f"missing {field!r}")
     return value
 
 
-def _late_report_entry(entry: object, index: int) -> dict:
-    """Validate one report of a late-report callback, or raise a 400 naming it."""
-    where = f"reports[{index}]"
+def _late_report_entry(entry: object) -> dict:
+    """Validate one report of a late-report callback, or raise a ValueError."""
     if not isinstance(entry, dict):
-        raise HTTPException(400, f"{where} must be an object")
+        raise ValueError("report must be an object")
 
     report = {
-        "delivery_id": _required_str(entry, "delivery_id", where),
-        "workflow_name": _required_str(entry, "workflow_name", where),
-        "job_name": _required_str(entry, "job_name", where),
+        "delivery_id": _required_str(entry, "delivery_id"),
+        "workflow_name": _required_str(entry, "workflow_name"),
+        "job_name": _required_str(entry, "job_name"),
     }
     check_run_id = entry.get("check_run_id")
     if check_run_id is not None:
         if isinstance(check_run_id, bool) or not isinstance(check_run_id, (str, int)):
-            raise HTTPException(
-                400, f"{where}.check_run_id must be a string or a number"
-            )
+            raise ValueError("check_run_id must be a string or a number")
         report["check_run_id"] = str(check_run_id)
 
     verdict = validate_triage_verdict(entry.get("triage_verdict"))
     if verdict is None:
-        raise HTTPException(400, f"{where}.triage_verdict is missing or invalid")
+        raise ValueError("triage_verdict is missing or invalid")
     report["triage_verdict"] = verdict
     return report
+
+
+def _invalid_report(entry: object, detail: str) -> dict:
+    named = entry if isinstance(entry, dict) else {}
+    result = {
+        k: named[k]
+        for k in ("delivery_id", "job_name")
+        if isinstance(named.get(k), str)
+    }
+    return {**result, "result": "invalid", "detail": detail}
 
 
 def _handle_late_report(
@@ -420,8 +427,11 @@ def _handle_late_report(
     row by the values that keyed its original callback (``delivery_id``,
     ``workflow_name``, ``job_name`` and, for a GitHub row, ``check_run_id``) and
     carries that job's ``triage_verdict``. Every row belongs to the OIDC-verified
-    repo. The request is validated in full before anything is forwarded; HUD then
-    answers for each report in ``results``.
+    repo.
+
+    A verdict is advisory, so one bad report does not fail the others: it gets an
+    ``invalid`` result and the rest are forwarded. HUD answers for those, and
+    ``results`` has one entry per report, in request order.
     """
     entries = body.get("reports")
     if not isinstance(entries, list) or not entries:
@@ -434,25 +444,44 @@ def _handle_late_report(
             f"late-report callback has {len(entries)} reports; "
             f"the limit is {MAX_LATE_REPORTS} per request",
         )
-    reports = [_late_report_entry(entry, i) for i, entry in enumerate(entries)]
 
-    hud_response = forward_to_hud(
-        config,
-        _build_trusted(verified_repo, repo_level),
-        {
-            "callback_payload": {
-                "event_type": _LATE_REPORT_EVENT_TYPE,
-                "reports": reports,
-            }
-        },
+    reports: list[dict] = []
+    invalid: list[dict | None] = []  # per entry: its invalid result, or None
+    for entry in entries:
+        try:
+            reports.append(_late_report_entry(entry))
+            invalid.append(None)
+        except ValueError as exc:
+            invalid.append(_invalid_report(entry, str(exc)))
+
+    hud_results: list = []
+    if reports:
+        hud_response = forward_to_hud(
+            config,
+            _build_trusted(verified_repo, repo_level),
+            {
+                "callback_payload": {
+                    "event_type": _LATE_REPORT_EVENT_TYPE,
+                    "reports": reports,
+                }
+            },
+        )
+        answer = (hud_response or {}).get("results")
+        hud_results = answer if isinstance(answer, list) else []
+    logger.info(
+        "late report repo=%s reports=%d invalid=%d",
+        verified_repo,
+        len(entries),
+        len(entries) - len(reports),
     )
-    results = (hud_response or {}).get("results")
-    logger.info("late report repo=%s reports=%d", verified_repo, len(reports))
-    return {
-        "ok": True,
-        "status": _LATE_REPORT_EVENT_TYPE,
-        "results": results if isinstance(results, list) else [],
-    }
+
+    answered = iter(hud_results)
+    results = []
+    for rejected in invalid:
+        result = rejected if rejected is not None else next(answered, None)
+        if result is not None:
+            results.append(result)
+    return {"ok": True, "status": _LATE_REPORT_EVENT_TYPE, "results": results}
 
 
 def handle(config: RelayConfig, body: dict, verified_repo: str) -> dict:

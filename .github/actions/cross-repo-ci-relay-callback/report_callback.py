@@ -205,19 +205,28 @@ def build_late_report_payloads() -> list[str]:
     ]
 
 
-def summarize_late_results(bodies: list[str], sent: list[int]) -> bool:
-    """Print what happened to each report. False when any ended in an error.
+def summarize_late_results(responses: list[Response], sent: list[int]) -> bool:
+    """Print what happened to each report. False when any failed.
 
-    ``sent[i]`` is how many reports request ``i`` carried. A missing or unfinished
-    row is only a warning, as is a request answered for fewer reports than it
-    carried (the relay answers 200 when HUD is down). An existing verdict is fine:
-    sending a report again is safe.
+    ``sent[i]`` is how many reports request ``i`` carried. A failed request, an
+    ``error`` and an ``invalid`` report fail the step. A missing or unfinished row
+    is only a warning, as is a request answered for fewer reports than it carried
+    (the relay answers 200 when HUD is down). An existing verdict is fine: sending
+    a report again is safe.
     """
     counts: dict[str, int] = {}
     ok = True
-    for body, expected in zip(bodies, sent):
+    for resp, expected in zip(responses, sent):
+        if resp.returncode != 0:
+            print(
+                f"::error::A request for {expected} reports failed "
+                f"(HTTP {resp.http_code}); they may not have been applied."
+            )
+            counts["failed"] = counts.get("failed", 0) + expected
+            ok = False
+            continue
         try:
-            data = json.loads(body)
+            data = json.loads(resp.body)
         except json.JSONDecodeError:
             data = {}
         if data.get("status") == "ignored":
@@ -239,11 +248,15 @@ def summarize_late_results(bodies: list[str], sent: list[int]) -> bool:
         for report in answered:
             result = str(report.get("result", "unknown"))
             counts[result] = counts.get(result, 0) + 1
-            label = f"{report.get('job_name')} ({report.get('delivery_id')})"
+            job = report.get("job_name")
+            label = f"{job} ({report.get('delivery_id')})" if job else "a report"
             if result == "attached":
                 print(f"  attached             {label}")
             elif result == "already_has_verdict":
                 print(f"  already has a verdict {label}")
+            elif result == "invalid":
+                print(f"::error::Invalid report, {label}: {report.get('detail')}")
+                ok = False
             elif result == "error":
                 print(f"::error::The late report failed for {label}.")
                 ok = False
@@ -261,9 +274,11 @@ def late_report_main() -> None:
         return
     configured = float(os.environ.get("MAX_TIME", "10") or "10")
     os.environ["MAX_TIME"] = str(max(configured, LATE_REPORT_MIN_MAX_TIME))
-    bodies = [send_callback(payload).body for payload in payloads]
+    # Send every request even if one fails, so that a bad one does not keep the
+    # rest from being applied; the summary and the exit status come at the end.
+    responses = [send_callback(payload, exit_on_error=False) for payload in payloads]
     sent = [len(json.loads(payload)["reports"]) for payload in payloads]
-    if not summarize_late_results(bodies, sent):
+    if not summarize_late_results(responses, sent):
         sys.exit(1)
 
 
@@ -339,7 +354,7 @@ def post_once(payload_file: str) -> Response:
         )
 
 
-def send_callback(payload: str) -> Response:
+def send_callback(payload: str, exit_on_error: bool = True) -> Response:
     retries = int(os.environ.get("RATE_LIMIT_RETRIES", str(len(RATE_LIMIT_BACKOFF_S))))
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -379,7 +394,9 @@ def send_callback(payload: str) -> Response:
         )
         if resp.body:
             print(f"Relay server error response body:\n{resp.body}", file=sys.stderr)
-        sys.exit(resp.returncode)
+        if exit_on_error:
+            sys.exit(resp.returncode)
+        return resp
 
     print(f"Relay server response HTTP: {resp.http_code}")
     return resp
