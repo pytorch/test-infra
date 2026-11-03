@@ -1,0 +1,25 @@
+{
+  "params": {
+    "repo": "String",
+    "preReviewStartDate": "Nullable(String)",
+    "workflowLabels": "Array(String)",
+    "drciCommentAuthor": "String",
+    "drciCommentStart": "String",
+    "prStatusStart": "String"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "preReviewStartDate": "2026-09-01",
+      "workflowLabels": [
+        "triaged",
+        "in progress",
+        "ready for review",
+        "missing actionable issue"
+      ],
+      "drciCommentAuthor": "pytorch-bot[bot]",
+      "drciCommentStart": "<!-- drci-comment-start -->\n",
+      "prStatusStart": "<!-- pr-status-start -->"
+    }
+  ]
+}
