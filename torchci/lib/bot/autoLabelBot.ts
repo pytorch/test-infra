@@ -28,6 +28,8 @@ import {
   isPyTorchPyTorch,
   LabelToLabelConfigTracker,
   NativeStackField,
+  parseGhstackListing,
+  StackPr,
 } from "./utils";
 
 export { getLabelsFromLabelerConfig };
@@ -514,9 +516,15 @@ const CIFLOW_LABELS_KEPT_PER_PR = ["ciflow/docker"];
 // still pending after this long is treated as no stack.
 const PENDING_GHSTACK_LISTING_WINDOW_MS = 10 * 60 * 1000;
 
+// pytorch's .github/scripts/filter_test_configs.py fails every CI workflow on
+// a ghstack PR with this many or more rows below it in its listing, unless the
+// PR carries the exempt label, so a ciflow run there tests nothing below it.
+const GHSTACK_CI_BELOW_LIMIT = 10;
+const GHSTACK_CI_BELOW_LIMIT_EXEMPT_LABEL = "ciflow/trunk";
+
 // A ciflow label's run on a PR tests every PR below it in its stack, so a PR
 // is covered for a label when an open PR above it, containing the PR's
-// changes, needs that label too.
+// changes and able to run CI, needs that label too.
 async function getCoveredCiflowLabels(
   octokit: Context["octokit"],
   owner: string,
@@ -547,10 +555,21 @@ async function getCoveredCiflowLabels(
   if (above.kind !== "stack") {
     return { pending: above.kind === "pending", covered: [] };
   }
+  const listing = parseGhstackListing(pr.body, pr.number);
+  const listed: { above: number[]; below: number[] } =
+    listing.kind === "stack" ? listing : { above: [], below: [] };
+  const canRunCi = (p: StackPr): boolean => {
+    const index = listed.above.indexOf(p.number);
+    return (
+      index < 0 ||
+      index + 1 + listed.below.length < GHSTACK_CI_BELOW_LIMIT ||
+      p.labels.includes(GHSTACK_CI_BELOW_LIMIT_EXEMPT_LABEL)
+    );
+  };
   const neededAbove = new Set(
-    above.prs.flatMap((p) =>
-      getLabelsNeededByFiles(labelerConfig, p.files, p.isDraft)
-    )
+    above.prs
+      .filter(canRunCi)
+      .flatMap((p) => getLabelsNeededByFiles(labelerConfig, p.files, p.isDraft))
   );
   return {
     pending: false,
