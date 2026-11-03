@@ -550,6 +550,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "oneccl-devel",
         "oneccl",
         "impi-rt",
+        "modified-libfabric",
         "onemkl-sycl-blas",
         "onemkl-sycl-dft",
         "onemkl-sycl-lapack",

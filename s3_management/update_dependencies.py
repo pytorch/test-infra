@@ -933,6 +933,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "oneccl-devel": [{"project": "torch_xpu", "target": "xpu"}],
     "oneccl": [{"project": "torch_xpu", "target": "xpu"}],
     "impi-rt": [{"project": "torch_xpu", "target": "xpu"}],
+    "modified-libfabric": [{"project": "torch_xpu", "target": "xpu"}],
     "onemkl-sycl-blas": [{"project": "torch_xpu", "target": "xpu"}],
     "onemkl-sycl-dft": [{"project": "torch_xpu", "target": "xpu"}],
     "onemkl-sycl-lapack": [{"project": "torch_xpu", "target": "xpu"}],
