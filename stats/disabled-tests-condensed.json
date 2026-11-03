@@ -360,6 +360,7 @@
     "202995",
     "https://github.com/pytorch/pytorch/issues/202995",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -476,6 +477,13 @@
   "test_device_passthrough_still_reuses_compile_under_coor_origin_input (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "203138",
     "https://github.com/pytorch/pytorch/issues/203138",
+    [
+      "rocm"
+    ]
+  ],
+  "test_device_passthrough_still_reuses_compile_under_coor_origin_intermediate (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "203196",
+    "https://github.com/pytorch/pytorch/issues/203196",
     [
       "rocm"
     ]
@@ -642,6 +650,13 @@
       "linux"
     ]
   ],
+  "test_fused_sdp_priority_order_use_compile_True_cuda (__main__.TestSDPAAcceleratorCUDA)": [
+    "196438",
+    "https://github.com/pytorch/pytorch/issues/196438",
+    [
+      "linux"
+    ]
+  ],
   "test_get_set_dir (__main__.TestHub)": [
     "201497",
     "https://github.com/pytorch/pytorch/issues/201497",
@@ -719,6 +734,13 @@
     "https://github.com/pytorch/pytorch/issues/202795",
     [
       "linux",
+      "rocm"
+    ]
+  ],
+  "test_inductor_runs_on_nonzero_device (__main__.TestCompileOnOneRankDeviceAsParameter)": [
+    "203197",
+    "https://github.com/pytorch/pytorch/issues/203197",
+    [
       "rocm"
     ]
   ],
@@ -952,13 +974,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_n_threads (__main__.TestOpenMP_ParallelFor)": [
-    "125364",
-    "https://github.com/pytorch/pytorch/issues/125364",
-    [
-      "dynamo"
     ]
   ],
   "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
