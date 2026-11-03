@@ -9,14 +9,25 @@
 // the summary says which this block is.
 //
 // The on-call pin lives in the summary line and in one sentence under the jobs,
-// rather than in the standalone comment crcrOncallBot used to post. A plain
-// comment edit notifies nobody, but an edit that ADDS a new @mention notifies
-// that handle, once per handle per comment -- later edits never re-notify the
-// same handle (undocumented; the running experiment is
-// stackoverflow.com/questions/38986589). The Dr. CI comment is rewritten every
-// 15 minutes, so a pin has to be spent exactly once per (repo, person): a
-// repeat mention of an already-paged handle would stay silent, and one repo's
-// recovery must not leave another repo's first mention unspent.
+// rather than in the standalone comment crcrOncallBot used to post. GitHub
+// notifies on edit per mention ADDITION, not once per handle: an edit whose
+// diff adds a @mention to the comment notifies that handle -- including a
+// repeat of a handle the same comment mentioned before -- while an edit that
+// adds no mention occurrence notifies nobody. Measured live on
+// pytorch/test-infra#9090 (Nov 2026, comments 6538036524, 6594865783 and
+// 6594869848): a mention added by edit notified once; the same handle added
+// again by a later edit notified a second time; a mention removed and then
+// re-added notified a second time; a later edit without a new mention notified
+// nobody. The older "only the first mention per comment notifies" reports
+// (stackoverflow.com/questions/38986589) no longer hold. For this renderer the
+// consequence is that a repeated mention PAGES -- a repo that fails again after
+// its pins were freed pages again, and a handle on call for two repos is paged
+// per repo -- so the pins exist to keep one sweep's rewrite from paging
+// everyone all over again, not to gate a single page per person. The Dr. CI
+// comment is rewritten every 15 minutes, so a pin is spent exactly once per
+// (repo, person) per continuous outage: an already-paged handle is written as
+// plain text, which does not notify because no mention is added, and one
+// repo's recovery must not leave another repo's first mention unspent.
 // `notifiedHandlesByRepo` and `takeUnnotified` are that logic.
 
 import { RecentWorkflowsData } from "lib/types";
