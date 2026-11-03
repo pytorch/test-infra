@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import time
@@ -11,8 +13,16 @@ from .misc import HTTPException
 logger = logging.getLogger(__name__)
 
 
-def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
-    """POST a callback record to HUD.
+def _json_object(resp) -> dict | None:
+    try:
+        body = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None
+    return body if isinstance(body, dict) else None
+
+
+def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> dict | None:
+    """POST a callback record to HUD and return HUD's JSON object reply, if any.
 
     This function splits inputs into two explicit namespaces:
 
@@ -57,7 +67,7 @@ def forward_to_hud(config: RelayConfig, trusted: dict, untrusted: dict) -> None:
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 logger.info("HUD forward succeeded status=%d", resp.status)
-                return
+                return _json_object(resp)
         except urllib.error.HTTPError as exc:
             if 400 <= exc.code < 500:
                 detail = f"HUD rejected callback: HTTP {exc.code}: {exc.reason}"

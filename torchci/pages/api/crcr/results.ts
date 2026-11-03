@@ -2,7 +2,10 @@ import { checkAuthWithApiToken } from "lib/auth/auth";
 import {
   ApiError,
   extractDynamoRecord,
+  extractLateReports,
+  isLateReport,
   validatePayloadSize,
+  writeLateReports,
   writeToDynamo,
 } from "lib/crcr/crcrUtils";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -37,6 +40,14 @@ export default async function handler(
     // 3. Extract and write to DynamoDB via UpdateItem
     // Schema validation is done by the relay before forwarding.
     const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+
+    // A late report only adds verdicts to rows reported earlier, so it skips the
+    // write-once write below.
+    if (isLateReport(body)) {
+      const results = await writeLateReports(extractLateReports(body));
+      return res.status(200).json({ ok: true, status: "late-report", results });
+    }
+
     const record = extractDynamoRecord(body);
     await writeToDynamo(record);
 

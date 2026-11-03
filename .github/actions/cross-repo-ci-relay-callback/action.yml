@@ -11,12 +11,19 @@ description: >
   and `event-type` to "nightly" or "periodic" — the action will construct the
   payload from scratch (no client_payload needed).
 
+  To add triage verdicts to rows that were reported earlier, for several jobs at
+  once, set `event-type` to "late-report" and pass the reports in
+  `triage-verdict-list`.
+
 inputs:
   status:
     description: >
       Workflow status to report.  Must be either "in_progress" or "completed".
-      For nightly/periodic event types, only "completed" is accepted.
-    required: true
+      For nightly/periodic event types, only "completed" is accepted.  Required,
+      except for event-type "late-report", which is not about this job's status
+      and ignores it.
+    required: false
+    default: ''
   conclusion:
     description: >
       Conclusion of the workflow run, passed through to the check run as-is
@@ -37,7 +44,9 @@ inputs:
     description: >
       Event type override.  For PR/push workflows this is read from
       client_payload automatically and should NOT be set.  For nightly/periodic
-      workflows, set this to "nightly" or "periodic".
+      workflows, set this to "nightly" or "periodic".  Set it to "late-report" to
+      add triage verdicts to rows that were reported earlier (see
+      `triage-verdict-list`).
     required: false
     default: ''
   test-results:
@@ -96,6 +105,32 @@ inputs:
       broken triage tool degrades to no verdict, never to a half-rendered one.
       Oversized values are truncated rather than rejected: summary 1 KB,
       evidence 10 entries with 1 KB excerpts, 16 KB for the object as a whole.
+    required: false
+    default: ''
+  triage-verdict-list:
+    description: >
+      For event-type "late-report" only: triage verdicts to add to rows that were
+      reported earlier, as a JSON array with one element per job.  A row is
+      write-once, so a verdict that only exists later (an agent summary hours after
+      the build, say) cannot ride on its callback.  Each element names its row by
+      the values that keyed the job's own callback and carries that job's verdict
+      (the object described under `triage-verdict`):
+
+        [{"delivery_id": "...",
+          "workflow_name": "...",
+          "job_name": "build-npu",
+          "check_run_id": 123456789,       // GitHub rows only
+          "triage_verdict": { ... }}]
+
+      Nothing is taken from the job running this action, and its `status`,
+      `conclusion`, `job-name` and the like are ignored.  HUD adds a verdict only
+      to a row that exists, is finished, and has none; it never creates a row or
+      changes a result.  A bad report does not affect the others.  The step sends
+      every report, prints the outcome of each, and fails if a report is invalid
+      or hit an error or a request failed; a missing row, an unfinished one or an
+      existing verdict are not failures, and sending the same list again is safe.
+      A long list is split into several requests.  An environment value is capped
+      at about 128 KB, so pass `@path/to/file.json` to read the array from a file.
     required: false
     default: ''
   callback-url:
@@ -174,6 +209,7 @@ runs:
         TEST_RESULTS: ${{ inputs.test-results }}
         FAILED_TESTS_DETAIL: ${{ inputs.failed-tests-detail }}
         TRIAGE_VERDICT: ${{ inputs.triage-verdict }}
+        TRIAGE_VERDICT_LIST: ${{ inputs.triage-verdict-list }}
         CLIENT_PAYLOAD: ${{ toJson(github.event.client_payload) }}
         OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
         CALLBACK_URL: ${{ inputs.callback-url }}
