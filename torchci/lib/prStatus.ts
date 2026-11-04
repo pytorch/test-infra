@@ -326,32 +326,15 @@ function getPrStatusStageMessage(state: PrStatusState): string {
           : "The overall direction of the change is good.\n\n") +
         "To become ready for review, the change must pass automated review " +
         "and every maintainer comment must be addressed, either with a code " +
-        "change or a reply explaining why no change is needed. A fresh " +
-        "automated review checks that the feedback has been addressed. All " +
-        "CI must finish and Dr. CI must classify every failure as unrelated " +
-        "to your PR. Fix the failures it attributes to your PR (see status " +
-        "below in this comment). Workflows waiting for a maintainer to " +
-        "approve their run do not block this.\n\n" +
-        "If an automated review comment is irrelevant, react with 👎 on that " +
-        "specific comment; a short reply explaining why is helpful.\n\n" +
-        "To minimize iteration time, feel free to run the pr-review " +
-        "skill from the repo locally. If you address comments without " +
-        "pushing, comment `@pytorchbot review` to re-run the automated " +
-        "review. To bypass automated review, please add the “no automated " +
-? "A maintainer requested changes. Please address their feedback " +
-"before the PR returns to maintainer review.\n\n"
-: "The overall direction of the change is good.\n\n") +
-"To become ready for review, the change must pass automated review " +
-"and every maintainer comment must be addressed, either with a code " +
-"change or a reply explaining why no change is needed. Any running " +
-"CI must finish and every failure must be classified as unrelated " +
-"to your PR (see status below in this comment).\n\n" +
-"To minimize iteration time, feel free to run the pr-review skill " +
-"from the repo locally. If an automated review comment is " +
-"irrelevant, react with 👎 on that specific comment to reject it, "
-"ideally with a short reply explaining why. To trigger a fresh " +
-"automated review, make a new push or comment `@pytorchbot review`." +
-"To bypass automated review, please add the “no automated review” label."
+        "change or a reply explaining why no change is needed. Any running " +
+        "CI must finish and every failure must be classified as unrelated " +
+        "to your PR (see status below in this comment).\n\n" +
+        "To minimize iteration time, feel free to run the pr-review skill " +
+        "from the repo locally. If an automated review comment is " +
+        "irrelevant, react with 👎 on that specific comment to reject it, " +
+        "ideally with a short reply explaining why. To trigger a fresh " +
+        "automated review, make a new push or comment `@pytorchbot review`. " +
+        "To bypass automated review, please add the “no automated review” label."
       );
     case "missingActionableIssue":
       return (
