@@ -146,9 +146,6 @@ exclude_patterns=[
     '.github/actions/upload-artifact-s3/dist/upload/index.js',
     '.github/actions/checkout/dist/index.js',
     'tools/clang-tidy-checks/*-patches/**',
-    'tools/quick_start/published_versions.json',
-    'tools/quick_start/releases.json',
-    'tools/quick_start/additional-platforms.json',
     'greenlight/**',
 ]
 command = [
@@ -173,9 +170,6 @@ exclude_patterns = [
     '.github/actions/upload-artifact-s3/.licenses/**/*.yml',
     '.github/actions/checkout/dist/index.js',
     '.github/actions/checkout/.licenses/**/*.yml',
-    'tools/quick_start/published_versions.json',
-    'tools/quick_start/releases.json',
-    'tools/quick_start/additional-platforms.json',
     'greenlight/**',
 ]
 command = [

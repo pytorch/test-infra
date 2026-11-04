@@ -328,8 +328,8 @@ def generate() -> Dict[Path, str]:
         update_versions(versions, release_matrix[chan], chan)
 
     return {
-        BASE_DIR / "releases.json": json.dumps(release_matrix, indent=2),
-        BASE_DIR / "published_versions.json": json.dumps(versions, indent=2),
+        BASE_DIR / "releases.json": json.dumps(release_matrix, indent=2) + "\n",
+        BASE_DIR / "published_versions.json": json.dumps(versions, indent=2) + "\n",
     }
 
 

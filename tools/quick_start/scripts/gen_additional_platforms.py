@@ -214,9 +214,8 @@ def generate() -> Dict[Path, str]:
         "platforms": read_platform_json_files(),
         "html": read_markdown_files(),
     }
-    return {
-        BASE_DIR / JSON_OUT_PATH: json.dumps(payload, indent=2, ensure_ascii=False),
-    }
+    content = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    return {BASE_DIR / JSON_OUT_PATH: content}
 
 
 def main():
