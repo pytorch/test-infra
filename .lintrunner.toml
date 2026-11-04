@@ -339,6 +339,29 @@ init_command = [
 ]
 is_formatter = true
 
+# The generated files in tools/quick_start must match their generators and inputs
+[[linter]]
+code = 'QUICK_START'
+include_patterns = [
+    'tools/quick_start/**',
+    'tools/scripts/generate_binary_build_matrix.py',
+    'tools/linter/adapters/quick_start_linter.py',
+]
+command = [
+    'python3',
+    'tools/linter/adapters/quick_start_linter.py',
+    '--',
+    '@{{PATHSFILE}}'
+]
+init_command = [
+    'python3',
+    'tools/linter/adapters/pip_init.py',
+    '--dry-run={{DRYRUN}}',
+    'markdown==3.11.2',
+    'pygments==2.21.0',
+]
+is_formatter = true
+
 [[linter]]
 code = 'COPYRIGHT'
 include_patterns = ['**']

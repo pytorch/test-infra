@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generates quick start module for https://pytorch.org/get-started/locally/ page
-If called from update-quick-start-module.yml workflow (--autogenerate parameter set)
+If called from the QUICK_START lint (--autogenerate parameter set)
 Will output new quick-start-module.js, and new published_version.json file
 based on the current release matrix.
 If called standalone will generate quick-start-module.js from existing
