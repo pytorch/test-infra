@@ -1,4 +1,4 @@
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import AccessNotice from "components/tests/AccessNotice";
 import CellDrawer, { type OpenCell } from "components/tests/cost/CellDrawer";
 import CostFacts from "components/tests/cost/CostFacts";
@@ -260,11 +260,6 @@ export default function Page() {
             onToggleMachines={toggleMachines}
             onCellChange={setCell}
           />
-          <Typography variant="body2" color="text.secondary">
-            Runner-hours: job wall time on the runner, no queue, every branch,
-            last {answer.days} full UTC days. Owner splits are computed per
-            job, so every scope's split is exact. Prototype.
-          </Typography>
           <CellDrawer
             prepared={prepared}
             view={view}
