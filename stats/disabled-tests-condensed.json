@@ -580,13 +580,6 @@
       "xpu"
     ]
   ],
-  "test_effn_attn_uniform_zero_bias (__main__.CudaReproTests)": [
-    "196552",
-    "https://github.com/pytorch/pytorch/issues/196552",
-    [
-      "xpu"
-    ]
-  ],
   "test_effn_attn_uniform_zero_bias_backward (__main__.CudaReproTests)": [
     "196553",
     "https://github.com/pytorch/pytorch/issues/196553",
