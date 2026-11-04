@@ -29,13 +29,14 @@ import {
   BOT_MANAGED_PR_LABELS,
   cherryPickClassifications,
 } from "./Constants";
+import { addCiflowLabelsAtMerge } from "./mergeCiflowLabels";
 import { markInProgressIfAccepted } from "./preReviewSweep";
 import { isInPreReview } from "./preReviewUtils";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,
   addLabels,
-  CachedConfigTracker,
+  CachedLabelerConfigTracker,
   hasApprovedPullRuns,
   hasVerifiedHumanWritePermissions,
   isFirstTimeContributor,
@@ -63,7 +64,7 @@ export interface PytorchbotParams {
   commentId: number;
   commentBody: string;
   useReactions: boolean;
-  cachedConfigTracker: CachedConfigTracker;
+  cachedConfigTracker: CachedLabelerConfigTracker;
 }
 
 class PytorchBotHandler {
@@ -77,7 +78,7 @@ class PytorchBotHandler {
   login: string;
   commentBody: string;
   headSha: string | undefined;
-  cachedConfigTracker: CachedConfigTracker;
+  cachedConfigTracker: CachedLabelerConfigTracker;
 
   forceMergeMessagePat = new RegExp("^\\s*\\S+\\s+\\S+.*");
 
@@ -325,6 +326,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         return;
       }
 
+      const addedLabels: string[] = [];
       let labels: string[] = this.ctx.payload?.issue?.labels.map(
         (e: any) => e["name"]
       );
@@ -350,10 +352,22 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           return;
         }
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
+        addedLabels.push(CIFLOW_TRUNK_LABEL);
       }
       if (!(await this.hasCiFlowPull())) {
         await addLabels(this.ctx, [CIFLOW_PULL_LABEL]);
+        addedLabels.push(CIFLOW_PULL_LABEL);
       }
+      await addCiflowLabelsAtMerge({
+        octokit: this.ctx.octokit,
+        owner: this.owner,
+        repo: this.repo,
+        prNumber: this.prNum,
+        addedLabels,
+        loadLabelerConfig: () =>
+          this.cachedConfigTracker.loadLabelsConfig(this.ctx),
+        log: this.ctx.log,
+      });
     }
 
     await this.dispatchEvent("try-merge", {
