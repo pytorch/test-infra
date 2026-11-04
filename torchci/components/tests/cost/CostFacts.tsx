@@ -133,9 +133,7 @@ export default function CostFacts({
       )}
       {pill(
         "Annualized",
-        `${hoursLabel(
-          facts.scopeTotal
-        )} runner-hours${where} over ${dates}, scaled to a year`,
+        `${hoursLabel(facts.scopeTotal)} h${where}, ${dates}, scaled to a year`,
         `${hoursLabel(facts.annualized)} runner-hours a year`
       )}
       {pill(
@@ -145,7 +143,7 @@ export default function CostFacts({
       )}
       {pill(
         "Attributed to owners",
-        "Hours split among test owners; the rest is shared or unattributed",
+        "Share of hours with an owner",
         shareLabel(facts.attributedShare)
       )}
       {(signals ?? []).map((signal) =>

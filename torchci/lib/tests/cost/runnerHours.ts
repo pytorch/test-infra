@@ -537,7 +537,7 @@ function machinePieces(
   if (estimated > 1e-9) {
     out.push({
       key: `${key} (estimated)`,
-      label: `${label}, estimated from runner labels`,
+      label: `${label} (est.)`,
       hours: estimated,
       paint: { kind: "estimated", of: paint },
     });

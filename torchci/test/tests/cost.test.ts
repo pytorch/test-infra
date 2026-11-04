@@ -484,7 +484,7 @@ describe("estimated machines and the unattributed buckets", () => {
     );
     expect(pieces.map((s) => [s.label, s.hours, s.paint.kind])).toEqual([
       ["NVIDIA L4", 2, "machine"],
-      ["NVIDIA L4, estimated from runner labels", 6, "estimated"],
+      ["NVIDIA L4 (est.)", 6, "estimated"],
       [NOT_PROBED, 3, "not_probed"],
     ]);
   });

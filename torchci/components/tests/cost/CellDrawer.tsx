@@ -136,10 +136,10 @@ export default function CellDrawer({
     const buckets = cell.row.owners.filter((o) => o in BUCKET_INFO);
     const caveats = [
       notProbed
-        ? "Unknown machine: no job with test reports ran on these runner labels in the window."
+        ? "Unknown machine: no job with test reports ran on these labels."
         : detail.estimated > 0
-        ? "Test jobs without reports have no machine of their own; theirs is estimated from the runner label, as the machine other jobs on that label reported (striped)."
-        : "The machine is the one the jobs' test reports recorded.",
+        ? "Machines of test jobs without reports are estimated from their runner label."
+        : "Machines come from the jobs' test reports.",
       ...buckets.map(bucketInfo),
     ].filter((c): c is string => typeof c === "string" && c !== "");
     const labels = prepared.labels[m];
@@ -192,8 +192,7 @@ export default function CellDrawer({
           </li>
           {detail.estimated > 0 && (
             <li>
-              ≈ {hoursLabel(detail.estimated)} h with the machine estimated
-              from runner labels
+              ≈ {hoursLabel(detail.estimated)} h with an estimated machine
             </li>
           )}
         </Box>

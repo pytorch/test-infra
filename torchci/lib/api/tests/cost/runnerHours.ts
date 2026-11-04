@@ -23,7 +23,7 @@ import { queryClickhouse } from "lib/clickhouse";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const METHOD =
-  "Each test job's wall time split among its test files by occupancy (the runner time each file's reports held, setup and idle time shared alike), then evenly among each file's owners (test_cost). Builds and other jobs are left out; test jobs without test reports and files without owners are unattributed. Machines come from each job's test reports; for test jobs without reports they are estimated from the runner label's reporting jobs (striped), or unknown.";
+  "Test-job wall time, split among test files by occupancy, then evenly among each file's owners. Builds and other jobs are excluded. Machines come from test reports, or are estimated from runner labels for jobs without them.";
 
 interface RunnerHoursQueryRow {
   owner: string;

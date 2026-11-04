@@ -193,7 +193,7 @@ export default function OwnerChart({
           },
         ];
     const detail = [
-      `${row.label}: ${hoursLabel(row.hours)} runner-hours, ${shareLabel(
+      `${row.label}: ${hoursLabel(row.hours)} h · ${shareLabel(
         row.hours / total
       )} of ${name}`,
       ...pieces
@@ -515,9 +515,8 @@ export default function OwnerChart({
         }}
       >
         <span>
-          Machines come from each job&apos;s test reports. Striped: estimated
-          from the runner label of test jobs without reports; grey stripes:
-          unknown machine.
+          Machines from test reports; striped: estimated from runner labels;
+          grey stripes: unknown.
         </span>
         <span>
           {name.charAt(0).toUpperCase() + name.slice(1)} · {dates}

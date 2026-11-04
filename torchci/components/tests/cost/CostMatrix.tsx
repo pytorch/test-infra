@@ -507,15 +507,13 @@ export default function CostMatrix({
                           }}
                         >
                           <Tooltip
-                            title={`${row.label} on ${
+                            title={`${row.label} · ${
                               prepared.machines[m]
-                            }\n${hoursLabel(hours)} runner-hours${
-                              estimated > 0
-                                ? `\n≈ ${hoursLabel(
-                                    estimated
-                                  )} h with the machine estimated from runner labels`
+                            }\n${hoursLabel(hours)} h${
+                              guessed
+                                ? " (estimated)"
                                 : unknown
-                                ? "\nNo job with test reports ran on these runner labels"
+                                ? " (machine unknown)"
                                 : ""
                             }\nClick for details`}
                             enterDelay={200}
