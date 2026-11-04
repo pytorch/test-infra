@@ -62,18 +62,21 @@ export interface PushWaitRow {
 
 export type BreakageOutcome =
   | "false_green"
-  | "caught_on_pr"
+  | "signal_on_pr"
+  | "passed_on_pr"
   | "new_test"
   | "not_in_pr_matrix"
   | "landrace"
   | "unknown";
 
 export type TestOutcome =
-  | "ran_on_pr"
+  | "failed_on_pr"
+  | "passed_on_pr"
   | "td_skipped"
   | "new_test"
   | "config_not_on_pr"
-  | "unknown";
+  | "unknown"
+  | "not_checked";
 
 export interface BreakageRow {
   grain: "event" | "total";
@@ -86,6 +89,7 @@ export interface BreakageRow {
   stack_size: ChNum;
   outcome: BreakageOutcome;
   window_closed: ChNum;
+  breaking_tests: ChNum;
   test_configs: string[];
   test_files: string[];
   test_prs: ChNum[];
@@ -93,7 +97,9 @@ export interface BreakageRow {
   landed_prs: ChNum;
   events: ChNum;
   false_green: ChNum;
-  caught_on_pr: ChNum;
+  signal_on_pr: ChNum;
+  passed_on_pr: ChNum;
+  td_skipped_any: ChNum;
   new_test: ChNum;
   not_in_pr_matrix: ChNum;
   landrace: ChNum;
@@ -133,7 +139,8 @@ export interface TtrsRow {
 
 export const OUTCOME_LABELS: Record<BreakageOutcome, string> = {
   false_green: "False green (TD skipped the test)",
-  caught_on_pr: "Test ran on the PR",
+  signal_on_pr: "Test failed on the PR, merged anyway",
+  passed_on_pr: "Test ran and passed on the PR",
   new_test: "Test newer than the PR",
   not_in_pr_matrix: "Job not run on the PR",
   landrace: "Landrace",
@@ -141,11 +148,13 @@ export const OUTCOME_LABELS: Record<BreakageOutcome, string> = {
 };
 
 export const TEST_OUTCOME_LABELS: Record<TestOutcome, string> = {
-  ran_on_pr: "ran on the PR",
+  failed_on_pr: "failed on the PR",
+  passed_on_pr: "passed on the PR",
   td_skipped: "skipped by TD",
   new_test: "newer than the PR",
   config_not_on_pr: "job not run on the PR",
   unknown: "unknown",
+  not_checked: "not checked",
 };
 
 export function num(value: unknown): number | null {
@@ -208,14 +217,6 @@ export function wilsonInterval(
   return { low: Math.max(0, center - half), high: Math.min(1, center + half) };
 }
 
-const KNOWN_OUTCOMES: BreakageOutcome[] = [
-  "false_green",
-  "caught_on_pr",
-  "new_test",
-  "not_in_pr_matrix",
-  "landrace",
-];
-
 export interface BreakageStats {
   falseGreens: number;
   known: number;
@@ -225,24 +226,29 @@ export interface BreakageStats {
   perThousandPrs: number | null;
   recall: number | null;
   recallBase: number;
+  ranOnPr: number;
+  tdSkippedAny: number;
 }
 
 export function breakageStats(row: BreakageRow | undefined): BreakageStats {
-  const count = (key: BreakageOutcome) => num(row?.[key]) ?? 0;
+  const count = (key: keyof BreakageRow) => num(row?.[key]) ?? 0;
   const falseGreens = count("false_green");
-  const known = KNOWN_OUTCOMES.reduce((sum, key) => sum + count(key), 0);
-  const recallBase =
-    count("caught_on_pr") + count("false_green") + count("new_test");
+  const unknown = count("unknown");
+  const known = Math.max(0, count("events") - unknown);
+  const ranOnPr = count("signal_on_pr") + count("passed_on_pr");
+  const recallBase = ranOnPr + falseGreens;
   const perPr = ratio(falseGreens, row?.landed_prs);
   return {
     falseGreens,
     known,
-    unknown: count("unknown"),
+    unknown,
     share: ratio(falseGreens, known),
     interval: wilsonInterval(falseGreens, known),
     perThousandPrs: perPr === null ? null : perPr * 1000,
-    recall: ratio(count("caught_on_pr"), recallBase),
+    recall: ratio(ranOnPr, recallBase),
     recallBase,
+    ranOnPr,
+    tdSkippedAny: count("td_skipped_any"),
   };
 }
 
@@ -378,14 +384,15 @@ export function tdQueryUrl(
 }
 
 // Immutable: the window is snapped to whole UTC days, and these queries are
-// too heavy to re-run on focus or on a timer.
+// too heavy to re-run on focus, on a timer or after a failure.
 export function useTdQuery<T>(
   queryName: string,
   params: Record<string, unknown>
 ): TdQueryState<T> {
   const { data, error } = useSWRImmutable(
     tdQueryUrl(queryName, params),
-    fetcherHandleError
+    fetcherHandleError,
+    { shouldRetryOnError: false }
   );
   return readTdQuery<T>(queryName, data, error);
 }

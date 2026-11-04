@@ -23,11 +23,19 @@ import {
   useTdQuery,
 } from "lib/targetDeterminator";
 import { ReactNode, useMemo } from "react";
-import { TABLE_HEIGHT, TablePaper, TdPanel, TdSection } from "./TdPanel";
+import {
+  TABLE_HEIGHT,
+  TablePaper,
+  TdPanel,
+  TdSection,
+  utcColumn,
+} from "./TdPanel";
 
 function lines(items: ReactNode[]) {
   return (
-    <Box sx={{ py: 0.5, whiteSpace: "normal" }}>
+    <Box
+      sx={{ py: 0.5, whiteSpace: "normal", maxHeight: 200, overflowY: "auto" }}
+    >
       {items.map((item, i) => (
         <div key={i}>{item}</div>
       ))}
@@ -63,7 +71,8 @@ function commitLink(sha: string) {
 
 function breakingTests(row: BreakageRow): ReactNode[] {
   const files = row.test_files ?? [];
-  return files.map((file, i) => {
+  const total = num(row.breaking_tests) ?? files.length;
+  const items: ReactNode[] = files.map((file, i) => {
     const outcome = row.test_outcomes?.[i] as TestOutcome | undefined;
     const label =
       outcome === undefined
@@ -71,16 +80,30 @@ function breakingTests(row: BreakageRow): ReactNode[] {
         : TEST_OUTCOME_LABELS[outcome] ?? outcome;
     return (
       <>
-        {file} in {row.test_configs?.[i] ?? "?"}: {label} on{" "}
-        {prLink(row.test_prs?.[i])}
+        {file} in {row.test_configs?.[i] ?? "?"}: {label} (PR{" "}
+        {prLink(row.test_prs?.[i])})
       </>
     );
   });
+  if (total > files.length) {
+    items.push(
+      `Showing ${files.length.toLocaleString()} of ${total.toLocaleString()} breaking tests.`
+    );
+  }
+  return items;
 }
 
 const EVENT_COLUMNS: GridColDef[] = [
-  { field: "landed_at", headerName: "Landed (UTC)", width: 160 },
-  { field: "reverted_at", headerName: "Reverted (UTC)", width: 160 },
+  utcColumn("landed_at", "Landed (UTC)"),
+  utcColumn("reverted_at", "Reverted (UTC)"),
+  {
+    field: "landing_sha",
+    headerName: "Landed commit",
+    width: 120,
+    sortable: false,
+    renderCell: (params: GridRenderCellParams<BreakageRow>) =>
+      commitLink(params.row.landing_sha),
+  },
   {
     field: "reverted_prs",
     headerName: "Reverted PRs",
@@ -139,7 +162,7 @@ export default function BreakagesSection({
   );
   const unknownNote =
     stats.unknown > 0
-      ? ` ${stats.unknown.toLocaleString()} breakages with unknown cause left out.`
+      ? ` Left out: ${stats.unknown.toLocaleString()} with an unknown cause.`
       : "";
   const noEvents =
     "No reverted landings with a traced breaking test in this window.";
@@ -178,7 +201,7 @@ export default function BreakagesSection({
                     : stats.perThousandPrs.toFixed(2)
                 } per 1,000 landed PRs.${unknownNote}`
           }
-          caveat="A false green is a reverted landing whose breaking test did not run on the PR because TD skipped it, although the job ran and the test already existed. Landraces, tests newer than the PR and jobs that did not run on the PR are not false greens."
+          caveat="A false green is a reverted landing where no breaking test failed on the PR and TD skipped at least one of them, although the job ran and the test already existed. Landraces, tests newer than the PR and jobs that did not run on the PR are not false greens. The share is false greens / (breakages - unknown)."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -192,11 +215,9 @@ export default function BreakagesSection({
               ? noEvents
               : stats.recallBase === 0
               ? `No breakage whose test could have run on the PR.${unknownNote}`
-              : `The breaking test ran on the PR in ${(
-                  num(total?.caught_on_pr) ?? 0
-                ).toLocaleString()} of ${stats.recallBase.toLocaleString()} breakages whose job ran on the PR.${unknownNote}`
+              : `TD ran the breaking tests in ${stats.ranOnPr.toLocaleString()} of ${stats.recallBase.toLocaleString()} breakages whose tests could run on the PR. TD skipped at least one breaking test in ${stats.tdSkippedAny.toLocaleString()} breakages.${unknownNote}`
           }
-          caveat="Caught on the PR / (caught on the PR + false greens + tests newer than the PR). A breaking test that ran on the PR was in front of the author before landing."
+          caveat="Breakages where TD ran every breaking test that mattered: (failed on the PR + passed on the PR) / (failed on the PR + passed on the PR + false greens). A breaking test that failed on the PR was in front of the author before landing; one that passed on the PR broke only after landing, which is not TD's doing."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -208,7 +229,11 @@ export default function BreakagesSection({
           sub={
             events === 0
               ? noEvents
-              : `Landraces ${
+              : `Failed on the PR but merged anyway ${
+                  num(total?.signal_on_pr) ?? 0
+                }, passed on the PR ${
+                  num(total?.passed_on_pr) ?? 0
+                }, landraces ${
                   num(total?.landrace) ?? 0
                 }, job not run on the PR ${
                   num(total?.not_in_pr_matrix) ?? 0

@@ -1,4 +1,5 @@
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { GridColDef } from "@mui/x-data-grid";
 import {
   seriesWithInterpolatedTimes,
   TimeSeriesPanelWithData,
@@ -11,6 +12,17 @@ dayjs.extend(utc);
 
 export const CHART_HEIGHT = 360;
 export const TABLE_HEIGHT = 520;
+
+// The raw ISO string stays the cell value, so sorting stays chronological.
+export function utcColumn(field: string, headerName: string): GridColDef {
+  return {
+    field,
+    headerName,
+    width: 150,
+    valueFormatter: (value: unknown) =>
+      typeof value === "string" ? value.replace("T", " ").slice(0, 16) : "-",
+  };
+}
 
 export function TdSection({
   title,

@@ -54,6 +54,7 @@ function breakageTotal(partial: Partial<BreakageRow>): BreakageRow {
     stack_size: 0,
     outcome: "unknown",
     window_closed: 0,
+    breaking_tests: 0,
     test_configs: [],
     test_files: [],
     test_prs: [],
@@ -61,7 +62,9 @@ function breakageTotal(partial: Partial<BreakageRow>): BreakageRow {
     landed_prs: 0,
     events: 0,
     false_green: 0,
-    caught_on_pr: 0,
+    signal_on_pr: 0,
+    passed_on_pr: 0,
+    td_skipped_any: 0,
     new_test: 0,
     not_in_pr_matrix: 0,
     landrace: 0,
@@ -152,9 +155,11 @@ describe("breakageStats", () => {
         landed_prs: "2000",
         events: "20",
         false_green: "2",
-        caught_on_pr: "6",
+        signal_on_pr: "4",
+        passed_on_pr: "2",
+        td_skipped_any: "3",
         new_test: "2",
-        not_in_pr_matrix: "4",
+        not_in_pr_matrix: "2",
         landrace: "2",
         unknown: "4",
       })
@@ -165,8 +170,10 @@ describe("breakageStats", () => {
     expect(stats.share).toBe(2 / 16);
     expect(stats.interval).toEqual(wilsonInterval(2, 16));
     expect(stats.perThousandPrs).toBe(1);
-    expect(stats.recall).toBe(6 / 10);
-    expect(stats.recallBase).toBe(10);
+    expect(stats.ranOnPr).toBe(6);
+    expect(stats.recallBase).toBe(8);
+    expect(stats.recall).toBe(6 / 8);
+    expect(stats.tdSkippedAny).toBe(3);
   });
 
   it("leaves unknown events out of every denominator", () => {
@@ -178,6 +185,12 @@ describe("breakageStats", () => {
     expect(stats.interval).toBeNull();
     expect(stats.recall).toBeNull();
     expect(stats.perThousandPrs).toBe(0);
+  });
+
+  it("never has a negative known count", () => {
+    const stats = breakageStats(breakageTotal({ events: 2, unknown: 5 }));
+    expect(stats.known).toBe(0);
+    expect(stats.share).toBeNull();
   });
 
   it("has no rates on an empty window or a missing row", () => {
@@ -357,6 +370,7 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "stack_size",
       "outcome",
       "window_closed",
+      "breaking_tests",
       "test_configs",
       "test_files",
       "test_prs",
@@ -364,7 +378,9 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "landed_prs",
       "events",
       "false_green",
-      "caught_on_pr",
+      "signal_on_pr",
+      "passed_on_pr",
+      "td_skipped_any",
       "new_test",
       "not_in_pr_matrix",
       "landrace",

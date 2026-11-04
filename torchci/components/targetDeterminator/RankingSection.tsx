@@ -23,10 +23,16 @@ import {
   wilsonInterval,
 } from "lib/targetDeterminator";
 import { useMemo } from "react";
-import { CHART_HEIGHT, TablePaper, TdPanel, TdSection } from "./TdPanel";
+import {
+  CHART_HEIGHT,
+  TablePaper,
+  TdPanel,
+  TdSection,
+  utcColumn,
+} from "./TdPanel";
 
 const MISS_COLUMNS: GridColDef[] = [
-  { field: "landed_at", headerName: "Landed (UTC)", width: 160 },
+  utcColumn("landed_at", "Landed (UTC)"),
   {
     field: "test_file",
     headerName: "Best-ranked failing test file",
@@ -39,7 +45,10 @@ const MISS_COLUMNS: GridColDef[] = [
     headerName: "TD rank (top %)",
     type: "number",
     width: 140,
-    valueGetter: (value: unknown) => num(value),
+    valueGetter: (value: unknown) => {
+      const pct = num(value);
+      return pct === null ? null : Math.round(pct * 10) / 10;
+    },
   },
   {
     field: "sha",
