@@ -3,7 +3,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/uv_env.sh"
 install_uv
 create_uv_venv "${ENV_NAME}_poetry" "${MATRIX_PYTHON_VERSION}"
-pip install numpy
+pip install "numpy<3"
 # Pin Poetry to a released version. Installing from @main has caused
 # recurring CI flakes whenever Poetry's dev branch regresses. Bump
 # POETRY_VERSION deliberately when you want to upgrade.
