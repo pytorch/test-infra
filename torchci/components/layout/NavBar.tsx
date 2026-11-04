@@ -43,6 +43,10 @@ function NavBar() {
       href: "/flaky_trunk",
     },
     {
+      name: "Target Determinator",
+      href: "/target_determinator",
+    },
+    {
       name: "Failures Classifier",
       href: "/failedjobs/pytorch/pytorch/main",
     },
