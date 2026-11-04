@@ -1,38 +1,25 @@
 import { Grid, Link, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import {
-  seriesWithInterpolatedTimes,
-  TimeSeriesPanelWithData,
-} from "components/metrics/panels/TimeSeriesPanel";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
 import { utcStamp } from "lib/greenlight/qualityFigures";
 import {
   commitUrl,
-  Expiry,
-  TdQueryState,
-  totalError,
-  totalRow,
+  CountedRange,
+  rangeText,
   useTdQuery,
 } from "lib/targetDeterminator";
+import { TdTotalState, totalError, totalRow } from "lib/targetDeterminatorRows";
 import { ReactNode } from "react";
-
-dayjs.extend(utc);
 
 export const CHART_HEIGHT = 360;
 export const TABLE_HEIGHT = 520;
 
-export interface TdTotalState<T> extends TdQueryState<T> {
-  total?: T;
-  tileError?: string;
-}
-
 export function useTdTotalQuery<T extends { grain: string }>(
   queryName: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  enabled: boolean = true
 ): TdTotalState<T> {
-  const state = useTdQuery<T>(queryName, params);
+  const state = useTdQuery<T>(queryName, params, enabled);
   const total = totalRow(state.rows);
   return { ...state, total, tileError: totalError(queryName, state, total) };
 }
@@ -58,19 +45,17 @@ export function utcColumn(field: string, headerName: string): GridColDef {
   };
 }
 
+// What a section counts is the picked window cut to where its data holds,
+// which is stated on its face; with nothing left to count it shows no tiles.
 export function TdSection({
   title,
   intro,
-  horizonDays,
-  windowDays,
-  expiry,
+  range,
   children,
 }: {
   title: string;
   intro: ReactNode;
-  horizonDays: number;
-  windowDays: number;
-  expiry?: Expiry;
+  range: CountedRange;
   children: ReactNode;
 }) {
   return (
@@ -79,20 +64,21 @@ export function TdSection({
         {title}
       </Typography>
       <Typography variant="body1">{intro}</Typography>
-      <Typography variant="body2" color="text.secondary">
-        {Math.floor(windowDays) > horizonDays
-          ? `This section covers at most ${horizonDays} days, so only the ` +
-            `most recent ${horizonDays} days of the picked window are counted.`
-          : `This section covers windows of up to ${horizonDays} days.`}
+      <Typography
+        variant="body2"
+        color={range.empty ? "text.primary" : "text.secondary"}
+        role={range.empty ? "status" : undefined}
+      >
+        {range.empty
+          ? "Nothing to count in the picked window."
+          : `Counted ${rangeText(range)} (UTC).`}
+        {range.note === undefined ? "" : ` ${range.note}`}
       </Typography>
-      {expiry !== undefined && (
-        <Typography variant="body2" role="status">
-          {expiry.text}
-        </Typography>
+      {!range.empty && (
+        <Grid container spacing={2}>
+          {children}
+        </Grid>
       )}
-      <Grid container spacing={2}>
-        {children}
-      </Grid>
     </Stack>
   );
 }
@@ -179,54 +165,5 @@ export function TdTable({
         />
       </Paper>
     </TdPanel>
-  );
-}
-
-export interface DailyPoint {
-  bucket: string;
-  series: string;
-  value: number;
-}
-
-// Days without rows stay gaps rather than zeros: a missing day is missing data,
-// and a zero would read as a measured value.
-export function DailyChart({
-  title,
-  points,
-  startTime,
-  stopTime,
-  yAxisLabel,
-  yAxisRenderer,
-}: {
-  title: string;
-  points: DailyPoint[];
-  startTime: string;
-  stopTime: string;
-  yAxisLabel: string;
-  yAxisRenderer: (_value: number) => string;
-}) {
-  const series = seriesWithInterpolatedTimes(
-    points,
-    dayjs.utc(startTime),
-    dayjs.utc(stopTime),
-    "day",
-    "series",
-    "bucket",
-    "value",
-    false,
-    false
-  );
-  return (
-    <TimeSeriesPanelWithData
-      data={points}
-      series={series}
-      title={title}
-      groupByFieldName="series"
-      legendPadding={180}
-      timeFieldDisplayFormat="YYYY-MM-DD"
-      yAxisLabel={yAxisLabel}
-      yAxisRenderer={yAxisRenderer}
-      useUTC={true}
-    />
   );
 }

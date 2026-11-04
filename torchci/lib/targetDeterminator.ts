@@ -1,10 +1,15 @@
 // Query names, constants and formulas behind the Target Determinator page.
 
 import { useClickHouseAPI } from "lib/GeneralUtils";
-import type {
-  BreakageRow,
-  RankRow,
-  SavingsRow,
+import {
+  type BreakageRow,
+  type Chunk,
+  num,
+  type RankRow,
+  ratio,
+  readTdQuery,
+  type SavingsRow,
+  type TdQueryState,
 } from "lib/targetDeterminatorRows";
 
 // Where TD is on. The queries hardcode the same lists (test/targetDeterminator
@@ -21,13 +26,31 @@ export const TD_CUT_PCT = 25;
 export const MIN_MAIN_RUNS = 5;
 export const SMALL_SAMPLE = 30;
 
+// Before these UTC days a section's data does not measure what it claims.
+// Test jobs ran as "<build> / test-osdc (...)" until 2026-07-12, which the
+// savings baseline cannot match to the same job on main.
+export const SAVINGS_VALID_FROM = "2026-07-13";
+// The new-test check reads 14 days of tests.all_test_runs_by_name, which starts
+// on 2026-08-26; before then new tests count as false greens.
+export const BREAKAGES_VALID_FROM = "2026-09-09";
+
 // The widest window each query reads; the SQL clamps to the same widths.
-export const HORIZON_DAYS = {
-  savings: 90,
+// ttrs_percentiles has no clamp or execution cap of its own and reads tens of
+// GB per month, so the page keeps it to the last 30 days of the window.
+export const CLAMP_DAYS = {
+  savings: 365,
+  pushWait: 365,
   breakages: 90,
   ranks: 90,
-  stability: 14,
+  churn: 30,
+  ttrs: 30,
 };
+
+// td_trunk_breakages reads at most CLAMP_DAYS.breakages, so longer windows are
+// fetched in chunks of that size, on a grid fixed at BREAKAGES_VALID_FROM so a
+// chunk whose revert windows have closed keeps its SWR key and its answer.
+export const CHUNK_DAYS = CLAMP_DAYS.breakages;
+export const MAX_CHUNKS = 6;
 
 // How long the source data is kept: older windows have nothing left to read.
 export const RETENTION_DAYS = {
@@ -35,7 +58,7 @@ export const RETENTION_DAYS = {
   stability: 30,
 };
 
-const DAY_MS = 86400000;
+export const DAY_MS = 86400000;
 
 export const TD_QUERIES = {
   savings: "td_ci_savings",
@@ -54,69 +77,148 @@ export type TdParams = {
   stopTime: string;
 };
 
-export function num(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-export function ratio(numerator: unknown, denominator: unknown): number | null {
-  const n = num(numerator);
-  const d = num(denominator);
-  if (n === null || d === null || d === 0) {
-    return null;
-  }
-  return n / d;
-}
-
 function parseUtc(time: string): number {
   return Date.parse(`${time}Z`);
 }
 
-export function windowDays(startTime: string, stopTime: string): number {
-  return (parseUtc(stopTime) - parseUtc(startTime)) / DAY_MS;
+function utcText(ms: number): string {
+  return new Date(ms).toISOString().replace("Z", "");
 }
 
-// The start a query clamped to `days` before the stop actually reads.
-export function clampedStart(params: TdParams, days: number): string {
-  const floor = new Date(parseUtc(params.stopTime) - days * DAY_MS);
-  const clamped = floor.toISOString().replace("Z", "");
-  return clamped > params.startTime ? clamped : params.startTime;
+function utcDay(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
-export interface Expiry {
-  text: string;
-  whole: boolean;
+function dayStart(day: string): number {
+  return Date.parse(`${day}T00:00:00.000Z`);
 }
 
-// The queries read at most `horizonDays` back from min(stop, now), so only
-// that span is compared with what the source still keeps.
-export function dataExpiry(
+export interface RangeLimit {
+  validFrom?: number;
+  validReason?: string;
+  clampDays?: number;
+}
+
+// The part of the picked window a section counts. startTime and stopTime are
+// the query's parameters: the stop stays the picked one, so the SWR key does
+// not move with the clock. end is where data stops, min(stop, now).
+export interface CountedRange {
+  startTime: string;
+  stopTime: string;
+  start: number;
+  end: number;
+  empty: boolean;
+  note?: string;
+}
+
+// Whole UTC days, so the first counted day is kept in full and the key changes
+// once a day.
+function retainedFrom(days: number, now: number): number {
+  return dayStart(utcDay(now)) - (days - 1) * DAY_MS;
+}
+
+export function sectionLimits(now: number = Date.now()) {
+  return {
+    savings: {
+      validFrom: dayStart(SAVINGS_VALID_FROM),
+      validReason: `Test jobs had other names before ${SAVINGS_VALID_FROM}, so earlier PR jobs cannot be matched with main.`,
+      clampDays: CLAMP_DAYS.savings,
+    },
+    breakages: {
+      validFrom: dayStart(BREAKAGES_VALID_FROM),
+      validReason: `Before ${BREAKAGES_VALID_FROM} there is too little test history to tell new tests from skipped ones.`,
+    },
+    ranks: {
+      validFrom: retainedFrom(RETENTION_DAYS.ranks, now),
+      validReason: `TD's rankings are kept for ${RETENTION_DAYS.ranks} days.`,
+      clampDays: CLAMP_DAYS.ranks,
+    },
+    stability: {
+      validFrom: retainedFrom(RETENTION_DAYS.stability, now),
+      validReason: `Per-test results are kept for ${RETENTION_DAYS.stability} days.`,
+      clampDays: CLAMP_DAYS.churn,
+    },
+    ttrs: { clampDays: CLAMP_DAYS.ttrs },
+  } satisfies Record<string, RangeLimit>;
+}
+
+export function countedRange(
   params: TdParams,
-  horizonDays: number,
-  retentionDays: number,
+  limit: RangeLimit,
   now: number = Date.now()
-): Expiry | undefined {
-  const cutoff = now - retentionDays * DAY_MS;
-  const stop = Math.min(parseUtc(params.stopTime), now);
-  if (stop <= cutoff) {
-    return {
-      text: `The data for this window has expired: it is kept for ${retentionDays} days.`,
-      whole: true,
-    };
+): CountedRange {
+  const picked = parseUtc(params.startTime);
+  const stop = parseUtc(params.stopTime);
+  const validFrom = limit.validFrom ?? -Infinity;
+  const clampFrom =
+    limit.clampDays === undefined ? -Infinity : stop - limit.clampDays * DAY_MS;
+  const start = Math.max(picked, validFrom, clampFrom);
+  const end = Math.min(stop, now);
+  return {
+    startTime: utcText(start),
+    stopTime: params.stopTime,
+    start,
+    end,
+    empty: !(start < end),
+    note:
+      start <= picked
+        ? undefined
+        : validFrom >= clampFrom
+        ? limit.validReason
+        : `This section reads at most ${limit.clampDays} days at a time.`,
+  };
+}
+
+// The first and last UTC day the range holds data for.
+export function rangeText(range: { start: number; end: number }): string {
+  return `${utcDay(range.start)} to ${utcDay(range.end - 1)}`;
+}
+
+// Each chunk is a grid cell cut to the range; cells that start after now hold
+// no data and are not fetched. Beyond MAX_CHUNKS cells the oldest are dropped
+// and the range narrows to the cells kept.
+export function breakageChunks(
+  range: CountedRange,
+  now: number = Date.now()
+): { chunks: Chunk[]; range: CountedRange } {
+  if (range.empty) {
+    return { chunks: [], range };
   }
-  const start = Math.max(
-    parseUtc(params.startTime),
-    stop - horizonDays * DAY_MS
-  );
-  return start < cutoff
-    ? {
-        text: `The data is kept for ${retentionDays} days, so the older part of the window has expired.`,
-        whole: false,
-      }
-    : undefined;
+  const anchor = dayStart(BREAKAGES_VALID_FROM);
+  const cell = CHUNK_DAYS * DAY_MS;
+  const stop = parseUtc(range.stopTime);
+  const last = Math.min(stop, now);
+  const cells: [number, number][] = [];
+  for (
+    let k = Math.floor((range.start - anchor) / cell);
+    anchor + k * cell < last;
+    k++
+  ) {
+    cells.push([
+      Math.max(range.start, anchor + k * cell),
+      Math.min(stop, anchor + (k + 1) * cell),
+    ]);
+  }
+  const kept = cells.slice(-MAX_CHUNKS);
+  const narrowed =
+    kept.length === cells.length
+      ? range
+      : {
+          ...range,
+          start: kept[0][0],
+          startTime: utcText(kept[0][0]),
+          note: `This section reads at most ${
+            MAX_CHUNKS * CHUNK_DAYS
+          } days at a time.`,
+        };
+  return {
+    chunks: kept.map(([from, to]) => ({
+      startTime: utcText(from),
+      stopTime: utcText(to),
+      label: rangeText({ start: from, end: to }),
+    })),
+    range: narrowed,
+  };
 }
 
 export interface CiSaved {
@@ -226,27 +328,6 @@ export function recallCurve(rows: RankRow[]): CurvePoint[] {
   return points;
 }
 
-export function totalRow<T extends { grain: string }>(
-  rows: T[]
-): T | undefined {
-  return rows.find((row) => row.grain === "total");
-}
-
-// A query that answers without its total row broke its contract; saying so
-// beats rendering every tile as an empty window.
-export function totalError(
-  queryName: string,
-  state: { loading: boolean; error?: string },
-  total: unknown
-): string | undefined {
-  if (state.error !== undefined) {
-    return state.error;
-  }
-  return !state.loading && total === undefined
-    ? `${queryName}: no total row`
-    : undefined;
-}
-
 export function minutesText(value: unknown): string {
   const minutes = num(value);
   return minutes === null ? "-" : `${minutes.toFixed(0)} min`;
@@ -274,37 +355,6 @@ export function commitUrl(sha: unknown): string | undefined {
     : undefined;
 }
 
-export interface TdQueryState<T> {
-  loading: boolean;
-  error?: string;
-  rows: T[];
-}
-
-export function readTdQuery<T>(
-  queryName: string,
-  data: unknown,
-  error: any
-): TdQueryState<T> {
-  if (error !== undefined && error !== null) {
-    return {
-      loading: false,
-      error: `${queryName}: ${error?.message ?? String(error)}`,
-      rows: [],
-    };
-  }
-  if (data === undefined) {
-    return { loading: true, rows: [] };
-  }
-  if (!Array.isArray(data)) {
-    return {
-      loading: false,
-      error: `${queryName}: unexpected query response`,
-      rows: [],
-    };
-  }
-  return { loading: false, rows: data as T[] };
-}
-
 // The window is snapped to whole UTC days, and these queries are too heavy to
 // re-run on focus, on reconnect or after a failure.
 const TD_SWR_CONFIG = {
@@ -316,12 +366,13 @@ const TD_SWR_CONFIG = {
 
 export function useTdQuery<T>(
   queryName: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  enabled: boolean = true
 ): TdQueryState<T> {
   const { data, error } = useClickHouseAPI<T>(
     queryName,
     params,
-    true,
+    enabled,
     TD_SWR_CONFIG
   );
   return readTdQuery<T>(queryName, data, error);

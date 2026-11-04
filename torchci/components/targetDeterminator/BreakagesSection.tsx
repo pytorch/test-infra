@@ -5,22 +5,29 @@ import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
 import {
+  breakageChunks,
   breakageStats,
-  HORIZON_DAYS,
+  countedRange,
+  DAY_MS,
   NEW_TEST_DAYS,
-  num,
   prUrl,
   REVERT_WINDOW_DAYS,
+  sectionLimits,
   TD_QUERIES,
   TD_SCOPE,
   TdParams,
+  useTdQuery,
 } from "lib/targetDeterminator";
 import {
   BreakageOutcome,
   BreakageRow,
+  mergeBreakageChunks,
+  num,
   OUTCOME_LABELS,
   TEST_OUTCOME_LABELS,
   TestOutcome,
+  type Chunk,
+  type TdTotalState,
 } from "lib/targetDeterminatorRows";
 import { ReactNode, useMemo } from "react";
 import {
@@ -28,9 +35,9 @@ import {
   TABLE_HEIGHT,
   TdSection,
   TdTable,
-  useTdTotalQuery,
   utcColumn,
 } from "./TdPanel";
+import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
 function lines(items: ReactNode[]) {
   return (
@@ -130,17 +137,45 @@ const EVENT_COLUMNS: GridColDef[] = [
   },
 ];
 
+function useChunk(chunk: Chunk | undefined) {
+  return useTdQuery<BreakageRow>(
+    TD_QUERIES.breakages,
+    {
+      startTime: chunk?.startTime,
+      stopTime: chunk?.stopTime,
+      tdWorkflows: TD_SCOPE.tdWorkflows,
+    },
+    chunk !== undefined
+  );
+}
+
+// One SWR entry per chunk, so a closed chunk stays cached while the newest one
+// changes. Hooks cannot run in a loop, hence one call per MAX_CHUNKS slot.
+function useBreakages(chunks: Chunk[]): TdTotalState<BreakageRow> {
+  const states = [
+    useChunk(chunks[0]),
+    useChunk(chunks[1]),
+    useChunk(chunks[2]),
+    useChunk(chunks[3]),
+    useChunk(chunks[4]),
+    useChunk(chunks[5]),
+  ];
+  return mergeBreakageChunks(TD_QUERIES.breakages, chunks, states);
+}
+
 export default function BreakagesSection({
   params,
-  windowDays,
+  charts,
 }: {
   params: TdParams;
-  windowDays: number;
+  charts: TdChartsState;
 }) {
-  const breakages = useTdTotalQuery<BreakageRow>(TD_QUERIES.breakages, {
-    ...params,
-    tdWorkflows: TD_SCOPE.tdWorkflows,
-  });
+  const now = Date.now();
+  const { chunks, range } = breakageChunks(
+    countedRange(params, sectionLimits(now).breakages, now),
+    now
+  );
+  const breakages = useBreakages(chunks);
   const total = breakages.total;
   const error = breakages.tileError;
   const stats = breakageStats(total);
@@ -159,8 +194,7 @@ export default function BreakagesSection({
   return (
     <TdSection
       title="Breakages TD let through"
-      windowDays={windowDays}
-      horizonDays={HORIZON_DAYS.breakages}
+      range={range}
       intro={
         "When TD skips a test that would have failed, the PR shows green, " +
         "lands and breaks main, and is reverted: a false green. These are " +
@@ -172,6 +206,7 @@ export default function BreakagesSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="False greens"
+          {...tileToggle(charts, "falseGreens")}
           loading={breakages.loading}
           error={error}
           value={events === 0 ? "-" : stats.falseGreens.toLocaleString()}
@@ -196,6 +231,7 @@ export default function BreakagesSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Breakage recall"
+          {...tileToggle(charts, "recall")}
           loading={breakages.loading}
           error={error}
           value={percentFormatter(stats.recall)}
@@ -212,6 +248,7 @@ export default function BreakagesSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Reverted landings traced"
+          {...tileToggle(charts, "traced")}
           loading={breakages.loading}
           error={error}
           value={events === 0 ? "-" : events.toLocaleString()}
@@ -235,6 +272,19 @@ export default function BreakagesSection({
           caveat="Landings whose revert window has closed and whose breaking tests were confirmed by a second failing run on main."
         />
       </Grid>
+      <TdCharts
+        charts={charts}
+        keys={["falseGreens", "recall", "traced"]}
+        sources={{
+          breakages: {
+            ...breakages,
+            window: {
+              ...range,
+              countedUntil: now - REVERT_WINDOW_DAYS * DAY_MS,
+            },
+          },
+        }}
+      />
       <Grid size={{ xs: 12 }} height={TABLE_HEIGHT}>
         <TdTable
           title="Reverted landings and their breaking tests"

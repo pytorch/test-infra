@@ -5,63 +5,38 @@ import QualityTile, {
 } from "components/greenlight/quality/QualityTile";
 import { percentUnitsFormatter } from "lib/greenlight/qualityFigures";
 import {
-  dataExpiry,
-  HORIZON_DAYS,
-  num,
-  ratio,
-  RETENTION_DAYS,
+  countedRange,
+  sectionLimits,
   TD_QUERIES,
   TdParams,
 } from "lib/targetDeterminator";
-import type { ChurnRow } from "lib/targetDeterminatorRows";
-import { useMemo } from "react";
-import {
-  CHART_HEIGHT,
-  DailyChart,
-  DailyPoint,
-  TdPanel,
-  TdSection,
-  useTdTotalQuery,
-} from "./TdPanel";
-
-function dailyShare(rows: ChurnRow[]): DailyPoint[] {
-  return rows.flatMap((row) => {
-    const share =
-      row.grain === "day" ? ratio(row.identical_pairs, row.pairs) : null;
-    return share === null
-      ? []
-      : [{ bucket: row.bucket, series: "Same picks", value: share * 100 }];
-  });
-}
+import { type ChurnRow, num, ratio } from "lib/targetDeterminatorRows";
+import { TdSection, useTdTotalQuery } from "./TdPanel";
+import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
 export default function StabilitySection({
   params,
-  windowDays,
+  charts,
 }: {
   params: TdParams;
-  windowDays: number;
+  charts: TdChartsState;
 }) {
-  const churn = useTdTotalQuery<ChurnRow>(TD_QUERIES.churn, params);
+  const range = countedRange(params, sectionLimits().stability);
+  const churn = useTdTotalQuery<ChurnRow>(
+    TD_QUERIES.churn,
+    { startTime: range.startTime, stopTime: range.stopTime },
+    !range.empty
+  );
   const total = churn.total;
   const pairs = num(total?.pairs) ?? 0;
   const identical = num(total?.identical_pairs) ?? 0;
   const changed = pairs - identical;
-  const points = useMemo(() => dailyShare(churn.rows), [churn.rows]);
-  const expiry = dataExpiry(
-    params,
-    HORIZON_DAYS.stability,
-    RETENTION_DAYS.stability
-  );
-  const noPairs = expiry?.whole
-    ? expiry.text
-    : "No pairs of consecutive green PR pushes in this window.";
+  const noPairs = "No pairs of consecutive green PR pushes in this window.";
 
   return (
     <TdSection
       title="Run-to-run stability"
-      windowDays={windowDays}
-      horizonDays={HORIZON_DAYS.stability}
-      expiry={expiry}
+      range={range}
       intro={
         "When a contributor pushes again to the same PR, does TD run the same " +
         "tests? A changed diff is expected to change the picks; large swings " +
@@ -72,6 +47,7 @@ export default function StabilitySection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Same picks on the next push"
+          {...tileToggle(charts, "samePicks")}
           loading={churn.loading}
           error={churn.tileError}
           value={percentFormatter(ratio(identical, pairs))}
@@ -88,6 +64,7 @@ export default function StabilitySection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Typical change when picks change"
+          {...tileToggle(charts, "typicalChange")}
           loading={churn.loading}
           error={churn.tileError}
           value={
@@ -105,24 +82,11 @@ export default function StabilitySection({
           caveat="1 - Jaccard similarity of the two pushes' test file sets: 0% means the same files, 100% means none in common."
         />
       </Grid>
-      <Grid size={{ xs: 12 }} height={CHART_HEIGHT}>
-        <TdPanel
-          title="Same picks on the next push, per day"
-          height={CHART_HEIGHT}
-          loading={churn.loading}
-          error={churn.error}
-          emptyText={points.length === 0 ? noPairs : undefined}
-        >
-          <DailyChart
-            title="Share of push pairs with the same picks, per day"
-            points={points}
-            startTime={params.startTime}
-            stopTime={params.stopTime}
-            yAxisLabel="% of pairs"
-            yAxisRenderer={(value) => `${Number(value).toFixed(0)}%`}
-          />
-        </TdPanel>
-      </Grid>
+      <TdCharts
+        charts={charts}
+        keys={["samePicks", "typicalChange"]}
+        sources={{ churn: { ...churn, window: range } }}
+      />
     </TdSection>
   );
 }

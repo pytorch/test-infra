@@ -6,21 +6,19 @@ import QualityTile, {
 } from "components/greenlight/quality/QualityTile";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
+import { parseStamp } from "lib/greenlight/qualityFigures";
 import {
+  countedRange,
   CurvePoint,
-  dataExpiry,
-  HORIZON_DAYS,
-  num,
-  ratio,
   recallCurve,
-  RETENTION_DAYS,
+  sectionLimits,
   SMALL_SAMPLE,
   TD_CUT_PCT,
   TD_QUERIES,
   TdParams,
   wilsonInterval,
 } from "lib/targetDeterminator";
-import type { RankRow } from "lib/targetDeterminatorRows";
+import { num, type RankRow, ratio } from "lib/targetDeterminatorRows";
 import { useMemo } from "react";
 import {
   CHART_HEIGHT,
@@ -31,6 +29,7 @@ import {
   useTdTotalQuery,
   utcColumn,
 } from "./TdPanel";
+import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
 const MISS_COLUMNS: GridColDef[] = [
   utcColumn("landed_at", "Landed (UTC)"),
@@ -102,16 +101,20 @@ function curveOption(points: CurvePoint[]): EChartsOption {
 
 export default function RankingSection({
   params,
-  windowDays,
+  charts,
 }: {
   params: TdParams;
-  windowDays: number;
+  charts: TdChartsState;
 }) {
   const theme = useTheme();
-  const ranks = useTdTotalQuery<RankRow>(TD_QUERIES.ranks, params);
+  const range = countedRange(params, sectionLimits().ranks);
+  const ranks = useTdTotalQuery<RankRow>(
+    TD_QUERIES.ranks,
+    { startTime: range.startTime, stopTime: range.stopTime },
+    !range.empty
+  );
   const total = ranks.total;
   const error = ranks.tileError;
-  const expiry = dataExpiry(params, HORIZON_DAYS.ranks, RETENTION_DAYS.ranks);
   const landings = num(total?.landings) ?? 0;
   const insideCut = num(total?.inside_cut) ?? 0;
   const secondHalf = num(total?.second_half) ?? 0;
@@ -119,16 +122,25 @@ export default function RankingSection({
   const interval = wilsonInterval(insideCut, landings);
 
   const points = useMemo(() => recallCurve(ranks.rows), [ranks.rows]);
-  const misses = useMemo(
-    () =>
-      ranks.rows
-        .filter((row) => row.grain === "miss")
-        .map((row, i) => ({ ...row, id: `${row.sha}-${i}` })),
+  const landingRows = useMemo(
+    () => ranks.rows.filter((row) => row.grain === "landing"),
     [ranks.rows]
   );
-  const noLandings = expiry?.whole
-    ? expiry.text
-    : "No trunk breakages with a TD ranking in this window.";
+  const misses = useMemo(
+    () =>
+      landingRows
+        .filter((row) => num(row.inside_cut) === 0)
+        .map((row, i) => ({ ...row, id: `${row.sha}-${i}` })),
+    [landingRows]
+  );
+  // The query lists the newest landings only; older buckets would undercount.
+  const truncated = landingRows.length < landings;
+  const oldestListed = landingRows.reduce(
+    (oldest, row) =>
+      Math.min(oldest, parseStamp(row.landed_at)?.valueOf() ?? Infinity),
+    Infinity
+  );
+  const noLandings = "No trunk breakages with a TD ranking in this window.";
   const sample =
     landings > 0 && landings < SMALL_SAMPLE
       ? ` A small sample: ${landings.toLocaleString()} landings, ${failures.toLocaleString()} failing tests.`
@@ -137,9 +149,7 @@ export default function RankingSection({
   return (
     <TdSection
       title="Is TD picking the right tests?"
-      windowDays={windowDays}
-      horizonDays={HORIZON_DAYS.ranks}
-      expiry={expiry}
+      range={range}
       intro={
         "TD ranks every test by how likely it is to fail and runs the top " +
         `${TD_CUT_PCT}% on PRs. Main runs every test, so when a landed PR ` +
@@ -152,6 +162,7 @@ export default function RankingSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Trunk breakages TD would have caught"
+          {...tileToggle(charts, "caught")}
           loading={ranks.loading}
           error={error}
           value={percentFormatter(ratio(insideCut, landings))}
@@ -168,6 +179,7 @@ export default function RankingSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Caught only by the second half of TD's picks"
+          {...tileToggle(charts, "secondHalf")}
           loading={ranks.loading}
           error={error}
           value={percentFormatter(ratio(secondHalf, landings))}
@@ -181,6 +193,22 @@ export default function RankingSection({
           caveat="Same landings as the tile before. A small share means TD could run fewer tests and still catch most breakages; a large one means the budget matters."
         />
       </Grid>
+      <TdCharts
+        charts={charts}
+        keys={["caught", "secondHalf"]}
+        sources={{
+          ranks: {
+            ...ranks,
+            window: {
+              ...range,
+              countedFrom: truncated ? oldestListed : undefined,
+            },
+            note: truncated
+              ? `Charts the newest ${landingRows.length.toLocaleString()} of ${landings.toLocaleString()} landings.`
+              : undefined,
+          },
+        }}
+      />
       <Grid size={{ xs: 12, lg: 6 }} height={CHART_HEIGHT}>
         <TdPanel
           title="Share of trunk breakages TD would catch at each cut"
@@ -207,11 +235,7 @@ export default function RankingSection({
           state={ranks}
           rows={misses}
           columns={MISS_COLUMNS}
-          emptyText={
-            expiry?.whole
-              ? expiry.text
-              : "No trunk breakages outside TD's cut in this window."
-          }
+          emptyText="No trunk breakages outside TD's cut in this window."
           height={CHART_HEIGHT}
           sortField="landed_at"
         />

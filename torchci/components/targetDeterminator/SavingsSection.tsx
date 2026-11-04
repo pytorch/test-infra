@@ -6,33 +6,27 @@ import QualityTile, {
 } from "components/greenlight/quality/QualityTile";
 import {
   ciSaved,
-  clampedStart,
-  HORIZON_DAYS,
+  CLAMP_DAYS,
+  countedRange,
   hoursText,
   MIN_MAIN_RUNS,
   minutesText,
-  num,
-  ratio,
+  rangeText,
+  sectionLimits,
   TD_QUERIES,
   TdParams,
   useTdQuery,
 } from "lib/targetDeterminator";
-import type {
-  PushWaitRow,
-  SavingsRow,
-  TtrsRow,
+import {
+  num,
+  type PushWaitRow,
+  ratio,
+  type SavingsRow,
+  type TtrsRow,
 } from "lib/targetDeterminatorRows";
 import { useMemo } from "react";
-import {
-  CHART_HEIGHT,
-  DailyChart,
-  DailyPoint,
-  TABLE_HEIGHT,
-  TdPanel,
-  TdSection,
-  TdTable,
-  useTdTotalQuery,
-} from "./TdPanel";
+import { TABLE_HEIGHT, TdSection, TdTable, useTdTotalQuery } from "./TdPanel";
+import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
 // Below this share of PR jobs with a main baseline, the estimate describes too
 // small a slice of PR CI to stand for it.
@@ -92,46 +86,46 @@ function configRows(rows: SavingsRow[]) {
     });
 }
 
-function dailyPoints(rows: SavingsRow[]): DailyPoint[] {
-  return rows.flatMap((row) => {
-    if (row.grain !== "day") {
-      return [];
-    }
-    const actual = num(row.pr_hours);
-    const full = num(row.est_full_hours);
-    return [
-      ...(actual === null
-        ? []
-        : [{ bucket: row.bucket, series: "Actual, with TD", value: actual }]),
-      ...(full === null
-        ? []
-        : [
-            {
-              bucket: row.bucket,
-              series: "Estimated, full suite",
-              value: full,
-            },
-          ]),
-    ];
-  });
-}
-
 export default function SavingsSection({
   params,
-  windowDays,
+  charts,
 }: {
   params: TdParams;
-  windowDays: number;
+  charts: TdChartsState;
 }) {
-  const savings = useTdTotalQuery<SavingsRow>(TD_QUERIES.savings, params);
-  const pushWait = useTdTotalQuery<PushWaitRow>(TD_QUERIES.pushWait, params);
-  const ttrs = useTdQuery<TtrsRow>(TD_QUERIES.ttrs, {
-    startTime: clampedStart(params, HORIZON_DAYS.savings),
-    stopTime: params.stopTime,
+  const limits = sectionLimits();
+  const range = countedRange(params, limits.savings);
+  const ttrsRange = countedRange(params, limits.ttrs);
+  const queryWindow = {
+    startTime: range.startTime,
+    stopTime: range.stopTime,
+  };
+  const savings = useTdTotalQuery<SavingsRow>(
+    TD_QUERIES.savings,
+    queryWindow,
+    !range.empty
+  );
+  const pushWait = useTdTotalQuery<PushWaitRow>(
+    TD_QUERIES.pushWait,
+    queryWindow,
+    !range.empty
+  );
+  const ttrsParams = {
+    startTime: ttrsRange.startTime,
+    stopTime: ttrsRange.stopTime,
     workflow: "pull",
-    one_bucket: true,
     percentile_to_get: 0.5,
-  });
+  };
+  const ttrs = useTdQuery<TtrsRow>(
+    TD_QUERIES.ttrs,
+    { ...ttrsParams, one_bucket: true },
+    !range.empty && !ttrsRange.empty
+  );
+  const ttrsTrend = useTdQuery<TtrsRow>(
+    TD_QUERIES.ttrs,
+    { ...ttrsParams, one_bucket: false },
+    !range.empty && !ttrsRange.empty && charts.open.has("ttrs")
+  );
 
   const total = savings.total;
   const wait = pushWait.total;
@@ -144,7 +138,6 @@ export default function SavingsSection({
   const ttrsMinutes = num(ttrs.rows[0]?.custom);
 
   const configTable = useMemo(() => configRows(savings.rows), [savings.rows]);
-  const points = useMemo(() => dailyPoints(savings.rows), [savings.rows]);
   const noJobs = "No completed PR test jobs in this window.";
   const noPushes = "No green PR pushes in this window.";
   const coverageSub = `${jobs.toLocaleString()} PR test jobs compared with main; ${unmatched.toLocaleString()} without a main baseline left out.`;
@@ -152,8 +145,7 @@ export default function SavingsSection({
   return (
     <TdSection
       title="Time and CI saved"
-      windowDays={windowDays}
-      horizonDays={HORIZON_DAYS.savings}
+      range={range}
       intro={
         "How much CI time TD saves on pull requests, and how much sooner " +
         "contributors hear back. Full-suite figures are estimates: each PR " +
@@ -163,6 +155,7 @@ export default function SavingsSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="CI time saved (estimated)"
+          {...tileToggle(charts, "ciSaved")}
           loading={savings.loading}
           error={savings.tileError}
           value={saved === null ? "-" : percentFormatter(saved.share)}
@@ -185,6 +178,7 @@ export default function SavingsSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Typical PR test job"
+          {...tileToggle(charts, "typicalJob")}
           loading={savings.loading}
           error={savings.tileError}
           value={jobs === 0 ? "-" : minutesText(total?.pr_median_min)}
@@ -201,6 +195,7 @@ export default function SavingsSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Time to green saved (estimated)"
+          {...tileToggle(charts, "ttgSaved")}
           loading={pushWait.loading}
           error={pushWait.tileError}
           value={pushes === 0 ? "-" : minutesText(wait?.saved_median_min)}
@@ -219,6 +214,7 @@ export default function SavingsSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Test-job hours per PR push"
+          {...tileToggle(charts, "hoursPerPush")}
           loading={pushWait.loading}
           error={pushWait.tileError}
           value={pushes === 0 ? "-" : hoursText(wait?.hours_per_push)}
@@ -235,35 +231,31 @@ export default function SavingsSection({
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Time to first red (median)"
+          {...tileToggle(charts, "ttrs")}
           loading={ttrs.loading}
           error={ttrs.error}
           value={ttrsMinutes === null ? "-" : minutesText(ttrsMinutes)}
           sub={
             ttrsMinutes === null
-              ? "No failing pull jobs of merged PRs in this window."
-              : "From the start of a failing PR job's test step to the end of its first failing test step."
+              ? `No failing pull jobs of merged PRs from ${rangeText(
+                  ttrsRange
+                )}.`
+              : `From the start of a failing PR job's test step to the end of its first failing test step, counted ${rangeText(
+                  ttrsRange
+                )}.`
           }
-          caveat={`HUD's Time to Red Signal (TTRS), median, over at most the last ${HORIZON_DAYS.savings} days of the window: pull workflow, first attempt, merged PRs. TD orders tests by how likely they are to fail, so a lower value means failures show up sooner.`}
+          caveat={`HUD's Time to Red Signal (TTRS), median, over at most the last ${CLAMP_DAYS.ttrs} days of the window: pull workflow, first attempt, merged PRs. TD orders tests by how likely they are to fail, so a lower value means failures show up sooner.`}
         />
       </Grid>
-      <Grid size={{ xs: 12 }} height={CHART_HEIGHT}>
-        <TdPanel
-          title="PR test-job hours per day"
-          height={CHART_HEIGHT}
-          loading={savings.loading}
-          error={savings.error}
-          emptyText={points.length === 0 ? noJobs : undefined}
-        >
-          <DailyChart
-            title="PR test-job hours per day: actual vs estimated full suite"
-            points={points}
-            startTime={params.startTime}
-            stopTime={params.stopTime}
-            yAxisLabel="Hours"
-            yAxisRenderer={(value) => Number(value).toFixed(0)}
-          />
-        </TdPanel>
-      </Grid>
+      <TdCharts
+        charts={charts}
+        keys={["ciSaved", "typicalJob", "ttgSaved", "hoursPerPush", "ttrs"]}
+        sources={{
+          savings: { ...savings, window: range },
+          pushWait: { ...pushWait, window: range },
+          ttrs: { ...ttrsTrend, window: ttrsRange },
+        }}
+      />
       <Grid size={{ xs: 12 }} height={TABLE_HEIGHT}>
         <TdTable
           title="Savings per job config (for troubleshooting)"
