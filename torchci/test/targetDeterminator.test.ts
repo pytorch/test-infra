@@ -489,4 +489,20 @@ describe.each(Object.entries(CONTRACTS))("%s contract", (name, contract) => {
       )
     );
   });
+
+  it("binds only its declared parameters and caps its own cost", () => {
+    const sql = read("query.sql");
+    const placeholders = Object.fromEntries(
+      [...sql.matchAll(/\{(\w+):\s*([^}]+)\}/g)].map((m) => [m[1], m[2]])
+    );
+    expect(placeholders).toEqual(contract.params);
+    expect(sql).toMatch(/SETTINGS max_execution_time = 60, max_threads = 8\b/);
+    // A caller-sized array inside a per-row lambda would let one request
+    // scale its own CPU cost; tdWorkflows may only feed a set lookup.
+    const arrayUses = sql.match(/\{tdWorkflows:/g) ?? [];
+    if (arrayUses.length > 0) {
+      expect(arrayUses).toHaveLength(1);
+      expect(sql).toContain("workflow_name IN {tdWorkflows: Array(String)}");
+    }
+  });
 });
