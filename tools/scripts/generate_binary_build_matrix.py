@@ -99,8 +99,8 @@ CUDA_ARCHES_NO_WINDOWS_DICT = {
 }
 
 # CUDA versions that are built and validated, but must not be advertised on the
-# pytorch.org getting-started page yet. Without this, update-quick-start-module
-# in pytorch/pytorch.github.io publishes an install selector for a CUDA version
+# pytorch.org getting-started page yet. Without this, tools/quick_start
+# publishes an install selector for a CUDA version
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
 # 13.0 is held on nightly for vLLM's cu130 lane only; it must not reappear in

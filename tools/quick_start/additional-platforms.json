@@ -1,7 +1,5 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-04T00:37:10+00:00",
-  "generator_commit": "",
   "platforms": {
     "ascend_npu": {
       "name": "Ascend NPU",

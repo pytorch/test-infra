@@ -6,58 +6,35 @@ on the Get Started page. This was previously in `pytorch/pytorch.github.io`
 (`.github/workflows/update-quick-start-module.yml` and `scripts/`). Only the JSON
 is generated here; the website builds its own JavaScript from it.
 
-The generated files are checked in. The `QUICK_START` lint (`tools/linter/adapters/quick_start_linter.py`)
-regenerates them from the build matrix and the inputs below and fails when they
-differ, so a change to `tools/scripts/generate_binary_build_matrix.py`, a platform
-file or a generator must be sent together with the regenerated files.
-
-## Update the generated files
-
-Run this from the repository root after changing `tools/scripts/generate_binary_build_matrix.py`,
-a generator in `tools/quick_start/scripts`, or a file in `_additional_platforms/` or
-`_get_started/additional_platforms/`, and commit what it changes:
-
-```bash
-pip install lintrunner==0.12.5   # once
-lintrunner init                  # once; installs markdown and pygments for the generators
-lintrunner --take QUICK_START --all-files -a
-```
-
-`-a` rewrites `published_versions.json`, `releases.json` and `additional-platforms.json`
-in place. Without `-a` the same command only reports which of them are out of date,
-which is what CI does. `--all-files` makes it check even when none of the changed
-files is an input. Without it, lintrunner checks only the files changed relative
-to `main`.
+The generated files are checked in. The `QUICKSTART` lint regenerates them and
+fails if they differ from what is committed, so a change to an input (including
+`tools/scripts/generate_binary_build_matrix.py`) must include the regenerated
+files.
 
 ## Layout
 
 | Path | Role |
 |---|---|
-| `scripts/gen_quick_start_module.py` | Reads the build matrices from `tools/scripts/generate_binary_build_matrix.py` (via the `generate_binary_build_matrix.yml` workflow) and updates `published_versions.json` and `releases.json`. |
+| `scripts/gen_quick_start_module.py` | Runs `tools/scripts/generate_binary_build_matrix.py` for the getting-started matrices and updates `published_versions.json` and `releases.json`. |
 | `scripts/gen_additional_platforms.py` | Builds `additional-platforms.json` from `_additional_platforms/*.json` and `_get_started/additional_platforms/*.md`. |
 | `_additional_platforms/*.json`, `_get_started/additional_platforms/*.md` | Hand-written inputs, one pair per vendor platform. |
 | `published_versions.json`, `releases.json`, `additional-platforms.json` | **Generated.** Do not edit by hand. |
 
-## Running locally
+## Regenerating
 
 The lint runs the steps below in a scratch copy of this directory and writes back
 the files that changed. To run them by hand instead:
 
 ```bash
-cd tools/quick_start
-# one matrix file per OS and channel, as the lint writes them
-for spec in "linux nightly" "windows nightly" "macos-arm64 nightly" \
-            "linux release" "windows release" "macos-arm64 release"; do
-  set -- $spec
-  PACKAGE_TYPE=all OS=$1 CHANNEL=$2 GETTING_STARTED=true BUILD_PYTHON_ONLY=disable \
-  WITH_XPU=disable \
-    python3 ../scripts/generate_binary_build_matrix.py > "${1/-arm64/}_$2_matrix.json"
-done
-python3 scripts/gen_quick_start_module.py
-rm *_matrix.json
+lintrunner -a --take QUICKSTART
+```
 
-pip install markdown pygments
-python3 scripts/gen_additional_platforms.py
+or run the scripts directly (`gen_additional_platforms.py` needs the
+`markdown` and `pygments` versions pinned in `.lintrunner.toml`):
+
+```bash
+python3 tools/quick_start/scripts/gen_quick_start_module.py
+python3 tools/quick_start/scripts/gen_additional_platforms.py
 ```
 
 `additional-platforms.json` records `generated_at` and `generator_commit`. The lint

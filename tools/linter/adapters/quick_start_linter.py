@@ -1,66 +1,24 @@
 """
-QUICK_START: Checks that the generated files in tools/quick_start are up to date.
-
-The files are generated from the build matrix in tools/scripts/generate_binary_build_matrix.py,
-the hand-written inputs in tools/quick_start and the generator scripts in
-tools/quick_start/scripts. Run `lintrunner --take QUICK_START -a` to regenerate them.
+QUICKSTART: Checks that the generated files in tools/quick_start match what
+their generators produce. Run `lintrunner -a --take QUICKSTART` to regenerate.
 """
 
-from __future__ import annotations
-
 import argparse
+import contextlib
+import importlib.util
 import json
-import logging
-import os
-import shutil
 import subprocess
 import sys
-import tempfile
-import time
 from enum import Enum
 from pathlib import Path
-from typing import NamedTuple
+from types import ModuleType
+from typing import List, NamedTuple, Optional
 
 
-LINTER_CODE = "QUICK_START"
-REPO_ROOT = Path(__file__).absolute().parents[3]
-QUICK_START = REPO_ROOT / "tools" / "quick_start"
-MATRIX_SCRIPT = REPO_ROOT / "tools" / "scripts" / "generate_binary_build_matrix.py"
-
-# Generated files, relative to tools/quick_start.
-GENERATED_FILES = [
-    "published_versions.json",
-    "releases.json",
-    "additional-platforms.json",
-]
-
-# The inputs of the getting-started matrices, the same ones the reusable
-# generate_binary_build_matrix.yml workflow passes to the script. Anything else
-# that the script reads from the environment is dropped so the result does not
-# depend on the caller.
-MATRIX_ENV = {
-    "PACKAGE_TYPE": "all",
-    "WITH_CUDA": "enable",
-    "WITH_ROCM": "enable",
-    "WITH_CPU": "enable",
-    "WITH_XPU": "disable",
-    "RUNNER_FLEET": "ec2",
-    "LIMIT_PR_BUILDS": "false",
-    "USE_ONLY_DL_PYTORCH_ORG": "false",
-    "BUILD_PYTHON_ONLY": "disable",
-    "GETTING_STARTED": "true",
-    "PYTHON_VERSIONS": "[]",
-    "PYTHON_ABI3": "disable",
-}
-MATRIX_VARIANTS = [
-    (os_name, channel)
-    for channel in ("nightly", "release")
-    for os_name in ("linux", "windows", "macos-arm64")
-]
-# additional-platforms.json is a bundle for external consumers that records when
-# and from which commit it was generated. Those two fields change on every run, so
-# they are not compared; they are refreshed whenever the rest of the file changes.
-VOLATILE_JSON_FIELDS = ("generated_at", "generator_commit")
+LINTER_CODE = "QUICKSTART"
+REPO_ROOT = Path(__file__).resolve().parents[3]
+SCRIPTS_DIR = REPO_ROOT / "tools" / "quick_start" / "scripts"
+GENERATORS = ["gen_quick_start_module", "gen_additional_platforms"]
 
 
 class LintSeverity(str, Enum):
@@ -71,137 +29,76 @@ class LintSeverity(str, Enum):
 
 
 class LintMessage(NamedTuple):
-    path: str | None
-    line: int | None
-    char: int | None
+    path: Optional[str]
+    line: Optional[int]
+    char: Optional[int]
     code: str
     severity: LintSeverity
     name: str
-    original: str | None
-    replacement: str | None
-    description: str | None
+    original: Optional[str]
+    replacement: Optional[str]
+    description: Optional[str]
 
 
-def _clean_env() -> dict[str, str]:
-    env = {k: v for k, v in os.environ.items() if k not in MATRIX_ENV}
-    # Recorded in additional-platforms.json; must not depend on where this runs.
-    env.pop("GITHUB_SHA", None)
-    return env
+def load_generator(name: str) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, SCRIPTS_DIR / f"{name}.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def _run(cmd: list[str], cwd: Path, env: dict[str, str]) -> str:
-    result = subprocess.run(
-        cmd, cwd=cwd, env=env, capture_output=True, text=True, check=False
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"`{' '.join(cmd)}` failed with exit code {result.returncode}:\n"
-            f"{result.stderr.strip()}"
-        )
-    return result.stdout
-
-
-def generate(workdir: Path) -> dict[str, str]:
-    """Regenerate the generated files in a scratch copy and return their contents."""
-    module = workdir / "tools" / "quick_start"
-    shutil.copytree(QUICK_START, module)
-    env = _clean_env()
-    for os_name, channel in MATRIX_VARIANTS:
-        matrix = _run(
-            [sys.executable, str(MATRIX_SCRIPT)],
-            cwd=REPO_ROOT,
-            env={**env, **MATRIX_ENV, "OS": os_name, "CHANNEL": channel},
-        )
-        # gen_quick_start_module.py reads macos-arm64 as "macos"
-        (module / f"{os_name.replace('-arm64', '')}_{channel}_matrix.json").write_text(
-            matrix
-        )
-    _run([sys.executable, "scripts/gen_quick_start_module.py"], cwd=module, env=env)
-    _run([sys.executable, "scripts/gen_additional_platforms.py"], cwd=module, env=env)
-    return {name: (module / name).read_text() for name in GENERATED_FILES}
-
-
-def is_up_to_date(name: str, original: str, expected: str) -> bool:
-    if name == "additional-platforms.json":
-        # Compare the text, so key order counts, but with the volatile fields the
-        # file already has.
-        try:
-            old = json.loads(original)
-            new = json.loads(expected)
-        except json.JSONDecodeError:
-            return False
-        for field in VOLATILE_JSON_FIELDS:
-            if field in old:
-                new[field] = old[field]
-        expected = json.dumps(new, indent=2, ensure_ascii=False)
-    return original == expected
-
-
-def check() -> list[LintMessage]:
-    with tempfile.TemporaryDirectory() as tmp:
-        try:
-            expected = generate(Path(tmp))
-        except (RuntimeError, OSError) as err:
-            return [
-                LintMessage(
-                    path=None,
-                    line=None,
-                    char=None,
-                    code=LINTER_CODE,
-                    severity=LintSeverity.ERROR,
-                    name="generator-failed",
-                    original=None,
-                    replacement=None,
-                    description=f"Could not regenerate tools/quick_start:\n{err}",
-                )
-            ]
-
-    messages = []
-    for name in GENERATED_FILES:
-        path = QUICK_START / name
-        original = path.read_text() if path.exists() else ""
-        if is_up_to_date(name, original, expected[name]):
-            continue
-        messages.append(
+def check_generator(name: str) -> List[LintMessage]:
+    try:
+        # stdout is reserved for lint messages.
+        with contextlib.redirect_stdout(sys.stderr):
+            files = load_generator(name).generate()
+    except Exception as err:
+        detail = err.stderr if isinstance(err, subprocess.CalledProcessError) else ""
+        return [
             LintMessage(
-                path=str(path.relative_to(REPO_ROOT)),
+                path=(SCRIPTS_DIR / f"{name}.py").relative_to(REPO_ROOT).as_posix(),
                 line=None,
                 char=None,
                 code=LINTER_CODE,
                 severity=LintSeverity.ERROR,
-                name="generated-file-out-of-date",
-                original=original,
-                replacement=expected[name],
-                description=(
-                    "This file is generated from tools/scripts/generate_binary_build_matrix.py "
-                    "and the inputs in tools/quick_start. "
-                    "Run `lintrunner --take QUICK_START -a` to regenerate it."
-                ),
+                name="Generator failed",
+                original=None,
+                replacement=None,
+                description=f"{name}.py failed with {err.__class__.__name__}: {err}\n{detail}",
             )
-        )
+        ]
+
+    messages = []
+    for path, replacement in files.items():
+        original = path.read_text(encoding="utf-8") if path.exists() else ""
+        if original != replacement:
+            messages.append(
+                LintMessage(
+                    path=path.relative_to(REPO_ROOT).as_posix(),
+                    line=None,
+                    char=None,
+                    code=LINTER_CODE,
+                    severity=LintSeverity.ERROR,
+                    name="Generated file out of date",
+                    original=original,
+                    replacement=replacement,
+                    description=f"Regenerated by tools/quick_start/scripts/{name}.py. "
+                    "Run `lintrunner -a --take QUICKSTART` to apply changes.",
+                )
+            )
     return messages
 
 
-def main() -> None:
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Check that the generated files in tools/quick_start are up to date.",
+        description="tools/quick_start generated files linter",
         fromfile_prefix_chars="@",
     )
-    parser.add_argument("--verbose", action="store_true")
-    # lintrunner passes the matching files; the whole module is checked at once.
-    parser.add_argument("filenames", nargs="*")
-    args = parser.parse_args()
-    logging.basicConfig(
-        format="<%(threadName)s:%(levelname)s> %(message)s",
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        stream=sys.stderr,
-    )
+    # Only used by lintrunner to decide whether to run; every generator always runs.
+    parser.add_argument("filenames", nargs="*", help="paths to lint")
+    parser.parse_args()
 
-    start = time.monotonic()
-    for message in check():
-        print(json.dumps(message._asdict()), flush=True)
-    logging.debug("Checked tools/quick_start in %.1fs", time.monotonic() - start)
-
-
-if __name__ == "__main__":
-    main()
+    for generator in GENERATORS:
+        for lint_message in check_generator(generator):
+            print(json.dumps(lint_message._asdict()), flush=True)

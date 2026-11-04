@@ -2,17 +2,22 @@
 """
 Generates the data for the quick start module on the
 https://pytorch.org/get-started/locally/ page.
-Updates published_versions.json and releases.json from the current
-release matrices (<os>_<channel>_matrix.json).
+Updates published_versions.json and releases.json from the getting-started
+matrices of tools/scripts/generate_binary_build_matrix.py.
 """
 
 import copy
 import json
+import os
+import subprocess
+import sys
 from enum import Enum
 from pathlib import Path
+from typing import Dict
 
 
 BASE_DIR = Path(__file__).parent.parent
+MATRIX_SCRIPT = BASE_DIR.parent / "scripts" / "generate_binary_build_matrix.py"
 
 
 class OperatingSystem(Enum):
@@ -61,6 +66,29 @@ LIBTORCH_DWNL_INSTR = {
     MACOS: "Download arm64 libtorch here (ROCm and CUDA are not supported):",
 }
 
+MATRIX_OS = {
+    OperatingSystem.LINUX: "linux",
+    OperatingSystem.WINDOWS: "windows",
+    OperatingSystem.MACOS: "macos-arm64",
+}
+
+# Same inputs the getting-started page has always passed to
+# .github/workflows/generate_binary_build_matrix.yml.
+MATRIX_ENV = {
+    "PACKAGE_TYPE": "all",
+    "GETTING_STARTED": "true",
+    "WITH_CUDA": ENABLE,
+    "WITH_ROCM": ENABLE,
+    "WITH_CPU": ENABLE,
+    "WITH_XPU": DISABLE,
+    "LIMIT_PR_BUILDS": "false",
+    "USE_ONLY_DL_PYTORCH_ORG": "false",
+    "BUILD_PYTHON_ONLY": DISABLE,
+    "PYTHON_VERSIONS": "[]",
+    "PYTHON_ABI3": DISABLE,
+    "RUNNER_FLEET": "ec2",
+}
+
 
 def load_json_from_basedir(filename: str):
     try:
@@ -76,22 +104,16 @@ def read_published_versions():
     return load_json_from_basedir("published_versions.json")
 
 
-def write_published_versions(versions):
-    with open(BASE_DIR / "published_versions.json", "w") as outfile:
-        json.dump(versions, outfile, indent=2)
-
-
-# Create releases JSON for PyTorch website.
-# Matrix is being used to populate config data for
-# the "Start Locally" installation options table.
-def write_releases_file(matrix):
-    with open(BASE_DIR / "releases.json", "w") as outfile:
-        json.dump(matrix, outfile, indent=2)
-
-
-def read_matrix_for_os(osys: OperatingSystem, channel: str):
-    jsonfile = load_json_from_basedir(f"{osys.value}_{channel}_matrix.json")
-    return jsonfile["include"]
+def generate_matrix(osys: OperatingSystem, channel: str):
+    env = {**os.environ, **MATRIX_ENV, "OS": MATRIX_OS[osys], "CHANNEL": channel}
+    result = subprocess.run(
+        [sys.executable, str(MATRIX_SCRIPT)],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(result.stdout)["include"]
 
 
 def get_package_type(pkg_key: str, os_key: OperatingSystem) -> str:
@@ -290,22 +312,32 @@ def extract_arch_ver_map(release_matrix):
             acc_arch_ver_map[chan].pop(label, None)
 
 
-def main():
+def generate() -> Dict[Path, str]:
+    """Return the regenerated files as {path: content}."""
     versions = read_published_versions()
 
-    release_matrix = {}
-    for val in ("nightly", "release"):
-        release_matrix[val] = {}
-        for osys in OperatingSystem:
-            release_matrix[val][osys.value] = read_matrix_for_os(osys, val)
-
-    write_releases_file(release_matrix)
+    # releases.json holds the raw matrices; the website derives the
+    # per-channel CUDA/ROCm versions of the "Start Locally" picker from it.
+    release_matrix = {
+        chan: {osys.value: generate_matrix(osys, chan) for osys in OperatingSystem}
+        for chan in ("nightly", "release")
+    }
 
     extract_arch_ver_map(release_matrix)
-    for val in ("nightly", "release"):
-        update_versions(versions, release_matrix[val], val)
+    for chan in ("nightly", "release"):
+        update_versions(versions, release_matrix[chan], chan)
 
-    write_published_versions(versions)
+    return {
+        BASE_DIR / "releases.json": json.dumps(release_matrix, indent=2),
+        BASE_DIR / "published_versions.json": json.dumps(versions, indent=2),
+    }
+
+
+def main():
+    for path, content in generate().items():
+        with open(path, "w", encoding="utf-8", newline="\n") as outfile:
+            outfile.write(content)
+        print(f"Wrote {path}")
 
 
 if __name__ == "__main__":

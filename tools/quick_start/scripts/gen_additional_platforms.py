@@ -14,9 +14,7 @@ The script will:
 4. Write the result to additional-platforms.json
 """
 
-import datetime
 import json
-import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Set
@@ -121,7 +119,7 @@ def read_platform_json_files() -> Dict[str, Any]:
 
     for json_file in sorted(ADDITIONAL_PLATFORM_DIR.glob("*.json")):
         try:
-            content = json_file.read_text()
+            content = json_file.read_text(encoding="utf-8")
             data = json.loads(content)
             # Use filename (without .json) as platform_id
             platform_id = json_file.stem
@@ -195,7 +193,7 @@ def read_markdown_files() -> Dict[str, str]:
 
     for md_file in sorted(MARKDOWN_DIR.glob("*.md")):
         try:
-            content = md_file.read_text()
+            content = md_file.read_text(encoding="utf-8")
             # Use filename (without .md) as platform_id
             platform_id = md_file.stem
             # Validate the markdown content
@@ -209,42 +207,23 @@ def read_markdown_files() -> Dict[str, str]:
     return html_content
 
 
-def write_platforms_json(platforms: dict, html: dict, out_path: str) -> None:
-    """
-    Write JSON bundle for external consumers.
-    """
+def generate() -> Dict[Path, str]:
+    """Return the regenerated files as {path: content}."""
     payload = {
         "schema_version": SCHEMA_VERSION,
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(
-            timespec="seconds"
-        ),
-        "generator_commit": os.environ.get("GITHUB_SHA", "")[:7],
-        "platforms": platforms,
-        "html": html,
+        "platforms": read_platform_json_files(),
+        "html": read_markdown_files(),
     }
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False, sort_keys=False)
-    print(f"Wrote {out_path}")
+    return {
+        BASE_DIR / JSON_OUT_PATH: json.dumps(payload, indent=2, ensure_ascii=False),
+    }
 
 
 def main():
-    """Main entry point."""
-
-    # Read all platform JSON files
-    platform_data = read_platform_json_files()
-
-    if not platform_data:
-        print("No platform data found. Creating empty output.")
-        platform_data = {}
-
-    # Read all markdown files
-    markdown_content = read_markdown_files()
-
-    if not markdown_content:
-        print("No markdown content found.")
-        markdown_content = {}
-
-    write_platforms_json(platform_data, markdown_content, str(BASE_DIR / JSON_OUT_PATH))
+    for path, content in generate().items():
+        with open(path, "w", encoding="utf-8", newline="\n") as f:
+            f.write(content)
+        print(f"Wrote {path}")
 
 
 if __name__ == "__main__":
