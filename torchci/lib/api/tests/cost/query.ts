@@ -33,9 +33,9 @@ const LATEST = `latest AS (
 // most of their hours. It names the machine of test jobs without reports; a
 // label no reporting test job ran on has none.
 const LABEL_MACHINES = `label_machines AS (
-    SELECT t.runner_labels AS label, argMax(m.machine, t.seconds) AS machine
+    SELECT arrayStringConcat(t.runner_labels, ',') AS label, argMax(m.machine, t.ms) AS machine
     FROM (
-      SELECT runner_labels, environments_id, sum(occupancy_runner_seconds) AS seconds
+      SELECT runner_labels, environments_id, sum(occupancy_runner_milliseconds) AS ms
       FROM latest
       WHERE environments_id != 0
       GROUP BY runner_labels, environments_id
@@ -48,7 +48,8 @@ const LABEL_MACHINES = `label_machines AS (
 // machine and runner label, from test_cost: each file's share of its jobs'
 // wall time by occupancy, split evenly among the file's owners (ci.owners,
 // read now), or the bucket of hours no owner is given, by why. Build and
-// other jobs are not test cost and are left out.
+// other jobs are not test cost and are left out. A workflow is named by its
+// file (.github/workflows/pull.yml is pull), as the presets name them.
 export function runnerHoursQuery(): string {
   return `
 WITH
@@ -62,16 +63,16 @@ WITH
       multiIf(t.test_file = '', 'unattributed:no_test_reports',
         empty(o.owners), 'unattributed:no_owner', '') AS bucket,
       if(bucket = '', o.owners, [bucket]) AS owner_list,
-      t.workflow_name AS workflow,
+      replaceRegexpAll(t.workflow_path, '^.*/|[.]ya?ml$', '') AS workflow,
       if(t.environments_id = 0, lm.machine, m.machine) AS machine,
-      t.runner_labels AS label,
-      t.occupancy_runner_seconds AS seconds
+      arrayStringConcat(t.runner_labels, ',') AS label,
+      t.occupancy_runner_milliseconds / 1000 AS seconds
     FROM latest AS t
     LEFT JOIN (
       SELECT file, owners FROM ${CI_DATABASE}.owners FINAL WHERE repo = {repo: String}
     ) AS o ON o.file = t.test_file
     LEFT JOIN env_machines AS m ON m.id = t.environments_id
-    LEFT JOIN label_machines AS lm ON lm.label = t.runner_labels
+    LEFT JOIN label_machines AS lm ON lm.label = arrayStringConcat(t.runner_labels, ',')
   )
 SELECT owner, workflow, machine, label, sum(seconds) / 3600 AS runner_hours
 FROM (
