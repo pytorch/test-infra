@@ -6,14 +6,16 @@ from torchci.td.utils import (
     calculate_generic_test_ratings,
     evaluate,
     get_merge_bases_dict,
+    HALF_LIFE_DAYS,
+    positive_rounded,
 )
-from torchci.utils import round_floats
 
 
 FAILED_TESTS_QUERY = """
 with metrics as (
     select
         run_id,
+        timestamp,
         JSONExtractString(info, 'failure') as failure
     from
         misc.ossci_uploaded_metrics
@@ -23,7 +25,8 @@ with metrics as (
 )
 select
     w.head_sha as head_sha,
-    m.failure as failure
+    m.failure as failure,
+    toUnixTimestamp(min(m.timestamp)) as ts
 from
     metrics m
     join (
@@ -78,14 +81,14 @@ def main() -> None:
     filtered_tests = filter_tests(failed_tests, merge_bases)
 
     test_file_ratings = calculate_generic_test_ratings(
-        filtered_tests, merge_bases, lambda x: x["failure"]
+        filtered_tests, merge_bases, lambda x: x["failure"], HALF_LIFE_DAYS
     )
 
     print("Evaluating test files:")
     evaluate(filtered_tests, merge_bases, test_file_ratings, lambda x: x["failure"])
 
     with open("file_test_rating.json", mode="w") as file:
-        json.dump(round_floats(test_file_ratings), file, sort_keys=True, indent=2)
+        json.dump(positive_rounded(test_file_ratings), file, sort_keys=True, indent=2)
 
 
 if __name__ == "__main__":

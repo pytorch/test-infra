@@ -1,12 +1,18 @@
 import csv
 import json
+import time
 from collections import defaultdict
 from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 from torchci.clickhouse import query_clickhouse
-from torchci.utils import cache_json, run_command
+from torchci.utils import cache_json, round_floats, run_command
+
+
+# Half-life of a past failure's weight in the failure-correlation ratings: a
+# failure from months ago says less about the code as it is now.
+HALF_LIFE_DAYS = 7
 
 
 def list_past_year_shas():
@@ -172,24 +178,57 @@ def get_filtered_failed_tests() -> List[Dict[str, Any]]:
     return filter_tests(failed_tests, get_merge_bases_dict())  # type: ignore[no-any-return]
 
 
-def calculate_generic_test_ratings(tests, merge_bases, get_test_name_fn):
-    # Should return a mapping of changed file -> correlated test failures -> confidence score
+def decay_weight(ts: float, now: float, half_life_days: Optional[float]) -> float:
+    if half_life_days is None:
+        return 1.0
+    age_days = max(now - ts, 0) / (60 * 60 * 24)
+    return float(0.5 ** (age_days / half_life_days))
 
-    # Get a mapping of failing test -> list of shas that broke it
-    failing_tests_to_sha = defaultdict(set)
+
+def positive_rounded(
+    ratings: Dict[str, Dict[str, float]],
+) -> Dict[str, Dict[str, float]]:
+    # pytorch's normalize_ratings rejects a summed rating <= 0, which drops the
+    # whole heuristic for that job, so no non-positive entry may be published.
+    rounded = round_floats(ratings)
+    positive = {
+        file: {test: score for test, score in scores.items() if score > 0}
+        for file, scores in rounded.items()
+    }
+    return {file: scores for file, scores in positive.items() if scores}
+
+
+def calculate_generic_test_ratings(
+    tests,
+    merge_bases,
+    get_test_name_fn,
+    half_life_days: Optional[float] = None,
+    now: Optional[float] = None,
+):
+    # Should return a mapping of changed file -> correlated test failures -> confidence score.
+    # With half_life_days, each (failing test, sha) pair is weighted by the age
+    # of its earliest failure, read from the test's "ts" (unix seconds).
+    if now is None:
+        now = time.time()
+
+    # Get a mapping of failing test -> sha that broke it -> earliest failure time
+    failing_tests_to_sha = defaultdict(dict)
     for test in tests:
         failing_test = get_test_name_fn(test)
         sha = test["head_sha"]
-        failing_tests_to_sha[failing_test].add(sha)
+        ts = test.get("ts", now)
+        shas = failing_tests_to_sha[failing_test]
+        shas[sha] = min(shas.get(sha, ts), ts)
 
     # Make mapping of failing test -> changed file -> confidence score
     failing_tests_to_causes = {}
     for failing_test in failing_tests_to_sha:
         score_dict = defaultdict(int)  # changed file -> confidence score
-        for sha in failing_tests_to_sha[failing_test]:
+        for sha, ts in failing_tests_to_sha[failing_test].items():
+            weight = decay_weight(ts, now, half_life_days)
             changed_files = merge_bases[sha]["changed_files"]
             for changed_file in changed_files:
-                score_dict[changed_file] += 1 / len(changed_files)
+                score_dict[changed_file] += weight / len(changed_files)
         failing_tests_to_causes[failing_test] = score_dict
 
     # Reverse the mapping to changed file -> failing test -> confidence score
