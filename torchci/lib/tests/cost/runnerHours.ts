@@ -19,7 +19,6 @@ import { escapeCSV } from "lib/csvUtils";
 // reports ran on, which the API names "".
 export const NOT_PROBED = "Unknown machine";
 export const OTHER_MACHINES = "Other machines";
-export const SHARED_ROW = "Shared: build and other jobs";
 export const UNATTRIBUTED_ROW = "Unattributed";
 
 // How many owners the chart and the matrix name before "N more owners".
@@ -33,8 +32,6 @@ export const COLORED_MACHINES = 7;
 export const MIN_CELL_HOURS = 0.5;
 
 export const BUCKET_LABELS: Record<string, string> = {
-  "shared:build": "Shared: build jobs",
-  "shared:other": "Shared: other jobs (lint, docs, binaries, ...)",
   // No owner first: its rows look like any owner's, then the striped rows
   // of test jobs without reports.
   "unattributed:no_owner": "No owner",
@@ -71,7 +68,7 @@ export function bucketInfo(bucket: string): string {
 }
 
 export function isBucket(owner: string): boolean {
-  return owner.startsWith("shared:") || owner.startsWith("unattributed:");
+  return owner.startsWith("unattributed:");
 }
 
 export function ownerLabel(owner: string): string {
@@ -96,8 +93,11 @@ export interface PreparedHours {
   rowHours: Float64Array;
   // 1 where the row's machine is estimated from its runner label.
   rowEstimated: Uint8Array;
-  // What the unattributed buckets are made of.
+  // What the unattributed buckets are made of, with each one's workflow
+  // and machine index (-1 where no row has it).
   contributors: Contributor[];
+  contributorWorkflow: Int32Array;
+  contributorMachine: Int32Array;
   total: number;
   workflowTotal: Float64Array;
   machineTotal: Float64Array;
@@ -179,6 +179,8 @@ export function prepareRunnerHours(answer: RunnerHours): PreparedHours {
     .sort((a, b) => machines[a].localeCompare(machines[b]));
 
   const details = new Map(answer.machines.map((m) => [m.machine, m]));
+  const workflowOf = new Map(workflows.map((w, i) => [w, i]));
+  const machineOf = new Map(machines.map((m, i) => [m, i]));
   return {
     owners,
     workflows,
@@ -201,6 +203,14 @@ export function prepareRunnerHours(answer: RunnerHours): PreparedHours {
     rowHours,
     rowEstimated,
     contributors: answer.contributors,
+    contributorWorkflow: Int32Array.from(
+      answer.contributors,
+      (c) => workflowOf.get(c.workflow) ?? -1
+    ),
+    contributorMachine: Int32Array.from(
+      answer.contributors,
+      (c) => machineOf.get(c.machine === "" ? NOT_PROBED : c.machine) ?? -1
+    ),
     total: rowHours.reduce((a, b) => a + b, 0),
     workflowTotal,
     machineTotal,
@@ -246,10 +256,11 @@ export interface CostView {
   ownerMachines: Map<string, Float64Array>;
   ownerEstimated: Map<string, Float64Array>;
   // Each machine's hours in the scope, the highlighted owners' share, and
-  // the estimated part.
+  // the estimated part of each.
   machineScope: Float64Array;
   machineHighlighted: Float64Array;
   machineEstimated: Float64Array;
+  machineHighlightedEstimated: Float64Array;
   // Each workflow's highlighted hours over the whole window, since the
   // workflows card is read against the window, not the scope.
   workflowHighlighted: Float64Array;
@@ -277,6 +288,7 @@ export function computeView(
   const machineScope = new Float64Array(M);
   const machineHighlighted = new Float64Array(M);
   const machineEstimated = new Float64Array(M);
+  const machineHighlightedEstimated = new Float64Array(M);
   const workflowHighlighted = new Float64Array(prepared.workflows.length);
   let scopeTotal = 0;
   let highlightTotal = 0;
@@ -310,6 +322,7 @@ export function computeView(
       }
       estimated[m] += h;
       machineEstimated[m] += h;
+      if (ownerOn) machineHighlightedEstimated[m] += h;
     }
     if (ownerOn) machineHighlighted[m] += h;
     if (inHighlight) highlightTotal += h;
@@ -326,6 +339,7 @@ export function computeView(
     machineScope,
     machineHighlighted,
     machineEstimated,
+    machineHighlightedEstimated,
     workflowHighlighted,
   };
 }
@@ -399,7 +413,7 @@ export interface OwnerRow {
 // The scope's owners largest first, the top ones named and every
 // highlighted one in its own row wherever it ranks, the rest folded into
 // "N more owners" (listed while expanded), then the buckets: two rows in
-// the chart, shared and unattributed, or one per bucket in the matrix.
+// the chart, unattributed, or one per bucket in the matrix.
 export function ownerRows(
   view: CostView,
   expanded: boolean,
@@ -454,11 +468,6 @@ export function ownerRows(
   };
   if (buckets === "grouped") {
     rows.push(
-      ...bucketRow(
-        "shared",
-        SHARED_ROW,
-        BUCKET_ORDER.filter((b) => b.startsWith("shared:"))
-      ),
       ...bucketRow(
         "unattributed",
         UNATTRIBUTED_ROW,
@@ -628,8 +637,9 @@ export interface KeyRow {
   hours: number;
   // The hours on these machines whose machine is estimated.
   estimated: number;
-  // The highlighted owners' hours on these machines.
+  // The highlighted owners' hours on these machines, and their estimated part.
   highlighted: number;
+  highlightedEstimated: number;
   paint: BasePaint;
   kind: "machine" | "group" | "member";
 }
@@ -647,6 +657,7 @@ export function machineKeyRows(
     hours: s[m],
     estimated: view.machineEstimated[m],
     highlighted: view.machineHighlighted[m],
+    highlightedEstimated: view.machineHighlightedEstimated[m],
     paint: paintOf(prepared, m, view.machines.has(m)),
     kind,
   });
@@ -664,6 +675,10 @@ export function machineKeyRows(
       hours: others.reduce((a, m) => a + s[m], 0),
       estimated: others.reduce((a, m) => a + view.machineEstimated[m], 0),
       highlighted: others.reduce((a, m) => a + view.machineHighlighted[m], 0),
+      highlightedEstimated: others.reduce(
+        (a, m) => a + view.machineHighlightedEstimated[m],
+        0
+      ),
       paint: { kind: "other" },
       kind: "group",
     });
@@ -766,18 +781,19 @@ export function cellDetail(
     string,
     { kind: Contributor["kind"]; hours: number }
   >();
-  const machineName = machine === prepared.notProbed ? "" : prepared.machines[machine];
-  for (const c of prepared.contributors) {
-    if (!wanted.has(c.bucket) || c.machine !== machineName) continue;
-    const w = prepared.workflows.indexOf(c.workflow);
-    if (view.scope.size > 0 && !view.scope.has(w)) continue;
+  prepared.contributors.forEach((c, i) => {
+    if (!wanted.has(c.bucket) || prepared.contributorMachine[i] !== machine) {
+      return;
+    }
+    const w = prepared.contributorWorkflow[i];
+    if (view.scope.size > 0 && !view.scope.has(w)) return;
     const entry = contributors.get(c.key);
     if (entry === undefined) {
       contributors.set(c.key, { kind: c.kind, hours: c.runner_hours });
     } else {
       entry.hours += c.runner_hours;
     }
-  }
+  });
   for (let i = 0; i < prepared.rowHours.length; i++) {
     if (prepared.rowMachine[i] !== machine) continue;
     const w = prepared.rowWorkflow[i];

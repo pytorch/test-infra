@@ -17,30 +17,32 @@ const MACHINE = `if(device_name != '', device_name,
         "os"
       )}, ' ', cpu_architecture, ' ', cpu_capability))`;
 
-// The window's rows of test_cost, each day as last computed.
+// The window's rows of test_cost, each day as last computed, in one read.
 const LATEST = `latest AS (
-    SELECT * FROM ${TEST_COST}
-    WHERE repo = {repo: String}
-      AND day >= toDate({start: DateTime64(3)}) AND day < toDate({end: DateTime64(3)})
-      AND (day, computed_at) IN (
-        SELECT day, max(computed_at) FROM ${TEST_COST}
-        WHERE repo = {repo: String}
-          AND day >= toDate({start: DateTime64(3)}) AND day < toDate({end: DateTime64(3)})
-        GROUP BY day)
+    SELECT * EXCEPT latest_computed_at
+    FROM (
+      SELECT *, max(computed_at) OVER (PARTITION BY day) AS latest_computed_at
+      FROM ${TEST_COST}
+      WHERE repo = {repo: String}
+        AND day >= toDate({start: DateTime64(3)}) AND day < toDate({end: DateTime64(3)})
+    )
+    WHERE computed_at = latest_computed_at
   )`;
 
 // Each runner label's machine: the one its jobs' test reports recorded for
-// most of their hours. It names the machine of test jobs without reports, an
-// estimate; a label no reporting test job ran on has none.
+// most of their hours, summed by machine (a machine spans many environments:
+// python, compiler and accelerator versions). It names the machine of test
+// jobs without reports, an estimate; a label no reporting test job ran on has
+// none.
 const LABEL_MACHINES = `label_machines AS (
-    SELECT arrayStringConcat(t.runner_labels, ',') AS label, argMax(m.machine, t.ms) AS machine
+    SELECT label, argMax(machine, ms) AS machine
     FROM (
-      SELECT runner_labels, environments_id, sum(occupancy_runner_milliseconds) AS ms
-      FROM latest
-      WHERE environments_id != 0
-      GROUP BY runner_labels, environments_id
-    ) AS t
-    INNER JOIN env_machines AS m ON m.id = t.environments_id
+      SELECT arrayStringConcat(t.runner_labels, ',') AS label, m.machine AS machine,
+        sum(t.occupancy_runner_milliseconds) AS ms
+      FROM latest AS t
+      INNER JOIN env_machines AS m ON m.id = t.environments_id
+      GROUP BY label, machine
+    )
     GROUP BY label
   )`;
 
@@ -67,8 +69,8 @@ WITH
         empty(o.owners), 'unattributed:no_owner', '') AS bucket,
       if(bucket = '', o.owners, [bucket]) AS owner_list,
       replaceRegexpAll(t.workflow_path, '^.*/|[.]ya?ml$', '') AS workflow,
-      if(t.environments_id = 0, lm.machine, m.machine) AS machine,
-      multiIf(t.environments_id != 0, 'environment',
+      if(m.machine != '', m.machine, lm.machine) AS machine,
+      multiIf(m.machine != '', 'environment',
         lm.machine != '', 'runner_label', 'none') AS machine_source,
       arrayStringConcat(t.runner_labels, ',') AS label,
       if(bucket = 'unattributed:no_owner', t.test_file, '') AS file,
@@ -113,10 +115,14 @@ FROM ${CI_DATABASE}.environments FINAL
 GROUP BY machine`;
 }
 
-// The first day test_cost holds for the repository, so the API can say how
-// many of a window's days have data.
+// How many of the window's days test_cost holds for the repository, and the
+// first of them: what a daily average divides by, and where the data starts.
 export function coverageQuery(): string {
-  return `SELECT toString(min(day)) AS first_day FROM ${TEST_COST} WHERE repo = {repo: String}`;
+  return `
+SELECT uniqExact(day) AS days, toString(min(day)) AS first_day
+FROM ${TEST_COST}
+WHERE repo = {repo: String}
+  AND day >= toDate({start: DateTime64(3)}) AND day < toDate({end: DateTime64(3)})`;
 }
 
 // HUD's time to signal, as the metrics page computes it

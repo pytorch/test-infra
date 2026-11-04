@@ -1,12 +1,11 @@
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Box,
   ButtonBase,
   LinearProgress,
-  Tooltip,
   Typography,
   useTheme,
 } from "@mui/material";
+import InfoTip from "components/tests/cost/InfoTip";
 import { headerBandColor } from "lib/tests/headerColors";
 import {
   COLUMN_HEADER_HEIGHT,
@@ -113,28 +112,7 @@ export default function CostFrame({
           )}
         </Typography>
         {description !== undefined && (
-          <Tooltip
-            title={description}
-            enterDelay={150}
-            placement="bottom-start"
-            slotProps={{
-              tooltip: { sx: { maxWidth: 460, whiteSpace: "pre-line" } },
-            }}
-          >
-            <InfoOutlinedIcon
-              aria-label={description}
-              tabIndex={0}
-              sx={{
-                fontSize: 17,
-                color: "text.secondary",
-                cursor: "help",
-                "&:focus-visible": {
-                  outline: `2px solid ${theme.palette.primary.main}`,
-                  borderRadius: "50%",
-                },
-              }}
-            />
-          </Tooltip>
+          <InfoTip title={description} size="17px" placement="bottom-start" />
         )}
         {note !== undefined && (
           <Typography

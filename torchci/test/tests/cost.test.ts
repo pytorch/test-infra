@@ -7,6 +7,7 @@ import {
 import {
   NOT_PROBED,
   bucketInfo,
+  ownerLabel,
   cellDetail,
   cellShade,
   computeView,
@@ -69,7 +70,7 @@ const ANSWER: RunnerHours = {
   repo: "pytorch/pytorch",
   window: "7d",
   workflow_presets: [],
-  days: 14,
+  days: 7,
   start: "2026-10-18T00:00:00.000Z",
   end: "2026-11-01T00:00:00.000Z",
   rows: [
@@ -82,8 +83,8 @@ const ANSWER: RunnerHours = {
     row("fx", "pull", "NVIDIA A10G", 15),
     row("sparse", "periodic", "Linux aarch64 sve128", 12),
     row("sparse", "periodic", "Tesla T4", 1),
-    row("shared:build", "pull", "", 90),
-    row("shared:other", "lint", "", 10),
+    row("unattributed:no_test_reports", "pull", "", 90),
+    row("unattributed:no_test_reports", "lint", "", 10),
     row("unattributed:no_owner", "trunk", "NVIDIA L4", 5),
   ],
   machines: MACHINES,
@@ -173,11 +174,13 @@ describe("view", () => {
     const facts = factsOf(
       prepared,
       computeView(prepared, { ...none, workflows: ["pull", "trunk"] }),
-      14
+      7
     );
     expect(facts.scopeTotal).toBe(380);
-    expect(facts.perDay).toBeCloseTo(380 / 14);
-    expect(facts.annualized).toBeCloseTo((380 / 14) * 365);
+    expect(facts.perDay).toBeCloseTo(380 / 7);
+    expect(facts.annualized).toBeCloseTo((380 / 7) * 365);
+    // A window the table holds no day of averages to nothing.
+    expect(factsOf(prepared, computeView(prepared, none), 0).perDay).toBe(0);
     expect(facts.attributedShare).toBeCloseTo((380 - 90 - 5) / 380);
   });
 });
@@ -185,15 +188,14 @@ describe("view", () => {
 describe("owner rows", () => {
   const view = computeView(prepared, none);
 
-  test("top owners, the rest folded, then shared and unattributed together", () => {
+  test("top owners, the rest folded, then the unattributed hours together", () => {
     expect(
       ownerRows(view, false, "grouped", 2).map((r) => [r.label, r.hours])
     ).toEqual([
       ["inductor", 240],
       ["nn", 70],
       ["2 more owners", 48],
-      ["Shared: build and other jobs", 100],
-      ["Unattributed", 5],
+      ["Unattributed", 105],
     ]);
   });
 
@@ -204,7 +206,6 @@ describe("owner rows", () => {
       "nn",
       "sparse",
       "more",
-      "shared",
       "unattributed",
     ]);
     expect(ownerRows(view, true, "each", 2).map((r) => r.key)).toEqual([
@@ -213,9 +214,8 @@ describe("owner rows", () => {
       "fx",
       "sparse",
       "less",
-      "shared:build",
-      "shared:other",
       "unattributed:no_owner",
+      "unattributed:no_test_reports",
     ]);
   });
 });
@@ -459,6 +459,15 @@ const ESTIMATED: RunnerHours = {
       key: "test/test_a.py",
       runner_hours: 0.5,
     },
+    // A workflow with no rows in this answer: outside any scope.
+    {
+      bucket: "unattributed:no_owner",
+      workflow: "pull",
+      machine: "NVIDIA L4",
+      kind: "file",
+      key: "test/test_b.py",
+      runner_hours: 1,
+    },
   ],
   unprobed_labels: [{ label: "linux.idc.xpu", runner_hours: 3 }],
 };
@@ -513,8 +522,43 @@ describe("estimated machines and the unattributed buckets", () => {
       estimated: 0,
       contributors: [
         { key: "cpp/test_api", kind: "file", hours: 1.5 },
+        { key: "test/test_b.py", kind: "file", hours: 1 },
         { key: "test/test_a.py", kind: "file", hours: 0.5 },
       ],
+    });
+    // Scoped to trunk, the pull file is out.
+    const trunk = computeView(p, { ...none, workflows: ["trunk"] });
+    expect(
+      cellDetail(p, trunk, ["unattributed:no_owner"], l4).contributors.map(
+        (c) => c.key
+      )
+    ).toEqual(["cpp/test_api", "test/test_a.py"]);
+  });
+
+  test("a highlighted machine keeps its estimated piece; the key's est. follows an owner highlight", () => {
+    const owners = unattributed?.owners ?? [];
+    const lit = computeView(p, { ...none, machines: ["NVIDIA L4"] });
+    expect(
+      segments(
+        p,
+        rowMix(p, lit, owners),
+        lit.machines,
+        rowMix(p, lit, owners, true)
+      ).map((s) => [s.label, s.hours, s.paint.kind])
+    ).toEqual([
+      ["NVIDIA L4", 2, "machine"],
+      ["NVIDIA L4 (est.)", 6, "estimated"],
+      ["other machines", 3, "pale"],
+    ]);
+    const key = (o: string[]) =>
+      machineKeyRows(p, computeView(p, { ...none, owners: o }), false)[0];
+    expect(key(["unattributed:no_test_reports"])).toMatchObject({
+      highlighted: 6,
+      highlightedEstimated: 6,
+    });
+    expect(key(["inductor"])).toMatchObject({
+      highlighted: 10,
+      highlightedEstimated: 0,
     });
   });
 
@@ -530,17 +574,16 @@ describe("estimated machines and the unattributed buckets", () => {
     expect(rowsCsv(p, v).csv).toContain(
       "unattributed:no_test_reports,trunk,NVIDIA L4,yes,6.00"
     );
-    expect(bucketInfo("unattributed:no_test_reports")).toBe(
-      "No test reports: Test jobs without test reports, so their test files are unknown.\n" +
-        "• Benchmarks and custom test scripts\n" +
-        "• Reports not uploaded or not ingested\n" +
-        "• Jobs cancelled before uploading"
-    );
-    expect(bucketInfo("unattributed:no_owner")).toBe(
-      "No owner: Tests in files without an owner.\n" +
-        "• C++ test binaries\n" +
-        "• Python files not in the owners list"
-    );
+    // A line naming the bucket, then what it holds as a list.
+    for (const bucket of [
+      "unattributed:no_owner",
+      "unattributed:no_test_reports",
+    ]) {
+      const [first, ...items] = bucketInfo(bucket).split("\n");
+      expect(first.startsWith(`${ownerLabel(bucket)}: `)).toBe(true);
+      expect(items.length).toBeGreaterThan(0);
+      expect(items.every((i) => i.startsWith("• "))).toBe(true);
+    }
     expect(bucketInfo("inductor")).toBe("");
   });
 });

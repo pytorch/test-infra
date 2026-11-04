@@ -1,19 +1,28 @@
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { Box, Tooltip } from "@mui/material";
+import { Box, Tooltip, type TooltipProps } from "@mui/material";
 
-// An (i) beside a label that explains it on hover or focus, without taking
-// the label's click.
-export default function InfoTip({ title }: { title: string }) {
+// An (i) that explains what it sits beside on hover or focus, without taking
+// a click meant for its row. The tooltip's text is its accessible name.
+export default function InfoTip({
+  title,
+  size = "0.9rem",
+  placement,
+}: {
+  title: string;
+  size?: string;
+  placement?: TooltipProps["placement"];
+}) {
   return (
     <Tooltip
       title={title}
       enterDelay={150}
-      slotProps={{ tooltip: { sx: { whiteSpace: "pre-line", maxWidth: 360 } } }}
+      placement={placement}
+      slotProps={{ tooltip: { sx: { whiteSpace: "pre-line", maxWidth: 460 } } }}
     >
       <Box
         component="span"
+        role="img"
         tabIndex={0}
-        aria-label={title}
         onClick={(event) => event.stopPropagation()}
         sx={{
           display: "inline-flex",
@@ -21,10 +30,13 @@ export default function InfoTip({ title }: { title: string }) {
           ml: 0.5,
           color: "text.secondary",
           cursor: "help",
-          "&:focus-visible": { outline: "2px solid", borderRadius: "50%" },
+          "&:focus-visible": {
+            outline: (theme) => `2px solid ${theme.palette.primary.main}`,
+            borderRadius: "50%",
+          },
         }}
       >
-        <InfoOutlinedIcon sx={{ fontSize: "0.9rem" }} />
+        <InfoOutlinedIcon sx={{ fontSize: size }} />
       </Box>
     </Tooltip>
   );

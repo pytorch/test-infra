@@ -36,7 +36,6 @@ const HEAVY_PATHS = [
   "/api/tests/test/{test_id}/runs",
   "/api/tests/commit/{sha}",
   "/api/tests/commit/{sha}/summary",
-  "/api/tests/cost",
 ];
 
 // The document's paths under one tag: `tests` for the JSON API served by

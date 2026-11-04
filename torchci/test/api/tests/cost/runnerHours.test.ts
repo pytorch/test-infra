@@ -9,7 +9,6 @@ import {
   shortDeviceNames,
 } from "lib/api/tests/cost/runnerHours";
 import { RunnerHoursSchema } from "lib/api/tests/cost/types";
-import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import * as clickhouse from "lib/clickhouse";
 
 const NOW = new Date("2026-10-30T06:00:00Z");
@@ -171,8 +170,8 @@ describe("cost runner-hours", () => {
               },
             ]
           : id === "tests_cost_coverage"
-          ? // The rollup starts inside the 7-day window.
-            [{ first_day: "2026-10-27" }]
+          ? // The rollup holds 3 of the window's 7 days.
+            [{ days: 3, first_day: "2026-10-27" }]
           : [{ workflow: "trunk", runs: 3, seconds: [100, 200] }]
       );
     const answer = await getRunnerHours(
@@ -190,8 +189,14 @@ describe("cost runner-hours", () => {
       start: "2026-10-23 00:00:00.000",
       end: "2026-10-30 00:00:00.000",
     });
-    expect(query.mock.calls[0][4]).toBe(CI_WORKLOAD_HEAVY);
-    expect(query.mock.calls[1][4]).toBeUndefined();
+    // About 0.3 CPU-seconds: not a heavy query.
+    expect(query.mock.calls.map((call) => call[4])).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(query.mock.calls[3][1]).toEqual(query.mock.calls[0][1]);
     expect(query.mock.calls[2][1]).toMatchObject({
       tts_workflows: ["pull", "trunk"],
     });
@@ -235,27 +240,25 @@ describe("cost runner-hours", () => {
     ).toBe(false);
   });
 
-  test("a window's days with data: all of them, or from the rollup's first day", () => {
+  test("a window's days with data, and the first of them; none is 0 days from the window's start", () => {
     const bounds = {
       start: "2026-10-23T00:00:00.000Z",
       end: "2026-10-30T00:00:00.000Z",
     };
-    expect(coveredWindow(bounds, "2026-10-01")).toEqual({
-      start: bounds.start,
-      days: 7,
-    });
-    expect(coveredWindow(bounds, "2026-10-27")).toEqual({
-      start: "2026-10-27T00:00:00.000Z",
-      days: 3,
-    });
-    // No data in the window at all.
-    expect(coveredWindow(bounds, "2026-11-02")).toEqual({
-      start: bounds.end,
-      days: 0,
-    });
+    expect(coveredWindow(bounds, { days: 7, first_day: "2026-10-23" })).toEqual(
+      { start: bounds.start, days: 7 }
+    );
+    // A missing day inside the window counts out of the average.
+    expect(coveredWindow(bounds, { days: 5, first_day: "2026-10-25" })).toEqual(
+      { start: "2026-10-25T00:00:00.000Z", days: 5 }
+    );
+    // An empty window: min(day) of no rows is 1970-01-01, and days 0.
+    expect(coveredWindow(bounds, { days: 0, first_day: "1970-01-01" })).toEqual(
+      { start: bounds.start, days: 0 }
+    );
     expect(coveredWindow(bounds, undefined)).toEqual({
       start: bounds.start,
-      days: 7,
+      days: 0,
     });
   });
 });

@@ -19,7 +19,11 @@ export const RunnerHoursRowSchema = z
           ", "
         )}.`
       ),
-    workflow: z.string().describe("The workflow's name, lowercase."),
+    workflow: z
+      .string()
+      .describe(
+        "The workflow's file name without its directory and .yml: pull for .github/workflows/pull.yml."
+      ),
     machine: z
       .string()
       .describe(
@@ -37,7 +41,7 @@ export const RunnerHoursRowSchema = z
 export const ContributorSchema = z
   .object({
     bucket: z.enum(OWNER_BUCKETS).describe("The bucket the hours are in."),
-    workflow: z.string().describe("The workflow's name, lowercase."),
+    workflow: z.string().describe("The workflow, as rows name it."),
     machine: z
       .string()
       .describe("The machine, as rows name it; empty when unknown."),
@@ -83,7 +87,7 @@ export const UnprobedLabelSchema = z
     label: z
       .string()
       .describe(
-        "The runner labels a job asked for, comma-separated, as workflow_job records them."
+        "The runner labels a job asked for, sorted and comma-separated."
       ),
     runner_hours: z.number().describe("Runner-hours of the jobs on it."),
   })

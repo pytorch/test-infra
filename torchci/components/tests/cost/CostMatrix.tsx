@@ -398,7 +398,7 @@ export default function CostMatrix({
                 >
                   <Box
                     component="td"
-                    title={row.label}
+                    title={row.kind === "bucket" ? undefined : row.label}
                     sx={{
                       textAlign: "right",
                       pr: 1,
@@ -416,25 +416,27 @@ export default function CostMatrix({
                       "&:hover": { textDecoration: "underline" },
                     }}
                   >
-                    <CellButton
-                      label={
-                        row.kind === "more"
-                          ? `List the ${row.owners.length} smaller owners`
-                          : `Highlight ${row.label}`
-                      }
-                      pressed={row.kind === "more" ? undefined : on}
-                      onClick={() =>
-                        row.kind === "more"
-                          ? onExpandedChange(true)
-                          : onToggleOwners(row.owners)
-                      }
-                    >
-                      {row.label}
-                      {row.kind === "more" ? " ▸" : ""}
-                    </CellButton>
-                    {row.kind === "bucket" && bucketInfo(row.key) !== "" && (
-                      <InfoTip title={bucketInfo(row.key)} />
-                    )}
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      <CellButton
+                        label={
+                          row.kind === "more"
+                            ? `List the ${row.owners.length} smaller owners`
+                            : `Highlight ${row.label}`
+                        }
+                        pressed={row.kind === "more" ? undefined : on}
+                        onClick={() =>
+                          row.kind === "more"
+                            ? onExpandedChange(true)
+                            : onToggleOwners(row.owners)
+                        }
+                      >
+                        {row.label}
+                        {row.kind === "more" ? " ▸" : ""}
+                      </CellButton>
+                      {row.kind === "bucket" && bucketInfo(row.key) !== "" && (
+                        <InfoTip title={bucketInfo(row.key)} />
+                      )}
+                    </Box>
                   </Box>
                   {visibleGroups.map((g, gi) => [
                     gi > 0 ? gap(`g${gi}`) : null,
@@ -508,9 +510,13 @@ export default function CostMatrix({
                               <CellButton
                                 label={`${row.label} on ${
                                   prepared.machines[m]
-                                }: ${hoursLabel(
-                                  hours
-                                )} runner-hours; open the details`}
+                                }: ${hoursLabel(hours)} runner-hours${
+                                  guessed
+                                    ? ", estimated"
+                                    : unknown
+                                    ? ", machine unknown"
+                                    : ""
+                                }; open the details`}
                                 pressed={current}
                                 onClick={() =>
                                   onCellChange(

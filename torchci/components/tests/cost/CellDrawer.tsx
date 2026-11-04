@@ -3,7 +3,7 @@ import { Box, Drawer, IconButton, Typography, useTheme } from "@mui/material";
 import { hoursLabel, shareLabel } from "lib/tests/cost/query";
 import {
   BUCKET_INFO,
-  bucketInfo,
+  BUCKET_LABELS,
   cellDetail,
   type CostView,
   ownerLabel,
@@ -134,14 +134,11 @@ export default function CellDrawer({
     const column = view.machineScope[m];
     const notProbed = m === prepared.notProbed;
     const buckets = cell.row.owners.filter((o) => o in BUCKET_INFO);
-    const caveats = [
-      notProbed
-        ? "Unknown machine: no job with test reports ran on these labels."
-        : detail.estimated > 0
-        ? "Machines of test jobs without reports are estimated from their runner label."
-        : "Machines come from the jobs' test reports.",
-      ...buckets.map(bucketInfo),
-    ].filter((c): c is string => typeof c === "string" && c !== "");
+    const machineCaveat = notProbed
+      ? "Unknown machine: no job with test reports ran on these labels."
+      : detail.estimated > 0
+      ? "Machines of test jobs without reports are estimated from their runner label."
+      : "Machines come from the jobs' test reports.";
     const labels = prepared.labels[m];
     const cppHours = detail.contributors
       .filter((c) => c.kind === "file" && c.key.startsWith("cpp/"))
@@ -239,6 +236,11 @@ export default function CellDrawer({
                 detail.hours
               )
             )}
+            {detail.contributors.length > 8 && (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                + {detail.contributors.length - 8} more
+              </Typography>
+            )}
           </>
         ) : (
           <>
@@ -259,16 +261,18 @@ export default function CellDrawer({
         <Heading>Caveats</Heading>
         <Box
           component="ul"
-          sx={{
-            pl: 2.5,
-            my: 0,
-            typography: "body2",
-            color: "text.secondary",
-            whiteSpace: "pre-line",
-          }}
+          sx={{ pl: 2.5, my: 0, typography: "body2", color: "text.secondary" }}
         >
-          {caveats.map((c) => (
-            <li key={c}>{c}</li>
+          <li>{machineCaveat}</li>
+          {buckets.map((b) => (
+            <li key={b}>
+              {BUCKET_LABELS[b]}: {BUCKET_INFO[b].what}
+              <Box component="ul" sx={{ pl: 2, my: 0 }}>
+                {BUCKET_INFO[b].holds.map((h) => (
+                  <li key={h}>{h}</li>
+                ))}
+              </Box>
+            </li>
           ))}
         </Box>
       </>

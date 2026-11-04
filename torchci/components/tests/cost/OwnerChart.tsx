@@ -97,8 +97,26 @@ export function ScopeKeys({
   );
 }
 
+// A bar's pieces as the tooltip lists them: each machine once, its
+// estimated hours (a piece of their own in the bar) folded into its line.
+function machineLines(pieces: { label: string; hours: number }[]) {
+  const lines = new Map<
+    string,
+    { label: string; hours: number; estimated: number }
+  >();
+  for (const p of pieces) {
+    if (!(p.hours > 0)) continue;
+    const label = p.label.replace(/ \(est\.\)$/, "");
+    const line = lines.get(label) ?? { label, hours: 0, estimated: 0 };
+    line.hours += p.hours;
+    if (label !== p.label) line.estimated += p.hours;
+    lines.set(label, line);
+  }
+  return Array.from(lines.values());
+}
+
 // The scope's runner-hours by owner, largest first: the top owners, every
-// highlighted one, the rest folded into "N more owners", then shared and
+// highlighted one, the rest folded into "N more owners", then the
 // unattributed hours, so the rows add up to the scope. Split by machine,
 // each bar is its machines in a fixed order; highlighting machines moves
 // their pieces to the start of every bar and paints the rest pale;
@@ -196,14 +214,13 @@ export default function OwnerChart({
       `${row.label}: ${hoursLabel(row.hours)} h · ${shareLabel(
         row.hours / total
       )} of ${name}`,
-      ...pieces
-        .filter((p) => p.hours > 0)
+      ...machineLines(pieces)
         .slice(0, 10)
         .map(
-          (p) =>
-            `${p.label}: ${hoursLabel(p.hours)} h (${shareLabel(
-              p.hours / (row.hours || 1)
-            )})`
+          (l) =>
+            `${l.label}: ${hoursLabel(l.hours)} h${
+              l.estimated > 0 ? `, ${hoursLabel(l.estimated)} h est.` : ""
+            } (${shareLabel(l.hours / (row.hours || 1))})`
         ),
       row.kind === "more" || row.kind === "less"
         ? "Click to list them"
@@ -418,7 +435,7 @@ export default function OwnerChart({
                       textOverflow: "ellipsis",
                       fontWeight: selected && !folding ? 600 : 400,
                     }}
-                    title={row.label}
+                    title={row.kind === "bucket" ? undefined : row.label}
                   >
                     {selected && !folding ? "✓ " : ""}
                     {row.kind === "owner" ? (

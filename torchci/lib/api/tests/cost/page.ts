@@ -1,8 +1,5 @@
 import { parameterSchema } from "lib/api/parameters";
-import {
-  COST_WINDOWS,
-  DEFAULT_COST_WINDOW,
-} from "lib/api/tests/cost/windows";
+import { COST_PARAMETER_DEFINITIONS } from "lib/api/tests/cost/parameters";
 import { z } from "zod/v4";
 
 // The cost page, /tests/[organization]/[repo]/cost: runner-hours by owner
@@ -30,15 +27,7 @@ export type Cells = (typeof CELLS)[number];
 export const DEFAULT_CELLS: Cells = "machine";
 
 export const COST_PAGE_PARAMETER_DEFINITIONS = {
-  window: {
-    encoding: "single",
-    schema: z
-      .enum(COST_WINDOWS)
-      .default(DEFAULT_COST_WINDOW)
-      .describe(
-        "The last whole UTC days the page counts, as GET /api/tests/cost's window."
-      ),
-  },
+  window: COST_PARAMETER_DEFINITIONS.window,
   workflow: {
     encoding: "repeat",
     schema: z
@@ -54,7 +43,7 @@ export const COST_PAGE_PARAMETER_DEFINITIONS = {
       .array(z.string())
       .optional()
       .describe(
-        "Owners to highlight, as GET /api/tests/cost names them (a bucket such as shared:build included); repeat for several. It narrows nothing."
+        "Owners to highlight, as GET /api/tests/cost names them (a bucket such as unattributed:no_owner included); repeat for several. It narrows nothing."
       ),
   },
   machine: {
@@ -63,7 +52,7 @@ export const COST_PAGE_PARAMETER_DEFINITIONS = {
       .array(z.string())
       .optional()
       .describe(
-        "Machines to highlight, as GET /api/tests/cost names them, Not probed for the hours on no known machine; repeat for several. It narrows nothing."
+        "Machines to highlight, as GET /api/tests/cost names them, Unknown machine for the hours on no known machine; repeat for several. It narrows nothing."
       ),
   },
   split_by: {

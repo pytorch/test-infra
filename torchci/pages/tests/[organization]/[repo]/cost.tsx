@@ -116,8 +116,11 @@ export default function Page() {
   ) => {
     if (repository === undefined) return;
     const asked = resolveCostQuery(Router.query);
+    // A new window brings a new answer, which may hold names this one lacks:
+    // keep the choices as asked.
+    const newWindow = typeof patch !== "function" && patch.window !== undefined;
     const current =
-      prepared === undefined
+      prepared === undefined || newWindow
         ? asked
         : { ...asked, ...copied(knownChoices(prepared, asked)) };
     const next = {
@@ -195,6 +198,8 @@ export default function Page() {
           days={answer?.days ?? 0}
           dates={dates}
           window={query.window}
+          answerWindow={answer?.window}
+          loading={request.isLoading}
           onWindowChange={(window) => change({ window })}
           scope={scope}
           signals={answer?.time_to_signal}

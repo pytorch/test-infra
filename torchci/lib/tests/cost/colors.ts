@@ -52,8 +52,10 @@ export function paleColor(theme: Theme): string {
   );
 }
 
+// Unknown machine's grey stripes, at 45° so they never read as an estimated
+// grey machine's 135° stripes.
 export function hatch(color: string): string {
-  return `repeating-linear-gradient(135deg, ${color} 0 2px, transparent 2px 4px)`;
+  return `repeating-linear-gradient(45deg, ${color} 0 2px, transparent 2px 4px)`;
 }
 
 // Stripes of a paint over its own pale tint: the machine is still legible,

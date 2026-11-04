@@ -2,7 +2,6 @@ import {
   Box,
   ButtonBase,
   Skeleton,
-  Stack,
   Tooltip,
   useTheme,
 } from "@mui/material";
@@ -40,6 +39,9 @@ export interface CostFactsProps {
   days: number;
   dates: string;
   window: CostWindow;
+  // The window of the answer shown, the last one while a new one loads.
+  answerWindow: CostWindow | undefined;
+  loading: boolean;
   onWindowChange: (_window: CostWindow) => void;
   // The scope in words, null for every workflow.
   scope: string | null;
@@ -58,6 +60,8 @@ export default function CostFacts({
   days,
   dates,
   window,
+  answerWindow,
+  loading,
   onWindowChange,
   scope,
   signals,
@@ -80,7 +84,7 @@ export default function CostFacts({
   );
   if (facts === undefined) {
     return (
-      <Stack direction="row" spacing={1}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
         {[16, 22, 18, 18, 15, 22].map((width, i) => (
           <Skeleton
             key={i}
@@ -93,10 +97,10 @@ export default function CostFacts({
           />
         ))}
         {windowKeys}
-      </Stack>
+      </Box>
     );
   }
-  const asked = COST_WINDOW_DAYS[window];
+  const asked = COST_WINDOW_DAYS[answerWindow ?? window];
   const where = scope === null ? "" : ` in ${scope}`;
   const pill = (label: string, title: string, value: string) => (
     <Tooltip
@@ -114,6 +118,15 @@ export default function CostFacts({
     <Box
       sx={{ display: "flex", flexWrap: "wrap", gap: 1, typography: "body2" }}
     >
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 1,
+          opacity: loading ? 0.6 : 1,
+          transition: "opacity 150ms",
+        }}
+      >
       {scope === null ? (
         pill("Across", "Every workflow's runner-hours", "all workflows")
       ) : (
@@ -191,6 +204,7 @@ export default function CostFacts({
           signal.p50_seconds === null ? "none" : signalLabel(signal.p50_seconds)
         )
       )}
+      </Box>
       {windowKeys}
     </Box>
   );

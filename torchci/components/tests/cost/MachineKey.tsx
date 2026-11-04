@@ -261,7 +261,11 @@ export default function MachineKey({
                   color: "text.secondary",
                 }}
               >
-                {row.estimated >= 0.5 ? `${hoursLabel(row.estimated)} h` : ""}
+                {(owners ? row.highlightedEstimated : row.estimated) >= 0.5
+                  ? `${hoursLabel(
+                      owners ? row.highlightedEstimated : row.estimated
+                    )} h`
+                  : ""}
               </Box>
             </ButtonBase>
           </Box>
