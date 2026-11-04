@@ -1129,6 +1129,67 @@ block (`CellBlock`), the grid's swatches and attempt pills.
   change is made, so a filter chosen during the search's pause is kept.
   Expanded attempts are not kept, and another commit starts them over.
 
+## Cost page
+
+`/tests/[organization]/[repo]/cost` is a prototype: where a repository's
+test-job runner-hours went over the last 1, 3 or 7 whole UTC days, by owner,
+machine and workflow at once, from one answer of `GET /api/tests/cost` summed
+in the browser (`lib/tests/cost/runnerHours.ts`, tested in
+`test/tests/cost.test.ts`). The API README's
+[Cost](../../app/api/README.md#cost) section has the method.
+
+- Three rules hold throughout. The window and the workflow scope are the only
+  choices that change the numbers: owners and machines highlight, and nothing
+  re-sorts or rescales when they do. Every number carries its unit, and every
+  percentage its base: the owner bars, their axis and the machine key are
+  shares of the scope, the workflows card shares of the whole window. Colors
+  follow the machine: the window's seven largest keep seven validated hues in
+  name order (`lib/tests/cost/colors.ts`), other machines are grey, and a
+  highlighted machine without a hue takes the accent. Hours whose machine is
+  estimated from a runner label are striped in their machine's color;
+  Unknown machine is grey stripes at the other angle.
+- The title is a sentence, as the tests page's is: "Runner-hours of
+  pytorch/pytorch over the last 7 days", the window (1, 3 or 7 days) its pill
+  (`InlineSelect`). The facts under it say what the hours cover: the scope (in
+  the accent with a clear button while one is in force), annualized and per
+  day runner-hours, the share attributed to owners, and the PR update and PR
+  merge signals (pull and trunk on pushes to main, medians with queueing),
+  which ignore the scope. Each panel's subtitle names the days its answer
+  covers, and how many of the window's days have data when not all do. Every
+  tooltip and caption is a phrase or two.
+- Runner-hours by owner: the top 15 owners, every highlighted owner in its
+  own row, "N more owners" (opens to list them), then one Unattributed row
+  with an (i) defining it, each bar split by machine in one fixed order (the
+  window's largest first, Unknown machine last). Highlighted machines move to
+  the start of every bar and the rest goes pale; highlighted owners dim the
+  other rows. The band holds the scope keys (All workflows, the API's presets
+  such as PR Critical Path, and Custom while the workflows card sets one) and
+  "Split by machine". The machine key at the right is legend, machine picker
+  and machine shares in one.
+- All owner–machine pairs: the matrix, open until its band folds it. Its rows
+  end with the two unattributed buckets, No owner then No test reports, each
+  with an (i). Cells show an owner's share of the machine (default), the
+  machine's share of the owner, or hours on a square-root scale, by one
+  sequential blue ramp in light and dark steps; cells that are mostly
+  estimated are striped. "Only selected" hides what is not
+  highlighted, every number unchanged; "Download CSV" saves the rows in the
+  scope and highlight. Columns group by machine family. A cell opens a drawer
+  at the right: its hours and their bases, how many have an estimated
+  machine, its workflows, the runner labels mapped to the machine, for a
+  bucket what it is made of (runner labels or files), and caveats. Headers,
+  row names and cells are buttons, so all of it works from the keyboard.
+  Escape closes the drawer, then clears the highlight, unless a text field or
+  menu has it.
+- Workflows: the four largest, ticked ones pinned, "+ N more" with a search;
+  ticking makes a custom scope. Open, under the matrix (2026-11-04: folded,
+  it was easy to miss).
+- The URL carries `window`, `workflow`, `owner` and `machine` (repeated),
+  `split_by`, `cells` and `only`, defined in `lib/api/tests/cost/page.ts`
+  (`COST_PAGE_PARAMETER_DEFINITIONS`, `window` taken from the endpoint's
+  definition). Names the answer does not hold are dropped from the page at
+  once and from the URL with the next change (`knownChoices`), except on a
+  window change, whose new answer may hold them.
+
 ## Verifying a change
 
 - `yarn test test/tests` runs the unit tests for the glue and the cells, and

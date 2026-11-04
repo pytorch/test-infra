@@ -1,6 +1,11 @@
 import { parameterQueryParameters } from "lib/api/parameters";
 import { ApiResource, pathParameter } from "lib/api/schema";
 import {
+  COST_PAGE_PARAMETER_DEFINITIONS,
+  COST_PAGE_PATH,
+  CostPageQuerySchema,
+} from "lib/api/tests/cost/page";
+import {
   COMMIT_PAGE_PARAMETER_DEFINITIONS,
   COMMIT_PAGE_PATH,
   COMMIT_PAGE_PATH_PARAMETERS,
@@ -94,6 +99,26 @@ export const testsPagesOpenApi: ApiResource = {
           ...parameterQueryParameters(
             CommitPageQuerySchema,
             COMMIT_PAGE_PARAMETER_DEFINITIONS
+          ),
+        ],
+        responses: { "200": HTML_RESPONSE },
+        security: [],
+      },
+    },
+    [COST_PAGE_PATH]: {
+      get: {
+        operationId: "testsCostPage",
+        tags: [PAGES_TAG],
+        summary:
+          "HUD page: a repository's CI runner-hours by owner, machine and workflow",
+        description: `Runner-hours of the last 1, 3 or 7 whole UTC days by owner split by machine, the workflows and every owner-machine pair, summed in the browser from getTestsCost (GET /api/tests/cost). ${PAGE_NATURE} window and workflow are the only parameters that change the numbers: window is the days, the endpoint's own parameter, and workflow the scope; owner and machine highlight and narrow nothing; split_by, cells and only are how the page draws them. Names the answer does not hold are dropped.`,
+        parameters: [
+          ...Object.entries(TESTS_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
+            pathParameter(name, schema)
+          ),
+          ...parameterQueryParameters(
+            CostPageQuerySchema,
+            COST_PAGE_PARAMETER_DEFINITIONS
           ),
         ],
         responses: { "200": HTML_RESPONSE },
