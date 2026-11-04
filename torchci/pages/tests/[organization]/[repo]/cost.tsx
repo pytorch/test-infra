@@ -62,8 +62,9 @@ function datesOf(answer: RunnerHours): string {
 
 // Where a repository's CI runner-hours go, by owner, machine and workflow,
 // from one answer of GET /api/tests/cost summed in the browser
-// (lib/tests/cost/runnerHours.ts). The workflow scope is the only choice that
-// changes the numbers; owners and machines highlight. Every choice travels in
+// (lib/tests/cost/runnerHours.ts). The window, which fetches a new answer,
+// and the workflow scope are the only choices that change the numbers;
+// owners and machines highlight. Every choice travels in
 // the URL under COST_PAGE_PARAMETER_DEFINITIONS' names, left off at its
 // default; the presets come with the runner-hours. The page never queries the
 // database; the API is behind the HUD GitHub gate, which the browser passes

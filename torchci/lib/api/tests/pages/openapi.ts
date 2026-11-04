@@ -111,7 +111,7 @@ export const testsPagesOpenApi: ApiResource = {
         tags: [PAGES_TAG],
         summary:
           "HUD page: a repository's CI runner-hours by owner, machine and workflow",
-        description: `Runner-hours of the last 7 whole UTC days by owner split by machine, the workflows and every owner-machine pair, summed in the browser from getTestsCost (GET /api/tests/cost). ${PAGE_NATURE} workflow is the scope, the only parameter that changes the numbers; owner and machine highlight and narrow nothing; split_by, cells and only are how the page draws them. Names the answer does not hold are dropped.`,
+        description: `Runner-hours of the last 1, 3 or 7 whole UTC days by owner split by machine, the workflows and every owner-machine pair, summed in the browser from getTestsCost (GET /api/tests/cost). ${PAGE_NATURE} window and workflow are the only parameters that change the numbers: window is the days, the endpoint's own parameter, and workflow the scope; owner and machine highlight and narrow nothing; split_by, cells and only are how the page draws them. Names the answer does not hold are dropped.`,
         parameters: [
           ...Object.entries(TESTS_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
             pathParameter(name, schema)

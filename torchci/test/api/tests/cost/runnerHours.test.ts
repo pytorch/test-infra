@@ -26,16 +26,53 @@ const q = (
 
 const ROWS = [
   q("inductor", "trunk", "NVIDIA L4", "environment", "linux.g6.4xlarge", 30),
-  q("inductor", "trunk", "NVIDIA L4", "environment", "l-x86iavx512-8-64-l4", 10),
-  q("inductor", "pull", "Linux x86_64 avx512", "environment", "linux.2xlarge", 5),
+  q(
+    "inductor",
+    "trunk",
+    "NVIDIA L4",
+    "environment",
+    "l-x86iavx512-8-64-l4",
+    10
+  ),
+  q(
+    "inductor",
+    "pull",
+    "Linux x86_64 avx512",
+    "environment",
+    "linux.2xlarge",
+    5
+  ),
   q("unattributed:no_test_reports", "pull", "", "none", "linux.12xlarge", 50),
   q("unattributed:no_test_reports", "pull", "", "none", "windows.4xlarge", 7),
   q("nn", "pull", "NVIDIA L4", "environment", "linux.g6.4xlarge", 0),
   // A test job without reports whose label other jobs reported L4 on.
-  q("unattributed:no_test_reports", "inductor", "NVIDIA L4", "runner_label", "linux.g6.4xlarge", 4),
+  q(
+    "unattributed:no_test_reports",
+    "inductor",
+    "NVIDIA L4",
+    "runner_label",
+    "linux.g6.4xlarge",
+    4
+  ),
   // One file without owners, on two labels.
-  q("unattributed:no_owner", "trunk", "NVIDIA L4", "environment", "linux.g6.4xlarge", 2, "cpp/test_api"),
-  q("unattributed:no_owner", "trunk", "NVIDIA L4", "environment", "l-x86iavx512-8-64-l4", 1, "cpp/test_api"),
+  q(
+    "unattributed:no_owner",
+    "trunk",
+    "NVIDIA L4",
+    "environment",
+    "linux.g6.4xlarge",
+    2,
+    "cpp/test_api"
+  ),
+  q(
+    "unattributed:no_owner",
+    "trunk",
+    "NVIDIA L4",
+    "environment",
+    "l-x86iavx512-8-64-l4",
+    1,
+    "cpp/test_api"
+  ),
 ];
 
 describe("cost runner-hours", () => {
@@ -53,7 +90,13 @@ describe("cost runner-hours", () => {
       row("unattributed:no_test_reports", "pull", "", "none", 57),
       row("inductor", "trunk", "NVIDIA L4", "environment", 40),
       row("inductor", "pull", "Linux x86_64 avx512", "environment", 5),
-      row("unattributed:no_test_reports", "inductor", "NVIDIA L4", "runner_label", 4),
+      row(
+        "unattributed:no_test_reports",
+        "inductor",
+        "NVIDIA L4",
+        "runner_label",
+        4
+      ),
       row("unattributed:no_owner", "trunk", "NVIDIA L4", "environment", 3),
     ]);
   });
@@ -68,10 +111,38 @@ describe("cost runner-hours", () => {
       runner_hours: number
     ) => ({ bucket, workflow, machine, kind, key, runner_hours });
     expect(costContributors(ROWS)).toEqual([
-      c("unattributed:no_test_reports", "pull", "", "label", "linux.12xlarge", 50),
-      c("unattributed:no_test_reports", "pull", "", "label", "windows.4xlarge", 7),
-      c("unattributed:no_test_reports", "inductor", "NVIDIA L4", "label", "linux.g6.4xlarge", 4),
-      c("unattributed:no_owner", "trunk", "NVIDIA L4", "file", "cpp/test_api", 3),
+      c(
+        "unattributed:no_test_reports",
+        "pull",
+        "",
+        "label",
+        "linux.12xlarge",
+        50
+      ),
+      c(
+        "unattributed:no_test_reports",
+        "pull",
+        "",
+        "label",
+        "windows.4xlarge",
+        7
+      ),
+      c(
+        "unattributed:no_test_reports",
+        "inductor",
+        "NVIDIA L4",
+        "label",
+        "linux.g6.4xlarge",
+        4
+      ),
+      c(
+        "unattributed:no_owner",
+        "trunk",
+        "NVIDIA L4",
+        "file",
+        "cpp/test_api",
+        3
+      ),
     ]);
   });
 
@@ -154,7 +225,7 @@ describe("cost runner-hours", () => {
     ]);
   });
 
-  test("asks the runner-hours in the heavy workload beside the machines and time to signal, and answers its schema", async () => {
+  test("asks the runner-hours, machines, time to signal and coverage, none heavy, and answers its schema", async () => {
     const query = jest
       .spyOn(clickhouse, "queryClickhouse")
       .mockImplementation(async (_sql, _params, id) =>

@@ -7,8 +7,8 @@ import { escapeCSV } from "lib/csvUtils";
 // request. Pure functions of the answer and the reader's choices; the
 // components only draw what these return.
 //
-// Three rules hold throughout. The workflow scope is the only choice that
-// changes the numbers: owners and machines highlight, and nothing re-sorts
+// Three rules hold throughout. Within an answer, the workflow scope is the
+// only choice that changes the numbers: owners and machines highlight, and nothing re-sorts
 // or rescales when they do. Machines keep one order, the window's largest
 // first and Unknown machine last, so stacks never reshuffle. The seven
 // largest machines over the window keep their hues whatever is scoped.
