@@ -610,15 +610,6 @@ export default function CostMatrix({
                   <Box
                     component="td"
                     key={m}
-                    title={
-                      view.machineEstimated[m] > 0
-                        ? `${prepared.machines[m]}: ${hoursLabel(
-                            view.machineScope[m]
-                          )} h, of which ≈ ${hoursLabel(
-                            view.machineEstimated[m]
-                          )} h estimated from runner labels`
-                        : undefined
-                    }
                     sx={{
                       ...cellSx,
                       pt: 1,
@@ -629,19 +620,6 @@ export default function CostMatrix({
                     }}
                   >
                     {hoursLabel(view.machineScope[m])} h
-                    {view.machineEstimated[m] > 0 && (
-                      <Box
-                        component="span"
-                        sx={{ color: "text.secondary", fontWeight: 400 }}
-                      >
-                        <br />≈{" "}
-                        {shareLabel(
-                          view.machineEstimated[m] /
-                            (view.machineScope[m] || 1)
-                        )}{" "}
-                        est.
-                      </Box>
-                    )}
                     <br />
                     <Box component="span" sx={{ color: "text.secondary" }}>
                       {shareLabel(
