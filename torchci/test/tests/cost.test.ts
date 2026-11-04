@@ -511,6 +511,14 @@ describe("estimated machines and the unattributed buckets", () => {
     });
   });
 
+  test("the matrix lists No owner before the striped No test reports", () => {
+    expect(
+      ownerRows(v, false, "each")
+        .filter((r) => r.kind === "bucket")
+        .map((r) => r.key)
+    ).toEqual(["unattributed:no_owner", "unattributed:no_test_reports"]);
+  });
+
   test("the CSV marks rows with an estimated machine; both buckets explain themselves", () => {
     expect(rowsCsv(p, v).csv).toContain(
       "unattributed:no_test_reports,trunk,NVIDIA L4,yes,6.00"

@@ -35,8 +35,10 @@ export const MIN_CELL_HOURS = 0.5;
 export const BUCKET_LABELS: Record<string, string> = {
   "shared:build": "Shared: build jobs",
   "shared:other": "Shared: other jobs (lint, docs, binaries, ...)",
-  "unattributed:no_test_reports": "No test reports",
+  // No owner first: its rows look like any owner's, then the striped rows
+  // of test jobs without reports.
   "unattributed:no_owner": "No owner",
+  "unattributed:no_test_reports": "No test reports",
 };
 const BUCKET_ORDER = Object.keys(BUCKET_LABELS);
 
