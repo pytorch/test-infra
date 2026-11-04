@@ -14,14 +14,15 @@ import type { EChartsOption } from "echarts";
 import {
   bucketSpan,
   CHART_GRANULARITY_OPTIONS,
-  ChartBucket,
   ChartGranularity,
 } from "lib/greenlight/qualityCharts";
 import { percentUnitsFormatter } from "lib/greenlight/qualityFigures";
 import {
   DAY_MS,
+  dayStart,
   hoursText,
   minutesText,
+  NEW_TEST_CHECK_FROM,
   REVERT_WINDOW_DAYS,
 } from "lib/targetDeterminator";
 import {
@@ -45,58 +46,87 @@ const UNIT_TEXT: Record<TdUnit, (_value: number | null) => string> = {
   percent: percentUnitsFormatter,
 };
 
+const tick = (value: number) => Number(value).toLocaleString();
 const UNIT_AXIS: Record<
   TdUnit,
   { label: string; tick: (_value: number) => string }
 > = {
-  hours: { label: "Hours", tick: (v) => Number(v).toLocaleString() },
-  minutes: { label: "Minutes", tick: (v) => Number(v).toLocaleString() },
-  count: { label: "Count", tick: (v) => Number(v).toLocaleString() },
+  hours: { label: "Hours", tick },
+  minutes: { label: "Minutes", tick },
+  count: { label: "Count", tick },
   percent: { label: "% of pairs", tick: (v) => `${v}%` },
 };
 
 const PARTIAL_OPACITY = 0.45;
 const PARTIAL_SYMBOL_SIZE = 8;
-const UNCOUNTED_FILL = "rgba(128, 128, 128, 0.15)";
-const UNCOUNTED_TEXT: Record<"pending" | "truncated", string> = {
-  pending: "Not yet counted",
-  truncated: "Not charted",
-};
-const UNCOUNTED_NOTE: Record<"pending" | "truncated", string> = {
-  pending: `Not yet counted: landings from the last ${REVERT_WINDOW_DAYS} days may still be reverted.`,
-  truncated: "Not charted: older than the newest landings the query lists.",
-};
 
-function bucketTime(bucket: ChartBucket): number {
-  return Date.parse(`${bucket.key}T00:00:00.000Z`);
+type BucketMark = "pending" | "truncated" | "upperBound";
+const MARKS: Record<BucketMark, { text: string; note: string; fill: string }> =
+  {
+    pending: {
+      text: "Not yet counted",
+      note: `Not yet counted: landings from the last ${REVERT_WINDOW_DAYS} days may still be reverted.`,
+      fill: "rgba(128, 128, 128, 0.15)",
+    },
+    truncated: {
+      text: "Not charted",
+      note: "Not charted: older than the newest landings the query lists.",
+      fill: "rgba(128, 128, 128, 0.15)",
+    },
+    upperBound: {
+      text: "Upper bound",
+      note: `Upper bound: before ${NEW_TEST_CHECK_FROM} a new test reads as skipped by TD, so false greens may be overcounted.`,
+      fill: "rgba(237, 108, 2, 0.12)",
+    },
+  };
+
+function bucketMark(plot: TdPlot, i: number): BucketMark | undefined {
+  const state = plot.states[i];
+  return state === "pending" || state === "truncated"
+    ? state
+    : plot.upperBound[i]
+    ? "upperBound"
+    : undefined;
 }
 
 function halfBucket(plot: TdPlot): number {
   return ((plot.granularity === "week" ? 7 : 1) * DAY_MS) / 2;
 }
 
-// Runs of not-counted buckets, shaded and labelled on the chart.
-function uncountedAreas(plot: TdPlot) {
+// Runs of marked buckets, shaded and labelled on the chart.
+function markedAreas(plot: TdPlot) {
   const half = halfBucket(plot);
-  const areas: object[] = [];
-  plot.states.forEach((state, i) => {
-    if (state !== "pending" && state !== "truncated") {
+  const areas: any[] = [];
+  plot.buckets.forEach((bucket, i) => {
+    const mark = bucketMark(plot, i);
+    if (mark === undefined) {
       return;
     }
-    const from = bucketTime(plot.buckets[i]) - half;
-    const to = bucketTime(plot.buckets[i]) + half;
-    const previous = areas[areas.length - 1] as any;
-    if (previous !== undefined && previous[0].name === UNCOUNTED_TEXT[state]) {
+    const from = dayStart(bucket.key) - half;
+    const to = dayStart(bucket.key) + half;
+    const previous = areas[areas.length - 1];
+    if (
+      previous !== undefined &&
+      previous[0].name === MARKS[mark].text &&
+      previous[1].xAxis === from
+    ) {
       previous[1].xAxis = to;
     } else {
-      areas.push([{ name: UNCOUNTED_TEXT[state], xAxis: from }, { xAxis: to }]);
+      areas.push([
+        {
+          name: MARKS[mark].text,
+          xAxis: from,
+          itemStyle: { color: MARKS[mark].fill },
+        },
+        { xAxis: to },
+      ]);
     }
   });
   return areas;
 }
 
 export function plotSeries(chart: TdChartConfig, plot: TdPlot) {
-  const areas = uncountedAreas(plot);
+  const areas = markedAreas(plot);
   return chart.series.map(({ name }, j) => ({
     name,
     type: chart.type === "line" ? "line" : "bar",
@@ -106,7 +136,7 @@ export function plotSeries(chart: TdChartConfig, plot: TdPlot) {
     connectNulls: false,
     emphasis: { focus: "series" },
     data: plot.buckets.map((bucket, i) => ({
-      value: [bucketTime(bucket), plot.values[j][i]],
+      value: [dayStart(bucket.key), plot.values[j][i]],
       ...(plot.states[i] === "partial"
         ? {
             itemStyle: { opacity: PARTIAL_OPACITY },
@@ -119,7 +149,6 @@ export function plotSeries(chart: TdChartConfig, plot: TdPlot) {
       ? {
           markArea: {
             silent: true,
-            itemStyle: { color: UNCOUNTED_FILL },
             label: { position: "insideTop" },
             data: areas,
           },
@@ -142,12 +171,16 @@ export function tooltipText(
   const head =
     plot.granularity === "week" ? `Week of ${bucket.key}` : bucket.key;
   const lines = [`<b>${head}</b>`];
+  const mark = bucketMark(plot, index);
   if (state === "pending" || state === "truncated") {
-    lines.push(UNCOUNTED_NOTE[state]);
+    lines.push(MARKS[state].note);
     return lines.join("<br/>");
   }
   if (state === "partial") {
     lines.push(`Partial bucket: ${bucketSpan(bucket)}`);
+  }
+  if (mark === "upperBound") {
+    lines.push(MARKS[mark].note);
   }
   const text = UNIT_TEXT[chart.unit];
   chart.series.forEach(({ name }, j) => {
@@ -167,10 +200,11 @@ export function plotOptions(chart: TdChartConfig, plot: TdPlot): EChartsOption {
   const first = plot.buckets[0];
   const last = plot.buckets[plot.buckets.length - 1];
   return {
+    useUTC: true,
     xAxis:
       first === undefined
         ? {}
-        : { min: bucketTime(first) - half, max: bucketTime(last) + half },
+        : { min: dayStart(first.key) - half, max: dayStart(last.key) + half },
     grid: { containLabel: true },
     yAxis: { min: 0, ...(chart.unit === "count" ? { minInterval: 1 } : {}) },
     tooltip: {
@@ -265,6 +299,7 @@ function TdChart({
     [chart, source.rows, granularity, source.window]
   );
   const axis = UNIT_AXIS[chart.unit];
+  const axisLabel = chart.axisLabel ?? axis.label;
   const notes = [chart.note, source.note].filter((note) => note !== undefined);
   return (
     <Grid size={{ xs: 12 }}>
@@ -285,11 +320,9 @@ function TdChart({
               title={chart.title}
               groupByFieldName="series"
               legendPadding={220}
-              timeFieldDisplayFormat="YYYY-MM-DD"
-              yAxisLabel={axis.label}
+              yAxisLabel={axisLabel}
               yAxisRenderer={axis.tick}
               additionalOptions={plotOptions(chart, plot)}
-              useUTC={true}
             />
           </Box>
         </TdPanel>
@@ -303,7 +336,6 @@ function TdChart({
   );
 }
 
-// The open charts of one section, in the order of its tiles, below them.
 export function TdCharts({
   charts,
   keys,

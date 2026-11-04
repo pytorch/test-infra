@@ -176,11 +176,16 @@ export interface TdTotalState<T> extends TdQueryState<T> {
   tileError?: string;
 }
 
+// A query that is not enabled reads nothing, so it is not loading either.
 export function readTdQuery<T>(
   queryName: string,
   data: unknown,
-  error: any
+  error: any,
+  enabled: boolean = true
 ): TdQueryState<T> {
+  if (!enabled) {
+    return { loading: false, rows: [] };
+  }
   if (error !== undefined && error !== null) {
     return {
       loading: false,

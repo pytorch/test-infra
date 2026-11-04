@@ -22,11 +22,7 @@ export default function StabilitySection({
   charts: TdChartsState;
 }) {
   const range = countedRange(params, sectionLimits().stability);
-  const churn = useTdTotalQuery<ChurnRow>(
-    TD_QUERIES.churn,
-    { startTime: range.startTime, stopTime: range.stopTime },
-    !range.empty
-  );
+  const churn = useTdTotalQuery<ChurnRow>(TD_QUERIES.churn, range.params);
   const total = churn.total;
   const pairs = num(total?.pairs) ?? 0;
   const identical = num(total?.identical_pairs) ?? 0;

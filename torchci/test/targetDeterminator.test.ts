@@ -6,7 +6,6 @@ import {
 import fs from "fs";
 import {
   breakageChunks,
-  BREAKAGES_VALID_FROM,
   breakageStats,
   CHUNK_DAYS,
   ciSaved,
@@ -15,15 +14,16 @@ import {
   countedRange,
   DAY_MS,
   hoursText,
+  JOB_NAMES_VALID_FROM,
   MAX_CHUNKS,
   MIN_MAIN_RUNS,
   minutesText,
+  NEW_TEST_CHECK_FROM,
   NEW_TEST_DAYS,
   prUrl,
   rangeText,
   recallCurve,
   REVERT_WINDOW_DAYS,
-  SAVINGS_VALID_FROM,
   sectionLimits,
   TD_CUT_PCT,
   TD_QUERIES,
@@ -296,6 +296,13 @@ describe("readTdQuery", () => {
       rows: [{ a: 1 }],
     });
   });
+
+  it("is not loading when the query is not enabled", () => {
+    expect(readTdQuery("td_x", undefined, undefined, false)).toEqual({
+      loading: false,
+      rows: [],
+    });
+  });
 });
 
 const ms = (time: string) => Date.parse(`${time}Z`);
@@ -315,11 +322,20 @@ describe("countedRange", () => {
       limits.savings,
       NOW
     );
-    expect(range.startTime).toBe(`${SAVINGS_VALID_FROM}T00:00:00.000`);
-    expect(range.stopTime).toBe("2026-08-01T00:00:00.000");
+    expect(range.params).toEqual({
+      startTime: `${JOB_NAMES_VALID_FROM}T00:00:00.000`,
+      stopTime: "2026-08-01T00:00:00.000",
+    });
     expect(range.empty).toBe(false);
     expect(range.note).toBe(limits.savings.validReason);
-    expect(rangeText(range)).toBe(`${SAVINGS_VALID_FROM} to 2026-07-31`);
+    expect(rangeText(range)).toBe(`${JOB_NAMES_VALID_FROM} to 2026-07-31`);
+    const breakages = countedRange(
+      pick("2026-06-01", "2026-08-01"),
+      limits.breakages,
+      NOW
+    );
+    expect(breakages.params).toEqual(range.params);
+    expect(breakages.note).toBe(limits.breakages.validReason);
   });
 
   it("clamps to the query's width before the picked stop", () => {
@@ -328,7 +344,7 @@ describe("countedRange", () => {
       { clampDays: 30 },
       NOW
     );
-    expect(range.startTime).toBe("2026-01-30T00:00:00.000");
+    expect(range.params?.startTime).toBe("2026-01-30T00:00:00.000");
     expect(range.note).toBe("This section reads at most 30 days at a time.");
   });
 
@@ -338,8 +354,10 @@ describe("countedRange", () => {
       limits.savings,
       NOW
     );
-    expect(range.startTime).toBe("2026-10-05T00:00:00.000");
-    expect(range.stopTime).toBe("2026-11-05T00:00:00.000");
+    expect(range.params).toEqual({
+      startTime: "2026-10-05T00:00:00.000",
+      stopTime: "2026-11-05T00:00:00.000",
+    });
     expect(range.end).toBe(NOW);
     expect(range.note).toBeUndefined();
     expect(rangeText(range)).toBe("2026-10-05 to 2026-11-04");
@@ -353,8 +371,31 @@ describe("countedRange", () => {
       limits.stability,
       NOW
     );
-    expect(range.startTime).toBe("2026-10-06T00:00:00.000");
+    expect(range.params?.startTime).toBe("2026-10-06T00:00:00.000");
     expect(range.note).toBe(limits.stability.validReason);
+  });
+
+  it("clamps a future stop back from the end of today, as the SQL does", () => {
+    const future = pick("2026-08-01", "2027-01-15");
+    const ranks = countedRange(future, limits.ranks, NOW);
+    expect(ranks.params).toEqual({
+      startTime: "2026-08-07T00:00:00.000",
+      stopTime: "2027-01-15T00:00:00.000",
+    });
+    expect(ranks.note).toBe(limits.ranks.validReason);
+    const stability = countedRange(future, limits.stability, NOW);
+    expect(stability.params?.startTime).toBe("2026-10-06T00:00:00.000");
+    const ttrs = countedRange(future, limits.ttrs, NOW);
+    expect(ttrs.empty).toBe(false);
+    expect(ttrs.params?.startTime).toBe("2026-10-06T00:00:00.000");
+    expect(ttrs.end).toBe(NOW);
+    expect(rangeText(ttrs)).toBe("2026-10-06 to 2026-11-04");
+    const later = countedRange(
+      future,
+      limits.ttrs,
+      ms("2026-11-04T23:59:59.000")
+    );
+    expect(later.params).toEqual(ttrs.params);
   });
 
   it("is empty before the valid-from day, in the future and inverted", () => {
@@ -364,6 +405,7 @@ describe("countedRange", () => {
       NOW
     );
     expect(before.empty).toBe(true);
+    expect(before.params).toBeUndefined();
     expect(before.note).toBe(limits.breakages.validReason);
     expect(
       countedRange(pick("2026-11-10", "2026-11-20"), limits.savings, NOW).empty
@@ -375,7 +417,7 @@ describe("countedRange", () => {
 });
 
 describe("breakageChunks", () => {
-  const anchor = day0(BREAKAGES_VALID_FROM);
+  const anchor = day0(JOB_NAMES_VALID_FROM);
   const chunked = (start: string, stop: string, now = NOW) =>
     breakageChunks(
       countedRange(pick(start, stop), sectionLimits(now).breakages, now),
@@ -384,8 +426,8 @@ describe("breakageChunks", () => {
 
   function expectTiling(start: string, stop: string, now: number) {
     const { chunks, range } = chunked(start, stop, now);
-    expect(chunks[0].startTime).toBe(range.startTime);
-    expect(chunks[chunks.length - 1].stopTime).toBe(range.stopTime);
+    expect(chunks[0].startTime).toBe(range.params?.startTime);
+    expect(chunks[chunks.length - 1].stopTime).toBe(range.params?.stopTime);
     chunks.forEach((chunk, i) => {
       const from = ms(chunk.startTime);
       const to = ms(chunk.stopTime);
@@ -401,11 +443,11 @@ describe("breakageChunks", () => {
 
   it("tiles the range on a 90-day grid anchored at the valid-from day", () => {
     const later = ms("2027-12-01T00:00:00.000");
-    const chunks = expectTiling("2026-09-09", "2027-03-28", later);
+    const chunks = expectTiling("2026-06-01", "2027-03-28", later);
     expect(chunks.map((c) => c.label)).toEqual([
-      "2026-09-09 to 2026-12-07",
-      "2026-12-08 to 2027-03-07",
-      "2027-03-08 to 2027-03-27",
+      "2026-07-13 to 2026-10-10",
+      "2026-10-11 to 2027-01-08",
+      "2027-01-09 to 2027-03-27",
     ]);
     expect(expectTiling("2026-10-01", "2027-06-15", later)).toHaveLength(4);
   });
@@ -415,13 +457,18 @@ describe("breakageChunks", () => {
     expect(chunks).toEqual([
       {
         startTime: "2026-10-01T00:00:00.000",
+        stopTime: "2026-10-11T00:00:00.000",
+        label: "2026-10-01 to 2026-10-10",
+      },
+      {
+        startTime: "2026-10-11T00:00:00.000",
         stopTime: "2026-11-05T00:00:00.000",
-        label: "2026-10-01 to 2026-11-04",
+        label: "2026-10-11 to 2026-11-04",
       },
     ]);
-    const now = ms("2026-12-07T12:00:00.000");
-    const late = chunked("2026-11-01", "2026-12-20", now).chunks;
-    expect(late.map((c) => c.stopTime)).toEqual(["2026-12-08T00:00:00.000"]);
+    const now = ms("2027-01-08T12:00:00.000");
+    const late = chunked("2026-12-01", "2027-01-20", now).chunks;
+    expect(late.map((c) => c.stopTime)).toEqual(["2027-01-09T00:00:00.000"]);
   });
 
   it("has no chunks for an empty, inverted or future range", () => {
@@ -432,10 +479,11 @@ describe("breakageChunks", () => {
 
   it("keeps the newest MAX_CHUNKS cells and narrows the range", () => {
     const later = ms("2029-01-01T00:00:00.000");
-    const { chunks, range } = chunked("2026-09-09", "2028-09-01", later);
+    const { chunks, range } = chunked("2026-07-13", "2028-09-01", later);
     expect(chunks).toHaveLength(MAX_CHUNKS);
-    expect(range.startTime).toBe(chunks[0].startTime);
-    expect((ms(range.startTime) - anchor) % (90 * DAY_MS)).toBe(0);
+    expect(range.params?.startTime).toBe(chunks[0].startTime);
+    expect(range.start).toBe(ms(chunks[0].startTime));
+    expect((range.start - anchor) % (90 * DAY_MS)).toBe(0);
     expect(range.note).toBe(
       `This section reads at most ${MAX_CHUNKS * 90} days at a time.`
     );
@@ -675,7 +723,11 @@ describe("trend charts", () => {
     });
     expect(series[0].markArea?.data).toEqual([
       [
-        { name: "Not yet counted", xAxis: day0("2026-10-03") - DAY_MS / 2 },
+        {
+          name: "Not yet counted",
+          xAxis: day0("2026-10-03") - DAY_MS / 2,
+          itemStyle: { color: "rgba(128, 128, 128, 0.15)" },
+        },
         { xAxis: day0("2026-10-03") + DAY_MS / 2 },
       ],
     ]);
@@ -685,10 +737,110 @@ describe("trend charts", () => {
     expect(partial).toContain("False greens: 1");
     expect(partial).toContain("Total: 1");
     expect(tooltipText(TD_CHARTS.recall, plot, 2)).toContain("Not yet counted");
-    expect(plotOptions(TD_CHARTS.recall, plot).xAxis).toEqual({
+    const options = plotOptions(TD_CHARTS.recall, plot);
+    expect(options.useUTC).toBe(true);
+    expect(options.xAxis).toEqual({
       min: day0("2026-10-01") - DAY_MS / 2,
       max: day0("2026-10-03") + DAY_MS / 2,
     });
+  });
+
+  it("charts breakages before the new-test check as an upper bound", () => {
+    const closed = (landed: string) =>
+      breakageTotal({
+        grain: "event",
+        landed_at: landed,
+        outcome: "false_green",
+        window_closed: 1,
+      });
+    const rows = [
+      closed("2026-09-10 10:00:00.000"),
+      closed("2026-09-13 10:00:00.000"),
+    ];
+    const plot = buildPlot(TD_CHARTS.falseGreens, rows, "day", {
+      ...window("2026-09-10T00:00:00.000", "2026-09-14T00:00:00.000"),
+      upperBoundBefore: day0(NEW_TEST_CHECK_FROM),
+    });
+    expect(plot.upperBound).toEqual([true, true, false, false]);
+    expect(plot.values[0]).toEqual([1, 0, 0, 1]);
+    const areas = plotSeries(TD_CHARTS.falseGreens, plot)[0].markArea?.data;
+    expect(areas).toEqual([
+      [
+        {
+          name: "Upper bound",
+          xAxis: day0("2026-09-10") - DAY_MS / 2,
+          itemStyle: { color: "rgba(237, 108, 2, 0.12)" },
+        },
+        { xAxis: day0("2026-09-11") + DAY_MS / 2 },
+      ],
+    ]);
+    expect(tooltipText(TD_CHARTS.falseGreens, plot, 0)).toContain(
+      `Upper bound: before ${NEW_TEST_CHECK_FROM}`
+    );
+    expect(tooltipText(TD_CHARTS.falseGreens, plot, 2)).not.toContain(
+      "Upper bound"
+    );
+    const weekly = buildPlot(TD_CHARTS.falseGreens, rows, "week", {
+      ...window("2026-09-10T00:00:00.000", "2026-09-21T00:00:00.000"),
+      upperBoundBefore: day0(NEW_TEST_CHECK_FROM),
+    });
+    expect(weekly.upperBound).toEqual([true, false]);
+  });
+
+  it("puts event rows outside the axis in the nearest end bucket", () => {
+    const landing = (landed: string, inside: number) => ({
+      ...hist(0, 1),
+      grain: "landing" as const,
+      landed_at: landed,
+      inside_cut: inside,
+    });
+    const rows = [
+      landing("2026-09-22 23:24:00.000", 1),
+      landing("2026-09-23 08:00:00.000", 0),
+      landing("2026-09-25 00:00:00.000", 1),
+      landing("", 1),
+    ];
+    const plot = buildPlot(
+      TD_CHARTS.caught,
+      rows,
+      "day",
+      window("2026-09-23T00:00:00.000", "2026-09-25T00:00:00.000")
+    );
+    expect(plot.buckets.map((b) => b.key)).toEqual([
+      "2026-09-23",
+      "2026-09-24",
+    ]);
+    expect(plot.values).toEqual([
+      [1, 1],
+      [1, 0],
+    ]);
+  });
+
+  it("charts the tile's median saving and labels each axis by its values", () => {
+    const rows = [
+      {
+        grain: "day",
+        bucket: "2026-10-01",
+        pushes: "10",
+        saved_median_min: "12.5",
+        actual_ttg_median_min: "80",
+        est_ttg_median_min: "95",
+      },
+      { grain: "day", bucket: "2026-10-02", pushes: "0", saved_median_min: 0 },
+    ];
+    const plot = buildPlot(
+      TD_CHARTS.ttgSaved,
+      rows,
+      "day",
+      window("2026-10-01T00:00:00.000", "2026-10-03T00:00:00.000")
+    );
+    expect(plot.values).toEqual([
+      [12.5, null],
+      [80, null],
+      [95, null],
+    ]);
+    expect(TD_CHARTS.typicalChange.axisLabel).toBe("% of test files");
+    expect(TD_CHARTS.samePicks.axisLabel).toBeUndefined();
   });
 });
 
@@ -697,6 +849,7 @@ const WORKFLOWS = quoted(TD_SCOPE.tdWorkflows).join(", ");
 const PREFIXES = quoted(TD_SCOPE.tdWorkflowPrefixes);
 const MARKERS = quoted(TD_SCOPE.noTdBuildMarkers).join(", ");
 const WINDOW = { startTime: "DateTime64(3)", stopTime: "DateTime64(3)" };
+const JOB_NAMES_FLOOR = `toDateTime64('${JOB_NAMES_VALID_FROM} 00:00:00', 3)`;
 
 interface Contract {
   columns: string[];
@@ -728,6 +881,7 @@ const CONTRACTS: Record<string, Contract> = {
       ...PREFIXES,
       MARKERS,
       `>= ${MIN_MAIN_RUNS} AS matched`,
+      JOB_NAMES_FLOOR,
     ],
   },
   [TD_QUERIES.pushWait]: {
@@ -748,6 +902,7 @@ const CONTRACTS: Record<string, Contract> = {
       "workflow_name = 'pull'",
       MARKERS,
       `>= ${MIN_MAIN_RUNS} AS matched`,
+      JOB_NAMES_FLOOR,
     ],
   },
   [TD_QUERIES.breakages]: {
@@ -789,6 +944,7 @@ const CONTRACTS: Record<string, Contract> = {
       MARKERS,
       `toIntervalDay(${REVERT_WINDOW_DAYS})`,
       `toIntervalDay(${NEW_TEST_DAYS})`,
+      JOB_NAMES_FLOOR,
     ],
   },
   [TD_QUERIES.ranks]: {
@@ -821,7 +977,7 @@ const CONTRACTS: Record<string, Contract> = {
       "prs",
     ],
     params: WINDOW,
-    horizonDays: CLAMP_DAYS.churn,
+    horizonDays: CLAMP_DAYS.stability,
     grains: ["day", "week", "total"],
     literals: ["workflow_name = 'pull'", MARKERS],
   },
@@ -834,7 +990,7 @@ describe("clamp widths", () => {
       pushWait: 365,
       breakages: 90,
       ranks: 90,
-      churn: 30,
+      stability: 30,
       ttrs: 30,
     });
     expect(CHUNK_DAYS).toBe(90);

@@ -1,4 +1,5 @@
-// Query names, constants and formulas behind the Target Determinator page.
+// Query names, constants and formulas behind the Target Determinator page, the
+// part of the picked window each section counts, and the breakage chunk grid.
 
 import { useClickHouseAPI } from "lib/GeneralUtils";
 import {
@@ -26,13 +27,14 @@ export const TD_CUT_PCT = 25;
 export const MIN_MAIN_RUNS = 5;
 export const SMALL_SAMPLE = 30;
 
-// Before these UTC days a section's data does not measure what it claims.
-// Test jobs ran as "<build> / test-osdc (...)" until 2026-07-12, which the
-// savings baseline cannot match to the same job on main.
-export const SAVINGS_VALID_FROM = "2026-07-13";
-// The new-test check reads 14 days of tests.all_test_runs_by_name, which starts
-// on 2026-08-26; before then new tests count as false greens.
-export const BREAKAGES_VALID_FROM = "2026-09-09";
+// PR test jobs before this UTC day are named "<build> / test-osdc (...)", which
+// matches neither the same job on main nor the PR jobs a breaking test ran in.
+// td_ci_savings, td_push_wait and td_trunk_breakages floor at the same day.
+export const JOB_NAMES_VALID_FROM = "2026-07-13";
+// tests.all_test_runs_by_name starts 2026-08-26 19:35 UTC and the new-test
+// probe reads 3 days ending 14 days before the landing, so before this day a
+// new test reads as skipped by TD: false greens there are an upper bound.
+export const NEW_TEST_CHECK_FROM = "2026-09-12";
 
 // The widest window each query reads; the SQL clamps to the same widths.
 // ttrs_percentiles has no clamp or execution cap of its own and reads tens of
@@ -42,18 +44,18 @@ export const CLAMP_DAYS = {
   pushWait: 365,
   breakages: 90,
   ranks: 90,
-  churn: 30,
+  stability: 30,
   ttrs: 30,
 };
 
 // td_trunk_breakages reads at most CLAMP_DAYS.breakages, so longer windows are
-// fetched in chunks of that size, on a grid fixed at BREAKAGES_VALID_FROM so a
+// fetched in chunks of that size, on a grid fixed at JOB_NAMES_VALID_FROM so a
 // chunk whose revert windows have closed keeps its SWR key and its answer.
 export const CHUNK_DAYS = CLAMP_DAYS.breakages;
 export const MAX_CHUNKS = 6;
 
 // How long the source data is kept: older windows have nothing left to read.
-export const RETENTION_DAYS = {
+const RETENTION_DAYS = {
   ranks: 90,
   stability: 30,
 };
@@ -89,7 +91,7 @@ function utcDay(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-function dayStart(day: string): number {
+export function dayStart(day: string): number {
   return Date.parse(`${day}T00:00:00.000Z`);
 }
 
@@ -99,34 +101,42 @@ export interface RangeLimit {
   clampDays?: number;
 }
 
-// The part of the picked window a section counts. startTime and stopTime are
-// the query's parameters: the stop stays the picked one, so the SWR key does
-// not move with the clock. end is where data stops, min(stop, now).
+// The part of the picked window a section counts. params are the query's
+// parameters, undefined when there is nothing to count: the stop stays the
+// picked one, so the SWR key does not move with the clock. end is where data
+// stops, min(stop, now).
 export interface CountedRange {
-  startTime: string;
-  stopTime: string;
+  params?: TdParams;
   start: number;
   end: number;
   empty: boolean;
   note?: string;
 }
 
+function todayEnd(now: number): number {
+  return dayStart(utcDay(now)) + DAY_MS;
+}
+
 // Whole UTC days, so the first counted day is kept in full and the key changes
 // once a day.
 function retainedFrom(days: number, now: number): number {
-  return dayStart(utcDay(now)) - (days - 1) * DAY_MS;
+  return todayEnd(now) - days * DAY_MS;
+}
+
+function readsAtMost(days: number | undefined): string {
+  return `This section reads at most ${days} days at a time.`;
 }
 
 export function sectionLimits(now: number = Date.now()) {
   return {
     savings: {
-      validFrom: dayStart(SAVINGS_VALID_FROM),
-      validReason: `Test jobs had other names before ${SAVINGS_VALID_FROM}, so earlier PR jobs cannot be matched with main.`,
+      validFrom: dayStart(JOB_NAMES_VALID_FROM),
+      validReason: `Test jobs had other names before ${JOB_NAMES_VALID_FROM}, so earlier PR jobs cannot be matched with main.`,
       clampDays: CLAMP_DAYS.savings,
     },
     breakages: {
-      validFrom: dayStart(BREAKAGES_VALID_FROM),
-      validReason: `Before ${BREAKAGES_VALID_FROM} there is too little test history to tell new tests from skipped ones.`,
+      validFrom: dayStart(JOB_NAMES_VALID_FROM),
+      validReason: `Test jobs had other names before ${JOB_NAMES_VALID_FROM}, so earlier breaking tests cannot be matched with the PR's jobs.`,
     },
     ranks: {
       validFrom: retainedFrom(RETENTION_DAYS.ranks, now),
@@ -136,7 +146,7 @@ export function sectionLimits(now: number = Date.now()) {
     stability: {
       validFrom: retainedFrom(RETENTION_DAYS.stability, now),
       validReason: `Per-test results are kept for ${RETENTION_DAYS.stability} days.`,
-      clampDays: CLAMP_DAYS.churn,
+      clampDays: CLAMP_DAYS.stability,
     },
     ttrs: { clampDays: CLAMP_DAYS.ttrs },
   } satisfies Record<string, RangeLimit>;
@@ -150,22 +160,28 @@ export function countedRange(
   const picked = parseUtc(params.startTime);
   const stop = parseUtc(params.stopTime);
   const validFrom = limit.validFrom ?? -Infinity;
+  // The SQL clamps back from least(stop, now); a whole UTC day past now keeps
+  // the key fixed through the day while a future stop narrows nothing.
   const clampFrom =
-    limit.clampDays === undefined ? -Infinity : stop - limit.clampDays * DAY_MS;
+    limit.clampDays === undefined
+      ? -Infinity
+      : Math.min(stop, todayEnd(now)) - limit.clampDays * DAY_MS;
   const start = Math.max(picked, validFrom, clampFrom);
   const end = Math.min(stop, now);
+  const empty = !(start < end);
   return {
-    startTime: utcText(start),
-    stopTime: params.stopTime,
+    params: empty
+      ? undefined
+      : { startTime: utcText(start), stopTime: params.stopTime },
     start,
     end,
-    empty: !(start < end),
+    empty,
     note:
       start <= picked
         ? undefined
         : validFrom >= clampFrom
         ? limit.validReason
-        : `This section reads at most ${limit.clampDays} days at a time.`,
+        : readsAtMost(limit.clampDays),
   };
 }
 
@@ -181,12 +197,13 @@ export function breakageChunks(
   range: CountedRange,
   now: number = Date.now()
 ): { chunks: Chunk[]; range: CountedRange } {
-  if (range.empty) {
+  if (range.params === undefined) {
     return { chunks: [], range };
   }
-  const anchor = dayStart(BREAKAGES_VALID_FROM);
+  const anchor = dayStart(JOB_NAMES_VALID_FROM);
   const cell = CHUNK_DAYS * DAY_MS;
-  const stop = parseUtc(range.stopTime);
+  const stopTime = range.params.stopTime;
+  const stop = parseUtc(stopTime);
   const last = Math.min(stop, now);
   const cells: [number, number][] = [];
   for (
@@ -205,11 +222,9 @@ export function breakageChunks(
       ? range
       : {
           ...range,
+          params: { startTime: utcText(kept[0][0]), stopTime },
           start: kept[0][0],
-          startTime: utcText(kept[0][0]),
-          note: `This section reads at most ${
-            MAX_CHUNKS * CHUNK_DAYS
-          } days at a time.`,
+          note: readsAtMost(MAX_CHUNKS * CHUNK_DAYS),
         };
   return {
     chunks: kept.map(([from, to]) => ({
@@ -364,16 +379,18 @@ const TD_SWR_CONFIG = {
   shouldRetryOnError: false,
 };
 
+// No window, nothing to read: an empty counted range or an unused chunk slot.
 export function useTdQuery<T>(
   queryName: string,
-  params: Record<string, unknown>,
-  enabled: boolean = true
+  window: TdParams | undefined,
+  extra: Record<string, unknown> = {}
 ): TdQueryState<T> {
+  const enabled = window !== undefined;
   const { data, error } = useClickHouseAPI<T>(
     queryName,
-    params,
+    { startTime: window?.startTime, stopTime: window?.stopTime, ...extra },
     enabled,
     TD_SWR_CONFIG
   );
-  return readTdQuery<T>(queryName, data, error);
+  return readTdQuery<T>(queryName, data, error, enabled);
 }

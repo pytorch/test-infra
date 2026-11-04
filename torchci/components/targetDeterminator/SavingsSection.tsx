@@ -96,35 +96,22 @@ export default function SavingsSection({
   const limits = sectionLimits();
   const range = countedRange(params, limits.savings);
   const ttrsRange = countedRange(params, limits.ttrs);
-  const queryWindow = {
-    startTime: range.startTime,
-    stopTime: range.stopTime,
-  };
-  const savings = useTdTotalQuery<SavingsRow>(
-    TD_QUERIES.savings,
-    queryWindow,
-    !range.empty
-  );
+  const savings = useTdTotalQuery<SavingsRow>(TD_QUERIES.savings, range.params);
   const pushWait = useTdTotalQuery<PushWaitRow>(
     TD_QUERIES.pushWait,
-    queryWindow,
-    !range.empty
+    range.params
   );
-  const ttrsParams = {
-    startTime: ttrsRange.startTime,
-    stopTime: ttrsRange.stopTime,
-    workflow: "pull",
-    percentile_to_get: 0.5,
-  };
-  const ttrs = useTdQuery<TtrsRow>(
-    TD_QUERIES.ttrs,
-    { ...ttrsParams, one_bucket: true },
-    !range.empty && !ttrsRange.empty
-  );
+  // The section shows nothing when savings has nothing to count.
+  const ttrsWindow = range.empty ? undefined : ttrsRange.params;
+  const ttrsParams = { workflow: "pull", percentile_to_get: 0.5 };
+  const ttrs = useTdQuery<TtrsRow>(TD_QUERIES.ttrs, ttrsWindow, {
+    ...ttrsParams,
+    one_bucket: true,
+  });
   const ttrsTrend = useTdQuery<TtrsRow>(
     TD_QUERIES.ttrs,
-    { ...ttrsParams, one_bucket: false },
-    !range.empty && !ttrsRange.empty && charts.open.has("ttrs")
+    charts.open.has("ttrs") ? ttrsWindow : undefined,
+    { ...ttrsParams, one_bucket: false }
   );
 
   const total = savings.total;

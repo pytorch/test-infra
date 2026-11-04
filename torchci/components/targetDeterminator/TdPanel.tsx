@@ -6,6 +6,7 @@ import {
   commitUrl,
   CountedRange,
   rangeText,
+  TdParams,
   useTdQuery,
 } from "lib/targetDeterminator";
 import { TdTotalState, totalError, totalRow } from "lib/targetDeterminatorRows";
@@ -16,12 +17,16 @@ export const TABLE_HEIGHT = 520;
 
 export function useTdTotalQuery<T extends { grain: string }>(
   queryName: string,
-  params: Record<string, unknown>,
-  enabled: boolean = true
+  window: TdParams | undefined
 ): TdTotalState<T> {
-  const state = useTdQuery<T>(queryName, params, enabled);
+  const state = useTdQuery<T>(queryName, window);
   const total = totalRow(state.rows);
-  return { ...state, total, tileError: totalError(queryName, state, total) };
+  return {
+    ...state,
+    total,
+    tileError:
+      window === undefined ? undefined : totalError(queryName, state, total),
+  };
 }
 
 export function commitLink(sha: string) {

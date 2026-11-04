@@ -9,6 +9,7 @@ import {
   ChartBucket,
   ChartGranularity,
 } from "lib/greenlight/qualityCharts";
+import { parseStamp } from "lib/greenlight/qualityFigures";
 import {
   BreakageOutcome,
   num,
@@ -39,18 +40,17 @@ export type TdSource =
   | "churn";
 
 // grain: the query's own day or week rows. weekly: TTRS's week rows, whatever
-// the bucket size. events: one row per event, bucketed here by when it landed.
-const SOURCE_KIND: Record<TdSource, "grain" | "weekly" | "events"> = {
+// the bucket size. A function: one row per event it keeps, bucketed here by
+// when it landed. Breakage tiles count only landings whose revert window has
+// closed.
+const SOURCE_ROWS: Record<
+  TdSource,
+  "grain" | "weekly" | ((_row: any) => boolean)
+> = {
   savings: "grain",
   pushWait: "grain",
   churn: "grain",
   ttrs: "weekly",
-  breakages: "events",
-  ranks: "events",
-};
-
-// Breakage tiles count only landings whose revert window has closed.
-const EVENT_ROWS: Partial<Record<TdSource, (_row: any) => boolean>> = {
   breakages: (row) => row?.grain === "event" && num(row?.window_closed) === 1,
   ranks: (row) => row?.grain === "landing",
 };
@@ -70,6 +70,7 @@ export interface TdChartConfig {
   title: string;
   source: TdSource;
   unit: TdUnit;
+  axisLabel?: string;
   type: ChartType;
   series: { name: string; value: TdValue }[];
   note?: string;
@@ -119,21 +120,25 @@ export const TD_CHARTS: Record<TdChartKey, TdChartConfig> = {
     ],
   },
   ttgSaved: {
-    title: "Median wait from push to the last test job",
+    title: "Median wait from push to the last test job, and median saving",
     source: "pushWait",
     unit: "minutes",
     type: "line",
     series: [
       {
-        name: "Actual",
+        name: "Median saving per push",
+        value: stat("saved_median_min", count("pushes")),
+      },
+      {
+        name: "Actual wait",
         value: stat("actual_ttg_median_min", count("pushes")),
       },
       {
-        name: "Estimated without TD",
+        name: "Estimated wait without TD",
         value: stat("est_ttg_median_min", count("pushes")),
       },
     ],
-    note: "The tile's median saving per push is not the gap between these two medians.",
+    note: "The median saving per push is not the gap between the two median waits.",
   },
   hoursPerPush: {
     title: "Test-job hours per green PR push",
@@ -222,6 +227,7 @@ export const TD_CHARTS: Record<TdChartKey, TdChartConfig> = {
     title: "Median change when picks change",
     source: "churn",
     unit: "percent",
+    axisLabel: "% of test files",
     type: "line",
     series: [
       {
@@ -241,12 +247,14 @@ export function chartElementId(key: TdChartKey): string {
 
 // The range a chart covers. Buckets that start at or after countedUntil are
 // not counted yet; buckets that end at or before countedFrom fall outside a
-// truncated list of events. Both read null, never 0.
+// truncated list of events. Both read null, never 0. Buckets that start before
+// upperBoundBefore are charted but marked as upper bounds.
 export interface PlotWindow {
   start: number;
   end: number;
   countedFrom?: number;
   countedUntil?: number;
+  upperBoundBefore?: number;
 }
 
 export type BucketState = "full" | "partial" | "pending" | "truncated";
@@ -255,6 +263,7 @@ export interface TdPlot {
   granularity: ChartGranularity;
   buckets: ChartBucket[];
   states: BucketState[];
+  upperBound: boolean[];
   values: (number | null)[][];
 }
 
@@ -282,19 +291,34 @@ function bucketInputs(
   buckets: ChartBucket[],
   granularity: ChartGranularity
 ): any[] {
-  const kind = SOURCE_KIND[source];
-  if (kind !== "events") {
+  const keep = SOURCE_ROWS[source];
+  if (typeof keep !== "function") {
     const own =
-      kind === "grain" ? rows.filter((r) => r?.grain === granularity) : rows;
+      keep === "grain" ? rows.filter((r) => r?.grain === granularity) : rows;
     return alignRows(buckets, own, "bucket", granularity);
+  }
+  if (buckets.length === 0) {
+    return [];
   }
   const position = new Map(buckets.map((bucket, i) => [bucket.key, i]));
   const grouped: any[][] = buckets.map(() => []);
-  const keep = EVENT_ROWS[source] ?? (() => true);
+  const first = buckets[0].start.valueOf();
+  const last = buckets[buckets.length - 1].end.valueOf();
   for (const row of rows) {
-    const i = keep(row)
-      ? position.get(bucketKey(row?.landed_at, granularity) ?? "")
-      : undefined;
+    if (!keep(row)) {
+      continue;
+    }
+    // A row outside the axis goes to the nearest end bucket, so the buckets
+    // still add up to the tile that counted it.
+    const time = parseStamp(row?.landed_at)?.valueOf();
+    const i =
+      time === undefined
+        ? undefined
+        : time < first
+        ? 0
+        : time >= last
+        ? buckets.length - 1
+        : position.get(bucketKey(row.landed_at, granularity) ?? "");
     if (i !== undefined) {
       grouped[i].push(row);
     }
@@ -302,7 +326,7 @@ function bucketInputs(
   return grouped;
 }
 
-export function bucketValue(value: TdValue, input: any): number | null {
+function bucketValue(value: TdValue, input: any): number | null {
   switch (value.kind) {
     case "sum":
       return num(input?.[value.field]) ?? 0;
@@ -326,7 +350,7 @@ export function buildPlot(
   picked: ChartGranularity,
   window: PlotWindow
 ): TdPlot {
-  const granularity = SOURCE_KIND[chart.source] === "weekly" ? "week" : picked;
+  const granularity = SOURCE_ROWS[chart.source] === "weekly" ? "week" : picked;
   const buckets = bucketSpine(
     {
       effective_start: new Date(window.start).toISOString(),
@@ -340,6 +364,11 @@ export function buildPlot(
     granularity,
     buckets,
     states,
+    upperBound: buckets.map(
+      (bucket) =>
+        window.upperBoundBefore !== undefined &&
+        bucket.start.valueOf() < window.upperBoundBefore
+    ),
     values: chart.series.map(({ value }) =>
       inputs.map((input, i) =>
         states[i] === "pending" || states[i] === "truncated"

@@ -108,11 +108,7 @@ export default function RankingSection({
 }) {
   const theme = useTheme();
   const range = countedRange(params, sectionLimits().ranks);
-  const ranks = useTdTotalQuery<RankRow>(
-    TD_QUERIES.ranks,
-    { startTime: range.startTime, stopTime: range.stopTime },
-    !range.empty
-  );
+  const ranks = useTdTotalQuery<RankRow>(TD_QUERIES.ranks, range.params);
   const total = ranks.total;
   const error = ranks.tileError;
   const landings = num(total?.landings) ?? 0;

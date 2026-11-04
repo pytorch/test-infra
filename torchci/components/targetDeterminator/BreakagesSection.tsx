@@ -9,6 +9,8 @@ import {
   breakageStats,
   countedRange,
   DAY_MS,
+  dayStart,
+  NEW_TEST_CHECK_FROM,
   NEW_TEST_DAYS,
   prUrl,
   REVERT_WINDOW_DAYS,
@@ -137,16 +139,12 @@ const EVENT_COLUMNS: GridColDef[] = [
   },
 ];
 
+const UPPER_BOUND_TEXT = `Before ${NEW_TEST_CHECK_FROM} new tests cannot be told apart from tests TD skipped, so false greens there are an upper bound`;
+
 function useChunk(chunk: Chunk | undefined) {
-  return useTdQuery<BreakageRow>(
-    TD_QUERIES.breakages,
-    {
-      startTime: chunk?.startTime,
-      stopTime: chunk?.stopTime,
-      tdWorkflows: TD_SCOPE.tdWorkflows,
-    },
-    chunk !== undefined
-  );
+  return useTdQuery<BreakageRow>(TD_QUERIES.breakages, chunk, {
+    tdWorkflows: TD_SCOPE.tdWorkflows,
+  });
 }
 
 // One SWR entry per chunk, so a closed chunk stays cached while the newest one
@@ -184,17 +182,36 @@ export default function BreakagesSection({
     () => breakages.rows.filter((row) => row.grain === "event"),
     [breakages.rows]
   );
+  const countedUntil = now - REVERT_WINDOW_DAYS * DAY_MS;
+  const upperBound =
+    !range.empty && range.start < dayStart(NEW_TEST_CHECK_FROM);
+  const upperBoundNote = upperBound ? ` ${UPPER_BOUND_TEXT}.` : "";
   const unknownNote =
     stats.unknown > 0
       ? ` Left out: ${stats.unknown.toLocaleString()} with an unknown cause.`
       : "";
-  const noEvents =
+  const noListed =
     "No reverted landings with a traced breaking test in this window.";
+  const noEvents =
+    range.start >= countedUntil
+      ? `None counted yet: landings from the last ${REVERT_WINDOW_DAYS} days may still be reverted${
+          eventRows.length > 0 ? ` (${eventRows.length} listed below)` : ""
+        }.`
+      : noListed;
 
   return (
     <TdSection
       title="Breakages TD let through"
-      range={range}
+      range={
+        upperBound
+          ? {
+              ...range,
+              note: [range.note, `${UPPER_BOUND_TEXT}.`]
+                .filter((note) => note !== undefined)
+                .join(" "),
+            }
+          : range
+      }
       intro={
         "When TD skips a test that would have failed, the PR shows green, " +
         "lands and breaks main, and is reverted: a false green. These are " +
@@ -223,7 +240,7 @@ export default function BreakagesSection({
                   stats.perThousandLandings === null
                     ? "no PR landings"
                     : stats.perThousandLandings.toFixed(2)
-                } per 1,000 PR landings.${unknownNote}`
+                } per 1,000 PR landings.${unknownNote}${upperBoundNote}`
           }
           caveat={`A false green is a reverted landing where no breaking test failed on the PR and TD skipped a breaking test file that did not run and pass on the PR in another job, although the job ran and the test first ran in CI at least ${NEW_TEST_DAYS} days before the landing. A reland counts as a second landing. Landraces, tests newer than the PR and jobs that did not run on the PR are not false greens. The share is false greens / (breakages - unknown).`}
         />
@@ -240,7 +257,11 @@ export default function BreakagesSection({
               ? noEvents
               : stats.recallBase === 0
               ? `No breakage whose test could have run on the PR.${unknownNote}`
-              : `TD ran the breaking tests in ${stats.ranOnPr.toLocaleString()} of ${stats.recallBase.toLocaleString()} breakages whose tests could run on the PR. TD skipped at least one breaking test in ${stats.tdSkippedAny.toLocaleString()} breakages.${unknownNote}`
+              : `TD ran the breaking tests in ${stats.ranOnPr.toLocaleString()} of ${stats.recallBase.toLocaleString()} breakages whose tests could run on the PR. TD skipped at least one breaking test in ${stats.tdSkippedAny.toLocaleString()} breakages.${unknownNote}${
+                  upperBound
+                    ? ` ${UPPER_BOUND_TEXT}, and recall a lower bound.`
+                    : ""
+                }`
           }
           caveat="Breakages where TD ran every breaking test that mattered: (failed on the PR + passed on the PR) / (failed on the PR + passed on the PR + false greens). A breaking test that failed on the PR was in front of the author before landing; one that passed on the PR broke only after landing, which is not TD's doing."
         />
@@ -280,7 +301,8 @@ export default function BreakagesSection({
             ...breakages,
             window: {
               ...range,
-              countedUntil: now - REVERT_WINDOW_DAYS * DAY_MS,
+              countedUntil,
+              upperBoundBefore: dayStart(NEW_TEST_CHECK_FROM),
             },
           },
         }}
@@ -291,7 +313,7 @@ export default function BreakagesSection({
           state={breakages}
           rows={eventRows}
           columns={EVENT_COLUMNS}
-          emptyText={noEvents}
+          emptyText={noListed}
           height={TABLE_HEIGHT}
           sortField="landed_at"
           dataGridProps={{
