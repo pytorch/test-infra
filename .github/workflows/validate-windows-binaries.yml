@@ -105,7 +105,7 @@ jobs:
   generate-windows-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
-      package-type: wheel,libtorch #  We stopped producing conda nightlies
+      package-type: wheel,libtorch
       os: windows
       channel: ${{ inputs.channel }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
@@ -128,7 +128,7 @@ jobs:
       timeout: 60
       script: |
         set -ex
-        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="venv-${{ github.run_id }}"
         export TARGET_OS="windows"
         export TORCH_ONLY=${{ inputs.torchonly }}
         export RELEASE_VERSION=${{ inputs.version }}
@@ -138,7 +138,6 @@ jobs:
         export USE_WHEEL_VARIANTS=${{ inputs.use-wheel-variants }}
 
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
-        source /c/Jenkins/Miniconda3/etc/profile.d/conda.sh
         if [[ ${MATRIX_GPU_ARCH_TYPE} == "cuda" ]]; then
           ./.ci/pytorch/windows/internal/driver_update.bat
         fi

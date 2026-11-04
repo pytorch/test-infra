@@ -154,7 +154,7 @@ jobs:
           [[ -z "${line}" || "${line}" == "GITHUB_WORKFLOW="* ]] && continue
           export "${line%%=*}=${line#*=}"
         done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
-        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="venv-${{ github.run_id }}"
         export TORCH_ONLY=${{ inputs.torchonly }}
         export INCLUDE_TEST_OPS=${{ inputs.include-test-ops }}
         export INCLUDE_TORCHAUDIO=${{ inputs.include-torchaudio }}
@@ -165,7 +165,6 @@ jobs:
 
         export USE_FORCE_REINSTALL="true"
         export TARGET_OS="linux"
-        eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
 
         # Validate binaries. Poetry-based validation now lives in the
@@ -189,12 +188,11 @@ jobs:
       timeout: 60
       script: |
         set -ex
-        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="venv-${{ github.run_id }}"
         export TORCH_ONLY=${{ inputs.torchonly }}
         export INCLUDE_TORCHAUDIO=${{ inputs.include-torchaudio }}
         export RELEASE_VERSION=${{ inputs.version }}
         export TARGET_OS="linux"
-        eval "$(conda shell.bash hook)"
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
 
         # Poetry test is release-channel-only and covers a single
