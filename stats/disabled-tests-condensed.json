@@ -314,6 +314,13 @@
       "xpu"
     ]
   ],
+  "test_correctness_NAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202260",
+    "https://github.com/pytorch/pytorch/issues/202260",
+    [
+      "xpu"
+    ]
+  ],
   "test_correctness_RAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "202889",
     "https://github.com/pytorch/pytorch/issues/202889",
@@ -598,6 +605,13 @@
   "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTests)": [
     "201542",
     "https://github.com/pytorch/pytorch/issues/201542",
+    [
+      "xpu"
+    ]
+  ],
+  "test_effn_attn_uniform_zero_bias (__main__.CudaReproTests)": [
+    "196552",
+    "https://github.com/pytorch/pytorch/issues/196552",
     [
       "xpu"
     ]
