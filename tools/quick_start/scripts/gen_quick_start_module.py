@@ -35,28 +35,11 @@ ENABLE = "enable"
 DISABLE = "disable"
 MACOS = "macos"
 
-# Mapping json to release matrix default values
-acc_arch_ver_default = {
-    "nightly": {
-        "accnone": ("cpu", ""),
-        "cuda.x": ("cuda", "11.8"),
-        "cuda.y": ("cuda", "12.1"),
-        "cuda.z": ("cuda", "12.4"),
-        "rocm5.x": ("rocm", "6.0"),
-    },
-    "release": {
-        "accnone": ("cpu", ""),
-        "cuda.x": ("cuda", "11.8"),
-        "cuda.y": ("cuda", "12.1"),
-        "cuda.z": ("cuda", "12.4"),
-        "rocm5.x": ("rocm", "6.0"),
-    },
+# CUDA and ROCm entries are filled in from the matrix by extract_arch_ver_map().
+acc_arch_ver_map = {
+    "nightly": {"accnone": ("cpu", "")},
+    "release": {"accnone": ("cpu", "")},
 }
-
-# Initialize arch version to default values
-# these default values will be overwritten by
-# extracted values from the release marix
-acc_arch_ver_map = acc_arch_ver_default
 
 LIBTORCH_DWNL_INSTR = {
     PRE_CXX11_ABI: "Download here (Pre-cxx11 ABI):",
@@ -302,14 +285,8 @@ def extract_arch_ver_map(release_matrix):
                 "rocm",
                 max(rocm_ver_list.values(), key=version_key),
             )
-        else:
-            acc_arch_ver_map[chan].pop("rocm5.x", None)
         for cuda_ver, label in zip(cuda_list, CUDA_LABELS):
             acc_arch_ver_map[chan][label] = ("cuda", cuda_ver)
-        # Drop labels the channel has no CUDA version for, so the page hides
-        # them instead of showing the hard-coded defaults.
-        for label in CUDA_LABELS[len(cuda_list) :]:
-            acc_arch_ver_map[chan].pop(label, None)
 
 
 def generate() -> Dict[Path, str]:
