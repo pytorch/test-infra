@@ -28,6 +28,7 @@ import {
   defuseSweepSentinels,
   PR_REVIEW_PENDING_ALT_ATTR,
 } from "lib/greenlight/greenlightSweep";
+import { prReviewReportUrl } from "lib/prReview/prReviewReportLink";
 
 export const PR_REVIEW_SECTION_HEADER = "AUTOMATED REVIEW";
 
@@ -242,6 +243,15 @@ function renderSection(
   const runUrl = reviewRunUrl(repo, row.review_run_id);
   if (runUrl) {
     lines.push("", `[Review run](${runUrl})`);
+  }
+  // Only a verdict has something to report: renderPrReviewSection renders
+  // `succeeded` rows only for the two verdicts.
+  const reportUrl =
+    (row.status || "").trim() === "succeeded"
+      ? prReviewReportUrl(repo, row.pr_number, row.head_sha, row.review_run_id)
+      : "";
+  if (reportUrl) {
+    lines.push("", `[:bug: Report a bad review](${reportUrl})`);
   }
   const summary = isOutdatedVerdict(row.head_sha, currentHeadSha)
     ? `${GREENLIGHT_OUTDATED_HEADLINE_PREFIX}${headline}`

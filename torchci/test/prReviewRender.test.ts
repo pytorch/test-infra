@@ -15,6 +15,7 @@ import {
   renderPrReviewSection,
   unescapeSanitized,
 } from "lib/prReview/prReviewRender";
+import { prReviewReportUrl } from "lib/prReview/prReviewReportLink";
 import {
   extractPrStatusSection,
   PR_STATUS_END,
@@ -159,6 +160,38 @@ describe("renderPrReviewSection", () => {
     expect(out).not.toContain("Review run");
   });
 
+  it("links a verdict to the feedback form with the review filled in", () => {
+    const out = render(row());
+    const m = /\[:bug: Report a bad review\]\(([^)]+)\)/.exec(out);
+    expect(m).not.toBeNull();
+    const url = new URL(m![1]);
+    expect(url.origin + url.pathname).toBe(
+      "https://github.com/pytorch/test-infra/issues/new"
+    );
+    const q = url.searchParams;
+    expect(q.get("template")).toBe("ai-pr-review-feedback.yml");
+    expect(q.get("title")).toBe("[AI PR review] pytorch/pytorch#196508");
+    expect(q.get("pr")).toBe("https://github.com/pytorch/pytorch/pull/196508");
+    expect(q.get("commit")).toBe(HEAD);
+    expect(q.get("run")).toBe(
+      "https://github.com/pytorch/pytorch/actions/runs/36866468841"
+    );
+    expect(render(row({ verdict: "ready_for_human_review" }))).toContain(
+      "Report a bad review"
+    );
+  });
+
+  it("offers no report link without a verdict", () => {
+    const started = row({ status: "started", verdict: null });
+    expect(render(started)).not.toContain("Report a bad review");
+    expect(
+      render(row({ status: "skipped_too_large", verdict: null }))
+    ).not.toContain("Report a bad review");
+    expect(render(row({ status: "model_error", verdict: null }))).not.toContain(
+      "Report a bad review"
+    );
+  });
+
   it("drops whole findings past the budget and says how many", () => {
     const big = { ...MINOR, message: "x".repeat(590) };
     const findings = Array(25).fill(big);
@@ -261,5 +294,29 @@ describe("raw-body markers in model text", () => {
     const body = `${DRCI_COMMENT_START}${section}\n<!-- drci-comment-end -->`;
     expect(extractPrStatusSection(body)).toBe("");
     expect(splicePrStatusSection(body, "", DRCI_COMMENT_START)).toBe(body);
+  });
+});
+
+describe("prReviewReportUrl", () => {
+  it("returns nothing for a bad repo or PR number", () => {
+    expect(prReviewReportUrl("pytorch/pytorch)[x](y", 1, HEAD, 1)).toBe("");
+    expect(prReviewReportUrl(REPO, 0, HEAD, 1)).toBe("");
+    expect(prReviewReportUrl(REPO, NaN, HEAD, 1)).toBe("");
+  });
+
+  it("leaves out a bad commit or run id rather than the whole link", () => {
+    const url = new URL(
+      prReviewReportUrl(REPO, 5, "abc", "1)[x](https://evil.example")
+    );
+    expect(url.searchParams.get("pr")).toBe(
+      "https://github.com/pytorch/pytorch/pull/5"
+    );
+    expect(url.searchParams.has("commit")).toBe(false);
+    expect(url.searchParams.has("run")).toBe(false);
+  });
+
+  it("keeps the link inside markdown link syntax", () => {
+    const url = prReviewReportUrl(REPO, 5, HEAD, 7);
+    expect(url).not.toMatch(/[()\s<>]/);
   });
 });
