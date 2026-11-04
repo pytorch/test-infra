@@ -1,15 +1,24 @@
--- Trunk breakages that Target Determination (TD) may have let through: main landings reverted
--- within revertWindowDays, the test files that broke on trunk, and whether each broke test ran
--- on the reverted PR's head. One row per event plus one total row (always present).
+-- Trunk breakages TD may have let through: main landings with a bot revert within
+-- revertWindowDays, the (config, test file) pairs they broke on trunk, and whether each broken
+-- file ran on the reverted PR's head. One row per event plus one total row (always present).
 --
--- ClickHouse inlines a CTE at every reference, so every stage that later stages read more than
--- once is collapsed into a one-row, one-column scalar: identical scalar subqueries are executed
--- once per query. Scalars are read through `(SELECT x FROM cte)` rather than `WITH (...) AS x`,
--- whose alias is copied into every subquery and overflows max_expanded_ast_elements.
+-- A breaking test fails (failure or error, not rerun-only) in a failed job of the config at the
+-- landing head; fails again in a second attempt there or at the next main push where the config
+-- completed (only the immediate next push is read); completed without failing it at the push's
+-- `before`; and does not fail at the last revert push when the config completed there.
+--
+-- PR side: a file that failed at the PR head ran there. tests.all_test_runs is read only for
+-- configs whose every shard was green at the PR head, since a job costs ~140 ms single-threaded
+-- (cold S3 granules); in a non-green config the pair is 'unknown'. A td_skipped candidate must
+-- have a failing case that ran in CI in the 3 days ending newTestDays before the landing, else
+-- 'new_test'. all_test_runs_by_name starts 2026-08-26 19:35, so earlier landings get 'new_test'.
+--
+-- ClickHouse re-runs a CTE at every reference but runs identical scalar subqueries once per
+-- query, so each stage read more than once is a one-row scalar read as `(SELECT x FROM cte)`.
+-- The old analyzer runs this query about 2.5x slower, hence allow_experimental_analyzer.
 WITH
--- Main pushes: (head, before, pushed_at, [(sha, landed PR, reverted sha, reverted PR,
--- trigger comment id, PR the comment is on)], landed in the window, revert window closed).
--- A stack lands and is reverted as one push. The window is clamped to now and to 90 days.
+-- (head, before, pushed_at, [(sha, landed PR, reverted sha, reverted PR, trigger comment, its PR)],
+-- landed in the window, revert window closed). Window clamped to now and to 90 days.
 push_arr AS (
     WITH
         least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
@@ -23,20 +32,14 @@ push_arr AS (
             head_commit.id AS head,
             before AS before_sha,
             toDateTime64(repository.pushed_at, 3) AS pushed_at,
-            arrayMap(
-                c -> tuple(
-                    c.1,
-                    if(
-                        startsWith(c.2, 'Revert "'), 0,
-                        toInt64OrZero(extract(splitByChar('\n', c.2)[1], '\\(#(\\d+)\\)\\s*$'))
-                    ),
-                    if(startsWith(c.2, 'Revert "'), extract(c.2, 'This reverts commit ([0-9a-f]+)\\.'), ''),
-                    toInt64OrZero(extract(c.2, 'Reverted https://github\\.com/pytorch/pytorch/pull/(\\d+) on behalf of')),
-                    toInt64OrZero(extract(c.2, '\\[comment\\]\\(https://github\\.com/pytorch/pytorch/pull/\\d+#issuecomment-(\\d+)\\)')),
-                    toInt64OrZero(extract(c.2, '\\[comment\\]\\(https://github\\.com/pytorch/pytorch/pull/(\\d+)#issuecomment-'))
-                ),
-                arrayZip(commits.id, commits.message)
-            ) AS members
+            arrayMap(c -> tuple(
+                c.1,
+                if(startsWith(c.2, 'Revert "'), 0, toInt64OrZero(extract(splitByChar('\n', c.2)[1], '\\(#(\\d+)\\)\\s*$'))),
+                if(startsWith(c.2, 'Revert "'), extract(c.2, 'This reverts commit ([0-9a-f]+)\\.'), ''),
+                toInt64OrZero(extract(c.2, 'Reverted https://github\\.com/pytorch/pytorch/pull/(\\d+) on behalf of')),
+                toInt64OrZero(extract(c.2, '\\[comment\\]\\(https://github\\.com/pytorch/pytorch/pull/\\d+#issuecomment-(\\d+)\\)')),
+                toInt64OrZero(extract(c.2, '\\[comment\\]\\(https://github\\.com/pytorch/pytorch/pull/(\\d+)#issuecomment-'))
+            ), arrayZip(commits.id, commits.message)) AS members
         FROM default.push
         PREWHERE push.ref = 'refs/heads/main'
         WHERE
@@ -49,13 +52,8 @@ push_arr AS (
 
 revs AS (
     SELECT
-        c.1 AS revert_sha,
-        c.3 AS reverted_sha,
-        c.4 AS reverted_pr,
-        c.5 AS comment_id,
-        c.6 AS comment_pr,
-        p.1 AS revert_push,
-        p.3 AS reverted_at
+        c.1 AS revert_sha, c.3 AS reverted_sha, c.4 AS reverted_pr, c.5 AS comment_id, c.6 AS comment_pr,
+        p.1 AS revert_push, p.3 AS reverted_at
     FROM (SELECT p, arrayJoin(p.4) AS c FROM (SELECT arrayJoin((SELECT pushes FROM push_arr)) AS p))
     WHERE c.3 != '' AND c.4 > 0
 ),
@@ -74,21 +72,16 @@ classes AS (
             || '(nosignal|ignoredsignal|landrace|weird|ghfirst|autorevert)'
         ) AS revert_class
     FROM default.issue_comment
-    PREWHERE id IN (SELECT comment_id FROM revs)
-    WHERE
-        issue_url IN (
-            SELECT concat('https://api.github.com/repos/pytorch/pytorch/issues/', toString(comment_pr))
-            FROM revs
-        )
+    WHERE (issue_url, id) IN (
+        SELECT concat('https://api.github.com/repos/pytorch/pytorch/issues/', toString(comment_pr)), comment_id
+        FROM revs
+    )
     GROUP BY id
 ),
 
 -- merges is keyed on PR and merge commit: a stack writes one merge_commit_sha for every member.
 merge_heads AS (
-    SELECT
-        pr_num,
-        merge_commit_sha,
-        argMax(last_commit_sha, comment_id) AS head_sha
+    SELECT pr_num, merge_commit_sha, argMax(last_commit_sha, comment_id) AS head_sha
     FROM default.merges
     WHERE
         owner = 'pytorch' AND project = 'pytorch' AND pr_num IN (SELECT reverted_pr FROM revs)
@@ -97,56 +90,34 @@ merge_heads AS (
 ),
 
 run_heads AS (
-    SELECT
-        tupleElement(pull_requests[1], 'number') AS pr,
-        head_sha,
-        created_at
+    SELECT tupleElement(pull_requests[1], 'number') AS pr, head_sha, created_at
     FROM default.workflow_run
     WHERE
-        id IN (
-            SELECT id FROM materialized_views.workflow_run_by_pr_num
-            WHERE pr_number IN (SELECT reverted_pr FROM revs)
-        )
+        id IN (SELECT id FROM materialized_views.workflow_run_by_pr_num WHERE pr_number IN (SELECT reverted_pr FROM revs))
         AND startsWith(dynamoKey, 'pytorch/pytorch/') AND name = 'pull' AND status = 'completed'
 ),
 
--- One row per landing with its non-ghfirst reverts: (reverted_at, revert sha, PR, revert push,
--- reverted sha, class, PR head).
+-- Per landing, its non-ghfirst reverts: (reverted_at, sha, PR, revert push, reverted sha, class, PR head).
 cand AS (
     SELECT
-        landing_sha,
-        landed_at,
-        closed,
-        any(before_sha) AS before_sha,
-        any(stack_size) AS stack_size,
+        landing_sha, landed_at, closed, any(before_sha) AS before_sha, any(stack_size) AS stack_size,
         arraySort(groupArrayIf(
             tuple(reverted_at, revert_sha, reverted_pr, revert_push, reverted_sha, revert_class, pr_head),
             revert_class != 'ghfirst'
         )) AS kept
     FROM (
         SELECT
-            l.landing_sha AS landing_sha,
-            l.landed_at AS landed_at,
-            l.closed AS closed,
-            any(l.before_sha) AS before_sha,
-            any(l.stack_size) AS stack_size,
-            r.reverted_at AS reverted_at,
-            r.revert_sha AS revert_sha,
-            r.reverted_pr AS reverted_pr,
-            r.revert_push AS revert_push,
-            r.reverted_sha AS reverted_sha,
-            any(cl.revert_class) AS revert_class,
+            l.landing_sha AS landing_sha, l.landed_at AS landed_at, l.closed AS closed,
+            any(l.before_sha) AS before_sha, any(l.stack_size) AS stack_size,
+            r.reverted_at AS reverted_at, r.revert_sha AS revert_sha, r.reverted_pr AS reverted_pr,
+            r.revert_push AS revert_push, r.reverted_sha AS reverted_sha, any(cl.revert_class) AS revert_class,
             anyIf(m.head_sha, m.merge_commit_sha = r.reverted_sha OR m.merge_commit_sha = l.landing_sha) AS merged_head,
             if(merged_head != '', merged_head, argMaxIf(w.head_sha, w.created_at, w.created_at < l.landed_at))
                 AS pr_head
         FROM (
             SELECT
-                p.1 AS landing_sha,
-                p.2 AS before_sha,
-                p.3 AS landed_at,
-                p.6 AS closed,
-                length(p.4) AS stack_size,
-                arrayJoin(p.4).1 AS member_sha
+                p.1 AS landing_sha, p.2 AS before_sha, p.3 AS landed_at, p.6 AS closed,
+                length(p.4) AS stack_size, arrayJoin(p.4).1 AS member_sha
             FROM (SELECT arrayJoin((SELECT pushes FROM push_arr)) AS p)
             WHERE p.5
         ) AS l
@@ -160,8 +131,8 @@ cand AS (
     GROUP BY landing_sha, landed_at, closed
 ),
 
--- (events, ghfirst-only landings with a closed window). An event also carries the first three
--- main pushes after the landing and before its first revert, for the confirmation check.
+-- ([(landing, landed_at, before, stack size, reverts, [next push before the first revert],
+-- window closed)], ghfirst-only landings with a closed window).
 ev_arr AS (
     SELECT (
         groupArrayIf(
@@ -169,7 +140,7 @@ ev_arr AS (
                 landing_sha, landed_at, before_sha, stack_size, kept,
                 arraySlice(arrayMap(p -> p.1, arraySort(p -> p.3, arrayFilter(
                     p -> p.3 > landed_at AND p.3 < kept[1].1, (SELECT pushes FROM push_arr)
-                ))), 1, 3),
+                ))), 1, 1),
                 closed
             ),
             notEmpty(kept)
@@ -179,31 +150,26 @@ ev_arr AS (
     FROM cand
 ),
 
--- Commits whose CI is read: L landing head, B main before it, R last revert push, N next
--- pushes, P reverted PR heads (ord carries the PR number).
+-- Commits whose CI is read: L landing head, B its `before`, R last revert push, N next push,
+-- P reverted PR heads (ord carries the PR number).
 roles AS (
     SELECT
-        e.1 AS landing_sha,
-        e.2 AS landed_at,
+        e.1 AS landing_sha, e.2 AS landed_at,
         arrayJoin(arrayConcat(
             [('L', toInt64(0), e.1), ('B', toInt64(0), e.3), ('R', toInt64(0), e.5[-1].4)],
             arrayMap((h, i) -> ('N', toInt64(i), h), e.6, arrayEnumerate(e.6)),
             arrayMap(k -> ('P', k.3, k.7), arrayFilter(k -> k.7 != '', e.5))
         )) AS r,
-        r.1 AS role,
-        r.2 AS ord,
-        r.3 AS sha
+        r.1 AS role, r.2 AS ord, r.3 AS sha
     FROM (SELECT arrayJoin((SELECT ev FROM ev_arr).1) AS e)
 ),
 
 ids_arr AS (
-    SELECT groupArray(id) AS ids
-    FROM materialized_views.workflow_job_by_head_sha
-    WHERE head_sha IN (SELECT sha FROM roles)
+    SELECT groupArray(id) AS ids FROM materialized_views.workflow_job_by_head_sha WHERE head_sha IN (SELECT sha FROM roles)
 ),
 
 -- Per (sha, shard-less config) of TD-workflow test jobs: every shard completed, failing
--- (file, run, attempt), failing cases, and the shards (id, name, success, day).
+-- (file, run, attempt), failing cases, shards (id, name, success, day).
 state_arr AS (
     SELECT groupArray(tuple(sha, config, completed, fails, cases, shards)) AS st
     FROM (
@@ -212,23 +178,14 @@ state_arr AS (
             j.config AS config,
             uniqExactIf(j.name, j.status = 'completed' AND j.conclusion IN ('success', 'failure'))
             = uniqExact(j.name) AS completed,
-            groupUniqArrayIf(tuple(f.test_file, j.run_id, j.run_attempt), f.test_file != '' AND j.conclusion = 'failure')
-                AS fails,
+            groupUniqArrayIf((f.test_file, j.run_id, j.run_attempt), f.test_file != '' AND j.conclusion = 'failure') AS fails,
             groupUniqArrayIf(
-                tuple(f.test_file, f.file, f.classname, f.name, f.invoking_file), f.test_file != '' AND j.conclusion = 'failure'
+                (f.test_file, f.file, f.classname, f.name, f.invoking_file), f.test_file != '' AND j.conclusion = 'failure'
             ) AS cases,
-            groupUniqArray(tuple(j.id, j.name, j.status = 'completed' AND j.conclusion = 'success', toDate(j.created_at)))
-                AS shards
+            groupUniqArray((j.id, j.name, j.status = 'completed' AND j.conclusion = 'success', toDate(j.created_at))) AS shards
         FROM (
             SELECT
-                id,
-                head_sha,
-                run_id,
-                run_attempt,
-                name,
-                status,
-                conclusion,
-                created_at,
+                id, head_sha, run_id, run_attempt, name, status, conclusion, created_at,
                 concat(
                     workflow_name, ' / ', splitByString(' / test (', name)[1], ' / ',
                     trimBoth(splitByChar(',', splitByString(' / test (', name)[2])[1])
@@ -254,16 +211,15 @@ state_arr AS (
     )
 ),
 
--- Breaking tests: (landing, config, file, failing cases, landed_at, [(PR, shards at its head)]).
+-- Breaking tests: (landing, config, file, failing cases, landed_at, [(PR, its head's shards,
+-- files failing there)]).
 brk_arr AS (
     SELECT groupArray(t) AS brk
     FROM (
         SELECT arrayJoin(arrayMap(
             f -> tuple(
-                landing_sha, config, f,
-                arrayDistinct(arrayMap(x -> (x.2, x.3, x.4, x.5), arrayFilter(x -> x.1 = f, l.5))),
-                landed_at,
-                arrayMap(x -> (x.2, x.6), arrayFilter(x -> x.1 = 'P', sts))
+                landing_sha, config, f, arrayDistinct(arrayMap(x -> (x.2, x.3, x.4, x.5), arrayFilter(x -> x.1 = f, l.5))),
+                landed_at, arrayMap(x -> (x.2, x.6, x.4.1), arrayFilter(x -> x.1 = 'P', sts))
             ),
             arrayFilter(
                 f -> b.3 AND NOT has(b.4.1, f) AND NOT (rv.3 AND has(rv.4.1, f))
@@ -273,9 +229,7 @@ brk_arr AS (
         )) AS t
         FROM (
             SELECT
-                r.landing_sha AS landing_sha,
-                r.landed_at AS landed_at,
-                s.config AS config,
+                r.landing_sha AS landing_sha, r.landed_at AS landed_at, s.config AS config,
                 groupArray(tuple(r.role, r.ord, s.completed, s.fails, s.cases, s.shards)) AS sts,
                 arrayFilter(x -> x.1 = 'L', sts)[1] AS l,
                 arrayFilter(x -> x.1 = 'B', sts)[1] AS b,
@@ -291,162 +245,129 @@ brk_arr AS (
     )
 ),
 
-pr_jobs AS (
-    SELECT DISTINCT b.1 AS landing_sha, b.2 AS config, pe.1 AS pr, arrayJoin(pe.2) AS j
-    FROM (SELECT b, arrayJoin(b.6) AS pe FROM (SELECT arrayJoin((SELECT brk FROM brk_arr)) AS b))
+-- Shards whose files can change an outcome: config all green at the PR head (each shard's
+-- latest attempt succeeded), file not failing there. (landing, config, file, PR, job, latest, day).
+green_shards AS (
+    SELECT arrayJoin(arrayFlatten(arrayMap(b -> arrayFlatten(arrayMap(
+        pe -> if(
+            NOT has(pe.3, b.3) AND arrayAll(s -> s.3 OR s.1 != arrayMax(arrayFilter(u -> u.2 = s.2, pe.2).1), pe.2),
+            arrayMap(s -> (b.1, b.2, b.3, pe.1, s.1, s.1 = arrayMax(arrayFilter(u -> u.2 = s.2, pe.2).1), s.4), pe.2),
+            []
+        ), b.6
+    )), brk))) AS g
+    FROM (SELECT (SELECT brk FROM brk_arr) AS brk)
 ),
 
--- tests.all_test_runs is read only through its partition day and sort key: (job, day) for
--- whether a PR job has any test rows, and (job, case, file, day) for whether a failing case of the
--- breaking file ran in it. Reading every test row of every PR job instead costs ~20 ms a job.
-pr_rows AS (
-    SELECT DISTINCT job_id
-    FROM tests.all_test_runs
-    WHERE (job_id, toDate(time_inserted)) IN (SELECT j.1, arrayJoin([j.4, j.4 + 1]) FROM pr_jobs)
-),
-
-pr_seen AS (
-    SELECT DISTINCT job_id, replaceAll(invoking_file, '.', '/') AS test_file
-    FROM tests.all_test_runs
-    WHERE (job_id, name, classname, invoking_file, toDate(time_inserted)) IN (
-        SELECT j.1, c.3, c.2, c.4, arrayJoin([j.4, j.4 + 1])
-        FROM (
-            SELECT arrayJoin(b.4) AS c, arrayJoin(pe.2) AS j
-            FROM (SELECT b, arrayJoin(b.6) AS pe FROM (SELECT arrayJoin((SELECT brk FROM brk_arr)) AS b))
-        )
-    )
-),
-
-pr_cfg AS (
-    SELECT landing_sha, pr, config, min(shard_ok) AS all_green, groupUniqArrayArray(shard_files) AS files
+-- (landing, config, file, PR, file ran in any shard, every shard's latest attempt has test rows).
+pres_arr AS (
+    SELECT groupArray(tuple(landing_sha, config, test_file, pr, ran, rows_ok)) AS pres
     FROM (
         SELECT
-            pj.landing_sha AS landing_sha,
-            pj.pr AS pr,
-            pj.config AS config,
-            argMax(pj.j.3 AND rw.job_id != 0, (pj.j.1, pj.j.3)) AS shard_ok,
-            groupUniqArrayIf(ps.test_file, ps.job_id != 0) AS shard_files
-        FROM pr_jobs AS pj
-        LEFT JOIN pr_rows AS rw ON rw.job_id = pj.j.1
-        LEFT JOIN pr_seen AS ps ON ps.job_id = pj.j.1
-        GROUP BY landing_sha, pr, config, pj.j.2
+            gs.g.1 AS landing_sha, gs.g.2 AS config, gs.g.3 AS test_file, gs.g.4 AS pr,
+            max(has(f.files, gs.g.3)) AS ran, min(NOT gs.g.6 OR f.job_id != 0) AS rows_ok
+        FROM green_shards AS gs
+        LEFT JOIN (
+            SELECT job_id, groupUniqArray(replaceAll(invoking_file, '.', '/')) AS files
+            FROM tests.all_test_runs
+            WHERE (job_id, toDate(time_inserted)) IN (SELECT g.5, arrayJoin([g.7, g.7 + 1]) FROM green_shards)
+            GROUP BY job_id
+        ) AS f ON f.job_id = gs.g.5
+        GROUP BY landing_sha, config, test_file, pr
     )
-    GROUP BY landing_sha, pr, config
 ),
 
--- Test-case age: a case is old for an event when it ran in CI on or before landed_at -
--- newTestDays. min() over a case's whole history reads months of rows, so the day of and before
--- that cutoff are read first; only cases those days leave unproven have their full history read.
-cases AS (
-    SELECT x.1 AS landing_sha, x.2 AS config, x.3 AS test_file, c.1 AS c_file, c.2 AS c_class, c.3 AS c_name,
-        x.5 - toIntervalDay({newTestDays: UInt32}) AS cutoff
-    FROM (SELECT x, arrayJoin(x.4) AS c FROM (SELECT arrayJoin((SELECT brk FROM brk_arr)) AS x))
+-- Per breaking test: (landing, config, file, probe case, landed_at, [(PR, failed on the PR,
+-- all green, ran, rows ok)]) over the PRs whose head ran the config.
+tp_arr AS (
+    SELECT arrayMap(b -> (
+        b.1, b.2, b.3, arraySort(b.4)[1], b.5,
+        arrayMap(pe -> (
+            pe.1,
+            has(pe.3, b.3),
+            arrayAll(s -> s.3 OR s.1 != arrayMax(arrayFilter(u -> u.2 = s.2, pe.2).1), pe.2),
+            arrayFirst(x -> x.1 = b.1 AND x.2 = b.2 AND x.3 = b.3 AND x.4 = pe.1, pres).5,
+            arrayFirst(x -> x.1 = b.1 AND x.2 = b.2 AND x.3 = b.3 AND x.4 = pe.1, pres).6
+        ), b.6)
+    ), brk) AS tp
+    FROM (SELECT (SELECT brk FROM brk_arr) AS brk, (SELECT pres FROM pres_arr) AS pres)
 ),
 
-seen_near AS (
-    SELECT file, classname, name, min(time_inserted) AS first_seen
-    FROM tests.all_test_runs_by_name
-    WHERE (file, classname, name, toDate(time_inserted)) IN (
-        SELECT c_file, c_class, c_name, arrayJoin([toDate(cutoff) - 1, toDate(cutoff)]) FROM cases
-    )
-    GROUP BY file, classname, name
-),
-
-seen_far AS (
-    SELECT file, classname, name, min(time_inserted) AS first_seen
-    FROM tests.all_test_runs_by_name
-    WHERE
-        (file, classname, name) IN (
-            SELECT c.c_file, c.c_class, c.c_name
-            FROM cases AS c
-            LEFT JOIN seen_near AS s ON s.file = c.c_file AND s.classname = c.c_class AND s.name = c.c_name
-            WHERE s.name = '' OR s.first_seen > c.cutoff
+-- Where the probe case of each td_skipped candidate ran in the 3 days before its cutoff.
+age_arr AS (
+    SELECT groupArray((file, classname, name, d, t)) AS ages
+    FROM (
+        SELECT file, classname, name, toDate(time_inserted) AS d, min(time_inserted) AS t
+        FROM tests.all_test_runs_by_name
+        WHERE (file, classname, name, toDate(time_inserted)) IN (
+            SELECT c.4.1, c.4.2, c.4.3, arrayJoin(arrayMap(i -> toDate(c.5 - toIntervalDay({newTestDays: UInt32})) - i, [0, 1, 2]))
+            FROM (
+                SELECT arrayJoin(arrayFilter(
+                    t -> arrayExists(x -> x.3 AND NOT x.2 AND NOT x.4 AND x.5, t.6)
+                    AND NOT arrayExists(m -> position(t.2, m) > 0, {noTdBuildMarkers: Array(String)}),
+                    (SELECT tp FROM tp_arr)
+                )) AS c
+            )
         )
-        AND time_inserted < least({stopTime: DateTime64(3)}, now64(3)) - toIntervalDay({newTestDays: UInt32})
-    GROUP BY file, classname, name
-),
-
-tests AS (
-    SELECT
-        c.landing_sha AS landing_sha,
-        c.config AS config,
-        c.test_file AS test_file,
-        max((sn.name != '' AND sn.first_seen <= c.cutoff) OR (sf.name != '' AND sf.first_seen <= c.cutoff)) AS old
-    FROM cases AS c
-    LEFT JOIN seen_near AS sn ON sn.file = c.c_file AND sn.classname = c.c_class AND sn.name = c.c_name
-    LEFT JOIN seen_far AS sf ON sf.file = c.c_file AND sf.classname = c.c_class AND sf.name = c.c_name
-    GROUP BY landing_sha, config, test_file
-),
-
-outcomes AS (
-    SELECT
-        t.landing_sha AS landing_sha,
-        t.config AS config,
-        t.test_file AS test_file,
-        h.pr AS pr,
-        multiIf(
-            h.pr_head = '', 'unknown',
-            pc.landing_sha = '', 'config_not_on_pr',
-            has(pc.files, t.test_file), 'ran_on_pr',
-            NOT pc.all_green OR arrayExists(m -> position(t.config, m) > 0, {noTdBuildMarkers: Array(String)}), 'unknown',
-            t.old, 'td_skipped',
-            'new_test'
-        ) AS outcome
-    FROM tests AS t
-    INNER JOIN (
-        SELECT DISTINCT e.1 AS landing_sha, k.3 AS pr, k.7 AS pr_head
-        FROM (SELECT e, arrayJoin(e.5) AS k FROM (SELECT arrayJoin((SELECT ev FROM ev_arr).1) AS e))
-    ) AS h ON h.landing_sha = t.landing_sha
-    LEFT JOIN pr_cfg AS pc ON pc.landing_sha = t.landing_sha AND pc.pr = h.pr AND pc.config = t.config
+        GROUP BY file, classname, name, d
+    )
 ),
 
 -- One row per event: (event, [(config, file, PR, outcome)], outcome, window closed).
 out_arr AS (
     SELECT groupArray(tuple(
-        ev_row, o.tl,
+        e, tl,
         multiIf(
-            ev_row.5[1].6 = 'landrace', 'landrace',
-            has(o.tl.4, 'ran_on_pr'), 'caught_on_pr',
-            has(o.tl.4, 'td_skipped'), 'false_green',
-            has(o.tl.4, 'new_test'), 'new_test',
-            arrayAll(x -> x = 'config_not_on_pr', o.tl.4), 'not_in_pr_matrix',
+            e.5[1].6 = 'landrace', 'landrace',
+            has(tl.4, 'ran_on_pr'), 'caught_on_pr',
+            has(tl.4, 'td_skipped'), 'false_green',
+            has(tl.4, 'new_test'), 'new_test',
+            arrayAll(x -> x = 'config_not_on_pr', tl.4), 'not_in_pr_matrix',
             'unknown'
         ),
-        ev_row.7
+        e.7
     )) AS outs
-    FROM (SELECT arrayJoin((SELECT ev FROM ev_arr).1) AS ev_row, ev_row.1 AS landing_sha) AS er
-    LEFT JOIN (
-        SELECT landing_sha, arraySort(groupArray(tuple(config, test_file, pr, outcome))) AS tl
-        FROM outcomes
-        GROUP BY landing_sha
-    ) AS o ON o.landing_sha = er.landing_sha
+    FROM (
+        SELECT
+            e,
+            arraySort(arrayFlatten(arrayMap(
+                t -> arrayMap(
+                    q -> (t.2, t.3, q.1, multiIf(
+                        q.2 = '', 'unknown',
+                        q.3.1 != q.1, 'config_not_on_pr',
+                        q.3.2 OR q.3.4, 'ran_on_pr',
+                        NOT q.3.3 OR NOT q.3.5 OR arrayExists(m -> position(t.2, m) > 0, {noTdBuildMarkers: Array(String)}),
+                        'unknown',
+                        t.7, 'td_skipped',
+                        'new_test'
+                    )),
+                    arrayMap(k -> (k.1, k.2, arrayFirst(x -> x.1 = k.1, t.6)), arrayDistinct(arrayMap(k -> (k.3, k.7), e.5)))
+                ),
+                arrayFilter(t -> t.1 = e.1, tp)
+            ))) AS tl
+        FROM (
+            SELECT
+                arrayJoin((SELECT ev FROM ev_arr).1) AS e,
+                arrayMap(t -> (
+                    t.1, t.2, t.3, t.4, t.5, t.6,
+                    toDate(t.5 - toIntervalDay({newTestDays: UInt32})) - 2 > toDate('2026-08-26')
+                    AND arrayExists(
+                        a -> a.1 = t.4.1 AND a.2 = t.4.2 AND a.3 = t.4.3
+                        AND a.4 >= toDate(t.5 - toIntervalDay({newTestDays: UInt32})) - 2
+                        AND a.5 <= t.5 - toIntervalDay({newTestDays: UInt32}),
+                        ages
+                    )
+                ), tp_raw) AS tp
+            FROM (SELECT (SELECT tp FROM tp_arr) AS tp_raw, (SELECT ages FROM age_arr) AS ages)
+        )
+    )
 )
 
 SELECT
-    x.1 AS grain,
-    x.2 AS landed_at,
-    x.3 AS landing_sha,
-    x.4 AS reverted_prs,
-    x.5 AS revert_shas,
-    x.6 AS reverted_at,
-    x.7 AS revert_class,
-    x.8 AS stack_size,
-    x.9 AS outcome,
-    x.10 AS window_closed,
-    x.11 AS test_configs,
-    x.12 AS test_files,
-    x.13 AS test_prs,
-    x.14 AS test_outcomes,
-    x.15 AS landed_prs,
-    x.16 AS events,
-    x.17 AS false_green,
-    x.18 AS caught_on_pr,
-    x.19 AS new_test,
-    x.20 AS not_in_pr_matrix,
-    x.21 AS landrace,
-    x.22 AS unknown,
-    x.23 AS other_reverts,
-    x.24 AS ghfirst_reverts
+    x.1 AS grain, x.2 AS landed_at, x.3 AS landing_sha, x.4 AS reverted_prs, x.5 AS revert_shas,
+    x.6 AS reverted_at, x.7 AS revert_class, x.8 AS stack_size, x.9 AS outcome, x.10 AS window_closed,
+    x.11 AS test_configs, x.12 AS test_files, x.13 AS test_prs, x.14 AS test_outcomes,
+    x.15 AS landed_prs, x.16 AS events, x.17 AS false_green, x.18 AS caught_on_pr, x.19 AS new_test,
+    x.20 AS not_in_pr_matrix, x.21 AS landrace, x.22 AS unknown, x.23 AS other_reverts, x.24 AS ghfirst_reverts
 FROM (
     SELECT arrayJoin(arrayConcat(
         [tuple(
@@ -473,4 +394,4 @@ FROM (
     )) AS x
     FROM (SELECT (SELECT outs FROM out_arr) AS outs)
 )
-SETTINGS max_execution_time = 60
+SETTINGS max_execution_time = 60, allow_experimental_analyzer = 1
