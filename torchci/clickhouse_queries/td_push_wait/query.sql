@@ -22,7 +22,10 @@
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
-    {startTime: DateTime64(3)}, window_end - INTERVAL 365 DAY
+    {startTime: DateTime64(3)},
+    window_end - INTERVAL 365 DAY,
+    -- Test jobs were named '<build> / test-osdc (...)' from March to early July 2026.
+    toDateTime64('2026-07-13 00:00:00', 3)
 ) AS window_start,
 
 main_runs AS (

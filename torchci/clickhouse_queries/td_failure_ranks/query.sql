@@ -20,8 +20,10 @@
 -- counted failures behind those landings), 'landing' (one per landing, the newest 500 by
 -- landed_at then sha, with inside_cut and second_half as 0/1). Columns that do not apply are 0 or
 -- empty; landed_at is 1970 outside 'landing'.
--- The window ends at most now and spans at most the metric's 90-day TTL. TD's scope is fixed in
--- SQL: a caller-sized array inside a per-row lambda would let one request scale its own CPU cost.
+-- A landing counts when its push is in the window, which ends at most now and spans at most the
+-- metric's 90-day TTL. TD records arrive up to about 28 hours after the push (measured over 90
+-- days), so they are read until 3 days past the window. TD's scope is fixed in SQL: a
+-- caller-sized array inside a per-row lambda would let one request scale its own CPU cost.
 WITH
 ['pull', 'trunk'] AS td_workflows,
 ['rocm-', 'periodic-rocm-'] AS td_workflow_prefixes,
@@ -30,6 +32,7 @@ least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
     {startTime: DateTime64(3)}, window_end - INTERVAL 90 DAY
 ) AS window_start,
+window_end + INTERVAL 3 DAY AS records_end,
 
 main_pushes AS (
     SELECT
@@ -75,7 +78,7 @@ main_runs AS (
             WHERE
                 metric_name = 'td_test_failure_stats_v2'
                 AND timestamp >= window_start
-                AND timestamp < window_end
+                AND timestamp < records_end
                 AND pr_number = 0
                 AND (
                     has(td_workflows, workflow)
@@ -93,7 +96,11 @@ main_runs AS (
 evidence_shas AS (
     SELECT arrayJoin(role_shas) AS sha
     FROM main_pushes
-    WHERE n_commits = 1 AND head_sha IN (SELECT head_sha FROM main_runs)
+    WHERE
+        n_commits = 1
+        AND pushed_at >= window_start
+        AND pushed_at < window_end
+        AND head_sha IN (SELECT head_sha FROM main_runs)
 ),
 
 -- Per (sha, config), and per sha with config '': did every shard report in some attempt, which
@@ -190,7 +197,7 @@ candidates AS (
         PREWHERE
             metric_name = 'td_test_failure_stats_v2'
             AND timestamp >= window_start
-            AND timestamp < window_end
+            AND timestamp < records_end
             AND run_id IN (SELECT id FROM main_runs)
         WHERE repo = 'pytorch/pytorch'
     ) AS m
@@ -209,7 +216,7 @@ candidates AS (
                 WHERE
                     metric_name = 'td_test_failure_stats_v2'
                     AND timestamp >= window_start
-                    AND timestamp < window_end
+                    AND timestamp < records_end
                     AND run_id IN (SELECT id FROM main_runs)
             )
         WHERE
@@ -227,7 +234,12 @@ candidates AS (
         LIMIT 1 BY id
     ) AS j ON m.job_id = j.id
     INNER JOIN main_pushes AS p ON j.head_sha = p.head_sha
-    WHERE m.max_score > 0 AND m.n > 0 AND p.n_commits = 1
+    WHERE
+        m.max_score > 0
+        AND m.n > 0
+        AND p.n_commits = 1
+        AND p.pushed_at >= window_start
+        AND p.pushed_at < window_end
     GROUP BY sha, config, test_file
 ),
 

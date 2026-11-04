@@ -32,11 +32,12 @@ toIntervalDay(7) AS revert_window,
 toIntervalDay(14) AS new_test_age,
 ['rocm-', 'periodic-rocm-'] AS td_workflow_prefixes,
 ['macos', 'xpu', 'onnx'] AS no_td_build_markers,
--- Main pushes; members are their commits. Window clamped to now and to 90 days.
+-- Main pushes; members are their commits. Window clamped to now, to 90 days and to 2026-07-13:
+-- test jobs were named '<build> / test-osdc (...)' from March to early July 2026.
 push_arr AS (
     WITH
         least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
-        greatest({startTime: DateTime64(3)}, window_end - toIntervalDay(90)) AS window_start
+        greatest({startTime: DateTime64(3)}, window_end - toIntervalDay(90), toDateTime64('2026-07-13 00:00:00', 3)) AS window_start
     SELECT groupArray(tuple(head, before_sha, pushed_at, members, in_window, closed)) AS pushes
     FROM (
         SELECT
