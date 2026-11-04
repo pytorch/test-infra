@@ -14,6 +14,7 @@ import {
   toDispatchMark,
 } from "lib/advisor/advisorDispatch";
 import {
+  awaitingVerdictJobIds,
   extractSuppressed,
   suppressibleJobIds,
 } from "lib/advisor/advisorSuppression";
@@ -437,6 +438,8 @@ export async function updateDrciComments(
       // render an "analyzing" line for a job with a dispatch in flight, since
       // that state is read separately below.
       let advisorVerdictRows: AdvisorVerdictRow[] = [];
+      // False when the read below failed, as opposed to finding no verdicts.
+      let advisorVerdictsRead = true;
       if (shouldReadAdvisorVerdicts(owner, repo, advisorJobs)) {
         try {
           advisorVerdictRows = await fetchAdvisorVerdictRows(
@@ -445,6 +448,7 @@ export async function updateDrciComments(
             pr_info.pr_number
           );
         } catch (e) {
+          advisorVerdictsRead = false;
           console.error(
             "advisor verdict fetch threw for PR",
             pr_info.pr_number,
@@ -570,6 +574,36 @@ export async function updateDrciComments(
 
       if (aiNotRelatedJobs.length > 0) {
         failures[pr_info.pr_number].AI_NOT_RELATED = aiNotRelatedJobs;
+      }
+
+      // Failures still blocking whose advisor verdict has not landed. The merge
+      // bot waits on these, for a bounded time, rather than failing a merge a
+      // verdict may clear minutes later. They stay in FAILED/UNKNOWN: this list
+      // only says an answer is coming, so the comment is unchanged. It is live
+      // state, so it is left out of the check-run summary (see
+      // LIVE_ONLY_CATEGORIES). Fails to an empty list, which is today's
+      // behavior: the merge bot does not wait.
+      try {
+        const awaiting = awaitingVerdictJobIds(
+          owner,
+          repo,
+          pr_info.head_sha,
+          advisorJobs,
+          advisorVerdictsRead ? advisorVerdictRows : null,
+          advisorDispatches
+        );
+        const aiPendingJobs = [...failedJobs, ...unknownJobs].filter((job) =>
+          awaiting.has(job.id)
+        );
+        if (aiPendingJobs.length > 0) {
+          failures[pr_info.pr_number].AI_PENDING = aiPendingJobs;
+        }
+      } catch (e) {
+        console.error(
+          "advisor pending lookup threw for PR",
+          pr_info.pr_number,
+          e
+        );
       }
 
       // Classify CRCR downstream CI jobs (L3 = non-blocking, L4 = blocking).
@@ -835,7 +869,9 @@ export async function updateDrciComments(
           // NB: the summary contains the classification result from Dr.CI,
           // so that it can be queried elsewhere
           summary: JSON.stringify(
-            removeFailureContext(failures[pr_info.pr_number])
+            removeFailureContext(
+              withoutLiveOnlyCategories(failures[pr_info.pr_number])
+            )
           ),
         },
       });
@@ -846,6 +882,23 @@ export async function updateDrciComments(
   );
 
   return failures;
+}
+
+// Categories that only mean something at the moment Dr.CI computes them. The
+// check-run summary is a snapshot read when the live endpoint is unavailable,
+// and it is not rewritten while the comment body is unchanged, so it can lag
+// the live answer by hours: a stale "verdict still coming" there would make the
+// merge bot wait for an analysis that finished long ago.
+export const LIVE_ONLY_CATEGORIES: ReadonlySet<string> = new Set([
+  "AI_PENDING",
+]);
+
+export function withoutLiveOnlyCategories(failure: {
+  [cat: string]: RecentWorkflowsData[];
+}): { [cat: string]: RecentWorkflowsData[] } {
+  return Object.fromEntries(
+    Object.entries(failure).filter(([cat]) => !LIVE_ONLY_CATEGORIES.has(cat))
+  );
 }
 
 /**

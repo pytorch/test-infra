@@ -1779,3 +1779,20 @@ describe("isCiGoodForReview", () => {
     ).toBe(expected);
   });
 });
+
+describe("withoutLiveOnlyCategories", () => {
+  test("keeps AI_PENDING out of the check-run summary and nothing else", () => {
+    const job = getDummyJob({ id: 1 });
+    const failures = {
+      FAILED: [job],
+      AI_NOT_RELATED: [],
+      AI_PENDING: [job],
+    };
+    expect(updateDrciBot.withoutLiveOnlyCategories(failures)).toEqual({
+      FAILED: [job],
+      AI_NOT_RELATED: [],
+    });
+    // The live answer itself is untouched.
+    expect(failures.AI_PENDING).toEqual([job]);
+  });
+});
