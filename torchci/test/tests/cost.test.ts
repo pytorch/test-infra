@@ -523,10 +523,17 @@ describe("estimated machines and the unattributed buckets", () => {
     expect(rowsCsv(p, v).csv).toContain(
       "unattributed:no_test_reports,trunk,NVIDIA L4,yes,6.00"
     );
-    expect(bucketInfo("unattributed:no_test_reports")).toMatch(
-      /^No test reports: Test jobs that sent no test reports/
+    expect(bucketInfo("unattributed:no_test_reports")).toBe(
+      "No test reports: Test jobs without test reports, so their test files are unknown.\n" +
+        "• Benchmarks and custom test scripts\n" +
+        "• Reports not uploaded or not ingested\n" +
+        "• Jobs cancelled before uploading"
     );
-    expect(bucketInfo("unattributed:no_owner")).toMatch(/^No owner: Tests/);
+    expect(bucketInfo("unattributed:no_owner")).toBe(
+      "No owner: Tests in files without an owner.\n" +
+        "• C++ test binaries\n" +
+        "• Python files not in the owners list"
+    );
     expect(bucketInfo("inductor")).toBe("");
   });
 });

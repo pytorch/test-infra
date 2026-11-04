@@ -43,24 +43,31 @@ export const BUCKET_LABELS: Record<string, string> = {
 const BUCKET_ORDER = Object.keys(BUCKET_LABELS);
 
 // The two reasons an hour reaches no owner, where the chain job, test file,
-// owner breaks: what each bucket is, and what makes it shrink.
-export const BUCKET_INFO: Record<string, { what: string; shrinks: string }> = {
-  "unattributed:no_test_reports": {
-    what: "Test jobs that sent no test reports, so which test files ran is unknown: benchmark and custom-script configs, fleets whose reports do not reach the database (XPU), pull requests on a base older than the report format, cancelled jobs.",
-    shrinks: "Shrinks as these jobs upload test reports.",
-  },
+// owner breaks: what each bucket is, and what it holds.
+export const BUCKET_INFO: Record<string, { what: string; holds: string[] }> = {
   "unattributed:no_owner": {
-    what: "Tests that sent reports, but their file has no owner: C++ test binaries, which have no owners yet, and Python files missing from the owners list.",
-    shrinks: "Shrinks as the files get owners.",
+    what: "Tests in files without an owner.",
+    holds: ["C++ test binaries", "Python files not in the owners list"],
+  },
+  "unattributed:no_test_reports": {
+    what: "Test jobs without test reports, so their test files are unknown.",
+    holds: [
+      "Benchmarks and custom test scripts",
+      "Reports not uploaded or not ingested",
+      "Jobs cancelled before uploading",
+    ],
   },
 };
 
-// A bucket's definition in words, for its (i).
+// A bucket's definition, for its (i): a line, then what it holds as a list.
 export function bucketInfo(bucket: string): string {
   const info = BUCKET_INFO[bucket];
   return info === undefined
     ? ""
-    : `${BUCKET_LABELS[bucket]}: ${info.what} ${info.shrinks}`;
+    : [
+        `${BUCKET_LABELS[bucket]}: ${info.what}`,
+        ...info.holds.map((h) => `• ${h}`),
+      ].join("\n");
 }
 
 export function isBucket(owner: string): boolean {

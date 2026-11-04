@@ -260,7 +260,13 @@ export default function CellDrawer({
         <Heading>Caveats</Heading>
         <Box
           component="ul"
-          sx={{ pl: 2.5, my: 0, typography: "body2", color: "text.secondary" }}
+          sx={{
+            pl: 2.5,
+            my: 0,
+            typography: "body2",
+            color: "text.secondary",
+            whiteSpace: "pre-line",
+          }}
         >
           {caveats.map((c) => (
             <li key={c}>{c}</li>
