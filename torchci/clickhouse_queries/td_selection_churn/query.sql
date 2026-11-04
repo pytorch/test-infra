@@ -11,13 +11,13 @@
 -- carries no pull_requests, head repository and branch. A config is
 -- 'workflow / job-name prefix before " / test (" / test config'. Files are compared by hash.
 -- Jobs are read up to a day after the window, so a re-run started later is not seen. Rows: one
--- per day of the later run's creation, and a total row that is always present. The window ends
--- at most now and spans at most 14 days (test_run_summary's TTL is 30). ClickHouse runs a CTE at
--- every reference, so each CTE here is referenced once.
+-- per day of the later run's creation, one per week of it (bucket = its ISO Monday), and a total
+-- row that is always present. The window ends at most now and spans at most test_run_summary's
+-- 30-day TTL. ClickHouse runs a CTE at every reference, so each CTE here is referenced once.
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
-    {startTime: DateTime64(3)}, window_end - INTERVAL 14 DAY
+    {startTime: DateTime64(3)}, window_end - INTERVAL 30 DAY
 ) AS window_start,
 
 runs AS (
@@ -198,8 +198,12 @@ pairs AS (
 )
 
 SELECT
-    if(grouping(day) = 1, 'total', 'day') AS grain,
-    if(grain = 'day', day, '') AS bucket,
+    multiIf(
+        grouping(day) = 0, 'day',
+        grouping(week) = 0, 'week',
+        'total'
+    ) AS grain,
+    multiIf(grain = 'day', day, grain = 'week', week, '') AS bucket,
     count() AS pairs,
     countIf(identical) AS identical_pairs,
     ifNotFinite(quantileExactInclusiveIf(0.5) (change_pct, NOT identical), 0)
@@ -210,9 +214,10 @@ FROM (
         pr,
         identical,
         change_pct,
-        formatDateTime(later_created, '%F') AS day
+        formatDateTime(later_created, '%F') AS day,
+        formatDateTime(toMonday(later_created), '%F') AS week
     FROM pairs
 )
-GROUP BY GROUPING SETS ((day), ())
+GROUP BY GROUPING SETS ((day), (week), ())
 ORDER BY grain, bucket
 SETTINGS max_execution_time = 60, max_threads = 8

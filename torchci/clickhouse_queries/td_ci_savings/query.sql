@@ -1,7 +1,7 @@
 -- CI time TD saves on pytorch/pytorch PRs: actual test-job time of successful TD test jobs on PR
 -- runs (pull_request events and ciflow tag pushes) against the same job's mean and median duration
 -- on main pushes in the same window, the full-suite estimate. One row per job start day, one per
--- config and one total.
+-- week of it (bucket = its ISO Monday), one per config and one total.
 --
 -- The job key drops only the runner label (4th argument of "test (...)"): labels change with
 -- runner fleet moves while the job stays the same; shard numbers stay, since a shard's duration
@@ -15,16 +15,17 @@
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
-    {startTime: DateTime64(3)}, window_end - INTERVAL 90 DAY
+    {startTime: DateTime64(3)}, window_end - INTERVAL 365 DAY
 ) AS window_start
 
 SELECT
     multiIf(
-        grouping(job_day, job_config) = 1, 'day',
-        grouping(job_day, job_config) = 2, 'config',
+        grouping(job_day) = 0, 'day',
+        grouping(job_week) = 0, 'week',
+        grouping(job_config) = 0, 'config',
         'total'
     ) AS grain,
-    if(grain = 'day', job_day, '') AS bucket,
+    multiIf(grain = 'day', job_day, grain = 'week', job_week, '') AS bucket,
     if(grain = 'config', job_config, '') AS config,
     countIf(matched) AS jobs,
     countIf(NOT matched) AS unmatched_jobs,
@@ -40,6 +41,7 @@ FROM (
         main_median,
         arrayJoin(pr_jobs) AS pr_job,
         formatDateTime(tupleElement(pr_job, 1), '%F') AS job_day,
+        formatDateTime(toMonday(tupleElement(pr_job, 1)), '%F') AS job_week,
         tupleElement(pr_job, 2) AS dur
     FROM (
         SELECT
@@ -108,6 +110,6 @@ FROM (
         GROUP BY job_key, job_config
     )
 )
-GROUP BY GROUPING SETS ((job_day), (job_config), ())
+GROUP BY GROUPING SETS ((job_day), (job_week), (job_config), ())
 ORDER BY grain, bucket, config
 SETTINGS max_execution_time = 60, max_threads = 8

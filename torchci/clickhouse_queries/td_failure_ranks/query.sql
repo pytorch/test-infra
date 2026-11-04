@@ -17,8 +17,9 @@
 -- when any failure is inside its own config's cut, and is represented by its best failure
 -- (inside the cut first, then lowest rank_pct = 100 * position / n). Grains: 'hist' (landings
 -- per rank-percent bucket), 'total' (always one row, also on an empty window; failures = the
--- counted failures behind those landings), 'miss' (the newest 100 landings with no failure
--- inside the cut). Columns that do not apply are 0 or empty; landed_at is 1970 outside 'miss'.
+-- counted failures behind those landings), 'landing' (one per landing, the newest 500 by
+-- landed_at then sha, with inside_cut and second_half as 0/1). Columns that do not apply are 0 or
+-- empty; landed_at is 1970 outside 'landing'.
 -- The window ends at most now and spans at most the metric's 90-day TTL. TD's scope is fixed in
 -- SQL: a caller-sized array inside a per-row lambda would let one request scale its own CPU cost.
 WITH
@@ -311,20 +312,25 @@ totals AS (
             AS median_rank,
         sum(n_failures) AS n_failures,
         arraySlice(
-            arrayReverseSort(groupArrayIf(
-                (
-                    'miss',
+            arraySort(
+                x -> (
+                    -toUnixTimestamp64Milli(tupleElement(x, 2)),
+                    tupleElement(x, 3)
+                ),
+                groupArray((
+                    'landing',
                     landed_at,
                     sha,
                     tupleElement(best, 4),
                     tupleElement(best, 5),
-                    best_rank_pct
-                ),
-                NOT inside
-            )),
+                    best_rank_pct,
+                    inside,
+                    second
+                ))
+            ),
             1,
-            100
-        ) AS misses
+            500
+        ) AS landing_rows
     FROM landings
     -- On empty input the () grouping set still returns its row.
     GROUP BY GROUPING SETS ((bucket), ())
@@ -333,9 +339,21 @@ totals AS (
 SELECT
     tupleElement(out_row, 1) AS grain,
     if(grain = 'hist', bucket, 0) AS bucket_pct,
-    if(grain = 'miss', 0, n_landings) AS landings,
-    if(grain = 'total', n_inside, 0) AS inside_cut,
-    if(grain = 'total', n_second, 0) AS second_half,
+    if(grain = 'landing', 1, n_landings) AS landings,
+    multiIf(
+        grain = 'total',
+        n_inside,
+        grain = 'landing',
+        tupleElement(out_row, 7),
+        0
+    ) AS inside_cut,
+    multiIf(
+        grain = 'total',
+        n_second,
+        grain = 'landing',
+        tupleElement(out_row, 8),
+        0
+    ) AS second_half,
     if(grain = 'total', median_rank, 0) AS median_pct,
     if(grain = 'total', n_failures, 0) AS failures,
     tupleElement(out_row, 2) AS landed_at,
@@ -350,9 +368,10 @@ FROM (
             if(
                 is_total,
                 arrayConcat(
-                    [('total', toDateTime64(0, 3), '', '', '', 0.)], misses
+                    [('total', toDateTime64(0, 3), '', '', '', 0., 0, 0)],
+                    landing_rows
                 ),
-                [('hist', toDateTime64(0, 3), '', '', '', 0.)]
+                [('hist', toDateTime64(0, 3), '', '', '', 0., 0, 0)]
             )
         ) AS out_row
     FROM totals

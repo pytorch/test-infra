@@ -4,7 +4,8 @@
 -- actual end = the last TD test job's completion; estimated end = the latest
 -- (job start + the job's mean duration on main pushes in the window), keeping the actual duration
 -- for jobs whose key has fewer than 5 main jobs. Job keys as in td_ci_savings. Medians over
--- pushes for the times, means for the hours. One row per run creation day and one total.
+-- pushes for the times, means for the hours. One row per run creation day, one per week of it
+-- (bucket = its ISO Monday) and one total.
 --
 -- Jobs are scanned by created_at from a day before the window to a day after it: GitHub cancels
 -- jobs queued over 24 hours, so a job started in the window was created at most a day earlier;
@@ -21,7 +22,7 @@
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
-    {startTime: DateTime64(3)}, window_end - INTERVAL 90 DAY
+    {startTime: DateTime64(3)}, window_end - INTERVAL 365 DAY
 ) AS window_start,
 
 main_runs AS (
@@ -128,7 +129,9 @@ push_job_rows AS (
 pushes AS (
     SELECT
         tupleElement(push_job, 1) AS run_id,
-        formatDateTime(any(tupleElement(push_job, 2)), '%F') AS push_day,
+        any(tupleElement(push_job, 2)) AS created,
+        formatDateTime(created, '%F') AS push_day,
+        formatDateTime(toMonday(created), '%F') AS push_week,
         max(tupleElement(push_job, 4)) / 60 AS actual_ttg,
         max(
             tupleElement(push_job, 3)
@@ -144,8 +147,12 @@ pushes AS (
 )
 
 SELECT
-    if(grouping(push_day) = 0, 'day', 'total') AS grain,
-    if(grain = 'day', push_day, '') AS bucket,
+    multiIf(
+        grouping(push_day) = 0, 'day',
+        grouping(push_week) = 0, 'week',
+        'total'
+    ) AS grain,
+    multiIf(grain = 'day', push_day, grain = 'week', push_week, '') AS bucket,
     count() AS pushes,
     ifNotFinite(quantileExact(0.5) (actual_ttg), 0) AS actual_ttg_median_min,
     ifNotFinite(quantileExact(0.5) (est_ttg), 0) AS est_ttg_median_min,
@@ -154,6 +161,6 @@ SELECT
     ifNotFinite(avg(push_hours), 0) AS hours_per_push,
     ifNotFinite(avg(est_push_hours), 0) AS est_hours_per_push
 FROM pushes
-GROUP BY GROUPING SETS ((push_day), ())
+GROUP BY GROUPING SETS ((push_day), (push_week), ())
 ORDER BY grain, bucket
 SETTINGS max_execution_time = 60, max_threads = 8
