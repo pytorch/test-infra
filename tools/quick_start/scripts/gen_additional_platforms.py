@@ -3,12 +3,15 @@
 Generates additional-platforms.json for the
 https://pytorch.org/get-started/additional-platforms/ page.
 
-This script reads all JSON files from _additional_platforms/ directory and the
-markdown files from _get_started/additional_platforms/ directory, converts the
-markdown to HTML, and writes both to additional-platforms.json.
-
 Usage:
     python3 scripts/gen_additional_platforms.py
+
+The script will:
+1. Read all JSON files from _additional_platforms/ directory
+2. Read all MD files from _get_started/additional_platforms/ directory
+   and convert them to HTML
+3. Combine platform data into a single object (keyed by filename)
+4. Write the result to additional-platforms.json
 """
 
 import datetime
@@ -241,7 +244,6 @@ def main():
         print("No markdown content found.")
         markdown_content = {}
 
-    # Write the JSON file for the external consumer
     write_platforms_json(platform_data, markdown_content, str(BASE_DIR / JSON_OUT_PATH))
 
 

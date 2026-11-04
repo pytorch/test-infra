@@ -1,6 +1,6 @@
 # Quick start data
 
-Generates the JSON data behind the install selector on
+Generates the data behind the install selector on
 https://pytorch.org/get-started/locally/ and the third-party accelerator picker
 on the Get Started page. This was previously in `pytorch/pytorch.github.io`
 (`.github/workflows/update-quick-start-module.yml` and `scripts/`). Only the JSON
@@ -34,7 +34,7 @@ to `main`.
 | Path | Role |
 |---|---|
 | `scripts/gen_quick_start_module.py` | Reads the build matrices from `tools/scripts/generate_binary_build_matrix.py` (via the `generate_binary_build_matrix.yml` workflow) and updates `published_versions.json` and `releases.json`. |
-| `scripts/gen_additional_platforms.py` | Builds `additional-platforms.json` from `_additional_platforms/*.json` and `_get_started/additional_platforms/*.md` (markdown converted to HTML). |
+| `scripts/gen_additional_platforms.py` | Builds `additional-platforms.json` from `_additional_platforms/*.json` and `_get_started/additional_platforms/*.md`. |
 | `_additional_platforms/*.json`, `_get_started/additional_platforms/*.md` | Hand-written inputs, one pair per vendor platform. |
 | `published_versions.json`, `releases.json`, `additional-platforms.json` | **Generated.** Do not edit by hand. |
 

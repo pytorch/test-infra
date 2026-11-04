@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-Updates the data behind the https://pytorch.org/get-started/locally/ page.
-
-Run by the QUICK_START lint (tools/linter/adapters/quick_start_linter.py), it reads
-the build matrices written next to this script's parent directory
-({linux,windows,macos}_{nightly,release}_matrix.json) and rewrites
-published_versions.json and releases.json from them.
+Generates the data for the quick start module on the
+https://pytorch.org/get-started/locally/ page.
+Updates published_versions.json and releases.json from the current
+release matrices (<os>_<channel>_matrix.json).
 """
 
 import copy
