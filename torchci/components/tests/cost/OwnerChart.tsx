@@ -321,6 +321,7 @@ export default function OwnerChart({
                     view.scopeTotal / (prepared.total || 1)
                   )} of the window)`
                 : ""}
+              {` · ${dates}`}
               {highlight !== "" && (
                 <>
                   {" · highlighted, "}
@@ -521,24 +522,14 @@ export default function OwnerChart({
           />
         </Box>
       </CostFrame>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 2,
-          mt: 0.75,
-          typography: "caption",
-          color: "text.secondary",
-        }}
+      <Typography
+        variant="caption"
+        component="p"
+        sx={{ mt: 0.75, color: "text.secondary" }}
       >
-        <span>
-          Machines from test reports; striped: estimated from runner labels;
-          grey stripes: unknown.
-        </span>
-        <span>
-          {name.charAt(0).toUpperCase() + name.slice(1)} · {dates}
-        </span>
-      </Box>
+        Machines from test reports; striped: estimated from runner labels; grey
+        stripes: unknown.
+      </Typography>
     </Box>
   );
 }

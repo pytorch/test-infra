@@ -50,8 +50,7 @@ function Heading({ children }: { children: string }) {
 // beside it: its hours and what they are a share of, how many have an
 // estimated machine, the workflows behind them in the scope, the owners of a
 // folded row, what an unattributed bucket is made of, and what the numbers
-// can and cannot say. Where the API holds no detail yet (the test configs
-// and files behind an owner's cell), it says so.
+// can and cannot say.
 export default function CellDrawer({
   prepared,
   view,
@@ -188,9 +187,7 @@ export default function CellDrawer({
             {hoursLabel(view.scopeTotal)} h in {name}
           </li>
           {detail.estimated > 0 && (
-            <li>
-              ≈ {hoursLabel(detail.estimated)} h with an estimated machine
-            </li>
+            <li>{hoursLabel(detail.estimated)} h with an estimated machine</li>
           )}
         </Box>
         <Heading>By workflow</Heading>
@@ -211,7 +208,7 @@ export default function CellDrawer({
             : labels.slice(0, 12).join(", ")}
           {labels.length > 12 ? `, and ${labels.length - 12} more` : ""}
         </Typography>
-        {buckets.length > 0 ? (
+        {buckets.length > 0 && (
           <>
             <Heading>What&apos;s in it</Heading>
             {fileHours > 0 && (
@@ -241,21 +238,6 @@ export default function CellDrawer({
                 + {detail.contributors.length - 8} more
               </Typography>
             )}
-          </>
-        ) : (
-          <>
-            <Heading>Test configs and files</Heading>
-            <Typography
-              variant="body2"
-              sx={{
-                color: "text.secondary",
-                border: `1px dashed ${theme.palette.divider}`,
-                borderRadius: "4px",
-                p: 1,
-              }}
-            >
-              Not available yet.
-            </Typography>
           </>
         )}
         <Heading>Caveats</Heading>

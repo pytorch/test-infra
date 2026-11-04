@@ -7,7 +7,6 @@ import {
 import {
   NOT_PROBED,
   bucketInfo,
-  ownerLabel,
   cellDetail,
   cellShade,
   computeView,
@@ -17,6 +16,7 @@ import {
   knownChoices,
   machineKeyRows,
   matrixGroups,
+  ownerLabel,
   ownerRows,
   prepareRunnerHours,
   rowMix,
@@ -408,9 +408,7 @@ describe("cost page query", () => {
     );
     expect(resolveCostQuery({ window: "3d" }).window).toBe("3d");
     expect(resolveCostQuery({ window: "14d" }).window).toBe("7d");
-    expect(costUrlParams(resolveCostQuery({ window: "1d" })).window).toBe(
-      "1d"
-    );
+    expect(costUrlParams(resolveCostQuery({ window: "1d" })).window).toBe("1d");
   });
 });
 
@@ -421,7 +419,13 @@ const ESTIMATED: RunnerHours = {
   ...ANSWER,
   rows: [
     row("inductor", "trunk", "NVIDIA L4", 10),
-    row("unattributed:no_test_reports", "trunk", "NVIDIA L4", 6, "runner_label"),
+    row(
+      "unattributed:no_test_reports",
+      "trunk",
+      "NVIDIA L4",
+      6,
+      "runner_label"
+    ),
     row("unattributed:no_owner", "trunk", "NVIDIA L4", 2),
     row("unattributed:no_test_reports", "trunk", "", 3),
   ],
@@ -482,11 +486,10 @@ describe("estimated machines and the unattributed buckets", () => {
 
   test("the view counts the hours whose machine came from a runner label", () => {
     expect(v.machineScope[l4]).toBe(18);
-    expect(v.machineEstimated[l4]).toBe(6);
+    expect(v.ownerEstimated.get("unattributed:no_test_reports")?.[l4]).toBe(6);
     expect(machineKeyRows(p, v, false)[0]).toMatchObject({
       label: "NVIDIA L4",
       hours: 18,
-      estimated: 6,
     });
   });
 
@@ -535,7 +538,7 @@ describe("estimated machines and the unattributed buckets", () => {
     ).toEqual(["cpp/test_api", "test/test_a.py"]);
   });
 
-  test("a highlighted machine keeps its estimated piece; the key's est. follows an owner highlight", () => {
+  test("a highlighted machine keeps its estimated piece", () => {
     const owners = unattributed?.owners ?? [];
     const lit = computeView(p, { ...none, machines: ["NVIDIA L4"] });
     expect(
@@ -550,16 +553,6 @@ describe("estimated machines and the unattributed buckets", () => {
       ["NVIDIA L4 (est.)", 6, "estimated"],
       ["other machines", 3, "pale"],
     ]);
-    const key = (o: string[]) =>
-      machineKeyRows(p, computeView(p, { ...none, owners: o }), false)[0];
-    expect(key(["unattributed:no_test_reports"])).toMatchObject({
-      highlighted: 6,
-      highlightedEstimated: 6,
-    });
-    expect(key(["inductor"])).toMatchObject({
-      highlighted: 10,
-      highlightedEstimated: 0,
-    });
   });
 
   test("the matrix lists No owner before the striped No test reports", () => {

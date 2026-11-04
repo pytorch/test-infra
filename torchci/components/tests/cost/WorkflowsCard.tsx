@@ -29,6 +29,8 @@ export interface WorkflowsCardProps {
   presets: WorkflowPreset[];
   scope: readonly string[];
   loading: boolean;
+  // The days the answer covers, in words.
+  dates: string;
   onScopeChange: (_workflows: string[]) => void;
 }
 
@@ -44,6 +46,7 @@ export default function WorkflowsCard({
   presets,
   scope,
   loading,
+  dates,
   onScopeChange,
 }: WorkflowsCardProps) {
   const theme = useTheme();
@@ -83,7 +86,9 @@ export default function WorkflowsCard({
     <CostFrame
       title="Workflows"
       description="Each workflow's share of all runner-hours. Ticking workflows scopes the whole page."
-      note={`share of all ${hoursLabel(prepared.total)} runner-hours`}
+      note={`share of all ${hoursLabel(
+        prepared.total
+      )} runner-hours · ${dates}`}
       keys={keys}
       loading={loading}
       open={open}

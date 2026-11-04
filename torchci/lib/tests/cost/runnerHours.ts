@@ -255,12 +255,9 @@ export interface CostView {
   ownerScope: Map<string, number>;
   ownerMachines: Map<string, Float64Array>;
   ownerEstimated: Map<string, Float64Array>;
-  // Each machine's hours in the scope, the highlighted owners' share, and
-  // the estimated part of each.
+  // Each machine's hours in the scope, and the highlighted owners' share.
   machineScope: Float64Array;
   machineHighlighted: Float64Array;
-  machineEstimated: Float64Array;
-  machineHighlightedEstimated: Float64Array;
   // Each workflow's highlighted hours over the whole window, since the
   // workflows card is read against the window, not the scope.
   workflowHighlighted: Float64Array;
@@ -287,8 +284,6 @@ export function computeView(
   const ownerEstimated = new Map<string, Float64Array>();
   const machineScope = new Float64Array(M);
   const machineHighlighted = new Float64Array(M);
-  const machineEstimated = new Float64Array(M);
-  const machineHighlightedEstimated = new Float64Array(M);
   const workflowHighlighted = new Float64Array(prepared.workflows.length);
   let scopeTotal = 0;
   let highlightTotal = 0;
@@ -321,8 +316,6 @@ export function computeView(
         ownerEstimated.set(owner, estimated);
       }
       estimated[m] += h;
-      machineEstimated[m] += h;
-      if (ownerOn) machineHighlightedEstimated[m] += h;
     }
     if (ownerOn) machineHighlighted[m] += h;
     if (inHighlight) highlightTotal += h;
@@ -338,8 +331,6 @@ export function computeView(
     ownerEstimated,
     machineScope,
     machineHighlighted,
-    machineEstimated,
-    machineHighlightedEstimated,
     workflowHighlighted,
   };
 }
@@ -635,11 +626,8 @@ export interface KeyRow {
   label: string;
   machines: number[];
   hours: number;
-  // The hours on these machines whose machine is estimated.
-  estimated: number;
-  // The highlighted owners' hours on these machines, and their estimated part.
+  // The highlighted owners' hours on these machines.
   highlighted: number;
-  highlightedEstimated: number;
   paint: BasePaint;
   kind: "machine" | "group" | "member";
 }
@@ -655,9 +643,7 @@ export function machineKeyRows(
     label: prepared.machines[m],
     machines: [m],
     hours: s[m],
-    estimated: view.machineEstimated[m],
     highlighted: view.machineHighlighted[m],
-    highlightedEstimated: view.machineHighlightedEstimated[m],
     paint: paintOf(prepared, m, view.machines.has(m)),
     kind,
   });
@@ -673,12 +659,7 @@ export function machineKeyRows(
       label: `${OTHER_MACHINES} (${others.length})`,
       machines: others,
       hours: others.reduce((a, m) => a + s[m], 0),
-      estimated: others.reduce((a, m) => a + view.machineEstimated[m], 0),
       highlighted: others.reduce((a, m) => a + view.machineHighlighted[m], 0),
-      highlightedEstimated: others.reduce(
-        (a, m) => a + view.machineHighlightedEstimated[m],
-        0
-      ),
       paint: { kind: "other" },
       kind: "group",
     });

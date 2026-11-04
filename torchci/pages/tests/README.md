@@ -1151,11 +1151,12 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
 - The title is "Runner-hours of pytorch/pytorch", the same whatever span or
   scope. The facts under it say what the hours cover: the scope (in the accent
   with a clear button while one is in force), annualized and per day
-  runner-hours (the dates and the days with data are in their tooltips), the
-  share attributed to owners, and the PR update and PR merge signals (pull and
-  trunk on pushes to main, medians with queueing), which ignore the scope. The
-  window's keys, 1 day, 3 days and 7 days, end the row. Every tooltip and
-  caption is a phrase or two.
+  runner-hours, the share attributed to owners, and the PR update and PR
+  merge signals (pull and trunk on pushes to main, medians with queueing),
+  which ignore the scope. A Time range dropdown (last 1, 3 or 7 days) ends the
+  row. Each panel's subtitle names the days its answer covers, and how many of
+  the window's days have data when not all do. Every tooltip and caption is a
+  phrase or two.
 - Runner-hours by owner: the top 15 owners, every highlighted owner in its
   own row, "N more owners" (opens to list them), then one Unattributed row
   with an (i) defining it, each bar split by machine in one fixed order (the
@@ -1164,8 +1165,7 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   other rows. The band holds the scope keys (All workflows, the API's presets
   such as PR Critical Path, and Custom while the workflows card sets one) and
   "Split by machine". The machine key at the right is legend, machine picker
-  and machine shares in one; its "≈ est." column is each machine's hours with
-  an estimated machine.
+  and machine shares in one.
 - Workflows: folded at first. The four largest, ticked ones pinned, "+ N more"
   with a search; ticking makes a custom scope.
 - All owner–machine pairs: the matrix, open until its band folds it. Its rows
@@ -1173,7 +1173,7 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   with an (i). Cells show an owner's share of the machine (default), the
   machine's share of the owner, or hours on a square-root scale, by one
   sequential blue ramp in light and dark steps; cells that are mostly
-  estimated are striped and marked "≈". "Only selected" hides what is not
+  estimated are striped. "Only selected" hides what is not
   highlighted, every number unchanged; "Download CSV" saves the rows in the
   scope and highlight. Columns group by machine family. A cell opens a drawer
   at the right: its hours and their bases, how many have an estimated

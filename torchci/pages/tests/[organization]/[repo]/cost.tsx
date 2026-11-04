@@ -9,6 +9,8 @@ import WorkflowsCard from "components/tests/cost/WorkflowsCard";
 import LoadError from "components/tests/LoadError";
 import LoadTime from "components/tests/LoadTime";
 import PageColumn from "components/tests/PageColumn";
+import type { RunnerHours } from "lib/api/tests/cost/types";
+import { COST_WINDOW_DAYS } from "lib/api/tests/cost/windows";
 import {
   costApiUrl,
   type CostQuery,
@@ -41,13 +43,21 @@ function copied(choices: CostChoices) {
   };
 }
 
-// The window's dates as the page says them: "2026-10-25 to 10-31".
-function datesOf(start: string, end: string): string {
-  const last = new Date(Date.parse(end) - 1).toISOString().slice(0, 10);
-  const first = start.slice(0, 10);
-  return `${first} to ${
-    last.slice(0, 4) === first.slice(0, 4) ? last.slice(5) : last
-  }`;
+// The days an answer covers as every panel says them: "2026-11-03",
+// "2026-10-28 to 11-03", and how many have data when not all of them do.
+function datesOf(answer: RunnerHours): string {
+  const first = answer.start.slice(0, 10);
+  const last = new Date(Date.parse(answer.end) - 1).toISOString().slice(0, 10);
+  const range =
+    first === last
+      ? first
+      : `${first} to ${
+          last.slice(0, 4) === first.slice(0, 4) ? last.slice(5) : last
+        }`;
+  const asked = COST_WINDOW_DAYS[answer.window];
+  return answer.days < asked
+    ? `${range} (${answer.days} of ${asked} days have data)`
+    : range;
 }
 
 // Where a repository's CI runner-hours go, by owner, machine and workflow,
@@ -182,7 +192,7 @@ export default function Page() {
       </PageColumn>
     );
   }
-  const dates = answer ? datesOf(answer.start, answer.end) : "";
+  const dates = answer ? datesOf(answer) : "";
   const ready =
     repository !== undefined &&
     choices !== undefined &&
@@ -195,10 +205,8 @@ export default function Page() {
         {heading}
         <CostFacts
           facts={ready ? factsOf(prepared, view, answer.days) : undefined}
-          days={answer?.days ?? 0}
           dates={dates}
           window={query.window}
-          answerWindow={answer?.window}
           loading={request.isLoading}
           onWindowChange={(window) => change({ window })}
           scope={scope}
@@ -244,6 +252,7 @@ export default function Page() {
             presets={answer.workflow_presets}
             scope={choices.workflows}
             loading={request.isLoading}
+            dates={dates}
             onScopeChange={(workflows) => change({ workflows })}
           />
           <CostMatrix
@@ -252,6 +261,7 @@ export default function Page() {
             cells={query.cells}
             only={query.only}
             loading={request.isLoading}
+            dates={dates}
             fileName={`runner_hours_${repository.replace(
               "/",
               "_"

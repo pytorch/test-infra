@@ -91,6 +91,8 @@ export interface CostMatrixProps {
   cells: Cells;
   only: boolean;
   loading: boolean;
+  // The days the answer covers, in words.
+  dates: string;
   // The CSV's file name.
   fileName: string;
   cell: MatrixCell | null;
@@ -117,6 +119,7 @@ export default function CostMatrix({
   cells,
   only,
   loading,
+  dates,
   fileName,
   cell,
   expanded,
@@ -221,7 +224,7 @@ export default function CostMatrix({
         view.scopeTotal
       )} runner-hours in ${name}, ${owners} owners × ${
         columns.length
-      } machines`}
+      } machines · ${dates}`}
       open={open}
       onOpenChange={setOpen}
       loading={loading}
@@ -529,7 +532,6 @@ export default function CostMatrix({
                                   )
                                 }
                               >
-                                {guessed ? "≈" : ""}
                                 {cells === "hours"
                                   ? hoursLabel(hours)
                                   : shareLabel(
