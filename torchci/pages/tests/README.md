@@ -1148,15 +1148,15 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   highlighted machine without a hue takes the accent. Hours whose machine is
   estimated from a runner label are striped in their machine's color;
   Unknown machine is grey stripes at the other angle.
-- The title is "Runner-hours of pytorch/pytorch", the same whatever span or
-  scope. The facts under it say what the hours cover: the scope (in the accent
-  with a clear button while one is in force), annualized and per day
-  runner-hours, the share attributed to owners, and the PR update and PR
+- The title is a sentence, as the tests page's is: "Runner-hours of
+  pytorch/pytorch over the last 7 days", the window (1, 3 or 7 days) its pill
+  (`InlineSelect`). The facts under it say what the hours cover: the scope (in
+  the accent with a clear button while one is in force), annualized and per
+  day runner-hours, the share attributed to owners, and the PR update and PR
   merge signals (pull and trunk on pushes to main, medians with queueing),
-  which ignore the scope. A Time range dropdown (last 1, 3 or 7 days) ends the
-  row. Each panel's subtitle names the days its answer covers, and how many of
-  the window's days have data when not all do. Every tooltip and caption is a
-  phrase or two.
+  which ignore the scope. Each panel's subtitle names the days its answer
+  covers, and how many of the window's days have data when not all do. Every
+  tooltip and caption is a phrase or two.
 - Runner-hours by owner: the top 15 owners, every highlighted owner in its
   own row, "N more owners" (opens to list them), then one Unattributed row
   with an (i) defining it, each bar split by machine in one fixed order (the
@@ -1166,8 +1166,6 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   such as PR Critical Path, and Custom while the workflows card sets one) and
   "Split by machine". The machine key at the right is legend, machine picker
   and machine shares in one.
-- Workflows: folded at first. The four largest, ticked ones pinned, "+ N more"
-  with a search; ticking makes a custom scope.
 - All owner–machine pairs: the matrix, open until its band folds it. Its rows
   end with the two unattributed buckets, No owner then No test reports, each
   with an (i). Cells show an owner's share of the machine (default), the
@@ -1182,6 +1180,9 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   row names and cells are buttons, so all of it works from the keyboard.
   Escape closes the drawer, then clears the highlight, unless a text field or
   menu has it.
+- Workflows: the four largest, ticked ones pinned, "+ N more" with a search;
+  ticking makes a custom scope. Open, under the matrix (2026-11-04: folded,
+  it was easy to miss).
 - The URL carries `window`, `workflow`, `owner` and `machine` (repeated),
   `split_by`, `cells` and `only`, defined in `lib/api/tests/cost/page.ts`
   (`COST_PAGE_PARAMETER_DEFINITIONS`, `window` taken from the endpoint's

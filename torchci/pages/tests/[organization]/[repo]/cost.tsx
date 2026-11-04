@@ -184,7 +184,13 @@ export default function Page() {
   const scope =
     prepared && view && view.scope.size > 0 ? scopeName(prepared, view) : null;
   const answer = request.runnerHours;
-  const heading = <CostHeading repo={repository} />;
+  const heading = (
+    <CostHeading
+      repo={repository}
+      window={query.window}
+      onWindowChange={(window) => change({ window })}
+    />
+  );
   if (accessReason !== undefined) {
     return (
       <PageColumn>
@@ -207,9 +213,7 @@ export default function Page() {
         <CostFacts
           facts={ready ? factsOf(prepared, view, answer.days) : undefined}
           dates={dates}
-          window={query.window}
           loading={request.isLoading}
-          onWindowChange={(window) => change({ window })}
           scope={scope}
           signals={answer?.time_to_signal}
           onClearScope={() => change({ workflows: [] })}
@@ -247,15 +251,6 @@ export default function Page() {
               loading={request.isLoading}
             />
           </Box>
-          <WorkflowsCard
-            prepared={prepared}
-            view={view}
-            presets={answer.workflow_presets}
-            scope={choices.workflows}
-            loading={request.isLoading}
-            dates={dates}
-            onScopeChange={(workflows) => change({ workflows })}
-          />
           <CostMatrix
             prepared={prepared}
             view={view}
@@ -275,6 +270,15 @@ export default function Page() {
             onToggleOwners={toggleOwners}
             onToggleMachines={toggleMachines}
             onCellChange={setCell}
+          />
+          <WorkflowsCard
+            prepared={prepared}
+            view={view}
+            presets={answer.workflow_presets}
+            scope={choices.workflows}
+            loading={request.isLoading}
+            dates={dates}
+            onScopeChange={(workflows) => change({ workflows })}
           />
           <CellDrawer
             prepared={prepared}

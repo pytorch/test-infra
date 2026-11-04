@@ -50,8 +50,8 @@ export default function WorkflowsCard({
   onScopeChange,
 }: WorkflowsCardProps) {
   const theme = useTheme();
-  // Folded at first: most readers count every workflow.
-  const [open, setOpen] = useState(false);
+  // Open at first: folded, it was easy to miss.
+  const [open, setOpen] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
   const { shown, hidden } = workflowRows(prepared, view, expanded, search);
