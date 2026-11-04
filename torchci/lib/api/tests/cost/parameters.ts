@@ -5,10 +5,7 @@ import {
   parseParameters,
   RawQuery,
 } from "lib/api/parameters";
-import {
-  COST_WINDOWS,
-  DEFAULT_COST_WINDOW,
-} from "lib/api/tests/cost/windows";
+import { COST_WINDOWS, DEFAULT_COST_WINDOW } from "lib/api/tests/cost/windows";
 import { PARAMETER_DEFINITIONS as TEST_PARAMETERS } from "lib/api/tests/parameters";
 import { z } from "zod/v4";
 

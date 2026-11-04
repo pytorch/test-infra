@@ -12,10 +12,10 @@ CPU is user plus system time. Every run was warm.
 `runnerHoursQuery()` over 2026-11-01 to 11-03 (3 days), 3,617 rows, 168,921
 runner-hours, four runs alternating with the previous version of the query:
 
-| Version                                           | Server time | CPU-s | Rows read | Peak memory |
-| ------------------------------------------------- | ----------- | ----- | --------- | ----------- |
+| Version                                                            | Server time | CPU-s | Rows read | Peak memory |
+| ------------------------------------------------------------------ | ----------- | ----- | --------- | ----------- |
 | Latest day by `max(computed_at) OVER (PARTITION BY day)` (shipped) | 0.31 s      | 0.34  | 0.46 M    | 65 MiB      |
-| Latest day by `(day, computed_at) IN (…)`         | 0.34 s      | 0.27  | 0.92 M    | 29 MiB      |
+| Latest day by `(day, computed_at) IN (…)`                          | 0.34 s      | 0.27  | 0.92 M    | 29 MiB      |
 
 The shipped form reads `test_cost` once per reference of `latest` (two:
 `label_machines` and `test_rows`) instead of twice each; the difference in
