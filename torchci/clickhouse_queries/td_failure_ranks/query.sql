@@ -1,19 +1,25 @@
--- Where TD ranked the test files that failed, from its record of each failure
--- (td_test_failure_stats_v2: the file's 0-based position among the job's n selected tests). TD
--- keeps positions 0..cut, cut = 25 * n // 100. Deduped per (head sha, config, test file) at the
--- lowest position; config = 'workflow / job-name prefix before " / test (" / test config' from
--- workflow_job.name (the metric's build_environment differs from it for nested workflows).
---   * trunk_new: TD's shadow ranking on main, where it runs everything but still ranks
---     HEAD^..HEAD: heads of single-commit pushes, so the landed PR's own diff. Kept when new (at
---     the push's `before` every shard of the config reported and the file did not fail) and
---     confirmed (it fails again at the first of the next three main heads where the config
---     reported, or in two run attempts at the head). rank_pct = 100 * position / n.
---   * pr_order: PR runs (pull_request, ciflow tags), inside the cut. A PR job stops at its first
---     failing file, so this shows ordering only. rank_pct = 100 * position / (cut + 1).
--- Grains: 'hist' (per population and rank-percent bucket), 'total' (one per population, also on
--- an empty window), 'miss' (the newest 100 trunk_new failures outside the cut). Columns that do
--- not apply are 0 or empty; landed_at is 1970 outside 'miss'. The window ends at most now and
--- spans at most the metric's 90-day TTL. main_pushes is read three times (about 0.5 s each).
+-- Would TD's cut have caught each breakage on its PR? From TD's shadow ranking on main: on a main
+-- push TD runs everything but still ranks HEAD^..HEAD and records every failing test file's
+-- 0-based position among the job's n selected tests (td_test_failure_stats_v2). TD keeps
+-- positions 0..cut, cut = 25 * n // 100. Only heads of single-commit pushes are used, so the
+-- ranking is the landed PR's own diff.
+--
+-- A failure (head sha, config, test file; lowest position across jobs) counts when it is new: at
+-- the push's `before` every shard of the config reported (success, or failure with failing tests;
+-- a crashed shard leaves its files unknown) and the file did not fail; and confirmed: it fails
+-- again at the first of the next three main heads where the config reported, or in two run
+-- attempts at the head. config = 'workflow / job-name prefix before " / test (" / test config'
+-- from workflow_job.name (the metric's build_environment differs from it for nested workflows).
+--
+-- The unit is a landing: a PR goes red if any one of its failures runs, so a landing is caught
+-- when any failure is inside its own config's cut, and is represented by its best failure
+-- (inside the cut first, then lowest rank_pct = 100 * position / n). Grains: 'hist' (landings
+-- per rank-percent bucket), 'total' (always one row, also on an empty window; failures = the
+-- counted failures behind those landings), 'miss' (the newest 100 landings with no failure
+-- inside the cut). Columns that do not apply are 0 or empty; landed_at is 1970 outside 'miss'.
+-- The window ends at most now and spans at most the metric's 90-day TTL. main_runs is read four
+-- times and main_pushes three (about 0.5 s each). Measured 2026-11-04 single-threaded: 30 days
+-- cost about 6 s, 90 days 21-27 s, spent on the info JSON of main runs and the evidence lookups.
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
@@ -50,38 +56,43 @@ main_pushes AS (
     )
 ),
 
+-- Main push runs of TD workflows with TD failure records in the window. Filtering the metric on
+-- these runs first means its large info column is only read where it is needed.
+main_runs AS (
+    SELECT
+        id,
+        head_sha
+    FROM default.workflow_run
+    WHERE
+        id IN (
+            SELECT run_id
+            FROM misc.ossci_uploaded_metrics
+            WHERE
+                metric_name = 'td_test_failure_stats_v2'
+                AND timestamp >= window_start
+                AND timestamp < window_end
+                AND pr_number = 0
+                AND (
+                    has({tdWorkflows: Array(String)}, workflow)
+                    OR arrayExists(
+                        w -> startsWith(workflow, w),
+                        {tdWorkflowPrefixes: Array(String)}
+                    )
+                )
+        )
+        AND event = 'push'
+        AND head_branch = 'main'
+        AND head_repository.full_name = 'pytorch/pytorch'
+),
+
 evidence_shas AS (
     SELECT arrayJoin(role_shas) AS sha
     FROM main_pushes
-    WHERE
-        n_commits = 1
-        AND head_sha IN (
-            SELECT head_sha FROM default.workflow_run
-            WHERE
-                id IN (
-                    SELECT run_id
-                    FROM misc.ossci_uploaded_metrics
-                    WHERE
-                        metric_name = 'td_test_failure_stats_v2'
-                        AND timestamp >= window_start
-                        AND timestamp < window_end
-                        AND pr_number = 0
-                        AND (
-                            has({tdWorkflows: Array(String)}, workflow)
-                            OR arrayExists(
-                                w -> startsWith(workflow, w),
-                                {tdWorkflowPrefixes: Array(String)}
-                            )
-                        )
-                )
-                AND event = 'push'
-                AND head_branch = 'main'
-                AND head_repository.full_name = 'pytorch/pytorch'
-        )
+    WHERE n_commits = 1 AND head_sha IN (SELECT head_sha FROM main_runs)
 ),
 
--- Per (sha, config): did every shard report in some attempt (success, or failure with failing
--- tests; a crashed shard leaves its files unknown), and which files failed in which attempt.
+-- Per (sha, config): did every shard report in some attempt, and which files failed (failure or
+-- error, not rerun-only) in which attempt.
 evidence AS (
     SELECT
         j.head_sha AS sha,
@@ -146,32 +157,19 @@ evidence AS (
     GROUP BY sha, config
 ),
 
--- One row per TD failure record, joined to its job and run. The metric's workflow filter only
--- prunes the scan of its large info column; the job's workflow decides.
-failure_rows AS (
+-- Each TD failure record of a single-commit main push head, deduped per (sha, config, file).
+candidates AS (
     SELECT
         j.head_sha AS sha,
         j.config AS config,
         m.test_file AS test_file,
-        m.pos AS pos,
-        m.n AS n,
-        m.run_attempt AS run_attempt,
-        intDiv(25 * m.n, 100) AS cut,
-        multiIf(
-            r.is_main AND p.n_commits = 1, 'trunk_new',
-            r.is_pr AND m.pos <= cut, 'pr_order',
-            ''
-        ) AS population,
-        p.pushed_at AS landed_at,
-        if(
-            population = 'trunk_new',
-            arrayZip(range(length(p.role_shas)), p.role_shas),
-            [(0, '')]
-        ) AS roles
+        argMin((m.pos, intDiv(25 * m.n, 100), m.n), m.pos) AS best,
+        groupUniqArray(m.run_attempt) AS attempts,
+        any(p.pushed_at) AS landed_at,
+        arrayZip(range(length(any(p.role_shas))), any(p.role_shas)) AS roles
     FROM (
         SELECT
             job_id,
-            run_id,
             run_attempt,
             JSONExtract(
                 info,
@@ -182,18 +180,12 @@ failure_rows AS (
             length(tupleElement(t, 1)) AS n,
             tupleElement(t, 4) AS max_score
         FROM misc.ossci_uploaded_metrics
-        WHERE
+        PREWHERE
             metric_name = 'td_test_failure_stats_v2'
             AND timestamp >= window_start
             AND timestamp < window_end
-            AND repo = 'pytorch/pytorch'
-            AND (
-                has({tdWorkflows: Array(String)}, workflow)
-                OR arrayExists(
-                    w -> startsWith(workflow, w),
-                    {tdWorkflowPrefixes: Array(String)}
-                )
-            )
+            AND run_id IN (SELECT id FROM main_runs)
+        WHERE repo = 'pytorch/pytorch'
     ) AS m
     INNER JOIN (
         SELECT
@@ -211,6 +203,7 @@ failure_rows AS (
                     metric_name = 'td_test_failure_stats_v2'
                     AND timestamp >= window_start
                     AND timestamp < window_end
+                    AND run_id IN (SELECT id FROM main_runs)
             )
         WHERE
             position(name, ' / test (') > 0
@@ -226,64 +219,21 @@ failure_rows AS (
             )
         LIMIT 1 BY id
     ) AS j ON m.job_id = j.id
-    INNER JOIN (
-        SELECT
-            id,
-            event = 'push'
-            AND head_branch = 'main'
-            AND head_repository.full_name = 'pytorch/pytorch' AS is_main,
-            event = 'pull_request' OR head_branch LIKE 'ciflow/%' AS is_pr
-        FROM default.workflow_run
-        WHERE
-            id IN (
-                SELECT run_id FROM misc.ossci_uploaded_metrics
-                WHERE
-                    metric_name = 'td_test_failure_stats_v2'
-                    AND timestamp >= window_start
-                    AND timestamp < window_end
-            )
-        LIMIT 1 BY id
-    ) AS r ON m.run_id = r.id
-    LEFT JOIN main_pushes AS p ON j.head_sha = p.head_sha
-    WHERE m.max_score > 0 AND m.n > 0 AND population != ''
+    INNER JOIN main_pushes AS p ON j.head_sha = p.head_sha
+    WHERE m.max_score > 0 AND m.n > 0 AND p.n_commits = 1
+    GROUP BY sha, config, test_file
 ),
 
-candidates AS (
+-- Candidates that are new and confirmed, from the evidence at every role sha.
+failures AS (
     SELECT
-        population,
-        sha,
-        config,
-        test_file,
-        argMin((pos, cut, n), pos) AS best,
-        groupUniqArray(run_attempt) AS attempts,
-        any(landed_at) AS cand_landed_at,
-        any(roles) AS cand_roles
-    FROM failure_rows
-    GROUP BY population, sha, config, test_file
-),
-
--- Each candidate with the evidence at every role sha. A trunk_new candidate is kept when it is
--- new and confirmed; a pr_order candidate (one role, no sha) always.
-verdicts AS (
-    SELECT
-        c.population AS population,
         c.sha AS sha,
         c.config AS config,
         c.test_file AS test_file,
-        any(c.cand_landed_at) AS landed_at,
+        any(c.landed_at) AS landed_at,
         tupleElement(any(c.best), 1) AS pos,
         tupleElement(any(c.best), 2) AS cut,
-        if(
-            population = 'trunk_new',
-            100 * pos / tupleElement(any(c.best), 3),
-            100 * pos / (cut + 1)
-        ) AS rank_pct,
-        pos <= cut AS inside,
-        if(
-            population = 'trunk_new',
-            intDiv(cut, 2) < pos AND pos <= cut,
-            rank_pct >= 50
-        ) AS second,
+        100 * pos / tupleElement(any(c.best), 3) AS rank_pct,
         maxIf(
             e.completed
             AND NOT has(arrayMap(x -> tupleElement(x, 1), e.fails), test_file),
@@ -310,72 +260,71 @@ verdicts AS (
     FROM (
         SELECT
             *,
-            arrayJoin(cand_roles) AS role_sha,
+            arrayJoin(roles) AS role_sha,
             tupleElement(role_sha, 1) AS role,
             tupleElement(role_sha, 2) AS ev_sha
         FROM candidates
     ) AS c
     LEFT JOIN evidence AS e ON c.ev_sha = e.sha AND c.config = e.config
-    GROUP BY c.population, c.sha, c.config, c.test_file
+    GROUP BY c.sha, c.config, c.test_file
     HAVING
-        population = 'pr_order'
-        OR (
-            before_ok
-            AND (failed_attempts >= 2 OR tupleElement(nexts[1], 2))
-        )
+        before_ok AND (failed_attempts >= 2 OR tupleElement(nexts[1], 2))
+),
+
+landings AS (
+    SELECT
+        sha,
+        any(landed_at) AS landed_at,
+        count() AS n_failures,
+        argMin((pos, rank_pct, cut, config, test_file), (pos > cut, rank_pct))
+            AS best,
+        tupleElement(best, 1) <= tupleElement(best, 3) AS inside,
+        intDiv(tupleElement(best, 3), 2) < tupleElement(best, 1) AND inside
+            AS second,
+        tupleElement(best, 2) AS best_rank_pct,
+        least(99, toUInt8(floor(best_rank_pct))) AS bucket
+    FROM failures
+    GROUP BY sha
 ),
 
 totals AS (
     SELECT
-        population,
         bucket,
         grouping(bucket) = 1 AS is_total,
-        countIf(NOT dummy) AS n_failures,
-        countIf(NOT dummy AND inside) AS n_inside,
-        countIf(NOT dummy AND second) AS n_second,
-        ifNotFinite(
-            quantileExactInclusiveIf(0.5) (rank_pct, NOT dummy), 0
-        ) AS median_rank,
+        count() AS n_landings,
+        countIf(inside) AS n_inside,
+        countIf(second) AS n_second,
+        ifNotFinite(quantileExactInclusive(0.5) (best_rank_pct), 0)
+            AS median_rank,
+        sum(n_failures) AS n_failures,
         arraySlice(
             arrayReverseSort(groupArrayIf(
-                miss_row,
-                NOT dummy AND NOT inside AND population = 'trunk_new'
+                (
+                    'miss',
+                    landed_at,
+                    sha,
+                    tupleElement(best, 4),
+                    tupleElement(best, 5),
+                    best_rank_pct
+                ),
+                NOT inside
             )),
             1,
             100
         ) AS misses
-    FROM (
-        SELECT
-            population,
-            ('miss', landed_at, sha, config, test_file, rank_pct) AS miss_row,
-            rank_pct,
-            inside,
-            second,
-            false AS dummy,
-            least(99, toUInt8(floor(rank_pct))) AS bucket
-        FROM verdicts
-        UNION ALL
-        -- One placeholder per population, so both total rows exist on any window.
-        SELECT
-            arrayJoin(['trunk_new', 'pr_order']) AS population,
-            ('miss', toDateTime64(0, 3), '', '', '', 0.) AS miss_row,
-            0. AS rank_pct,
-            false AS inside,
-            false AS second,
-            true AS dummy,
-            toUInt8(0) AS bucket
-    )
-    GROUP BY GROUPING SETS ((population, bucket), (population))
+    FROM landings
+    -- On empty input the () grouping set still returns its row.
+    GROUP BY GROUPING SETS ((bucket), ())
 )
 
 SELECT
     tupleElement(out_row, 1) AS grain,
-    population,
     if(grain = 'hist', bucket, 0) AS bucket_pct,
-    if(grain = 'miss', 0, n_failures) AS failures,
+    if(grain = 'miss', 0, n_landings) AS landings,
     if(grain = 'total', n_inside, 0) AS inside_cut,
     if(grain = 'total', n_second, 0) AS second_half,
     if(grain = 'total', median_rank, 0) AS median_pct,
+    if(grain = 'total', n_failures, 0) AS failures,
     tupleElement(out_row, 2) AS landed_at,
     tupleElement(out_row, 3) AS sha,
     tupleElement(out_row, 4) AS config,
@@ -394,7 +343,6 @@ FROM (
             )
         ) AS out_row
     FROM totals
-    WHERE is_total OR n_failures > 0
 )
-ORDER BY grain, population, bucket_pct, landed_at DESC, sha, config, test_file
+ORDER BY grain, bucket_pct, landed_at DESC, sha
 SETTINGS max_execution_time = 60

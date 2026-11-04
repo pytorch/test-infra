@@ -74,12 +74,12 @@ classes AS (
             || '(nosignal|ignoredsignal|landrace|weird|ghfirst|autorevert)'
         ) AS revert_class
     FROM default.issue_comment
+    PREWHERE id IN (SELECT comment_id FROM revs)
     WHERE
         issue_url IN (
             SELECT concat('https://api.github.com/repos/pytorch/pytorch/issues/', toString(comment_pr))
             FROM revs
         )
-        AND id IN (SELECT comment_id FROM revs)
     GROUP BY id
 ),
 
@@ -214,8 +214,9 @@ state_arr AS (
             = uniqExact(j.name) AS completed,
             groupUniqArrayIf(tuple(f.test_file, j.run_id, j.run_attempt), f.test_file != '' AND j.conclusion = 'failure')
                 AS fails,
-            groupUniqArrayIf(tuple(f.test_file, f.file, f.classname, f.name), f.test_file != '' AND j.conclusion = 'failure')
-                AS cases,
+            groupUniqArrayIf(
+                tuple(f.test_file, f.file, f.classname, f.name, f.invoking_file), f.test_file != '' AND j.conclusion = 'failure'
+            ) AS cases,
             groupUniqArray(tuple(j.id, j.name, j.status = 'completed' AND j.conclusion = 'success', toDate(j.created_at)))
                 AS shards
         FROM (
@@ -233,9 +234,9 @@ state_arr AS (
                     trimBoth(splitByChar(',', splitByString(' / test (', name)[2])[1])
                 ) AS config
             FROM default.workflow_job
+            PREWHERE id IN (SELECT arrayJoin((SELECT ids FROM ids_arr)))
             WHERE
-                id IN (SELECT arrayJoin((SELECT ids FROM ids_arr)))
-                AND startsWith(dynamoKey, 'pytorch/pytorch/')
+                startsWith(dynamoKey, 'pytorch/pytorch/')
                 AND (
                     workflow_name IN {tdWorkflows: Array(String)}
                     OR arrayExists(w -> startsWith(workflow_name, w), {tdWorkflowPrefixes: Array(String)})
@@ -243,7 +244,7 @@ state_arr AS (
                 AND position(name, ' / test (') > 0
         ) AS j
         LEFT JOIN (
-            SELECT job_id, replaceAll(invoking_file, '.', '/') AS test_file, file, classname, name
+            SELECT job_id, replaceAll(invoking_file, '.', '/') AS test_file, invoking_file, file, classname, name
             FROM default.failed_test_runs
             WHERE
                 job_id IN (SELECT arrayJoin((SELECT ids FROM ids_arr)))
@@ -253,15 +254,16 @@ state_arr AS (
     )
 ),
 
--- Breaking tests: (landing, config, file, failing cases, landed_at).
+-- Breaking tests: (landing, config, file, failing cases, landed_at, [(PR, shards at its head)]).
 brk_arr AS (
     SELECT groupArray(t) AS brk
     FROM (
         SELECT arrayJoin(arrayMap(
             f -> tuple(
                 landing_sha, config, f,
-                arrayDistinct(arrayMap(x -> (x.2, x.3, x.4), arrayFilter(x -> x.1 = f, l.5))),
-                landed_at
+                arrayDistinct(arrayMap(x -> (x.2, x.3, x.4, x.5), arrayFilter(x -> x.1 = f, l.5))),
+                landed_at,
+                arrayMap(x -> (x.2, x.6), arrayFilter(x -> x.1 = 'P', sts))
             ),
             arrayFilter(
                 f -> b.3 AND NOT has(b.4.1, f) AND NOT (rv.3 AND has(rv.4.1, f))
@@ -274,55 +276,59 @@ brk_arr AS (
                 r.landing_sha AS landing_sha,
                 r.landed_at AS landed_at,
                 s.config AS config,
-                groupArray(tuple(r.role, r.ord, s.completed, s.fails, s.cases)) AS sts,
+                groupArray(tuple(r.role, r.ord, s.completed, s.fails, s.cases, s.shards)) AS sts,
                 arrayFilter(x -> x.1 = 'L', sts)[1] AS l,
                 arrayFilter(x -> x.1 = 'B', sts)[1] AS b,
                 arrayFilter(x -> x.1 = 'R', sts)[1] AS rv,
                 arraySort(x -> x.2, arrayFilter(x -> x.1 = 'N' AND x.3, sts))[1] AS n
             FROM roles AS r
             INNER JOIN (
-                SELECT y.1 AS sha, y.2 AS config, y.3 AS completed, y.4 AS fails, y.5 AS cases
+                SELECT y.1 AS sha, y.2 AS config, y.3 AS completed, y.4 AS fails, y.5 AS cases, y.6 AS shards
                 FROM (SELECT arrayJoin((SELECT st FROM state_arr)) AS y)
             ) AS s ON s.sha = r.sha
-            WHERE r.role != 'P'
             GROUP BY landing_sha, landed_at, config
         )
     )
 ),
 
--- Shards of every breaking config at each reverted PR's head.
 pr_jobs AS (
-    SELECT b.landing_sha AS landing_sha, p.ord AS pr, b.config AS config, arrayJoin(s.shards) AS j
-    FROM (
-        SELECT DISTINCT x.1 AS landing_sha, x.2 AS config
-        FROM (SELECT arrayJoin((SELECT brk FROM brk_arr)) AS x)
-    ) AS b
-    INNER JOIN (SELECT landing_sha, ord, sha FROM roles WHERE role = 'P') AS p ON p.landing_sha = b.landing_sha
-    INNER JOIN (
-        SELECT y.1 AS sha, y.2 AS config, y.6 AS shards FROM (SELECT arrayJoin((SELECT st FROM state_arr)) AS y)
-    ) AS s ON s.sha = p.sha AND s.config = b.config
+    SELECT DISTINCT b.1 AS landing_sha, b.2 AS config, pe.1 AS pr, arrayJoin(pe.2) AS j
+    FROM (SELECT b, arrayJoin(b.6) AS pe FROM (SELECT arrayJoin((SELECT brk FROM brk_arr)) AS b))
 ),
 
--- Files each PR job ran. tests.all_test_runs is only read by (job_id, day): the partition and
--- the sort key both prune, where a time range over months costs a minute.
-pr_files AS (
-    SELECT job_id, groupUniqArray(replaceAll(invoking_file, '.', '/')) AS files
+-- tests.all_test_runs is read only through its partition day and sort key: (job, day) for
+-- whether a PR job has any test rows, and (job, case, file, day) for whether a failing case of the
+-- breaking file ran in it. Reading every test row of every PR job instead costs ~20 ms a job.
+pr_rows AS (
+    SELECT DISTINCT job_id
     FROM tests.all_test_runs
     WHERE (job_id, toDate(time_inserted)) IN (SELECT j.1, arrayJoin([j.4, j.4 + 1]) FROM pr_jobs)
-    GROUP BY job_id
+),
+
+pr_seen AS (
+    SELECT DISTINCT job_id, replaceAll(invoking_file, '.', '/') AS test_file
+    FROM tests.all_test_runs
+    WHERE (job_id, name, classname, invoking_file, toDate(time_inserted)) IN (
+        SELECT j.1, c.3, c.2, c.4, arrayJoin([j.4, j.4 + 1])
+        FROM (
+            SELECT arrayJoin(b.4) AS c, arrayJoin(pe.2) AS j
+            FROM (SELECT b, arrayJoin(b.6) AS pe FROM (SELECT arrayJoin((SELECT brk FROM brk_arr)) AS b))
+        )
+    )
 ),
 
 pr_cfg AS (
-    SELECT landing_sha, pr, config, min(shard_ok) AS all_green, arrayDistinct(arrayFlatten(groupArray(shard_files))) AS files
+    SELECT landing_sha, pr, config, min(shard_ok) AS all_green, groupUniqArrayArray(shard_files) AS files
     FROM (
         SELECT
             pj.landing_sha AS landing_sha,
             pj.pr AS pr,
             pj.config AS config,
-            argMax(pj.j.3 AND notEmpty(pf.files), (pj.j.1, pj.j.3)) AS shard_ok,
-            arrayDistinct(arrayFlatten(groupArray(pf.files))) AS shard_files
+            argMax(pj.j.3 AND rw.job_id != 0, (pj.j.1, pj.j.3)) AS shard_ok,
+            groupUniqArrayIf(ps.test_file, ps.job_id != 0) AS shard_files
         FROM pr_jobs AS pj
-        LEFT JOIN pr_files AS pf ON pf.job_id = pj.j.1
+        LEFT JOIN pr_rows AS rw ON rw.job_id = pj.j.1
+        LEFT JOIN pr_seen AS ps ON ps.job_id = pj.j.1
         GROUP BY landing_sha, pr, config, pj.j.2
     )
     GROUP BY landing_sha, pr, config

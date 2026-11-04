@@ -2,28 +2,20 @@
   "params": {
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
-    "tdWorkflows": "Array(String)",
-    "tdWorkflowPrefixes": "Array(String)",
     "noTdBuildMarkers": "Array(String)"
   },
   "defaults": {
-    "tdWorkflows": ["pull", "trunk"],
-    "tdWorkflowPrefixes": ["rocm-", "periodic-rocm-"],
     "noTdBuildMarkers": ["macos", "xpu", "onnx"]
   },
   "tests": [
     {
-      "startTime": "2026-10-08T00:00:00.000",
+      "startTime": "2026-10-19T00:00:00.000",
       "stopTime": "2026-11-02T00:00:00.000",
-      "tdWorkflows": ["pull", "trunk"],
-      "tdWorkflowPrefixes": ["rocm-", "periodic-rocm-"],
       "noTdBuildMarkers": ["macos", "xpu", "onnx"]
     },
     {
       "startTime": "2026-11-02T00:00:00.000",
-      "stopTime": "2026-10-08T00:00:00.000",
-      "tdWorkflows": ["pull", "trunk"],
-      "tdWorkflowPrefixes": ["rocm-", "periodic-rocm-"],
+      "stopTime": "2026-10-19T00:00:00.000",
       "noTdBuildMarkers": ["macos", "xpu", "onnx"]
     }
   ]

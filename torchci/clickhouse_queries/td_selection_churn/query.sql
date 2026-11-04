@@ -1,5 +1,5 @@
 -- How much TD's picks change between consecutive pushes of the same pytorch/pytorch PR. For each
--- (PR, config, head sha) of a PR run (pull_request event or ciflow tag push) of a TD workflow:
+-- (PR, config, head sha) of a `pull` run (pull_request event or ciflow tag push):
 -- the set of test files that ran across all shards (test_run_summary), only when the latest
 -- attempt of every shard concluded success and reported test files. A set counts as TD-on when it
 -- holds at most half the median file count of that config's green sets on main pushes in the
@@ -12,11 +12,11 @@
 -- 'workflow / job-name prefix before " / test (" / test config'. Files are compared by hash.
 -- Jobs are read up to a day after the window, so a re-run started later is not seen. Rows: one
 -- per day of the later run's creation, and a total row that is always present. The window ends
--- at most now and spans at most test_run_summary's 30-day TTL. Every CTE is read once.
+-- at most now and spans at most 14 days (test_run_summary's TTL is 30). Every CTE is read once.
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
-    {startTime: DateTime64(3)}, window_end - INTERVAL 30 DAY
+    {startTime: DateTime64(3)}, window_end - INTERVAL 14 DAY
 ) AS window_start,
 
 runs AS (
@@ -38,12 +38,7 @@ runs AS (
             WHERE created_at >= window_start AND created_at < window_end
         )
         AND startsWith(dynamoKey, 'pytorch/pytorch/')
-        AND (
-            has({tdWorkflows: Array(String)}, name)
-            OR arrayExists(
-                w -> startsWith(name, w), {tdWorkflowPrefixes: Array(String)}
-            )
-        )
+        AND name = 'pull'
         AND (
             event = 'pull_request'
             OR head_branch LIKE 'ciflow/%'
@@ -95,13 +90,7 @@ green_jobs AS (
                 AND startsWith(dynamoKey, 'pytorch/pytorch/')
                 AND status = 'completed'
                 AND position(name, ' / test (') > 0
-                AND (
-                    has({tdWorkflows: Array(String)}, workflow_name)
-                    OR arrayExists(
-                        w -> startsWith(workflow_name, w),
-                        {tdWorkflowPrefixes: Array(String)}
-                    )
-                )
+                AND workflow_name = 'pull'
                 AND NOT arrayExists(
                     x -> position(name, x) > 0,
                     {noTdBuildMarkers: Array(String)}
@@ -143,13 +132,7 @@ green_sets AS (
                             created_at >= window_start
                             AND created_at < window_end
                     )
-                    AND (
-                        has({tdWorkflows: Array(String)}, name)
-                        OR arrayExists(
-                            w -> startsWith(name, w),
-                            {tdWorkflowPrefixes: Array(String)}
-                        )
-                    )
+                    AND name = 'pull'
                     AND (
                         event = 'pull_request'
                         OR head_branch LIKE 'ciflow/%'

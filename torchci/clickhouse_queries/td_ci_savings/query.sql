@@ -14,7 +14,9 @@
 -- On empty input the () grouping set still returns its row, so the total row is always present.
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
-greatest({startTime: DateTime64(3)}, window_end - INTERVAL 90 DAY) AS window_start
+greatest(
+    {startTime: DateTime64(3)}, window_end - INTERVAL 90 DAY
+) AS window_start
 
 SELECT
     multiIf(
@@ -28,8 +30,8 @@ SELECT
     countIf(NOT matched) AS unmatched_jobs,
     sumIf(dur, matched) / 3600 AS pr_hours,
     sumIf(main_mean, matched) / 3600 AS est_full_hours,
-    ifNotFinite(quantileExactIf(0.5)(dur, matched) / 60, 0) AS pr_median_min,
-    ifNotFinite(quantileExactIf(0.5)(main_median, matched) / 60, 0) AS full_median_min
+    ifNotFinite(medianExactIf(dur, matched) / 60, 0) AS pr_median_min,
+    ifNotFinite(medianExactIf(main_median, matched) / 60, 0) AS full_median_min
 FROM (
     SELECT
         job_config,
@@ -44,7 +46,7 @@ FROM (
             job_config,
             countIf(is_main) AS main_jobs,
             avgIf(dur, is_main) AS main_mean,
-            quantileExactIf(0.5)(dur, is_main) AS main_median,
+            medianExactIf(dur, is_main) AS main_median,
             groupArrayIf((toDate(started_at), dur), is_pr) AS pr_jobs
         FROM (
             SELECT
@@ -55,11 +57,18 @@ FROM (
                 concat(
                     workflow_name, ' / ', name_parts[1], ' / test (',
                     arrayStringConcat(
-                        arrayFilter((x, i) -> i != 4, test_args, arrayEnumerate(test_args)), ', '
+                        arrayFilter(
+                            (x, i) -> i != 4,
+                            test_args,
+                            arrayEnumerate(test_args)
+                        ),
+                        ', '
                     ),
                     ')'
                 ) AS job_key,
-                concat(workflow_name, ' / ', name_parts[1], ' / ', test_args[1]) AS job_config,
+                concat(
+                    workflow_name, ' / ', name_parts[1], ' / ', test_args[1]
+                ) AS job_config,
                 dictGet(
                     'default.workflow_events_dict', 'event',
                     dictGet('default.workflow_run_dict', 'event_hash', run_id)
@@ -69,7 +78,8 @@ FROM (
                     SELECT id FROM default.workflow_run
                     WHERE
                         id IN (
-                            SELECT id FROM materialized_views.workflow_run_by_created_at
+                            SELECT id
+                            FROM materialized_views.workflow_run_by_created_at
                             WHERE
                                 created_at >= window_start - INTERVAL 7 DAY
                                 AND created_at < window_end
@@ -89,10 +99,14 @@ FROM (
                 AND (
                     has({tdWorkflows: Array(String)}, workflow_name)
                     OR arrayExists(
-                        p -> startsWith(workflow_name, p), {tdWorkflowPrefixes: Array(String)}
+                        p -> startsWith(workflow_name, p),
+                        {tdWorkflowPrefixes: Array(String)}
                     )
                 )
-                AND NOT arrayExists(m -> position(name, m) > 0, {noTdBuildMarkers: Array(String)})
+                AND NOT arrayExists(
+                    m -> position(name, m) > 0,
+                    {noTdBuildMarkers: Array(String)}
+                )
             LIMIT 1 BY id
         )
         WHERE is_pr OR is_main

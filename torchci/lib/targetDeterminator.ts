@@ -20,7 +20,7 @@ export const HORIZON_DAYS = {
   savings: 90,
   breakages: 90,
   ranks: 90,
-  stability: 30,
+  stability: 14,
 };
 
 export const TD_QUERIES = {
@@ -104,8 +104,8 @@ export interface BreakageRow {
 
 export interface RankRow {
   grain: "hist" | "total" | "miss";
-  population: "trunk_new" | "pr_order";
   bucket_pct: ChNum;
+  landings: ChNum;
   failures: ChNum;
   inside_cut: ChNum;
   second_half: ChNum;
@@ -251,20 +251,20 @@ export interface CurvePoint {
   share: number;
 }
 
-// Point x is the share of failures ranked in the top x% of TD's list, so the
-// curve starts at (0, 0) and reaches (100, 1).
+// Point x is the share of landings whose best-ranked new failure sits in the
+// top x% of TD's list, so the curve starts at (0, 0) and reaches (100, 1).
 export function recallCurve(rows: RankRow[]): CurvePoint[] {
   const perBucket = new Array(100).fill(0);
   for (const row of rows) {
-    if (row.grain !== "hist" || row.population !== "trunk_new") {
+    if (row.grain !== "hist") {
       continue;
     }
     const bucket = num(row.bucket_pct);
-    const failures = num(row.failures);
-    if (bucket === null || failures === null || bucket < 0 || bucket > 99) {
+    const landings = num(row.landings);
+    if (bucket === null || landings === null || bucket < 0 || bucket > 99) {
       continue;
     }
-    perBucket[Math.floor(bucket)] += failures;
+    perBucket[Math.floor(bucket)] += landings;
   }
   const total = perBucket.reduce((sum, n) => sum + n, 0);
   if (total === 0) {
@@ -272,8 +272,8 @@ export function recallCurve(rows: RankRow[]): CurvePoint[] {
   }
   const points: CurvePoint[] = [{ pct: 0, share: 0 }];
   let running = 0;
-  perBucket.forEach((failures, bucket) => {
-    running += failures;
+  perBucket.forEach((landings, bucket) => {
+    running += landings;
     points.push({ pct: bucket + 1, share: running / total });
   });
   return points;

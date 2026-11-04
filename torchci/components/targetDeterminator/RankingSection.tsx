@@ -20,13 +20,19 @@ import {
   totalError,
   totalRow,
   useTdQuery,
+  wilsonInterval,
 } from "lib/targetDeterminator";
 import { useMemo } from "react";
 import { CHART_HEIGHT, TablePaper, TdPanel, TdSection } from "./TdPanel";
 
 const MISS_COLUMNS: GridColDef[] = [
   { field: "landed_at", headerName: "Landed (UTC)", width: 160 },
-  { field: "test_file", headerName: "Test file", flex: 1, minWidth: 260 },
+  {
+    field: "test_file",
+    headerName: "Best-ranked failing test file",
+    flex: 1,
+    minWidth: 260,
+  },
   { field: "config", headerName: "Job config", flex: 1, minWidth: 260 },
   {
     field: "rank_pct",
@@ -55,7 +61,7 @@ const MISS_COLUMNS: GridColDef[] = [
 
 function curveOption(points: CurvePoint[]): EChartsOption {
   return {
-    title: { text: "Share of new trunk failures inside TD's top N%" },
+    title: { text: "Share of trunk breakages TD would catch at each cut" },
     grid: { top: 60, right: 32, bottom: 48, left: 56 },
     tooltip: {
       trigger: "axis",
@@ -65,7 +71,7 @@ function curveOption(points: CurvePoint[]): EChartsOption {
       type: "value",
       min: 0,
       max: 100,
-      name: "Top N% of TD's ranking",
+      name: "Tests run: top N% of TD's ranking",
       nameLocation: "middle",
       nameGap: 28,
       axisLabel: { formatter: "{value}%" },
@@ -78,7 +84,7 @@ function curveOption(points: CurvePoint[]): EChartsOption {
     },
     series: [
       {
-        name: "Failures inside the top N%",
+        name: "Breakages caught inside the top N%",
         type: "line",
         showSymbol: false,
         data: points.map((point) => [point.pct, point.share * 100]),
@@ -101,28 +107,27 @@ export default function RankingSection({
 }) {
   const theme = useTheme();
   const ranks = useTdQuery<RankRow>(TD_QUERIES.ranks, params);
-  const trunk = totalRow(ranks.rows, (row) => row.population === "trunk_new");
-  const prOrder = totalRow(ranks.rows, (row) => row.population === "pr_order");
-  const trunkError = totalError(TD_QUERIES.ranks, ranks, trunk);
-  const prError = totalError(TD_QUERIES.ranks, ranks, prOrder);
-  const failures = num(trunk?.failures) ?? 0;
-  const insideCut = num(trunk?.inside_cut) ?? 0;
-  const secondHalf = num(trunk?.second_half) ?? 0;
-  const prFailures = num(prOrder?.failures) ?? 0;
-  const prMedian = num(prOrder?.median_pct);
+  const total = totalRow(ranks.rows);
+  const error = totalError(TD_QUERIES.ranks, ranks, total);
+  const landings = num(total?.landings) ?? 0;
+  const insideCut = num(total?.inside_cut) ?? 0;
+  const secondHalf = num(total?.second_half) ?? 0;
+  const failures = num(total?.failures) ?? 0;
+  const interval = wilsonInterval(insideCut, landings);
 
   const points = useMemo(() => recallCurve(ranks.rows), [ranks.rows]);
   const misses = useMemo(
     () =>
       ranks.rows
         .filter((row) => row.grain === "miss")
-        .map((row, i) => ({
-          ...row,
-          id: `${row.sha}-${row.config}-${row.test_file}-${i}`,
-        })),
+        .map((row, i) => ({ ...row, id: `${row.sha}-${i}` })),
     [ranks.rows]
   );
-  const noFailures = "No new trunk failures with a TD ranking in this window.";
+  const noLandings = "No trunk breakages with a TD ranking in this window.";
+  const sample =
+    landings === 0
+      ? ""
+      : ` A small sample: ${landings.toLocaleString()} landings, ${failures.toLocaleString()} failing tests.`;
 
   return (
     <TdSection
@@ -131,66 +136,52 @@ export default function RankingSection({
       horizonDays={HORIZON_DAYS.ranks}
       intro={
         "TD ranks every test by how likely it is to fail and runs the top " +
-        `${TD_CUT_PCT}% on PRs. Main runs every test, so a new failure on ` +
-        "main shows where TD had ranked the failing test: if TD had run on " +
-        "that trunk commit, would the test have been inside its cut?"
+        `${TD_CUT_PCT}% on PRs. Main runs every test, so when a landed PR ` +
+        "breaks tests on main we can see where TD had ranked them: if TD had " +
+        "run on that trunk commit, would it have caught the breakage? A " +
+        "landing counts as caught when any one of its failing tests is inside " +
+        "the cut, and a landing that broke many tests counts once."
       }
     >
       <Grid size={TILE_SPAN}>
         <QualityTile
-          label={`New trunk failures inside TD's ${TD_CUT_PCT}% cut`}
+          label="Trunk breakages TD would have caught"
           loading={ranks.loading}
-          error={trunkError}
-          value={fractionText(ratio(insideCut, failures))}
+          error={error}
+          value={fractionText(ratio(insideCut, landings))}
           sub={
-            failures === 0
-              ? noFailures
-              : `${insideCut.toLocaleString()} of ${failures.toLocaleString()} failures, if TD had run on those trunk commits.`
+            landings === 0
+              ? noLandings
+              : `${insideCut.toLocaleString()} of ${landings.toLocaleString()} landings, if TD had run on those trunk commits (95% interval ${fractionText(
+                  interval?.low ?? null
+                )} to ${fractionText(interval?.high ?? null)}).${sample}`
           }
-          caveat="Failing test files on single-commit main pushes, confirmed by a second failing run and passing just before the push, ranked by TD against the push's own diff. A trend for comparing TD changes, not PR recall: failures TD catches on PRs never reach main, and the ranking on main lacks the PR-only signals."
+          caveat="Single-commit main pushes that newly broke tests: failing in two main runs and not failing just before the push. Each is ranked by TD against the push's own diff. A trend for comparing TD changes, not PR recall: breakages TD catches on PRs never reach main, and the ranking on main lacks the PR-only signals."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
         <QualityTile
-          label="Caught by the second half of TD's picks"
+          label="Caught only by the second half of TD's picks"
           loading={ranks.loading}
-          error={trunkError}
-          value={fractionText(ratio(secondHalf, failures))}
+          error={error}
+          value={fractionText(ratio(secondHalf, landings))}
           sub={
-            failures === 0
-              ? noFailures
-              : `${secondHalf.toLocaleString()} of ${failures.toLocaleString()} new trunk failures ranked between the top ${
+            landings === 0
+              ? noLandings
+              : `${secondHalf.toLocaleString()} of ${landings.toLocaleString()} landings had their best-ranked failing test between the top ${
                   TD_CUT_PCT / 2
                 }% and the top ${TD_CUT_PCT}%: what the last half of TD's test budget buys.`
           }
-          caveat="Same failures as the tile before. A small share means TD could run fewer tests and still catch most failures; a large one means the budget matters."
-        />
-      </Grid>
-      <Grid size={TILE_SPAN}>
-        <QualityTile
-          label="How early TD runs a failing test on PRs"
-          loading={ranks.loading}
-          error={prError}
-          value={
-            prMedian === null || prFailures === 0
-              ? "-"
-              : `top ${prMedian.toFixed(0)}%`
-          }
-          sub={
-            prFailures === 0
-              ? "No failing PR jobs with TD on in this window."
-              : `Median position of the first failing test within TD's picks, over ${prFailures.toLocaleString()} failing PR jobs.`
-          }
-          caveat="Lower is better: the failing test runs earlier and the contributor sees red sooner. Only the first failure of each job counts, because a PR job stops at its first failing test file."
+          caveat="Same landings as the tile before. A small share means TD could run fewer tests and still catch most breakages; a large one means the budget matters."
         />
       </Grid>
       <Grid size={{ xs: 12, lg: 6 }} height={CHART_HEIGHT}>
         <TdPanel
-          title="Share of new trunk failures inside TD's top N%"
+          title="Share of trunk breakages TD would catch at each cut"
           height={CHART_HEIGHT}
           loading={ranks.loading}
           error={ranks.error}
-          emptyText={points.length === 0 ? noFailures : undefined}
+          emptyText={points.length === 0 ? noLandings : undefined}
         >
           <Paper elevation={3} sx={{ p: 2, height: CHART_HEIGHT }}>
             <ReactECharts
@@ -204,20 +195,20 @@ export default function RankingSection({
       </Grid>
       <Grid size={{ xs: 12, lg: 6 }} height={CHART_HEIGHT}>
         <TdPanel
-          title="New trunk failures outside TD's cut"
+          title="Trunk breakages outside TD's cut"
           height={CHART_HEIGHT}
           loading={ranks.loading}
           error={ranks.error}
           emptyText={
             misses.length === 0
-              ? "No new trunk failures outside TD's cut in this window."
+              ? "No trunk breakages outside TD's cut in this window."
               : undefined
           }
         >
           <TablePaper height={CHART_HEIGHT}>
             <TablePanelWithData
-              title={`New trunk failures outside TD's cut: newest ${misses.length.toLocaleString()} of ${(
-                failures - insideCut
+              title={`Trunk breakages outside TD's cut: newest ${misses.length.toLocaleString()} of ${(
+                landings - insideCut
               ).toLocaleString()}`}
               data={misses}
               columns={MISS_COLUMNS}

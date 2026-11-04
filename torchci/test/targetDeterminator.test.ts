@@ -72,16 +72,12 @@ function breakageTotal(partial: Partial<BreakageRow>): BreakageRow {
   };
 }
 
-function hist(
-  bucket: number,
-  failures: number | string,
-  population = "trunk_new"
-): RankRow {
+function hist(bucket: number, landings: number | string): RankRow {
   return {
     grain: "hist",
-    population: population as RankRow["population"],
     bucket_pct: bucket,
-    failures,
+    landings,
+    failures: 0,
     inside_cut: 0,
     second_half: 0,
     median_pct: null,
@@ -195,13 +191,13 @@ describe("breakageStats", () => {
 });
 
 describe("recallCurve", () => {
-  it("accumulates the trunk_new histogram into a 0-100 curve", () => {
+  it("accumulates the per-landing histogram into a 0-100 curve", () => {
     const curve = recallCurve([
       hist(0, "2"),
       hist(10, 1),
       hist(30, 1),
-      hist(0, 50, "pr_order"),
       { ...hist(5, 9), grain: "total" },
+      { ...hist(7, 9), grain: "miss" },
     ]);
     expect(curve).toHaveLength(101);
     expect(curve[0]).toEqual({ pct: 0, share: 0 });
@@ -213,7 +209,7 @@ describe("recallCurve", () => {
     expect(curve[100]).toEqual({ pct: 100, share: 1 });
   });
 
-  it("is empty without failures and ignores out-of-range buckets", () => {
+  it("is empty without landings and ignores out-of-range buckets", () => {
     expect(recallCurve([])).toEqual([]);
     expect(recallCurve([hist(4, 0)])).toEqual([]);
     expect(recallCurve([hist(100, 3), hist(-1, 3)])).toEqual([]);
@@ -304,12 +300,21 @@ describe("readTdQuery", () => {
   });
 });
 
-const COMMON_PARAMS: Record<string, string> = {
+const SCOPE_PARAMS = ["tdWorkflows", "tdWorkflowPrefixes", "noTdBuildMarkers"];
+const WINDOW_PARAMS = ["startTime", "stopTime"];
+
+const PARAM_TYPES: Record<string, string> = {
   startTime: "DateTime64(3)",
   stopTime: "DateTime64(3)",
   tdWorkflows: "Array(String)",
   tdWorkflowPrefixes: "Array(String)",
   noTdBuildMarkers: "Array(String)",
+};
+
+const PAGE_DEFAULTS: Record<string, unknown> = {
+  ...TD_SCOPE,
+  revertWindowDays: REVERT_WINDOW_DAYS,
+  newTestDays: NEW_TEST_DAYS,
 };
 
 const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
@@ -325,7 +330,7 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "pr_median_min",
       "full_median_min",
     ],
-    params: [],
+    params: [...WINDOW_PARAMS, ...SCOPE_PARAMS],
   },
   [TD_QUERIES.pushWait]: {
     columns: [
@@ -338,7 +343,7 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "hours_per_push",
       "est_hours_per_push",
     ],
-    params: [],
+    params: [...WINDOW_PARAMS, ...SCOPE_PARAMS],
   },
   [TD_QUERIES.breakages]: {
     columns: [
@@ -367,13 +372,18 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "other_reverts",
       "ghfirst_reverts",
     ],
-    params: ["revertWindowDays", "newTestDays"],
+    params: [
+      ...WINDOW_PARAMS,
+      ...SCOPE_PARAMS,
+      "revertWindowDays",
+      "newTestDays",
+    ],
   },
   [TD_QUERIES.ranks]: {
     columns: [
       "grain",
-      "population",
       "bucket_pct",
+      "landings",
       "failures",
       "inside_cut",
       "second_half",
@@ -384,7 +394,7 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "test_file",
       "rank_pct",
     ],
-    params: [],
+    params: [...WINDOW_PARAMS, ...SCOPE_PARAMS],
   },
   [TD_QUERIES.churn]: {
     columns: [
@@ -395,7 +405,7 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "changed_median_pct",
       "prs",
     ],
-    params: [],
+    params: [...WINDOW_PARAMS, "noTdBuildMarkers"],
   },
 };
 
@@ -423,21 +433,16 @@ describe.each(Object.entries(CONTRACTS))("%s contract", (name, contract) => {
   it("takes the page's parameters, with defaults equal to the page's", () => {
     const json = JSON.parse(read("params.json"));
     expect(Object.keys(json.params).sort()).toEqual(
-      [...Object.keys(COMMON_PARAMS), ...contract.params].sort()
+      [...contract.params].sort()
     );
-    for (const [key, type] of Object.entries(COMMON_PARAMS)) {
-      expect([key, json.params[key]]).toEqual([key, type]);
-    }
     const defaults = json.defaults ?? {};
-    for (const [key, value] of Object.entries(TD_SCOPE)) {
-      expect([key, defaults[key]]).toEqual([key, value]);
-    }
-    const expectedDays: Record<string, number> = {
-      revertWindowDays: REVERT_WINDOW_DAYS,
-      newTestDays: NEW_TEST_DAYS,
-    };
     for (const key of contract.params) {
-      expect([key, defaults[key]]).toEqual([key, expectedDays[key]]);
+      if (key in PARAM_TYPES) {
+        expect([key, json.params[key]]).toEqual([key, PARAM_TYPES[key]]);
+      }
+      if (key in PAGE_DEFAULTS) {
+        expect([key, defaults[key]]).toEqual([key, PAGE_DEFAULTS[key]]);
+      }
     }
   });
 });

@@ -38,7 +38,11 @@ export default function StabilitySection({
   params: Record<string, unknown>;
   windowDays: number;
 }) {
-  const churn = useTdQuery<ChurnRow>(TD_QUERIES.churn, params);
+  const churn = useTdQuery<ChurnRow>(TD_QUERIES.churn, {
+    startTime: params.startTime,
+    stopTime: params.stopTime,
+    noTdBuildMarkers: params.noTdBuildMarkers,
+  });
   const total = totalRow(churn.rows);
   const error = totalError(TD_QUERIES.churn, churn, total);
   const pairs = num(total?.pairs) ?? 0;
@@ -55,7 +59,8 @@ export default function StabilitySection({
       intro={
         "When a contributor pushes again to the same PR, does TD run the same " +
         "tests? A changed diff is expected to change the picks; large swings " +
-        "on small updates make CI results harder to compare between pushes."
+        "on small updates make CI results harder to compare between pushes. " +
+        "Measured on the pull workflow."
       }
     >
       <Grid size={TILE_SPAN}>
