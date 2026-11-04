@@ -8,3 +8,4 @@ tqdm
 python-dotenv
 PyYAML
 PyGithub==2.9.0
+numpy

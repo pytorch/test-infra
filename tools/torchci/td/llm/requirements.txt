@@ -1,0 +1,7 @@
+# torch comes first, from the CPU index: requirements-torch.txt.
+sentence-transformers==6.2.0
+transformers==5.22.1
+huggingface_hub==2.4.0
+tokenizers==0.23.3
+safetensors==0.8.0
+numpy==2.5.4
