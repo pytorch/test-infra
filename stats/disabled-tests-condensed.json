@@ -159,6 +159,13 @@
       "linux"
     ]
   ],
+  "test_combo_kernel_fusion_within_same_stream (__main__.TestUserStreamCompile)": [
+    "187202",
+    "https://github.com/pytorch/pytorch/issues/187202",
+    [
+      "linux"
+    ]
+  ],
   "test_combo_kernel_per_config_subkernel_r0_r1 (__main__.ComboKernelTests)": [
     "198180",
     "https://github.com/pytorch/pytorch/issues/198180",
@@ -457,12 +464,27 @@
       "rocm"
     ]
   ],
+  "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195094",
+    "https://github.com/pytorch/pytorch/issues/195094",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_del_same_stream_no_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195553",
     "https://github.com/pytorch/pytorch/issues/195553",
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_del_subscr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195166",
+    "https://github.com/pytorch/pytorch/issues/195166",
+    [
+      "linux"
     ]
   ],
   "test_device_observations_track_current_device_under_coor_origin_factory (__main__.TestCompileOnOneRankDeviceAsParameter)": [
@@ -485,6 +507,7 @@
     "203138",
     "https://github.com/pytorch/pytorch/issues/203138",
     [
+      "linux",
       "rocm"
     ]
   ],
@@ -1254,6 +1277,14 @@
     "https://github.com/pytorch/pytorch/issues/194896",
     [
       "xpu"
+    ]
+  ],
+  "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_amp (__main__.DeterministicTest)": [
+    "203331",
+    "https://github.com/pytorch/pytorch/issues/203331",
+    [
+      "linux",
+      "slow"
     ]
   ],
   "test_run2run_determinism_model_name_BertForMaskedLM_training_or_inference_inference_precision_bfloat16 (__main__.DeterministicTest)": [
