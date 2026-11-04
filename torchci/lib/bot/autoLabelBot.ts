@@ -15,6 +15,11 @@ import {
   getLabelsNeededByFiles,
 } from "./labelerConfigUtils";
 import {
+  CIFLOW_LABELS_KEPT_PER_PR,
+  GHSTACK_CI_BELOW_LIMIT,
+  GHSTACK_CI_BELOW_LIMIT_EXEMPT_LABEL,
+} from "./mergeCiflowLabels";
+import {
   addLabels,
   CachedIssueTracker,
   CachedLabelerConfigTracker,
@@ -506,21 +511,9 @@ export async function wasLabelRecentlyRemoved(
   );
 }
 
-// pytorch's merge bot requires the docker-builds run (ciflow/docker) on the
-// topmost landing PR that changes .ci/docker. The label's labeler globs are
-// broader than .ci/docker, so moving it up the stack can leave that PR without
-// the run and make the merge bot refuse the merge.
-const CIFLOW_LABELS_KEPT_PER_PR = ["ciflow/docker"];
-
 // ghstack fills a new PR's listing in seconds after opening it; a listing
 // still pending after this long is treated as no stack.
 const PENDING_GHSTACK_LISTING_WINDOW_MS = 10 * 60 * 1000;
-
-// pytorch's .github/scripts/filter_test_configs.py fails every CI workflow on
-// a ghstack PR with this many or more rows below it in its listing, unless the
-// PR carries the exempt label, so a ciflow run there tests nothing below it.
-const GHSTACK_CI_BELOW_LIMIT = 10;
-const GHSTACK_CI_BELOW_LIMIT_EXEMPT_LABEL = "ciflow/trunk";
 
 // A ciflow label's run on a PR tests every PR below it in its stack, so a PR
 // is covered for a label when an open PR above it, containing the PR's
@@ -539,6 +532,11 @@ async function getCoveredCiflowLabels(
   labelerConfig: Record<string, unknown>,
   ciflowLabels: string[]
 ): Promise<{ pending: boolean; covered: string[] }> {
+  // Only pytorch/pytorch's merge command labels the stack again at merge
+  // (mergeCiflowLabels.ts); elsewhere every PR keeps its ciflow labels.
+  if (!isPyTorchPyTorch(owner, repo)) {
+    return { pending: false, covered: [] };
+  }
   const above = await getOpenStackPrs(
     octokit,
     owner,
