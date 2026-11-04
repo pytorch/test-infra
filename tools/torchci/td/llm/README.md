@@ -158,7 +158,7 @@ per-PR recall at 25% on the E2 failures the PR's diff does not edit, with paired
 intervals (seed 0, 10,000 resamples) over PRs:
 
 1. corpus (on Qwen3-Embedding-0.6B): `skeleton` unless `skeleton+functions` is superior
-   (the interval's lower bound > 0) and not worse on E1;
+   (the interval's lower bound > 0), not worse on E1, and within rule 4's gates;
 2. aggregation: `max` unless `mean` is superior by the same rule;
 3. query instruction: with, unless without is superior;
 4. model, from the registry's smallest by committed size: a bigger model replaces the
@@ -216,7 +216,7 @@ Then, on Qwen3-Embedding-0.6B, the alternatives the first rules compare:
 
 ```bash
 ... run ... --models qwen3-0.6b --with-functions
-... run ... --models qwen3-0.6b --no-instruction    # plus --with-functions if it won
+... run ... --models qwen3-0.6b --no-instruction    # plus --with-functions if rule 1 picked it
 ```
 
 If rule 1 or 3 picks functions or no instruction, rerun all models with those flags so rule

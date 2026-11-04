@@ -262,6 +262,17 @@ def decide(
         )
         if settings is None:
             return d
+        cost = all_costs.get(settings.corpus, {}).get(BASE_MODEL)
+        if (
+            settings.corpus != CORPUS_NAMES[0]
+            and cost
+            and not all(gates(cost).values())
+        ):
+            d.lines.append(
+                f"   {settings.id(BASE_MODEL)} is outside the gates {gates(cost)}: "
+                f"keeping {CORPUS_NAMES[0]}."
+            )
+            settings = dataclasses.replace(settings, corpus=CORPUS_NAMES[0])
     assert settings is not None
     costs = all_costs.get(settings.corpus, {})
     best = d.model(settings, selection, confirmation, costs)

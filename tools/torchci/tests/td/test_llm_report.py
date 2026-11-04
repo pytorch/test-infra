@@ -229,6 +229,20 @@ class TestDecide(TestCase):
         )
         self.assertIsNone(report.decide(sel, conf, COSTS).frozen)
 
+    def test_a_corpus_outside_the_gates_keeps_the_skeleton(self) -> None:
+        sel, conf = full()
+        sel[cid(corpus=FUNCTIONS)] = metrics(0.7)
+        sel[cid(corpus=FUNCTIONS, agg="mean")] = metrics(0.9)
+        sel[cid(corpus=FUNCTIONS, agg="mean", inst=False)] = metrics(0.9)
+        slow = {SMALL: cost(1.2, tokens=6 * 10**6)}
+        d = report.decide(sel, conf, {**COSTS, FUNCTIONS: slow})
+        self.assertEqual(d.frozen, cid())
+        self.assertIn("outside the gates", d.lines[1])
+        self.assertIn(f"keeping {SKELETON}", d.lines[1])
+        fast = {SMALL: cost(1.2)}
+        d = report.decide(sel, conf, {**COSTS, FUNCTIONS: fast})
+        self.assertEqual(d.frozen, cid(corpus=FUNCTIONS, agg="mean"))
+
     def test_base_config_missing(self) -> None:
         d = report.decide({}, {}, COSTS)
         self.assertEqual(d.verdict, report.DO_NOT_SWITCH_ON)
