@@ -46,6 +46,7 @@ class Job:
     start: float
     end: float
     name: str = "linux-jammy-py3.10 / test (default, 1, 1, linux.2xlarge)"
+    # The workflow file's name: the job's run is .github/workflows/<workflow>.yml.
     workflow: str = "pull"
     repo: str = REPO
     status: str = "completed"
@@ -86,6 +87,11 @@ class Scenario:
     retention_floor: str = "1970-01-01"
 
 
+def workflow_path(workflow: str) -> str:
+    """The default.workflow_run.path of a Job's run (one run per job)."""
+    return f".github/workflows/{workflow}.yml"
+
+
 def _ts(seconds: float) -> str:
     """A DateTime64(3) literal."""
     return (BASE + timedelta(seconds=seconds)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -120,8 +126,8 @@ def sources(scenario: Scenario) -> Dict[str, str]:
     jobs = [
         (
             j.id,
+            j.id,
             j.repo,
-            j.workflow,
             list(j.labels),
             j.name,
             j.status,
@@ -148,15 +154,19 @@ def sources(scenario: Scenario) -> Dict[str, str]:
         runs.append(
             (r.job, report, test_ids[key], r.env, r.outcome, _ts(r.start), _ts(r.end))
         )
+    workflow_runs = {j.id: workflow_path(j.workflow) for j in scenario.jobs}
     owners = [(REPO, f, o) for f, o in scenario.owners.items()]
     return {
         "workflow_job": _values(
-            "id Int64, repository_full_name String, workflow_name String, labels Array(String), "
+            "id Int64, run_id Int64, repository_full_name String, labels Array(String), "
             "name String, status String, "
             "conclusion String, runner_name String, created_at DateTime, started_at DateTime, "
             "completed_at DateTime, _inserted_at DateTime64(3)",
             jobs,
-            (0, "", "", [], "", "", "", "", _ts_s(0), _ts_s(0), _ts_s(0), _ts(0)),
+            (0, 0, "", [], "", "", "", "", _ts_s(0), _ts_s(0), _ts_s(0), _ts(0)),
+        ),
+        "workflow_run": _values(
+            "id Int64, path String", sorted(workflow_runs.items()), (0, "")
         ),
         "runs": _values(
             "github_workflow_job_id Int64, report_uuid UUID, tests_id UInt64, environments_id UInt64, "
@@ -182,12 +192,13 @@ REWRITES = [
         "toDate('{retention_floor}')",
         1,
     ),
-    ("FROM default.workflow_job\n", "FROM ({workflow_job})\n", 1),
+    ("FROM default.workflow_job\n", "FROM ({workflow_job})\n", 2),
+    ("FROM default.workflow_run\n", "FROM ({workflow_run})\n", 1),
     ("FROM ci.runs AS r FINAL\n", "FROM ({runs}) AS r\n", 1),
     ("FROM ci.tests FINAL)", "FROM ({tests}))", 1),
     ("FROM ci.owners FINAL\n", "FROM ({owners})\n", 1),
-    ("today() - 3", "toDate('{day_from}')", 2),
-    ("today() + 1", "toDate('{day_to}')", 2),
+    ("today() - 3", "toDate('{day_from}')", 3),
+    ("today() + 1", "toDate('{day_to}')", 3),
 ]
 
 
@@ -227,22 +238,22 @@ def view_query(scenario: Scenario) -> str:
     file, module, environment), without computed_at."""
     return (
         "SELECT * EXCEPT computed_at FROM (\n" + scenario_sql(scenario) + "\n)\n"
-        "ORDER BY workflow_name, test_file, test_module, environments_id\n"
+        "ORDER BY workflow_path, test_file, test_module, environments_id\n"
         "SETTINGS join_use_nulls = 0, max_threads = 2, max_execution_time = 120\n"
         "FORMAT JSONEachRow"
     )
 
 
 def run_scenario(scenario: Scenario) -> List[dict]:
-    """test_cost rows the view would write for this scenario; seconds as
-    floats."""
+    """test_cost rows the view would write for this scenario; times as
+    integer milliseconds."""
     executor = migrate.Http("default")
     executor.url += f"&max_query_size={MAX_QUERY_SIZE}"
     rows = migrate.rows_of(executor, view_query(scenario))
     for row in rows:
         for key, value in row.items():
-            if key.endswith("_seconds"):
-                row[key] = float(value)
+            if key.endswith("_milliseconds"):
+                row[key] = int(value)
         row["environments_id"] = int(row["environments_id"])
     return rows
 

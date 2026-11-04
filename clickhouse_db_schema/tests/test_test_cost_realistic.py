@@ -30,17 +30,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import test_cost_harness as harness  # noqa: E402
 from reference import counted_jobs, expected_rows  # noqa: E402
-from test_cost_harness import BASE, Job, Run, Scenario  # noqa: E402
+from test_cost_harness import BASE, Job, Run, Scenario, workflow_path  # noqa: E402
 
 
-TOLERANCE = 1e-6  # seconds
+# Milliseconds: the view and the reference each round a row once.
+TOLERANCE = 1
 MAX_SQL_BYTES = 2_000_000
 MEASURES = (
-    "executed_test_seconds",
-    "skipped_test_seconds",
-    "held_seconds",
-    "occupancy_runner_seconds",
-    "test_ratio_runner_seconds",
+    "executed_test_milliseconds",
+    "skipped_test_milliseconds",
+    "held_milliseconds",
+    "occupancy_runner_milliseconds",
+    "test_ratio_runner_milliseconds",
 )
 FIXTURE = (
     Path(__file__).resolve().parent / "fixtures" / "test_cost_job_125496836738.json"
@@ -307,11 +308,11 @@ class RealisticCase(harness.ClickHouseTestCase):
             return (
                 row["day"],
                 row["repo"],
-                row["workflow_name"],
+                row["workflow_path"],
                 row["test_file"],
                 row["test_module"],
                 row["environments_id"],
-                row["runner_labels"],
+                tuple(row["runner_labels"]),
             )
 
         got_by_key, want_by_key = {key(r): r for r in got}, {key(r): r for r in want}
@@ -325,19 +326,18 @@ class RealisticCase(harness.ClickHouseTestCase):
                 self.assertAlmostEqual(
                     g[column], w[column], delta=TOLERANCE, msg=f"{column} of {k}"
                 )
-            self.assertEqual(
-                g["owners_snapshot"], w["owners_snapshot"], f"owners of {k}"
-            )
+            self.assertEqual(g["owners"], w["owners"], f"owners of {k}")
 
         # Both attributions hand out exactly the wall time of the jobs that
         # got rows (test jobs, and any job with test reports).
         jobs_with_rows = self.jobs_with_rows(scenario)
-        wall = sum(round(j.end) - round(j.start) for j in jobs_with_rows)
+        wall = 1000 * sum(round(j.end) - round(j.start) for j in jobs_with_rows)
+        slack = 0.5 * len(got) + 1e-6  # each row rounds by at most 0.5 ms
         self.assertAlmostEqual(
-            sum(r["occupancy_runner_seconds"] for r in got), wall, delta=TOLERANCE
+            sum(r["occupancy_runner_milliseconds"] for r in got), wall, delta=slack
         )
         self.assertAlmostEqual(
-            sum(r["test_ratio_runner_seconds"] for r in got), wall, delta=TOLERANCE
+            sum(r["test_ratio_runner_milliseconds"] for r in got), wall, delta=slack
         )
 
         # Held time adds up to each job's busy time (the union of its spans),
@@ -348,13 +348,13 @@ class RealisticCase(harness.ClickHouseTestCase):
                 busy_by_job.get(job.id, 0) / 1000, round(job.end) - round(job.start)
             )
         self.assertAlmostEqual(
-            sum(r["held_seconds"] for r in got),
-            sum(busy_by_job.values()) / 1000,
-            delta=TOLERANCE,
+            sum(r["held_milliseconds"] for r in got),
+            sum(busy_by_job.values()),
+            delta=slack,
         )
         for r in got:
             self.assertLessEqual(
-                r["held_seconds"], r["occupancy_runner_seconds"] + TOLERANCE
+                r["held_milliseconds"], r["occupancy_runner_milliseconds"]
             )
         print(
             f"\n  {self.id().rsplit('.', 1)[-1]}: {len(scenario.jobs)} jobs, {total_runs} runs, "
@@ -486,8 +486,10 @@ class TestRealisticShards(RealisticCase):
         jobs.append(docs)
         runs += docs_runs
         rows = self.check(Scenario(jobs, runs, OWNERS))
-        files = {(r["workflow_name"], r["test_file"]) for r in rows}
-        self.assertIn(("pull", ""), files)  # the test job without reports
+        files = {(r["workflow_path"], r["test_file"]) for r in rows}
+        self.assertIn(
+            (workflow_path("pull"), ""), files
+        )  # the test job without reports
         self.assertTrue(any(r["test_module"] == "ModuleTest" for r in rows))
         self.assertEqual(len(runs), sum(1 for _ in runs))
 
@@ -569,7 +571,12 @@ class TestRealisticShards(RealisticCase):
 
         rows = self.check(Scenario(jobs, runs, OWNERS))
         self.assertNotIn(
-            "", {r["test_file"] for r in rows if r["workflow_name"] == "trunk"}
+            "",
+            {
+                r["test_file"]
+                for r in rows
+                if r["workflow_path"] == workflow_path("trunk")
+            },
         )
 
     def test_seeded_mixtures(self):

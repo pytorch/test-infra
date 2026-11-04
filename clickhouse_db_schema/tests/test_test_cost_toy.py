@@ -25,8 +25,15 @@ LINT = "lint / lintrunner"
 
 class ToyCase(ClickHouseTestCase):
     def assertRow(self, row, **expected):
+        """Times are given in seconds, as the timelines are drawn, and compared
+        with the stored milliseconds to within the 0.5 ms a row rounds by."""
         for key, value in expected.items():
-            if isinstance(value, float):
+            if key.endswith("_seconds"):
+                column = key[: -len("seconds")] + "milliseconds"
+                self.assertAlmostEqual(
+                    row[column], value * 1000, delta=0.5 + 1e-6, msg=column
+                )
+            elif isinstance(value, float):
                 self.assertAlmostEqual(row[key], value, places=6, msg=key)
             else:
                 self.assertEqual(row[key], value, msg=key)
@@ -34,18 +41,20 @@ class ToyCase(ClickHouseTestCase):
     def assertInvariants(self, rows, wall, busy):
         """Both attributions add up to the included jobs' wall time; held time
         adds up to the busy time (union of spans); no row holds more than it
-        is charged."""
-        self.assertAlmostEqual(
-            sum(r["occupancy_runner_seconds"] for r in rows), wall, places=6
-        )
-        self.assertAlmostEqual(
-            sum(r["test_ratio_runner_seconds"] for r in rows), wall, places=6
-        )
-        self.assertAlmostEqual(sum(r["held_seconds"] for r in rows), busy, places=6)
+        is charged. Each row rounds by at most 0.5 ms."""
+        slack = 0.5 * len(rows) + 1e-6
+        for column, seconds in (
+            ("occupancy_runner_milliseconds", wall),
+            ("test_ratio_runner_milliseconds", wall),
+            ("held_milliseconds", busy),
+        ):
+            self.assertAlmostEqual(
+                sum(r[column] for r in rows), seconds * 1000, delta=slack, msg=column
+            )
         self.assertLessEqual(busy, wall)
         for r in rows:
             self.assertGreaterEqual(
-                r["occupancy_runner_seconds"] + 1e-9, r["held_seconds"]
+                r["occupancy_runner_milliseconds"], r["held_milliseconds"]
             )
 
 
@@ -85,7 +94,7 @@ class Occupancy(ToyCase):
             executed_test_seconds=60.0,
             occupancy_runner_seconds=50.0,
             test_ratio_runner_seconds=50.0,
-            owners_snapshot=["nn"],
+            owners=["nn"],
         )
         self.assertRow(
             r["test_ops.py"],
@@ -513,7 +522,7 @@ class Cpp(ToyCase):
                 executed_test_seconds=20.0,
                 occupancy_runner_seconds=10.0,
                 test_ratio_runner_seconds=10.0,
-                owners_snapshot=["cpp"],
+                owners=["cpp"],
             )
         self.assertInvariants(rows, wall=20, busy=20)
 
@@ -662,7 +671,7 @@ class Jobs(ToyCase):
             r[""],
             test_module="",
             environments_id=0,
-            owners_snapshot=[],
+            owners=[],
             held_seconds=0.0,
             executed_test_seconds=0.0,
             skipped_test_seconds=0.0,
@@ -679,15 +688,15 @@ class Jobs(ToyCase):
         self.assertInvariants(rows, wall=120, busy=10)
 
     def test_runner_labels_split_rows(self):
-        """Every row carries its jobs' runner labels, sorted and comma-joined (so
-        their order in a workflow file does not matter): the same file
+        """Every row carries its jobs' runner labels, sorted (so their order in
+        a workflow file does not matter): the same file
         on the same environment splits by label, and test jobs without reports
         get one row per label set.
 
             job 1  linux.2xlarge             a.py 0-30
             job 2  lf.linux.2xlarge          a.py 0-60
             job 3  linux.idc.xpu             no reports, 0-40
-            job 4  self-hosted, linux.g5     no reports, 0-20 (stored linux.g5,self-hosted)
+            job 4  self-hosted, linux.g5     no reports, 0-20 (stored [linux.g5, self-hosted])
         """
         rows = run_view(
             [
@@ -698,7 +707,7 @@ class Jobs(ToyCase):
             ],
             [Run(1, "A", "a.py", 0, 30), Run(2, "A", "a.py", 0, 60)],
         )
-        got = {(r["test_file"], r["runner_labels"]): r for r in rows}
+        got = {(r["test_file"], ",".join(r["runner_labels"])): r for r in rows}
         self.assertEqual(
             sorted(got),
             [
@@ -819,7 +828,8 @@ class Jobs(ToyCase):
                 Run(4, "A", "a.py", 0, 7),
             ],
         )
-        got = {(r["workflow_name"], r["environments_id"]): r for r in rows}
+        # The workflow file's name, without .github/workflows/ and .yml.
+        got = {(r["workflow_path"][18:-4], r["environments_id"]): r for r in rows}
         self.assertEqual(sorted(got), [("pull", 1), ("pull", 2), ("trunk", 1)])
         self.assertRow(
             got[("pull", 1)],
@@ -864,7 +874,7 @@ class Jobs(ToyCase):
 
 class Owners(ToyCase):
     def test_owner_snapshots(self):
-        """owners_snapshot is the file's owners when computed: both owners of a
+        """owners is the file's owners when computed: both owners of a
         file with two, empty for a file with none, and a C++ module falls
         back to its binary's owners.
 
@@ -882,9 +892,9 @@ class Owners(ToyCase):
             owners={"a.py": ["nn", "cuda"], "cpp/test_api": ["cpp"]},
         )
         r = by_file(rows)
-        self.assertEqual(sorted(r["a.py"]["owners_snapshot"]), ["cuda", "nn"])
-        self.assertEqual(r["b.py"]["owners_snapshot"], [])
-        self.assertEqual(r["cpp/test_api::ModuleTest"]["owners_snapshot"], ["cpp"])
+        self.assertEqual(sorted(r["a.py"]["owners"]), ["cuda", "nn"])
+        self.assertEqual(r["b.py"]["owners"], [])
+        self.assertEqual(r["cpp/test_api::ModuleTest"]["owners"], ["cpp"])
         self.assertInvariants(rows, wall=30, busy=30)
 
 

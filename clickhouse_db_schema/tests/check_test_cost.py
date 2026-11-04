@@ -30,6 +30,7 @@ import migrate  # noqa: E402
 
 BOUNDS = "max_threads = 8, max_memory_usage = 8000000000, max_execution_time = 120"
 REL = 1e-9  # relative tolerance for float sums of the same seconds
+ROUNDING = 0.0005  # seconds: each stored row rounds to the millisecond
 TEST_JOB = r"'(?:^|/ )test \\('"  # cost API's test job pattern, as the view uses it
 
 
@@ -89,31 +90,42 @@ class Checker:
         rules (the view's), with whether each is a test job."""
         return f"""jobs AS (
         SELECT
-            id,
-            toDate(started_at) AS day,
-            lower(workflow_name) AS workflow_name,
-            match(name, {TEST_JOB}) AS is_test_job,
-            dateDiff('millisecond', started_at, completed_at) / 1000 AS wall,
-            toUnixTimestamp64Milli(toDateTime64(started_at, 3)) AS job_start,
-            toUnixTimestamp64Milli(toDateTime64(completed_at, 3)) AS job_end
+            j.id AS id,
+            toDate(j.started_at) AS day,
+            w.path AS workflow_path,
+            match(j.name, {TEST_JOB}) AS is_test_job,
+            dateDiff('millisecond', j.started_at, j.completed_at) / 1000 AS wall,
+            toUnixTimestamp64Milli(toDateTime64(j.started_at, 3)) AS job_start,
+            toUnixTimestamp64Milli(toDateTime64(j.completed_at, 3)) AS job_end
         FROM (
-            SELECT id, workflow_name, name, status, conclusion, runner_name, created_at, started_at, completed_at
+            SELECT id, run_id, name, status, conclusion, runner_name, created_at, started_at, completed_at
             FROM default.workflow_job
             WHERE repository_full_name = '{self.repo}'
                 AND started_at >= toDate('{self.d0}') AND started_at < toDate('{self.d1}') + 1{self.sample}
             ORDER BY _inserted_at DESC
             LIMIT 1 BY id
-        )
-        WHERE status = 'completed'
-            AND conclusion NOT IN ('skipped', '')
-            AND runner_name != ''
-            AND started_at >= created_at
-            AND dateDiff('second', started_at, completed_at) BETWEEN 0 AND 86400
+        ) AS j
+        LEFT JOIN (
+            SELECT id, any(path) AS path
+            FROM default.workflow_run
+            WHERE id IN (
+                SELECT run_id FROM default.workflow_job
+                WHERE repository_full_name = '{self.repo}'
+                    AND started_at >= toDate('{self.d0}') AND started_at < toDate('{self.d1}') + 1
+            )
+            GROUP BY id
+        ) AS w ON w.id = j.run_id
+        WHERE j.status = 'completed'
+            AND j.conclusion NOT IN ('skipped', '')
+            AND j.runner_name != ''
+            AND j.started_at >= j.created_at
+            AND dateDiff('second', j.started_at, j.completed_at) BETWEEN 0 AND 86400
     )"""
 
     @staticmethod
-    def close(a: float, b: float) -> bool:
-        return abs(a - b) <= REL * max(abs(a), abs(b), 1.0)
+    def close(a: float, b: float, rows: int = 0) -> bool:
+        """Equal but for float error and the rounding of rows rows."""
+        return abs(a - b) <= REL * max(abs(a), abs(b), 1.0) + ROUNDING * rows
 
     # ------------------------------------------------------------------ checks
 
@@ -161,24 +173,24 @@ ORDER BY day""")
 WITH {self.latest()}
 SELECT
     toString(day) AS d,
-    workflow_name,
+    workflow_path,
     count() AS rows,
-    sum(occupancy_runner_seconds) AS occupancy,
-    sum(test_ratio_runner_seconds) AS test_ratio,
-    sum(held_seconds) AS held,
-    sum(executed_test_seconds) AS executed,
-    sum(skipped_test_seconds) AS skipped,
-    sumIf(occupancy_runner_seconds, test_file = '') AS no_report,
-    countIf(held_seconds < 0 OR executed_test_seconds < 0 OR skipped_test_seconds < 0) AS negative_rows,
-    countIf(held_seconds > occupancy_runner_seconds + 1e-6) AS held_over_occupancy_rows,
-    countIf(test_file = '' AND (held_seconds != 0 OR executed_test_seconds != 0 OR skipped_test_seconds != 0
-        OR environments_id != 0)) AS bad_no_report_rows,
-    countIf(test_file != '' AND held_seconds = 0 AND executed_test_seconds = 0 AND skipped_test_seconds = 0)
+    sum(occupancy_runner_milliseconds) / 1000 AS occupancy,
+    sum(test_ratio_runner_milliseconds) / 1000 AS test_ratio,
+    sum(held_milliseconds) / 1000 AS held,
+    sum(executed_test_milliseconds) / 1000 AS executed,
+    sum(skipped_test_milliseconds) / 1000 AS skipped,
+    sumIf(occupancy_runner_milliseconds, test_file = '') / 1000 AS no_report,
+    countIf(held_milliseconds > occupancy_runner_milliseconds) AS held_over_occupancy_rows,
+    countIf(test_file = '' AND (held_milliseconds != 0 OR executed_test_milliseconds != 0
+        OR skipped_test_milliseconds != 0 OR environments_id != 0)) AS bad_no_report_rows,
+    countIf(test_file != '' AND held_milliseconds = 0 AND executed_test_milliseconds = 0
+        AND skipped_test_milliseconds = 0)
         AS empty_file_rows,
-    countIf(runner_labels = '') AS unlabeled_rows
+    countIf(empty(runner_labels)) AS unlabeled_rows
 FROM latest
-GROUP BY day, workflow_name
-ORDER BY day, workflow_name""")
+GROUP BY day, workflow_path
+ORDER BY day, workflow_path""")
 
     def source_sums(self) -> List[dict]:
         """Per (day, workflow), independently of the view: wall time of test
@@ -204,7 +216,7 @@ WITH
     )
 SELECT
     toString(day) AS d,
-    workflow_name,
+    workflow_path,
     sumIf(wall, is_test_job) AS test_job_wall,
     sumIf(wall, NOT is_test_job AND id IN (SELECT id FROM spanned)) AS other_reporting_wall,
     sumIf(wall, is_test_job AND id NOT IN (SELECT id FROM spanned)) AS no_report_wall,
@@ -212,9 +224,9 @@ SELECT
     countIf(NOT is_test_job AND id IN (SELECT id FROM spanned)) AS other_reporting_jobs,
     countIf(is_test_job AND id NOT IN (SELECT id FROM spanned)) AS no_report_jobs
 FROM jobs
-GROUP BY day, workflow_name
+GROUP BY day, workflow_path
 HAVING test_jobs > 0 OR other_reporting_jobs > 0
-ORDER BY day, workflow_name""")
+ORDER BY day, workflow_path""")
 
     def check_methods_agree(self, sums: List[dict]) -> None:
         """2. Occupancy and test-time ratio split the same wall time."""
@@ -226,7 +238,9 @@ ORDER BY day, workflow_name""")
         bad = [
             r
             for r in sums
-            if not self.close(float(r["occupancy"]), float(r["test_ratio"]))
+            if not self.close(
+                float(r["occupancy"]), float(r["test_ratio"]), int(r["rows"])
+            )
         ]
         occupancy = sum(float(r["occupancy"]) for r in sums)
         ratio = sum(float(r["test_ratio"]) for r in sums)
@@ -240,7 +254,7 @@ ORDER BY day, workflow_name""")
                 "2 methods agree",
                 text
                 + " | off: "
-                + ", ".join(f"{r['d']} {r['workflow_name']}" for r in bad[:5]),
+                + ", ".join(f"{r['d']} {r['workflow_path']}" for r in bad[:5]),
             )
         else:
             self.report(
@@ -252,8 +266,10 @@ ORDER BY day, workflow_name""")
     def check_totals(self, sums: List[dict], source: List[dict]) -> None:
         """3. Each day's total is the wall time of the jobs the view includes."""
         by_day: Dict[str, List[float]] = {}
+        rows_by_day: Dict[str, int] = {}
         for r in sums:
             by_day.setdefault(r["d"], [0.0, 0.0])[0] += float(r["occupancy"])
+            rows_by_day[r["d"]] = rows_by_day.get(r["d"], 0) + int(r["rows"])
         for r in source:
             by_day.setdefault(r["d"], [0.0, 0.0])[1] += float(
                 r["test_job_wall"]
@@ -264,17 +280,21 @@ ORDER BY day, workflow_name""")
             f"{d}: table {t:.3f} s vs jobs {s:.3f} s"
             for d, (t, s) in sorted(by_day.items())
         ]
-        bad = [d for d, (t, s) in by_day.items() if not self.close(t, s)]
+        bad = [
+            d
+            for d, (t, s) in by_day.items()
+            if not self.close(t, s, rows_by_day.get(d, 0))
+        ]
         text = " | ".join(parts) + (
             f" (jobs = test jobs + {other_jobs} other jobs with test reports, {others:.0f} s)"
         )
         if bad:
             gaps = {}
             table_w = {
-                (r["d"], r["workflow_name"]): float(r["occupancy"]) for r in sums
+                (r["d"], r["workflow_path"]): float(r["occupancy"]) for r in sums
             }
             for r in source:
-                key = (r["d"], r["workflow_name"])
+                key = (r["d"], r["workflow_path"])
                 gaps[key] = (
                     table_w.pop(key, 0.0)
                     - float(r["test_job_wall"])
@@ -297,7 +317,6 @@ ORDER BY day, workflow_name""")
         counts = {
             k: sum(int(r[k]) for r in sums)
             for k in (
-                "negative_rows",
                 "held_over_occupancy_rows",
                 "bad_no_report_rows",
                 "empty_file_rows",
@@ -312,7 +331,7 @@ ORDER BY day, workflow_name""")
         over_days = [d for d, (h, o) in day_held.items() if h > o * (1 + REL) + 1e-6]
         rows = sum(int(r["rows"]) for r in sums)
         text = (
-            f"{rows} rows: {counts['negative_rows']} negative, {counts['held_over_occupancy_rows']} with held > "
+            f"{rows} rows: {counts['held_over_occupancy_rows']} with held > "
             f"occupancy, {counts['bad_no_report_rows']} no-report rows with test time or a machine, "
             f"{counts['empty_file_rows']} file rows with no time, {counts['unlabeled_rows']} rows without "
             f"runner labels; days with held > occupancy: {over_days or 'none'}"
@@ -321,7 +340,6 @@ ORDER BY day, workflow_name""")
             any(
                 counts[k]
                 for k in (
-                    "negative_rows",
                     "held_over_occupancy_rows",
                     "bad_no_report_rows",
                     "unlabeled_rows",
@@ -336,12 +354,12 @@ ORDER BY day, workflow_name""")
     def check_no_report(self, sums: List[dict], source: List[dict]) -> None:
         """5. test_file '' rows are exactly the test jobs without test reports."""
         table_w = {
-            (r["d"], r["workflow_name"]): float(r["no_report"])
+            (r["d"], r["workflow_path"]): float(r["no_report"])
             for r in sums
             if float(r["no_report"])
         }
         source_w = {
-            (r["d"], r["workflow_name"]): float(r["no_report_wall"])
+            (r["d"], r["workflow_path"]): float(r["no_report_wall"])
             for r in source
             if float(r["no_report_wall"])
         }
@@ -381,7 +399,7 @@ ORDER BY day, workflow_name""")
             )
             return
         pick = min(candidates, key=lambda r: float(r["executed"]))
-        d, wf = pick["d"], pick["workflow_name"]
+        d, wf = pick["d"], pick["workflow_path"]
         jobs = self.jobs_cte().replace(f"toDate('{self.d0}')", f"toDate('{d}')")
         jobs = jobs.replace(f"toDate('{self.d1}') + 1", f"toDate('{d}') + 1")
         row = self.rows(f"""
@@ -391,7 +409,7 @@ SELECT
     sumIf(greatest(0, dateDiff('millisecond', started_at, ended_at)), outcome = 'skipped') / 1000 AS skipped,
     uniqExact(github_workflow_job_id) AS jobs
 FROM ci.runs
-WHERE github_workflow_job_id IN (SELECT id FROM jobs WHERE workflow_name = '{wf}')
+WHERE github_workflow_job_id IN (SELECT id FROM jobs WHERE workflow_path = '{wf}')
     AND toDate(started_at) >= toDate('{d}') AND toDate(started_at) <= toDate('{d}') + 1""")[
             0
         ]
@@ -413,15 +431,15 @@ WITH {self.latest()}
 SELECT
     countIf(test_file != '') AS file_rows,
     countIf(differs) AS differ_rows,
-    sumIf(occupancy_runner_seconds, differs) / 3600 AS differ_hours,
-    countIf(test_file != '' AND empty(owners_snapshot)) AS unowned_rows,
-    sumIf(occupancy_runner_seconds, test_file != '' AND empty(owners_snapshot)) / 3600 AS unowned_hours
+    sumIf(occupancy_runner_milliseconds, differs) / 3.6e6 AS differ_hours,
+    countIf(test_file != '' AND empty(owners)) AS unowned_rows,
+    sumIf(occupancy_runner_milliseconds, test_file != '' AND empty(owners)) / 3.6e6 AS unowned_hours
 FROM (
     SELECT
         t.test_file AS test_file,
-        t.owners_snapshot AS owners_snapshot,
-        t.occupancy_runner_seconds AS occupancy_runner_seconds,
-        t.test_file != '' AND arraySort(arrayMap(x -> toString(x), t.owners_snapshot)) != arraySort(o.owners) AS differs
+        t.owners AS owners,
+        t.occupancy_runner_milliseconds AS occupancy_runner_milliseconds,
+        t.test_file != '' AND arraySort(arrayMap(x -> toString(x), t.owners)) != arraySort(o.owners) AS differs
     FROM latest AS t
     LEFT JOIN (SELECT repo, file, owners FROM ci.owners FINAL) AS o ON o.repo = t.repo AND o.file = t.test_file
 )""")[0]

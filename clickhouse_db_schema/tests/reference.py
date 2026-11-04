@@ -13,7 +13,7 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import Dict, List, Optional, Sequence
 
-from test_cost_harness import BASE, Job, Run
+from test_cost_harness import BASE, Job, Run, workflow_path
 
 
 TEST_JOB_NAME = re.compile(r"(?:^|/ )test \(")
@@ -109,11 +109,11 @@ def expected_rows(
         key = (
             _day(round(job.start)),
             job.repo,
-            job.workflow.lower(),
+            workflow_path(job.workflow),
             file,
             module,
             env,
-            ",".join(sorted(job.labels)),
+            tuple(sorted(job.labels)),
         )
         for column, value in seconds.items():
             totals[key][column] += value
@@ -209,14 +209,17 @@ def expected_rows(
             {
                 "day": day,
                 "repo": repo,
-                "workflow_name": workflow,
+                "workflow_path": workflow,
                 "test_file": file,
                 "test_module": module,
                 "environments_id": env,
-                "runner_labels": labels,
-                "owners_snapshot": list(file_owners),
+                "runner_labels": list(labels),
+                "owners": list(file_owners),
+                # Whole milliseconds, each row rounded once, as the view stores them.
                 **{
-                    column: values[column]
+                    column[: -len("seconds")] + "milliseconds": round(
+                        values[column] * 1000
+                    )
                     for column in (
                         "executed_test_seconds",
                         "skipped_test_seconds",
