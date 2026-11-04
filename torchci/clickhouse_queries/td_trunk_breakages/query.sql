@@ -7,8 +7,9 @@
 -- completed (only the immediate next push is read); completed without failing it at the push's
 -- `before`; and does not fail at the last revert push when the config completed there.
 --
--- PR side: a file that failed at the PR head ran there. tests.all_test_runs is read only for
--- configs whose every shard was green at the PR head, since a job costs ~140 ms single-threaded
+-- PR side: only PR-head jobs created before the landing count, since a revert reopens the PR
+-- and re-runs CI on the same head. A file that failed there ran. tests.all_test_runs is read for
+-- configs whose every shard was green at the PR head only, since a job costs ~140 ms single-threaded
 -- (cold S3 granules); in a non-green config the pair is 'unknown'. A td_skipped candidate must
 -- have a failing case that ran in CI in the 3 days ending newTestDays before the landing, else
 -- 'new_test'. all_test_runs_by_name starts 2026-08-26 19:35, so earlier landings get 'new_test'.
@@ -169,7 +170,7 @@ ids_arr AS (
 ),
 
 -- Per (sha, shard-less config) of TD-workflow test jobs: every shard completed, failing
--- (file, run, attempt), failing cases, shards (id, name, success, day).
+-- (file, run, attempt, created), failing cases, shards (id, name, success, created).
 state_arr AS (
     SELECT groupArray(tuple(sha, config, completed, fails, cases, shards)) AS st
     FROM (
@@ -178,11 +179,13 @@ state_arr AS (
             j.config AS config,
             uniqExactIf(j.name, j.status = 'completed' AND j.conclusion IN ('success', 'failure'))
             = uniqExact(j.name) AS completed,
-            groupUniqArrayIf((f.test_file, j.run_id, j.run_attempt), f.test_file != '' AND j.conclusion = 'failure') AS fails,
+            groupUniqArrayIf(
+                (f.test_file, j.run_id, j.run_attempt, j.created_at), f.test_file != '' AND j.conclusion = 'failure'
+            ) AS fails,
             groupUniqArrayIf(
                 (f.test_file, f.file, f.classname, f.name, f.invoking_file), f.test_file != '' AND j.conclusion = 'failure'
             ) AS cases,
-            groupUniqArray((j.id, j.name, j.status = 'completed' AND j.conclusion = 'success', toDate(j.created_at))) AS shards
+            groupUniqArray((j.id, j.name, j.status = 'completed' AND j.conclusion = 'success', j.created_at)) AS shards
         FROM (
             SELECT
                 id, head_sha, run_id, run_attempt, name, status, conclusion, created_at,
@@ -211,8 +214,8 @@ state_arr AS (
     )
 ),
 
--- Breaking tests: (landing, config, file, failing cases, landed_at, [(PR, its head's shards,
--- files failing there)]).
+-- Breaking tests: (landing, config, file, failing cases, landed_at, [(PR, shards and failing
+-- files of its head's jobs created before the landing)]).
 brk_arr AS (
     SELECT groupArray(t) AS brk
     FROM (
