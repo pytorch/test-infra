@@ -5,20 +5,29 @@ import {
   parseParameters,
   RawQuery,
 } from "lib/api/parameters";
+import {
+  COST_WINDOWS,
+  DEFAULT_COST_WINDOW,
+} from "lib/api/tests/cost/windows";
 import { PARAMETER_DEFINITIONS as TEST_PARAMETERS } from "lib/api/tests/parameters";
 import { z } from "zod/v4";
 
-// The runner-hours cover one whole UTC day of the test_cost rollup, fixed
-// while the page is checked against it, until the endpoint reads a date
-// range from it.
-export const COST_DAYS = 1;
-export const COST_WINDOW_END = new Date("2026-11-03T00:00:00Z");
-
-// The endpoint takes only the repository: its answer holds every owner,
-// workflow and machine of its days, so whatever a reader scopes or
-// highlights is summed from the one answer.
+// The endpoint takes the repository and the window: its answer holds every
+// owner, workflow and machine of the window's days, so whatever a reader
+// scopes or highlights is summed from the one answer.
 export const COST_PARAMETER_DEFINITIONS = {
   repo: TEST_PARAMETERS.repo,
+  window: {
+    encoding: "single",
+    schema: z
+      .enum(COST_WINDOWS, {
+        error: `window must be one of: ${COST_WINDOWS.join(", ")}`,
+      })
+      .default(DEFAULT_COST_WINDOW)
+      .describe(
+        "The last whole UTC days the runner-hours cover, ending at the start of today."
+      ),
+  },
 } as const satisfies Record<string, ParameterDefinition>;
 
 export const CostParamsSchema = parameterSchema(COST_PARAMETER_DEFINITIONS);

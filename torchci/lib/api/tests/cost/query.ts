@@ -113,6 +113,12 @@ FROM ${CI_DATABASE}.environments FINAL
 GROUP BY machine`;
 }
 
+// The first day test_cost holds for the repository, so the API can say how
+// many of a window's days have data.
+export function coverageQuery(): string {
+  return `SELECT toString(min(day)) AS first_day FROM ${TEST_COST} WHERE repo = {repo: String}`;
+}
+
 // HUD's time to signal, as the metrics page computes it
 // (clickhouse_queries/workflow_duration_percentile), on main only: for each
 // workflow, the median and 90th percentile of the time from a run's creation

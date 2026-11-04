@@ -47,6 +47,8 @@ export default function WorkflowsCard({
   onScopeChange,
 }: WorkflowsCardProps) {
   const theme = useTheme();
+  // Folded at first: most readers count every workflow.
+  const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
   const { shown, hidden } = workflowRows(prepared, view, expanded, search);
@@ -84,6 +86,8 @@ export default function WorkflowsCard({
       note={`share of all ${hoursLabel(prepared.total)} runner-hours`}
       keys={keys}
       loading={loading}
+      open={open}
+      onOpenChange={setOpen}
     >
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
         Most readers can leave this on All workflows; tick some to narrow the

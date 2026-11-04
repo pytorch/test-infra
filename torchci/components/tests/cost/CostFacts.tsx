@@ -6,9 +6,16 @@ import {
   Tooltip,
   useTheme,
 } from "@mui/material";
+import KeyButton from "components/tests/cost/KeyButton";
 import FactPill from "components/tests/FactPill";
 import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { CostSignal } from "lib/api/tests/cost/types";
+import {
+  COST_WINDOW_DAYS,
+  COST_WINDOW_LABELS,
+  COST_WINDOWS,
+  type CostWindow,
+} from "lib/api/tests/cost/windows";
 import { hoursLabel, shareLabel } from "lib/tests/cost/query";
 
 // A duration as the facts say it: "4.0 h", "27 min".
@@ -29,8 +36,11 @@ export interface CostFactsProps {
         attributedShare: number;
       }
     | undefined;
+  // The days with data, and the window asked for.
   days: number;
   dates: string;
+  window: CostWindow;
+  onWindowChange: (_window: CostWindow) => void;
   // The scope in words, null for every workflow.
   scope: string | null;
   // The PR update and merge signals, from the API.
@@ -42,15 +52,32 @@ export interface CostFactsProps {
 // The first says what the hours cover, in the accent with a clear button
 // while a scope of workflows is in force; the next four follow the scope;
 // the PR update and merge signals are their workflows' whatever is scoped.
+// The window's keys sit at the row's right end, out of the way.
 export default function CostFacts({
   facts,
   days,
   dates,
+  window,
+  onWindowChange,
   scope,
   signals,
   onClearScope,
 }: CostFactsProps) {
   const theme = useTheme();
+  const windowKeys = (
+    <Box sx={{ display: "flex", gap: 0.5, ml: "auto" }}>
+      {COST_WINDOWS.map((w) => (
+        <KeyButton
+          key={w}
+          title={`Last ${COST_WINDOW_LABELS[w]}, whole UTC days`}
+          active={w === window}
+          onClick={() => onWindowChange(w)}
+        >
+          {COST_WINDOW_LABELS[w]}
+        </KeyButton>
+      ))}
+    </Box>
+  );
   if (facts === undefined) {
     return (
       <Stack direction="row" spacing={1}>
@@ -65,9 +92,11 @@ export default function CostFacts({
             }}
           />
         ))}
+        {windowKeys}
       </Stack>
     );
   }
+  const asked = COST_WINDOW_DAYS[window];
   const where = scope === null ? "" : ` in ${scope}`;
   const pill = (label: string, title: string, value: string) => (
     <Tooltip
@@ -138,7 +167,9 @@ export default function CostFacts({
       )}
       {pill(
         "Per day",
-        `Daily average over the last ${days} ${days === 1 ? "day" : "days"}`,
+        `Daily average over ${dates}${
+          days < asked ? ` (${days} of ${asked} days have data)` : ""
+        }`,
         `${hoursLabel(facts.perDay)} runner-hours`
       )}
       {pill(
@@ -160,6 +191,7 @@ export default function CostFacts({
           signal.p50_seconds === null ? "none" : signalLabel(signal.p50_seconds)
         )
       )}
+      {windowKeys}
     </Box>
   );
 }

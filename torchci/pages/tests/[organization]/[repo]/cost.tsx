@@ -68,7 +68,7 @@ export default function Page() {
       : undefined;
   const session = useSession();
   const query = useMemo(() => resolveCostQuery(router.query), [router.query]);
-  const apiUrl = repository ? costApiUrl(repository) : null;
+  const apiUrl = repository ? costApiUrl(repository, query.window) : null;
   const request = useRunnerHours(apiUrl);
   const [cell, setCell] = useState<MatrixCell | null>(null);
   const [matrixExpanded, setMatrixExpanded] = useState(false);
@@ -194,6 +194,8 @@ export default function Page() {
           facts={ready ? factsOf(prepared, view, answer.days) : undefined}
           days={answer?.days ?? 0}
           dates={dates}
+          window={query.window}
+          onWindowChange={(window) => change({ window })}
           scope={scope}
           signals={answer?.time_to_signal}
           onClearScope={() => change({ workflows: [] })}
@@ -245,7 +247,6 @@ export default function Page() {
             cells={query.cells}
             only={query.only}
             loading={request.isLoading}
-            apiUrl={apiUrl ?? ""}
             fileName={`runner_hours_${repository.replace(
               "/",
               "_"

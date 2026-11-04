@@ -1,11 +1,10 @@
 import {
-  COST_DAYS,
-  COST_WINDOW_END,
   type CostParams,
   SIGNALS,
   WORKFLOW_PRESETS,
 } from "lib/api/tests/cost/parameters";
 import {
+  coverageQuery,
   machinesQuery,
   runnerHoursQuery,
   timeToSignalQuery,
@@ -17,6 +16,7 @@ import type {
   MachineSource,
   RunnerHours,
 } from "lib/api/tests/cost/types";
+import { COST_WINDOW_DAYS } from "lib/api/tests/cost/windows";
 import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
 import { queryClickhouse } from "lib/clickhouse";
 
@@ -260,20 +260,42 @@ export function costSignals(rows: SignalRow[]): CostSignal[] {
   });
 }
 
+// The part of a window test_cost holds: from its first day where that is
+// later than the window's start, since days before the rollup hold nothing.
+// The days are what a daily average divides by.
+export function coveredWindow(
+  bounds: { start: string; end: string },
+  firstDay: string | undefined
+): { start: string; days: number } {
+  const startMs = Date.parse(bounds.start);
+  const endMs = Date.parse(bounds.end);
+  const firstMs = Date.parse(`${firstDay ?? ""}T00:00:00.000Z`);
+  const fromMs =
+    Number.isNaN(firstMs) || firstMs <= startMs
+      ? startMs
+      : Math.min(firstMs, endMs);
+  return {
+    start: new Date(fromMs).toISOString(),
+    days: Math.round((endMs - fromMs) / DAY_MS),
+  };
+}
+
 export async function getRunnerHours(
   params: CostParams,
-  now: Date = COST_WINDOW_END
+  now: Date = new Date()
 ): Promise<RunnerHours> {
-  const bounds = windowBounds(COST_DAYS, now);
+  const bounds = windowBounds(COST_WINDOW_DAYS[params.window], now);
   const queryParams = { repo: params.repo, ...bounds.params };
   const started = performance.now();
-  // The runner-hours, the machines' names and HUD's time to signal, asked at once.
-  // The runner-hours query reads the window's rows of test_cost; it stays in the heavy workload
-  // (app/api/README.md, Heavy queries) until measured; the other two are cheap.
-  const [rows, machineRows, signalRows]: [
+  // The runner-hours, the machines' names, HUD's time to signal and the
+  // rollup's first day, asked at once. The runner-hours query reads the
+  // window's rows of test_cost; it stays in the heavy workload
+  // (app/api/README.md, Heavy queries) until measured; the others are cheap.
+  const [rows, machineRows, signalRows, coverageRows]: [
     RunnerHoursQueryRow[],
     MachineRow[],
-    SignalRow[]
+    SignalRow[],
+    { first_day: string }[]
   ] = await Promise.all([
     queryClickhouse(
       runnerHoursQuery(),
@@ -288,11 +310,18 @@ export async function getRunnerHours(
       { ...queryParams, tts_workflows: SIGNALS.map((s) => s.workflow) },
       "tests_cost_time_to_signal"
     ),
+    queryClickhouse(
+      coverageQuery(),
+      { repo: params.repo },
+      "tests_cost_coverage"
+    ),
   ]);
+  const covered = coveredWindow(bounds, coverageRows[0]?.first_day);
   return {
     repo: params.repo,
-    days: COST_DAYS,
-    start: bounds.start,
+    window: params.window,
+    days: covered.days,
+    start: covered.start,
     end: bounds.end,
     rows: runnerHoursRows(rows),
     contributors: costContributors(rows),

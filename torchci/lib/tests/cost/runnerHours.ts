@@ -380,8 +380,8 @@ export function factsOf(prepared: PreparedHours, view: CostView, days: number) {
   return {
     scopeTotal: view.scopeTotal,
     scopeShare: prepared.total > 0 ? view.scopeTotal / prepared.total : 0,
-    perDay: view.scopeTotal / days,
-    annualized: (view.scopeTotal / days) * 365,
+    perDay: days > 0 ? view.scopeTotal / days : 0,
+    annualized: days > 0 ? (view.scopeTotal / days) * 365 : 0,
     attributedShare: view.scopeTotal > 0 ? attributed / view.scopeTotal : 0,
   };
 }

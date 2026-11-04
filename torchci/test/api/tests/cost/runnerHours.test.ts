@@ -3,6 +3,7 @@ import {
   costContributors,
   costMachines,
   costSignals,
+  coveredWindow,
   getRunnerHours,
   runnerHoursRows,
   shortDeviceNames,
@@ -169,17 +170,24 @@ describe("cost runner-hours", () => {
                 cpu: "x86_64 avx2",
               },
             ]
+          : id === "tests_cost_coverage"
+          ? // The rollup starts inside the 7-day window.
+            [{ first_day: "2026-10-27" }]
           : [{ workflow: "trunk", runs: 3, seconds: [100, 200] }]
       );
-    const answer = await getRunnerHours({ repo: "pytorch/pytorch" }, NOW);
+    const answer = await getRunnerHours(
+      { repo: "pytorch/pytorch", window: "7d" },
+      NOW
+    );
     expect(query.mock.calls.map((call) => call[2])).toEqual([
       "tests_cost_runner_hours",
       "tests_cost_machines",
       "tests_cost_time_to_signal",
+      "tests_cost_coverage",
     ]);
     expect(query.mock.calls[0][1]).toEqual({
       repo: "pytorch/pytorch",
-      start: "2026-10-29 00:00:00.000",
+      start: "2026-10-23 00:00:00.000",
       end: "2026-10-30 00:00:00.000",
     });
     expect(query.mock.calls[0][4]).toBe(CI_WORKLOAD_HEAVY);
@@ -188,9 +196,11 @@ describe("cost runner-hours", () => {
       tts_workflows: ["pull", "trunk"],
     });
     expect(RunnerHoursSchema.safeParse(answer).success).toBe(true);
-    expect([answer.days, answer.start, answer.end]).toEqual([
-      1,
-      "2026-10-29T00:00:00.000Z",
+    // 3 of the 7 days have data: the average divides by 3.
+    expect([answer.window, answer.days, answer.start, answer.end]).toEqual([
+      "7d",
+      3,
+      "2026-10-27T00:00:00.000Z",
       "2026-10-30T00:00:00.000Z",
     ]);
     expect(answer.workflow_presets).toEqual([
@@ -212,13 +222,40 @@ describe("cost runner-hours", () => {
     ]);
   });
 
-  test("takes the repository, nothing else", () => {
+  test("takes the repository and a window of 1, 3 or 7 days, 7 by default", () => {
     expect(parseCostParams({ repo: "pytorch/pytorch" })).toMatchObject({
       success: true,
-      data: { repo: "pytorch/pytorch" },
+      data: { repo: "pytorch/pytorch", window: "7d" },
     });
+    expect(
+      parseCostParams({ repo: "pytorch/pytorch", window: "3d" })
+    ).toMatchObject({ success: true, data: { window: "3d" } });
     expect(
       parseCostParams({ repo: "pytorch/pytorch", window: "14d" }).success
     ).toBe(false);
+  });
+
+  test("a window's days with data: all of them, or from the rollup's first day", () => {
+    const bounds = {
+      start: "2026-10-23T00:00:00.000Z",
+      end: "2026-10-30T00:00:00.000Z",
+    };
+    expect(coveredWindow(bounds, "2026-10-01")).toEqual({
+      start: bounds.start,
+      days: 7,
+    });
+    expect(coveredWindow(bounds, "2026-10-27")).toEqual({
+      start: "2026-10-27T00:00:00.000Z",
+      days: 3,
+    });
+    // No data in the window at all.
+    expect(coveredWindow(bounds, "2026-11-02")).toEqual({
+      start: bounds.end,
+      days: 0,
+    });
+    expect(coveredWindow(bounds, undefined)).toEqual({
+      start: bounds.start,
+      days: 7,
+    });
   });
 });

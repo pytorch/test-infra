@@ -91,8 +91,7 @@ export interface CostMatrixProps {
   cells: Cells;
   only: boolean;
   loading: boolean;
-  // The API request, for "Copy API URL", and the CSV's file name.
-  apiUrl: string;
+  // The CSV's file name.
   fileName: string;
   cell: MatrixCell | null;
   // "N more owners" listed, which the page also reads to find the cell.
@@ -118,7 +117,6 @@ export default function CostMatrix({
   cells,
   only,
   loading,
-  apiUrl,
   fileName,
   cell,
   expanded,
@@ -173,15 +171,6 @@ export default function CostMatrix({
     const { csv, rows: count } = rowsCsv(prepared, view);
     downloadCSV(csv, fileName);
     setToast(`${count} rows downloaded`);
-  };
-  const copy = async () => {
-    const url = new URL(apiUrl, window.location.origin).toString();
-    try {
-      await navigator.clipboard.writeText(url);
-      setToast(`Copied ${url}`);
-    } catch {
-      setToast(url);
-    }
   };
   const cellSx = {
     px: 0.5,
@@ -299,12 +288,6 @@ export default function CostMatrix({
         <Box sx={{ mr: "auto" }} />
         <KeyButton title="Rows in the scope and highlight" onClick={download}>
           Download CSV
-        </KeyButton>
-        <KeyButton
-          title="Copy the API request behind this page"
-          onClick={() => void copy()}
-        >
-          Copy API URL
         </KeyButton>
       </Box>
       {toast !== "" && (

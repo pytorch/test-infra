@@ -7,18 +7,24 @@ import {
   DEFAULT_CELLS,
 } from "lib/api/tests/cost/page";
 import {
+  COST_WINDOWS,
+  type CostWindow,
+  DEFAULT_COST_WINDOW,
+} from "lib/api/tests/cost/windows";
+import {
   decodePageQuery,
   pageUrlParams,
   testsPagePath,
 } from "lib/api/tests/pages/parameters";
 
 // What the cost page shows, read from and written to its URL under
-// COST_PAGE_PARAMETER_DEFINITIONS' names, defaults left off: the workflow
-// scope (empty for every workflow), the owners and machines highlighted,
+// COST_PAGE_PARAMETER_DEFINITIONS' names, defaults left off: the window, the
+// workflow scope (empty for every workflow), the owners and machines highlighted,
 // whether bars are split by machine, what the matrix's cells show and
 // whether it hides what is not highlighted. Names the API's answer does not
 // hold are dropped once it arrives (knownChoices in runnerHours.ts).
 export interface CostQuery {
+  window: CostWindow;
   workflows: string[];
   owners: string[];
   machines: string[];
@@ -34,6 +40,7 @@ function names(values: string[] | undefined): string[] {
 export function resolveCostQuery(url: RawQuery): CostQuery {
   const asked = decodePageQuery(url, COST_PAGE_PARAMETER_DEFINITIONS);
   return {
+    window: COST_WINDOWS.find((w) => w === asked.window) ?? DEFAULT_COST_WINDOW,
     workflows: names(asked.workflow).map((w) => w.toLowerCase()),
     owners: names(asked.owner),
     machines: names(asked.machine),
@@ -46,6 +53,7 @@ export function resolveCostQuery(url: RawQuery): CostQuery {
 export function costUrlParams(query: CostQuery) {
   return pageUrlParams(
     {
+      window: query.window,
       workflow: query.workflows,
       owner: query.owners,
       machine: query.machines,
@@ -57,9 +65,9 @@ export function costUrlParams(query: CostQuery) {
   );
 }
 
-// The GET /api/tests/cost request: the repository, all it takes.
-export function costApiUrl(repo: string): string {
-  return `/api/tests/cost?${new URLSearchParams({ repo })}`;
+// The GET /api/tests/cost request: the repository and the window.
+export function costApiUrl(repo: string, window: CostWindow): string {
+  return `/api/tests/cost?${new URLSearchParams({ repo, window })}`;
 }
 
 // Where an owner's runner-hours lead: the tests page narrowed to the owner,

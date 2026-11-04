@@ -67,6 +67,7 @@ const row = (
 
 const ANSWER: RunnerHours = {
   repo: "pytorch/pytorch",
+  window: "7d",
   workflow_presets: [],
   days: 14,
   start: "2026-10-18T00:00:00.000Z",
@@ -367,6 +368,7 @@ describe("cost page query", () => {
   test("a bare URL is the defaults and writes back bare", () => {
     const query = resolveCostQuery({});
     expect(query).toEqual({
+      window: "7d",
       workflows: [],
       owners: [],
       machines: [],
@@ -401,8 +403,13 @@ describe("cost page query", () => {
       cells: "machine",
       only: false,
     });
-    expect(costApiUrl("pytorch/pytorch")).toBe(
-      "/api/tests/cost?repo=pytorch%2Fpytorch"
+    expect(costApiUrl("pytorch/pytorch", "3d")).toBe(
+      "/api/tests/cost?repo=pytorch%2Fpytorch&window=3d"
+    );
+    expect(resolveCostQuery({ window: "3d" }).window).toBe("3d");
+    expect(resolveCostQuery({ window: "14d" }).window).toBe("7d");
+    expect(costUrlParams(resolveCostQuery({ window: "1d" })).window).toBe(
+      "1d"
     );
   });
 });

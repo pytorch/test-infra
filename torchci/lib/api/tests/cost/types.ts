@@ -1,3 +1,4 @@
+import { COST_WINDOWS } from "lib/api/tests/cost/windows";
 import { z } from "zod/v4";
 
 // Where a row's machine came from: its jobs' test reports, their runner
@@ -129,11 +130,20 @@ export const CostSignalSchema = z
 export const RunnerHoursSchema = z
   .object({
     repo: z.string().describe("Repository as owner/name."),
+    window: z
+      .enum(COST_WINDOWS)
+      .describe("The window asked for: the last whole UTC days."),
     days: z
       .number()
       .int()
-      .describe("Days in the window: the last whole UTC days."),
-    start: z.string().describe("Window start, ISO 8601 UTC, inclusive."),
+      .describe(
+        "Days of the window the rollup holds, what a daily average divides by: fewer than the window's where the rollup starts later."
+      ),
+    start: z
+      .string()
+      .describe(
+        "The first day with data in the window, ISO 8601 UTC, inclusive."
+      ),
     end: z.string().describe("Window end, ISO 8601 UTC, exclusive."),
     rows: z
       .array(RunnerHoursRowSchema)
