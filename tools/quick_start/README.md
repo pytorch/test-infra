@@ -1,9 +1,10 @@
-# Quick start module
+# Quick start data
 
-Generates the data and JavaScript behind the install selector on
+Generates the JSON data behind the install selector on
 https://pytorch.org/get-started/locally/ and the third-party accelerator picker
 on the Get Started page. This was previously in `pytorch/pytorch.github.io`
-(`.github/workflows/update-quick-start-module.yml` and `scripts/`).
+(`.github/workflows/update-quick-start-module.yml` and `scripts/`). Only the JSON
+is generated here; the website builds its own JavaScript from it.
 
 The generated files are checked in. The `QUICK_START` lint (`tools/linter/adapters/quick_start_linter.py`)
 regenerates them from the build matrix and the inputs below and fails when they
@@ -15,11 +16,10 @@ file or a generator must be sent together with the regenerated files. Run
 
 | Path | Role |
 |---|---|
-| `scripts/gen_quick_start_module.py` | Reads the build matrices from `tools/scripts/generate_binary_build_matrix.py` (via the `generate_binary_build_matrix.yml` workflow) and updates `published_versions.json` and `releases.json`. Prints `assets/quick-start-module.js`. |
-| `scripts/gen_additional_platforms.py` | Builds `assets/quick-start-additional-platforms.js` and `additional-platforms.json` from `_additional_platforms/*.json` and `_get_started/additional_platforms/*.md`. |
-| `_includes/quick-start-module.js`, `_includes/quick-start-additional-platforms.js` | Templates the scripts fill in. |
+| `scripts/gen_quick_start_module.py` | Reads the build matrices from `tools/scripts/generate_binary_build_matrix.py` (via the `generate_binary_build_matrix.yml` workflow) and updates `published_versions.json` and `releases.json`. |
+| `scripts/gen_additional_platforms.py` | Builds `additional-platforms.json` from `_additional_platforms/*.json` and `_get_started/additional_platforms/*.md` (markdown converted to HTML). |
 | `_additional_platforms/*.json`, `_get_started/additional_platforms/*.md` | Hand-written inputs, one pair per vendor platform. |
-| `published_versions.json`, `releases.json`, `additional-platforms.json`, `assets/*.js` | **Generated.** Do not edit by hand. |
+| `published_versions.json`, `releases.json`, `additional-platforms.json` | **Generated.** Do not edit by hand. |
 
 ## Running locally
 
@@ -41,7 +41,7 @@ for spec in "linux nightly" "windows nightly" "macos-arm64 nightly" \
   WITH_XPU=disable \
     python3 ../scripts/generate_binary_build_matrix.py > "${1/-arm64/}_$2_matrix.json"
 done
-python3 scripts/gen_quick_start_module.py --autogenerate > assets/quick-start-module.js
+python3 scripts/gen_quick_start_module.py
 rm *_matrix.json
 
 pip install markdown pygments

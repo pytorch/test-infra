@@ -31,14 +31,13 @@ MATRIX_SCRIPT = REPO_ROOT / "tools" / "scripts" / "generate_binary_build_matrix.
 GENERATED_FILES = [
     "published_versions.json",
     "releases.json",
-    "assets/quick-start-module.js",
     "additional-platforms.json",
-    "assets/quick-start-additional-platforms.js",
 ]
 
 # The inputs of the getting-started matrices, the same ones the reusable
-# generate_binary_build_matrix.yml workflow passes to the script. Anything else that the script reads
-# from the environment is dropped so the result does not depend on the caller.
+# generate_binary_build_matrix.yml workflow passes to the script. Anything else
+# that the script reads from the environment is dropped so the result does not
+# depend on the caller.
 MATRIX_ENV = {
     "PACKAGE_TYPE": "all",
     "WITH_CUDA": "enable",
@@ -117,12 +116,7 @@ def generate(workdir: Path) -> dict[str, str]:
         (module / f"{os_name.replace('-arm64', '')}_{channel}_matrix.json").write_text(
             matrix
         )
-    js = _run(
-        [sys.executable, "scripts/gen_quick_start_module.py", "--autogenerate"],
-        cwd=module,
-        env=env,
-    )
-    (module / "assets" / "quick-start-module.js").write_text(js)
+    _run([sys.executable, "scripts/gen_quick_start_module.py"], cwd=module, env=env)
     _run([sys.executable, "scripts/gen_additional_platforms.py"], cwd=module, env=env)
     return {name: (module / name).read_text() for name in GENERATED_FILES}
 

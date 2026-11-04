@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
 """
-Generates additional platforms quick start module for
+Generates additional-platforms.json for the
 https://pytorch.org/get-started/additional-platforms/ page.
 
-This script reads all JSON files from _additional_platforms/ directory,
-combines them, and generates the quick-start-additional-platforms.js file.
-It also reads markdown files from _get_started/additional_platforms/ directory
-and embeds them for dynamic content loading.
+This script reads all JSON files from _additional_platforms/ directory and the
+markdown files from _get_started/additional_platforms/ directory, converts the
+markdown to HTML, and writes both to additional-platforms.json.
 
 Usage:
     python3 scripts/gen_additional_platforms.py
-
-The script will:
-1. Read all JSON files from _additional_platforms/ directory
-2. Read all MD files from _get_started/additional_platforms/ directory
-3. Combine platform data into a single object (keyed by filename)
-4. Replace template placeholders in _includes/quick-start-additional-platforms.js
-5. Output the result to assets/quick-start-additional-platforms.js
 """
 
 import datetime
@@ -33,8 +25,6 @@ from markdown.extensions.codehilite import CodeHiliteExtension
 BASE_DIR = Path(__file__).parent.parent
 ADDITIONAL_PLATFORM_DIR = BASE_DIR / "_additional_platforms"
 MARKDOWN_DIR = BASE_DIR / "_get_started" / "additional_platforms"
-INCLUDES_DIR = BASE_DIR / "_includes"
-ASSETS_DIR = BASE_DIR / "assets"
 
 # External consumer JSON bundle
 # Bump SCHEMA_VERSION on any breaking change
@@ -216,39 +206,6 @@ def read_markdown_files() -> Dict[str, str]:
     return html_content
 
 
-def read_template() -> str:
-    """Read the JS template file."""
-    template_path = INCLUDES_DIR / "quick-start-additional-platforms.js"
-    if not template_path.exists():
-        raise FileNotFoundError(f"Template file not found: {template_path}")
-    return template_path.read_text()
-
-
-def generate_js_output(
-    platform_data: Dict[str, Any], markdown_content: Dict[str, str]
-) -> str:
-    """Generate the final JS file by replacing template placeholders."""
-    template = read_template()
-
-    # Replace placeholders
-    template = template.replace(
-        "{{ platformData }}", json.dumps(platform_data, indent=2)
-    )
-    # Now embedding pre-converted HTML content instead of raw markdown
-    template = template.replace(
-        "{{ markdownContent }}", json.dumps(markdown_content, indent=2)
-    )
-
-    return template
-
-
-def write_output(content: str) -> None:
-    """Write the generated JS to assets directory."""
-    output_path = ASSETS_DIR / "quick-start-additional-platforms.js"
-    output_path.write_text(content)
-    print(f"Generated: {output_path}")
-
-
 def write_platforms_json(platforms: dict, html: dict, out_path: str) -> None:
     """
     Write JSON bundle for external consumers.
@@ -284,13 +241,7 @@ def main():
         print("No markdown content found.")
         markdown_content = {}
 
-    # Generate JS output
-    js_content = generate_js_output(platform_data, markdown_content)
-
-    # Write to assets directory
-    write_output(js_content)
-
-    # Also write the JSON file for the external consumer
+    # Write the JSON file for the external consumer
     write_platforms_json(platform_data, markdown_content, str(BASE_DIR / JSON_OUT_PATH))
 
 

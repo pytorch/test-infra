@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
-Generates quick start module for https://pytorch.org/get-started/locally/ page
-If called from the QUICK_START lint (--autogenerate parameter set)
-Will output new quick-start-module.js, and new published_version.json file
-based on the current release matrix.
-If called standalone will generate quick-start-module.js from existing
-published_version.json file
+Updates the data behind the https://pytorch.org/get-started/locally/ page.
+
+Run by the QUICK_START lint (tools/linter/adapters/quick_start_linter.py), it reads
+the build matrices written next to this script's parent directory
+({linux,windows,macos}_{nightly,release}_matrix.json) and rewrites
+published_versions.json and releases.json from them.
 """
 
-import argparse
 import copy
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Dict
 
 
 BASE_DIR = Path(__file__).parent.parent
@@ -96,11 +94,6 @@ def write_releases_file(matrix):
 def read_matrix_for_os(osys: OperatingSystem, channel: str):
     jsonfile = load_json_from_basedir(f"{osys.value}_{channel}_matrix.json")
     return jsonfile["include"]
-
-
-def read_quick_start_module_template():
-    with open(BASE_DIR / "_includes" / "quick-start-module.js") as fptr:
-        return fptr.read()
 
 
 def get_package_type(pkg_key: str, os_key: OperatingSystem) -> str:
@@ -259,37 +252,6 @@ def update_versions(versions, release_matrix, release_version):
                                 )
 
 
-# This method is used for generating new quick-start-module.js
-# from the versions json object
-def gen_install_matrix(versions) -> Dict[str, str]:
-    result = {}
-    version_map = {
-        "preview": "preview",
-        "stable": versions["latest_stable"],
-    }
-    for ver, ver_key in version_map.items():
-        for os_key, os_vers in versions["versions"][ver_key].items():
-            for pkg_key, pkg_vers in os_vers.items():
-                for acc_key, instr in pkg_vers.items():
-                    extra_key = "python" if pkg_key != "libtorch" else "cplusplus"
-                    key = f"{ver},{pkg_key},{os_key},{acc_key},{extra_key}"
-                    note = instr["note"]
-                    lines = [note] if note is not None else []
-                    if pkg_key == "libtorch":
-                        ivers = instr["versions"]
-                        if ivers is not None:
-                            lines += [
-                                f"{lab}<br /><a href='{val}'>{val}</a>"
-                                for (lab, val) in ivers.items()
-                            ]
-                    else:
-                        command = instr["command"]
-                        if command is not None:
-                            lines.append(command)
-                    result[key] = "<br />".join(lines)
-    return result
-
-
 # This method is used for extracting two latest verisons of cuda and
 # last verion of rocm. It will modify the acc_arch_ver_map object used
 # to update getting started page.
@@ -331,35 +293,21 @@ def extract_arch_ver_map(release_matrix):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--autogenerate", dest="autogenerate", action="store_true")
-    parser.set_defaults(autogenerate=True)
-
-    options = parser.parse_args()
     versions = read_published_versions()
 
-    if options.autogenerate:
-        release_matrix = {}
-        for val in ("nightly", "release"):
-            release_matrix[val] = {}
-            for osys in OperatingSystem:
-                release_matrix[val][osys.value] = read_matrix_for_os(osys, val)
+    release_matrix = {}
+    for val in ("nightly", "release"):
+        release_matrix[val] = {}
+        for osys in OperatingSystem:
+            release_matrix[val][osys.value] = read_matrix_for_os(osys, val)
 
-        write_releases_file(release_matrix)
+    write_releases_file(release_matrix)
 
-        extract_arch_ver_map(release_matrix)
-        for val in ("nightly", "release"):
-            update_versions(versions, release_matrix[val], val)
+    extract_arch_ver_map(release_matrix)
+    for val in ("nightly", "release"):
+        update_versions(versions, release_matrix[val], val)
 
-        write_published_versions(versions)
-
-    template = read_quick_start_module_template()
-    versions_str = json.dumps(gen_install_matrix(versions))
-    template = template.replace("{{ installMatrix }}", versions_str)
-    template = template.replace(
-        "{{ VERSION }}", f'"Stable ({versions["latest_stable"]})"'
-    )
-    print(template.replace("{{ ACC ARCH MAP }}", json.dumps(acc_arch_ver_map)))
+    write_published_versions(versions)
 
 
 if __name__ == "__main__":
