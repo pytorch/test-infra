@@ -9,8 +9,25 @@ is generated here; the website builds its own JavaScript from it.
 The generated files are checked in. The `QUICK_START` lint (`tools/linter/adapters/quick_start_linter.py`)
 regenerates them from the build matrix and the inputs below and fails when they
 differ, so a change to `tools/scripts/generate_binary_build_matrix.py`, a platform
-file or a generator must be sent together with the regenerated files. Run
-`lintrunner --take QUICK_START -a` to update them.
+file or a generator must be sent together with the regenerated files.
+
+## Update the generated files
+
+Run this from the repository root after changing `tools/scripts/generate_binary_build_matrix.py`,
+a generator in `tools/quick_start/scripts`, or a file in `_additional_platforms/` or
+`_get_started/additional_platforms/`, and commit what it changes:
+
+```bash
+pip install lintrunner==0.12.5   # once
+lintrunner init                  # once; installs markdown and pygments for the generators
+lintrunner --take QUICK_START --all-files -a
+```
+
+`-a` rewrites `published_versions.json`, `releases.json` and `additional-platforms.json`
+in place. Without `-a` the same command only reports which of them are out of date,
+which is what CI does. `--all-files` makes it check even when none of the changed
+files is an input. Without it, lintrunner checks only the files changed relative
+to `main`.
 
 ## Layout
 
@@ -23,13 +40,8 @@ file or a generator must be sent together with the regenerated files. Run
 
 ## Running locally
 
-```bash
-lintrunner init            # once; installs the generators' dependencies (markdown, pygments)
-lintrunner --take QUICK_START -a
-```
-
-The linter runs the same steps as below in a scratch copy of this directory and
-writes back the files that changed.
+The lint runs the steps below in a scratch copy of this directory and writes back
+the files that changed. To run them by hand instead:
 
 ```bash
 cd tools/quick_start
