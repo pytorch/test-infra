@@ -30,8 +30,8 @@ const LATEST = `latest AS (
   )`;
 
 // Each runner label's machine: the one its jobs' test reports recorded for
-// most of their hours. It names the machine of test jobs without reports; a
-// label no reporting test job ran on has none.
+// most of their hours. It names the machine of test jobs without reports, an
+// estimate; a label no reporting test job ran on has none.
 const LABEL_MACHINES = `label_machines AS (
     SELECT arrayStringConcat(t.runner_labels, ',') AS label, argMax(m.machine, t.ms) AS machine
     FROM (
@@ -49,7 +49,10 @@ const LABEL_MACHINES = `label_machines AS (
 // wall time by occupancy, split evenly among the file's owners (ci.owners,
 // read now), or the bucket of hours no owner is given, by why. Build and
 // other jobs are not test cost and are left out. A workflow is named by its
-// file (.github/workflows/pull.yml is pull), as the presets name them.
+// file (.github/workflows/pull.yml is pull), as the presets name them. Each
+// row says where its machine came from: the jobs' test reports
+// (environment), their runner label (runner_label, an estimate), or nowhere
+// (none). Rows of files without owners keep the file, for the page to list.
 export function runnerHoursQuery(): string {
   return `
 WITH
@@ -65,7 +68,10 @@ WITH
       if(bucket = '', o.owners, [bucket]) AS owner_list,
       replaceRegexpAll(t.workflow_path, '^.*/|[.]ya?ml$', '') AS workflow,
       if(t.environments_id = 0, lm.machine, m.machine) AS machine,
+      multiIf(t.environments_id != 0, 'environment',
+        lm.machine != '', 'runner_label', 'none') AS machine_source,
       arrayStringConcat(t.runner_labels, ',') AS label,
+      if(bucket = 'unattributed:no_owner', t.test_file, '') AS file,
       t.occupancy_runner_milliseconds / 1000 AS seconds
     FROM latest AS t
     LEFT JOIN (
@@ -74,13 +80,15 @@ WITH
     LEFT JOIN env_machines AS m ON m.id = t.environments_id
     LEFT JOIN label_machines AS lm ON lm.label = arrayStringConcat(t.runner_labels, ',')
   )
-SELECT owner, workflow, machine, label, sum(seconds) / 3600 AS runner_hours
+SELECT owner, workflow, machine, machine_source, label, file,
+  sum(seconds) / 3600 AS runner_hours
 FROM (
-  SELECT owner, workflow, machine, label, seconds / length(owner_list) AS seconds
+  SELECT owner, workflow, machine, machine_source, label, file,
+    seconds / length(owner_list) AS seconds
   FROM test_rows
   ARRAY JOIN owner_list AS owner
 )
-GROUP BY owner, workflow, machine, label
+GROUP BY owner, workflow, machine, machine_source, label, file
 SETTINGS join_use_nulls = 0`;
 }
 

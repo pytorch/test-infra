@@ -2,6 +2,8 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { Box, Drawer, IconButton, Typography, useTheme } from "@mui/material";
 import { hoursLabel, shareLabel } from "lib/tests/cost/query";
 import {
+  BUCKET_INFO,
+  bucketInfo,
   cellDetail,
   type CostView,
   ownerLabel,
@@ -45,10 +47,11 @@ function Heading({ children }: { children: string }) {
 }
 
 // One matrix cell's detail, at the page's right edge, the page usable
-// beside it: its hours and what they are a share of, the workflows behind
-// them in the scope, the owners of a folded row, and what the numbers can
-// and cannot say. Where the API holds no detail yet (the test configs and
-// files behind a cell, the label sampling), it says what it would need.
+// beside it: its hours and what they are a share of, how many have an
+// estimated machine, the workflows behind them in the scope, the owners of a
+// folded row, what an unattributed bucket is made of, and what the numbers
+// can and cannot say. Where the API holds no detail yet (the test configs
+// and files behind an owner's cell), it says so.
 export default function CellDrawer({
   prepared,
   view,
@@ -130,16 +133,22 @@ export default function CellDrawer({
     const name = scopeName(prepared, view);
     const column = view.machineScope[m];
     const notProbed = m === prepared.notProbed;
+    const buckets = cell.row.owners.filter((o) => o in BUCKET_INFO);
     const caveats = [
       notProbed
-        ? "Not probed: no test job on these labels recorded a machine."
-        : "The machine is the one the jobs' test reports recorded, or for jobs without reports, their runner label's.",
-      cell.row.owners.includes("unattributed:no_test_reports") &&
-        "Test jobs with no recorded tests, so no owner split.",
-      cell.row.owners.includes("unattributed:no_owner") &&
-        "Tests in files with no owner.",
-    ].filter((c): c is string => typeof c === "string");
+        ? "Unknown machine: no job with test reports ran on these runner labels in the window."
+        : detail.estimated > 0
+        ? "Test jobs without reports have no machine of their own; theirs is estimated from the runner label, as the machine other jobs on that label reported (striped)."
+        : "The machine is the one the jobs' test reports recorded.",
+      ...buckets.map(bucketInfo),
+    ].filter((c): c is string => typeof c === "string" && c !== "");
     const labels = prepared.labels[m];
+    const cppHours = detail.contributors
+      .filter((c) => c.kind === "file" && c.key.startsWith("cpp/"))
+      .reduce((a, c) => a + c.hours, 0);
+    const fileHours = detail.contributors
+      .filter((c) => c.kind === "file")
+      .reduce((a, c) => a + c.hours, 0);
     body = (
       <>
         <Typography variant="h6" component="h3" sx={{ pr: 4, lineHeight: 1.3 }}>
@@ -181,6 +190,12 @@ export default function CellDrawer({
             {shareLabel(detail.hours / (view.scopeTotal || 1))} of the{" "}
             {hoursLabel(view.scopeTotal)} h in {name}
           </li>
+          {detail.estimated > 0 && (
+            <li>
+              ≈ {hoursLabel(detail.estimated)} h with the machine estimated
+              from runner labels
+            </li>
+          )}
         </Box>
         <Heading>By workflow</Heading>
         {bars(detail.byWorkflow, detail.hours)}
@@ -200,18 +215,48 @@ export default function CellDrawer({
             : labels.slice(0, 12).join(", ")}
           {labels.length > 12 ? `, and ${labels.length - 12} more` : ""}
         </Typography>
-        <Heading>Test configs and files</Heading>
-        <Typography
-          variant="body2"
-          sx={{
-            color: "text.secondary",
-            border: `1px dashed ${theme.palette.divider}`,
-            borderRadius: "4px",
-            p: 1,
-          }}
-        >
-          Not available yet.
-        </Typography>
+        {buckets.length > 0 ? (
+          <>
+            <Heading>What&apos;s in it</Heading>
+            {fileHours > 0 && (
+              <Typography
+                variant="body2"
+                sx={{ color: "text.secondary", mb: 0.5 }}
+              >
+                {hoursLabel(cppHours)} h C++ test binaries ·{" "}
+                {hoursLabel(fileHours - cppHours)} h Python files
+              </Typography>
+            )}
+            {detail.contributors.length === 0 ? (
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                None in the scope.
+              </Typography>
+            ) : (
+              bars(
+                detail.contributors.map((c) => [
+                  c.kind === "label" ? `runner label ${c.key}` : c.key,
+                  c.hours,
+                ]),
+                detail.hours
+              )
+            )}
+          </>
+        ) : (
+          <>
+            <Heading>Test configs and files</Heading>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                border: `1px dashed ${theme.palette.divider}`,
+                borderRadius: "4px",
+                p: 1,
+              }}
+            >
+              Not available yet.
+            </Typography>
+          </>
+        )}
         <Heading>Caveats</Heading>
         <Box
           component="ul"

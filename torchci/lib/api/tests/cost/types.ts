@@ -1,5 +1,9 @@
 import { z } from "zod/v4";
 
+// Where a row's machine came from: its jobs' test reports, their runner
+// label (an estimate, for test jobs without reports), or nowhere.
+export const MACHINE_SOURCES = ["environment", "runner_label", "none"] as const;
+
 export const OWNER_BUCKETS = [
   "unattributed:no_test_reports",
   "unattributed:no_owner",
@@ -18,11 +22,35 @@ export const RunnerHoursRowSchema = z
     machine: z
       .string()
       .describe(
-        "The machine, as machines names it; empty for hours on runner labels no sampled test job probed (Not probed)."
+        "The machine, as machines names it; empty when no machine is known (Unknown machine)."
+      ),
+    machine_source: z
+      .enum(MACHINE_SOURCES)
+      .describe(
+        "Where the machine came from: environment, the jobs' test reports; runner_label, an estimate from the runner label of test jobs without reports; none, no machine."
       ),
     runner_hours: z.number().describe("Runner-hours of the cell."),
   })
   .describe("Runner-hours of one owner on one machine in one workflow.");
+
+export const ContributorSchema = z
+  .object({
+    bucket: z.enum(OWNER_BUCKETS).describe("The bucket the hours are in."),
+    workflow: z.string().describe("The workflow's name, lowercase."),
+    machine: z
+      .string()
+      .describe("The machine, as rows name it; empty when unknown."),
+    kind: z
+      .enum(["label", "file"])
+      .describe(
+        "label: a runner label of test jobs without reports; file: a test file without owners."
+      ),
+    key: z.string().describe("The runner label or the test file."),
+    runner_hours: z.number().describe("Runner-hours of the contributor."),
+  })
+  .describe(
+    "What one unattributed bucket's hours are made of: runner labels of test jobs without reports, test files without owners."
+  );
 
 export const CostMachineSchema = z
   .object({
@@ -115,6 +143,11 @@ export const RunnerHoursSchema = z
     machines: z
       .array(CostMachineSchema)
       .describe("Every machine in rows, largest over the window first."),
+    contributors: z
+      .array(ContributorSchema)
+      .describe(
+        "The unattributed buckets' hours by runner label or test file, workflow and machine."
+      ),
     unprobed_labels: z
       .array(UnprobedLabelSchema)
       .describe(
@@ -137,6 +170,8 @@ export const RunnerHoursSchema = z
   );
 
 export type RunnerHoursRow = z.infer<typeof RunnerHoursRowSchema>;
+export type Contributor = z.infer<typeof ContributorSchema>;
+export type MachineSource = (typeof MACHINE_SOURCES)[number];
 export type CostMachine = z.infer<typeof CostMachineSchema>;
 export type CostSignal = z.infer<typeof CostSignalSchema>;
 export type WorkflowPreset = z.infer<typeof WorkflowPresetSchema>;

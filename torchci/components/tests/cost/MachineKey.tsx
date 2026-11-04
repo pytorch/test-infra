@@ -1,6 +1,6 @@
 import { Box, ButtonBase, Typography, useTheme } from "@mui/material";
 import TextButton from "components/tests/TextButton";
-import { paintFill } from "lib/tests/cost/colors";
+import { estimatedFill, paintFill } from "lib/tests/cost/colors";
 import { hoursLabel, shareLabel } from "lib/tests/cost/query";
 import {
   type CostView,
@@ -20,9 +20,10 @@ export interface MachineKeyProps {
 
 // The owner chart's legend, machine picker and machine shares in one: a row
 // per colored machine, the other machines together (listed while open) and
-// Not probed, each with its share of the scope. A click highlights the
+// Unknown machine, each with its share of the scope. A click highlights the
 // machine across the page; with owners highlighted, the solid part of each
-// bar and the figure are their hours on that machine.
+// bar and the figure are their hours on that machine. Without, the striped
+// end of a bar is the hours whose machine is estimated from runner labels.
 export default function MachineKey({
   prepared,
   view,
@@ -71,7 +72,10 @@ export default function MachineKey({
         sx={{ color: "text.secondary", mb: 1 }}
       >
         Bar colors. Click to highlight
-        {owners ? "; solid: highlighted owners" : ""}.
+        {owners
+          ? "; solid: highlighted owners"
+          : "; striped: machine estimated from runner labels"}
+        .
       </Typography>
       {rows.map((row) => {
         const selected = row.machines.some((m) => view.machines.has(m));
@@ -113,6 +117,12 @@ export default function MachineKey({
               aria-pressed={selected}
               onClick={() => onToggleMachines(names)}
               title={`${row.label}: ${hoursLabel(row.hours)} runner-hours${
+                row.estimated > 0
+                  ? `, of which ≈ ${hoursLabel(
+                      row.estimated
+                    )} h estimated from runner labels (test jobs without reports)`
+                  : ""
+              }${
                 owners
                   ? `; ${hoursLabel(
                       row.highlighted
@@ -184,12 +194,29 @@ export default function MachineKey({
                   sx={{
                     position: "absolute",
                     inset: 0,
-                    width: `${(100 * row.hours) / max}%`,
+                    width: `${
+                      (100 * (owners ? row.hours : row.hours - row.estimated)) /
+                      max
+                    }%`,
                     background: fill,
                     borderRadius: "2px",
                     opacity: owners ? 0.28 : 1,
                   }}
                 />
+                {!owners && row.estimated > 0 && (
+                  <Box
+                    component="span"
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      bottom: 0,
+                      left: `${(100 * (row.hours - row.estimated)) / max}%`,
+                      width: `${(100 * row.estimated) / max}%`,
+                      background: estimatedFill(fill),
+                      borderRadius: "2px",
+                    }}
+                  />
+                )}
                 {owners && (
                   <Box
                     component="span"

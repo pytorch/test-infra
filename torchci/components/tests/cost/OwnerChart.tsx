@@ -1,5 +1,6 @@
 import { Box, Tooltip, Typography, useTheme } from "@mui/material";
 import CostFrame from "components/tests/cost/CostFrame";
+import InfoTip from "components/tests/cost/InfoTip";
 import KeyButton from "components/tests/cost/KeyButton";
 import MachineKey from "components/tests/cost/MachineKey";
 import HeaderCheck from "components/tests/HeaderCheck";
@@ -9,6 +10,7 @@ import type { WorkflowPreset } from "lib/api/tests/cost/types";
 import { paintFill, paleColor } from "lib/tests/cost/colors";
 import { hoursLabel, ownerTestsHref, shareLabel } from "lib/tests/cost/query";
 import {
+  bucketInfo,
   type CostView,
   highlightedHours,
   highlightName,
@@ -158,8 +160,9 @@ export default function OwnerChart({
   // what a click on the row does. The owner's name beside it is a link.
   const bar = (row: OwnerRow, act: () => void, pressed: boolean) => {
     const mix = rowMix(prepared, view, row.owners);
+    const estimated = rowMix(prepared, view, row.owners, true);
     const pieces = split
-      ? segments(prepared, mix, view.machines).map((s) => ({
+      ? segments(prepared, mix, view.machines, estimated).map((s) => ({
           key: s.key,
           label: s.label,
           hours: s.hours,
@@ -439,7 +442,18 @@ export default function OwnerChart({
                             {row.kind === "more" ? " ▸" : " ▴"}
                           </TextButton>
                         ) : (
-                          row.label
+                          <>
+                            {row.label}
+                            {row.kind === "bucket" &&
+                              row.owners.some((o) => bucketInfo(o) !== "") && (
+                                <InfoTip
+                                  title={row.owners
+                                    .map(bucketInfo)
+                                    .filter(Boolean)
+                                    .join("\n\n")}
+                                />
+                              )}
+                          </>
                         )}
                       </Box>
                     )}
@@ -501,7 +515,9 @@ export default function OwnerChart({
         }}
       >
         <span>
-          Machines come from each job&apos;s test reports, or its runner label&apos;s.
+          Machines come from each job&apos;s test reports. Striped: estimated
+          from the runner label of test jobs without reports; grey stripes:
+          unknown machine.
         </span>
         <span>
           {name.charAt(0).toUpperCase() + name.slice(1)} · {dates}

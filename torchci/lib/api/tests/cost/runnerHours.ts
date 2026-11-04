@@ -11,8 +11,10 @@ import {
   timeToSignalQuery,
 } from "lib/api/tests/cost/query";
 import type {
+  Contributor,
   CostMachine,
   CostSignal,
+  MachineSource,
   RunnerHours,
 } from "lib/api/tests/cost/types";
 import { CI_WORKLOAD_HEAVY } from "lib/api/tests/database";
@@ -21,13 +23,16 @@ import { queryClickhouse } from "lib/clickhouse";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const METHOD =
-  "Each test job's wall time split among its test files by occupancy (the runner time each file's reports held, setup and idle time shared alike), then evenly among each file's owners (test_cost). Builds and other jobs are left out; test jobs without test reports and files without owners are unattributed. Machines come from each job's test reports, or for jobs without them, from their runner label's reporting jobs.";
+  "Each test job's wall time split among its test files by occupancy (the runner time each file's reports held, setup and idle time shared alike), then evenly among each file's owners (test_cost). Builds and other jobs are left out; test jobs without test reports and files without owners are unattributed. Machines come from each job's test reports; for test jobs without reports they are estimated from the runner label's reporting jobs (striped), or unknown.";
 
 interface RunnerHoursQueryRow {
   owner: string;
   workflow: string;
   machine: string;
+  machine_source: MachineSource;
   label: string;
+  // The test file, for files without owners only.
+  file: string;
   runner_hours: number;
 }
 
@@ -68,8 +73,8 @@ function sortedByHours(hours: Map<string, number>): string[] {
     .map(([key]) => key);
 }
 
-// The answer's rows, runner labels folded away: one row per owner,
-// workflow and machine, largest first.
+// The answer's rows, runner labels and files folded away: one row per
+// owner, workflow, machine and machine source, largest first.
 export function runnerHoursRows(
   rows: RunnerHoursQueryRow[]
 ): RunnerHours["rows"] {
@@ -77,13 +82,19 @@ export function runnerHoursRows(
   for (const row of rows) {
     const hours = Number(row.runner_hours);
     if (!(hours > 0)) continue;
-    const key = JSON.stringify([row.owner, row.workflow, row.machine]);
+    const key = JSON.stringify([
+      row.owner,
+      row.workflow,
+      row.machine,
+      row.machine_source,
+    ]);
     const cell = cells.get(key);
     if (cell === undefined) {
       cells.set(key, {
         owner: row.owner,
         workflow: row.workflow,
         machine: row.machine,
+        machine_source: row.machine_source,
         runner_hours: hours,
       });
     } else {
@@ -91,6 +102,41 @@ export function runnerHoursRows(
     }
   }
   return Array.from(cells.values()).sort(
+    (a, b) => b.runner_hours - a.runner_hours
+  );
+}
+
+// What the unattributed buckets are made of, largest first: the runner
+// labels of test jobs without reports and the test files without owners.
+export function costContributors(rows: RunnerHoursQueryRow[]): Contributor[] {
+  const out = new Map<string, Contributor>();
+  for (const row of rows) {
+    const hours = Number(row.runner_hours);
+    if (!(hours > 0)) continue;
+    const kind =
+      row.owner === "unattributed:no_test_reports"
+        ? "label"
+        : row.owner === "unattributed:no_owner"
+        ? "file"
+        : null;
+    if (kind === null) continue;
+    const key = kind === "label" ? row.label : row.file;
+    const id = JSON.stringify([row.owner, row.workflow, row.machine, key]);
+    const entry = out.get(id);
+    if (entry === undefined) {
+      out.set(id, {
+        bucket: row.owner as Contributor["bucket"],
+        workflow: row.workflow,
+        machine: row.machine,
+        kind,
+        key,
+        runner_hours: hours,
+      });
+    } else {
+      entry.runner_hours += hours;
+    }
+  }
+  return Array.from(out.values()).sort(
     (a, b) => b.runner_hours - a.runner_hours
   );
 }
@@ -249,6 +295,7 @@ export async function getRunnerHours(
     start: bounds.start,
     end: bounds.end,
     rows: runnerHoursRows(rows),
+    contributors: costContributors(rows),
     machines: costMachines(rows, machineRows),
     unprobed_labels: unprobedLabels(rows),
     time_to_signal: costSignals(signalRows),

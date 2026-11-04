@@ -1,4 +1,4 @@
-import type { RunnerHours } from "lib/api/tests/cost/types";
+import type { Contributor, RunnerHours } from "lib/api/tests/cost/types";
 import { escapeCSV } from "lib/csvUtils";
 
 // The cost page's sums over GET /api/tests/cost, done in the browser:
@@ -10,12 +10,14 @@ import { escapeCSV } from "lib/csvUtils";
 // Three rules hold throughout. The workflow scope is the only choice that
 // changes the numbers: owners and machines highlight, and nothing re-sorts
 // or rescales when they do. Machines keep one order, the window's largest
-// first and Not probed last, so stacks never reshuffle. The seven largest
-// machines over the window keep their hues whatever is scoped.
+// first and Unknown machine last, so stacks never reshuffle. The seven
+// largest machines over the window keep their hues whatever is scoped.
+// Hours whose machine is estimated from a runner label (test jobs without
+// reports) are drawn striped in their machine's paint.
 
-// The machine of runner-hours whose runner label no sampled test probed,
-// which the API names "".
-export const NOT_PROBED = "Not probed";
+// The machine of runner-hours on runner labels that no job with test
+// reports ran on, which the API names "".
+export const NOT_PROBED = "Unknown machine";
 export const OTHER_MACHINES = "Other machines";
 export const SHARED_ROW = "Shared: build and other jobs";
 export const UNATTRIBUTED_ROW = "Unattributed";
@@ -33,10 +35,31 @@ export const MIN_CELL_HOURS = 0.5;
 export const BUCKET_LABELS: Record<string, string> = {
   "shared:build": "Shared: build jobs",
   "shared:other": "Shared: other jobs (lint, docs, binaries, ...)",
-  "unattributed:no_test_reports": "Custom test scripts/Reports not uploaded",
-  "unattributed:no_owner": "Tests in files without owners",
+  "unattributed:no_test_reports": "No test reports",
+  "unattributed:no_owner": "No owner",
 };
 const BUCKET_ORDER = Object.keys(BUCKET_LABELS);
+
+// The two reasons an hour reaches no owner, where the chain job, test file,
+// owner breaks: what each bucket is, and what makes it shrink.
+export const BUCKET_INFO: Record<string, { what: string; shrinks: string }> = {
+  "unattributed:no_test_reports": {
+    what: "Test jobs that sent no test reports, so which test files ran is unknown: benchmark and custom-script configs, fleets whose reports do not reach the database (XPU), pull requests on a base older than the report format, cancelled jobs.",
+    shrinks: "Shrinks as these jobs upload test reports.",
+  },
+  "unattributed:no_owner": {
+    what: "Tests that sent reports, but their file has no owner: C++ test binaries, which have no owners yet, and Python files missing from the owners list.",
+    shrinks: "Shrinks as the files get owners.",
+  },
+};
+
+// A bucket's definition in words, for its (i).
+export function bucketInfo(bucket: string): string {
+  const info = BUCKET_INFO[bucket];
+  return info === undefined
+    ? ""
+    : `${BUCKET_LABELS[bucket]}: ${info.what} ${info.shrinks}`;
+}
 
 export function isBucket(owner: string): boolean {
   return owner.startsWith("shared:") || owner.startsWith("unattributed:");
@@ -62,6 +85,10 @@ export interface PreparedHours {
   rowWorkflow: Int32Array;
   rowMachine: Int32Array;
   rowHours: Float64Array;
+  // 1 where the row's machine is estimated from its runner label.
+  rowEstimated: Uint8Array;
+  // What the unattributed buckets are made of.
+  contributors: Contributor[];
   total: number;
   workflowTotal: Float64Array;
   machineTotal: Float64Array;
@@ -98,7 +125,9 @@ export function prepareRunnerHours(answer: RunnerHours): PreparedHours {
   const rawWorkflow = new Int32Array(n);
   const rowMachine = new Int32Array(n);
   const rowHours = new Float64Array(n);
+  const rowEstimated = new Uint8Array(n);
   answer.rows.forEach((row, i) => {
+    rowEstimated[i] = row.machine_source === "runner_label" ? 1 : 0;
     rowOwner[i] = index(owners, ownerIndex, row.owner);
     rawWorkflow[i] = index(rawWorkflows, workflowIndex, row.workflow);
     rowMachine[i] = index(
@@ -161,6 +190,8 @@ export function prepareRunnerHours(answer: RunnerHours): PreparedHours {
     rowWorkflow,
     rowMachine,
     rowHours,
+    rowEstimated,
+    contributors: answer.contributors,
     total: rowHours.reduce((a, b) => a + b, 0),
     workflowTotal,
     machineTotal,
@@ -200,12 +231,16 @@ export interface CostView {
   // The scope's runner-hours, and those of the highlight within it.
   scopeTotal: number;
   highlightTotal: number;
-  // Each owner's hours in the scope, and by machine.
+  // Each owner's hours in the scope, by machine, and by machine where the
+  // machine is estimated.
   ownerScope: Map<string, number>;
   ownerMachines: Map<string, Float64Array>;
-  // Each machine's hours in the scope, and the highlighted owners' share.
+  ownerEstimated: Map<string, Float64Array>;
+  // Each machine's hours in the scope, the highlighted owners' share, and
+  // the estimated part.
   machineScope: Float64Array;
   machineHighlighted: Float64Array;
+  machineEstimated: Float64Array;
   // Each workflow's highlighted hours over the whole window, since the
   // workflows card is read against the window, not the scope.
   workflowHighlighted: Float64Array;
@@ -229,8 +264,10 @@ export function computeView(
   );
   const ownerScope = new Map<string, number>();
   const ownerMachines = new Map<string, Float64Array>();
+  const ownerEstimated = new Map<string, Float64Array>();
   const machineScope = new Float64Array(M);
   const machineHighlighted = new Float64Array(M);
+  const machineEstimated = new Float64Array(M);
   const workflowHighlighted = new Float64Array(prepared.workflows.length);
   let scopeTotal = 0;
   let highlightTotal = 0;
@@ -256,6 +293,15 @@ export function computeView(
     }
     mix[m] += h;
     machineScope[m] += h;
+    if (prepared.rowEstimated[i]) {
+      let estimated = ownerEstimated.get(owner);
+      if (estimated === undefined) {
+        estimated = new Float64Array(M);
+        ownerEstimated.set(owner, estimated);
+      }
+      estimated[m] += h;
+      machineEstimated[m] += h;
+    }
     if (ownerOn) machineHighlighted[m] += h;
     if (inHighlight) highlightTotal += h;
   }
@@ -267,8 +313,10 @@ export function computeView(
     highlightTotal,
     ownerScope,
     ownerMachines,
+    ownerEstimated,
     machineScope,
     machineHighlighted,
+    machineEstimated,
     workflowHighlighted,
   };
 }
@@ -415,28 +463,33 @@ export function ownerRows(
   return rows;
 }
 
-// A row's hours by machine in the scope.
+// A row's hours by machine in the scope, or with estimated, only those
+// whose machine is estimated from a runner label.
 export function rowMix(
   prepared: PreparedHours,
   view: CostView,
-  owners: readonly string[]
+  owners: readonly string[],
+  estimated = false
 ): Float64Array {
   const mix = new Float64Array(prepared.machines.length);
+  const source = estimated ? view.ownerEstimated : view.ownerMachines;
   for (const owner of owners) {
-    view.ownerMachines.get(owner)?.forEach((h, m) => (mix[m] += h));
+    source.get(owner)?.forEach((h, m) => (mix[m] += h));
   }
   return mix;
 }
 
 // How a piece of a bar is painted: a machine's hue, the grey of the other
-// machines, Not probed's hatch, the accent of a highlighted machine with no
-// hue of its own, or the pale rest of a highlighted bar.
-export type Paint =
+// machines, Unknown machine's grey stripes, the accent of a highlighted
+// machine with no hue of its own, the pale rest of a highlighted bar, or
+// any of the machine paints striped where the machine is estimated.
+export type BasePaint =
   | { kind: "machine"; machine: number }
   | { kind: "other" }
   | { kind: "not_probed" }
   | { kind: "accent" }
   | { kind: "pale" };
+export type Paint = BasePaint | { kind: "estimated"; of: BasePaint };
 
 export interface Segment {
   key: string;
@@ -452,31 +505,63 @@ export function paintOf(
   prepared: PreparedHours,
   m: number,
   highlighted = false
-): Paint {
+): BasePaint {
   if (m === prepared.notProbed) return { kind: "not_probed" };
   if (prepared.colored.includes(m)) return { kind: "machine", machine: m };
   return highlighted ? { kind: "accent" } : { kind: "other" };
 }
 
+// A machine's piece, split in two where part of its hours have an estimated
+// machine: the reported hours in the machine's paint, then the estimated
+// ones in the same paint, striped.
+function machinePieces(
+  key: string,
+  label: string,
+  hours: number,
+  estimated: number,
+  paint: BasePaint
+): Segment[] {
+  const out: Segment[] = [];
+  if (hours - estimated > 1e-9) {
+    out.push({ key, label, hours: hours - estimated, paint });
+  }
+  if (estimated > 1e-9) {
+    out.push({
+      key: `${key} (estimated)`,
+      label: `${label}, estimated from runner labels`,
+      hours: estimated,
+      paint: { kind: "estimated", of: paint },
+    });
+  }
+  return out;
+}
+
 // A bar's pieces in the machines' fixed order: the colored machines, then
-// the others together, then Not probed. With machines highlighted, those
-// machines' pieces come first, each in its paint (an uncolored machine
-// in the accent), and the rest of the bar is one pale piece, so the highlighted hours
-// line up at the start of every bar.
+// the others together, then Unknown machine, each split into reported and
+// estimated hours (estimated, the same row's hours whose machine came from a
+// runner label). With machines highlighted, those machines' pieces come
+// first, each in its paint (an uncolored machine in the accent), and the rest
+// of the bar is one pale piece, so the highlighted hours line up at the start
+// of every bar.
 export function segments(
   prepared: PreparedHours,
   mix: Float64Array,
-  highlighted: Set<number>
+  highlighted: Set<number>,
+  estimated: Float64Array = new Float64Array(mix.length)
 ): Segment[] {
   const order = prepared.machineOrder;
-  const piece = (m: number): Segment => ({
-    key: prepared.machines[m],
-    label: prepared.machines[m],
-    hours: mix[m],
-    paint: paintOf(prepared, m, highlighted.has(m)),
-  });
+  const piece = (m: number): Segment[] =>
+    machinePieces(
+      prepared.machines[m],
+      prepared.machines[m],
+      mix[m],
+      estimated[m] ?? 0,
+      paintOf(prepared, m, highlighted.has(m))
+    );
   if (highlighted.size > 0) {
-    const on = order.filter((m) => highlighted.has(m) && mix[m] > 0).map(piece);
+    const on = order
+      .filter((m) => highlighted.has(m) && mix[m] > 0)
+      .flatMap(piece);
     const rest = order
       .filter((m) => !highlighted.has(m))
       .reduce((a, m) => a + mix[m], 0);
@@ -494,20 +579,24 @@ export function segments(
   }
   const pieces = order
     .filter((m) => prepared.colored.includes(m) && mix[m] > 0)
-    .map(piece);
-  const other = order
-    .filter((m) => m !== prepared.notProbed && !prepared.colored.includes(m))
-    .reduce((a, m) => a + mix[m], 0);
+    .flatMap(piece);
+  const others = order.filter(
+    (m) => m !== prepared.notProbed && !prepared.colored.includes(m)
+  );
+  const other = others.reduce((a, m) => a + mix[m], 0);
   if (other > 0) {
-    pieces.push({
-      key: OTHER_MACHINES,
-      label: OTHER_MACHINES,
-      hours: other,
-      paint: { kind: "other" },
-    });
+    pieces.push(
+      ...machinePieces(
+        OTHER_MACHINES,
+        OTHER_MACHINES,
+        other,
+        others.reduce((a, m) => a + (estimated[m] ?? 0), 0),
+        { kind: "other" }
+      )
+    );
   }
   if (prepared.notProbed >= 0 && mix[prepared.notProbed] > 0)
-    pieces.push(piece(prepared.notProbed));
+    pieces.push(...piece(prepared.notProbed));
   return pieces;
 }
 
@@ -528,9 +617,11 @@ export interface KeyRow {
   label: string;
   machines: number[];
   hours: number;
+  // The hours on these machines whose machine is estimated.
+  estimated: number;
   // The highlighted owners' hours on these machines.
   highlighted: number;
-  paint: Paint;
+  paint: BasePaint;
   kind: "machine" | "group" | "member";
 }
 
@@ -545,6 +636,7 @@ export function machineKeyRows(
     label: prepared.machines[m],
     machines: [m],
     hours: s[m],
+    estimated: view.machineEstimated[m],
     highlighted: view.machineHighlighted[m],
     paint: paintOf(prepared, m, view.machines.has(m)),
     kind,
@@ -561,6 +653,7 @@ export function machineKeyRows(
       label: `${OTHER_MACHINES} (${others.length})`,
       machines: others,
       hours: others.reduce((a, m) => a + s[m], 0),
+      estimated: others.reduce((a, m) => a + view.machineEstimated[m], 0),
       highlighted: others.reduce((a, m) => a + view.machineHighlighted[m], 0),
       paint: { kind: "other" },
       kind: "group",
@@ -646,7 +739,9 @@ export function cellShade(
   return base > 0 ? Math.min(1, hours / base) : 0;
 }
 
-// One cell's hours by workflow, and by owner for a folded row, in the scope.
+// One cell's hours by workflow, and by owner for a folded row, in the scope;
+// the part whose machine is estimated; and for an unattributed bucket, what
+// it is made of: runner labels or test files, largest first.
 export function cellDetail(
   prepared: PreparedHours,
   view: CostView,
@@ -657,6 +752,23 @@ export function cellDetail(
   const byWorkflow = new Map<string, number>();
   const byOwner = new Map<string, number>();
   let hours = 0;
+  let estimated = 0;
+  const contributors = new Map<
+    string,
+    { kind: Contributor["kind"]; hours: number }
+  >();
+  const machineName = machine === prepared.notProbed ? "" : prepared.machines[machine];
+  for (const c of prepared.contributors) {
+    if (!wanted.has(c.bucket) || c.machine !== machineName) continue;
+    const w = prepared.workflows.indexOf(c.workflow);
+    if (view.scope.size > 0 && !view.scope.has(w)) continue;
+    const entry = contributors.get(c.key);
+    if (entry === undefined) {
+      contributors.set(c.key, { kind: c.kind, hours: c.runner_hours });
+    } else {
+      entry.hours += c.runner_hours;
+    }
+  }
   for (let i = 0; i < prepared.rowHours.length; i++) {
     if (prepared.rowMachine[i] !== machine) continue;
     const w = prepared.rowWorkflow[i];
@@ -665,6 +777,7 @@ export function cellDetail(
     if (!wanted.has(owner)) continue;
     const h = prepared.rowHours[i];
     hours += h;
+    if (prepared.rowEstimated[i]) estimated += h;
     byWorkflow.set(
       prepared.workflows[w],
       (byWorkflow.get(prepared.workflows[w]) ?? 0) + h
@@ -673,7 +786,15 @@ export function cellDetail(
   }
   const sorted = (m: Map<string, number>) =>
     Array.from(m).sort((a, b) => b[1] - a[1]);
-  return { hours, byWorkflow: sorted(byWorkflow), byOwner: sorted(byOwner) };
+  return {
+    hours,
+    estimated,
+    byWorkflow: sorted(byWorkflow),
+    byOwner: sorted(byOwner),
+    contributors: Array.from(contributors, ([key, c]) => ({ key, ...c })).sort(
+      (a, b) => b.hours - a.hours
+    ),
+  };
 }
 
 // The rows in the scope and the highlight, as CSV.
@@ -681,7 +802,7 @@ export function rowsCsv(
   prepared: PreparedHours,
   view: CostView
 ): { csv: string; rows: number } {
-  const lines = ["owner,workflow,machine,runner_hours"];
+  const lines = ["owner,workflow,machine,machine_estimated,runner_hours"];
   for (let i = 0; i < prepared.rowHours.length; i++) {
     const w = prepared.rowWorkflow[i];
     const m = prepared.rowMachine[i];
@@ -694,6 +815,7 @@ export function rowsCsv(
         owner,
         prepared.workflows[w],
         prepared.machines[m],
+        prepared.rowEstimated[i] ? "yes" : "no",
         prepared.rowHours[i].toFixed(2),
       ]
         .map(escapeCSV)

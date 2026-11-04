@@ -29,8 +29,9 @@ const MACHINE_HUES = {
 // The cost page's colors, every one by the theme's mode. Machines take the
 // split chart's seven hues (MACHINE_HUES, checked with the dataviz palette
 // validator) by their position among the colored machines; the other
-// machines are grey, Not probed is hatched, and the rest of a highlighted
-// bar is pale. The matrix shades by one sequential blue ramp, its own light
+// machines are grey, Unknown machine is grey stripes, hours whose machine
+// is estimated are stripes in their machine's paint, and the rest of a
+// highlighted bar is pale. The matrix shades by one sequential blue ramp, its own light
 // and dark steps, the cell's text dark or light by contrast.
 
 export function otherMachinesColor(theme: Theme): string {
@@ -55,6 +56,15 @@ export function hatch(color: string): string {
   return `repeating-linear-gradient(135deg, ${color} 0 2px, transparent 2px 4px)`;
 }
 
+// Stripes of a paint over its own pale tint: the machine is still legible,
+// and the stripes say it is a guess.
+export function estimatedFill(color: string): string {
+  return `repeating-linear-gradient(135deg, ${color} 0 2px, ${alpha(
+    color,
+    0.3
+  )} 2px 4px)`;
+}
+
 // A paint as a CSS background.
 export function paintFill(
   theme: Theme,
@@ -62,6 +72,10 @@ export function paintFill(
   paint: Paint
 ): string {
   switch (paint.kind) {
+    case "estimated":
+      return paint.of.kind === "not_probed" || paint.of.kind === "pale"
+        ? paintFill(theme, prepared, paint.of)
+        : estimatedFill(paintFill(theme, prepared, paint.of));
     case "machine": {
       const position = prepared.colored.indexOf(paint.machine);
       return (

@@ -1,5 +1,7 @@
 import { Box, ButtonBase, Tooltip, Typography, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import CostFrame from "components/tests/cost/CostFrame";
+import InfoTip from "components/tests/cost/InfoTip";
 import KeyButton from "components/tests/cost/KeyButton";
 import HeaderCheck from "components/tests/HeaderCheck";
 import type { Cells } from "lib/api/tests/cost/page";
@@ -7,6 +9,7 @@ import { downloadCSV } from "lib/csvUtils";
 import { heatColors, rampGradient } from "lib/tests/cost/colors";
 import { hoursLabel, shareLabel } from "lib/tests/cost/query";
 import {
+  bucketInfo,
   cellShade,
   type CostView,
   matrixGroups,
@@ -153,6 +156,10 @@ export default function CostMatrix({
       : groups;
   const mixes = new Map(
     rows.map((r) => [r.key, rowMix(prepared, view, r.owners)])
+  );
+  // The hours of each row whose machine is estimated from runner labels.
+  const estimates = new Map(
+    rows.map((r) => [r.key, rowMix(prepared, view, r.owners, true)])
   );
   const columns = groups.flatMap((g) => g.machines);
   const maxCell = Math.max(
@@ -442,6 +449,9 @@ export default function CostMatrix({
                       {row.label}
                       {row.kind === "more" ? " ▸" : ""}
                     </CellButton>
+                    {row.kind === "bucket" && bucketInfo(row.key) !== "" && (
+                      <InfoTip title={bucketInfo(row.key)} />
+                    )}
                   </Box>
                   {visibleGroups.map((g, gi) => [
                     gi > 0 ? gap(`g${gi}`) : null,
@@ -469,6 +479,11 @@ export default function CostMatrix({
                         maxCell
                       );
                       const colors = heatColors(theme, share);
+                      const estimated = estimates.get(row.key)?.[m] ?? 0;
+                      // Mostly estimated: striped in the cell's own text
+                      // color, which contrasts with its shade in either mode.
+                      const guessed = estimated >= hours / 2;
+                      const unknown = m === prepared.notProbed;
                       return (
                         <Box
                           component="td"
@@ -476,6 +491,13 @@ export default function CostMatrix({
                           sx={{
                             ...cellSx,
                             backgroundColor: colors.background,
+                            backgroundImage:
+                              guessed || unknown
+                                ? `repeating-linear-gradient(135deg, ${alpha(
+                                    colors.color,
+                                    0.22
+                                  )} 0 2px, transparent 2px 5px)`
+                                : undefined,
                             color: colors.color,
                             opacity: dim ? 0.3 : 1,
                             outline: current
@@ -487,9 +509,15 @@ export default function CostMatrix({
                           <Tooltip
                             title={`${row.label} on ${
                               prepared.machines[m]
-                            }\n${hoursLabel(
-                              hours
-                            )} runner-hours\nClick for details`}
+                            }\n${hoursLabel(hours)} runner-hours${
+                              estimated > 0
+                                ? `\n≈ ${hoursLabel(
+                                    estimated
+                                  )} h with the machine estimated from runner labels`
+                                : unknown
+                                ? "\nNo job with test reports ran on these runner labels"
+                                : ""
+                            }\nClick for details`}
                             enterDelay={200}
                             slotProps={{
                               tooltip: { sx: { whiteSpace: "pre-line" } },
@@ -514,6 +542,7 @@ export default function CostMatrix({
                                   )
                                 }
                               >
+                                {guessed ? "≈" : ""}
                                 {cells === "hours"
                                   ? hoursLabel(hours)
                                   : shareLabel(
@@ -581,6 +610,15 @@ export default function CostMatrix({
                   <Box
                     component="td"
                     key={m}
+                    title={
+                      view.machineEstimated[m] > 0
+                        ? `${prepared.machines[m]}: ${hoursLabel(
+                            view.machineScope[m]
+                          )} h, of which ≈ ${hoursLabel(
+                            view.machineEstimated[m]
+                          )} h estimated from runner labels`
+                        : undefined
+                    }
                     sx={{
                       ...cellSx,
                       pt: 1,
@@ -591,6 +629,19 @@ export default function CostMatrix({
                     }}
                   >
                     {hoursLabel(view.machineScope[m])} h
+                    {view.machineEstimated[m] > 0 && (
+                      <Box
+                        component="span"
+                        sx={{ color: "text.secondary", fontWeight: 400 }}
+                      >
+                        <br />≈{" "}
+                        {shareLabel(
+                          view.machineEstimated[m] /
+                            (view.machineScope[m] || 1)
+                        )}{" "}
+                        est.
+                      </Box>
+                    )}
                     <br />
                     <Box component="span" sx={{ color: "text.secondary" }}>
                       {shareLabel(

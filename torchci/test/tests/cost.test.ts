@@ -6,6 +6,7 @@ import {
 } from "lib/tests/cost/query";
 import {
   NOT_PROBED,
+  bucketInfo,
   cellDetail,
   cellShade,
   computeView,
@@ -17,6 +18,7 @@ import {
   matrixGroups,
   ownerRows,
   prepareRunnerHours,
+  rowMix,
   rowsCsv,
   scopeName,
   segments,
@@ -51,11 +53,15 @@ const row = (
   owner: string,
   workflow: string,
   m: string,
-  runner_hours: number
+  runner_hours: number,
+  machine_source: "environment" | "runner_label" | "none" = m === ""
+    ? "none"
+    : "environment"
 ) => ({
   owner,
   workflow,
   machine: m,
+  machine_source,
   runner_hours,
 });
 
@@ -80,6 +86,7 @@ const ANSWER: RunnerHours = {
     row("unattributed:no_owner", "trunk", "NVIDIA L4", 5),
   ],
   machines: MACHINES,
+  contributors: [],
   unprobed_labels: [{ label: "linux.12xlarge", runner_hours: 100 }],
   time_to_signal: [],
   method: "",
@@ -324,6 +331,8 @@ describe("matrix", () => {
     const avx512 = prepared.machines.indexOf("Linux x86_64 avx512");
     expect(cellDetail(prepared, view, ["inductor", "nn"], avx512)).toEqual({
       hours: 120,
+      estimated: 0,
+      contributors: [],
       byWorkflow: [["pull", 120]],
       byOwner: [
         ["inductor", 80],
@@ -339,7 +348,7 @@ describe("matrix", () => {
       machines: [],
     });
     expect(rowsCsv(prepared, view)).toEqual({
-      csv: "owner,workflow,machine,runner_hours\ninductor,pull,Linux x86_64 avx512,80.00\nnn,pull,Linux x86_64 avx512,40.00\n",
+      csv: "owner,workflow,machine,machine_estimated,runner_hours\ninductor,pull,Linux x86_64 avx512,no,80.00\nnn,pull,Linux x86_64 avx512,no,40.00\n",
       rows: 2,
     });
   });
@@ -395,5 +404,121 @@ describe("cost page query", () => {
     expect(costApiUrl("pytorch/pytorch")).toBe(
       "/api/tests/cost?repo=pytorch%2Fpytorch"
     );
+  });
+});
+
+// One machine; the unattributed buckets: test jobs without reports, on a
+// label other jobs reported L4 on (estimated) and on one no job reported on
+// (unknown), and test files without owners.
+const ESTIMATED: RunnerHours = {
+  ...ANSWER,
+  rows: [
+    row("inductor", "trunk", "NVIDIA L4", 10),
+    row("unattributed:no_test_reports", "trunk", "NVIDIA L4", 6, "runner_label"),
+    row("unattributed:no_owner", "trunk", "NVIDIA L4", 2),
+    row("unattributed:no_test_reports", "trunk", "", 3),
+  ],
+  machines: [machine("NVIDIA L4", "CUDA", "L4")],
+  contributors: [
+    {
+      bucket: "unattributed:no_test_reports",
+      workflow: "trunk",
+      machine: "NVIDIA L4",
+      kind: "label",
+      key: "l4.label",
+      runner_hours: 6,
+    },
+    {
+      bucket: "unattributed:no_test_reports",
+      workflow: "trunk",
+      machine: "",
+      kind: "label",
+      key: "linux.idc.xpu",
+      runner_hours: 3,
+    },
+    {
+      bucket: "unattributed:no_owner",
+      workflow: "trunk",
+      machine: "NVIDIA L4",
+      kind: "file",
+      key: "cpp/test_api",
+      runner_hours: 1.5,
+    },
+    {
+      bucket: "unattributed:no_owner",
+      workflow: "trunk",
+      machine: "NVIDIA L4",
+      kind: "file",
+      key: "test/test_a.py",
+      runner_hours: 0.5,
+    },
+  ],
+  unprobed_labels: [{ label: "linux.idc.xpu", runner_hours: 3 }],
+};
+
+describe("estimated machines and the unattributed buckets", () => {
+  const p = prepareRunnerHours(ESTIMATED);
+  const v = computeView(p, none);
+  const l4 = p.machines.indexOf("NVIDIA L4");
+  const unattributed = ownerRows(v, false, "grouped").find(
+    (r) => r.key === "unattributed"
+  );
+
+  test("the view counts the hours whose machine came from a runner label", () => {
+    expect(v.machineScope[l4]).toBe(18);
+    expect(v.machineEstimated[l4]).toBe(6);
+    expect(machineKeyRows(p, v, false)[0]).toMatchObject({
+      label: "NVIDIA L4",
+      hours: 18,
+      estimated: 6,
+    });
+  });
+
+  test("a bar's machine splits into reported hours, then the estimated ones striped; unknown stays its own piece", () => {
+    const owners = unattributed?.owners ?? [];
+    const pieces = segments(
+      p,
+      rowMix(p, v, owners),
+      new Set(),
+      rowMix(p, v, owners, true)
+    );
+    expect(pieces.map((s) => [s.label, s.hours, s.paint.kind])).toEqual([
+      ["NVIDIA L4", 2, "machine"],
+      ["NVIDIA L4, estimated from runner labels", 6, "estimated"],
+      [NOT_PROBED, 3, "not_probed"],
+    ]);
+  });
+
+  test("a bucket's cell lists what it is made of, and how much has an estimated machine", () => {
+    expect(
+      cellDetail(p, v, ["unattributed:no_test_reports"], l4)
+    ).toMatchObject({
+      hours: 6,
+      estimated: 6,
+      contributors: [{ key: "l4.label", kind: "label", hours: 6 }],
+    });
+    expect(
+      cellDetail(p, v, ["unattributed:no_test_reports"], p.notProbed)
+        .contributors
+    ).toEqual([{ key: "linux.idc.xpu", kind: "label", hours: 3 }]);
+    expect(cellDetail(p, v, ["unattributed:no_owner"], l4)).toMatchObject({
+      hours: 2,
+      estimated: 0,
+      contributors: [
+        { key: "cpp/test_api", kind: "file", hours: 1.5 },
+        { key: "test/test_a.py", kind: "file", hours: 0.5 },
+      ],
+    });
+  });
+
+  test("the CSV marks rows with an estimated machine; both buckets explain themselves", () => {
+    expect(rowsCsv(p, v).csv).toContain(
+      "unattributed:no_test_reports,trunk,NVIDIA L4,yes,6.00"
+    );
+    expect(bucketInfo("unattributed:no_test_reports")).toMatch(
+      /^No test reports: Test jobs that sent no test reports/
+    );
+    expect(bucketInfo("unattributed:no_owner")).toMatch(/^No owner: Tests/);
+    expect(bucketInfo("inductor")).toBe("");
   });
 });

@@ -1,5 +1,6 @@
 import { parseCostParams } from "lib/api/tests/cost/parameters";
 import {
+  costContributors,
   costMachines,
   costSignals,
   getRunnerHours,
@@ -12,74 +13,65 @@ import * as clickhouse from "lib/clickhouse";
 
 const NOW = new Date("2026-10-30T06:00:00Z");
 
+// A row of the runner-hours query.
+const q = (
+  owner: string,
+  workflow: string,
+  machine: string,
+  machine_source: "environment" | "runner_label" | "none",
+  label: string,
+  runner_hours: number,
+  file = ""
+) => ({ owner, workflow, machine, machine_source, label, file, runner_hours });
+
 const ROWS = [
-  {
-    owner: "inductor",
-    workflow: "trunk",
-    machine: "NVIDIA L4",
-    label: "linux.g6.4xlarge",
-    runner_hours: 30,
-  },
-  {
-    owner: "inductor",
-    workflow: "trunk",
-    machine: "NVIDIA L4",
-    label: "l-x86iavx512-8-64-l4",
-    runner_hours: 10,
-  },
-  {
-    owner: "inductor",
-    workflow: "pull",
-    machine: "Linux x86_64 avx512",
-    label: "linux.2xlarge",
-    runner_hours: 5,
-  },
-  {
-    owner: "shared:build",
-    workflow: "pull",
-    machine: "",
-    label: "linux.12xlarge",
-    runner_hours: 50,
-  },
-  {
-    owner: "shared:build",
-    workflow: "pull",
-    machine: "",
-    label: "windows.4xlarge",
-    runner_hours: 7,
-  },
-  {
-    owner: "nn",
-    workflow: "pull",
-    machine: "NVIDIA L4",
-    label: "linux.g6.4xlarge",
-    runner_hours: 0,
-  },
+  q("inductor", "trunk", "NVIDIA L4", "environment", "linux.g6.4xlarge", 30),
+  q("inductor", "trunk", "NVIDIA L4", "environment", "l-x86iavx512-8-64-l4", 10),
+  q("inductor", "pull", "Linux x86_64 avx512", "environment", "linux.2xlarge", 5),
+  q("unattributed:no_test_reports", "pull", "", "none", "linux.12xlarge", 50),
+  q("unattributed:no_test_reports", "pull", "", "none", "windows.4xlarge", 7),
+  q("nn", "pull", "NVIDIA L4", "environment", "linux.g6.4xlarge", 0),
+  // A test job without reports whose label other jobs reported L4 on.
+  q("unattributed:no_test_reports", "inductor", "NVIDIA L4", "runner_label", "linux.g6.4xlarge", 4),
+  // One file without owners, on two labels.
+  q("unattributed:no_owner", "trunk", "NVIDIA L4", "environment", "linux.g6.4xlarge", 2, "cpp/test_api"),
+  q("unattributed:no_owner", "trunk", "NVIDIA L4", "environment", "l-x86iavx512-8-64-l4", 1, "cpp/test_api"),
 ];
 
 describe("cost runner-hours", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  test("folds runner labels away: one row per owner, workflow and machine, largest first, empty cells dropped", () => {
+  test("folds runner labels and files away: one row per owner, workflow, machine and machine source, largest first, empty cells dropped", () => {
+    const row = (
+      owner: string,
+      workflow: string,
+      machine: string,
+      machine_source: string,
+      runner_hours: number
+    ) => ({ owner, workflow, machine, machine_source, runner_hours });
     expect(runnerHoursRows(ROWS)).toEqual([
-      {
-        owner: "shared:build",
-        workflow: "pull",
-        machine: "",
-        runner_hours: 57,
-      },
-      {
-        owner: "inductor",
-        workflow: "trunk",
-        machine: "NVIDIA L4",
-        runner_hours: 40,
-      },
-      {
-        owner: "inductor",
-        workflow: "pull",
-        machine: "Linux x86_64 avx512",
-        runner_hours: 5,
-      },
+      row("unattributed:no_test_reports", "pull", "", "none", 57),
+      row("inductor", "trunk", "NVIDIA L4", "environment", 40),
+      row("inductor", "pull", "Linux x86_64 avx512", "environment", 5),
+      row("unattributed:no_test_reports", "inductor", "NVIDIA L4", "runner_label", 4),
+      row("unattributed:no_owner", "trunk", "NVIDIA L4", "environment", 3),
+    ]);
+  });
+
+  test("the unattributed buckets by runner label (no test reports) and test file (no owner), largest first", () => {
+    const c = (
+      bucket: string,
+      workflow: string,
+      machine: string,
+      kind: string,
+      key: string,
+      runner_hours: number
+    ) => ({ bucket, workflow, machine, kind, key, runner_hours });
+    expect(costContributors(ROWS)).toEqual([
+      c("unattributed:no_test_reports", "pull", "", "label", "linux.12xlarge", 50),
+      c("unattributed:no_test_reports", "pull", "", "label", "windows.4xlarge", 7),
+      c("unattributed:no_test_reports", "inductor", "NVIDIA L4", "label", "linux.g6.4xlarge", 4),
+      c("unattributed:no_owner", "trunk", "NVIDIA L4", "file", "cpp/test_api", 3),
     ]);
   });
 
@@ -211,7 +203,13 @@ describe("cost runner-hours", () => {
       { label: "linux.12xlarge", runner_hours: 50 },
       { label: "windows.4xlarge", runner_hours: 7 },
     ]);
-    expect(answer.rows.reduce((a, r) => a + r.runner_hours, 0)).toBe(102);
+    expect(answer.rows.reduce((a, r) => a + r.runner_hours, 0)).toBe(109);
+    expect(answer.contributors.map((c) => c.key)).toEqual([
+      "linux.12xlarge",
+      "windows.4xlarge",
+      "linux.g6.4xlarge",
+      "cpp/test_api",
+    ]);
   });
 
   test("takes the repository, nothing else", () => {
