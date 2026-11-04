@@ -14,7 +14,7 @@ files.
 ## Update the generated files
 
 Run this from the repository root after changing `tools/scripts/generate_binary_build_matrix.py`,
-a generator in `tools/quick_start/scripts`, or a file in `_additional_platforms/` or
+the generator code in `tools/linter/adapters/quick_start_linter.py`, or a file in `_additional_platforms/` or
 `_get_started/additional_platforms/`, and commit what it changes:
 
 ```bash
@@ -33,21 +33,9 @@ to `main`.
 
 | Path | Role |
 |---|---|
-| `scripts/gen_quick_start_module.py` | Runs `tools/scripts/generate_binary_build_matrix.py` for the getting-started matrices and updates `published_versions.json` and `releases.json`. |
-| `scripts/gen_additional_platforms.py` | Builds `additional-platforms.json` from `_additional_platforms/*.json` and `_get_started/additional_platforms/*.md`. |
+| `tools/linter/adapters/quick_start_linter.py` | The `QUICKSTART` lint and the source of truth for generating the files below. It runs `tools/scripts/generate_binary_build_matrix.py` for the getting-started matrices and updates `published_versions.json` and `releases.json`, and builds `additional-platforms.json` from the platform inputs. |
 | `_additional_platforms/*.json`, `_get_started/additional_platforms/*.md` | Hand-written inputs, one pair per vendor platform. |
 | `published_versions.json`, `releases.json`, `additional-platforms.json` | **Generated.** Do not edit by hand. |
-
-## Running the generators directly
-
-Each generator rewrites its files in place, and the lint uses the same code. Run
-`gen_additional_platforms.py` with the `markdown` and `pygments` versions pinned in
-`.lintrunner.toml`:
-
-```bash
-python3 tools/quick_start/scripts/gen_quick_start_module.py
-python3 tools/quick_start/scripts/gen_additional_platforms.py
-```
 
 The output does not depend on when or where it runs, so the files only change when an
 input does.
