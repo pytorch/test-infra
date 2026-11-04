@@ -6,10 +6,12 @@
 --
 -- A failure (head sha, config, test file; lowest position across jobs) counts when it is new: at
 -- the push's `before` every shard of the config reported (success, or failure with failing tests;
--- a crashed shard leaves its files unknown) and the file did not fail; and confirmed: it fails
--- again at the first of the next three main heads where the config reported, or in two run
--- attempts at the head. config = 'workflow / job-name prefix before " / test (" / test config'
--- from workflow_job.name (the metric's build_environment differs from it for nested workflows).
+-- a crashed shard leaves its files unknown) and the file failed in no config of TD's scope, not
+-- even in a job a rerun turned green, since a culprit's failure can show in one config only a push
+-- after another; and confirmed: it fails again at the first of the next three main heads where
+-- the config reported, or in two run attempts at the head. config = 'workflow / job-name prefix
+-- before " / test (" / test config' from workflow_job.name (the metric's build_environment
+-- differs from it for nested workflows).
 --
 -- The unit is a landing: a PR goes red if any one of its failures runs, so a landing is caught
 -- when any failure is inside its own config's cut, and is represented by its best failure
@@ -17,10 +19,12 @@
 -- per rank-percent bucket), 'total' (always one row, also on an empty window; failures = the
 -- counted failures behind those landings), 'miss' (the newest 100 landings with no failure
 -- inside the cut). Columns that do not apply are 0 or empty; landed_at is 1970 outside 'miss'.
--- The window ends at most now and spans at most the metric's 90-day TTL. main_runs is read four
--- times and main_pushes three (about 0.5 s each). Measured 2026-11-04 single-threaded: 30 days
--- cost about 6 s, 90 days 21-27 s, spent on the info JSON of main runs and the evidence lookups.
+-- The window ends at most now and spans at most the metric's 90-day TTL. TD's scope is fixed in
+-- SQL: a caller-sized array inside a per-row lambda would let one request scale its own CPU cost.
 WITH
+['pull', 'trunk'] AS td_workflows,
+['rocm-', 'periodic-rocm-'] AS td_workflow_prefixes,
+['macos', 'xpu', 'onnx'] AS no_td_build_markers,
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
     {startTime: DateTime64(3)}, window_end - INTERVAL 90 DAY
@@ -73,10 +77,10 @@ main_runs AS (
                 AND timestamp < window_end
                 AND pr_number = 0
                 AND (
-                    has({tdWorkflows: Array(String)}, workflow)
+                    has(td_workflows, workflow)
                     OR arrayExists(
                         w -> startsWith(workflow, w),
-                        {tdWorkflowPrefixes: Array(String)}
+                        td_workflow_prefixes
                     )
                 )
         )
@@ -91,8 +95,9 @@ evidence_shas AS (
     WHERE n_commits = 1 AND head_sha IN (SELECT head_sha FROM main_runs)
 ),
 
--- Per (sha, config): did every shard report in some attempt, and which files failed (failure or
--- error, not rerun-only) in which attempt.
+-- Per (sha, config), and per sha with config '': did every shard report in some attempt, which
+-- files failed (failure or error, not rerun-only) in which attempt of a failed job, and which
+-- files failed in any job.
 evidence AS (
     SELECT
         j.head_sha AS sha,
@@ -106,7 +111,8 @@ evidence AS (
         groupArrayIf(
             (f.test_file, j.run_attempt),
             j.conclusion = 'failure' AND f.test_file != ''
-        ) AS fails
+        ) AS fails,
+        groupUniqArrayIf(f.test_file, f.test_file != '') AS failed_files
     FROM (
         SELECT
             id,
@@ -130,14 +136,14 @@ evidence AS (
             AND status = 'completed'
             AND position(name, ' / test (') > 0
             AND (
-                has({tdWorkflows: Array(String)}, workflow_name)
+                has(td_workflows, workflow_name)
                 OR arrayExists(
                     w -> startsWith(workflow_name, w),
-                    {tdWorkflowPrefixes: Array(String)}
+                    td_workflow_prefixes
                 )
             )
             AND NOT arrayExists(
-                x -> position(name, x) > 0, {noTdBuildMarkers: Array(String)}
+                x -> position(name, x) > 0, no_td_build_markers
             )
         LIMIT 1 BY id
     ) AS j
@@ -154,7 +160,7 @@ evidence AS (
         -- Array sizes only: reading the failure texts costs ten times as much.
         WHERE failure.size0 > 0 OR error.size0 > 0
     ) AS f ON j.id = f.job_id
-    GROUP BY sha, config
+    GROUP BY GROUPING SETS ((sha, config), (sha))
 ),
 
 -- Each TD failure record of a single-commit main push head, deduped per (sha, config, file).
@@ -163,7 +169,7 @@ candidates AS (
         j.head_sha AS sha,
         j.config AS config,
         m.test_file AS test_file,
-        argMin((m.pos, intDiv(25 * m.n, 100), m.n), m.pos) AS best,
+        argMin((m.pos, intDiv(25 * m.n, 100), m.n), (m.pos, m.n)) AS best,
         groupUniqArray(m.run_attempt) AS attempts,
         any(p.pushed_at) AS landed_at,
         arrayZip(range(length(any(p.role_shas))), any(p.role_shas)) AS roles
@@ -208,14 +214,14 @@ candidates AS (
         WHERE
             position(name, ' / test (') > 0
             AND (
-                has({tdWorkflows: Array(String)}, workflow_name)
+                has(td_workflows, workflow_name)
                 OR arrayExists(
                     w -> startsWith(workflow_name, w),
-                    {tdWorkflowPrefixes: Array(String)}
+                    td_workflow_prefixes
                 )
             )
             AND NOT arrayExists(
-                x -> position(name, x) > 0, {noTdBuildMarkers: Array(String)}
+                x -> position(name, x) > 0, no_td_build_markers
             )
         LIMIT 1 BY id
     ) AS j ON m.job_id = j.id
@@ -234,10 +240,9 @@ failures AS (
         tupleElement(any(c.best), 1) AS pos,
         tupleElement(any(c.best), 2) AS cut,
         100 * pos / tupleElement(any(c.best), 3) AS rank_pct,
-        maxIf(
-            e.completed
-            AND NOT has(arrayMap(x -> tupleElement(x, 1), e.fails), test_file),
-            c.role = 0
+        maxIf(e.completed, c.role = 0 AND c.ev_config != '')
+        AND NOT maxIf(
+            has(e.failed_files, test_file), c.role = 0 AND c.ev_config = ''
         ) AS before_ok,
         length(arrayDistinct(arrayConcat(
             any(c.attempts),
@@ -260,12 +265,18 @@ failures AS (
     FROM (
         SELECT
             *,
-            arrayJoin(roles) AS role_sha,
+            arrayJoin(arrayConcat(
+                arrayMap(
+                    r -> (tupleElement(r, 1), tupleElement(r, 2), config), roles
+                ),
+                [(0, tupleElement(roles[1], 2), '')]
+            )) AS role_sha,
             tupleElement(role_sha, 1) AS role,
-            tupleElement(role_sha, 2) AS ev_sha
+            tupleElement(role_sha, 2) AS ev_sha,
+            tupleElement(role_sha, 3) AS ev_config
         FROM candidates
     ) AS c
-    LEFT JOIN evidence AS e ON c.ev_sha = e.sha AND c.config = e.config
+    LEFT JOIN evidence AS e ON c.ev_sha = e.sha AND c.ev_config = e.config
     GROUP BY c.sha, c.config, c.test_file
     HAVING
         before_ok AND (failed_attempts >= 2 OR tupleElement(nexts[1], 2))
@@ -276,8 +287,10 @@ landings AS (
         sha,
         any(landed_at) AS landed_at,
         count() AS n_failures,
-        argMin((pos, rank_pct, cut, config, test_file), (pos > cut, rank_pct))
-            AS best,
+        argMin(
+            (pos, rank_pct, cut, config, test_file),
+            (pos > cut, rank_pct, config, test_file)
+        ) AS best,
         tupleElement(best, 1) <= tupleElement(best, 3) AS inside,
         intDiv(tupleElement(best, 3), 2) < tupleElement(best, 1) AND inside
             AS second,
@@ -345,4 +358,4 @@ FROM (
     FROM totals
 )
 ORDER BY grain, bucket_pct, landed_at DESC, sha
-SETTINGS max_execution_time = 60
+SETTINGS max_execution_time = 60, max_threads = 8

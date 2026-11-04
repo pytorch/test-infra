@@ -1,20 +1,23 @@
 -- Time to green TD saves per green PR push on pytorch/pytorch. A push is a first-attempt `pull`
--- run of a pull_request event whose TD test jobs all completed with success (at least one). From
--- the run's creation: actual end = the last TD test job's completion; estimated end = the latest
+-- run of a pull_request event whose TD test jobs all completed with success (at least one) and in
+-- which no job, builds included, failed, was cancelled or timed out. From the run's creation:
+-- actual end = the last TD test job's completion; estimated end = the latest
 -- (job start + the job's mean duration on main pushes in the window), keeping the actual duration
 -- for jobs whose key has fewer than 5 main jobs. Job keys as in td_ci_savings. Medians over
 -- pushes for the times, means for the hours. One row per run creation day and one total.
 --
 -- Jobs are scanned by created_at from a day before the window to a day after it: GitHub cancels
--- jobs queued over 24 hours, so a job started in the window was created at most a day earlier,
--- and first-attempt test jobs of runs created in the window are created within that extra day
--- (all within 12 hours of their run, measured 2026-10-08..2026-11-02).
+-- jobs queued over 24 hours, so a job started in the window was created at most a day earlier;
+-- the extra day after the window holds the first-attempt jobs of runs created near its end.
+--
+-- Other jobs enter a push only when they failed, as ok = 0 rows that drop the push, so the
+-- times and hours of every remaining push come from its TD test jobs alone.
 --
 -- Each job id is collapsed first: unmerged queued or in_progress rows of a finished job must not
 -- make its push look unfinished, nor count its duration twice.
 --
 -- On empty input the () grouping set still returns its row, so the total row is always present.
--- Every CTE is referenced once.
+-- Every CTE is referenced once: ClickHouse re-runs a CTE at each reference.
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
@@ -42,6 +45,9 @@ job_rows AS (
         started_at,
         completed_at,
         status = 'completed' AND conclusion = 'success' AS ok_row,
+        position(name, ' / test (') > 0
+        AND NOT multiSearchAny(name, ['macos', 'xpu', 'onnx']) AS is_td_test,
+        conclusion IN ('failure', 'cancelled', 'timed_out') AS failed_row,
         splitByString(' / test (', name) AS name_parts,
         splitByString(', ', trimRight(name_parts[2], ')')) AS test_args,
         concat(
@@ -65,6 +71,7 @@ job_rows AS (
         AND run_created >= window_start
         AND run_created < window_end AS is_push_row,
         ok_row
+        AND is_td_test
         AND started_at >= window_start
         AND started_at < window_end
         AND head_branch = 'main'
@@ -76,17 +83,6 @@ job_rows AS (
         AND created_at < window_end + INTERVAL 1 DAY
         AND startsWith(dynamoKey, 'pytorch/pytorch/')
         AND workflow_name = 'pull'
-        AND (
-            has({tdWorkflows: Array(String)}, workflow_name)
-            OR arrayExists(
-                p -> startsWith(workflow_name, p),
-                {tdWorkflowPrefixes: Array(String)}
-            )
-        )
-        AND position(name, ' / test (') > 0
-        AND NOT arrayExists(
-            m -> position(name, m) > 0, {noTdBuildMarkers: Array(String)}
-        )
 ),
 
 jobs AS (
@@ -97,6 +93,8 @@ jobs AS (
         max(is_main_row) AS is_main,
         max(is_push_row) AS is_push_job,
         max(ok_row) AS ok,
+        max(is_td_test) AS is_test,
+        max(failed_row) AS failed,
         minIf(started_at, ok_row) AS started,
         minIf(completed_at, ok_row) AS completed,
         toFloat64(dateDiff('second', started, completed)) AS dur,
@@ -112,8 +110,8 @@ keys AS (
         countIf(is_main) >= 5 AS matched,
         avgIf(dur, is_main) AS main_mean,
         groupArrayIf(
-            (run_id, run_created, start_offset, end_offset, dur, ok),
-            is_push_job
+            (run_id, run_created, start_offset, end_offset, dur, ok, is_test),
+            is_push_job AND (is_test OR failed)
         ) AS push_jobs
     FROM jobs
     GROUP BY job_key
@@ -142,7 +140,7 @@ pushes AS (
         / 3600 AS est_push_hours
     FROM push_job_rows
     GROUP BY run_id
-    HAVING min(tupleElement(push_job, 6))
+    HAVING min(tupleElement(push_job, 6)) AND max(tupleElement(push_job, 7))
 )
 
 SELECT
@@ -158,4 +156,4 @@ SELECT
 FROM pushes
 GROUP BY GROUPING SETS ((push_day), ())
 ORDER BY grain, bucket
-SETTINGS max_execution_time = 60
+SETTINGS max_execution_time = 60, max_threads = 8

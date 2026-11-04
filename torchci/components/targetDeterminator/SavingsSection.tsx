@@ -1,33 +1,37 @@
 import { Grid } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
+import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
   ciSaved,
-  fractionText,
+  clampedStart,
   HORIZON_DAYS,
   hoursText,
+  MIN_MAIN_RUNS,
   minutesText,
   num,
-  PushWaitRow,
   ratio,
-  SavingsRow,
   TD_QUERIES,
-  totalError,
-  totalRow,
-  TtrsRow,
+  TdParams,
   useTdQuery,
 } from "lib/targetDeterminator";
+import type {
+  PushWaitRow,
+  SavingsRow,
+  TtrsRow,
+} from "lib/targetDeterminatorRows";
 import { useMemo } from "react";
 import {
   CHART_HEIGHT,
   DailyChart,
+  DailyPoint,
   TABLE_HEIGHT,
-  TablePaper,
   TdPanel,
   TdSection,
+  TdTable,
+  useTdTotalQuery,
 } from "./TdPanel";
 
 // Below this share of PR jobs with a main baseline, the estimate describes too
@@ -67,63 +71,70 @@ function round1(value: number | null): number | null {
   return value === null ? null : Math.round(value * 10) / 10;
 }
 
+// A config whose PR jobs all lack a main baseline has no medians to show; the
+// query fills them with 0.
 function configRows(rows: SavingsRow[]) {
   return rows
     .filter((row) => row.grain === "config")
     .map((row) => {
-      const saved = ciSaved(row);
+      const jobs = num(row.jobs);
+      const measured = jobs !== null && jobs > 0;
+      const saved = measured ? ciSaved(row) : null;
       return {
         id: row.config,
         config: row.config,
-        jobs: num(row.jobs),
-        prMedian: round1(num(row.pr_median_min)),
-        fullMedian: round1(num(row.full_median_min)),
+        jobs,
+        prMedian: measured ? round1(num(row.pr_median_min)) : null,
+        fullMedian: measured ? round1(num(row.full_median_min)) : null,
         savedPct: round1(saved === null ? null : saved.share * 100),
         hoursSaved: round1(saved === null ? null : saved.hoursSaved),
       };
     });
 }
 
-function dailyPoints(rows: SavingsRow[]) {
-  return rows
-    .filter((row) => row.grain === "day")
-    .flatMap((row) => [
-      {
-        bucket: row.bucket,
-        series: "Actual, with TD",
-        value: num(row.pr_hours),
-      },
-      {
-        bucket: row.bucket,
-        series: "Estimated, full suite",
-        value: num(row.est_full_hours),
-      },
-    ])
-    .filter(
-      (point): point is { bucket: string; series: string; value: number } =>
-        point.value !== null
-    );
+function dailyPoints(rows: SavingsRow[]): DailyPoint[] {
+  return rows.flatMap((row) => {
+    if (row.grain !== "day") {
+      return [];
+    }
+    const actual = num(row.pr_hours);
+    const full = num(row.est_full_hours);
+    return [
+      ...(actual === null
+        ? []
+        : [{ bucket: row.bucket, series: "Actual, with TD", value: actual }]),
+      ...(full === null
+        ? []
+        : [
+            {
+              bucket: row.bucket,
+              series: "Estimated, full suite",
+              value: full,
+            },
+          ]),
+    ];
+  });
 }
 
 export default function SavingsSection({
   params,
   windowDays,
 }: {
-  params: Record<string, unknown>;
+  params: TdParams;
   windowDays: number;
 }) {
-  const savings = useTdQuery<SavingsRow>(TD_QUERIES.savings, params);
-  const pushWait = useTdQuery<PushWaitRow>(TD_QUERIES.pushWait, params);
+  const savings = useTdTotalQuery<SavingsRow>(TD_QUERIES.savings, params);
+  const pushWait = useTdTotalQuery<PushWaitRow>(TD_QUERIES.pushWait, params);
   const ttrs = useTdQuery<TtrsRow>(TD_QUERIES.ttrs, {
-    startTime: params.startTime,
+    startTime: clampedStart(params, HORIZON_DAYS.savings),
     stopTime: params.stopTime,
     workflow: "pull",
     one_bucket: true,
     percentile_to_get: 0.5,
   });
 
-  const total = totalRow(savings.rows);
-  const wait = totalRow(pushWait.rows);
+  const total = savings.total;
+  const wait = pushWait.total;
   const jobs = num(total?.jobs) ?? 0;
   const unmatched = num(total?.unmatched_jobs) ?? 0;
   const coverage = ratio(jobs, jobs + unmatched);
@@ -134,9 +145,8 @@ export default function SavingsSection({
 
   const configTable = useMemo(() => configRows(savings.rows), [savings.rows]);
   const points = useMemo(() => dailyPoints(savings.rows), [savings.rows]);
-  const savingsError = totalError(TD_QUERIES.savings, savings, total);
-  const waitError = totalError(TD_QUERIES.pushWait, pushWait, wait);
   const noJobs = "No completed PR test jobs in this window.";
+  const noPushes = "No green PR pushes in this window.";
   const coverageSub = `${jobs.toLocaleString()} PR test jobs compared with main; ${unmatched.toLocaleString()} without a main baseline left out.`;
 
   return (
@@ -154,13 +164,13 @@ export default function SavingsSection({
         <QualityTile
           label="CI time saved (estimated)"
           loading={savings.loading}
-          error={savingsError}
-          value={saved === null ? "-" : fractionText(saved.share)}
+          error={savings.tileError}
+          value={saved === null ? "-" : percentFormatter(saved.share)}
           sub={
             jobs === 0
               ? noJobs
               : lowCoverage
-              ? `Too few PR jobs have a main baseline (${fractionText(
+              ? `Too few PR jobs have a main baseline (${percentFormatter(
                   coverage
                 )}). ${coverageSub}`
               : saved === null
@@ -169,14 +179,14 @@ export default function SavingsSection({
                   saved.hoursSaved
                 )} of test-job time saved. ${coverageSub}`
           }
-          caveat="1 - (PR test-job hours / estimated full-suite hours). The estimate gives each PR test job the mean duration of the same job on main pushes; jobs with fewer than 5 main runs have no baseline and are left out."
+          caveat={`1 - (PR test-job hours / estimated full-suite hours). The estimate gives each PR test job the mean duration of the same job on main pushes; jobs with fewer than ${MIN_MAIN_RUNS} main runs have no baseline and are left out.`}
         />
       </Grid>
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Typical PR test job"
           loading={savings.loading}
-          error={savingsError}
+          error={savings.tileError}
           value={jobs === 0 ? "-" : minutesText(total?.pr_median_min)}
           sub={
             jobs === 0
@@ -192,29 +202,29 @@ export default function SavingsSection({
         <QualityTile
           label="Time to green saved (estimated)"
           loading={pushWait.loading}
-          error={waitError}
+          error={pushWait.tileError}
           value={pushes === 0 ? "-" : minutesText(wait?.saved_median_min)}
           sub={
             pushes === 0
-              ? "No green PR pushes in this window."
-              : `Median wait from push to the last test job: ${minutesText(
+              ? noPushes
+              : `Median saving per green push, over ${pushes.toLocaleString()} pushes. The median waits from push to the last test job are ${minutesText(
                   wait?.actual_ttg_median_min
-                )} actual vs ${minutesText(
+                )} actual and ${minutesText(
                   wait?.est_ttg_median_min
-                )} estimated without TD, over ${pushes.toLocaleString()} green pushes.`
+                )} estimated without TD; their difference is not the median saving.`
           }
-          caveat="Green PR pushes, first attempt only. The estimate replaces each test job's duration with the same job's mean duration on main."
+          caveat="Green PR pushes: first attempts where no job, builds included, failed, was cancelled or timed out. The estimate replaces each test job's duration with the same job's mean duration on main."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Test-job hours per PR push"
           loading={pushWait.loading}
-          error={waitError}
+          error={pushWait.tileError}
           value={pushes === 0 ? "-" : hoursText(wait?.hours_per_push)}
           sub={
             pushes === 0
-              ? "No green PR pushes in this window."
+              ? noPushes
               : `vs ${hoursText(
                   wait?.est_hours_per_push
                 )} estimated without TD. A proxy for CI cost per PR commit, not dollars.`
@@ -231,9 +241,9 @@ export default function SavingsSection({
           sub={
             ttrsMinutes === null
               ? "No failing pull jobs of merged PRs in this window."
-              : "From the start of a failing PR job's test step to its first failing test."
+              : "From the start of a failing PR job's test step to the end of its first failing test step."
           }
-          caveat="HUD's Time to Red Signal (TTRS), median, pull workflow, first attempt, merged PRs. TD orders tests by how likely they are to fail, so a lower value means failures show up sooner."
+          caveat={`HUD's Time to Red Signal (TTRS), median, over at most the last ${HORIZON_DAYS.savings} days of the window: pull workflow, first attempt, merged PRs. TD orders tests by how likely they are to fail, so a lower value means failures show up sooner.`}
         />
       </Grid>
       <Grid size={{ xs: 12 }} height={CHART_HEIGHT}>
@@ -247,37 +257,23 @@ export default function SavingsSection({
           <DailyChart
             title="PR test-job hours per day: actual vs estimated full suite"
             points={points}
-            startTime={params.startTime as string}
-            stopTime={params.stopTime as string}
+            startTime={params.startTime}
+            stopTime={params.stopTime}
             yAxisLabel="Hours"
             yAxisRenderer={(value) => Number(value).toFixed(0)}
           />
         </TdPanel>
       </Grid>
       <Grid size={{ xs: 12 }} height={TABLE_HEIGHT}>
-        <TdPanel
-          title="Savings per job config"
+        <TdTable
+          title="Savings per job config (for troubleshooting)"
+          state={savings}
+          rows={configTable}
+          columns={CONFIG_COLUMNS}
+          emptyText={noJobs}
           height={TABLE_HEIGHT}
-          loading={savings.loading}
-          error={savings.error}
-          emptyText={configTable.length === 0 ? noJobs : undefined}
-        >
-          <TablePaper height={TABLE_HEIGHT}>
-            <TablePanelWithData
-              title="Savings per job config (for troubleshooting)"
-              data={configTable}
-              columns={CONFIG_COLUMNS}
-              showFooter={true}
-              dataGridProps={{
-                initialState: {
-                  sorting: {
-                    sortModel: [{ field: "hoursSaved", sort: "desc" }],
-                  },
-                },
-              }}
-            />
-          </TablePaper>
-        </TdPanel>
+          sortField="hoursSaved"
+        />
       </Grid>
     </TdSection>
   );

@@ -11,12 +11,7 @@ import SavingsSection from "components/targetDeterminator/SavingsSection";
 import StabilitySection from "components/targetDeterminator/StabilitySection";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import {
-  NEW_TEST_DAYS,
-  REVERT_WINDOW_DAYS,
-  TD_SCOPE,
-  windowDays,
-} from "lib/targetDeterminator";
+import { TdParams, windowDays } from "lib/targetDeterminator";
 import { useMemo, useState } from "react";
 import { TimeRangePicker } from "./metrics";
 
@@ -38,14 +33,8 @@ export default function Page() {
     CLICKHOUSE_TIME_FORMAT
   );
   const validWindow = windowStart < windowStop;
-  const params = useMemo(
-    () => ({
-      startTime: windowStart,
-      stopTime: windowStop,
-      ...TD_SCOPE,
-      revertWindowDays: REVERT_WINDOW_DAYS,
-      newTestDays: NEW_TEST_DAYS,
-    }),
+  const params: TdParams = useMemo(
+    () => ({ startTime: windowStart, stopTime: windowStop }),
     [windowStart, windowStop]
   );
   // The queries stop at the current time, so the part of the window after it

@@ -1,22 +1,16 @@
 {
   "params": {
     "startTime": "DateTime64(3)",
-    "stopTime": "DateTime64(3)",
-    "noTdBuildMarkers": "Array(String)"
-  },
-  "defaults": {
-    "noTdBuildMarkers": ["macos", "xpu", "onnx"]
+    "stopTime": "DateTime64(3)"
   },
   "tests": [
     {
       "startTime": "2026-10-19T00:00:00.000",
-      "stopTime": "2026-11-02T00:00:00.000",
-      "noTdBuildMarkers": ["macos", "xpu", "onnx"]
+      "stopTime": "2026-11-02T00:00:00.000"
     },
     {
       "startTime": "2026-11-02T00:00:00.000",
-      "stopTime": "2026-10-19T00:00:00.000",
-      "noTdBuildMarkers": ["macos", "xpu", "onnx"]
+      "stopTime": "2026-10-19T00:00:00.000"
     }
   ]
 }

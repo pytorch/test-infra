@@ -1,10 +1,14 @@
-// Queries, row types and formulas behind the Target Determinator page.
+// Query names, constants and formulas behind the Target Determinator page.
 
-import { fetcherHandleError } from "lib/GeneralUtils";
-import useSWRImmutable from "swr/immutable";
+import { useClickHouseAPI } from "lib/GeneralUtils";
+import type {
+  BreakageRow,
+  RankRow,
+  SavingsRow,
+} from "lib/targetDeterminatorRows";
 
-// Where TD is on. Passed to every td_* query as Array(String) params, so the
-// page and the SQL can never disagree on the population.
+// Where TD is on. The queries hardcode the same lists (test/targetDeterminator
+// checks the literals); td_trunk_breakages also takes tdWorkflows as a param.
 export const TD_SCOPE = {
   tdWorkflows: ["pull", "trunk"],
   tdWorkflowPrefixes: ["rocm-", "periodic-rocm-"],
@@ -14,6 +18,8 @@ export const TD_SCOPE = {
 export const REVERT_WINDOW_DAYS = 7;
 export const NEW_TEST_DAYS = 14;
 export const TD_CUT_PCT = 25;
+export const MIN_MAIN_RUNS = 5;
+export const SMALL_SAMPLE = 30;
 
 // The widest window each query reads; the SQL clamps to the same widths.
 export const HORIZON_DAYS = {
@@ -22,6 +28,14 @@ export const HORIZON_DAYS = {
   ranks: 90,
   stability: 14,
 };
+
+// How long the source data is kept: older windows have nothing left to read.
+export const RETENTION_DAYS = {
+  ranks: 90,
+  stability: 30,
+};
+
+const DAY_MS = 86400000;
 
 export const TD_QUERIES = {
   savings: "td_ci_savings",
@@ -32,129 +46,12 @@ export const TD_QUERIES = {
   ttrs: "ttrs_percentiles",
 };
 
-export const PYTORCH_REPO_URL = "https://github.com/pytorch/pytorch";
+const PYTORCH_REPO_URL = "https://github.com/pytorch/pytorch";
 
-// ClickHouse serialises 64-bit integers as JSON strings.
-export type ChNum = number | string | null;
-
-export interface SavingsRow {
-  grain: "day" | "config" | "total";
-  bucket: string;
-  config: string;
-  jobs: ChNum;
-  unmatched_jobs: ChNum;
-  pr_hours: ChNum;
-  est_full_hours: ChNum;
-  pr_median_min: ChNum;
-  full_median_min: ChNum;
-}
-
-export interface PushWaitRow {
-  grain: "day" | "total";
-  bucket: string;
-  pushes: ChNum;
-  actual_ttg_median_min: ChNum;
-  est_ttg_median_min: ChNum;
-  saved_median_min: ChNum;
-  hours_per_push: ChNum;
-  est_hours_per_push: ChNum;
-}
-
-export type BreakageOutcome =
-  | "false_green"
-  | "signal_on_pr"
-  | "passed_on_pr"
-  | "new_test"
-  | "not_in_pr_matrix"
-  | "landrace"
-  | "unknown";
-
-export type TestOutcome =
-  | "failed_on_pr"
-  | "passed_on_pr"
-  | "td_skipped"
-  | "new_test"
-  | "config_not_on_pr"
-  | "unknown"
-  | "not_checked";
-
-export interface BreakageRow {
-  grain: "event" | "total";
-  landed_at: string;
-  landing_sha: string;
-  reverted_prs: ChNum[];
-  revert_shas: string[];
-  reverted_at: string;
-  revert_class: string;
-  stack_size: ChNum;
-  outcome: BreakageOutcome;
-  window_closed: ChNum;
-  breaking_tests: ChNum;
-  test_configs: string[];
-  test_files: string[];
-  test_prs: ChNum[];
-  test_outcomes: TestOutcome[];
-  landed_prs: ChNum;
-  events: ChNum;
-  false_green: ChNum;
-  signal_on_pr: ChNum;
-  passed_on_pr: ChNum;
-  td_skipped_any: ChNum;
-  new_test: ChNum;
-  not_in_pr_matrix: ChNum;
-  landrace: ChNum;
-  unknown: ChNum;
-  other_reverts: ChNum;
-  ghfirst_reverts: ChNum;
-}
-
-export interface RankRow {
-  grain: "hist" | "total" | "miss";
-  bucket_pct: ChNum;
-  landings: ChNum;
-  failures: ChNum;
-  inside_cut: ChNum;
-  second_half: ChNum;
-  median_pct: ChNum;
-  landed_at: string;
-  sha: string;
-  config: string;
-  test_file: string;
-  rank_pct: ChNum;
-}
-
-export interface ChurnRow {
-  grain: "day" | "total";
-  bucket: string;
-  pairs: ChNum;
-  identical_pairs: ChNum;
-  changed_median_pct: ChNum;
-  prs: ChNum;
-}
-
-export interface TtrsRow {
-  bucket: string;
-  custom: ChNum;
-}
-
-export const OUTCOME_LABELS: Record<BreakageOutcome, string> = {
-  false_green: "False green (TD skipped the test)",
-  signal_on_pr: "Test failed on the PR, merged anyway",
-  passed_on_pr: "Test ran and passed on the PR",
-  new_test: "Test newer than the PR",
-  not_in_pr_matrix: "Job not run on the PR",
-  landrace: "Landrace",
-  unknown: "Unknown",
-};
-
-export const TEST_OUTCOME_LABELS: Record<TestOutcome, string> = {
-  failed_on_pr: "failed on the PR",
-  passed_on_pr: "passed on the PR",
-  td_skipped: "skipped by TD",
-  new_test: "newer than the PR",
-  config_not_on_pr: "job not run on the PR",
-  unknown: "unknown",
-  not_checked: "not checked",
+// Whole UTC days in ClickHouse's DateTime64(3) literal form.
+export type TdParams = {
+  startTime: string;
+  stopTime: string;
 };
 
 export function num(value: unknown): number | null {
@@ -174,8 +71,52 @@ export function ratio(numerator: unknown, denominator: unknown): number | null {
   return n / d;
 }
 
+function parseUtc(time: string): number {
+  return Date.parse(`${time}Z`);
+}
+
 export function windowDays(startTime: string, stopTime: string): number {
-  return (Date.parse(`${stopTime}Z`) - Date.parse(`${startTime}Z`)) / 86400000;
+  return (parseUtc(stopTime) - parseUtc(startTime)) / DAY_MS;
+}
+
+// The start a query clamped to `days` before the stop actually reads.
+export function clampedStart(params: TdParams, days: number): string {
+  const floor = new Date(parseUtc(params.stopTime) - days * DAY_MS);
+  const clamped = floor.toISOString().replace("Z", "");
+  return clamped > params.startTime ? clamped : params.startTime;
+}
+
+export interface Expiry {
+  text: string;
+  whole: boolean;
+}
+
+// The queries read at most `horizonDays` back from min(stop, now), so only
+// that span is compared with what the source still keeps.
+export function dataExpiry(
+  params: TdParams,
+  horizonDays: number,
+  retentionDays: number,
+  now: number = Date.now()
+): Expiry | undefined {
+  const cutoff = now - retentionDays * DAY_MS;
+  const stop = Math.min(parseUtc(params.stopTime), now);
+  if (stop <= cutoff) {
+    return {
+      text: `The data for this window has expired: it is kept for ${retentionDays} days.`,
+      whole: true,
+    };
+  }
+  const start = Math.max(
+    parseUtc(params.startTime),
+    stop - horizonDays * DAY_MS
+  );
+  return start < cutoff
+    ? {
+        text: `The data is kept for ${retentionDays} days, so the older part of the window has expired.`,
+        whole: false,
+      }
+    : undefined;
 }
 
 export interface CiSaved {
@@ -201,12 +142,12 @@ export interface Interval {
 // zero successes, which a normal approximation is with counts this small.
 export function wilsonInterval(
   successes: number,
-  trials: number,
-  z: number = 1.96
+  trials: number
 ): Interval | null {
   if (trials <= 0 || successes < 0 || successes > trials) {
     return null;
   }
+  const z = 1.96;
   const p = successes / trials;
   const z2 = z * z;
   const denom = 1 + z2 / trials;
@@ -223,7 +164,7 @@ export interface BreakageStats {
   unknown: number;
   share: number | null;
   interval: Interval | null;
-  perThousandPrs: number | null;
+  perThousandLandings: number | null;
   recall: number | null;
   recallBase: number;
   ranOnPr: number;
@@ -237,14 +178,14 @@ export function breakageStats(row: BreakageRow | undefined): BreakageStats {
   const known = Math.max(0, count("events") - unknown);
   const ranOnPr = count("signal_on_pr") + count("passed_on_pr");
   const recallBase = ranOnPr + falseGreens;
-  const perPr = ratio(falseGreens, row?.landed_prs);
+  const perLanding = ratio(falseGreens, row?.landed_prs);
   return {
     falseGreens,
     known,
     unknown,
     share: ratio(falseGreens, known),
     interval: wilsonInterval(falseGreens, known),
-    perThousandPrs: perPr === null ? null : perPr * 1000,
+    perThousandLandings: perLanding === null ? null : perLanding * 1000,
     recall: ratio(ranOnPr, recallBase),
     recallBase,
     ranOnPr,
@@ -285,15 +226,10 @@ export function recallCurve(rows: RankRow[]): CurvePoint[] {
   return points;
 }
 
-export function shareIdentical(row: ChurnRow | undefined): number | null {
-  return ratio(row?.identical_pairs, row?.pairs);
-}
-
 export function totalRow<T extends { grain: string }>(
-  rows: T[],
-  match: (_row: T) => boolean = () => true
+  rows: T[]
 ): T | undefined {
-  return rows.find((row) => row.grain === "total" && match(row));
+  return rows.find((row) => row.grain === "total");
 }
 
 // A query that answers without its total row broke its contract; saying so
@@ -309,10 +245,6 @@ export function totalError(
   return !state.loading && total === undefined
     ? `${queryName}: no total row`
     : undefined;
-}
-
-export function fractionText(value: number | null): string {
-  return value === null ? "-" : `${(value * 100).toFixed(1)}%`;
 }
 
 export function minutesText(value: unknown): string {
@@ -354,10 +286,9 @@ export function readTdQuery<T>(
   error: any
 ): TdQueryState<T> {
   if (error !== undefined && error !== null) {
-    const detail = typeof error?.info === "string" ? ` (${error.info})` : "";
     return {
       loading: false,
-      error: `${queryName}: ${error?.message ?? String(error)}${detail}`,
+      error: `${queryName}: ${error?.message ?? String(error)}`,
       rows: [],
     };
   }
@@ -374,25 +305,24 @@ export function readTdQuery<T>(
   return { loading: false, rows: data as T[] };
 }
 
-export function tdQueryUrl(
-  queryName: string,
-  params: Record<string, unknown>
-): string {
-  return `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-    JSON.stringify(params)
-  )}`;
-}
+// The window is snapped to whole UTC days, and these queries are too heavy to
+// re-run on focus, on reconnect or after a failure.
+const TD_SWR_CONFIG = {
+  revalidateIfStale: false,
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  shouldRetryOnError: false,
+};
 
-// Immutable: the window is snapped to whole UTC days, and these queries are
-// too heavy to re-run on focus, on a timer or after a failure.
 export function useTdQuery<T>(
   queryName: string,
   params: Record<string, unknown>
 ): TdQueryState<T> {
-  const { data, error } = useSWRImmutable(
-    tdQueryUrl(queryName, params),
-    fetcherHandleError,
-    { shouldRetryOnError: false }
+  const { data, error } = useClickHouseAPI<T>(
+    queryName,
+    params,
+    true,
+    TD_SWR_CONFIG
   );
   return readTdQuery<T>(queryName, data, error);
 }

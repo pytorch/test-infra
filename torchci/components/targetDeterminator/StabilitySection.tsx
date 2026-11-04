@@ -1,18 +1,19 @@
 import { Grid } from "@mui/material";
+import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
+import { percentUnitsFormatter } from "lib/greenlight/qualityFigures";
 import {
-  ChurnRow,
-  fractionText,
+  dataExpiry,
   HORIZON_DAYS,
   num,
-  shareIdentical,
+  ratio,
+  RETENTION_DAYS,
   TD_QUERIES,
-  totalError,
-  totalRow,
-  useTdQuery,
+  TdParams,
 } from "lib/targetDeterminator";
+import type { ChurnRow } from "lib/targetDeterminatorRows";
 import { useMemo } from "react";
 import {
   CHART_HEIGHT,
@@ -20,11 +21,13 @@ import {
   DailyPoint,
   TdPanel,
   TdSection,
+  useTdTotalQuery,
 } from "./TdPanel";
 
 function dailyShare(rows: ChurnRow[]): DailyPoint[] {
   return rows.flatMap((row) => {
-    const share = row.grain === "day" ? shareIdentical(row) : null;
+    const share =
+      row.grain === "day" ? ratio(row.identical_pairs, row.pairs) : null;
     return share === null
       ? []
       : [{ bucket: row.bucket, series: "Same picks", value: share * 100 }];
@@ -35,27 +38,30 @@ export default function StabilitySection({
   params,
   windowDays,
 }: {
-  params: Record<string, unknown>;
+  params: TdParams;
   windowDays: number;
 }) {
-  const churn = useTdQuery<ChurnRow>(TD_QUERIES.churn, {
-    startTime: params.startTime,
-    stopTime: params.stopTime,
-    noTdBuildMarkers: params.noTdBuildMarkers,
-  });
-  const total = totalRow(churn.rows);
-  const error = totalError(TD_QUERIES.churn, churn, total);
+  const churn = useTdTotalQuery<ChurnRow>(TD_QUERIES.churn, params);
+  const total = churn.total;
   const pairs = num(total?.pairs) ?? 0;
   const identical = num(total?.identical_pairs) ?? 0;
-  const changedMedian = num(total?.changed_median_pct);
+  const changed = pairs - identical;
   const points = useMemo(() => dailyShare(churn.rows), [churn.rows]);
-  const noPairs = "No pairs of consecutive green PR pushes in this window.";
+  const expiry = dataExpiry(
+    params,
+    HORIZON_DAYS.stability,
+    RETENTION_DAYS.stability
+  );
+  const noPairs = expiry?.whole
+    ? expiry.text
+    : "No pairs of consecutive green PR pushes in this window.";
 
   return (
     <TdSection
       title="Run-to-run stability"
       windowDays={windowDays}
       horizonDays={HORIZON_DAYS.stability}
+      expiry={expiry}
       intro={
         "When a contributor pushes again to the same PR, does TD run the same " +
         "tests? A changed diff is expected to change the picks; large swings " +
@@ -67,8 +73,8 @@ export default function StabilitySection({
         <QualityTile
           label="Same picks on the next push"
           loading={churn.loading}
-          error={error}
-          value={fractionText(shareIdentical(total))}
+          error={churn.tileError}
+          value={percentFormatter(ratio(identical, pairs))}
           sub={
             pairs === 0
               ? noPairs
@@ -76,27 +82,25 @@ export default function StabilitySection({
                   num(total?.prs) ?? 0
                 ).toLocaleString()} PRs.`
           }
-          caveat="Consecutive pushes of the same PR, per job config, both with every shard green and TD on. Each PR and config pair counts once."
+          caveat="Consecutive pushes of the same PR, per job config, both with every shard green and TD on. Every consecutive pair counts, so PRs with many pushes weigh more."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
         <QualityTile
           label="Typical change when picks change"
           loading={churn.loading}
-          error={error}
+          error={churn.tileError}
           value={
-            pairs - identical === 0 || changedMedian === null
+            changed === 0
               ? "-"
-              : `${changedMedian.toFixed(1)}%`
+              : percentUnitsFormatter(num(total?.changed_median_pct))
           }
           sub={
             pairs === 0
               ? noPairs
-              : pairs - identical === 0
+              : changed === 0
               ? "Every pair ran the same test files."
-              : `Median share of test files that differ between the two pushes, over ${(
-                  pairs - identical
-                ).toLocaleString()} pairs that changed.`
+              : `Median share of test files that differ between the two pushes, over ${changed.toLocaleString()} pairs that changed.`
           }
           caveat="1 - Jaccard similarity of the two pushes' test file sets: 0% means the same files, 100% means none in common."
         />
@@ -112,8 +116,8 @@ export default function StabilitySection({
           <DailyChart
             title="Share of push pairs with the same picks, per day"
             points={points}
-            startTime={params.startTime as string}
-            stopTime={params.stopTime as string}
+            startTime={params.startTime}
+            stopTime={params.stopTime}
             yAxisLabel="% of pairs"
             yAxisRenderer={(value) => `${Number(value).toFixed(0)}%`}
           />

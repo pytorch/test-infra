@@ -6,7 +6,7 @@
 -- The job key drops only the runner label (4th argument of "test (...)"): labels change with
 -- runner fleet moves while the job stays the same; shard numbers stay, since a shard's duration
 -- depends on its count. Keys with fewer than 5 main jobs have no baseline: their PR jobs count
--- as unmatched_jobs and stay out of every other column.
+-- as unmatched_jobs and stay out of every other column; a config row with jobs = 0 has medians 0.
 --
 -- Main runs are looked up among runs created from 7 days before the window: a main job started
 -- inside the window from an older run (a late re-run) is left out of the baseline.
@@ -97,16 +97,11 @@ FROM (
                 AND conclusion = 'success'
                 AND position(name, ' / test (') > 0
                 AND (
-                    has({tdWorkflows: Array(String)}, workflow_name)
-                    OR arrayExists(
-                        p -> startsWith(workflow_name, p),
-                        {tdWorkflowPrefixes: Array(String)}
-                    )
+                    workflow_name IN ('pull', 'trunk')
+                    OR startsWith(workflow_name, 'rocm-')
+                    OR startsWith(workflow_name, 'periodic-rocm-')
                 )
-                AND NOT arrayExists(
-                    m -> position(name, m) > 0,
-                    {noTdBuildMarkers: Array(String)}
-                )
+                AND NOT multiSearchAny(name, ['macos', 'xpu', 'onnx'])
             LIMIT 1 BY id
         )
         WHERE is_pr OR is_main
@@ -115,4 +110,4 @@ FROM (
 )
 GROUP BY GROUPING SETS ((job_day), (job_config), ())
 ORDER BY grain, bucket, config
-SETTINGS max_execution_time = 60
+SETTINGS max_execution_time = 60, max_threads = 8

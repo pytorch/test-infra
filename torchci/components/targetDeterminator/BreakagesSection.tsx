@@ -1,33 +1,34 @@
 import { Box, Grid, Link } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
-  BreakageOutcome,
-  BreakageRow,
   breakageStats,
-  commitUrl,
-  fractionText,
   HORIZON_DAYS,
+  NEW_TEST_DAYS,
   num,
-  OUTCOME_LABELS,
   prUrl,
   REVERT_WINDOW_DAYS,
   TD_QUERIES,
+  TD_SCOPE,
+  TdParams,
+} from "lib/targetDeterminator";
+import {
+  BreakageOutcome,
+  BreakageRow,
+  OUTCOME_LABELS,
   TEST_OUTCOME_LABELS,
   TestOutcome,
-  totalError,
-  totalRow,
-  useTdQuery,
-} from "lib/targetDeterminator";
+} from "lib/targetDeterminatorRows";
 import { ReactNode, useMemo } from "react";
 import {
+  commitLink,
   TABLE_HEIGHT,
-  TablePaper,
-  TdPanel,
   TdSection,
+  TdTable,
+  useTdTotalQuery,
   utcColumn,
 } from "./TdPanel";
 
@@ -43,10 +44,6 @@ function lines(items: ReactNode[]) {
   );
 }
 
-function shortSha(sha: string): string {
-  return sha.slice(0, 10);
-}
-
 function prLink(pr: unknown) {
   const url = prUrl(pr);
   return url === undefined ? (
@@ -54,17 +51,6 @@ function prLink(pr: unknown) {
   ) : (
     <Link href={url} target="_blank" rel="noreferrer">
       #{num(pr)}
-    </Link>
-  );
-}
-
-function commitLink(sha: string) {
-  const url = commitUrl(sha);
-  return url === undefined ? (
-    sha
-  ) : (
-    <Link href={url} target="_blank" rel="noreferrer">
-      {shortSha(sha)}
     </Link>
   );
 }
@@ -148,12 +134,15 @@ export default function BreakagesSection({
   params,
   windowDays,
 }: {
-  params: Record<string, unknown>;
+  params: TdParams;
   windowDays: number;
 }) {
-  const breakages = useTdQuery<BreakageRow>(TD_QUERIES.breakages, params);
-  const total = totalRow(breakages.rows);
-  const error = totalError(TD_QUERIES.breakages, breakages, total);
+  const breakages = useTdTotalQuery<BreakageRow>(TD_QUERIES.breakages, {
+    ...params,
+    tdWorkflows: TD_SCOPE.tdWorkflows,
+  });
+  const total = breakages.total;
+  const error = breakages.tileError;
   const stats = breakageStats(total);
   const events = num(total?.events) ?? 0;
   const eventRows = useMemo(
@@ -191,17 +180,17 @@ export default function BreakagesSection({
               ? noEvents
               : stats.known === 0
               ? `No breakage with a known cause.${unknownNote}`
-              : `${fractionText(
+              : `${percentFormatter(
                   stats.share
-                )} of ${stats.known.toLocaleString()} breakages with a known cause (95% interval ${fractionText(
-                  stats.interval?.low ?? null
-                )} to ${fractionText(stats.interval?.high ?? null)}); ${
-                  stats.perThousandPrs === null
-                    ? "no landed PRs"
-                    : stats.perThousandPrs.toFixed(2)
-                } per 1,000 landed PRs.${unknownNote}`
+                )} of ${stats.known.toLocaleString()} breakages with a known cause (95% interval ${percentFormatter(
+                  stats.interval?.low
+                )} to ${percentFormatter(stats.interval?.high)}); ${
+                  stats.perThousandLandings === null
+                    ? "no PR landings"
+                    : stats.perThousandLandings.toFixed(2)
+                } per 1,000 PR landings.${unknownNote}`
           }
-          caveat="A false green is a reverted landing where no breaking test failed on the PR and TD skipped at least one of them, although the job ran and the test already existed. Landraces, tests newer than the PR and jobs that did not run on the PR are not false greens. The share is false greens / (breakages - unknown)."
+          caveat={`A false green is a reverted landing where no breaking test failed on the PR and TD skipped a breaking test file that did not run and pass on the PR in another job, although the job ran and the test first ran in CI at least ${NEW_TEST_DAYS} days before the landing. A reland counts as a second landing. Landraces, tests newer than the PR and jobs that did not run on the PR are not false greens. The share is false greens / (breakages - unknown).`}
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -209,7 +198,7 @@ export default function BreakagesSection({
           label="Breakage recall"
           loading={breakages.loading}
           error={error}
-          value={fractionText(stats.recall)}
+          value={percentFormatter(stats.recall)}
           sub={
             events === 0
               ? noEvents
@@ -247,31 +236,19 @@ export default function BreakagesSection({
         />
       </Grid>
       <Grid size={{ xs: 12 }} height={TABLE_HEIGHT}>
-        <TdPanel
-          title="Reverted landings"
+        <TdTable
+          title="Reverted landings and their breaking tests"
+          state={breakages}
+          rows={eventRows}
+          columns={EVENT_COLUMNS}
+          emptyText={noEvents}
           height={TABLE_HEIGHT}
-          loading={breakages.loading}
-          error={breakages.error}
-          emptyText={eventRows.length === 0 ? noEvents : undefined}
-        >
-          <TablePaper height={TABLE_HEIGHT}>
-            <TablePanelWithData
-              title="Reverted landings and their breaking tests"
-              data={eventRows}
-              columns={EVENT_COLUMNS}
-              showFooter={true}
-              dataGridProps={{
-                getRowId: (row: BreakageRow) => row.landing_sha,
-                getRowHeight: () => "auto",
-                initialState: {
-                  sorting: {
-                    sortModel: [{ field: "landed_at", sort: "desc" }],
-                  },
-                },
-              }}
-            />
-          </TablePaper>
-        </TdPanel>
+          sortField="landed_at"
+          dataGridProps={{
+            getRowId: (row: BreakageRow) => row.landing_sha,
+            getRowHeight: () => "auto",
+          }}
+        />
       </Grid>
     </TdSection>
   );

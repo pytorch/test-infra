@@ -12,7 +12,8 @@
 -- 'workflow / job-name prefix before " / test (" / test config'. Files are compared by hash.
 -- Jobs are read up to a day after the window, so a re-run started later is not seen. Rows: one
 -- per day of the later run's creation, and a total row that is always present. The window ends
--- at most now and spans at most 14 days (test_run_summary's TTL is 30). Every CTE is read once.
+-- at most now and spans at most 14 days (test_run_summary's TTL is 30). ClickHouse runs a CTE at
+-- every reference, so each CTE here is referenced once.
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
@@ -92,8 +93,7 @@ green_jobs AS (
                 AND position(name, ' / test (') > 0
                 AND workflow_name = 'pull'
                 AND NOT arrayExists(
-                    x -> position(name, x) > 0,
-                    {noTdBuildMarkers: Array(String)}
+                    x -> position(name, x) > 0, ['macos', 'xpu', 'onnx']
                 )
             LIMIT 1 BY id
         ) AS j
@@ -215,4 +215,4 @@ FROM (
 )
 GROUP BY GROUPING SETS ((day), ())
 ORDER BY grain, bucket
-SETTINGS max_execution_time = 60
+SETTINGS max_execution_time = 60, max_threads = 8

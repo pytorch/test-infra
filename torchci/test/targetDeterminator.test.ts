@@ -1,23 +1,21 @@
 import fs from "fs";
 import {
-  BreakageRow,
   breakageStats,
-  ChurnRow,
   ciSaved,
+  clampedStart,
   commitUrl,
-  fractionText,
+  dataExpiry,
   hoursText,
+  MIN_MAIN_RUNS,
   minutesText,
   NEW_TEST_DAYS,
   num,
   prUrl,
-  RankRow,
   ratio,
   readTdQuery,
   recallCurve,
   REVERT_WINDOW_DAYS,
-  SavingsRow,
-  shareIdentical,
+  TD_CUT_PCT,
   TD_QUERIES,
   TD_SCOPE,
   totalError,
@@ -25,6 +23,11 @@ import {
   wilsonInterval,
   windowDays,
 } from "lib/targetDeterminator";
+import type {
+  BreakageRow,
+  RankRow,
+  SavingsRow,
+} from "lib/targetDeterminatorRows";
 import path from "path";
 
 function savings(partial: Partial<SavingsRow>): SavingsRow {
@@ -149,7 +152,7 @@ describe("wilsonInterval", () => {
 });
 
 describe("breakageStats", () => {
-  it("computes share, interval, rate per 1,000 PRs and recall", () => {
+  it("computes share, interval, rate per 1,000 landings and recall", () => {
     const stats = breakageStats(
       breakageTotal({
         landed_prs: "2000",
@@ -169,7 +172,7 @@ describe("breakageStats", () => {
     expect(stats.unknown).toBe(4);
     expect(stats.share).toBe(2 / 16);
     expect(stats.interval).toEqual(wilsonInterval(2, 16));
-    expect(stats.perThousandPrs).toBe(1);
+    expect(stats.perThousandLandings).toBe(1);
     expect(stats.ranOnPr).toBe(6);
     expect(stats.recallBase).toBe(8);
     expect(stats.recall).toBe(6 / 8);
@@ -184,7 +187,7 @@ describe("breakageStats", () => {
     expect(stats.share).toBeNull();
     expect(stats.interval).toBeNull();
     expect(stats.recall).toBeNull();
-    expect(stats.perThousandPrs).toBe(0);
+    expect(stats.perThousandLandings).toBe(0);
   });
 
   it("never has a negative known count", () => {
@@ -198,7 +201,7 @@ describe("breakageStats", () => {
       const stats = breakageStats(row);
       expect(stats.share).toBeNull();
       expect(stats.recall).toBeNull();
-      expect(stats.perThousandPrs).toBeNull();
+      expect(stats.perThousandLandings).toBeNull();
     }
   });
 });
@@ -229,32 +232,11 @@ describe("recallCurve", () => {
   });
 });
 
-describe("shareIdentical", () => {
-  const churn = (pairs: number, identical: number): ChurnRow => ({
-    grain: "total",
-    bucket: "",
-    pairs,
-    identical_pairs: identical,
-    changed_median_pct: null,
-    prs: 0,
-  });
-
-  it("is identical pairs / pairs, null with no pairs", () => {
-    expect(shareIdentical(churn(8, 6))).toBe(0.75);
-    expect(shareIdentical(churn(0, 0))).toBeNull();
-    expect(shareIdentical(undefined)).toBeNull();
-  });
-});
-
 describe("rows and text", () => {
   it("finds the total row and reports a missing one", () => {
-    const rows = [
-      { grain: "day", population: "x" },
-      { grain: "total", population: "a" },
-      { grain: "total", population: "b" },
-    ];
+    const rows = [{ grain: "day" }, { grain: "total" }];
     expect(totalRow(rows)).toBe(rows[1]);
-    expect(totalRow(rows, (r) => r.population === "b")).toBe(rows[2]);
+    expect(totalRow([rows[0]])).toBeUndefined();
     expect(totalError("q", { loading: false }, undefined)).toBe(
       "q: no total row"
     );
@@ -262,9 +244,36 @@ describe("rows and text", () => {
     expect(totalError("q", { loading: false, error: "e" }, rows[1])).toBe("e");
   });
 
-  it("renders a dash, never 0 or NaN, for a missing fraction", () => {
-    expect(fractionText(null)).toBe("-");
-    expect(fractionText(0.1234)).toBe("12.3%");
+  it("clamps a query's start to the days before the stop", () => {
+    const params = {
+      startTime: "2026-01-01T00:00:00.000",
+      stopTime: "2026-11-05T00:00:00.000",
+    };
+    expect(clampedStart(params, 90)).toBe("2026-08-07T00:00:00.000");
+    expect(
+      clampedStart({ ...params, startTime: "2026-10-01T00:00:00.000" }, 90)
+    ).toBe("2026-10-01T00:00:00.000");
+  });
+
+  it("says when a window's data has expired, wholly or in part", () => {
+    const now = Date.parse("2026-11-04T12:00:00.000Z");
+    const recent = {
+      startTime: "2026-10-05T00:00:00.000",
+      stopTime: "2026-11-05T00:00:00.000",
+    };
+    expect(dataExpiry(recent, 90, 90, now)).toBeUndefined();
+    expect(dataExpiry(recent, 14, 30, now)).toBeUndefined();
+    const longAgo = {
+      startTime: "2026-05-01T00:00:00.000",
+      stopTime: "2026-07-01T00:00:00.000",
+    };
+    expect(dataExpiry(longAgo, 90, 90, now)?.whole).toBe(true);
+    const straddling = {
+      startTime: "2026-07-01T00:00:00.000",
+      stopTime: "2026-09-01T00:00:00.000",
+    };
+    expect(dataExpiry(straddling, 90, 90, now)?.whole).toBe(false);
+    expect(dataExpiry(straddling, 14, 90, now)).toBeUndefined();
   });
 
   it("formats minutes and hours, with a dash for missing values", () => {
@@ -313,24 +322,21 @@ describe("readTdQuery", () => {
   });
 });
 
-const SCOPE_PARAMS = ["tdWorkflows", "tdWorkflowPrefixes", "noTdBuildMarkers"];
-const WINDOW_PARAMS = ["startTime", "stopTime"];
+const quoted = (values: string[]) => values.map((v) => `'${v}'`);
+const WORKFLOWS = quoted(TD_SCOPE.tdWorkflows).join(", ");
+const PREFIXES = quoted(TD_SCOPE.tdWorkflowPrefixes);
+const MARKERS = quoted(TD_SCOPE.noTdBuildMarkers).join(", ");
+const WINDOW = { startTime: "DateTime64(3)", stopTime: "DateTime64(3)" };
 
-const PARAM_TYPES: Record<string, string> = {
-  startTime: "DateTime64(3)",
-  stopTime: "DateTime64(3)",
-  tdWorkflows: "Array(String)",
-  tdWorkflowPrefixes: "Array(String)",
-  noTdBuildMarkers: "Array(String)",
-};
+interface Contract {
+  columns: string[];
+  params: Record<string, string>;
+  defaults?: Record<string, unknown>;
+  horizonDays: number;
+  literals: string[];
+}
 
-const PAGE_DEFAULTS: Record<string, unknown> = {
-  ...TD_SCOPE,
-  revertWindowDays: REVERT_WINDOW_DAYS,
-  newTestDays: NEW_TEST_DAYS,
-};
-
-const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
+const CONTRACTS: Record<string, Contract> = {
   [TD_QUERIES.savings]: {
     columns: [
       "grain",
@@ -343,7 +349,14 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "pr_median_min",
       "full_median_min",
     ],
-    params: [...WINDOW_PARAMS, ...SCOPE_PARAMS],
+    params: WINDOW,
+    horizonDays: 90,
+    literals: [
+      WORKFLOWS,
+      ...PREFIXES,
+      MARKERS,
+      `>= ${MIN_MAIN_RUNS} AS matched`,
+    ],
   },
   [TD_QUERIES.pushWait]: {
     columns: [
@@ -356,7 +369,13 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "hours_per_push",
       "est_hours_per_push",
     ],
-    params: [...WINDOW_PARAMS, ...SCOPE_PARAMS],
+    params: WINDOW,
+    horizonDays: 90,
+    literals: [
+      "workflow_name = 'pull'",
+      MARKERS,
+      `>= ${MIN_MAIN_RUNS} AS matched`,
+    ],
   },
   [TD_QUERIES.breakages]: {
     columns: [
@@ -388,11 +407,14 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "other_reverts",
       "ghfirst_reverts",
     ],
-    params: [
-      ...WINDOW_PARAMS,
-      ...SCOPE_PARAMS,
-      "revertWindowDays",
-      "newTestDays",
+    params: { ...WINDOW, tdWorkflows: "Array(String)" },
+    defaults: { tdWorkflows: TD_SCOPE.tdWorkflows },
+    horizonDays: 90,
+    literals: [
+      ...PREFIXES,
+      MARKERS,
+      `toIntervalDay(${REVERT_WINDOW_DAYS})`,
+      `toIntervalDay(${NEW_TEST_DAYS})`,
     ],
   },
   [TD_QUERIES.ranks]: {
@@ -410,7 +432,9 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "test_file",
       "rank_pct",
     ],
-    params: [...WINDOW_PARAMS, ...SCOPE_PARAMS],
+    params: WINDOW,
+    horizonDays: 90,
+    literals: [WORKFLOWS, ...PREFIXES, MARKERS, `intDiv(${TD_CUT_PCT} * `],
   },
   [TD_QUERIES.churn]: {
     columns: [
@@ -421,7 +445,9 @@ const CONTRACTS: Record<string, { columns: string[]; params: string[] }> = {
       "changed_median_pct",
       "prs",
     ],
-    params: [...WINDOW_PARAMS, "noTdBuildMarkers"],
+    params: WINDOW,
+    horizonDays: 14,
+    literals: ["workflow_name = 'pull'", MARKERS],
   },
 };
 
@@ -446,19 +472,21 @@ describe.each(Object.entries(CONTRACTS))("%s contract", (name, contract) => {
     expect(missing).toEqual([]);
   });
 
-  it("takes the page's parameters, with defaults equal to the page's", () => {
+  it("takes only the page's parameters, with the page's defaults", () => {
     const json = JSON.parse(read("params.json"));
-    expect(Object.keys(json.params).sort()).toEqual(
-      [...contract.params].sort()
+    expect(json.params).toEqual(contract.params);
+    expect(json.defaults ?? {}).toEqual(contract.defaults ?? {});
+  });
+
+  it("hardcodes the page's constants and clamps the window", () => {
+    const sql = read("query.sql");
+    const missing = contract.literals.filter((l) => !sql.includes(l));
+    expect(missing).toEqual([]);
+    const days = contract.horizonDays;
+    expect(sql).toMatch(
+      new RegExp(
+        `window_end - (INTERVAL ${days} DAY|toIntervalDay\\(${days}\\))`
+      )
     );
-    const defaults = json.defaults ?? {};
-    for (const key of contract.params) {
-      if (key in PARAM_TYPES) {
-        expect([key, json.params[key]]).toEqual([key, PARAM_TYPES[key]]);
-      }
-      if (key in PAGE_DEFAULTS) {
-        expect([key, defaults[key]]).toEqual([key, PAGE_DEFAULTS[key]]);
-      }
-    }
   });
 });

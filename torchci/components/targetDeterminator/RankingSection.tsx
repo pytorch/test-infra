@@ -1,33 +1,34 @@
-import { Grid, Link, Paper, useTheme } from "@mui/material";
+import { Grid, Paper, useTheme } from "@mui/material";
 import { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import {
-  commitUrl,
   CurvePoint,
-  fractionText,
+  dataExpiry,
   HORIZON_DAYS,
   num,
-  RankRow,
   ratio,
   recallCurve,
+  RETENTION_DAYS,
+  SMALL_SAMPLE,
   TD_CUT_PCT,
   TD_QUERIES,
-  totalError,
-  totalRow,
-  useTdQuery,
+  TdParams,
   wilsonInterval,
 } from "lib/targetDeterminator";
+import type { RankRow } from "lib/targetDeterminatorRows";
 import { useMemo } from "react";
 import {
   CHART_HEIGHT,
-  TablePaper,
+  commitLink,
   TdPanel,
   TdSection,
+  TdTable,
+  useTdTotalQuery,
   utcColumn,
 } from "./TdPanel";
 
@@ -55,16 +56,8 @@ const MISS_COLUMNS: GridColDef[] = [
     headerName: "Commit",
     width: 120,
     sortable: false,
-    renderCell: (params: GridRenderCellParams<RankRow>) => {
-      const url = commitUrl(params.row.sha);
-      return url === undefined ? (
-        params.row.sha
-      ) : (
-        <Link href={url} target="_blank" rel="noreferrer">
-          {params.row.sha.slice(0, 10)}
-        </Link>
-      );
-    },
+    renderCell: (params: GridRenderCellParams<RankRow>) =>
+      commitLink(params.row.sha),
   },
 ];
 
@@ -111,13 +104,14 @@ export default function RankingSection({
   params,
   windowDays,
 }: {
-  params: Record<string, unknown>;
+  params: TdParams;
   windowDays: number;
 }) {
   const theme = useTheme();
-  const ranks = useTdQuery<RankRow>(TD_QUERIES.ranks, params);
-  const total = totalRow(ranks.rows);
-  const error = totalError(TD_QUERIES.ranks, ranks, total);
+  const ranks = useTdTotalQuery<RankRow>(TD_QUERIES.ranks, params);
+  const total = ranks.total;
+  const error = ranks.tileError;
+  const expiry = dataExpiry(params, HORIZON_DAYS.ranks, RETENTION_DAYS.ranks);
   const landings = num(total?.landings) ?? 0;
   const insideCut = num(total?.inside_cut) ?? 0;
   const secondHalf = num(total?.second_half) ?? 0;
@@ -132,17 +126,20 @@ export default function RankingSection({
         .map((row, i) => ({ ...row, id: `${row.sha}-${i}` })),
     [ranks.rows]
   );
-  const noLandings = "No trunk breakages with a TD ranking in this window.";
+  const noLandings = expiry?.whole
+    ? expiry.text
+    : "No trunk breakages with a TD ranking in this window.";
   const sample =
-    landings === 0
-      ? ""
-      : ` A small sample: ${landings.toLocaleString()} landings, ${failures.toLocaleString()} failing tests.`;
+    landings > 0 && landings < SMALL_SAMPLE
+      ? ` A small sample: ${landings.toLocaleString()} landings, ${failures.toLocaleString()} failing tests.`
+      : "";
 
   return (
     <TdSection
       title="Is TD picking the right tests?"
       windowDays={windowDays}
       horizonDays={HORIZON_DAYS.ranks}
+      expiry={expiry}
       intro={
         "TD ranks every test by how likely it is to fail and runs the top " +
         `${TD_CUT_PCT}% on PRs. Main runs every test, so when a landed PR ` +
@@ -157,13 +154,13 @@ export default function RankingSection({
           label="Trunk breakages TD would have caught"
           loading={ranks.loading}
           error={error}
-          value={fractionText(ratio(insideCut, landings))}
+          value={percentFormatter(ratio(insideCut, landings))}
           sub={
             landings === 0
               ? noLandings
-              : `${insideCut.toLocaleString()} of ${landings.toLocaleString()} landings, if TD had run on those trunk commits (95% interval ${fractionText(
-                  interval?.low ?? null
-                )} to ${fractionText(interval?.high ?? null)}).${sample}`
+              : `${insideCut.toLocaleString()} of ${landings.toLocaleString()} landings, if TD had run on those trunk commits (95% interval ${percentFormatter(
+                  interval?.low
+                )} to ${percentFormatter(interval?.high)}).${sample}`
           }
           caveat="Single-commit main pushes that newly broke tests: failing in two main runs and not failing just before the push. Each is ranked by TD against the push's own diff. A trend for comparing TD changes, not PR recall: breakages TD catches on PRs never reach main, and the ranking on main lacks the PR-only signals."
         />
@@ -173,7 +170,7 @@ export default function RankingSection({
           label="Caught only by the second half of TD's picks"
           loading={ranks.loading}
           error={error}
-          value={fractionText(ratio(secondHalf, landings))}
+          value={percentFormatter(ratio(secondHalf, landings))}
           sub={
             landings === 0
               ? noLandings
@@ -203,35 +200,21 @@ export default function RankingSection({
         </TdPanel>
       </Grid>
       <Grid size={{ xs: 12, lg: 6 }} height={CHART_HEIGHT}>
-        <TdPanel
-          title="Trunk breakages outside TD's cut"
-          height={CHART_HEIGHT}
-          loading={ranks.loading}
-          error={ranks.error}
+        <TdTable
+          title={`Trunk breakages outside TD's cut: newest ${misses.length.toLocaleString()} of ${(
+            landings - insideCut
+          ).toLocaleString()}`}
+          state={ranks}
+          rows={misses}
+          columns={MISS_COLUMNS}
           emptyText={
-            misses.length === 0
-              ? "No trunk breakages outside TD's cut in this window."
-              : undefined
+            expiry?.whole
+              ? expiry.text
+              : "No trunk breakages outside TD's cut in this window."
           }
-        >
-          <TablePaper height={CHART_HEIGHT}>
-            <TablePanelWithData
-              title={`Trunk breakages outside TD's cut: newest ${misses.length.toLocaleString()} of ${(
-                landings - insideCut
-              ).toLocaleString()}`}
-              data={misses}
-              columns={MISS_COLUMNS}
-              showFooter={true}
-              dataGridProps={{
-                initialState: {
-                  sorting: {
-                    sortModel: [{ field: "landed_at", sort: "desc" }],
-                  },
-                },
-              }}
-            />
-          </TablePaper>
-        </TdPanel>
+          height={CHART_HEIGHT}
+          sortField="landed_at"
+        />
       </Grid>
     </TdSection>
   );
