@@ -88,7 +88,10 @@ def read_published_versions():
 
 
 def generate_matrix(osys: OperatingSystem, channel: str):
-    env = {**os.environ, **MATRIX_ENV, "OS": MATRIX_OS[osys], "CHANNEL": channel}
+    # GITHUB_REF makes the script treat release branches differently; the result
+    # must not depend on the branch this runs on.
+    inherited = {k: v for k, v in os.environ.items() if k != "GITHUB_REF"}
+    env = {**inherited, **MATRIX_ENV, "OS": MATRIX_OS[osys], "CHANNEL": channel}
     result = subprocess.run(
         [sys.executable, str(MATRIX_SCRIPT)],
         env=env,
