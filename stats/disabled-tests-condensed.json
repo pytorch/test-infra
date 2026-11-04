@@ -26,14 +26,6 @@
     "https://github.com/pytorch/pytorch/issues/188688",
     []
   ],
-  "test_backward_choices_hook_preserves_captured_grad_mutations_cuda (__main__.TestFlexAttentionCUDA)": [
-    "196671",
-    "https://github.com/pytorch/pytorch/issues/196671",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_backward_ddp_outside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "103625",
     "https://github.com/pytorch/pytorch/issues/103625",
