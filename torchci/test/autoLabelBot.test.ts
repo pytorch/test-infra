@@ -1646,6 +1646,26 @@ describe("auto-label-bot: labeler.yml config", () => {
       );
     });
 
+    test("outside pytorch/pytorch a covered lower PR keeps its ciflow label", async () => {
+      jest.spyOn(botUtils, "isPyTorchPyTorch").mockReturnValue(false);
+      const filesScope = mockDynamoPr();
+      const stackScopes = [
+        mockStackPrs({
+          repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
+        }),
+        mockContainment([0]),
+      ];
+      const addScope = utils.mockAddLabels(
+        ["module: dynamo", "ciflow/inductor"],
+        repoFullName,
+        prNumber
+      );
+      await probot.receive(ghstackEvent(["* #32", `* __->__ #${prNumber}`]));
+      filesScope.done();
+      addScope.done();
+      stackScopes.forEach((scope) => expect(scope.isDone()).toBe(false));
+    });
+
     test("the top-most ghstack PR that needs the label gets it", async () => {
       const scopes = [
         mockDynamoPr(),

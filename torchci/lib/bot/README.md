@@ -135,7 +135,7 @@ ciflow_push_tags:
 - **File-based labeling**: Analyzes changed files to assign module-specific and release note labels
 - **Repository-specific rules**: Applies custom labeling rules based on the repository
 - **CIFlow integration**: Assigns ciflow/\* labels based on changed files (e.g., MPS, H100 symmetry memory tests)
-- **Stack-aware ciflow labels**: in a stack (a ghstack, or a GitHub stack of pull requests), a path-based ciflow/\* label from the labeler config goes only on the top-most open PR that needs it, since one run there tests every PR below it.
+- **Stack-aware ciflow labels** (pytorch/pytorch only, whose merge command adds each label back to the topmost PR that needs it at merge): in a stack (a ghstack, or a GitHub stack of pull requests), a path-based ciflow/\* label from the labeler config goes only on the top-most open PR that needs it, since one run there tests every PR below it.
   - A PR is held back from a label when an open same-repo PR above it in the stack needs that label and contains the PR's current changes (ghstack: the `gh/<user>/<n>/orig` branches; GitHub stacks: the head branches). For a ghstack, only PRs of the same ghstack user count. Fork PRs are never treated as stacked.
   - A ghstack PR above counts only while it can run CI: it has fewer than 10 PRs below it in its stack or carries `ciflow/trunk` (pytorch's `filter_test_configs.py` refuses CI on taller ghstack PRs).
   - While a ghstack PR younger than 10 minutes still has ghstack's `(to be filled)` placeholder listing, its ciflow/\* labels wait for the edit that fills the listing in; after that the PR is labeled as usual.

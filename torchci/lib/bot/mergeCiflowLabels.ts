@@ -7,6 +7,10 @@ import {
   StackPr,
 } from "./utils";
 
+// pytorch's merge bot requires the docker-builds run (ciflow/docker) on the
+// topmost landing PR that changes .ci/docker. The label's labeler globs are
+// broader than .ci/docker, so moving it up the stack can leave that PR without
+// the run and make the merge bot refuse the merge.
 export const CIFLOW_LABELS_KEPT_PER_PR = ["ciflow/docker"];
 
 // pytorch's .github/scripts/filter_test_configs.py fails every CI workflow on
