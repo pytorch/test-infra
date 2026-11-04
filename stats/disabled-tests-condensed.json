@@ -287,6 +287,13 @@
       "rocm"
     ]
   ],
+  "test_correctness_Adadelta_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "203336",
+    "https://github.com/pytorch/pytorch/issues/203336",
+    [
+      "xpu"
+    ]
+  ],
   "test_correctness_AdamW_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "203044",
     "https://github.com/pytorch/pytorch/issues/203044",
@@ -318,6 +325,13 @@
   "test_correctness_RAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
     "202889",
     "https://github.com/pytorch/pytorch/issues/202889",
+    [
+      "xpu"
+    ]
+  ],
+  "test_correctness_RAdam_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "203337",
+    "https://github.com/pytorch/pytorch/issues/203337",
     [
       "xpu"
     ]
@@ -711,6 +725,13 @@
   "test_graph_make_graphed_callables_parameterless_nograd_module_with_amp_cache_disabled_allow_unused_input (__main__.TestXpu)": [
     "196551",
     "https://github.com/pytorch/pytorch/issues/196551",
+    [
+      "xpu"
+    ]
+  ],
+  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_allow_unused_input (__main__.TestXpu)": [
+    "196650",
+    "https://github.com/pytorch/pytorch/issues/196650",
     [
       "xpu"
     ]
