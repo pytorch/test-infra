@@ -335,6 +335,21 @@ describe("getPrStatusMessage", () => {
     );
   });
 
+  test.each([false, true])(
+    "in progress explains thumbs-down feedback when changes requested is %s",
+    (hasChangesRequested) => {
+      const message = getPrStatusMessage(
+        state({ labels: [PR_STATUS_LABEL_IN_PROGRESS], hasChangesRequested })
+      );
+      expect(message).toContain(
+        "If an automated review comment is irrelevant, react with 👎 on that specific comment; a short reply explaining why is helpful."
+      );
+      expect(message.indexOf("react with 👎")).toBeLessThan(
+        message.indexOf("@pytorchbot review")
+      );
+    }
+  );
+
   test("an outstanding change request explains how to return to maintainer review", () => {
     const message = getPrStatusMessage(
       state({
