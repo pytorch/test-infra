@@ -182,12 +182,23 @@ class TestCalculateFileTestRating(TestCase):
         )
         self.assertDictEqual(scores, {"a.txt": {"invoking_file": 0.5}})
 
+    def test_decay_requires_failure_time(self):
+        tests = [self.gen_test(head_sha="head_sha")]
+        merge_bases = dict([self.gen_merge_base("head_sha", ["a.txt"], "mb")])
+        with self.assertRaises(KeyError):
+            calculate_generic_test_ratings(
+                tests, merge_bases, lambda x: x["failure"], half_life_days=14
+            )
+
     def test_positive_rounded(self):
         ratings = {
-            "a.txt": {"t1": 0.1234567891, "t2": 0.0000001, "t3": 0.0},
-            "b.txt": {"t1": 0.0000004},
+            "a.txt": {"t1": 0.12345678912, "t2": 0.0000012345678, "t3": 0.0},
+            "b.txt": {"t1": 0.0000000004},
         }
-        self.assertDictEqual(positive_rounded(ratings), {"a.txt": {"t1": 0.123457}})
+        self.assertDictEqual(
+            positive_rounded(ratings),
+            {"a.txt": {"t1": 0.123456789, "t2": 0.000001235}},
+        )
 
     def test_positive_pmi(self):
         # hub.h is edited in every commit, so it is linked to no test more

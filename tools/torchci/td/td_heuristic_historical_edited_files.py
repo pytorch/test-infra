@@ -1,7 +1,7 @@
 import json
 import math
 from collections import defaultdict
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 
 from torchci.clickhouse import query_clickhouse
 from torchci.td.utils import (
@@ -63,7 +63,7 @@ def gen_correlation_dict() -> Dict[str, Dict[str, float]]:
 
 
 def positive_pmi(
-    commit_files: Iterable[tuple[List[str], List[str]]],
+    commit_files: Iterable[Tuple[List[str], List[str]]],
 ) -> Dict[str, Dict[str, float]]:
     # Scores how much more often test file t is edited with file f than their
     # separate edit rates predict, over the commits that edit a test file, so

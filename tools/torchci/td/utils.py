@@ -10,9 +10,14 @@ from torchci.clickhouse import query_clickhouse
 from torchci.utils import cache_json, round_floats, run_command
 
 
-# Half-life of a past failure's weight in the failure-correlation ratings: a
-# failure from months ago says less about the code as it is now.
+# Half-life of a past failure's weight in the failure-correlation ratings. In a
+# replay of TD's logged rankings against trunk breakages, 7 days ranked the
+# breaking tests higher than 14 days, 30 days or unweighted counts.
 HALF_LIFE_DAYS = 7
+# Decayed weights reach 1e-6 and below, so 6 decimals would leave them one
+# significant digit. 9 decimals keeps every score under 1e5 shorter than the
+# 15-digit runs that GitHub push protection blocks on generated-stats.
+RATING_DECIMALS = 9
 
 
 def list_past_year_shas():
@@ -190,7 +195,7 @@ def positive_rounded(
 ) -> Dict[str, Dict[str, float]]:
     # pytorch's normalize_ratings rejects a summed rating <= 0, which drops the
     # whole heuristic for that job, so no non-positive entry may be published.
-    rounded = round_floats(ratings)
+    rounded = round_floats(ratings, RATING_DECIMALS)
     positive = {
         file: {test: score for test, score in scores.items() if score > 0}
         for file, scores in rounded.items()
@@ -207,7 +212,8 @@ def calculate_generic_test_ratings(
 ):
     # Should return a mapping of changed file -> correlated test failures -> confidence score.
     # With half_life_days, each (failing test, sha) pair is weighted by the age
-    # of its earliest failure, read from the test's "ts" (unix seconds).
+    # of its earliest failure, read from the test's "ts" (unix seconds), which
+    # is then required.
     if now is None:
         now = time.time()
 
@@ -216,7 +222,7 @@ def calculate_generic_test_ratings(
     for test in tests:
         failing_test = get_test_name_fn(test)
         sha = test["head_sha"]
-        ts = test.get("ts", now)
+        ts = now if half_life_days is None else test["ts"]
         shas = failing_tests_to_sha[failing_test]
         shas[sha] = min(shas.get(sha, ts), ts)
 
