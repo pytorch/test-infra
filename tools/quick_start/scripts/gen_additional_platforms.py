@@ -126,7 +126,7 @@ def read_platform_json_files() -> Dict[str, Any]:
         print(f"Warning: {ADDITIONAL_PLATFORM_DIR} does not exist")
         return platform_data
 
-    for json_file in ADDITIONAL_PLATFORM_DIR.glob("*.json"):
+    for json_file in sorted(ADDITIONAL_PLATFORM_DIR.glob("*.json")):
         try:
             content = json_file.read_text()
             data = json.loads(content)
@@ -200,7 +200,7 @@ def read_markdown_files() -> Dict[str, str]:
         print(f"Warning: {MARKDOWN_DIR} does not exist")
         return html_content
 
-    for md_file in MARKDOWN_DIR.glob("*.md"):
+    for md_file in sorted(MARKDOWN_DIR.glob("*.md")):
         try:
             content = md_file.read_text()
             # Use filename (without .md) as platform_id

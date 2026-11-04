@@ -127,21 +127,19 @@ def generate(workdir: Path) -> dict[str, str]:
     return {name: (module / name).read_text() for name in GENERATED_FILES}
 
 
-def _without_volatile_fields(text: str) -> object:
-    data = json.loads(text)
-    for field in VOLATILE_JSON_FIELDS:
-        data.pop(field, None)
-    return data
-
-
 def is_up_to_date(name: str, original: str, expected: str) -> bool:
     if name == "additional-platforms.json":
+        # Compare the text, so key order counts, but with the volatile fields the
+        # file already has.
         try:
-            return _without_volatile_fields(original) == _without_volatile_fields(
-                expected
-            )
+            old = json.loads(original)
+            new = json.loads(expected)
         except json.JSONDecodeError:
             return False
+        for field in VOLATILE_JSON_FIELDS:
+            if field in old:
+                new[field] = old[field]
+        expected = json.dumps(new, indent=2, ensure_ascii=False)
     return original == expected
 
 
