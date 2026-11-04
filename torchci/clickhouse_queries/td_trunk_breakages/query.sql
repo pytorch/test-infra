@@ -7,12 +7,12 @@
 -- completed (only the immediate next push is read); completed without failing it at the push's
 -- `before`; and does not fail at the last revert push when the config completed there.
 --
--- PR side: only PR-head jobs created before the landing count, since a revert reopens the PR
--- and re-runs CI on the same head. A file that failed there ran. tests.all_test_runs is read for
--- configs whose every shard was green at the PR head only, since a job costs ~140 ms single-threaded
--- (cold S3 granules); in a non-green config the pair is 'unknown'. A td_skipped candidate must
--- have a failing case that ran in CI in the 3 days ending newTestDays before the landing, else
--- 'new_test'. all_test_runs_by_name starts 2026-08-26 19:35, so earlier landings get 'new_test'.
+-- PR side: only PR-head jobs created before the landing count (a revert reopens the PR and
+-- re-runs CI at the same head sha). A file that failed there ran. tests.all_test_runs is read
+-- only for configs whose every shard was green at the PR head, since a job costs ~140 ms
+-- single-threaded (cold S3 granules); in a non-green config the pair is 'unknown'. A td_skipped
+-- candidate is 'new_test' when no failing case ran in CI in the 3 days ending newTestDays before
+-- the landing although all_test_runs_by_name already had rows by then.
 --
 -- ClickHouse re-runs a CTE at every reference but runs identical scalar subqueries once per
 -- query, so each stage read more than once is a one-row scalar read as `(SELECT x FROM cte)`.
@@ -50,7 +50,6 @@ push_arr AS (
         LIMIT 1 BY head
     )
 ),
-
 revs AS (
     SELECT
         c.1 AS revert_sha, c.3 AS reverted_sha, c.4 AS reverted_pr, c.5 AS comment_id, c.6 AS comment_pr,
@@ -58,7 +57,6 @@ revs AS (
     FROM (SELECT p, arrayJoin(p.4) AS c FROM (SELECT arrayJoin((SELECT pushes FROM push_arr)) AS p))
     WHERE c.3 != '' AND c.4 > 0
 ),
-
 -- The -c of the mergebot command the revert commit links to; '' when none is found.
 classes AS (
     SELECT
@@ -89,7 +87,6 @@ merge_heads AS (
         AND NOT is_failed AND NOT dry_run AND merge_commit_sha != ''
     GROUP BY pr_num, merge_commit_sha
 ),
-
 run_heads AS (
     SELECT tupleElement(pull_requests[1], 'number') AS pr, head_sha, created_at
     FROM default.workflow_run
@@ -164,11 +161,9 @@ roles AS (
         r.1 AS role, r.2 AS ord, r.3 AS sha
     FROM (SELECT arrayJoin((SELECT ev FROM ev_arr).1) AS e)
 ),
-
 ids_arr AS (
     SELECT groupArray(id) AS ids FROM materialized_views.workflow_job_by_head_sha WHERE head_sha IN (SELECT sha FROM roles)
 ),
-
 -- Per (sha, shard-less config) of TD-workflow test jobs: every shard completed, failing
 -- (file, run, attempt, created), failing cases, shards (id, name, success, created).
 state_arr AS (
@@ -214,15 +209,14 @@ state_arr AS (
     )
 ),
 
--- Breaking tests: (landing, config, file, failing cases, landed_at, [(PR, shards and failing
--- files of its head's jobs created before the landing)]).
+-- Breaking tests: (landing, config, file, failing cases, landed_at, [(PR, shards, failing files)]).
 brk_arr AS (
     SELECT groupArray(t) AS brk
     FROM (
         SELECT arrayJoin(arrayMap(
             f -> tuple(
                 landing_sha, config, f, arrayDistinct(arrayMap(x -> (x.2, x.3, x.4, x.5), arrayFilter(x -> x.1 = f, l.5))),
-                landed_at, arrayMap(x -> (x.2, x.6, x.4.1), arrayFilter(x -> x.1 = 'P', sts))
+                landed_at, prs
             ),
             arrayFilter(
                 f -> b.3 AND NOT has(b.4.1, f) AND NOT (rv.3 AND has(rv.4.1, f))
@@ -237,7 +231,11 @@ brk_arr AS (
                 arrayFilter(x -> x.1 = 'L', sts)[1] AS l,
                 arrayFilter(x -> x.1 = 'B', sts)[1] AS b,
                 arrayFilter(x -> x.1 = 'R', sts)[1] AS rv,
-                arraySort(x -> x.2, arrayFilter(x -> x.1 = 'N' AND x.3, sts))[1] AS n
+                arraySort(x -> x.2, arrayFilter(x -> x.1 = 'N' AND x.3, sts))[1] AS n,
+                arrayFilter(p -> notEmpty(p.2), arrayMap(
+                    x -> (x.2, arrayFilter(s -> s.4 < landed_at, x.6), arrayFilter(v -> v.4 < landed_at, x.4).1),
+                    arrayFilter(x -> x.1 = 'P', sts)
+                )) AS prs
             FROM roles AS r
             INNER JOIN (
                 SELECT y.1 AS sha, y.2 AS config, y.3 AS completed, y.4 AS fails, y.5 AS cases, y.6 AS shards
@@ -249,7 +247,7 @@ brk_arr AS (
 ),
 
 -- Shards whose files can change an outcome: config all green at the PR head (each shard's
--- latest attempt succeeded), file not failing there. (landing, config, file, PR, job, latest, day).
+-- latest attempt succeeded), file not failing there. (landing, config, file, PR, job, latest, created).
 green_shards AS (
     SELECT arrayJoin(arrayFlatten(arrayMap(b -> arrayFlatten(arrayMap(
         pe -> if(
@@ -272,18 +270,18 @@ pres_arr AS (
         LEFT JOIN (
             SELECT job_id, groupUniqArray(replaceAll(invoking_file, '.', '/')) AS files
             FROM tests.all_test_runs
-            WHERE (job_id, toDate(time_inserted)) IN (SELECT g.5, arrayJoin([g.7, g.7 + 1]) FROM green_shards)
+            WHERE (job_id, toDate(time_inserted)) IN (SELECT g.5, arrayJoin([toDate(g.7), toDate(g.7) + 1]) FROM green_shards)
             GROUP BY job_id
         ) AS f ON f.job_id = gs.g.5
         GROUP BY landing_sha, config, test_file, pr
     )
 ),
 
--- Per breaking test: (landing, config, file, probe case, landed_at, [(PR, failed on the PR,
--- all green, ran, rows ok)]) over the PRs whose head ran the config.
+-- Per breaking test: (landing, config, file, probe case, landed_at, [(PR, failed, all green, ran, rows ok)]).
+-- The probe case avoids ('', 'pytest', 'internal'), which failed_test_runs files under any test file.
 tp_arr AS (
     SELECT arrayMap(b -> (
-        b.1, b.2, b.3, arraySort(b.4)[1], b.5,
+        b.1, b.2, b.3, arraySort(c -> (c.1 = '', c), b.4)[1], b.5,
         arrayMap(pe -> (
             pe.1,
             has(pe.3, b.3),
@@ -295,22 +293,24 @@ tp_arr AS (
     FROM (SELECT (SELECT brk FROM brk_arr) AS brk, (SELECT pres FROM pres_arr) AS pres)
 ),
 
--- Where the probe case of each td_skipped candidate ran in the 3 days before its cutoff.
+-- (probe case, day) over each td_skipped candidate's 3-day window. age_arr filters case and day
+-- apart: a 4-tuple IN over all_test_runs_by_name's sort key reads ~7x slower.
+probes AS (
+    SELECT arrayJoin(arrayMap(i -> (c.4.1, c.4.2, c.4.3, toDate(c.5 - toIntervalDay({newTestDays: UInt32})) - i), [0, 1, 2])) AS p
+    FROM (
+        SELECT arrayJoin(arrayFilter(
+            t -> arrayExists(x -> x.3 AND NOT x.2 AND NOT x.4 AND x.5, t.6)
+            AND NOT arrayExists(m -> position(t.2, m) > 0, {noTdBuildMarkers: Array(String)}),
+            (SELECT tp FROM tp_arr)
+        )) AS c
+    )
+),
 age_arr AS (
     SELECT groupArray((file, classname, name, d, t)) AS ages
     FROM (
         SELECT file, classname, name, toDate(time_inserted) AS d, min(time_inserted) AS t
         FROM tests.all_test_runs_by_name
-        WHERE (file, classname, name, toDate(time_inserted)) IN (
-            SELECT c.4.1, c.4.2, c.4.3, arrayJoin(arrayMap(i -> toDate(c.5 - toIntervalDay({newTestDays: UInt32})) - i, [0, 1, 2]))
-            FROM (
-                SELECT arrayJoin(arrayFilter(
-                    t -> arrayExists(x -> x.3 AND NOT x.2 AND NOT x.4 AND x.5, t.6)
-                    AND NOT arrayExists(m -> position(t.2, m) > 0, {noTdBuildMarkers: Array(String)}),
-                    (SELECT tp FROM tp_arr)
-                )) AS c
-            )
-        )
+        WHERE (file, classname, name) IN (SELECT p.1, p.2, p.3 FROM probes) AND toDate(time_inserted) IN (SELECT p.4 FROM probes)
         GROUP BY file, classname, name, d
     )
 ),
@@ -352,8 +352,8 @@ out_arr AS (
                 arrayJoin((SELECT ev FROM ev_arr).1) AS e,
                 arrayMap(t -> (
                     t.1, t.2, t.3, t.4, t.5, t.6,
-                    toDate(t.5 - toIntervalDay({newTestDays: UInt32})) - 2 > toDate('2026-08-26')
-                    AND arrayExists(
+                    (SELECT min(time_inserted) FROM tests.all_test_runs_by_name) > t.5 - toIntervalDay({newTestDays: UInt32})
+                    OR arrayExists(
                         a -> a.1 = t.4.1 AND a.2 = t.4.2 AND a.3 = t.4.3
                         AND a.4 >= toDate(t.5 - toIntervalDay({newTestDays: UInt32})) - 2
                         AND a.5 <= t.5 - toIntervalDay({newTestDays: UInt32}),
