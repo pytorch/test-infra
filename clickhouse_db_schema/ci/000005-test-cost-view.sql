@@ -24,8 +24,8 @@ WITH
             j.repository_full_name AS repo,
             w.path AS workflow_path,
             arraySort(j.labels) AS runner_labels,
-            -- test_cost.trigger (000004), its values defined here only (tests
-            -- mirror them in reference.trigger and the toy TRIGGERS table):
+            -- test_cost.trigger (000004), cast to its Enum8 at the end (tests
+            -- mirror the rule in reference.trigger and the toy TRIGGERS table):
             -- push:main (event:branch) for a push to main or master, which
             -- runs without target determination; other for everything else.
             if(w.event = 'push' AND w.head_branch IN ('main', 'master'), 'push:main', 'other') AS trigger,
@@ -174,7 +174,7 @@ SELECT
     g.test_module AS test_module,
     g.environments_id AS environments_id,
     g.runner_labels AS runner_labels,
-    g.trigger AS trigger,
+    CAST(g.trigger AS Enum8('push:main' = 1, 'other' = 2)) AS trigger,
     multiIf(notEmpty(owner_module.owners), owner_module.owners, notEmpty(owner_file.owners), owner_file.owners, [])
         AS owners,
     -- Whole milliseconds, as ci.* keeps time; the shares round once per row.

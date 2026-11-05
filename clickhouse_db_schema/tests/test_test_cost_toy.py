@@ -14,6 +14,7 @@ Run (read-only; each query reads no real table):
 with CLICKHOUSE_ENDPOINT, CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD set.
 """
 
+import re
 import unittest
 
 from test_cost_harness import (
@@ -22,6 +23,8 @@ from test_cost_harness import (
     Job,
     Run,
     run_view,
+    TABLE_SQL,
+    VIEW_SQL,
     workflow_path,
 )
 
@@ -920,6 +923,18 @@ class Triggers(ToyCase):
                 )
         wall = sum(j.end for j in jobs)
         self.assertInvariants(rows, wall=wall, busy=wall)
+
+    def test_trigger_enum_matches_the_table(self):
+        """The view casts trigger to test_cost.trigger's Enum8 (000004), as
+        health_mv does for ran_on, and the Enum8 holds exactly the triggers
+        TRIGGERS records."""
+        enum = r"Enum8\([^)]*\)"
+        table = re.search(rf"`trigger` ({enum})", TABLE_SQL.read_text()).group(1)
+        view = re.search(rf"CAST\(g\.trigger AS ({enum})\)", VIEW_SQL.read_text())
+        self.assertEqual(view.group(1), table)
+        self.assertEqual(
+            set(re.findall(r"'([^']*)' = \d+", table)), {t for _, _, t in TRIGGERS}
+        )
 
     def test_triggers_split_a_file_and_keep_its_totals(self):
         """Jobs alike but for their trigger get a row each; the rows add up to

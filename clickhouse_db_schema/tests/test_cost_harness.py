@@ -29,6 +29,7 @@ from typing import Dict, List, Optional, Sequence
 HERE = Path(__file__).resolve().parent
 SCHEMA = HERE.parent
 VIEW_SQL = SCHEMA / "ci" / "000005-test-cost-view.sql"
+TABLE_SQL = SCHEMA / "ci" / "000004-test-cost-table.sql"
 sys.path.insert(0, str(SCHEMA))
 import migrate  # noqa: E402
 

@@ -34,10 +34,10 @@ CREATE TABLE test_cost
     -- The jobs' runner labels, sorted (default.workflow_job.labels): the
     -- runner they asked for, on every row.
     `runner_labels` Array(LowCardinality(String)),
-    -- What started the jobs' run: push:main (a push to main or master) or
-    -- other, from default.workflow_run's event and head_branch; the values
-    -- are defined in test_cost_mv (000005) only.
-    `trigger` LowCardinality(String),
+    -- trigger = 'push:main' when the jobs' run (default.workflow_run) has
+    -- event = 'push' AND head_branch IN ('main', 'master'); otherwise 'other'.
+    -- Computed in test_cost_mv (000005).
+    `trigger` Enum8('push:main' = 1, 'other' = 2),
     -- The file's owners from ci.owners as of computed_at, by (test_file,
     -- test_module), then test_file; empty when none. Current owners come from
     -- ci.owners at read time.
