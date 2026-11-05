@@ -60,7 +60,7 @@ The PyTorch bot is a GitHub webhook automation system built with **Probot** that
 - Commands are parsed by `cliParser.ts` (argument definitions and help text live there).
 - Permission checks and core logic are implemented in `pytorchBotHandler.ts` (e.g., `hasWritePermissions`, `hasRebasePermissions`, approval checks).
 - On valid commands the handler emits repository dispatch events such as `try-merge`, `try-rebase`, and `try-revert` which perform the actual work asynchronously.
-- At a non-force merge on pytorch/pytorch, for each path-based ciflow label (except `ciflow/docker`) that the merged PR or an open PR below it in its stack needs, the bot adds the label to the topmost such PR, or to the nearest PR above it that can run CI when it cannot, unless a PR from the merged one down to it already carries it (`mergeCiflowLabels.ts`).
+- At a non-force merge on pytorch/pytorch, for each path-based ciflow label (except `ciflow/docker`) that the merged PR or an open PR below it in its stack needs, the bot adds the label to the topmost such PR that can run CI, unless a PR from the merged one down to it already carries it (`mergeCiflowLabels.ts`).
 - The bot reacts to commands with a +1 reaction when appropriate and can post comments for failures or help text.
 - The handler integrates with other systems: ClickHouse (workflows/analytics), DynamoDB logging via `pytorchbotLogger`, and CachedConfigTracker for repo configs.
 - Issue comments are ignored when authored by known bot user IDs (see `pytorchBot.ts` skipUsers list).

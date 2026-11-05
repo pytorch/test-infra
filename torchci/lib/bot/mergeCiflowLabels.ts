@@ -17,11 +17,10 @@ export const GHSTACK_CI_BELOW_LIMIT_EXEMPT_LABEL = "ciflow/trunk";
 
 /**
  * At merge, for each path-based ciflow label that the merged PR or an open PR
- * below it in its stack needs, adds the label to the topmost such PR, or to
- * the nearest PR above it that can run CI when it cannot, unless a PR from
- * the merged one down to it already carries the label. A ciflow run on a PR
- * tests every PR below it, so one labeled PR covers the rest. Failures are
- * logged and never thrown.
+ * below it in its stack needs, adds the label to the topmost such PR that can
+ * run CI, unless a PR from the merged one down to it already carries the
+ * label. A ciflow run on a PR tests every PR below it, so one labeled PR
+ * covers the rest. Failures are logged and never thrown.
  */
 export async function addCiflowLabelsAtMerge(params: {
   octokit: Octokit;
@@ -97,17 +96,13 @@ export async function addCiflowLabelsAtMerge(params: {
     };
 
     for (const label of ciflowLabels) {
-      let target = chain.findIndex((_, i) => needed[i].has(label));
+      const target = chain.findIndex(
+        (_, i) =>
+          needed[i].has(label) &&
+          (label === GHSTACK_CI_BELOW_LIMIT_EXEMPT_LABEL || canRunCi(i))
+      );
       if (target === -1) {
         continue;
-      }
-      // A PR above contains the needing PR's changes; the merged PR always
-      // can run CI, so this stops there at the latest.
-      while (
-        label !== GHSTACK_CI_BELOW_LIMIT_EXEMPT_LABEL &&
-        !canRunCi(target)
-      ) {
-        target--;
       }
       const covered = chain
         .slice(0, target + 1)
