@@ -1,7 +1,7 @@
 import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import {
   CountedRange,
-  rangeText,
+  countedText,
   TdParams,
   useTdQuery,
 } from "lib/targetDeterminator";
@@ -19,8 +19,7 @@ export function useTdTotalQuery<T extends { grain: string }>(
   return {
     ...state,
     total,
-    tileError:
-      window === undefined ? undefined : totalError(queryName, state, total),
+    tileError: window === undefined ? undefined : totalError(queryName, state),
   };
 }
 
@@ -50,7 +49,7 @@ export function TdSection({
       >
         {range.empty
           ? "Nothing to count in the picked window."
-          : `Counted ${rangeText(range)} (UTC).`}
+          : countedText(range)}
         {range.note === undefined ? "" : ` ${range.note}`}
       </Typography>
       {!range.empty && (

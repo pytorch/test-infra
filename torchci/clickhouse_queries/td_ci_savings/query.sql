@@ -1,12 +1,15 @@
 -- CI time TD saves on pytorch/pytorch PRs: actual test-job time of successful TD test jobs on PR
 -- runs (pull_request events and ciflow tag pushes) against the same job's mean and median duration
 -- on main pushes in the same window, the full-suite estimate. One row per job start day, one per
--- week of it (bucket = its ISO Monday), one per config and one total.
+-- week of it (bucket = its ISO Monday), one per config and one total. The workflow, workflow_day
+-- and workflow_week rows split the total, day and week rows by workflow: pull, trunk, and rocm
+-- for the rocm-* and periodic-rocm-* workflows; workflow is '' on every other row.
 --
 -- The job key drops only the runner label (4th argument of "test (...)"): labels change with
 -- runner fleet moves while the job stays the same; shard numbers stay, since a shard's duration
 -- depends on its count. Keys with fewer than 5 main jobs have no baseline: their PR jobs count
--- as unmatched_jobs and stay out of every other column; a config row with jobs = 0 has medians 0.
+-- as unmatched_jobs and stay out of every other column; a row with jobs = 0 has medians and
+-- p90s 0.
 --
 -- Main runs are looked up among runs created from 7 days before the window: a main job started
 -- inside the window from an older run (a late re-run) is left out of the baseline.
@@ -23,22 +26,37 @@ greatest(
 
 SELECT
     multiIf(
+        grouping(job_workflow) = 0 AND grouping(job_day) = 0, 'workflow_day',
+        grouping(job_workflow) = 0 AND grouping(job_week) = 0, 'workflow_week',
+        grouping(job_workflow) = 0, 'workflow',
         grouping(job_day) = 0, 'day',
         grouping(job_week) = 0, 'week',
         grouping(job_config) = 0, 'config',
         'total'
     ) AS grain,
-    multiIf(grain = 'day', job_day, grain = 'week', job_week, '') AS bucket,
+    multiIf(
+        grain IN ('day', 'workflow_day'), job_day,
+        grain IN ('week', 'workflow_week'), job_week,
+        ''
+    ) AS bucket,
     if(grain = 'config', job_config, '') AS config,
+    if(
+        grain IN ('workflow', 'workflow_day', 'workflow_week'), job_workflow, ''
+    ) AS workflow,
     countIf(matched) AS jobs,
     countIf(NOT matched) AS unmatched_jobs,
     sumIf(dur, matched) / 3600 AS pr_hours,
     sumIf(main_mean, matched) / 3600 AS est_full_hours,
     ifNotFinite(medianExactIf(dur, matched) / 60, 0) AS pr_median_min,
-    ifNotFinite(medianExactIf(main_median, matched) / 60, 0) AS full_median_min
+    ifNotFinite(medianExactIf(main_median, matched) / 60, 0) AS full_median_min,
+    ifNotFinite(quantileExactIf(0.9) (dur, matched) / 60, 0) AS pr_p90_min,
+    ifNotFinite(
+        quantileExactIf(0.9) (main_median, matched) / 60, 0
+    ) AS full_p90_min
 FROM (
     SELECT
         job_config,
+        job_workflow,
         main_jobs >= 5 AS matched,
         main_mean,
         main_median,
@@ -49,6 +67,7 @@ FROM (
     FROM (
         SELECT
             job_config,
+            job_workflow,
             countIf(is_main) AS main_jobs,
             avgIf(dur, is_main) AS main_mean,
             medianExactIf(dur, is_main) AS main_median,
@@ -74,6 +93,11 @@ FROM (
                 concat(
                     workflow_name, ' / ', name_parts[1], ' / ', test_args[1]
                 ) AS job_config,
+                multiIf(
+                    startsWith(workflow_name, 'rocm-')
+                    OR startsWith(workflow_name, 'periodic-rocm-'), 'rocm',
+                    workflow_name
+                ) AS job_workflow,
                 dictGet(
                     'default.workflow_events_dict', 'event',
                     dictGet('default.workflow_run_dict', 'event_hash', run_id)
@@ -110,9 +134,18 @@ FROM (
             LIMIT 1 BY id
         )
         WHERE is_pr OR is_main
-        GROUP BY job_key, job_config
+        GROUP BY job_key, job_config, job_workflow
     )
 )
-GROUP BY GROUPING SETS ((job_day), (job_week), (job_config), ())
-ORDER BY grain, bucket, config
+GROUP BY
+    GROUPING SETS (
+        (job_day),
+        (job_week),
+        (job_config),
+        (),
+        (job_workflow),
+        (job_workflow, job_day),
+        (job_workflow, job_week)
+    )
+ORDER BY grain, workflow, bucket, config
 SETTINGS max_execution_time = 60, max_threads = 8

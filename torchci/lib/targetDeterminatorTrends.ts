@@ -10,6 +10,7 @@ import {
   ChartGranularity,
 } from "lib/greenlight/qualityCharts";
 import { parseStamp } from "lib/greenlight/qualityFigures";
+import { TD_SCOPE, type TdWorkflow } from "lib/targetDeterminator";
 import {
   BreakageOutcome,
   num,
@@ -17,9 +18,13 @@ import {
   ratio,
 } from "lib/targetDeterminatorRows";
 
+const WORKFLOW_CHARTS = ["workflowSaved", "workflowJob"] as const;
+type TdWorkflowChart = (typeof WORKFLOW_CHARTS)[number];
+type TdWorkflowChartKey = `${TdWorkflowChart}-${TdWorkflow}`;
+
 export type TdChartKey =
   | "ciSaved"
-  | "typicalJob"
+  | TdWorkflowChartKey
   | "ttgSaved"
   | "hoursPerPush"
   | "falseGreens"
@@ -31,8 +36,9 @@ export type TdChartKey =
 
 export type TdSource = "savings" | "pushWait" | "breakages" | "ranks" | "churn";
 
-// grain: the query's own day or week rows. A function: one row per event it
-// keeps, bucketed here by when it landed. Breakage tiles count only landings
+// grain: the query's own day or week rows, or for a chart with a workflow that
+// workflow's workflow_day or workflow_week rows. A function: one row per event
+// it keeps, bucketed here by when it landed. Breakage tiles count only landings
 // whose revert window has closed.
 const SOURCE_ROWS: Record<TdSource, "grain" | ((_row: any) => boolean)> = {
   savings: "grain",
@@ -61,6 +67,7 @@ export interface TdChartConfig {
   type: ChartType;
   series: { name: string; value: TdValue }[];
   note?: string;
+  workflow?: TdWorkflow;
 }
 
 const sum = (field: string): TdValue => ({ kind: "sum", field });
@@ -81,31 +88,65 @@ const flagIs = (name: string, flag: number) => (row: any) =>
   num(row?.[name]) === flag;
 const count = (name: string) => (row: any) => num(row?.[name]);
 
-export const TD_CHARTS: Record<TdChartKey, TdChartConfig> = {
-  ciSaved: {
-    title: "PR test-job hours: actual vs estimated full suite",
-    source: "savings",
-    unit: "hours",
-    type: "line",
-    series: [
-      { name: "Actual, with TD", value: sum("pr_hours") },
-      { name: "Estimated, full suite", value: sum("est_full_hours") },
-    ],
-    note: "The estimate gives each PR test job the mean duration of the same job on main over the whole counted range, so it does not follow changes on main within the range.",
-  },
-  typicalJob: {
-    title: "Median test-job duration: PR vs main",
+const CI_SAVED: TdChartConfig = {
+  title: "PR test-job hours: actual vs estimated full suite",
+  source: "savings",
+  unit: "hours",
+  type: "line",
+  series: [
+    { name: "Actual, with TD", value: sum("pr_hours") },
+    { name: "Estimated, full suite", value: sum("est_full_hours") },
+  ],
+  note: "The estimate gives each PR test job the mean duration of the same job on main over the whole counted range, so it does not follow changes on main within the range.",
+};
+
+const jobStat = (field: string) => stat(field, count("jobs"));
+
+// The tooltip renders series names as HTML: titles and names here are fixed
+// text and TD_SCOPE's workflow list, never row data.
+const WORKFLOW_CHART_CONFIGS: Record<
+  TdWorkflowChart,
+  (_workflow: TdWorkflow) => TdChartConfig
+> = {
+  workflowSaved: (workflow) => ({
+    ...CI_SAVED,
+    title: `CI time saved, ${workflow} workflow`,
+    workflow,
+  }),
+  workflowJob: (workflow) => ({
+    title: `Typical ${workflow} workflow test job`,
     source: "savings",
     unit: "minutes",
     type: "line",
+    workflow,
     series: [
-      { name: "PR jobs, with TD", value: stat("pr_median_min", count("jobs")) },
-      {
-        name: "Same jobs on main",
-        value: stat("full_median_min", count("jobs")),
-      },
+      { name: "Median, with TD", value: jobStat("pr_median_min") },
+      { name: "Median, every test", value: jobStat("full_median_min") },
+      { name: "p90, with TD", value: jobStat("pr_p90_min") },
+      { name: "p90, every test", value: jobStat("full_p90_min") },
     ],
-  },
+  }),
+};
+
+export function workflowChartKey(
+  chart: TdWorkflowChart,
+  workflow: TdWorkflow
+): TdWorkflowChartKey {
+  return `${chart}-${workflow}`;
+}
+
+const WORKFLOW_TD_CHARTS = Object.fromEntries(
+  WORKFLOW_CHARTS.flatMap((chart) =>
+    TD_SCOPE.tdWorkflows.map((workflow) => [
+      workflowChartKey(chart, workflow),
+      WORKFLOW_CHART_CONFIGS[chart](workflow),
+    ])
+  )
+) as Record<TdWorkflowChartKey, TdChartConfig>;
+
+export const TD_CHARTS: Record<TdChartKey, TdChartConfig> = {
+  ciSaved: CI_SAVED,
+  ...WORKFLOW_TD_CHARTS,
   ttgSaved: {
     title: "Median wait from push to the last test job, and median saving",
     source: "pushWait",
@@ -249,14 +290,20 @@ function bucketState(bucket: ChartBucket, window: PlotWindow): BucketState {
 }
 
 function bucketInputs(
-  source: TdSource,
+  chart: TdChartConfig,
   rows: any[],
   buckets: ChartBucket[],
   granularity: ChartGranularity
 ): any[] {
-  const keep = SOURCE_ROWS[source];
+  const keep = SOURCE_ROWS[chart.source];
   if (keep === "grain") {
-    const own = rows.filter((r) => r?.grain === granularity);
+    const own = rows.filter(
+      chart.workflow === undefined
+        ? (r) => r?.grain === granularity
+        : (r) =>
+            r?.grain === `workflow_${granularity}` &&
+            r?.workflow === chart.workflow
+    );
     return alignRows(buckets, own, "bucket", granularity);
   }
   if (buckets.length === 0) {
@@ -319,7 +366,7 @@ export function buildPlot(
     },
     granularity
   );
-  const inputs = bucketInputs(chart.source, rows, buckets, granularity);
+  const inputs = bucketInputs(chart, rows, buckets, granularity);
   const states = buckets.map((bucket) => bucketState(bucket, window));
   return {
     granularity,

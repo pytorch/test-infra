@@ -5,9 +5,14 @@ import {
   snapStopToGranularity,
   snapToGranularity,
 } from "components/common/timeWindow";
-import BreakagesSection from "components/targetDeterminator/BreakagesSection";
+import BreakagesSection, {
+  useBreakagesData,
+} from "components/targetDeterminator/BreakagesSection";
+import KeyMetricsSection from "components/targetDeterminator/KeyMetricsSection";
 import RankingSection from "components/targetDeterminator/RankingSection";
-import SavingsSection from "components/targetDeterminator/SavingsSection";
+import SavingsSection, {
+  useSavingsData,
+} from "components/targetDeterminator/SavingsSection";
 import StabilitySection from "components/targetDeterminator/StabilitySection";
 import {
   TdChartsState,
@@ -39,6 +44,33 @@ type PickerTime = dayjs.Dayjs | null;
 function initialWindow() {
   const stop = dayjs();
   return { start: stop.subtract(DEFAULT_TIME_RANGE, "day"), stop };
+}
+
+// Savings and breakages are read once, with one now, for the key metrics and
+// their own sections, so both places always share the same queries.
+export function TdSections({
+  params,
+  charts,
+}: {
+  params: TdParams;
+  charts: TdChartsState;
+}) {
+  const now = Date.now();
+  const savings = useSavingsData(params, now);
+  const breakages = useBreakagesData(params, now);
+  return (
+    <Stack spacing={5}>
+      <KeyMetricsSection
+        savings={savings}
+        breakages={breakages}
+        charts={charts}
+      />
+      <SavingsSection data={savings} charts={charts} />
+      <BreakagesSection data={breakages} charts={charts} />
+      <RankingSection params={params} charts={charts} />
+      <StabilitySection params={params} charts={charts} />
+    </Stack>
+  );
 }
 
 export default function Page() {
@@ -151,12 +183,7 @@ export default function Page() {
         />
       </Stack>
       {validWindow ? (
-        <Stack spacing={5}>
-          <SavingsSection params={params} charts={charts} />
-          <BreakagesSection params={params} charts={charts} />
-          <RankingSection params={params} charts={charts} />
-          <StabilitySection params={params} charts={charts} />
-        </Stack>
+        <TdSections params={params} charts={charts} />
       ) : (
         <Typography variant="body1" role="status" color="text.primary">
           The picked window starts after it ends. Pick a start time before the

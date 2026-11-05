@@ -4,17 +4,29 @@
 // ClickHouse serialises 64-bit integers as JSON strings.
 export type ChNum = number | string | null;
 
-// Day and week buckets are UTC dates, a week's being its ISO Monday.
+// Day and week buckets are UTC dates, a week's being its ISO Monday. The
+// workflow grains split the total, day and week rows by workflow, which is ''
+// on every other row; a workflow without jobs in the window has no rows.
 export interface SavingsRow {
-  grain: "day" | "week" | "config" | "total";
+  grain:
+    | "day"
+    | "week"
+    | "config"
+    | "total"
+    | "workflow"
+    | "workflow_day"
+    | "workflow_week";
   bucket: string;
   config: string;
+  workflow: string;
   jobs: ChNum;
   unmatched_jobs: ChNum;
   pr_hours: ChNum;
   est_full_hours: ChNum;
   pr_median_min: ChNum;
   full_median_min: ChNum;
+  pr_p90_min: ChNum;
+  full_p90_min: ChNum;
 }
 
 export interface PushWaitRow {
@@ -138,19 +150,34 @@ export function totalRow<T extends { grain: string }>(
   return rows.find((row) => row.grain === "total");
 }
 
-// A query that answers without its total row broke its contract; saying so
-// beats rendering every tile as an empty window.
+export function workflowRow(
+  rows: SavingsRow[],
+  workflow: string
+): SavingsRow | undefined {
+  return rows.find(
+    (row) => row.grain === "workflow" && row.workflow === workflow
+  );
+}
+
+// A query that answers without exactly one total row broke its contract;
+// saying so beats rendering every tile as an empty window, or as whichever
+// total came first.
 export function totalError(
   queryName: string,
-  state: { loading: boolean; error?: string },
-  total: unknown
+  state: { loading: boolean; error?: string; rows: { grain: string }[] }
 ): string | undefined {
   if (state.error !== undefined) {
     return state.error;
   }
-  return !state.loading && total === undefined
+  if (state.loading) {
+    return undefined;
+  }
+  const totals = state.rows.filter((row) => row.grain === "total").length;
+  return totals === 1
+    ? undefined
+    : totals === 0
     ? `${queryName}: no total row`
-    : undefined;
+    : `${queryName}: ${totals} total rows, expected 1`;
 }
 
 export interface TdQueryState<T> {

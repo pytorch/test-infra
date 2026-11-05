@@ -2,6 +2,7 @@
 // the part of the picked window each section counts.
 
 import { useClickHouseAPI } from "lib/GeneralUtils";
+import { NO_DATA_IN_WINDOW } from "lib/greenlight/qualityFigures";
 import {
   type BreakageRow,
   num,
@@ -16,10 +17,12 @@ import {
 // Where TD is on. The queries hardcode the same lists (test/targetDeterminator
 // checks the literals); td_trunk_breakages also takes tdWorkflows as a param.
 export const TD_SCOPE = {
-  tdWorkflows: ["pull", "trunk"],
+  tdWorkflows: ["pull", "trunk"] as const,
   tdWorkflowPrefixes: ["rocm-", "periodic-rocm-"],
   noTdBuildMarkers: ["macos", "xpu", "onnx"],
 };
+
+export type TdWorkflow = (typeof TD_SCOPE.tdWorkflows)[number];
 
 export const REVERT_WINDOW_DAYS = 7;
 export const NEW_TEST_DAYS = 14;
@@ -67,6 +70,10 @@ export const PENDING_NOTE = `Not yet counted: landings from the last ${REVERT_WI
 // Under a figure whose rows hold nothing to compute it from; a figure without
 // rows says NO_DATA_IN_WINDOW instead.
 export const NOTHING_TO_MEASURE = "Nothing to measure in this range";
+
+// Below this share of PR jobs with a main baseline, the estimate describes too
+// small a slice of PR CI to stand for it.
+export const MIN_BASELINE_COVERAGE = 0.5;
 
 export const DAY_MS = 86400000;
 
@@ -198,6 +205,22 @@ export function rangeText(range: { start: number; end: number }): string {
   return `${utcDay(range.start)} to ${utcDay(range.end - 1)}`;
 }
 
+export function countedText(range: { start: number; end: number }): string {
+  return `Counted ${rangeText(range)} (UTC).`;
+}
+
+export function withNote(
+  range: CountedRange,
+  note: string | undefined
+): CountedRange {
+  return note === undefined
+    ? range
+    : {
+        ...range,
+        note: [range.note, note].filter((n) => n !== undefined).join(" "),
+      };
+}
+
 export function ciSaved(row: SavingsRow | undefined): number | null {
   const pr = num(row?.pr_hours);
   const full = num(row?.est_full_hours);
@@ -205,6 +228,30 @@ export function ciSaved(row: SavingsRow | undefined): number | null {
     return null;
   }
   return 1 - pr / full;
+}
+
+// A savings row's CI-saved share, gated on that row's own baseline coverage,
+// and the line under it; a missing row reads as an empty window.
+export function savedShare(row: SavingsRow | undefined): {
+  value: number | null;
+  sub?: string;
+} {
+  const jobs = num(row?.jobs) ?? 0;
+  const unmatched = num(row?.unmatched_jobs) ?? 0;
+  const coverage = ratio(jobs, jobs + unmatched);
+  const lowCoverage = coverage !== null && coverage < MIN_BASELINE_COVERAGE;
+  const value = lowCoverage ? null : ciSaved(row);
+  return {
+    value,
+    sub:
+      jobs === 0
+        ? NO_DATA_IN_WINDOW
+        : lowCoverage
+        ? "Too few jobs to estimate"
+        : value === null
+        ? NOTHING_TO_MEASURE
+        : undefined,
+  };
 }
 
 export interface BreakageStats {
