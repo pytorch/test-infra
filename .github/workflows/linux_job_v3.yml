@@ -112,6 +112,10 @@ on:
         description: "List of secrets to be exported to environment variables"
         type: string
         default: ''
+      upload-test-run-reports:
+        description: 'Upload schema-1.0 torchci reports; requires python3 and caller actions:read.'
+        type: boolean
+        default: false
 
 jobs:
   job:
@@ -323,7 +327,28 @@ jobs:
         if: steps.job-python.outputs.found == 'false'
         uses: pytorch/test-infra/.github/actions/setup-uv@main
 
+      - name: Get workflow job id for reports
+        id: report-job-id
+        if: ${{ inputs.upload-test-run-reports }}
+        uses: ./test-infra/.github/actions/get-workflow-job-id
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare test run reports
+        if: ${{ inputs.upload-test-run-reports }}
+        shell: bash
+        env:
+          REPORT_JOB_ID: ${{ steps.report-job-id.outputs.job-id }}
+        run: |
+          set -euo pipefail
+          [[ "${REPORT_JOB_ID}" =~ ^[1-9][0-9]*$ ]] || { echo 'Missing positive report job ID' >&2; exit 1; }
+          report_dir="${RUNNER_TEMP}/test-run-reports"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          printf 'JOB_ID=%s\nRUNNER_TEST_RUN_REPORTS_DIR=%s\n' "${REPORT_JOB_ID}" "${report_dir}" >> "${GITHUB_ENV}"
+
       - name: Run script
+        id: run-script
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository || github.repository }}
         env:
@@ -367,6 +392,55 @@ jobs:
         with:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
+
+      - name: Check test run reports
+        id: report-check
+        if: ${{ always() && inputs.upload-test-run-reports && steps.run-script.outcome != '' }}
+        shell: bash
+        env:
+          REPORT_JOB_ID: ${{ steps.report-job-id.outputs.job-id }}
+          SCRIPT_OUTCOME: ${{ steps.run-script.outcome }}
+          UPLOAD_ALLOWED: ${{ steps.aws-creds.outcome == 'success' && !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, uuid
+          from pathlib import Path
+
+          files = list(Path(os.environ['RUNNER_TEST_RUN_REPORTS_DIR']).glob('*.report.jsonl'))
+          count = 0
+          for path in files:
+              with path.open(encoding='utf-8') as stream:
+                  header = json.loads(next(stream))
+                  if (header.get('type') != 'report' or header.get('schema_version') != '1.0'
+                          or header.get('repo') != os.environ['GITHUB_REPOSITORY']
+                          or header.get('github_workflow_job_id') != int(os.environ['REPORT_JOB_ID'])):
+                      raise RuntimeError('Report schema or job/repository attribution mismatch')
+                  for line in stream:
+                      row = json.loads(line)
+                      if (row.get('type') != 'run' or row.get('schema_version') != '1.0'
+                              or not row.get('file') or not row.get('case_name')):
+                          raise RuntimeError('Report contains an unusable test run')
+                      uuid.UUID(row['id'])
+                      count += 1
+          if count == 0 and os.environ['SCRIPT_OUTCOME'] == 'success':
+              raise RuntimeError('Successful opted-in job produced zero test run rows')
+          print(f'torchci: {count} completed run rows in {len(files)} reports')
+          allowed = os.environ['UPLOAD_ALLOWED'] == 'true'
+          if not allowed:
+              print('::warning::Report upload skipped: fork PR or AWS credentials unavailable')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'ready={str(count > 0 and allowed).lower()}\n')
+          PY
+
+      - name: Upload test run reports
+        if: ${{ always() && steps.report-check.outputs.ready == 'true' }}
+        uses: ./test-infra/.github/actions/upload-artifact-s3
+        with:
+          s3-bucket: gha-artifacts
+          s3-prefix: torchci-reports/${{ github.repository }}/${{ github.run_id }}/${{ steps.report-job-id.outputs.job-id }}
+          retention-days: 14
+          if-no-files-found: error
+          path: ${{ env.RUNNER_TEST_RUN_REPORTS_DIR }}/*.report.jsonl
 
       - name: Prepare artifacts for upload
         if: always()
