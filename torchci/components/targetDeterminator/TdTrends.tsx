@@ -23,7 +23,7 @@ import {
   hoursText,
   minutesText,
   NEW_TEST_CHECK_FROM,
-  REVERT_WINDOW_DAYS,
+  PENDING_NOTE,
 } from "lib/targetDeterminator";
 import {
   buildPlot,
@@ -60,17 +60,12 @@ const UNIT_AXIS: Record<
 const PARTIAL_OPACITY = 0.45;
 const PARTIAL_SYMBOL_SIZE = 8;
 
-type BucketMark = "pending" | "truncated" | "upperBound";
+type BucketMark = "pending" | "upperBound";
 const MARKS: Record<BucketMark, { text: string; note: string; fill: string }> =
   {
     pending: {
       text: "Not yet counted",
-      note: `Not yet counted: landings from the last ${REVERT_WINDOW_DAYS} days may still be reverted.`,
-      fill: "rgba(128, 128, 128, 0.15)",
-    },
-    truncated: {
-      text: "Not charted",
-      note: "Not charted: older than the newest landings the query lists.",
+      note: PENDING_NOTE,
       fill: "rgba(128, 128, 128, 0.15)",
     },
     upperBound: {
@@ -81,9 +76,8 @@ const MARKS: Record<BucketMark, { text: string; note: string; fill: string }> =
   };
 
 function bucketMark(plot: TdPlot, i: number): BucketMark | undefined {
-  const state = plot.states[i];
-  return state === "pending" || state === "truncated"
-    ? state
+  return plot.states[i] === "pending"
+    ? "pending"
     : plot.upperBound[i]
     ? "upperBound"
     : undefined;
@@ -172,7 +166,7 @@ export function tooltipText(
     plot.granularity === "week" ? `Week of ${bucket.key}` : bucket.key;
   const lines = [`<b>${head}</b>`];
   const mark = bucketMark(plot, index);
-  if (state === "pending" || state === "truncated") {
+  if (state === "pending") {
     lines.push(MARKS[state].note);
     return lines.join("<br/>");
   }

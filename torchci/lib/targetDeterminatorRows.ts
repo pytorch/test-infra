@@ -93,18 +93,16 @@ export interface RankRow {
   rank_pct: ChNum;
 }
 
+// A hist row counts the changed pairs whose change falls in one 0.1-point
+// bucket, bucket_pct being its floor.
 export interface ChurnRow {
-  grain: "day" | "week" | "total";
+  grain: "day" | "week" | "hist" | "total";
   bucket: string;
+  bucket_pct: ChNum;
   pairs: ChNum;
   identical_pairs: ChNum;
   changed_median_pct: ChNum;
   prs: ChNum;
-}
-
-export interface TtrsRow {
-  bucket: string;
-  custom: ChNum;
 }
 
 export const OUTCOME_LABELS: Record<BreakageOutcome, string> = {
@@ -115,16 +113,6 @@ export const OUTCOME_LABELS: Record<BreakageOutcome, string> = {
   not_in_pr_matrix: "Job not run on the PR",
   landrace: "Landrace",
   unknown: "Unknown",
-};
-
-export const TEST_OUTCOME_LABELS: Record<TestOutcome, string> = {
-  failed_on_pr: "failed on the PR",
-  passed_on_pr: "passed on the PR",
-  td_skipped: "skipped by TD",
-  new_test: "newer than the PR",
-  config_not_on_pr: "job not run on the PR",
-  unknown: "unknown",
-  not_checked: "not checked",
 };
 
 export function num(value: unknown): number | null {
@@ -204,78 +192,4 @@ export function readTdQuery<T>(
     };
   }
   return { loading: false, rows: data as T[] };
-}
-
-export interface Chunk {
-  startTime: string;
-  stopTime: string;
-  label: string;
-}
-
-const BREAKAGE_COUNTS = [
-  "landed_prs",
-  "events",
-  "false_green",
-  "signal_on_pr",
-  "passed_on_pr",
-  "td_skipped_any",
-  "new_test",
-  "not_in_pr_matrix",
-  "landrace",
-  "unknown",
-  "other_reverts",
-  "ghfirst_reverts",
-] as const;
-
-// One failed or malformed chunk fails the whole section: a sum over the chunks
-// that answered would pass for the window's total.
-export function mergeBreakageChunks(
-  queryName: string,
-  chunks: Chunk[],
-  states: TdQueryState<BreakageRow>[]
-): TdTotalState<BreakageRow> {
-  const failed = (error: string) => ({
-    loading: false,
-    error,
-    tileError: error,
-    rows: [],
-  });
-  if (states.length < chunks.length) {
-    return failed(`${queryName}: more chunks than query slots`);
-  }
-  const answered = chunks.map((chunk, i) => ({ chunk, state: states[i] }));
-  const error = answered.find(({ state }) => state.error !== undefined);
-  if (error !== undefined) {
-    return failed(`${error.state.error} (${error.chunk.label})`);
-  }
-  if (answered.some(({ state }) => state.loading)) {
-    return { loading: true, rows: [] };
-  }
-  const totals: BreakageRow[] = [];
-  for (const { chunk, state } of answered) {
-    const found = state.rows.filter((row) => row.grain === "total");
-    if (found.length !== 1) {
-      return failed(
-        `${queryName} (${chunk.label}): ${found.length} total rows, expected 1`
-      );
-    }
-    totals.push(found[0]);
-  }
-  const total =
-    totals.length === 0
-      ? undefined
-      : totals.reduce((sum, row) => {
-          const next = { ...sum };
-          for (const key of BREAKAGE_COUNTS) {
-            next[key] = (num(sum[key]) ?? 0) + (num(row[key]) ?? 0);
-          }
-          return next;
-        });
-  return {
-    loading: false,
-    rows: answered.flatMap(({ state }) =>
-      state.rows.filter((row) => row.grain === "event")
-    ),
-    total,
-  };
 }

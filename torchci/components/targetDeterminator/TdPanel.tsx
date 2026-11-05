@@ -1,9 +1,5 @@
-import { Grid, Link, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { GridColDef } from "@mui/x-data-grid";
-import { TablePanelWithData } from "components/metrics/panels/TablePanel";
-import { utcStamp } from "lib/greenlight/qualityFigures";
+import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import {
-  commitUrl,
   CountedRange,
   rangeText,
   TdParams,
@@ -13,7 +9,6 @@ import { TdTotalState, totalError, totalRow } from "lib/targetDeterminatorRows";
 import { ReactNode } from "react";
 
 export const CHART_HEIGHT = 360;
-export const TABLE_HEIGHT = 520;
 
 export function useTdTotalQuery<T extends { grain: string }>(
   queryName: string,
@@ -26,27 +21,6 @@ export function useTdTotalQuery<T extends { grain: string }>(
     total,
     tileError:
       window === undefined ? undefined : totalError(queryName, state, total),
-  };
-}
-
-export function commitLink(sha: string) {
-  const url = commitUrl(sha);
-  return url === undefined ? (
-    sha
-  ) : (
-    <Link href={url} target="_blank" rel="noreferrer">
-      {sha.slice(0, 10)}
-    </Link>
-  );
-}
-
-// The raw ISO string stays the cell value, so sorting stays chronological.
-export function utcColumn(field: string, headerName: string): GridColDef {
-  return {
-    field,
-    headerName,
-    width: 150,
-    valueFormatter: (value: string | null) => utcStamp(value),
   };
 }
 
@@ -88,7 +62,7 @@ export function TdSection({
   );
 }
 
-// Gates a chart or table on its query: a failed query names itself, a window
+// Gates a chart on its query: a failed query names itself, a window
 // without rows says so, and only real rows reach the chart.
 export function TdPanel({
   title,
@@ -125,50 +99,5 @@ export function TdPanel({
         </Typography>
       )}
     </Paper>
-  );
-}
-
-export function TdTable({
-  title,
-  state,
-  rows,
-  columns,
-  emptyText,
-  height,
-  sortField,
-  dataGridProps,
-}: {
-  title: string;
-  state: { loading: boolean; error?: string };
-  rows: object[];
-  columns: GridColDef[];
-  emptyText: string;
-  height: number;
-  sortField: string;
-  dataGridProps?: object;
-}) {
-  return (
-    <TdPanel
-      title={title}
-      height={height}
-      loading={state.loading}
-      error={state.error}
-      emptyText={rows.length === 0 ? emptyText : undefined}
-    >
-      <Paper elevation={3} sx={{ p: 1, height }}>
-        <TablePanelWithData
-          title={title}
-          data={rows}
-          columns={columns}
-          showFooter={true}
-          dataGridProps={{
-            initialState: {
-              sorting: { sortModel: [{ field: sortField, sort: "desc" }] },
-            },
-            ...dataGridProps,
-          }}
-        />
-      </Paper>
-    </TdPanel>
   );
 }

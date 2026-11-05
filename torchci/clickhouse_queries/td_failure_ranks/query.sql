@@ -20,10 +20,10 @@
 -- counted failures behind those landings), 'landing' (one per landing, the newest 500 by
 -- landed_at then sha, with inside_cut and second_half as 0/1). Columns that do not apply are 0 or
 -- empty; landed_at is 1970 outside 'landing'.
--- A landing counts when its push is in the window, which ends at most now and spans at most the
--- metric's 90-day TTL. TD records arrive up to about 28 hours after the push (measured over 90
--- days), so they are read until 3 days past the window. TD's scope is fixed in SQL: a
--- caller-sized array inside a per-row lambda would let one request scale its own CPU cost.
+-- A landing counts when its push is in the window, which ends at most now and spans at most 90
+-- days; the metric is kept for 2 years. TD records arrive up to about 28 hours after the push
+-- (measured over 90 days), so they are read until 3 days past the window. TD's scope is fixed in
+-- SQL: a caller-sized array inside a per-row lambda would let one request scale its own CPU cost.
 WITH
 ['pull', 'trunk'] AS td_workflows,
 ['rocm-', 'periodic-rocm-'] AS td_workflow_prefixes,

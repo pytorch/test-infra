@@ -1,90 +1,31 @@
 import { Grid } from "@mui/material";
-import { GridColDef } from "@mui/x-data-grid";
 import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
+import { NO_DATA_IN_WINDOW } from "lib/greenlight/qualityFigures";
 import {
   ciSaved,
-  CLAMP_DAYS,
   countedRange,
   hoursText,
-  MIN_MAIN_RUNS,
   minutesText,
-  rangeText,
+  NOTHING_TO_MEASURE,
   sectionLimits,
   TD_QUERIES,
   TdParams,
-  useTdQuery,
 } from "lib/targetDeterminator";
 import {
   num,
   type PushWaitRow,
   ratio,
   type SavingsRow,
-  type TtrsRow,
 } from "lib/targetDeterminatorRows";
-import { useMemo } from "react";
-import { TABLE_HEIGHT, TdSection, TdTable, useTdTotalQuery } from "./TdPanel";
+import { TdSection, useTdTotalQuery } from "./TdPanel";
 import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
 // Below this share of PR jobs with a main baseline, the estimate describes too
 // small a slice of PR CI to stand for it.
 const MIN_BASELINE_COVERAGE = 0.5;
-
-const CONFIG_COLUMNS: GridColDef[] = [
-  { field: "config", headerName: "Job config", flex: 1, minWidth: 320 },
-  { field: "jobs", headerName: "PR jobs", type: "number", width: 100 },
-  {
-    field: "prMedian",
-    headerName: "PR median (min)",
-    type: "number",
-    width: 140,
-  },
-  {
-    field: "fullMedian",
-    headerName: "Main median (min)",
-    type: "number",
-    width: 150,
-  },
-  {
-    field: "savedPct",
-    headerName: "CI time saved (%)",
-    type: "number",
-    width: 150,
-  },
-  {
-    field: "hoursSaved",
-    headerName: "Hours saved",
-    type: "number",
-    width: 120,
-  },
-];
-
-function round1(value: number | null): number | null {
-  return value === null ? null : Math.round(value * 10) / 10;
-}
-
-// A config whose PR jobs all lack a main baseline has no medians to show; the
-// query fills them with 0.
-function configRows(rows: SavingsRow[]) {
-  return rows
-    .filter((row) => row.grain === "config")
-    .map((row) => {
-      const jobs = num(row.jobs);
-      const measured = jobs !== null && jobs > 0;
-      const saved = measured ? ciSaved(row) : null;
-      return {
-        id: row.config,
-        config: row.config,
-        jobs,
-        prMedian: measured ? round1(num(row.pr_median_min)) : null,
-        fullMedian: measured ? round1(num(row.full_median_min)) : null,
-        savedPct: round1(saved === null ? null : saved.share * 100),
-        hoursSaved: round1(saved === null ? null : saved.hoursSaved),
-      };
-    });
-}
 
 export default function SavingsSection({
   params,
@@ -93,25 +34,11 @@ export default function SavingsSection({
   params: TdParams;
   charts: TdChartsState;
 }) {
-  const limits = sectionLimits();
-  const range = countedRange(params, limits.savings);
-  const ttrsRange = countedRange(params, limits.ttrs);
+  const range = countedRange(params, sectionLimits().savings);
   const savings = useTdTotalQuery<SavingsRow>(TD_QUERIES.savings, range.params);
   const pushWait = useTdTotalQuery<PushWaitRow>(
     TD_QUERIES.pushWait,
     range.params
-  );
-  // The section shows nothing when savings has nothing to count.
-  const ttrsWindow = range.empty ? undefined : ttrsRange.params;
-  const ttrsParams = { workflow: "pull", percentile_to_get: 0.5 };
-  const ttrs = useTdQuery<TtrsRow>(TD_QUERIES.ttrs, ttrsWindow, {
-    ...ttrsParams,
-    one_bucket: true,
-  });
-  const ttrsTrend = useTdQuery<TtrsRow>(
-    TD_QUERIES.ttrs,
-    charts.open.has("ttrs") ? ttrsWindow : undefined,
-    { ...ttrsParams, one_bucket: false }
   );
 
   const total = savings.total;
@@ -122,12 +49,6 @@ export default function SavingsSection({
   const lowCoverage = coverage !== null && coverage < MIN_BASELINE_COVERAGE;
   const saved = lowCoverage ? null : ciSaved(total);
   const pushes = num(wait?.pushes) ?? 0;
-  const ttrsMinutes = num(ttrs.rows[0]?.custom);
-
-  const configTable = useMemo(() => configRows(savings.rows), [savings.rows]);
-  const noJobs = "No completed PR test jobs in this window.";
-  const noPushes = "No green PR pushes in this window.";
-  const coverageSub = `${jobs.toLocaleString()} PR test jobs compared with main; ${unmatched.toLocaleString()} without a main baseline left out.`;
 
   return (
     <TdSection
@@ -145,21 +66,17 @@ export default function SavingsSection({
           {...tileToggle(charts, "ciSaved")}
           loading={savings.loading}
           error={savings.tileError}
-          value={saved === null ? "-" : percentFormatter(saved.share)}
+          value={saved === null ? "-" : percentFormatter(saved)}
           sub={
             jobs === 0
-              ? noJobs
+              ? NO_DATA_IN_WINDOW
               : lowCoverage
-              ? `Too few PR jobs have a main baseline (${percentFormatter(
-                  coverage
-                )}). ${coverageSub}`
+              ? "Too few jobs to estimate"
               : saved === null
-              ? "No full-suite estimate for these jobs."
-              : `${hoursText(
-                  saved.hoursSaved
-                )} of test-job time saved. ${coverageSub}`
+              ? NOTHING_TO_MEASURE
+              : undefined
           }
-          caveat={`1 - (PR test-job hours / estimated full-suite hours). The estimate gives each PR test job the mean duration of the same job on main pushes; jobs with fewer than ${MIN_MAIN_RUNS} main runs have no baseline and are left out.`}
+          caveat="How much test machine time pull requests save by running only the tests most likely to fail instead of every test. Higher is better."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -171,12 +88,10 @@ export default function SavingsSection({
           value={jobs === 0 ? "-" : minutesText(total?.pr_median_min)}
           sub={
             jobs === 0
-              ? noJobs
-              : `vs ${minutesText(
-                  total?.full_median_min
-                )} for the same jobs on main, where every test runs.`
+              ? NO_DATA_IN_WINDOW
+              : `vs ${minutesText(total?.full_median_min)} with every test`
           }
-          caveat="Median duration of completed, successful PR test jobs with TD on, next to the median of the same jobs on main pushes."
+          caveat="How long a typical pull request test job takes, next to the same job running every test."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -186,16 +101,8 @@ export default function SavingsSection({
           loading={pushWait.loading}
           error={pushWait.tileError}
           value={pushes === 0 ? "-" : minutesText(wait?.saved_median_min)}
-          sub={
-            pushes === 0
-              ? noPushes
-              : `Median saving per green push, over ${pushes.toLocaleString()} pushes. The median waits from push to the last test job are ${minutesText(
-                  wait?.actual_ttg_median_min
-                )} actual and ${minutesText(
-                  wait?.est_ttg_median_min
-                )} estimated without TD; their difference is not the median saving.`
-          }
-          caveat="Green PR pushes: first attempts where no job, builds included, failed, was cancelled or timed out. The estimate replaces each test job's duration with the same job's mean duration on main."
+          sub={pushes === 0 ? NO_DATA_IN_WINDOW : undefined}
+          caveat="How much sooner a typical pull request's tests all pass because fewer tests run."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -207,53 +114,22 @@ export default function SavingsSection({
           value={pushes === 0 ? "-" : hoursText(wait?.hours_per_push)}
           sub={
             pushes === 0
-              ? noPushes
+              ? NO_DATA_IN_WINDOW
               : `vs ${hoursText(
                   wait?.est_hours_per_push
-                )} estimated without TD. A proxy for CI cost per PR commit, not dollars.`
+                )} estimated with every test`
           }
-          caveat="Test-job machine hours per green PR push, with TD and as estimated with every test running."
-        />
-      </Grid>
-      <Grid size={TILE_SPAN}>
-        <QualityTile
-          label="Time to first red (median)"
-          {...tileToggle(charts, "ttrs")}
-          loading={ttrs.loading}
-          error={ttrs.error}
-          value={ttrsMinutes === null ? "-" : minutesText(ttrsMinutes)}
-          sub={
-            ttrsMinutes === null
-              ? `No failing pull jobs of merged PRs from ${rangeText(
-                  ttrsRange
-                )}.`
-              : `From the start of a failing PR job's test step to the end of its first failing test step, counted ${rangeText(
-                  ttrsRange
-                )}.`
-          }
-          caveat={`HUD's Time to Red Signal (TTRS), median, over at most the last ${CLAMP_DAYS.ttrs} days of the window: pull workflow, first attempt, merged PRs. TD orders tests by how likely they are to fail, so a lower value means failures show up sooner.`}
+          caveat="Average machine time of the test jobs of one pull request push, next to an estimate with every test running."
         />
       </Grid>
       <TdCharts
         charts={charts}
-        keys={["ciSaved", "typicalJob", "ttgSaved", "hoursPerPush", "ttrs"]}
+        keys={["ciSaved", "typicalJob", "ttgSaved", "hoursPerPush"]}
         sources={{
           savings: { ...savings, window: range },
           pushWait: { ...pushWait, window: range },
-          ttrs: { ...ttrsTrend, window: ttrsRange },
         }}
       />
-      <Grid size={{ xs: 12 }} height={TABLE_HEIGHT}>
-        <TdTable
-          title="Savings per job config (for troubleshooting)"
-          state={savings}
-          rows={configTable}
-          columns={CONFIG_COLUMNS}
-          emptyText={noJobs}
-          height={TABLE_HEIGHT}
-          sortField="hoursSaved"
-        />
-      </Grid>
     </TdSection>
   );
 }

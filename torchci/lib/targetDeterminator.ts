@@ -1,16 +1,16 @@
-// Query names, constants and formulas behind the Target Determinator page, the
-// part of the picked window each section counts, and the breakage chunk grid.
+// Query names, constants and formulas behind the Target Determinator page, and
+// the part of the picked window each section counts.
 
 import { useClickHouseAPI } from "lib/GeneralUtils";
 import {
   type BreakageRow,
-  type Chunk,
   num,
   type RankRow,
   ratio,
   readTdQuery,
   type SavingsRow,
   type TdQueryState,
+  totalRow,
 } from "lib/targetDeterminatorRows";
 
 // Where TD is on. The queries hardcode the same lists (test/targetDeterminator
@@ -25,7 +25,6 @@ export const REVERT_WINDOW_DAYS = 7;
 export const NEW_TEST_DAYS = 14;
 export const TD_CUT_PCT = 25;
 export const MIN_MAIN_RUNS = 5;
-export const SMALL_SAMPLE = 30;
 
 // PR test jobs before this UTC day are named "<build> / test-osdc (...)", which
 // matches neither the same job on main nor the PR jobs a breaking test ran in.
@@ -35,30 +34,50 @@ export const JOB_NAMES_VALID_FROM = "2026-07-13";
 // probe reads 3 days ending 14 days before the landing, so before this day a
 // new test reads as skipped by TD: false greens there are an upper bound.
 export const NEW_TEST_CHECK_FROM = "2026-09-12";
+// The first whole UTC day of TD's rankings in misc.ossci_uploaded_metrics,
+// which start 2026-08-06 22:28 UTC.
+export const RANKS_DATA_FROM = "2026-08-07";
+// default.test_run_summary starts 2026-10-05 22:37 UTC. A stability pair reads
+// its earlier push up to STABILITY_LOOK_BACK_DAYS before the later one, so this
+// is the first day whose look-back lies inside the data.
+export const STABILITY_DATA_FROM = "2026-10-20";
+export const STABILITY_LOOK_BACK_DAYS = 14;
 
 // The widest window each query reads; the SQL clamps to the same widths.
-// ttrs_percentiles has no clamp or execution cap of its own and reads tens of
-// GB per month, so the page keeps it to the last 30 days of the window.
+// Breakages, ranks and stability read longer windows in chunks of this size.
 export const CLAMP_DAYS = {
   savings: 365,
   pushWait: 365,
   breakages: 90,
   ranks: 90,
-  stability: 30,
-  ttrs: 30,
+  stability: 49,
 };
 
-// td_trunk_breakages reads at most CLAMP_DAYS.breakages, so longer windows are
-// fetched in chunks of that size, on a grid fixed at JOB_NAMES_VALID_FROM so a
-// chunk whose revert windows have closed keeps its SWR key and its answer.
-export const CHUNK_DAYS = CLAMP_DAYS.breakages;
-export const MAX_CHUNKS = 6;
-
-// How long the source data is kept: older windows have nothing left to read.
+// How long the source tables keep their rows.
 const RETENTION_DAYS = {
-  ranks: 90,
-  stability: 30,
+  ranks: 730,
+  stability: 365,
 };
+
+// What a chunked section sums over its chunks' total rows, and the row grains
+// it keeps.
+export const CHUNK_MERGES = {
+  breakages: {
+    counts: ["events", "false_green", "signal_on_pr", "passed_on_pr"],
+    keep: ["event"],
+  },
+  ranks: { counts: ["landings", "inside_cut"], keep: ["landing"] },
+  stability: {
+    counts: ["pairs", "identical_pairs"],
+    keep: ["day", "week", "hist"],
+  },
+} as const;
+
+// Shown wherever a breakage figure waits for its revert window to close.
+export const PENDING_NOTE = `Not yet counted: landings from the last ${REVERT_WINDOW_DAYS} days may still be reverted.`;
+// Under a figure whose rows hold nothing to compute it from; a figure without
+// rows says NO_DATA_IN_WINDOW instead.
+export const NOTHING_TO_MEASURE = "Nothing to measure in this range";
 
 export const DAY_MS = 86400000;
 
@@ -68,10 +87,7 @@ export const TD_QUERIES = {
   breakages: "td_trunk_breakages",
   ranks: "td_failure_ranks",
   churn: "td_selection_churn",
-  ttrs: "ttrs_percentiles",
 };
-
-const PYTORCH_REPO_URL = "https://github.com/pytorch/pytorch";
 
 // Whole UTC days in ClickHouse's DateTime64(3) literal form.
 export type TdParams = {
@@ -79,11 +95,11 @@ export type TdParams = {
   stopTime: string;
 };
 
-function parseUtc(time: string): number {
+export function parseUtc(time: string): number {
   return Date.parse(`${time}Z`);
 }
 
-function utcText(ms: number): string {
+export function utcText(ms: number): string {
   return new Date(ms).toISOString().replace("Z", "");
 }
 
@@ -123,7 +139,7 @@ function retainedFrom(days: number, now: number): number {
   return todayEnd(now) - days * DAY_MS;
 }
 
-function readsAtMost(days: number | undefined): string {
+export function readsAtMost(days: number | undefined): string {
   return `This section reads at most ${days} days at a time.`;
 }
 
@@ -139,16 +155,19 @@ export function sectionLimits(now: number = Date.now()) {
       validReason: `Test jobs had other names before ${JOB_NAMES_VALID_FROM}, so earlier breaking tests cannot be matched with the PR's jobs.`,
     },
     ranks: {
-      validFrom: retainedFrom(RETENTION_DAYS.ranks, now),
-      validReason: `TD's rankings are kept for ${RETENTION_DAYS.ranks} days.`,
-      clampDays: CLAMP_DAYS.ranks,
+      validFrom: Math.max(
+        dayStart(RANKS_DATA_FROM),
+        retainedFrom(RETENTION_DAYS.ranks, now)
+      ),
+      validReason: `TD's rankings are kept from ${RANKS_DATA_FROM}, for 2 years.`,
     },
     stability: {
-      validFrom: retainedFrom(RETENTION_DAYS.stability, now),
-      validReason: `Per-test results are kept for ${RETENTION_DAYS.stability} days.`,
-      clampDays: CLAMP_DAYS.stability,
+      validFrom: Math.max(
+        dayStart(STABILITY_DATA_FROM),
+        retainedFrom(RETENTION_DAYS.stability - STABILITY_LOOK_BACK_DAYS, now)
+      ),
+      validReason: `Run-to-run data is complete from ${STABILITY_DATA_FROM} and kept for a year.`,
     },
-    ttrs: { clampDays: CLAMP_DAYS.ttrs },
   } satisfies Record<string, RangeLimit>;
 }
 
@@ -190,157 +209,72 @@ export function rangeText(range: { start: number; end: number }): string {
   return `${utcDay(range.start)} to ${utcDay(range.end - 1)}`;
 }
 
-// Each chunk is a grid cell cut to the range; cells that start after now hold
-// no data and are not fetched. Beyond MAX_CHUNKS cells the oldest are dropped
-// and the range narrows to the cells kept.
-export function breakageChunks(
-  range: CountedRange,
-  now: number = Date.now()
-): { chunks: Chunk[]; range: CountedRange } {
-  if (range.params === undefined) {
-    return { chunks: [], range };
-  }
-  const anchor = dayStart(JOB_NAMES_VALID_FROM);
-  const cell = CHUNK_DAYS * DAY_MS;
-  const stopTime = range.params.stopTime;
-  const stop = parseUtc(stopTime);
-  const last = Math.min(stop, now);
-  const cells: [number, number][] = [];
-  for (
-    let k = Math.floor((range.start - anchor) / cell);
-    anchor + k * cell < last;
-    k++
-  ) {
-    cells.push([
-      Math.max(range.start, anchor + k * cell),
-      Math.min(stop, anchor + (k + 1) * cell),
-    ]);
-  }
-  const kept = cells.slice(-MAX_CHUNKS);
-  const narrowed =
-    kept.length === cells.length
-      ? range
-      : {
-          ...range,
-          params: { startTime: utcText(kept[0][0]), stopTime },
-          start: kept[0][0],
-          note: readsAtMost(MAX_CHUNKS * CHUNK_DAYS),
-        };
-  return {
-    chunks: kept.map(([from, to]) => ({
-      startTime: utcText(from),
-      stopTime: utcText(to),
-      label: rangeText({ start: from, end: to }),
-    })),
-    range: narrowed,
-  };
-}
-
-export interface CiSaved {
-  share: number;
-  hoursSaved: number;
-}
-
-export function ciSaved(row: SavingsRow | undefined): CiSaved | null {
+export function ciSaved(row: SavingsRow | undefined): number | null {
   const pr = num(row?.pr_hours);
   const full = num(row?.est_full_hours);
   if (pr === null || full === null || full === 0) {
     return null;
   }
-  return { share: 1 - pr / full, hoursSaved: full - pr };
-}
-
-export interface Interval {
-  low: number;
-  high: number;
-}
-
-// Wilson score interval at 95%: stays inside [0, 1] and is not degenerate at
-// zero successes, which a normal approximation is with counts this small.
-export function wilsonInterval(
-  successes: number,
-  trials: number
-): Interval | null {
-  if (trials <= 0 || successes < 0 || successes > trials) {
-    return null;
-  }
-  const z = 1.96;
-  const p = successes / trials;
-  const z2 = z * z;
-  const denom = 1 + z2 / trials;
-  const center = (p + z2 / (2 * trials)) / denom;
-  const half =
-    (z * Math.sqrt((p * (1 - p)) / trials + z2 / (4 * trials * trials))) /
-    denom;
-  return { low: Math.max(0, center - half), high: Math.min(1, center + half) };
+  return 1 - pr / full;
 }
 
 export interface BreakageStats {
   falseGreens: number;
-  known: number;
-  unknown: number;
-  share: number | null;
-  interval: Interval | null;
-  perThousandLandings: number | null;
   recall: number | null;
   recallBase: number;
-  ranOnPr: number;
-  tdSkippedAny: number;
 }
 
-export function breakageStats(row: BreakageRow | undefined): BreakageStats {
+export function breakageStats(
+  row: Partial<BreakageRow> | undefined
+): BreakageStats {
   const count = (key: keyof BreakageRow) => num(row?.[key]) ?? 0;
   const falseGreens = count("false_green");
-  const unknown = count("unknown");
-  const known = Math.max(0, count("events") - unknown);
   const ranOnPr = count("signal_on_pr") + count("passed_on_pr");
   const recallBase = ranOnPr + falseGreens;
-  const perLanding = ratio(falseGreens, row?.landed_prs);
   return {
     falseGreens,
-    known,
-    unknown,
-    share: ratio(falseGreens, known),
-    interval: wilsonInterval(falseGreens, known),
-    perThousandLandings: perLanding === null ? null : perLanding * 1000,
     recall: ratio(ranOnPr, recallBase),
     recallBase,
-    ranOnPr,
-    tdSkippedAny: count("td_skipped_any"),
   };
 }
 
-export interface CurvePoint {
-  pct: number;
-  share: number;
-}
-
-// Point x is the share of landings whose best-ranked new failure sits in the
-// top x% of TD's list, so the curve starts at (0, 0) and reaches (100, 1).
-export function recallCurve(rows: RankRow[]): CurvePoint[] {
-  const perBucket = new Array(100).fill(0);
+// The lower median of the hist rows: the bucket holding the ceil(n / 2)-th
+// smallest of the n items they count. Buckets repeated across chunks add up.
+export function histMedian<T extends { grain: string }>(
+  rows: T[],
+  bucketColumn: keyof T,
+  countColumn: keyof T
+): number | null {
+  const perBucket = new Map<number, number>();
   for (const row of rows) {
     if (row.grain !== "hist") {
       continue;
     }
-    const bucket = num(row.bucket_pct);
-    const landings = num(row.landings);
-    if (bucket === null || landings === null || bucket < 0 || bucket > 99) {
+    const bucket = num(row[bucketColumn]);
+    const count = num(row[countColumn]);
+    if (bucket === null || count === null || count <= 0) {
       continue;
     }
-    perBucket[Math.floor(bucket)] += landings;
+    perBucket.set(bucket, (perBucket.get(bucket) ?? 0) + count);
   }
-  const total = perBucket.reduce((sum, n) => sum + n, 0);
-  if (total === 0) {
-    return [];
-  }
-  const points: CurvePoint[] = [{ pct: 0, share: 0 }];
+  const total = [...perBucket.values()].reduce((sum, n) => sum + n, 0);
   let running = 0;
-  perBucket.forEach((landings, bucket) => {
-    running += landings;
-    points.push({ pct: bucket + 1, share: running / total });
-  });
-  return points;
+  for (const bucket of [...perBucket.keys()].sort((a, b) => a - b)) {
+    running += perBucket.get(bucket) ?? 0;
+    if (2 * running >= total) {
+      return bucket;
+    }
+  }
+  return null;
+}
+
+// td_failure_ranks lists only the newest landings of each chunk it answers.
+export function landingsMissing(states: TdQueryState<RankRow>[]): boolean {
+  return states.some(
+    (state) =>
+      state.rows.filter((row) => row.grain === "landing").length <
+      (num(totalRow(state.rows)?.landings) ?? 0)
+  );
 }
 
 export function minutesText(value: unknown): string {
@@ -357,19 +291,6 @@ export function hoursText(value: unknown): string {
       })} h`;
 }
 
-export function prUrl(prNumber: unknown): string | undefined {
-  const n = num(prNumber);
-  return n !== null && Number.isInteger(n) && n > 0
-    ? `${PYTORCH_REPO_URL}/pull/${n}`
-    : undefined;
-}
-
-export function commitUrl(sha: unknown): string | undefined {
-  return typeof sha === "string" && /^[0-9a-f]{7,40}$/.test(sha)
-    ? `${PYTORCH_REPO_URL}/commit/${sha}`
-    : undefined;
-}
-
 // The window is snapped to whole UTC days, and these queries are too heavy to
 // re-run on focus, on reconnect or after a failure.
 const TD_SWR_CONFIG = {
@@ -379,7 +300,8 @@ const TD_SWR_CONFIG = {
   shouldRetryOnError: false,
 };
 
-// No window, nothing to read: an empty counted range or an unused chunk slot.
+// No window, nothing to read: an empty counted range, or a chunk slot that is
+// unused or held back.
 export function useTdQuery<T>(
   queryName: string,
   window: TdParams | undefined,

@@ -3,15 +3,27 @@ import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
-import { percentUnitsFormatter } from "lib/greenlight/qualityFigures";
 import {
+  NO_DATA_IN_WINDOW,
+  percentUnitsFormatter,
+} from "lib/greenlight/qualityFigures";
+import {
+  CHUNK_MERGES,
+  CLAMP_DAYS,
   countedRange,
+  histMedian,
+  NOTHING_TO_MEASURE,
   sectionLimits,
   TD_QUERIES,
   TdParams,
 } from "lib/targetDeterminator";
-import { type ChurnRow, num, ratio } from "lib/targetDeterminatorRows";
-import { TdSection, useTdTotalQuery } from "./TdPanel";
+import {
+  mergeChunks,
+  rangeChunks,
+  useChunkedTdQuery,
+} from "lib/targetDeterminatorChunks";
+import { type ChurnRow, ratio } from "lib/targetDeterminatorRows";
+import { TdSection } from "./TdPanel";
 import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
 export default function StabilitySection({
@@ -21,13 +33,23 @@ export default function StabilitySection({
   params: TdParams;
   charts: TdChartsState;
 }) {
-  const range = countedRange(params, sectionLimits().stability);
-  const churn = useTdTotalQuery<ChurnRow>(TD_QUERIES.churn, range.params);
-  const total = churn.total;
-  const pairs = num(total?.pairs) ?? 0;
-  const identical = num(total?.identical_pairs) ?? 0;
+  const now = Date.now();
+  const { chunks, range } = rangeChunks(
+    countedRange(params, sectionLimits(now).stability, now),
+    CLAMP_DAYS.stability,
+    now
+  );
+  const states = useChunkedTdQuery<ChurnRow>(TD_QUERIES.churn, chunks);
+  const churn = mergeChunks(
+    TD_QUERIES.churn,
+    chunks,
+    states,
+    CHUNK_MERGES.stability
+  );
+  const pairs = churn.total?.pairs ?? 0;
+  const identical = churn.total?.identical_pairs ?? 0;
   const changed = pairs - identical;
-  const noPairs = "No pairs of consecutive green PR pushes in this window.";
+  const median = histMedian(churn.rows, "bucket_pct", "pairs");
 
   return (
     <TdSection
@@ -46,15 +68,9 @@ export default function StabilitySection({
           {...tileToggle(charts, "samePicks")}
           loading={churn.loading}
           error={churn.tileError}
-          value={percentFormatter(ratio(identical, pairs))}
-          sub={
-            pairs === 0
-              ? noPairs
-              : `${identical.toLocaleString()} of ${pairs.toLocaleString()} consecutive push pairs ran the same test files, over ${(
-                  num(total?.prs) ?? 0
-                ).toLocaleString()} PRs.`
-          }
-          caveat="Consecutive pushes of the same PR, per job config, both with every shard green and TD on. Every consecutive pair counts, so PRs with many pushes weigh more."
+          value={pairs === 0 ? "-" : percentFormatter(ratio(identical, pairs))}
+          sub={pairs === 0 ? NO_DATA_IN_WINDOW : undefined}
+          caveat="How often a new push to a pull request runs exactly the same tests as the push before."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -64,18 +80,20 @@ export default function StabilitySection({
           loading={churn.loading}
           error={churn.tileError}
           value={
-            changed === 0
+            changed === 0 || median === null
               ? "-"
-              : percentUnitsFormatter(num(total?.changed_median_pct))
+              : percentUnitsFormatter(median)
           }
           sub={
             pairs === 0
-              ? noPairs
+              ? NO_DATA_IN_WINDOW
               : changed === 0
-              ? "Every pair ran the same test files."
-              : `Median share of test files that differ between the two pushes, over ${changed.toLocaleString()} pairs that changed.`
+              ? "Picks never changed"
+              : median === null
+              ? NOTHING_TO_MEASURE
+              : undefined
           }
-          caveat="1 - Jaccard similarity of the two pushes' test file sets: 0% means the same files, 100% means none in common."
+          caveat="When a new push runs different tests, how much of the test list typically changes."
         />
       </Grid>
       <TdCharts

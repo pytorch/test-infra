@@ -22,35 +22,22 @@ export type TdChartKey =
   | "typicalJob"
   | "ttgSaved"
   | "hoursPerPush"
-  | "ttrs"
   | "falseGreens"
   | "recall"
   | "traced"
   | "caught"
-  | "secondHalf"
   | "samePicks"
   | "typicalChange";
 
-export type TdSource =
-  | "savings"
-  | "pushWait"
-  | "ttrs"
-  | "breakages"
-  | "ranks"
-  | "churn";
+export type TdSource = "savings" | "pushWait" | "breakages" | "ranks" | "churn";
 
-// grain: the query's own day or week rows. weekly: TTRS's week rows, whatever
-// the bucket size. A function: one row per event it keeps, bucketed here by
-// when it landed. Breakage tiles count only landings whose revert window has
-// closed.
-const SOURCE_ROWS: Record<
-  TdSource,
-  "grain" | "weekly" | ((_row: any) => boolean)
-> = {
+// grain: the query's own day or week rows. A function: one row per event it
+// keeps, bucketed here by when it landed. Breakage tiles count only landings
+// whose revert window has closed.
+const SOURCE_ROWS: Record<TdSource, "grain" | ((_row: any) => boolean)> = {
   savings: "grain",
   pushWait: "grain",
   churn: "grain",
-  ttrs: "weekly",
   breakages: (row) => row?.grain === "event" && num(row?.window_closed) === 1,
   ranks: (row) => row?.grain === "landing",
 };
@@ -153,21 +140,12 @@ export const TD_CHARTS: Record<TdChartKey, TdChartConfig> = {
       },
     ],
   },
-  ttrs: {
-    title: "Time to first red, weekly median",
-    source: "ttrs",
-    unit: "minutes",
-    type: "line",
-    series: [{ name: "Median", value: stat("custom") }],
-    note: "Weekly whatever the bucket size. The query leaves out the newest week until it is complete.",
-  },
   falseGreens: {
     title: "False greens",
     source: "breakages",
     unit: "count",
     type: "bar",
     series: [{ name: "False greens", value: events(outcomeIs("false_green")) }],
-    note: "A count per bucket: the tile's share rests on too few breakages to chart per bucket.",
   },
   recall: {
     title: "Breakages where TD ran the breaking tests vs false greens",
@@ -204,13 +182,6 @@ export const TD_CHARTS: Record<TdChartKey, TdChartConfig> = {
       { name: "Outside the cut", value: events(flagIs("inside_cut", 0)) },
     ],
   },
-  secondHalf: {
-    title: "Trunk breakages caught only by the second half of TD's picks",
-    source: "ranks",
-    unit: "count",
-    type: "bar",
-    series: [{ name: "Second half", value: events(flagIs("second_half", 1)) }],
-  },
   samePicks: {
     title: "Share of push pairs with the same picks",
     source: "churn",
@@ -246,18 +217,16 @@ export function chartElementId(key: TdChartKey): string {
 }
 
 // The range a chart covers. Buckets that start at or after countedUntil are
-// not counted yet; buckets that end at or before countedFrom fall outside a
-// truncated list of events. Both read null, never 0. Buckets that start before
+// not counted yet and read null, never 0. Buckets that start before
 // upperBoundBefore are charted but marked as upper bounds.
 export interface PlotWindow {
   start: number;
   end: number;
-  countedFrom?: number;
   countedUntil?: number;
   upperBoundBefore?: number;
 }
 
-export type BucketState = "full" | "partial" | "pending" | "truncated";
+export type BucketState = "full" | "partial" | "pending";
 
 export interface TdPlot {
   granularity: ChartGranularity;
@@ -269,18 +238,12 @@ export interface TdPlot {
 
 function bucketState(bucket: ChartBucket, window: PlotWindow): BucketState {
   const from = bucket.start.valueOf();
-  const to = bucket.end.valueOf();
-  const inside = (t: number | undefined) =>
-    t !== undefined && from < t && t < to;
-  if (window.countedUntil !== undefined && from >= window.countedUntil) {
+  const until = window.countedUntil;
+  if (until !== undefined && from >= until) {
     return "pending";
   }
-  if (window.countedFrom !== undefined && to <= window.countedFrom) {
-    return "truncated";
-  }
   return bucket.partial ||
-    inside(window.countedUntil) ||
-    inside(window.countedFrom)
+    (until !== undefined && from < until && until < bucket.end.valueOf())
     ? "partial"
     : "full";
 }
@@ -292,9 +255,8 @@ function bucketInputs(
   granularity: ChartGranularity
 ): any[] {
   const keep = SOURCE_ROWS[source];
-  if (typeof keep !== "function") {
-    const own =
-      keep === "grain" ? rows.filter((r) => r?.grain === granularity) : rows;
+  if (keep === "grain") {
+    const own = rows.filter((r) => r?.grain === granularity);
     return alignRows(buckets, own, "bucket", granularity);
   }
   if (buckets.length === 0) {
@@ -347,10 +309,9 @@ function bucketValue(value: TdValue, input: any): number | null {
 export function buildPlot(
   chart: TdChartConfig,
   rows: any[],
-  picked: ChartGranularity,
+  granularity: ChartGranularity,
   window: PlotWindow
 ): TdPlot {
-  const granularity = SOURCE_ROWS[chart.source] === "weekly" ? "week" : picked;
   const buckets = bucketSpine(
     {
       effective_start: new Date(window.start).toISOString(),
@@ -371,9 +332,7 @@ export function buildPlot(
     ),
     values: chart.series.map(({ value }) =>
       inputs.map((input, i) =>
-        states[i] === "pending" || states[i] === "truncated"
-          ? null
-          : bucketValue(value, input)
+        states[i] === "pending" ? null : bucketValue(value, input)
       )
     ),
   };

@@ -5,44 +5,75 @@ import {
 } from "components/targetDeterminator/TdTrends";
 import fs from "fs";
 import {
-  breakageChunks,
   breakageStats,
-  CHUNK_DAYS,
+  CHUNK_MERGES,
   ciSaved,
   CLAMP_DAYS,
-  commitUrl,
   countedRange,
   DAY_MS,
+  histMedian,
   hoursText,
   JOB_NAMES_VALID_FROM,
-  MAX_CHUNKS,
+  landingsMissing,
   MIN_MAIN_RUNS,
   minutesText,
   NEW_TEST_CHECK_FROM,
   NEW_TEST_DAYS,
-  prUrl,
+  PENDING_NOTE,
   rangeText,
-  recallCurve,
+  RANKS_DATA_FROM,
   REVERT_WINDOW_DAYS,
   sectionLimits,
+  STABILITY_DATA_FROM,
+  STABILITY_LOOK_BACK_DAYS,
   TD_CUT_PCT,
   TD_QUERIES,
   TD_SCOPE,
-  wilsonInterval,
 } from "lib/targetDeterminator";
 import {
+  type Chunk,
+  HELD_SLOT,
+  MAX_CHUNKS,
+  mergeChunks,
+  rangeChunks,
+  slotStarts,
+  useChunkedTdQuery,
+} from "lib/targetDeterminatorChunks";
+import {
   type BreakageRow,
-  mergeBreakageChunks,
+  type ChurnRow,
   num,
   type RankRow,
   ratio,
   readTdQuery,
   type SavingsRow,
+  type TdQueryState,
   totalError,
   totalRow,
 } from "lib/targetDeterminatorRows";
 import { buildPlot, TD_CHARTS } from "lib/targetDeterminatorTrends";
 import path from "path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+// The chunk slots fetch through useClickHouseAPI. The mock answers a chunk by
+// its start time and records the start time of every slot that fetches.
+const mockAnswers = new Map<string, { data?: unknown; error?: unknown }>();
+const mockFetched: string[] = [];
+jest.mock("lib/GeneralUtils", () => ({
+  useClickHouseAPI: (
+    _name: string,
+    parameters: Record<string, unknown>,
+    condition: boolean
+  ) => {
+    if (!condition) {
+      return { data: undefined, error: undefined };
+    }
+    const start = String(parameters.startTime);
+    mockFetched.push(start);
+    return mockAnswers.get(start) ?? { data: undefined, error: undefined };
+  },
+}));
 
 function savings(partial: Partial<SavingsRow>): SavingsRow {
   return {
@@ -92,11 +123,11 @@ function breakageTotal(partial: Partial<BreakageRow>): BreakageRow {
   };
 }
 
-function hist(bucket: number, landings: number | string): RankRow {
+function rank(partial: Partial<RankRow>): RankRow {
   return {
-    grain: "hist",
-    bucket_pct: bucket,
-    landings,
+    grain: "total",
+    bucket_pct: 0,
+    landings: 0,
     failures: 0,
     inside_cut: 0,
     second_half: 0,
@@ -106,8 +137,25 @@ function hist(bucket: number, landings: number | string): RankRow {
     config: "",
     test_file: "",
     rank_pct: null,
+    ...partial,
   };
 }
+
+function churn(partial: Partial<ChurnRow>): ChurnRow {
+  return {
+    grain: "total",
+    bucket: "",
+    bucket_pct: 0,
+    pairs: 0,
+    identical_pairs: 0,
+    changed_median_pct: 0,
+    prs: 0,
+    ...partial,
+  };
+}
+
+const histRow = (bucket: number, pairs: number | string) =>
+  churn({ grain: "hist", bucket_pct: bucket, pairs });
 
 describe("num and ratio", () => {
   it("coerces ClickHouse 64-bit strings and rejects missing values", () => {
@@ -130,9 +178,9 @@ describe("num and ratio", () => {
 });
 
 describe("ciSaved", () => {
-  it("is 1 - PR hours / estimated full hours, with hours saved", () => {
+  it("is 1 - PR hours / estimated full hours", () => {
     const saved = ciSaved(savings({ pr_hours: "25", est_full_hours: "100" }));
-    expect(saved).toEqual({ share: 0.75, hoursSaved: 75 });
+    expect(saved).toBe(0.75);
   });
 
   it("is null on an empty window or a missing row", () => {
@@ -142,31 +190,8 @@ describe("ciSaved", () => {
   });
 });
 
-describe("wilsonInterval", () => {
-  it("brackets the observed share", () => {
-    const interval = wilsonInterval(10, 100)!;
-    expect(interval.low).toBeCloseTo(0.0552, 3);
-    expect(interval.high).toBeCloseTo(0.1744, 3);
-  });
-
-  it("is not degenerate at zero or all successes and stays in [0, 1]", () => {
-    const none = wilsonInterval(0, 20)!;
-    expect(none.low).toBe(0);
-    expect(none.high).toBeGreaterThan(0.1);
-    const all = wilsonInterval(20, 20)!;
-    expect(all.high).toBe(1);
-    expect(all.low).toBeLessThan(0.9);
-  });
-
-  it("is null without trials or with impossible counts", () => {
-    expect(wilsonInterval(0, 0)).toBeNull();
-    expect(wilsonInterval(3, 2)).toBeNull();
-    expect(wilsonInterval(-1, 2)).toBeNull();
-  });
-});
-
 describe("breakageStats", () => {
-  it("computes share, interval, rate per 1,000 landings and recall", () => {
+  it("computes recall over the breakages whose tests could run on the PR", () => {
     const stats = breakageStats(
       breakageTotal({
         landed_prs: "2000",
@@ -181,68 +206,83 @@ describe("breakageStats", () => {
         unknown: "4",
       })
     );
-    expect(stats.falseGreens).toBe(2);
-    expect(stats.known).toBe(16);
-    expect(stats.unknown).toBe(4);
-    expect(stats.share).toBe(2 / 16);
-    expect(stats.interval).toEqual(wilsonInterval(2, 16));
-    expect(stats.perThousandLandings).toBe(1);
-    expect(stats.ranOnPr).toBe(6);
-    expect(stats.recallBase).toBe(8);
-    expect(stats.recall).toBe(6 / 8);
-    expect(stats.tdSkippedAny).toBe(3);
+    expect(stats).toEqual({ falseGreens: 2, recall: 6 / 8, recallBase: 8 });
   });
 
-  it("leaves unknown events out of every denominator", () => {
-    const stats = breakageStats(
-      breakageTotal({ events: 5, unknown: 5, landed_prs: 100 })
-    );
-    expect(stats.known).toBe(0);
-    expect(stats.share).toBeNull();
-    expect(stats.interval).toBeNull();
-    expect(stats.recall).toBeNull();
-    expect(stats.perThousandLandings).toBe(0);
+  it("reads a merged total that holds only the summed counts", () => {
+    const stats = breakageStats({
+      events: 4,
+      false_green: 1,
+      signal_on_pr: 0,
+      passed_on_pr: 3,
+    });
+    expect(stats).toEqual({ falseGreens: 1, recall: 0.75, recallBase: 4 });
   });
 
-  it("never has a negative known count", () => {
-    const stats = breakageStats(breakageTotal({ events: 2, unknown: 5 }));
-    expect(stats.known).toBe(0);
-    expect(stats.share).toBeNull();
-  });
-
-  it("has no rates on an empty window or a missing row", () => {
-    for (const row of [breakageTotal({}), undefined]) {
+  it("has no recall without a breakage whose tests could run on the PR", () => {
+    for (const row of [
+      breakageTotal({ events: 5, unknown: 3, landrace: 2 }),
+      breakageTotal({}),
+      undefined,
+    ]) {
       const stats = breakageStats(row);
-      expect(stats.share).toBeNull();
+      expect(stats.falseGreens).toBe(0);
+      expect(stats.recallBase).toBe(0);
       expect(stats.recall).toBeNull();
-      expect(stats.perThousandLandings).toBeNull();
     }
   });
 });
 
-describe("recallCurve", () => {
-  it("accumulates the per-landing histogram into a 0-100 curve", () => {
-    const curve = recallCurve([
-      hist(0, "2"),
-      hist(10, 1),
-      hist(30, 1),
-      { ...hist(5, 9), grain: "total" },
-      { ...hist(7, 9), grain: "landing" },
-    ]);
-    expect(curve).toHaveLength(101);
-    expect(curve[0]).toEqual({ pct: 0, share: 0 });
-    expect(curve[1]).toEqual({ pct: 1, share: 0.5 });
-    expect(curve[10].share).toBe(0.5);
-    expect(curve[11].share).toBe(0.75);
-    expect(curve[25].share).toBe(0.75);
-    expect(curve[31].share).toBe(1);
-    expect(curve[100]).toEqual({ pct: 100, share: 1 });
+describe("histMedian", () => {
+  const median = (rows: ChurnRow[]) => histMedian(rows, "bucket_pct", "pairs");
+
+  it("is null without counted hist rows", () => {
+    expect(median([])).toBeNull();
+    expect(
+      median([churn({ pairs: 9 }), churn({ grain: "day", pairs: 9 })])
+    ).toBeNull();
+    expect(median([histRow(4.5, 0), histRow(2, "")])).toBeNull();
   });
 
-  it("is empty without landings and ignores out-of-range buckets", () => {
-    expect(recallCurve([])).toEqual([]);
-    expect(recallCurve([hist(4, 0)])).toEqual([]);
-    expect(recallCurve([hist(100, 3), hist(-1, 3)])).toEqual([]);
+  it("is the bucket of a single bucket", () => {
+    expect(median([histRow(7.3, "12")])).toBe(7.3);
+  });
+
+  it("takes the lower of the two middle items of an even count", () => {
+    expect(median([histRow(2, 2), histRow(1, 2)])).toBe(1);
+    expect(median([histRow(1, 1), histRow(2, 1), histRow(3, 1)])).toBe(2);
+    expect(median([histRow(1, 1), histRow(2, 2), histRow(3, 1)])).toBe(2);
+  });
+
+  it("keeps values under 1% and changes under 0.1%", () => {
+    expect(median([histRow(0.3, "3"), histRow(0.7, 1), histRow(5, 1)])).toBe(
+      0.3
+    );
+    expect(median([histRow(0, 2), histRow(12.1, 1)])).toBe(0);
+  });
+
+  it("adds up buckets repeated across chunks", () => {
+    expect(median([histRow(0.5, 1), histRow(4.5, 2), histRow(0.5, "1")])).toBe(
+      0.5
+    );
+  });
+});
+
+describe("landingsMissing", () => {
+  const answer = (rows: RankRow[]) => ({ loading: false, rows });
+  const landing = rank({ grain: "landing", landings: 1 });
+
+  it("is true when a chunk lists fewer landings than it counted", () => {
+    const full = answer([rank({ landings: "1" }), landing]);
+    const cut = answer([rank({ landings: "3" }), landing, landing]);
+    expect(landingsMissing([full])).toBe(false);
+    expect(landingsMissing([full, cut])).toBe(true);
+  });
+
+  it("is false for slots that are held, unused or still loading", () => {
+    expect(
+      landingsMissing([HELD_SLOT, { loading: false, rows: [] }, HELD_SLOT])
+    ).toBe(false);
   });
 });
 
@@ -264,19 +304,6 @@ describe("rows and text", () => {
     expect(hoursText(50.94)).toBe("50.9 h");
     expect(hoursText(475874.8)).toBe("475,875 h");
     expect(hoursText(undefined)).toBe("-");
-  });
-
-  it("builds links only from PR numbers and SHAs", () => {
-    expect(prUrl("123")).toBe("https://github.com/pytorch/pytorch/pull/123");
-    expect(prUrl("12a")).toBeUndefined();
-    expect(prUrl(0)).toBeUndefined();
-    expect(prUrl(1.5)).toBeUndefined();
-    const sha = "0123456789abcdef0123456789abcdef01234567";
-    expect(commitUrl(sha)).toBe(
-      `https://github.com/pytorch/pytorch/commit/${sha}`
-    );
-    expect(commitUrl("javascript:alert(1)")).toBeUndefined();
-    expect(commitUrl(undefined)).toBeUndefined();
   });
 });
 
@@ -363,16 +390,39 @@ describe("countedRange", () => {
     expect(rangeText(range)).toBe("2026-10-05 to 2026-11-04");
   });
 
-  it("counts retention from whole UTC days", () => {
-    expect(limits.ranks.validFrom).toBe(day0("2026-11-04") - 89 * DAY_MS);
-    expect(limits.stability.validFrom).toBe(day0("2026-10-06"));
+  it("starts ranks and stability on the first day of complete data", () => {
+    expect(limits.ranks.validFrom).toBe(day0(RANKS_DATA_FROM));
+    expect(limits.ranks.validReason).toBe(
+      "TD's rankings are kept from 2026-08-07, for 2 years."
+    );
+    expect(limits.stability.validFrom).toBe(day0(STABILITY_DATA_FROM));
+    expect(limits.stability.validReason).toBe(
+      "Run-to-run data is complete from 2026-10-20 and kept for a year."
+    );
     const range = countedRange(
       pick("2026-10-05", "2026-11-05"),
       limits.stability,
       NOW
     );
-    expect(range.params?.startTime).toBe("2026-10-06T00:00:00.000");
+    expect(range.params?.startTime).toBe("2026-10-20T00:00:00.000");
     expect(range.note).toBe(limits.stability.validReason);
+  });
+
+  it("counts retention from whole UTC days once it passes the data start", () => {
+    const stability = sectionLimits(ms("2027-12-01T12:00:00.000")).stability;
+    expect(stability.validFrom).toBe(day0("2026-12-16"));
+    expect(
+      sectionLimits(ms("2027-12-01T23:59:59.000")).stability.validFrom
+    ).toBe(stability.validFrom);
+    expect(sectionLimits(ms("2028-09-01T12:00:00.000")).ranks.validFrom).toBe(
+      day0("2026-09-03")
+    );
+  });
+
+  it("keeps the chunked sections free of a clamp, so long picks reach the grid", () => {
+    expect("clampDays" in limits.breakages).toBe(false);
+    expect("clampDays" in limits.ranks).toBe(false);
+    expect("clampDays" in limits.stability).toBe(false);
   });
 
   it("clamps a future stop back from the end of today, as the SQL does", () => {
@@ -383,19 +433,21 @@ describe("countedRange", () => {
       stopTime: "2027-01-15T00:00:00.000",
     });
     expect(ranks.note).toBe(limits.ranks.validReason);
-    const stability = countedRange(future, limits.stability, NOW);
-    expect(stability.params?.startTime).toBe("2026-10-06T00:00:00.000");
-    const ttrs = countedRange(future, limits.ttrs, NOW);
-    expect(ttrs.empty).toBe(false);
-    expect(ttrs.params?.startTime).toBe("2026-10-06T00:00:00.000");
-    expect(ttrs.end).toBe(NOW);
-    expect(rangeText(ttrs)).toBe("2026-10-06 to 2026-11-04");
+    const clamped = countedRange(future, { clampDays: 30 }, NOW);
+    expect(clamped.empty).toBe(false);
+    expect(clamped.params).toEqual({
+      startTime: "2026-10-06T00:00:00.000",
+      stopTime: "2027-01-15T00:00:00.000",
+    });
+    expect(clamped.end).toBe(NOW);
+    expect(rangeText(clamped)).toBe("2026-10-06 to 2026-11-04");
+    expect(clamped.note).toBe("This section reads at most 30 days at a time.");
     const later = countedRange(
       future,
-      limits.ttrs,
+      { clampDays: 30 },
       ms("2026-11-04T23:59:59.000")
     );
-    expect(later.params).toEqual(ttrs.params);
+    expect(later.params).toEqual(clamped.params);
   });
 
   it("is empty before the valid-from day, in the future and inverted", () => {
@@ -416,26 +468,30 @@ describe("countedRange", () => {
   });
 });
 
-describe("breakageChunks", () => {
+describe("rangeChunks", () => {
   const anchor = day0(JOB_NAMES_VALID_FROM);
   const chunked = (start: string, stop: string, now = NOW) =>
-    breakageChunks(
+    rangeChunks(
       countedRange(pick(start, stop), sectionLimits(now).breakages, now),
+      CLAMP_DAYS.breakages,
       now
     );
 
-  function expectTiling(start: string, stop: string, now: number) {
-    const { chunks, range } = chunked(start, stop, now);
+  function expectTiling(
+    chunks: Chunk[],
+    range: { params?: { startTime: string; stopTime: string } },
+    cellDays: number
+  ) {
     expect(chunks[0].startTime).toBe(range.params?.startTime);
     expect(chunks[chunks.length - 1].stopTime).toBe(range.params?.stopTime);
     chunks.forEach((chunk, i) => {
       const from = ms(chunk.startTime);
       const to = ms(chunk.stopTime);
       expect(to).toBeGreaterThan(from);
-      expect(to - from).toBeLessThanOrEqual(90 * DAY_MS);
+      expect(to - from).toBeLessThanOrEqual(cellDays * DAY_MS);
       if (i > 0) {
         expect(chunk.startTime).toBe(chunks[i - 1].stopTime);
-        expect((from - anchor) % (90 * DAY_MS)).toBe(0);
+        expect((from - anchor) % (cellDays * DAY_MS)).toBe(0);
       }
     });
     return chunks;
@@ -443,13 +499,38 @@ describe("breakageChunks", () => {
 
   it("tiles the range on a 90-day grid anchored at the valid-from day", () => {
     const later = ms("2027-12-01T00:00:00.000");
-    const chunks = expectTiling("2026-06-01", "2027-03-28", later);
-    expect(chunks.map((c) => c.label)).toEqual([
+    const first = chunked("2026-06-01", "2027-03-28", later);
+    expect(
+      expectTiling(first.chunks, first.range, 90).map((c) => c.label)
+    ).toEqual([
       "2026-07-13 to 2026-10-10",
       "2026-10-11 to 2027-01-08",
       "2027-01-09 to 2027-03-27",
     ]);
-    expect(expectTiling("2026-10-01", "2027-06-15", later)).toHaveLength(4);
+    const second = chunked("2026-10-01", "2027-06-15", later);
+    expect(expectTiling(second.chunks, second.range, 90)).toHaveLength(4);
+  });
+
+  it("tiles stability on a 49-day grid whose cells start on Mondays", () => {
+    const later = ms("2027-04-01T12:00:00.000");
+    const { chunks, range } = rangeChunks(
+      countedRange(
+        pick("2026-10-01", "2027-03-01"),
+        sectionLimits(later).stability,
+        later
+      ),
+      CLAMP_DAYS.stability,
+      later
+    );
+    expect(expectTiling(chunks, range, 49).map((c) => c.label)).toEqual([
+      "2026-10-20 to 2026-12-06",
+      "2026-12-07 to 2027-01-24",
+      "2027-01-25 to 2027-02-28",
+    ]);
+    for (const chunk of chunks.slice(1)) {
+      expect(new Date(ms(chunk.startTime)).getUTCDay()).toBe(1);
+    }
+    expect(range.note).toBe(sectionLimits(later).stability.validReason);
   });
 
   it("starts mid-cell and skips cells that start after now", () => {
@@ -477,78 +558,319 @@ describe("breakageChunks", () => {
     expect(chunked("2026-11-10", "2026-12-10").chunks).toEqual([]);
   });
 
-  it("keeps the newest MAX_CHUNKS cells and narrows the range", () => {
-    const later = ms("2029-01-01T00:00:00.000");
-    const { chunks, range } = chunked("2026-07-13", "2028-09-01", later);
-    expect(chunks).toHaveLength(MAX_CHUNKS);
-    expect(range.params?.startTime).toBe(chunks[0].startTime);
-    expect(range.start).toBe(ms(chunks[0].startTime));
-    expect((range.start - anchor) % (90 * DAY_MS)).toBe(0);
-    expect(range.note).toBe(
-      `This section reads at most ${MAX_CHUNKS * 90} days at a time.`
+  it("keeps the newest MAX_CHUNKS cells and narrows the range by its cell size", () => {
+    const later = ms("2030-01-01T00:00:00.000");
+    for (const cellDays of [90, 49]) {
+      const { chunks, range } = rangeChunks(
+        countedRange(pick("2026-07-13", "2029-09-01"), {}, later),
+        cellDays,
+        later
+      );
+      expect(chunks).toHaveLength(MAX_CHUNKS);
+      expect(range.params?.startTime).toBe(chunks[0].startTime);
+      expect(range.start).toBe(ms(chunks[0].startTime));
+      expect((range.start - anchor) % (cellDays * DAY_MS)).toBe(0);
+      expect(range.note).toBe(
+        `This section reads at most ${MAX_CHUNKS * cellDays} days at a time.`
+      );
+    }
+  });
+
+  it("never narrows a year of stability on any day of a 49-day cycle", () => {
+    const first = day0("2028-01-03");
+    for (let d = 0; d < 49; d++) {
+      const today = first + d * DAY_MS;
+      const now = today + DAY_MS / 2;
+      const picked = {
+        startTime: new Date(today - 365 * DAY_MS).toISOString().slice(0, -1),
+        stopTime: new Date(today + DAY_MS).toISOString().slice(0, -1),
+      };
+      const whole = rangeChunks(
+        countedRange(picked, {}, now),
+        CLAMP_DAYS.stability,
+        now
+      );
+      expect(whole.chunks.length).toBeLessThanOrEqual(MAX_CHUNKS);
+      expect(whole.range.note).toBeUndefined();
+      const limits = sectionLimits(now);
+      const kept = rangeChunks(
+        countedRange(picked, limits.stability, now),
+        CLAMP_DAYS.stability,
+        now
+      );
+      expect(kept.range.note).toBe(limits.stability.validReason);
+      expect(kept.chunks[0].startTime).toBe(kept.range.params?.startTime);
+    }
+  });
+
+  it("splits a long ranks pick into chunks from the first day of rankings", () => {
+    const december = ms("2026-12-15T12:00:00.000");
+    const past = rangeChunks(
+      countedRange(
+        pick("2026-08-01", "2026-09-15"),
+        sectionLimits(december).ranks,
+        december
+      ),
+      CLAMP_DAYS.ranks,
+      december
     );
+    expect(past.range.params?.startTime).toBe("2026-08-07T00:00:00.000");
+    expect(past.range.note).toBe(sectionLimits(december).ranks.validReason);
+    expect(past.chunks.map((c) => c.label)).toEqual([
+      "2026-08-07 to 2026-09-14",
+    ]);
+    const june = ms("2027-06-15T12:00:00.000");
+    const long = rangeChunks(
+      countedRange(
+        pick("2026-08-07", "2027-06-01"),
+        sectionLimits(june).ranks,
+        june
+      ),
+      CLAMP_DAYS.ranks,
+      june
+    );
+    expect(long.range.note).toBeUndefined();
+    expect(long.chunks.map((c) => c.label)).toEqual([
+      "2026-08-07 to 2026-10-10",
+      "2026-10-11 to 2027-01-08",
+      "2027-01-09 to 2027-04-08",
+      "2027-04-09 to 2027-05-31",
+    ]);
   });
 });
 
-describe("mergeBreakageChunks", () => {
-  const chunks = [
-    { startTime: "a", stopTime: "b", label: "2026-09-09 to 2026-12-07" },
-    { startTime: "b", stopTime: "c", label: "2026-12-08 to 2027-01-01" },
-  ];
+const CHUNKS: Chunk[] = [
+  { startTime: "a", stopTime: "b", label: "2026-09-09 to 2026-12-07" },
+  { startTime: "b", stopTime: "c", label: "2026-12-08 to 2027-01-01" },
+];
+const answer = <T>(rows: T[]): TdQueryState<T> => ({ loading: false, rows });
+
+describe("mergeChunks", () => {
   const event = (sha: string) =>
     breakageTotal({ grain: "event", landing_sha: sha });
-  const answer = (rows: BreakageRow[]) => ({ loading: false, rows });
 
-  it("sums the totals of every chunk, string counts included", () => {
-    const merged = mergeBreakageChunks("td_x", chunks, [
-      answer([
-        breakageTotal({ events: "3", false_green: "1", landed_prs: "100" }),
-        event("a1"),
-      ]),
-      answer([
-        event("b1"),
-        breakageTotal({ events: 2, false_green: "2", landed_prs: "50" }),
-      ]),
-    ]);
+  it("sums the breakage counts it reads and keeps the events", () => {
+    const merged = mergeChunks(
+      "td_x",
+      CHUNKS,
+      [
+        answer([
+          breakageTotal({
+            events: "3",
+            false_green: "1",
+            signal_on_pr: "1",
+            landed_prs: "100",
+            unknown: "1",
+          }),
+          event("a1"),
+        ]),
+        answer([
+          event("b1"),
+          breakageTotal({ events: 2, false_green: "2", passed_on_pr: "0" }),
+        ]),
+      ],
+      CHUNK_MERGES.breakages
+    );
     expect(merged.error).toBeUndefined();
-    expect(merged.total?.events).toBe(5);
-    expect(merged.total?.false_green).toBe(3);
-    expect(merged.total?.landed_prs).toBe(150);
-    expect(merged.total?.grain).toBe("total");
+    expect(merged.total).toEqual({
+      events: 5,
+      false_green: 3,
+      signal_on_pr: 1,
+      passed_on_pr: 0,
+    });
     expect(merged.rows.map((r) => r.landing_sha)).toEqual(["a1", "b1"]);
   });
 
-  it("fails on a chunk without exactly one total row, naming its dates", () => {
-    const merged = mergeBreakageChunks("td_x", chunks, [
-      answer([breakageTotal({})]),
-      answer([event("b1")]),
+  it("sums the rank counts it reads and keeps the landings", () => {
+    const landing = (sha: string) => rank({ grain: "landing", sha });
+    const merged = mergeChunks(
+      "td_x",
+      CHUNKS,
+      [
+        answer([
+          rank({ landings: "24", inside_cut: "9", failures: 160 }),
+          rank({ grain: "hist", bucket_pct: 3, landings: 24 }),
+          landing("a1"),
+        ]),
+        answer([
+          landing("b1"),
+          rank({ landings: 13, inside_cut: "10", median_pct: 4.2 }),
+        ]),
+      ],
+      CHUNK_MERGES.ranks
+    );
+    expect(merged.total).toEqual({ landings: 37, inside_cut: 19 });
+    expect(merged.rows.map((r) => r.sha)).toEqual(["a1", "b1"]);
+  });
+
+  it("sums the pair counts it reads and keeps day, week and hist rows", () => {
+    const merged = mergeChunks(
+      "td_x",
+      CHUNKS,
+      [
+        answer([
+          churn({ grain: "day", bucket: "2026-10-20", pairs: 4 }),
+          churn({ grain: "week", bucket: "2026-10-19", pairs: 4 }),
+          histRow(4.5, 1),
+          churn({ pairs: "24105", identical_pairs: "15507", prs: 900 }),
+        ]),
+        answer([
+          churn({ pairs: 27890, identical_pairs: "18981", prs: 1000 }),
+          histRow(4.5, "2"),
+        ]),
+      ],
+      CHUNK_MERGES.stability
+    );
+    expect(merged.total).toEqual({ pairs: 51995, identical_pairs: 34488 });
+    expect(merged.rows.map((r) => r.grain)).toEqual([
+      "day",
+      "week",
+      "hist",
+      "hist",
     ]);
-    expect(merged.error).toBe(
+  });
+
+  it("fails on a chunk without exactly one total row, naming its dates", () => {
+    const missing = mergeChunks(
+      "td_x",
+      CHUNKS,
+      [answer([churn({})]), answer([histRow(1, 1)])],
+      CHUNK_MERGES.stability
+    );
+    expect(missing.error).toBe(
       "td_x (2026-12-08 to 2027-01-01): 0 total rows, expected 1"
     );
-    expect(merged.tileError).toBe(merged.error);
-    expect(merged.total).toBeUndefined();
+    expect(missing.tileError).toBe(missing.error);
+    expect(missing.total).toBeUndefined();
+    const duplicate = mergeChunks(
+      "td_x",
+      CHUNKS,
+      [answer([rank({}), rank({})]), answer([rank({})])],
+      CHUNK_MERGES.ranks
+    );
+    expect(duplicate.error).toBe(
+      "td_x (2026-09-09 to 2026-12-07): 2 total rows, expected 1"
+    );
   });
 
   it("fails on a failed chunk even while another loads", () => {
-    const merged = mergeBreakageChunks("td_x", chunks, [
-      { loading: true, rows: [] },
-      { loading: false, error: "td_x: boom", rows: [] },
-    ]);
+    const merged = mergeChunks(
+      "td_x",
+      CHUNKS,
+      [HELD_SLOT, { loading: false, error: "td_x: boom", rows: [] }],
+      CHUNK_MERGES.breakages
+    );
     expect(merged.error).toBe("td_x: boom (2026-12-08 to 2027-01-01)");
+    expect(merged.tileError).toBe(merged.error);
   });
 
-  it("loads until every chunk answered and needs a slot per chunk", () => {
+  it("waits for a loading or held chunk and needs a slot per chunk", () => {
+    for (const waiting of [{ loading: true, rows: [] }, HELD_SLOT]) {
+      expect(
+        mergeChunks(
+          "td_x",
+          CHUNKS,
+          [answer([churn({})]), waiting],
+          CHUNK_MERGES.stability
+        )
+      ).toEqual({ loading: true, rows: [] });
+    }
     expect(
-      mergeBreakageChunks("td_x", chunks, [
-        answer([breakageTotal({})]),
-        { loading: true, rows: [] },
-      ]).loading
-    ).toBe(true);
-    expect(
-      mergeBreakageChunks("td_x", chunks, [answer([breakageTotal({})])]).error
+      mergeChunks("td_x", CHUNKS, [answer([churn({})])], CHUNK_MERGES.stability)
+        .error
     ).toBe("td_x: more chunks than query slots");
-    expect(mergeBreakageChunks("td_x", [], []).total).toBeUndefined();
+    const noStates: TdQueryState<ChurnRow>[] = [];
+    const none = mergeChunks("td_x", [], noStates, CHUNK_MERGES.stability);
+    expect(none.total).toBeUndefined();
+    expect(none.loading).toBe(false);
+  });
+});
+
+describe("chunk slots", () => {
+  const loading = { loading: true, rows: [] };
+  const failed = { loading: false, error: "td_x: boom", rows: [] };
+  const done = answer([]);
+
+  it("start in order with at most two in flight, and none after a failure", () => {
+    expect(slotStarts([])).toBe(true);
+    expect(slotStarts([loading])).toBe(true);
+    expect(slotStarts([done, loading])).toBe(true);
+    expect(slotStarts([loading, loading])).toBe(false);
+    expect(slotStarts([loading, done])).toBe(false);
+    expect(slotStarts([done, HELD_SLOT])).toBe(true);
+    expect(slotStarts([done, done, loading, HELD_SLOT])).toBe(false);
+    expect(slotStarts([failed])).toBe(false);
+    expect(slotStarts([done, failed])).toBe(false);
+    expect(slotStarts([failed, done, done])).toBe(false);
+  });
+
+  const chunks: Chunk[] = ["c0", "c1", "c2", "c3"].map((start, i) => ({
+    startTime: start,
+    stopTime: `c${i + 1}`,
+    label: `chunk ${i}`,
+  }));
+  const total = (pairs: number) => [churn({ pairs })];
+
+  function render(
+    answers: Record<string, { data?: unknown; error?: unknown }>
+  ) {
+    mockAnswers.clear();
+    mockFetched.length = 0;
+    Object.entries(answers).forEach(([start, a]) => mockAnswers.set(start, a));
+    let states: TdQueryState<ChurnRow>[] = [];
+    function Probe() {
+      states = useChunkedTdQuery<ChurnRow>("td_x", chunks);
+      return null;
+    }
+    renderToStaticMarkup(createElement(Probe));
+    return { states, fetched: [...mockFetched] };
+  }
+
+  it("holds a slot back as loading until its turn", () => {
+    const { states, fetched } = render({});
+    expect(states).toHaveLength(MAX_CHUNKS);
+    expect(fetched).toEqual(["c0", "c1"]);
+    expect(states.slice(2, 4)).toEqual([HELD_SLOT, HELD_SLOT]);
+    expect(states.slice(4)).toEqual(
+      new Array(MAX_CHUNKS - 4).fill({ loading: false, rows: [] })
+    );
+    expect(mergeChunks("td_x", chunks, states, CHUNK_MERGES.stability)).toEqual(
+      { loading: true, rows: [] }
+    );
+  });
+
+  it("starts the next slot once every slot before the one in flight answered", () => {
+    expect(render({ c0: { data: total(1) } }).fetched).toEqual([
+      "c0",
+      "c1",
+      "c2",
+    ]);
+    expect(render({ c1: { data: total(1) } }).fetched).toEqual(["c0", "c1"]);
+    const all = render({
+      c0: { data: total(1) },
+      c1: { data: total(2) },
+      c2: { data: total(3) },
+      c3: { data: total(4) },
+    });
+    expect(all.fetched).toEqual(["c0", "c1", "c2", "c3"]);
+    expect(
+      mergeChunks("td_x", chunks, all.states, CHUNK_MERGES.stability).total
+    ).toEqual({ pairs: 10, identical_pairs: 0 });
+  });
+
+  it("starts nothing after a failure and fails the section", () => {
+    const { states, fetched } = render({
+      c0: { data: total(1) },
+      c1: { error: new Error("boom") },
+    });
+    expect(fetched).toEqual(["c0", "c1"]);
+    expect(states.slice(2, 4)).toEqual([HELD_SLOT, HELD_SLOT]);
+    expect(
+      mergeChunks("td_x", chunks, states, CHUNK_MERGES.stability).error
+    ).toBe("td_x: boom (chunk 1)");
+    expect(render({ c0: { error: new Error("boom") } }).fetched).toEqual([
+      "c0",
+    ]);
   });
 });
 
@@ -658,45 +980,26 @@ describe("trend charts", () => {
     expect(daily.values[0][14]).toBeNull();
   });
 
-  it("leaves buckets older than a truncated list uncharted", () => {
-    const landing = (landed: string, inside: number) => ({
-      ...hist(0, 1),
-      grain: "landing" as const,
-      landed_at: landed,
-      inside_cut: inside,
-    });
+  it("charts shares as gaps without pairs, from the day rows only", () => {
     const rows = [
-      landing("2026-10-03 08:00:00.000", 1),
-      landing("2026-10-04 08:00:00.000", 0),
-    ];
-    const plot = buildPlot(TD_CHARTS.caught, rows, "day", {
-      ...window("2026-10-01T00:00:00.000", "2026-10-05T00:00:00.000"),
-      countedFrom: ms("2026-10-03T08:00:00.000"),
-    });
-    expect(plot.states).toEqual(["truncated", "truncated", "partial", "full"]);
-    expect(plot.values).toEqual([
-      [null, null, 1, 0],
-      [null, null, 0, 1],
-    ]);
-  });
-
-  it("charts shares as gaps without pairs and TTRS weekly", () => {
-    const churn = [
-      { grain: "day", bucket: "2026-10-01", pairs: "4", identical_pairs: "3" },
-      { grain: "day", bucket: "2026-10-02", pairs: "0", identical_pairs: "0" },
+      churn({
+        grain: "day",
+        bucket: "2026-10-01",
+        pairs: "4",
+        identical_pairs: "3",
+        changed_median_pct: "6.5",
+      }),
+      churn({ grain: "day", bucket: "2026-10-02", pairs: "0" }),
+      histRow(0.2, 40),
+      churn({ pairs: "4", identical_pairs: "3", changed_median_pct: 9 }),
     ];
     const w = window("2026-10-01T00:00:00.000", "2026-10-03T00:00:00.000");
-    expect(buildPlot(TD_CHARTS.samePicks, churn, "day", w).values).toEqual([
+    expect(buildPlot(TD_CHARTS.samePicks, rows, "day", w).values).toEqual([
       [75, null],
     ]);
-    const ttrs = buildPlot(
-      TD_CHARTS.ttrs,
-      [{ bucket: "2026-09-28", custom: "12" }],
-      "day",
-      window("2026-10-01T00:00:00.000", "2026-10-13T00:00:00.000")
-    );
-    expect(ttrs.granularity).toBe("week");
-    expect(ttrs.values).toEqual([[12, null, null]]);
+    expect(buildPlot(TD_CHARTS.typicalChange, rows, "day", w).values).toEqual([
+      [6.5, null],
+    ]);
   });
 
   it("marks partial and uncounted buckets on the chart and in the tooltip", () => {
@@ -736,7 +1039,7 @@ describe("trend charts", () => {
     expect(partial).toContain("Partial bucket");
     expect(partial).toContain("False greens: 1");
     expect(partial).toContain("Total: 1");
-    expect(tooltipText(TD_CHARTS.recall, plot, 2)).toContain("Not yet counted");
+    expect(tooltipText(TD_CHARTS.recall, plot, 2)).toContain(PENDING_NOTE);
     const options = plotOptions(TD_CHARTS.recall, plot);
     expect(options.useUTC).toBe(true);
     expect(options.xAxis).toEqual({
@@ -788,12 +1091,13 @@ describe("trend charts", () => {
   });
 
   it("puts event rows outside the axis in the nearest end bucket", () => {
-    const landing = (landed: string, inside: number) => ({
-      ...hist(0, 1),
-      grain: "landing" as const,
-      landed_at: landed,
-      inside_cut: inside,
-    });
+    const landing = (landed: string, inside: number) =>
+      rank({
+        grain: "landing",
+        landings: 1,
+        landed_at: landed,
+        inside_cut: inside,
+      });
     const rows = [
       landing("2026-09-22 23:24:00.000", 1),
       landing("2026-09-23 08:00:00.000", 0),
@@ -875,7 +1179,7 @@ const CONTRACTS: Record<string, Contract> = {
     ],
     params: WINDOW,
     horizonDays: CLAMP_DAYS.savings,
-    grains: ["day", "week", "config", "total"],
+    grains: ["day", "week", "total"],
     literals: [
       WORKFLOWS,
       ...PREFIXES,
@@ -937,7 +1241,7 @@ const CONTRACTS: Record<string, Contract> = {
     ],
     params: { ...WINDOW, tdWorkflows: "Array(String)" },
     defaults: { tdWorkflows: TD_SCOPE.tdWorkflows },
-    horizonDays: CHUNK_DAYS,
+    horizonDays: CLAMP_DAYS.breakages,
     grains: ["event", "total"],
     literals: [
       ...PREFIXES,
@@ -964,13 +1268,14 @@ const CONTRACTS: Record<string, Contract> = {
     ],
     params: WINDOW,
     horizonDays: CLAMP_DAYS.ranks,
-    grains: ["hist", "total", "landing"],
+    grains: ["total", "landing"],
     literals: [WORKFLOWS, ...PREFIXES, MARKERS, `intDiv(${TD_CUT_PCT} * `],
   },
   [TD_QUERIES.churn]: {
     columns: [
       "grain",
       "bucket",
+      "bucket_pct",
       "pairs",
       "identical_pairs",
       "changed_median_pct",
@@ -978,8 +1283,12 @@ const CONTRACTS: Record<string, Contract> = {
     ],
     params: WINDOW,
     horizonDays: CLAMP_DAYS.stability,
-    grains: ["day", "week", "total"],
-    literals: ["workflow_name = 'pull'", MARKERS],
+    grains: ["day", "week", "hist", "total"],
+    literals: [
+      "workflow_name = 'pull'",
+      MARKERS,
+      `window_start - INTERVAL ${STABILITY_LOOK_BACK_DAYS} DAY`,
+    ],
   },
 };
 
@@ -990,10 +1299,34 @@ describe("clamp widths", () => {
       pushWait: 365,
       breakages: 90,
       ranks: 90,
-      stability: 30,
-      ttrs: 30,
+      stability: 49,
     });
-    expect(CHUNK_DAYS).toBe(90);
+  });
+
+  it("make stability chunks whole weeks on a Monday grid", () => {
+    expect(CLAMP_DAYS.stability % 7).toBe(0);
+    expect(new Date(day0(JOB_NAMES_VALID_FROM)).getUTCDay()).toBe(1);
+    expect(MAX_CHUNKS * CLAMP_DAYS.stability).toBeGreaterThanOrEqual(
+      366 + CLAMP_DAYS.stability - 1
+    );
+  });
+});
+
+describe("data starts", () => {
+  it("start ranks on the first whole day of TD's rankings", () => {
+    expect(RANKS_DATA_FROM).toBe("2026-08-07");
+    expect(day0(RANKS_DATA_FROM)).toBe(
+      Math.ceil(ms("2026-08-06T22:28:00.000") / DAY_MS) * DAY_MS
+    );
+  });
+
+  it("start stability once a pair's look-back lies inside test_run_summary", () => {
+    expect(STABILITY_DATA_FROM).toBe("2026-10-20");
+    const firstWholeDay =
+      Math.ceil(ms("2026-10-05T22:37:00.000") / DAY_MS) * DAY_MS;
+    expect(day0(STABILITY_DATA_FROM)).toBe(
+      firstWholeDay + STABILITY_LOOK_BACK_DAYS * DAY_MS
+    );
   });
 });
 

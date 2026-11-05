@@ -1,24 +1,29 @@
 -- How much TD's picks change between consecutive pushes of the same pytorch/pytorch PR. For each
 -- (PR, config, head sha) of a `pull` run (pull_request event or ciflow tag push):
 -- the set of test files that ran across all shards (test_run_summary), only when the latest
--- attempt of every shard concluded success and reported test files. A set counts as TD-on when it
--- holds at most half the median file count of that config's green sets on main pushes in the
--- window; TD-off sets and configs without a main baseline are dropped. Pairs are consecutive
--- remaining head shas of a PR and config, ordered by run creation; identical when the sets are
--- equal, change = 100 * (1 - |A and B| / |A or B|) otherwise.
+-- attempt of every shard concluded success and reported test files. A run's jobs count when they
+-- were created within a day of the run, so a re-run started later is not seen. A set counts as
+-- TD-on when it holds at most half the median file count of that config's green sets on main
+-- pushes in the span the sets are read from; TD-off sets and configs without a main baseline are
+-- dropped. Pairs are consecutive remaining head shas of a PR and config, ordered by run creation;
+-- a pair counts when its later run was created in the window and its earlier run at most 14 days
+-- before that, so sets are read from 14 days before the window. Identical when the sets are equal,
+-- change = 100 * (1 - |A and B| / |A or B|) otherwise.
 --
 -- A PR is its number (pull_requests, or the number in a ciflow tag), or for a fork PR, whose run
 -- carries no pull_requests, head repository and branch. A config is
 -- 'workflow / job-name prefix before " / test (" / test config'. Files are compared by hash.
--- Jobs are read up to a day after the window, so a re-run started later is not seen. Rows: one
--- per day of the later run's creation, one per week of it (bucket = its ISO Monday), and a total
--- row that is always present. The window ends at most now and spans at most test_run_summary's
--- 30-day TTL. ClickHouse runs a CTE at every reference, so each CTE here is referenced once.
+-- Rows: one per day of the later run's creation, one per week of it (bucket = its ISO Monday),
+-- 'hist' rows, one per 0.1 point of change over the changed pairs (bucket_pct = the change
+-- floored to 0.1, pairs = their count, bucket '' and the other columns 0), and a total row that is
+-- always present. bucket_pct is 0 outside 'hist'. The window ends at most now and spans at most
+-- 49 days. ClickHouse runs a CTE at every reference, so each CTE here is referenced once.
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
-    {startTime: DateTime64(3)}, window_end - INTERVAL 30 DAY
+    {startTime: DateTime64(3)}, window_end - INTERVAL 49 DAY
 ) AS window_start,
+window_start - INTERVAL 14 DAY AS sets_start,
 
 runs AS (
     SELECT
@@ -36,7 +41,7 @@ runs AS (
     WHERE
         id IN (
             SELECT id FROM materialized_views.workflow_run_by_created_at
-            WHERE created_at >= window_start AND created_at < window_end
+            WHERE created_at >= sets_start AND created_at < window_end
         )
         AND startsWith(dynamoKey, 'pytorch/pytorch/')
         AND name = 'pull'
@@ -78,6 +83,7 @@ green_jobs AS (
                 run_id,
                 head_sha,
                 conclusion,
+                created_at,
                 splitByString(' / test (', name) AS name_parts,
                 splitByString(', ', trimRight(name_parts[2], ')')) AS test_args,
                 concat(workflow_name, ' / ', name_parts[1], ' / ', test_args[1])
@@ -86,8 +92,8 @@ green_jobs AS (
                 toUInt32OrZero(test_args[3]) AS num_shards
             FROM default.workflow_job
             WHERE
-                created_at >= window_start
-                AND created_at < least(window_end + INTERVAL 1 DAY, now64(3))
+                created_at >= sets_start
+                AND created_at < window_end + INTERVAL 1 DAY
                 AND startsWith(dynamoKey, 'pytorch/pytorch/')
                 AND status = 'completed'
                 AND position(name, ' / test (') > 0
@@ -98,6 +104,7 @@ green_jobs AS (
             LIMIT 1 BY id
         ) AS j
         INNER JOIN runs AS r ON j.run_id = r.id
+        WHERE j.created_at < r.created_at + INTERVAL 1 DAY
         GROUP BY is_main, pr, config, sha, shard
     )
     WHERE num_shards > 0
@@ -129,7 +136,7 @@ green_sets AS (
                         SELECT id
                         FROM materialized_views.workflow_run_by_created_at
                         WHERE
-                            created_at >= window_start
+                            created_at >= sets_start
                             AND created_at < window_end
                     )
                     AND name = 'pull'
@@ -178,15 +185,17 @@ td_on_sets AS (
 pairs AS (
     SELECT
         pr,
+        tupleElement(seq[i], 1) AS earlier_created,
         tupleElement(seq[i + 1], 1) AS later_created,
         tupleElement(seq[i], 3) AS a,
         tupleElement(seq[i + 1], 3) AS b,
         a = b AS identical,
-        100 * (
-            1
-            - length(arrayIntersect(a, b))
-            / length(arrayDistinct(arrayConcat(a, b)))
-        ) AS change_pct
+        length(arrayIntersect(a, b)) AS shared_files,
+        length(arrayDistinct(arrayConcat(a, b))) AS all_files,
+        100 * (1 - shared_files / all_files) AS change_pct,
+        -- Not floor(change_pct * 10): float error puts exact tenths, such as 10%, a bucket low.
+        floor(1000 * (all_files - shared_files) / all_files) / 10
+            AS change_bucket
     FROM (
         SELECT
             pr,
@@ -201,23 +210,36 @@ SELECT
     multiIf(
         grouping(day) = 0, 'day',
         grouping(week) = 0, 'week',
+        grouping(change_bucket) = 0, 'hist',
         'total'
     ) AS grain,
     multiIf(grain = 'day', day, grain = 'week', week, '') AS bucket,
     count() AS pairs,
     countIf(identical) AS identical_pairs,
-    ifNotFinite(quantileExactInclusiveIf(0.5) (change_pct, NOT identical), 0)
-        AS changed_median_pct,
-    uniqExact(pr) AS prs
+    if(
+        grain = 'hist',
+        0,
+        ifNotFinite(
+            quantileExactInclusiveIf(0.5) (change_pct, NOT identical), 0
+        )
+    ) AS changed_median_pct,
+    if(grain = 'hist', 0, uniqExact(pr)) AS prs,
+    if(grain = 'hist', change_bucket, 0) AS bucket_pct
 FROM (
     SELECT
         pr,
         identical,
         change_pct,
+        change_bucket,
         formatDateTime(later_created, '%F') AS day,
         formatDateTime(toMonday(later_created), '%F') AS week
     FROM pairs
+    WHERE
+        later_created >= window_start
+        AND later_created < window_end
+        AND earlier_created >= later_created - INTERVAL 14 DAY
 )
-GROUP BY GROUPING SETS ((day), (week), ())
-ORDER BY grain, bucket
+GROUP BY GROUPING SETS ((day), (week), (identical, change_bucket), ())
+HAVING grain != 'hist' OR NOT identical
+ORDER BY grain, bucket, bucket_pct
 SETTINGS max_execution_time = 60, max_threads = 8
