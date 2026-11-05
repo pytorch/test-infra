@@ -596,6 +596,10 @@ hold its table and the view that fills it). Its SQL is in
   under its own name), otherwise its OS's CPUs. Device short names drop the
   leading words other devices of their family share. No list of machines,
   vendors or labels is kept in code.
+- Each row keeps its runner label (the labels the jobs asked for, sorted and
+  comma-separated), so a caller can price the hours by runner. The API holds
+  no prices: the cost page prices them in the browser from a rates file the
+  reader adds.
 - `time_to_signal` names two signals and the workflow that gives each: PR
   update signals (pull, on every pull request update) and PR merge signals
   (trunk, which gates a merge), each as HUD's `workflow_duration_percentile` on

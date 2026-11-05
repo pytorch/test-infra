@@ -34,9 +34,16 @@ export const RunnerHoursRowSchema = z
       .describe(
         "Where the machine came from: environment, the jobs' test reports; runner_label, an estimate from the runner label of test jobs without reports; none, no machine."
       ),
+    label: z
+      .string()
+      .describe(
+        "The runner labels the jobs asked for, sorted and comma-separated: what a rates file prices."
+      ),
     runner_hours: z.number().describe("Runner-hours of the cell."),
   })
-  .describe("Runner-hours of one owner on one machine in one workflow.");
+  .describe(
+    "Runner-hours of one owner on one machine and runner label in one workflow."
+  );
 
 export const ContributorSchema = z
   .object({
@@ -152,7 +159,7 @@ export const RunnerHoursSchema = z
     rows: z
       .array(RunnerHoursRowSchema)
       .describe(
-        "Every owner, workflow and machine with runner-hours, largest first; they sum to the window's runner-hours."
+        "Every owner, workflow, machine and runner label with runner-hours, largest first; they sum to the window's runner-hours."
       ),
     machines: z
       .array(CostMachineSchema)

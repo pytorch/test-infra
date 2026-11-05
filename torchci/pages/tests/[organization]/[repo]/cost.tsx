@@ -4,7 +4,9 @@ import CellDrawer, { type OpenCell } from "components/tests/cost/CellDrawer";
 import CostFacts from "components/tests/cost/CostFacts";
 import CostHeading from "components/tests/cost/CostHeading";
 import CostMatrix, { type MatrixCell } from "components/tests/cost/CostMatrix";
+import CostPanel from "components/tests/cost/CostPanel";
 import OwnerChart from "components/tests/cost/OwnerChart";
+import RunnersDrawer from "components/tests/cost/RunnersDrawer";
 import WorkflowsCard from "components/tests/cost/WorkflowsCard";
 import LoadError from "components/tests/LoadError";
 import LoadTime from "components/tests/LoadTime";
@@ -18,10 +20,20 @@ import {
   resolveCostQuery,
 } from "lib/tests/cost/query";
 import {
+  MAX_RATES_BYTES,
+  parseRates,
+  priceableRunners,
+  pricedRunnerHours,
+  ratesCoverage,
+  type RatesFile,
+  withRate,
+} from "lib/tests/cost/rates";
+import {
   computeView,
   type CostChoices,
   factsOf,
   knownChoices,
+  type OwnerRow,
   ownerRows,
   prepareRunnerHours,
   scopeName,
@@ -32,7 +44,7 @@ import { accessReasonOf } from "lib/tests/table";
 import { mergedUrlQuery } from "lib/tests/url";
 import { useSession } from "next-auth/react";
 import Router, { useRouter } from "next/router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Choices as the URL's query takes them: arrays it may own.
 function copied(choices: CostChoices) {
@@ -69,6 +81,13 @@ function datesOf(answer: RunnerHours): string {
 // default; the presets come with the runner-hours. The page never queries the
 // database; the API is behind the HUD GitHub gate, which the browser passes
 // with its sign-in.
+//
+// Cost is a panel of its own under the runner-hours chart (CostPanel), from
+// a rates file the reader adds (lib/tests/cost/rates.ts), its rates editable
+// in the panel's key: held in this component's state only, never in the URL,
+// storage or a request, and so are the panel's split keys. It follows the
+// page's scope and highlight; with a file the facts gain a row in $, and the
+// matrix and the workflows card stay in runner-hours.
 export default function Page() {
   const router = useRouter();
   const organization = router.query.organization;
@@ -83,6 +102,11 @@ export default function Page() {
   const request = useRunnerHours(apiUrl);
   const [cell, setCell] = useState<MatrixCell | null>(null);
   const [matrixExpanded, setMatrixExpanded] = useState(false);
+  const [rates, setRates] = useState<RatesFile | null>(null);
+  const [ratesError, setRatesError] = useState<string | null>(null);
+  const [costSplit, setCostSplit] = useState(true);
+  // The key of the owner chart row whose runners drawer is open.
+  const [runnersKey, setRunnersKey] = useState<string | null>(null);
 
   const prepared = useMemo(
     () =>
@@ -102,6 +126,87 @@ export default function Page() {
         : computeView(prepared, choices),
     [prepared, choices]
   );
+  // The answer priced by the rates file added, for the cost panel and its
+  // runners drawer.
+  const priced = useMemo(
+    () =>
+      prepared === undefined || rates === null
+        ? undefined
+        : pricedRunnerHours(prepared, rates),
+    [prepared, rates]
+  );
+  const pricedView = useMemo(
+    () =>
+      priced === undefined || choices === undefined
+        ? undefined
+        : computeView(priced, choices),
+    [priced, choices]
+  );
+
+  // Reads a rates file into memory; a bad file leaves the loaded rates as
+  // they were and says what is wrong with it.
+  const loadRates = useCallback(
+    async (file: File) => {
+      try {
+        if (file.size > MAX_RATES_BYTES) {
+          throw new Error(
+            `${file.name} is ${Math.round(
+              file.size / 1000
+            )} KB; a rates file is a few KB.`
+          );
+        }
+        const next = parseRates(await file.text(), file.name);
+        // A file pricing no runner here is a file of something else (or of
+        // misspelled labels): it would draw every bar at $0.
+        if (
+          prepared !== undefined &&
+          ratesCoverage(prepared, next).priced === 0
+        ) {
+          const [example] = priceableRunners(prepared);
+          throw new Error(
+            `None of ${
+              file.name
+            }'s labels ran in this window; keys are runner labels${
+              example === undefined ? "" : ` like ${example.label}`
+            }.`
+          );
+        }
+        setRates(next);
+        setRatesError(null);
+      } catch (e) {
+        setRatesError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [prepared]
+  );
+  const openRunners = (row: OwnerRow) => {
+    setCell(null);
+    setRunnersKey(runnersKey === row.key ? null : row.key);
+  };
+  const openCellDrawer = (next: MatrixCell | null) => {
+    if (next !== null) setRunnersKey(null);
+    setCell(next);
+  };
+  // The runners drawer's row, looked up by key in the $ answer as it is now,
+  // as the opened cell is: "N more owners" recounted when one of them is
+  // highlighted, and closed when its owner has no hours in the scope.
+  const runnersRow = useMemo((): OwnerRow | null => {
+    if (runnersKey === null || pricedView === undefined) return null;
+    const row = ownerRows(pricedView, false, "grouped").find(
+      (r) => r.key === runnersKey
+    );
+    if (row !== undefined) return row;
+    // An owner listed under the expanded "N more owners".
+    return (pricedView.ownerRunnerHours.get(runnersKey) ?? 0) > 0
+      ? {
+          key: runnersKey,
+          label: runnersKey,
+          owners: [runnersKey],
+          hours: pricedView.ownerScope.get(runnersKey) ?? 0,
+          kind: "owner",
+        }
+      : null;
+  }, [runnersKey, pricedView]);
   // The opened cell, looked up by name in the matrix as it is now: closed
   // when its row or machine is gone, as when a highlighted owner leaves
   // "N more owners".
@@ -149,10 +254,29 @@ export default function Page() {
   };
   const clearHighlight = () =>
     change({ owners: [], machines: [], only: false });
+  // "Only selected" goes with the last of the highlight, so it never hides
+  // the matrix at the next one unasked.
   const toggleOwners = (owners: string[]) =>
-    change((current) => ({ owners: toggled(current.owners, owners) }));
+    change((current) => {
+      const next = toggled(current.owners, owners);
+      return {
+        owners: next,
+        only: current.only && next.length + current.machines.length > 0,
+      };
+    });
   const toggleMachines = (machines: string[]) =>
-    change((current) => ({ machines: toggled(current.machines, machines) }));
+    change((current) => {
+      const next = toggled(current.machines, machines);
+      return {
+        machines: next,
+        only: current.only && current.owners.length + next.length > 0,
+      };
+    });
+  const clearMachines = () =>
+    change((current) => ({
+      machines: [],
+      only: current.only && current.owners.length > 0,
+    }));
 
   // Escape closes the drawer, then clears the highlight, unless a text field
   // or menu took it for itself.
@@ -169,12 +293,29 @@ export default function Page() {
         return;
       }
       if (openCell !== null) setCell(null);
+      else if (runnersRow !== null) setRunnersKey(null);
       else if (query.owners.length > 0 || query.machines.length > 0)
         clearHighlight();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+  // A file dropped anywhere is never opened in a tab, even before the cost
+  // panel (which takes it) is there: while loading, on an error, without
+  // access.
+  useEffect(() => {
+    const keep = (event: DragEvent) => {
+      if (Array.from(event.dataTransfer?.types ?? []).includes("Files")) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("dragover", keep);
+    window.addEventListener("drop", keep);
+    return () => {
+      window.removeEventListener("dragover", keep);
+      window.removeEventListener("drop", keep);
+    };
+  }, []);
   // A new scope leaves the opened cell behind.
   const scopeKey = query.workflows.join(",");
   useEffect(() => setCell(null), [scopeKey]);
@@ -217,6 +358,21 @@ export default function Page() {
           scope={scope}
           signals={answer?.time_to_signal}
           onClearScope={() => change({ workflows: [] })}
+          cost={
+            ready &&
+            rates !== null &&
+            priced !== undefined &&
+            pricedView !== undefined
+              ? {
+                  ...factsOf(priced, pricedView, answer.days),
+                  pricedShare:
+                    1 -
+                    pricedView.scopeUnpriced /
+                      (pricedView.scopeRunnerHours || 1),
+                  file: rates.file,
+                }
+              : undefined
+          }
         />
       </Stack>
       {request.error !== undefined && (
@@ -244,13 +400,64 @@ export default function Page() {
               onToggleOwners={toggleOwners}
               onToggleMachines={toggleMachines}
               onClearHighlight={clearHighlight}
-              onClearMachines={() => change({ machines: [] })}
+              onClearMachines={clearMachines}
             />
             <LoadTime
               timing={answer.timing ?? null}
               loading={request.isLoading}
             />
           </Box>
+          <CostPanel
+            prepared={prepared}
+            rates={rates}
+            error={ratesError}
+            onFile={loadRates}
+            onClear={() => {
+              setRates(null);
+              setRatesError(null);
+              setRunnersKey(null);
+              setCostSplit(true);
+            }}
+            onDismissError={() => setRatesError(null)}
+            onUndoEdits={() =>
+              setRates((current) =>
+                current === null
+                  ? null
+                  : { ...current, rates: current.original }
+              )
+            }
+            chart={(frame) =>
+              priced !== undefined &&
+              pricedView !== undefined && (
+                <OwnerChart
+                  repo={repository}
+                  prepared={priced}
+                  view={pricedView}
+                  presets={answer.workflow_presets}
+                  scope={choices.workflows}
+                  split={costSplit}
+                  loading={request.isLoading}
+                  dates={dates}
+                  method={answer.method}
+                  onScopeChange={(workflows) => change({ workflows })}
+                  onSplitChange={setCostSplit}
+                  onToggleOwners={toggleOwners}
+                  onToggleMachines={toggleMachines}
+                  onClearHighlight={clearHighlight}
+                  onClearMachines={clearMachines}
+                  onOpenRunners={openRunners}
+                  runnersKey={runnersRow?.key ?? null}
+                  onRateChange={(key, rate) =>
+                    setRates((current) =>
+                      current === null ? null : withRate(current, key, rate)
+                    )
+                  }
+                  originalRates={rates?.original}
+                  {...frame}
+                />
+              )
+            }
+          />
           <CostMatrix
             prepared={prepared}
             view={view}
@@ -269,7 +476,7 @@ export default function Page() {
             onOnlyChange={(only) => change({ only })}
             onToggleOwners={toggleOwners}
             onToggleMachines={toggleMachines}
-            onCellChange={setCell}
+            onCellChange={openCellDrawer}
           />
           <WorkflowsCard
             prepared={prepared}
@@ -286,6 +493,15 @@ export default function Page() {
             cell={openCell}
             onClose={() => setCell(null)}
           />
+          {priced !== undefined && pricedView !== undefined && (
+            <RunnersDrawer
+              prepared={priced}
+              view={pricedView}
+              row={runnersRow}
+              ratesFile={rates?.file ?? null}
+              onClose={() => setRunnersKey(null)}
+            />
+          )}
         </>
       )}
     </PageColumn>

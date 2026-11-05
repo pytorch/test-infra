@@ -30,7 +30,14 @@ export default function MachineKey({
   onClearMachines,
 }: MachineKeyProps) {
   const theme = useTheme();
-  const [open, setOpen] = useState(false);
+  // Folded until the reader says otherwise, or a machine among the others is
+  // highlighted: then it shows.
+  const [openChoice, setOpen] = useState<boolean | null>(null);
+  const open =
+    openChoice ??
+    machineKeyRows(prepared, view, false).some(
+      (r) => r.kind === "group" && r.machines.some((m) => view.machines.has(m))
+    );
   const rows = machineKeyRows(prepared, view, open);
   const max = Math.max(1, ...rows.map((r) => r.hours));
   const total = view.scopeTotal || 1;
@@ -111,7 +118,15 @@ export default function MachineKey({
             <ButtonBase
               component="div"
               aria-pressed={selected}
-              onClick={() => onToggleMachines(names)}
+              // Pressed, a click takes off what is highlighted; a group
+              // with one machine highlighted never adds its others.
+              onClick={() =>
+                onToggleMachines(
+                  selected
+                    ? names.filter((_, i) => view.machines.has(row.machines[i]))
+                    : names
+                )
+              }
               title={`${row.label}: ${hoursLabel(row.hours)} h${
                 owners ? ` · ${hoursLabel(row.highlighted)} h highlighted` : ""
               }`}

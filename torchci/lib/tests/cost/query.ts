@@ -16,6 +16,7 @@ import {
   pageUrlParams,
   testsPagePath,
 } from "lib/api/tests/pages/parameters";
+import type { CostUnit } from "lib/tests/cost/runnerHours";
 
 // What the cost page shows, read from and written to its URL under
 // COST_PAGE_PARAMETER_DEFINITIONS' names, defaults left off: the window, the
@@ -88,7 +89,30 @@ export function hoursLabel(hours: number): string {
   return hours < 1000 ? hours.toFixed(0) : COMPACT.format(hours);
 }
 
-// A share as a whole percent, "<1%" for a sliver.
+// An amount in its unit: "54.1K h", "$54.1K", "<1 h" for a sliver.
+export function amountLabel(unit: CostUnit, value: number): string {
+  if (value > 0 && value < 0.5) return unit === "cost" ? "<$1" : "<1 h";
+  return unit === "cost" ? `$${hoursLabel(value)}` : `${hoursLabel(value)} h`;
+}
+
+// A unit's name in a sentence.
+export const UNIT_NAMES: Record<CostUnit, string> = {
+  hours: "runner-hours",
+  cost: "cost",
+};
+
+// A rate as the page writes it: "$1.25/h", and to 3 significant figures
+// under a dollar, "$0.647/h", so a rate and an edit of it never read alike.
+export function rateLabel(rate: number): string {
+  if (rate <= 0 || rate >= 1) return `$${rate.toFixed(2)}/h`;
+  const [whole, frac = ""] = rate.toPrecision(3).split(".");
+  return `$${whole}.${frac.replace(/0+$/, "").padEnd(2, "0")}/h`;
+}
+
+// A share as a whole percent, "<1%" for a sliver and ">99%" for all but
+// one, so a part never reads as none or as the whole.
 export function shareLabel(share: number): string {
-  return share > 0 && share < 0.01 ? "<1%" : `${Math.round(share * 100)}%`;
+  if (share > 0 && share < 0.01) return "<1%";
+  if (share > 0.99 && share < 1) return ">99%";
+  return `${Math.round(share * 100)}%`;
 }

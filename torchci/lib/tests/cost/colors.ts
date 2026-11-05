@@ -1,5 +1,9 @@
 import { alpha, type Theme } from "@mui/material/styles";
-import type { Paint, PreparedHours } from "lib/tests/cost/runnerHours";
+import type {
+  BasePaint,
+  Paint,
+  PreparedHours,
+} from "lib/tests/cost/runnerHours";
 
 // Seven hues for the seven largest machines, checked with the dataviz palette
 // validator for neighbours that stay apart under color-vision deficiency, in
@@ -93,6 +97,27 @@ export function paintFill(
     case "pale":
       return paleColor(theme);
   }
+}
+
+// A runner's shade of its machine's paint, for the machine key's runner
+// rows: the machine's runners largest first over the window, the
+// largest in the full paint, then lighter steps, the fourth on sharing the
+// last. Unknown machine keeps its stripes: the gaps between runners and their
+// names say which is which.
+const RUNNER_SHADES = [1, 0.62, 0.38, 0.22];
+
+export function runnerFill(
+  theme: Theme,
+  prepared: PreparedHours,
+  paint: BasePaint,
+  position: number
+): string {
+  const fill = paintFill(theme, prepared, paint);
+  if (paint.kind === "not_probed") return fill;
+  return alpha(
+    fill,
+    RUNNER_SHADES[Math.min(Math.max(position, 0), RUNNER_SHADES.length - 1)]
+  );
 }
 
 // A machine's hue where it has one, for the shard profiles' marks.
