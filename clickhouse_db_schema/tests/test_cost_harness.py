@@ -1,4 +1,4 @@
-"""Run test_cost_mv's query (fortesting/000005-test-cost-view.sql) on literal
+"""Run test_cost_mv's query (ci/000005-test-cost-view.sql) on literal
 inputs, so tests can check its occupancy and test-time-ratio arithmetic.
 
 The committed view SQL is read as is; its four sources are swapped for literal
@@ -28,7 +28,7 @@ from typing import Dict, List, Optional, Sequence
 
 HERE = Path(__file__).resolve().parent
 SCHEMA = HERE.parent
-VIEW_SQL = SCHEMA / "fortesting" / "000005-test-cost-view.sql"
+VIEW_SQL = SCHEMA / "ci" / "000005-test-cost-view.sql"
 sys.path.insert(0, str(SCHEMA))
 import migrate  # noqa: E402
 
@@ -48,6 +48,10 @@ class Job:
     name: str = "linux-jammy-py3.10 / test (default, 1, 1, linux.2xlarge)"
     # The workflow file's name: the job's run is .github/workflows/<workflow>.yml.
     workflow: str = "pull"
+    # The run's default.workflow_run event and head_branch; event None leaves
+    # the run out of workflow_run.
+    event: Optional[str] = "pull_request"
+    branch: str = "my-feature"
     repo: str = REPO
     status: str = "completed"
     conclusion: str = "success"
@@ -154,7 +158,11 @@ def sources(scenario: Scenario) -> Dict[str, str]:
         runs.append(
             (r.job, report, test_ids[key], r.env, r.outcome, _ts(r.start), _ts(r.end))
         )
-    workflow_runs = {j.id: workflow_path(j.workflow) for j in scenario.jobs}
+    workflow_runs = {
+        j.id: (workflow_path(j.workflow), j.event, j.branch)
+        for j in scenario.jobs
+        if j.event is not None
+    }
     owners = [(REPO, f, o) for f, o in scenario.owners.items()]
     return {
         "workflow_job": _values(
@@ -166,7 +174,9 @@ def sources(scenario: Scenario) -> Dict[str, str]:
             (0, 0, "", [], "", "", "", "", _ts_s(0), _ts_s(0), _ts_s(0), _ts(0)),
         ),
         "workflow_run": _values(
-            "id Int64, path String", sorted(workflow_runs.items()), (0, "")
+            "id Int64, path String, event String, head_branch String",
+            [(i, *run) for i, run in sorted(workflow_runs.items())],
+            (0, "", "", ""),
         ),
         "runs": _values(
             "github_workflow_job_id Int64, report_uuid UUID, tests_id UInt64, environments_id UInt64, "
@@ -235,10 +245,10 @@ MAX_QUERY_SIZE = 8_000_000
 
 def view_query(scenario: Scenario) -> str:
     """The SELECT run_scenario sends: the view's rows, ordered by (workflow,
-    file, module, environment), without computed_at."""
+    file, module, environment, trigger), without computed_at."""
     return (
         "SELECT * EXCEPT computed_at FROM (\n" + scenario_sql(scenario) + "\n)\n"
-        "ORDER BY workflow_path, test_file, test_module, environments_id\n"
+        "ORDER BY workflow_path, test_file, test_module, environments_id, trigger\n"
         "SETTINGS join_use_nulls = 0, max_threads = 2, max_execution_time = 120\n"
         "FORMAT JSONEachRow"
     )

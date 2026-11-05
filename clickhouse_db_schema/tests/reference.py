@@ -1,6 +1,6 @@
 """A slow, plain Python statement of what test_cost_mv computes, for tests to
 compare the view against. It shares no code with the view: every step is
-written from the definitions in fortesting/000004-test-cost-table.sql, and the
+written from the definitions in ci/000004-test-cost-table.sql, and the
 occupancy is a brute force (cut time at every span endpoint, split each piece
 evenly among the spans covering it), not the view's sweep.
 
@@ -67,6 +67,14 @@ def counted_jobs(
     return out
 
 
+def trigger(job: Job) -> str:
+    """test_cost.trigger of the job's run, mirroring 000005: push:main for a
+    push to main or master, other for everything else."""
+    if job.event == "push" and job.branch in ("main", "master"):
+        return "push:main"
+    return "other"
+
+
 def held_by_brute_force(spans: List[tuple]) -> List[float]:
     """Each span's share of the time, in ms: every piece between consecutive
     endpoints split evenly among the spans covering it."""
@@ -109,11 +117,13 @@ def expected_rows(
         key = (
             _day(round(job.start)),
             job.repo,
-            workflow_path(job.workflow),
+            # A run missing from workflow_run has no path.
+            workflow_path(job.workflow) if job.event is not None else "",
             file,
             module,
             env,
             tuple(sorted(job.labels)),
+            trigger(job),
         )
         for column, value in seconds.items():
             totals[key][column] += value
@@ -201,7 +211,7 @@ def expected_rows(
                 )
 
     rows = []
-    for (day, repo, workflow, file, module, env, labels), values in sorted(
+    for (day, repo, workflow, file, module, env, labels, kind), values in sorted(
         totals.items()
     ):
         file_owners = owners.get(file, []) if repo == "pytorch/pytorch" else []
@@ -214,6 +224,7 @@ def expected_rows(
                 "test_module": module,
                 "environments_id": env,
                 "runner_labels": list(labels),
+                "trigger": kind,
                 "owners": list(file_owners),
                 # Whole milliseconds, each row rounded once, as the view stores them.
                 **{

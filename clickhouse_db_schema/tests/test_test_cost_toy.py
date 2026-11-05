@@ -1,4 +1,4 @@
-"""Toy scenarios for test_cost_mv (fortesting/000005-test-cost-view.sql).
+"""Toy scenarios for test_cost_mv (ci/000005-test-cost-view.sql).
 
 Each test is a timeline small enough to check with pencil and paper; its
 docstring shows the timeline and the arithmetic, and the test asserts the
@@ -16,7 +16,14 @@ with CLICKHOUSE_ENDPOINT, CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD set.
 
 import unittest
 
-from test_cost_harness import by_file, ClickHouseTestCase, Job, Run, run_view
+from test_cost_harness import (
+    by_file,
+    ClickHouseTestCase,
+    Job,
+    Run,
+    run_view,
+    workflow_path,
+)
 
 
 BUILD = "linux-jammy-py3.10 / build"
@@ -870,6 +877,75 @@ class Jobs(ToyCase):
             test_ratio_runner_seconds=720.0,
         )
         self.assertInvariants(rows, wall=720, busy=600)
+
+
+# The trigger the view records for a run's (event, branch); event None is a run
+# missing from workflow_run. 000005's rule, mirrored by reference.trigger: the
+# one table to change with that mapping.
+TRIGGERS = [
+    ("push", "main", "push:main"),
+    ("push", "master", "push:main"),
+    # Only a push: other events on main are other.
+    ("schedule", "main", "other"),
+    ("workflow_dispatch", "main", "other"),
+    ("pull_request", "main", "other"),  # a fork PR from its main branch
+    ("pull_request", "my-feature", "other"),
+    ("push", "ciflow/trunk/123", "other"),
+    ("workflow_dispatch", "trunk/" + "f" * 40, "other"),
+    ("push", "viable/strict", "other"),
+    ("push", "release/2.15", "other"),
+    (None, "", "other"),
+]
+
+
+class Triggers(ToyCase):
+    def test_each_trigger(self):
+        """Each job's row records its run's trigger, as TRIGGERS gives it: job
+        i, alone in workflow w<i>, runs a.py for its whole 10 x i s and is
+        charged 10 x i. A job whose run is missing from workflow_run is still
+        counted, with no workflow path.
+        """
+        jobs = [
+            Job(i, 0, 10 * i, workflow=f"w{i}", event=event, branch=branch)
+            for i, (event, branch, _) in enumerate(TRIGGERS, 1)
+        ]
+        rows = run_view(jobs, [Run(j.id, "A", "a.py", 0, j.end) for j in jobs])
+        got = {r["workflow_path"]: r for r in rows}
+        self.assertEqual(len(got), len(rows))
+        for job, (event, branch, trigger) in zip(jobs, TRIGGERS):
+            path = workflow_path(job.workflow) if event is not None else ""
+            with self.subTest(event=event, branch=branch):
+                self.assertRow(
+                    got[path], trigger=trigger, occupancy_runner_seconds=job.end
+                )
+        wall = sum(j.end for j in jobs)
+        self.assertInvariants(rows, wall=wall, busy=wall)
+
+    def test_triggers_split_a_file_and_keep_its_totals(self):
+        """Jobs alike but for their trigger get a row each; the rows add up to
+        the one row they make with a single trigger.
+
+            job 1  pull_request         a.py 0-20 in a 0-30 job
+            job 2  push to main         a.py 0-40 in a 0-50 job
+            split:  job 1's trigger 30 (held 20), job 2's 50 (held 40)
+            alike:  one row, 80 (held 60)
+        """
+        runs = [Run(1, "A", "a.py", 0, 20), Run(2, "A", "a.py", 0, 40)]
+        split = run_view(
+            [Job(1, 0, 30), Job(2, 0, 50, event="push", branch="main")], runs
+        )
+        alike = run_view([Job(1, 0, 30), Job(2, 0, 50)], runs)
+        first, second = sorted(split, key=lambda r: r["held_milliseconds"])
+        self.assertNotEqual(first["trigger"], second["trigger"])
+        self.assertRow(first, held_seconds=20.0, occupancy_runner_seconds=30.0)
+        self.assertRow(second, held_seconds=40.0, occupancy_runner_seconds=50.0)
+        self.assertEqual(len(alike), 1)
+        for column in alike[0]:
+            if column.endswith("_milliseconds"):
+                self.assertEqual(
+                    sum(r[column] for r in split), alike[0][column], msg=column
+                )
+        self.assertInvariants(split, wall=80, busy=60)
 
 
 class Owners(ToyCase):

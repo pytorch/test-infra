@@ -24,6 +24,11 @@ WITH
             j.repository_full_name AS repo,
             w.path AS workflow_path,
             arraySort(j.labels) AS runner_labels,
+            -- test_cost.trigger (000004), its values defined here only (tests
+            -- mirror them in reference.trigger and the toy TRIGGERS table):
+            -- push:main (event:branch) for a push to main or master, which
+            -- runs without target determination; other for everything else.
+            if(w.event = 'push' AND w.head_branch IN ('main', 'master'), 'push:main', 'other') AS trigger,
             match(j.name, '(?:^|/ )test \\(') AS is_test_job,
             toUnixTimestamp64Milli(toDateTime64(j.started_at, 3)) AS job_start,
             toUnixTimestamp64Milli(toDateTime64(j.completed_at, 3)) AS job_end
@@ -39,7 +44,7 @@ WITH
         ) AS j
         -- A rerun's run started long before its jobs, so runs are looked up by id.
         LEFT JOIN (
-            SELECT id, any(path) AS path
+            SELECT id, any(path) AS path, any(event) AS event, any(head_branch) AS head_branch
             FROM default.workflow_run
             WHERE id IN (
                 SELECT run_id
@@ -103,6 +108,7 @@ WITH
             j.repo AS repo,
             j.workflow_path AS workflow_path,
             j.runner_labels AS runner_labels,
+            j.trigger AS trigger,
             j.is_test_job AS is_test_job,
             (j.job_end - j.job_start) / 1000 AS wall_seconds,
             arrayFilter(x -> x.2 > x.1, f.spans) AS spans
@@ -116,7 +122,7 @@ WITH
     -- at its start. A job without spans holds nothing.
     swept AS (
         SELECT
-            day, job_id, repo, workflow_path, runner_labels, is_test_job, wall_seconds, spans,
+            day, job_id, repo, workflow_path, runner_labels, trigger, is_test_job, wall_seconds, spans,
             arraySort(arrayFlatten(arrayMap(
                 (x, i) -> [(x.1, 1, i), (x.2, -1, i)], spans, arrayEnumerate(spans)))) AS events,
             arrayMap(x -> x.1, events) AS times,
@@ -142,7 +148,7 @@ WITH
     -- ('', '', 0, 0, 0, 0) row, other jobs without spans none.
     job_rows AS (
         SELECT
-            day, repo, workflow_path, runner_labels, wall_seconds, busy_seconds, job_test_seconds,
+            day, repo, workflow_path, runner_labels, trigger, wall_seconds, busy_seconds, job_test_seconds,
             if(empty(spans),
                 if(is_test_job, [('', '', toUInt64(0), 0., 0., 0.)], []),
                 arrayFlatten(arrayMap(
@@ -168,6 +174,7 @@ SELECT
     g.test_module AS test_module,
     g.environments_id AS environments_id,
     g.runner_labels AS runner_labels,
+    g.trigger AS trigger,
     multiIf(notEmpty(owner_module.owners), owner_module.owners, notEmpty(owner_file.owners), owner_file.owners, [])
         AS owners,
     -- Whole milliseconds, as ci.* keeps time; the shares round once per row.
@@ -179,7 +186,7 @@ SELECT
     now64(3, 'UTC') AS computed_at
 FROM (
     SELECT
-        day, repo, workflow_path, test_file, test_module, environments_id, runner_labels,
+        day, repo, workflow_path, test_file, test_module, environments_id, runner_labels, trigger,
         sum(executed) AS executed_test_seconds,
         sum(skipped) AS skipped_test_seconds,
         sum(held) AS held_seconds,
@@ -191,7 +198,7 @@ FROM (
         -- over the job's, or by occupancy when its runs took no time). A test
         -- job without spans keeps its whole wall time either way.
         SELECT
-            day, repo, workflow_path, runner_labels,
+            day, repo, workflow_path, runner_labels, trigger,
             row.1 AS test_file,
             row.2 AS test_module,
             row.3 AS environments_id,
@@ -204,12 +211,12 @@ FROM (
                 wall_seconds * row.6 / busy_seconds) AS test_ratio
         FROM (
             -- Only the rows and per-job values, so unrolling them stays O(S).
-            SELECT day, repo, workflow_path, runner_labels, wall_seconds, busy_seconds, job_test_seconds, rows
+            SELECT day, repo, workflow_path, runner_labels, trigger, wall_seconds, busy_seconds, job_test_seconds, rows
             FROM job_rows
         )
         ARRAY JOIN rows AS row
     )
-    GROUP BY day, repo, workflow_path, test_file, test_module, environments_id, runner_labels
+    GROUP BY day, repo, workflow_path, test_file, test_module, environments_id, runner_labels, trigger
 ) AS g
 LEFT JOIN owners_by_key AS owner_module
     ON owner_module.repo = g.repo AND owner_module.file = g.test_file AND owner_module.module = g.test_module

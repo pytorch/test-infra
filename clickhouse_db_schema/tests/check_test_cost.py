@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Sanity checks for fortesting.test_cost after a refresh or a backfill.
+"""Sanity checks for ci.test_cost after a refresh or a backfill.
 
     python3 check_test_cost.py --days 2026-11-01:2026-11-03 [--repo pytorch/pytorch]
-                               [--table fortesting.test_cost] [--sample 20]
+                               [--table ci.test_cost] [--sample 20]
 
 Each check prints PASS, FAIL, WARN or INFO with the numbers it compared; the
 script exits 1 if any check fails or errors. Only the latest computed_at of
@@ -32,6 +32,9 @@ BOUNDS = "max_threads = 8, max_memory_usage = 8000000000, max_execution_time = 1
 REL = 1e-9  # relative tolerance for float sums of the same seconds
 ROUNDING = 0.0005  # seconds: each stored row rounds to the millisecond
 TEST_JOB = r"'(?:^|/ )test \\('"  # cost API's test job pattern, as the view uses it
+# Check 9: the table's trigger against each job's run (000005's rule).
+TABLE_GROUP = "trigger"
+RUN_GROUP = """if(w.event = 'push' AND w.head_branch IN ('main', 'master'), 'push:main', 'other')"""
 
 
 class Checker:
@@ -52,6 +55,15 @@ class Checker:
         self.sample = f" AND cityHash64(id) % {args.sample} = 0" if args.sample else ""
         self.http = migrate.Http("default")
         self.failed = 0
+        columns = migrate.rows_of(
+            self.http, f"DESCRIBE TABLE {self.table} FORMAT JSONEachRow"
+        )
+        # Tables made before test_cost had trigger fold into one group.
+        self.group = (
+            TABLE_GROUP
+            if any(c["name"] == "trigger" for c in columns)
+            else "'not recorded'"
+        )
 
     # ------------------------------------------------------------------ helpers
 
@@ -93,6 +105,7 @@ class Checker:
             j.id AS id,
             toDate(j.started_at) AS day,
             w.path AS workflow_path,
+            {RUN_GROUP} AS trigger_group,
             match(j.name, {TEST_JOB}) AS is_test_job,
             dateDiff('millisecond', j.started_at, j.completed_at) / 1000 AS wall,
             toUnixTimestamp64Milli(toDateTime64(j.started_at, 3)) AS job_start,
@@ -106,7 +119,7 @@ class Checker:
             LIMIT 1 BY id
         ) AS j
         LEFT JOIN (
-            SELECT id, any(path) AS path
+            SELECT id, any(path) AS path, any(event) AS event, any(head_branch) AS head_branch
             FROM default.workflow_run
             WHERE id IN (
                 SELECT run_id FROM default.workflow_job
@@ -121,6 +134,17 @@ class Checker:
             AND j.started_at >= j.created_at
             AND dateDiff('second', j.started_at, j.completed_at) BETWEEN 0 AND 86400
     )"""
+
+    @staticmethod
+    def fold(rows: List[dict], keys: Tuple[str, ...]) -> List[dict]:
+        """Sums of rows by keys, over the (day, workflow, trigger group) rows."""
+        out: Dict[tuple, dict] = {}
+        for r in rows:
+            acc = out.setdefault(tuple(r[k] for k in keys), {k: r[k] for k in keys})
+            for column, value in r.items():
+                if column not in ("d", "workflow_path", "trigger_group"):
+                    acc[column] = acc.get(column, 0) + float(value)
+        return list(out.values())
 
     @staticmethod
     def close(a: float, b: float, rows: int = 0) -> bool:
@@ -168,12 +192,14 @@ ORDER BY day""")
             )
 
     def table_sums(self) -> List[dict]:
-        """Per (day, workflow) sums and rule violations of the latest rows."""
+        """Per (day, workflow, trigger group) sums and rule violations of the
+        latest rows."""
         return self.rows(f"""
 WITH {self.latest()}
 SELECT
     toString(day) AS d,
     workflow_path,
+    {self.group} AS trigger_group,
     count() AS rows,
     sum(occupancy_runner_milliseconds) / 1000 AS occupancy,
     sum(test_ratio_runner_milliseconds) / 1000 AS test_ratio,
@@ -189,14 +215,15 @@ SELECT
         AS empty_file_rows,
     countIf(empty(runner_labels)) AS unlabeled_rows
 FROM latest
-GROUP BY day, workflow_path
-ORDER BY day, workflow_path""")
+GROUP BY day, workflow_path, trigger_group
+ORDER BY day, workflow_path, trigger_group""")
 
     def source_sums(self) -> List[dict]:
-        """Per (day, workflow), independently of the view: wall time of test
-        jobs, of other jobs with a report span, and of test jobs without one.
-        A report's span is its runs' first start to last end, clipped to the
-        job; every report has one test file, so this is the view's span."""
+        """Per (day, workflow, trigger group), independently of the view: wall
+        time of test jobs, of other jobs with a report span, and of test jobs
+        without one. A report's span is its runs' first start to last end,
+        clipped to the job; every report has one test file, so this is the
+        view's span."""
         return self.rows(f"""
 WITH
     {self.jobs_cte()},
@@ -217,6 +244,7 @@ WITH
 SELECT
     toString(day) AS d,
     workflow_path,
+    trigger_group,
     sumIf(wall, is_test_job) AS test_job_wall,
     sumIf(wall, NOT is_test_job AND id IN (SELECT id FROM spanned)) AS other_reporting_wall,
     sumIf(wall, is_test_job AND id NOT IN (SELECT id FROM spanned)) AS no_report_wall,
@@ -224,9 +252,9 @@ SELECT
     countIf(NOT is_test_job AND id IN (SELECT id FROM spanned)) AS other_reporting_jobs,
     countIf(is_test_job AND id NOT IN (SELECT id FROM spanned)) AS no_report_jobs
 FROM jobs
-GROUP BY day, workflow_path
+GROUP BY day, workflow_path, trigger_group
 HAVING test_jobs > 0 OR other_reporting_jobs > 0
-ORDER BY day, workflow_path""")
+ORDER BY day, workflow_path, trigger_group""")
 
     def check_methods_agree(self, sums: List[dict]) -> None:
         """2. Occupancy and test-time ratio split the same wall time."""
@@ -470,12 +498,51 @@ FROM (
                 f"{overhead:.1%} of reporting jobs' wall time had no test running",
             )
 
+    def check_triggers(self, sums: List[dict], source: List[dict]) -> None:
+        """9. Each day's hours by trigger group are its jobs' wall time by the
+        group of their run (event and branch); every row records a trigger."""
+        table = {
+            (r["d"], r["trigger_group"]): r
+            for r in self.fold(sums, ("d", "trigger_group"))
+        }
+        if all(group == "not recorded" for _, group in table):
+            self.report("INFO", "9 triggers", f"{self.table} records no trigger")
+            return
+        jobs = {
+            (r["d"], r["trigger_group"]): r["test_job_wall"] + r["other_reporting_wall"]
+            for r in self.fold(source, ("d", "trigger_group"))
+        }
+        keys = sorted(set(table) | set(jobs))
+        bad = [
+            k
+            for k in keys
+            if not self.close(
+                table[k]["occupancy"] if k in table else 0.0,
+                jobs.get(k, 0.0),
+                int(table[k]["rows"]) if k in table else 0,
+            )
+        ]
+        text = " | ".join(
+            f"{d} {g}: table {table[(d, g)]['occupancy'] / 3600 if (d, g) in table else 0:.1f} h "
+            f"vs jobs {jobs.get((d, g), 0) / 3600:.1f} h"
+            for d, g in keys
+        )
+        self.report("FAIL" if bad else "PASS", "9 triggers", text)
+
     def run(self) -> int:
         checks: List[Tuple[str, object]] = [("1 freshness", self.check_freshness)]
         for name, check in checks:
             self.guard(name, check)
-        sums = self.guard("table sums", self.table_sums)
-        source = self.guard("workflow_job and ci.runs sums", self.source_sums)
+        by_trigger = self.guard("table sums", self.table_sums)
+        source_by_trigger = self.guard(
+            "workflow_job and ci.runs sums", self.source_sums
+        )
+        # Checks 2 to 8 compare (day, workflow) groups, whatever the trigger.
+        keys = ("d", "workflow_path")
+        sums = None if by_trigger is None else self.fold(by_trigger, keys)
+        source = (
+            None if source_by_trigger is None else self.fold(source_by_trigger, keys)
+        )
         if sums is not None:
             self.guard("2 methods agree", lambda: self.check_methods_agree(sums))
             if source is not None:
@@ -491,6 +558,11 @@ FROM (
             self.guard("6 executed time", lambda: self.check_executed(sums))
             self.guard("7 owners", self.check_owners)
             self.guard("8 ratios", lambda: self.check_ratios(sums))
+            if source is not None:
+                self.guard(
+                    "9 triggers",
+                    lambda: self.check_triggers(by_trigger, source_by_trigger),
+                )
         return 1 if self.failed else 0
 
     def guard(self, name: str, fn) -> Optional[object]:
@@ -514,7 +586,7 @@ def main() -> int:
     parser.add_argument("--repo", default="pytorch/pytorch")
     parser.add_argument(
         "--table",
-        default="fortesting.test_cost",
+        default="ci.test_cost",
         help="a table, or @file.sql holding a SELECT",
     )
     parser.add_argument(

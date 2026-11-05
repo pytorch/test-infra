@@ -313,6 +313,7 @@ class RealisticCase(harness.ClickHouseTestCase):
                 row["test_module"],
                 row["environments_id"],
                 tuple(row["runner_labels"]),
+                row["trigger"],
             )
 
         got_by_key, want_by_key = {key(r): r for r in got}, {key(r): r for r in want}
@@ -580,8 +581,8 @@ class TestRealisticShards(RealisticCase):
         )
 
     def test_seeded_mixtures(self):
-        """Random mixes of shards, with and without C++, across workflows and
-        environments, under several seeds."""
+        """Random mixes of shards, with and without C++, across workflows,
+        environments and triggers, under several seeds."""
         for seed in (101, 202, 303):
             with self.subTest(seed=seed):
                 rng = random.Random(seed)
@@ -595,6 +596,8 @@ class TestRealisticShards(RealisticCase):
                         workflow=rng.choice(["pull", "trunk", "inductor"]),
                         config=rng.choice(["default", "crossref"]),
                         cpp=rng.random() < 0.5,
+                        event=("pull_request", "push", "push")[k],
+                        branch=("my-feature", "ciflow/trunk/123", "main")[k],
                     )
                     jobs.append(job)
                     runs += job_runs

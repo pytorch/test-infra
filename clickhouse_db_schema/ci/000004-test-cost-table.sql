@@ -1,14 +1,13 @@
 -- noqa: disable=CP05,LT01
 -- Runner time of test jobs by owner for the cost page
--- (/tests/[org]/[repo]/cost), staged in the sandbox before ci. 000005 adds
--- the view that fills it.
+-- (/tests/[org]/[repo]/cost). 000005 adds the view that fills it.
 
 -- Runner time of test jobs by day, repository, workflow file, test file,
--- test environment and runner labels: raw test time and both attributions,
--- occupancy and test-time ratio, each computed per job and then summed. Rows
--- with test_file '' are test jobs without test reports: their whole wall
--- time, environment unknown (their runner labels still name the runner).
--- Owners are joined at read time on (test_file, test_module), then
+-- test environment, runner labels and trigger: raw test time and both
+-- attributions, occupancy and test-time ratio, each computed per job and then
+-- summed. Rows with test_file '' are test jobs without test reports: their
+-- whole wall time, environment unknown (their runner labels still name the
+-- runner). Owners are joined at read time on (test_file, test_module), then
 -- test_file; owners keeps them as of the computation. Filled by
 -- test_cost_mv (000005), which recomputes recent days many times: readers
 -- take each (repo, day)'s latest computed_at. Times are whole milliseconds,
@@ -35,6 +34,10 @@ CREATE TABLE test_cost
     -- The jobs' runner labels, sorted (default.workflow_job.labels): the
     -- runner they asked for, on every row.
     `runner_labels` Array(LowCardinality(String)),
+    -- What started the jobs' run: push:main (a push to main or master) or
+    -- other, from default.workflow_run's event and head_branch; the values
+    -- are defined in test_cost_mv (000005) only.
+    `trigger` LowCardinality(String),
     -- The file's owners from ci.owners as of computed_at, by (test_file,
     -- test_module), then test_file; empty when none. Current owners come from
     -- ci.owners at read time.
@@ -65,6 +68,7 @@ ORDER BY (
     test_file,
     test_module,
     environments_id,
-    runner_labels
+    runner_labels,
+    trigger
 )
 ;
