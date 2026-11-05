@@ -42,6 +42,7 @@ import type { L3SummaryRow, TenureInfo } from "lib/crcr/l3Readiness";
 import {
   buildCriteriaRows,
   buildDemotionRows,
+  buildOperationalBaselineRows,
   tenureInfoFromL2Since,
 } from "lib/crcr/l3Readiness";
 import { L3_DEMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
@@ -188,14 +189,14 @@ function ReadinessChip({
   l3SummaryMap: Map<string, L3SummaryRow>;
   l3SummaryMapDemotion: Map<string, L3SummaryRow>;
 }) {
-  const promotionRows = buildCriteriaRows(
-    l3SummaryMap.get(repo) ?? null,
-    tenure
-  );
+  const policy = levelPolicyPresentation(level);
+  const promotionRows =
+    policy.primaryCriteria === "promotion"
+      ? buildCriteriaRows(l3SummaryMap.get(repo) ?? null, tenure)
+      : buildOperationalBaselineRows(l3SummaryMap.get(repo) ?? null);
   const demotionRows = buildDemotionRows(
     l3SummaryMapDemotion.get(repo) ?? null
   );
-  const policy = levelPolicyPresentation(level);
 
   if (!policy.primarySummaryLabel) {
     return <Chip label="Onboarding" size="small" variant="outlined" />;
@@ -214,7 +215,7 @@ function ReadinessChip({
           rows={demotionRows}
           variant="demotion"
         />
-      ) : (
+      ) : level === "L2" ? (
         <Chip
           label="Demotion policy begins at L3"
           size="small"

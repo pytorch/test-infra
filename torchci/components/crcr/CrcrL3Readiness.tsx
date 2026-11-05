@@ -21,6 +21,7 @@ import { fetcherHandleError } from "lib/GeneralUtils";
 import {
   buildCriteriaRows,
   buildDemotionRows,
+  buildOperationalBaselineRows,
   CriterionRow,
   formatMeasured,
   getL3ProtectionStatus,
@@ -134,7 +135,10 @@ export default function CrcrL3Readiness({
     return <Skeleton variant="rectangular" height={80} />;
   }
 
-  const promotionRows = buildCriteriaRows(promotion.summary, tenure.tenure);
+  const promotionRows =
+    policy.primaryCriteria === "promotion"
+      ? buildCriteriaRows(promotion.summary, tenure.tenure)
+      : buildOperationalBaselineRows(promotion.summary);
   const demotionRows = buildDemotionRows(demotion.summary);
   const rows = mergeCriteriaRows(promotionRows, demotionRows);
   const l3ProtectionStatus = getL3ProtectionStatus(
@@ -265,9 +269,11 @@ export default function CrcrL3Readiness({
                       <TableCell align="right">
                         <strong>{policy.primaryLabel}</strong>
                       </TableCell>
-                      <TableCell align="right">
-                        <strong>{policy.secondaryLabel}</strong>
-                      </TableCell>
+                      {policy.showSecondaryColumn && (
+                        <TableCell align="right">
+                          <strong>{policy.secondaryLabel}</strong>
+                        </TableCell>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -305,15 +311,17 @@ export default function CrcrL3Readiness({
                         <TableCell align="right">
                           <VerdictValue row={r.promotion} variant="promotion" />
                         </TableCell>
-                        <TableCell align="right">
-                          {policy.showDemotionSignals ? (
-                            <VerdictValue row={r.demotion} variant="demotion" />
-                          ) : (
-                            <Typography variant="body2" color="text.disabled">
-                              not applicable
-                            </Typography>
-                          )}
-                        </TableCell>
+                        {policy.showSecondaryColumn && (
+                          <TableCell align="right">
+                            {policy.showDemotionSignals ? (
+                              <VerdictValue row={r.demotion} variant="demotion" />
+                            ) : (
+                              <Typography variant="body2" color="text.disabled">
+                                not applicable
+                              </Typography>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

@@ -7,7 +7,9 @@ export type LevelPolicyPresentation = {
   secondaryLabel: string;
   primarySummaryLabel: string | null;
   secondarySummaryLabel: string | null;
+  primaryCriteria: "promotion" | "operational";
   showCriteria: boolean;
+  showSecondaryColumn: boolean;
   showDemotionSignals: boolean;
   showProtectionStatus: boolean;
   configuredStatus: string;
@@ -22,7 +24,9 @@ const PRESENTATIONS: Record<CrcrLevel, LevelPolicyPresentation> = {
     secondaryLabel: "Next decision",
     primarySummaryLabel: null,
     secondarySummaryLabel: null,
+    primaryCriteria: "promotion",
     showCriteria: false,
+    showSecondaryColumn: false,
     showDemotionSignals: false,
     showProtectionStatus: false,
     configuredStatus: "Configured: L1 · event delivery",
@@ -35,7 +39,9 @@ const PRESENTATIONS: Record<CrcrLevel, LevelPolicyPresentation> = {
     secondaryLabel: "Not evaluated at L2",
     primarySummaryLabel: "L3 promotion",
     secondarySummaryLabel: null,
+    primaryCriteria: "promotion",
     showCriteria: true,
+    showSecondaryColumn: true,
     showDemotionSignals: false,
     showProtectionStatus: false,
     configuredStatus: "Configured: L2 · callback-only",
@@ -43,12 +49,14 @@ const PRESENTATIONS: Record<CrcrLevel, LevelPolicyPresentation> = {
   L3: {
     title: "L3 Operational Health",
     description:
-      "The 14-day baseline shows L3 stability. A failed 7-day trigger can activate temporary protection while the backend remains configured at L3 until an allowlist change is merged. L4 progression remains a Core Maintainer decision.",
-    primaryLabel: "L3 stability baseline (14d)",
+      "The 14-day baseline shows the five operational L3 metrics; time spent at L2 is a promotion prerequisite and is not part of this view. A failed 7-day trigger can activate temporary protection while the backend remains configured at L3 until an allowlist change is merged. L4 progression remains a Core Maintainer decision.",
+    primaryLabel: "L3 health baseline (14d)",
     secondaryLabel: "Temporary-protection triggers (7d)",
-    primarySummaryLabel: "L3 stability",
+    primarySummaryLabel: "L3 health",
     secondarySummaryLabel: "Demotion",
+    primaryCriteria: "operational",
     showCriteria: true,
+    showSecondaryColumn: true,
     showDemotionSignals: true,
     showProtectionStatus: true,
     configuredStatus: "Configured: L3 · label-only checks",
@@ -56,13 +64,15 @@ const PRESENTATIONS: Record<CrcrLevel, LevelPolicyPresentation> = {
   L4: {
     title: "L4 Operational Status",
     description:
-      "At L4, the quantitative signals are an L3 stability baseline. L4 progression and configured-level changes remain Core Maintainer governance decisions. A failed review trigger requests review; it does not automatically demote this backend.",
-    primaryLabel: "L3 stability baseline (14d)",
-    secondaryLabel: "Review triggers (7d)",
-    primarySummaryLabel: "L3 stability",
-    secondarySummaryLabel: "Review triggers",
+      "The 14-day view shows the five operational L3 metrics for context. They do not define or automate L4 promotion, demotion, or review; L4 configured-level decisions remain Core Maintainer governance decisions.",
+    primaryLabel: "L3 health baseline (14d)",
+    secondaryLabel: "",
+    primarySummaryLabel: "L3 health",
+    secondarySummaryLabel: null,
+    primaryCriteria: "operational",
     showCriteria: true,
-    showDemotionSignals: true,
+    showSecondaryColumn: false,
+    showDemotionSignals: false,
     showProtectionStatus: false,
     configuredStatus: "Configured: L4 · merge-gating",
   },
@@ -76,7 +86,9 @@ const UNKNOWN_PRESENTATION: LevelPolicyPresentation = {
   secondaryLabel: "Demotion (7d)",
   primarySummaryLabel: "Promotion",
   secondarySummaryLabel: "Demotion",
+  primaryCriteria: "promotion",
   showCriteria: true,
+  showSecondaryColumn: true,
   showDemotionSignals: true,
   showProtectionStatus: false,
   configuredStatus: "Configured level unavailable",

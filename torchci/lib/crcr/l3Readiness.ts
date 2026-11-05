@@ -190,6 +190,17 @@ export function buildCriteriaRows(
   ];
 }
 
+// The operational baseline reuses the five quantitative L3 metrics without
+// the L2-tenure prerequisite. It is informational for L3/L4; only the full
+// promotion set authorizes an L2 -> L3 promotion decision.
+export function buildOperationalBaselineRows(
+  summary: L3Metrics | null
+): CriterionRow[] {
+  return METRICS.map((m) =>
+    buildRow(m.threshold, m.getMeasured(summary), m.format)
+  );
+}
+
 // L3 Demotion — the subset of metrics flagged `demotionRelevant` (no
 // tenure, no max exec/avg queue), evaluated over the 1-week demotion
 // window.
