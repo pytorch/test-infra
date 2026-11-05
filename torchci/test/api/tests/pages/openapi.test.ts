@@ -40,10 +40,14 @@ describe("the pages in /api/openapi.json", () => {
     expect(
       document.paths["/tests/{organization}/{repo}/commit/{sha}"].get
     ).toBe(operations.commitPage);
+    expect(
+      document.paths["/tests/{organization}/{repo}/pull/{number}"].get
+    ).toBe(operations.pullPage);
     for (const page of [
       operations.testsPage,
       operations.testPage,
       operations.commitPage,
+      operations.pullPage,
     ]) {
       expect(page.tags).toEqual(["pages"]);
       expect(page.summary).toMatch(/^HUD page/);
@@ -175,6 +179,31 @@ describe("the pages in /api/openapi.json", () => {
     }
   });
 
+  test("the pull request page takes the number the endpoint takes, and the commit page's parameters, which it passes on", () => {
+    const page = byName(operations.pullPage);
+    const endpoint = byName(operations.getPullRequest);
+    expect(
+      operations.pullPage.parameters.map((parameter: any) => [
+        parameter.in,
+        parameter.name,
+      ])
+    ).toEqual([
+      ["path", "organization"],
+      ["path", "repo"],
+      ["path", "number"],
+      ...Object.keys(COMMIT_PAGE_PARAMETER_DEFINITIONS).map((name) => [
+        "query",
+        name,
+      ]),
+    ]);
+    expect(page.number).toEqual(endpoint.number);
+    const commitPage = byName(operations.commitPage);
+    for (const name of Object.keys(COMMIT_PAGE_PARAMETER_DEFINITIONS)) {
+      expect(page[name]).toEqual(commitPage[name]);
+    }
+    expect(operations.pullPage.description).toMatch(/passed on/);
+  });
+
   test("the API and the pages name each other", () => {
     expect(operations.listTests.description).toMatch(/testsPage/);
     expect(operations.getTest.description).toMatch(/testPage/);
@@ -185,6 +214,9 @@ describe("the pages in /api/openapi.json", () => {
     expect(operations.commitPage.description).toMatch(/getCommitSummary/);
     expect(operations.commitPage.description).toMatch(/listCommitRuns/);
     expect(operations.getCommitSummary.description).toMatch(/commit page/);
+    expect(operations.pullPage.description).toMatch(/getPullRequest/);
+    expect(operations.pullPage.description).toMatch(/commitPage/);
+    expect(operations.getPullRequest.description).toMatch(/pullPage/);
   });
 
   test("every response that leads to a page says so", () => {
@@ -222,5 +254,13 @@ describe("the pages in /api/openapi.json", () => {
         /commitPage/
       );
     }
+    expect(schemas.PullRequestHead.properties.hud_url).toMatchObject({
+      type: "string",
+      format: "uri",
+    });
+    expect(schemas.PullRequestHead.required).toContain("hud_url");
+    expect(schemas.PullRequestHead.properties.hud_url.description).toMatch(
+      /pullPage/
+    );
   });
 });

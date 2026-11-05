@@ -3,6 +3,7 @@ import {
   pageQueryString,
   PageQueryValues,
   pageUrlParams,
+  pullPagePath,
   TEST_CONFIG_VARIABLE,
   TEST_PAGE_PARAMETER_DEFINITIONS,
   testPagePath,
@@ -58,6 +59,12 @@ export function testPageUrl(
 // same URL.
 export function commitPageUrl(repo: string, sha: string): string {
   return `${hudOrigin()}${commitPagePath(repo, sha)}`;
+}
+
+// The pull request's page, bare: it opens the commit page of the pull
+// request's newest head when it is opened, so the link stays current.
+export function pullPageUrl(repo: string, number: number): string {
+  return `${hudOrigin()}${pullPagePath(repo, number)}`;
 }
 
 // The test's page opened on the runs an entry's health was counted over,

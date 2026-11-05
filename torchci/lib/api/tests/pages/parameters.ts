@@ -14,6 +14,7 @@ import {
   uint64String,
   WindowSchema,
 } from "lib/api/tests/parameters";
+import { PullRequestNumberSchema } from "lib/api/tests/pull/number";
 import { TestIdSchema } from "lib/api/tests/test/parameters";
 import {
   RUN_LIST_PARAMETER_DEFINITIONS,
@@ -42,6 +43,7 @@ import { z } from "zod/v4";
 export const TESTS_PAGE_PATH = "/tests/{organization}/{repo}";
 export const TEST_PAGE_PATH = "/tests/{organization}/{repo}/test/{test_id}";
 export const COMMIT_PAGE_PATH = "/tests/{organization}/{repo}/commit/{sha}";
+export const PULL_PAGE_PATH = "/tests/{organization}/{repo}/pull/{number}";
 
 // The table page of a repository given as owner/name.
 export function testsPagePath(repo: string): string {
@@ -60,6 +62,12 @@ export function testPagePath(repo: string, testId: string): string {
 // The page of one commit's tests: the canonical page, with no parameters.
 export function commitPagePath(repo: string, sha: string): string {
   return `${testsPagePath(repo)}/commit/${encodeURIComponent(sha)}`;
+}
+
+// The page of a pull request, which opens the commit page of its newest
+// head: the canonical page, with no parameters.
+export function pullPagePath(repo: string, number: number): string {
+  return `${testsPagePath(repo)}/pull/${number}`;
 }
 
 // Each half of the API's repo, owner/name, as a path segment.
@@ -85,6 +93,13 @@ export const TEST_PAGE_PATH_PARAMETERS = {
 export const COMMIT_PAGE_PATH_PARAMETERS = {
   ...TESTS_PAGE_PATH_PARAMETERS,
   sha: CommitShaSchema,
+};
+
+// The pull request page's path names the repository and the number; its
+// query is the commit page's, which it passes on (pages/openapi.ts).
+export const PULL_PAGE_PATH_PARAMETERS = {
+  ...TESTS_PAGE_PATH_PARAMETERS,
+  number: PullRequestNumberSchema,
 };
 
 // ---------------------------------------------------------------------------

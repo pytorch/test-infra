@@ -22,6 +22,7 @@ record design experiments; their measurements are historical.
 | Workflow metadata lookup                           | [workflow-query-validation.md](test/runs/workflow-query-validation.md), `scripts/validateRunWorkflowQuery.cjs`                                     |
 | Runs grouped by commit (`group_by=commit`)         | [grid-query-validation.md](test/runs/grid-query-validation.md), `scripts/validateRunGridQuery.cjs`                                                 |
 | Run detail by execution UUID                       | [run/query-validation.md](run/query-validation.md)                                                                                                 |
+| Pull request head: record and the heads' runs      | [pull/query-validation.md](pull/query-validation.md)                                                                                               |
 
 ## Current contract
 

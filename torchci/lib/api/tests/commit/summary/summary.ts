@@ -13,6 +13,7 @@ import {
 } from "lib/api/tests/commit/summary/types";
 import { CI_WORKLOAD_HEAVY, RUNS_RETENTION_DAYS } from "lib/api/tests/database";
 import { commitPageUrl } from "lib/api/tests/pages/links";
+import { timed } from "lib/api/tests/timed";
 import { queryClickhouse } from "lib/clickhouse";
 import { titleFirstLine, titleSuffix } from "lib/commitTitle";
 import { BUNDLE_STATUSES, BundleStatus } from "lib/runOutcomes";
@@ -69,16 +70,6 @@ interface CountsRow {
 // first by name, so the answer does not change from one request to the next.
 function preferredBranch(branches: readonly string[]): string | undefined {
   return branches.includes("main") ? "main" : [...branches].sort()[0];
-}
-
-function timed<Result>(
-  work: Promise<Result>
-): Promise<{ result: Result; duration_ms: number }> {
-  const started = performance.now();
-  return work.then((result) => ({
-    result,
-    duration_ms: Math.round(performance.now() - started),
-  }));
 }
 
 function toCounts(rows: CountsRow[]): CommitTestCounts {
