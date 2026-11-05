@@ -658,15 +658,6 @@
       "rocm"
     ]
   ],
-  "test_foreach_copy_with_different_device_inputs__foreach_copy_cuda_float64 (__main__.TestForeachDeviceCUDA)": [
-    "201707",
-    "https://github.com/pytorch/pytorch/issues/201707",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_fully_shard_alloc_from_pg (__main__.TestFullyShardAllocFromPG)": [
     "199725",
     "https://github.com/pytorch/pytorch/issues/199725",
