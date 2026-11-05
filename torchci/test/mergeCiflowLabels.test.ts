@@ -200,14 +200,27 @@ describe("addCiflowLabelsAtMerge", () => {
     handleScope(scope);
   });
 
-  test("skips a PR with 10 or more rows below it for the next PR down that needs the label", async () => {
-    // Merging 12: PR 11 has 10 rows below it and cannot run CI; PR 10 has 9.
-    const below = plainBelow(12);
+  test("labels the nearest PR above that can run CI for a needing PR with 10 or more rows below it", async () => {
+    // Merging 13: PRs 12 and 11 have 11 and 10 rows below them and cannot run
+    // CI; the merged PR contains their changes and can.
+    const below = plainBelow(13);
     below[0].files = [XPU];
     below[1].files = [XPU];
-    const scope = run({ number: 12, files: ["torch/a.py"] }, below);
-    expectAddLabels(scope, 10, ["ciflow/xpu"]);
-    await label(12);
+    below[2].files = [XPU];
+    const scope = run({ number: 13, files: ["torch/a.py"] }, below);
+    expectAddLabels(scope, 13, ["ciflow/xpu"]);
+    await label(13);
+    expect(log.error).not.toHaveBeenCalled();
+    handleScope(scope);
+  });
+
+  test("labels a PR above that carries ciflow/trunk before the merged PR", async () => {
+    const below = plainBelow(13);
+    below[0].labels = ["ciflow/trunk"];
+    below[1].files = [XPU];
+    const scope = run({ number: 13, files: ["torch/a.py"] }, below);
+    expectAddLabels(scope, 12, ["ciflow/xpu"]);
+    await label(13);
     expect(log.error).not.toHaveBeenCalled();
     handleScope(scope);
   });
