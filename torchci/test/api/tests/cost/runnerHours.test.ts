@@ -7,6 +7,7 @@ import {
   getRunnerHours,
   runnerHoursRows,
   shortDeviceNames,
+  unprobedLabels,
 } from "lib/api/tests/cost/runnerHours";
 import { RunnerHoursSchema } from "lib/api/tests/cost/types";
 import * as clickhouse from "lib/clickhouse";
@@ -78,27 +79,104 @@ const ROWS = [
 describe("cost runner-hours", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  test("folds runner labels and files away: one row per owner, workflow, machine and machine source, largest first, empty cells dropped", () => {
+  test("folds files away and keeps runner labels: one row per owner, workflow, machine, machine source and label, largest first, empty cells dropped", () => {
     const row = (
       owner: string,
       workflow: string,
       machine: string,
       machine_source: string,
+      label: string,
       runner_hours: number
-    ) => ({ owner, workflow, machine, machine_source, runner_hours });
+    ) => ({ owner, workflow, machine, machine_source, label, runner_hours });
     expect(runnerHoursRows(ROWS)).toEqual([
-      row("unattributed:no_test_reports", "pull", "", "none", 57),
-      row("inductor", "trunk", "NVIDIA L4", "environment", 40),
-      row("inductor", "pull", "Linux x86_64 avx512", "environment", 5),
+      row(
+        "unattributed:no_test_reports",
+        "pull",
+        "",
+        "none",
+        "linux.12xlarge",
+        50
+      ),
+      row(
+        "inductor",
+        "trunk",
+        "NVIDIA L4",
+        "environment",
+        "linux.g6.4xlarge",
+        30
+      ),
+      row(
+        "inductor",
+        "trunk",
+        "NVIDIA L4",
+        "environment",
+        "l-x86iavx512-8-64-l4",
+        10
+      ),
+      row(
+        "unattributed:no_test_reports",
+        "pull",
+        "",
+        "none",
+        "windows.4xlarge",
+        7
+      ),
+      row(
+        "inductor",
+        "pull",
+        "Linux x86_64 avx512",
+        "environment",
+        "linux.2xlarge",
+        5
+      ),
       row(
         "unattributed:no_test_reports",
         "inductor",
         "NVIDIA L4",
         "runner_label",
+        "linux.g6.4xlarge",
         4
       ),
-      row("unattributed:no_owner", "trunk", "NVIDIA L4", "environment", 3),
+      // The file folds away; its two runner labels stay apart.
+      row(
+        "unattributed:no_owner",
+        "trunk",
+        "NVIDIA L4",
+        "environment",
+        "linux.g6.4xlarge",
+        2
+      ),
+      row(
+        "unattributed:no_owner",
+        "trunk",
+        "NVIDIA L4",
+        "environment",
+        "l-x86iavx512-8-64-l4",
+        1
+      ),
     ]);
+  });
+
+  test("loses no runner-hour: the rows hold the query's, known machines and unknown labels split them, and each bucket's contributors are its rows", () => {
+    const sum = (rows: { runner_hours: number }[]) =>
+      rows.reduce((a, r) => a + r.runner_hours, 0);
+    const rows = runnerHoursRows(ROWS);
+    expect(sum(rows)).toBe(sum(ROWS));
+    expect(
+      sum(rows.filter((r) => r.machine !== "")) + sum(unprobedLabels(ROWS))
+    ).toBe(sum(ROWS));
+    for (const bucket of [
+      "unattributed:no_test_reports",
+      "unattributed:no_owner",
+    ]) {
+      expect(
+        sum(costContributors(ROWS).filter((c) => c.bucket === bucket))
+      ).toBe(sum(rows.filter((r) => r.owner === bucket)));
+    }
+    // The same cell asked twice adds up; it is never kept twice or dropped.
+    expect(runnerHoursRows([...ROWS, ...ROWS])).toEqual(
+      rows.map((r) => ({ ...r, runner_hours: 2 * r.runner_hours }))
+    );
   });
 
   test("the unattributed buckets by runner label (no test reports) and test file (no owner), largest first", () => {

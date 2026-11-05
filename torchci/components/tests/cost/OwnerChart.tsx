@@ -1,5 +1,7 @@
-import { Box, Tooltip, Typography, useTheme } from "@mui/material";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import CostFrame from "components/tests/cost/CostFrame";
+import CostMachineKey from "components/tests/cost/CostMachineKey";
 import InfoTip from "components/tests/cost/InfoTip";
 import KeyButton from "components/tests/cost/KeyButton";
 import MachineKey from "components/tests/cost/MachineKey";
@@ -8,26 +10,38 @@ import TextButton from "components/tests/TextButton";
 import TextLink from "components/tests/TextLink";
 import type { WorkflowPreset } from "lib/api/tests/cost/types";
 import { paintFill, paleColor } from "lib/tests/cost/colors";
-import { hoursLabel, ownerTestsHref, shareLabel } from "lib/tests/cost/query";
+import {
+  amountLabel,
+  hoursLabel,
+  ownerTestsHref,
+  rateLabel,
+  shareLabel,
+  UNIT_NAMES,
+} from "lib/tests/cost/query";
+import { averageRate, costMark } from "lib/tests/cost/rates";
 import {
   bucketInfo,
   type CostView,
   highlightedHours,
   highlightName,
   isScope,
+  type MachineRunners,
   type OwnerRow,
   ownerRows,
   type PreparedHours,
   rowMix,
+  runnerBreakdown,
   scopeName,
   segments,
 } from "lib/tests/cost/runnerHours";
 import { niceTicks } from "lib/tests/cost/ticks";
-import { useState } from "react";
+import { type ReactElement, type ReactNode, useState } from "react";
 
 const ROW_HEIGHT = 24;
 const BAR_HEIGHT = 14;
-const COLUMNS = "200px minmax(0, 1fr) 178px";
+
+const COST_METHOD =
+  "Runner-hours (as in the chart above) × each runner's $/h from your rates. Runners without a rate count $0; set one under ▸ in the key.";
 const DIMMED = 0.35;
 
 export interface OwnerChartProps {
@@ -47,6 +61,18 @@ export interface OwnerChartProps {
   onToggleMachines: (_machines: string[]) => void;
   onClearHighlight: () => void;
   onClearMachines: () => void;
+  // In $, opens a row's machines and runners (RunnersDrawer), and the row
+  // it has open.
+  onOpenRunners?: (_row: OwnerRow) => void;
+  runnersKey?: string | null;
+  // In $: the runners' rates are editable in the key (RateCell), the file's
+  // marking the edited ones.
+  onRateChange?: (_key: string, _rate: number | null) => void;
+  originalRates?: Readonly<Record<string, number>>;
+  // In $: the frame folds, and a line under its band names the rates file.
+  open?: boolean;
+  onOpenChange?: (_open: boolean) => void;
+  banner?: ReactNode;
 }
 
 // The scope keys on a card's band: every workflow, each preset, and the
@@ -97,6 +123,23 @@ export function ScopeKeys({
   );
 }
 
+// A tooltip that follows the pointer, its lines kept.
+function lineTip(title: string, child: ReactElement, key?: string) {
+  return (
+    <Tooltip
+      key={key}
+      title={title}
+      followCursor
+      enterDelay={150}
+      slotProps={{
+        tooltip: { sx: { whiteSpace: "pre-line", maxWidth: 420 } },
+      }}
+    >
+      {child}
+    </Tooltip>
+  );
+}
+
 // A bar's pieces as the tooltip lists them: each machine once, its
 // estimated hours (a piece of their own in the bar) folded into its line.
 function machineLines(pieces: { label: string; hours: number }[]) {
@@ -115,13 +158,16 @@ function machineLines(pieces: { label: string; hours: number }[]) {
   return Array.from(lines.values());
 }
 
-// The scope's runner-hours by owner, largest first: the top owners, every
-// highlighted one, the rest folded into "N more owners", then the
-// unattributed hours, so the rows add up to the scope. Split by machine,
-// each bar is its machines in a fixed order; highlighting machines moves
-// their pieces to the start of every bar and paints the rest pale;
-// highlighting owners dims the other rows. Only the scope moves the bars.
-// The machine key to the right is the legend and the machine picker.
+// The scope's runner-hours (or $, in the cost panel) by owner, largest
+// first: the top owners, every highlighted one, the rest folded into "N more
+// owners", then the unattributed hours, so the rows add up to the scope.
+// Split by machine, each bar is its machines in a fixed order; highlighting
+// machines moves their pieces to the start of every bar and paints the rest
+// pale; highlighting owners dims the other rows. Only the scope and the unit
+// move the bars. In $, each piece's tooltip names the runners it ran on, a
+// mark on each bar is its share of the runner-hours that have a rate, and a
+// row's › opens its machines and runners. The machine key to the right is
+// the legend and the machine picker.
 export default function OwnerChart({
   repo,
   prepared,
@@ -138,12 +184,32 @@ export default function OwnerChart({
   onToggleMachines,
   onClearHighlight,
   onClearMachines,
+  onOpenRunners,
+  runnersKey = null,
+  onRateChange,
+  originalRates,
+  open,
+  onOpenChange,
+  banner,
 }: OwnerChartProps) {
   const theme = useTheme();
+  const unit = prepared.unit;
+  const dollars = unit === "cost";
+  const amount = (value: number) => amountLabel(unit, value);
+  // Runner names matter only where they are priced: the pieces' runner
+  // tooltips and the › drawer are $'s.
+  const columns = `200px minmax(0, 1fr) ${dollars ? 200 : 178}px`;
   const [expanded, setExpanded] = useState(false);
   const rows = ownerRows(view, expanded, "grouped");
   const total = view.scopeTotal || 1;
-  const ticks = niceTicks(Math.max(1, ...rows.map((r) => r.hours)));
+  // In $, each row's share of the runner-hours that have a rate, on the
+  // axis's share scale: where its bar would end at the scope's average $/h.
+  // A bar past its mark costs more per hour than average.
+  const markOf = (row: OwnerRow) =>
+    dollars && row.kind !== "less" ? costMark(view, row.owners) : 0;
+  const ticks = niceTicks(
+    Math.max(1, ...rows.map((r) => Math.max(r.hours, markOf(r))))
+  );
   const axisMax = ticks[ticks.length - 1];
   const step = ticks[1] ?? axisMax;
   const name = scopeName(prepared, view);
@@ -158,13 +224,16 @@ export default function OwnerChart({
 
   const keys = (
     <Box sx={{ display: "flex", gap: 0.75, alignItems: "center" }}>
-      <ScopeKeys
-        presets={presets}
-        scope={scope}
-        scopeLabel={name}
-        onScopeChange={onScopeChange}
-        showCustom
-      />
+      {/* In $ the scope is the runner-hours chart's, named in the caption. */}
+      {!dollars && (
+        <ScopeKeys
+          presets={presets}
+          scope={scope}
+          scopeLabel={name}
+          onScopeChange={onScopeChange}
+          showCustom
+        />
+      )}
       <HeaderCheck
         label="Split by machine"
         title="Split bars by machine"
@@ -179,12 +248,19 @@ export default function OwnerChart({
   const bar = (row: OwnerRow, act: () => void, pressed: boolean) => {
     const mix = rowMix(prepared, view, row.owners);
     const estimated = rowMix(prepared, view, row.owners, true);
-    const pieces = split
+    const pieces: {
+      key: string;
+      label: string;
+      hours: number;
+      fill: string;
+      machines: number[];
+    }[] = split
       ? segments(prepared, mix, view.machines, estimated).map((s) => ({
           key: s.key,
           label: s.label,
           hours: s.hours,
           fill: paintFill(theme, prepared, s.paint),
+          machines: s.machines,
         }))
       : machinesOn
       ? [
@@ -193,12 +269,14 @@ export default function OwnerChart({
             label: "highlighted machines",
             hours: highlightedHours(mix, view.machines),
             fill: theme.palette.primary.main,
+            machines: [],
           },
           {
             key: "rest",
             label: "other machines",
             hours: row.hours - highlightedHours(mix, view.machines),
             fill: paleColor(theme),
+            machines: [],
           },
         ]
       : [
@@ -208,72 +286,170 @@ export default function OwnerChart({
             hours: row.hours,
             fill:
               row.kind === "bucket" ? bucketGrey : theme.palette.primary.main,
+            machines: [],
           },
         ];
+    const sum = (m: Map<string, number>) =>
+      row.owners.reduce((a, o) => a + (m.get(o) ?? 0), 0);
+    const runnerHours = sum(view.ownerRunnerHours);
+    const unpriced = sum(view.ownerUnpriced);
+    const head = `${row.label}: ${amount(row.hours)} · ${shareLabel(
+      row.hours / total
+    )} of ${name}`;
+    const rate = averageRate(row.hours, runnerHours, unpriced);
+    const coverage = dollars
+      ? `${hoursLabel(runnerHours)} h${
+          unpriced > 0.5 ? ` (${hoursLabel(unpriced)} h with no rate)` : ""
+        } · ${shareLabel(
+          (runnerHours - unpriced) /
+            (view.scopeRunnerHours - view.scopeUnpriced || 1)
+        )} of priced hours${rate !== null ? ` · ${rateLabel(rate)} avg` : ""}`
+      : "";
+    const action =
+      row.kind === "more" || row.kind === "less"
+        ? "Click to list them"
+        : dollars
+        ? "Click to highlight · › for runners"
+        : "Click to highlight";
     const detail = [
-      `${row.label}: ${hoursLabel(row.hours)} h · ${shareLabel(
-        row.hours / total
-      )} of ${name}`,
+      head,
+      coverage,
       ...machineLines(pieces)
         .slice(0, 10)
         .map(
           (l) =>
-            `${l.label}: ${hoursLabel(l.hours)} h${
-              l.estimated > 0 ? `, ${hoursLabel(l.estimated)} h est.` : ""
+            `${l.label}: ${amount(l.hours)}${
+              l.estimated > 0 ? `, ${amount(l.estimated)} est.` : ""
             } (${shareLabel(l.hours / (row.hours || 1))})`
         ),
-      row.kind === "more" || row.kind === "less"
-        ? "Click to list them"
-        : "Click to highlight",
-    ].join("\n");
-    return (
-      <Tooltip
-        title={detail}
-        followCursor
-        enterDelay={150}
-        slotProps={{
-          tooltip: { sx: { whiteSpace: "pre-line", maxWidth: 420 } },
+      action,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    // Split, each piece names what it ran on: a machine's runners, or the
+    // largest of the machines it holds.
+    const breakdown = split
+      ? new Map(
+          runnerBreakdown(prepared, view, row.owners).map((b) => [b.machine, b])
+        )
+      : null;
+    const pieceDetail = (p: (typeof pieces)[number]) => {
+      const parts = p.machines
+        .map((m) => breakdown?.get(m))
+        .filter((b): b is MachineRunners => b !== undefined);
+      const value = parts.reduce((a, b) => a + b.value, 0);
+      const hours = parts.reduce((a, b) => a + b.hours, 0);
+      const missing = parts.reduce((a, b) => a + b.unpriced, 0);
+      const label = p.label.replace(/ \(est\.\)$/, "");
+      // A machine's reported and estimated pieces share its runners: each
+      // gives its own amount, of the machine's when it is one of two.
+      const lines = [
+        head,
+        coverage,
+        `${p.label}: ${amount(p.hours)} (${shareLabel(
+          p.hours / (row.hours || 1)
+        )})${
+          p.hours < value - 1e-9
+            ? ` of ${label}'s ${amount(value)}`
+            : dollars
+            ? ` · ${hoursLabel(hours)} h`
+            : ""
+        }`,
+        dollars && missing > 0.5 ? `${hoursLabel(missing)} h with no rate` : "",
+      ];
+      if (parts.length === 1) {
+        const runners = parts[0].runners;
+        lines.push(`Runners, share of its ${UNIT_NAMES[unit]}:`);
+        for (const r of runners.slice(0, 4)) {
+          lines.push(
+            `• ${r.label}: ${
+              !dollars
+                ? shareLabel(r.hours / (hours || 1))
+                : r.rate === null
+                ? `no rate · ${hoursLabel(r.hours)} h`
+                : `${shareLabel(r.value / (value || 1))} · ${rateLabel(r.rate)}`
+            }`
+          );
+        }
+        if (runners.length > 4) lines.push(`+ ${runners.length - 4} more`);
+      } else {
+        const largest = [...parts].sort((a, b) => b.value - a.value);
+        for (const b of largest.slice(0, 4)) {
+          lines.push(
+            `• ${prepared.machines[b.machine]}: ${shareLabel(
+              b.value / (value || 1)
+            )}`
+          );
+        }
+        if (largest.length > 4) {
+          lines.push(`+ ${largest.length - 4} more machines`);
+        }
+      }
+      if (label !== p.label) lines.push("Striped: machine estimated");
+      lines.push(action);
+      return lines.filter(Boolean).join("\n");
+    };
+    const mark = markOf(row);
+    const barBox = (
+      <Box
+        role="button"
+        tabIndex={0}
+        aria-label={
+          row.kind === "more"
+            ? `List the ${row.owners.length} smaller owners`
+            : `Highlight ${row.label}: ${amount(row.hours)}`
+        }
+        aria-pressed={row.kind === "more" ? undefined : pressed}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            act();
+          }
+        }}
+        sx={{
+          height: ROW_HEIGHT,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          outline: "none",
+          "&:focus-visible": {
+            boxShadow: `inset 0 0 0 2px ${theme.palette.primary.main}`,
+            borderRadius: "2px",
+          },
+          backgroundImage: `linear-gradient(to right, ${theme.palette.divider} 1px, transparent 1px)`,
+          backgroundSize: `${(step / axisMax) * 100}% 100%`,
+          position: "relative",
         }}
       >
-        <Box
-          role="button"
-          tabIndex={0}
-          aria-label={
-            row.kind === "more"
-              ? `List the ${row.owners.length} smaller owners`
-              : `Highlight ${row.label}: ${hoursLabel(row.hours)} runner-hours`
-          }
-          aria-pressed={row.kind === "more" ? undefined : pressed}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              act();
-            }
-          }}
-          sx={{
-            height: ROW_HEIGHT,
-            display: "flex",
-            alignItems: "center",
-            outline: "none",
-            "&:focus-visible": {
-              boxShadow: `inset 0 0 0 2px ${theme.palette.primary.main}`,
-              borderRadius: "2px",
-            },
-            backgroundImage: `linear-gradient(to right, ${theme.palette.divider} 1px, transparent 1px)`,
-            backgroundSize: `${(step / axisMax) * 100}% 100%`,
-          }}
-        >
+        {mark > 0 && (
           <Box
             sx={{
-              width: `${(100 * row.hours) / axisMax}%`,
-              height: BAR_HEIGHT,
-              display: "flex",
-              gap: "1px",
+              position: "absolute",
+              left: `${(100 * mark) / axisMax}%`,
+              top: "50%",
+              width: "2px",
+              height: `${BAR_HEIGHT + 6}px`,
+              transform: "translate(-1px, -50%)",
+              borderRadius: "1px",
+              backgroundColor: "text.primary",
+              boxShadow: `0 0 0 1px ${theme.palette.background.paper}`,
+              pointerEvents: "none",
+              zIndex: 1,
             }}
-          >
-            {pieces
-              .filter((p) => p.hours > 0)
-              .map((p) => (
+          />
+        )}
+        <Box
+          sx={{
+            width: `${(100 * row.hours) / axisMax}%`,
+            height: BAR_HEIGHT,
+            display: "flex",
+            gap: "1px",
+          }}
+        >
+          {pieces
+            .filter((p) => p.hours > 0)
+            .map((p) => {
+              const piece = (
                 <Box
                   key={p.key}
                   sx={{
@@ -285,19 +461,26 @@ export default function OwnerChart({
                     borderRadius: "2px",
                   }}
                 />
-              ))}
-          </Box>
+              );
+              return split && dollars
+                ? lineTip(pieceDetail(p), piece, p.key)
+                : piece;
+            })}
         </Box>
-      </Tooltip>
+      </Box>
     );
+    return split && dollars ? barBox : lineTip(detail, barBox);
   };
 
   return (
     <Box>
       <CostFrame
-        title="Runner-hours by owner"
-        description={method}
+        title={dollars ? "Cost by owner" : "Runner-hours by owner"}
+        description={dollars ? COST_METHOD : method}
         keys={keys}
+        open={open}
+        onOpenChange={onOpenChange}
+        legend={banner}
         loading={loading}
       >
         <Box
@@ -305,7 +488,7 @@ export default function OwnerChart({
             display: "grid",
             gridTemplateColumns: {
               xs: "minmax(0, 1fr)",
-              lg: "minmax(0, 1fr) 400px",
+              lg: `minmax(0, 1fr) ${dollars ? 440 : 400}px`,
             },
             columnGap: 4,
             rowGap: 2,
@@ -315,7 +498,10 @@ export default function OwnerChart({
         >
           <Box sx={{ typography: "body2", minWidth: 0 }}>
             <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
-              {hoursLabel(view.scopeTotal)} runner-hours in {name}
+              {dollars
+                ? amount(view.scopeTotal)
+                : `${hoursLabel(view.scopeTotal)} runner-hours`}{" "}
+              in {name}
               {view.scope.size > 0
                 ? ` (${shareLabel(
                     view.scopeTotal / (prepared.total || 1)
@@ -330,7 +516,7 @@ export default function OwnerChart({
                     component="span"
                     sx={{ color: "primary.main", fontWeight: 500 }}
                   >
-                    {hoursLabel(view.highlightTotal)} h
+                    {amount(view.highlightTotal)}
                   </Box>{" "}
                   ({shareLabel(view.highlightTotal / total)}){" "}
                   <TextButton
@@ -344,191 +530,278 @@ export default function OwnerChart({
                 </>
               )}
             </Typography>
-            {/* The axis: hours, and their share of the scope beneath. */}
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: COLUMNS,
-                columnGap: 1.5,
-                mb: 0.5,
-              }}
-            >
+            {dollars && view.scopeTotal <= 0 ? (
               <Typography
-                variant="caption"
-                sx={{
-                  color: "text.secondary",
-                  textAlign: "right",
-                  lineHeight: 1.25,
-                }}
+                variant="body2"
+                sx={{ color: "text.secondary", py: 2 }}
               >
-                runner-hours
-                <br />
-                share of {hoursLabel(view.scopeTotal)}
+                No runner in {name} has a rate: set one under ▸ in the key.
               </Typography>
-              <Box sx={{ position: "relative", height: 32 }}>
-                {ticks.map((tick) => (
-                  <Typography
-                    key={tick}
-                    variant="caption"
-                    sx={{
-                      position: "absolute",
-                      left: `${(tick / axisMax) * 100}%`,
-                      transform: tick === 0 ? "none" : "translateX(-50%)",
-                      color: "text.secondary",
-                      lineHeight: 1.25,
-                      textAlign: "center",
-                      fontVariantNumeric: "tabular-nums",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <Box
-                      component="span"
-                      sx={{ color: "text.primary", fontWeight: 500 }}
-                    >
-                      {tick === 0 ? "0" : `${hoursLabel(tick)} h`}
-                    </Box>
-                    <br />
-                    {tick === 0 ? "" : shareLabel(tick / total)}
-                  </Typography>
-                ))}
-              </Box>
-              <Box />
-            </Box>
-            {rows.map((row, i) => {
-              const selected = row.owners.some((o) => view.owners.has(o));
-              const folding = row.kind === "more" || row.kind === "less";
-              const mix = machinesOn
-                ? rowMix(prepared, view, row.owners)
-                : null;
-              const onMachines =
-                mix === null ? 0 : highlightedHours(mix, view.machines);
-              // Highlighted owners have rows of their own, so a folded row
-              // is never highlighted and dims with the rest.
-              const dim = ownersOn && !selected;
-              const toggle = () =>
-                folding ? setExpanded(!expanded) : onToggleOwners(row.owners);
-              return (
+            ) : (
+              <>
+                {/* The axis: hours, and their share of the scope beneath. */}
                 <Box
-                  key={row.key}
-                  onClick={toggle}
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: COLUMNS,
+                    gridTemplateColumns: columns,
                     columnGap: 1.5,
-                    alignItems: "center",
-                    cursor: "pointer",
-                    opacity: dim ? DIMMED : 1,
-                    transition: "opacity 150ms",
-                    borderTop:
-                      i === firstBucket
-                        ? `1px solid ${theme.palette.divider}`
-                        : undefined,
-                    mt: i === firstBucket ? 0.5 : 0,
-                    pt: i === firstBucket ? 0.5 : 0,
-                    "&:hover": { backgroundColor: "action.hover" },
+                    mb: 0.5,
                   }}
                 >
-                  <Box
+                  <Typography
+                    variant="caption"
                     sx={{
+                      color: "text.secondary",
                       textAlign: "right",
-                      overflow: "hidden",
-                      whiteSpace: "nowrap",
-                      textOverflow: "ellipsis",
-                      fontWeight: selected && !folding ? 600 : 400,
+                      lineHeight: 1.25,
                     }}
-                    title={row.kind === "bucket" ? undefined : row.label}
                   >
-                    {selected && !folding ? "✓ " : ""}
-                    {row.kind === "owner" ? (
-                      <span onClick={(event) => event.stopPropagation()}>
-                        <TextLink href={ownerTestsHref(repo, row.key)}>
-                          {row.label}
-                        </TextLink>
-                      </span>
-                    ) : (
-                      <Box component="span" sx={{ color: "text.secondary" }}>
-                        {folding ? (
-                          <TextButton
-                            label={
-                              row.kind === "more"
-                                ? `List the ${row.owners.length} smaller owners`
-                                : "Fold the smaller owners back into one row"
-                            }
-                            onClick={() => setExpanded(!expanded)}
-                          >
-                            {row.label}
-                            {row.kind === "more" ? " ▸" : " ▴"}
-                          </TextButton>
+                    {UNIT_NAMES[unit]}
+                    <br />
+                    share of{" "}
+                    {dollars
+                      ? amount(view.scopeTotal)
+                      : hoursLabel(view.scopeTotal)}
+                  </Typography>
+                  <Box sx={{ position: "relative", height: 32 }}>
+                    {ticks.map((tick) => (
+                      <Typography
+                        key={tick}
+                        variant="caption"
+                        sx={{
+                          position: "absolute",
+                          left: `${(tick / axisMax) * 100}%`,
+                          transform: tick === 0 ? "none" : "translateX(-50%)",
+                          color: "text.secondary",
+                          lineHeight: 1.25,
+                          textAlign: "center",
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <Box
+                          component="span"
+                          sx={{ color: "text.primary", fontWeight: 500 }}
+                        >
+                          {tick === 0 ? "0" : amount(tick)}
+                        </Box>
+                        <br />
+                        {tick === 0 ? "" : shareLabel(tick / total)}
+                      </Typography>
+                    ))}
+                  </Box>
+                  <Box />
+                </Box>
+                {rows.map((row, i) => {
+                  const selected = row.owners.some((o) => view.owners.has(o));
+                  const folding = row.kind === "more" || row.kind === "less";
+                  const mix = machinesOn
+                    ? rowMix(prepared, view, row.owners)
+                    : null;
+                  const onMachines =
+                    mix === null ? 0 : highlightedHours(mix, view.machines);
+                  // Highlighted owners have rows of their own, so a folded row
+                  // is never highlighted and dims with the rest.
+                  const dim = ownersOn && !selected;
+                  const toggle = () =>
+                    folding
+                      ? setExpanded(!expanded)
+                      : onToggleOwners(row.owners);
+                  return (
+                    <Box
+                      key={row.key}
+                      onClick={toggle}
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: columns,
+                        columnGap: 1.5,
+                        alignItems: "center",
+                        cursor: "pointer",
+                        opacity: dim ? DIMMED : 1,
+                        transition: "opacity 150ms",
+                        backgroundColor:
+                          runnersKey === row.key
+                            ? "action.selected"
+                            : undefined,
+                        borderTop:
+                          i === firstBucket
+                            ? `1px solid ${theme.palette.divider}`
+                            : undefined,
+                        mt: i === firstBucket ? 0.5 : 0,
+                        pt: i === firstBucket ? 0.5 : 0,
+                        "&:hover": { backgroundColor: "action.hover" },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          textAlign: "right",
+                          overflow: "hidden",
+                          whiteSpace: "nowrap",
+                          textOverflow: "ellipsis",
+                          fontWeight: selected && !folding ? 600 : 400,
+                        }}
+                        title={row.kind === "bucket" ? undefined : row.label}
+                      >
+                        {selected && !folding ? "✓ " : ""}
+                        {row.kind === "owner" ? (
+                          <span onClick={(event) => event.stopPropagation()}>
+                            <TextLink href={ownerTestsHref(repo, row.key)}>
+                              {row.label}
+                            </TextLink>
+                          </span>
                         ) : (
+                          <Box
+                            component="span"
+                            sx={{ color: "text.secondary" }}
+                          >
+                            {folding ? (
+                              <TextButton
+                                label={
+                                  row.kind === "more"
+                                    ? `List the ${row.owners.length} smaller owners`
+                                    : "Fold the smaller owners back into one row"
+                                }
+                                onClick={() => setExpanded(!expanded)}
+                              >
+                                {row.label}
+                                {row.kind === "more" ? " ▸" : " ▴"}
+                              </TextButton>
+                            ) : (
+                              <>
+                                {row.label}
+                                {row.kind === "bucket" &&
+                                  row.owners.some(
+                                    (o) => bucketInfo(o) !== ""
+                                  ) && (
+                                    <InfoTip
+                                      title={row.owners
+                                        .map(bucketInfo)
+                                        .filter(Boolean)
+                                        .join("\n\n")}
+                                    />
+                                  )}
+                              </>
+                            )}
+                          </Box>
+                        )}
+                      </Box>
+                      {row.kind === "less" ? (
+                        <Box />
+                      ) : (
+                        bar(row, toggle, selected)
+                      )}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 0.75,
+                          justifyContent: "flex-end",
+                          color: "text.secondary",
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {row.kind === "less" ? null : (
                           <>
-                            {row.label}
-                            {row.kind === "bucket" &&
-                              row.owners.some((o) => bucketInfo(o) !== "") && (
-                                <InfoTip
-                                  title={row.owners
-                                    .map(bucketInfo)
-                                    .filter(Boolean)
-                                    .join("\n\n")}
-                                />
-                              )}
+                            {mix !== null && (
+                              <>
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    color: "primary.main",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {amount(onMachines)}
+                                </Box>
+                                <span>of</span>
+                              </>
+                            )}
+                            <span>{amount(row.hours)}</span>
+                            <Box
+                              component="span"
+                              sx={{ width: "3.5ch", textAlign: "right" }}
+                            >
+                              {shareLabel(row.hours / total)}
+                            </Box>
+                            {dollars && (
+                              <IconButton
+                                size="small"
+                                aria-label={`Machines and runners of ${row.label}`}
+                                title="Machines and runners"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onOpenRunners?.(row);
+                                }}
+                                sx={{
+                                  p: 0.125,
+                                  color:
+                                    runnersKey === row.key
+                                      ? "primary.main"
+                                      : "text.secondary",
+                                }}
+                              >
+                                <ChevronRightRoundedIcon fontSize="small" />
+                              </IconButton>
+                            )}
                           </>
                         )}
                       </Box>
-                    )}
-                  </Box>
-                  {row.kind === "less" ? <Box /> : bar(row, toggle, selected)}
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 0.75,
-                      justifyContent: "flex-end",
-                      color: "text.secondary",
-                      fontVariantNumeric: "tabular-nums",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {row.kind === "less" ? null : (
-                      <>
-                        {mix !== null && (
-                          <>
-                            <Box
-                              component="span"
-                              sx={{ color: "primary.main", fontWeight: 500 }}
-                            >
-                              {hoursLabel(onMachines)} h
-                            </Box>
-                            <span>of</span>
-                          </>
-                        )}
-                        <span>{hoursLabel(row.hours)} h</span>
-                        <Box
-                          component="span"
-                          sx={{ width: "3.5ch", textAlign: "right" }}
-                        >
-                          {shareLabel(row.hours / total)}
-                        </Box>
-                      </>
-                    )}
-                  </Box>
-                </Box>
-              );
-            })}
+                    </Box>
+                  );
+                })}
+              </>
+            )}
           </Box>
-          <MachineKey
-            prepared={prepared}
-            view={view}
-            onToggleMachines={onToggleMachines}
-            onClearMachines={onClearMachines}
-          />
+          {dollars ? (
+            <CostMachineKey
+              prepared={prepared}
+              view={view}
+              onToggleMachines={onToggleMachines}
+              onClearMachines={onClearMachines}
+              onRateChange={onRateChange}
+              originalRates={originalRates}
+            />
+          ) : (
+            <MachineKey
+              prepared={prepared}
+              view={view}
+              onToggleMachines={onToggleMachines}
+              onClearMachines={onClearMachines}
+            />
+          )}
         </Box>
       </CostFrame>
       <Typography
         variant="caption"
         component="p"
-        sx={{ mt: 0.75, color: "text.secondary" }}
+        sx={{
+          mt: 0.75,
+          color: "text.secondary",
+          display: open === false ? "none" : undefined,
+        }}
       >
         Machines from test reports; striped: estimated from runner labels; grey
         stripes: unknown.
+        {dollars && (
+          <>
+            {" "}
+            <Box
+              component="span"
+              aria-hidden
+              sx={{
+                display: "inline-block",
+                width: "2px",
+                height: "0.9em",
+                mx: 0.25,
+                verticalAlign: "-0.1em",
+                borderRadius: "1px",
+                backgroundColor: "text.primary",
+              }}
+            />{" "}
+            share of runner-hours with a rate; a bar past it costs more per hour
+            than average. › lists a row&apos;s runners.
+          </>
+        )}
       </Typography>
     </Box>
   );

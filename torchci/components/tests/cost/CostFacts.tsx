@@ -2,7 +2,7 @@ import { Box, ButtonBase, Skeleton, Tooltip, useTheme } from "@mui/material";
 import FactPill from "components/tests/FactPill";
 import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import type { CostSignal } from "lib/api/tests/cost/types";
-import { hoursLabel, shareLabel } from "lib/tests/cost/query";
+import { amountLabel, hoursLabel, shareLabel } from "lib/tests/cost/query";
 
 // A duration as the facts say it: "4.0 h", "27 min".
 export function signalLabel(seconds: number): string {
@@ -31,6 +31,15 @@ export interface CostFactsProps {
   // The PR update and merge signals, from the API.
   signals: CostSignal[] | undefined;
   onClearScope: () => void;
+  // With a rates file, the same facts in $, on a second row: the scope's
+  // cost, per day and a year, and the share of its runner-hours priced.
+  cost?: {
+    scopeTotal: number;
+    perDay: number;
+    annualized: number;
+    pricedShare: number;
+    file: string;
+  };
 }
 
 // The headline figures as the test page's facts: pills in the band's grey.
@@ -44,6 +53,7 @@ export default function CostFacts({
   scope,
   signals,
   onClearScope,
+  cost,
 }: CostFactsProps) {
   const theme = useTheme();
   if (facts === undefined) {
@@ -161,6 +171,29 @@ export default function CostFacts({
             .join("\n"),
           signal.p50_seconds === null ? "none" : signalLabel(signal.p50_seconds)
         )
+      )}
+      {cost !== undefined && (
+        <>
+          <Box sx={{ flexBasis: "100%", height: 0 }} />
+          {pill(
+            "Annualized",
+            `${amountLabel(
+              "cost",
+              cost.scopeTotal
+            )}${where}, ${dates}, scaled to a year, at ${cost.file}'s rates`,
+            `${amountLabel("cost", cost.annualized)} a year`
+          )}
+          {pill(
+            "Per day",
+            `Daily average over ${dates}`,
+            amountLabel("cost", cost.perDay)
+          )}
+          {pill(
+            "Priced",
+            `Runner-hours${where} with a rate in ${cost.file}; the rest count $0`,
+            `${shareLabel(cost.pricedShare)} of runner-hours`
+          )}
+        </>
       )}
     </Box>
   );

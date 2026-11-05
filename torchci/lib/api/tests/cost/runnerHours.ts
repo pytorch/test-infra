@@ -72,8 +72,10 @@ function sortedByHours(hours: Map<string, number>): string[] {
     .map(([key]) => key);
 }
 
-// The answer's rows, runner labels and files folded away: one row per
-// owner, workflow, machine and machine source, largest first.
+// The answer's rows, files folded away: one row per owner, workflow, machine,
+// machine source and runner label, largest first. The label stays so the
+// page can price the hours by runner (lib/tests/cost/rates.ts); the API
+// holds no prices.
 export function runnerHoursRows(
   rows: RunnerHoursQueryRow[]
 ): RunnerHours["rows"] {
@@ -86,6 +88,7 @@ export function runnerHoursRows(
       row.workflow,
       row.machine,
       row.machine_source,
+      row.label,
     ]);
     const cell = cells.get(key);
     if (cell === undefined) {
@@ -94,6 +97,7 @@ export function runnerHoursRows(
         workflow: row.workflow,
         machine: row.machine,
         machine_source: row.machine_source,
+        label: row.label,
         runner_hours: hours,
       });
     } else {

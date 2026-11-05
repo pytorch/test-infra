@@ -1,9 +1,22 @@
 import type { RunnerHours } from "lib/api/tests/cost/types";
 import {
+  amountLabel,
   costApiUrl,
   costUrlParams,
+  rateLabel,
   resolveCostQuery,
+  shareLabel,
 } from "lib/tests/cost/query";
+import {
+  editedRates,
+  parseRates,
+  priceKey,
+  priceableRunners,
+  pricedRunnerHours,
+  rateOf,
+  ratesCoverage,
+  withRate,
+} from "lib/tests/cost/rates";
 import {
   NOT_PROBED,
   bucketInfo,
@@ -21,6 +34,7 @@ import {
   prepareRunnerHours,
   rowMix,
   rowsCsv,
+  runnerBreakdown,
   scopeName,
   segments,
   toggled,
@@ -50,6 +64,11 @@ const MACHINES = [
   machine("Tesla T4", "CUDA", "Tesla T4"),
 ];
 
+// Each machine's runner label, one per machine; the unknown machine's hours
+// ran on linux.12xlarge.
+const labelOf = (m: string) =>
+  m === "" ? "linux.12xlarge" : m.toLowerCase().replace(/ /g, "-");
+
 const row = (
   owner: string,
   workflow: string,
@@ -57,12 +76,14 @@ const row = (
   runner_hours: number,
   machine_source: "environment" | "runner_label" | "none" = m === ""
     ? "none"
-    : "environment"
+    : "environment",
+  label = labelOf(m)
 ) => ({
   owner,
   workflow,
   machine: m,
   machine_source,
+  label,
   runner_hours,
 });
 
@@ -349,7 +370,7 @@ describe("matrix", () => {
       machines: [],
     });
     expect(rowsCsv(prepared, view)).toEqual({
-      csv: "owner,workflow,machine,machine_estimated,runner_hours\ninductor,pull,Linux x86_64 avx512,no,80.00\nnn,pull,Linux x86_64 avx512,no,40.00\n",
+      csv: "owner,workflow,machine,machine_estimated,runner_label,runner_hours\ninductor,pull,Linux x86_64 avx512,no,linux-x86_64-avx512,80.00\nnn,pull,Linux x86_64 avx512,no,linux-x86_64-avx512,40.00\n",
       rows: 2,
     });
   });
@@ -565,7 +586,7 @@ describe("estimated machines and the unattributed buckets", () => {
 
   test("the CSV marks rows with an estimated machine; both buckets explain themselves", () => {
     expect(rowsCsv(p, v).csv).toContain(
-      "unattributed:no_test_reports,trunk,NVIDIA L4,yes,6.00"
+      "unattributed:no_test_reports,trunk,NVIDIA L4,yes,nvidia-l4,6.00"
     );
     // A line naming the bucket, then what it holds as a list.
     for (const bucket of [
@@ -578,5 +599,218 @@ describe("estimated machines and the unattributed buckets", () => {
       expect(items.every((i) => i.startsWith("• "))).toBe(true);
     }
     expect(bucketInfo("inductor")).toBe("");
+  });
+});
+
+describe("cost from a rates file", () => {
+  // Linux avx512 at $1/h, L4 at $2/h, A10G free; the rest have no rate, and
+  // one entry is for a runner that did not run.
+  const RATES = parseRates(
+    JSON.stringify({
+      valid_from: "2026-10-01",
+      basis: "made up",
+      rates: {
+        "linux-x86_64-avx512": 1,
+        "nvidia-l4": 2,
+        "nvidia-a10g": 0,
+        "retired.label": 5,
+      },
+    }),
+    "rates.json"
+  );
+  const priced = pricedRunnerHours(prepared, RATES);
+  const view = computeView(priced, none);
+
+  test("reads a flat or wrapped object, and says what is wrong with a bad file", () => {
+    expect(parseRates('{"a": 1.5, "b": 0}', "f.json")).toEqual({
+      file: "f.json",
+      validFrom: null,
+      basis: null,
+      rates: { a: 1.5, b: 0 },
+      original: { a: 1.5, b: 0 },
+    });
+    expect([RATES.validFrom, RATES.basis]).toEqual(["2026-10-01", "made up"]);
+    const error = (text: string) => {
+      try {
+        parseRates(text, "f.json");
+        return "";
+      } catch (e) {
+        return (e as Error).message;
+      }
+    };
+    expect(error("{")).toMatch(/^f\.json is not valid JSON/);
+    expect(error("[1]")).toMatch(/^Expected a JSON object/);
+    expect(error('{"a": "1,20", "b": -1, "c": 2}')).toBe(
+      'Rates must be numbers from 0 to 100,000, like 1.23: a is "1,20"; b is -1.'
+    );
+    // Near the float limit every total would be infinite.
+    expect(error('{"a": 1e308}')).toMatch(/a is 1e\+308/);
+    // A flat file's notes are not rates.
+    expect(error('{"valid_from": "2026-10-01", "a": 1}')).toMatch(
+      /valid_from is "2026-10-01"/
+    );
+    expect(error("{}")).toBe("f.json has no rates.");
+  });
+
+  test("edits set, add and remove rates, and are listed against the file's", () => {
+    const edited = withRate(
+      withRate(withRate(RATES, "nvidia-l4", 2.5), "apple-m1", 0.4),
+      "retired.label",
+      null
+    );
+    expect(edited.rates).toEqual({
+      "linux-x86_64-avx512": 1,
+      "nvidia-l4": 2.5,
+      "nvidia-a10g": 0,
+      "apple-m1": 0.4,
+    });
+    expect(editedRates(edited).sort()).toEqual([
+      "apple-m1",
+      "nvidia-l4",
+      "retired.label",
+    ]);
+    // Setting a rate back to the file's is no edit.
+    expect(editedRates(withRate(edited, "nvidia-l4", 2))).not.toContain(
+      "nvidia-l4"
+    );
+    expect(editedRates(RATES)).toEqual([]);
+    // 105 h × $2.5 + 120 h × $1 + 15 h × $0 + 20 h × $0.4.
+    expect(pricedRunnerHours(prepared, edited).total).toBe(390.5);
+  });
+
+  test("priceable runners: the window's price keys, largest first", () => {
+    expect(priceableRunners(prepared).slice(0, 3)).toEqual([
+      { label: "linux-x86_64-avx512", hours: 120 },
+      { label: "nvidia-l4", hours: 105 },
+      { label: "linux.12xlarge", hours: 100 },
+    ]);
+  });
+
+  test("a runner's key is its label without self-hosted; 0 is a price, a missing runner has none", () => {
+    expect(priceKey("linux.2xlarge")).toBe("linux.2xlarge");
+    expect(priceKey("linux.2xlarge,self-hosted")).toBe("linux.2xlarge");
+    expect(priceKey("a,b")).toBeNull();
+    expect(rateOf(RATES, "nvidia-a10g")).toBe(0);
+    expect(rateOf(RATES, "nvidia-l4,self-hosted")).toBe(2);
+    expect(rateOf(RATES, "apple-m1")).toBeNull();
+  });
+
+  test("rows priced; runner-hours with no rate kept apart; machines keep their order and hues", () => {
+    expect(priced.unit).toBe("cost");
+    // 100 h × $2 + 80 h × $1 + 40 h × $1 + 15 h × $0 + 5 h × $2.
+    expect(priced.total).toBe(330);
+    expect(view.scopeTotal).toBe(330);
+    expect([view.scopeRunnerHours, view.scopeUnpriced]).toEqual([463, 223]);
+    expect(priced.machineOrder).toEqual(prepared.machineOrder);
+    expect(priced.colored).toEqual(prepared.colored);
+    expect(factsOf(priced, view, 7).attributedShare).toBeCloseTo(320 / 330);
+  });
+
+  test("owners and machines with runner-hours keep their rows at $0", () => {
+    expect(
+      ownerRows(view, false, "grouped").map((r) => [r.label, r.hours])
+    ).toEqual([
+      ["inductor", 280],
+      ["nn", 40],
+      ["fx", 0],
+      ["sparse", 0],
+      ["Unattributed", 10],
+    ]);
+    const mi350 = machineKeyRows(priced, view, false).find(
+      (r) => r.label === "AMD Instinct MI350X VF"
+    );
+    expect(mi350?.hours).toBe(0);
+    expect(
+      view.machineUnpriced[priced.machines.indexOf("AMD Instinct MI350X VF")]
+    ).toBe(60);
+  });
+
+  test("a row's machines largest first, Unknown machine last, each with its runners and rates", () => {
+    expect(
+      runnerBreakdown(priced, view, ["inductor"]).map((m) => [
+        priced.machines[m.machine],
+        m.value,
+        m.hours,
+        m.unpriced,
+        m.runners.map((r) => [r.label, r.value, r.hours, r.rate]),
+      ])
+    ).toEqual([
+      ["NVIDIA L4", 200, 100, 0, [["nvidia-l4", 200, 100, 2]]],
+      ["Linux x86_64 avx512", 80, 80, 0, [["linux-x86_64-avx512", 80, 80, 1]]],
+      [
+        "AMD Instinct MI350X VF",
+        0,
+        60,
+        60,
+        [["amd-instinct-mi350x-vf", 0, 60, null]],
+      ],
+    ]);
+    // In runner-hours, every owner's: no rates, Unknown machine last.
+    const all = runnerBreakdown(prepared, computeView(prepared, none), null);
+    expect(all[0]).toMatchObject({ value: 120, hours: 120 });
+    expect(prepared.machines[all[all.length - 1].machine]).toBe(NOT_PROBED);
+    expect(all[all.length - 1].runners).toEqual([
+      { label: "linux.12xlarge", value: 100, hours: 100, rate: null },
+    ]);
+  });
+
+  test("coverage: runners priced, the largest missing, entries for runners that did not run", () => {
+    expect(ratesCoverage(prepared, RATES)).toEqual({
+      runners: 9,
+      priced: 3,
+      missing: [
+        { label: "linux.12xlarge", hours: 100 },
+        { label: "amd-instinct-mi350x-vf", hours: 60 },
+        { label: "windows-x86_64-avx512", hours: 30 },
+        { label: "apple-m1", hours: 20 },
+        { label: "linux-aarch64-sve128", hours: 12 },
+        { label: "tesla-t4", hours: 1 },
+      ],
+      unused: ["retired.label"],
+    });
+  });
+
+  test("amounts carry their unit", () => {
+    expect(amountLabel("cost", 54100)).toBe("$54.1K");
+    expect(amountLabel("hours", 740)).toBe("740 h");
+    expect(amountLabel("cost", 0.2)).toBe("<$1");
+    expect(amountLabel("cost", 0)).toBe("$0");
+  });
+
+  test("rates read to 3 significant figures under $1, so an edit never reads as the rate it changed", () => {
+    expect(rateLabel(0.6467)).toBe("$0.647/h");
+    expect(rateLabel(0.65)).toBe("$0.65/h");
+    expect(rateLabel(0.5)).toBe("$0.50/h");
+    expect(rateLabel(0.05)).toBe("$0.05/h");
+    expect(rateLabel(1.234)).toBe("$1.23/h");
+    expect(rateLabel(0)).toBe("$0.00/h");
+  });
+
+  test("a share is never none or the whole when it is neither", () => {
+    expect(shareLabel(0.004)).toBe("<1%");
+    expect(shareLabel(0.996)).toBe(">99%");
+    expect(shareLabel(1)).toBe("100%");
+    expect(shareLabel(0.5)).toBe("50%");
+  });
+});
+
+describe("machine runners", () => {
+  // L4 on two runners, l4.b the window's larger; part of inductor's l4.b
+  // hours have an estimated machine.
+  const RUNNERS: RunnerHours = {
+    ...ANSWER,
+    rows: [
+      row("inductor", "trunk", "NVIDIA L4", 30, "environment", "l4.a"),
+      row("inductor", "trunk", "NVIDIA L4", 10, "environment", "l4.b"),
+      row("inductor", "pull", "NVIDIA L4", 4, "runner_label", "l4.b"),
+      row("inductor", "pull", "Linux x86_64 avx512", 20),
+      row("nn", "trunk", "NVIDIA L4", 25, "environment", "l4.b"),
+    ],
+  };
+  const p = prepareRunnerHours(RUNNERS);
+  const l4 = p.machines.indexOf("NVIDIA L4");
+
+  test("a machine's runners keep the window's order whatever the row", () => {
+    expect(p.machineRunners[l4]).toEqual(["l4.b", "l4.a"]);
   });
 });

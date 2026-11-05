@@ -1216,6 +1216,57 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   row names and cells are buttons, so all of it works from the keyboard.
   Escape closes the drawer, then clears the highlight, unless a text field or
   menu has it.
+- Cost by owner (`CostPanel`), under the runner-hours chart: the same chart
+  in $, from a rates file the reader adds, so the page never asks for a unit
+  up front. Until a file is added the panel's body asks for one: a dashed
+  area to drop it on (a file dropped anywhere on the page lands there, so a
+  miss never opens the file in the tab), "Choose rates file…" and "File
+  format" (a JSON of runner label → $ per runner-hour, or wrapped as
+  `{valid_from, basis, rates}`). The file is read in the browser into the
+  page's state (`lib/tests/cost/rates.ts`): never sent, stored, or
+  put in the URL, whose query HUD's analytics record, and reloading drops it;
+  the panel's split keys stay out of the URL with it. The API holds no
+  prices. A row's price key is its runner labels without self-hosted; 0 is a
+  price, and a runner the file leaves out has no rate and stays out of the
+  cost. Once added, a line under the band names the file,
+  its valid_from and basis, how many of the window's runners it leaves
+  without a rate and how many of its labels didn't run (each listed in a
+  tooltip), and Replace, Clear and File format (the facts' "Priced" pill is
+  the share, by scope); a file that can't be read says why, keeping the one
+  loaded, and a file pricing no runner in the window is refused, with an
+  example label. Rates run from 0 to 100,000 $/h and read to 3 significant
+  figures under $1. Each runner's $/h in the key is editable in place
+  (`RateCell`: a click or Enter makes it a field, Enter or leaving applies,
+  Escape cancels, blank removes the rate, a hint shows while what is typed
+  is no rate), the page repricing at once; edited rates are in the accent,
+  and the file's line counts them (each change in a tooltip) with an inline
+  "(Undo)". The runners drawer finds its row again on every change, as the
+  matrix's cell drawer does, and closes when the row is gone. A file dropped
+  anywhere on the page is never opened in a tab, even before the panel is
+  there. The field is in no form and has no name,
+  so the browser neither submits nor remembers it; edits live in the page's
+  state with the file. Owners sort by
+  $, and a mark on each bar is its share of the runner-hours that have a
+  rate, on the axis's share scale (where the bar would end at the scope's
+  average $/h), so owners whose hours cost more than average stand out. The panel follows the page's workflow scope and
+  highlight; machines keep their runner-hours order and hues, so nothing
+  repaints, and owners and machines with hours but no rate keep their rows.
+  With a file, the facts gain a second row in $ (annualized, per day, and
+  the share of the scope's runner-hours priced), following the scope and
+  any edits; the matrix and the workflows card stay in runner-hours.
+- Runners, in the cost panel only (runner names matter where they are
+  priced; the runner-hours chart is as it was): each split bar piece's
+  tooltip names the runners it ran on; a row's › opens a drawer of its
+  machines and each machine's runners with their shares, $/h and cost, and
+  the runners with no rate; the machine key (`CostMachineKey`) gives each
+  machine its $/h and a ▸ listing its runners with theirs, in the runner
+  level's shades and order, every figure of one set (every owner, or the
+  highlighted owners', the pale bars still every owner's, so a machine's
+  runners add up to it), a highlighted machine's runners open and the others
+  dimmed with theirs, each runner in a shade of its machine's color in a
+  fixed order (its window hours, largest first, darkest). Every runner figure
+  follows the workflow scope. The answer's rows keep
+  their runner label for this.
 - Workflows: the four largest, ticked ones pinned, "+ N more" with a search;
   ticking makes a custom scope. Open, under the matrix (2026-11-04: folded,
   it was easy to miss).

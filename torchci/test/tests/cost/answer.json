@@ -1,0 +1,216 @@
+{
+  "repo": "pytorch/pytorch",
+  "window": "7d",
+  "days": 7,
+  "start": "2026-10-29T00:00:00.000Z",
+  "end": "2026-11-05T00:00:00.000Z",
+  "rows": [
+    {
+      "owner": "inductor",
+      "workflow": "inductor",
+      "machine": "NVIDIA L4",
+      "machine_source": "environment",
+      "label": "mt-l-x86aavx2-11-41-l4",
+      "runner_hours": 120
+    },
+    {
+      "owner": "dynamo",
+      "workflow": "pull",
+      "machine": "Linux x86_64 avx512",
+      "machine_source": "environment",
+      "label": "mt-l-x86iavx512-16-128",
+      "runner_hours": 100
+    },
+    {
+      "owner": "inductor",
+      "workflow": "inductor",
+      "machine": "NVIDIA A10G",
+      "machine_source": "environment",
+      "label": "mt-l-x86aavx2-11-41-a10g",
+      "runner_hours": 80
+    },
+    {
+      "owner": "inductor",
+      "workflow": "pull",
+      "machine": "Linux x86_64 avx512",
+      "machine_source": "environment",
+      "label": "mt-l-x86iavx512-16-128",
+      "runner_hours": 60
+    },
+    {
+      "owner": "distributed",
+      "workflow": "trunk",
+      "machine": "NVIDIA L4",
+      "machine_source": "environment",
+      "label": "lf-l-x86aavx2-11-41-l4",
+      "runner_hours": 50
+    },
+    {
+      "owner": "distributed",
+      "workflow": "pull",
+      "machine": "Linux x86_64 avx512",
+      "machine_source": "environment",
+      "label": "lf-l-x86iavx512-16-128",
+      "runner_hours": 40
+    },
+    {
+      "owner": "unattributed:no_test_reports",
+      "workflow": "trunk",
+      "machine": "AMD Instinct MI355X",
+      "machine_source": "runner_label",
+      "label": "amd-dpx-linux.rocm.gpu.gfx950.1",
+      "runner_hours": 40
+    },
+    {
+      "owner": "dynamo",
+      "workflow": "trunk",
+      "machine": "Windows x86_64 avx512",
+      "machine_source": "environment",
+      "label": "windows.4xlarge.nonephemeral",
+      "runner_hours": 30
+    },
+    {
+      "owner": "unattributed:no_test_reports",
+      "workflow": "xpu",
+      "machine": "",
+      "machine_source": "none",
+      "label": "linux.idc.xpu",
+      "runner_hours": 25.6
+    },
+    {
+      "owner": "unattributed:no_owner",
+      "workflow": "pull",
+      "machine": "Linux x86_64 avx512",
+      "machine_source": "environment",
+      "label": "mt-l-x86iavx512-16-128",
+      "runner_hours": 20
+    },
+    {
+      "owner": "dynamo",
+      "workflow": "trunk",
+      "machine": "Apple M1",
+      "machine_source": "environment",
+      "label": "macos-m1-stable",
+      "runner_hours": 7.4
+    },
+    {
+      "owner": "unattributed:no_test_reports",
+      "workflow": "pull",
+      "machine": "NVIDIA L4",
+      "machine_source": "runner_label",
+      "label": "mt-l-x86aavx2-11-41-l4",
+      "runner_hours": 5
+    }
+  ],
+  "machines": [
+    {
+      "machine": "Linux x86_64 avx512",
+      "family": "Linux CPU",
+      "short": "x86_64 avx512",
+      "labels": ["mt-l-x86iavx512-16-128", "lf-l-x86iavx512-16-128"]
+    },
+    {
+      "machine": "NVIDIA L4",
+      "family": "CUDA",
+      "short": "L4",
+      "labels": ["mt-l-x86aavx2-11-41-l4", "lf-l-x86aavx2-11-41-l4"]
+    },
+    {
+      "machine": "NVIDIA A10G",
+      "family": "CUDA",
+      "short": "A10G",
+      "labels": ["mt-l-x86aavx2-11-41-a10g"]
+    },
+    {
+      "machine": "AMD Instinct MI355X",
+      "family": "ROCm",
+      "short": "AMD Instinct MI355X",
+      "labels": ["amd-dpx-linux.rocm.gpu.gfx950.1"]
+    },
+    {
+      "machine": "Windows x86_64 avx512",
+      "family": "Windows CPU",
+      "short": "x86_64 avx512",
+      "labels": ["windows.4xlarge.nonephemeral"]
+    },
+    {
+      "machine": "Apple M1",
+      "family": "MPS",
+      "short": "Apple M1",
+      "labels": ["macos-m1-stable"]
+    }
+  ],
+  "contributors": [
+    {
+      "bucket": "unattributed:no_test_reports",
+      "workflow": "trunk",
+      "machine": "AMD Instinct MI355X",
+      "kind": "label",
+      "key": "amd-dpx-linux.rocm.gpu.gfx950.1",
+      "runner_hours": 40
+    },
+    {
+      "bucket": "unattributed:no_test_reports",
+      "workflow": "xpu",
+      "machine": "",
+      "kind": "label",
+      "key": "linux.idc.xpu",
+      "runner_hours": 25.6
+    },
+    {
+      "bucket": "unattributed:no_owner",
+      "workflow": "pull",
+      "machine": "Linux x86_64 avx512",
+      "kind": "file",
+      "key": "cpp/test_api",
+      "runner_hours": 15
+    },
+    {
+      "bucket": "unattributed:no_owner",
+      "workflow": "pull",
+      "machine": "Linux x86_64 avx512",
+      "kind": "file",
+      "key": "test/test_example.py",
+      "runner_hours": 5
+    },
+    {
+      "bucket": "unattributed:no_test_reports",
+      "workflow": "pull",
+      "machine": "NVIDIA L4",
+      "kind": "label",
+      "key": "mt-l-x86aavx2-11-41-l4",
+      "runner_hours": 5
+    }
+  ],
+  "unprobed_labels": [{ "label": "linux.idc.xpu", "runner_hours": 25.6 }],
+  "time_to_signal": [
+    {
+      "value": "pr_update",
+      "label": "PR update signals",
+      "workflow": "pull",
+      "description": "runs on every PR update",
+      "runs": 412,
+      "p50_seconds": 9840,
+      "p90_seconds": 14100
+    },
+    {
+      "value": "pr_merge",
+      "label": "PR merge signals",
+      "workflow": "trunk",
+      "description": "must pass for a PR to merge",
+      "runs": 387,
+      "p50_seconds": 14384,
+      "p90_seconds": 16611
+    }
+  ],
+  "workflow_presets": [
+    {
+      "value": "pr_critical_path",
+      "label": "PR Critical Path",
+      "description": "what a PR runs on each update and must pass to merge",
+      "workflows": ["pull", "trunk"]
+    }
+  ],
+  "method": "Test-job wall time, split among test files by occupancy, then evenly among each file's owners. Builds and other jobs are excluded. Machines come from test reports, or are estimated from runner labels for jobs without them.",
+  "query_duration_ms": 412
+}
