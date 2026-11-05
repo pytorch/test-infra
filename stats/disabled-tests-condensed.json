@@ -220,6 +220,13 @@
       "xpu"
     ]
   ],
+  "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_False_conv_offset_-1000 (__main__.CudaReproTests)": [
+    "203553",
+    "https://github.com/pytorch/pytorch/issues/203553",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_True_conv_offset_ (__main__.CudaReproTests)": [
     "202874",
     "https://github.com/pytorch/pytorch/issues/202874",
