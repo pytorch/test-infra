@@ -145,10 +145,12 @@ on any server without the profile, a local ClickHouse or a preview's: apply
 ## HUD pages
 
 The document lists the HUD pages built on the tests endpoints, the tests
-table, a test's own page and a commit's page, as operations tagged `pages`: HTML for people,
-with `security: []`, one `text/html` answer, and a summary that starts with
-"HUD page", so that a caller of the API can give a reader the page that shows
-what it fetched and knows which parameters that page takes. Nothing under
+table, a test's own page, a commit's page, a pull request's, which opens the
+page of its newest commit, and the cost page, as operations tagged `pages`:
+HTML for people, with `security: []`, one `text/html` answer, and a summary
+that starts with "HUD page", so that a caller of the API can give a reader
+the page that shows what it fetched and knows which parameters that page
+takes. Nothing under
 `app/api/` serves them; `test/api/openapi.test.ts` checks the `pages` paths
 against the files under `pages/tests/[organization]/` as it checks the
 `tests` paths against the route files.
@@ -176,7 +178,9 @@ left off, on the origin the `/api/authed/` shim names itself with
 bare, so every endpoint that returns a test carries it there; a run and the
 options have no page of their own and no other link; the commit's runs and
 summary carry the commit's page, bare, since the page chooses its outcomes,
-filters and sort itself;
+filters and sort itself; the pull request lookup carries the pull request's
+page, bare, which opens the commit page of whatever head is newest when it
+is opened;
 `TestHealthEntry.hud_url` is that page opened on the runs the entry's health
 was counted over, the list's window and code sources with the entry's
 configuration marked; `TestListPage.hud_url` is the table for the request and
@@ -295,6 +299,7 @@ old route in the same change.
 | `GET /api/tests/run/{run_id}`                         | One full run bundle, selected by any retained execution UUID; provisional                                                                                             | `lib/api/tests/run/`            |
 | `GET /api/tests/commit/{sha}?repo=owner/name`         | Retained run bundles across all tests on a repository commit                                                                                                          | `lib/api/tests/commit/`         |
 | `GET /api/tests/commit/{sha}/summary?repo=owner/name` | The commit as GitHub described it, its test counts by status, and the span of its runs                                                                                | `lib/api/tests/commit/summary/` |
+| `GET /api/tests/pull/{number}?repo=owner/name`        | A pull request's newest head commit as HUD knows it, and the pull request's page                                                                                      | `lib/api/tests/pull/`           |
 | `GET /api/tests/cost`                                 | Test-job runner-hours of the last 1, 3 or 7 whole UTC days by owner, workflow and machine, from the test_cost rollup, with the PR update and merge signals; prototype | `lib/api/tests/cost/`           |
 
 The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
@@ -304,6 +309,7 @@ The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 | `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                               | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/`            |
 | `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                                   |
 | `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
+| `GET /tests/{organization}/{repo}/pull/{number}`  | The commit page of a pull request's newest head, found by `GET /api/tests/pull/{number}`                    | `pages/tests/[organization]/[repo]/pull/[number].tsx`                                    |
 | `GET /tests/{organization}/{repo}/cost`           | Runner-hours by owner, machine and workflow: `GET /api/tests/cost`                                          | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
 
 ## Tests endpoints
@@ -560,6 +566,32 @@ command. The [commit notes](../../lib/api/tests/commit/query-validation.md)
 and other notes beside the queries record earlier design experiments; their
 measurements are historical. Preserve the correctness guarantees and measure
 working-tree SQL with fixed, nonempty inputs when evaluating a rewrite.
+
+### Pull requests
+
+`GET /api/tests/pull/{number}` answers with a pull request's newest head
+commit as HUD knows it, for the pull request page to open that commit's page.
+The head is the one the pull request's latest `default.pull_request` record
+names, unless the record fell behind a push: that table keeps the last row
+inserted for a pull request, and a row written just after a push sometimes
+still names the head before it (4 of the 1,500 most recently updated
+pull requests on 2026-11-05, one of them a day behind). The heads every
+record has named stay in `materialized_views.pr_by_sha`, and runs are created
+as heads are pushed, so when the recorded head ran a `pull_request` workflow
+on the pull request's branch, the recorded head with the newest run there is
+the newest head (`newestHead` in `lib/api/tests/pull/head.ts`). A push back
+to an earlier head runs again, and a push waiting for a maintainer's approval
+records its run (`action_required`), so both count. A recorded head that ran
+none stands: GitHub runs no `pull_request` workflow while a pull request has
+a merge conflict. That makes the rule's one wrong answer: a conflicting pull
+request pushed back to an earlier head that ran gets no new run, and the
+later head is answered. None was seen: the 9 pushes back to an earlier head
+in the 60 days to 2026-11-05 all ran again and were answered right. The two
+reads, the record and the heads' runs, run concurrently, each well under a
+tenth of a second of server time. GitHub is not asked: the endpoint reads
+HUD's database only, so a push that has not reached HUD yet is not seen. The
+comparison with GitHub's heads and the measurements are in
+[query-validation.md](../../lib/api/tests/pull/query-validation.md).
 
 ### Cost
 

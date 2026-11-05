@@ -7,6 +7,9 @@ page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`.
 `/tests/[organization]/[repo]/commit/[sha]` is one commit's page, built on
 `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`; its
 section is [below](#commit-page).
+`/tests/[organization]/[repo]/pull/[number]` opens the commit page of a pull
+request's newest head, found by `GET /api/tests/pull/{number}`; its section
+is [below](#pull-request-page).
 `/tests` redirects to `/tests/pytorch/pytorch` (a `redirects()` entry in
 `next.config.js`), and the HUD navigation bar's Tests link, left of Help, goes
 straight to `/tests/pytorch/pytorch` (`components/layout/NavBar.tsx`). The other
@@ -17,7 +20,7 @@ below.
 This file is for the people who work on the page: the rules it keeps, where
 its pieces live, and the decisions that are not obvious from the code. The
 [OpenAPI document](https://hud.pytorch.org/api/openapi.json) is the reference
-for the data it shows, and lists the three pages under its `pages` tag with the
+for the data it shows, and lists the pages under its `pages` tag with the
 parameters they read from their URLs (the API README's
 [HUD pages](../../app/api/README.md#hud-pages)); every API response carries
 the page that shows it as `hud_url`.
@@ -1129,6 +1132,39 @@ block (`CellBlock`), the grid's swatches and attempt pills.
   change is made, so a filter chosen during the search's pause is kept.
   Expanded attempts are not kept, and another commit starts them over.
 
+## Pull request page
+
+`/tests/[organization]/[repo]/pull/[number]` is a way to a pull request's
+newest commit: it asks `GET /api/tests/pull/{number}` for the pull request's
+newest head (`usePullRequestHead`) and opens that commit's page in its place
+with `router.replace`, so the browser's back button skips it. A link to it,
+unlike a link to a commit, stays current as the pull request moves. It keeps
+the rules above: nothing but `/api/tests` endpoints, its logic in
+`lib/tests/pullPage.ts`, tested in `test/tests/pullPage.test.ts`.
+
+- The commit page's parameters in its URL are passed on, read and written as
+  the commit page reads and writes them (`pullPageTarget`), so
+  `/tests/pytorch/pytorch/pull/203277?status=passed` opens the newest commit
+  listing its passes.
+- Until the head is known the page shows the commit page's own loading
+  header (`CommitHeader` with no commit), so the commit page arrives without
+  a jump.
+- Each visit asks afresh, in an SWR cache of its own (`VISIT_CACHE`, an
+  `SWRConfig` provider around the page). From the shared cache a later visit
+  in the same tab got the head the first visit found and opened it at once,
+  since SWR shows a cached answer first and asks again only on the next
+  animation frame, though the pull request may have moved on since (found in
+  review, 2026-11-05).
+- The head is HUD's, not GitHub's: the head the pull request's latest record
+  names, corrected when that record fell behind a push (the API README's
+  [Pull requests](../../app/api/README.md#pull-requests)). A push that has
+  not reached HUD yet, seconds old, is not seen, and the page opens the head
+  before it.
+- A number HUD has no pull request record for shows a warning under the
+  headline "Pull request #N", with no Retry; the gate's refusals show the
+  `AccessNotice`, and any other failure, a malformed number among them, the
+  API's error with a Retry (`LoadError`).
+
 ## Cost page
 
 `/tests/[organization]/[repo]/cost` is a prototype: where a repository's
@@ -1256,3 +1292,9 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   said above the rows with its Unpin; the sticky header and footer while
   scrolling; and the Retry of a failed options load asking the options
   again.
+- For the pull request page, open `/tests/pytorch/pytorch/pull/<number>` for
+  an open pull request of pytorch/pytorch and check that the URL becomes the
+  page of the head `gh pr view <number> --json headRefOid` names, that back
+  skips the pull request page, that `?status=passed` is passed on, and that
+  an unknown number (`/pull/999999999`, the warning) and a malformed one
+  (`/pull/abc`, the API's error with Retry) say so.

@@ -10,6 +10,8 @@ import {
   COMMIT_PAGE_PATH,
   COMMIT_PAGE_PATH_PARAMETERS,
   CommitPageQuerySchema,
+  PULL_PAGE_PATH,
+  PULL_PAGE_PATH_PARAMETERS,
   TEST_PAGE_PARAMETER_DEFINITIONS,
   TEST_PAGE_PATH,
   TEST_PAGE_PATH_PARAMETERS,
@@ -94,6 +96,25 @@ export const testsPagesOpenApi: ApiResource = {
         description: `One commit's page: its header and summary row from getCommitSummary (GET /api/tests/commit/{sha}/summary), and under them the commit's runs from listCommitRuns (GET /api/tests/commit/{sha}) as one list in outcome order, failed, timed_out, flaky, passed, other, xfailed, skipped, and within each outcome in the page's sort, each run's attempts one click away. ${PAGE_NATURE} The commit is addressed by its full SHA, as the endpoints take it, and CommitSummary.hud_url and CommitRunListPage.hud_url are this page's URL with no parameters. The filters are the endpoint's own, spelled as it spells them; status and sort are the page's view: which outcomes are listed, and the rows' order within each.`,
         parameters: [
           ...Object.entries(COMMIT_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
+            pathParameter(name, schema)
+          ),
+          ...parameterQueryParameters(
+            CommitPageQuerySchema,
+            COMMIT_PAGE_PARAMETER_DEFINITIONS
+          ),
+        ],
+        responses: { "200": HTML_RESPONSE },
+        security: [],
+      },
+    },
+    [PULL_PAGE_PATH]: {
+      get: {
+        operationId: "pullPage",
+        tags: [PAGES_TAG],
+        summary: "HUD page: the tests on a pull request's newest commit",
+        description: `Opens the commit page (commitPage) of a pull request's newest head commit, which it finds with getPullRequest (GET /api/tests/pull/{number}), in place of itself, so the browser's history keeps only the commit page. ${PAGE_NATURE} The pull request is addressed by its number, as GitHub's URL spells it, and PullRequestHead.hud_url is this page's URL with no parameters, a link that stays current as the pull request moves. The parameters are the commit page's, passed on to it.`,
+        parameters: [
+          ...Object.entries(PULL_PAGE_PATH_PARAMETERS).map(([name, schema]) =>
             pathParameter(name, schema)
           ),
           ...parameterQueryParameters(

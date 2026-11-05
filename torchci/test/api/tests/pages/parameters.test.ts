@@ -8,6 +8,7 @@ import {
   GRID_OUTCOMES,
   pageQueryString,
   pageUrlParams,
+  pullPagePath,
   TEST_PAGE_PARAMETER_DEFINITIONS,
   testPagePath,
   TESTS_PAGE_PAGING_PARAMETERS,
@@ -358,6 +359,9 @@ describe("the pages' paths", () => {
       )
     ).toBe(
       "/tests/pytorch/pytorch/commit/ce6ff46d8ca967ef333ba9b804e081f26b432796"
+    );
+    expect(pullPagePath("pytorch/pytorch", 203277)).toBe(
+      "/tests/pytorch/pytorch/pull/203277"
     );
   });
 });

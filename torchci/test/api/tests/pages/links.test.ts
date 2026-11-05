@@ -3,6 +3,7 @@ import {
   commitPageUrl,
   DEFAULT_HUD_ORIGIN,
   hudOrigin,
+  pullPageUrl,
   testPageLinkForEntry,
   testPageLinkForGrid,
   testPageUrl,
@@ -67,6 +68,14 @@ describe("commitPageUrl", () => {
       )
     ).toBe(
       "https://hud.pytorch.org/tests/pytorch/pytorch/commit/ce6ff46d8ca967ef333ba9b804e081f26b432796"
+    );
+  });
+});
+
+describe("pullPageUrl", () => {
+  test("is the bare pull request page on the HUD origin", () => {
+    expect(pullPageUrl("pytorch/pytorch", 203277)).toBe(
+      "https://hud.pytorch.org/tests/pytorch/pytorch/pull/203277"
     );
   });
 });
