@@ -332,7 +332,7 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         "To minimize iteration time, feel free to run the pr-review skill " +
         "from the repo locally. If an automated review comment is " +
         "irrelevant, react with 👎 on that specific comment to reject it, " +
-        "ideally with a short reply explaining why. To trigger a fresh " +
+        "and leave a short reply explaining why. To trigger a fresh " +
         "automated review, make a new push or comment `@pytorchbot review`. " +
         "To bypass automated review, please add the “no automated review” label."
       );
