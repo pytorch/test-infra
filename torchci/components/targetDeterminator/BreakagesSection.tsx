@@ -3,33 +3,27 @@ import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
-import { NO_DATA_IN_WINDOW } from "lib/greenlight/qualityFigures";
 import {
   breakageStats,
-  CHUNK_MERGES,
-  CLAMP_DAYS,
-  countedRange,
   DAY_MS,
   dayStart,
   NEW_TEST_CHECK_FROM,
   NOTHING_TO_MEASURE,
   PENDING_NOTE,
   REVERT_WINDOW_DAYS,
-  sectionLimits,
-  TD_QUERIES,
   TD_SCOPE,
   TdParams,
 } from "lib/targetDeterminator";
 import {
   mergeChunks,
-  rangeChunks,
+  sectionChunks,
   useChunkedTdQuery,
 } from "lib/targetDeterminatorChunks";
 import { type BreakageRow } from "lib/targetDeterminatorRows";
 import { TdSection } from "./TdPanel";
 import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
-const UPPER_BOUND_TEXT = `Before ${NEW_TEST_CHECK_FROM} new tests cannot be told apart from tests TD skipped, so false greens there are an upper bound`;
+const UPPER_BOUND_TEXT = `Before ${NEW_TEST_CHECK_FROM} new tests cannot be told apart from tests TD skipped, so false greens there are an upper bound, and recall a lower bound`;
 
 export default function BreakagesSection({
   params,
@@ -39,28 +33,18 @@ export default function BreakagesSection({
   charts: TdChartsState;
 }) {
   const now = Date.now();
-  const { chunks, range } = rangeChunks(
-    countedRange(params, sectionLimits(now).breakages, now),
-    CLAMP_DAYS.breakages,
-    now
-  );
-  const states = useChunkedTdQuery<BreakageRow>(TD_QUERIES.breakages, chunks, {
+  const { spec, chunks, range } = sectionChunks("breakages", params, now);
+  const states = useChunkedTdQuery<BreakageRow>(spec.query, chunks, {
     tdWorkflows: TD_SCOPE.tdWorkflows,
   });
-  const breakages = mergeChunks(
-    TD_QUERIES.breakages,
-    chunks,
-    states,
-    CHUNK_MERGES.breakages
-  );
+  const breakages = mergeChunks(spec.query, chunks, states, spec);
   const error = breakages.tileError;
   const stats = breakageStats(breakages.total);
   const events = breakages.total?.events ?? 0;
   const countedUntil = now - REVERT_WINDOW_DAYS * DAY_MS;
+  const pending = range.start >= countedUntil;
   const upperBound =
     !range.empty && range.start < dayStart(NEW_TEST_CHECK_FROM);
-  const noEvents =
-    range.start >= countedUntil ? PENDING_NOTE : NO_DATA_IN_WINDOW;
 
   return (
     <TdSection
@@ -89,8 +73,8 @@ export default function BreakagesSection({
           {...tileToggle(charts, "falseGreens")}
           loading={breakages.loading}
           error={error}
-          value={events === 0 ? "-" : stats.falseGreens.toLocaleString()}
-          sub={events === 0 ? noEvents : undefined}
+          value={pending ? "-" : stats.falseGreens.toLocaleString()}
+          sub={pending ? PENDING_NOTE : undefined}
           caveat="Changes that broke main and were reverted, where the test that broke had been skipped on their pull request. Lower is better."
         />
       </Grid>
@@ -100,10 +84,10 @@ export default function BreakagesSection({
           {...tileToggle(charts, "recall")}
           loading={breakages.loading}
           error={error}
-          value={events === 0 ? "-" : percentFormatter(stats.recall)}
+          value={pending ? "-" : percentFormatter(stats.recall)}
           sub={
-            events === 0
-              ? noEvents
+            pending
+              ? PENDING_NOTE
               : stats.recallBase === 0
               ? NOTHING_TO_MEASURE
               : undefined
@@ -117,8 +101,8 @@ export default function BreakagesSection({
           {...tileToggle(charts, "traced")}
           loading={breakages.loading}
           error={error}
-          value={events === 0 ? "-" : events.toLocaleString()}
-          sub={events === 0 ? noEvents : undefined}
+          value={pending ? "-" : events.toLocaleString()}
+          sub={pending ? PENDING_NOTE : undefined}
           caveat="Changes that broke tests on main and were reverted. False greens and breakage recall are counted from these."
         />
       </Grid>

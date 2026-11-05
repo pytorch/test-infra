@@ -3,20 +3,15 @@ import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile, {
   TILE_SPAN,
 } from "components/greenlight/quality/QualityTile";
-import { NO_DATA_IN_WINDOW } from "lib/greenlight/qualityFigures";
 import {
-  CHUNK_MERGES,
-  CLAMP_DAYS,
-  countedRange,
   landingsMissing,
-  sectionLimits,
+  NOTHING_TO_MEASURE,
   TD_CUT_PCT,
-  TD_QUERIES,
   TdParams,
 } from "lib/targetDeterminator";
 import {
   mergeChunks,
-  rangeChunks,
+  sectionChunks,
   useChunkedTdQuery,
 } from "lib/targetDeterminatorChunks";
 import { type RankRow, ratio } from "lib/targetDeterminatorRows";
@@ -31,18 +26,9 @@ export default function RankingSection({
   charts: TdChartsState;
 }) {
   const now = Date.now();
-  const { chunks, range } = rangeChunks(
-    countedRange(params, sectionLimits(now).ranks, now),
-    CLAMP_DAYS.ranks,
-    now
-  );
-  const states = useChunkedTdQuery<RankRow>(TD_QUERIES.ranks, chunks);
-  const ranks = mergeChunks(
-    TD_QUERIES.ranks,
-    chunks,
-    states,
-    CHUNK_MERGES.ranks
-  );
+  const { spec, chunks, range } = sectionChunks("ranks", params, now);
+  const states = useChunkedTdQuery<RankRow>(spec.query, chunks);
+  const ranks = mergeChunks(spec.query, chunks, states, spec);
   const landings = ranks.total?.landings ?? 0;
   const insideCut = ranks.total?.inside_cut ?? 0;
 
@@ -68,7 +54,7 @@ export default function RankingSection({
           value={
             landings === 0 ? "-" : percentFormatter(ratio(insideCut, landings))
           }
-          sub={landings === 0 ? NO_DATA_IN_WINDOW : undefined}
+          sub={landings === 0 ? NOTHING_TO_MEASURE : undefined}
           caveat="When a change broke tests on main, how often a failing test was in the quarter of tests chosen to run for that change. Higher is better."
         />
       </Grid>
@@ -80,7 +66,7 @@ export default function RankingSection({
             ...ranks,
             window: range,
             note: landingsMissing(states)
-              ? `Some landings are missing from this chart: the query lists only the newest ones of each ${CLAMP_DAYS.ranks} days it reads.`
+              ? `Some landings are missing from this chart: the query lists only the newest ones of each ${spec.cellDays} days it reads.`
               : undefined,
           },
         }}

@@ -8,18 +8,14 @@ import {
   percentUnitsFormatter,
 } from "lib/greenlight/qualityFigures";
 import {
-  CHUNK_MERGES,
-  CLAMP_DAYS,
-  countedRange,
+  CHANGE_BUCKET_PCT,
   histMedian,
   NOTHING_TO_MEASURE,
-  sectionLimits,
-  TD_QUERIES,
   TdParams,
 } from "lib/targetDeterminator";
 import {
   mergeChunks,
-  rangeChunks,
+  sectionChunks,
   useChunkedTdQuery,
 } from "lib/targetDeterminatorChunks";
 import { type ChurnRow, ratio } from "lib/targetDeterminatorRows";
@@ -33,23 +29,18 @@ export default function StabilitySection({
   params: TdParams;
   charts: TdChartsState;
 }) {
-  const now = Date.now();
-  const { chunks, range } = rangeChunks(
-    countedRange(params, sectionLimits(now).stability, now),
-    CLAMP_DAYS.stability,
-    now
-  );
-  const states = useChunkedTdQuery<ChurnRow>(TD_QUERIES.churn, chunks);
-  const churn = mergeChunks(
-    TD_QUERIES.churn,
-    chunks,
-    states,
-    CHUNK_MERGES.stability
-  );
+  const { spec, chunks, range } = sectionChunks("stability", params);
+  const states = useChunkedTdQuery<ChurnRow>(spec.query, chunks);
+  const churn = mergeChunks(spec.query, chunks, states, spec);
   const pairs = churn.total?.pairs ?? 0;
   const identical = churn.total?.identical_pairs ?? 0;
   const changed = pairs - identical;
-  const median = histMedian(churn.rows, "bucket_pct", "pairs");
+  const median = histMedian(
+    churn.rows,
+    "bucket_pct",
+    "pairs",
+    CHANGE_BUCKET_PCT
+  );
 
   return (
     <TdSection

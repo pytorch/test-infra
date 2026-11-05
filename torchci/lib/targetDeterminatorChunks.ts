@@ -2,13 +2,17 @@
 // SWR entry per grid cell, merged into one answer.
 
 import {
+  CLAMP_DAYS,
   type CountedRange,
+  countedRange,
   DAY_MS,
   dayStart,
   JOB_NAMES_VALID_FROM,
   parseUtc,
   rangeText,
   readsAtMost,
+  sectionLimits,
+  TD_QUERIES,
   type TdParams,
   useTdQuery,
   utcText,
@@ -21,6 +25,31 @@ export interface Chunk extends TdParams {
 
 // One query slot per chunk. Nine 49-day cells hold any 365-day range.
 export const MAX_CHUNKS = 9;
+
+// Each chunked section's query, its cells (as wide as the query's SQL clamp),
+// the counts it sums over its chunks' total rows and the row grains it keeps.
+export const CHUNKED_SECTIONS = {
+  breakages: {
+    query: TD_QUERIES.breakages,
+    cellDays: CLAMP_DAYS.breakages,
+    counts: ["events", "false_green", "signal_on_pr", "passed_on_pr"],
+    keep: ["event"],
+  },
+  ranks: {
+    query: TD_QUERIES.ranks,
+    cellDays: CLAMP_DAYS.ranks,
+    counts: ["landings", "inside_cut"],
+    keep: ["landing"],
+  },
+  stability: {
+    query: TD_QUERIES.churn,
+    cellDays: CLAMP_DAYS.stability,
+    counts: ["pairs", "identical_pairs"],
+    keep: ["day", "week", "hist"],
+  },
+} as const;
+
+export type ChunkedSection = keyof typeof CHUNKED_SECTIONS;
 
 // The grid is fixed at JOB_NAMES_VALID_FROM, a Monday, so a chunk whose data
 // no longer changes keeps its SWR key and its answer, and cells of whole weeks
@@ -68,6 +97,23 @@ export function rangeChunks(
       label: rangeText({ start: from, end: to }),
     })),
     range: narrowed,
+  };
+}
+
+// The part of the picked window a section counts, cut into its chunks.
+export function sectionChunks<S extends ChunkedSection>(
+  section: S,
+  params: TdParams,
+  now: number = Date.now()
+) {
+  const spec = CHUNKED_SECTIONS[section];
+  return {
+    spec,
+    ...rangeChunks(
+      countedRange(params, sectionLimits(now)[section], now),
+      spec.cellDays,
+      now
+    ),
   };
 }
 
@@ -121,8 +167,9 @@ export interface ChunkedState<T, K extends string> extends TdQueryState<T> {
 }
 
 // One failed or malformed chunk fails the whole section: a sum over the chunks
-// that answered would pass for the window's total. The total holds the summed
-// counts only, since no other column of a total row adds up across chunks.
+// that answered would pass for the window's total. A failed chunk keeps its SWR
+// key and is not retried, so only a reload fetches it again. The total holds
+// only the counts the page reads.
 export function mergeChunks<
   T extends { grain: string },
   K extends keyof T & string
@@ -144,7 +191,9 @@ export function mergeChunks<
   const answered = chunks.map((chunk, i) => ({ chunk, state: states[i] }));
   const error = answered.find(({ state }) => state.error !== undefined);
   if (error !== undefined) {
-    return failed(`${error.state.error} (${error.chunk.label})`);
+    return failed(
+      `${error.state.error} (${error.chunk.label}). Reload the page to retry.`
+    );
   }
   if (answered.some(({ state }) => state.loading)) {
     return { loading: true, rows: [] };
@@ -159,7 +208,11 @@ export function mergeChunks<
     }
     const sum = {} as Record<K, number>;
     for (const key of counts) {
-      sum[key] = (total?.[key] ?? 0) + (num(found[0][key]) ?? 0);
+      const value = num(found[0][key]);
+      if (value === null) {
+        return failed(`${queryName} (${chunk.label}): ${key} is not a number`);
+      }
+      sum[key] = (total?.[key] ?? 0) + value;
     }
     total = sum;
   }

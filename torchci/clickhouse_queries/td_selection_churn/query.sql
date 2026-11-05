@@ -2,13 +2,16 @@
 -- (PR, config, head sha) of a `pull` run (pull_request event or ciflow tag push):
 -- the set of test files that ran across all shards (test_run_summary), only when the latest
 -- attempt of every shard concluded success and reported test files. A run's jobs count when they
--- were created within a day of the run, so a re-run started later is not seen. A set counts as
--- TD-on when it holds at most half the median file count of that config's green sets on main
--- pushes in the span the sets are read from; TD-off sets and configs without a main baseline are
--- dropped. Pairs are consecutive remaining head shas of a PR and config, ordered by run creation;
--- a pair counts when its later run was created in the window and its earlier run at most 14 days
--- before that, so sets are read from 14 days before the window. Identical when the sets are equal,
--- change = 100 * (1 - |A and B| / |A or B|) otherwise.
+-- were created within a day of the run, so a re-run started later is not seen. A new run on the
+-- same head sha is read when it was created inside the span read, and its jobs are then the
+-- latest attempts. A set counts as TD-on when it holds at most half the median file count of that
+-- config's green sets on main pushes in the span read; TD-off sets and configs without a main
+-- baseline are dropped. Pairs are consecutive remaining head shas of a PR and config, ordered by
+-- run creation; a pair counts when its later run was created in the window and its earlier run at
+-- most 14 days before that, so the span read starts 14 days before the window. Identical when the
+-- sets are equal, change = 100 * (1 - |A and B| / |A or B|) otherwise. Adjacent windows agree with
+-- one wider window to within about 0.5% of pairs, not exactly: a later run on a head sha can drop
+-- a set that a narrower window counted, and the TD-on threshold is computed per window.
 --
 -- A PR is its number (pull_requests, or the number in a ciflow tag), or for a fork PR, whose run
 -- carries no pull_requests, head repository and branch. A config is
@@ -19,11 +22,12 @@
 -- always present. bucket_pct is 0 outside 'hist'. The window ends at most now and spans at most
 -- 49 days. ClickHouse runs a CTE at every reference, so each CTE here is referenced once.
 WITH
+toIntervalDay(14) AS look_back,
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
     {startTime: DateTime64(3)}, window_end - INTERVAL 49 DAY
 ) AS window_start,
-window_start - INTERVAL 14 DAY AS sets_start,
+window_start - look_back AS sets_start,
 
 runs AS (
     SELECT
@@ -237,7 +241,7 @@ FROM (
     WHERE
         later_created >= window_start
         AND later_created < window_end
-        AND earlier_created >= later_created - INTERVAL 14 DAY
+        AND earlier_created >= later_created - look_back
 )
 GROUP BY GROUPING SETS ((day), (week), (identical, change_bucket), ())
 HAVING grain != 'hist' OR NOT identical

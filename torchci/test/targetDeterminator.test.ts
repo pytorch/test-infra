@@ -1,12 +1,17 @@
+import BreakagesSection from "components/targetDeterminator/BreakagesSection";
+import RankingSection from "components/targetDeterminator/RankingSection";
+import StabilitySection from "components/targetDeterminator/StabilitySection";
 import {
   plotOptions,
   plotSeries,
+  TdChartsState,
   tooltipText,
 } from "components/targetDeterminator/TdTrends";
 import fs from "fs";
+import { NO_DATA_IN_WINDOW } from "lib/greenlight/qualityFigures";
 import {
   breakageStats,
-  CHUNK_MERGES,
+  CHANGE_BUCKET_PCT,
   ciSaved,
   CLAMP_DAYS,
   countedRange,
@@ -19,6 +24,7 @@ import {
   minutesText,
   NEW_TEST_CHECK_FROM,
   NEW_TEST_DAYS,
+  NOTHING_TO_MEASURE,
   PENDING_NOTE,
   rangeText,
   RANKS_DATA_FROM,
@@ -29,13 +35,17 @@ import {
   TD_CUT_PCT,
   TD_QUERIES,
   TD_SCOPE,
+  type TdParams,
 } from "lib/targetDeterminator";
 import {
   type Chunk,
+  CHUNKED_SECTIONS,
+  type ChunkedSection,
   HELD_SLOT,
   MAX_CHUNKS,
   mergeChunks,
   rangeChunks,
+  sectionChunks,
   slotStarts,
   useChunkedTdQuery,
 } from "lib/targetDeterminatorChunks";
@@ -53,25 +63,32 @@ import {
 } from "lib/targetDeterminatorRows";
 import { buildPlot, TD_CHARTS } from "lib/targetDeterminatorTrends";
 import path from "path";
-import { createElement } from "react";
+import { ComponentType, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-// The chunk slots fetch through useClickHouseAPI. The mock answers a chunk by
-// its start time and records the start time of every slot that fetches.
-const mockAnswers = new Map<string, { data?: unknown; error?: unknown }>();
-const mockFetched: string[] = [];
+// The chunk slots fetch through useClickHouseAPI. The mock records every query
+// a slot sends and answers it with respond.
+type MockAnswer = { data?: unknown; error?: unknown };
+const mockApi = {
+  calls: [] as { name: string; startTime: string; stopTime: string }[],
+  respond: (_name: string, _startTime: string): MockAnswer => ({}),
+};
 jest.mock("lib/GeneralUtils", () => ({
   useClickHouseAPI: (
-    _name: string,
+    name: string,
     parameters: Record<string, unknown>,
     condition: boolean
   ) => {
     if (!condition) {
       return { data: undefined, error: undefined };
     }
-    const start = String(parameters.startTime);
-    mockFetched.push(start);
-    return mockAnswers.get(start) ?? { data: undefined, error: undefined };
+    const startTime = String(parameters.startTime);
+    mockApi.calls.push({
+      name,
+      startTime,
+      stopTime: String(parameters.stopTime),
+    });
+    return mockApi.respond(name, startTime);
   },
 }));
 
@@ -234,7 +251,8 @@ describe("breakageStats", () => {
 });
 
 describe("histMedian", () => {
-  const median = (rows: ChurnRow[]) => histMedian(rows, "bucket_pct", "pairs");
+  const median = (rows: ChurnRow[]) =>
+    histMedian(rows, "bucket_pct", "pairs", CHANGE_BUCKET_PCT);
 
   it("is null without counted hist rows", () => {
     expect(median([])).toBeNull();
@@ -244,27 +262,28 @@ describe("histMedian", () => {
     expect(median([histRow(4.5, 0), histRow(2, "")])).toBeNull();
   });
 
-  it("is the bucket of a single bucket", () => {
-    expect(median([histRow(7.3, "12")])).toBe(7.3);
+  it("is the middle of a single bucket", () => {
+    expect(median([histRow(7.3, "12")])).toBeCloseTo(7.35, 10);
   });
 
-  it("takes the lower of the two middle items of an even count", () => {
-    expect(median([histRow(2, 2), histRow(1, 2)])).toBe(1);
-    expect(median([histRow(1, 1), histRow(2, 1), histRow(3, 1)])).toBe(2);
-    expect(median([histRow(1, 1), histRow(2, 2), histRow(3, 1)])).toBe(2);
+  it("interpolates inside the bucket that holds the median", () => {
+    expect(
+      median([histRow(4.4, 30), histRow(4.3, 10), histRow(9, 20)])
+    ).toBeCloseTo(4.4 + (0.1 * (30 - 10)) / 30, 10);
+    expect(
+      median([histRow(0.3, "3"), histRow(0.7, 1), histRow(5, 1)])
+    ).toBeCloseTo(0.3 + (0.1 * 2.5) / 3, 10);
   });
 
-  it("keeps values under 1% and changes under 0.1%", () => {
-    expect(median([histRow(0.3, "3"), histRow(0.7, 1), histRow(5, 1)])).toBe(
-      0.3
-    );
-    expect(median([histRow(0, 2), histRow(12.1, 1)])).toBe(0);
+  it("lands on a bucket edge when half the items lie below it", () => {
+    expect(median([histRow(1, 2), histRow(2, 2)])).toBeCloseTo(1.1, 10);
+    expect(median([histRow(0, 5), histRow(12.1, 5)])).toBeCloseTo(0.1, 10);
   });
 
   it("adds up buckets repeated across chunks", () => {
-    expect(median([histRow(0.5, 1), histRow(4.5, 2), histRow(0.5, "1")])).toBe(
-      0.5
-    );
+    expect(
+      median([histRow(0.5, 1), histRow(4.5, 2), histRow(0.5, "1")])
+    ).toBeCloseTo(0.6, 10);
   });
 });
 
@@ -471,11 +490,7 @@ describe("countedRange", () => {
 describe("rangeChunks", () => {
   const anchor = day0(JOB_NAMES_VALID_FROM);
   const chunked = (start: string, stop: string, now = NOW) =>
-    rangeChunks(
-      countedRange(pick(start, stop), sectionLimits(now).breakages, now),
-      CLAMP_DAYS.breakages,
-      now
-    );
+    sectionChunks("breakages", pick(start, stop), now);
 
   function expectTiling(
     chunks: Chunk[],
@@ -513,13 +528,9 @@ describe("rangeChunks", () => {
 
   it("tiles stability on a 49-day grid whose cells start on Mondays", () => {
     const later = ms("2027-04-01T12:00:00.000");
-    const { chunks, range } = rangeChunks(
-      countedRange(
-        pick("2026-10-01", "2027-03-01"),
-        sectionLimits(later).stability,
-        later
-      ),
-      CLAMP_DAYS.stability,
+    const { chunks, range } = sectionChunks(
+      "stability",
+      pick("2026-10-01", "2027-03-01"),
       later
     );
     expect(expectTiling(chunks, range, 49).map((c) => c.label)).toEqual([
@@ -592,26 +603,17 @@ describe("rangeChunks", () => {
       );
       expect(whole.chunks.length).toBeLessThanOrEqual(MAX_CHUNKS);
       expect(whole.range.note).toBeUndefined();
-      const limits = sectionLimits(now);
-      const kept = rangeChunks(
-        countedRange(picked, limits.stability, now),
-        CLAMP_DAYS.stability,
-        now
-      );
-      expect(kept.range.note).toBe(limits.stability.validReason);
+      const kept = sectionChunks("stability", picked, now);
+      expect(kept.range.note).toBe(sectionLimits(now).stability.validReason);
       expect(kept.chunks[0].startTime).toBe(kept.range.params?.startTime);
     }
   });
 
   it("splits a long ranks pick into chunks from the first day of rankings", () => {
     const december = ms("2026-12-15T12:00:00.000");
-    const past = rangeChunks(
-      countedRange(
-        pick("2026-08-01", "2026-09-15"),
-        sectionLimits(december).ranks,
-        december
-      ),
-      CLAMP_DAYS.ranks,
+    const past = sectionChunks(
+      "ranks",
+      pick("2026-08-01", "2026-09-15"),
       december
     );
     expect(past.range.params?.startTime).toBe("2026-08-07T00:00:00.000");
@@ -620,15 +622,7 @@ describe("rangeChunks", () => {
       "2026-08-07 to 2026-09-14",
     ]);
     const june = ms("2027-06-15T12:00:00.000");
-    const long = rangeChunks(
-      countedRange(
-        pick("2026-08-07", "2027-06-01"),
-        sectionLimits(june).ranks,
-        june
-      ),
-      CLAMP_DAYS.ranks,
-      june
-    );
+    const long = sectionChunks("ranks", pick("2026-08-07", "2027-06-01"), june);
     expect(long.range.note).toBeUndefined();
     expect(long.chunks.map((c) => c.label)).toEqual([
       "2026-08-07 to 2026-10-10",
@@ -669,7 +663,7 @@ describe("mergeChunks", () => {
           breakageTotal({ events: 2, false_green: "2", passed_on_pr: "0" }),
         ]),
       ],
-      CHUNK_MERGES.breakages
+      CHUNKED_SECTIONS.breakages
     );
     expect(merged.error).toBeUndefined();
     expect(merged.total).toEqual({
@@ -697,7 +691,7 @@ describe("mergeChunks", () => {
           rank({ landings: 13, inside_cut: "10", median_pct: 4.2 }),
         ]),
       ],
-      CHUNK_MERGES.ranks
+      CHUNKED_SECTIONS.ranks
     );
     expect(merged.total).toEqual({ landings: 37, inside_cut: 19 });
     expect(merged.rows.map((r) => r.sha)).toEqual(["a1", "b1"]);
@@ -719,7 +713,7 @@ describe("mergeChunks", () => {
           histRow(4.5, "2"),
         ]),
       ],
-      CHUNK_MERGES.stability
+      CHUNKED_SECTIONS.stability
     );
     expect(merged.total).toEqual({ pairs: 51995, identical_pairs: 34488 });
     expect(merged.rows.map((r) => r.grain)).toEqual([
@@ -735,7 +729,7 @@ describe("mergeChunks", () => {
       "td_x",
       CHUNKS,
       [answer([churn({})]), answer([histRow(1, 1)])],
-      CHUNK_MERGES.stability
+      CHUNKED_SECTIONS.stability
     );
     expect(missing.error).toBe(
       "td_x (2026-12-08 to 2027-01-01): 0 total rows, expected 1"
@@ -746,7 +740,7 @@ describe("mergeChunks", () => {
       "td_x",
       CHUNKS,
       [answer([rank({}), rank({})]), answer([rank({})])],
-      CHUNK_MERGES.ranks
+      CHUNKED_SECTIONS.ranks
     );
     expect(duplicate.error).toBe(
       "td_x (2026-09-09 to 2026-12-07): 2 total rows, expected 1"
@@ -758,10 +752,30 @@ describe("mergeChunks", () => {
       "td_x",
       CHUNKS,
       [HELD_SLOT, { loading: false, error: "td_x: boom", rows: [] }],
-      CHUNK_MERGES.breakages
+      CHUNKED_SECTIONS.breakages
     );
-    expect(merged.error).toBe("td_x: boom (2026-12-08 to 2027-01-01)");
+    expect(merged.error).toBe(
+      "td_x: boom (2026-12-08 to 2027-01-01). Reload the page to retry."
+    );
     expect(merged.tileError).toBe(merged.error);
+  });
+
+  it("fails on a count that is null or not a number, naming it", () => {
+    for (const bad of [null, "", "n/a"]) {
+      const merged = mergeChunks(
+        "td_x",
+        CHUNKS,
+        [
+          answer([churn({ pairs: 4, identical_pairs: 2 })]),
+          answer([churn({ pairs: 4, identical_pairs: bad })]),
+        ],
+        CHUNKED_SECTIONS.stability
+      );
+      expect(merged.error).toBe(
+        "td_x (2026-12-08 to 2027-01-01): identical_pairs is not a number"
+      );
+      expect(merged.total).toBeUndefined();
+    }
   });
 
   it("waits for a loading or held chunk and needs a slot per chunk", () => {
@@ -771,16 +785,20 @@ describe("mergeChunks", () => {
           "td_x",
           CHUNKS,
           [answer([churn({})]), waiting],
-          CHUNK_MERGES.stability
+          CHUNKED_SECTIONS.stability
         )
       ).toEqual({ loading: true, rows: [] });
     }
     expect(
-      mergeChunks("td_x", CHUNKS, [answer([churn({})])], CHUNK_MERGES.stability)
-        .error
+      mergeChunks(
+        "td_x",
+        CHUNKS,
+        [answer([churn({})])],
+        CHUNKED_SECTIONS.stability
+      ).error
     ).toBe("td_x: more chunks than query slots");
     const noStates: TdQueryState<ChurnRow>[] = [];
-    const none = mergeChunks("td_x", [], noStates, CHUNK_MERGES.stability);
+    const none = mergeChunks("td_x", [], noStates, CHUNKED_SECTIONS.stability);
     expect(none.total).toBeUndefined();
     expect(none.loading).toBe(false);
   });
@@ -811,19 +829,16 @@ describe("chunk slots", () => {
   }));
   const total = (pairs: number) => [churn({ pairs })];
 
-  function render(
-    answers: Record<string, { data?: unknown; error?: unknown }>
-  ) {
-    mockAnswers.clear();
-    mockFetched.length = 0;
-    Object.entries(answers).forEach(([start, a]) => mockAnswers.set(start, a));
+  function render(answers: Record<string, MockAnswer>) {
+    mockApi.calls = [];
+    mockApi.respond = (_name, startTime) => answers[startTime] ?? {};
     let states: TdQueryState<ChurnRow>[] = [];
     function Probe() {
       states = useChunkedTdQuery<ChurnRow>("td_x", chunks);
       return null;
     }
     renderToStaticMarkup(createElement(Probe));
-    return { states, fetched: [...mockFetched] };
+    return { states, fetched: mockApi.calls.map((call) => call.startTime) };
   }
 
   it("holds a slot back as loading until its turn", () => {
@@ -834,9 +849,9 @@ describe("chunk slots", () => {
     expect(states.slice(4)).toEqual(
       new Array(MAX_CHUNKS - 4).fill({ loading: false, rows: [] })
     );
-    expect(mergeChunks("td_x", chunks, states, CHUNK_MERGES.stability)).toEqual(
-      { loading: true, rows: [] }
-    );
+    expect(
+      mergeChunks("td_x", chunks, states, CHUNKED_SECTIONS.stability)
+    ).toEqual({ loading: true, rows: [] });
   });
 
   it("starts the next slot once every slot before the one in flight answered", () => {
@@ -854,7 +869,7 @@ describe("chunk slots", () => {
     });
     expect(all.fetched).toEqual(["c0", "c1", "c2", "c3"]);
     expect(
-      mergeChunks("td_x", chunks, all.states, CHUNK_MERGES.stability).total
+      mergeChunks("td_x", chunks, all.states, CHUNKED_SECTIONS.stability).total
     ).toEqual({ pairs: 10, identical_pairs: 0 });
   });
 
@@ -866,8 +881,8 @@ describe("chunk slots", () => {
     expect(fetched).toEqual(["c0", "c1"]);
     expect(states.slice(2, 4)).toEqual([HELD_SLOT, HELD_SLOT]);
     expect(
-      mergeChunks("td_x", chunks, states, CHUNK_MERGES.stability).error
-    ).toBe("td_x: boom (chunk 1)");
+      mergeChunks("td_x", chunks, states, CHUNKED_SECTIONS.stability).error
+    ).toBe("td_x: boom (chunk 1). Reload the page to retry.");
     expect(render({ c0: { error: new Error("boom") } }).fetched).toEqual([
       "c0",
     ]);
@@ -1287,7 +1302,9 @@ const CONTRACTS: Record<string, Contract> = {
     literals: [
       "workflow_name = 'pull'",
       MARKERS,
-      `window_start - INTERVAL ${STABILITY_LOOK_BACK_DAYS} DAY`,
+      `toIntervalDay(${STABILITY_LOOK_BACK_DAYS}) AS look_back`,
+      "window_start - look_back AS sets_start",
+      "earlier_created >= later_created - look_back",
     ],
   },
 };
@@ -1390,5 +1407,205 @@ describe.each(Object.entries(CONTRACTS))("%s contract", (name, contract) => {
       expect(arrayUses).toHaveLength(1);
       expect(sql).toContain("workflow_name IN {tdWorkflows: Array(String)}");
     }
+  });
+});
+
+describe("td_selection_churn look-back", () => {
+  it("is one interval, used for the sets read and for the gap rule", () => {
+    const sql = fs.readFileSync(
+      path.join(queriesDir, TD_QUERIES.churn, "query.sql"),
+      "utf8"
+    );
+    expect(sql.match(/\blook_back\b/g)).toHaveLength(3);
+    expect(sql).not.toMatch(
+      new RegExp(
+        `INTERVAL ${STABILITY_LOOK_BACK_DAYS} DAY|toIntervalDay\\(${STABILITY_LOOK_BACK_DAYS}\\)(?! AS look_back)`
+      )
+    );
+  });
+});
+
+function sqlClampDays(queryName: string): number {
+  const sql = fs.readFileSync(
+    path.join(queriesDir, queryName, "query.sql"),
+    "utf8"
+  );
+  const clamp = sql.match(
+    /window_end - (?:INTERVAL (\d+) DAY|toIntervalDay\((\d+)\))/
+  );
+  return Number(clamp?.[1] ?? clamp?.[2]);
+}
+
+describe("chunked sections", () => {
+  it("cut each section into cells as wide as its query's SQL clamp", () => {
+    for (const [section, spec] of Object.entries(CHUNKED_SECTIONS)) {
+      expect([section, spec.cellDays]).toEqual([
+        section,
+        sqlClampDays(spec.query),
+      ]);
+    }
+  });
+});
+
+const CLOSED_CHARTS: TdChartsState = {
+  open: new Set(),
+  onToggle: () => {},
+  granularity: "day",
+};
+const TOTALS: Record<string, unknown[]> = {
+  [TD_QUERIES.breakages]: [breakageTotal({})],
+  [TD_QUERIES.ranks]: [rank({})],
+  [TD_QUERIES.churn]: [churn({})],
+};
+const SECTIONS: [
+  ChunkedSection,
+  ComponentType<{ params: TdParams; charts: TdChartsState }>,
+  string
+][] = [
+  ["breakages", BreakagesSection, "td_trunk_breakages"],
+  ["ranks", RankingSection, "td_failure_ranks"],
+  ["stability", StabilitySection, "td_selection_churn"],
+];
+
+describe("section rendering", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    mockApi.respond = () => ({});
+  });
+
+  function renderSection(
+    Section: ComponentType<{ params: TdParams; charts: TdChartsState }>,
+    params: TdParams,
+    now: number,
+    respond: (_name: string, _startTime: string) => MockAnswer
+  ) {
+    jest.useFakeTimers({ now });
+    mockApi.calls = [];
+    mockApi.respond = respond;
+    const html = renderToStaticMarkup(
+      createElement(Section, { params, charts: CLOSED_CHARTS })
+    );
+    const texts = html
+      .replace(/<style[^>]*>[^<]*<\/style>/g, "")
+      .replace(/<[^>]+>/g, "\n")
+      .replace(/&#x27;/g, "'")
+      .replace(/&amp;/g, "&")
+      .split("\n")
+      .map((text) => text.trim())
+      .filter((text) => text !== "");
+    return { texts, calls: [...mockApi.calls] };
+  }
+
+  // The value and the line under it on the tile with this label.
+  const face = (texts: string[], label: string) => {
+    const at = texts.indexOf(label);
+    expect(at).toBeGreaterThanOrEqual(0);
+    return texts.slice(at + 1, at + 3);
+  };
+  const answered = (name: string) => ({ data: TOTALS[name] });
+
+  it.each(SECTIONS)(
+    "%s fetches only its query, in cells of that query's clamp, from its own first day",
+    (section, Section, query) => {
+      const now = ms("2027-12-01T12:00:00.000");
+      const { calls } = renderSection(
+        Section,
+        pick("2026-07-13", "2027-12-02"),
+        now,
+        answered
+      );
+      const clamp = sqlClampDays(query);
+      const anchor = day0(JOB_NAMES_VALID_FROM);
+      expect(calls.length).toBeGreaterThan(1);
+      expect(calls[0].startTime).toBe(
+        new Date(sectionLimits(now)[section].validFrom)
+          .toISOString()
+          .slice(0, -1)
+      );
+      expect(calls[calls.length - 1].stopTime).toBe("2027-12-02T00:00:00.000");
+      calls.forEach((call, i) => {
+        expect(call.name).toBe(query);
+        expect(ms(call.stopTime) - ms(call.startTime)).toBeLessThanOrEqual(
+          clamp * DAY_MS
+        );
+        if (i > 0) {
+          expect(call.startTime).toBe(calls[i - 1].stopTime);
+          expect((ms(call.startTime) - anchor) % (clamp * DAY_MS)).toBe(0);
+        }
+      });
+    }
+  );
+
+  it("shows a real zero for breakage counts once every chunk answered", () => {
+    const { texts } = renderSection(
+      BreakagesSection,
+      pick("2026-10-01", "2026-11-05"),
+      NOW,
+      answered
+    );
+    expect(face(texts, "False greens")[0]).toBe("0");
+    expect(face(texts, "Reverted landings traced")[0]).toBe("0");
+    expect(face(texts, "Breakage recall")).toEqual(["-", NOTHING_TO_MEASURE]);
+    expect(texts).not.toContain(NO_DATA_IN_WINDOW);
+  });
+
+  it("keeps the pending sentence while every landing may still be reverted", () => {
+    const { texts } = renderSection(
+      BreakagesSection,
+      pick("2026-11-01", "2026-11-05"),
+      NOW,
+      answered
+    );
+    for (const label of [
+      "False greens",
+      "Breakage recall",
+      "Reverted landings traced",
+    ]) {
+      expect(face(texts, label)).toEqual(["-", PENDING_NOTE]);
+    }
+  });
+
+  it("bounds false greens and recall before the new-test check", () => {
+    const { texts } = renderSection(
+      BreakagesSection,
+      pick("2026-09-01", "2026-10-01"),
+      NOW,
+      answered
+    );
+    expect(
+      texts.some((text) =>
+        text.endsWith(
+          "so false greens there are an upper bound, and recall a lower bound."
+        )
+      )
+    ).toBe(true);
+  });
+
+  it("has nothing to measure for the caught share without landings", () => {
+    const { texts } = renderSection(
+      RankingSection,
+      pick("2026-10-01", "2026-11-05"),
+      NOW,
+      answered
+    );
+    expect(face(texts, "Trunk breakages TD would have caught")).toEqual([
+      "-",
+      NOTHING_TO_MEASURE,
+    ]);
+  });
+
+  it("names a failed chunk and asks for a reload", () => {
+    const { texts } = renderSection(
+      BreakagesSection,
+      pick("2026-10-01", "2026-11-05"),
+      NOW,
+      (name, startTime) =>
+        startTime === "2026-10-01T00:00:00.000"
+          ? { error: new Error("boom") }
+          : answered(name)
+    );
+    expect(face(texts, "False greens")[0]).toBe(
+      "td_trunk_breakages: boom (2026-10-01 to 2026-10-10). Reload the page to retry."
+    );
   });
 });

@@ -93,8 +93,8 @@ export interface RankRow {
   rank_pct: ChNum;
 }
 
-// A hist row counts the changed pairs whose change falls in one 0.1-point
-// bucket, bucket_pct being its floor.
+// A hist row counts the changed pairs whose change falls in one bucket,
+// CHANGE_BUCKET_PCT wide, bucket_pct being its lower edge.
 export interface ChurnRow {
   grain: "day" | "week" | "hist" | "total";
   bucket: string;

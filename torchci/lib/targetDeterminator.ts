@@ -34,14 +34,17 @@ export const JOB_NAMES_VALID_FROM = "2026-07-13";
 // probe reads 3 days ending 14 days before the landing, so before this day a
 // new test reads as skipped by TD: false greens there are an upper bound.
 export const NEW_TEST_CHECK_FROM = "2026-09-12";
-// The first whole UTC day of TD's rankings in misc.ossci_uploaded_metrics,
-// which start 2026-08-06 22:28 UTC.
+// misc.ossci_uploaded_metrics holds no TD rankings before 2026-08-06 22:28 UTC,
+// so this is the first whole UTC day of them.
 export const RANKS_DATA_FROM = "2026-08-07";
-// default.test_run_summary starts 2026-10-05 22:37 UTC. A stability pair reads
-// its earlier push up to STABILITY_LOOK_BACK_DAYS before the later one, so this
-// is the first day whose look-back lies inside the data.
+// default.test_run_summary holds no rows before 2026-10-05 22:37 UTC. A
+// stability pair reads its earlier push up to STABILITY_LOOK_BACK_DAYS before
+// the later one, so this is the first day whose look-back lies inside the data.
 export const STABILITY_DATA_FROM = "2026-10-20";
 export const STABILITY_LOOK_BACK_DAYS = 14;
+// td_selection_churn's hist rows count changes in buckets this many points
+// wide.
+export const CHANGE_BUCKET_PCT = 0.1;
 
 // The widest window each query reads; the SQL clamps to the same widths.
 // Breakages, ranks and stability read longer windows in chunks of this size.
@@ -58,20 +61,6 @@ const RETENTION_DAYS = {
   ranks: 730,
   stability: 365,
 };
-
-// What a chunked section sums over its chunks' total rows, and the row grains
-// it keeps.
-export const CHUNK_MERGES = {
-  breakages: {
-    counts: ["events", "false_green", "signal_on_pr", "passed_on_pr"],
-    keep: ["event"],
-  },
-  ranks: { counts: ["landings", "inside_cut"], keep: ["landing"] },
-  stability: {
-    counts: ["pairs", "identical_pairs"],
-    keep: ["day", "week", "hist"],
-  },
-} as const;
 
 // Shown wherever a breakage figure waits for its revert window to close.
 export const PENDING_NOTE = `Not yet counted: landings from the last ${REVERT_WINDOW_DAYS} days may still be reverted.`;
@@ -238,12 +227,15 @@ export function breakageStats(
   };
 }
 
-// The lower median of the hist rows: the bucket holding the ceil(n / 2)-th
-// smallest of the n items they count. Buckets repeated across chunks add up.
+// The grouped (interpolated) median of the hist rows, whose buckets are width
+// wide: L + width * (n / 2 - C) / f, where the bucket holding the median starts
+// at L and counts f items, C items lie in lower buckets and n in all of them.
+// Buckets repeated across chunks add up.
 export function histMedian<T extends { grain: string }>(
   rows: T[],
   bucketColumn: keyof T,
-  countColumn: keyof T
+  countColumn: keyof T,
+  width: number
 ): number | null {
   const perBucket = new Map<number, number>();
   for (const row of rows) {
@@ -258,12 +250,13 @@ export function histMedian<T extends { grain: string }>(
     perBucket.set(bucket, (perBucket.get(bucket) ?? 0) + count);
   }
   const total = [...perBucket.values()].reduce((sum, n) => sum + n, 0);
-  let running = 0;
+  let below = 0;
   for (const bucket of [...perBucket.keys()].sort((a, b) => a - b)) {
-    running += perBucket.get(bucket) ?? 0;
-    if (2 * running >= total) {
-      return bucket;
+    const count = perBucket.get(bucket) ?? 0;
+    if (2 * (below + count) >= total) {
+      return bucket + (width * (total / 2 - below)) / count;
     }
+    below += count;
   }
   return null;
 }
