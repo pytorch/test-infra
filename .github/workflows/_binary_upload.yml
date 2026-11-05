@@ -185,21 +185,23 @@ jobs:
         id: check-r2
         shell: bash
         env:
+          REPOSITORY: ${{ inputs.repository }}
+          # R2 upload is enabled only for these ecosystem libraries, on the nightly
+          # channel. To enable another one, add its repository (one per line) here.
+          R2_UPLOAD_REPOSITORIES: |
+            pytorch/audio
+            pytorch/vision
+            pytorch/FBGEMM
+            pytorch/executorch
+            pytorch/helion
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          # R2 upload is enabled only for specific ecosystem libraries on nightly channel
-          # Enabled repos: pytorch/audio (torchaudio), pytorch/vision (torchvision),
-          #                pytorch/FBGEMM (fbgemm_gpu, fbgemm_gpu_genai),
-          #                pytorch/executorch (executorch)
-          REPOSITORY="${{ inputs.repository }}"
           R2_UPLOAD="false"
-          case "$REPOSITORY" in
-            pytorch/audio|pytorch/vision|pytorch/FBGEMM|pytorch/executorch)
-              R2_UPLOAD="true"
-              ;;
-          esac
+          if grep -qxF -- "${REPOSITORY}" <<< "${R2_UPLOAD_REPOSITORIES}"; then
+            R2_UPLOAD="true"
+          fi
           if [[ -z "${R2_ACCOUNT_ID}" || -z "${R2_ACCESS_KEY_ID}" || -z "${R2_SECRET_ACCESS_KEY}" ]]; then
             echo "R2 secrets are not configured, skipping R2 upload"
             R2_UPLOAD="false"
