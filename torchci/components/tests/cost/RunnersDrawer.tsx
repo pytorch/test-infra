@@ -8,6 +8,7 @@ import {
   shareLabel,
   UNIT_NAMES,
 } from "lib/tests/cost/query";
+import { averageRate, missingRunners } from "lib/tests/cost/rates";
 import {
   type CostView,
   type OwnerRow,
@@ -56,18 +57,9 @@ export default function RunnersDrawer({
     const value = machines.reduce((a, m) => a + m.value, 0);
     const hours = machines.reduce((a, m) => a + m.hours, 0);
     const unpriced = machines.reduce((a, m) => a + m.unpriced, 0);
-    const missing = new Map<string, number>();
-    for (const m of machines) {
-      for (const r of m.runners) {
-        if (dollars && r.rate === null) {
-          missing.set(r.label, (missing.get(r.label) ?? 0) + r.hours);
-        }
-      }
-    }
-    const missingHours = Array.from(missing.values()).reduce(
-      (a, h) => a + h,
-      0
-    );
+    // In runner-hours no runner has a rate, and none is missing one.
+    const missing = dollars ? missingRunners(machines) : [];
+    const missingHours = missing.reduce((a, r) => a + r.hours, 0);
     const mix = rowMix(prepared, view, row.owners);
     const estimated = rowMix(prepared, view, row.owners, true);
     const share = (x: number, of: number, fill: string) => (
@@ -204,7 +196,7 @@ export default function RunnersDrawer({
                 prepared,
                 paintOf(prepared, m.machine)
               );
-              const priced = m.hours - m.unpriced;
+              const rate = averageRate(m.value, m.hours, m.unpriced);
               const rates = new Set(
                 m.runners.filter((r) => r.rate !== null).map((r) => r.rate)
               );
@@ -251,17 +243,15 @@ export default function RunnersDrawer({
                           : undefined
                       }
                     >
-                      {priced > 0
-                        ? `${rates.size > 1 ? "~" : ""}${rateLabel(
-                            m.value / priced
-                          )}`
+                      {rate !== null
+                        ? `${rates.size > 1 ? "~" : ""}${rateLabel(rate)}`
                         : "—"}
                     </Box>
                   )}
                   {dollars && (
-                    <td>{priced > 0 ? amount(m.value) : "no rate"}</td>
+                    <td>{rate !== null ? amount(m.value) : "no rate"}</td>
                   )}
-                  {dollars && priced <= 0 ? (
+                  {dollars && rate === null ? (
                     <Box component="td" sx={{ color: "text.secondary" }}>
                       —
                     </Box>
@@ -311,7 +301,7 @@ export default function RunnersDrawer({
             })}
           </tbody>
         </Box>
-        {missing.size > 0 && (
+        {missing.length > 0 && (
           <Typography
             variant="body2"
             component="p"
@@ -322,8 +312,8 @@ export default function RunnersDrawer({
               color: "text.secondary",
             }}
           >
-            No rate in {ratesFile}: {missing.size} of {row.label}&apos;s{" "}
-            {missing.size === 1 ? "runner" : "runners"},{" "}
+            No rate in {ratesFile}: {missing.length} of {row.label}&apos;s{" "}
+            {missing.length === 1 ? "runner" : "runners"},{" "}
             {hoursLabel(missingHours)} h (
             {shareLabel(missingHours / (hours || 1))} of its runner-hours). Set
             their rates in the key.

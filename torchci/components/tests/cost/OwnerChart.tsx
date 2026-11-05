@@ -18,6 +18,7 @@ import {
   shareLabel,
   UNIT_NAMES,
 } from "lib/tests/cost/query";
+import { averageRate, costMark } from "lib/tests/cost/rates";
 import {
   bucketInfo,
   type CostView,
@@ -204,14 +205,8 @@ export default function OwnerChart({
   // In $, each row's share of the runner-hours that have a rate, on the
   // axis's share scale: where its bar would end at the scope's average $/h.
   // A bar past its mark costs more per hour than average.
-  const sumOf = (m: Map<string, number>, owners: readonly string[]) =>
-    owners.reduce((a, o) => a + (m.get(o) ?? 0), 0);
-  const pricedHours = (owners: readonly string[]) =>
-    sumOf(view.ownerRunnerHours, owners) - sumOf(view.ownerUnpriced, owners);
-  const averageRate =
-    view.scopeTotal / (view.scopeRunnerHours - view.scopeUnpriced || 1);
   const markOf = (row: OwnerRow) =>
-    dollars && row.kind !== "less" ? pricedHours(row.owners) * averageRate : 0;
+    dollars && row.kind !== "less" ? costMark(view, row.owners) : 0;
   const ticks = niceTicks(
     Math.max(1, ...rows.map((r) => Math.max(r.hours, markOf(r))))
   );
@@ -296,19 +291,19 @@ export default function OwnerChart({
         ];
     const sum = (m: Map<string, number>) =>
       row.owners.reduce((a, o) => a + (m.get(o) ?? 0), 0);
+    const runnerHours = sum(view.ownerRunnerHours);
     const unpriced = sum(view.ownerUnpriced);
     const head = `${row.label}: ${amount(row.hours)} · ${shareLabel(
       row.hours / total
     )} of ${name}`;
-    const priced = pricedHours(row.owners);
+    const rate = averageRate(row.hours, runnerHours, unpriced);
     const coverage = dollars
-      ? `${hoursLabel(sum(view.ownerRunnerHours))} h${
+      ? `${hoursLabel(runnerHours)} h${
           unpriced > 0.5 ? ` (${hoursLabel(unpriced)} h with no rate)` : ""
         } · ${shareLabel(
-          priced / (view.scopeRunnerHours - view.scopeUnpriced || 1)
-        )} of priced hours${
-          priced > 0 ? ` · ${rateLabel(row.hours / priced)} avg` : ""
-        }`
+          (runnerHours - unpriced) /
+            (view.scopeRunnerHours - view.scopeUnpriced || 1)
+        )} of priced hours${rate !== null ? ` · ${rateLabel(rate)} avg` : ""}`
       : "";
     const action =
       row.kind === "more" || row.kind === "less"

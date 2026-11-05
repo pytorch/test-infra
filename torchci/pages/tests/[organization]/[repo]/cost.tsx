@@ -20,6 +20,7 @@ import {
   resolveCostQuery,
 } from "lib/tests/cost/query";
 import {
+  costFacts,
   MAX_RATES_BYTES,
   parseRates,
   priceableRunners,
@@ -364,11 +365,7 @@ export default function Page() {
             priced !== undefined &&
             pricedView !== undefined
               ? {
-                  ...factsOf(priced, pricedView, answer.days),
-                  pricedShare:
-                    1 -
-                    pricedView.scopeUnpriced /
-                      (pricedView.scopeRunnerHours || 1),
+                  ...costFacts(priced, pricedView, answer.days),
                   file: rates.file,
                 }
               : undefined

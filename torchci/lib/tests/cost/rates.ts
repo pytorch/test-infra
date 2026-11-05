@@ -1,4 +1,9 @@
-import type { PreparedHours } from "lib/tests/cost/runnerHours";
+import {
+  type CostView,
+  factsOf,
+  type MachineRunners,
+  type PreparedHours,
+} from "lib/tests/cost/runnerHours";
 
 // Cost for the cost page, from a rates file the reader adds: a JSON object
 // of runner label → $ per runner-hour, optionally wrapped with when the rates
@@ -141,6 +146,58 @@ export function pricedRunnerHours(
     workflowTotal,
     machineTotal,
   };
+}
+
+// $ per runner-hour over the runner-hours that have a rate: a machine's, a
+// row's or the scope's average; null where none has one.
+export function averageRate(
+  value: number,
+  runnerHours: number,
+  unpriced: number
+): number | null {
+  const priced = runnerHours - unpriced;
+  return priced > 0 ? value / priced : null;
+}
+
+// Where a row's bar would end at the scope's average $/h: its runner-hours
+// with a rate times that average. A bar past its mark costs more per hour
+// than the scope does.
+export function costMark(view: CostView, owners: readonly string[]): number {
+  const sum = (m: Map<string, number>) =>
+    owners.reduce((a, o) => a + (m.get(o) ?? 0), 0);
+  const scopeRate =
+    averageRate(view.scopeTotal, view.scopeRunnerHours, view.scopeUnpriced) ??
+    0;
+  return (sum(view.ownerRunnerHours) - sum(view.ownerUnpriced)) * scopeRate;
+}
+
+// The facts' row in $: the scope's cost, per day and a year, and the share
+// of its runner-hours that have a rate.
+export function costFacts(
+  prepared: PreparedHours,
+  view: CostView,
+  days: number
+) {
+  return {
+    ...factsOf(prepared, view, days),
+    pricedShare: 1 - view.scopeUnpriced / (view.scopeRunnerHours || 1),
+  };
+}
+
+// The runners a breakdown's runner-hours have no rate for, largest first.
+export function missingRunners(
+  machines: readonly MachineRunners[]
+): { label: string; hours: number }[] {
+  const hours = new Map<string, number>();
+  for (const m of machines) {
+    for (const r of m.runners) {
+      if (r.rate === null)
+        hours.set(r.label, (hours.get(r.label) ?? 0) + r.hours);
+    }
+  }
+  return Array.from(hours, ([label, h]) => ({ label, hours: h })).sort(
+    (a, b) => b.hours - a.hours || a.label.localeCompare(b.label)
+  );
 }
 
 // How a file covers the window: the runners with hours, how many it prices,

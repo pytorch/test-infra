@@ -7,6 +7,7 @@ import {
   getRunnerHours,
   runnerHoursRows,
   shortDeviceNames,
+  unprobedLabels,
 } from "lib/api/tests/cost/runnerHours";
 import { RunnerHoursSchema } from "lib/api/tests/cost/types";
 import * as clickhouse from "lib/clickhouse";
@@ -154,6 +155,28 @@ describe("cost runner-hours", () => {
         1
       ),
     ]);
+  });
+
+  test("loses no runner-hour: the rows hold the query's, known machines and unknown labels split them, and each bucket's contributors are its rows", () => {
+    const sum = (rows: { runner_hours: number }[]) =>
+      rows.reduce((a, r) => a + r.runner_hours, 0);
+    const rows = runnerHoursRows(ROWS);
+    expect(sum(rows)).toBe(sum(ROWS));
+    expect(
+      sum(rows.filter((r) => r.machine !== "")) + sum(unprobedLabels(ROWS))
+    ).toBe(sum(ROWS));
+    for (const bucket of [
+      "unattributed:no_test_reports",
+      "unattributed:no_owner",
+    ]) {
+      expect(
+        sum(costContributors(ROWS).filter((c) => c.bucket === bucket))
+      ).toBe(sum(rows.filter((r) => r.owner === bucket)));
+    }
+    // The same cell asked twice adds up; it is never kept twice or dropped.
+    expect(runnerHoursRows([...ROWS, ...ROWS])).toEqual(
+      rows.map((r) => ({ ...r, runner_hours: 2 * r.runner_hours }))
+    );
   });
 
   test("the unattributed buckets by runner label (no test reports) and test file (no owner), largest first", () => {

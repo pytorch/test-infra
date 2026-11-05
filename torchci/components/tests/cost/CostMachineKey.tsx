@@ -8,7 +8,7 @@ import {
   rateLabel,
   shareLabel,
 } from "lib/tests/cost/query";
-import { priceKey } from "lib/tests/cost/rates";
+import { averageRate, missingRunners, priceKey } from "lib/tests/cost/rates";
 import {
   type CostView,
   joinNames,
@@ -85,15 +85,7 @@ export default function CostMachineKey({
   const max = Math.max(1e-9, ...rows.map((r) => r.hours));
   const sum = (ms: number[], k: "value" | "hours" | "unpriced") =>
     ms.reduce((a, m) => a + (mine.get(m)?.[k] ?? 0), 0);
-  const missing = new Map<string, number>();
-  for (const b of mine.values()) {
-    for (const r of b.runners) {
-      if (r.rate === null) {
-        missing.set(r.label, (missing.get(r.label) ?? 0) + r.hours);
-      }
-    }
-  }
-  const largestMissing = Array.from(missing).sort((a, b) => b[1] - a[1]);
+  const largestMissing = missingRunners(Array.from(mine.values()));
   const mineHours = sum(Array.from(mine.keys()), "hours");
   const mineUnpriced = sum(Array.from(mine.keys()), "unpriced");
   const chevron = {
@@ -195,7 +187,7 @@ export default function CostMachineKey({
         const hours = sum(row.machines, "hours");
         const unpriced = sum(row.machines, "unpriced");
         const noRate = hours > 0 && unpriced >= hours - 1e-9;
-        const rate = hours > unpriced ? value / (hours - unpriced) : null;
+        const rate = averageRate(value, hours, unpriced);
         const priced = (mine.get(m)?.runners ?? []).filter(
           (r) => r.rate !== null && r.hours > 0
         );
@@ -510,7 +502,7 @@ export default function CostMachineKey({
           {largestMissing.length === 1 ? "runner" : "runners"}, largest{" "}
           {largestMissing
             .slice(0, 2)
-            .map(([label, h]) => `${label} (${hoursLabel(h)} h)`)
+            .map((r) => `${r.label} (${hoursLabel(r.hours)} h)`)
             .join(", ")}
           . Set rates under ▸.
         </Typography>
