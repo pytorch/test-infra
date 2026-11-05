@@ -951,6 +951,13 @@
       "win"
     ]
   ],
+  "test_matmul_output_precision (__main__.TestNativeMatmulRowReduction)": [
+    "203499",
+    "https://github.com/pytorch/pytorch/issues/203499",
+    [
+      "xpu"
+    ]
+  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
@@ -1296,6 +1303,13 @@
   "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTests)": [
     "194896",
     "https://github.com/pytorch/pytorch/issues/194896",
+    [
+      "xpu"
+    ]
+  ],
+  "test_row_reduction_output_precision (__main__.TestNativeMatmulRowReduction)": [
+    "203500",
+    "https://github.com/pytorch/pytorch/issues/203500",
     [
       "xpu"
     ]
