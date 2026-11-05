@@ -1162,7 +1162,8 @@ PACKAGES_PER_PROJECT.setdefault("setuptools", []).append(
     {"project": "torch_rocm", "target": "rocm-preview"}
 )
 
-ROCM_DEVICE_PACKAGE_PREFIX = "rocm-sdk-device-"
+# Discovered names become S3 keys, so accept only well-formed device packages.
+ROCM_DEVICE_PACKAGE_RE = re.compile(r"rocm-sdk-device-gfx[0-9a-z]+(-generic)?")
 
 
 # NVIDIA packages that are published to PyPI rather than pypi.nvidia.com. The
@@ -1276,6 +1277,9 @@ def add_discovered_rocm_device_packages() -> None:
     """
     for target in rocm_targets():
         source_url = get_package_source_url("rocm", target)
+        if not source_url.endswith("/rocm/"):
+            print(f"WARNING: Unexpected rocm source {source_url}, using static devices")
+            continue
         root_url = source_url[: -len("rocm/")]
         try:
             names, _ = parse_simple_idx(root_url)
@@ -1284,7 +1288,7 @@ def add_discovered_rocm_device_packages() -> None:
             continue
         for name in sorted(names):
             pkg_name = name.strip().lower()
-            if not pkg_name.startswith(ROCM_DEVICE_PACKAGE_PREFIX):
+            if not ROCM_DEVICE_PACKAGE_RE.fullmatch(pkg_name):
                 continue
             configs = PACKAGES_PER_PROJECT.setdefault(pkg_name, [])
             config = {"project": "torch_rocm", "target": target}
