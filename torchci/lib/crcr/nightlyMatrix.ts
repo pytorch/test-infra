@@ -71,36 +71,52 @@ export function buildNightlyMatrix<T extends NightlyMatrixJob>(
 ): { jobNames: string[]; rows: NightlyRow<T>[] } {
   const jobNamesSet = new Set<string>();
   const runMap = new Map<string, NightlyRow<T>>();
+  const runFirstStartedAt = new Map<string, string>();
+
+  for (const job of data) {
+    const sha = job.pytorch_head_sha || "unknown";
+    const matrixKey = isRealCommitSha(sha) ? sha : job.run_id || sha;
+    const runKey = `${matrixKey}:${job.run_id}`;
+    const firstStartedAt = runFirstStartedAt.get(runKey);
+    if (!firstStartedAt || job.started_at < firstStartedAt) {
+      runFirstStartedAt.set(runKey, job.started_at);
+    }
+  }
 
   for (const job of data) {
     jobNamesSet.add(job.job_name);
     const sha = job.pytorch_head_sha || "unknown";
-    const key = isRealCommitSha(sha) ? sha : job.run_id || sha;
-    let row = runMap.get(key);
+    const matrixKey = isRealCommitSha(sha) ? sha : job.run_id || sha;
+    const runKey = `${matrixKey}:${job.run_id}`;
+    let row = runMap.get(matrixKey);
     if (!row) {
       row = {
-        key,
+        key: matrixKey,
         runId: job.run_id,
         sha,
         upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
         latestTime: job.started_at,
         jobs: new Map(),
       };
-      runMap.set(key, row);
+      runMap.set(matrixKey, row);
     }
     if (job.started_at > row.latestTime) {
       row.latestTime = job.started_at;
     }
     const existing = row.jobs.get(job.job_name);
-    // A build can run several jobs under one label (parallel shards). Grouping
-    // by run puts them in a single cell, so prefer the later attempt and then
-    // the worse outcome -- otherwise a failing shard can be hidden behind a
-    // passing sibling that merely sorted last.
+    const candidateRunStartedAt = runFirstStartedAt.get(runKey) ?? "";
+    const existingKey = `${matrixKey}:${existing?.run_id ?? ""}`;
+    const existingRunStartedAt = runFirstStartedAt.get(existingKey) ?? "";
+    // A nightly row intentionally combines workflows for one upstream SHA.
+    // For a duplicated job name, choose one newest workflow before choosing
+    // its latest attempt so an older retry cannot replace its workflow URL.
     if (
       !existing ||
-      job.run_attempt > existing.run_attempt ||
-      (job.run_attempt === existing.run_attempt &&
-        severity(job) > severity(existing))
+      candidateRunStartedAt > existingRunStartedAt ||
+      (candidateRunStartedAt === existingRunStartedAt &&
+        (job.run_attempt > existing.run_attempt ||
+          (job.run_attempt === existing.run_attempt &&
+            severity(job) > severity(existing))))
     ) {
       row.jobs.set(job.job_name, job);
     }

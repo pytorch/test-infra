@@ -143,6 +143,35 @@ describe("buildNightlyMatrix", () => {
     expect(rows[0].jobs.get("flaky")?.conclusion).toBe("success");
   });
 
+  test("keeps a repeated job name on the newest workflow run", () => {
+    const { rows } = buildNightlyMatrix([
+      job({
+        run_id: "old-run",
+        job_name: "build",
+        started_at: "2026-11-05T09:00:00Z",
+      }),
+      job({
+        run_id: "old-run",
+        job_name: "test",
+        run_attempt: 2,
+        started_at: "2026-11-05T10:30:00Z",
+      }),
+      job({
+        run_id: "new-run",
+        job_name: "build",
+        started_at: "2026-11-05T10:00:00Z",
+      }),
+      job({
+        run_id: "new-run",
+        job_name: "test",
+        started_at: "2026-11-05T10:05:00Z",
+      }),
+    ]);
+
+    expect(rows[0].jobs.get("test")?.run_id).toBe("new-run");
+    expect(rows[0].jobs.get("test")?.run_attempt).toBe(1);
+  });
+
   // vLLM run 89983 really did have three jobs sharing one label. Grouping by
   // run puts them in a single cell, so the cell must not report success just
   // because a passing shard sorted last.

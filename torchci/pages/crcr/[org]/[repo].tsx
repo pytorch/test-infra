@@ -34,6 +34,7 @@ import {
   NightlyRow,
   paginateNightlyMatrix,
 } from "lib/crcr/nightlyMatrix";
+import { buildPrMatrix } from "lib/crcr/prMatrix";
 import { CRCR_TIME_RANGES } from "lib/crcr/timeRanges";
 import { parseTriageVerdict } from "lib/crcr/triageVerdict";
 import { Highlight } from "lib/types";
@@ -724,14 +725,6 @@ function JobCell({ job, sha }: { job: CrcrJobRow; sha: string }) {
 
 // ---- Matrix Builder ----
 
-interface MatrixRow {
-  prNumber: number;
-  sha: string;
-  upstreamRepo: string;
-  latestTime: string;
-  jobs: Map<string, CrcrJobRow>;
-}
-
 interface ColumnDef {
   type: "single" | "group";
   name: string;
@@ -867,57 +860,6 @@ function GroupedJobCell({
       </span>
     </TooltipTarget>
   );
-}
-
-function buildMatrix(data: CrcrJobRow[]): {
-  jobNames: string[];
-  rows: MatrixRow[];
-} {
-  const jobNamesSet = new Set<string>();
-  const prMap = new Map<number, MatrixRow>();
-
-  for (const job of data) {
-    const prNum = job.pr_number ?? 0;
-    if (prNum <= 0) continue;
-    jobNamesSet.add(job.job_name);
-    let row = prMap.get(prNum);
-    if (!row) {
-      row = {
-        prNumber: prNum,
-        sha: job.pytorch_head_sha,
-        upstreamRepo: job.upstream_repo ?? "pytorch/pytorch",
-        latestTime: job.started_at,
-        jobs: new Map(),
-      };
-      prMap.set(prNum, row);
-    }
-    // Track latest started_at for this PR. A newer commit supersedes the
-    // row entirely -- different dispatches (a mid-PR push vs. the eventual
-    // post-merge pull_request run, say) share the same pr_number but aren't
-    // the same commit, so cells from the old commit must not linger once a
-    // newer one starts reporting.
-    if (job.started_at > row.latestTime) {
-      row.latestTime = job.started_at;
-      if (job.pytorch_head_sha !== row.sha) {
-        row.sha = job.pytorch_head_sha;
-        row.jobs.clear();
-      }
-    }
-    // Ignore jobs for any commit other than the row's current one.
-    if (job.pytorch_head_sha !== row.sha) continue;
-    // Keep the latest attempt per job_name
-    const existing = row.jobs.get(job.job_name);
-    if (!existing || job.run_attempt > existing.run_attempt) {
-      row.jobs.set(job.job_name, job);
-    }
-  }
-
-  const jobNames = Array.from(jobNamesSet).sort();
-  const rows = Array.from(prMap.values()).sort(
-    (a, b) =>
-      new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
-  );
-  return { jobNames, rows };
 }
 
 // ---- Pagination ----
@@ -1065,7 +1007,7 @@ function CrcrMatrix({
 
   const { matrix, hasNextPage, columns } = useMemo(() => {
     if (!data) return { matrix: null, hasNextPage: false, columns: [] };
-    const full = buildMatrix(data);
+    const full = buildPrMatrix(data);
     const hasMore = full.rows.length > PER_PAGE;
     return {
       matrix: {
