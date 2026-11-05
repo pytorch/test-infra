@@ -1222,6 +1222,42 @@ describe("latestAttemptsForHead", () => {
     expect(rows[0].conclusion).toBe("success");
   });
 
+  test("does not combine a newer run with an older run's failure", () => {
+    const oldRetry = crcrJob({
+      id: 1,
+      jobName: "test",
+      head_sha: "new222",
+      runId: 101,
+      runAttempt: 2,
+      startedAt: "2026-11-05T09:30:00Z",
+      conclusion: "failure",
+    });
+    const newBuild = crcrJob({
+      id: 2,
+      jobName: "build",
+      head_sha: "new222",
+      runId: 202,
+      startedAt: "2026-11-05T10:00:00Z",
+      conclusion: "success",
+    });
+    const newTest = crcrJob({
+      id: 3,
+      jobName: "test",
+      head_sha: "new222",
+      runId: 202,
+      startedAt: "2026-11-05T10:05:00Z",
+      conclusion: "success",
+    });
+
+    const selected = latestAttemptsForHead(
+      [oldRetry, newBuild, newTest],
+      "new222"
+    );
+
+    expect(selected.map((job) => job.id).sort()).toEqual([2, 3]);
+    expect(selected.every((job) => job.conclusion === "success")).toBe(true);
+  });
+
   test("drops rows from a superseded push", () => {
     const stale = crcrJob({ id: 1, head_sha: "old111", runAttempt: 1 });
     expect(latestAttemptsForHead([stale], "new222")).toEqual([]);

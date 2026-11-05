@@ -137,6 +137,8 @@ export interface RecentWorkflowsData extends BasicJobData {
    * identifies the attempt. 0 when the reporter sent none.
    */
   runId?: number;
+  /** CRCR callback start time — set by fetchCrcrWorkflows for run selection. */
+  startedAt?: string;
 }
 
 export interface Artifact {

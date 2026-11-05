@@ -28,6 +28,7 @@ import {
   matchVerdictToJob,
 } from "lib/advisorVerdictUtils";
 import { isJobAutorevertSignal } from "lib/autorevertUtils";
+import { selectHudCrcrResults } from "lib/crcr/hudResults";
 import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import {
   greenlightRepoKey,
@@ -839,6 +840,7 @@ interface CrcrHudRow {
   status: string;
   conclusion: string;
   workflow_run_url: string;
+  started_at: string;
   duration_seconds: number;
   failed_tests_json: string;
 }
@@ -972,16 +974,9 @@ function GroupedHudTable({ params }: { params: HudParams }) {
       if (!crcrForPr) return row;
 
       const merged = new Map(row.nameToJobs);
-      for (const cr of crcrForPr) {
+      for (const cr of selectHudCrcrResults(crcrForPr, row.sha)) {
         const jobData = crcrToJobData(cr);
-        const existing = merged.get(jobData.name!);
-        if (
-          !existing ||
-          !existing.id ||
-          cr.run_attempt > (existing.runAttempt ?? 0)
-        ) {
-          merged.set(jobData.name!, jobData);
-        }
+        merged.set(jobData.name!, jobData);
       }
       return { ...row, nameToJobs: merged };
     });
