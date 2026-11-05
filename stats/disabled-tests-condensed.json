@@ -158,6 +158,13 @@
       "linux"
     ]
   ],
+  "test_combo_kernel_per_config_subkernel_r0_r1 (__main__.ComboKernelTests)": [
+    "198180",
+    "https://github.com/pytorch/pytorch/issues/198180",
+    [
+      "xpu"
+    ]
+  ],
   "test_compile_backward_bmm_cuda_float32 (__main__.TestNestedTensorOpInfoCUDA)": [
     "200403",
     "https://github.com/pytorch/pytorch/issues/200403",
@@ -230,6 +237,13 @@
   "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_True_conv_offset_ (__main__.CudaReproTests)": [
     "202874",
     "https://github.com/pytorch/pytorch/issues/202874",
+    [
+      "xpu"
+    ]
+  ],
+  "test_conv_bias_rounds_before_log_softmax_bfloat16_emulate_precision_casts_True_conv_offset_-100 (__main__.CudaReproTests)": [
+    "203606",
+    "https://github.com/pytorch/pytorch/issues/203606",
     [
       "xpu"
     ]
@@ -715,6 +729,13 @@
   "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_allow_unused_input (__main__.TestXpu)": [
     "196650",
     "https://github.com/pytorch/pytorch/issues/196650",
+    [
+      "xpu"
+    ]
+  ],
+  "test_graph_make_graphed_callables_parameterless_nograd_module_without_amp_not_allow_unused_input (__main__.TestXpu)": [
+    "196710",
+    "https://github.com/pytorch/pytorch/issues/196710",
     [
       "xpu"
     ]
