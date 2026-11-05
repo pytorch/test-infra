@@ -396,6 +396,34 @@ describe("utils: getOpenStackPrs", () => {
     ]);
   });
 
+  test("a listing row that is not a PR is skipped", async () => {
+    const prsScope = nock("https://api.github.com")
+      .post("/graphql", (body) => body.query.includes("StackPrFields"))
+      .reply(200, {
+        data: { repository: { pr0: null, pr1: prNode(4) } },
+        errors: [
+          {
+            type: "NOT_FOUND",
+            path: ["repository", "pr0"],
+            message: "Could not resolve to a PullRequest with the number of 9.",
+          },
+        ],
+      });
+    const compareScope = mockCompare([0]);
+    const result = await getOpenStackPrs(
+      octokit,
+      owner,
+      repo,
+      subject(["* #9", "* #4", "* __->__ #3"]),
+      "above"
+    );
+    prsScope.done();
+    compareScope.done();
+    expect(result.kind === "stack" && result.prs.map((p) => p.number)).toEqual([
+      4,
+    ]);
+  });
+
   test("ghstack with a placeholder listing is pending, with no query", async () => {
     const result = await getOpenStackPrs(
       octokit,

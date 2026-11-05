@@ -706,6 +706,28 @@ async function toStackPr(
   };
 }
 
+// GitHub answers a missing object (a number that is not a PR, a ref that does
+// not exist) with a null alias and a NOT_FOUND error, which octokit throws on.
+async function graphqlSkippingMissing(
+  octokit: Octokit,
+  query: string,
+  variables: Record<string, string | number>
+): Promise<any> {
+  try {
+    return await octokit.graphql(query, variables);
+  } catch (error) {
+    const e = error as { data?: unknown; errors?: { type?: string }[] };
+    if (
+      e.data === undefined ||
+      e.data === null ||
+      !e.errors?.every((err) => err.type === "NOT_FOUND")
+    ) {
+      throw error;
+    }
+    return e.data;
+  }
+}
+
 async function getOpenGhstackNodes(
   octokit: Octokit,
   owner: string,
@@ -735,7 +757,7 @@ ${STACK_PR_FIELDS}`;
   numbers.forEach((n, i) => {
     variables[`n${i}`] = n;
   });
-  const res: any = await octokit.graphql(query, variables);
+  const res = await graphqlSkippingMissing(octokit, query, variables);
   return numbers
     .map((_, i): StackPrNode | null => res?.repository?.[`pr${i}`] ?? null)
     .filter(isOpenSameRepo)
@@ -837,20 +859,7 @@ ${fields.join("\n")}
     variables[`b${i}`] = `refs/heads/${lower}`;
     variables[`h${i}`] = `refs/heads/${upper}`;
   });
-  let res: any;
-  try {
-    res = await octokit.graphql(query, variables);
-  } catch (error) {
-    const e = error as { data?: unknown; errors?: { type?: string }[] };
-    if (
-      e.data === undefined ||
-      e.data === null ||
-      !e.errors?.every((err) => err.type === "NOT_FOUND")
-    ) {
-      throw error;
-    }
-    res = e.data;
-  }
+  const res = await graphqlSkippingMissing(octokit, query, variables);
   return nodes.filter(
     (_, i) => res?.repository?.[`c${i}`]?.compare?.behindBy === 0
   );
