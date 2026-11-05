@@ -221,7 +221,7 @@ function ReadinessChip({
           size="small"
           variant="outlined"
         />
-      )}
+      ) : null}
     </Stack>
   );
 }
