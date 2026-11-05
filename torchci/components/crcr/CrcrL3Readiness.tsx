@@ -3,6 +3,7 @@ import {
   Box,
   Chip,
   Collapse,
+  Link,
   Paper,
   Skeleton,
   Stack,
@@ -20,6 +21,7 @@ import { fetcherHandleError } from "lib/GeneralUtils";
 import {
   buildCriteriaRows,
   buildDemotionRows,
+  buildOperationalBaselineRows,
   CriterionRow,
   formatMeasured,
   getL3ProtectionStatus,
@@ -32,6 +34,7 @@ import {
   L3_PROMOTION_WINDOW_DAYS,
   useL3VerdictColors,
 } from "lib/crcr/l3Thresholds";
+import { levelPolicyPresentation, type CrcrLevel } from "lib/crcr/levelPolicy";
 import type { AllowlistResponse } from "pages/api/crcr/allowlist";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
@@ -98,9 +101,9 @@ function useL3Summary(days: number, repoFullName: string) {
 function configuredLevel(
   allowlist: AllowlistResponse | undefined,
   repoFullName: string
-): string | null {
+): CrcrLevel | null {
   if (!allowlist) return null;
-  for (const level of ["L1", "L2", "L3", "L4"] as const) {
+  for (const level of ["L1", "L2", "L3", "L4"] as CrcrLevel[]) {
     if (allowlist[level].some((entry) => entry.repo === repoFullName)) {
       return level;
     }
@@ -126,12 +129,16 @@ export default function CrcrL3Readiness({
   );
   const [expanded, setExpanded] = useState(false);
   const level = configuredLevel(allowlist, repoFullName);
+  const policy = levelPolicyPresentation(level);
 
   if (!promotion.loaded || !demotion.loaded || !tenure.loaded) {
     return <Skeleton variant="rectangular" height={80} />;
   }
 
-  const promotionRows = buildCriteriaRows(promotion.summary, tenure.tenure);
+  const promotionRows =
+    policy.primaryCriteria === "promotion"
+      ? buildCriteriaRows(promotion.summary, tenure.tenure)
+      : buildOperationalBaselineRows(promotion.summary);
   const demotionRows = buildDemotionRows(demotion.summary);
   const rows = mergeCriteriaRows(promotionRows, demotionRows);
   const l3ProtectionStatus = getL3ProtectionStatus(
@@ -154,7 +161,7 @@ export default function CrcrL3Readiness({
           onClick={() => setExpanded((e) => !e)}
         >
           <Stack spacing={0.5}>
-            <Typography variant="h6">L3 Readiness</Typography>
+            <Typography variant="h6">{policy.title}</Typography>
             <Chip
               label={expanded ? "Hide details" : "Details"}
               size="small"
@@ -180,8 +187,20 @@ export default function CrcrL3Readiness({
               sx={{ width: "fit-content" }}
             />
           </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
-            {l3ProtectionStatus && (
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            flexWrap="wrap"
+            useFlexGap
+          >
+            <Chip
+              label={policy.configuredStatus}
+              size="small"
+              color="info"
+              variant="outlined"
+            />
+            {policy.showProtectionStatus && l3ProtectionStatus && (
               <Chip
                 label={
                   l3ProtectionStatus === "active"
@@ -201,89 +220,117 @@ export default function CrcrL3Readiness({
                 variant="outlined"
               />
             )}
-            <L3SummaryChip
-              label="Promotion"
-              rows={promotionRows}
-              variant="promotion"
-            />
-            <L3SummaryChip
-              label="Demotion"
-              rows={demotionRows}
-              variant="demotion"
-            />
+            {policy.primarySummaryLabel && (
+              <L3SummaryChip
+                label={policy.primarySummaryLabel}
+                rows={promotionRows}
+                variant="promotion"
+              />
+            )}
+            {policy.secondarySummaryLabel && (
+              <L3SummaryChip
+                label={policy.secondarySummaryLabel}
+                rows={demotionRows}
+                variant="demotion"
+              />
+            )}
+            {level === "L2" && (
+              <Chip
+                label="Demotion policy begins at L3"
+                size="small"
+                variant="outlined"
+              />
+            )}
           </Stack>
         </Box>
 
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Stack spacing={1.5}>
             <Typography variant="caption" color="text.secondary">
-              Promotion is evaluated over the last {L3_PROMOTION_WINDOW_DAYS}{" "}
-              days, demotion over the last {L3_DEMOTION_WINDOW_DAYS} days.
-              {level === "L3" &&
-                " A failed demotion criterion moves an L3 backend to the separate temporary-protection section on the CRCR summary; it remains configured as L3 until an allowlist change is merged."}
+              {policy.description} Configured-level decisions and their recorded
+              evidence are available in{" "}
+              <Link href="#configured-level-history">
+                Configured-Level History
+              </Link>
+              .
             </Typography>
 
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <strong>Criterion</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Target</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Promotion ({L3_PROMOTION_WINDOW_DAYS}d)</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Demotion ({L3_DEMOTION_WINDOW_DAYS}d)</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.map((r) => (
-                    <TableRow key={r.key}>
+            {policy.showCriteria && (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
                       <TableCell>
-                        {r.criterion}
-                        {r.provisional && (
-                          <Tooltip title="Provisional — value pending a future spec amendment">
-                            <Typography
-                              component="span"
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{ ml: 0.5, cursor: "help" }}
-                            >
-                              (provisional)
-                            </Typography>
-                          </Tooltip>
-                        )}
-                        {r.key === "tenureAtL2Days" &&
-                          r.promotion.measured == null && (
-                            <Tooltip title="No tenure data for this repo yet">
+                        <strong>Criterion</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Target</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>{policy.primaryLabel}</strong>
+                      </TableCell>
+                      {policy.showSecondaryColumn && (
+                        <TableCell align="right">
+                          <strong>{policy.secondaryLabel}</strong>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rows.map((r) => (
+                      <TableRow key={r.key}>
+                        <TableCell>
+                          {r.criterion}
+                          {r.provisional && (
+                            <Tooltip title="Provisional — value pending a future spec amendment">
                               <Typography
                                 component="span"
                                 variant="caption"
                                 color="text.secondary"
                                 sx={{ ml: 0.5, cursor: "help" }}
                               >
-                                (no data)
+                                (provisional)
                               </Typography>
                             </Tooltip>
                           )}
-                      </TableCell>
-                      <TableCell align="right">{r.targetLabel}</TableCell>
-                      <TableCell align="right">
-                        <VerdictValue row={r.promotion} variant="promotion" />
-                      </TableCell>
-                      <TableCell align="right">
-                        <VerdictValue row={r.demotion} variant="demotion" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                          {r.key === "tenureAtL2Days" &&
+                            r.promotion.measured == null && (
+                              <Tooltip title="No tenure data for this repo yet">
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ ml: 0.5, cursor: "help" }}
+                                >
+                                  (no data)
+                                </Typography>
+                              </Tooltip>
+                            )}
+                        </TableCell>
+                        <TableCell align="right">{r.targetLabel}</TableCell>
+                        <TableCell align="right">
+                          <VerdictValue row={r.promotion} variant="promotion" />
+                        </TableCell>
+                        {policy.showSecondaryColumn && (
+                          <TableCell align="right">
+                            {policy.showDemotionSignals ? (
+                              <VerdictValue
+                                row={r.demotion}
+                                variant="demotion"
+                              />
+                            ) : (
+                              <Typography variant="body2" color="text.disabled">
+                                not applicable
+                              </Typography>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Stack>
         </Collapse>
       </Stack>

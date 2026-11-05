@@ -1,6 +1,7 @@
 import {
   buildCriteriaRows,
   buildDemotionRows,
+  buildOperationalBaselineRows,
   getL3ProtectionStatus,
   L3SummaryRow,
   mergeCriteriaRows,
@@ -166,6 +167,21 @@ describe("buildCriteriaRows / summarizeReadiness", () => {
     const result = summarizeReadiness(rows);
     expect(result.judgedCount).toBe(0);
     expect(result.ready).toBe(false);
+  });
+});
+
+describe("buildOperationalBaselineRows", () => {
+  it("contains the five operational metrics but never the L2-tenure prerequisite", () => {
+    const rows = buildOperationalBaselineRows(summaryRow({}));
+
+    expect(rows.map((r) => r.key)).toEqual([
+      "e2eTimeS",
+      "overrunRate",
+      "avgQueueTimeS",
+      "timeoutRate",
+      "passRate",
+    ]);
+    expect(rows).toHaveLength(5);
   });
 });
 

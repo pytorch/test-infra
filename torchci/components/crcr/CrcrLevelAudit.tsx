@@ -470,6 +470,7 @@ export default function CrcrLevelAudit({
 
   return (
     <Accordion
+      id="configured-level-history"
       disableGutters
       elevation={1}
       expanded={expanded}

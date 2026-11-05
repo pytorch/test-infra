@@ -42,9 +42,11 @@ import type { L3SummaryRow, TenureInfo } from "lib/crcr/l3Readiness";
 import {
   buildCriteriaRows,
   buildDemotionRows,
+  buildOperationalBaselineRows,
   tenureInfoFromL2Since,
 } from "lib/crcr/l3Readiness";
 import { L3_DEMOTION_WINDOW_DAYS } from "lib/crcr/l3Thresholds";
+import { levelPolicyPresentation } from "lib/crcr/levelPolicy";
 import type {
   CiMetricsRow,
   CrcrOverviewData,
@@ -176,31 +178,50 @@ function timeAgo(dateStr: string): string {
 
 function ReadinessChip({
   repo,
+  level,
   tenure,
   l3SummaryMap,
   l3SummaryMapDemotion,
 }: {
   repo: string;
+  level: Level;
   tenure: TenureInfo | null;
   l3SummaryMap: Map<string, L3SummaryRow>;
   l3SummaryMapDemotion: Map<string, L3SummaryRow>;
 }) {
-  const promotionRows = buildCriteriaRows(
-    l3SummaryMap.get(repo) ?? null,
-    tenure
-  );
+  const policy = levelPolicyPresentation(level);
+  const promotionRows =
+    policy.primaryCriteria === "promotion"
+      ? buildCriteriaRows(l3SummaryMap.get(repo) ?? null, tenure)
+      : buildOperationalBaselineRows(l3SummaryMap.get(repo) ?? null);
   const demotionRows = buildDemotionRows(
     l3SummaryMapDemotion.get(repo) ?? null
   );
 
+  if (!policy.primarySummaryLabel) {
+    return <Chip label="Onboarding" size="small" variant="outlined" />;
+  }
+
   return (
     <Stack direction="row" spacing={0.5} justifyContent="center">
       <L3SummaryChip
-        label="Promotion"
+        label={policy.primarySummaryLabel}
         rows={promotionRows}
         variant="promotion"
       />
-      <L3SummaryChip label="Demotion" rows={demotionRows} variant="demotion" />
+      {policy.secondarySummaryLabel ? (
+        <L3SummaryChip
+          label={policy.secondarySummaryLabel}
+          rows={demotionRows}
+          variant="demotion"
+        />
+      ) : level === "L2" ? (
+        <Chip
+          label="Demotion policy begins at L3"
+          size="small"
+          variant="outlined"
+        />
+      ) : null}
     </Stack>
   );
 }
@@ -260,7 +281,7 @@ function CiHealthTable({
               <strong>Last Run</strong>
             </TableCell>
             <TableCell align="center">
-              <strong>L3 Readiness</strong>
+              <strong>Level Policy Status</strong>
             </TableCell>
           </TableRow>
         </TableHead>
@@ -356,6 +377,7 @@ function CiHealthTable({
                 <TableCell align="center">
                   <ReadinessChip
                     repo={entry.repo}
+                    level={level}
                     tenure={tenureMap.get(entry.repo) ?? null}
                     l3SummaryMap={l3SummaryMap}
                     l3SummaryMapDemotion={l3SummaryMapDemotion}
