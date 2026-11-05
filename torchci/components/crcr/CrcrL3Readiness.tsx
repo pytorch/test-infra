@@ -314,7 +314,10 @@ export default function CrcrL3Readiness({
                         {policy.showSecondaryColumn && (
                           <TableCell align="right">
                             {policy.showDemotionSignals ? (
-                              <VerdictValue row={r.demotion} variant="demotion" />
+                              <VerdictValue
+                                row={r.demotion}
+                                variant="demotion"
+                              />
                             ) : (
                               <Typography variant="body2" color="text.disabled">
                                 not applicable
