@@ -159,6 +159,24 @@ export function workflowRow(
   );
 }
 
+// The workflow rows split the total row: one row per workflow, their jobs
+// adding up to the total's. Anything else broke the query's contract.
+export function workflowError(
+  queryName: string,
+  rows: SavingsRow[],
+  total: SavingsRow | undefined
+): string | undefined {
+  const workflows = rows.filter((row) => row.grain === "workflow");
+  if (new Set(workflows.map((row) => row.workflow)).size < workflows.length) {
+    return `${queryName}: a workflow has more than one workflow row`;
+  }
+  const jobs = workflows.reduce((sum, row) => sum + (num(row.jobs) ?? 0), 0);
+  const totalJobs = num(total?.jobs) ?? 0;
+  return jobs === totalJobs
+    ? undefined
+    : `${queryName}: workflow rows hold ${jobs} jobs, the total row ${totalJobs}`;
+}
+
 // A query that answers without exactly one total row broke its contract;
 // saying so beats rendering every tile as an empty window, or as whichever
 // total came first.

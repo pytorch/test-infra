@@ -35,7 +35,10 @@ export function useBreakagesData(params: TdParams, now: number) {
     range,
     breakages,
     stats: breakageStats(breakages.total),
-    pending: range.start >= countedUntil,
+    // The picker's Last 7 Days starts at the UTC day start before now - 7
+    // days; figures from that sliver of closed landings would stand for the
+    // whole range.
+    pending: countedUntil - range.start < DAY_MS,
     upperBound: !range.empty && range.start < dayStart(NEW_TEST_CHECK_FROM),
     chart: {
       ...breakages,

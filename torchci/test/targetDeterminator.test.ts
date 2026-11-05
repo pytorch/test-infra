@@ -1,3 +1,8 @@
+import {
+  CLICKHOUSE_TIME_FORMAT,
+  snapStopToGranularity,
+  snapToGranularity,
+} from "components/common/timeWindow";
 import BreakagesSection, {
   useBreakagesData,
 } from "components/targetDeterminator/BreakagesSection";
@@ -13,6 +18,7 @@ import {
   TdChartsState,
   tooltipText,
 } from "components/targetDeterminator/TdTrends";
+import dayjs from "dayjs";
 import fs from "fs";
 import { NO_DATA_IN_WINDOW } from "lib/greenlight/qualityFigures";
 import {
@@ -26,7 +32,6 @@ import {
   hoursText,
   JOB_NAMES_VALID_FROM,
   landingsMissing,
-  MIN_BASELINE_COVERAGE,
   MIN_MAIN_RUNS,
   minutesText,
   NEW_TEST_CHECK_FROM,
@@ -74,6 +79,7 @@ import {
   buildPlot,
   TD_CHARTS,
   type TdChartKey,
+  WORKFLOW_CHART_KEYS,
   workflowChartKey,
 } from "lib/targetDeterminatorTrends";
 import { TdSections } from "pages/target_determinator";
@@ -134,6 +140,9 @@ function savings(partial: Partial<SavingsRow>): SavingsRow {
     ...partial,
   };
 }
+
+const workflowRowOf = (workflow: string, jobs: number) =>
+  savings({ grain: "workflow", workflow, jobs });
 
 function breakageTotal(partial: Partial<BreakageRow>): BreakageRow {
   return {
@@ -245,7 +254,6 @@ describe("savedShare", () => {
     });
 
   it("gates the share on the row's own baseline coverage", () => {
-    expect(MIN_BASELINE_COVERAGE).toBe(0.5);
     expect(savedShare(row(50, 50))).toEqual({ value: 0.75 });
     expect(savedShare(row(49, 51))).toEqual({
       value: null,
@@ -1082,6 +1090,7 @@ describe("trend charts", () => {
       "workflowJob-pull",
       "workflowJob-trunk",
     ]);
+    expect(WORKFLOW_CHART_KEYS).toEqual(perWorkflow);
     for (const workflow of TD_SCOPE.tdWorkflows) {
       const saved = TD_CHARTS[workflowChartKey("workflowSaved", workflow)];
       const job = TD_CHARTS[workflowChartKey("workflowJob", workflow)];
@@ -1095,6 +1104,7 @@ describe("trend charts", () => {
         "p90, with TD",
         "p90, every test",
       ]);
+      expect(job.note).toContain("every-test lines");
     }
   });
 
@@ -1772,9 +1782,8 @@ describe("section rendering", () => {
     return decode(html.slice(from, html.indexOf('"', from)));
   };
   const answered = (name: string) => ({ data: TOTALS[name] });
-  const withSavings =
-    (rows: SavingsRow[]) => (name: string, startTime: string) =>
-      name === TD_QUERIES.savings ? { data: rows } : answered(name);
+  const withSavings = (rows: SavingsRow[]) => (name: string) =>
+    name === TD_QUERIES.savings ? { data: rows } : answered(name);
   const opened = (...keys: TdChartKey[]) => ({
     ...CLOSED_CHARTS,
     open: new Set(keys),
@@ -1830,6 +1839,47 @@ describe("section rendering", () => {
     }
     const key = renderSection(KeyMetricsProbe, window, NOW, answered).texts;
     expect(face(key, "Breakage recall")).toEqual(["-", PENDING_NOTE]);
+  });
+
+  it("reads the picker's Last 7 Days as pending until a whole day is closed", () => {
+    const now = ms("2026-11-04T12:00:00.000");
+    const picked = dayjs(now);
+    const lastWeek = {
+      startTime: snapToGranularity(picked.subtract(7, "day"), "day").format(
+        CLICKHOUSE_TIME_FORMAT
+      ),
+      stopTime: snapStopToGranularity(picked, "day").format(
+        CLICKHOUSE_TIME_FORMAT
+      ),
+    };
+    expect(lastWeek.startTime).toBe("2026-10-28T00:00:00.000");
+    const oneClosed = (name: string) =>
+      name === TD_QUERIES.breakages
+        ? {
+            data: [
+              breakageTotal({ events: 1, false_green: 1 }),
+              breakageTotal({
+                grain: "event",
+                landed_at: "2026-10-28 03:00:00.000",
+                outcome: "false_green",
+                window_closed: 1,
+              }),
+            ],
+          }
+        : answered(name);
+    const { texts } = renderSection(BreakagesProbe, lastWeek, now, oneClosed);
+    for (const label of ["False greens", "Reverted landings traced"]) {
+      expect(face(texts, label)).toEqual(["-", PENDING_NOTE]);
+    }
+    const key = renderSection(KeyMetricsProbe, lastWeek, now, oneClosed);
+    expect(face(key.texts, "Breakage recall")).toEqual(["-", PENDING_NOTE]);
+    const dayClosed = renderSection(
+      BreakagesProbe,
+      { ...lastWeek, startTime: "2026-10-27T12:00:00.000" },
+      now,
+      oneClosed
+    ).texts;
+    expect(face(dayClosed, "False greens")[0]).toBe("1");
   });
 
   it("bounds false greens before the new-test check, and recall in the key metrics", () => {
@@ -1912,7 +1962,7 @@ describe("section rendering", () => {
       pick("2026-10-01", "2026-11-05"),
       NOW,
       withSavings([
-        savings({ jobs: 120, pr_hours: 90, est_full_hours: 120 }),
+        savings({ jobs: 80, pr_hours: 50, est_full_hours: 80 }),
         savings({
           grain: "workflow",
           workflow: "pull",
@@ -1949,7 +1999,7 @@ describe("section rendering", () => {
       pick("2026-10-01", "2026-11-05"),
       NOW,
       withSavings([
-        savings({}),
+        savings({ jobs: 50 }),
         savings({
           grain: "workflow",
           workflow: "pull",
@@ -1985,6 +2035,143 @@ describe("section rendering", () => {
     );
     expect(face(texts, "CI time saved (estimated)")[0]).toBe(
       "td_ci_savings: 2 total rows, expected 1"
+    );
+  });
+
+  it.each([
+    [
+      "workflow rows that do not add up to the total",
+      [
+        savings({ jobs: 90 }),
+        workflowRowOf("pull", 50),
+        workflowRowOf("trunk", 30),
+      ],
+      "td_ci_savings: workflow rows hold 80 jobs, the total row 90",
+    ],
+    [
+      "a workflow listed twice",
+      [
+        savings({ jobs: 100 }),
+        workflowRowOf("pull", 50),
+        workflowRowOf("pull", 50),
+      ],
+      "td_ci_savings: a workflow has more than one workflow row",
+    ],
+    [
+      "jobs without any workflow row",
+      [savings({ jobs: 100, pr_hours: 25, est_full_hours: 100 })],
+      "td_ci_savings: workflow rows hold 0 jobs, the total row 100",
+    ],
+  ])("fails the workflow figures on %s", (_case, rows, error) => {
+    const window = pick("2026-10-01", "2026-11-05");
+    const { texts } = renderSection(
+      SavingsProbe,
+      window,
+      NOW,
+      withSavings(rows)
+    );
+    for (const label of [
+      "CI time saved, pull workflow (estimated)",
+      "CI time saved, trunk workflow (estimated)",
+      "Typical pull workflow test job",
+      "Typical trunk workflow test job",
+    ]) {
+      expect(face(texts, label)[0]).toBe(error);
+    }
+    expect(face(texts, "Time to green saved (estimated)")[0]).toBe("-");
+    const key = renderSection(KeyMetricsProbe, window, NOW, withSavings(rows));
+    expect(face(key.texts, "CI time saved (estimated)")[0]).not.toBe(error);
+  });
+
+  it("reads no workflow row as an empty window when the total has no jobs", () => {
+    const { texts } = renderSection(
+      SavingsProbe,
+      pick("2026-10-01", "2026-11-05"),
+      NOW,
+      withSavings([savings({ unmatched_jobs: 3 })])
+    );
+    expect(face(texts, "CI time saved, pull workflow (estimated)")).toEqual([
+      "-",
+      NO_DATA_IN_WINDOW,
+    ]);
+  });
+
+  it("loads each key metric with its own query", () => {
+    const window = pick("2026-10-01", "2026-11-05");
+    const saved = [savings({ jobs: 4, pr_hours: 25, est_full_hours: 100 })];
+    const recalled = [
+      breakageTotal({ events: 4, false_green: 1, passed_on_pr: 3 }),
+    ];
+    const onlySkeletonOn = (html: string, label: string) => {
+      const marker = 'class="MuiSkeleton-root';
+      const at = html.indexOf(`>${label}<`);
+      const skeleton = html.indexOf(marker);
+      return (
+        html.split(marker).length === 2 &&
+        at >= 0 &&
+        skeleton > at &&
+        !html.slice(at, skeleton).includes(' chart"')
+      );
+    };
+    const breakagesLoading = renderSection(
+      KeyMetricsProbe,
+      window,
+      NOW,
+      (name) =>
+        name === TD_QUERIES.savings
+          ? { data: saved }
+          : name === TD_QUERIES.breakages
+          ? {}
+          : answered(name)
+    );
+    expect(face(breakagesLoading.texts, "CI time saved (estimated)")[0]).toBe(
+      "75.0%"
+    );
+    expect(onlySkeletonOn(breakagesLoading.html, "Breakage recall")).toBe(true);
+    const savingsLoading = renderSection(KeyMetricsProbe, window, NOW, (name) =>
+      name === TD_QUERIES.breakages
+        ? { data: recalled }
+        : name === TD_QUERIES.savings
+        ? {}
+        : answered(name)
+    );
+    expect(face(savingsLoading.texts, "Breakage recall")[0]).toBe("75.0%");
+    expect(
+      onlySkeletonOn(savingsLoading.html, "CI time saved (estimated)")
+    ).toBe(true);
+  });
+
+  it("gives the key metrics a floor note that holds for both figures", () => {
+    const neutral = `Test jobs had other names before ${JOB_NAMES_VALID_FROM}.`;
+    const straddling = renderSection(
+      KeyMetricsProbe,
+      pick("2026-06-01", "2026-08-01"),
+      NOW,
+      answered
+    ).texts;
+    expect(straddling).toContain(
+      `Counted ${JOB_NAMES_VALID_FROM} to 2026-07-31 (UTC). ${neutral} ` +
+        `Before ${NEW_TEST_CHECK_FROM}, recall is a lower bound.`
+    );
+    const before = renderSection(
+      KeyMetricsProbe,
+      pick("2026-06-01", "2026-07-10"),
+      NOW,
+      answered
+    ).texts;
+    expect(before).toContain(
+      `Nothing to count in the picked window. ${neutral}`
+    );
+    const breakages = renderSection(
+      BreakagesProbe,
+      pick("2026-06-01", "2026-07-10"),
+      NOW,
+      answered
+    ).texts;
+    expect(breakages).toContain(
+      `Nothing to count in the picked window. ${
+        sectionLimits(NOW).breakages.validReason
+      }`
     );
   });
 

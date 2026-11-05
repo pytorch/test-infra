@@ -73,7 +73,7 @@ export const NOTHING_TO_MEASURE = "Nothing to measure in this range";
 
 // Below this share of PR jobs with a main baseline, the estimate describes too
 // small a slice of PR CI to stand for it.
-export const MIN_BASELINE_COVERAGE = 0.5;
+const MIN_BASELINE_COVERAGE = 0.5;
 
 export const DAY_MS = 86400000;
 

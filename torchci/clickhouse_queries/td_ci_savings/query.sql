@@ -47,11 +47,19 @@ SELECT
     countIf(NOT matched) AS unmatched_jobs,
     sumIf(dur, matched) / 3600 AS pr_hours,
     sumIf(main_mean, matched) / 3600 AS est_full_hours,
-    ifNotFinite(medianExactIf(dur, matched) / 60, 0) AS pr_median_min,
-    ifNotFinite(medianExactIf(main_median, matched) / 60, 0) AS full_median_min,
-    ifNotFinite(quantileExactIf(0.9) (dur, matched) / 60, 0) AS pr_p90_min,
     ifNotFinite(
-        quantileExactIf(0.9) (main_median, matched) / 60, 0
+        arrayElement(quantilesExactIf(0.5, 0.9) (dur, matched), 1) / 60, 0
+    ) AS pr_median_min,
+    ifNotFinite(
+        arrayElement(quantilesExactIf(0.5, 0.9) (main_median, matched), 1) / 60,
+        0
+    ) AS full_median_min,
+    ifNotFinite(
+        arrayElement(quantilesExactIf(0.5, 0.9) (dur, matched), 2) / 60, 0
+    ) AS pr_p90_min,
+    ifNotFinite(
+        arrayElement(quantilesExactIf(0.5, 0.9) (main_median, matched), 2) / 60,
+        0
     ) AS full_p90_min
 FROM (
     SELECT

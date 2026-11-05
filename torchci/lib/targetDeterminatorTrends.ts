@@ -125,6 +125,7 @@ const WORKFLOW_CHART_CONFIGS: Record<
       { name: "p90, with TD", value: jobStat("pr_p90_min") },
       { name: "p90, every test", value: jobStat("full_p90_min") },
     ],
+    note: "The every-test lines give each PR test job the median duration of the same job on main over the whole counted range, so they do not follow changes on main within the range: they move only with the day's mix of jobs, the p90 line most.",
   }),
 };
 
@@ -143,6 +144,10 @@ const WORKFLOW_TD_CHARTS = Object.fromEntries(
     ])
   )
 ) as Record<TdWorkflowChartKey, TdChartConfig>;
+
+export const WORKFLOW_CHART_KEYS = Object.keys(
+  WORKFLOW_TD_CHARTS
+) as TdWorkflowChartKey[];
 
 export const TD_CHARTS: Record<TdChartKey, TdChartConfig> = {
   ciSaved: CI_SAVED,

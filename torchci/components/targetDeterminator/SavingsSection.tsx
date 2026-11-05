@@ -19,9 +19,13 @@ import {
   num,
   type PushWaitRow,
   type SavingsRow,
+  workflowError,
   workflowRow,
 } from "lib/targetDeterminatorRows";
-import { workflowChartKey } from "lib/targetDeterminatorTrends";
+import {
+  WORKFLOW_CHART_KEYS,
+  workflowChartKey,
+} from "lib/targetDeterminatorTrends";
 import { TdSection, useTdTotalQuery } from "./TdPanel";
 import { TdCharts, TdChartsState, tileToggle } from "./TdTrends";
 
@@ -49,6 +53,9 @@ export default function SavingsSection({
   charts: TdChartsState;
 }) {
   const { range, savings, pushWait } = data;
+  const workflowTileError =
+    savings.tileError ??
+    workflowError(TD_QUERIES.savings, savings.rows, savings.total);
   const wait = pushWait.total;
   const pushes = num(wait?.pushes) ?? 0;
 
@@ -76,7 +83,7 @@ export default function SavingsSection({
                 workflowChartKey("workflowSaved", workflow)
               )}
               loading={savings.loading}
-              error={savings.tileError}
+              error={workflowTileError}
               value={percentFormatter(share.value)}
               sub={share.sub}
               caveat={`Test machine time saved on the ${workflow} workflow, ${WORKFLOW_RUNS[workflow]}. Higher is better.`}
@@ -93,7 +100,7 @@ export default function SavingsSection({
               label={`Typical ${workflow} workflow test job`}
               {...tileToggle(charts, workflowChartKey("workflowJob", workflow))}
               loading={savings.loading}
-              error={savings.tileError}
+              error={workflowTileError}
               value={jobs === 0 ? "-" : minutesText(row?.pr_median_min)}
               sub={
                 jobs === 0
@@ -135,16 +142,7 @@ export default function SavingsSection({
       </Grid>
       <TdCharts
         charts={charts}
-        keys={[
-          ...TD_SCOPE.tdWorkflows.map((w) =>
-            workflowChartKey("workflowSaved", w)
-          ),
-          ...TD_SCOPE.tdWorkflows.map((w) =>
-            workflowChartKey("workflowJob", w)
-          ),
-          "ttgSaved",
-          "hoursPerPush",
-        ]}
+        keys={[...WORKFLOW_CHART_KEYS, "ttgSaved", "hoursPerPush"]}
         sources={{
           savings: { ...savings, window: range },
           pushWait: { ...pushWait, window: range },

@@ -3,11 +3,13 @@ import { percentFormatter } from "components/flakyTrunk/common";
 import QualityTile from "components/greenlight/quality/QualityTile";
 import {
   countedText,
+  JOB_NAMES_VALID_FROM,
   NEW_TEST_CHECK_FROM,
   NOTHING_TO_MEASURE,
   PENDING_NOTE,
   REVERT_WINDOW_DAYS,
   savedShare,
+  sectionLimits,
   withNote,
 } from "lib/targetDeterminator";
 import { type BreakagesData } from "./BreakagesSection";
@@ -19,6 +21,8 @@ const KEY_TILE_SPAN = { xs: 12, md: 6 };
 
 // The section counts the breakages range, which is never narrower than the
 // savings one; the CI-saved figure states its own range where the two differ.
+// The breakages floor reason names breaking tests only, so the section says
+// what holds for both figures.
 export default function KeyMetricsSection({
   savings,
   breakages,
@@ -32,12 +36,16 @@ export default function KeyMetricsSection({
   const share = savedShare(savings.savings.total);
   const savingsRangeDiffers =
     savings.range.start !== range.start || savings.range.end !== range.end;
+  const rangeNote =
+    range.note === sectionLimits().breakages.validReason
+      ? `Test jobs had other names before ${JOB_NAMES_VALID_FROM}.`
+      : range.note;
 
   return (
     <TdSection
       title="Key metrics"
       range={withNote(
-        range,
+        { ...range, note: rangeNote },
         breakages.upperBound
           ? `Before ${NEW_TEST_CHECK_FROM}, recall is a lower bound.`
           : undefined
