@@ -10,8 +10,9 @@
 -- run creation; a pair counts when its later run was created in the window and its earlier run at
 -- most 14 days before that, so the span read starts 14 days before the window. Identical when the
 -- sets are equal, change = 100 * (1 - |A and B| / |A or B|) otherwise. Adjacent windows agree with
--- one wider window to within about 0.5% of pairs, not exactly: a later run on a head sha can drop
--- a set that a narrower window counted, and the TD-on threshold is computed per window.
+-- one wider window to within about 0.5% of total pairs, not exactly: a run on the same head sha
+-- that only one window reads can change, add or drop a set, and the TD-on threshold is computed
+-- per window.
 --
 -- A PR is its number (pull_requests, or the number in a ciflow tag), or for a fork PR, whose run
 -- carries no pull_requests, head repository and branch. A config is
