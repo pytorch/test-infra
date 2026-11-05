@@ -50,7 +50,9 @@ function isNewerRun<T extends PrMatrixJob>(
  * before selecting job attempts prevents an older run's retry from replacing
  * a cell in a newer run and sending users to the wrong workflow URL.
  */
-export function buildPrMatrix<T extends PrMatrixJob>(data: T[]): {
+export function buildPrMatrix<T extends PrMatrixJob>(
+  data: T[]
+): {
   jobNames: string[];
   rows: PrMatrixRow<T>[];
 } {
