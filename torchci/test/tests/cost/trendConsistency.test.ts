@@ -630,11 +630,11 @@ describe("which rollups the trend offers", () => {
     expect(rollupReady(withDays([]), "day")).toBe(true);
   });
 
-  test("two whole weeks: every day of each, none still filling", () => {
+  test("two whole weeks: every day of each, one still filling counted", () => {
     expect(
       rollupReady(withDays(days("2026-10-19", "2026-11-04")), "week")
     ).toBe(true);
-    // Oct 20 missing, or Nov 1 still filling.
+    // Oct 20 missing.
     expect(
       rollupReady(
         withDays(
@@ -643,12 +643,13 @@ describe("which rollups the trend offers", () => {
         "week"
       )
     ).toBe(false);
+    // Nov 1 still filling counts, as the presets count it.
     expect(
       rollupReady(
         withDays(days("2026-10-19", "2026-11-04"), { filling: ["2026-11-01"] }),
         "week"
       )
-    ).toBe(false);
+    ).toBe(true);
     // The current week is partial, so it counts for neither.
     expect(
       rollupReady(withDays(days("2026-10-26", "2026-11-04")), "week")
@@ -678,5 +679,47 @@ describe("which rollups the trend offers", () => {
       });
     expect(rollupReady(january("2026-11-24"), "month")).toBe(true);
     expect(rollupReady(january("2026-11-25"), "month")).toBe(false);
+  });
+
+  test("on a Monday or a 1st, the period just ended counts while its last day fills", () => {
+    const on = (end: string, list: string[], filling: string[]) =>
+      prepareTrend({
+        ...answer,
+        end,
+        daily: {
+          ...answer.daily,
+          days: list,
+          pushes: list.map(() => 0),
+          cells: [],
+          filling,
+        },
+      });
+    // Monday Nov 2 with Sunday Nov 1 still filling: the weeks of Oct 19
+    // and Oct 26.
+    expect(
+      rollupReady(
+        on("2026-11-02", days("2026-10-19", "2026-11-01"), ["2026-11-01"]),
+        "week"
+      )
+    ).toBe(true);
+    expect(
+      rollupReady(
+        on("2026-11-02", days("2026-10-20", "2026-11-01"), ["2026-11-01"]),
+        "week"
+      )
+    ).toBe(false);
+    // November 1 with October 31 still filling: September and October.
+    expect(
+      rollupReady(
+        on("2026-11-01", days("2026-09-01", "2026-10-31"), ["2026-10-31"]),
+        "month"
+      )
+    ).toBe(true);
+    expect(
+      rollupReady(
+        on("2026-11-01", days("2026-09-02", "2026-10-31"), ["2026-10-31"]),
+        "month"
+      )
+    ).toBe(false);
   });
 });

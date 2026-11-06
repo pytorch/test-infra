@@ -9,6 +9,7 @@
 import { CostTrendSchema } from "lib/api/tests/cost/types";
 import { parseRates, withRate } from "lib/tests/cost/rates";
 import {
+  axisPeriods,
   budgetFacts,
   changeLabel,
   daysLabel,
@@ -16,12 +17,14 @@ import {
   defaultRanges,
   fillingIn,
   isFull,
+  isLoneFilling,
   isPartial,
   nextTrendSort,
   ownersBudget,
   ownerStep,
   paceCaveat,
   periodLabel,
+  periodTitle,
   prepareTrend,
   rangeDates,
   rangeDays,
@@ -182,6 +185,191 @@ describe("periods and presets", () => {
       "Oct 29 – Nov 4",
     ]);
     expect([isFull(prepared, A), rangeDays(prepared, B)]).toEqual([true, 7]);
+  });
+
+  // An answer whose days from first through last have data and no hours,
+  // some still filling.
+  const dayList = (first: string, last: string) => {
+    const out: string[] = [];
+    for (let ms = Date.parse(first); ms <= Date.parse(last); ms += 86400000) {
+      out.push(new Date(ms).toISOString().slice(0, 10));
+    }
+    return out;
+  };
+  const withDays = (
+    list: string[],
+    filling: string[],
+    extra: Partial<typeof answer> = {}
+  ) =>
+    prepareTrend({
+      ...answer,
+      ...extra,
+      cells: [],
+      daily: {
+        start: "2026-01-01",
+        days: list,
+        filling,
+        pushes: list.map(() => 0),
+        cells: [],
+      },
+    });
+
+  test("a day still filling stays in a preset of several days; a preset of one day waits for it", () => {
+    // Oct 21 – Nov 4 with Wednesday Nov 4 still filling: the last 7 days
+    // and the 7 before still end at Nov 4; yesterday against Wednesday Oct
+    // 28 waits.
+    const filling = withDays(dayList("2026-10-21", "2026-11-04"), [
+      "2026-11-04",
+    ]);
+    expect(
+      trendPresets(filling).map((p) => [p.key, p.available, p.a, p.b])
+    ).toEqual([
+      ["day", false, { from: 7, to: 7 }, { from: 14, to: 14 }],
+      ["7d", true, { from: 1, to: 7 }, { from: 8, to: 14 }],
+      ["14d", false, null, null],
+    ]);
+    expect(trendPresets(filling).map((p) => p.waitsFor)).toEqual([
+      ["2026-11-04"],
+      [],
+      [],
+    ]);
+    const ranges = defaultRanges(filling);
+    expect([
+      rangeLabel(filling, ranges.a!),
+      rangeLabel(filling, ranges.b!),
+    ]).toEqual(["Oct 22 – Oct 28", "Oct 29 – Nov 4"]);
+    // Settled, the same days, and yesterday's preset too.
+    const settled = withDays(dayList("2026-10-21", "2026-11-04"), []);
+    expect(defaultRanges(settled)).toEqual(ranges);
+    expect(trendPresets(settled).map((p) => p.available)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    // A day missing is not waited for: it never comes.
+    const gap = withDays(
+      dayList("2026-10-21", "2026-11-04").filter((d) => d !== "2026-10-28"),
+      ["2026-11-04"]
+    );
+    expect(
+      trendPresets(gap).map((p) => [p.key, p.available, p.waitsFor])
+    ).toEqual([
+      ["day", false, []],
+      ["7d", false, []],
+      ["14d", false, []],
+    ]);
+    // With no preset, the default passes the lone day still filling by:
+    // Nov 3 against Nov 2.
+    expect(defaultRanges(gap)).toEqual({
+      a: { from: 12, to: 12 },
+      b: { from: 13, to: 13 },
+    });
+  });
+
+  test("on a Monday with Sunday still filling, the last week and the last 4 weeks keep it", () => {
+    const weeks = withDays(
+      dayList("2026-08-31", "2026-11-01"),
+      ["2026-11-01"],
+      {
+        rollup: "week",
+        end: "2026-11-02",
+        periods: [
+          "2026-08-31",
+          "2026-09-07",
+          "2026-09-14",
+          "2026-09-21",
+          "2026-09-28",
+          "2026-10-05",
+          "2026-10-12",
+          "2026-10-19",
+          "2026-10-26",
+        ],
+      }
+    );
+    expect(
+      trendPresets(weeks).map((p) => [p.key, p.available, p.a, p.b])
+    ).toEqual([
+      ["week", true, { from: 7, to: 7 }, { from: 8, to: 8 }],
+      ["4w", true, { from: 1, to: 4 }, { from: 5, to: 8 }],
+    ]);
+    expect(isPartial(weeks, 8)).toBe(true);
+    const ranges = defaultRanges(weeks);
+    expect([
+      rangeLabel(weeks, ranges.a!),
+      rangeLabel(weeks, ranges.b!),
+    ]).toEqual(["Sep 7 – Oct 4", "Oct 5 – Nov 1"]);
+  });
+
+  test("with no preset, the default passes by a week just begun on a day still filling", () => {
+    // Tuesday Nov 3, Oct 21 missing, Monday Nov 2 still filling: the week
+    // of Nov 2 is that day alone.
+    const weeks = withDays(
+      dayList("2026-09-07", "2026-11-02").filter((d) => d !== "2026-10-21"),
+      ["2026-11-02"],
+      {
+        rollup: "week",
+        end: "2026-11-03",
+        periods: dayList("2026-09-07", "2026-11-02").filter(
+          (d) => new Date(`${d}T00:00:00Z`).getUTCDay() === 1
+        ),
+      }
+    );
+    expect(trendPresets(weeks).some((p) => p.available)).toBe(false);
+    expect(isLoneFilling(weeks, { from: 8, to: 8 })).toBe(true);
+    const ranges = defaultRanges(weeks);
+    expect([
+      rangeLabel(weeks, ranges.a!),
+      rangeLabel(weeks, ranges.b!),
+    ]).toEqual(["Oct 19 – Oct 25", "Oct 26 – Nov 1"]);
+  });
+});
+
+describe("the axis and the tooltips", () => {
+  test("past 20 days the axis labels Mondays; fewer, every period up to 10, then every second", () => {
+    expect(
+      axisPeriods({ ...prepared, periods: prepared.periods.slice(0, 10) })
+    ).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(
+      axisPeriods({ ...prepared, periods: prepared.periods.slice(0, 11) })
+    ).toEqual([0, 2, 4, 6, 8, 10]);
+    expect(axisPeriods(prepared)).toEqual([0, 2, 4, 6, 8, 10, 12]);
+    // 42 days from Thursday Sep 24: Mondays Sep 28 to Nov 2.
+    expect(axisPeriods({ ...prepared, periods: answer.periods })).toEqual([
+      4, 11, 18, 25, 32, 39,
+    ]);
+    // 21 days from Oct 15, and 20 from Oct 16.
+    expect(
+      axisPeriods({ ...prepared, periods: answer.periods.slice(21) })
+    ).toEqual([4, 11, 18]);
+    expect(
+      axisPeriods({ ...prepared, periods: answer.periods.slice(22) })
+    ).toEqual([0, 2, 4, 6, 8, 10, 12, 14, 16, 18]);
+    // Weeks keep every third of 26.
+    expect(
+      axisPeriods({
+        ...prepared,
+        rollup: "week",
+        periods: answer.periods.slice(0, 26),
+      })
+    ).toEqual([0, 3, 6, 9, 12, 15, 18, 21, 24]);
+  });
+
+  test("a day's tooltip names its weekday; a week's or a month's is its label", () => {
+    expect([0, 11, 13].map((i) => periodTitle(prepared, i))).toEqual([
+      "Thu Oct 22",
+      "Mon Nov 2",
+      "Wed Nov 4",
+    ]);
+    const week = { ...prepared, rollup: "week" as const };
+    const month = {
+      ...prepared,
+      rollup: "month" as const,
+      periods: ["2026-10-01", "2026-11-01"],
+    };
+    expect([periodTitle(week, 11), periodTitle(month, 1)]).toEqual([
+      "Nov 2",
+      "Nov",
+    ]);
   });
 });
 
@@ -669,7 +857,7 @@ describe("dates, days still filling and weekends", () => {
     expect(daysLabel(rangeDates(prepared, B))).toBe(rangeLabel(prepared, B));
   });
 
-  test("a day still filling makes its period partial, out of every preset and the default", () => {
+  test("a day still filling makes its period partial; the presets of several days keep it, yesterday's waits", () => {
     const filling = prepareTrend({
       ...answer,
       daily: { ...answer.daily, filling: ["2026-11-04"] },
@@ -680,15 +868,24 @@ describe("dates, days still filling and weekends", () => {
       true,
       false,
     ]);
-    expect([isFull(filling, B), isFull(filling, A)]).toEqual([false, true]);
+    // Still whole: its warning says it reads low.
+    expect([isFull(filling, B), isFull(filling, A)]).toEqual([true, true]);
     expect(fillingIn(filling, B)).toEqual(["2026-11-04"]);
     expect(fillingIn(filling, A)).toEqual([]);
-    expect(trendPresets(filling).some((p) => p.available)).toBe(false);
-    // The last settled day against the one before it.
-    expect(defaultRanges(filling)).toEqual({
-      a: { from: 11, to: 11 },
-      b: { from: 12, to: 12 },
-    });
+    expect(
+      [B, { from: 13, to: 13 }, { from: 12, to: 12 }].map((r) =>
+        isLoneFilling(filling, r)
+      )
+    ).toEqual([false, true, false]);
+    expect(
+      trendPresets(filling).map((p) => [p.key, p.available, p.waitsFor])
+    ).toEqual([
+      ["day", false, ["2026-11-04"]],
+      ["7d", true, []],
+      ["14d", false, []],
+    ]);
+    // The last 7 days against the 7 before, as when nothing fills.
+    expect(defaultRanges(filling)).toEqual({ a: A, b: B });
     // Still a day with data: per day divides by it.
     expect(rangeDays(filling, B)).toBe(7);
   });

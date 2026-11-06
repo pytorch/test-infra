@@ -15,6 +15,7 @@ import HeaderSelect from "components/tests/HeaderSelect";
 import {
   type CostChanges,
   CostChangesSchema,
+  type CostTrend,
   CostTrendSchema,
 } from "lib/api/tests/cost/types";
 import { parseRates, type RatesFile } from "lib/tests/cost/rates";
@@ -299,9 +300,11 @@ describe("TrendPanel", () => {
       "Each bar is a day's total. Solid: inductor; pale: the rest."
     );
     // The Owner key says whose the panel is.
-    expect(text).toContain("Trends and budget · pull + trunk inductor Day");
+    expect(text).toContain(
+      "Trends and budget · pull + trunk · last 42 days inductor Day"
+    );
     expect(panel(rates)).toContain(
-      "Trends and budget · all workflows All owners Day"
+      "Trends and budget · all workflows · last 42 days All owners Day"
     );
   });
 
@@ -550,16 +553,19 @@ describe("TrendPanel", () => {
       ...TREND_JSON,
       daily: { ...TREND_JSON.daily, filling: ["2026-11-04"] },
     });
-    // No preset while Nov 4 fills: Nov 3 against Nov 2, both Mondays and
-    // Tuesdays, no warning.
+    // The last 7 days keep Nov 4, faded and warned of; A and B mix
+    // weekends alike.
     const text = panel(null, [], null, filling);
-    expect(text).toContain("A Nov 2 ✕ · B Nov 3");
-    expect(text).not.toContain("is incomplete");
-    expect(text).not.toContain("weekend");
-    // Nov 4's bar is faded; B, Tuesday Nov 3, has no weekend day.
-    expect(text).toContain("Faded bars have incomplete data.");
+    expect(text).toContain("A Oct 22 – Oct 28 ✕ · B Oct 29 – Nov 4");
     expect(text).toContain(
-      "Projected runner-hours per year 13.9K h 1.2K h per month at B's daily average · B is a weekday, so likely high"
+      "⚠ Nov 4 is incomplete: some of its jobs are still running, so it reads low until the rollup reruns after 03:00 UTC."
+    );
+    expect(text).not.toContain("weekend");
+    expect(text).toContain("Faded bars have incomplete data.");
+    // 266 h over B's 7 days, 38 h a day: 13,870 h a year, 1,156 h a month.
+    // B reads low, as its warning says, so no weekday caveat.
+    expect(text).toContain(
+      "Projected runner-hours per year 13.9K h 1.2K h per month at B's daily average Owners"
     );
     // Dragged to Thursday Oct 22 – Saturday Oct 24 against Wednesday Nov 4.
     let renderer: ReturnType<typeof create> | undefined;
@@ -629,6 +635,7 @@ describe("TrendPanel", () => {
     expect(markup).toMatch(/aria-disabled="true"[^>]*>Week</);
     expect(markup).toMatch(/aria-disabled="true"[^>]*>Month</);
     expect(markup).not.toMatch(/aria-disabled="true"[^>]*>Day</);
+    expect(markup).toContain('aria-label="A bar per day, the last 42 days"');
     // Days with data from Oct 19 through Nov 4: the weeks of Oct 19 and
     // Oct 26 are whole, October is not.
     const days: string[] = [];
@@ -658,6 +665,72 @@ describe("TrendPanel", () => {
     );
     expect(weeks).not.toMatch(/aria-disabled="true"[^>]*>Week</);
     expect(weeks).toMatch(/aria-disabled="true"[^>]*>Month</);
+    expect(weeks).toContain('aria-label="A bar per week, the last 26 weeks"');
+  });
+
+  test("the band names the lookback of the bars on screen, the last answer's while the next loads", () => {
+    const band = (answer: CostTrend | undefined) =>
+      words(
+        renderToStaticMarkup(
+          <TrendPanel
+            answer={answer}
+            loading
+            rollup="week"
+            onRollupChange={noop}
+            rates={null}
+            scope={null}
+            highlighted={[]}
+            onToggleOwners={noop}
+            onOwnersChange={noop}
+          />
+        )
+      );
+    // Week clicked, the day answer still on screen.
+    expect(band(answer)).toContain(
+      "Trends and budget · all workflows · last 42 days"
+    );
+    expect(band(undefined)).toContain(
+      "Trends and budget · all workflows · last 26 weeks"
+    );
+  });
+
+  test("while yesterday fills, the last 7 days keep it; Yesterday's preset says what it waits for", () => {
+    const days: string[] = [];
+    for (let d = 21; d <= 35; d++) {
+      days.push(new Date(Date.UTC(2026, 9, d)).toISOString().slice(0, 10));
+    }
+    const markup = renderToStaticMarkup(
+      <TrendPanel
+        answer={{
+          ...answer,
+          cells: [],
+          daily: {
+            ...answer.daily,
+            days,
+            filling: ["2026-11-04"],
+            pushes: days.map(() => 8),
+            cells: [],
+          },
+        }}
+        loading={false}
+        rollup="day"
+        onRollupChange={noop}
+        rates={null}
+        scope={null}
+        highlighted={[]}
+        onToggleOwners={noop}
+        onOwnersChange={noop}
+      />
+    );
+    const text = words(markup);
+    expect(text).toContain("· all workflows · last 42 days");
+    expect(text).toContain("A Oct 22 – Oct 28 ✕ · B Oct 29 – Nov 4 ⚠ Nov 4");
+    // No hours at all: the axis runs to 1 h.
+    expect(text).toContain("0 1 h A B Oct 21");
+    expect(markup).toMatch(/aria-pressed="true"[^>]*>Last 7 days vs prior 7</);
+    expect(markup).toMatch(
+      /aria-disabled="true" aria-label="Waits for Nov 4: incomplete until the rollup reruns after 03:00 UTC"[^>]*>Yesterday vs same day last week</
+    );
   });
 
   test("an answer without data says so", () => {
@@ -1003,11 +1076,38 @@ describe("TrendChart", () => {
       (m) => m[1]
     );
     expect(titles).toHaveLength(14);
-    expect(titles[0]).toBe("Oct 22: $24 · highlighted: $13 · budget: $25");
-    expect(titles[13]).toBe("Nov 4: $28 · highlighted: $15 · budget: $25");
+    expect(titles[0]).toBe("Thu Oct 22: $24 · highlighted: $13 · budget: $25");
+    expect(titles[13]).toBe("Wed Nov 4: $28 · highlighted: $15 · budget: $25");
     expect(words(markup)).toMatch(/^0 \$10 \$20 \$30 A B Oct 22/);
     expect(unstyled(markup).match(/dashed/g)).toBeNull(); // the lines' style is in the stylesheet
     expect(markup.match(/border-top:2px dashed/g)?.length).toBeGreaterThan(0);
+  });
+
+  test("bars keep their gap at 42", () => {
+    const days = answer.periods;
+    const all = prepareTrend({
+      ...answer,
+      daily: {
+        ...answer.daily,
+        days,
+        pushes: days.map(() => 0),
+        cells: [],
+      },
+    });
+    expect(all.periods).toHaveLength(42);
+    const markup = renderToStaticMarkup(
+      <TrendChart
+        prepared={all}
+        series={trendSeries(all, null, new Set())}
+        highlighting={false}
+        budget={null}
+        a={null}
+        b={null}
+        onRangeChange={noop}
+      />
+    );
+    expect(markup).toContain("padding-left:15%;padding-right:15%");
+    expect(markup).not.toContain("padding-left:1px");
   });
 
   test("small values keep their fractions on the axis and in each bar's tooltip", () => {
@@ -1027,8 +1127,8 @@ describe("TrendChart", () => {
       unstyled(markup).matchAll(/ title="([^"]*)"/g),
       (m) => m[1]
     );
-    expect(titles[0]).toBe("Oct 22: $0.65");
-    expect(titles[13]).toBe("Nov 4: $1.06");
+    expect(titles[0]).toBe("Thu Oct 22: $0.65");
+    expect(titles[13]).toBe("Wed Nov 4: $1.06");
     expect(words(markup)).toMatch(/^0 \$0\.50 \$1 \$1\.50 A B/);
   });
 

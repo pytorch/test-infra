@@ -9,7 +9,11 @@ import TrendTable from "components/tests/cost/TrendTable";
 import HeaderSelect from "components/tests/HeaderSelect";
 import TextButton from "components/tests/TextButton";
 import type { CostTrend } from "lib/api/tests/cost/types";
-import { TREND_ROLLUPS, type TrendRollup } from "lib/api/tests/cost/windows";
+import {
+  TREND_PERIODS,
+  TREND_ROLLUPS,
+  type TrendRollup,
+} from "lib/api/tests/cost/windows";
 import {
   amountLabel,
   costChangesApiUrl,
@@ -49,6 +53,7 @@ import {
   trendOwnerOrder,
   trendPace,
   type TrendPer,
+  type TrendPreset,
   trendPresets,
   trendRows,
   trendSeries,
@@ -228,6 +233,9 @@ export default function TrendPanel({
     () => (answer === undefined ? undefined : prepareTrend(answer)),
     [answer]
   );
+  // The rollup of the bars on screen: the last answer's while the next
+  // loads.
+  const shown = prepared?.rollup ?? rollup;
   // The periods chosen belong to the answer they were chosen on; a new
   // rollup or window starts from the defaults.
   const answerKey =
@@ -323,7 +331,7 @@ export default function TrendPanel({
             key={r}
             title={
               ready
-                ? `A bar per ${r}`
+                ? `A bar per ${r}, the last ${TREND_PERIODS[r]} ${r}s`
                 : `Needs two whole ${r}s of data; data starts ${daysLabel({
                     from: prepared.dailyDays[0] ?? prepared.end,
                     to: prepared.dailyDays[0] ?? prepared.end,
@@ -378,7 +386,9 @@ export default function TrendPanel({
     <CostFrame
       title="Trends and budget"
       description={DESCRIPTION}
-      note={`· ${scope ?? "all workflows"}`}
+      note={`· ${scope ?? "all workflows"} · last ${
+        TREND_PERIODS[shown]
+      } ${shown}s`}
       keys={keys}
       open={open}
       onOpenChange={setOpen}
@@ -425,6 +435,22 @@ export default function TrendPanel({
     changes.b.to === rangeDates(prepared, b).to &&
     changes.owners.join("\n") === [...highlighted].sort().join("\n");
   const presets = trendPresets(prepared);
+  // What a preset compares, or why it is off.
+  const presetTitle = (p: TrendPreset) => {
+    if (p.available) {
+      return `A: ${rangeLabel(prepared, p.a!)} · B: ${rangeLabel(
+        prepared,
+        p.b!
+      )}`;
+    }
+    if (p.waitsFor.length === 0) {
+      return "Not enough data yet: needs every day of both periods";
+    }
+    const days = p.waitsFor.map((d) => daysLabel({ from: d, to: d }));
+    return `Waits for ${days.join(
+      ", "
+    )}: incomplete until the rollup reruns after 03:00 UTC`;
+  };
   const faded = prepared.periods.some((_, i) => isPartial(prepared, i));
   const series = trendSeries(prepared, priced, lit, per);
   const focus = lit.size > 0 ? lit : null;
@@ -659,14 +685,7 @@ export default function TrendPanel({
         {presets.map((p) => (
           <KeyButton
             key={p.key}
-            title={
-              p.available
-                ? `A: ${rangeLabel(prepared, p.a!)} · B: ${rangeLabel(
-                    prepared,
-                    p.b!
-                  )}`
-                : "Not enough data yet: needs every day of both periods"
-            }
+            title={presetTitle(p)}
             active={
               p.available &&
               a?.from === p.a?.from &&

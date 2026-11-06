@@ -4,9 +4,11 @@ import { paleColor } from "lib/tests/cost/colors";
 import { amountLabel, fineAmountLabel } from "lib/tests/cost/query";
 import { niceTicks } from "lib/tests/cost/ticks";
 import {
+  axisPeriods,
   isPartial,
   periodLabel,
   type PeriodRange,
+  periodTitle,
   type PreparedTrend,
   type TrendSeries,
 } from "lib/tests/cost/trend";
@@ -30,7 +32,8 @@ export interface TrendChartProps {
 // The trend's bars, a period each, on the scale of the largest bar or
 // budget: the highlighted owners' part solid and the rest pale while owners
 // are highlighted, a period without every day of data faded with its days
-// in its tooltip, and a dashed line at each period's budget. A and B are
+// in its tooltip, and a dashed line at each period's budget. Bars keep a
+// gap at every count; past 20 days the axis labels Mondays. A and B are
 // boxes behind the bars: dragging across the bars sets B, and with Shift
 // held, A; a click sets one period.
 export default function TrendChart({
@@ -52,7 +55,7 @@ export default function TrendChart({
   const n = prepared.periods.length;
   const unit = series.unit;
   const ticks = niceTicks(
-    Math.max(1e-9, ...Array.from(series.value), ...Array.from(budget ?? []))
+    Math.max(0, ...Array.from(series.value), ...Array.from(budget ?? []))
   );
   const axisMax = ticks[ticks.length - 1];
   const at = (event: PointerEvent) => {
@@ -108,7 +111,7 @@ export default function TrendChart({
       </Box>
     );
   };
-  const step = Math.max(1, Math.ceil(n / 10));
+  const labelled = new Set(axisPeriods(prepared));
   return (
     <Box
       sx={{
@@ -201,7 +204,7 @@ export default function TrendChart({
             const partial = isPartial(prepared, i);
             const line = budget?.[i] ?? 0;
             const title = [
-              `${periodLabel(prepared, i)}: ${fineAmountLabel(unit, value)}`,
+              `${periodTitle(prepared, i)}: ${fineAmountLabel(unit, value)}`,
               highlighting ? `highlighted: ${fineAmountLabel(unit, lit)}` : "",
               prepared.periodData[i] < prepared.periodDays[i]
                 ? `${prepared.periodData[i]} of ${
@@ -223,7 +226,7 @@ export default function TrendChart({
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "flex-end",
-                  px: n > 30 ? "1px" : "15%",
+                  px: "15%",
                   opacity: partial ? 0.5 : 1,
                 }}
               >
@@ -286,7 +289,7 @@ export default function TrendChart({
               textAlign: "left",
             }}
           >
-            {i % step === 0 ? periodLabel(prepared, i) : ""}
+            {labelled.has(i) ? periodLabel(prepared, i) : ""}
           </Typography>
         ))}
       </Box>

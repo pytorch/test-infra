@@ -156,16 +156,16 @@ export function prepareTrend(answer: CostTrend): PreparedTrend {
 
 // Whether the trend can be read by a rollup: a day always; a week or a
 // month once its last two whole periods through yesterday have data on
-// every day, none still filling, so A and B have whole periods to compare.
-// Days before the answer's daily days count as having data when its first
-// day has, since the rollup ran before it.
+// every day, so A and B have whole periods to compare. A day still filling
+// counts, as the presets count it. Days before the answer's daily days
+// count as having data when its first day has, since the rollup ran before
+// it.
 export function rollupReady(p: PreparedTrend, rollup: TrendRollup): boolean {
   if (rollup === "day") return true;
   const withData = new Set(p.dailyDays);
-  const filling = new Set(p.fillingDays);
   const before = p.dailyDays[0] === p.dailyStart;
   const whole = (day: string) =>
-    day < p.dailyStart ? before : withData.has(day) && !filling.has(day);
+    day < p.dailyStart ? before : withData.has(day);
   // The first day of the period after the last whole one, then back.
   const today = new Date(dayMs(p.end));
   let next =
@@ -192,13 +192,23 @@ export interface PeriodRange {
   to: number;
 }
 
-// Whether every period of a range has data on each of its calendar days,
-// none of them still filling.
+// Whether every period of a range has data on each of its calendar days. A
+// day still filling counts: it makes a range of several days read a few
+// percent low, which the range's warning says.
 export function isFull(p: PreparedTrend, r: PeriodRange): boolean {
   for (let i = r.from; i <= r.to; i++) {
-    if (p.periodData[i] < p.periodDays[i] || p.periodFilling[i]) return false;
+    if (p.periodData[i] < p.periodDays[i]) return false;
   }
   return true;
+}
+
+// Whether a range's only day with data is still filling, as yesterday
+// alone, or a week or month just begun. That day reads about a fifth low
+// before the rollup's 00:30 UTC rerun and a few percent low until 03:30:
+// among several days a warning, alone too far off, so a preset waits for
+// it and the default passes it by.
+export function isLoneFilling(p: PreparedTrend, r: PeriodRange): boolean {
+  return rangeDays(p, r) === 1 && fillingIn(p, r).length === 1;
 }
 
 // Whether a period reads low: days without data, or a day still filling.
@@ -272,6 +282,30 @@ export function periodLabel(p: PreparedTrend, i: number): string {
     return d.getUTCMonth() === 0 ? `${month} ${d.getUTCFullYear()}` : month;
   }
   return `${month} ${d.getUTCDate()}`;
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// A period as a bar's tooltip names it: a day with its weekday, "Thu Oct
+// 22", so weekends' low bars read as weekends; a week or month as the axis
+// writes it.
+export function periodTitle(p: PreparedTrend, i: number): string {
+  const label = periodLabel(p, i);
+  if (p.rollup !== "day") return label;
+  return `${WEEKDAYS[new Date(dayMs(p.periods[i])).getUTCDay()]} ${label}`;
+}
+
+// The periods the x axis labels: past 20 days, each Monday, so the labels
+// mark whole weeks; otherwise every period up to 10, then every second,
+// third and so on from the first.
+export function axisPeriods(p: PreparedTrend): number[] {
+  const n = p.periods.length;
+  const all = p.periods.map((_, i) => i);
+  if (p.rollup === "day" && n > 20) {
+    return all.filter((i) => new Date(dayMs(p.periods[i])).getUTCDay() === 1);
+  }
+  const step = Math.max(1, Math.ceil(n / 10));
+  return all.filter((i) => i % step === 0);
 }
 
 // A range's first and last day, YYYY-MM-DD, its last day yesterday at the
@@ -438,13 +472,16 @@ export function rangeTotals(
 }
 
 // Two periods a reader compares, as a preset names them; available when
-// every period of both has data on each of its days.
+// every period of both has data on each of its days and neither is a lone
+// day still filling. The days still filling it waits for, while they are
+// all it lacks.
 export interface TrendPreset {
   key: string;
   label: string;
   a: PeriodRange | null;
   b: PeriodRange | null;
   available: boolean;
+  waitsFor: string[];
 }
 
 export function trendPresets(p: PreparedTrend): TrendPreset[] {
@@ -463,12 +500,15 @@ export function trendPresets(p: PreparedTrend): TrendPreset[] {
     const b = { from: end - length + 1, to: end };
     const a = { from: b.from - gap, to: b.to - gap };
     const valid = a.from >= 0 && b.to <= last;
+    const full = valid && isFull(p, a) && isFull(p, b);
+    const lone = [a, b].filter((r) => valid && isLoneFilling(p, r));
     return {
       key,
       label,
       a: valid ? a : null,
       b: valid ? b : null,
-      available: valid && isFull(p, a) && isFull(p, b),
+      available: full && lone.length === 0,
+      waitsFor: full ? lone.flatMap((r) => fillingIn(p, r)) : [],
     };
   };
   if (p.rollup === "day") {
@@ -491,7 +531,8 @@ export function trendPresets(p: PreparedTrend): TrendPreset[] {
 }
 
 // The periods compared at first: the longest preset available, else the
-// last settled period with data against the one before it.
+// last period with data against the one before it, passing by a lone day
+// still filling.
 export function defaultRanges(p: PreparedTrend): {
   a: PeriodRange | null;
   b: PeriodRange | null;
@@ -500,7 +541,9 @@ export function defaultRanges(p: PreparedTrend): {
   if (preset !== undefined) return { a: preset.a, b: preset.b };
   const withData = p.periods
     .map((_, i) => i)
-    .filter((i) => p.periodData[i] > 0 && !p.periodFilling[i]);
+    .filter(
+      (i) => p.periodData[i] > 0 && !isLoneFilling(p, { from: i, to: i })
+    );
   const b = withData[withData.length - 1];
   const a = withData[withData.length - 2];
   return {
