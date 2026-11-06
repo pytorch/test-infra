@@ -510,8 +510,8 @@ export async function wasLabelRecentlyRemoved(
 const PENDING_GHSTACK_LISTING_WINDOW_MS = 10 * 60 * 1000;
 
 // A ciflow label's run on a PR tests every PR below it in its stack, so a PR
-// is covered for a label when an open PR above it, containing the PR's
-// changes, needs that label too.
+// is covered for a label when an open PR above it in its stack (see
+// getOpenStackPrs) needs that label too.
 async function getCoveredCiflowLabels(
   octokit: Context["octokit"],
   owner: string,

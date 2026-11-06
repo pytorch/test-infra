@@ -323,7 +323,7 @@ describe("utils: getOpenStackPrs", () => {
     nock.cleanAll();
   });
 
-  test("ghstack above: keeps open same-repo PRs of the same user that contain the PR", async () => {
+  test("ghstack above: keeps the listed open same-repo PRs of the same user", async () => {
     let sentVariables: any;
     const prsScope = nock("https://api.github.com")
       .post("/graphql", (body) => {
@@ -344,8 +344,6 @@ describe("utils: getOpenStackPrs", () => {
           },
         },
       });
-    const compared: any = {};
-    const compareScope = mockCompare([0, 0], compared);
     const result = await getOpenStackPrs(
       octokit,
       owner,
@@ -354,15 +352,7 @@ describe("utils: getOpenStackPrs", () => {
       "above"
     );
     prsScope.done();
-    compareScope.done();
     expect(sentVariables).toMatchObject({ n0: 4, n1: 5, n2: 6, n3: 7, n4: 8 });
-    expect(compared).toMatchObject({
-      b0: "refs/heads/gh/alice/3/orig",
-      h0: "refs/heads/gh/alice/4/orig",
-      b1: "refs/heads/gh/alice/3/orig",
-      h1: "refs/heads/gh/alice/7/orig",
-    });
-    expect(compared.b2).toBeUndefined();
     expect(result).toEqual({
       kind: "stack",
       prs: [
@@ -377,7 +367,7 @@ describe("utils: getOpenStackPrs", () => {
     });
   });
 
-  test("an upper PR whose orig does not contain the PR, or is missing, is not returned", async () => {
+  test("ghstack: the listing is trusted, with no compare of the orig branches", async () => {
     const prsScope = mockPrs({
       repository: { pr0: prNode(4), pr1: prNode(5), pr2: prNode(6) },
     });
@@ -390,9 +380,9 @@ describe("utils: getOpenStackPrs", () => {
       "above"
     );
     prsScope.done();
-    compareScope.done();
+    expect(compareScope.isDone()).toBe(false);
     expect(result.kind === "stack" && result.prs.map((p) => p.number)).toEqual([
-      6,
+      4, 5, 6,
     ]);
   });
 
@@ -409,7 +399,6 @@ describe("utils: getOpenStackPrs", () => {
           },
         ],
       });
-    const compareScope = mockCompare([0]);
     const result = await getOpenStackPrs(
       octokit,
       owner,
@@ -418,7 +407,6 @@ describe("utils: getOpenStackPrs", () => {
       "above"
     );
     prsScope.done();
-    compareScope.done();
     expect(result.kind === "stack" && result.prs.map((p) => p.number)).toEqual([
       4,
     ]);
@@ -457,13 +445,11 @@ describe("utils: getOpenStackPrs", () => {
     expect(result).toEqual({ kind: "none" });
   });
 
-  test("ghstack below: compares the lower orig against the PR's and falls back to REST for many files", async () => {
+  test("ghstack below: returns the listed PRs below and falls back to REST for many files", async () => {
     const many = Array.from({ length: 100 }, (_, i) => `torch/a${i}.py`);
     const prsScope = mockPrs({
       repository: { pr0: prNode(2, { files: many, changedFiles: 101 }) },
     });
-    const compared: any = {};
-    const compareScope = mockCompare([0], compared);
     const filesScope = nock("https://api.github.com")
       .get("/repos/pytorch/pytorch/pulls/2/files?per_page=100")
       .reply(
@@ -478,12 +464,7 @@ describe("utils: getOpenStackPrs", () => {
       "below"
     );
     prsScope.done();
-    compareScope.done();
     filesScope.done();
-    expect(compared).toMatchObject({
-      b0: "refs/heads/gh/alice/2/orig",
-      h0: "refs/heads/gh/alice/3/orig",
-    });
     expect(result.kind === "stack" && result.prs[0].files).toHaveLength(101);
   });
 
@@ -549,6 +530,107 @@ describe("utils: getOpenStackPrs", () => {
     });
     expect(result.kind === "stack" && result.prs.map((p) => p.number)).toEqual([
       14,
+    ]);
+  });
+
+  test("native: an entry above that does not contain the PR, or is missing, is not returned", async () => {
+    const entries = [
+      prNode(10, { headRefName: "feature-a" }),
+      prNode(11, { headRefName: "feature-b" }),
+      prNode(12, { headRefName: "feature-c" }),
+      prNode(13, { headRefName: "feature-d" }),
+    ];
+    const prsScope = nock("https://api.github.com")
+      .post("/graphql", (body) => body.variables.number === 10)
+      .reply(200, {
+        data: {
+          repository: {
+            pullRequest: {
+              stack: {
+                entries: {
+                  totalCount: entries.length,
+                  pageInfo: { hasNextPage: false },
+                  nodes: entries.map((pullRequest, i) => ({
+                    position: i + 1,
+                    pullRequest,
+                  })),
+                },
+              },
+            },
+          },
+        },
+      });
+    const compareScope = mockCompare([1, null, 0]);
+    const result = await getOpenStackPrs(
+      octokit,
+      owner,
+      repo,
+      {
+        number: 10,
+        body: "",
+        headRef: "feature-a",
+        isCrossRepository: false,
+        stack: { position: 1, size: 4 },
+      },
+      "above"
+    );
+    prsScope.done();
+    compareScope.done();
+    expect(result.kind === "stack" && result.prs.map((p) => p.number)).toEqual([
+      13,
+    ]);
+  });
+
+  test("native below: compares each lower entry's head against the PR's", async () => {
+    const prsScope = nock("https://api.github.com")
+      .post("/graphql", (body) => body.variables.number === 11)
+      .reply(200, {
+        data: {
+          repository: {
+            pullRequest: {
+              stack: {
+                entries: {
+                  totalCount: 2,
+                  pageInfo: { hasNextPage: false },
+                  nodes: [
+                    {
+                      position: 1,
+                      pullRequest: prNode(10, { headRefName: "feature-a" }),
+                    },
+                    {
+                      position: 2,
+                      pullRequest: prNode(11, { headRefName: "feature-b" }),
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      });
+    const compared: any = {};
+    const compareScope = mockCompare([0], compared);
+    const result = await getOpenStackPrs(
+      octokit,
+      owner,
+      repo,
+      {
+        number: 11,
+        body: "",
+        headRef: "feature-b",
+        isCrossRepository: false,
+        stack: { position: 2, size: 2 },
+      },
+      "below"
+    );
+    prsScope.done();
+    compareScope.done();
+    expect(compared).toMatchObject({
+      b0: "refs/heads/feature-a",
+      h0: "refs/heads/feature-b",
+    });
+    expect(result.kind === "stack" && result.prs.map((p) => p.number)).toEqual([
+      10,
     ]);
   });
 

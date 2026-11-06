@@ -1610,16 +1610,29 @@ describe("auto-label-bot: labeler.yml config", () => {
         .reply(200, { data });
     }
 
-    function mockContainment(behindBy: number[]) {
+    // behindBy per compared pair; null is a ref that does not exist.
+    function mockContainment(behindBy: (number | null)[]) {
       const repository: any = {};
+      const errors: any[] = [];
       behindBy.forEach((b, i) => {
         repository[`c${i}`] = {
-          compare: { behindBy: b, status: b === 0 ? "AHEAD" : "DIVERGED" },
+          compare:
+            b === null
+              ? null
+              : { behindBy: b, status: b === 0 ? "AHEAD" : "DIVERGED" },
         };
+        if (b === null) {
+          errors.push({ type: "NOT_FOUND", path: ["repository", `c${i}`] });
+        }
       });
       return nock("https://api.github.com")
         .post("/graphql", (body) => body.query.includes("compare("))
-        .reply(200, { data: { repository } });
+        .reply(
+          200,
+          errors.length
+            ? { data: { repository }, errors }
+            : { data: { repository } }
+        );
     }
 
     async function expectLabels(event: any, labels: string[], scopes: any[]) {
@@ -1637,7 +1650,6 @@ describe("auto-label-bot: labeler.yml config", () => {
         mockStackPrs({
           repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
         }),
-        mockContainment([0]),
       ];
       await expectLabels(
         ghstackEvent(["* #32", `* __->__ #${prNumber}`]),
@@ -1653,7 +1665,6 @@ describe("auto-label-bot: labeler.yml config", () => {
         mockStackPrs({
           repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
         }),
-        mockContainment([0]),
       ];
       const addScope = utils.mockAddLabels(
         ["module: dynamo", "ciflow/inductor"],
@@ -1672,7 +1683,6 @@ describe("auto-label-bot: labeler.yml config", () => {
         mockStackPrs({
           repository: { pr0: stackPrNode(32, ["docs/readme.md"]) },
         }),
-        mockContainment([0]),
       ];
       await expectLabels(
         ghstackEvent(["* #32", `* __->__ #${prNumber}`, "* #30"]),
@@ -1681,19 +1691,25 @@ describe("auto-label-bot: labeler.yml config", () => {
       );
     });
 
-    test("an upper PR that does not contain the PR's changes holds nothing back", async () => {
+    test("a lower ghstack PR is covered while its orig branches cannot be read", async () => {
       const scopes = [
         mockDynamoPr(),
         mockStackPrs({
           repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
         }),
-        mockContainment([1]),
       ];
-      await expectLabels(
-        ghstackEvent(["* #32", `* __->__ #${prNumber}`]),
-        ["module: dynamo", "ciflow/inductor"],
-        scopes
+      const containmentScope = mockContainment([null]);
+      const addScope = utils.mockAddLabels(
+        ["module: dynamo"],
+        repoFullName,
+        prNumber
       );
+      const event = ghstackEvent(["* #32", `* __->__ #${prNumber}`]);
+      event.payload.action = "edited";
+      await probot.receive(event);
+      scopes.forEach((scope) => scope.done());
+      addScope.done();
+      expect(containmentScope.isDone()).toBe(false);
     });
 
     test("ghstack's placeholder listing holds the ciflow label back on a new PR", async () => {
@@ -1802,14 +1818,12 @@ describe("auto-label-bot: labeler.yml config", () => {
       const stackScope = mockStackPrs({
         repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
       });
-      const containmentScope = mockContainment([0]);
       await expectLabels(
         ghstackEvent(["* #32", `* __->__ #${prNumber}`]),
         ["module: dynamo", "ciflow/docker"],
         [filesScope]
       );
       expect(stackScope.isDone()).toBe(false);
-      expect(containmentScope.isDone()).toBe(false);
     });
 
     test("a ciflow label the title rule also adds is not held back", async () => {
