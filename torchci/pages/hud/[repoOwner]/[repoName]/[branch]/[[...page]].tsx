@@ -845,6 +845,11 @@ interface CrcrHudRow {
   failed_tests_json: string;
 }
 
+interface CrcrPrInfo {
+  prNumber: number;
+  headSha: string;
+}
+
 function crcrToJobData(row: CrcrHudRow): JobData {
   let conclusion: string | undefined;
   if (row.status === "completed") {
@@ -930,6 +935,22 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     { prNums },
     isPyTorch && prNums.length > 0
   );
+  const crcrPrInfoUrl =
+    isPyTorch && prNums.length > 0
+      ? `/api/crcr/pr-info?repo=pytorch%2Fpytorch&prs=${encodeURIComponent(
+          prNums.join(",")
+        )}`
+      : null;
+  const { data: crcrPrInfo } = useSWR<CrcrPrInfo[]>(crcrPrInfoUrl, fetcher);
+  const crcrHeadShaByPr = useMemo(
+    () =>
+      new Map(
+        (crcrPrInfo ?? [])
+          .filter((pr) => pr.headSha !== "")
+          .map((pr) => [pr.prNumber, pr.headSha])
+      ),
+    [crcrPrInfo]
+  );
 
   // Lazy-load GreenLight verdicts for commits on screen, keyed by trunk sha so a
   // PR that landed more than once is marked per landing. The PR number and the
@@ -971,16 +992,17 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     return data.map((row) => {
       if (!row.prNum) return row;
       const crcrForPr = crcrByPr.get(row.prNum);
-      if (!crcrForPr) return row;
+      const headSha = crcrHeadShaByPr.get(row.prNum);
+      if (!crcrForPr || !headSha) return row;
 
       const merged = new Map(row.nameToJobs);
-      for (const cr of selectHudCrcrResults(crcrForPr, row.sha)) {
+      for (const cr of selectHudCrcrResults(crcrForPr, headSha)) {
         const jobData = crcrToJobData(cr);
         merged.set(jobData.name!, jobData);
       }
       return { ...row, nameToJobs: merged };
     });
-  }, [data, crcrRows]);
+  }, [data, crcrRows, crcrHeadShaByPr]);
 
   const jobNames = new Set(
     dataWithCrcr?.flatMap((row) => Array.from(row.nameToJobs.keys()))

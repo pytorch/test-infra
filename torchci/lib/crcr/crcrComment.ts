@@ -357,6 +357,7 @@ export function latestAttemptsForHead(
     jobKey: job.name,
     startedAt: job.startedAt ?? "",
     recordId: String(job.id),
+    conclusion: job.conclusion,
   }));
 
   return selectCurrentHeadCrcrJobs(candidates, headSha).map(

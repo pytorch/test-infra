@@ -1222,6 +1222,52 @@ describe("latestAttemptsForHead", () => {
     expect(rows[0].conclusion).toBe("success");
   });
 
+  test("does not let an in-progress retry hide a concluded failure", () => {
+    const failure = crcrJob({
+      id: 1,
+      jobName: "build",
+      head_sha: "new222",
+      conclusion: "failure",
+      runAttempt: 1,
+    });
+    const inProgressRetry = crcrJob({
+      id: 2,
+      jobName: "build",
+      head_sha: "new222",
+      conclusion: "",
+      runAttempt: 2,
+      startedAt: "2026-11-05T10:05:00Z",
+    });
+
+    expect(
+      latestAttemptsForHead([failure, inProgressRetry], "new222").map(
+        (job) => job.id
+      )
+    ).toEqual([1]);
+  });
+
+  test("prefers a failure when final attempts tie", () => {
+    const green = crcrJob({
+      id: 1,
+      jobName: "build",
+      head_sha: "new222",
+      conclusion: "success",
+      runAttempt: 1,
+      startedAt: "2026-11-05T10:05:00Z",
+    });
+    const red = crcrJob({
+      id: 2,
+      jobName: "build",
+      head_sha: "new222",
+      conclusion: "failure",
+      runAttempt: 1,
+    });
+
+    expect(latestAttemptsForHead([green, red], "new222").map((job) => job.id)).toEqual([
+      2,
+    ]);
+  });
+
   test("does not combine a newer run with an older run's failure", () => {
     const oldRetry = crcrJob({
       id: 1,

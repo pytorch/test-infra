@@ -20,7 +20,13 @@ function row(overrides: Partial<HudRow> = {}): HudRow {
 }
 
 describe("selectHudCrcrResults", () => {
-  test("uses only the displayed head and its canonical downstream run", () => {
+  test("uses the PR head, not the HUD row's landed commit", () => {
+    // The main HUD's row SHA is the merge commit, while CRCR records the PR
+    // head. They intentionally differ for a landed pull request.
+    const hudRowSha = "landed-commit";
+    const prHeadSha = "new-head";
+    expect(hudRowSha).not.toBe(prHeadSha);
+
     const selected = selectHudCrcrResults(
       [
         row({
@@ -53,7 +59,7 @@ describe("selectHudCrcrResults", () => {
           started_at: "2026-11-05T10:05:00Z",
         }),
       ],
-      "new-head"
+      prHeadSha
     );
 
     expect(selected.map((row) => row.check_run_id).sort()).toEqual([

@@ -7,6 +7,7 @@ export interface CrcrRunSelectionJob {
   jobKey: string;
   startedAt: string;
   recordId: string;
+  conclusion?: string;
 }
 
 export interface CanonicalCrcrRun<T extends CrcrRunSelectionJob> {
@@ -36,13 +37,27 @@ function latestAttempt<T extends CrcrRunSelectionJob>(
   candidate: T,
   current: T
 ): boolean {
+  const candidateConcluded = (candidate.conclusion ?? "") !== "";
+  const currentConcluded = (current.conclusion ?? "") !== "";
+  if (candidateConcluded !== currentConcluded) {
+    return candidateConcluded;
+  }
   if (candidate.runAttempt !== current.runAttempt) {
     return candidate.runAttempt > current.runAttempt;
+  }
+  const candidateFailed = isFailureConclusion(candidate.conclusion);
+  const currentFailed = isFailureConclusion(current.conclusion);
+  if (candidateFailed !== currentFailed) {
+    return candidateFailed;
   }
   if (candidate.startedAt !== current.startedAt) {
     return candidate.startedAt > current.startedAt;
   }
   return candidate.recordId > current.recordId;
+}
+
+function isFailureConclusion(conclusion: string | undefined): boolean {
+  return ["failure", "cancelled", "timed_out"].includes(conclusion ?? "");
 }
 
 function runScope(job: CrcrRunSelectionJob): string {
