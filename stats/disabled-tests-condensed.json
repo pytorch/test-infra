@@ -1566,15 +1566,6 @@
       "slow"
     ]
   ],
-  "test_torchvision_models_efficientnet_b4 (__main__.TestVisionTracing)": [
-    "182418",
-    "https://github.com/pytorch/pytorch/issues/182418",
-    [
-      "asan",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_triggers (__main__.CallbackTests)": [
     "186864",
     "https://github.com/pytorch/pytorch/issues/186864",
