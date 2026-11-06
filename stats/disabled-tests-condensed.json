@@ -499,6 +499,14 @@
       "rocm"
     ]
   ],
+  "test_del_same_stream_no_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
+    "195553",
+    "https://github.com/pytorch/pytorch/issues/195553",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_del_subscr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
     "195166",
     "https://github.com/pytorch/pytorch/issues/195166",
@@ -1356,6 +1364,13 @@
       "xpu"
     ]
   ],
+  "test_short_json_timing_enabled_True_include_collectives_True (__main__.NCCLTraceTest)": [
+    "203759",
+    "https://github.com/pytorch/pytorch/issues/203759",
+    [
+      "rocm"
+    ]
+  ],
   "test_single_dim_strategy_linalg_cond_cpu_float32 (__main__.TestSingleDimStrategiesCPU)": [
     "190141",
     "https://github.com/pytorch/pytorch/issues/190141",
@@ -1445,6 +1460,13 @@
   "test_synchronize_event_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
     "191746",
     "https://github.com/pytorch/pytorch/issues/191746",
+    [
+      "linux"
+    ]
+  ],
+  "test_synchronize_threads_all_prior_sync_data (__main__.TestUserStreamCompile)": [
+    "192461",
+    "https://github.com/pytorch/pytorch/issues/192461",
     [
       "linux"
     ]
