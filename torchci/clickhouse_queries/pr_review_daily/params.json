@@ -1,0 +1,17 @@
+{
+  "params": {
+    "repo": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "defaults": {
+    "repo": "pytorch/pytorch"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "startTime": "2026-10-01T00:00:00.000",
+      "stopTime": "2026-11-01T00:00:00.000"
+    }
+  ]
+}
