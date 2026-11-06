@@ -6,7 +6,7 @@ import RatesDropzone, {
   RatesAction,
 } from "components/tests/cost/RatesDropzone";
 import RatesFormat from "components/tests/cost/RatesFormat";
-import { hoursLabel, rateLabel } from "lib/tests/cost/query";
+import { amountLabel, hoursLabel, rateLabel } from "lib/tests/cost/query";
 import {
   editedRates,
   priceableRunners,
@@ -264,6 +264,11 @@ export default function CostPanel({
           {rates.basis !== null && (
             <span>
               {dot} {rates.basis}
+            </span>
+          )}
+          {rates.budget?.annual != null && (
+            <span>
+              {dot} budget {amountLabel("cost", rates.budget.annual)} a year
             </span>
           )}
           {coverage.missing.length > 0 && (

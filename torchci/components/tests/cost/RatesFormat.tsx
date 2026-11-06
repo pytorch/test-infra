@@ -56,10 +56,10 @@ export default function RatesFormat({
       </Box>
       <Box>
         <Typography variant="caption" sx={{ color: "text.secondary" }}>
-          Or wrapped, with optional notes
+          Or wrapped, with optional notes and budget
         </Typography>
         <Box component="pre" sx={pre}>
-          {`{\n  "valid_from": "2026-10-01",\n  "basis": "how the rates were made",\n  "rates": {\n    "${a}": 1.23,\n    "${b}": 4.56\n  }\n}`}
+          {`{\n  "valid_from": "2026-10-01",\n  "basis": "how the rates were made",\n  "rates": {\n    "${a}": 1.23,\n    "${b}": 4.56\n  },\n  "budget": {\n    "annual": 1200000,\n    "owners": { "inductor": 300000 }\n  }\n}`}
         </Box>
       </Box>
       <Box
@@ -79,6 +79,10 @@ export default function RatesFormat({
         <li>
           <b>Values:</b> $ per runner-hour, ≥ 0 (0 is free). Runners left out
           aren&apos;t priced.
+        </li>
+        <li>
+          <b>Budget:</b> $ a year, in all and by owner, for the trend&apos;s
+          year to date; either part optional.
         </li>
         <li>The values above are examples only.</li>
       </Box>

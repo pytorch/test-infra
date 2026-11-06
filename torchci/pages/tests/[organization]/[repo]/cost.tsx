@@ -7,15 +7,21 @@ import CostMatrix, { type MatrixCell } from "components/tests/cost/CostMatrix";
 import CostPanel from "components/tests/cost/CostPanel";
 import OwnerChart from "components/tests/cost/OwnerChart";
 import RunnersDrawer from "components/tests/cost/RunnersDrawer";
+import TrendPanel from "components/tests/cost/TrendPanel";
 import WorkflowsCard from "components/tests/cost/WorkflowsCard";
 import LoadError from "components/tests/LoadError";
 import LoadTime from "components/tests/LoadTime";
 import PageColumn from "components/tests/PageColumn";
 import type { RunnerHours } from "lib/api/tests/cost/types";
-import { COST_WINDOW_DAYS } from "lib/api/tests/cost/windows";
+import {
+  COST_WINDOW_DAYS,
+  DEFAULT_TREND_ROLLUP,
+  type TrendRollup,
+} from "lib/api/tests/cost/windows";
 import {
   costApiUrl,
   type CostQuery,
+  costTrendApiUrl,
   costUrlParams,
   resolveCostQuery,
 } from "lib/tests/cost/query";
@@ -40,7 +46,7 @@ import {
   scopeName,
   toggled,
 } from "lib/tests/cost/runnerHours";
-import { useRunnerHours } from "lib/tests/cost/useCost";
+import { useCostTrend, useRunnerHours } from "lib/tests/cost/useCost";
 import { accessReasonOf } from "lib/tests/table";
 import { mergedUrlQuery } from "lib/tests/url";
 import { useSession } from "next-auth/react";
@@ -89,6 +95,11 @@ function datesOf(answer: RunnerHours): string {
 // storage or a request, and so are the panel's split keys. It follows the
 // page's scope and highlight; with a file the facts gain a row in $, and the
 // matrix and the workflows card stay in runner-hours.
+//
+// The trend (TrendPanel), under the cost panel, has its own periods from GET
+// /api/tests/cost/trend, asked with the page's workflow scope; it shows the
+// owner highlight and sets it, and reads the rates file and its budget. Its
+// rollup, periods and order stay in its state, out of the URL.
 export default function Page() {
   const router = useRouter();
   const organization = router.query.organization;
@@ -108,6 +119,8 @@ export default function Page() {
   const [costSplit, setCostSplit] = useState(true);
   // The key of the owner chart row whose runners drawer is open.
   const [runnersKey, setRunnersKey] = useState<string | null>(null);
+  const [trendRollup, setTrendRollup] =
+    useState<TrendRollup>(DEFAULT_TREND_ROLLUP);
 
   const prepared = useMemo(
     () =>
@@ -142,6 +155,17 @@ export default function Page() {
         ? undefined
         : computeView(priced, choices),
     [priced, choices]
+  );
+  // The trend in the page's scope: as the URL names it until the
+  // runner-hours arrive, then without the names they do not hold.
+  const trendRequest = useCostTrend(
+    repository
+      ? costTrendApiUrl(
+          repository,
+          trendRollup,
+          choices?.workflows ?? query.workflows
+        )
+      : null
   );
 
   // Reads a rates file into memory; a bad file leaves the loaded rates as
@@ -455,6 +479,24 @@ export default function Page() {
               )
             }
           />
+          <TrendPanel
+            answer={trendRequest.trend}
+            loading={trendRequest.isLoading}
+            rollup={trendRollup}
+            onRollupChange={setTrendRollup}
+            rates={rates}
+            scope={scope}
+            highlighted={choices.owners}
+            onToggleOwners={toggleOwners}
+            runnerHours={prepared}
+          />
+          {trendRequest.error !== undefined && (
+            <LoadError
+              what="the trend"
+              error={trendRequest.error}
+              onRetry={() => void trendRequest.retry()}
+            />
+          )}
           <CostMatrix
             prepared={prepared}
             view={view}

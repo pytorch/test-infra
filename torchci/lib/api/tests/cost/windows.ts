@@ -18,3 +18,19 @@ export const COST_WINDOW_LABELS: Record<CostWindow, string> = {
   "3d": "3 days",
   "7d": "7 days",
 };
+
+// The trend's rollups, each period a UTC day, a week from Monday or a
+// calendar month, and how many each answer reaches back, the current period
+// (through yesterday) included: six weeks of days, half a year of weeks, a
+// year and a month of months. A period holds about as many owner and runner
+// label cells as a day does, so every rollup's answer stays a few tens of
+// thousands of cells (lib/api/tests/cost/query-validation.md).
+export const TREND_ROLLUPS = ["day", "week", "month"] as const;
+export type TrendRollup = (typeof TREND_ROLLUPS)[number];
+export const DEFAULT_TREND_ROLLUP: TrendRollup = "day";
+
+export const TREND_PERIODS: Record<TrendRollup, number> = {
+  day: 42,
+  week: 26,
+  month: 13,
+};

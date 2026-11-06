@@ -10,6 +10,7 @@ import {
   COST_WINDOWS,
   type CostWindow,
   DEFAULT_COST_WINDOW,
+  type TrendRollup,
 } from "lib/api/tests/cost/windows";
 import {
   decodePageQuery,
@@ -71,6 +72,38 @@ export function costApiUrl(repo: string, window: CostWindow): string {
   return `/api/tests/cost?${new URLSearchParams({ repo, window })}`;
 }
 
+// The GET /api/tests/cost/trend request: the repository, the rollup and the
+// page's workflow scope, sorted, so one scope is one URL in the cache.
+export function costTrendApiUrl(
+  repo: string,
+  rollup: TrendRollup,
+  workflows: readonly string[]
+): string {
+  const params = new URLSearchParams({ repo, rollup });
+  for (const w of [...workflows].sort()) params.append("workflow", w);
+  return `/api/tests/cost/trend?${params}`;
+}
+
+// What changed between two periods, from..to each, for some owners (every
+// owner when none), in a workflow scope; owners and workflows sorted, so the
+// URL, and the cache, do not depend on the order they were chosen in.
+export function costChangesApiUrl(
+  repo: string,
+  workflows: readonly string[],
+  owners: readonly string[],
+  a: { from: string; to: string },
+  b: { from: string; to: string }
+): string {
+  const params = new URLSearchParams({
+    repo,
+    a: `${a.from}..${a.to}`,
+    b: `${b.from}..${b.to}`,
+  });
+  for (const o of [...owners].sort()) params.append("owner", o);
+  for (const w of [...workflows].sort()) params.append("workflow", w);
+  return `/api/tests/cost/changes?${params}`;
+}
+
 // Where an owner's runner-hours lead: the tests page narrowed to the owner,
 // whose tests they are.
 export function ownerTestsHref(repo: string, owner: string): string {
@@ -93,6 +126,21 @@ export function hoursLabel(hours: number): string {
 export function amountLabel(unit: CostUnit, value: number): string {
   if (value > 0 && value < 0.5) return unit === "cost" ? "<$1" : "<1 h";
   return unit === "cost" ? `$${hoursLabel(value)}` : `${hoursLabel(value)} h`;
+}
+
+// An amount to a tenth of an hour or a cent under 10, as amountLabel above:
+// a commit's runner-hours, and a test file's share of them, are often
+// fractions of an hour. Whole amounts keep no decimals: "8 h", "$8".
+export function fineAmountLabel(unit: CostUnit, value: number): string {
+  if (value === 0 || Math.abs(value) >= 10) return amountLabel(unit, value);
+  if (unit === "cost") {
+    if (Math.abs(value) < 0.005) return "<$0.01";
+    const cents = value.toFixed(2);
+    return `$${cents.endsWith(".00") ? cents.slice(0, -3) : cents}`;
+  }
+  if (Math.abs(value) < 0.05) return "<0.1 h";
+  const tenths = value.toFixed(1);
+  return `${tenths.endsWith(".0") ? tenths.slice(0, -2) : tenths} h`;
 }
 
 // A unit's name in a sentence.

@@ -1,4 +1,8 @@
-import type { RunnerHours } from "lib/api/tests/cost/types";
+import type {
+  CostChanges,
+  CostTrend,
+  RunnerHours,
+} from "lib/api/tests/cost/types";
 import { requestJson } from "lib/tests/request";
 import { useApiResource } from "lib/tests/useApiResource";
 import type { PageTiming } from "lib/tests/useTestsListing";
@@ -31,4 +35,25 @@ export function useRunnerHours(url: string | null) {
     timedRequest
   );
   return { runnerHours: data, error, isLoading, retry };
+}
+
+// The trend for its URL, read as the runner-hours are; the answer shown last
+// stays while a new rollup or scope loads.
+export function useCostTrend(url: string | null) {
+  const { data, error, isLoading, retry } = useApiResource<Timed<CostTrend>>(
+    url,
+    { keepPreviousData: true },
+    timedRequest
+  );
+  return { trend: data, error, isLoading, retry };
+}
+
+// What changed between the trend's periods, for its URL (null until both
+// periods are set). The answer shown last stays while the next loads, so
+// dragging a period or highlighting an owner does not blank the section.
+export function useCostChanges(url: string | null) {
+  const { data, error, isLoading, retry } = useApiResource<CostChanges>(url, {
+    keepPreviousData: true,
+  });
+  return { changes: data, error, isLoading, retry };
 }

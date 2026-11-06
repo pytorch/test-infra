@@ -12,6 +12,8 @@ export interface KeyButtonProps {
   title: string;
   // Filled in the accent: the choice in force.
   active?: boolean;
+  // Not a choice now; the title says why.
+  disabled?: boolean;
   onClick: () => void;
   children: ReactNode;
 }
@@ -22,27 +24,38 @@ export interface KeyButtonProps {
 export default function KeyButton({
   title,
   active = false,
+  disabled = false,
   onClick,
   children,
 }: KeyButtonProps) {
   const theme = useTheme();
+  const button = (
+    <ButtonBase
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+      sx={{
+        height: HEADER_FILTER_SIZE,
+        px: 1.25,
+        typography: "body2",
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+        ...headerKeySx(theme, headerKeyColors(theme, { active })),
+        "&.Mui-focusVisible": headerKeyFocusRing(theme),
+        "&.Mui-disabled": { opacity: 0.45 },
+      }}
+    >
+      {children}
+    </ButtonBase>
+  );
   return (
     <Tooltip title={title} enterDelay={400}>
-      <ButtonBase
-        aria-pressed={active}
-        onClick={onClick}
-        sx={{
-          height: HEADER_FILTER_SIZE,
-          px: 1.25,
-          typography: "body2",
-          lineHeight: 1,
-          whiteSpace: "nowrap",
-          ...headerKeySx(theme, headerKeyColors(theme, { active })),
-          "&.Mui-focusVisible": headerKeyFocusRing(theme),
-        }}
-      >
-        {children}
-      </ButtonBase>
+      {/* A disabled button takes no pointer, so a span holds the tooltip. */}
+      {disabled ? (
+        <span style={{ display: "inline-flex" }}>{button}</span>
+      ) : (
+        button
+      )}
     </Tooltip>
   );
 }
