@@ -302,6 +302,8 @@ old route in the same change.
 | `GET /api/tests/commit/{sha}/summary?repo=owner/name` | The commit as GitHub described it, its test counts by status, and the span of its runs                                                                                | `lib/api/tests/commit/summary/` |
 | `GET /api/tests/pull/{number}?repo=owner/name`        | A pull request's newest head commit as HUD knows it, and the pull request's page                                                                                      | `lib/api/tests/pull/`           |
 | `GET /api/tests/cost`                                 | Test-job runner-hours of the last 1, 3 or 7 whole UTC days by owner, workflow and machine, from the test_cost rollup, with the PR update and merge signals; prototype | `lib/api/tests/cost/`           |
+| `GET /api/tests/cost/trend`                           | Test-job runner-hours by day, week or month, owner and runner label, all and of pushes to main, with daily totals and pushes to main; prototype                       | `lib/api/tests/cost/trend.ts`   |
+| `GET /api/tests/cost/changes`                         | Two periods' test-job runner-hours by test file and workflow, all and of pushes to main, with each day's pushes to main: what changed; prototype                      | `lib/api/tests/cost/changes.ts` |
 
 The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 
@@ -600,8 +602,9 @@ comparison with GitHub's heads and the measurements are in
 runner-hours go, as one small fact table by owner, workflow, machine and
 machine source (about 1,500 rows a day), which the cost page sums for any
 scope itself. It counts runner time only, no queue, and reads the rollup
-`fortesting.test_cost` (`clickhouse_db_schema/fortesting/000004` and `000005`
-hold its table and the view that fills it). Its SQL is in
+`ci.test_cost` (`clickhouse_db_schema/ci/000004` and `000005` hold its table
+and the view that fills it; `test/api/tests/cost/query.test.ts` keeps the SQL
+on its columns). Its SQL is in
 `lib/api/tests/cost/query.ts`; measurements and checks against
 `workflow_job` and HUD's cost analysis are in
 [query-validation.md](../../lib/api/tests/cost/query-validation.md).

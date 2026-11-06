@@ -1,4 +1,4 @@
-import { COST_WINDOWS } from "lib/api/tests/cost/windows";
+import { COST_WINDOWS, TREND_ROLLUPS } from "lib/api/tests/cost/windows";
 import { z } from "zod/v4";
 
 // Where a row's machine came from: its jobs' test reports, their runner
@@ -190,6 +190,126 @@ export const RunnerHoursSchema = z
     "A repository's runner-hours over its last whole days by owner, workflow and machine, with time to signal on main."
   );
 
+const DAY = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const INDEX = z.number().int().min(0);
+// Runner-hours, never negative.
+const HOURS = z.number().min(0);
+
+export const TrendDailySchema = z
+  .object({
+    start: DAY.describe(
+      "The first day read, YYYY-MM-DD: January 1 of yesterday's year, or the first period's start if earlier."
+    ),
+    days: z
+      .array(DAY)
+      .describe("The days test_cost holds, ascending, YYYY-MM-DD."),
+    filling: z
+      .array(DAY)
+      .describe(
+        "The days of days still filling, ascending: last computed less than 27 hours after they began, while jobs that started on them were still running, so they read low by up to a few percent."
+      ),
+    pushes: z
+      .array(z.number().int().min(0))
+      .describe(
+        "Each day's pushes to main, in days' order: distinct head commits pushed to main or master, by their day. Cost per commit divides push:main runner-hours by them."
+      ),
+    cells: z
+      .array(z.tuple([INDEX, INDEX, HOURS, HOURS]))
+      .describe(
+        "[day, label, runner_hours, main_runner_hours]: an index into days, an index into the answer's labels, that day's runner-hours on the label, and those of pushes to main (trigger push:main)."
+      ),
+  })
+  .describe(
+    "Each day's runner-hours by runner label from January 1, for the year to date and the days each period has data."
+  );
+
+export const CostTrendSchema = z
+  .object({
+    repo: z.string().describe("Repository as owner/name."),
+    rollup: z.enum(TREND_ROLLUPS).describe("Each period's length."),
+    workflows: z
+      .array(z.string())
+      .describe("The workflows counted, lowercase; empty for every workflow."),
+    start: DAY.describe("The first period's first day, YYYY-MM-DD."),
+    end: DAY.describe(
+      "Today (UTC), YYYY-MM-DD, exclusive: the last period runs through yesterday."
+    ),
+    periods: z
+      .array(DAY)
+      .describe(
+        "Every period's first day from start, ascending, with data or not; the last one runs through yesterday and may be partial."
+      ),
+    owners: z
+      .array(z.string())
+      .describe(
+        `Test file owners and the buckets of hours no owner is given (${OWNER_BUCKETS.join(
+          ", "
+        )}), most runner-hours first.`
+      ),
+    labels: z
+      .array(z.string())
+      .describe(
+        "Runner labels as the jobs asked for them, sorted and comma-separated, most runner-hours first: what a rates file prices."
+      ),
+    cells: z
+      .array(z.tuple([INDEX, INDEX, INDEX, HOURS, HOURS]))
+      .describe(
+        "[period, owner, label, runner_hours, main_runner_hours]: indexes into periods, owners and labels, the cell's runner-hours, and those of pushes to main (trigger push:main), part of them. Cells without hours are left out."
+      ),
+    daily: TrendDailySchema,
+    query_duration_ms: z
+      .number()
+      .int()
+      .describe("Time spent in the database requests, rounded."),
+  })
+  .describe(
+    "A repository's test-job runner-hours by period, owner and runner label, compact: names once each, cells as index tuples."
+  );
+
+const DAY_RANGE = z
+  .object({
+    from: DAY.describe("The first day, YYYY-MM-DD."),
+    to: DAY.describe("The last day, YYYY-MM-DD, included."),
+  })
+  .describe("A period of whole UTC days.");
+
+export const CostChangesSchema = z
+  .object({
+    repo: z.string().describe("Repository as owner/name."),
+    workflows: z
+      .array(z.string())
+      .describe("The workflows counted, lowercase; empty for every workflow."),
+    owners: z
+      .array(z.string())
+      .describe(
+        "The owners whose share is counted, sorted; empty for every owner."
+      ),
+    a: DAY_RANGE.describe("The period compared against."),
+    b: DAY_RANGE.describe("The period compared."),
+    days: z
+      .array(z.tuple([DAY, z.number().int().min(0)]))
+      .describe(
+        "[day, pushes]: each day of A and B the rollup holds, ascending, what their per-day figures divide by, with its pushes to main: distinct head commits pushed to main, by their day."
+      ),
+    labels: z
+      .array(z.string())
+      .describe(
+        "Runner labels as the jobs asked for them, sorted and comma-separated, most runner-hours first: what a rates file prices."
+      ),
+    cells: z
+      .array(z.tuple([z.number().int().min(0).max(1), INDEX, HOURS, HOURS]))
+      .describe(
+        "[side, label, runner_hours, main_runner_hours]: 0 for A or 1 for B, an index into labels, the runner-hours, and those of pushes to main (trigger push:main), part of them. Each side's cells sum to its whole; cells without hours are left out."
+      ),
+    query_duration_ms: z
+      .number()
+      .int()
+      .describe("Time spent in the database requests, rounded."),
+  })
+  .describe(
+    "Two periods' test-job runner-hours, of some owners or every owner, by runner label, all and those of pushes to main, with each day's pushes to main: what changed between them, per day or per commit."
+  );
+
 export type RunnerHoursRow = z.infer<typeof RunnerHoursRowSchema>;
 export type Contributor = z.infer<typeof ContributorSchema>;
 export type MachineSource = (typeof MACHINE_SOURCES)[number];
@@ -197,3 +317,5 @@ export type CostMachine = z.infer<typeof CostMachineSchema>;
 export type CostSignal = z.infer<typeof CostSignalSchema>;
 export type WorkflowPreset = z.infer<typeof WorkflowPresetSchema>;
 export type RunnerHours = z.infer<typeof RunnerHoursSchema>;
+export type CostTrend = z.infer<typeof CostTrendSchema>;
+export type CostChanges = z.infer<typeof CostChangesSchema>;

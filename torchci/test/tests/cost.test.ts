@@ -3,6 +3,7 @@ import {
   amountLabel,
   costApiUrl,
   costUrlParams,
+  fineAmountLabel,
   rateLabel,
   resolveCostQuery,
   shareLabel,
@@ -775,6 +776,19 @@ describe("cost from a rates file", () => {
     expect(amountLabel("hours", 740)).toBe("740 h");
     expect(amountLabel("cost", 0.2)).toBe("<$1");
     expect(amountLabel("cost", 0)).toBe("$0");
+  });
+
+  test("fineAmountLabel: cents and tenths under 10, whole amounts without them", () => {
+    expect(fineAmountLabel("cost", 0.375)).toBe("$0.38");
+    expect(fineAmountLabel("cost", 2.5)).toBe("$2.50");
+    expect(fineAmountLabel("cost", 8)).toBe("$8");
+    expect(fineAmountLabel("cost", 0.001)).toBe("<$0.01");
+    expect(fineAmountLabel("cost", 12.4)).toBe("$12");
+    expect(fineAmountLabel("hours", 0.44)).toBe("0.4 h");
+    expect(fineAmountLabel("hours", 4)).toBe("4 h");
+    expect(fineAmountLabel("hours", 0.01)).toBe("<0.1 h");
+    expect(fineAmountLabel("hours", 0)).toBe("0 h");
+    expect(fineAmountLabel("hours", -2.5)).toBe("-2.5 h");
   });
 
   test("rates read to 3 significant figures under $1, so an edit never reads as the rate it changed", () => {

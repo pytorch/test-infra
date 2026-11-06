@@ -78,3 +78,79 @@ against 54,972 h) because HUD buckets jobs by the day they completed and
 (`inductor-perf-nightly-h100`), the page by file name
 (`inductor-perf-test-nightly-h100`); the workflows only one side names hold
 1,730 and 1,692 hours.
+
+## The move to `ci.test_cost`
+
+Measured 2026-11-05/06 through `hud_user` (`readonly=2`, `max_threads=8`,
+`max_memory_usage=8e9`, `max_execution_time`), server figures from
+`X-ClickHouse-Summary`, alternating runs. `ci.test_cost` (000004/000005)
+adds the `trigger` column; it holds 2026-10-29 on, a day after
+`fortesting.test_cost` began. Every whole day both hold sums to the same
+runner-hours, each day as last computed:
+
+| Day   | `ci.test_cost` | of it `push:main` | `fortesting.test_cost` |
+| ----- | -------------- | ----------------- | ---------------------- |
+| 10-29 | 87,853.5 h     | 16,487.4 h (19%)  | 87,853.5 h             |
+| 10-30 | 78,904.9 h     | 19,421.8 h (25%)  | 78,904.9 h             |
+| 10-31 | 34,410.4 h     | 8,400.1 h (24%)   | 34,410.4 h             |
+| 11-01 | 22,154.2 h     | 5,831.6 h (26%)   | 22,154.2 h             |
+| 11-02 | 54,971.9 h     | 11,072.9 h (20%)  | 54,971.9 h             |
+| 11-03 | 91,880.0 h     | 17,986.9 h (20%)  | 91,880.0 h             |
+| 11-04 | 76,866.2 h     | 14,131.0 h (18%)  | 76,866.2 h             |
+
+Every query sums both triggers into its runner-hours, so the move changes
+no figure; `test/api/tests/cost/query.test.ts` keeps the SQL on the ci
+table's columns.
+
+## The trend and what changed
+
+`trendQuery`, `trendDailyQuery` and `changesQuery` carry the runner-hours of
+pushes to main beside the whole (`sumIf(…, trigger = 'push:main')`), for
+cost per commit. Over 10-29..11-04:
+
+- The trend's rows are those of the query before the change (8,329 rows,
+  447,041.09 h, no row differs); its push:main hours by day are the
+  table's above. Server time 0.53 s against 0.54 s (median of 6, within
+  noise).
+- The daily totals fold rows outside the workflow scope into one 0 h row a
+  day (`label` ''), so a day with data is a day the rollup holds, not a day
+  the scope ran: for `periodic`, the same 74 cells and 4,101.86 h, plus 7
+  zero rows.
+
+`changesQuery(true)` for inductor, A 10-29..11-01 against B 11-02..11-04,
+against the straightforward form (the latest day by a window function and
+the owners joined on every row): the same 4,830 rows (0 differing), median
+0.87 s against 1.63 s over 5 rounds, 1.0 s against 1.9 s on one thread,
+53 MiB against 97 MiB. Its sides sum to the trend's inductor hours to
+0.0005 h (64,344.2 h and 65,308.0 h). With the push:main hours added and
+the trigger cut dropped, the file and workflow rows are unchanged and their
+push:main sums equal the old trigger breakdown's; 0.56 s against 0.44 s
+(medians of 6, ranges overlapping). About a CPU-second for a week a side:
+not a heavy query.
+
+## Pushes to main
+
+Pushes per day come from `default.push`: distinct head commits pushed to
+`main` (or `master`), by the head commit's timestamp, which for a merge is
+when it landed. They equal the distinct `head_sha` of push:main runs in
+`workflow_run` on every day checked (10-29..11-04: 70, 76, 33, 23, 48, 69,
+58). Read for a year (309 days, 14,518 pushes, the same in every form):
+
+| Form                                                         | Rows read | Bytes read | Memory  |
+| ------------------------------------------------------------ | --------- | ---------- | ------- |
+| `head_commit.'timestamp'`, `repository.'full_name'` (prunes) | 0.69 M    | 2.8 GB     | 1.8 GiB |
+| `repository.full_name`, `head_commit.'timestamp'` (prunes)   | 0.69 M    | 2.8 GB     | 540 MiB |
+| `repository.full_name`, `head_commit.timestamp` (shipped)    | 2.65 M    | 138 MB     | 160 MiB |
+
+The quoted form prunes by the sort key but reads whole tuples; the
+subcolumns read every row of three small columns, about a second.
+
+## Days still filling
+
+The view recomputes the last days every 3 hours from 00:30 UTC, so the day
+just ended is first whole after midnight. Of the test jobs that started on
+11-02 and 11-03, the wall time of those finishing after 00:30 the next day
+was 4.9% and 2.2%; after 03:30, 0.18% and 0.09%; after 06:30, 0.03%. A day
+last computed before 03:00 the next day (`FILLING_HOURS`, 27 hours after it
+began) is filling: the trend lists it, fades its bar, keeps it out of the
+presets and says it reads low.
