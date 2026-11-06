@@ -1,6 +1,6 @@
 import type { CostTrend } from "lib/api/tests/cost/types";
 import type { TrendRollup } from "lib/api/tests/cost/windows";
-import { rateOf, type RatesBudget, type RatesFile } from "lib/tests/cost/rates";
+import { rateOf, type RatesFile } from "lib/tests/cost/rates";
 import {
   BUCKET_LABELS,
   type CostUnit,
@@ -9,9 +9,9 @@ import {
 
 // The cost page's trend: GET /api/tests/cost/trend's runner-hours by period,
 // owner and runner label, summed in the browser into two periods compared,
-// A and B, the owners ranked by their change, and with a rates file, $ and
-// the year to date against its budget. Pure functions of the answer and the
-// reader's choices, as runnerHours.ts's are; TrendPanel only draws them.
+// A and B, the owners ranked by their change, and with a rates file, $.
+// Pure functions of the answer and the reader's choices, as runnerHours.ts's
+// are; TrendPanel only draws them.
 //
 // Periods are compared per day with data, so a week missing a day, or the
 // current one through yesterday, compares fairly with a whole one, and a
@@ -52,13 +52,10 @@ export interface PreparedTrend {
   cellHours: Float64Array;
   // Those of pushes to main, part of cellHours.
   cellMain: Float64Array;
-  // Each day's runner-hours by label from January 1 (or the first period,
-  // if earlier), for the year to date; dailyStart is that first day.
+  // The days with data from January 1 (or the first period, if earlier);
+  // dailyStart is that first day.
   dailyStart: string;
   dailyDays: string[];
-  dailyDay: Int32Array;
-  dailyLabel: Int32Array;
-  dailyHours: Float64Array;
   // Each period's pushes to main on its days with data.
   periodPushes: number[];
 }
@@ -118,15 +115,6 @@ export function prepareTrend(answer: CostTrend): PreparedTrend {
     cellHours[c] = h;
     cellMain[c] = main ?? 0;
   });
-  const m = answer.daily.cells.length;
-  const dailyDay = new Int32Array(m);
-  const dailyLabel = new Int32Array(m);
-  const dailyHours = new Float64Array(m);
-  answer.daily.cells.forEach(([d, l, h], c) => {
-    dailyDay[c] = d;
-    dailyLabel[c] = l;
-    dailyHours[c] = h;
-  });
   return {
     rollup: answer.rollup,
     end: answer.end,
@@ -147,9 +135,6 @@ export function prepareTrend(answer: CostTrend): PreparedTrend {
     cellMain,
     dailyStart: answer.daily.start,
     dailyDays: answer.daily.days,
-    dailyDay,
-    dailyLabel,
-    dailyHours,
     periodPushes: pushes.slice(first),
   };
 }
@@ -552,7 +537,7 @@ export function defaultRanges(p: PreparedTrend): {
   };
 }
 
-// The year a budget is read in, yesterday's (on January 1, the year just
+// The year B's pace is read in, yesterday's (on January 1, the year just
 // ended), and its calendar days.
 export function trendYear(p: PreparedTrend): { year: number; days: number } {
   const year = new Date(dayMs(p.end) - DAY_MS).getUTCFullYear();
@@ -562,8 +547,8 @@ export function trendYear(p: PreparedTrend): { year: number; days: number } {
   };
 }
 
-// B's pace: a value per day kept up for the year a budget is read in, and
-// an average month, a twelfth of that year, so twelve months make the year.
+// B's pace: a value per day kept up for the year it is read in, and an
+// average month, a twelfth of that year, so twelve months make the year.
 export function trendPace(
   p: PreparedTrend,
   perDay: number
@@ -631,15 +616,6 @@ export interface TrendRow {
   bPerCommit: number | null;
   // The row's value per day with data (or per commit) in each period.
   series: Float64Array;
-  // With a budget for the row: $ a year, B's pace a year (per day,
-  // whichever the table compares by) against it, and B's runner-hours with
-  // no rate, which the pace leaves out: under the budget is then uncertain.
-  budget: {
-    annual: number;
-    pace: number;
-    ratio: number;
-    unpriced: number;
-  } | null;
 }
 
 // What the owners are sorted by, a column of the table: A or B per day (or
@@ -711,15 +687,12 @@ export function trendRows(
   const bPushes = rangePushes(p, b);
   const [aDen, bDen] = per === "day" ? [aDays, bDays] : [aPushes, bPushes];
   const periodDen = per === "day" ? p.periodData : p.periodPushes;
-  const dollars = rates !== null;
-  const { days: inYear } = trendYear(p);
   const wholeB = inB.reduce((s, t) => s + t.value, 0);
   const row = (
     key: string,
     label: string,
     owners: number[],
-    kind: TrendRow["kind"],
-    annual: number | null
+    kind: TrendRow["kind"]
   ): TrendRow => {
     const sum = (ts: TrendTotals[]) =>
       owners.reduce((t, o) => {
@@ -737,8 +710,6 @@ export function trendRows(
     for (const o of owners) series[o].forEach((v, i) => (s[i] += v));
     for (let i = 0; i < n; i++)
       s[i] = periodDen[i] > 0 ? s[i] / periodDen[i] : 0;
-    const allBt = sum(allB);
-    const pace = (bDays > 0 ? allBt.value / bDays : 0) * inYear;
     return {
       key,
       label,
@@ -756,34 +727,22 @@ export function trendRows(
         a === null || aPushes === 0 ? null : sum(mainA).value / aPushes,
       bPerCommit: bPushes === 0 ? null : sum(mainB).value / bPushes,
       series: s,
-      budget:
-        dollars && annual !== null
-          ? {
-              annual,
-              pace,
-              ratio: annual > 0 ? pace / annual : Infinity,
-              unpriced: allBt.unpriced,
-            }
-          : null,
     };
   };
-  const budget = rates?.budget ?? null;
-  const ownerBudget = (owner: string) => budget?.owners[owner] ?? null;
   const ran = (o: number) => allA[o].runnerHours > 0 || allB[o].runnerHours > 0;
   const rows: TrendRow[] = [
     row(
       "all",
       "All owners",
       p.owners.map((_, o) => o),
-      "all",
-      budget?.annual ?? null
+      "all"
     ),
   ];
   const people = p.owners
     .map((name, o) => ({
       name,
       o,
-      row: row(name, name, [o], "owner", ownerBudget(name)),
+      row: row(name, name, [o], "owner"),
     }))
     .filter(({ name, o }) => !isBucket(name) && ran(o));
   // Rows without a value (no A, or a change in % from nothing) go last
@@ -827,19 +786,16 @@ export function trendRows(
         "more",
         `${rest.length} more owners`,
         rest.map((x) => x.o),
-        "more",
-        null
+        "more"
       )
     );
   } else if (fold) {
-    rows.push(row("less", "Show fewer", [], "less", null));
+    rows.push(row("less", "Show fewer", [], "less"));
   }
   for (const bucket of Object.keys(BUCKET_LABELS)) {
     const o = p.owners.indexOf(bucket);
     if (o >= 0 && ran(o)) {
-      rows.push(
-        row(bucket, BUCKET_LABELS[bucket], [o], "bucket", ownerBudget(bucket))
-      );
+      rows.push(row(bucket, BUCKET_LABELS[bucket], [o], "bucket"));
     }
   }
   return rows;
@@ -876,78 +832,6 @@ export function ownerStep(
   }
   if (at > 0) return [order[at - 1]];
   return highlighted.size > 0 ? [] : null;
-}
-
-// The year to date against the budget, from the daily totals: the $ on the
-// days with data since January 1, the budget for those same days (its year
-// spread evenly over the year's days), and B's pace a year against the
-// year's budget. Days the rollup does not hold count against neither side.
-export interface BudgetFacts {
-  year: number;
-  annual: number;
-  ytd: number;
-  ytdDays: number;
-  ytdUnpriced: number;
-  firstDay: string | null;
-  toDate: number;
-  ratio: number;
-  pace: number | null;
-}
-
-export function budgetFacts(
-  p: PreparedTrend,
-  rates: RatesFile | null,
-  b: PeriodRange | null
-): BudgetFacts | null {
-  const annual = rates?.budget?.annual ?? null;
-  if (rates === null || annual === null) return null;
-  const f = factors(p, rates);
-  const { year, days: yearDays } = trendYear(p);
-  const yearStart = ymd(Date.UTC(year, 0, 1));
-  const inYear = p.dailyDays.map((d) => d >= yearStart && d < p.end);
-  let ytd = 0;
-  let ytdUnpriced = 0;
-  for (let c = 0; c < p.dailyHours.length; c++) {
-    if (!inYear[p.dailyDay[c]]) continue;
-    const factor = f[p.dailyLabel[c]];
-    if (factor === null) ytdUnpriced += p.dailyHours[c];
-    else ytd += p.dailyHours[c] * factor;
-  }
-  const days = p.dailyDays.filter((_, d) => inYear[d]);
-  const toDate = (annual * days.length) / yearDays;
-  let pace: number | null = null;
-  if (b !== null) {
-    const bDays = rangeDays(p, b);
-    if (bDays > 0) {
-      pace = (rangeTotals(p, rates, b).value / bDays) * yearDays;
-    }
-  }
-  return {
-    year,
-    annual,
-    ytd,
-    ytdDays: days.length,
-    ytdUnpriced,
-    firstDay: days[0] ?? null,
-    toDate,
-    ratio: toDate > 0 ? ytd / toDate : 0,
-    pace,
-  };
-}
-
-// The budget of some owners: the sum of theirs when every one has one.
-export function ownersBudget(
-  budget: RatesBudget | null,
-  owners: readonly string[]
-): number | null {
-  if (budget === null || owners.length === 0) return null;
-  let sum = 0;
-  for (const o of owners) {
-    const b = budget.owners[o];
-    if (b === undefined) return null;
-    sum += b;
-  }
-  return sum;
 }
 
 // A difference as the tables write it: "▲ +2 h", "▼ −$0.25", and "▼ <0.1 h"

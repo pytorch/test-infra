@@ -1,7 +1,7 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { paleColor } from "lib/tests/cost/colors";
-import { amountLabel, fineAmountLabel } from "lib/tests/cost/query";
+import { fineAmountLabel } from "lib/tests/cost/query";
 import { niceTicks } from "lib/tests/cost/ticks";
 import {
   axisPeriods,
@@ -22,25 +22,21 @@ export interface TrendChartProps {
   series: TrendSeries;
   // Owners are highlighted: their part of each bar is solid, the rest pale.
   highlighting: boolean;
-  // Each period's budget in $, for its days with data; null without one.
-  budget: Float64Array | null;
   a: PeriodRange | null;
   b: PeriodRange | null;
   onRangeChange: (_which: "a" | "b", _range: PeriodRange) => void;
 }
 
-// The trend's bars, a period each, on the scale of the largest bar or
-// budget: the highlighted owners' part solid and the rest pale while owners
-// are highlighted, a period without every day of data faded with its days
-// in its tooltip, and a dashed line at each period's budget. Bars keep a
-// gap at every count; past 20 days the axis labels Mondays. A and B are
+// The trend's bars, a period each, on the scale of the largest bar: the
+// highlighted owners' part solid and the rest pale while owners are
+// highlighted, and a period without every day of data faded with its days
+// in its tooltip. Bars keep a gap at every count; past 20 days the axis labels Mondays. A and B are
 // boxes behind the bars: dragging across the bars sets B, and with Shift
 // held, A; a click sets one period.
 export default function TrendChart({
   prepared,
   series,
   highlighting,
-  budget,
   a,
   b,
   onRangeChange,
@@ -54,9 +50,7 @@ export default function TrendChart({
   } | null>(null);
   const n = prepared.periods.length;
   const unit = series.unit;
-  const ticks = niceTicks(
-    Math.max(0, ...Array.from(series.value), ...Array.from(budget ?? []))
-  );
+  const ticks = niceTicks(Math.max(0, ...Array.from(series.value)));
   const axisMax = ticks[ticks.length - 1];
   const at = (event: PointerEvent) => {
     const rect = plot.current?.getBoundingClientRect();
@@ -202,7 +196,6 @@ export default function TrendChart({
             const value = series.value[i];
             const lit = series.highlighted[i];
             const partial = isPartial(prepared, i);
-            const line = budget?.[i] ?? 0;
             const title = [
               `${periodTitle(prepared, i)}: ${fineAmountLabel(unit, value)}`,
               highlighting ? `highlighted: ${fineAmountLabel(unit, lit)}` : "",
@@ -212,7 +205,6 @@ export default function TrendChart({
                   } days ${prepared.periodData[i] === 1 ? "has" : "have"} data`
                 : "",
               prepared.periodFilling[i] ? "incomplete, jobs still running" : "",
-              line > 0 ? `budget: ${amountLabel("cost", line)}` : "",
             ]
               .filter(Boolean)
               .join(" · ");
@@ -248,19 +240,6 @@ export default function TrendChart({
                       backgroundColor: theme.palette.primary.main,
                       borderRadius:
                         highlighting && value - lit > 0 ? 0 : "2px 2px 0 0",
-                    }}
-                  />
-                )}
-                {line > 0 && (
-                  <Box
-                    aria-hidden
-                    sx={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      bottom: `${(100 * line) / axisMax}%`,
-                      borderTop: `2px dashed ${theme.palette.text.primary}`,
-                      opacity: 0.7,
                     }}
                   />
                 )}

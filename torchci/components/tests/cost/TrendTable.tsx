@@ -1,6 +1,6 @@
 import { Box, ButtonBase, TableSortLabel, useTheme } from "@mui/material";
 import type { TrendRollup } from "lib/api/tests/cost/windows";
-import { amountLabel, fineAmountLabel, shareLabel } from "lib/tests/cost/query";
+import { fineAmountLabel, shareLabel } from "lib/tests/cost/query";
 import type { CostUnit } from "lib/tests/cost/runnerHours";
 import {
   changeLabel,
@@ -81,8 +81,7 @@ function Sparkline({ values, color }: { values: Float64Array; color: string }) {
 // Figures are per day with data, or per commit (push:main over pushes to
 // main); per day, each row's per commit in A and B too. A rise is ▲ in the
 // error color, a fall ▼ in the success color, so the sign never rests on
-// color alone. With a budget, B's pace a year against the row's. A row's
-// click highlights its owners across the page.
+// color alone. A row's click highlights its owners across the page.
 export default function TrendTable({
   rows,
   unit,
@@ -98,7 +97,6 @@ export default function TrendTable({
   onExpandedChange,
 }: TrendTableProps) {
   const theme = useTheme();
-  const budgets = rows.some((r) => r.budget !== null);
   // Per commit as a column of its own while the table compares per day.
   const perCommit = per === "day" && rows.some((r) => r.bPerCommit !== null);
   const amount = (v: number) => fineAmountLabel(unit, v);
@@ -115,7 +113,6 @@ export default function TrendTable({
     ...(aLabel === null ? [] : ["minmax(80px, 0.8fr)", "minmax(64px, 0.7fr)"]),
     ...(perCommit ? ["minmax(112px, 1fr)"] : []),
     "minmax(104px, 1fr)",
-    ...(budgets ? ["minmax(84px, 0.8fr)"] : []),
   ].join(" ");
   const cell = {
     px: 1,
@@ -196,11 +193,6 @@ export default function TrendTable({
         >
           {trendHeader(rollup)}
         </Box>
-        {budgets && (
-          <Box role="columnheader" sx={head}>
-            vs budget
-          </Box>
-        )}
       </Box>
       {rows.map((row) => {
         if (row.kind === "less") {
@@ -333,49 +325,6 @@ export default function TrendTable({
                 }
               />
             </Box>
-            {budgets && (
-              <Box role="cell" sx={cell}>
-                {row.budget === null ? (
-                  ""
-                ) : (
-                  <Box
-                    component="span"
-                    title={`Projected: ${amountLabel(
-                      "cost",
-                      row.budget.pace
-                    )} a year at B's daily average; budget ${amountLabel(
-                      "cost",
-                      row.budget.annual
-                    )}${
-                      row.budget.unpriced > 0.5
-                        ? ". Some of B's runner-hours have no rate, so the projection is at least this"
-                        : ""
-                    }`}
-                    sx={{
-                      px: 0.75,
-                      py: 0.25,
-                      borderRadius: "999px",
-                      fontSize: "0.75rem",
-                      color:
-                        row.budget.ratio > 1
-                          ? up
-                          : row.budget.unpriced > 0.5
-                          ? "text.secondary"
-                          : down,
-                      border: "1px solid currentColor",
-                    }}
-                  >
-                    {row.budget.annual <= 0
-                      ? "▲ Over"
-                      : row.budget.ratio > 1
-                      ? `▲ Over ${shareLabel(row.budget.ratio - 1)}`
-                      : row.budget.unpriced > 0.5
-                      ? "Partly unpriced"
-                      : `✓ Under ${shareLabel(1 - row.budget.ratio)}`}
-                  </Box>
-                )}
-              </Box>
-            )}
           </ButtonBase>
         );
       })}

@@ -10,12 +10,5 @@
     "windows.4xlarge.nonephemeral": 0.8,
     "macos-m1-stable": 0,
     "linux.retired.label": 3
-  },
-  "budget": {
-    "annual": 9125,
-    "owners": {
-      "inductor": 4000,
-      "dynamo": 5000
-    }
   }
 }

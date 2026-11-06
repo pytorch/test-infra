@@ -233,7 +233,6 @@ describe("CostPanel", () => {
     expect(text).toContain("rates.json (in this tab only)");
     expect(text).toContain("valid from 2026-10-01");
     expect(text).toContain("example rates for tests, not real prices");
-    expect(text).toContain("budget $9.1K a year");
     expect(text).toContain("2 runners have no rate");
     expect(text).toContain("1 label didn't run here");
     expect(text).not.toContain("edited");
@@ -443,13 +442,9 @@ describe("RatesFormat", () => {
       examples,
       examples,
     ]);
-    expect(files.map((f) => [f.validFrom, f.basis, f.budget])).toEqual([
-      [null, null, null],
-      [
-        "2026-10-01",
-        "how the rates were made",
-        { annual: 1200000, owners: { inductor: 300000 } },
-      ],
+    expect(files.map((f) => [f.validFrom, f.basis])).toEqual([
+      [null, null],
+      ["2026-10-01", "how the rates were made"],
     ]);
   });
 });

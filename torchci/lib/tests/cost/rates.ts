@@ -7,8 +7,7 @@ import {
 
 // Cost for the cost page, from a rates file the reader adds: a JSON object
 // of runner label → $ per runner-hour, optionally wrapped with when the rates
-// hold from, how they were made and a budget: $ a year in all and by owner,
-// which the trend reads the year to date against. The file is read in the browser into the
+// hold from and how they were made. The file is read in the browser into the
 // page's memory: never sent, stored, or put in the URL (whose query HUD's
 // analytics record), and reloading the page drops it. The API holds no
 // prices, so without a file the page counts runner-hours only.
@@ -20,14 +19,6 @@ export interface RatesFile {
   rates: Readonly<Record<string, number>>;
   // The rates as the file gave them, before any edits on the page.
   original: Readonly<Record<string, number>>;
-  budget: RatesBudget | null;
-}
-
-// $ a year: in all (null when the file gives only owners'), and by owner
-// as the API names owners, buckets included.
-export interface RatesBudget {
-  annual: number | null;
-  owners: Readonly<Record<string, number>>;
 }
 
 // A rates file is a few KB; anything far larger is not one.
@@ -36,49 +27,6 @@ export const MAX_RATES_BYTES = 1_000_000;
 // No runner costs more than this an hour; a larger number is a typo, and
 // one near the float limit would make every total infinite.
 export const MAX_RATE = 100_000;
-
-// Nor does a year's CI budget pass ten billion dollars.
-export const MAX_BUDGET = 10_000_000_000;
-
-const isObject = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
-
-// A wrapped file's budget, or an error saying what is wrong with it.
-function parseBudget(value: unknown): RatesBudget | null {
-  if (value === undefined) return null;
-  const amount = (v: unknown) =>
-    typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_BUDGET;
-  const shape =
-    'budget must be {"annual": $ a year, "owners": {"owner": $ a year}}, either part optional';
-  if (!isObject(value)) throw new Error(`${shape}.`);
-  const annual = value.annual ?? null;
-  if (annual !== null && !amount(annual)) {
-    throw new Error(
-      `budget.annual must be $ a year, from 0 to 10 billion: it is ${JSON.stringify(
-        annual
-      )}.`
-    );
-  }
-  const owners = value.owners ?? {};
-  if (!isObject(owners)) throw new Error(`${shape}.`);
-  const bad = Object.entries(owners)
-    .filter(([, v]) => !amount(v))
-    .map(([k, v]) => `${k} is ${JSON.stringify(v)}`);
-  if (bad.length > 0) {
-    throw new Error(
-      `budget.owners must be $ a year, from 0 to 10 billion: ${bad
-        .slice(0, 3)
-        .join("; ")}${bad.length > 3 ? `; and ${bad.length - 3} more` : ""}.`
-    );
-  }
-  if (annual === null && Object.keys(owners).length === 0) {
-    throw new Error(`${shape}, but not both.`);
-  }
-  return {
-    annual: annual as number | null,
-    owners: Object.freeze({ ...(owners as Record<string, number>) }),
-  };
-}
 
 // The file's rates, or an error saying what is wrong with it in a sentence.
 export function parseRates(text: string, file: string): RatesFile {
@@ -90,6 +38,8 @@ export function parseRates(text: string, file: string): RatesFile {
       `${file} is not valid JSON (${e instanceof Error ? e.message : e}).`
     );
   }
+  const isObject = (v: unknown): v is Record<string, unknown> =>
+    typeof v === "object" && v !== null && !Array.isArray(v);
   if (!isObject(json)) {
     throw new Error(
       'Expected a JSON object: {"runner label": $/h, …} or {"rates": {…}}.'
@@ -119,7 +69,6 @@ export function parseRates(text: string, file: string): RatesFile {
     basis: note(json.basis),
     rates,
     original: rates,
-    budget: wrapped ? parseBudget(json.budget) : null,
   };
 }
 

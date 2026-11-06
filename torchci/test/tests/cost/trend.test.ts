@@ -1,16 +1,14 @@
 // The cost page's trend, from the example answer beside this file
-// (trend.json, an answer of GET /api/tests/cost/trend) and rates.json with its
-// budget, worked by hand: 14 days with data, A (Oct 22 – 28) and B (Oct 29 –
-// Nov 4) each a constant day, and March 1 in the daily totals only. At $1 an
-// hour the trend is the runner-hours; the periods, presets, owner rows, the
-// Owner key's order and steps, B's pace and the year to date against the
-// budget say what the hand says.
+// (trend.json, an answer of GET /api/tests/cost/trend) and rates.json,
+// worked by hand: 14 days with data, A (Oct 22 – 28) and B (Oct 29 – Nov 4)
+// each a constant day, and March 1 in the daily totals only. At $1 an hour
+// the trend is the runner-hours; the periods, presets, owner rows, the Owner
+// key's order and steps and B's pace say what the hand says.
 
 import { CostTrendSchema } from "lib/api/tests/cost/types";
 import { parseRates, withRate } from "lib/tests/cost/rates";
 import {
   axisPeriods,
-  budgetFacts,
   changeLabel,
   daysLabel,
   DEFAULT_TREND_SORT,
@@ -20,7 +18,6 @@ import {
   isLoneFilling,
   isPartial,
   nextTrendSort,
-  ownersBudget,
   ownerStep,
   paceCaveat,
   periodLabel,
@@ -442,7 +439,7 @@ describe("the example rates, worked by hand", () => {
     });
   });
 
-  test("owners by B: per day, change, $ per runner-hour and B's pace against each budget", () => {
+  test("owners by B: per day, change, $ per runner-hour and per commit", () => {
     const rows = trendRows(prepared, rates, A, B, none, DEFAULT_TREND_SORT);
     expect(
       rows.map((r) => [
@@ -463,29 +460,13 @@ describe("the example rates, worked by hand", () => {
       // Runner-hours with no rate keep their row, at $0.
       ["No test reports", 0, 0, 0, 0, "—"],
     ]);
-    const [all, inductor, dynamo, distributed] = rows;
+    const [all, inductor] = rows;
     expect(inductor.share).toBeCloseTo(105 / 194.25, 12);
     // Per commit beside per day: inductor's push:main L4 hours, 3 a day at
     // $1.25 over 10 pushes, then 4 over 8; every owner's $6.50 a day over
     // 10 pushes, then $8.50 over 8.
     expect([inductor.aPerCommit, inductor.bPerCommit]).toEqual([0.375, 0.625]);
     expect([all.aPerCommit, all.bPerCommit]).toEqual([0.65, 1.0625]);
-    // $27.75 a day is $10,128.75 a year against $9,125; inductor's $15 a
-    // day $5,475 against $4,000; dynamo's $8 $2,920 against $5,000. The
-    // pace leaves out B's runner-hours with no rate: 28 h of A10G and 7 of
-    // xpu for every owner, inductor's 28, none of dynamo's.
-    expect(all.budget).toEqual({
-      annual: 9125,
-      pace: 10128.75,
-      ratio: 10128.75 / 9125,
-      unpriced: 35,
-    });
-    expect(inductor.budget?.ratio).toBeCloseTo(5475 / 4000, 12);
-    expect(dynamo.budget?.ratio).toBeCloseTo(2920 / 5000, 12);
-    expect([inductor.budget?.unpriced, dynamo.budget?.unpriced]).toEqual([
-      28, 0,
-    ]);
-    expect(distributed.budget).toBeNull();
     expect(Array.from(inductor.series)).toEqual(Array.from(series.highlighted));
   });
 
@@ -601,7 +582,6 @@ describe("the example rates, worked by hand", () => {
       share: 0,
       aPerCommit: 0,
       bPerCommit: 0,
-      budget: null,
     });
     // Without A, its A figures are none, as every row's are.
     expect(
@@ -704,7 +684,7 @@ describe("the example rates, worked by hand", () => {
     expect(ownerStep([], none, 1)).toBeNull();
   });
 
-  test("B's pace: per day kept up for the year, a month a twelfth of it, as the budget reads it", () => {
+  test("B's pace: per day kept up for the year, a month a twelfth of it", () => {
     // $27.75 a day for 2026's 365 days.
     expect(trendPace(prepared, 27.75)).toEqual({
       year: 10128.75,
@@ -714,21 +694,14 @@ describe("the example rates, worked by hand", () => {
     const perDay =
       rangeTotals(prepared, rates, B).value / rangeDays(prepared, B);
     expect(trendPace(prepared, perDay).year).toBe(10128.75);
-    expect(trendPace(prepared, perDay).year).toBe(
-      budgetFacts(prepared, rates, B)!.pace
-    );
-    const rows = trendRows(prepared, rates, A, B, none, DEFAULT_TREND_SORT);
-    expect(trendPace(prepared, perDay).year).toBe(rows[0].budget!.pace);
     // inductor's $105 over 7 days, $15 a day.
     const inductor = trendPace(
       prepared,
       rangeTotals(prepared, rates, B, new Set(["inductor"])).value / 7
     );
     expect(inductor).toEqual({ year: 5475, month: 456.25 });
-    expect(inductor.year).toBe(
-      rows.find((r) => r.key === "inductor")!.budget!.pace
-    );
-    // A leap year has 366 days.
+    // 2026 has 365 days; a leap year 366.
+    expect(trendYear(prepared)).toEqual({ year: 2026, days: 365 });
     const leap = prepareTrend({ ...answer, end: "2029-01-01" });
     expect(trendYear(leap)).toEqual({ year: 2028, days: 366 });
     expect(trendPace(leap, 12)).toEqual({ year: 4392, month: 366 });
@@ -743,32 +716,11 @@ describe("the example rates, worked by hand", () => {
     expect(rows.map(changeLabel).every((l) => l === "—")).toBe(true);
   });
 
-  test("the year to date against the budget for its days with data, and B's pace a year", () => {
-    // 7 × $23.50 + 7 × $27.75, and March 1's 8 h of L4 at $1.25; $9,125 a
-    // year over 365 days is $25 a day, for 15 days with data.
-    expect(budgetFacts(prepared, rates, B)).toEqual({
-      year: 2026,
-      annual: 9125,
-      ytd: 368.75,
-      ytdDays: 15,
-      ytdUnpriced: 70,
-      firstDay: "2026-03-01",
-      toDate: 375,
-      ratio: 368.75 / 375,
-      pace: 10128.75,
-    });
-    // In runner-hours, or with no budget, none.
-    expect(budgetFacts(prepared, null, B)).toBeNull();
-    expect(budgetFacts(prepared, one, B)).toBeNull();
-    expect(ownersBudget(rates.budget, ["inductor", "dynamo"])).toBe(9000);
-    expect(ownersBudget(rates.budget, ["inductor", "distributed"])).toBeNull();
-    expect(trendYear(prepared)).toEqual({ year: 2026, days: 365 });
-  });
-
   test("an edit in the key reprices the trend", () => {
     const a10g = withRate(rates, "mt-l-x86aavx2-11-41-a10g", 1);
     expect(trendSeries(prepared, a10g, none).value[13]).toBe(27.75 + 4);
-    expect(budgetFacts(prepared, a10g, B)?.ytd).toBe(368.75 + 14 * 4);
+    // B's 28 h of A10G, 4 a day, now at $1.
+    expect(rangeTotals(prepared, a10g, B).value).toBe(194.25 + 28);
   });
 });
 
@@ -808,20 +760,6 @@ describe("per commit", () => {
     expect([inductor.aPer, inductor.bPer]).toEqual([0.4, 0.625]);
     expect(inductor.share).toBeCloseTo(5 / 10.75, 12);
     expect(Array.from(inductor.series)).toEqual(Array.from(s.highlighted));
-    // The budget's pace stays per day: $ a year is per day.
-    const priced = trendRows(prepared, rates, A, B, none, DEFAULT_TREND_SORT);
-    const pricedCommit = trendRows(
-      prepared,
-      rates,
-      A,
-      B,
-      none,
-      DEFAULT_TREND_SORT,
-      false,
-      10,
-      "commit"
-    );
-    expect(pricedCommit[0].budget).toEqual(priced[0].budget);
   });
 
   test("an answer cached from before pushes were counted has none: no per-commit figure", () => {

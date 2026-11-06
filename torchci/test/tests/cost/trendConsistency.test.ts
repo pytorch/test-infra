@@ -22,7 +22,6 @@ import {
 } from "lib/tests/cost/changes";
 import { parseRates, rateOf, type RatesFile } from "lib/tests/cost/rates";
 import {
-  budgetFacts,
   DEFAULT_TREND_SORT,
   type PeriodRange,
   prepareTrend,
@@ -236,7 +235,7 @@ describe("the example answers", () => {
 });
 
 describe("$1 an hour for every runner is the runner-hours", () => {
-  test("the owners table, the chart, the ranges and the year to date, to the bit", () => {
+  test("the owners table, the chart and the ranges, to the bit", () => {
     for (const per of PERS) {
       expect(
         trendRows(prepared, one, A, B, none, DEFAULT_TREND_SORT, true, 10, per)
@@ -253,14 +252,6 @@ describe("$1 an hour for every runner is the runner-hours", () => {
         expect(dollars.unpriced).toBe(0);
       }
     }
-    // The year to date: every daily cell, Mar 1's 8 h among them.
-    const withBudget = parseRates(
-      JSON.stringify({ rates: one.rates, budget: { annual: 1000 } }),
-      "budget.json"
-    );
-    expect(budgetFacts(prepared, withBudget, B)?.ytd).toBe(
-      sum(answer.daily.cells.map((c) => c[2]))
-    );
   });
 
   test("what changed: the whole, each machine and each runner", () => {
@@ -453,34 +444,32 @@ describe("every part adds up, per day and per commit, in runner-hours and at the
     }
   });
 
-  test("B's pace is one figure: the cards', the budget's and each owner's budget pill, per day whatever the table compares by", () => {
+  test("B's pace is the day card's per day kept up for the year: each row's B per day in the owners table", () => {
     const perDay = (owners: Set<string> | null) =>
       rangeTotals(prepared, rates, B, owners).value / rangeDays(prepared, B);
-    expect(trendPace(prepared, perDay(null)).year).toBe(
-      budgetFacts(prepared, rates, B)!.pace
-    );
-    for (const per of PERS) {
-      const rows = trendRows(
-        prepared,
-        rates,
-        A,
-        B,
-        none,
-        DEFAULT_TREND_SORT,
-        true,
-        10,
-        per
-      ).filter((x) => x.budget !== null);
-      // Every owner, inductor and dynamo have budgets.
-      expect(rows.map((x) => x.key)).toEqual(["all", "inductor", "dynamo"]);
-      for (const row of rows) {
-        expect(row.budget!.pace).toBe(
-          trendPace(
-            prepared,
-            perDay(row.kind === "all" ? null : new Set(row.owners))
-          ).year
-        );
-      }
+    const rows = trendRows(
+      prepared,
+      rates,
+      A,
+      B,
+      none,
+      DEFAULT_TREND_SORT,
+      true,
+      10
+    ).filter((x) => x.kind === "all" || x.kind === "owner");
+    expect(rows.map((x) => x.key)).toEqual([
+      "all",
+      "inductor",
+      "dynamo",
+      "distributed",
+    ]);
+    for (const row of rows) {
+      expect(trendPace(prepared, row.bPer).year).toBe(
+        trendPace(
+          prepared,
+          perDay(row.kind === "all" ? null : new Set(row.owners))
+        ).year
+      );
     }
     // A month is a twelfth of the year, so twelve make it.
     const { year, month } = trendPace(prepared, perDay(null));

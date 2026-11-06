@@ -99,7 +99,7 @@ function datesOf(answer: RunnerHours): string {
 // The trend (TrendPanel), under the cost panel, has its own periods from GET
 // /api/tests/cost/trend, asked with the page's workflow scope; it shows the
 // owner highlight and sets it (a row toggles an owner, its Owner key picks
-// one), and reads the rates file and its budget. Its rollup, periods and
+// one), and reads the rates file. Its rollup, periods and
 // order stay in its state, out of the URL.
 export default function Page() {
   const router = useRouter();

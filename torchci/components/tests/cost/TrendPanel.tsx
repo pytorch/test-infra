@@ -29,7 +29,6 @@ import {
   type PreparedHours,
 } from "lib/tests/cost/runnerHours";
 import {
-  budgetFacts,
   changeLabel,
   daysLabel,
   DEFAULT_TREND_SORT,
@@ -37,7 +36,6 @@ import {
   fillingIn,
   isPartial,
   nextTrendSort,
-  ownersBudget,
   ownerStep,
   paceCaveat,
   type PeriodRange,
@@ -59,7 +57,6 @@ import {
   trendSeries,
   type TrendSort,
   trendSortInForce,
-  trendYear,
   weekendDays,
   weekendMismatch,
 } from "lib/tests/cost/trend";
@@ -73,7 +70,7 @@ const ROLLUP_LABELS: Record<TrendRollup, string> = {
 };
 
 const DESCRIPTION =
-  "Runner-hours of test jobs by day, week or month (ci.test_cost), or $ with a rates file. Compare two periods, A and B, per day (averaged over days with data) or per commit: what one push to main costs, with every test running. B's daily average projects yearly and monthly totals; a budget in your rates file adds the year to date against it.";
+  "Runner-hours of test jobs by day, week or month (ci.test_cost), or $ with a rates file. Compare two periods, A and B, per day (averaged over days with data) or per commit: what one push to main costs, with every test running. B's daily average projects yearly and monthly totals.";
 
 // The Owner key's values for every owner, and for several highlighted
 // owners, which no one item stands for.
@@ -85,7 +82,7 @@ export interface TrendPanelProps {
   loading: boolean;
   rollup: TrendRollup;
   onRollupChange: (_rollup: TrendRollup) => void;
-  // The rates file, in memory: $ and its budget once added.
+  // The rates file, in memory: $ once added.
   rates: RatesFile | null;
   // The page's workflow scope in words, null for every workflow.
   scope: string | null;
@@ -203,8 +200,7 @@ function changesUrl(
 // owners ranked by B or by their change per day (the top few, the rest
 // folded), what changed for the highlighted owners (or every owner) by
 // machine and runner label, runner-hours per push to main, and B's pace
-// projected for a year and a month, with a rates file's budget against
-// the year to date and the pace. It follows the page's workflow scope and
+// projected for a year and a month. It follows the page's workflow scope and
 // owner highlight; the Owner key in its band picks one owner, or steps
 // through them in the table's order, and a row's click toggles one, both
 // across the page. Its own choices (rollup, unit, periods, order) are in
@@ -384,7 +380,7 @@ export default function TrendPanel({
   );
   const frame = (children: ReactNode) => (
     <CostFrame
-      title="Trends and budget"
+      title="Trends"
       description={DESCRIPTION}
       note={`· ${scope ?? "all workflows"} · last ${
         TREND_PERIODS[shown]
@@ -457,21 +453,6 @@ export default function TrendPanel({
   const whose =
     focus === null ? "" : `${joinNames(Array.from(lit, ownerLabel))}: `;
   const amount = (v: number) => fineAmountLabel(unit, v);
-  const budget = rates?.budget ?? null;
-  // The budget the bars and the pace read against: the highlighted owners'
-  // when each has one, every owner's otherwise.
-  const focusBudget =
-    focus === null
-      ? budget?.annual ?? null
-      : ownersBudget(budget, Array.from(lit));
-  const { days: yearDays } = trendYear(prepared);
-  const periodBudget =
-    dollars && focusBudget !== null && per === "day"
-      ? Float64Array.from(
-          prepared.periodData,
-          (days) => (focusBudget * days) / yearDays
-        )
-      : null;
 
   let cards: ReactNode = null;
   if (b !== null) {
@@ -501,7 +482,6 @@ export default function TrendPanel({
     const rateB = averageRate(bt.value, bt.runnerHours, bt.unpriced);
     const rateA =
       at === null ? null : averageRate(at.value, at.runnerHours, at.unpriced);
-    const facts = budgetFacts(prepared, priced, b);
     const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
     // Days a period lacks data on, said only when it does.
     const missing = (r: PeriodRange | null, which: "A" | "B") => {
@@ -518,20 +498,12 @@ export default function TrendPanel({
         ? trendPace(prepared, bPerDay)
         : null;
     const caveat = paceCaveat(prepared, b);
-    // Hours without a rate add nothing to the $: the pace is at least what
-    // it says, so over the budget holds and under does not.
+    // Hours without a rate add nothing to the $: the figures are at least
+    // what they say.
     const unpricedNote =
       dollars && bt.unpriced > 0.5
         ? ` · ${shareLabel(bt.unpriced / bt.runnerHours)} of hours unpriced`
         : "";
-    const over =
-      dollars &&
-      pace !== null &&
-      focusBudget !== null &&
-      focusBudget > 0 &&
-      (pace.year > focusBudget || unpricedNote === "")
-        ? pace.year > focusBudget
-        : null;
     // Per commit: push:main runner time over the pushes to main.
     const bPushes = rangePushes(prepared, b);
     const aPushes = a === null ? 0 : rangePushes(prepared, a);
@@ -608,54 +580,12 @@ export default function TrendPanel({
             }
           />
         )}
-        {dollars && facts !== null ? (
-          <Card
-            title={
-              focus === null
-                ? "Year to date vs budget"
-                : "All owners: year to date vs budget"
-            }
-            value={`${amountLabel("cost", facts.ytd)} of ${amountLabel(
-              "cost",
-              facts.toDate
-            )}`}
-            note={`${shareLabel(facts.ratio)} of the budget to date (${days(
-              facts.ytdDays
-            )} of data since ${
-              facts.firstDay === null
-                ? "Jan 1"
-                : daysLabel({ from: facts.firstDay, to: facts.firstDay })
-            })`}
-            noteColor={facts.ratio > 1 ? up : down}
-          />
-        ) : (
-          dollars && (
-            <Card
-              title="Year to date vs budget"
-              value="No budget"
-              note={`Add "budget": {"annual": …} beside "rates" in ${
-                rates?.file ?? "your rates file"
-              } to compare.`}
-            />
-          )
-        )}
         {pace !== null && (
           <Card
             title={`${whose}Projected ${
               dollars ? "$" : "runner-hours"
             } per year`}
             value={amountLabel(unit, pace.year)}
-            note={
-              over === null
-                ? undefined
-                : `${over ? "▲" : "✓"} ${shareLabel(
-                    Math.abs(pace.year / focusBudget! - 1)
-                  )} ${over ? "over" : "under"} the ${amountLabel(
-                    "cost",
-                    focusBudget!
-                  )} budget`
-            }
-            noteColor={over === null ? undefined : over ? up : down}
             detail={`${amountLabel(
               unit,
               pace.month
@@ -773,7 +703,6 @@ export default function TrendPanel({
         prepared={prepared}
         series={series}
         highlighting={lit.size > 0}
-        budget={periodBudget}
         a={a}
         b={b}
         onRangeChange={(which, range) => setRange(which, range)}
@@ -792,7 +721,6 @@ export default function TrendPanel({
           )}; pale: the rest.`}{" "}
         Drag across the bars to set B, or Shift-drag to set A.
         {faded && " Faded bars have incomplete data."}
-        {periodBudget !== null && " Dashed lines mark the budget."}
       </Typography>
       {cards}
       {b !== null && (

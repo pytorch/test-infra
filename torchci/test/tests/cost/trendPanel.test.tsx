@@ -2,8 +2,8 @@
 // and read as words: its cards, B's pace and owner rows say what trend.ts
 // works out (trend.test.ts), in runner-hours until a rates file is added;
 // what changed says what changes.ts works out (changes.test.ts), its
-// machines past the largest few folded; its chart draws a bar a period with
-// a budget line each, its caption under it saying only what applies;
+// machines past the largest few folded; its chart draws a bar a period,
+// its caption under it saying only what applies;
 // dragging across the bars sets B, and with Shift A; a row's click toggles
 // its owners, and the Owner key picks one or steps through them.
 
@@ -144,7 +144,7 @@ const nodeMock = () => ({
 describe("TrendPanel", () => {
   beforeEach(() => answering(undefined));
 
-  test("in $, B against A per day and per commit, its $ per runner-hour, the year to date against the budget and B's pace projected", () => {
+  test("in $, B against A per day and per commit, its $ per runner-hour and B's pace projected", () => {
     const text = panel(rates);
     expect(text).toContain("A Oct 22 – Oct 28 ✕ · B Oct 29 – Nov 4");
     // $27.75 a day against $23.50; $194.25 in B, 35 of its 266 h unpriced.
@@ -159,41 +159,30 @@ describe("TrendPanel", () => {
     expect(text).toContain(
       "$ per runner-hour $0.841/h ▲ vs A ($0.734/h): pricier machines"
     );
-    // $368.75 against $375 for the 15 days with data.
+    // $27.75 a day is $10,128.75 a year, $844.06 a month.
     expect(text).toContain(
-      "Year to date vs budget $369 of $375 98% of the budget to date (15 days of data since Mar 1)"
-    );
-    // $27.75 a day is $10,128.75 a year against $9,125, $844.06 a month.
-    expect(text).toContain(
-      "Projected $ per year $10.1K ▲ 11% over the $9.1K budget $844 per month at B's daily average · 13% of hours unpriced"
+      "$ per runner-hour $0.841/h ▲ vs A ($0.734/h): pricier machines Projected $ per year $10.1K $844 per month at B's daily average · 13% of hours unpriced"
     );
     expect(text).toContain(
-      "Each bar is a day's total. Drag across the bars to set B, or Shift-drag to set A. Dashed lines mark the budget."
+      "Each bar is a day's total. Drag across the bars to set B, or Shift-drag to set A. $ per day"
     );
     expect(text).not.toContain("Faded");
   });
 
-  test("the owners table in $: per day, change, per commit, a Trend column that says what it plots, and each budget", () => {
+  test("the owners table in $: per day, change, per commit, and a Trend column that says what it plots", () => {
     const text = panel(rates);
     expect(text).toContain(
-      "Owner Share of B A / day B / day Change % Per commit A → B Daily trend vs budget"
+      "Owner Share of B A / day B / day Change % Per commit A → B Daily trend All owners"
     );
     // Per commit, $0.65 to $1.0625, and inductor's $0.375 to $0.625, to
     // the cent under $10.
     expect(text).toContain(
-      "All owners 100% $24 $28 ▲ +$4.25 ▲ +18% $0.65 → $1.06 ▲ Over 11%"
+      "All owners 100% $24 $28 ▲ +$4.25 ▲ +18% $0.65 → $1.06 inductor 54% $13 $15 ▲ +$2.50 ▲ +20% $0.38 → $0.63 dynamo 29% $10 $8 ▼ −$2 ▼ −20% $0.25 → $0.25 distributed 14% $0 $3.75 ▲ +$3.75 new $0 → $0.16"
     );
-    expect(text).toContain(
-      "inductor 54% $13 $15 ▲ +$2.50 ▲ +20% $0.38 → $0.63 ▲ Over 37%"
-    );
-    expect(text).toContain(
-      "dynamo 29% $10 $8 ▼ −$2 ▼ −20% $0.25 → $0.25 ✓ Under 42%"
-    );
-    expect(text).toContain("distributed 14% $0 $3.75 ▲ +$3.75 new $0 → $0.16");
     expect(text).toContain("No test reports 0% $0 $0 — — $0 → $0");
   });
 
-  test("without a rates file, runner-hours, $ off, no budget, and B's pace projected in runner-hours", () => {
+  test("without a rates file, runner-hours, $ off, and B's pace projected in runner-hours", () => {
     const text = panel(null);
     expect(text).toContain(
       "Runner-hours per day in B 38 h ▲ +3% vs A (37 h) 266 h total, Oct 29 – Nov 4"
@@ -207,7 +196,7 @@ describe("TrendPanel", () => {
       "Projected runner-hours per year 13.9K h 1.2K h per month at B's daily average"
     );
     expect(text).toContain("All owners 100% 37 h 38 h ▲ +1 h ▲ +3%");
-    expect(text).not.toMatch(/\$\d|Year to date|vs budget|the budget/);
+    expect(text).not.toMatch(/\$\d/);
   });
 
   test("the chart's caption under the chart, between the comparison and the cards; the owners' under their table", () => {
@@ -284,50 +273,44 @@ describe("TrendPanel", () => {
     act(() => renderer!.unmount());
   });
 
-  test("the page's highlighted owners are the cards' and are ticked; the year to date stays every owner's", () => {
+  test("the page's highlighted owners are the cards' and are ticked", () => {
     const text = panel(rates, ["inductor"], "pull + trunk");
-    expect(text).toContain("Trends and budget · pull + trunk");
+    expect(text).toContain("Trends · pull + trunk");
     expect(text).toContain("inductor: $ per day in B $15 ▲ +20% vs A ($13)");
     expect(text).toContain("inductor: $ per runner-hour $1.25/h same as A");
-    expect(text).toContain("All owners: year to date vs budget $369 of $375");
-    // $15 a day is $5,475 a year against inductor's $4,000, $456.25 a
-    // month.
+    // $15 a day is $5,475 a year, $456.25 a month.
     expect(text).toContain(
-      "inductor: Projected $ per year $5.5K ▲ 37% over the $4K budget $456 per month at B's daily average · 25% of hours unpriced"
+      "inductor: Projected $ per year $5.5K $456 per month at B's daily average · 25% of hours unpriced"
     );
     expect(text).toContain("✓ inductor 54%");
     expect(text).toContain(
       "Each bar is a day's total. Solid: inductor; pale: the rest."
     );
     // The Owner key says whose the panel is.
-    expect(text).toContain(
-      "Trends and budget · pull + trunk · last 42 days inductor Day"
-    );
+    expect(text).toContain("Trends · pull + trunk · last 42 days inductor Day");
     expect(panel(rates)).toContain(
-      "Trends and budget · all workflows · last 42 days All owners Day"
+      "Trends · all workflows · last 42 days All owners Day"
     );
   });
 
-  test("B's pace for any owners: against their budget when each has one; none where none of their hours has a rate", () => {
-    // dynamo: $8 a day, $2,920 a year against $5,000, $243.33 a month; the
-    // card's change as the table writes it, with a true minus.
+  test("B's pace for any owners; none where none of their hours has a rate", () => {
+    // dynamo: $8 a day, $2,920 a year, $243.33 a month; the card's change
+    // as the table writes it, with a true minus.
     const dynamo = panel(rates, ["dynamo"]);
     expect(dynamo).toContain("dynamo: $ per day in B $8 ▼ −20% vs A ($10)");
     expect(dynamo).toContain(
-      "dynamo: Projected $ per year $2.9K ✓ 42% under the $5K budget $243 per month at B's daily average"
+      "dynamo: Projected $ per year $2.9K $243 per month at B's daily average"
     );
-    // distributed has no budget: $3.75 a day, $1,368.75 a year.
+    // distributed: $3.75 a day, $1,368.75 a year.
     expect(panel(rates, ["distributed"])).toContain(
       "distributed: Projected $ per year $1.4K $114 per month at B's daily average"
     );
-    // $23 a day together, $8,395 a year against $9,000, but inductor's 28
-    // h on A10G have no rate: the pace is at least that, so it says no
-    // verdict.
+    // $23 a day together, $8,395 a year; inductor's 28 h on A10G have no
+    // rate, so the pace is at least that.
     const both = panel(rates, ["inductor", "dynamo"]);
     expect(both).toContain(
       "inductor + dynamo: Projected $ per year $8.4K $700 per month at B's daily average · 13% of hours unpriced"
     );
-    expect(both).not.toContain("under the $9K budget");
     // No owner ran $1 a day in both: the same as A.
     expect(panel(rates, ["unattributed:no_owner"])).toContain(
       "No owner: $ per day in B $1 same as A ($1) $7 total, Oct 29 – Nov 4"
@@ -437,48 +420,6 @@ describe("TrendPanel", () => {
     act(() => key("Next owner: No owner (unattributed)").props.onClick());
     expect(onOwnersChange).toHaveBeenLastCalledWith(["unattributed:no_owner"]);
     act(() => renderer.unmount());
-  });
-
-  test("under the budget only when every hour of B is priced; over it holds either way", () => {
-    // inductor's own budget raised to $6,000: $5,475 a year from its priced
-    // hours, but 28 of its 112 h in B run on A10G, which has no rate.
-    const roomy = parseRates(
-      JSON.stringify({
-        ...RATES_JSON,
-        budget: {
-          ...RATES_JSON.budget,
-          owners: { inductor: 6000, dynamo: 5000 },
-        },
-      }),
-      "roomy.json"
-    );
-    const text = panel(roomy, ["inductor"]);
-    expect(text).toContain(
-      "inductor: Projected $ per year $5.5K $456 per month at B's daily average · 25% of hours unpriced"
-    );
-    expect(text).not.toContain("under the $6K budget");
-    // Its row's pill says the same; dynamo, all priced, is under.
-    expect(text).toContain(
-      "✓ inductor 54% $13 $15 ▲ +$2.50 ▲ +20% $0.38 → $0.63 Partly unpriced"
-    );
-    expect(text).toContain(
-      "dynamo 29% $10 $8 ▼ −$2 ▼ −20% $0.25 → $0.25 ✓ Under 42%"
-    );
-  });
-
-  test("a rates file without a budget says where one goes", () => {
-    const noBudget = parseRates(
-      JSON.stringify({ rates: RATES_JSON.rates }),
-      "plain.json"
-    );
-    const text = panel(noBudget);
-    expect(text).toContain(
-      `Year to date vs budget No budget Add "budget": {"annual": …} beside "rates" in plain.json to compare.`
-    );
-    // The pace still projects, against no budget.
-    expect(text).toContain(
-      "Projected $ per year $10.1K $844 per month at B's daily average · 13% of hours unpriced"
-    );
   });
 
   test("asks what changed for the periods compared and the highlighted owners, in the page's scope", () => {
@@ -686,12 +627,8 @@ describe("TrendPanel", () => {
         )
       );
     // Week clicked, the day answer still on screen.
-    expect(band(answer)).toContain(
-      "Trends and budget · all workflows · last 42 days"
-    );
-    expect(band(undefined)).toContain(
-      "Trends and budget · all workflows · last 26 weeks"
-    );
+    expect(band(answer)).toContain("Trends · all workflows · last 42 days");
+    expect(band(undefined)).toContain("Trends · all workflows · last 26 weeks");
   });
 
   test("while yesterday fills, the last 7 days keep it; Yesterday's preset says what it waits for", () => {
@@ -1053,34 +990,28 @@ describe("TrendChanges", () => {
 
 describe("TrendChart", () => {
   const chart = (
-    budget: Float64Array | null,
     onRangeChange: (_w: "a" | "b", _r: PeriodRange) => void = noop
   ) => (
     <TrendChart
       prepared={prepared}
       series={trendSeries(prepared, rates, new Set(["inductor"]))}
       highlighting
-      budget={budget}
       a={A}
       b={B}
       onRangeChange={onRangeChange}
     />
   );
 
-  test("a bar a period, its tooltip its amount, the highlighted owners' and its budget", () => {
-    const markup = renderToStaticMarkup(
-      chart(Float64Array.from(prepared.periodData, (d) => (9125 * d) / 365))
-    );
+  test("a bar a period, its tooltip its amount and the highlighted owners'", () => {
+    const markup = renderToStaticMarkup(chart());
     const titles = Array.from(
       unstyled(markup).matchAll(/ title="([^"]*)"/g),
       (m) => m[1]
     );
     expect(titles).toHaveLength(14);
-    expect(titles[0]).toBe("Thu Oct 22: $24 · highlighted: $13 · budget: $25");
-    expect(titles[13]).toBe("Wed Nov 4: $28 · highlighted: $15 · budget: $25");
+    expect(titles[0]).toBe("Thu Oct 22: $24 · highlighted: $13");
+    expect(titles[13]).toBe("Wed Nov 4: $28 · highlighted: $15");
     expect(words(markup)).toMatch(/^0 \$10 \$20 \$30 A B Oct 22/);
-    expect(unstyled(markup).match(/dashed/g)).toBeNull(); // the lines' style is in the stylesheet
-    expect(markup.match(/border-top:2px dashed/g)?.length).toBeGreaterThan(0);
   });
 
   test("bars keep their gap at 42", () => {
@@ -1100,7 +1031,6 @@ describe("TrendChart", () => {
         prepared={all}
         series={trendSeries(all, null, new Set())}
         highlighting={false}
-        budget={null}
         a={null}
         b={null}
         onRangeChange={noop}
@@ -1117,7 +1047,6 @@ describe("TrendChart", () => {
         prepared={prepared}
         series={trendSeries(prepared, rates, new Set(), "commit")}
         highlighting={false}
-        budget={null}
         a={A}
         b={B}
         onRangeChange={noop}
@@ -1137,7 +1066,7 @@ describe("TrendChart", () => {
     let renderer: ReturnType<typeof create> | undefined;
     // 14 bars across 140 px: 10 px each.
     act(() => {
-      renderer = create(chart(null, onRangeChange), {
+      renderer = create(chart(onRangeChange), {
         createNodeMock: () => ({
           getBoundingClientRect: () => ({ left: 0, width: 140 }),
         }),
@@ -1278,7 +1207,7 @@ describe("TrendTable", () => {
     // The header, every owner, inductor, dynamo, distributed, nothing to
     // fold back (dynamo is highlighted, distributed alone), the buckets.
     expect(rows.map((r) => textOf(r.children).split(/\d/)[0])).toEqual([
-      "OwnerShare of BA / dayB / dayChange%Per commit A → BDaily trendvs budget",
+      "OwnerShare of BA / dayB / dayChange%Per commit A → BDaily trend",
       "All owners",
       "inductor",
       "✓ dynamo",

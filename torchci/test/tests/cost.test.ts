@@ -629,7 +629,6 @@ describe("cost from a rates file", () => {
       basis: null,
       rates: { a: 1.5, b: 0 },
       original: { a: 1.5, b: 0 },
-      budget: null,
     });
     expect([RATES.validFrom, RATES.basis]).toEqual(["2026-10-01", "made up"]);
     const error = (text: string) => {
@@ -652,51 +651,6 @@ describe("cost from a rates file", () => {
       /valid_from is "2026-10-01"/
     );
     expect(error("{}")).toBe("f.json has no rates.");
-  });
-
-  test("a wrapped file may carry a budget, $ a year in all and by owner; a bad one says what is wrong", () => {
-    const wrapped = (budget: unknown) =>
-      JSON.stringify({ rates: { a: 1 }, budget });
-    expect(
-      parseRates(
-        wrapped({ annual: 1_200_000, owners: { inductor: 300_000 } }),
-        "f.json"
-      ).budget
-    ).toEqual({ annual: 1_200_000, owners: { inductor: 300_000 } });
-    // Either part alone.
-    expect(parseRates(wrapped({ annual: 0 }), "f.json").budget).toEqual({
-      annual: 0,
-      owners: {},
-    });
-    expect(parseRates(wrapped({ owners: { nn: 5 } }), "f.json").budget).toEqual(
-      { annual: null, owners: { nn: 5 } }
-    );
-    expect(RATES.budget).toBeNull();
-    // An edit keeps it.
-    expect(
-      withRate(parseRates(wrapped({ annual: 9 }), "f.json"), "a", 2).budget
-    ).toEqual({ annual: 9, owners: {} });
-    const error = (budget: unknown) => {
-      try {
-        parseRates(wrapped(budget), "f.json");
-        return "";
-      } catch (e) {
-        return (e as Error).message;
-      }
-    };
-    expect(error(1_000_000)).toMatch(/^budget must be \{"annual"/);
-    expect(error({})).toMatch(/either part optional, but not both\.$/);
-    expect(error({ annual: "1.2M" })).toBe(
-      'budget.annual must be $ a year, from 0 to 10 billion: it is "1.2M".'
-    );
-    expect(error({ annual: -1 })).toMatch(/it is -1\.$/);
-    expect(error({ owners: { nn: 1e11, fx: null } })).toBe(
-      "budget.owners must be $ a year, from 0 to 10 billion: nn is 100000000000; fx is null."
-    );
-    // A flat file has no notes: a budget there is a runner without a rate.
-    expect(() =>
-      parseRates('{"a": 1, "budget": {"annual": 5}}', "f.json")
-    ).toThrow(/budget is \{"annual":5\}/);
   });
 
   test("edits set, add and remove rates, and are listed against the file's", () => {
