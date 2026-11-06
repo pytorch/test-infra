@@ -392,7 +392,7 @@ jobs:
       - name: Upload test run reports
         if: ${{ always() && inputs.upload-test-run-reports && job.check_run_id && steps.aws-creds.outcome == 'success' && !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
         continue-on-error: true
-        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@985283436b71295931c3b0d18e271d5fb7cc750c
+        uses: pytorch/test-infra/.github/actions/upload-artifact-s3@main
         with:
           s3-bucket: gha-artifacts
           s3-prefix: torchci-reports/${{ github.repository }}/${{ github.run_id }}/${{ job.check_run_id }}

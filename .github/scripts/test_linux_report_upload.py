@@ -72,7 +72,7 @@ class LinuxReportUploadTest(unittest.TestCase):
     def test_upload_action_is_resolved_without_a_workspace_checkout(self):
         self.assertEqual(
             UPLOAD["uses"],
-            "pytorch/test-infra/.github/actions/upload-artifact-s3@985283436b71295931c3b0d18e271d5fb7cc750c",
+            "pytorch/test-infra/.github/actions/upload-artifact-s3@main",
         )
 
     def test_one_identity_and_flat_upload_path_without_api_lookup(self):
