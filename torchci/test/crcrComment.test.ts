@@ -1263,9 +1263,9 @@ describe("latestAttemptsForHead", () => {
       runAttempt: 1,
     });
 
-    expect(latestAttemptsForHead([green, red], "new222").map((job) => job.id)).toEqual([
-      2,
-    ]);
+    expect(
+      latestAttemptsForHead([green, red], "new222").map((job) => job.id)
+    ).toEqual([2]);
   });
 
   test("does not combine a newer run with an older run's failure", () => {
