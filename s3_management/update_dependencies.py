@@ -1162,6 +1162,9 @@ PACKAGES_PER_PROJECT.setdefault("setuptools", []).append(
     {"project": "torch_rocm", "target": "rocm-preview"}
 )
 
+# Discovered names become S3 keys, so accept only well-formed device packages.
+ROCM_DEVICE_PACKAGE_RE = re.compile(r"rocm-sdk-device-gfx[0-9a-z]+(-generic)?")
+
 
 # NVIDIA packages that are published to PyPI rather than pypi.nvidia.com. The
 # nvidia-/cuda- prefix heuristic would send these to a 404 and silently freeze
@@ -1257,6 +1260,44 @@ def get_package_source_url(pkg_name: str, prefix: str) -> str:
         else:
             return f"https://stable.repo.amd.com/rocm/core/whl-next/{pkg_name}/"
     return f"https://pypi.org/simple/{pkg_name}/"
+
+
+def rocm_targets() -> List[str]:
+    """Targets that mirror the ROCm meta package, e.g. rocm10.1, rocm-preview."""
+    return [
+        config["target"]
+        for config in PACKAGES_PER_PROJECT["rocm"]
+        if config.get("project") == "torch_rocm" and config.get("target")
+    ]
+
+
+def add_discovered_rocm_device_packages() -> None:
+    """Mirror every rocm-sdk-device-* package the AMD source index publishes.
+
+    The rocm meta package's device-all extra gains gfx targets between releases,
+    so a hand-kept list leaves new ones unmirrored and breaks index-only installs
+    of rocm[device-all].
+    """
+    for target in rocm_targets():
+        source_url = get_package_source_url("rocm", target)
+        if not source_url.endswith("/rocm/"):
+            print(f"WARNING: Unexpected rocm source {source_url}, using static devices")
+            continue
+        root_url = source_url[: -len("rocm/")]
+        try:
+            names, _ = parse_simple_idx(root_url)
+        except Exception as e:
+            print(f"WARNING: Could not list {root_url}, using static devices: {e}")
+            continue
+        for name in sorted(names):
+            pkg_name = name.strip().lower()
+            if not ROCM_DEVICE_PACKAGE_RE.fullmatch(pkg_name):
+                continue
+            configs = PACKAGES_PER_PROJECT.setdefault(pkg_name, [])
+            config = {"project": "torch_rocm", "target": target}
+            if config not in configs:
+                print(f"INFO: Discovered {pkg_name} for {target} from {root_url}")
+                configs.append(config)
 
 
 def download(url: str) -> bytes:
@@ -2036,6 +2077,9 @@ def main() -> None:
         SUBFOLDERS = ["whl/nightly", "whl/test"]
         if args.include_stable:
             SUBFOLDERS.append("whl")
+
+    if args.package in ("torch_rocm", "all"):
+        add_discovered_rocm_device_packages()
 
     for prefix in SUBFOLDERS:
         # Process each package and its multiple configurations
