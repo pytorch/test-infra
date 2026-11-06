@@ -1,7 +1,7 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { paleColor } from "lib/tests/cost/colors";
-import { amountLabel } from "lib/tests/cost/query";
+import { amountLabel, fineAmountLabel } from "lib/tests/cost/query";
 import { niceTicks } from "lib/tests/cost/ticks";
 import {
   isPartial,
@@ -132,7 +132,7 @@ export default function TrendChart({
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {t === 0 ? "0" : amountLabel(unit, t)}
+            {t === 0 ? "0" : fineAmountLabel(unit, t)}
           </Typography>
         ))}
       </Box>
@@ -141,7 +141,7 @@ export default function TrendChart({
       <div
         ref={plot}
         role="group"
-        aria-label="Periods: drag across the bars to set B, with Shift to set A"
+        aria-label="Trend bars: drag across them to set B, or Shift-drag to set A"
         onPointerDown={(event) => {
           if (event.button !== 0 || n === 0) return;
           const i = at(event);
@@ -201,12 +201,14 @@ export default function TrendChart({
             const partial = isPartial(prepared, i);
             const line = budget?.[i] ?? 0;
             const title = [
-              `${periodLabel(prepared, i)}: ${amountLabel(unit, value)}`,
-              highlighting ? `highlighted: ${amountLabel(unit, lit)}` : "",
+              `${periodLabel(prepared, i)}: ${fineAmountLabel(unit, value)}`,
+              highlighting ? `highlighted: ${fineAmountLabel(unit, lit)}` : "",
               prepared.periodData[i] < prepared.periodDays[i]
-                ? `${prepared.periodData[i]} of ${prepared.periodDays[i]} days have data`
+                ? `${prepared.periodData[i]} of ${
+                    prepared.periodDays[i]
+                  } days ${prepared.periodData[i] === 1 ? "has" : "have"} data`
                 : "",
-              prepared.periodFilling[i] ? "still filling" : "",
+              prepared.periodFilling[i] ? "incomplete, jobs still running" : "",
               line > 0 ? `budget: ${amountLabel("cost", line)}` : "",
             ]
               .filter(Boolean)

@@ -4,14 +4,19 @@ import KeyButton from "components/tests/cost/KeyButton";
 import LoadError from "components/tests/LoadError";
 import type { CostChanges } from "lib/api/tests/cost/types";
 import { changeSummary, changeWord } from "lib/tests/cost/changes";
-import { fineAmountLabel, shareLabel } from "lib/tests/cost/query";
+import { fineAmountLabel } from "lib/tests/cost/query";
 import type { RatesFile } from "lib/tests/cost/rates";
 import {
   joinNames,
   ownerLabel,
   type PreparedHours,
 } from "lib/tests/cost/runnerHours";
-import { daysLabel, type TrendPer } from "lib/tests/cost/trend";
+import {
+  changeLabel,
+  daysLabel,
+  deltaLabel,
+  type TrendPer,
+} from "lib/tests/cost/trend";
 
 export interface TrendChangesProps {
   // The answer for the periods and owners compared; the one shown last while
@@ -22,6 +27,9 @@ export interface TrendChangesProps {
   onRetry: () => void;
   // The rates file when the panel shows $, null in runner-hours.
   rates: RatesFile | null;
+  // The page's highlighted owners, in the order the rest of the panel names
+  // them; the answer's own owners are sorted.
+  highlighted?: readonly string[];
   // Per day with data, or per commit (push:main over pushes to main), as
   // the panel compares; its keys here switch the panel's.
   per: TrendPer;
@@ -31,12 +39,16 @@ export interface TrendChangesProps {
 }
 
 const signed = (unit: "hours" | "cost", v: number) =>
-  `${v > 0 ? "▲ +" : v < 0 ? "▼ −" : ""}${fineAmountLabel(unit, Math.abs(v))}`;
+  v === 0
+    ? fineAmountLabel(unit, 0)
+    : deltaLabel(v, (x) => fineAmountLabel(unit, x));
 
 // What changed between the trend's two periods, for the highlighted owners
-// or every owner, per day with data or per commit: the whole change, in $
-// split into more runner-hours and pricier machines, the pushes to main and
-// what each cost, then the change by machine and runner label.
+// or every owner, per day with data or per commit: in $, the change split
+// into more runner-hours and pricier machines (in runner-hours, the table's
+// first row says it all), the pushes to main and what each cost, then the
+// change by machine and runner label. The heading names the periods the
+// answer is for.
 export default function TrendChanges({
   changes,
   loading,
@@ -46,6 +58,7 @@ export default function TrendChanges({
   per,
   onPerChange,
   prepared,
+  highlighted = [],
 }: TrendChangesProps) {
   const theme = useTheme();
   const unit = rates === null ? "hours" : "cost";
@@ -58,10 +71,19 @@ export default function TrendChanges({
   const summary =
     changes === undefined ? null : changeSummary(changes, rates, per);
   const noPushes = summary !== null && summary.push === null;
+  const rank = (o: string) => {
+    const i = highlighted.indexOf(o);
+    return i < 0 ? Infinity : i;
+  };
   const whose =
     changes === undefined || changes.owners.length === 0
-      ? "every owner"
-      : joinNames(changes.owners.map(ownerLabel));
+      ? "all owners"
+      : joinNames(
+          [...changes.owners].sort((x, y) => rank(x) - rank(y)).map(ownerLabel)
+        );
+  // The answer's own periods, which lag the panel's while the next loads.
+  const aLabel = changes === undefined ? "" : daysLabel(changes.a);
+  const bLabel = changes === undefined ? "" : daysLabel(changes.b);
 
   const heading = (
     <Box
@@ -78,10 +100,11 @@ export default function TrendChanges({
           mr: "auto",
         }}
       >
-        What changed · {whose} · per {per} · A → B
+        What changed · {whose} · per {per} ·{" "}
+        {changes === undefined ? "A → B" : `A ${aLabel} → B ${bLabel}`}
       </Typography>
       <KeyButton
-        title="Each machine per day with data: every trigger's runner time"
+        title="Each machine per day: all runs, averaged over days with data"
         active={per === "day"}
         onClick={() => onPerChange("day")}
       >
@@ -91,7 +114,7 @@ export default function TrendChanges({
         title={
           noPushes
             ? "No pushes to main in A or B"
-            : "Each machine per commit: what a push to main costs, its jobs' runner time over the pushes to main"
+            : "Each machine's part of what one push to main costs"
         }
         active={per === "commit"}
         disabled={noPushes}
@@ -120,9 +143,6 @@ export default function TrendChanges({
     );
   }
 
-  // The answer's own periods, which lag the panel's while the next loads.
-  const aLabel = daysLabel(changes.a);
-  const bLabel = daysLabel(changes.b);
   const color = (delta: number) =>
     delta === 0 ? "text.secondary" : delta > 0 ? up : down;
   const push = summary.push;
@@ -131,29 +151,28 @@ export default function TrendChanges({
   return (
     <Box sx={{ opacity: loading ? 0.6 : 1, transition: "opacity 120ms" }}>
       {heading}
-      <Typography variant="body2" component="p">
-        {amount(summary.aPer)} {a} in A ({aLabel}), {amount(summary.bPer)} in B
-        ({bLabel}):{" "}
-        <Box component="b" sx={{ color: color(summary.delta) }}>
-          {signed(unit, summary.delta)} {a}
-          {summary.change === null
-            ? ""
-            : ` (${changeWord(summary).replace(/^[▲▼] /, "")})`}
-        </Box>
-        {summary.volume !== null && summary.mix !== null && (
-          <>
-            {" "}
-            = {signed(unit, summary.volume)} from{" "}
-            {summary.volume >= 0 ? "more" : "fewer"} runner-hours
-            {Math.abs(summary.mix) < (unit === "cost" ? 0.005 : 0.05)
-              ? " on the same mix of machines"
-              : `, ${signed(unit, summary.mix)} from ${
+      {unit === "cost" &&
+        summary.volume !== null &&
+        summary.mix !== null &&
+        summary.delta !== 0 && (
+          <Typography variant="body2" component="p">
+            <Box component="b" sx={{ color: color(summary.delta) }}>
+              {signed(unit, summary.delta)} {a}
+              {summary.change === null
+                ? ""
+                : ` (${changeWord(summary).replace(/^[▲▼] /, "")})`}
+            </Box>
+            {Math.abs(summary.mix) < 0.005
+              ? `, all from ${
+                  summary.volume >= 0 ? "more" : "fewer"
+                } runner-hours on the same machine mix.`
+              : `: ${signed(unit, summary.volume)} from ${
+                  summary.volume >= 0 ? "more" : "fewer"
+                } runner-hours, ${signed(unit, summary.mix)} from ${
                   summary.mix >= 0 ? "pricier" : "cheaper"
-                } machines`}
-          </>
+                } machines.`}
+          </Typography>
         )}
-        .
-      </Typography>
       {push !== null && (
         <Typography
           variant="body2"
@@ -162,22 +181,20 @@ export default function TrendChanges({
         >
           Pushes to main: {push.aPushesPerDay.toFixed(0)} a day in A,{" "}
           {push.bPushesPerDay.toFixed(0)} in B
-          {per === "day" &&
-            push.aPerPush !== null &&
-            push.bPerPush !== null && (
-              <>
-                {" "}
-                · {amount(push.aPerPush)} a commit → {amount(push.bPerPush)}
-                {push.change !== null &&
-                  ` (${push.change >= 0 ? "+" : "−"}${shareLabel(
-                    Math.abs(push.change)
-                  )})`}
-              </>
-            )}
-          .{" "}
           {per === "commit"
-            ? "Per commit is what a push to main costs: main runs every test, with no target determination, so it is a normalized unit cost. A push lands a commit, or a stack, and runs CI on its head once."
-            : "A push lands a commit, or a stack, and runs CI on its head once."}
+            ? ". Per commit is what one push to main costs, with every test running (no target determination), so only the machines main runs on appear."
+            : push.aPerPush !== null && push.bPerPush !== null
+            ? ` · ${amount(push.aPerPush)} → ${amount(
+                push.bPerPush
+              )} per commit${
+                push.change === null || push.change === 0
+                  ? ""
+                  : ` (${changeLabel({
+                      change: push.change,
+                      delta: push.change,
+                    }).replace(/^[▲▼] /, "")})`
+              }.`
+            : "."}
         </Typography>
       )}
       <Box sx={{ mt: 1 }}>
@@ -195,20 +212,8 @@ export default function TrendChanges({
         component="p"
         sx={{ color: "text.secondary" }}
       >
-        Bars: B; the tick: A. Click a machine to list its runners.
-        {per === "day" &&
-          ` Per day with data: ${summary.aDays} in A, ${summary.bDays} in B.`}
+        Bars show B; ticks mark A. Click a machine to list its runners.
       </Typography>
-      {per === "commit" && (
-        <Typography
-          variant="caption"
-          component="p"
-          sx={{ color: "warning.main" }}
-        >
-          ⚠ Pushes to main only: machines they do not run on drop out, and
-          shares are of a main push&apos;s cost.
-        </Typography>
-      )}
     </Box>
   );
 }

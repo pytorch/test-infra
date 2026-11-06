@@ -1,6 +1,10 @@
 import type { CostChanges } from "lib/api/tests/cost/types";
 import { averageRate, rateOf, type RatesFile } from "lib/tests/cost/rates";
-import { NOT_PROBED, type PreparedHours } from "lib/tests/cost/runnerHours";
+import {
+  NOT_PROBED,
+  OTHER_MACHINES,
+  type PreparedHours,
+} from "lib/tests/cost/runnerHours";
 import {
   addHours,
   type TrendPer,
@@ -306,6 +310,83 @@ export function machineChanges(
       y.row.bPer - x.row.bPer ||
       x.machine.localeCompare(y.machine)
   );
+}
+
+// How many rows the machine table shows under every machine before "N more
+// machines": the largest few, so what changed stays short.
+export const TOP_MACHINE_ROWS = 5;
+
+// One row of the machine table: every machine, a colored machine (or
+// Unknown machine), the other machines together, the rows past the top
+// folded, or while they are listed, the row that folds them back (its
+// figures 0). Machines are those it stands for: its own, the group's, or
+// the folded rows'.
+export interface MachineLine {
+  key: string;
+  label: string;
+  kind: "all" | "machine" | "group" | "more" | "less";
+  row: ChangeRow;
+  machines: MachineChange[];
+}
+
+// The machine table's rows, laid out as the page's machine keys are: every
+// machine first, then a row per colored machine, the other machines
+// together and Unknown machine last; past the top rows, the rest fold into
+// "N more machines" (never just one row), each folded machine counted once
+// and the other machines each, and while they are listed a last row folds
+// them back. The rows under every machine sum to it, folded or not.
+export function machineLines(
+  machines: MachineChange[],
+  colored: (_machine: string) => boolean,
+  expanded: boolean,
+  top: number = TOP_MACHINE_ROWS
+): MachineLine[] {
+  const line = (
+    key: string,
+    label: string,
+    kind: MachineLine["kind"],
+    of: MachineChange[]
+  ): MachineLine => ({
+    key,
+    label,
+    kind,
+    row: foldChanges(
+      key,
+      label,
+      of.map((m) => m.row)
+    ),
+    machines: of,
+  });
+  const lines = machines
+    .filter((m) => colored(m.machine) && m.machine !== NOT_PROBED)
+    .map((m) => line(m.machine, m.machine, "machine", [m]));
+  const others = machines.filter(
+    (m) => !colored(m.machine) && m.machine !== NOT_PROBED
+  );
+  if (others.length > 0) {
+    lines.push(
+      line(
+        OTHER_MACHINES,
+        `${OTHER_MACHINES} (${others.length})`,
+        "group",
+        others
+      )
+    );
+  }
+  const unknown = machines.find((m) => m.machine === NOT_PROBED);
+  if (unknown !== undefined) {
+    lines.push(line(NOT_PROBED, NOT_PROBED, "machine", [unknown]));
+  }
+  const all = line("all", "All machines", "all", machines);
+  const hidden = lines.slice(top);
+  if (hidden.length < 2) return [all, ...lines];
+  if (expanded) return [all, ...lines, line("less", "Show fewer", "less", [])];
+  const folded = hidden.flatMap((l) => l.machines);
+  return [
+    all,
+    ...lines.slice(0, top),
+    line("more", `${folded.length} more machines`, "more", folded),
+  ];
 }
 
 // A change as the table writes it: "▲ +23%", "▼ −26%", "new" where A had

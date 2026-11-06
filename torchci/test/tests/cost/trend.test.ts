@@ -2,8 +2,9 @@
 // (trend.json, an answer of GET /api/tests/cost/trend) and rates.json with its
 // budget, worked by hand: 14 days with data, A (Oct 22 – 28) and B (Oct 29 –
 // Nov 4) each a constant day, and March 1 in the daily totals only. At $1 an
-// hour the trend is the runner-hours; the periods, presets, owner rows and
-// the year to date against the budget say what the hand says.
+// hour the trend is the runner-hours; the periods, presets, owner rows, the
+// Owner key's order and steps, B's pace and the year to date against the
+// budget say what the hand says.
 
 import { CostTrendSchema } from "lib/api/tests/cost/types";
 import { parseRates, withRate } from "lib/tests/cost/rates";
@@ -18,14 +19,20 @@ import {
   isPartial,
   nextTrendSort,
   ownersBudget,
+  ownerStep,
+  paceCaveat,
   periodLabel,
   prepareTrend,
   rangeDates,
   rangeDays,
   rangeDenominator,
+  rangeElapsed,
   rangeLabel,
   rangePushes,
   rangeTotals,
+  TREND_TOP_OWNERS,
+  trendOwnerOrder,
+  trendPace,
   trendPresets,
   trendRows,
   trendSeries,
@@ -259,7 +266,7 @@ describe("the example rates, worked by hand", () => {
         changeLabel(r),
       ])
     ).toEqual([
-      ["All test hours", 194.25, 23.5, 27.75, 4.25, "▲ +18%"],
+      ["All owners", 194.25, 23.5, 27.75, 4.25, "▲ +18%"],
       ["inductor", 105, 12.5, 15, 2.5, "▲ +20%"],
       ["dynamo", 56, 10, 8, -2, "▼ −20%"],
       // Only in B: no change to speak of, but new.
@@ -276,14 +283,20 @@ describe("the example rates, worked by hand", () => {
     expect([inductor.aPerCommit, inductor.bPerCommit]).toEqual([0.375, 0.625]);
     expect([all.aPerCommit, all.bPerCommit]).toEqual([0.65, 1.0625]);
     // $27.75 a day is $10,128.75 a year against $9,125; inductor's $15 a
-    // day $5,475 against $4,000; dynamo's $8 $2,920 against $5,000.
+    // day $5,475 against $4,000; dynamo's $8 $2,920 against $5,000. The
+    // pace leaves out B's runner-hours with no rate: 28 h of A10G and 7 of
+    // xpu for every owner, inductor's 28, none of dynamo's.
     expect(all.budget).toEqual({
       annual: 9125,
       pace: 10128.75,
       ratio: 10128.75 / 9125,
+      unpriced: 35,
     });
     expect(inductor.budget?.ratio).toBeCloseTo(5475 / 4000, 12);
     expect(dynamo.budget?.ratio).toBeCloseTo(2920 / 5000, 12);
+    expect([inductor.budget?.unpriced, dynamo.budget?.unpriced]).toEqual([
+      28, 0,
+    ]);
     expect(distributed.budget).toBeNull();
     expect(Array.from(inductor.series)).toEqual(Array.from(series.highlighted));
   });
@@ -354,34 +367,183 @@ describe("the example rates, worked by hand", () => {
     ).toEqual(trendRows(prepared, rates, null, B, none, DEFAULT_TREND_SORT));
   });
 
-  test("the top owners and every highlighted one, the rest folded", () => {
-    const rows = (lit: Set<string>, expanded = false) =>
-      trendRows(
-        prepared,
-        rates,
-        A,
-        B,
-        lit,
-        DEFAULT_TREND_SORT,
-        expanded,
-        1
-      ).map((r) => r.label);
-    expect(rows(none)).toEqual([
-      "All test hours",
+  test("the top owners and every highlighted one, the rest folded, never just one", () => {
+    expect(TREND_TOP_OWNERS).toBe(8);
+    const rows = (lit: Set<string>, expanded = false, top = 1) =>
+      trendRows(prepared, rates, A, B, lit, DEFAULT_TREND_SORT, expanded, top);
+    const labels = (lit: Set<string>, expanded = false, top = 1) =>
+      rows(lit, expanded, top).map((r) => r.label);
+    const everyone = [
+      "All owners",
+      "inductor",
+      "dynamo",
+      "distributed",
+      "No owner",
+      "No test reports",
+    ];
+    expect(labels(none)).toEqual([
+      "All owners",
       "inductor",
       "2 more owners",
       "No owner",
       "No test reports",
     ]);
-    expect(rows(new Set(["distributed"]))).toEqual([
-      "All test hours",
+    // dynamo and distributed fold into one row: $8 + $3.75 a day in B,
+    // $10 + $0 in A.
+    const more = rows(none).find((r) => r.kind === "more")!;
+    expect(more.owners).toEqual(["dynamo", "distributed"]);
+    expect([more.aPer, more.bPer]).toEqual([10, 11.75]);
+    // Listed, a last row folds them back; it stands for no owner.
+    expect(labels(none, true)).toEqual([
+      "All owners",
       "inductor",
+      "dynamo",
       "distributed",
-      "1 more owner",
+      "Show fewer",
       "No owner",
       "No test reports",
     ]);
-    expect(rows(none, true)).toHaveLength(6);
+    const less = rows(none, true).find((r) => r.kind === "less")!;
+    expect(less).toMatchObject({
+      owners: [],
+      aPer: 0,
+      bPer: 0,
+      delta: 0,
+      change: null,
+      share: 0,
+      aPerCommit: 0,
+      bPerCommit: 0,
+      budget: null,
+    });
+    // Without A, its A figures are none, as every row's are.
+    expect(
+      trendRows(prepared, rates, null, B, none, DEFAULT_TREND_SORT, true, 1)
+        .filter((r) => r.kind === "less")
+        .map((r) => [r.aPer, r.bPer, r.delta, r.aPerCommit])
+    ).toEqual([[null, 0, null, null]]);
+    // A highlighted owner past the top keeps its row; one owner left over
+    // keeps its own row too, folded or listed, and nothing folds back.
+    expect(labels(new Set(["distributed"]))).toEqual(everyone);
+    expect(labels(new Set(["dynamo", "distributed"]), true)).toEqual(everyone);
+    expect(labels(none, false, 2)).toEqual(everyone);
+    expect(labels(none, true, 2)).toEqual(everyone);
+    // With none on top, the highlighted owner stays and the other two fold.
+    const pinned = rows(new Set(["distributed"]), false, 0);
+    expect(pinned.map((r) => r.label)).toEqual([
+      "All owners",
+      "distributed",
+      "2 more owners",
+      "No owner",
+      "No test reports",
+    ]);
+    // $15 + $8 a day in B, $12.50 + $10 in A.
+    expect(pinned[2].owners).toEqual(["inductor", "dynamo"]);
+    expect([pinned[2].aPer, pinned[2].bPer]).toEqual([22.5, 23]);
+    // Every owner of the example fits under the default top.
+    expect(
+      trendRows(prepared, rates, A, B, none, DEFAULT_TREND_SORT).map(
+        (r) => r.label
+      )
+    ).toEqual(everyone);
+  });
+
+  test("the Owner key lists every owner in the table's order, then the buckets, and steps through them", () => {
+    const order = trendOwnerOrder(prepared, rates, A, B, DEFAULT_TREND_SORT);
+    expect(order).toEqual([
+      "inductor",
+      "dynamo",
+      "distributed",
+      "unattributed:no_owner",
+      "unattributed:no_test_reports",
+    ]);
+    // The table's own order, whatever it is sorted by: by the change, $3.75
+    // (distributed), $2.50 (inductor), then −$2 (dynamo).
+    for (const sort of [
+      DEFAULT_TREND_SORT,
+      { by: "delta", dir: "desc" } as const,
+      { by: "change", dir: "asc" } as const,
+    ]) {
+      expect(trendOwnerOrder(prepared, rates, A, B, sort)).toEqual(
+        trendRows(prepared, rates, A, B, none, sort, true, Infinity)
+          .filter((r) => r.kind === "owner" || r.kind === "bucket")
+          .map((r) => r.key)
+      );
+    }
+    expect(
+      trendOwnerOrder(prepared, rates, A, B, { by: "delta", dir: "desc" })
+    ).toEqual([
+      "distributed",
+      "inductor",
+      "dynamo",
+      "unattributed:no_owner",
+      "unattributed:no_test_reports",
+    ]);
+    // In runner-hours, dynamo and inductor both ran 16 h a day in B: by
+    // name.
+    expect(
+      trendOwnerOrder(prepared, null, A, B, DEFAULT_TREND_SORT).slice(0, 3)
+    ).toEqual(["dynamo", "inductor", "distributed"]);
+    // Per commit, by push:main value per push in B: inductor $0.625,
+    // dynamo $0.25, distributed $0.15625.
+    expect(
+      trendOwnerOrder(
+        prepared,
+        rates,
+        A,
+        B,
+        DEFAULT_TREND_SORT,
+        "commit"
+      ).slice(0, 3)
+    ).toEqual(["inductor", "dynamo", "distributed"]);
+
+    const step = (lit: string[], by: 1 | -1) =>
+      ownerStep(order, new Set(lit), by);
+    expect(step([], 1)).toEqual(["inductor"]);
+    expect(step([], -1)).toBeNull();
+    expect(step(["inductor"], 1)).toEqual(["dynamo"]);
+    expect(step(["inductor"], -1)).toEqual([]);
+    expect(step(["dynamo"], -1)).toEqual(["inductor"]);
+    expect(step(["unattributed:no_test_reports"], 1)).toBeNull();
+    expect(step(["unattributed:no_test_reports"], -1)).toEqual([
+      "unattributed:no_owner",
+    ]);
+    // Several highlighted: from the first of them in the order.
+    expect(step(["distributed", "dynamo"], 1)).toEqual(["distributed"]);
+    expect(step(["distributed", "dynamo"], -1)).toEqual(["inductor"]);
+    // One the order does not hold: as from every owner, or back to it.
+    expect(step(["nobody"], 1)).toEqual(["inductor"]);
+    expect(step(["nobody"], -1)).toEqual([]);
+    expect(ownerStep([], none, 1)).toBeNull();
+  });
+
+  test("B's pace: per day kept up for the year, a month a twelfth of it, as the budget reads it", () => {
+    // $27.75 a day for 2026's 365 days.
+    expect(trendPace(prepared, 27.75)).toEqual({
+      year: 10128.75,
+      month: 844.0625,
+    });
+    expect(trendPace(prepared, 38)).toEqual({ year: 13870, month: 13870 / 12 });
+    const perDay =
+      rangeTotals(prepared, rates, B).value / rangeDays(prepared, B);
+    expect(trendPace(prepared, perDay).year).toBe(10128.75);
+    expect(trendPace(prepared, perDay).year).toBe(
+      budgetFacts(prepared, rates, B)!.pace
+    );
+    const rows = trendRows(prepared, rates, A, B, none, DEFAULT_TREND_SORT);
+    expect(trendPace(prepared, perDay).year).toBe(rows[0].budget!.pace);
+    // inductor's $105 over 7 days, $15 a day.
+    const inductor = trendPace(
+      prepared,
+      rangeTotals(prepared, rates, B, new Set(["inductor"])).value / 7
+    );
+    expect(inductor).toEqual({ year: 5475, month: 456.25 });
+    expect(inductor.year).toBe(
+      rows.find((r) => r.key === "inductor")!.budget!.pace
+    );
+    // A leap year has 366 days.
+    const leap = prepareTrend({ ...answer, end: "2029-01-01" });
+    expect(trendYear(leap)).toEqual({ year: 2028, days: 366 });
+    expect(trendPace(leap, 12)).toEqual({ year: 4392, month: 366 });
   });
 
   test("without A, no change and no order by it", () => {
@@ -554,5 +716,78 @@ describe("dates, days still filling and weekends", () => {
     ).toBe(true);
     const week = prepareTrend({ ...answer, rollup: "week" });
     expect(weekendDays(week, { from: 0, to: 0 })).toBeNull();
+  });
+
+  test("when B's pace may mislead: all weekdays reads high, mostly or all weekend low", () => {
+    // B has 2 weekend days of 7; Oct 29 – Nov 1, 2 of 4.
+    expect(paceCaveat(prepared, B)).toBeNull();
+    expect(paceCaveat(prepared, { from: 7, to: 10 })).toBeNull();
+    // Wednesday Nov 4, and Monday to Wednesday.
+    expect(paceCaveat(prepared, { from: 13, to: 13 })).toBe(
+      "a weekday, so likely high"
+    );
+    expect(paceCaveat(prepared, { from: 11, to: 13 })).toBe(
+      "all weekdays, so likely high"
+    );
+    // Sunday; Saturday and Sunday; Friday to Sunday.
+    expect(paceCaveat(prepared, { from: 10, to: 10 })).toBe(
+      "a weekend day, so likely low"
+    );
+    expect(paceCaveat(prepared, { from: 9, to: 10 })).toBe(
+      "all weekend days, so likely low"
+    );
+    expect(paceCaveat(prepared, { from: 8, to: 10 })).toBe(
+      "mostly weekend days, so likely low"
+    );
+    // A day still filling reads low whatever the day: its warning says so.
+    const filling = prepareTrend({
+      ...answer,
+      daily: { ...answer.daily, filling: ["2026-11-04"] },
+    });
+    expect(paceCaveat(filling, { from: 13, to: 13 })).toBeNull();
+    expect(paceCaveat(filling, { from: 11, to: 13 })).toBeNull();
+    expect(paceCaveat(filling, { from: 12, to: 12 })).toBe(
+      "a weekday, so likely high"
+    );
+    // By week: a whole week holds both kinds in their usual mix; the week
+    // through yesterday, Monday Nov 2 to Wednesday Nov 4, does not.
+    const week = prepareTrend({
+      ...answer,
+      rollup: "week",
+      periods: ["2026-10-19", "2026-10-26", "2026-11-02"],
+      cells: [],
+    });
+    // Thursday Oct 22 to Sunday Oct 25: 2 of 4.
+    expect(paceCaveat(week, { from: 0, to: 0 })).toBeNull();
+    expect(paceCaveat(week, { from: 1, to: 1 })).toBeNull();
+    expect(paceCaveat(week, { from: 2, to: 2 })).toBe(
+      "all weekdays, so likely high"
+    );
+  });
+
+  test("a range's calendar days through yesterday, against its days with data", () => {
+    expect(rangeElapsed(prepared, B)).toBe(7);
+    expect(rangeDays(prepared, B)).toBe(7);
+    // Without Nov 2's daily totals, B has data on 6 of its 7 days.
+    const gone = answer.daily.days.indexOf("2026-11-02");
+    const gappy = prepareTrend({
+      ...answer,
+      daily: {
+        ...answer.daily,
+        days: answer.daily.days.filter((_, d) => d !== gone),
+        pushes: answer.daily.pushes.filter((_, d) => d !== gone),
+        cells: answer.daily.cells
+          .filter(([d]) => d !== gone)
+          .map(([d, ...rest]) => [d > gone ? d - 1 : d, ...rest]),
+      },
+    } as typeof answer);
+    expect([rangeDays(gappy, B), rangeElapsed(gappy, B)]).toEqual([6, 7]);
+    expect([rangeDays(gappy, A), rangeElapsed(gappy, A)]).toEqual([7, 7]);
+    // A week's days through yesterday: the current week's only so far.
+    const week = prepareTrend({ ...answer, rollup: "week" });
+    const last = week.periods.length - 1;
+    expect(rangeElapsed(week, { from: last, to: last })).toBe(
+      week.periodElapsed[last]
+    );
   });
 });

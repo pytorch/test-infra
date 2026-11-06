@@ -3,19 +3,15 @@ import type { CostChanges } from "lib/api/tests/cost/types";
 import {
   type ChangeRow,
   changeWord,
-  foldChanges,
   labelMachines,
   machineChanges,
+  machineLines,
 } from "lib/tests/cost/changes";
 import { otherMachinesColor, paintFill } from "lib/tests/cost/colors";
 import { fineAmountLabel, shareLabel } from "lib/tests/cost/query";
 import type { RatesFile } from "lib/tests/cost/rates";
-import {
-  NOT_PROBED,
-  OTHER_MACHINES,
-  type PreparedHours,
-} from "lib/tests/cost/runnerHours";
-import type { TrendPer } from "lib/tests/cost/trend";
+import { NOT_PROBED, type PreparedHours } from "lib/tests/cost/runnerHours";
+import { deltaLabel, type TrendPer } from "lib/tests/cost/trend";
 import { useMemo, useState } from "react";
 
 export interface ChangesMachinesProps {
@@ -35,18 +31,20 @@ interface Line {
   key: string;
   label: string;
   row: ChangeRow;
-  kind: "all" | "machine" | "group" | "member" | "runner";
+  kind: "all" | "machine" | "group" | "member" | "runner" | "more" | "less";
   fill: string;
   // The runners or machines it lists while open.
   children: Line[];
 }
 
-// What changed by machine, laid out as the page's machine keys are: every
-// machine first, then a row per colored machine, the other machines
-// together and Unknown machine, each with B's bar and a tick where A stood,
-// its share of B, A and B per day (or per commit), the change, ▲ in the
-// error color or ▼ in the success color, and the change in %. A click on a
-// machine lists its runner labels, each with its own change.
+// What changed by machine, laid out as the page's machine keys are
+// (machineLines): every machine first, then a row per colored machine, the
+// other machines together and Unknown machine, the rows past the largest
+// few folded into "N more machines" until listed, each with B's bar and a
+// tick where A stood, its share of B, A and B per day (or per commit), the
+// change, ▲ in the error color or ▼ in the success color, and the change in
+// %. A click on a machine lists its runner labels, each with its own
+// change.
 export default function ChangesMachines({
   changes,
   rates,
@@ -57,6 +55,7 @@ export default function ChangesMachines({
 }: ChangesMachinesProps) {
   const theme = useTheme();
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+  const [expanded, setExpanded] = useState(false);
   const unit = rates === null ? "hours" : "cost";
   const amount = (v: number) => fineAmountLabel(unit, v);
   const up = theme.palette.error.main;
@@ -88,70 +87,47 @@ export default function ChangesMachines({
     prepared === undefined ||
     machine === NOT_PROBED ||
     prepared.colored.includes(prepared.machines.indexOf(machine));
-  const machineLine = (
-    m: (typeof machines)[number],
-    kind: Line["kind"],
-    fill: string
-  ): Line => ({
-    key: m.machine,
-    label: m.machine,
-    row: m.row,
-    kind,
-    fill,
-    children:
-      kind === "member"
-        ? []
-        : m.runners.map((r) => ({
-            key: `${m.machine}|${r.key}`,
-            label: r.name,
-            row: r,
-            kind: "runner",
-            fill,
-            children: [],
-          })),
+  const lines: Line[] = machineLines(machines, colored, expanded).map((l) => {
+    if (l.kind === "machine") {
+      const fill = fillOf(l.key);
+      return {
+        ...l,
+        fill,
+        children: l.machines[0].runners.map((r) => ({
+          key: `${l.key}|${r.key}`,
+          label: r.name,
+          row: r,
+          kind: "runner" as const,
+          fill,
+          children: [],
+        })),
+      };
+    }
+    return {
+      ...l,
+      fill: grey,
+      children:
+        l.kind === "group"
+          ? l.machines.map((m) => ({
+              key: m.machine,
+              label: m.machine,
+              row: m.row,
+              kind: "member" as const,
+              fill: grey,
+              children: [],
+            }))
+          : [],
+    };
   });
-  const lines: Line[] = machines
-    .filter((m) => colored(m.machine) && m.machine !== NOT_PROBED)
-    .map((m) => machineLine(m, "machine", fillOf(m.machine)));
-  const others = machines.filter((m) => !colored(m.machine));
-  if (others.length > 0) {
-    lines.push({
-      key: OTHER_MACHINES,
-      label: `${OTHER_MACHINES} (${others.length})`,
-      row: foldChanges(
-        OTHER_MACHINES,
-        OTHER_MACHINES,
-        others.map((m) => m.row)
-      ),
-      kind: "group",
-      fill: grey,
-      children: others.map((m) => machineLine(m, "member", grey)),
-    });
-  }
-  const unknown = machines.find((m) => m.machine === NOT_PROBED);
-  if (unknown !== undefined) {
-    lines.push(machineLine(unknown, "machine", fillOf(NOT_PROBED)));
-  }
-  const all = foldChanges(
-    "all",
-    "All machines",
-    machines.map((m) => m.row)
-  );
-  const shown: Line[] = [
-    {
-      key: "all",
-      label: "All machines",
-      row: all,
-      kind: "all",
-      fill: grey,
-      children: [],
-    },
-    ...lines.flatMap((l) => [l, ...(open.has(l.key) ? l.children : [])]),
-  ];
+  const all = lines[0].row;
+  const shown: Line[] = lines.flatMap((l) => [
+    l,
+    ...(open.has(l.key) ? l.children : []),
+  ]);
   const max = Math.max(
     1e-9,
     ...shown
-      .filter((l) => l.kind !== "all")
+      .filter((l) => l.kind !== "all" && l.kind !== "more")
       .flatMap((l) => [l.row.aPer, l.row.bPer])
   );
   const color = (delta: number) =>
@@ -196,7 +172,7 @@ export default function ChangesMachines({
           role="columnheader"
           sx={head}
           aria-label="B, with a tick at A"
-          title="Bars: B; the tick: A"
+          title="Bars show B; ticks mark A"
         />
         <Box role="columnheader" sx={head}>
           Share of B
@@ -216,20 +192,53 @@ export default function ChangesMachines({
       </Box>
       {shown.map((line) => {
         const nested = line.kind === "member" || line.kind === "runner";
+        const folding = line.kind === "more" || line.kind === "less";
         const expandable = line.children.length > 0;
         const isOpen = open.has(line.key);
         const { row } = line;
+        if (line.kind === "less") {
+          return (
+            <ButtonBase
+              key="less"
+              component="div"
+              role="row"
+              aria-expanded
+              title="Fold the smaller machines back into one row"
+              onClick={() => setExpanded(false)}
+              sx={{
+                ...rowSx,
+                color: "text.secondary",
+                "&:hover": { backgroundColor: "action.hover" },
+                "&.Mui-focusVisible": {
+                  outline: `2px solid ${theme.palette.primary.main}`,
+                },
+              }}
+            >
+              <Box role="cell" />
+              <Box
+                role="cell"
+                sx={{ ...cell, textAlign: "left", gridColumn: "2 / -1" }}
+              >
+                Show fewer ▴
+              </Box>
+            </ButtonBase>
+          );
+        }
         // Hours on runners the rates file has no rate for: no $ to show.
         const unpriced =
           unit === "cost" &&
           row.a.value === 0 &&
           row.b.value === 0 &&
           row.a.unpriced + row.b.unpriced > 0;
-        const title = `${line.label}: ${amount(row.aPer)} in A, ${amount(
-          row.bPer
-        )} in B a ${per}${
-          expandable
-            ? `. ${isOpen ? "Fold" : "List"} its ${
+        const title = `${line.label}: ${
+          unpriced
+            ? "no rate in the rates file"
+            : `${amount(row.aPer)} a ${per} in A, ${amount(row.bPer)} in B`
+        }${
+          line.kind === "more"
+            ? ". Click to list them"
+            : expandable
+            ? `. Click to ${isOpen ? "fold" : "list"} its ${
                 line.kind === "group" ? "machines" : "runners"
               }`
             : ""
@@ -241,7 +250,7 @@ export default function ChangesMachines({
               aria-hidden
               sx={{ color: "primary.main", textAlign: "center" }}
             >
-              {expandable ? (isOpen ? "▾" : "▸") : ""}
+              {expandable ? (isOpen ? "▾" : "▸") : folding ? "▸" : ""}
             </Box>
             <Box
               role="cell"
@@ -252,13 +261,13 @@ export default function ChangesMachines({
                 alignItems: "center",
                 gap: 0.75,
                 pl: nested ? 3.5 : 1,
-                color: nested ? "text.secondary" : "text.primary",
+                color: nested || folding ? "text.secondary" : "text.primary",
                 fontWeight: line.kind === "all" ? 600 : 400,
                 fontFamily: line.kind === "runner" ? "monospace" : undefined,
                 fontSize: line.kind === "runner" ? "0.75rem" : undefined,
               }}
             >
-              {!nested && line.kind !== "all" && (
+              {!nested && line.kind !== "all" && !folding && (
                 <Box
                   component="span"
                   sx={{
@@ -278,7 +287,7 @@ export default function ChangesMachines({
               </Box>
             </Box>
             <Box role="cell" aria-hidden sx={{ px: 1 }}>
-              {line.kind !== "all" && (
+              {line.kind !== "all" && line.kind !== "more" && (
                 <Box sx={{ position: "relative", height: 12 }}>
                   <Box
                     sx={{
@@ -320,9 +329,7 @@ export default function ChangesMachines({
             <Box role="cell" sx={{ ...cell, color: color(row.delta) }}>
               {unpriced || row.delta === 0
                 ? "—"
-                : `${row.delta > 0 ? "▲ +" : "▼ −"}${amount(
-                    Math.abs(row.delta)
-                  )}`}
+                : deltaLabel(row.delta, amount)}
             </Box>
             <Box
               role="cell"
@@ -335,14 +342,14 @@ export default function ChangesMachines({
             </Box>
           </>
         );
-        return expandable ? (
+        return expandable || folding ? (
           <ButtonBase
             key={`${line.kind}:${line.key}`}
             component="div"
             role="row"
-            aria-expanded={isOpen}
+            aria-expanded={folding ? false : isOpen}
             title={title}
-            onClick={() => toggle(line.key)}
+            onClick={() => (folding ? setExpanded(true) : toggle(line.key))}
             sx={{
               ...rowSx,
               "&:hover": { backgroundColor: "action.hover" },

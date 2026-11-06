@@ -6,8 +6,8 @@
 // the runner-hours, to the bit, and at $r r times them; at the example rates
 // each is its cells' runner-hours times their runner's rate, worked out from
 // the JSONs alone; the owners table, the chart and the machines add up to
-// their whole, per day and per commit; and a week or a month of the same
-// days reads as the days do.
+// their whole, per day and per commit; B's pace is the same figure wherever
+// it shows; and a week or a month of the same days reads as the days do.
 
 import {
   CostChangesSchema,
@@ -26,10 +26,13 @@ import {
   DEFAULT_TREND_SORT,
   type PeriodRange,
   prepareTrend,
+  rangeDays,
   rangeDenominator,
   rangeTotals,
   rollupReady,
   TREND_SORT_KEYS,
+  trendOwnerOrder,
+  trendPace,
   type TrendPer,
   trendRows,
   trendSeries,
@@ -392,21 +395,25 @@ describe("the example rates, worked by hand", () => {
 });
 
 describe("every part adds up, per day and per commit, in runner-hours and at the example rates", () => {
-  test("the owners table's rows, folded or not, in any order, sum to every owner's; their shares to all of B", () => {
+  test("the owners table's rows, folded, listed or highlighted, in any order, with A or without, sum to every owner's; their shares to all of B", () => {
     for (const r of [null, rates]) {
       for (const per of PERS) {
         for (const by of TREND_SORT_KEYS) {
           for (const dir of ["desc", "asc"] as const) {
-            for (const [expanded, top] of [
-              [false, 1],
-              [true, 10],
+            for (const [expanded, top, lit, a] of [
+              [false, 1, none, A],
+              [true, 1, none, A],
+              [true, 10, none, A],
+              [false, 0, new Set(["distributed"]), A],
+              [false, 1, none, null],
+              [true, 1, none, null],
             ] as const) {
               const [all, ...rest] = trendRows(
                 prepared,
                 r,
-                A,
+                a,
                 B,
-                none,
+                lit,
                 { by, dir },
                 expanded,
                 top,
@@ -430,6 +437,54 @@ describe("every part adds up, per day and per commit, in runner-hours and at the
         }
       }
     }
+  });
+
+  test("the Owner key steps through every row of the owners table, listed, in its order", () => {
+    for (const r of [null, rates]) {
+      for (const per of PERS) {
+        for (const by of TREND_SORT_KEYS) {
+          const sort = { by, dir: "desc" } as const;
+          const listed = trendRows(prepared, r, A, B, none, sort, true, 10, per)
+            .filter((x) => x.kind !== "all")
+            .map((x) => x.key);
+          expect(trendOwnerOrder(prepared, r, A, B, sort, per)).toEqual(listed);
+        }
+      }
+    }
+  });
+
+  test("B's pace is one figure: the cards', the budget's and each owner's budget pill, per day whatever the table compares by", () => {
+    const perDay = (owners: Set<string> | null) =>
+      rangeTotals(prepared, rates, B, owners).value / rangeDays(prepared, B);
+    expect(trendPace(prepared, perDay(null)).year).toBe(
+      budgetFacts(prepared, rates, B)!.pace
+    );
+    for (const per of PERS) {
+      const rows = trendRows(
+        prepared,
+        rates,
+        A,
+        B,
+        none,
+        DEFAULT_TREND_SORT,
+        true,
+        10,
+        per
+      ).filter((x) => x.budget !== null);
+      // Every owner, inductor and dynamo have budgets.
+      expect(rows.map((x) => x.key)).toEqual(["all", "inductor", "dynamo"]);
+      for (const row of rows) {
+        expect(row.budget!.pace).toBe(
+          trendPace(
+            prepared,
+            perDay(row.kind === "all" ? null : new Set(row.owners))
+          ).year
+        );
+      }
+    }
+    // A month is a twelfth of the year, so twelve make it.
+    const { year, month } = trendPace(prepared, perDay(null));
+    expect(12 * month).toBeCloseTo(year, 10);
   });
 
   test("the chart's bars over a range are the range: each a day's total per day, its value per push per commit", () => {

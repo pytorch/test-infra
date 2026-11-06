@@ -4,6 +4,8 @@ import { amountLabel, fineAmountLabel, shareLabel } from "lib/tests/cost/query";
 import type { CostUnit } from "lib/tests/cost/runnerHours";
 import {
   changeLabel,
+  deltaLabel,
+  TREND_TOP_OWNERS,
   type TrendPer,
   type TrendRow,
   type TrendSort,
@@ -27,22 +29,20 @@ export interface TrendTableProps {
   sort: TrendSort;
   onSort: (_by: TrendSortKey) => void;
   onToggleOwners: (_owners: string[]) => void;
-  onExpand: () => void;
+  // The folded row lists every owner; Show fewer folds them back.
+  onExpandedChange: (_expanded: boolean) => void;
 }
 
 const EVERY: Record<TrendRollup, string> = {
-  day: "daily",
-  week: "weekly",
-  month: "monthly",
+  day: "Daily",
+  week: "Weekly",
+  month: "Monthly",
 };
 
-// The Trend column's header: what each point is, "Trend ($/day, weekly)".
-export function trendHeader(
-  unit: CostUnit,
-  per: TrendPer,
-  rollup: TrendRollup
-): string {
-  return `Trend (${unit === "cost" ? "$" : "h"}/${per}, ${EVERY[rollup]})`;
+// The Trend column's header: a point a period, "Weekly trend"; what each
+// point is, in its title.
+export function trendHeader(rollup: TrendRollup): string {
+  return `${EVERY[rollup]} trend`;
 }
 
 // A row's values over the periods as a line, the last period's a dot.
@@ -75,7 +75,8 @@ function Sparkline({ values, color }: { values: Float64Array; color: string }) {
 
 // The owners in B, every owner together first, then the top owners sorted
 // by the column whose header was clicked (B, largest first, until then),
-// every highlighted one wherever it ranks, the rest folded, then the
+// every highlighted one wherever it ranks, the rest folded into "N more
+// owners" until listed, with "Show fewer" to fold them back, then the
 // buckets.
 // Figures are per day with data, or per commit (push:main over pushes to
 // main); per day, each row's per commit in A and B too. A rise is ▲ in the
@@ -94,7 +95,7 @@ export default function TrendTable({
   sort,
   onSort,
   onToggleOwners,
-  onExpand,
+  onExpandedChange,
 }: TrendTableProps) {
   const theme = useTheme();
   const budgets = rows.some((r) => r.budget !== null);
@@ -137,7 +138,7 @@ export default function TrendTable({
           active ? (sort.dir === "desc" ? "descending" : "ascending") : "none"
         }
         sx={head}
-        title={`${title}. Sort by it, ${
+        title={`${title} · click to sort, ${
           active && sort.dir === "desc" ? "smallest" : "largest"
         } first`}
       >
@@ -170,13 +171,14 @@ export default function TrendTable({
         </Box>
         {aLabel !== null && sortable("a", `A / ${per}`, `A: ${aLabel}`)}
         {sortable("b", `B / ${per}`, `B: ${bLabel}`)}
-        {aLabel !== null && sortable("delta", "Change", `B against A a ${per}`)}
-        {aLabel !== null && sortable("change", "%", "The change against A")}
+        {aLabel !== null &&
+          sortable("delta", "Change", `B minus A, per ${per}`)}
+        {aLabel !== null && sortable("change", "%", "Change from A, in %")}
         {perCommit && (
           <Box
             role="columnheader"
             sx={head}
-            title="What a push to main costs, in A and in B: its jobs' runner-hours over the pushes to main. Main runs every test, so it is normalized"
+            title="What one push to main costs, A → B: its runner-hours ÷ pushes to main, with every test running (no target determination)"
           >
             Per commit A → B
           </Box>
@@ -184,13 +186,15 @@ export default function TrendTable({
         <Box
           role="columnheader"
           sx={{ ...head, textAlign: "center" }}
-          title={`Each ${rollup}'s ${
-            unit === "cost" ? "$" : "runner-hours"
-          } per ${
-            per === "day" ? "day with data" : "push to main"
+          title={`${unit === "cost" ? "$" : "Runner-hours"} ${
+            per === "commit"
+              ? `per push to main, each ${rollup}`
+              : rollup === "day"
+              ? "each day"
+              : `per day with data, each ${rollup}`
           }, ${periodsLabel}; the dot is the latest`}
         >
-          {trendHeader(unit, per, rollup)}
+          {trendHeader(rollup)}
         </Box>
         {budgets && (
           <Box role="columnheader" sx={head}>
@@ -199,6 +203,38 @@ export default function TrendTable({
         )}
       </Box>
       {rows.map((row) => {
+        if (row.kind === "less") {
+          return (
+            <ButtonBase
+              key={row.key}
+              component="div"
+              role="row"
+              aria-expanded
+              title={`Fold the owners past the top ${TREND_TOP_OWNERS} back into one row`}
+              onClick={() => onExpandedChange(false)}
+              sx={{
+                display: "grid",
+                gridTemplateColumns: columns,
+                width: "100%",
+                font: "inherit",
+                textAlign: "inherit",
+                color: "text.secondary",
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                "&:hover": { backgroundColor: "action.hover" },
+                "&.Mui-focusVisible": {
+                  outline: `2px solid ${theme.palette.primary.main}`,
+                },
+              }}
+            >
+              <Box
+                role="cell"
+                sx={{ ...cell, textAlign: "left", gridColumn: "1 / -1" }}
+              >
+                {row.label} ▴
+              </Box>
+            </ButtonBase>
+          );
+        }
         const lit =
           row.kind !== "all" &&
           row.owners.length > 0 &&
@@ -216,15 +252,20 @@ export default function TrendTable({
             component="div"
             role="row"
             disabled={!clickable}
-            aria-selected={clickable ? lit : undefined}
+            aria-selected={clickable && row.kind !== "more" ? lit : undefined}
+            aria-expanded={row.kind === "more" ? false : undefined}
             onClick={() =>
-              row.kind === "more" ? onExpand() : onToggleOwners(row.owners)
+              row.kind === "more"
+                ? onExpandedChange(true)
+                : onToggleOwners(row.owners)
             }
             title={
               row.kind === "more"
-                ? "List them"
+                ? `List the ${row.owners.length} other owners`
                 : clickable
-                ? `${lit ? "Clear" : "Highlight"} ${row.label} across the page`
+                ? lit
+                  ? `Stop highlighting ${row.label}`
+                  : `Highlight ${row.label} across the page`
                 : undefined
             }
             sx={{
@@ -250,6 +291,7 @@ export default function TrendTable({
             <Box role="cell" sx={{ ...cell, textAlign: "left" }}>
               {lit ? "✓ " : ""}
               {row.label}
+              {row.kind === "more" ? " ▸" : ""}
             </Box>
             <Box role="cell" sx={cell}>
               {shareLabel(row.share)}
@@ -266,9 +308,7 @@ export default function TrendTable({
               <Box role="cell" sx={{ ...cell, color }}>
                 {row.delta === null || row.delta === 0
                   ? "—"
-                  : `${row.delta > 0 ? "▲ +" : "▼ −"}${amount(
-                      Math.abs(row.delta)
-                    )}`}
+                  : deltaLabel(row.delta, amount)}
               </Box>
             )}
             {aLabel !== null && (
@@ -300,24 +340,37 @@ export default function TrendTable({
                 ) : (
                   <Box
                     component="span"
-                    title={`B's pace ${amountLabel(
+                    title={`Projected: ${amountLabel(
                       "cost",
                       row.budget.pace
-                    )} a year against ${amountLabel(
+                    )} a year at B's daily average; budget ${amountLabel(
                       "cost",
                       row.budget.annual
-                    )}`}
+                    )}${
+                      row.budget.unpriced > 0.5
+                        ? ". Some of B's runner-hours have no rate, so the projection is at least this"
+                        : ""
+                    }`}
                     sx={{
                       px: 0.75,
                       py: 0.25,
                       borderRadius: "999px",
                       fontSize: "0.75rem",
-                      color: row.budget.ratio > 1 ? up : down,
+                      color:
+                        row.budget.ratio > 1
+                          ? up
+                          : row.budget.unpriced > 0.5
+                          ? "text.secondary"
+                          : down,
                       border: "1px solid currentColor",
                     }}
                   >
-                    {row.budget.ratio > 1
+                    {row.budget.annual <= 0
+                      ? "▲ Over"
+                      : row.budget.ratio > 1
                       ? `▲ Over ${shareLabel(row.budget.ratio - 1)}`
+                      : row.budget.unpriced > 0.5
+                      ? "Partly unpriced"
                       : `✓ Under ${shareLabel(1 - row.budget.ratio)}`}
                   </Box>
                 )}

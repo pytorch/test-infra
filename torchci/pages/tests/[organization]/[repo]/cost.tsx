@@ -98,8 +98,9 @@ function datesOf(answer: RunnerHours): string {
 //
 // The trend (TrendPanel), under the cost panel, has its own periods from GET
 // /api/tests/cost/trend, asked with the page's workflow scope; it shows the
-// owner highlight and sets it, and reads the rates file and its budget. Its
-// rollup, periods and order stay in its state, out of the URL.
+// owner highlight and sets it (a row toggles an owner, its Owner key picks
+// one), and reads the rates file and its budget. Its rollup, periods and
+// order stay in its state, out of the URL.
 export default function Page() {
   const router = useRouter();
   const organization = router.query.organization;
@@ -289,6 +290,12 @@ export default function Page() {
         only: current.only && next.length + current.machines.length > 0,
       };
     });
+  // The trend's Owner key: these owners instead of the highlighted ones.
+  const setOwners = (owners: string[]) =>
+    change((current) => ({
+      owners,
+      only: current.only && owners.length + current.machines.length > 0,
+    }));
   const toggleMachines = (machines: string[]) =>
     change((current) => {
       const next = toggled(current.machines, machines);
@@ -488,6 +495,7 @@ export default function Page() {
             scope={scope}
             highlighted={choices.owners}
             onToggleOwners={toggleOwners}
+            onOwnersChange={setOwners}
             runnerHours={prepared}
           />
           {trendRequest.error !== undefined && (

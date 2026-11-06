@@ -68,6 +68,7 @@ export default function CostFrame({
       <Box
         sx={{
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
           gap: 1,
           minHeight: COLUMN_HEADER_HEIGHT,

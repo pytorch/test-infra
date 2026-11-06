@@ -1,9 +1,12 @@
+import ChevronLeftRoundedIcon from "@mui/icons-material/ChevronLeftRounded";
+import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
 import { Box, Typography, useTheme } from "@mui/material";
 import CostFrame from "components/tests/cost/CostFrame";
 import KeyButton from "components/tests/cost/KeyButton";
 import TrendChanges from "components/tests/cost/TrendChanges";
 import TrendChart from "components/tests/cost/TrendChart";
 import TrendTable from "components/tests/cost/TrendTable";
+import HeaderSelect from "components/tests/HeaderSelect";
 import TextButton from "components/tests/TextButton";
 import type { CostTrend } from "lib/api/tests/cost/types";
 import { TREND_ROLLUPS, type TrendRollup } from "lib/api/tests/cost/windows";
@@ -16,27 +19,35 @@ import {
 } from "lib/tests/cost/query";
 import { averageRate, type RatesFile } from "lib/tests/cost/rates";
 import {
+  isBucket,
   joinNames,
   ownerLabel,
   type PreparedHours,
 } from "lib/tests/cost/runnerHours";
 import {
   budgetFacts,
+  changeLabel,
   daysLabel,
   DEFAULT_TREND_SORT,
   defaultRanges,
   fillingIn,
+  isPartial,
   nextTrendSort,
   ownersBudget,
+  ownerStep,
+  paceCaveat,
   type PeriodRange,
   type PreparedTrend,
   prepareTrend,
   rangeDates,
   rangeDays,
+  rangeElapsed,
   rangeLabel,
   rangePushes,
   rangeTotals,
   rollupReady,
+  trendOwnerOrder,
+  trendPace,
   type TrendPer,
   trendPresets,
   trendRows,
@@ -57,7 +68,12 @@ const ROLLUP_LABELS: Record<TrendRollup, string> = {
 };
 
 const DESCRIPTION =
-  "Runner-hours by period from the test_cost rollup, by owner, or $ at your rates file's prices. Periods compare per day with data; the year to date reads against the budget in your rates file.";
+  "Runner-hours of test jobs by day, week or month (ci.test_cost), or $ with a rates file. Compare two periods, A and B, per day (averaged over days with data) or per commit: what one push to main costs, with every test running. B's daily average projects yearly and monthly totals; a budget in your rates file adds the year to date against it.";
+
+// The Owner key's values for every owner, and for several highlighted
+// owners, which no one item stands for.
+const ALL_OWNERS = "";
+const SEVERAL_OWNERS = "\u0000";
 
 export interface TrendPanelProps {
   answer: CostTrend | undefined;
@@ -72,6 +88,8 @@ export interface TrendPanelProps {
   // is the highlighted owners'.
   highlighted: readonly string[];
   onToggleOwners: (_owners: string[]) => void;
+  // Replaces the highlight: the Owner key's choice and its ‹ › steps.
+  onOwnersChange: (_owners: string[]) => void;
   // The cost answer, for the machine key's machines and hues.
   runnerHours?: PreparedHours;
 }
@@ -136,15 +154,6 @@ function Card({
   );
 }
 
-// The share of a range's runner-hours that pushes to main ran: what per
-// commit counts.
-function mainShare(p: PreparedTrend, r: PeriodRange): number {
-  const all = rangeTotals(p, null, r).runnerHours;
-  return all > 0
-    ? rangeTotals(p, null, r, null, "commit").runnerHours / all
-    : 0;
-}
-
 interface ComparedRanges {
   key: string;
   a: PeriodRange | null;
@@ -186,12 +195,15 @@ function changesUrl(
 
 // The cost page's trend: runner-hours or $ by day, week or month over the
 // last weeks or months, two periods compared (B, and A before it), the
-// owners ranked by B or by their change per day, what changed for the
-// highlighted owners (or every owner) by machine and runner label,
-// runner-hours per push to main, and with a rates file's budget,
-// the year to date and B's pace a year against it. It follows the page's
-// workflow scope and owner highlight, and a row's click highlights across
-// the page; its own choices (rollup, unit, periods, order) are in its state.
+// owners ranked by B or by their change per day (the top few, the rest
+// folded), what changed for the highlighted owners (or every owner) by
+// machine and runner label, runner-hours per push to main, and B's pace
+// projected for a year and a month, with a rates file's budget against
+// the year to date and the pace. It follows the page's workflow scope and
+// owner highlight; the Owner key in its band picks one owner, or steps
+// through them in the table's order, and a row's click toggles one, both
+// across the page. Its own choices (rollup, unit, periods, order) are in
+// its state.
 // Reads GET /api/tests/cost/trend through lib/tests/cost/trend.ts, and GET
 // /api/tests/cost/changes through lib/tests/cost/changes.ts.
 export default function TrendPanel({
@@ -203,6 +215,7 @@ export default function TrendPanel({
   scope,
   highlighted,
   onToggleOwners,
+  onOwnersChange,
   runnerHours,
 }: TrendPanelProps) {
   const theme = useTheme();
@@ -231,8 +244,78 @@ export default function TrendPanel({
     changesUrl(answer, prepared, ranges, highlighted)
   );
 
+  // Every owner in the owners table's order, for the Owner key: those the
+  // page can highlight, which are the cost answer's.
+  const order = (
+    prepared === undefined || ranges === null || ranges.b === null
+      ? []
+      : trendOwnerOrder(
+          prepared,
+          priced,
+          ranges.a,
+          ranges.b,
+          trendSortInForce(sort, ranges.a),
+          per
+        )
+  ).filter((o) => runnerHours === undefined || runnerHours.owners.includes(o));
+  // The key's names: a bucket is hours no owner is given, not an owner.
+  const keyName = (o: string) =>
+    isBucket(o) ? `${ownerLabel(o)} (unattributed)` : o;
+  const steps = {
+    prev: ownerStep(order, lit, -1),
+    next: ownerStep(order, lit, 1),
+  };
+  const stepTitle = (to: string[] | null, which: "Previous" | "Next") =>
+    to === null
+      ? which === "Previous"
+        ? "Already at all owners"
+        : "Already at the last owner"
+      : to.length === 0
+      ? "Back to all owners"
+      : `${which} owner: ${keyName(to[0])}`;
   const keys = (
-    <Box sx={{ display: "flex", gap: 0.75, alignItems: "center" }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 0.75,
+        alignItems: "center",
+      }}
+    >
+      <HeaderSelect<string>
+        label="Owner"
+        display={
+          lit.size === 0 ? "All owners" : joinNames(Array.from(lit, keyName))
+        }
+        active={lit.size > 0}
+        options={[
+          { value: ALL_OWNERS, label: "All owners" },
+          ...order.map((o) => ({ value: o, label: keyName(o) })),
+        ]}
+        value={
+          lit.size === 0
+            ? ALL_OWNERS
+            : lit.size === 1
+            ? Array.from(lit)[0]
+            : SEVERAL_OWNERS
+        }
+        onChange={(o) => onOwnersChange(o === ALL_OWNERS ? [] : [o])}
+      />
+      <KeyButton
+        title={stepTitle(steps.prev, "Previous")}
+        disabled={steps.prev === null}
+        onClick={() => steps.prev !== null && onOwnersChange(steps.prev)}
+      >
+        <ChevronLeftRoundedIcon aria-hidden sx={{ fontSize: 18 }} />
+      </KeyButton>
+      <KeyButton
+        title={stepTitle(steps.next, "Next")}
+        disabled={steps.next === null}
+        onClick={() => steps.next !== null && onOwnersChange(steps.next)}
+      >
+        <ChevronRightRoundedIcon aria-hidden sx={{ fontSize: 18 }} />
+      </KeyButton>
+      <Box sx={{ width: 8 }} />
       {TREND_ROLLUPS.map((r) => {
         const ready = prepared === undefined || rollupReady(prepared, r);
         return (
@@ -241,12 +324,10 @@ export default function TrendPanel({
             title={
               ready
                 ? `A bar per ${r}`
-                : `Two whole ${r}s of data first: the rollup has data from ${daysLabel(
-                    {
-                      from: prepared.dailyDays[0] ?? prepared.end,
-                      to: prepared.dailyDays[0] ?? prepared.end,
-                    }
-                  )}`
+                : `Needs two whole ${r}s of data; data starts ${daysLabel({
+                    from: prepared.dailyDays[0] ?? prepared.end,
+                    to: prepared.dailyDays[0] ?? prepared.end,
+                  })}`
             }
             active={rollup === r}
             disabled={!ready}
@@ -278,14 +359,14 @@ export default function TrendPanel({
       </KeyButton>
       <Box sx={{ width: 8 }} />
       <KeyButton
-        title="Compare per day with data: every trigger's runner time"
+        title="Compare per day: all runs, not just pushes to main, averaged over days with data"
         active={per === "day"}
         onClick={() => setPer("day")}
       >
         Per day
       </KeyButton>
       <KeyButton
-        title="Compare per commit: what a push to main costs, its jobs' runner time over the pushes to main. Main runs every test, with no target determination, so it is normalized, and weekends and quiet days do not skew it"
+        title="Compare per commit: what one push to main costs, its runner-hours ÷ pushes to main. Main runs every test (no target determination), so this is the full cost of a push, as if TD did not exist; quiet days do not skew it. One push can land a stack; CI runs once, on its top commit"
         active={per === "commit"}
         onClick={() => setPer("commit")}
       >
@@ -316,7 +397,7 @@ export default function TrendPanel({
   if (prepared.periods.length === 0) {
     return frame(
       <Typography variant="body2" sx={{ color: "text.secondary" }}>
-        The rollup holds no runner-hours in these periods yet.
+        No runner-hours in this window yet.
       </Typography>
     );
   }
@@ -344,6 +425,7 @@ export default function TrendPanel({
     changes.b.to === rangeDates(prepared, b).to &&
     changes.owners.join("\n") === [...highlighted].sort().join("\n");
   const presets = trendPresets(prepared);
+  const faded = prepared.periods.some((_, i) => isPartial(prepared, i));
   const series = trendSeries(prepared, priced, lit, per);
   const focus = lit.size > 0 ? lit : null;
   const whose =
@@ -380,18 +462,50 @@ export default function TrendPanel({
       theme.palette.mode === "dark"
         ? theme.palette.success.light
         : theme.palette.success.dark;
-    const vsA = (now: number | null, then: number | null, say: string) =>
+    // B against A as the tables write a change: "▲ +18% vs A ($24)".
+    const vsA = (now: number | null, then: number | null) =>
       now === null || then === null || then === 0
         ? undefined
-        : `${now > then ? "▲" : now < then ? "▼" : ""} ${
-            now > then ? "+" : ""
-          }${Math.round(((now - then) / then) * 100)}% vs A (${say})`;
+        : now === then
+        ? `same as A (${amount(then)})`
+        : `${changeLabel({
+            change: (now - then) / then,
+            delta: now - then,
+          })} vs A (${amount(then)})`;
     const rateB = averageRate(bt.value, bt.runnerHours, bt.unpriced);
     const rateA =
       at === null ? null : averageRate(at.value, at.runnerHours, at.unpriced);
     const facts = budgetFacts(prepared, priced, b);
-    const pace = focus === null ? facts?.pace ?? null : bPerDay * yearDays;
     const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+    // Days a period lacks data on, said only when it does.
+    const missing = (r: PeriodRange | null, which: "A" | "B") => {
+      if (r === null) return "";
+      const have = rangeDays(prepared, r);
+      const of = rangeElapsed(prepared, r);
+      return have < of ? ` · ${which} has data on ${have} of ${days(of)}` : "";
+    };
+    // B's pace: the day card's per day kept up for a year and a month,
+    // whichever the comparison, as spend is per day; none where B's hours
+    // all lack a rate.
+    const pace =
+      bDays > 0 && !(dollars && bt.value === 0 && bt.unpriced > 0)
+        ? trendPace(prepared, bPerDay)
+        : null;
+    const caveat = paceCaveat(prepared, b);
+    // Hours without a rate add nothing to the $: the pace is at least what
+    // it says, so over the budget holds and under does not.
+    const unpricedNote =
+      dollars && bt.unpriced > 0.5
+        ? ` · ${shareLabel(bt.unpriced / bt.runnerHours)} of hours unpriced`
+        : "";
+    const over =
+      dollars &&
+      pace !== null &&
+      focusBudget !== null &&
+      focusBudget > 0 &&
+      (pace.year > focusBudget || unpricedNote === "")
+        ? pace.year > focusBudget
+        : null;
     // Per commit: push:main runner time over the pushes to main.
     const bPushes = rangePushes(prepared, b);
     const aPushes = a === null ? 0 : rangePushes(prepared, a);
@@ -405,21 +519,20 @@ export default function TrendPanel({
       aPerCommit !== null && bPerCommit !== null && aPerCommit > 0
         ? (bPerCommit - aPerCommit) / aPerCommit
         : null;
+    const pushesADay = (bDays > 0 ? bPushes / bDays : 0).toFixed(0);
     const dayCard = (
       <Card
         key="day"
         title={`${whose}${dollars ? "$" : "Runner-hours"} per day in B`}
         value={amount(bPerDay)}
-        note={vsA(bPerDay, aPerDay, aPerDay === null ? "" : amount(aPerDay))}
-        noteColor={change === null ? undefined : change > 0 ? up : down}
-        detail={`${bDays > 1 ? `${amount(bt.value)} over ` : ""}${rangeLabel(
+        note={vsA(bPerDay, aPerDay)}
+        noteColor={
+          change === null || change === 0 ? undefined : change > 0 ? up : down
+        }
+        detail={`${bDays > 1 ? `${amount(bt.value)} total, ` : ""}${rangeLabel(
           prepared,
           b
-        )} · ${days(bDays)} with data${
-          dollars && bt.unpriced > 0.5
-            ? ` · ${shareLabel(bt.unpriced / bt.runnerHours)} of hours unpriced`
-            : ""
-        }`}
+        )}${missing(b, "B")}${missing(a, "A")}${unpricedNote}`}
       />
     );
     const commitCard = bPerCommit !== null && (
@@ -427,24 +540,21 @@ export default function TrendPanel({
         key="commit"
         title={`${whose}${dollars ? "$" : "Runner-hours"} per commit in B`}
         value={amount(bPerCommit)}
-        note={vsA(
-          bPerCommit,
-          aPerCommit,
-          aPerCommit === null ? "" : amount(aPerCommit)
-        )}
+        note={vsA(bPerCommit, aPerCommit)}
         noteColor={
-          commitChange === null ? undefined : commitChange > 0 ? up : down
+          commitChange === null || commitChange === 0
+            ? undefined
+            : commitChange > 0
+            ? up
+            : down
         }
-        detail={`What a push to main costs; main runs every test. ${(bDays > 0
-          ? bPushes / bDays
-          : 0
-        ).toFixed(0)} pushes a day ran ${shareLabel(
+        detail={`What one push to main costs, with every test running (no target determination). ${pushesADay} ${
+          pushesADay === "1" ? "push" : "pushes"
+        } a day; their jobs are ${shareLabel(
           bt.runnerHours > 0 ? bMain.runnerHours / bt.runnerHours : 0
-        )} of ${
-          focus === null
-            ? "every owner"
-            : joinNames(Array.from(lit, ownerLabel))
-        }'s runner-hours in B`}
+        )} of B's runner-hours${
+          focus === null ? "" : ` for ${joinNames(Array.from(lit, ownerLabel))}`
+        }.`}
       />
     );
     cards = (
@@ -474,14 +584,22 @@ export default function TrendPanel({
         )}
         {dollars && facts !== null ? (
           <Card
-            title={`Year to date vs budget, all owners`}
+            title={
+              focus === null
+                ? "Year to date vs budget"
+                : "All owners: year to date vs budget"
+            }
             value={`${amountLabel("cost", facts.ytd)} of ${amountLabel(
               "cost",
               facts.toDate
             )}`}
-            note={`${shareLabel(facts.ratio)} of the budget for the ${
+            note={`${shareLabel(facts.ratio)} of the budget to date (${days(
               facts.ytdDays
-            } days with data since ${facts.firstDay ?? "January 1"}`}
+            )} of data since ${
+              facts.firstDay === null
+                ? "Jan 1"
+                : daysLabel({ from: facts.firstDay, to: facts.firstDay })
+            })`}
             noteColor={facts.ratio > 1 ? up : down}
           />
         ) : (
@@ -489,22 +607,35 @@ export default function TrendPanel({
             <Card
               title="Year to date vs budget"
               value="No budget"
-              note={`Add "budget": {"annual": $} to ${
+              note={`Add "budget": {"annual": …} beside "rates" in ${
                 rates?.file ?? "your rates file"
-              }'s wrapped form`}
+              } to compare.`}
             />
           )
         )}
-        {dollars && pace !== null && focusBudget !== null && (
+        {pace !== null && (
           <Card
-            title={`${whose}B's pace a year`}
-            value={amountLabel("cost", pace)}
-            note={`${
-              pace > focusBudget ? "▲ over" : "✓ under"
-            } the ${amountLabel("cost", focusBudget)} budget by ${shareLabel(
-              Math.abs(pace / focusBudget - 1)
-            )}`}
-            noteColor={pace > focusBudget ? up : down}
+            title={`${whose}Projected ${
+              dollars ? "$" : "runner-hours"
+            } per year`}
+            value={amountLabel(unit, pace.year)}
+            note={
+              over === null
+                ? undefined
+                : `${over ? "▲" : "✓"} ${shareLabel(
+                    Math.abs(pace.year / focusBudget! - 1)
+                  )} ${over ? "over" : "under"} the ${amountLabel(
+                    "cost",
+                    focusBudget!
+                  )} budget`
+            }
+            noteColor={over === null ? undefined : over ? up : down}
+            detail={`${amountLabel(
+              unit,
+              pace.month
+            )} per month at B's daily average${
+              caveat === null ? "" : ` · B is ${caveat}`
+            }${unpricedNote}`}
           />
         )}
       </Box>
@@ -534,7 +665,7 @@ export default function TrendPanel({
                     prepared,
                     p.b!
                   )}`
-                : "Needs every day of both periods in the rollup"
+                : "Not enough data yet: needs every day of both periods"
             }
             active={
               p.available &&
@@ -554,7 +685,11 @@ export default function TrendPanel({
           {a !== null && (
             <>
               <b>A</b> {rangeLabel(prepared, a)}{" "}
-              <TextButton label="Clear A" onClick={() => setRange("a", null)}>
+              <TextButton
+                label="Clear A"
+                tooltip="Clear A"
+                onClick={() => setRange("a", null)}
+              >
                 <Box component="span" sx={{ color: "primary.main" }}>
                   ✕
                 </Box>
@@ -572,17 +707,6 @@ export default function TrendPanel({
           )}
         </Typography>
       </Box>
-      <Typography
-        variant="caption"
-        component="p"
-        sx={{ color: "text.secondary" }}
-      >
-        {per === "day"
-          ? `Bars: each ${prepared.rollup}'s total.`
-          : `Bars: what a push to main cost each ${prepared.rollup}.`}{" "}
-        Drag across the bars to set B; hold Shift to set A. Faded bars lack days
-        of data{periodBudget !== null ? "; dashed lines are the budget" : ""}.
-      </Typography>
       {filling.length > 0 && (
         <Typography
           variant="caption"
@@ -590,10 +714,10 @@ export default function TrendPanel({
           sx={{ color: "warning.main" }}
         >
           ⚠ {filling.map((d) => daysLabel({ from: d, to: d })).join(", ")}{" "}
-          {filling.length === 1 ? "is" : "are"} still filling: jobs that started
-          then are still running, so{" "}
+          {filling.length === 1 ? "is" : "are"} incomplete: some of{" "}
+          {filling.length === 1 ? "its" : "their"} jobs are still running, so{" "}
           {filling.length === 1 ? "it reads" : "they read"} low until the rollup
-          computes {filling.length === 1 ? "it" : "them"} again after 03:00 UTC.
+          reruns after 03:00 UTC.
         </Typography>
       )}
       {per === "commit" &&
@@ -605,8 +729,8 @@ export default function TrendPanel({
             component="p"
             sx={{ color: "text.secondary" }}
           >
-            One day against another: per commit moves about 5% from day to day,
-            up to 13% for an owner, so compare 7 days for smaller changes.
+            Per commit varies about 5% from day to day (up to 13% for one
+            owner); compare 7 days to spot smaller changes.
           </Typography>
         )}
       {per === "day" &&
@@ -618,11 +742,12 @@ export default function TrendPanel({
             component="p"
             sx={{ color: "warning.main" }}
           >
-            ⚠ A has {weekendDays(prepared, a)!.weekend} of{" "}
-            {weekendDays(prepared, a)!.days} days on a weekend, B{" "}
+            ⚠ A and B mix weekends differently (A:{" "}
+            {weekendDays(prepared, a)!.weekend} of{" "}
+            {weekendDays(prepared, a)!.days} days on a weekend, B:{" "}
             {weekendDays(prepared, b)!.weekend} of{" "}
-            {weekendDays(prepared, b)!.days}: weekends run far fewer jobs, so
-            compare the same weekdays, whole weeks, or per commit.
+            {weekendDays(prepared, b)!.days}). Weekends run far fewer jobs;
+            compare matching weekdays, whole weeks, or per commit.
           </Typography>
         )}
       <TrendChart
@@ -634,6 +759,22 @@ export default function TrendPanel({
         b={b}
         onRangeChange={(which, range) => setRange(which, range)}
       />
+      <Typography
+        variant="caption"
+        component="p"
+        sx={{ color: "text.secondary", mt: 0.5 }}
+      >
+        {per === "day"
+          ? `Each bar is a ${prepared.rollup}'s total.`
+          : `Each bar is what a push to main cost that ${prepared.rollup}, on average.`}
+        {lit.size > 0 &&
+          ` Solid: ${joinNames(
+            Array.from(lit, ownerLabel)
+          )}; pale: the rest.`}{" "}
+        Drag across the bars to set B, or Shift-drag to set A.
+        {faded && " Faded bars have incomplete data."}
+        {periodBudget !== null && " Dashed lines mark the budget."}
+      </Typography>
       {cards}
       {b !== null && (
         <>
@@ -657,12 +798,7 @@ export default function TrendPanel({
                 mr: "auto",
               }}
             >
-              Owners · {dollars ? "$" : "runner-hours"} per{" "}
-              {per === "day"
-                ? "day with data"
-                : `commit · what a push to main costs, its jobs ${shareLabel(
-                    mainShare(prepared, b)
-                  )} of B's runner-hours`}
+              Owners · {dollars ? "$" : "runner-hours"} per {per}
             </Typography>
           </Box>
           <TrendTable
@@ -694,7 +830,7 @@ export default function TrendPanel({
               )
             }
             onToggleOwners={onToggleOwners}
-            onExpand={() => setExpanded(true)}
+            onExpandedChange={setExpanded}
           />
           <Typography
             variant="caption"
@@ -702,12 +838,11 @@ export default function TrendPanel({
             sx={{ color: "text.secondary" }}
           >
             Click an owner to highlight it across the page and see what changed
-            for it below; click it again to clear. Click a column&apos;s header
-            to sort by it.
+            for it below; click again to clear. Click a header to sort.
           </Typography>
           {a === null ? (
             <Typography variant="body2" sx={{ color: "text.secondary", mt: 2 }}>
-              Set A (Shift-drag across the bars, or pick a comparison) to see
+              Shift-drag across the bars, or pick a comparison, to set A and see
               what changed.
             </Typography>
           ) : (
@@ -720,6 +855,7 @@ export default function TrendPanel({
               per={per}
               onPerChange={setPer}
               prepared={runnerHours}
+              highlighted={highlighted}
             />
           )}
         </>

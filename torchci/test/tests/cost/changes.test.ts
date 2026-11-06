@@ -6,9 +6,14 @@
 // over 10 pushes a day in A and 8 in B. The changes agree with the trend's
 // inductor row per day and per commit, in runner-hours and in $; at $1 an
 // hour they are the runner-hours; the machines' rows, and each machine's
-// runners, sum to the change.
+// runners, sum to the change, as the machine table's rows do, folded past
+// the largest few or not.
 
-import { CostChangesSchema, CostTrendSchema } from "lib/api/tests/cost/types";
+import {
+  type CostChanges,
+  CostChangesSchema,
+  CostTrendSchema,
+} from "lib/api/tests/cost/types";
 import {
   changeDays,
   changeSummary,
@@ -16,6 +21,8 @@ import {
   foldChanges,
   labelMachines,
   machineChanges,
+  machineLines,
+  TOP_MACHINE_ROWS,
 } from "lib/tests/cost/changes";
 import { parseRates } from "lib/tests/cost/rates";
 import { NOT_PROBED, prepareRunnerHours } from "lib/tests/cost/runnerHours";
@@ -281,6 +288,141 @@ describe("machines", () => {
       delta: 0,
       change: null,
     });
+  });
+});
+
+describe("the machine table's rows", () => {
+  // Nine machines over the example's days (7 with data on each side, 70
+  // and 56 pushes): M1 to M6 colored, O1 and O2 not, and a label no machine
+  // is known for. Runner-hours a side, a seventh of which is a day; pushes
+  // to main ran half of each.
+  const HOURS: [string, string | null, number, number][] = [
+    ["m1", "M1", 63, 70],
+    ["m2", "M2", 56, 56],
+    ["m3", "M3", 49, 42],
+    ["m4", "M4", 28, 35],
+    ["m5", "M5", 28, 28],
+    ["m6", "M6", 14, 21],
+    ["o1", "O1", 21, 14],
+    ["o2", "O2", 0, 7],
+    ["u", null, 7, 7],
+  ];
+  const many: CostChanges = {
+    ...changes,
+    labels: HOURS.map(([label]) => label),
+    cells: HOURS.flatMap(([, , a, b], l) => [
+      ...(a > 0 ? [[0, l, a, a / 2] as [number, number, number, number]] : []),
+      [1, l, b, b / 2] as [number, number, number, number],
+    ]),
+  };
+  const machineOf = new Map(
+    HOURS.filter(([, m]) => m !== null).map(([l, m]) => [l, m!])
+  );
+  const colored = (m: string) => m.startsWith("M") || m === NOT_PROBED;
+  const lines = (expanded: boolean, top?: number, r = null, per = "day") =>
+    machineLines(
+      machineChanges(many, r, per as "day" | "commit", machineOf),
+      colored,
+      expanded,
+      top
+    );
+  const words = (ls: ReturnType<typeof lines>) =>
+    ls.map((l) => [l.label, l.kind, l.row.aPer, l.row.bPer]);
+
+  test("every machine, the colored ones, the others together and Unknown machine; past the top 5, the rest folded", () => {
+    expect(TOP_MACHINE_ROWS).toBe(5);
+    expect(words(lines(false))).toEqual([
+      ["All machines", "all", 38, 40],
+      ["M1", "machine", 9, 10],
+      ["M2", "machine", 8, 8],
+      ["M3", "machine", 7, 6],
+      ["M4", "machine", 4, 5],
+      ["M5", "machine", 4, 4],
+      // M6, the others (O1, O2) and Unknown machine: 2 + 3 + 0 + 1 a day in
+      // A, 3 + 2 + 1 + 1 in B.
+      ["4 more machines", "more", 6, 7],
+    ]);
+    const more = lines(false)[6];
+    expect(more.machines.map((m) => m.machine)).toEqual([
+      "M6",
+      "O1",
+      "O2",
+      NOT_PROBED,
+    ]);
+    expect([more.row.delta, more.row.change]).toEqual([1, 1 / 6]);
+  });
+
+  test("listed, every row and one that folds them back; it stands for no machine", () => {
+    expect(words(lines(true))).toEqual([
+      ["All machines", "all", 38, 40],
+      ["M1", "machine", 9, 10],
+      ["M2", "machine", 8, 8],
+      ["M3", "machine", 7, 6],
+      ["M4", "machine", 4, 5],
+      ["M5", "machine", 4, 4],
+      ["M6", "machine", 2, 3],
+      ["Other machines (2)", "group", 3, 3],
+      [NOT_PROBED, "machine", 1, 1],
+      ["Show fewer", "less", 0, 0],
+    ]);
+    const group = lines(true)[7];
+    expect(group.machines.map((m) => m.machine)).toEqual(["O1", "O2"]);
+  });
+
+  test("never one row folded: with room for all but one, every row shows and none folds back", () => {
+    // M1 to M6, the others, then Unknown machine.
+    for (const expanded of [false, true]) {
+      expect(lines(expanded, 7).map((l) => l.kind)).toEqual([
+        "all",
+        ...Array(6).fill("machine"),
+        "group",
+        "machine",
+      ]);
+    }
+    // Two rows past the top fold: the others and Unknown machine, 3
+    // machines, 3 + 0 + 1 a day in A and 2 + 1 + 1 in B.
+    expect(words(lines(false, 6)).slice(7)).toEqual([
+      ["3 more machines", "more", 4, 4],
+    ]);
+    // inductor's two machines never fold.
+    expect(
+      machineLines(
+        machineChanges(changes, null, "day", MACHINES),
+        () => true,
+        false
+      ).map((l) => l.label)
+    ).toEqual(["All machines", "NVIDIA L4", "NVIDIA A10G"]);
+  });
+
+  test("the rows under every machine sum to it, folded or listed, per day and per commit, in runner-hours and in $", () => {
+    const half = parseRates(
+      JSON.stringify(Object.fromEntries(HOURS.map(([l]) => [l, 0.5]))),
+      "half.json"
+    );
+    for (const r of [null, half, rates]) {
+      for (const per of ["day", "commit"] as const) {
+        for (const [expanded, top] of [
+          [false, 5],
+          [true, 5],
+          [false, 1],
+          [false, 6],
+          [true, 0],
+        ] as const) {
+          const [all, ...rest] = machineLines(
+            machineChanges(many, r, per, machineOf),
+            colored,
+            expanded,
+            top
+          );
+          for (const field of ["aPer", "bPer", "delta"] as const) {
+            expect([field, sum(rest.map((l) => l.row[field]))]).toEqual([
+              field,
+              expect.closeTo(all.row[field], 10),
+            ]);
+          }
+        }
+      }
+    }
   });
 });
 

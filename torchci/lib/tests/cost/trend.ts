@@ -5,7 +5,6 @@ import {
   BUCKET_LABELS,
   type CostUnit,
   isBucket,
-  TOP_OWNERS,
 } from "lib/tests/cost/runnerHours";
 
 // The cost page's trend: GET /api/tests/cost/trend's runner-hours by period,
@@ -22,7 +21,9 @@ import {
 // every test, with no target determination, so it is a normalized unit
 // cost, which weekends and quiet days do not skew.
 // The owner highlight is the page's: the highlighted owners' share of each
-// bar, their figures in the cards.
+// bar, their figures in the cards; the panel's Owner key steps it through
+// the owners in the table's order. B's pace is its value per day kept up
+// for the year, a month a twelfth of that.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const dayMs = (day: string) => Date.parse(`${day}T00:00:00Z`);
@@ -214,6 +215,14 @@ export function fillingIn(p: PreparedTrend, r: PeriodRange): string[] {
 export function rangeDays(p: PreparedTrend, r: PeriodRange): number {
   let days = 0;
   for (let i = r.from; i <= r.to; i++) days += p.periodData[i];
+  return days;
+}
+
+// A range's calendar days through yesterday: more than its days with data
+// when days are missing.
+export function rangeElapsed(p: PreparedTrend, r: PeriodRange): number {
+  let days = 0;
+  for (let i = r.from; i <= r.to; i++) days += p.periodElapsed[i];
   return days;
 }
 
@@ -464,20 +473,20 @@ export function trendPresets(p: PreparedTrend): TrendPreset[] {
   };
   if (p.rollup === "day") {
     return [
-      pair("day", "Yesterday vs a week before", 1, last, 7),
-      pair("7d", "Last 7 days vs 7 before", 7, last),
-      pair("14d", "Last 14 days vs 14 before", 14, last),
+      pair("day", "Yesterday vs same day last week", 1, last, 7),
+      pair("7d", "Last 7 days vs prior 7", 7, last),
+      pair("14d", "Last 14 days vs prior 14", 14, last),
     ];
   }
   if (p.rollup === "week") {
     return [
-      pair("week", "Last week vs week before", 1, lastWhole),
-      pair("4w", "Last 4 weeks vs 4 before", 4, lastWhole),
+      pair("week", "Last week vs prior week", 1, lastWhole),
+      pair("4w", "Last 4 weeks vs prior 4", 4, lastWhole),
     ];
   }
   return [
-    pair("month", "Last month vs month before", 1, lastWhole),
-    pair("3m", "Last 3 months vs 3 before", 3, lastWhole),
+    pair("month", "Last month vs prior month", 1, lastWhole),
+    pair("3m", "Last 3 months vs prior 3", 3, lastWhole),
   ];
 }
 
@@ -510,15 +519,57 @@ export function trendYear(p: PreparedTrend): { year: number; days: number } {
   };
 }
 
+// B's pace: a value per day kept up for the year a budget is read in, and
+// an average month, a twelfth of that year, so twelve months make the year.
+export function trendPace(
+  p: PreparedTrend,
+  perDay: number
+): { year: number; month: number } {
+  const year = perDay * trendYear(p).days;
+  return { year, month: year / 12 };
+}
+
+// Why a range's pace may mislead, in a few words, or null: weekends run far
+// fewer jobs, so days with data and no weekend day read high, and mostly
+// weekend days low. Counted over the range's days with data whatever the
+// rollup, since the week or month through yesterday need not hold its
+// usual mix; a range with a day still filling reads low, which its own
+// warning says.
+export function paceCaveat(p: PreparedTrend, r: PeriodRange): string | null {
+  if (fillingIn(p, r).length > 0) return null;
+  const { from, to } = rangeDates(p, r);
+  const days = p.dailyDays.filter((d) => d >= from && d <= to && d < p.end);
+  const weekend = days.filter((d) => {
+    const weekday = new Date(dayMs(d)).getUTCDay();
+    return weekday === 0 || weekday === 6;
+  }).length;
+  if (days.length === 0) return null;
+  if (days.length === 1) {
+    return weekend === 0
+      ? "a weekday, so likely high"
+      : "a weekend day, so likely low";
+  }
+  if (weekend === 0) return "all weekdays, so likely high";
+  if (weekend === days.length) return "all weekend days, so likely low";
+  if (2 * weekend > days.length) return "mostly weekend days, so likely low";
+  return null;
+}
+
+// How many owners the trend's table names before "N more owners": fewer
+// than the owner chart's, so what changed follows close behind.
+export const TREND_TOP_OWNERS = 8;
+
 // One row of the owners table: every owner together, an owner, the owners
-// past the top folded, or a bucket of the hours no owner is given. Its
-// figures are per day with data, or per commit (push:main runner-hours over
-// pushes to main), as the table compares; change is B's against A's.
+// past the top folded, while they are listed the row that folds them back
+// (no owners; its figures 0, or null without A), or a bucket of the hours
+// no owner is given. Its figures are per day with data, or per commit
+// (push:main runner-hours over pushes to main), as the table compares;
+// change is B's against A's.
 export interface TrendRow {
   key: string;
   label: string;
   owners: string[];
-  kind: "all" | "owner" | "more" | "bucket";
+  kind: "all" | "owner" | "more" | "less" | "bucket";
   // The sums compared: all runner-hours, or per commit those of pushes to
   // main.
   a: TrendTotals | null;
@@ -537,9 +588,15 @@ export interface TrendRow {
   bPerCommit: number | null;
   // The row's value per day with data (or per commit) in each period.
   series: Float64Array;
-  // With a budget for the row: $ a year, and B's pace a year (per day,
-  // whichever the table compares by) against it.
-  budget: { annual: number; pace: number; ratio: number } | null;
+  // With a budget for the row: $ a year, B's pace a year (per day,
+  // whichever the table compares by) against it, and B's runner-hours with
+  // no rate, which the pace leaves out: under the budget is then uncertain.
+  budget: {
+    annual: number;
+    pace: number;
+    ratio: number;
+    unpriced: number;
+  } | null;
 }
 
 // What the owners are sorted by, a column of the table: A or B per day (or
@@ -577,7 +634,7 @@ export function trendRows(
   highlighted: ReadonlySet<string>,
   sort: TrendSort,
   expanded = false,
-  top: number = TOP_OWNERS,
+  top: number = TREND_TOP_OWNERS,
   per: TrendPer = "day"
 ): TrendRow[] {
   const f = factors(p, rates);
@@ -637,7 +694,8 @@ export function trendRows(
     for (const o of owners) series[o].forEach((v, i) => (s[i] += v));
     for (let i = 0; i < n; i++)
       s[i] = periodDen[i] > 0 ? s[i] / periodDen[i] : 0;
-    const pace = (bDays > 0 ? sum(allB).value / bDays : 0) * inYear;
+    const allBt = sum(allB);
+    const pace = (bDays > 0 ? allBt.value / bDays : 0) * inYear;
     return {
       key,
       label,
@@ -657,7 +715,12 @@ export function trendRows(
       series: s,
       budget:
         dollars && annual !== null
-          ? { annual, pace, ratio: annual > 0 ? pace / annual : Infinity }
+          ? {
+              annual,
+              pace,
+              ratio: annual > 0 ? pace / annual : Infinity,
+              unpriced: allBt.unpriced,
+            }
           : null,
     };
   };
@@ -667,7 +730,7 @@ export function trendRows(
   const rows: TrendRow[] = [
     row(
       "all",
-      "All test hours",
+      "All owners",
       p.owners.map((_, o) => o),
       "all",
       budget?.annual ?? null
@@ -702,8 +765,16 @@ export function trendRows(
         : vx - vy;
     return order || x.name.localeCompare(y.name);
   });
+  // The owners past the top fold into one row, but never just one: a row
+  // of one saves no room and hides a name. Highlighted owners keep their
+  // rows wherever they rank. While every owner is listed, a last row folds
+  // them back.
+  const past = people.filter(
+    ({ name }, i) => i >= top && !highlighted.has(name)
+  ).length;
+  const fold = past >= 2;
   const shown = people.filter(
-    ({ name }, i) => expanded || i < top || highlighted.has(name)
+    ({ name }, i) => !fold || expanded || i < top || highlighted.has(name)
   );
   rows.push(...shown.map((x) => x.row));
   const rest = people.filter((x) => !shown.includes(x));
@@ -711,12 +782,14 @@ export function trendRows(
     rows.push(
       row(
         "more",
-        `${rest.length} more ${rest.length === 1 ? "owner" : "owners"}`,
+        `${rest.length} more owners`,
         rest.map((x) => x.o),
         "more",
         null
       )
     );
+  } else if (fold) {
+    rows.push(row("less", "Show fewer", [], "less", null));
   }
   for (const bucket of Object.keys(BUCKET_LABELS)) {
     const o = p.owners.indexOf(bucket);
@@ -727,6 +800,39 @@ export function trendRows(
     }
   }
   return rows;
+}
+
+// Every owner in the table's order, none folded, then the buckets: the
+// Owner key's menu, and the order its ‹ and › keys step through.
+export function trendOwnerOrder(
+  p: PreparedTrend,
+  rates: RatesFile | null,
+  a: PeriodRange | null,
+  b: PeriodRange,
+  sort: TrendSort,
+  per: TrendPer = "day"
+): string[] {
+  return trendRows(p, rates, a, b, new Set(), sort, true, Infinity, per)
+    .filter((r) => r.kind === "owner" || r.kind === "bucket")
+    .map((r) => r.owners[0]);
+}
+
+// The highlight a ‹ (-1) or › (1) key sets, stepping through the order from
+// the first highlighted owner in it: the owner before or after it, one at a
+// time. From every owner, › takes the first; from the first, ‹ goes back to
+// every owner ([]). Null past either end.
+export function ownerStep(
+  order: readonly string[],
+  highlighted: ReadonlySet<string>,
+  step: 1 | -1
+): string[] | null {
+  const at = order.findIndex((o) => highlighted.has(o));
+  if (step === 1) {
+    const next = order[at + 1];
+    return next === undefined ? null : [next];
+  }
+  if (at > 0) return [order[at - 1]];
+  return highlighted.size > 0 ? [] : null;
 }
 
 // The year to date against the budget, from the daily totals: the $ on the
@@ -799,6 +905,14 @@ export function ownersBudget(
     sum += b;
   }
   return sum;
+}
+
+// A difference as the tables write it: "▲ +2 h", "▼ −$0.25", and "▼ <0.1 h"
+// for a sliver, as changeLabel writes "▼ <1%"; amount labels the size.
+export function deltaLabel(v: number, amount: (_v: number) => string): string {
+  const size = amount(Math.abs(v));
+  const sign = size.startsWith("<") ? "" : v > 0 ? "+" : "−";
+  return `${v > 0 ? "▲" : "▼"} ${sign}${size}`;
 }
 
 // A change as the table writes it: "▲ +23%", "▼ −26%", "▲ <1%" for a
