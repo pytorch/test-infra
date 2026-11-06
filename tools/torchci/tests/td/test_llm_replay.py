@@ -1,8 +1,10 @@
 import math
+from dataclasses import replace
 from unittest import main, TestCase
 
 from torchci.td.llm.events import RankRow
 from torchci.td.llm.replay import (
+    cut_applied,
     cut_position,
     EventReplay,
     FileTimes,
@@ -70,6 +72,15 @@ class TestRanking(TestCase):
         self.assertEqual(cut_position(8), 2)
         self.assertEqual(cut_position(3), 0)
         self.assertEqual(cut_position(400), 100)
+
+    def test_cut_applied_as_run_test_enables_td(self) -> None:
+        base = row({"t0": 1.0}, "t0", 0)
+        self.assertTrue(cut_applied(base))
+        for workflow in ("trunk", "rocm-mi300", "periodic-rocm-mi200"):
+            self.assertTrue(cut_applied(replace(base, workflow=workflow)))
+        self.assertFalse(cut_applied(replace(base, workflow="inductor")))
+        for env in ("macos-py3-arm64", "linux-jammy-xpu-n-py3.10", "linux-onnx"):
+            self.assertFalse(cut_applied(replace(base, build_environment=env)))
 
 
 class TestReplayRow(TestCase):

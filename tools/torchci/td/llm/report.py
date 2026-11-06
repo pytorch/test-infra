@@ -22,17 +22,12 @@ from torchci.td.llm.scoring import AGGREGATIONS
 BASE_MODEL = "qwen3-0.6b"
 SIZE_ONLY = "size-only"
 CORPUS_NAMES = tuple(CORPORA)
-KEPT_MIN = 0.98
-TIME_GROWTH_MAX = 0.05
-MCNEMAR_ALPHA = 0.05
 JOB_OVERHEAD_SECONDS = 180.0
 BUNDLE_DOWNLOAD_BYTES_PER_SECOND = 500 * 10**6
 JOB_MAX_SECONDS = 330.0
 # The upload job's ubuntu-24.04 runner has a 14 GB disk for the downloaded bundle.
 BUNDLE_MAX_BYTES = 12 * 10**9
 BUILD_MAX_MINUTES = 90.0
-DO_NOT_SWITCH_ON = "do not switch on"
-SAMPLE_VERDICT = "model comparison on a sample: not a ship verdict"
 
 
 @dataclass(frozen=True)
@@ -60,6 +55,7 @@ def registry_order() -> list[str]:
 class Metrics(Standalone):
     replay: dict[str, tuple[ReplaySummary, ReplaySummary]] = field(default_factory=dict)
     replay_single: dict[str, ReplaySummary] = field(default_factory=dict)
+    replay_td_off: dict[str, ReplaySummary] = field(default_factory=dict)
 
 
 def metrics_for(
@@ -70,11 +66,15 @@ def metrics_for(
     e1_meta, e2_meta = slice_events(events, slice_name)
     stored = result.get("replay", {})
     single = {k for k, v in e1_meta.items() if v["stack_size"] == 1}
+    td_off = {k for k, v in e2_meta.items() if not v["td_cut"]}
     return Metrics(
         **vars(standalone),
         replay=summaries_for(stored, set(e1_meta), set(e2_meta)),
         replay_single={
             t: s[0] for t, s in summaries_for(stored, single, set()).items()
+        },
+        replay_td_off={
+            t: s[1] for t, s in summaries_for(stored, set(), td_off).items()
         },
     )
 
@@ -135,48 +135,11 @@ def gates(cost: Mapping[str, Any]) -> dict[str, bool]:
     }
 
 
-def _time_ok(summary: ReplaySummary) -> bool:
-    return summary.median_time_change <= TIME_GROWTH_MAX
-
-
-def transform_qualifies(e1: ReplaySummary, e2: ReplaySummary) -> bool:
-    return e2.kept_rate >= KEPT_MIN and _time_ok(e1) and _time_ok(e2)
-
-
-def pick_transform(
-    replay: Mapping[str, tuple[ReplaySummary, ReplaySummary]],
-) -> Optional[str]:
-    """The qualifying transform with the most E1 catches; ties: the smaller time growth."""
-    ok = [(name, s) for name, s in replay.items() if transform_qualifies(*s)]
-    ok.sort(
-        key=lambda x: (
-            -x[1][0].replayed_caught,
-            max(x[1][0].median_time_change, x[1][1].median_time_change),
-            x[0],
-        )
-    )
-    return ok[0][0] if ok else None
-
-
-def ship_checks(e1: ReplaySummary, e2: ReplaySummary) -> dict[str, bool]:
-    significant_loss = e1.lost > e1.gained and e1.mcnemar_p < MCNEMAR_ALPHA
-    return {
-        "e1_caught_at_least_logged": e1.replayed_caught >= e1.logged_caught,
-        "no_significant_e1_loss": not significant_loss,
-        f"e2_kept_at_least_{KEPT_MIN:.0%}": e2.kept_rate >= KEPT_MIN,
-        f"median_cut_time_growth_at_most_{TIME_GROWTH_MAX:.0%}": _time_ok(e1)
-        and _time_ok(e2),
-    }
-
-
 @dataclass
 class Decisions:
     lines: list[str] = field(default_factory=list)
     comparisons: list[Comparison] = field(default_factory=list)
     frozen: Optional[str] = None
-    transform: Optional[str] = None
-    ship: dict[str, bool] = field(default_factory=dict)
-    verdict: str = DO_NOT_SWITCH_ON
 
     def binary(
         self, label: str, keep: Settings, alt: Settings, metrics: Mapping[str, Metrics]
@@ -244,11 +207,9 @@ def decide(
     selection: Mapping[str, Metrics],
     confirmation: Mapping[str, Metrics],
     all_costs: Mapping[str, Mapping[str, Mapping[str, Any]]],
-    sampled: bool = False,
 ) -> Decisions:
-    """`all_costs`: corpus -> model -> measured cost. A sampled run stops before the ship
-    rule: its sample says which model is better, not whether to ship."""
-    d = Decisions(verdict=SAMPLE_VERDICT if sampled else DO_NOT_SWITCH_ON)
+    """`all_costs`: corpus -> model -> measured cost."""
+    d = Decisions()
     settings: Optional[Settings] = Settings(CORPUS_NAMES[0], AGGREGATIONS[0], True)
     rules = [
         ("1. corpus", "corpus", CORPUS_NAMES[1]),
@@ -280,22 +241,4 @@ def decide(
         return d
     d.frozen = settings.id(best)
     d.lines.append(f"   frozen configuration: {d.frozen}.")
-    d.transform = pick_transform(selection[d.frozen].replay)
-    if d.transform is None:
-        d.lines.append(
-            f"5. transform: none keeps >= {KEPT_MIN:.0%} of E2 with a median cut "
-            f"time growth <= {TIME_GROWTH_MAX:.0%}."
-        )
-        return d
-    d.lines.append(f"5. transform: {d.transform}.")
-    if sampled:
-        d.lines.append("6. ship rule: not applied to a sample of PRs.")
-        return d
-    if d.frozen not in confirmation or d.transform not in confirmation[d.frozen].replay:
-        d.lines.append("6. ship rule: the confirmation slice was not measured.")
-        return d
-    d.ship = ship_checks(*confirmation[d.frozen].replay[d.transform])
-    if all(d.ship.values()):
-        d.verdict = f"switch on {d.frozen} with transform {d.transform}"
-    d.lines.append(f"6. ship rule on the confirmation slice: {d.ship} -> {d.verdict}.")
     return d

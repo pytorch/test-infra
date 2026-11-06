@@ -51,6 +51,19 @@ def cut_position(n: int) -> int:
     return CUT_PERCENT * n // 100
 
 
+def cut_applied(row: RankRow) -> bool:
+    """Whether the job's tests were cut to TD's selection, as `run_test.py`'s `--enable-td`
+    default decides for a PR job. Where it was, a test outside the cut never ran, so only
+    failures inside the cut can be observed. Jobs with TD off for reasons no row field
+    shows (a `ci-no-td` label, `force-no-td`, `TESTS_TO_INCLUDE`, empty TD results) count
+    as cut."""
+    env = row.build_environment
+    return (
+        row.workflow in ("trunk", "pull")
+        or row.workflow.startswith(("rocm-", "periodic-rocm-"))
+    ) and not any(s in env for s in ("macos", "xpu", "onnx"))
+
+
 def ranked(all_scores: Mapping[str, float], part: Mapping[str, float]) -> list[str]:
     new = {k: v + part.get(test_file_of(k), 0.0) for k, v in all_scores.items()}
     return sorted(new, key=lambda k: (-new[k], k))

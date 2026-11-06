@@ -9,7 +9,7 @@ import numpy as np
 AGGREGATIONS = ("max", "mean")
 TRANSFORMS = ("raw", "top_quarter", "rank")
 AGGREGATION = "max"
-TRANSFORM = "rank"
+TRANSFORM = "top_quarter"
 # TD runs the top quarter of a job's ranked tests (pytorch test/run_test.py,
 # percent_to_run = 25).
 TD_CUT_FRACTION = 0.25

@@ -114,9 +114,10 @@ on main itself. Where it differs from TD, it diffs against main instead:
 
 ## The evaluation harness
 
-The harness answers which model, corpus, aggregation, query instruction and transform to
-ship, and whether shipping beats today. The replay adds the new part to each logged TD
-score, as `llm.py` would weigh it, and subtracts nothing. That is valid only for rankings
+The harness answers which model, corpus, aggregation and query instruction give the best
+signal for their cost, and shows what the LLM part does inside TD's current sum. The replay
+adds the new part to each logged TD score, as `llm.py` would weigh it, and subtracts
+nothing. That is valid only for rankings
 logged while no LLM part reached TD: the old retriever's artifact upload had failed for
 months, and no v2 bundle existed before `replay.NO_LLM_PART_BEFORE`. A ranking logged after
 the first v2 bundle holds the shipped LLM part, which the replay would have to subtract,
@@ -165,12 +166,16 @@ intervals (seed 0, 10,000 resamples) over PRs:
    incumbent only if it is superior, not worse on E1, and ahead on the confirmation slice
    too; the pick must be within the gates (estimated per-PR job <= 330 s, bundle <= 12 GB
    for the upload runner's 14 GB disk, nightly build <= 90 min on 16 vCPUs);
-5. transform: among those keeping >= 98% of the E2 failures TD caught with a median cut
-   test-time growth <= 5%, the one with the most E1 catches;
-6. ship rule, on the confirmation slice (events from 2026-10-01): E1 caught at least as
-   often as logged with no significant McNemar loss, E2 kept >= 98%, median cut test time
-   +5% at most. Otherwise the report says "do not switch on". Single-commit landings get
-   their own E1 replay line.
+The report names the picked configuration. The replay inside TD's aggregate is reported
+per transform, for information, and picks nothing: E1 caught, logged against replayed,
+with McNemar (single-commit landings get their own line); the E2 kept rate; and the cut's
+estimated test time. Where TD cut a job's tests, a test outside the cut never ran, so
+those E2 failures lie mostly inside the logged cut and can show losses but hardly any
+gains. The E2 TD-off columns count only failures from jobs without the cut (macOS, XPU
+and ONNX jobs, `replay.cut_applied`), where every test ran: that is the unbiased E2
+replay, and `scoring.TRANSFORM` was chosen on it. Jobs with TD off for reasons no row
+shows (a PR's `ci-no-td` label, `force-no-td` jobs, workflows passing `tests-to-include`,
+empty TD results) count as cut, so the TD-off columns cover a subset of the unbiased jobs.
 
 ### Running it
 
@@ -232,5 +237,5 @@ memory cap (an 8B model takes about 16 GB per process). Embeddings are cached by
 revision, kind, prompt, token limit and text, written as each shard of 256 texts completes,
 so a rerun resumes where it stopped. Only one harness process may use a cache directory at
 a time. `--sample-prs N --seed S` scores a sample of E2 PRs (for smoke runs) and keeps its
-results apart, under `$CACHE/results/sample-N-seed-S/`; its report compares models but
-never gives a ship verdict.
+results apart, under `$CACHE/results/sample-N-seed-S/`, and its report says it compares
+models on a sample.

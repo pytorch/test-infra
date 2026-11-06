@@ -98,9 +98,11 @@ TEST_FILES = {
 }
 
 
-# From origin/main (c1) the diff changes both alpha and beta equally, so the single
-# top-quarter file may be either, depending on floating-point summation order.
-ALPHA_OR_BETA = ("test_alpha.py", "test_beta.py")
+# From origin/main (c1) the diff changes alpha and beta equally, so they tie at the top.
+# top_quarter keeps only files strictly above the 75th percentile: the mapping is empty
+# when the tie is exact, or holds the one that floating-point summation order puts above
+# the other (seen in CI); never an unchanged file.
+ALPHA_OR_BETA = {"test_alpha.py", "test_beta.py"}
 
 
 class LlmCliTestCase(TestCase):
@@ -221,8 +223,7 @@ class TestRetrieve(LlmCliTestCase):
         rc, mapping = self.run_retrieve()
         self.assertEqual(rc, 0, self.stderr)
         self.assertIn(retrieve.STALE_BUNDLE_WARNING, self.stdout.splitlines())
-        self.assertEqual(len(mapping), 1)
-        self.assertIn(next(iter(mapping)), ALPHA_OR_BETA)
+        self.assertLessEqual(set(mapping), ALPHA_OR_BETA)
 
     def test_bundle_age(self) -> None:
         now = datetime.datetime(2026, 11, 4, tzinfo=datetime.timezone.utc)
@@ -331,8 +332,7 @@ class TestRetrieve(LlmCliTestCase):
             rc, mapping = self.run_retrieve("--pr-number", "7", "--base-ref=-x")
         self.assertEqual(rc, 0, self.stderr)
         self.assertEqual(self.base, self.c1)
-        self.assertEqual(len(mapping), 1)
-        self.assertIn(next(iter(mapping)), ALPHA_OR_BETA)
+        self.assertLessEqual(set(mapping), ALPHA_OR_BETA)
         self.assertIn("'-x'", "\n".join(logs.output))
 
 

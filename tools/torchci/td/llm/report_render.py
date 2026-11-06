@@ -41,6 +41,12 @@ NOTES = [
     "The replay adds the new LLM part to TD's logged scores and subtracts nothing, which "
     f"holds for rankings logged before {NO_LLM_PART_BEFORE}, when no LLM part reached TD; "
     "later events are left out of the replay.",
+    "The replay is information only: it shows what the LLM part does inside TD's current "
+    "fixed-weight sum, and picks nothing. Where TD cut a job's tests, a test outside the "
+    "cut never ran, so those E2 failures lie mostly inside the logged cut and the replay "
+    "can show losses but hardly any gains. The E2 TD-off columns count only failures from "
+    "jobs without the cut (macOS, XPU and ONNX jobs), where every test ran; jobs with TD "
+    "off for other reasons (a ci-no-td label, force-no-td, tests-to-include) count as cut.",
 ]
 STANDALONE_COLUMNS = (
     "config|E1 caught|E1 single-commit|E2 PR recall@25%|not edited (primary)"
@@ -48,7 +54,8 @@ STANDALONE_COLUMNS = (
 )
 REPLAY_COLUMNS = (
     "config|transform|E1 logged|E1 replayed|gained/lost|McNemar p"
-    "|E1 single-commit logged/replayed|E2 kept|E1 time growth|E2 time growth|dropped rows"
+    "|E1 single-commit logged/replayed|E2 kept|E2 TD-off logged/replayed (events)"
+    "|E2 TD-off gained/lost|E1 time growth|E2 time growth|dropped rows"
 )
 COST_COLUMNS = (
     "model|parameters|bundle GB|peak RSS GB|per-PR s (p50)|est. job s|corpus tokens/s"
@@ -84,6 +91,7 @@ def _replay_rows(config: str, m: Metrics) -> list[list[Any]]:
     rows = []
     for t, (e1, e2) in sorted(m.replay.items()):
         single: ReplaySummary = m.replay_single[t]
+        off: ReplaySummary = m.replay_td_off[t]
         rows.append(
             [
                 config,
@@ -94,6 +102,8 @@ def _replay_rows(config: str, m: Metrics) -> list[list[Any]]:
                 e1.mcnemar_p,
                 f"{single.logged_caught}/{single.replayed_caught} ({single.events})",
                 e2.kept_rate,
+                f"{off.logged_caught}/{off.replayed_caught} ({off.events})",
+                f"{off.gained}/{off.lost}",
                 e1.median_time_change,
                 e2.median_time_change,
                 e1.dropped_rows + e2.dropped_rows,
@@ -129,21 +139,30 @@ def build(
     by_slice = {
         s: {i: metrics_for(r, events, s) for i, r in results.items()} for s in SLICES
     }
-    d = decide(by_slice["selection"], by_slice["confirmation"], costs, sampled)
+    d = decide(by_slice["selection"], by_slice["confirmation"], costs)
     widths = ", ".join(
         f"{c.candidate} vs {c.incumbent} {c.interval.width:.3f} ({c.interval.n} PRs)"
         for c in d.comparisons
     )
-    md = ["# LLM TD heuristic: evaluation report", "", f"**Verdict: {d.verdict}.**"]
+    picked = (
+        f"Picked configuration: {d.frozen}." if d.frozen else "No configuration picked."
+    )
+    if sampled:
+        picked += " Model comparison on a sample of PRs."
+    md = ["# LLM TD heuristic: evaluation report", "", f"**{picked}**"]
     md += ["", "## Data", ""] + [f"- {k}: {_fmt(v)}" for k, v in sorted(data.items())]
     md += ["", "## Decisions", ""] + [f"    {line}" for line in d.lines]
     md += ["", f"Interval widths reached: {widths or 'none'}."]
-    out: dict[str, Any] = {"standalone": {}, "replay": {}}
+    out: dict[str, Any] = {"standalone": {}, "replay": {}, "replay_td_off": {}}
     for s in SLICES:
         metrics = sorted(by_slice[s].items())
         out["standalone"][s] = {i: m.row() for i, m in metrics}
         out["replay"][s] = {
             i: {t: [e1.to_json(), e2.to_json()] for t, (e1, e2) in m.replay.items()}
+            for i, m in metrics
+        }
+        out["replay_td_off"][s] = {
+            i: {t: e2.to_json() for t, e2 in m.replay_td_off.items()}
             for i, m in metrics
         }
         rows = [
@@ -164,15 +183,13 @@ def build(
     md += ["", "## Cost per candidate (16 threads)", ""] + _table(COST_COLUMNS, rows)
     md += ["", "## Notes", ""] + [f"- {n}" for n in NOTES] + [""]
     out.update(
-        verdict=d.verdict,
+        picked=picked,
         decisions=d.lines,
         comparisons=[
             {**asdict(c), "width": c.interval.width, "beats": c.beats}
             for c in d.comparisons
         ],
         frozen=d.frozen,
-        transform=d.transform,
-        ship=d.ship,
         costs={
             k: {m: {**c, "gates": gates(c)} for m, c in cs.items()}
             for k, cs in costs.items()

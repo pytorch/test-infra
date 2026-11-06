@@ -1,5 +1,4 @@
 import json
-import math
 from unittest import main, TestCase
 
 from torchci.td.llm import report, report_render
@@ -135,41 +134,6 @@ class TestModelRule(TestCase):
         self.assertFalse(report.gates(cost(tokens=6 * 10**6))["build"])
 
 
-class TestTransformAndShip(TestCase):
-    def test_pick_most_e1_catches_then_smaller_time_growth(self) -> None:
-        replay = {
-            "raw": (summary(caught=14), summary(kept=0.97)),
-            "top_quarter": (summary(caught=12, time=0.04), summary()),
-            "rank": (summary(caught=12, time=0.01), summary(time=0.02)),
-        }
-        self.assertEqual(report.pick_transform(replay), "rank")
-
-    def test_no_transform_qualifies(self) -> None:
-        replay = {
-            "raw": (summary(), summary(kept=0.5)),
-            "rank": (summary(time=0.06), summary()),
-        }
-        self.assertIsNone(report.pick_transform(replay))
-        self.assertIsNone(
-            report.pick_transform({"rank": (summary(time=math.nan), summary())})
-        )
-
-    def test_ship_checks(self) -> None:
-        self.assertTrue(all(report.ship_checks(*GOOD).values()))
-        failing = report.ship_checks(
-            summary(caught=8, gained=1, lost=9, p=0.02), summary(kept=0.9)
-        )
-        self.assertEqual(
-            failing,
-            {
-                "e1_caught_at_least_logged": False,
-                "no_significant_e1_loss": False,
-                "e2_kept_at_least_98%": False,
-                "median_cut_time_growth_at_most_5%": True,
-            },
-        )
-
-
 def full(sel_replay=None, conf_replay=None):
     sel, conf = {}, {}
     for corpus in report.CORPUS_NAMES:
@@ -185,38 +149,15 @@ COSTS = {SKELETON: {SMALL: cost(1.2), BIG8: cost(11.0)}}
 
 
 class TestDecide(TestCase):
-    def test_ship_rule_passes(self) -> None:
+    def test_picks_the_configuration_whatever_the_replay(self) -> None:
         sel, conf = full()
         d = report.decide(sel, conf, COSTS)
         self.assertEqual(d.frozen, cid())
-        self.assertEqual(d.transform, "rank")
-        self.assertEqual(d.verdict, f"switch on {cid()} with transform rank")
+        self.assertEqual(d.lines[-1], f"   frozen configuration: {cid()}.")
         self.assertEqual(len(d.comparisons), 4)
-
-    def test_ship_rule_fails_on_confirmation(self) -> None:
-        sel, conf = full(
-            conf_replay={"rank": (summary(caught=8, gained=0, lost=2), summary())}
-        )
-        d = report.decide(sel, conf, COSTS)
-        self.assertEqual(d.verdict, report.DO_NOT_SWITCH_ON)
-        self.assertFalse(d.ship["e1_caught_at_least_logged"])
-
-    def test_no_transform_means_do_not_switch_on(self) -> None:
-        sel, conf = full(sel_replay={"rank": (summary(), summary(kept=0.9))})
-        d = report.decide(sel, conf, COSTS)
-        self.assertIsNone(d.transform)
-        self.assertEqual(d.verdict, report.DO_NOT_SWITCH_ON)
-        self.assertEqual(d.ship, {})
-
-    def test_a_sample_never_gets_a_ship_verdict(self) -> None:
-        sel, conf = full()
-        d = report.decide(sel, conf, COSTS, sampled=True)
-        self.assertEqual((d.frozen, d.transform), (cid(), "rank"))
-        self.assertEqual((d.verdict, d.ship), (report.SAMPLE_VERDICT, {}))
-        sel, conf = full(sel_replay={"rank": (summary(), summary(kept=0.9))})
-        self.assertEqual(
-            report.decide(sel, conf, COSTS, sampled=True).verdict, report.SAMPLE_VERDICT
-        )
+        losing = {"rank": (summary(caught=8, lost=2), summary(kept=0.5))}
+        sel, conf = full(sel_replay=losing, conf_replay=losing)
+        self.assertEqual(report.decide(sel, conf, COSTS).frozen, cid())
 
     def test_model_rule_reads_the_picked_corpus_costs(self) -> None:
         sel, conf = full()
@@ -245,7 +186,6 @@ class TestDecide(TestCase):
 
     def test_base_config_missing(self) -> None:
         d = report.decide({}, {}, COSTS)
-        self.assertEqual(d.verdict, report.DO_NOT_SWITCH_ON)
         self.assertIsNone(d.frozen)
 
 
@@ -257,8 +197,24 @@ class TestBuild(TestCase):
                 "L2": {"date": "2026-10-02", "stack_size": 2},
             },
             "e2": {
-                "5:test_a": {"date": "2026-09-02", "pr": 5, "edited": False},
-                "6:test_b": {"date": "2026-10-03", "pr": 6, "edited": True},
+                "5:test_a": {
+                    "date": "2026-09-02",
+                    "pr": 5,
+                    "edited": False,
+                    "td_cut": True,
+                },
+                "6:test_b": {
+                    "date": "2026-10-03",
+                    "pr": 6,
+                    "edited": True,
+                    "td_cut": True,
+                },
+                "7:test_c": {
+                    "date": "2026-09-03",
+                    "pr": 7,
+                    "edited": False,
+                    "td_cut": False,
+                },
             },
         }
         stored_replay = {
@@ -271,22 +227,29 @@ class TestBuild(TestCase):
                         "key": "5:test_a",
                         "rows": [[2, True, True, 10.0, 10.2]],
                         "dropped": 1,
-                    }
+                    },
+                    {
+                        "key": "7:test_c",
+                        "rows": [[3, False, True, 10.0, 10.0]],
+                        "dropped": 0,
+                    },
                 ],
             }
         }
         result = {
             "e1": {"L1": 0.1, "L2": 0.6},
-            "e2": {"5:test_a": 0.2, "6:test_b": 0.3},
+            "e2": {"5:test_a": 0.2, "6:test_b": 0.3, "7:test_c": 0.1},
             "replay": stored_replay,
             "missing": 1,
         }
         costs = {SKELETON: {SMALL: cost(1.2)}}
         md, out = report_render.build({cid(): result}, events, costs, {"e2_events": 2})
-        self.assertIn(f"Verdict: {report.DO_NOT_SWITCH_ON}", md)
+        self.assertIn(f"**Picked configuration: {cid()}.**", md)
+        self.assertEqual(out["picked"], f"Picked configuration: {cid()}.")
         self.assertIn("pilot looked at events through 2026-11-04", md)
         self.assertIn("| rank | 0/1 | 1 | 1/0 |", md)
-        self.assertIn("| 0/1 (1) |", md)
+        self.assertIn("| 0/1 (1) | 1.000 | 0/1 (1) | 1/0 |", md)
+        self.assertEqual(out["replay_td_off"]["selection"][cid()]["rank"]["gained"], 1)
         sel = out["standalone"]["selection"][cid()]
         self.assertEqual(
             (sel["e1_caught"], sel["e1_single_caught"], sel["primary"]), (1, 1, 1.0)
@@ -295,7 +258,9 @@ class TestBuild(TestCase):
         self.assertEqual(out["replay"]["selection"][cid()]["rank"][0]["gained"], 1)
         self.assertNotIn("NaN", json.dumps(out, allow_nan=False))
         md, out = report_render.build({cid(): result}, events, costs, {}, sampled=True)
-        self.assertIn(f"Verdict: {report.SAMPLE_VERDICT}", md)
+        self.assertIn("Model comparison on a sample of PRs.", md)
+        md, out = report_render.build({}, events, costs, {})
+        self.assertIn("**No configuration picked.**", md)
 
 
 if __name__ == "__main__":

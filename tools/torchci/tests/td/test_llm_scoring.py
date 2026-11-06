@@ -93,6 +93,14 @@ class TestTransform(TestCase):
         scores = {"a": float("nan"), "b": float("inf"), "c": 0.2, "d": 0.1}
         self.assertEqual(scoring.transform(scores, "rank"), {"c": 1.0})
         self.assertEqual(scoring.transform(scores, "raw"), {"c": 0.2, "d": 0.1})
+        result = scoring.transform(scores, "top_quarter")
+        self.assertEqual(list(result), ["c"])
+        self.assertAlmostEqual(result["c"], 0.025)
+
+    def test_top_quarter_tie_at_the_top_keeps_nothing(self) -> None:
+        self.assertEqual(scoring.transform({"a": 1.0, "b": 1.0}, "top_quarter"), {})
+        scores = {"a": 0.9, "b": 0.9, "c": 0.1, "d": 0.2}
+        self.assertEqual(scoring.transform(scores, "top_quarter"), {})
 
     def test_empty(self) -> None:
         for kind in scoring.TRANSFORMS:

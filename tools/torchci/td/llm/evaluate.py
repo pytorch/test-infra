@@ -110,6 +110,7 @@ def prepare(args: argparse.Namespace, snap: events.Snapshot) -> Prepared:
                 "date": e.failed_at[:10],
                 "pr": e.pr_number,
                 "edited": edited[e2_id(e)],
+                "td_cut": replay.cut_applied(e.row),
             }
             for e in e2
         },
@@ -125,6 +126,9 @@ def prepare(args: argparse.Namespace, snap: events.Snapshot) -> Prepared:
         "E2 PRs evaluated": len({e.pr_number for e in e2}),
         "E2 events skipped (sample, base, commits or diff)": len(snap.e2) - len(e2),
         "E2 events whose PR edits the failing file": sum(edited.values()),
+        "E2 events from jobs without TD's cut (every test ran)": sum(
+            not replay.cut_applied(e.row) for e in e2
+        ),
         "PR sample": f"{args.sample_prs} PRs, seed {args.seed}"
         if args.sample_prs
         else "all",
@@ -298,7 +302,7 @@ def write_report(args: argparse.Namespace, out_dir: Path) -> None:
     )
     args.out.write_text(markdown)
     args.out.with_suffix(".json").write_text(json.dumps(out, indent=2, sort_keys=True))
-    logger.info("wrote %s: %s", args.out, out["verdict"])
+    logger.info("wrote %s: %s", args.out, out["picked"])
 
 
 def run(args: argparse.Namespace) -> None:

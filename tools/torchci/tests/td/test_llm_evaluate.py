@@ -133,11 +133,15 @@ class EvaluateTest(TestCase):
         self.assertIn(f"{self.base}...{self.pr1}", prep.diffs)
         self.assertTrue(prep.meta["e2"]["1:test_a"]["edited"])
         self.assertFalse(prep.meta["e2"]["2:test_b"]["edited"])
+        self.assertTrue(prep.meta["e2"]["1:test_a"]["td_cut"])
         self.assertEqual(
             prep.meta["e1"][self.landing], {"date": "2026-09-01", "stack_size": 1}
         )
         data = prep.data
         self.assertEqual(data["E2 events skipped (sample, base, commits or diff)"], 1)
+        self.assertEqual(
+            data["E2 events from jobs without TD's cut (every test ran)"], 0
+        )
         cutoff = NO_LLM_PART_BEFORE
         self.assertEqual(
             data[f"E1 ranking rows left out of the replay (logged from {cutoff})"], 2
