@@ -834,7 +834,6 @@ async function filterContained(
   repo: string,
   subjectRef: string,
   nodes: StackPrNode[],
-  refOf: (_node: StackPrNode) => string,
   direction: StackDirection
 ): Promise<StackPrNode[]> {
   if (nodes.length === 0) {
@@ -854,8 +853,8 @@ ${fields.join("\n")}
   nodes.forEach((node, i) => {
     const [lower, upper] =
       direction === "above"
-        ? [subjectRef, refOf(node)]
-        : [refOf(node), subjectRef];
+        ? [subjectRef, node.headRefName]
+        : [node.headRefName, subjectRef];
     variables[`b${i}`] = `refs/heads/${lower}`;
     variables[`h${i}`] = `refs/heads/${upper}`;
   });
@@ -865,15 +864,16 @@ ${fields.join("\n")}
   );
 }
 
-const ghstackOrigRef = (headRef: string) => headRef.replace(/\/head$/, "/orig");
-
 /**
- * The open same-repo PRs above or below a PR in its stack, nearest first,
- * that contain the PR's current changes (above) or whose current changes the
- * PR contains (below): a ghstack (head ref gh/<user>/<n>/head and ghstack's
- * listing in the body; containment of the gh/<user>/<n>/orig branches) or a
- * GitHub-native stack (the `stack` field of the pull_request object;
- * containment of the head branches). A cross-repository PR is never stacked.
+ * The open same-repo PRs above or below a PR in its stack, nearest first.
+ * For a ghstack (head ref gh/<user>/<n>/head), the PRs of the same ghstack
+ * user in the listing in the body, in the listing's order, trusted as is:
+ * at the pull_request.edited event that fills the listing in, the
+ * gh/<user>/<n>/orig branches read through the API are often missing or
+ * stale, so they cannot confirm the order. For a GitHub-native stack (the
+ * `stack` field of the pull_request object), the entries that contain the
+ * PR's current changes (above) or whose current changes the PR contains
+ * (below), by comparing head branches. A cross-repository PR is never stacked.
  * "pending" means ghstack has not filled the listing in yet.
  */
 export async function getOpenStackPrs(
@@ -893,7 +893,6 @@ export async function getOpenStackPrs(
     return { kind: "none" };
   }
   let nodes: StackPrNode[];
-  let refOf: (_headRef: string) => string;
   const user = pr.headRef.match(GHSTACK_HEAD_REF)?.[1];
   if (user !== undefined) {
     const listing = parseGhstackListing(pr.body, pr.number);
@@ -907,7 +906,6 @@ export async function getOpenStackPrs(
       user,
       listing[direction]
     );
-    refOf = ghstackOrigRef;
   } else if (pr.stack) {
     if (
       (direction === "above" && pr.stack.position >= pr.stack.size) ||
@@ -925,22 +923,19 @@ export async function getOpenStackPrs(
     if (native === null) {
       return { kind: "none" };
     }
-    nodes = native;
-    refOf = (headRef) => headRef;
+    nodes = await filterContained(
+      octokit,
+      owner,
+      repo,
+      pr.headRef,
+      native,
+      direction
+    );
   } else {
     return { kind: "none" };
   }
-  const contained = await filterContained(
-    octokit,
-    owner,
-    repo,
-    refOf(pr.headRef),
-    nodes,
-    (node) => refOf(node.headRefName),
-    direction
-  );
   const prs: StackPr[] = [];
-  for (const node of contained) {
+  for (const node of nodes) {
     prs.push(await toStackPr(octokit, owner, repo, node));
   }
   return { kind: "stack", prs };

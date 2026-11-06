@@ -86,16 +86,12 @@ function mockReads(
     scope.post("/graphql").reply(500, { message: "boom" });
   } else if (below.length) {
     const nodes: any = {};
-    const compare: any = {};
     below.forEach((pr, i) => {
       nodes[`pr${i}`] = prNode(pr);
-      compare[`c${i}`] = { compare: { behindBy: 0, status: "AHEAD" } };
     });
     scope
       .post("/graphql", (body) => body.query.includes("StackPrFields"))
-      .reply(200, { data: { repository: nodes } })
-      .post("/graphql", (body) => body.query.includes("compare("))
-      .reply(200, { data: { repository: compare } });
+      .reply(200, { data: { repository: nodes } });
   }
   return scope;
 }
