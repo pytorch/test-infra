@@ -753,11 +753,13 @@ export function dayMarks(commits: readonly RunGridCommit[]): DayMark[] {
 
 // The columns' geometry for a plot with the given room: each commit a step
 // apart, with a cell no wider than a comfortable square, the rest of the
-// step a gap. A cell is never narrower than MIN_CELL_WIDTH: when the
-// commits would need less, the step holds at that cell and a pixel of gap
-// and the plot grows past the room, to scroll sideways under the fixed
-// columns (a cell under three pixels lost its whole width to its edge and
-// drew nothing, so a pull request week, some 1,400 commits, was blank).
+// step a gap, the columns PLOT_INSET in from each end of the plot (the
+// plot's width counts both insets). A cell is never narrower than
+// MIN_CELL_WIDTH: when the commits would need less, the step holds at that
+// cell and a pixel of gap and the plot grows past the room, to scroll
+// sideways under the fixed columns (a cell under three pixels lost its
+// whole width to its edge and drew nothing, so a pull request week, some
+// 1,400 commits, was blank).
 const MAX_CELL_WIDTH = 14;
 export const MIN_CELL_WIDTH = 4;
 
@@ -768,7 +770,7 @@ export function columnLayout(
   if (columns === 0 || room <= 0) {
     return { step: 0, gap: 0, cellWidth: 0, plotWidth: Math.max(0, room) };
   }
-  const fitted = room / columns;
+  const fitted = (room - 2 * PLOT_INSET) / columns;
   const narrowest = MIN_CELL_WIDTH + 1;
   const step = Math.max(fitted, narrowest);
   const gap = step >= 6 ? 2 : 1;
@@ -780,8 +782,32 @@ export function columnLayout(
     step,
     gap,
     cellWidth,
-    plotWidth: fitted >= narrowest ? room : columns * narrowest,
+    plotWidth:
+      fitted >= narrowest ? room : columns * narrowest + 2 * PLOT_INSET,
   };
+}
+
+// A column's left edge in the plot's own coordinates, the first PLOT_INSET
+// in from the plot's left edge.
+export function columnLeft(column: number, step: number): number {
+  return PLOT_INSET + Math.round(column * step);
+}
+
+// The column at an offset into the plot, as columnLeft draws them: each
+// column from its left edge to the next one's, the last to where another
+// would stand; none in the insets.
+export function columnAt(
+  offset: number,
+  step: number,
+  columns: number
+): number | null {
+  if (step === 0) return null;
+  // The step's own boundary, then a column over where the rounding of the
+  // edges moved it, which is never by more than half a pixel.
+  let column = Math.floor((offset - PLOT_INSET) / step);
+  if (columnLeft(column + 1, step) <= offset) column += 1;
+  else if (columnLeft(column, step) > offset) column -= 1;
+  return column >= 0 && column < columns ? column : null;
 }
 
 // A cell is a pill: its corners are rounded by half its shorter side, so a
@@ -793,6 +819,11 @@ export function cellRadius(cellWidth: number, cellHeight: number): number {
 // How far a cell grows on every side while the pointer is over it, drawn
 // over its neighbors.
 export const CELL_HOVER_GROWTH = 2;
+
+// How far the plot reaches past its first and last columns: as far as the
+// cell under the pointer grows, so a cell at either end grows whole instead
+// of being cut by the drawing's edge.
+export const PLOT_INSET = CELL_HOVER_GROWTH;
 
 // A cell's edge is one pixel wide and drawn inside its box, so it does not
 // eat the gap to the next cell: the rectangle the edge is drawn on is the
@@ -946,7 +977,8 @@ export interface GridColumns {
   // The rules between the header's columns: after the labels and after the
   // outcomes.
   rules: number[];
-  // Where the commits begin.
+  // Where the plot begins: PLOT_INSET before its first column, which
+  // stands the plot gap after the outcomes.
   plotX: number;
 }
 
@@ -999,7 +1031,7 @@ export function gridColumns(
       )
     ),
     rules: [labelWidth, outcomesRight],
-    plotX: outcomesRight + GRID_SIZES.plotGap,
+    plotX: outcomesRight + GRID_SIZES.plotGap - PLOT_INSET,
   };
 }
 

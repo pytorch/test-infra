@@ -40,8 +40,10 @@ import {
   CellStatus,
   cellTime,
   changeLabel,
+  columnAt,
   columnCommits,
   columnLayout,
+  columnLeft,
   commitSearch,
   commitSearchMessage,
   COUNT_COLUMNS,
@@ -75,6 +77,7 @@ import {
   outcomeSwatchStatus,
   panelPath,
   passedEventually,
+  PLOT_INSET,
   Stretch,
   stretchAtColumn,
   stretchLabel,
@@ -194,8 +197,8 @@ function LaneCardLines({ row }: { row: GridLaneRow }) {
 }
 
 // What the pointer is over, read from the plot's own coordinates: the plot
-// scrolls as a whole, so its left edge is the first column's wherever it
-// stands.
+// scrolls as a whole, so the pointer's offset from its left edge is one
+// into the plot wherever it stands.
 function hoverAt(
   event: ReactMouseEvent<SVGSVGElement>,
   step: number,
@@ -203,11 +206,9 @@ function hoverAt(
   laneRows: GridLaneRow[]
 ): Hover | null {
   const rect = event.currentTarget.getBoundingClientRect();
-  const x = event.clientX - rect.left;
+  const column = columnAt(event.clientX - rect.left, step, columns);
+  if (column === null) return null;
   const y = event.clientY - rect.top;
-  if (x < 0 || step === 0) return null;
-  const column = Math.floor(x / step);
-  if (column < 0 || column >= columns) return null;
   const laneIndex = laneRows.findIndex(
     (row) => y >= row.top && y < row.top + row.height
   );
@@ -463,7 +464,7 @@ export default function RunGrid({
   );
   const scrollable = plotWidth > room;
   // A column's left edge in the plot's own coordinates.
-  const x = (column: number) => Math.round(column * step);
+  const x = (column: number) => columnLeft(column, step);
   // Where a point of the plot stands in the table while the plot is
   // scrolled, for the card and the footer's pills.
   const viewX = (plot: number) => plotX + plot - scrollLeft;
@@ -518,8 +519,9 @@ export default function RunGrid({
     }
   }, [groups, labelWidth, expandedLanes, width]);
 
-  // The card and the pill are placed by their size, read once drawn, and
-  // by where the drawing stands in the viewport.
+  // The card and the pills are placed by their size, read once drawn, and
+  // by where the drawing stands in the viewport; the found commit's pill is
+  // drawn with the grid, before the pointer has moved.
   useIsomorphicLayoutEffect(() => {
     const tooltip = tooltipRef.current?.offsetWidth ?? 0;
     const tooltipHeight = tooltipRef.current?.offsetHeight ?? 0;
@@ -535,7 +537,7 @@ export default function RunGrid({
     ) {
       setOverlay({ tooltip, tooltipHeight, pill, pinned, svgTop });
     }
-  }, [hover, overlay, query]);
+  }, [hover, overlay, query, grid, width]);
 
   // The pointer may still stand where a lane or a column of the grid shown
   // last was when a new grid takes its place; nothing is over it then.
@@ -667,7 +669,7 @@ export default function RunGrid({
     if (scroller === null || pinnedColumn === null) return;
     scroller.scrollLeft = Math.max(
       0,
-      Math.round(pinnedColumn * step) + cellWidth / 2 - room / 2
+      columnLeft(pinnedColumn, step) + cellWidth / 2 - room / 2
     );
   }, [pinnedColumn, step, cellWidth, room]);
   // The configuration the reader came for, named in the URL by the list's
@@ -736,12 +738,13 @@ export default function RunGrid({
   const handleFooterMove = (event: ReactMouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     // Into the plot, which scrolls under the strip's fixed left part.
-    const across = event.clientX - rect.left - plotX + scrollLeft;
-    const column = step === 0 ? -1 : Math.floor(across / step);
+    const column = columnAt(
+      event.clientX - rect.left - plotX + scrollLeft,
+      step,
+      commits.length
+    );
     const next: Hover | null =
-      across < 0 || column < 0 || column >= commits.length
-        ? null
-        : { column, laneIndex: null, part: "pills" };
+      column === null ? null : { column, laneIndex: null, part: "pills" };
     if (
       (next === null) !== (hover === null) ||
       (next !== null &&
@@ -765,8 +768,10 @@ export default function RunGrid({
 
   const cellCenter =
     hover === null ? 0 : viewX(x(hover.column) + cellWidth / 2);
+  // An overlay centred on a point, kept between the first column and the
+  // table's right edge.
   const clamp = (value: number, size: number) =>
-    Math.max(plotX + size / 2, Math.min(width - size / 2, value));
+    Math.max(plotX + PLOT_INSET + size / 2, Math.min(width - size / 2, value));
 
   // What stands under the header: the error, the skeleton before any grid
   // has arrived, the empty sentence, or the rows, the grid shown last while
@@ -1945,8 +1950,9 @@ export default function RunGrid({
           >
             Outcomes
           </HeaderTitle>
+          {/* Over the first column, past the plot's inset. */}
           <HeaderTitle
-            sx={{ left: plotX, transform: "translateY(-50%)" }}
+            sx={{ left: plotX + PLOT_INSET, transform: "translateY(-50%)" }}
             title={descriptions.runs}
           >
             Runs
