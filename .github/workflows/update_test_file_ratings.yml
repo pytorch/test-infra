@@ -3,6 +3,7 @@ name: Update test file ratings for TD Heuristics
 on:
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
@@ -63,47 +64,46 @@ jobs:
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
 
-      - name: Push file to test file correlations to test-infra repository
+      - name: Checkout generated-stats branch
         if: github.event_name != 'pull_request'
-        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          source_file: "file_test_rating.json"
-          destination_repo: "pytorch/test-infra"
-          destination_folder: "stats"
-          destination_branch: generated-stats
-          user_email: "test-infra@pytorch.org"
-          user_name: "Pytorch Test Infra"
-          commit_message: "Updating file to test file correlations"
+          ref: generated-stats
+          path: generated-stats
+          fetch-depth: 1
 
-      - name: Push file to test class correlations to test-infra repository
+      - name: Push TD heuristic files to generated-stats
         if: github.event_name != 'pull_request'
-        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          source_file: "file_test_class_rating.json"
-          destination_repo: "pytorch/test-infra"
-          destination_folder: "stats"
-          destination_branch: generated-stats
-          user_email: "test-infra@pytorch.org"
-          user_name: "Pytorch Test Infra"
-          commit_message: "Updating file to test class correlations"
-
-      - name: Push historical edited files heuristic to test-infra repository
-        if: github.event_name != 'pull_request'
-        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
-        env:
-          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          source_file: "td_heuristic_historical_edited_files.json"
-          destination_repo: "pytorch/test-infra"
-          destination_folder: "stats"
-          destination_branch: generated-stats
-          user_email: "test-infra@pytorch.org"
-          user_name: "Pytorch Test Infra"
-          commit_message: "Updating TD heuristic: historical edited files"
+        working-directory: generated-stats
+        run: |
+          git config user.name "Pytorch Test Infra"
+          git config user.email "test-infra@pytorch.org"
+          files=(file_test_rating.json file_test_class_rating.json td_heuristic_historical_edited_files.json)
+          # Other workflows push to generated-stats too: rebuild the commit on the latest tip
+          # and retry when a push fails, e.g. because one of them pushed first.
+          for attempt in 1 2 3 4 5; do
+            if [ "${attempt}" -gt 1 ]; then
+              sleep $((attempt * 15))
+            fi
+            if ! git fetch --depth=1 origin generated-stats; then
+              continue
+            fi
+            git reset --hard FETCH_HEAD
+            for f in "${files[@]}"; do
+              cp "../${f}" "stats/${f}"
+              git add "stats/${f}"
+            done
+            if git diff --cached --quiet; then
+              echo "No changes to push"
+              exit 0
+            fi
+            git commit -m "Updating TD heuristic file ratings"
+            if git push origin HEAD:generated-stats; then
+              exit 0
+            fi
+          done
+          echo "Failed to push to generated-stats after 5 attempts"
+          exit 1
 
   update-ec2-pricing:
     runs-on: ubuntu-24.04
