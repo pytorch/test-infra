@@ -227,7 +227,10 @@ helpers, OpInfos, `run_test.py` and `conftest.py` are not theirs) and makes one 
 changes to existing tests, where the checkout shows why:
 - A skip or expected failure: production code rejects what the test does on the platform
   or build it targets, and the guard says why (a test that expects the rejection is not
-  explained by it).
+  explained by it). A skip on a hardware capacity limit, such as SM count, memory or
+  device count, may be conservative and also skip some cases that would fit, as long as
+  the test still runs on full-size devices of the kind it targets, such as a whole GPU
+  rather than a MIG slice.
 - An updated expected error message: production code already raises the new message, the
   pattern still pins that message, and the test still expects the same exception type.
 - A setup fix for a test that fails only sometimes or only in some environments: every
@@ -235,8 +238,8 @@ changes to existing tests, where the checkout shows why:
   was not written to check, such as run order, timing, caches, or when the random seed is
   set.
 
-Not when the skip or expected failure is unconditional or wider than its guard, or a
-test's code changes beyond these (comments and docstrings are fine).
+Not when the skip or expected failure is unconditional or otherwise wider than its
+guard, or a test's code changes beyond these (comments and docstrings are fine).
 
 **Meta-internal only** — a change that no OSS build, CI job, or wheel can observe, such as
 code or a skip that takes effect only when `IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`
