@@ -9,8 +9,12 @@
 
 import {
   confidenceBucket,
+  dispatchedAfterRun,
   DispatchMark,
   drciSignalKeyForJob,
+  isLiveDispatch,
+  isStrictlyAfter,
+  parseUtc,
   verdictCoversRun,
 } from "lib/advisor/advisorBadge";
 import { advisorSuppressionEnabled } from "lib/advisor/advisorFlags";
@@ -175,6 +179,98 @@ export function suppressibleJobIds(
     }
   }
   return suppressible;
+}
+
+// How long after a dispatch its verdict is still expected. Over the 14 days to
+// 2026-11-04, of 6,658 answered dr_ci_ dispatches 99% were answered within 9
+// minutes and 99.9% within 15, while 31 of 34 dispatches left in 'dispatching'
+// were never answered: an orphaned marker, whose dispatch failed and whose
+// failure could not be recorded. Past this age an unanswered dispatch is
+// presumed lost rather than in flight.
+export const ADVISOR_VERDICT_MAX_WAIT_MS = 20 * 60 * 1000;
+
+/**
+ * Whether a verdict that could clear `job` is on its way. Pure, for testing.
+ *
+ * True only when the latest dispatch for the job's key is live, was made after
+ * this run finished (so its answer will cover this run, see verdictCoversRun),
+ * was made within ADVISOR_VERDICT_MAX_WAIT_MS of `now`, and has not been
+ * answered yet (no verdict at this head is newer than it -- the test
+ * readyToReanalyze uses). Work auto-dispatch might do later -- retrying a
+ * failed dispatch, re-dispatching a rerun -- is not counted: whether it happens
+ * depends on guards decided elsewhere, and a wrong "yes" costs a merge a
+ * pointless wait while a wrong "no" only fails it as it fails today. Jobs no
+ * verdict could clear (a PR-state gate, or a run that produced no test
+ * outcome) are never awaiting.
+ */
+export function isAwaitingVerdict(
+  job: RecentWorkflowsData,
+  rows: AdvisorVerdictRow[],
+  dispatch: DispatchMark | undefined,
+  now: number
+): boolean {
+  if (isExcludedFromAdvisor(job) || !producedATestOutcome(job)) {
+    return false;
+  }
+  const dispatchedAt = parseUtc(dispatch?.version);
+  return (
+    isLiveDispatch(dispatch) &&
+    dispatchedAt !== null &&
+    dispatchedAfterRun(dispatch.version, job.completed_at) &&
+    now - dispatchedAt.valueOf() < ADVISOR_VERDICT_MAX_WAIT_MS &&
+    !rows.some((r) => isStrictlyAfter(r.timestamp, dispatch.version))
+  );
+}
+
+/**
+ * Job ids among `jobs` with an advisor verdict still owed (isAwaitingVerdict).
+ * Dr.CI returns them to the merge bot as AI_PENDING, so a merge can wait for a
+ * verdict that may clear the job instead of failing first. Empty when
+ * suppression is off: no verdict could clear anything then.
+ *
+ * `verdictRows` and `dispatchByKey` are null when they could not be read.
+ * Nothing is reported as awaiting then -- an unread verdict would make an
+ * answered dispatch look unanswered -- so the merge bot treats the jobs as it
+ * would without this list.
+ */
+export function awaitingVerdictJobIds(
+  owner: string,
+  repo: string,
+  headSha: string,
+  jobs: RecentWorkflowsData[],
+  verdictRows: AdvisorVerdictRow[] | null,
+  dispatchByKey: Map<string, DispatchMark> | null,
+  now: number = Date.now()
+): Set<number> {
+  if (
+    verdictRows === null ||
+    dispatchByKey === null ||
+    !advisorSuppressionEnabled(owner, repo) ||
+    jobs.length === 0
+  ) {
+    return new Set();
+  }
+
+  const rowsByKey = headRowsBySignalKey(verdictRows, headSha);
+
+  const awaiting = new Set<number>();
+  for (const job of jobs) {
+    if (!job.name) {
+      continue;
+    }
+    const key = drciSignalKeyForJob(job.name);
+    if (
+      isAwaitingVerdict(
+        job,
+        rowsByKey.get(key) ?? [],
+        dispatchByKey.get(key),
+        now
+      )
+    ) {
+      awaiting.add(job.id);
+    }
+  }
+  return awaiting;
 }
 
 /**

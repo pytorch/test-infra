@@ -1,7 +1,10 @@
 import { confidenceBucket, DispatchMark } from "lib/advisor/advisorBadge";
 import {
+  ADVISOR_VERDICT_MAX_WAIT_MS,
+  awaitingVerdictJobIds,
   confidentEnoughToSuppress,
   extractSuppressed,
+  isAwaitingVerdict,
   isSuppressible,
   SUPPRESSIBLE_VERDICTS,
   suppressibleJobIds,
@@ -427,5 +430,175 @@ describe("extractSuppressed", () => {
     const blocking = [job({ id: 1 }), job({ id: 2 })];
     expect(extractSuppressed(blocking, new Set())).toEqual([]);
     expect(blocking).toHaveLength(2);
+  });
+});
+
+describe("isAwaitingVerdict", () => {
+  // DISPATCHED was made at 12:01, after the job finished at 12:00.
+  const NOW = Date.parse("2026-08-28T12:05:00Z");
+
+  function awaiting(
+    j: RecentWorkflowsData,
+    rows: AdvisorVerdictRow[],
+    dispatch: DispatchMark | undefined,
+    { now = NOW } = {}
+  ): boolean {
+    return isAwaitingVerdict(j, rows, dispatch, now);
+  }
+
+  test("a live dispatch with no verdict yet is awaiting", () => {
+    expect(awaiting(job(), [], DISPATCHED)).toBe(true);
+  });
+
+  test("an unconfirmed 'dispatching' row is awaiting too", () => {
+    expect(awaiting(job(), [], { ...DISPATCHED, state: "dispatching" })).toBe(
+      true
+    );
+  });
+
+  test("once the dispatch is answered nothing is owed, whatever the verdict", () => {
+    for (const verdict of ["not_related", "related", "unsure"]) {
+      expect(awaiting(job(), [row({ verdict })], DISPATCHED)).toBe(false);
+    }
+  });
+
+  test("a verdict older than the dispatch does not answer it", () => {
+    expect(awaiting(job(), [row({ timestamp: BEFORE_JOB })], DISPATCHED)).toBe(
+      true
+    );
+  });
+
+  test("a verdict exactly at the dispatch time does not answer it", () => {
+    expect(
+      awaiting(job(), [row({ timestamp: DISPATCHED.version })], DISPATCHED)
+    ).toBe(true);
+  });
+
+  test("a dispatch from before this run is not awaited, answered or not", () => {
+    // Its answer covers an earlier run; a re-dispatch may or may not follow.
+    const early = { state: "dispatched", version: BEFORE_JOB };
+    expect(awaiting(job(), [], early)).toBe(false);
+    expect(awaiting(job(), [row({ timestamp: JOB_DONE_AT })], early)).toBe(
+      false
+    );
+  });
+
+  test("an unknown completion time cannot be tied to the dispatch", () => {
+    expect(awaiting(job({ completed_at: undefined }), [], DISPATCHED)).toBe(
+      false
+    );
+  });
+
+  test("an unanswered dispatch is presumed lost once it is too old", () => {
+    // An orphaned 'dispatching' marker must not hold every merge for the cap.
+    const dispatchedAt = Date.parse("2026-08-28T12:01:00Z");
+    const orphan = { ...DISPATCHED, state: "dispatching" };
+    const justBefore = dispatchedAt + ADVISOR_VERDICT_MAX_WAIT_MS - 1;
+    const atLimit = dispatchedAt + ADVISOR_VERDICT_MAX_WAIT_MS;
+    expect(awaiting(job(), [], orphan, { now: justBefore })).toBe(true);
+    expect(awaiting(job(), [], orphan, { now: atLimit })).toBe(false);
+  });
+
+  test("an unparseable dispatch time is not awaited", () => {
+    expect(awaiting(job(), [], { ...DISPATCHED, version: "" })).toBe(false);
+  });
+
+  test("a failed dispatch is not awaited, even one auto-dispatch may retry", () => {
+    // Whether the retry happens is decided by guards elsewhere.
+    const failed = { ...DISPATCHED, state: "failed", retryPending: true };
+    expect(awaiting(job(), [], failed)).toBe(false);
+    expect(awaiting(job(), [], { ...DISPATCHED, state: "failed" })).toBe(false);
+  });
+
+  test("no dispatch at all is not awaited", () => {
+    expect(awaiting(job(), [], undefined)).toBe(false);
+  });
+
+  test("a job no verdict could clear is never awaiting", () => {
+    expect(awaiting(job({ conclusion: "cancelled" }), [], DISPATCHED)).toBe(
+      false
+    );
+    expect(
+      awaiting(
+        job({ name: "pull / ghstack-mergeability-check" }),
+        [],
+        DISPATCHED
+      )
+    ).toBe(false);
+  });
+});
+
+describe("awaitingVerdictJobIds", () => {
+  const OWNER = "pytorch";
+  const REPO = "pytorch";
+  const NOW = Date.parse("2026-08-28T12:05:00Z");
+
+  let savedSuppression: string | undefined;
+  let savedComment: string | undefined;
+  beforeEach(() => {
+    savedSuppression = process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED;
+    savedComment = process.env.DRCI_ADVISOR_COMMENT_ENABLED;
+    process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = "true";
+    process.env.DRCI_ADVISOR_COMMENT_ENABLED = "true";
+  });
+  afterEach(() => {
+    for (const [name, saved] of [
+      ["DRCI_ADVISOR_SUPPRESSION_ENABLED", savedSuppression],
+      ["DRCI_ADVISOR_COMMENT_ENABLED", savedComment],
+    ] as const) {
+      if (saved === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = saved;
+      }
+    }
+  });
+
+  function ids(
+    jobs: RecentWorkflowsData[],
+    rows: AdvisorVerdictRow[] | null,
+    dispatches: Map<string, DispatchMark> | null = new Map(
+      jobs.filter((j) => j.name).map((j) => [`dr_ci_${j.name}`, DISPATCHED])
+    )
+  ): number[] {
+    return [
+      ...awaitingVerdictJobIds(
+        OWNER,
+        REPO,
+        HEAD_SHA,
+        jobs,
+        rows,
+        dispatches,
+        NOW
+      ),
+    ].sort((a, b) => a - b);
+  }
+
+  test("reports the jobs whose verdict has not landed", () => {
+    const answered = job({ id: 1 });
+    const pending = job({
+      id: 2,
+      name: "pull / linux-jammy-py3.10-gcc11 / build",
+    });
+    expect(ids([answered, pending], [row()])).toEqual([2]);
+  });
+
+  test("a verdict for a different head does not answer this head's dispatch", () => {
+    expect(ids([job()], [row({ sha: "b".repeat(40) })])).toEqual([1]);
+  });
+
+  test("nothing is awaiting while suppression is off: no verdict could clear it", () => {
+    process.env.DRCI_ADVISOR_SUPPRESSION_ENABLED = "false";
+    expect(ids([job()], [])).toEqual([]);
+  });
+
+  test("unreadable verdicts or dispatch states report nothing", () => {
+    // An unread verdict would make an answered dispatch look unanswered.
+    expect(ids([job()], null)).toEqual([]);
+    expect(ids([job()], [], null)).toEqual([]);
+  });
+
+  test("an unnamed job is skipped rather than throwing", () => {
+    expect(ids([job({ name: undefined })], [])).toEqual([]);
   });
 });
