@@ -108,29 +108,39 @@ and typed "LGTM". Trivial is a claim about the review, not about the diff.
 
 **The gate is end-user-facing expectation, not internal change.** pytorch documents its
 internals, and changing a documented internal is fine. Every rule below asks the same
-question: would a PyTorch practitioner who relied on this library now be wrong? Two
-questions settle it, and both must be no:
+thing: would a PyTorch user who relied on this library now be wrong? Two questions settle
+it, and the change is trivial only if the answer to both is no:
 
-1. Would a reviewer have learned anything, or asked a question that would plausibly have
-   changed the code? If so, that question is the review, and it belongs to a human.
-   For a change that fits **Explained test changes**, being narrower than its guard
-   raises no such question.
-2. Does someone need to know this landed? You cannot infer who cares about what, so
-   ground it the way you ground everything else: does the change move a default or a
-   limit, alter a message or format the repository shows is matched or parsed, or change
-   a name or signature in a way that leaves a caller outside the diff, or a library user,
-   wrong? Callers beyond the diff are not a yes on their own; a broken expectation is.
-   Where something parses the output, treat a change to its shape as a yes even when you
-   cannot see the parser — test-infra scripts, the HUD, and Dr. CI read pytorch's output
-   from outside this repository.
+1. **Would a reviewer have learned anything, or asked a question that would plausibly
+   have changed the code?** If so, that question is the review, and it belongs to a
+   human. For a change that fits **Explained test changes**, being narrower than its
+   guard does not raise such a question.
+2. **Does someone need to know this landed?** You cannot infer who cares about what, so
+   answer it from evidence, as you do for every claim, by asking whether the change:
+   - moves a default or a limit;
+   - changes a message or format that the repository shows something matches or
+     parses; or
+   - changes a name or a signature so that a caller outside the diff, or a library user,
+     is now wrong.
 
-These two outrank everything below; no class membership turns a yes into a no. The one
-exception is a change that fits **Meta-internal only**: Meta's own review covers it, so
-neither question nor the two lists below apply. Triviality
-shows on sight, and the tell is strain: if holding a change trivial takes special
-pleading, an exception, or a benefit of the doubt, it is not trivial. Working a class
-honestly is not strain; reaching for one is. Over-refusal is a failure too — a NO_LAND on
-a plainly trivial change spends the reviewer time this system exists to save.
+   Having callers outside the diff is not a yes by itself; breaking what they expect is.
+   If something parses an output, a change to that output's shape is a yes even when you
+   cannot see the parser: test-infra scripts, the HUD and Dr. CI read pytorch's output
+   from outside this repository. A CI job's name is not output shape. Those tools use the
+   name to group the job's history, so a rename whose only effect is to start a new
+   history is not a yes by itself. Adding `unstable` to a job's name, or removing it, is
+   a yes: merge tooling treats a job whose name contains `unstable` as non-blocking, so
+   the change decides whether that job can block merges.
+
+These two questions outrank everything below: fitting a class never turns a yes into a
+no. The one exception is a change that fits **Meta-internal only**. Meta's own review
+covers it, so neither question applies to it, and neither do the two lists below.
+
+Triviality shows at a glance, and the warning sign is strain: if calling a change trivial
+takes special pleading, an exception, or the benefit of the doubt, it is not trivial.
+Applying a class honestly is not strain; reaching for one is. Refusing too much is a
+failure too: a NO_LAND on a plainly trivial change wastes the reviewer time this system
+exists to save.
 
 ### Never trivial
 
@@ -159,20 +169,23 @@ enough; elsewhere it is what the change does that decides.
 
 ### Shapes that look trivial and are not
 
-These override the classes below: matching one means not trivial, whatever class fits.
+These override the classes below: a change that matches one is not trivial, whatever
+class it fits.
 
-- **Breadth disguised as simplicity.** The same edit at more sites than you have checked.
-  Count sites, not lines: reviewability is bounded by how many independent places a
-  reader must check. Many trivial edits are not one trivial change.
-- **Correct but consequential.** Nothing is wrong with it; it still sets a precedent or
+- **Breadth you have not checked.** The same edit repeated in more places than you have
+  checked. For a rename, every place in the checkout that contains the old or the new
+  name counts, and so does every pattern in the checkout, such as a glob or a regex, that
+  treats the two names differently, for example by matching one and not the other.
+- **Correct but consequential.** Nothing is wrong with it, but it sets a precedent or
   changes something others depend on.
-- **Inert additions.** Something the diff adds outside test files for other code to use —
-  an input, parameter, option, or function — that no non-test code sets or calls, in the
-  diff or in a PR above it in the same stack. Its design is reviewed with its first use;
-  dead code does not land on its own.
+- **Inert additions.** Something the diff adds outside test files for other code to use
+  (an input, parameter, option or function) that no non-test code sets or calls, in this
+  diff or in a PR above it in the same stack. Its design is reviewed together with its
+  first use; unused code does not land on its own.
 
-**Generated artifacts** are a caution, not a shape: read the generator edit and spot-check
-the expansion for anything it would not mechanically produce, then clear it if nothing is.
+**Generated artifacts** call for care but are not a shape. Read the change to the
+generator, spot-check the generated output for anything the generator would not produce
+mechanically, and clear it if the output contains nothing of that kind.
 
 ### Trivial change classes
 
@@ -249,22 +262,31 @@ a `reserve()` capacity hint.
 Not when something observable can differ: an order a consumer relies on, a hash or cache
 key, a pointer a caller holds, or whether it can throw.
 
-**CI and build configuration** — shard counts, timeouts, matrix entries, experiment
-toggles.
-Not when it touches secrets, tokens, permissions, OIDC roles, `pull_request_target`,
-release or publish paths, generated workflows or the scripts that generate them, or
-runner trust boundaries; not when it points a `uses:` outside the `pytorch` org, or moves
-a step out of the build container; and not when it removes coverage or hides failure.
-Dropping a matrix entry, widening a lint-exclude glob or a blocklist, and lowering a
-timeout are the usual shapes of that — judge whether coverage or signal is really lost,
-rather than matching the shape.
-Not when it adds a test job to `pull.yml` or `trunk.yml`: those gate PR merges and the
-progression of `viable/strict`, so a new job's cost falls on every contributor, and
-whether it earns that — essential coverage, running reliably, no regression to overall
-workflow runtime — is not in the diff. A human decides that one. A new top-level test
-job, or a `config:` value new to the `test-matrix` it lands in, is a new job; more shards
-of a config already there is a retune. Retuned shard counts, runner label changes, and
-version or OS bumps stay ordinary — judge them on the criteria above.
+**CI and build configuration** — changes such as shard counts, timeouts, matrix entries,
+runner labels, experiment toggles, version or OS bumps, and renamed jobs.
+Not when it:
+- touches secrets, tokens, permissions, OIDC roles, `pull_request_target`, runner trust
+  boundaries, generated workflows or the scripts that generate them, or release or
+  publish paths, including the scripts and config files they read;
+- points a `uses:` outside the `pytorch` org, or moves a step out of the build container;
+- removes coverage or hides failure. Dropping a matrix entry, widening a lint-exclude
+  glob or a blocklist, and lowering a timeout are the usual forms of that; judge whether
+  coverage or signal is really lost instead of matching the form;
+- leaves a job with a name that describes a configuration it does not run, such as
+  `py3.11` in the name of a job that still runs Python 3.10;
+- adds a test job to `pull.yml` or `trunk.yml`. Those workflows gate PR merges and the
+  progress of `viable/strict`, so a new job's cost falls on every contributor, and
+  whether it is worth that (essential coverage, reliable runs, no slowdown of the
+  overall workflow) is not in the diff. A human decides. A new top-level test job, or a
+  `config:` value new to the `test-matrix` it lands in, is a new job; more shards of a
+  config that is already there is a retune; or
+- renames a job that merges wait on, or a workflow such a job sits in. Merges wait on a
+  job that runs on every pull request, or that sits in a workflow
+  `update-viablestrict.yml` requires or in a workflow a `.github/labeler.yml` label
+  triggers, whether the job is defined in that workflow or in a reusable workflow it
+  calls. Issues that mark a job unstable or disabled match its exact name, so after a
+  rename they match nothing, and a known-flaky job starts blocking merges. Changing a
+  shard count or a runner label is not a rename.
 
 **Single-cause bugfix** — one root cause, one fix, and a test in the diff exercising the
 fixed path. Without that test the class fits only when the changed lines both state the
