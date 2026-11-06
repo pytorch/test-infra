@@ -1,0 +1,240 @@
+// Rows the td_* queries return, as pinned by their column contracts, and how
+// the page reads them.
+
+// ClickHouse serialises 64-bit integers as JSON strings.
+export type ChNum = number | string | null;
+
+// Day and week buckets are UTC dates, a week's being its ISO Monday. The
+// workflow grains split the total, day and week rows by workflow, which is ''
+// on every other row; a workflow without jobs in the window has no rows.
+export interface SavingsRow {
+  grain:
+    | "day"
+    | "week"
+    | "config"
+    | "total"
+    | "workflow"
+    | "workflow_day"
+    | "workflow_week";
+  bucket: string;
+  config: string;
+  workflow: string;
+  jobs: ChNum;
+  unmatched_jobs: ChNum;
+  pr_hours: ChNum;
+  est_full_hours: ChNum;
+  pr_median_min: ChNum;
+  full_median_min: ChNum;
+  pr_p90_min: ChNum;
+  full_p90_min: ChNum;
+}
+
+export interface PushWaitRow {
+  grain: "day" | "week" | "total";
+  bucket: string;
+  pushes: ChNum;
+  actual_ttg_median_min: ChNum;
+  est_ttg_median_min: ChNum;
+  saved_median_min: ChNum;
+  hours_per_push: ChNum;
+  est_hours_per_push: ChNum;
+}
+
+export type BreakageOutcome =
+  | "false_green"
+  | "signal_on_pr"
+  | "passed_on_pr"
+  | "new_test"
+  | "not_in_pr_matrix"
+  | "landrace"
+  | "unknown";
+
+export type TestOutcome =
+  | "failed_on_pr"
+  | "passed_on_pr"
+  | "td_skipped"
+  | "new_test"
+  | "config_not_on_pr"
+  | "unknown"
+  | "not_checked";
+
+export interface BreakageRow {
+  grain: "event" | "total";
+  landed_at: string;
+  landing_sha: string;
+  reverted_prs: ChNum[];
+  revert_shas: string[];
+  reverted_at: string;
+  revert_class: string;
+  stack_size: ChNum;
+  outcome: BreakageOutcome;
+  window_closed: ChNum;
+  breaking_tests: ChNum;
+  test_configs: string[];
+  test_files: string[];
+  test_prs: ChNum[];
+  test_outcomes: TestOutcome[];
+  landed_prs: ChNum;
+  events: ChNum;
+  false_green: ChNum;
+  signal_on_pr: ChNum;
+  passed_on_pr: ChNum;
+  td_skipped_any: ChNum;
+  new_test: ChNum;
+  not_in_pr_matrix: ChNum;
+  landrace: ChNum;
+  unknown: ChNum;
+  other_reverts: ChNum;
+  ghfirst_reverts: ChNum;
+}
+
+// A landing row is one trunk breakage, newest first, with its best-ranked
+// failure; inside_cut and second_half are 0 or 1 on it.
+export interface RankRow {
+  grain: "hist" | "total" | "landing";
+  bucket_pct: ChNum;
+  landings: ChNum;
+  failures: ChNum;
+  inside_cut: ChNum;
+  second_half: ChNum;
+  median_pct: ChNum;
+  landed_at: string;
+  sha: string;
+  config: string;
+  test_file: string;
+  rank_pct: ChNum;
+}
+
+// A hist row counts the changed pairs whose change falls in one bucket,
+// CHANGE_BUCKET_PCT wide, bucket_pct being its lower edge.
+export interface ChurnRow {
+  grain: "day" | "week" | "hist" | "total";
+  bucket: string;
+  bucket_pct: ChNum;
+  pairs: ChNum;
+  identical_pairs: ChNum;
+  changed_median_pct: ChNum;
+  prs: ChNum;
+}
+
+export const OUTCOME_LABELS: Record<BreakageOutcome, string> = {
+  false_green: "False green (TD skipped the test)",
+  signal_on_pr: "Test failed on the PR, merged anyway",
+  passed_on_pr: "Test ran and passed on the PR",
+  new_test: "Test newer than the PR",
+  not_in_pr_matrix: "Job not run on the PR",
+  landrace: "Landrace",
+  unknown: "Unknown",
+};
+
+export function num(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function ratio(numerator: unknown, denominator: unknown): number | null {
+  const n = num(numerator);
+  const d = num(denominator);
+  if (n === null || d === null || d === 0) {
+    return null;
+  }
+  return n / d;
+}
+
+export function totalRow<T extends { grain: string }>(
+  rows: T[]
+): T | undefined {
+  return rows.find((row) => row.grain === "total");
+}
+
+export function workflowRow(
+  rows: SavingsRow[],
+  workflow: string
+): SavingsRow | undefined {
+  return rows.find(
+    (row) => row.grain === "workflow" && row.workflow === workflow
+  );
+}
+
+// The workflow rows split the total row: one row per workflow, their jobs
+// adding up to the total's. Anything else broke the query's contract.
+export function workflowError(
+  queryName: string,
+  rows: SavingsRow[],
+  total: SavingsRow | undefined
+): string | undefined {
+  const workflows = rows.filter((row) => row.grain === "workflow");
+  if (new Set(workflows.map((row) => row.workflow)).size < workflows.length) {
+    return `${queryName}: a workflow has more than one workflow row`;
+  }
+  const jobs = workflows.reduce((sum, row) => sum + (num(row.jobs) ?? 0), 0);
+  const totalJobs = num(total?.jobs) ?? 0;
+  return jobs === totalJobs
+    ? undefined
+    : `${queryName}: workflow rows hold ${jobs} jobs, the total row ${totalJobs}`;
+}
+
+// A query that answers without exactly one total row broke its contract;
+// saying so beats rendering every tile as an empty window, or as whichever
+// total came first.
+export function totalError(
+  queryName: string,
+  state: { loading: boolean; error?: string; rows: { grain: string }[] }
+): string | undefined {
+  if (state.error !== undefined) {
+    return state.error;
+  }
+  if (state.loading) {
+    return undefined;
+  }
+  const totals = state.rows.filter((row) => row.grain === "total").length;
+  return totals === 1
+    ? undefined
+    : totals === 0
+    ? `${queryName}: no total row`
+    : `${queryName}: ${totals} total rows, expected 1`;
+}
+
+export interface TdQueryState<T> {
+  loading: boolean;
+  error?: string;
+  rows: T[];
+}
+
+export interface TdTotalState<T> extends TdQueryState<T> {
+  total?: T;
+  tileError?: string;
+}
+
+// A query that is not enabled reads nothing, so it is not loading either.
+export function readTdQuery<T>(
+  queryName: string,
+  data: unknown,
+  error: any,
+  enabled: boolean = true
+): TdQueryState<T> {
+  if (!enabled) {
+    return { loading: false, rows: [] };
+  }
+  if (error !== undefined && error !== null) {
+    return {
+      loading: false,
+      error: `${queryName}: ${error?.message ?? String(error)}`,
+      rows: [],
+    };
+  }
+  if (data === undefined) {
+    return { loading: true, rows: [] };
+  }
+  if (!Array.isArray(data)) {
+    return {
+      loading: false,
+      error: `${queryName}: unexpected query response`,
+      rows: [],
+    };
+  }
+  return { loading: false, rows: data as T[] };
+}

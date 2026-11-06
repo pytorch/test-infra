@@ -1,0 +1,27 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "tdWorkflows": "Array(String)"
+  },
+  "defaults": {
+    "tdWorkflows": ["pull", "trunk"]
+  },
+  "tests": [
+    {
+      "startTime": "2026-10-08T00:00:00.000",
+      "stopTime": "2026-11-02T00:00:00.000",
+      "tdWorkflows": ["pull", "trunk"]
+    },
+    {
+      "startTime": "2026-08-04T00:00:00.000",
+      "stopTime": "2026-11-02T00:00:00.000",
+      "tdWorkflows": ["pull", "trunk"]
+    },
+    {
+      "startTime": "2026-11-02T00:00:00.000",
+      "stopTime": "2026-11-02T00:00:00.000",
+      "tdWorkflows": ["pull", "trunk"]
+    }
+  ]
+}

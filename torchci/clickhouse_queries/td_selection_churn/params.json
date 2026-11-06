@@ -1,0 +1,24 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "startTime": "2026-10-19T00:00:00.000",
+      "stopTime": "2026-11-02T00:00:00.000"
+    },
+    {
+      "startTime": {
+        "from_now": -30
+      },
+      "stopTime": {
+        "from_now": 0
+      }
+    },
+    {
+      "startTime": "2026-11-02T00:00:00.000",
+      "stopTime": "2026-10-19T00:00:00.000"
+    }
+  ]
+}
