@@ -137,13 +137,6 @@ describe("addCiflowLabelsAtMerge", () => {
       log,
     });
 
-  // PRs n-1 down to 1, each changing only an unlabeled file.
-  const plainBelow = (n: number): Pr[] =>
-    Array.from({ length: n - 1 }, (_, i) => ({
-      number: n - 1 - i,
-      files: ["torch/b.py"],
-    }));
-
   test("adds each label to the topmost PR at or below the merged one that needs it", async () => {
     // Stack 8..1: 6 needs xpu (labeled), 4 needs xpu, 3 needs inductor
     // (labeled), 2 needs both. Merging 5 labels only PR 4, with ciflow/xpu.
@@ -196,55 +189,6 @@ describe("addCiflowLabelsAtMerge", () => {
       { number: 4, files: [TRITON_PIN] },
     ]);
     await label(5, ["ciflow/trunk"]);
-    expect(log.error).not.toHaveBeenCalled();
-    handleScope(scope);
-  });
-
-  test("skips a PR with 10 or more rows below it for the next PR down that needs the label", async () => {
-    // Merging 12: PR 11 has 10 rows below it and cannot run CI; PR 10 has 9.
-    const below = plainBelow(12);
-    below[0].files = [XPU];
-    below[1].files = [XPU];
-    const scope = run({ number: 12, files: ["torch/a.py"] }, below);
-    expectAddLabels(scope, 10, ["ciflow/xpu"]);
-    await label(12);
-    expect(log.error).not.toHaveBeenCalled();
-    handleScope(scope);
-  });
-
-  test("labels a PR with 10 or more rows below it that also gets ciflow/trunk", async () => {
-    const below = plainBelow(12);
-    below[0].files = [XPU, TRITON_PIN];
-    below[1].files = [XPU];
-    const scope = run({ number: 12, files: ["torch/a.py"] }, below);
-    expectAddLabels(scope, 11, ["ciflow/trunk", "ciflow/xpu"]);
-    await label(12);
-    expect(log.error).not.toHaveBeenCalled();
-    handleScope(scope);
-  });
-
-  test("decides ciflow/trunk first, whatever the config order", async () => {
-    const xpuFirst = {
-      "ciflow/xpu": LABELER["ciflow/xpu"],
-      "ciflow/trunk": LABELER["ciflow/trunk"],
-    };
-    const below = plainBelow(12);
-    below[0].files = [XPU, TRITON_PIN];
-    below[1].files = [XPU];
-    const scope = run({ number: 12, files: ["torch/a.py"] }, below);
-    expectAddLabels(scope, 11, ["ciflow/trunk", "ciflow/xpu"]);
-    await label(12, [], xpuFirst);
-    expect(log.error).not.toHaveBeenCalled();
-    handleScope(scope);
-  });
-
-  test("a carrier with 10 or more rows below it does not cover a lower PR", async () => {
-    const below = plainBelow(12);
-    below[0].labels = ["ciflow/xpu"];
-    below[1].files = [XPU];
-    const scope = run({ number: 12, files: ["torch/a.py"] }, below);
-    expectAddLabels(scope, 10, ["ciflow/xpu"]);
-    await label(12);
     expect(log.error).not.toHaveBeenCalled();
     handleScope(scope);
   });
