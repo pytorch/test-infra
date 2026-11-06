@@ -7,10 +7,9 @@ name: vLLM torch-nightly triage
 # controlled A/B. This job reports jobs that fail in the former and pass in the latter.
 #
 # Reports to the job log, the run summary, and an artifact. Issues are filed by default
-# into pytorch/test-infra (not pytorch/pytorch). The root-cause findings are also
-# published as an artifact that vLLM's crcr-late-report workflow picks up and adds to
-# the CRCR rows vLLM already reported for the build, so they show on HUD at
-# /crcr/vllm-project/vllm?event=nightly.
+# into pytorch/test-infra (not pytorch/pytorch). The root-cause findings are also sent
+# to CRCR as late reports, which add them to the rows vLLM already reported for the
+# build, so they show on HUD at /crcr/vllm-project/vllm?event=nightly.
 #
 # ClickHouse stores job metadata only (the tables carry log_url pointers, not log
 # bodies), so this answers *which* jobs regressed, not *why*. Root-causing means
@@ -443,22 +442,18 @@ jobs:
             ${EXECUTE} \
             "${upstream_args[@]}" 2>&1 | tee -a "${GITHUB_STEP_SUMMARY}"
 
-  # Turns the root-cause findings into CRCR late reports and publishes them as an
-  # artifact, so that vLLM can add them to the rows it reported from its own Buildkite
-  # build and HUD shows them as each job's AI triage verdict.
+  # Turns the root-cause findings into CRCR late reports and uploads them as an
+  # artifact, for send-late-reports to send.
   #
   # It has to happen after the build: vLLM's report goes out hours into it and a CRCR
   # row is write-once, while this runs ~11h in. So the findings are added afterwards,
-  # as a late report. vLLM sends it, from .github/workflows/crcr-late-report.yml in
-  # vllm-project/vllm: the rows belong to vllm-project/vllm, and the relay takes a
-  # repo's late reports from that repo. That workflow runs on a schedule and downloads
-  # the newest vllm-torch-nightly-late-reports artifact from here, so nothing here
-  # needs a credential for vLLM's repo. Keep the artifact name in step with it.
+  # as a late report, to rows that belong to vllm-project/vllm.
   #
   # Separate from root-cause on purpose, for the same reason as file-issues: that job
   # reads untrusted Buildkite logs, so it must never hold a credential that writes
   # anywhere. The agent emits data; this job turns it into reports with a script that
-  # only matches jobs listed in the triage report.
+  # only matches jobs listed in the triage report. It holds no token either: sending
+  # is a separate job.
   late-reports:
     needs: [triage, root-cause]
     if: |
@@ -466,6 +461,8 @@ jobs:
       github.event_name != 'pull_request' &&
       needs.triage.outputs.has_report == 'true' &&
       needs.root-cause.result == 'success'
+    outputs:
+      has_reports: ${{ steps.build.outputs.has_reports }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -510,3 +507,29 @@ jobs:
           name: vllm-torch-nightly-late-reports
           path: ${{ runner.temp }}/late-reports.json
           if-no-files-found: error
+
+  # Sends the late reports to CRCR.
+  send-late-reports:
+    needs: [late-reports]
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      needs.late-reports.result == 'success' &&
+      needs.late-reports.outputs.has_reports == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # the relay authenticates this workflow by its OIDC token
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vllm-torch-nightly-late-reports
+          path: ${{ runner.temp }}/late-reports
+
+      - uses: ./.github/actions/cross-repo-ci-relay-callback
+        with:
+          event-type: late-report
+          triage-verdict-list: "@${{ runner.temp }}/late-reports/late-reports.json"
