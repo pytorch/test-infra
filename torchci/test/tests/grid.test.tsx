@@ -17,6 +17,7 @@ import {
   attemptStatus,
   badgeLabel,
   cardJobs,
+  CELL_HOVER_GROWTH,
   CELL_STATUSES,
   cellHeadline,
   cellParts,
@@ -24,8 +25,10 @@ import {
   cellStatus,
   cellTime,
   changeLabel,
+  columnAt,
   columnCommits,
   columnLayout,
+  columnLeft,
   commitSearch,
   commitSearchMessage,
   dayMarks,
@@ -58,6 +61,7 @@ import {
   outcomeSwatchStatus,
   panelPath,
   passedEventually,
+  PLOT_INSET,
   resolveGridQuery,
   splitBoxes,
   stretchAtColumn,
@@ -1040,18 +1044,74 @@ describe("dayMarks and columnLayout", () => {
       cellWidth: 0,
       plotWidth: 1000,
     });
-    expect(columnLayout(200, 1400)).toEqual({
+    // The columns share the room less the inset at each end.
+    expect(PLOT_INSET).toBe(2);
+    expect(columnLayout(200, 1404)).toEqual({
       step: 7,
       gap: 2,
       cellWidth: 5,
-      plotWidth: 1400,
+      plotWidth: 1404,
     });
-    expect(columnLayout(10, 1400)).toEqual({
+    expect(columnLayout(10, 1404)).toEqual({
       step: 140,
       gap: 2,
       cellWidth: 14,
-      plotWidth: 1400,
+      plotWidth: 1404,
     });
+    expect(columnLeft(0, 7)).toBe(2);
+    expect(columnLeft(3, 6.5)).toBe(22);
+  });
+
+  test("keeps the grown cell at either end of the plot inside it", () => {
+    // The cell under the pointer grows over its neighbors; at the first
+    // column and the last it must stay inside the plot's drawing, which
+    // would cut it (the newest cell lost its left side to the edge).
+    for (const [columns, room] of [
+      [180, 1261],
+      [200, 1404],
+      [233, 1300],
+      [250, 1300],
+      [281, 1404],
+      [1435, 1250],
+      [10, 1404],
+      [1, 600],
+    ]) {
+      const { step, cellWidth, plotWidth } = columnLayout(columns, room);
+      expect(columnLeft(0, step) - CELL_HOVER_GROWTH).toBeGreaterThanOrEqual(0);
+      expect(
+        columnLeft(columns - 1, step) + cellWidth + CELL_HOVER_GROWTH
+      ).toBeLessThanOrEqual(plotWidth);
+    }
+  });
+
+  test("finds the column under the pointer where the columns are drawn", () => {
+    // Every offset from a column's left edge to the next one's is that
+    // column, the edges' rounding included, so a cell's first pixel never
+    // picks the commit before it; the insets and anything before the plot
+    // are no column.
+    for (const [columns, room] of [
+      [180, 1261],
+      [233, 1300],
+      [281, 1404],
+      [10, 1404],
+      [3, 50],
+    ]) {
+      const { step, plotWidth } = columnLayout(columns, room);
+      for (let column = 0; column < columns; column++) {
+        const next = columnLeft(column + 1, step);
+        for (
+          let offset = columnLeft(column, step);
+          offset < next;
+          offset += 0.5
+        ) {
+          expect(columnAt(offset, step, columns)).toBe(column);
+        }
+      }
+      expect(columnAt(-40, step, columns)).toBeNull();
+      expect(columnAt(PLOT_INSET - 0.5, step, columns)).toBeNull();
+      expect(columnAt(plotWidth - 0.5, step, columns)).toBeNull();
+    }
+    expect(columnAt(10, 0, 0)).toBeNull();
   });
 
   test("draws a cell's edge inside its box", () => {
@@ -1099,7 +1159,8 @@ describe("dayMarks and columnLayout", () => {
   test("sets the outcome slots and the commits after the labels", () => {
     // The typical time's figure starts under the first swatch and its bar
     // a short gap after the widest figure, "12.9 min" until the lanes are
-    // known; the commits begin a gap after the Outcomes column.
+    // known; the commits begin a gap after the Outcomes column, the plot
+    // its inset before them.
     expect(gridColumns(220)).toEqual({
       outcomes: [
         { swatchX: 226, figureX: 237 },
@@ -1110,14 +1171,14 @@ describe("dayMarks and columnLayout", () => {
       typicalBarX: 283,
       typicalBarWidth: 56,
       rules: [220, 376],
-      plotX: 396,
+      plotX: 394,
     });
     // The bar moves with the figures' width and is cut to the column.
     expect(gridColumns(220, 32).typicalBarX).toBe(263);
     expect(gridColumns(220, 32).typicalBarWidth).toBe(56);
     expect(gridColumns(220, 100).typicalBarX).toBe(331);
     expect(gridColumns(220, 100).typicalBarWidth).toBe(39);
-    expect(gridColumns(220, 100).plotX).toBe(396);
+    expect(gridColumns(220, 100).plotX).toBe(394);
   });
 
   test("colors an outcome's swatch as the cells it counts", () => {
@@ -1609,25 +1670,25 @@ describe("narrowing the outcomes shown", () => {
 
   test("holds the cells at the minimum and widens the plot past the room", () => {
     // 500 commits in 1,400px would be 2.8px each: the cells stay 4px with
-    // a pixel of gap and the plot runs 2,500px, to scroll.
+    // a pixel of gap and the plot runs 2,500px and its insets, to scroll.
     expect(MIN_CELL_WIDTH).toBe(4);
     expect(columnLayout(500, 1400)).toEqual({
       step: 5,
       gap: 1,
       cellWidth: 4,
-      plotWidth: 2500,
+      plotWidth: 2504,
     });
-    expect(columnLayout(700, 1400).plotWidth).toBe(3500);
-    // 280 fit exactly at the minimum, so nothing scrolls; one more and the
-    // plot is a step wider than the room.
-    expect(columnLayout(280, 1400)).toEqual({
+    expect(columnLayout(700, 1400).plotWidth).toBe(3504);
+    // 280 fit exactly at the minimum between the insets, so nothing
+    // scrolls; one more and the plot is a step wider than the room.
+    expect(columnLayout(280, 1404)).toEqual({
       step: 5,
       gap: 1,
       cellWidth: 4,
-      plotWidth: 1400,
+      plotWidth: 1404,
     });
-    expect(columnLayout(281, 1400).plotWidth).toBe(1405);
+    expect(columnLayout(281, 1404).plotWidth).toBe(1409);
     // A pull request week on a 1,250px plot.
-    expect(columnLayout(1435, 1250).plotWidth).toBe(7175);
+    expect(columnLayout(1435, 1250).plotWidth).toBe(7179);
   });
 });

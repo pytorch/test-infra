@@ -895,9 +895,10 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
   rerun of another's (`decisiveSequence`, `decisiveAttempts`; two
   inductor_core shards' runs on one commit, a timeout whose rerun skipped
   beside a shard that skipped on its own, had read as one chain, timed out
-  then skipped twice). A cell is at least a pixel wide and at most 14
-  (`columnLayout`): below three pixels a step it is the one pixel its step
-  leaves it, since a wider cell would be painted over by the next column's.
+  then skipped twice). A cell is at least `MIN_CELL_WIDTH` (4px) wide and
+  at most 14 (`columnLayout`), the rest of its step a gap of at least a
+  pixel; commits that would need a narrower cell scroll the plot instead
+  (above).
   The pill is a small pill of its status's hue from the hub's one palette
   (`PILL_COLORS` in `lib/tests/blockColors.ts`, so the grid's cells and the
   list page's Health blocks move together): every hue holds, in each mode,
@@ -1004,7 +1005,12 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
   than its edge and a ring in the block's text shade, the block's ink,
   surrounds it (`cellHoverColors`), the ring the list's health blocks show
   when hovered, drawn inside the grown box as the edge is, so a split run's
-  two capsules grow as two with their gap kept. Hovering a cell opens a
+  two capsules grow as two with their gap kept. The plot reaches as far
+  past its first and last columns as a cell grows (`PLOT_INSET`: on the
+  left out of the gap after the Outcomes column, so the first column stays
+  put; on the right out of the columns' room), so a cell at either end
+  grows whole: the drawing's edge had cut the newest cell's left side off.
+  Hovering a cell opens a
   card above it, or beneath it when the card would climb out of the body or
   under the header stuck to the viewport's top: how it ended ("Flaky" for a
   run that recovered, else its recorded outcome, "Timed out") and when, the
