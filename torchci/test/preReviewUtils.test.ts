@@ -145,6 +145,28 @@ describe("getPreReviewDeadline", () => {
     expect(getPreReviewDeadline([triaged(), triaged("invalid")])).toBeNull();
   });
 
+  test("admission holds invalidate the old deadline until their removal appears", () => {
+    const hold = {
+      id: 1,
+      event: "labeled",
+      label: { name: "missing actionable issue" },
+      created_at: ONE_WEEK_AGO,
+    };
+    expect(getPreReviewDeadline([triaged(), hold])).toBeNull();
+    expect(
+      getPreReviewDeadline([triaged(), { ...hold, created_at: "invalid" }])
+    ).toBeNull();
+    // GitHub timestamps have second precision; event IDs disambiguate a quick
+    // removal even if the timeline is returned out of order.
+    expect(
+      getPreReviewDeadline([
+        { ...hold, id: 2, event: "unlabeled" },
+        triaged(),
+        hold,
+      ])
+    ).toBe(new Date(NOW).toISOString());
+  });
+
   test.each([
     { event: "ready_for_review" },
     { event: "unlabeled", label: { name: "missing actionable issue" } },
@@ -230,6 +252,21 @@ describe("getRotatingBatch", () => {
 });
 
 describe("getPreReviewBatch", () => {
+  test("old admission holds rotate without delaying any actual timeout", () => {
+    const holds = Array.from({ length: 150 }, (_, number) => ({
+      number,
+      created_at: ONE_WEEK_AGO,
+      labels: ["triaged", "missing actionable issue"],
+    }));
+    const expired = Array.from({ length: 150 }, (_, number) => ({
+      number: 150 + number,
+      created_at: ONE_WEEK_AGO,
+      labels: ["triaged"],
+    }));
+    const batch = getPreReviewBatch([...holds, ...expired], NOW);
+    expect(batch.slice(0, expired.length)).toEqual(expired);
+    expect(batch).toHaveLength(250);
+  });
   test("checks every potential timeout even when the batch limit is exceeded", () => {
     const old = Array.from({ length: 150 }, (_, number) => ({
       number,
@@ -331,7 +368,6 @@ describe("getPreReviewStatus", () => {
       pending: [],
       timedOut: [],
       rejected: [],
-      isMergeApproved: false,
       lookupFailed: false,
       countedFrom: ["alice", "carol"],
       accepted: true,
@@ -448,14 +484,14 @@ describe("getPreReviewStatus", () => {
   });
 
   test.each([
-    { mergeApproved: true, reacted: true, expired: false, accepted: false },
-    { mergeApproved: true, reacted: false, expired: true, accepted: false },
+    { mergeApproved: true, reacted: true, expired: false, accepted: true },
+    { mergeApproved: true, reacted: false, expired: true, accepted: true },
     { mergeApproved: false, reacted: true, expired: false, accepted: true },
     { mergeApproved: false, reacted: false, expired: false, accepted: false },
     { mergeApproved: false, reacted: false, expired: true, accepted: true },
     { mergeApproved: undefined, reacted: false, expired: true, accepted: true },
   ])(
-    "only verified merge-rules approvals end pre-review: %j",
+    "merge approval never prevents pre-review advancement: %j",
     async ({ mergeApproved, reacted, expired, accepted }) => {
       const scope = nock("https://api.github.com")
         .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
@@ -480,7 +516,6 @@ describe("getPreReviewStatus", () => {
         }
       );
       expect(status.accepted).toBe(accepted);
-      expect(status.isMergeApproved).toBe(mergeApproved === true);
       handleScope(scope);
     }
   );
@@ -719,7 +754,7 @@ describe("updateInProgressLabels", () => {
     expect(result.failed).toEqual([]);
   });
 
-  test("backs off a verified merge approval without excluding other approvals from search", async () => {
+  test("a verified merge approval still advances after the pre-review deadline", async () => {
     jest.spyOn(prStatus, "fetchPrStatusState").mockResolvedValue({
       labels: ["triaged"],
       assignedReviewers: ["bob"],
@@ -733,6 +768,7 @@ describe("updateInProgressLabels", () => {
         .reply(200, [triaged()])
         .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
         .reply(200, []),
+      ...mockMoveToInProgress(),
     ];
     const result = await updateInProgressLabels(
       octokit,
@@ -741,10 +777,7 @@ describe("updateInProgressLabels", () => {
       "pytorch"
     );
     handleScope(scope);
-    expect(result.rechecks[1]).toEqual({
-      updatedAt: ONE_WEEK_AGO,
-      nextCheckAt: NOW + 6 * 60 * 60 * 1000,
-    });
+    expect(result.rechecks).toEqual({});
     expect(result.failed).toEqual([]);
   });
 
@@ -780,7 +813,7 @@ describe("updateInProgressLabels", () => {
         expect(query.q).toContain('label:"triaged"');
         expect(query.q).toContain('-label:"in progress"');
         expect(query.q).toContain('-label:"ready for review"');
-        expect(query.q).toContain('-label:"missing actionable issue"');
+        expect(query.q).not.toContain('-label:"missing actionable issue"');
         expect(query.q).toContain("created:2026-01-01T00:00:00.000Z..");
         expect(query.q).not.toContain("reactions:");
         expect(query.q).not.toContain("-review:approved");

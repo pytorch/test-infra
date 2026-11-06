@@ -11,13 +11,13 @@ import shlex from "shlex";
 import { getInputArgs, getParser } from "./cliParser";
 
 // Bound checks of young PRs, rotating them so comment/reaction retries are not
-// starved. Potential timeouts are uncapped; only known objections or qualifying
-// merge approvals can defer a check.
+// starved. Potential timeouts are uncapped; only known objections defer a check.
 const MAX_PRS_PER_RUN = 100;
 const RUN_INTERVAL_MS = 15 * 60 * 1000;
 const PRE_REVIEW_WAIT_MS = 7 * 24 * 60 * 60 * 1000;
 
 type TimelineEvent = {
+  id?: number;
   event?: string;
   body?: string | null;
   actor?: { login?: string } | null;
@@ -45,9 +45,6 @@ export interface PreReviewStatus {
   timedOut: string[];
   // Explicit objections remain pending, even after the deadline.
   rejected: string[];
-  // Only a verified merge-rules approval skips pre-review. Other approvals
-  // (or a failed merge-rules lookup) must not strand the PR here.
-  isMergeApproved: boolean;
   lookupFailed: boolean;
   // Everyone whose agreement counted, including members agreeing for a team
   countedFrom: string[];
@@ -101,16 +98,23 @@ export function getRotatingBatch<T>(
   return [...items.slice(offset), ...items.slice(0, offset)].slice(0, size);
 }
 
-export function getPreReviewBatch<T extends { created_at: string }>(
-  items: T[],
-  now: number
-): T[] {
-  const young = items.filter(
-    (pr) => Date.parse(pr.created_at) > now - PRE_REVIEW_WAIT_MS
-  );
-  const old = items.filter(
-    (pr) => Date.parse(pr.created_at) <= now - PRE_REVIEW_WAIT_MS
-  );
+export function getPreReviewBatch<
+  T extends {
+    created_at: string;
+    labels?: (string | { name?: string })[];
+  }
+>(items: T[], now: number): T[] {
+  // Admission holds have no deadline yet. Rotate them with young PRs so a
+  // large backlog cannot delay the uncapped checks of actual pre-review timeouts.
+  const couldExpire = (pr: T) =>
+    Date.parse(pr.created_at) <= now - PRE_REVIEW_WAIT_MS &&
+    !pr.labels?.some(
+      (label) =>
+        (typeof label === "string" ? label : label.name) ===
+        PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE
+    );
+  const young = items.filter((pr) => !couldExpire(pr));
+  const old = items.filter(couldExpire);
   return [
     ...old,
     ...getRotatingBatch(
@@ -156,6 +160,25 @@ export function getPreReviewDeadline(events: TimelineEvent[]): string | null {
         event.event === "labeled" &&
         event.label?.name === PR_STATUS_LABEL_TRIAGED
     )
+  ) {
+    return null;
+  }
+  const admissionEvents = events.filter(
+    (event) =>
+      ["labeled", "unlabeled"].includes(event.event ?? "") &&
+      event.label?.name === PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE
+  );
+  // Immediately after clearing the hold, the timeline can still lag. Never
+  // reuse the earlier triage deadline until its removal is visible.
+  if (
+    admissionEvents.some(
+      (event) => !Number.isFinite(Date.parse(event.created_at ?? ""))
+    ) ||
+    admissionEvents.sort(
+      (a, b) =>
+        Date.parse(b.created_at!) - Date.parse(a.created_at!) ||
+        (b.id ?? 0) - (a.id ?? 0)
+    )[0]?.event === "labeled"
   ) {
     return null;
   }
@@ -236,7 +259,7 @@ async function getTeamMembers(
 
 /**
  * Check which assigned reviewers have agreed, by reacting with a thumbs-up to
- * the PR description or commenting `@pytorchbot pre-review accept`. A team
+ * the PR description, approving, or commenting `@pytorchbot pre-review accept`. A team
  * agrees once any member other than the author does, unless a member objects.
  * Silent reviewers (including teams) accept after one week in pre-review.
  *
@@ -281,6 +304,7 @@ export async function getPreReviewStatus(
   const agreedBy = new Set([
     ...getThumbsUpReactors(reactions as Reaction[]),
     ...getPreReviewAcceptors(events as TimelineEvent[]),
+    ...(state?.approvingReviewers ?? []),
     ...acceptedBy,
   ]);
   agreedBy.delete(authorLogin);
@@ -288,11 +312,16 @@ export async function getPreReviewStatus(
     events as TimelineEvent[],
     reactions
   );
+  for (const login of state?.changesRequestedReviewers ?? []) {
+    rejectedBy.add(login);
+  }
   rejectedBy.delete(authorLogin);
-  const expiresAt = getPreReviewDeadline(events as TimelineEvent[]);
+  const expiresAt = state?.labels.includes(
+    PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE
+  )
+    ? null
+    : getPreReviewDeadline(events as TimelineEvent[]);
   const timedOut = expiresAt !== null && now >= Date.parse(expiresAt);
-  const isMergeApproved =
-    state?.isApproved === true && state.isMergeApproved === true;
 
   const agreed: string[] = [];
   const pending: string[] = [];
@@ -332,14 +361,12 @@ export async function getPreReviewStatus(
     pending,
     timedOut: timedOutReviewers,
     rejected,
-    isMergeApproved,
     lookupFailed,
     countedFrom: [...countedFrom].sort(),
     accepted:
       state !== null &&
       !state.reviewerLookupFailed &&
       hasPreReviewLabels(state.labels) &&
-      !isMergeApproved &&
       (assigned.length > 0 || timedOut) &&
       pending.length === 0,
   };

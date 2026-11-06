@@ -44,7 +44,6 @@ function preReview(overrides: Partial<PreReviewStatus> = {}): PreReviewStatus {
     countedFrom: ["alice"],
     expiresAt: "2026-11-05T16:30:00.000Z",
     deadlinePassed: false,
-    isMergeApproved: false,
     lookupFailed: false,
     accepted: false,
     ...overrides,
@@ -75,7 +74,7 @@ describe("getPrStatusStage", () => {
     ).toBe("preReview");
   });
 
-  test.each([false, undefined])(
+  test.each([true, false, undefined])(
     "an approval with merge rights %s cannot hide pre-review",
     (isMergeApproved) => {
       expect(
@@ -102,7 +101,7 @@ describe("getPrStatusStage", () => {
     ["missingActionableIssue", { labels: ["missing actionable issue"] }],
     [
       "approved",
-      { labels: ["triaged"], isApproved: true, isMergeApproved: true },
+      { labels: ["ready for review"], isApproved: true, isMergeApproved: true },
     ],
     [
       "needsAdditionalApproval",
@@ -134,7 +133,7 @@ describe("getPrStatusStage", () => {
     expect(renderPrStatusSection(beforeRollout)).toBe("");
   });
 
-  test("approval outranks every label", () => {
+  test("approval does not bypass automated review", () => {
     expect(
       getPrStatusStage(
         state({
@@ -143,7 +142,7 @@ describe("getPrStatusStage", () => {
           assignedReviewers: ["alice"],
         })
       )
-    ).toBe("approved");
+    ).toBe("inProgress");
   });
 
   test("a PR carrying two labels mid-transition reports the later stage", () => {
@@ -179,7 +178,7 @@ describe("getPrStatusStage", () => {
     ).toBe("missingActionableIssue");
   });
 
-  test("a later stage outranks a leftover missing actionable issue label", () => {
+  test("only a later workflow stage outranks a leftover admission hold", () => {
     expect(
       getPrStatusStage(
         state({
@@ -197,10 +196,10 @@ describe("getPrStatusStage", () => {
           isApproved: true,
         })
       )
-    ).toBe("approved");
+    ).toBe("missingActionableIssue");
   });
 
-  test("an approval no merge rule accepts outranks the other labels", () => {
+  test("an approval no merge rule accepts still waits for automated review", () => {
     expect(
       getPrStatusStage(
         state({
@@ -209,7 +208,7 @@ describe("getPrStatusStage", () => {
           isMergeApproved: false,
         })
       )
-    ).toBe("needsAdditionalApproval");
+    ).toBe("inProgress");
   });
 
   test("an approval no merge rule accepts does not hide a missing actionable issue", () => {
@@ -455,7 +454,11 @@ describe("getPrStatusMessage", () => {
 
   test("needs additional approval", () => {
     const message = getPrStatusMessage(
-      state({ isApproved: true, isMergeApproved: false })
+      state({
+        labels: ["ready for review"],
+        isApproved: true,
+        isMergeApproved: false,
+      })
     );
     expect(message).toBe(
       "## PR Status: Needs additional approval\n\n" +
@@ -465,7 +468,11 @@ describe("getPrStatusMessage", () => {
   });
 
   test("approved", () => {
-    expect(getPrStatusMessage(state({ isApproved: true }))).toBe(
+    expect(
+      getPrStatusMessage(
+        state({ labels: ["ready for review"], isApproved: true })
+      )
+    ).toBe(
       "## PR Status: Approved 🚀\n\n" +
         "Please fix all CI failures and trigger " +
         'merge by commenting "@pytorchbot merge".'
@@ -951,7 +958,7 @@ describe("fetchPrStatusState", () => {
     expect(state!.isApproved).toBe(true);
     expect(state!.isMergeApproved).toBeUndefined();
     expect(state!.mergeApprovalLookupFailed).toBe(false);
-    expect(getPrStatusStage(state!)).toBe("approved");
+    expect(getPrStatusStage(state!)).toBe("inProgress");
     expect(octokit._getContent).not.toHaveBeenCalled();
   });
 

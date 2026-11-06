@@ -99,6 +99,12 @@ export interface PrStatusState {
   labels: string[];
   // Whether the PR currently carries a live approving review.
   isApproved: boolean;
+  // Individual live approvals also count as pre-review acceptance, even when
+  // another reviewer objects or the approver does not satisfy a merge rule.
+  approvingReviewers?: string[];
+  // Full review history may be fresher than the issue timeline. Keep explicit
+  // objections available to pre-review even when a webhook has not caught up.
+  changesRequestedReviewers?: string[];
   // Whether an approving reviewer satisfies .github/merge_rules.yaml for the
   // changed files. Undefined if verification failed or this repository does
   // not use PyTorch's merge rules; the failure flag distinguishes the two.
@@ -118,9 +124,8 @@ export interface PrStatusState {
   reviewerLookupFailed?: boolean;
 }
 
-// A verified merge approval outranks the workflow labels, which can lag a
-// review by a sweep. Other approvals cannot hide pre-review or a missing
-// actionable issue. Drafts take precedence over review status. Labels are checked
+// An approval cannot skip admission, pre-review, or automated review. Only
+// ready PRs can report final approval. Drafts take precedence. Labels are checked
 // most-advanced first so a PR that briefly carries two of them (a bot
 // mid-transition) reports the later stage.
 // During a move back to in progress, this temporarily reports ready for review
@@ -140,14 +145,14 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   if (state.pullRequest?.draft) {
     return "draft";
   }
-  // An approval outside the merge rules does not end pre-review, and must not
-  // hide its remaining reviewers or deadline. Unknown merge rights do not
-  // constitute the verified approval that lets the pre-review sweep skip a PR.
-  if (
-    hasPreReviewLabels(state.labels) &&
-    !(state.isApproved && state.isMergeApproved === true)
-  ) {
-    return "preReview";
+  if (!labels.has(PR_STATUS_LABEL_READY_FOR_REVIEW)) {
+    if (labels.has(PR_STATUS_LABEL_IN_PROGRESS)) {
+      return "inProgress";
+    }
+    if (labels.has(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)) {
+      return "missingActionableIssue";
+    }
+    return hasPreReviewLabels(state.labels) ? "preReview" : "none";
   }
   if (
     state.isApproved &&
@@ -163,17 +168,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   ) {
     return "needsAdditionalApproval";
   }
-  if (labels.has(PR_STATUS_LABEL_READY_FOR_REVIEW)) {
-    return "readyForReview";
-  }
-  if (labels.has(PR_STATUS_LABEL_IN_PROGRESS)) {
-    return "inProgress";
-  }
-  // Checked before triaged, which Auto PR Triage adds alongside it.
-  if (labels.has(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)) {
-    return "missingActionableIssue";
-  }
-  return "none";
+  return "readyForReview";
 }
 
 export function hasPreReviewLabels(labels: string[]): boolean {
@@ -206,7 +201,9 @@ function getPreReviewMessage(status?: PreReviewStatus): string {
     "automated and detailed maintainer review; it does not grant merge approval. " +
     "Assigned reviewers can pre-accept with a 👍 on the PR description or a " +
     "`@pytorchbot pre-review accept` comment, or request changes with a 👎 " +
-    "on the PR description. If you move the PR to draft to request changes, " +
+    "on the PR description. A GitHub approving review also counts as " +
+    "pre-acceptance, but does not skip other reviewers or automated review. " +
+    "If you move the PR to draft to request changes, " +
     "also leave a 👎 so your objection still blocks after it is marked ready.\n\n";
   if (!status || status.lookupFailed) {
     return (
@@ -360,7 +357,11 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         "the description also requests re-triage automatically. Marking " +
         "the PR ready, reopening it, or re-enabling automated triage " +
         "rechecks existing links and support. If re-triage is still needed, " +
-        "comment `@pytorchbot triage` to run Auto PR Triage again."
+        "comment `@pytorchbot triage` to run Auto PR Triage again.\n\n" +
+        "An assigned reviewer can also clear this hold by approving the PR, " +
+        "reacting with 👍 on its description, or commenting " +
+        "`@pytorchbot pre-review accept`. The PR still goes through pre-review " +
+        "and automated review before it can report final approval."
       );
     case "preReview":
       return getPreReviewMessage(state.preReview);
@@ -576,6 +577,10 @@ export async function fetchPrStatusState(
     reviews as any,
     isPyTorchPyTorch(owner, repo)
   );
+  const approvingReviewers = getApprovingReviewers(
+    reviews as any,
+    isPyTorchPyTorch(owner, repo)
+  );
 
   // The merge rules are pytorch/pytorch's, so only its approvals are checked.
   let isMergeApproved: boolean | undefined;
@@ -587,7 +592,7 @@ export async function fetchPrStatusState(
         owner,
         repo,
         prNumber,
-        getApprovingReviewers(reviews as any, true)
+        approvingReviewers
       );
     } catch (e) {
       mergeApprovalLookupFailed = true;
@@ -622,10 +627,12 @@ export async function fetchPrStatusState(
         author ?? ""
       )
     : undefined;
+  const changesRequestedReviewers = getOutstandingChangesReviewers(
+    reviews,
+    author ?? ""
+  );
   const outstandingChanges = new Set(
-    getOutstandingChangesReviewers(reviews, author ?? "").map((login) =>
-      login.toLowerCase()
-    )
+    changesRequestedReviewers.map((login) => login.toLowerCase())
   );
 
   return {
@@ -644,6 +651,8 @@ export async function fetchPrStatusState(
         }
       : undefined,
     isApproved: approvalStatus === PR_APPROVED,
+    approvingReviewers,
+    changesRequestedReviewers,
     isMergeApproved,
     mergeApprovalLookupFailed,
     hasChangesRequested: approvalStatus === PR_CHANGES_REQUESTED,

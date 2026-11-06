@@ -522,7 +522,7 @@ describe("prStatusBot", () => {
       mockStatusRefresh([approval], "## PR Status: Needs additional approval"),
     ];
     await probot.receive(
-      editedEvent({ base: { ref: { from: "topic" } } }, ["in progress"])
+      editedEvent({ base: { ref: { from: "topic" } } }, ["ready for review"])
     );
     handleScope(scopes);
   });
