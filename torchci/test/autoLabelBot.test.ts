@@ -1741,74 +1741,11 @@ describe("auto-label-bot: labeler.yml config", () => {
       return Array.from({ length: count }, (_, i) => `* #${prNumber - 1 - i}`);
     }
 
-    test("a PR above with 10 PRs below it does not hold the label back", async () => {
-      const repository: any = {};
-      for (let i = 0; i < 10; i++) {
-        const files = i === 9 ? ["torch/_dynamo/other.py"] : ["docs/readme.md"];
-        repository[`pr${i}`] = stackPrNode(32 + i, files);
-      }
-      const rowsAbove = Array.from({ length: 10 }, (_, i) => `* #${41 - i}`);
-      const scopes = [
-        mockDynamoPr(),
-        mockStackPrs({ repository }),
-        mockContainment(Array(10).fill(0)),
-      ];
-      await expectLabels(
-        ghstackEvent([...rowsAbove, `* __->__ #${prNumber}`]),
-        ["module: dynamo", "ciflow/inductor"],
-        scopes
-      );
-    });
-
-    test.each([
-      [9, ["module: dynamo"]],
-      [10, ["module: dynamo", "ciflow/inductor"]],
-    ])(
-      "a PR above with %i PRs below it, counting the rows below this PR: labels %j",
-      async (belowAbove, labels) => {
-        const scopes = [
-          mockDynamoPr(),
-          mockStackPrs({
-            repository: { pr0: stackPrNode(32, ["torch/_dynamo/other.py"]) },
-          }),
-          mockContainment([0]),
-        ];
-        await expectLabels(
-          ghstackEvent([
-            "* #32",
-            `* __->__ #${prNumber}`,
-            ...rowsBelow(belowAbove - 1),
-          ]),
-          labels,
-          scopes
-        );
-      }
-    );
-
-    test("a PR above with 10 PRs below it and ciflow/trunk holds the label back", async () => {
-      const scopes = [
-        mockDynamoPr(),
-        mockStackPrs({
-          repository: {
-            pr0: stackPrNode(32, ["torch/_dynamo/other.py"], {
-              labels: ["ciflow/trunk"],
-            }),
-          },
-        }),
-        mockContainment([0]),
-      ];
-      await expectLabels(
-        ghstackEvent(["* #32", `* __->__ #${prNumber}`, ...rowsBelow(9)]),
-        ["module: dynamo"],
-        scopes
-      );
-    });
-
     test.each([
       ["no listing", undefined],
       [
-        "a ghstack-style listing with 10 rows below it",
-        [ghstackHeader, `* __->__ #${prNumber}`, ...rowsBelow(10)].join("\n"),
+        "a ghstack-style listing",
+        [ghstackHeader, `* __->__ #${prNumber}`, ...rowsBelow(3)].join("\n"),
       ],
     ])(
       "a covered lower native-stack PR with %s in its body gets no ciflow label",
