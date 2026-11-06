@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 from unittest import main, mock, TestCase
 
@@ -117,6 +118,16 @@ class EvaluateTest(TestCase):
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
+
+    def test_prepare_marks_events_from_jobs_without_the_cut(self) -> None:
+        mac = self.snap.e2[1]
+        mac = replace(mac, row=replace(mac.row, build_environment="macos-py3-arm64"))
+        self.snap.e2[1] = mac
+        prep = evaluate.prepare(self.args, self.snap)
+        self.assertFalse(prep.meta["e2"]["2:test_b"]["td_cut"])
+        self.assertTrue(prep.meta["e2"]["1:test_a"]["td_cut"])
+        key = "E2 events from jobs without TD's cut (every test ran)"
+        self.assertEqual(prep.data[key], 1)
 
     def test_prepare_keeps_events_with_a_base_and_diffs(self) -> None:
         prep = evaluate.prepare(self.args, self.snap)

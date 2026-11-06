@@ -17,6 +17,7 @@ from statistics import median
 from typing import Any, Collection, Iterable, Mapping, Optional
 
 from torchci.td.llm.events import RankRow, test_file_of
+from torchci.td.llm.events_sql import TD_WORKFLOW_PREFIXES, TD_WORKFLOWS
 from torchci.td.llm.metrics import mcnemar_exact
 from torchci.td.llm.scoring import TD_CUT_FRACTION
 
@@ -59,8 +60,7 @@ def cut_applied(row: RankRow) -> bool:
     as cut."""
     env = row.build_environment
     return (
-        row.workflow in ("trunk", "pull")
-        or row.workflow.startswith(("rocm-", "periodic-rocm-"))
+        row.workflow in TD_WORKFLOWS or row.workflow.startswith(TD_WORKFLOW_PREFIXES)
     ) and not any(s in env for s in ("macos", "xpu", "onnx"))
 
 

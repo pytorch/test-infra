@@ -7,9 +7,13 @@ bound as parameters, never interpolated.
 RETENTION_DAYS = 90
 SETTINGS = "SETTINGS readonly = 2, max_execution_time = 120, max_threads = 8"
 
+# The workflows pytorch's run_test.py enables TD in (its `--enable-td` default).
+TD_WORKFLOWS = ("pull", "trunk")
+TD_WORKFLOW_PREFIXES = ("rocm-", "periodic-rocm-")
 TD_SCOPE = (
-    "(workflow IN ('pull', 'trunk') OR startsWith(workflow, 'rocm-')"
-    " OR startsWith(workflow, 'periodic-rocm-'))"
+    f"(workflow IN ({', '.join(repr(w) for w in TD_WORKFLOWS)})"
+    + "".join(f" OR startsWith(workflow, {p!r})" for p in TD_WORKFLOW_PREFIXES)
+    + ")"
 )
 RANK_COLUMNS = (
     "run_id, job_id, workflow, build_environment, test_config, timestamp, info,"

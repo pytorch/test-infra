@@ -165,17 +165,20 @@ intervals (seed 0, 10,000 resamples) over PRs:
 4. model, from the registry's smallest by committed size: a bigger model replaces the
    incumbent only if it is superior, not worse on E1, and ahead on the confirmation slice
    too; the pick must be within the gates (estimated per-PR job <= 330 s, bundle <= 12 GB
-   for the upload runner's 14 GB disk, nightly build <= 90 min on 16 vCPUs);
+   for the upload runner's 14 GB disk, nightly build <= 90 min on 16 vCPUs).
+
 The report names the picked configuration. The replay inside TD's aggregate is reported
 per transform, for information, and picks nothing: E1 caught, logged against replayed,
 with McNemar (single-commit landings get their own line); the E2 kept rate; and the cut's
 estimated test time. Where TD cut a job's tests, a test outside the cut never ran, so
 those E2 failures lie mostly inside the logged cut and can show losses but hardly any
-gains. The E2 TD-off columns count only failures from jobs without the cut (macOS, XPU
-and ONNX jobs, `replay.cut_applied`), where every test ran: that is the unbiased E2
-replay, and `scoring.TRANSFORM` was chosen on it. Jobs with TD off for reasons no row
-shows (a PR's `ci-no-td` label, `force-no-td` jobs, workflows passing `tests-to-include`,
-empty TD results) count as cut, so the TD-off columns cover a subset of the unbiased jobs.
+gains. The E2 TD-off columns count the failures whose first failing job had no cut
+(`replay.cut_applied`: macOS, XPU and ONNX jobs; in practice macOS), where every test
+ran, and `scoring.TRANSFORM` was chosen on them. They are still biased against the cut:
+an event is classified by its first failing job, and a failure inside the cut usually
+fails first on a TD-on job, so the inside-cut failures that also failed on a TD-off job
+count as TD-on. Jobs with TD off for reasons no row shows (a PR's `ci-no-td` label,
+`force-no-td` jobs, workflows passing `tests-to-include`, empty TD results) count as cut.
 
 ### Running it
 

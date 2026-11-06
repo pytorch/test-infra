@@ -127,7 +127,7 @@ def prepare(args: argparse.Namespace, snap: events.Snapshot) -> Prepared:
         "E2 events skipped (sample, base, commits or diff)": len(snap.e2) - len(e2),
         "E2 events whose PR edits the failing file": sum(edited.values()),
         "E2 events from jobs without TD's cut (every test ran)": sum(
-            not replay.cut_applied(e.row) for e in e2
+            not m["td_cut"] for m in meta["e2"].values()
         ),
         "PR sample": f"{args.sample_prs} PRs, seed {args.seed}"
         if args.sample_prs

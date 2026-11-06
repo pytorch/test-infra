@@ -44,9 +44,11 @@ NOTES = [
     "The replay is information only: it shows what the LLM part does inside TD's current "
     "fixed-weight sum, and picks nothing. Where TD cut a job's tests, a test outside the "
     "cut never ran, so those E2 failures lie mostly inside the logged cut and the replay "
-    "can show losses but hardly any gains. The E2 TD-off columns count only failures from "
-    "jobs without the cut (macOS, XPU and ONNX jobs), where every test ran; jobs with TD "
-    "off for other reasons (a ci-no-td label, force-no-td, tests-to-include) count as cut.",
+    "can show losses but hardly any gains. The E2 TD-off columns count the failures whose "
+    "first failing job had no cut (macOS, XPU and ONNX jobs), where every test ran. They "
+    "are still biased against the cut: inside-cut failures usually fail first on a TD-on "
+    "job and count there. Jobs with TD off for other reasons (a ci-no-td label, "
+    "force-no-td, tests-to-include) count as cut.",
 ]
 STANDALONE_COLUMNS = (
     "config|E1 caught|E1 single-commit|E2 PR recall@25%|not edited (primary)"
