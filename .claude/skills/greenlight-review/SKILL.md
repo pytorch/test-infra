@@ -237,6 +237,11 @@ changes to existing tests, where the checkout shows why:
   assertion stays and checks the same values, and the change only controls state the test
   was not written to check, such as run order, timing, caches, or when the random seed is
   set.
+- A performance check, such as a speedup floor or a timing bound, limited to the hardware
+  it was calibrated on, or loosened to what measurements on other hardware support. The
+  measurements are in the checkout or are runs the PR description reports (see **A PR
+  cannot certify itself**). A correctness tolerance is never a performance check: it
+  stays under **Numerics**.
 
 Not when the skip or expected failure is unconditional or otherwise wider than its
 guard, or a test's code changes beyond these (comments and docstrings are fine).
