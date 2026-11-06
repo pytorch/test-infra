@@ -4,6 +4,9 @@ set -euo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 export DESIRED_DEVTOOLSET="cxx11-abi"
 
+# create_uv_venv, install_uv, remove_uv_venv
+source "${SCRIPT_DIR}/uv_env.sh"
+
 #######################################
 # Helper Functions
 #######################################
@@ -16,41 +19,9 @@ handle_aarch64_cuda_override() {
     fi
 }
 
-# Get Python version and conda extra parameters based on MATRIX_PYTHON_VERSION
-get_python_config() {
-    case ${MATRIX_PYTHON_VERSION} in
-        3.14t)
-            PYTHON_V=3.14.0rc1
-            CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
-            ;;
-        3.14)
-            PYTHON_V=3.14.0rc1
-            CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
-            ;;
-        # Note: 3.15 / 3.15t are intentionally absent here. They are provisioned
-        # via uv (CPython 3.15.0rc2) in the interpreter-setup branch below and
-        # never reach the conda create path that reads CONDA_EXTRA_PARAM.
-        *)
-            PYTHON_V=${MATRIX_PYTHON_VERSION}
-            CONDA_EXTRA_PARAM=""
-            ;;
-    esac
-    export PYTHON_V CONDA_EXTRA_PARAM
-}
-
-# Update conda based on target OS
-update_conda() {
-    if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
-        conda update -y -n base -c defaults conda
-    else
-        conda --version
-    fi
-}
-
 # Modify installation command based on various flags
 build_installation_command() {
     local installation="${MATRIX_INSTALLATION}"
-    installation=${installation/"conda install"/"conda install -y"}
 
     # force-reinstall: latest version of packages are reinstalled
     if [[ ${USE_FORCE_REINSTALL:-} == 'true' ]]; then
@@ -75,8 +46,6 @@ build_installation_command() {
     # if RELEASE version is passed as parameter - install specific version
     if [[ -n ${RELEASE_VERSION:-} ]]; then
         installation=${installation/"torch "/"torch==${RELEASE_VERSION} "}
-        installation=${installation/"-y pytorch "/"-y pytorch==${RELEASE_VERSION} "}
-        installation=${installation/"::pytorch "/"::pytorch==${RELEASE_VERSION} "}
     fi
 
     echo "${installation}"
@@ -129,7 +98,7 @@ get_variant_index_url() {
     fi
 }
 
-# Install packages using wheel variants with uv
+# Install packages using wheel variants with uv, into the active venv
 # Sets TEST_SUFFIX global variable
 install_wheel_variants() {
     local variant_packages="torch torchvision"
@@ -153,8 +122,6 @@ install_wheel_variants() {
         curl -LsSf https://astral.sh/uv/install.sh | \
             INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh/v0.0.3 sh
         source "${HOME}/.local/bin/env"
-        uv venv --python "${MATRIX_PYTHON_VERSION}"
-        source .venv/bin/activate
     fi
 
     uv pip install --index "${variant_index_url}" ${variant_packages} --force-reinstall --verbose
@@ -164,6 +131,8 @@ install_wheel_variants() {
 install_numpy_1x() {
     local minor_version
     minor_version=$(echo "${MATRIX_PYTHON_VERSION}" | cut -d . -f 2)
+    # "14t" for free-threaded builds
+    minor_version=${minor_version%t}
 
     if [[ ${minor_version} -lt 13 ]]; then
         pip3 install numpy==1.26.4 --force-reinstall
@@ -177,8 +146,9 @@ run_smoke_tests() {
     pushd "${PWD}/.ci/pytorch/"
 
     if [[ ${TARGET_OS} == 'linux' ]]; then
-        export CONDA_LIBRARY_PATH="$(dirname $(which python))/../lib"
-        export LD_LIBRARY_PATH="${CONDA_LIBRARY_PATH}:${LD_LIBRARY_PATH:-}"
+        # libpython lives next to the standalone interpreter, not in the venv.
+        PYTHON_LIBRARY_PATH="$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")"
+        export LD_LIBRARY_PATH="${PYTHON_LIBRARY_PATH}:${LD_LIBRARY_PATH:-}"
         source ./check_binary.sh
     fi
 
@@ -207,23 +177,11 @@ test_cuda_device() {
     fi
 }
 
-# Cleanup the environment created for this run.
-#
-# ENV_NAME is a conda env name on the conda path but a venv *directory* on the
-# uv path, so `conda env remove -n` would fail with EnvironmentLocationNotFound
-# and, under `set -e`, fail the whole job after the tests had already passed.
-cleanup_conda_env() {
+# Remove the venv created for this run. Linux jobs run in throwaway containers;
+# the macOS and Windows runners are reused, so clean up there.
+cleanup_venv() {
     if [[ ${TARGET_OS} != linux* ]]; then
-        if [[ ${USING_UV_VENV} == 'yes' ]]; then
-            # `deactivate` is a function defined by the venv activate script.
-            if declare -F deactivate > /dev/null; then
-                deactivate
-            fi
-            rm -rf "${ENV_NAME}"
-        else
-            conda deactivate
-            conda env remove -n "${ENV_NAME}"
-        fi
+        remove_uv_venv "${ENV_NAME}"
     fi
 }
 
@@ -296,7 +254,7 @@ check_wheel_size() {
 #
 # The report itself is built by build_report.py; see that script for what the
 # two size figures mean. Runs while the env is still active, because
-# cleanup_conda_env removes it on non-linux.
+# cleanup_venv removes it on non-linux.
 write_build_report() {
     local torch_wheel_mb="${1:-}" vision_wheel_mb="${2:-}"
     local report
@@ -340,15 +298,14 @@ if [[ ${MATRIX_PYTHON_VERSION:-} == "3.15" || ${MATRIX_PYTHON_VERSION:-} == "3.1
     export TORCH_ONLY=true
 fi
 
+install_uv
+
+# Libtorch only needs some Python to run validate_libtorch.py; wheels are
+# validated with the Python version of the matrix entry.
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
-    LIBTORCH_PYTHON="python3"
-    if [[ ${TARGET_OS} == 'windows' ]]; then
-        # Windows runners only source conda.sh at this point without activating
-        # an env, so no python is on PATH yet. Activate base to get one.
-        conda activate base
-        LIBTORCH_PYTHON="python"
-    fi
-    "${LIBTORCH_PYTHON}" "${SCRIPT_DIR}/validate_libtorch.py" "${MATRIX_INSTALLATION}"
+    create_uv_venv "${ENV_NAME}" "${LIBTORCH_PYTHON_VERSION:-3.12}"
+    python "${SCRIPT_DIR}/validate_libtorch.py" "${MATRIX_INSTALLATION}"
+    cleanup_venv
     exit 0
 fi
 
@@ -358,58 +315,23 @@ if [[ ${TARGET_OS} == 'windows' ]]; then
     export PYTHON_RUN="python"
 fi
 
-# Setup the Python environment.
-#
-# Python 3.15 is still pre-release, and conda-forge's default channel does not
-# carry it, so provision the interpreter with uv (from python-build-standalone)
-# instead of conda. A --seed venv provides pip so the rest of the flow (pip3
-# install, smoke tests) is unchanged.
-#
-# Pin the latest pre-release (rc2), NOT b1: `import torch` segfaults under the
-# 3.15.0b1 build. The crash is pybind11 3.0.4's gil_scoped_acquire teardown in
+# Setup the Python environment: a uv venv, seeded with pip so the rest of the flow
+# (pip3 install, smoke tests) works as it did in a conda env. uv resolves
+# "3.15" to the latest stable 3.15.x, and "3.14t" and the like to the
+# free-threaded build. A 3.15.0b1 build must never be picked: `import torch`
+# segfaults under it. The crash is pybind11 3.0.4's gil_scoped_acquire teardown in
 # python_tracer::init(), reached from torch._C._autograd_init():
 #     THPAutograd_initExtension -> python_tracer::init()
 #       -> ~gil_scoped_acquire() -> dec_ref() -> PyThreadState_Clear -> SIGSEGV
-# Verified with the cp315 nightly: b1 segfaults, b4 and rc2 import and run
-# (matmul/autograd, and 3.15t with the GIL genuinely disabled).
-USING_UV_VENV="no"
-if [[ ${MATRIX_PYTHON_VERSION} == "3.15" || ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
-    USING_UV_VENV="yes"
-    UV_PYTHON="3.15.0rc2"
-    if [[ ${MATRIX_PYTHON_VERSION} == "3.15t" ]]; then
-        UV_PYTHON="3.15.0rc2+freethreaded"
-    fi
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    source "${HOME}/.local/bin/env"
-    uv venv --seed --python "${UV_PYTHON}" "${ENV_NAME}"
-    # uv lays the venv out the platform way: Scripts/ on Windows, bin/ elsewhere.
-    if [[ ${TARGET_OS} == 'windows' ]]; then
-        source "${ENV_NAME}/Scripts/activate"
-    else
-        source "${ENV_NAME}/bin/activate"
-    fi
-else
-    update_conda
-    get_python_config
-    conda create -y -n "${ENV_NAME}" python="${PYTHON_V}" pip ${CONDA_EXTRA_PARAM}
-    conda activate "${ENV_NAME}"
-fi
-
-# Save original PATH for macos-arm64 workaround
-export OLD_PATH=${PATH}
-# This promotes the *conda* env's bin to the front of PATH. On the uv path there
-# is no conda env to promote: CONDA_PREFIX still points at base (python 3.14),
-# so prepending it shadows the venv's python3/pip3 and the run would install and
-# validate the wrong interpreter instead of 3.15.
-if [[ ${TARGET_OS} == 'macos-arm64' && ${USING_UV_VENV} == 'no' ]]; then
-    export PATH="${CONDA_PREFIX}/bin:${PATH}"
-fi
+# b4 and rc2 import and run (matmul/autograd, and 3.15t with the GIL disabled), so
+# the stable releases are expected to as well.
+create_uv_venv "${ENV_NAME}" "${MATRIX_PYTHON_VERSION}"
 
 # Nightly ROCm validation runs on the lean pytorch/almalinux-builder:cpu-main
 # image, which does not ship libatomic.so.1. torch's _C extension links it, so
 # `import torch` fails with "libatomic.so.1: cannot open shared object file".
-# conda envs mask this by pulling libatomic in via libgcc, but the uv-based
-# 3.15 env does not, so install it explicitly. Scoped to ROCm on Linux.
+# A conda env would mask this by pulling libatomic in via libgcc, a venv does not,
+# so install it explicitly. Scoped to ROCm on Linux.
 if [[ ${MATRIX_GPU_ARCH_TYPE:-} == 'rocm' && ${TARGET_OS} == 'linux' ]]; then
     (dnf install -y libatomic || yum install -y libatomic) || true
 fi
@@ -449,13 +371,8 @@ write_build_report "${TORCH_WHEEL_MB}" "${TORCHVISION_WHEEL_MB}"
 # Run tests
 run_smoke_tests "${TEST_SUFFIX}"
 
-# Restore PATH for macos-arm64
-if [[ ${TARGET_OS} == 'macos-arm64' ]]; then
-    export PATH=${OLD_PATH}
-fi
-
 # Test CUDA device visibility
 test_cuda_device
 
 # Cleanup
-cleanup_conda_env
+cleanup_venv

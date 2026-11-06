@@ -1,6 +1,9 @@
 
-conda create -y -n ${ENV_NAME}_poetry python=${MATRIX_PYTHON_VERSION} numpy ffmpeg
-conda activate ${ENV_NAME}_poetry
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/uv_env.sh"
+install_uv
+create_uv_venv "${ENV_NAME}_poetry" "${MATRIX_PYTHON_VERSION}"
+pip install "numpy<3"
 # Pin Poetry to a released version. Installing from @main has caused
 # recurring CI flakes whenever Poetry's dev branch regresses. Bump
 # POETRY_VERSION deliberately when you want to upgrade.
@@ -45,6 +48,5 @@ fi
 pushd ${PWD}/../.ci/pytorch/
 python ./smoke_test/smoke_test.py ${TEST_SUFFIX} --runtime-error-check disabled
 popd
-conda deactivate
-conda env remove -p ${ENV_NAME}_poetry
 cd ..
+remove_uv_venv "${ENV_NAME}_poetry"

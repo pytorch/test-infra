@@ -22,7 +22,7 @@ on:
         required: false
         type: string
       package_type:
-        description: "Package type (conda, wheel, all)"
+        description: "Package type (wheel, libtorch, all)"
         required: false
         type: string
         default: "all"
@@ -45,7 +45,7 @@ on:
         type: string
         default: enable
       install_torch:
-        description: "Create new conda environment and preinstall torch"
+        description: "Create a new venv and preinstall torch"
         required: false
         type: boolean
         default: false
@@ -110,7 +110,7 @@ jobs:
           export "${line%%=*}=${line#*=}"
         done < "${RUNNER_TEMP}/github_env_${GITHUB_RUN_ID}"
 
-        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="venv-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
         export RELEASE_VERSION=${{ inputs.version }}
         if [[ ${{inputs.install_torch}} == 'true' ]]; then
@@ -136,7 +136,7 @@ jobs:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
         set -ex
-        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="venv-${{ github.run_id }}"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
         export TARGET_OS="windows"
         export RELEASE_VERSION=${{ inputs.version }}
@@ -160,7 +160,7 @@ jobs:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
         set -ex
-        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="venv-${{ github.run_id }}"
         export TARGET_OS="macos-arm64"
         export SMOKE_TEST="${{ inputs.smoke_test }}"
         export RELEASE_VERSION=${{ inputs.version }}

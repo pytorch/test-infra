@@ -105,7 +105,7 @@ jobs:
   generate-macos-arm64-matrix:
     uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
-      package-type: wheel,libtorch #  We stopped producing conda nightlies
+      package-type: wheel,libtorch
       os: macos-arm64
       channel: ${{ inputs.channel }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
@@ -126,7 +126,7 @@ jobs:
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
         set -ex
-        export ENV_NAME="conda-env-${{ github.run_id }}"
+        export ENV_NAME="venv-${{ github.run_id }}"
         export TARGET_OS="macos-arm64"
         export TORCH_ONLY=${{ inputs.torchonly }}
         export RELEASE_VERSION=${{ inputs.version }}
@@ -134,10 +134,6 @@ jobs:
         export INCLUDE_TORCHAUDIO=${{ inputs.include-torchaudio }}
         export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
         export USE_WHEEL_VARIANTS=${{ inputs.use-wheel-variants }}
-
-        if [[ ${{ matrix.package_type }} == "conda" ]]; then
-          export IS_M1_CONDA_BUILD_JOB=1
-        fi
 
         printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
         source ../../test-infra/.github/scripts/validate_binaries.sh
