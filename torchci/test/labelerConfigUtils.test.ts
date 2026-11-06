@@ -2,6 +2,7 @@ import {
   draftConstraintAllowsLabel,
   getDraftGatedLabelsToRemove,
   getLabelsFromLabelerConfig,
+  getLabelsNeededByFiles,
   normalizeLabelerRule,
 } from "lib/bot/labelerConfigUtils";
 
@@ -166,6 +167,32 @@ describe("labelerConfigUtils", () => {
     test("returns empty when globs do not match", () => {
       expect(getDraftGatedLabelsToRemove(config, ["docs/a.md"], true)).toEqual(
         []
+      );
+    });
+  });
+  describe("getLabelsNeededByFiles", () => {
+    const config = {
+      "module: dynamo": ["torch/_dynamo/**"],
+      "ciflow/inductor": { globs: ["torch/_dynamo/**"], draft: false },
+      broken: { globs: "bad" },
+    };
+
+    test("matches globs and respects the draft constraint", () => {
+      expect(
+        getLabelsNeededByFiles(config, ["torch/_dynamo/a.py"], false)
+      ).toEqual(["module: dynamo", "ciflow/inductor"]);
+      expect(
+        getLabelsNeededByFiles(config, ["torch/_dynamo/a.py"], true)
+      ).toEqual(["module: dynamo"]);
+      expect(getLabelsNeededByFiles(config, ["docs/a.md"], false)).toEqual([]);
+    });
+
+    test("logs skipped rules through the callback", () => {
+      const log = jest.fn();
+      getLabelsNeededByFiles(config, ["torch/_dynamo/a.py"], false, log);
+      expect(log).toHaveBeenCalledWith(
+        { label: "broken", rawRule: { globs: "bad" } },
+        "getLabelsFromLabelerConfig: unknown rule shape, skipping"
       );
     });
   });
