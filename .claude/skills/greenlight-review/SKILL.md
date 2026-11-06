@@ -223,16 +223,20 @@ intended behavior and the code does something else, that is a bug report, not a 
 Not when it touches a `conftest.py`, fixture, or runner, which steers what already runs.
 
 **Explained test changes** — a change that touches only the tests' own files (shared
-helpers, OpInfos, `run_test.py` and `conftest.py` are not theirs) and adds a skip or
-expected failure to existing tests, or updates a test's expected error message, where the
-checkout shows why. For a skip or expected failure: production code rejects what the test
-does on the platform or build it targets, and the guard says why (a test that expects the
-rejection is not explained by it). For a message: production code already raises the new
-message, the pattern still pins that message, and the test still expects the same
-exception type.
+helpers, OpInfos, `run_test.py` and `conftest.py` are not theirs) and makes one of these
+changes to existing tests, where the checkout shows why:
+- A skip or expected failure: production code rejects what the test does on the platform
+  or build it targets, and the guard says why (a test that expects the rejection is not
+  explained by it).
+- An updated expected error message: production code already raises the new message, the
+  pattern still pins that message, and the test still expects the same exception type.
+- A setup fix for a test that fails only sometimes or only in some environments: every
+  assertion stays and checks the same values, and the change only controls state the test
+  was not written to check, such as run order, timing, caches, or when the random seed is
+  set.
+
 Not when the skip or expected failure is unconditional or wider than its guard, or a
-test's code changes beyond the skip, expected failure, or expected message (comments and
-docstrings are fine).
+test's code changes beyond these (comments and docstrings are fine).
 
 **Meta-internal only** — a change that no OSS build, CI job, or wheel can observe, such as
 code or a skip that takes effect only when `IS_FBCODE`, `IS_SANDCASTLE`, or `is_fbcode()`
