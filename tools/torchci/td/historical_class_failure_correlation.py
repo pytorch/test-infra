@@ -6,17 +6,19 @@ from torchci.td.utils import (
     evaluate,
     filter_tests,
     get_merge_bases_dict,
+    HALF_LIFE_DAYS,
+    positive_rounded,
 )
-from torchci.utils import round_floats
 
 
 FAILED_TESTS_QUERY = """
 SELECT
-    distinct REPLACE(t.invoking_file, '.', '/') as invoking_file,
-    t.name,
-    t.classname,
-    t.file,
-    j.head_sha,
+    REPLACE(t.invoking_file, '.', '/') as invoking_file,
+    t.name as name,
+    t.classname as classname,
+    t.file as file,
+    j.head_sha as head_sha,
+    toUnixTimestamp(min(t.time_inserted)) as ts
 FROM
     default.failed_test_runs t
     join default.workflow_job j final on t.job_id = j.id
@@ -25,6 +27,12 @@ where
     and t.time_inserted > CURRENT_TIMESTAMP() - interval 90 day
     # Slightly more relaxed time window just in case
     and j.started_at > now() - interval 100 day
+group by
+    invoking_file,
+    name,
+    classname,
+    file,
+    head_sha
 """
 
 
@@ -43,14 +51,17 @@ def main() -> None:
     filtered_tests = filter_tests(failed_tests, merge_bases)
 
     test_class_ratings = calculate_generic_test_ratings(
-        filtered_tests, merge_bases, get_test_name_fn=extract_test_class_name
+        filtered_tests,
+        merge_bases,
+        get_test_name_fn=extract_test_class_name,
+        half_life_days=HALF_LIFE_DAYS,
     )
 
     print("Evaluating test classes:")
     evaluate(filtered_tests, merge_bases, test_class_ratings, extract_test_class_name)
 
     with open("file_test_class_rating.json", mode="w") as file:
-        json.dump(round_floats(test_class_ratings), file, sort_keys=True, indent=2)
+        json.dump(positive_rounded(test_class_ratings), file, sort_keys=True, indent=2)
 
 
 if __name__ == "__main__":

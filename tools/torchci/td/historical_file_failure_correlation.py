@@ -6,22 +6,44 @@ from torchci.td.utils import (
     calculate_generic_test_ratings,
     evaluate,
     get_merge_bases_dict,
+    HALF_LIFE_DAYS,
+    positive_rounded,
 )
-from torchci.utils import round_floats
 
 
 FAILED_TESTS_QUERY = """
+with metrics as (
+    select
+        run_id,
+        timestamp,
+        JSONExtractString(info, 'failure') as failure
+    from
+        misc.ossci_uploaded_metrics
+    where
+        metric_name = 'td_test_failure_stats_v2'
+        and timestamp > CURRENT_TIMESTAMP() - interval 90 day
+)
 select
-    w.head_sha,
-    JSONExtractString(t.info, 'failure') as failure
+    w.head_sha as head_sha,
+    m.failure as failure,
+    toUnixTimestamp(min(m.timestamp)) as ts
 from
-    default.workflow_run w
-    join misc.ossci_uploaded_metrics t on t.run_id = w.id
-where
-    t.metric_name = 'td_test_failure_stats_v2'
-    and t.timestamp > CURRENT_TIMESTAMP() - interval 90 day
-    # Slightly more relaxed time window just in case
-    and w.created_at > now() - interval 100 day
+    metrics m
+    join (
+        # Joining all of workflow_run exceeds the query memory limit
+        select
+            id,
+            head_sha
+        from
+            default.workflow_run
+        where
+            # Slightly more relaxed time window just in case
+            created_at > now() - interval 100 day
+            and id in (select run_id from metrics)
+    ) w on m.run_id = w.id
+group by
+    head_sha,
+    failure
 """
 
 
@@ -59,14 +81,14 @@ def main() -> None:
     filtered_tests = filter_tests(failed_tests, merge_bases)
 
     test_file_ratings = calculate_generic_test_ratings(
-        filtered_tests, merge_bases, lambda x: x["failure"]
+        filtered_tests, merge_bases, lambda x: x["failure"], HALF_LIFE_DAYS
     )
 
     print("Evaluating test files:")
     evaluate(filtered_tests, merge_bases, test_file_ratings, lambda x: x["failure"])
 
     with open("file_test_rating.json", mode="w") as file:
-        json.dump(round_floats(test_file_ratings), file, sort_keys=True, indent=2)
+        json.dump(positive_rounded(test_file_ratings), file, sort_keys=True, indent=2)
 
 
 if __name__ == "__main__":
