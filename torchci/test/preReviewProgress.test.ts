@@ -46,6 +46,22 @@ function reaction(login: string, content = "+1") {
   return { content, user: { login } };
 }
 
+function review(login: string, state = "APPROVED", submitted_at = ENTERED) {
+  return { user: { login }, author_association: "MEMBER", state, submitted_at };
+}
+
+function mergeRules(approvedBy = "alice") {
+  return nock("https://api.github.com")
+    .get(`/repos/${REPO}/contents/.github%2Fmerge_rules.yaml`)
+    .reply(200, {
+      content: Buffer.from(
+        `- patterns: ["**"]\n  approved_by: [${approvedBy}]`
+      ).toString("base64"),
+    })
+    .get(`/repos/${REPO}/pulls/1/files?per_page=100`)
+    .reply(200, [{ filename: "torch/foo.py" }]);
+}
+
 function statusReads({ reviews = [] as object[], pr = pull() } = {}) {
   return nock("https://api.github.com")
     .get(`/repos/${REPO}/pulls/1/reviews?per_page=100`)
@@ -117,6 +133,360 @@ beforeEach(() => {
 afterEach(() => {
   nock.cleanAll();
   jest.restoreAllMocks();
+});
+
+test.each(["alice", "someone-else"])(
+  "approval counts for that reviewer without skipping others (merge rule: %s)",
+  async (approvedBy) => {
+    const scopes = [
+      policyReads({
+        pr: pull({ requested_reviewers: [{ login: "bob" }] }),
+        reactions: [],
+        // COMMENTED must not hide the earlier approval. The timeline may lag
+        // the full review API; approval comes from the latter.
+        reviews: [
+          review("alice"),
+          review("alice", "COMMENTED", new Date(NOW).toISOString()),
+        ],
+      }),
+      mergeRules(approvedBy),
+      commentRead(),
+      commentWrite((body) => {
+        expect(body).toContain("**Pre-review accepted:** `alice`.");
+        expect(body).toContain("**Waiting for pre-review:** `bob`.");
+        expect(body).not.toContain("## PR Status: Approved");
+      }),
+    ];
+    expect(await checkPreReview()).toMatchObject({
+      agreed: ["alice"],
+      pending: ["bob"],
+      accepted: false,
+    });
+    handleScope(scopes);
+  }
+);
+
+test.each(["DISMISSED", "CHANGES_REQUESTED"])(
+  "%s withdraws an earlier approving review's pre-acceptance",
+  async (state) => {
+    const latest = review("alice", state, new Date(NOW).toISOString());
+    const scopes = [
+      policyReads({
+        reactions: [],
+        reviews: [review("alice"), latest],
+        events: [{ event: "reviewed", ...latest }],
+      }),
+      commentRead(),
+      commentWrite((body) =>
+        expect(body).not.toContain("**Pre-review accepted:")
+      ),
+    ];
+    expect(await checkPreReview()).toMatchObject({
+      agreed: [],
+      pending: ["alice", "bob"],
+      accepted: false,
+    });
+    handleScope(scopes);
+  }
+);
+
+test("a merge-approved PR still enters automated review after other reviewers time out", async () => {
+  jest.spyOn(Date, "now").mockReturnValue(Date.parse(DEADLINE));
+  const scopes = [
+    policyReads({ reactions: [], reviews: [review("alice")] }),
+    mergeRules(),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pull())
+      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+      .reply(200, []),
+    commentRead(),
+    commentWrite((body) => {
+      expect(body).toContain("## PR Status: in progress");
+      expect(body).not.toContain("## PR Status: Approved");
+    }),
+  ];
+  expect(await checkPreReview()).toMatchObject({
+    agreed: ["alice"],
+    timedOut: ["bob"],
+    accepted: true,
+  });
+  handleScope(scopes);
+});
+
+const HOLD = "missing actionable issue";
+const holdEvent = {
+  event: "labeled",
+  label: { name: HOLD },
+  created_at: ENTERED,
+};
+
+test.each(["approval", "thumbs-up", "command"])(
+  "%s clears admission but starts a fresh week for the remaining reviewers",
+  async (signal) => {
+    const admittedAt = "2026-11-15T00:00:00Z";
+    jest.spyOn(Date, "now").mockReturnValue(Date.parse(admittedAt));
+    const held = pull({ labels: [{ name: "triaged" }, { name: HOLD }] });
+    const responses = {
+      reactions: signal === "thumbs-up" ? [reaction("alice")] : [],
+      reviews: signal === "approval" ? [review("alice")] : [],
+    };
+    const scopes = [
+      policyReads({ pr: held, ...responses, events: [holdEvent] }),
+      ...(signal === "approval" ? [mergeRules(), mergeRules()] : []),
+      nock("https://api.github.com")
+        .get(`/repos/${REPO}/pulls/1`)
+        .reply(200, held)
+        .delete(`/repos/${REPO}/issues/1/labels/missing%20actionable%20issue`)
+        .reply(200, []),
+      policyReads({
+        ...responses,
+        events: [
+          holdEvent,
+          { event: "unlabeled", label: { name: HOLD }, created_at: admittedAt },
+        ],
+      }),
+      commentRead(),
+      commentWrite((body) => {
+        expect(body).toContain("## PR Status: in pre-review");
+        expect(body).toContain("**Waiting for pre-review:** `bob`.");
+        expect(body).toContain("2026-11-22 00:00:00 UTC");
+      }),
+    ];
+    const status = await markInProgressIfAccepted(
+      reader,
+      writer,
+      "pytorch",
+      "pytorch",
+      1,
+      ["triaged", HOLD],
+      "author",
+      signal === "command" ? ["alice"] : []
+    );
+    expect(status).toMatchObject({
+      agreed: ["alice"],
+      pending: ["bob"],
+      timedOut: [],
+      accepted: false,
+    });
+    handleScope(scopes);
+  }
+);
+
+test("the reaction sweep discovers admission holds and clears one when all reviewers agree", async () => {
+  const pr = pull({ labels: [{ name: "triaged" }, { name: HOLD }] });
+  const reactions = [reaction("alice"), reaction("bob")];
+  const scopes = [
+    nock("https://api.github.com")
+      .get("/search/issues")
+      .query((q) => !String(q.q).includes('-label:"missing actionable issue"'))
+      .reply(200, { total_count: 1, items: [{ ...pr, updated_at: ENTERED }] }),
+    policyReads({ pr, reactions, events: [holdEvent] }),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pr)
+      .delete(`/repos/${REPO}/issues/1/labels/missing%20actionable%20issue`)
+      .reply(200, []),
+    policyReads({ reactions, events: [holdEvent] }),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pull())
+      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+      .reply(200, []),
+    commentRead(),
+    commentWrite((body) => expect(body).toContain("## PR Status: in progress")),
+  ];
+  expect(
+    await updateInProgressLabels(reader, writer, "pytorch", "pytorch")
+  ).toMatchObject({ checked: 1, failed: [] });
+  handleScope(scopes);
+});
+
+test("a stale admission timeline cannot immediately time out other reviewers", async () => {
+  jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-15T00:00:00Z"));
+  const pr = pull({ labels: [{ name: "triaged" }, { name: HOLD }] });
+  const scopes = [
+    policyReads({ pr, events: [holdEvent] }),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pr)
+      .delete(`/repos/${REPO}/issues/1/labels/missing%20actionable%20issue`)
+      .reply(200, []),
+    policyReads({ events: [holdEvent] }),
+    commentRead(),
+    commentWrite((body) =>
+      expect(body).toContain("**Pre-review deadline:** unavailable")
+    ),
+  ];
+  expect(await checkPreReview()).toMatchObject({
+    expiresAt: null,
+    timedOut: [],
+    pending: ["bob"],
+    accepted: false,
+  });
+  handleScope(scopes);
+});
+
+test.each(
+  [
+    [],
+    [reaction("outsider")],
+    [reaction("author")],
+    [reaction("alice"), reaction("alice", "-1")],
+  ].map((reactions) => ({ reactions }))
+)(
+  "silence, outsiders, authors and objections cannot clear an admission hold: %j",
+  async ({ reactions }) => {
+    const pr = pull({ labels: [{ name: "triaged" }, { name: HOLD }] });
+    const scopes = [
+      policyReads({ pr, reactions, events: [holdEvent] }),
+      commentRead(),
+      commentWrite((body) =>
+        expect(body).toContain("## PR Status: missing actionable issue")
+      ),
+    ];
+    jest.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-15T00:00:00Z"));
+    expect(await checkPreReview()).toMatchObject({
+      countedFrom: [],
+      timedOut: [],
+      accepted: false,
+    });
+    handleScope(scopes);
+  }
+);
+
+test("full review objections block an old thumbs-up even before the timeline catches up", async () => {
+  const scopes = [
+    policyReads({
+      reactions: [reaction("alice"), reaction("bob")],
+      reviews: [review("bob", "CHANGES_REQUESTED")],
+    }),
+    commentRead(),
+    commentWrite((body) =>
+      expect(body).toContain("**Pre-review request changes:** `bob`.")
+    ),
+  ];
+  expect(await checkPreReview()).toMatchObject({
+    agreed: ["alice"],
+    rejected: ["bob"],
+    accepted: false,
+  });
+  handleScope(scopes);
+});
+
+test("an approval from a requested team's member counts as its pre-acceptance", async () => {
+  const scopes = [
+    policyReads({
+      pr: pull({ requested_teams: [{ slug: "core" }] }),
+      reactions: [],
+      reviews: [review("carol")],
+    }),
+    mergeRules("carol"),
+    nock("https://api.github.com")
+      .get("/orgs/pytorch/teams/core/members?per_page=100")
+      .reply(200, [{ login: "carol" }]),
+    commentRead(),
+    commentWrite((body) =>
+      expect(body).toContain(
+        "**Pre-review accepted:** `carol`, `pytorch/core`."
+      )
+    ),
+  ];
+  expect(await checkPreReview()).toMatchObject({
+    agreed: ["carol", "pytorch/core"],
+    pending: ["alice", "bob"],
+    accepted: false,
+  });
+  handleScope(scopes);
+});
+
+test.each([
+  { state: "closed" },
+  { draft: true },
+  { labels: [{ name: "ready for review" }] },
+  { labels: [] },
+])(
+  "admission checks live eligibility before clearing the hold: %j",
+  async (overrides) => {
+    const pr = pull({ labels: [{ name: "triaged" }, { name: HOLD }] });
+    const scopes = [
+      policyReads({ pr, events: [holdEvent] }),
+      nock("https://api.github.com")
+        .get(`/repos/${REPO}/pulls/1`)
+        .reply(200, { ...pr, ...overrides }),
+    ];
+    expect((await checkPreReview()).accepted).toBe(false);
+    handleScope(scopes);
+  }
+);
+
+test("an approval webhook clears admission and publishes remaining pre-review requests", async () => {
+  const event = requireDeepCopy("./fixtures/pull_request_review.json");
+  Object.assign(event.payload.repository, { name: "pytorch", full_name: REPO });
+  event.payload.repository.owner.login = "pytorch";
+  const pr = pull({ labels: [{ name: "triaged" }, { name: HOLD }] });
+  Object.assign(event.payload.pull_request, pr);
+  Object.assign(event.payload.review, review("alice"));
+  const scopes = [
+    policyReads({
+      pr,
+      reviews: [review("alice")],
+      reactions: [],
+      events: [holdEvent],
+    }),
+    mergeRules(),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pr)
+      .delete(`/repos/${REPO}/issues/1/labels/missing%20actionable%20issue`)
+      .reply(200, []),
+    policyReads({
+      reviews: [review("alice")],
+      reactions: [],
+      events: [
+        holdEvent,
+        {
+          event: "unlabeled",
+          label: { name: HOLD },
+          created_at: new Date(NOW).toISOString(),
+        },
+      ],
+    }),
+    mergeRules(),
+    commentRead(),
+    commentWrite((body) =>
+      expect(body).toContain("**Waiting for pre-review:** `bob`.")
+    ),
+  ];
+  const bot = testProbot();
+  bot.load(prStatusBot);
+  await bot.receive(event);
+  handleScope(scopes);
+});
+
+test("one acceptance clears admission while another reviewer's objection continues to block", async () => {
+  const pr = pull({ labels: [{ name: "triaged" }, { name: HOLD }] });
+  const reactions = [reaction("alice"), reaction("bob", "-1")];
+  const scopes = [
+    policyReads({ pr, reactions, events: [holdEvent] }),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pr)
+      .delete(`/repos/${REPO}/issues/1/labels/missing%20actionable%20issue`)
+      .reply(200, []),
+    policyReads({ reactions, events: [holdEvent] }),
+    commentRead(),
+    commentWrite((body) =>
+      expect(body).toContain("**Pre-review request changes:** `bob`.")
+    ),
+  ];
+  expect(await checkPreReview()).toMatchObject({
+    agreed: ["alice"],
+    pending: ["bob"],
+    rejected: ["bob"],
+    accepted: false,
+  });
+  handleScope(scopes);
 });
 
 test("the periodic check reports reaction progress without CI or webhooks and doesn't rewrite unchanged comments", async () => {

@@ -36,25 +36,71 @@ export async function markInProgressIfAccepted(
   authorLogin: string,
   acceptedBy: string[] = []
 ): Promise<PreReviewStatus> {
-  const state = await fetchPrStatusState(
-    octokit,
-    owner,
-    repo,
-    prNumber,
-    labels,
-    authorLogin
-  );
-  const status = await getPreReviewStatus(
-    octokit,
-    owner,
-    repo,
-    prNumber,
-    labels,
-    authorLogin,
-    acceptedBy,
-    state
-  );
+  async function readStatus() {
+    const state = await fetchPrStatusState(
+      octokit,
+      owner,
+      repo,
+      prNumber,
+      labels,
+      authorLogin
+    );
+    const status = await getPreReviewStatus(
+      octokit,
+      owner,
+      repo,
+      prNumber,
+      labels,
+      authorLogin,
+      acceptedBy,
+      state
+    );
+    return { state, status };
+  }
+  let { state, status } = await readStatus();
   labels = state?.labels ?? labels;
+  // An assigned reviewer's agreement supplies the missing admission signal.
+  // Silence never does. Other reviewers (including objections) still retain
+  // their own pre-review gates after this hold is cleared.
+  if (
+    !status.lookupFailed &&
+    status.countedFrom.length > 0 &&
+    labels.includes(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)
+  ) {
+    const { data: pr } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: prNumber,
+    });
+    const liveLabels = pr.labels.map((label) => label.name);
+    if (
+      !isInPreReview(pr) ||
+      !hasPreReviewLabels(
+        liveLabels.filter(
+          (label) => label !== PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE
+        )
+      )
+    ) {
+      return status;
+    }
+    if (liveLabels.includes(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE)) {
+      try {
+        await labelOctokit.rest.issues.removeLabel({
+          owner,
+          repo,
+          issue_number: prNumber,
+          name: PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
+        });
+      } catch (error) {
+        if ((error as { status?: number }).status !== 404) throw error;
+      }
+    }
+    // Use the new entry event for the shared deadline, never the older triage
+    // date. If GitHub has not published the event yet, unanswered reviewers
+    // remain pending until a subsequent check can read it.
+    ({ state, status } = await readStatus());
+    labels = state?.labels ?? labels;
+  }
   if (status.accepted && hasPreReviewLabels(labels)) {
     // Search results and webhook payloads can be stale. In particular, an old
     // PR may have closed, become a draft, or advanced since the sweep found it.
@@ -180,9 +226,9 @@ export async function updateInProgressLabels(
   const candidates = (
     await searchPreReviewPrs(
       octokit,
-      // Do not use -review:approved: GitHub doesn't know which approvals
-      // satisfy merge_rules.yaml, so that would hide legitimate candidates.
-      `repo:${owner}/${repo} is:pr is:open draft:false label:"${PR_STATUS_LABEL_TRIAGED}" -label:"${PR_STATUS_LABEL_IN_PROGRESS}" -label:"${PR_STATUS_LABEL_READY_FOR_REVIEW}" -label:"${PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE}"`,
+      // Approvals still need pre-review and automated review. Include admission
+      // holds too: a new thumbs-up has no webhook to clear that label.
+      `repo:${owner}/${repo} is:pr is:open draft:false label:"${PR_STATUS_LABEL_TRIAGED}" -label:"${PR_STATUS_LABEL_IN_PROGRESS}" -label:"${PR_STATUS_LABEL_READY_FOR_REVIEW}"`,
       Math.floor(Date.parse(startDate) / 1000),
       Math.floor(now / 1000)
     )
@@ -225,11 +271,11 @@ export async function updateInProgressLabels(
             result.failed.push(pr.number);
             return;
           }
-          // Only explicit objections and verified merge approvals are deferred.
+          // Only explicit objections are deferred.
           // Silence remains on the normal deadline path. Updated PRs invalidate
           // this entry; the bounded retry also detects reaction removal (which
           // emits no webhook and need not update the PR's updated_at).
-          if (status.isMergeApproved || status.rejected.length > 0) {
+          if (status.rejected.length > 0) {
             result.rechecks[pr.number] = {
               updatedAt: pr.updated_at,
               nextCheckAt: now + BLOCKED_RECHECK_MS,

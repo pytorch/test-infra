@@ -9,6 +9,7 @@ import {
   hasPreReviewLabels,
   hasPrStatusLabel,
   PR_STATUS_LABEL_IN_PROGRESS,
+  PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
@@ -190,7 +191,11 @@ async function handle(
   // Share the policy read with the live comment and handle changes to reviewer
   // requests, objections, or the deadline without waiting for CI activity.
   if (
-    hasPreReviewLabels(labels) &&
+    hasPreReviewLabels(
+      labels.filter(
+        (label) => label !== PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE
+      )
+    ) &&
     pullRequest.user?.login &&
     isInPreReview(pullRequest)
   ) {
