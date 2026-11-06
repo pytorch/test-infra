@@ -11,7 +11,7 @@ import {
   CommitSummary,
   CommitTestCounts,
 } from "lib/api/tests/commit/summary/types";
-import { CI_WORKLOAD_HEAVY, RUNS_RETENTION_DAYS } from "lib/api/tests/database";
+import { RUNS_RETENTION_DAYS } from "lib/api/tests/database";
 import { commitPageUrl } from "lib/api/tests/pages/links";
 import { timed } from "lib/api/tests/timed";
 import { queryClickhouse } from "lib/clickhouse";
@@ -133,10 +133,11 @@ function pullRequestPage(repo: string, number: number, apiUrl: string) {
 // whose runs record no pull request and that no push run put on a branch is
 // first looked up as a pull request head by its SHA
 // (buildCommitPullRequestByHeadQuery), which is how a pull request from a
-// fork is known. The counts query reads every run of the commit (about 16
-// CPU-seconds for a main commit's 9 million runs,
-// summary-query-validation.json), so it runs in the heavy workload, as the
-// API README's "Heavy queries" asks.
+// fork is known. The counts query reads every run of the commit, about 5
+// seconds on one thread for a main commit's 9 million runs since 2026-11-05
+// (22 before; commit/query-validation.md), so it stays out of the heavy
+// workload, whose bar is about ten CPU-seconds (the API README's "Heavy
+// queries"): queued there, the page's header waited behind tests pages.
 export async function getCommitSummary(
   query: CommitSummaryQuery
 ): Promise<CommitSummary | null> {
@@ -145,9 +146,7 @@ export async function getCommitSummary(
     queryClickhouse(
       countsQuery.sql,
       countsQuery.params,
-      "api_commit_summary_counts",
-      undefined,
-      CI_WORKLOAD_HEAVY
+      "api_commit_summary_counts"
     ) as Promise<CountsRow[]>
   );
   // Observed from the start, so a failure of the lookup below does not leave

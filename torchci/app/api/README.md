@@ -100,14 +100,15 @@ view instead of a gigabyte scan of the job table,
 and queueing it would hold nine
 commit pages in ten behind tests pages for a rare tail; its failing-outcome
 filters, the ones the commit page's default outcomes use, read a pruned
-`FINAL` and cost about a second, and its `worst_status` filter costs no more
+`FINAL` and cost under a second, and its `worst_status` filter costs no more
 than the grouped read
 (`lib/api/tests/commit/query-validation.md`). The
-commit summary's counts query is tagged: it reads every retained run of the
-commit once, about 16 CPU-seconds on a main commit's 9 million bundles,
-measured with one thread on 2026-10-30
-(`lib/api/tests/commit/summary-query-validation.json`); its other lookups
-answer in well under a second and stay untagged. Tagged, a fast
+commit summary's counts query left the workload on 2026-11-05: it reads every
+retained run of the commit once, which took 22 seconds on one thread for a
+main commit's 9 million bundles before that day's rewrite and about 5 after
+(`lib/api/tests/commit/query-validation.md`), and queued, the commit page's
+header waited behind tests pages. Its other lookups answer in well under a
+second and stay untagged too. Tagged, a fast
 query could only be delayed by the queue, and fails when 16 heavy queries are
 already waiting. Do not tag a query that could not finish in 60 seconds at 4
 threads; make it cheaper first, as the run detail lookup still needs. Measure
@@ -129,8 +130,8 @@ have the tests assert that each heavy call carries it, so an untagged heavy
 query fails CI.
 
 A refusal answers 429 `overloaded` with `Retry-After`, documented on the lists
-by `listErrorResponses()` and on the commit summary by hand, so that a client
-backs off instead of retrying into a full queue; the tests page shows it as a failure with its Retry button
+by `listErrorResponses()`, so that a client backs off instead of retrying into
+a full queue; the tests page shows it as a failure with its Retry button
 rather than retrying by itself. A tagged query that outruns the 60 second cap
 fails like any other query, with 500. A waiter whose client has given up keeps
 its place in the queue, and HUD's client waits 180 seconds, so under load a

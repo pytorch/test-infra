@@ -152,6 +152,14 @@ group every row of the commit's partitions through `FINAL`, which now reads
 10.6 billion rows, 420 GB, in 110 to 255 s per execution, against 0.2 to 1.8 s
 for the pages; replaying them is the expensive part of this bundle.
 
+On 2026-11-05 `commit_combined_attempt_filter`, whose page reads the pruned
+`FINAL`, was regenerated again for the exact-start pruning (see the
+[commit notes](../../commit/query-validation.md)), and its before is now the
+page as recorded until then, the working query as of 16fdbd5de, not its
+2026-10-24 baseline, which was not run again. Three alternating pairs
+returned the same rows: 0.11 to 0.13 s and 1.6 million rows read against 0.29
+to 6.9 s and 9.3 to 9.8 million.
+
 ## Real attempts across reports
 
 The fixed test fixture contains a failed execution followed by a passed execution
