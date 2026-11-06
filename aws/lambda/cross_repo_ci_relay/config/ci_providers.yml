@@ -14,6 +14,19 @@
 # caches it in Redis, so mapping changes take effect without redeployment.
 
 providers:
+  github:
+    # Workflows that may add late reports (triage verdicts) to the rows of another
+    # repo.  The triage of a repo's torch-nightly failures can run outside that
+    # repo; the relay otherwise lets a repo touch only its own rows.  An entry
+    # needs the reporting repository and the exact job_workflow_ref (workflow file
+    # at a ref, so only reviewed code on that branch matches).  A delegate can
+    # send late reports and nothing else.
+    late_report_delegates:
+      # vLLM's torch-nightly triage runs in pytorch/test-infra and reports for
+      # vllm-project/vllm (rows reported from Buildkite, vllm-project/vllm#51830).
+      - repository: pytorch/test-infra
+        job_workflow_ref: pytorch/test-infra/.github/workflows/vllm-torch-nightly-triage.yml@refs/heads/main
+        on_behalf_of: vllm-project/vllm
   buildkite:
     # Pipeline-to-repo mapping (Buildkite OIDC has no "repository" claim).
     # Keys are immutable organization_id/pipeline_id UUIDs.
