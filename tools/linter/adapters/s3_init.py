@@ -4,9 +4,12 @@ import json
 import logging
 import os
 import platform
+import shutil
 import stat
 import subprocess
 import sys
+import tarfile
+import tempfile
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -111,6 +114,8 @@ def download(
     output_dir: str,
     url: str,
     reference_bin_hash: str,
+    archive_hash: str | None = None,
+    archive_member: str | None = None,
 ) -> bool:
     """
     Download a platform-appropriate binary if one doesn't already exist at the expected location and verifies
@@ -132,11 +137,33 @@ def download(
         logging.info("Exiting as there is nothing left to do in dry run mode")
         return True
 
-    urllib.request.urlretrieve(
-        url,
-        binary_path,
-        reporthook=report_download_progress if sys.stdout.isatty() else None,
-    )
+    if archive_hash:
+        if not archive_member:
+            raise ValueError("Archive downloads require an executable member name")
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_path = Path(tmp) / "download.tar.gz"
+            urllib.request.urlretrieve(url, archive_path)
+            if compute_file_sha256(str(archive_path)) != archive_hash:
+                raise ValueError("Downloaded archive failed its SHA256 check")
+            with tarfile.open(archive_path, "r:gz") as archive:
+                member = archive.getmember(archive_member)
+                if not member.isfile():
+                    raise ValueError("Expected a regular executable in the archive")
+                source = archive.extractfile(member)
+                if source is None:
+                    raise ValueError("Executable member has no content")
+                with source:
+                    if hashlib.sha256(source.read()).hexdigest() != reference_bin_hash:
+                        raise ValueError("Archived executable failed its SHA256 check")
+                    source.seek(0)
+                    with binary_path.open("wb") as target:
+                        shutil.copyfileobj(source, target)
+    else:
+        urllib.request.urlretrieve(
+            url,
+            binary_path,
+            reporthook=report_download_progress if sys.stdout.isatty() else None,
+        )
 
     logging.info("Downloaded %s successfully.", name)
 
@@ -211,7 +238,14 @@ if __name__ == "__main__":
     url = config[host_platform]["download_url"]
     hash = config[host_platform]["hash"]
 
-    ok = download(args.output_name, args.output_dir, url, hash)
+    ok = download(
+        args.output_name,
+        args.output_dir,
+        url,
+        hash,
+        config[host_platform].get("archive_hash"),
+        config[host_platform].get("archive_member"),
+    )
     if not ok:
         logging.critical("Unable to initialize %s", args.linter)
         sys.exit(1)

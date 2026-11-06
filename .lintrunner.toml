@@ -288,6 +288,7 @@ include_patterns = [
     # '.github/actions/**/*.yml',
     # '.github/actions/**/*.yaml',
 ]
+exclude_patterns = ['.github/workflows/linux_job_v3.yml']
 command = [
     'python3',
     'tools/linter/adapters/actionlint_linter.py',
@@ -303,6 +304,27 @@ init_command = [
     '--dry-run={{DRYRUN}}',
     '--output-dir=.lintbin',
     '--output-name=actionlint',
+]
+
+# job.check_run_id needs actionlint >= 1.7.8; retain legacy checks elsewhere.
+[[linter]]
+code = 'ACTIONLINT_REPORTS'
+include_patterns = ['.github/workflows/linux_job_v3.yml']
+command = [
+    'python3',
+    'tools/linter/adapters/actionlint_linter.py',
+    '--binary=.lintbin/actionlint-reports',
+    '--',
+    '@{{PATHSFILE}}',
+]
+init_command = [
+    'python3',
+    'tools/linter/adapters/s3_init.py',
+    '--config-json=tools/linter/adapters/s3_init_config.json',
+    '--linter=actionlint-reports',
+    '--dry-run={{DRYRUN}}',
+    '--output-dir=.lintbin',
+    '--output-name=actionlint-reports',
 ]
 
 # usort + ruff-format

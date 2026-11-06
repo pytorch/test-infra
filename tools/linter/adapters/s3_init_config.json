@@ -40,6 +40,20 @@
             "hash": "025ac157db121b33971ef24af72d73d71cda3cb1e3a94795bb2708ef4032ca76"
         }
     },
+    "actionlint-reports": {
+        "Darwin": {
+            "download_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.8/actionlint_1.7.8_darwin_amd64.tar.gz",
+            "archive_hash": "16b85caf792b34bcc40f7437736c4347680da0a1b034353a85012debbd71a461",
+            "archive_member": "actionlint",
+            "hash": "80647cc6729c76931548875fa878a1d712a9c08f109b1a05f382556b382cd3fd"
+        },
+        "Linux": {
+            "download_url": "https://github.com/rhysd/actionlint/releases/download/v1.7.8/actionlint_1.7.8_linux_amd64.tar.gz",
+            "archive_hash": "be92c2652ab7b6d08425428797ceabeb16e31a781c07bc388456b4e592f3e36a",
+            "archive_member": "actionlint",
+            "hash": "9ab20f97947e525d92175a7029eba4fe62749b49e556a735862dac037dd6f8dd"
+        }
+    },
     "bazel": {
         "Darwin": {
             "download_url": "https://raw.githubusercontent.com/bazelbuild/bazelisk/v1.16.0/bazelisk.py",

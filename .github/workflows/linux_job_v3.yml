@@ -112,6 +112,10 @@ on:
         description: "List of secrets to be exported to environment variables"
         type: string
         default: ''
+      upload-test-run-reports:
+        description: 'Upload torchci reports produced in RUNNER_TEST_RUN_REPORTS_DIR.'
+        type: boolean
+        default: false
 
 jobs:
   job:
@@ -323,6 +327,23 @@ jobs:
         if: steps.job-python.outputs.found == 'false'
         uses: pytorch/test-infra/.github/actions/setup-uv@main
 
+      - name: Prepare test run reports
+        if: ${{ inputs.upload-test-run-reports }}
+        continue-on-error: true
+        shell: bash
+        env:
+          REPORT_JOB_ID: ${{ job.check_run_id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${REPORT_JOB_ID}" =~ ^[1-9][0-9]*$ ]]; then
+            echo '::warning::Test reporting skipped: job check-run ID unavailable'
+            exit 0
+          fi
+          report_dir="${RUNNER_TEMP}/test-run-reports"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          printf 'JOB_ID=%s\nRUNNER_TEST_RUN_REPORTS_DIR=%s\n' "${REPORT_JOB_ID}" "${report_dir}" >> "${GITHUB_ENV}"
+
       - name: Run script
         continue-on-error: ${{ inputs.continue-on-error }}
         working-directory: ${{ inputs.repository || github.repository }}
@@ -367,6 +388,17 @@ jobs:
         with:
           path: ${{ env.RUNNER_TEST_RESULTS_DIR }}
           fail-on-empty: false
+
+      - name: Upload test run reports
+        if: ${{ always() && inputs.upload-test-run-reports && job.check_run_id && steps.aws-creds.outcome == 'success' && !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
+        continue-on-error: true
+        uses: ./test-infra/.github/actions/upload-artifact-s3
+        with:
+          s3-bucket: gha-artifacts
+          s3-prefix: torchci-reports/${{ github.repository }}/${{ github.run_id }}/${{ job.check_run_id }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: ${{ runner.temp }}/test-run-reports/*.report.jsonl
 
       - name: Prepare artifacts for upload
         if: always()
