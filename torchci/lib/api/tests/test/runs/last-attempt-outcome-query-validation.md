@@ -39,6 +39,19 @@ bundles were the same as on 2026-10-24 returned attempts identical to that
 day's (equal digests), and the other two selected more bundles from the
 newer data.
 
+On 2026-11-05 the two commit cases were regenerated again, for the commit
+page's index-analysis and exact-start changes (see the
+[commit notes](../../commit/query-validation.md)), and for them the candidate
+is now the baseline recorded until then, the working query as of 16fdbd5de,
+not the rejected `argMax` variant: that variant's full `FINAL` read takes over
+two minutes per execution and was not run again. Three alternating pairs
+returned the same rows. Last passed: 1.316 s median (0.785–2.057) against
+2.215 (2.018–3.013), 2.4 million rows read by both; failed attempt at rerun 0
+and last passed: 0.740 (0.431–0.766) and 1.6 million rows against 3.605
+(2.645–11.896) and 9.4 million. The table above keeps the 2026-11-03 figures.
+The functional check `commit_failed_last_passed` ran again with the new query
+and returned the same 7 bundles and 20 attempts (equal digest).
+
 The two commit rows were remeasured on 2026-10-24 after the shared-start change:
 their baseline is the working-tree SQL reading `FINAL` only at shared starts, while
 the recorded candidate kept the full `FINAL` read, so those rows now compare the

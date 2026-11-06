@@ -70,12 +70,15 @@ describe.each(
       ...commitParams
     } = forCommit.params;
     expect(testParams).toEqual(commitParams);
-    // The commit's page reads FINAL pruned to the tests that hold a row of
-    // the rare outcomes the outcome filter admits; a test's page, pinned by
-    // its key, needs no such pruning.
+    // The commit's page reads FINAL pruned to the starts of the rows of the
+    // tests that hold a row of the rare outcomes the outcome filter admits;
+    // a test's page, pinned by its key, needs no such pruning.
     expect(candidateOutcomes).toEqual(["error", "failed"]);
     expect(forCommit.sql).toContain(
-      "PREWHERE run.tests_id IN (SELECT run.tests_id"
+      "PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at"
+    );
+    expect(forCommit.sql).toContain(
+      "AND identity(run.tests_id) IN (SELECT run.tests_id"
     );
     expect(forCommit.sql).toContain(
       "AND run.outcome IN {candidate_outcomes: Array(String)}"

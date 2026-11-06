@@ -109,8 +109,10 @@ const STATUS_OUTCOMES: Record<BundleStatus, readonly RunOutcome[]> = {
 // an unexpected pass or an unknown. Passes and skips are most of a commit's
 // rows, so a set drawn by them prunes nothing and costs a pass; expected
 // failures, rare among rows, belong to thousands of tests on a main commit
-// (10,443 of 672,763 on ce6ff46), each read whole from every part, 254K
-// granules and 36 s on 2026-11-01 against 2.7 s for the grouped read.
+// (10,443 of 672,763 on ce6ff46), and the pruned read takes every row of
+// those tests on the commit: 202 million rows and 15 to 50 s against 31
+// million and 7 to 13 s for the grouped read on 2026-11-05 (254K granules and
+// 36 s with the pruning before that day's, 2026-11-01).
 const PRUNABLE_OUTCOMES: ReadonlySet<RunOutcome> = new Set<RunOutcome>([
   ...FAILING_OUTCOMES,
   "xpassed",
@@ -750,29 +752,47 @@ export function sharedStartsSubquery(where: string) {
             HAVING count() > 1`;
 }
 
-// The scope's rows read through FINAL, pruned by primary key to the tests
-// holding a row of the outcomes bound as the named parameter, found in one
-// by_job pass: a superset of the tests the filters select, and complete for
-// each, since FINAL resolves replacements within a test's rows, which the
-// pruning keeps whole. tests_id leads the primary key, so the read keeps
-// the candidate tests' granules alone (query-validation.md, 2026-10-30).
+// The scope's rows read through FINAL, pruned by primary key to the rows of
+// the tests holding a row of the outcomes bound as the named parameter: one
+// by_job pass finds those tests, a superset of the tests the filters select;
+// a second finds the test, environment, env var set and start of each of
+// their rows in the scope, the leading columns of the primary key; and FINAL
+// reads those starts alone. Every stored version of a row shares its key, so
+// FINAL resolves each row's replacements, and each of those tests' bundles
+// is read whole. The starts' days partition the table, so the read keeps the
+// granules holding them in those days' parts: 178 granules in 2 parts for a
+// main commit's default page on 2026-11-05, where reading the tests' every
+// retained row took 9,087 in 223 of 232 parts, and grew with retention
+// (query-validation.md, 2026-11-05). The second pass holds the tests through
+// identity(), which index analysis does not look into, so it reads by_job by
+// the scope's jobs, every row of the commit and no more: spelled plainly,
+// ClickHouse read it from the main table by the tests, fewer rows for 80 of
+// them but a read that grows with each test's retained history, as the old
+// pruning's did.
 export function prunedRunsSource(
   scope: Pick<RunPageScope, "filters">,
   where: string,
   outcomesParameter: string
 ) {
+  const filters = scope.filters.join("\n                AND ");
   return `${CI_DATABASE}.runs AS run FINAL
-    PREWHERE run.tests_id IN (SELECT run.tests_id
+    PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at
         FROM ${CI_DATABASE}.runs AS run
-        WHERE ${scope.filters.join("\n            AND ")}
-            AND run.outcome IN {${outcomesParameter}: Array(String)}
-        GROUP BY run.tests_id)
+        WHERE ${filters}
+            AND identity(run.tests_id) IN (SELECT run.tests_id
+                FROM ${CI_DATABASE}.runs AS run
+                WHERE ${filters}
+                    AND run.outcome IN {${outcomesParameter}: Array(String)}))
     ${where}`;
 }
 
 // The scope's runs as FINAL would return them: rows at unique starts read
 // directly through by_job, rows at shared starts deduplicated by a FINAL
 // read pruned to those starts. Only the columns the grouping uses are read.
+// The direct read's test and start go through identity(), which index
+// analysis does not look into: a NOT IN prunes nothing, yet on the primary
+// key's columns it had ClickHouse search the main table's index, every part,
+// before it chose by_job, some 0.7 seconds of a commit's counts on 2026-11-05.
 export function classifiedRunsSource(where: string, columns: string[]) {
   const select = `SELECT ${[...RUN_GROUP_FIELDS, ...columns]
     .map((field) => `run.${field} AS ${field}`)
@@ -782,7 +802,7 @@ export function classifiedRunsSource(where: string, columns: string[]) {
         ${select}
         FROM ${CI_DATABASE}.runs AS run
         ${where}
-            AND (${RUN_START}) NOT IN (${sharedStarts})
+            AND (identity(run.tests_id), identity(run.started_at)) NOT IN (${sharedStarts})
         UNION ALL
         ${select}
         FROM ${CI_DATABASE}.runs AS run FINAL

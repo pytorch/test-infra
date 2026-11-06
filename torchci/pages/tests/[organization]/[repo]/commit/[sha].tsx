@@ -44,9 +44,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // is behind the HUD GitHub gate, which the browser passes with its HUD
 // sign-in cookie; when the API refuses, the page says why in place of the
 // commit and offers the sign-in, as the other hub pages do. The summary and
-// the runs are separate requests: when the summary fails (its counts run in
-// the database's heavy queue, which can refuse or time out), its error
-// shows above the table and the runs are listed all the same.
+// the runs are separate requests: when the summary fails, its error shows
+// above the table and the runs are listed all the same.
 
 export default function Page() {
   const router = useRouter();

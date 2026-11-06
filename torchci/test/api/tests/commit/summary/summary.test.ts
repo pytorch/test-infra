@@ -226,6 +226,11 @@ describe("GET /api/tests/commit/{sha}/summary", () => {
         ],
       ])
     );
+    // Every query, the counts too, runs outside the heavy workload (the API
+    // README's Heavy queries).
+    expect(queryClickhouse.mock.calls.map((call) => call[4])).toEqual(
+      queryClickhouse.mock.calls.map(() => undefined)
+    );
   });
 
   test("a pull request head takes the pull request's title and its head branch, and has no neighbours", async () => {

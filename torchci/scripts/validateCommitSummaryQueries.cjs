@@ -1,10 +1,14 @@
 // Run from torchci with Node 22 and installed dependencies. Without --live,
-// check that the recorded commit summary SQL still matches the builders:
-// the counts query, its functional baseline (every row of the commit read
-// through FINAL and grouped into bundles) and the commit's lookups. --live
-// repeats EXPLAIN and alternating, complete-row comparisons of the baseline
-// with the working-tree counts query for each case, runs each lookup once,
-// and prints the complete evidence document.
+// check that the recorded commit summary SQL still matches the builders: the
+// working-tree counts query (after) and the commit's lookups. Each case's
+// before is the recorded statement it is compared with, not regenerated: the
+// functional baseline (every row of the commit read through FINAL and
+// grouped into bundles) when the case was first recorded, and since a case's
+// `regenerated` note the counts query it replaced, which had been recorded
+// equal to that baseline. --live repeats EXPLAIN and alternating,
+// complete-row comparisons of before with the working-tree counts query for
+// each case, runs each lookup once, and prints the complete evidence
+// document.
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
 const fs = require("node:fs");
@@ -39,17 +43,10 @@ const {
   buildCommitPullRequestByHeadQuery,
   buildCommitPullRequestQuery,
   buildCommitTestCountsQuery,
-  commitTestCountsSql,
 } = require("lib/api/tests/commit/summary/query");
 const {
   parseCommitSummaryParams,
 } = require("lib/api/tests/commit/summary/parameters");
-const { commitRunsScope } = require("lib/api/tests/commit/query");
-const { CI_DATABASE } = require("lib/api/tests/database");
-const {
-  BUNDLE_STATUS_SQL,
-  RUN_GROUP_FIELDS,
-} = require("lib/api/tests/test/runs/query");
 const evidencePath = path.join(
   root,
   "lib/api/tests/commit/summary-query-validation.json"
@@ -63,35 +60,9 @@ function parsed(raw) {
   return result.data;
 }
 
-// The functional baseline: the same counts over every row of the commit read
-// through FINAL and grouped into bundles, with no pruning beyond the job
-// filter. Composed here from the working query's own pieces, so the
-// comparison is about the pruning alone; the recorded SQL pins the text.
-function baselineQuery(query) {
-  const scope = commitRunsScope(query);
-  return {
-    params: { ...scope.params },
-    sql: `${scope.prefix}
-${commitTestCountsSql(`
-        SELECT run.tests_id AS tests_id,
-            run.github_workflow_job_id AS job_id,
-            ${BUNDLE_STATUS_SQL} AS status,
-            min(run.started_at) AS started_at,
-            max(run.ended_at) AS ended_at
-        FROM ${CI_DATABASE}.runs AS run FINAL
-        WHERE ${scope.filters.join("\n            AND ")}
-        GROUP BY ${RUN_GROUP_FIELDS.map((field) => `run.${field}`).join(
-          ", "
-        )}`)}`,
-  };
-}
-
-// The working-tree counts query (after) and its functional baseline (before).
+// The working-tree counts query (after); before is recorded.
 function generate(raw) {
-  return {
-    before: baselineQuery(parsed(raw)),
-    after: buildCommitTestCountsQuery(parsed(raw)),
-  };
+  return { after: buildCommitTestCountsQuery(parsed(raw)) };
 }
 
 // The lookups the summary makes besides the counts, each run once live: the
@@ -127,16 +98,19 @@ async function main() {
   for (const name of names) {
     const recorded = evidence.cases[name];
     assert(recorded, `Unknown validation case: ${name}`);
-    const { before, after } = generate(recorded.raw);
     assert.deepEqual(
-      after,
+      generate(recorded.raw).after,
       recorded.after,
       `${name}: working-tree SQL or parameters changed`
     );
-    assert.deepEqual(
-      before,
+    assert(
+      typeof recorded.before?.sql === "string" && recorded.before.params,
+      `${name}: no recorded before`
+    );
+    assert.notDeepEqual(
       recorded.before,
-      `${name}: functional baseline changed`
+      recorded.after,
+      `${name}: before is the working-tree query`
     );
   }
   for (const [name, recorded] of Object.entries(evidence.lookups)) {
@@ -192,9 +166,18 @@ async function main() {
       lookups: {},
     };
     for (const name of names) {
-      const { raw } = evidence.cases[name];
-      const { before, after } = generate(raw);
-      const result = { raw, before, after, plans: {}, samples: [] };
+      const { raw, before } = evidence.cases[name];
+      const { after } = generate(raw);
+      // Keeps the case's notes, such as when it was regenerated.
+      const result = {
+        ...evidence.cases[name],
+        raw,
+        before,
+        after,
+        plans: {},
+        samples: [],
+        measured_at: report.measured_at,
+      };
       for (const [version, query] of [
         ["before", before],
         ["after", after],
@@ -213,17 +196,22 @@ async function main() {
           : ["before", "after"]) {
           const query = version === "before" ? before : after;
           const { body, memory_usage } = await execute(query);
-          // The rollup row and one row per worst result with tests.
+          // The rollup row and one row per worst result with tests, which
+          // GROUP BY ... WITH ROLLUP returns in no set order: compared by
+          // category.
           assert(body.data.length >= 1, `${name}: expected the rollup row`);
-          reference ??= body.data;
-          assert.deepEqual(body.data, reference, `${name}: rows differ`);
+          const rows = [...body.data].sort((left, right) =>
+            left.category.localeCompare(right.category)
+          );
+          reference ??= rows;
+          assert.deepEqual(rows, reference, `${name}: rows differ`);
           result.samples.push({
             pair,
             version,
             rows: body.rows,
             statistics: body.statistics,
             memory_usage,
-            digest: digest(body.data),
+            digest: digest(rows),
           });
         }
       }

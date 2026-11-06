@@ -150,9 +150,10 @@ describe("commit runs query", () => {
       { ...query, outcome: ["passed"] },
       null
     );
-    // Rows at other starts come straight from by_job, as the statistics do.
+    // Rows at other starts come straight from by_job, as the statistics do,
+    // their test and start kept out of index analysis.
     expect(sql).toContain(
-      `FROM ci.runs AS run\n        WHERE ${COMMIT_JOBS}\n            AND (run.tests_id, run.started_at) NOT IN (${SHARED_STARTS})\n        UNION ALL`
+      `FROM ci.runs AS run\n        WHERE ${COMMIT_JOBS}\n            AND (identity(run.tests_id), identity(run.started_at)) NOT IN (${SHARED_STARTS})\n        UNION ALL`
     );
     expect(sql).toContain(
       `FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (${SHARED_STARTS})\n        WHERE ${COMMIT_JOBS}\n    ) AS run`
@@ -180,12 +181,14 @@ describe("commit runs query", () => {
     );
   });
 
-  test("reads FINAL by the tests holding a rare outcome when the attempt filters admit only those", () => {
-    const CANDIDATE_TESTS = `PREWHERE run.tests_id IN (SELECT run.tests_id
+  test("reads FINAL at the starts of the rows of the tests holding a rare outcome when the attempt filters admit only those", () => {
+    const CANDIDATE_TESTS = `PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at
         FROM ci.runs AS run
         WHERE ${COMMIT_JOBS}
-            AND run.outcome IN {candidate_outcomes: Array(String)}
-        GROUP BY run.tests_id)
+            AND identity(run.tests_id) IN (SELECT run.tests_id
+                FROM ci.runs AS run
+                WHERE ${COMMIT_JOBS}
+                    AND run.outcome IN {candidate_outcomes: Array(String)}))
     WHERE ${COMMIT_JOBS}`;
     for (const [selected, candidates] of [
       [{ outcome: ["failed"] }, ["failed"]],
@@ -223,7 +226,8 @@ describe("commit runs query", () => {
     }
     // A common outcome among the admitted ones leaves the shared-start read;
     // so does an expected failure, rare among rows but held by thousands of
-    // tests, each read whole from every part (query-validation.md).
+    // tests, whose every row on the commit the pruned read would take
+    // (query-validation.md).
     for (const selected of [
       { outcome: ["passed"] },
       { last_attempt_outcome: ["skipped"] },
@@ -343,11 +347,11 @@ describe("commit runs query", () => {
       },
       null
     );
-    // The source reads the commit's rows alone, pruned to the tests holding
-    // a failing row: a flaky bundle holds one.
+    // The source reads the commit's rows alone, pruned to the starts of the
+    // rows of the tests holding a failing row: a flaky bundle holds one.
     expect(params.candidate_outcomes).toEqual(["failed"]);
     expect(sql).toContain(
-      `FROM ci.runs AS run FINAL\n    PREWHERE run.tests_id IN (SELECT run.tests_id\n        FROM ci.runs AS run\n        WHERE ${COMMIT_JOBS}\n            AND run.outcome IN {candidate_outcomes: Array(String)}\n        GROUP BY run.tests_id)\n    WHERE ${COMMIT_JOBS}\n    GROUP BY`
+      `FROM ci.runs AS run FINAL\n    PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at\n        FROM ci.runs AS run\n        WHERE ${COMMIT_JOBS}\n            AND identity(run.tests_id) IN (SELECT run.tests_id\n                FROM ci.runs AS run\n                WHERE ${COMMIT_JOBS}\n                    AND run.outcome IN {candidate_outcomes: Array(String)}))\n    WHERE ${COMMIT_JOBS}\n    GROUP BY`
     );
     expect(sql).not.toMatch(
       /WHERE run\.github_workflow_job_id IN \(SELECT arrayJoin\(matched_job_ids\)\)\s+AND run\.environments_id/

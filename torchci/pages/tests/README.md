@@ -1040,18 +1040,18 @@ block (`CellBlock`), the grid's swatches and attempt pills.
 
 - The summary (`useCommitSummary`) and the runs (`useRunsListing`) are
   asked for at once, in parallel. The summary's counts read every run of the
-  commit, a few seconds on a main commit, in the database's heavy workload;
-  the runs come a page of the API's largest size at a time, in outcome order
-  (the API's `-status` sort, worst first, which the page puts before its
-  own), and with
-  the default outcomes the read is pruned to the tests holding a failing
-  row, in about a second. A commit GitHub never reported (the API's 404) is
-  a state of the page, not an error; a known commit with no runs says
-  whether they expired (`retention_starts_at` against `committed_at`) or
-  have not arrived, and shows no summary row. When the summary fails (its
-  counts run in the database's heavy queue, which can refuse or time out),
-  its error shows above the table and the runs are listed all the same,
-  since the two are separate requests (2026-11-02).
+  commit, a few seconds on a main commit (outside the database's heavy
+  workload since 2026-11-05, so the header no longer waits behind tests
+  pages); the runs come a page of the API's largest size at a time, in
+  outcome order (the API's `-status` sort, worst first, which the page puts
+  before its own), and with the default outcomes the read is pruned to the
+  rows of the tests holding a failing row, in under a second. A commit
+  GitHub never reported (the API's 404) is a state of the page, not an
+  error; a known commit with no runs says whether they expired
+  (`retention_starts_at` against `committed_at`) or have not arrived, and
+  shows no summary row. When the summary fails, its error shows above the
+  table and the runs are listed all the same, since the two are separate
+  requests (2026-11-02).
 - The header (`CommitHeader`): the breadcrumb is the repository, the branch
   (HUD's view of it) or the pull request's number for a pull request head,
   and the short SHA, the page itself, which is not a link. The headline is

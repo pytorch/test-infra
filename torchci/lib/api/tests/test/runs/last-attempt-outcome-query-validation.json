@@ -10,7 +10,7 @@
   "server_version": "26.6.1.2439",
   "schema": "CREATE TABLE ci.runs\n(\n    `id` UUID CODEC(NONE),\n    `tests_id` UInt64 CODEC(ZSTD(1)),\n    `environments_id` UInt64 CODEC(ZSTD(1)),\n    `env_vars_id` UInt64 CODEC(ZSTD(1)),\n    `github_workflow_job_id` Int64 CODEC(Delta(8), ZSTD(1)),\n    `report_uuid` UUID CODEC(ZSTD(1)),\n    `rerun_number` UInt16,\n    `outcome` Enum8('unknown' = 0, 'passed' = 1, 'failed' = 2, 'error' = 3, 'skipped' = 4, 'xfailed' = 5, 'xpassed' = 6, 'crashed' = 7, 'timed_out' = 8) DEFAULT 'unknown',\n    `outcome_summary` String CODEC(ZSTD(1)),\n    `started_at` DateTime64(3, 'UTC') CODEC(Delta(8), ZSTD(1)),\n    `ended_at` DateTime64(3, 'UTC') CODEC(Delta(8), ZSTD(1)),\n    PROJECTION by_job\n    (\n        SELECT *\n        ORDER BY\n            github_workflow_job_id,\n            tests_id,\n            started_at,\n            rerun_number\n    )\n)\nENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')\nPARTITION BY toDate(started_at)\nPRIMARY KEY (tests_id, environments_id, env_vars_id, started_at)\nORDER BY (tests_id, environments_id, env_vars_id, started_at, github_workflow_job_id, rerun_number)\nTTL toDateTime(started_at) + toIntervalDay(14)\nSETTINGS index_granularity = 8192, deduplicate_merge_projection_mode = 'rebuild'",
   "baseline": "Original query plus only the new last_attempt_outcome HAVING predicate and required FINAL read; no new time restriction or approximate functions.",
-  "candidate": "Move set membership inside argMax and compare its UInt8 result to 1; same chronology and full retained group.",
+  "candidate": "Move set membership inside argMax and compare its UInt8 result to 1; same chronology and full retained group. Since 2026-11-05 the two commit cases' candidate is the working query recorded until then instead (each case's regenerated note).",
   "decision": "Retain the functional baseline. The candidate returned identical rows in every alternating execution, but timing ranges overlap and it did not establish improvement beyond run-to-run noise.",
   "cases": {
     "test_last_passed": {
@@ -1808,7 +1808,7 @@
               "passed"
             ]
           },
-          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (identity(run.tests_id), identity(run.started_at)) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
         },
         "candidate": {
           "params": {
@@ -1819,7 +1819,7 @@
               "passed"
             ]
           },
-          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome IN {last_attempt_outcome: Array(String)}, (run.started_at, run.ended_at, toString(run.id))) = 1\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toUnixTimestamp64Milli(run.started_at)) AS sort_0,\n    toString(run.tests_id) AS sort_1,\n    toString(run.environments_id) AS sort_2,\n    toString(run.env_vars_id) AS sort_3,\n    toString(run.github_workflow_job_id) AS sort_4\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        min(run.started_at) AS started_at\n    FROM (\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND (run.tests_id, run.started_at) NOT IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        UNION ALL\n        SELECT run.tests_id AS tests_id, run.environments_id AS environments_id, run.env_vars_id AS env_vars_id, run.github_workflow_job_id AS github_workflow_job_id, run.started_at AS started_at, run.ended_at AS ended_at, run.id AS id, run.outcome AS outcome\n        FROM ci.runs AS run FINAL\n        PREWHERE (run.tests_id, run.started_at) IN (SELECT run.tests_id, run.started_at\n            FROM ci.runs AS run\n            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            GROUP BY run.tests_id, run.started_at\n            HAVING count() > 1)\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    ) AS run\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY run.started_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
         }
       },
       "plans": {
@@ -1880,10 +1880,10 @@
               "explain": "                        Condition: and(and(((tests_id, started_at) notIn 2-element set), (github_workflow_job_id in 332-element set)), and((github_workflow_job_id in 332-element set), ((tests_id, started_at) notIn 2-element set)))"
             },
             {
-              "explain": "                        Parts: 3/164"
+              "explain": "                        Parts: 3/281"
             },
             {
-              "explain": "                        Granules: 88/1284529"
+              "explain": "                        Granules: 88/1874695"
             },
             {
               "explain": "                        Search Algorithm: generic exclusion search"
@@ -1922,10 +1922,10 @@
               "explain": "                          Condition: (started_at in 2-element set)"
             },
             {
-              "explain": "                          Parts: 2/168"
+              "explain": "                          Parts: 2/281"
             },
             {
-              "explain": "                          Granules: 53/1284559"
+              "explain": "                          Granules: 53/1874722"
             },
             {
               "explain": "                        Partition"
@@ -2135,7 +2135,7 @@
         "candidate": {
           "indexes=1": [
             {
-              "explain": "Expression ((Projection + Before ORDER BY [lifted up part]))"
+              "explain": "Expression ((Projection + (Before ORDER BY + (Projection + Before ORDER BY)) [lifted up part]))"
             },
             {
               "explain": "  Limit (preliminary LIMIT)"
@@ -2144,79 +2144,151 @@
               "explain": "    Sorting (Sorting for ORDER BY)"
             },
             {
-              "explain": "      Expression (Before ORDER BY)"
+              "explain": "      Expression ((Before ORDER BY + (Projection + Before ORDER BY)))"
             },
             {
-              "explain": "        CreatingSets (Create sets before main query execution)"
+              "explain": "        Filter (HAVING)"
             },
             {
-              "explain": "          Expression ((Projection + Before ORDER BY))"
+              "explain": "          Aggregating"
             },
             {
-              "explain": "            Filter (HAVING)"
+              "explain": "            Union"
             },
             {
-              "explain": "              Aggregating"
+              "explain": "              Expression (Before GROUP BY)"
             },
             {
-              "explain": "                Expression (Before GROUP BY)"
+              "explain": "                CreatingSets (Create sets before main query execution)"
             },
             {
-              "explain": "                  Filter (WHERE)"
+              "explain": "                  Expression"
             },
             {
-              "explain": "                    ReadFromMergeTree (ci.runs)"
+              "explain": "                    ReadFromMergeTree (by_job)"
             },
             {
               "explain": "                    Indexes:"
             },
             {
-              "explain": "                      Min-Max"
-            },
-            {
-              "explain": "                        Condition: true"
-            },
-            {
-              "explain": "                        Parts: 178/178"
-            },
-            {
-              "explain": "                        Granules: 1284579/1284579"
-            },
-            {
-              "explain": "                      Partition"
-            },
-            {
-              "explain": "                        Condition: true"
-            },
-            {
-              "explain": "                        Parts: 178/178"
-            },
-            {
-              "explain": "                        Granules: 1284579/1284579"
-            },
-            {
               "explain": "                      PrimaryKey"
             },
             {
-              "explain": "                        Condition: true"
+              "explain": "                        Keys:"
             },
             {
-              "explain": "                        Parts: 178/178"
+              "explain": "                          github_workflow_job_id"
             },
             {
-              "explain": "                        Granules: 1284579/1284579"
+              "explain": "                          tests_id"
             },
             {
-              "explain": "                      Ranges: 178"
+              "explain": "                          started_at"
             },
             {
-              "explain": "          CreatingSet (Create set for subquery)"
+              "explain": "                        Condition: and(and(((tests_id, started_at) notIn 2-element set), (github_workflow_job_id in 332-element set)), and((github_workflow_job_id in 332-element set), ((tests_id, started_at) notIn 2-element set)))"
             },
             {
-              "explain": "            Expression ((Projection + Before ORDER BY))"
+              "explain": "                        Parts: 3/199"
             },
             {
-              "explain": "              ReadFromSystemOne"
+              "explain": "                        Granules: 88/1874622"
+            },
+            {
+              "explain": "                        Search Algorithm: generic exclusion search"
+            },
+            {
+              "explain": "                      Ranges: 3"
+            },
+            {
+              "explain": "              Expression (Before GROUP BY)"
+            },
+            {
+              "explain": "                CreatingSets (Create sets before main query execution)"
+            },
+            {
+              "explain": "                  Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                    Filter (WHERE)"
+            },
+            {
+              "explain": "                      ReadFromMergeTree (ci.runs)"
+            },
+            {
+              "explain": "                      Indexes:"
+            },
+            {
+              "explain": "                        Min-Max"
+            },
+            {
+              "explain": "                          Keys:"
+            },
+            {
+              "explain": "                            started_at"
+            },
+            {
+              "explain": "                          Condition: (started_at in 2-element set)"
+            },
+            {
+              "explain": "                          Parts: 2/199"
+            },
+            {
+              "explain": "                          Granules: 53/1874647"
+            },
+            {
+              "explain": "                        Partition"
+            },
+            {
+              "explain": "                          Keys:"
+            },
+            {
+              "explain": "                            toDate(started_at)"
+            },
+            {
+              "explain": "                          Condition: (toDate(started_at) in 2-element set)"
+            },
+            {
+              "explain": "                          Parts: 2/2"
+            },
+            {
+              "explain": "                          Granules: 53/53"
+            },
+            {
+              "explain": "                        PrimaryKey"
+            },
+            {
+              "explain": "                          Keys:"
+            },
+            {
+              "explain": "                            tests_id"
+            },
+            {
+              "explain": "                            started_at"
+            },
+            {
+              "explain": "                          Condition: ((tests_id, started_at) in 2-element set)"
+            },
+            {
+              "explain": "                          Parts: 2/2"
+            },
+            {
+              "explain": "                          Granules: 4/53"
+            },
+            {
+              "explain": "                          Search Algorithm: generic exclusion search"
+            },
+            {
+              "explain": "                        Ranges: 4"
+            },
+            {
+              "explain": "                  CreatingSet (Create set for subquery)"
+            },
+            {
+              "explain": "                    Expression ((Projection + Before ORDER BY))"
+            },
+            {
+              "explain": "                      ReadFromSystemOne"
             }
           ],
           "PIPELINE": [
@@ -2236,457 +2308,136 @@
               "explain": "    (Sorting)"
             },
             {
-              "explain": "    MergingSortedTransform 27 → 1"
+              "explain": "    MergingSortedTransform 30 → 1"
             },
             {
-              "explain": "      MergeSortingTransform × 27"
+              "explain": "      MergeSortingTransform × 30"
             },
             {
-              "explain": "        LimitsCheckingTransform × 27"
+              "explain": "        LimitsCheckingTransform × 30"
             },
             {
-              "explain": "          PartialSortingTransform × 27"
+              "explain": "          PartialSortingTransform × 30"
             },
             {
               "explain": "            (Expression)"
             },
             {
-              "explain": "            ExpressionTransform × 27"
+              "explain": "            ExpressionTransform × 30"
             },
             {
-              "explain": "              (CreatingSets)"
+              "explain": "              (Filter)"
             },
             {
-              "explain": "              DelayedPorts 28 → 27"
+              "explain": "              FilterTransform × 30"
             },
             {
-              "explain": "                (Expression)"
+              "explain": "                (Aggregating)"
             },
             {
-              "explain": "                ExpressionTransform × 27"
+              "explain": "                Resize 14 → 30"
             },
             {
-              "explain": "                  (Filter)"
+              "explain": "                  AggregatingTransform × 14"
             },
             {
-              "explain": "                  FilterTransform × 27"
+              "explain": "                    (Union)"
             },
             {
-              "explain": "                    (Aggregating)"
+              "explain": "                      (Expression)"
             },
             {
-              "explain": "                    Resize 27 → 27"
+              "explain": "                      ExpressionTransform × 12"
             },
             {
-              "explain": "                      AggregatingTransform × 27"
+              "explain": "                        (CreatingSets)"
             },
             {
-              "explain": "                        (Expression)"
+              "explain": "                          (Expression)"
             },
             {
-              "explain": "                        ExpressionTransform × 27"
-            },
-            {
-              "explain": "                          (Filter)"
-            },
-            {
-              "explain": "                          FilterTransform × 27"
+              "explain": "                          ExpressionTransform × 12"
             },
             {
               "explain": "                            (ReadFromMergeTree)"
             },
             {
-              "explain": "                            ExpressionTransform × 27"
+              "explain": "                            MergeTreeSelect(pool: PrefetchedReadPool, algorithm: Thread) × 12 0 → 1"
             },
             {
-              "explain": "                              ReplacingSorted 67 → 1"
+              "explain": "                      (Expression)"
             },
             {
-              "explain": "                                ExpressionTransform × 67"
+              "explain": "                      ExpressionTransform × 2"
             },
             {
-              "explain": "                                  MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 67 0 → 1"
+              "explain": "                        (CreatingSets)"
             },
             {
-              "explain": "                                    ReplacingSorted 14 → 1"
+              "explain": "                        DelayedPorts 3 → 2"
             },
             {
-              "explain": "                                      FilterSortedStreamByRange × 14"
+              "explain": "                          (Expression)"
             },
             {
-              "explain": "                                      Description: filter values in ((12316576092801778990), +inf]"
+              "explain": "                          ExpressionTransform × 2"
             },
             {
-              "explain": "                                        ExpressionTransform × 14"
+              "explain": "                            (Filter)"
             },
             {
-              "explain": "                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                            FilterTransform × 2"
             },
             {
-              "explain": "                                            ReplacingSorted 14 → 1"
+              "explain": "                              (ReadFromMergeTree)"
             },
             {
-              "explain": "                                              FilterSortedStreamByRange × 14"
+              "explain": "                              ExpressionTransform × 2"
             },
             {
-              "explain": "                                              Description: filter values in ((6183734468299128276), (12316576092801778990)]"
+              "explain": "                                ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                                ExpressionTransform × 14"
+              "explain": "                                  FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                                  MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                  Description: filter values in ((11220200528281606952), +inf]"
             },
             {
-              "explain": "                                                    ReplacingSorted 14 → 1"
+              "explain": "                                    ExpressionTransform × 2"
             },
             {
-              "explain": "                                                      FilterSortedStreamByRange × 14"
+              "explain": "                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
-              "explain": "                                                      Description: filter values in (-inf, (6183734468299128276)]"
+              "explain": "                                        ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                                        ExpressionTransform × 14"
+              "explain": "                                          FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                          Description: filter values in (-inf, (11220200528281606952)]"
             },
             {
-              "explain": "                                                            ReplacingSorted 11 → 1"
+              "explain": "                                            ExpressionTransform × 2"
             },
             {
-              "explain": "                                                              ExpressionTransform × 11"
+              "explain": "                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
-              "explain": "                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
+              "explain": "                          (CreatingSet)"
             },
             {
-              "explain": "                                                                  ReplacingSorted 11 → 1"
+              "explain": "                          CreatingSetsTransform"
             },
             {
-              "explain": "                                                                    FilterSortedStreamByRange × 11"
+              "explain": "                            (Expression)"
             },
             {
-              "explain": "                                                                    Description: filter values in ((9229703398104475804), +inf]"
+              "explain": "                            ExpressionTransform"
             },
             {
-              "explain": "                                                                      ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                          ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                            FilterSortedStreamByRange × 11"
-            },
-            {
-              "explain": "                                                                            Description: filter values in (-inf, (9229703398104475804)]"
-            },
-            {
-              "explain": "                                                                              ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                    Description: filter values in ((13854570163240118310), +inf]"
-            },
-            {
-              "explain": "                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                            Description: filter values in ((9230781603480511805), (13854570163240118310)]"
-            },
-            {
-              "explain": "                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                    Description: filter values in ((4638159665195826439), (9230781603480511805)]"
-            },
-            {
-              "explain": "                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                            Description: filter values in (-inf, (4638159665195826439)]"
-            },
-            {
-              "explain": "                                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                    Description: filter values in ((13854794423986398654), +inf]"
-            },
-            {
-              "explain": "                                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                            Description: filter values in ((9230991942694080262), (13854794423986398654)]"
-            },
-            {
-              "explain": "                                                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                    Description: filter values in ((4638535692080535817), (9230991942694080262)]"
-            },
-            {
-              "explain": "                                                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                            Description: filter values in (-inf, (4638535692080535817)]"
-            },
-            {
-              "explain": "                                                                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                  ReplacingSorted 10 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                    FilterSortedStreamByRange × 10"
-            },
-            {
-              "explain": "                                                                                                                                                    Description: filter values in ((12315687659017009177), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                      ExpressionTransform × 10"
-            },
-            {
-              "explain": "                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                          ReplacingSorted 10 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                            FilterSortedStreamByRange × 10"
-            },
-            {
-              "explain": "                                                                                                                                                            Description: filter values in ((6184949049115839098), (12315687659017009177)]"
-            },
-            {
-              "explain": "                                                                                                                                                              ExpressionTransform × 10"
-            },
-            {
-              "explain": "                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                  ReplacingSorted 10 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                    FilterSortedStreamByRange × 10"
-            },
-            {
-              "explain": "                                                                                                                                                                    Description: filter values in (-inf, (6184949049115839098)]"
-            },
-            {
-              "explain": "                                                                                                                                                                      ExpressionTransform × 10"
-            },
-            {
-              "explain": "                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                            Description: filter values in ((13853962826384442785), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                    Description: filter values in ((9230567325784684806), (13853962826384442785)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                            Description: filter values in ((4637416138061282986), (9230567325784684806)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                    Description: filter values in (-inf, (4637416138061282986)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                            Description: filter values in ((9230480057967107385), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                    Description: filter values in (-inf, (9230480057967107385)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                          ReplacingSorted 12 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                            ExpressionTransform × 12"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                  ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                      ReplacingSorted 2 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                        ExpressionTransform × 2"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
-            },
-            {
-              "explain": "                (CreatingSet)"
-            },
-            {
-              "explain": "                CreatingSetsTransform"
-            },
-            {
-              "explain": "                  (Expression)"
-            },
-            {
-              "explain": "                  ExpressionTransform"
-            },
-            {
-              "explain": "                    (ReadFromSystemOne)"
+              "explain": "                              (ReadFromSystemOne)"
             }
           ]
         }
@@ -2697,9 +2448,9 @@
           "version": "baseline",
           "rows": 26,
           "statistics": {
-            "elapsed": 1.205378696,
-            "rows_read": 2388116,
-            "bytes_read": 88797327
+            "elapsed": 2.057287489,
+            "rows_read": 2408483,
+            "bytes_read": 88809168
           },
           "digest": "f0ccff182e940b89737297926ec0ddd36999394a5993ce60ff443f6a7b6a2d32"
         },
@@ -2708,9 +2459,9 @@
           "version": "candidate",
           "rows": 26,
           "statistics": {
-            "elapsed": 146.761232787,
-            "rows_read": 10652010133,
-            "bytes_read": 685077351579
+            "elapsed": 2.21491101,
+            "rows_read": 2408483,
+            "bytes_read": 88809168
           },
           "digest": "f0ccff182e940b89737297926ec0ddd36999394a5993ce60ff443f6a7b6a2d32"
         },
@@ -2719,9 +2470,9 @@
           "version": "candidate",
           "rows": 26,
           "statistics": {
-            "elapsed": 157.566406187,
-            "rows_read": 10653594112,
-            "bytes_read": 685180256529
+            "elapsed": 2.017790312,
+            "rows_read": 2408483,
+            "bytes_read": 88809168
           },
           "digest": "f0ccff182e940b89737297926ec0ddd36999394a5993ce60ff443f6a7b6a2d32"
         },
@@ -2730,9 +2481,9 @@
           "version": "baseline",
           "rows": 26,
           "statistics": {
-            "elapsed": 1.330771683,
-            "rows_read": 2388293,
-            "bytes_read": 88799037
+            "elapsed": 1.315792628,
+            "rows_read": 2408528,
+            "bytes_read": 88810140
           },
           "digest": "f0ccff182e940b89737297926ec0ddd36999394a5993ce60ff443f6a7b6a2d32"
         },
@@ -2741,9 +2492,9 @@
           "version": "baseline",
           "rows": 26,
           "statistics": {
-            "elapsed": 0.894237626,
-            "rows_read": 2388299,
-            "bytes_read": 88799085
+            "elapsed": 0.785228314,
+            "rows_read": 2408615,
+            "bytes_read": 88811958
           },
           "digest": "f0ccff182e940b89737297926ec0ddd36999394a5993ce60ff443f6a7b6a2d32"
         },
@@ -2752,9 +2503,9 @@
           "version": "candidate",
           "rows": 26,
           "statistics": {
-            "elapsed": 237.148980246,
-            "rows_read": 10654842573,
-            "bytes_read": 685261286551
+            "elapsed": 3.012668006,
+            "rows_read": 2408546,
+            "bytes_read": 88811406
           },
           "digest": "f0ccff182e940b89737297926ec0ddd36999394a5993ce60ff443f6a7b6a2d32"
         }
@@ -3049,18 +2800,18 @@
       ],
       "timings": {
         "baseline": {
-          "median_seconds": 1.205378696,
-          "min_seconds": 0.894237626,
-          "max_seconds": 1.330771683
+          "median_seconds": 1.315792628,
+          "min_seconds": 0.785228314,
+          "max_seconds": 2.057287489
         },
         "candidate": {
-          "median_seconds": 157.566406187,
-          "min_seconds": 146.761232787,
-          "max_seconds": 237.148980246
+          "median_seconds": 2.21491101,
+          "min_seconds": 2.017790312,
+          "max_seconds": 3.012668006
         }
       },
-      "regenerated": "2026-11-03 commit job lookup: the commit's jobs come from materialized_views.workflow_job_by_head_sha by the commit's SHA and its runs' IDs instead of a scan of default.workflow_job by run ID (lib/api/tests/commit/query-validation.md). This case's working-tree SQL was regenerated from the builders and remeasured on this date; the other side of the comparison is unchanged.",
-      "measured_at": "2026-11-03T06:02:04.632Z",
+      "regenerated": "2026-11-05 index analysis and exact starts (lib/api/tests/commit/query-validation.md): this case's working-tree SQL (baseline) was regenerated from the builders, and its candidate is now the baseline recorded until then, the working query as of 16fdbd5de, not the rejected argMax variant: the case's earlier recordings showed both equal to the full-FINAL read, which takes over two minutes per execution and was not run again. Both sides were remeasured on this date.",
+      "measured_at": "2026-11-06T01:07:32.859Z",
       "equal_complete_rows": true
     },
     "commit_failed_last_passed": {
@@ -3093,13 +2844,16 @@
               "passed"
             ]
           },
-          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(run.rerun_number) AS sort_1,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_2,\n    toString(run.tests_id) AS sort_3,\n    toString(run.environments_id) AS sort_4,\n    toString(run.env_vars_id) AS sort_5,\n    toString(run.github_workflow_job_id) AS sort_6\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE run.tests_id IN (SELECT run.tests_id\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND run.outcome IN {candidate_outcomes: Array(String)}\n        GROUP BY run.tests_id)\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.rerun_number ASC, run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(run.rerun_number) AS sort_1,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_2,\n    toString(run.tests_id) AS sort_3,\n    toString(run.environments_id) AS sort_4,\n    toString(run.env_vars_id) AS sort_5,\n    toString(run.github_workflow_job_id) AS sort_6\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND identity(run.tests_id) IN (SELECT run.tests_id\n                FROM ci.runs AS run\n                WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n                    AND run.outcome IN {candidate_outcomes: Array(String)}))\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.rerun_number ASC, run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
         },
         "candidate": {
           "params": {
             "sha": "9cc78e09ce3ea174d43897d70a5fea93d8caa34c",
             "repo": "pytorch/pytorch",
             "entries_limit": 101,
+            "candidate_outcomes": [
+              "failed"
+            ],
             "rerun_number": [
               0
             ],
@@ -3110,7 +2864,7 @@
               "passed"
             ]
           },
-          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM default.workflow_job\n    WHERE run_id IN (\n        SELECT id\n        FROM default.workflow_run\n        WHERE id IN (\n            SELECT id\n            FROM materialized_views.workflow_run_by_head_sha\n            WHERE head_sha = {sha: String}\n        )\n            AND head_sha = {sha: String}\n            AND repository.full_name = {repo: String}\n    )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(run.rerun_number) AS sort_1,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_2,\n    toString(run.tests_id) AS sort_3,\n    toString(run.environments_id) AS sort_4,\n    toString(run.env_vars_id) AS sort_5,\n    toString(run.github_workflow_job_id) AS sort_6\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome IN {last_attempt_outcome: Array(String)}, (run.started_at, run.ended_at, toString(run.id))) = 1\n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.rerun_number ASC, run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+          "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(run.rerun_number) AS sort_1,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_2,\n    toString(run.tests_id) AS sort_3,\n    toString(run.environments_id) AS sort_4,\n    toString(run.env_vars_id) AS sort_5,\n    toString(run.github_workflow_job_id) AS sort_6\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE run.tests_id IN (SELECT run.tests_id\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND run.outcome IN {candidate_outcomes: Array(String)}\n        GROUP BY run.tests_id)\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.rerun_number ASC, run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
         }
       },
       "plans": {
@@ -3156,25 +2910,37 @@
               "explain": "                      Min-Max"
             },
             {
-              "explain": "                        Condition: true"
+              "explain": "                        Keys:"
             },
             {
-              "explain": "                        Parts: 222/222"
+              "explain": "                          started_at"
             },
             {
-              "explain": "                        Granules: 1285369/1285369"
+              "explain": "                        Condition: (started_at in 28-element set)"
+            },
+            {
+              "explain": "                        Parts: 2/202"
+            },
+            {
+              "explain": "                        Granules: 53/1874688"
             },
             {
               "explain": "                      Partition"
             },
             {
-              "explain": "                        Condition: true"
+              "explain": "                        Keys:"
             },
             {
-              "explain": "                        Parts: 222/222"
+              "explain": "                          toDate(started_at)"
             },
             {
-              "explain": "                        Granules: 1285369/1285369"
+              "explain": "                        Condition: (toDate(started_at) in 28-element set)"
+            },
+            {
+              "explain": "                        Parts: 2/2"
+            },
+            {
+              "explain": "                        Granules: 53/53"
             },
             {
               "explain": "                      PrimaryKey"
@@ -3186,19 +2952,28 @@
               "explain": "                          tests_id"
             },
             {
-              "explain": "                        Condition: (tests_id in 7-element set)"
+              "explain": "                          environments_id"
             },
             {
-              "explain": "                        Parts: 190/222"
+              "explain": "                          env_vars_id"
             },
             {
-              "explain": "                        Granules: 924/1285369"
+              "explain": "                          started_at"
+            },
+            {
+              "explain": "                        Condition: ((tests_id, environments_id, env_vars_id, started_at) in 28-element set)"
+            },
+            {
+              "explain": "                        Parts: 2/2"
+            },
+            {
+              "explain": "                        Granules: 14/53"
             },
             {
               "explain": "                        Search Algorithm: generic exclusion search"
             },
             {
-              "explain": "                      Ranges: 861"
+              "explain": "                      Ranges: 12"
             },
             {
               "explain": "          CreatingSet (Create set for subquery)"
@@ -3227,421 +3002,157 @@
               "explain": "    (Sorting)"
             },
             {
-              "explain": "    MergingSortedTransform 24 → 1"
+              "explain": "    MergingSortedTransform 6 → 1"
             },
             {
-              "explain": "      MergeSortingTransform × 24"
+              "explain": "      MergeSortingTransform × 6"
             },
             {
-              "explain": "        LimitsCheckingTransform × 24"
+              "explain": "        LimitsCheckingTransform × 6"
             },
             {
-              "explain": "          PartialSortingTransform × 24"
+              "explain": "          PartialSortingTransform × 6"
             },
             {
               "explain": "            (Expression)"
             },
             {
-              "explain": "            ExpressionTransform × 24"
+              "explain": "            ExpressionTransform × 6"
             },
             {
               "explain": "              (CreatingSets)"
             },
             {
-              "explain": "              DelayedPorts 25 → 24"
+              "explain": "              DelayedPorts 7 → 6"
             },
             {
               "explain": "                (Expression)"
             },
             {
-              "explain": "                ExpressionTransform × 24"
+              "explain": "                ExpressionTransform × 6"
             },
             {
               "explain": "                  (Filter)"
             },
             {
-              "explain": "                  FilterTransform × 48"
+              "explain": "                  FilterTransform × 12"
             },
             {
               "explain": "                    (Aggregating)"
             },
             {
-              "explain": "                    Resize 24 → 24"
+              "explain": "                    Resize 6 → 6"
             },
             {
-              "explain": "                      AggregatingTransform × 24"
+              "explain": "                      AggregatingTransform × 6"
             },
             {
               "explain": "                        (Expression)"
             },
             {
-              "explain": "                        ExpressionTransform × 24"
+              "explain": "                        ExpressionTransform × 6"
             },
             {
               "explain": "                          (Filter)"
             },
             {
-              "explain": "                          FilterTransform × 24"
+              "explain": "                          FilterTransform × 6"
             },
             {
               "explain": "                            (ReadFromMergeTree)"
             },
             {
-              "explain": "                            ExpressionTransform × 24"
+              "explain": "                            ExpressionTransform × 6"
             },
             {
-              "explain": "                              ReplacingSorted 48 → 1"
+              "explain": "                              ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                FilterSortedStreamByRange × 48"
+              "explain": "                                FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                Description: filter values in ((13691358992727607313), +inf]"
+              "explain": "                                Description: filter values in ((16709748043462457999), +inf]"
             },
             {
-              "explain": "                                  ExpressionTransform × 48"
+              "explain": "                                  ExpressionTransform × 2"
             },
             {
-              "explain": "                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 48 0 → 1"
+              "explain": "                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
-              "explain": "                                      ReplacingSorted 51 → 1"
+              "explain": "                                      ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                        FilterSortedStreamByRange × 51"
+              "explain": "                                        FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                        Description: filter values in (-inf, (13691358992727607313)]"
+              "explain": "                                        Description: filter values in ((14044144126077930689), (16709748043462457999)]"
             },
             {
-              "explain": "                                          ExpressionTransform × 51"
+              "explain": "                                          ExpressionTransform × 2"
             },
             {
-              "explain": "                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 51 0 → 1"
+              "explain": "                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
-              "explain": "                                              ReplacingSorted 14 → 1"
+              "explain": "                                              ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                                FilterSortedStreamByRange × 14"
+              "explain": "                                                FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                                Description: filter values in ((10485261832172521296), +inf]"
+              "explain": "                                                Description: filter values in ((9802318037468986401), (14044144126077930689)]"
             },
             {
-              "explain": "                                                  ExpressionTransform × 14"
+              "explain": "                                                  ExpressionTransform × 2"
             },
             {
-              "explain": "                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
-              "explain": "                                                      ReplacingSorted 14 → 1"
+              "explain": "                                                      ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                                        FilterSortedStreamByRange × 14"
+              "explain": "                                                        FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                                        Description: filter values in ((4042005808586256758), (10485261832172521296)]"
+              "explain": "                                                        Description: filter values in ((7021427817695115565), (9802318037468986401)]"
             },
             {
-              "explain": "                                                          ExpressionTransform × 14"
+              "explain": "                                                          ExpressionTransform × 2"
             },
             {
-              "explain": "                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
-              "explain": "                                                              ReplacingSorted 14 → 1"
+              "explain": "                                                              ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                                                FilterSortedStreamByRange × 14"
+              "explain": "                                                                FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                                                Description: filter values in (-inf, (4042005808586256758)]"
+              "explain": "                                                                Description: filter values in ((1418232917898060251), (7021427817695115565)]"
             },
             {
-              "explain": "                                                                  ExpressionTransform × 14"
+              "explain": "                                                                  ExpressionTransform × 2"
             },
             {
-              "explain": "                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
-              "explain": "                                                                      ReplacingSorted 11 → 1"
+              "explain": "                                                                      ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                                                        FilterSortedStreamByRange × 11"
+              "explain": "                                                                        FilterSortedStreamByRange × 2"
             },
             {
-              "explain": "                                                                        Description: filter values in ((7832316606631141463), +inf]"
+              "explain": "                                                                        Description: filter values in (-inf, (1418232917898060251)]"
             },
             {
-              "explain": "                                                                          ExpressionTransform × 11"
+              "explain": "                                                                          ExpressionTransform × 2"
             },
             {
-              "explain": "                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                              ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                                FilterSortedStreamByRange × 11"
-            },
-            {
-              "explain": "                                                                                Description: filter values in (-inf, (7832316606631141463)]"
-            },
-            {
-              "explain": "                                                                                  ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                      ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                                        FilterSortedStreamByRange × 11"
-            },
-            {
-              "explain": "                                                                                        Description: filter values in ((7819852700179964764), +inf]"
-            },
-            {
-              "explain": "                                                                                          ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                              ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                                                FilterSortedStreamByRange × 11"
-            },
-            {
-              "explain": "                                                                                                Description: filter values in (-inf, (7819852700179964764)]"
-            },
-            {
-              "explain": "                                                                                                  ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                                      ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                        FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                        Description: filter values in ((7834684483004085547), +inf]"
-            },
-            {
-              "explain": "                                                                                                          ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                              ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                Description: filter values in (-inf, (7834684483004085547)]"
-            },
-            {
-              "explain": "                                                                                                                  ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                      ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                        FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                        Description: filter values in ((7812717043707100587), +inf]"
-            },
-            {
-              "explain": "                                                                                                                          ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                              ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                Description: filter values in (-inf, (7812717043707100587)]"
-            },
-            {
-              "explain": "                                                                                                                                  ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                      ReplacingSorted 10 → 1"
-            },
-            {
-              "explain": "                                                                                                                                        FilterSortedStreamByRange × 10"
-            },
-            {
-              "explain": "                                                                                                                                        Description: filter values in ((7839917875950587417), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                          ExpressionTransform × 10"
-            },
-            {
-              "explain": "                                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                              ReplacingSorted 10 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                FilterSortedStreamByRange × 10"
-            },
-            {
-              "explain": "                                                                                                                                                Description: filter values in (-inf, (7839917875950587417)]"
-            },
-            {
-              "explain": "                                                                                                                                                  ExpressionTransform × 10"
-            },
-            {
-              "explain": "                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                      ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                        FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                        Description: filter values in ((7836840788867043710), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                          ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                              ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                Description: filter values in (-inf, (7836840788867043710)]"
-            },
-            {
-              "explain": "                                                                                                                                                                  ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                      ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                        FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                        Description: filter values in ((7831321296905455506), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                                          ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                              ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                Description: filter values in (-inf, (7831321296905455506)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                  ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                      ReplacingSorted 12 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                        FilterSortedStreamByRange × 12"
-            },
-            {
-              "explain": "                                                                                                                                                                                        Description: filter values in ((7837023143116634413), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                                                          ExpressionTransform × 12"
-            },
-            {
-              "explain": "                                                                                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                              ReplacingSorted 12 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                FilterSortedStreamByRange × 12"
-            },
-            {
-              "explain": "                                                                                                                                                                                                Description: filter values in (-inf, (7837023143116634413)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                  ExpressionTransform × 12"
-            },
-            {
-              "explain": "                                                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                      ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                        FilterSortedStreamByRange × 11"
-            },
-            {
-              "explain": "                                                                                                                                                                                                        Description: filter values in ((7832517702773903848), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                          ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                              ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                FilterSortedStreamByRange × 11"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                Description: filter values in (-inf, (7832517702773903848)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                  ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                      ReplacingSorted 2 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                        ExpressionTransform × 2"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
+              "explain": "                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
               "explain": "                (CreatingSet)"
@@ -3705,10 +3216,10 @@
               "explain": "                        Condition: true"
             },
             {
-              "explain": "                        Parts: 210/210"
+              "explain": "                        Parts: 243/243"
             },
             {
-              "explain": "                        Granules: 1285360/1285360"
+              "explain": "                        Granules: 1874731/1874731"
             },
             {
               "explain": "                      Partition"
@@ -3717,25 +3228,34 @@
               "explain": "                        Condition: true"
             },
             {
-              "explain": "                        Parts: 210/210"
+              "explain": "                        Parts: 243/243"
             },
             {
-              "explain": "                        Granules: 1285360/1285360"
+              "explain": "                        Granules: 1874731/1874731"
             },
             {
               "explain": "                      PrimaryKey"
             },
             {
-              "explain": "                        Condition: true"
+              "explain": "                        Keys:"
             },
             {
-              "explain": "                        Parts: 210/210"
+              "explain": "                          tests_id"
             },
             {
-              "explain": "                        Granules: 1285360/1285360"
+              "explain": "                        Condition: (tests_id in 7-element set)"
             },
             {
-              "explain": "                      Ranges: 210"
+              "explain": "                        Parts: 231/243"
+            },
+            {
+              "explain": "                        Granules: 1087/1874731"
+            },
+            {
+              "explain": "                        Search Algorithm: generic exclusion search"
+            },
+            {
+              "explain": "                      Ranges: 1012"
             },
             {
               "explain": "          CreatingSet (Create set for subquery)"
@@ -3764,235 +3284,235 @@
               "explain": "    (Sorting)"
             },
             {
-              "explain": "    MergingSortedTransform 27 → 1"
+              "explain": "    MergingSortedTransform 23 → 1"
             },
             {
-              "explain": "      MergeSortingTransform × 27"
+              "explain": "      MergeSortingTransform × 23"
             },
             {
-              "explain": "        LimitsCheckingTransform × 27"
+              "explain": "        LimitsCheckingTransform × 23"
             },
             {
-              "explain": "          PartialSortingTransform × 27"
+              "explain": "          PartialSortingTransform × 23"
             },
             {
               "explain": "            (Expression)"
             },
             {
-              "explain": "            ExpressionTransform × 27"
+              "explain": "            ExpressionTransform × 23"
             },
             {
               "explain": "              (CreatingSets)"
             },
             {
-              "explain": "              DelayedPorts 28 → 27"
+              "explain": "              DelayedPorts 24 → 23"
             },
             {
               "explain": "                (Expression)"
             },
             {
-              "explain": "                ExpressionTransform × 27"
+              "explain": "                ExpressionTransform × 23"
             },
             {
               "explain": "                  (Filter)"
             },
             {
-              "explain": "                  FilterTransform × 54"
+              "explain": "                  FilterTransform × 46"
             },
             {
               "explain": "                    (Aggregating)"
             },
             {
-              "explain": "                    Resize 27 → 27"
+              "explain": "                    Resize 23 → 23"
             },
             {
-              "explain": "                      AggregatingTransform × 27"
+              "explain": "                      AggregatingTransform × 23"
             },
             {
               "explain": "                        (Expression)"
             },
             {
-              "explain": "                        ExpressionTransform × 27"
+              "explain": "                        ExpressionTransform × 23"
             },
             {
               "explain": "                          (Filter)"
             },
             {
-              "explain": "                          FilterTransform × 27"
+              "explain": "                          FilterTransform × 23"
             },
             {
               "explain": "                            (ReadFromMergeTree)"
             },
             {
-              "explain": "                            ExpressionTransform × 27"
+              "explain": "                            ExpressionTransform × 23"
             },
             {
-              "explain": "                              ReplacingSorted 76 → 1"
+              "explain": "                              ReplacingSorted 46 → 1"
             },
             {
-              "explain": "                                ExpressionTransform × 76"
+              "explain": "                                FilterSortedStreamByRange × 46"
             },
             {
-              "explain": "                                  MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 76 0 → 1"
+              "explain": "                                Description: filter values in ((14581820773043396916), +inf]"
             },
             {
-              "explain": "                                    ReplacingSorted 14 → 1"
+              "explain": "                                  ExpressionTransform × 46"
             },
             {
-              "explain": "                                      FilterSortedStreamByRange × 14"
+              "explain": "                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 46 0 → 1"
             },
             {
-              "explain": "                                      Description: filter values in ((12316576092801778990), +inf]"
+              "explain": "                                      ReplacingSorted 48 → 1"
             },
             {
-              "explain": "                                        ExpressionTransform × 14"
+              "explain": "                                        FilterSortedStreamByRange × 48"
             },
             {
-              "explain": "                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                        Description: filter values in (-inf, (14581820773043396916)]"
             },
             {
-              "explain": "                                            ReplacingSorted 14 → 1"
+              "explain": "                                          ExpressionTransform × 48"
             },
             {
-              "explain": "                                              FilterSortedStreamByRange × 14"
+              "explain": "                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 48 0 → 1"
             },
             {
-              "explain": "                                              Description: filter values in ((6183734468299128276), (12316576092801778990)]"
+              "explain": "                                              ReplacingSorted 12 → 1"
             },
             {
-              "explain": "                                                ExpressionTransform × 14"
+              "explain": "                                                FilterSortedStreamByRange × 12"
             },
             {
-              "explain": "                                                  MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                                Description: filter values in ((7776306400022568783), +inf]"
             },
             {
-              "explain": "                                                    ReplacingSorted 14 → 1"
+              "explain": "                                                  ExpressionTransform × 12"
             },
             {
-              "explain": "                                                      FilterSortedStreamByRange × 14"
+              "explain": "                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
             },
             {
-              "explain": "                                                      Description: filter values in (-inf, (6183734468299128276)]"
+              "explain": "                                                      ReplacingSorted 12 → 1"
             },
             {
-              "explain": "                                                        ExpressionTransform × 14"
+              "explain": "                                                        FilterSortedStreamByRange × 12"
             },
             {
-              "explain": "                                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
+              "explain": "                                                        Description: filter values in (-inf, (7776306400022568783)]"
             },
             {
-              "explain": "                                                            ReplacingSorted 11 → 1"
+              "explain": "                                                          ExpressionTransform × 12"
             },
             {
-              "explain": "                                                              ExpressionTransform × 11"
+              "explain": "                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
             },
             {
-              "explain": "                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
+              "explain": "                                                              ReplacingSorted 15 → 1"
             },
             {
-              "explain": "                                                                  ReplacingSorted 11 → 1"
+              "explain": "                                                                FilterSortedStreamByRange × 15"
             },
             {
-              "explain": "                                                                    FilterSortedStreamByRange × 11"
+              "explain": "                                                                Description: filter values in ((7828356429954777882), +inf]"
             },
             {
-              "explain": "                                                                    Description: filter values in ((9229703398104475804), +inf]"
+              "explain": "                                                                  ExpressionTransform × 15"
             },
             {
-              "explain": "                                                                      ExpressionTransform × 11"
+              "explain": "                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 15 0 → 1"
             },
             {
-              "explain": "                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
+              "explain": "                                                                      ReplacingSorted 15 → 1"
             },
             {
-              "explain": "                                                                          ReplacingSorted 11 → 1"
+              "explain": "                                                                        FilterSortedStreamByRange × 15"
             },
             {
-              "explain": "                                                                            FilterSortedStreamByRange × 11"
+              "explain": "                                                                        Description: filter values in (-inf, (7828356429954777882)]"
             },
             {
-              "explain": "                                                                            Description: filter values in (-inf, (9229703398104475804)]"
+              "explain": "                                                                          ExpressionTransform × 15"
             },
             {
-              "explain": "                                                                              ExpressionTransform × 11"
+              "explain": "                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 15 0 → 1"
             },
             {
-              "explain": "                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
+              "explain": "                                                                              ReplacingSorted 12 → 1"
             },
             {
-              "explain": "                                                                                  ReplacingSorted 13 → 1"
+              "explain": "                                                                                FilterSortedStreamByRange × 12"
             },
             {
-              "explain": "                                                                                    FilterSortedStreamByRange × 13"
+              "explain": "                                                                                Description: filter values in ((7836197076470907631), +inf]"
             },
             {
-              "explain": "                                                                                    Description: filter values in ((13854570163240118310), +inf]"
+              "explain": "                                                                                  ExpressionTransform × 12"
             },
             {
-              "explain": "                                                                                      ExpressionTransform × 13"
+              "explain": "                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
             },
             {
-              "explain": "                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                      ReplacingSorted 12 → 1"
             },
             {
-              "explain": "                                                                                          ReplacingSorted 13 → 1"
+              "explain": "                                                                                        FilterSortedStreamByRange × 12"
             },
             {
-              "explain": "                                                                                            FilterSortedStreamByRange × 13"
+              "explain": "                                                                                        Description: filter values in (-inf, (7836197076470907631)]"
             },
             {
-              "explain": "                                                                                            Description: filter values in ((9230781603480511805), (13854570163240118310)]"
+              "explain": "                                                                                          ExpressionTransform × 12"
             },
             {
-              "explain": "                                                                                              ExpressionTransform × 13"
+              "explain": "                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
             },
             {
-              "explain": "                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                              ReplacingSorted 14 → 1"
             },
             {
-              "explain": "                                                                                                  ReplacingSorted 13 → 1"
+              "explain": "                                                                                                FilterSortedStreamByRange × 14"
             },
             {
-              "explain": "                                                                                                    FilterSortedStreamByRange × 13"
+              "explain": "                                                                                                Description: filter values in ((7812685175317358190), +inf]"
             },
             {
-              "explain": "                                                                                                    Description: filter values in ((4638159665195826439), (9230781603480511805)]"
+              "explain": "                                                                                                  ExpressionTransform × 14"
             },
             {
-              "explain": "                                                                                                      ExpressionTransform × 13"
+              "explain": "                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
             },
             {
-              "explain": "                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                                      ReplacingSorted 14 → 1"
             },
             {
-              "explain": "                                                                                                          ReplacingSorted 13 → 1"
+              "explain": "                                                                                                        FilterSortedStreamByRange × 14"
             },
             {
-              "explain": "                                                                                                            FilterSortedStreamByRange × 13"
+              "explain": "                                                                                                        Description: filter values in (-inf, (7812685175317358190)]"
             },
             {
-              "explain": "                                                                                                            Description: filter values in (-inf, (4638159665195826439)]"
+              "explain": "                                                                                                          ExpressionTransform × 14"
             },
             {
-              "explain": "                                                                                                              ExpressionTransform × 13"
+              "explain": "                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 14 0 → 1"
             },
             {
-              "explain": "                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                                              ReplacingSorted 11 → 1"
             },
             {
-              "explain": "                                                                                                                  ReplacingSorted 13 → 1"
+              "explain": "                                                                                                                ExpressionTransform × 11"
             },
             {
-              "explain": "                                                                                                                    FilterSortedStreamByRange × 13"
+              "explain": "                                                                                                                  MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
             },
             {
-              "explain": "                                                                                                                    Description: filter values in ((13854794423986398654), +inf]"
+              "explain": "                                                                                                                    ReplacingSorted 10 → 1"
             },
             {
-              "explain": "                                                                                                                      ExpressionTransform × 13"
+              "explain": "                                                                                                                      ExpressionTransform × 10"
             },
             {
-              "explain": "                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
             },
             {
               "explain": "                                                                                                                          ReplacingSorted 13 → 1"
@@ -4001,7 +3521,7 @@
               "explain": "                                                                                                                            FilterSortedStreamByRange × 13"
             },
             {
-              "explain": "                                                                                                                            Description: filter values in ((9230991942694080262), (13854794423986398654)]"
+              "explain": "                                                                                                                            Description: filter values in ((7834684483004085547), +inf]"
             },
             {
               "explain": "                                                                                                                              ExpressionTransform × 13"
@@ -4016,7 +3536,7 @@
               "explain": "                                                                                                                                    FilterSortedStreamByRange × 13"
             },
             {
-              "explain": "                                                                                                                                    Description: filter values in ((4638535692080535817), (9230991942694080262)]"
+              "explain": "                                                                                                                                    Description: filter values in (-inf, (7834684483004085547)]"
             },
             {
               "explain": "                                                                                                                                      ExpressionTransform × 13"
@@ -4025,181 +3545,109 @@
               "explain": "                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
             },
             {
-              "explain": "                                                                                                                                          ReplacingSorted 13 → 1"
+              "explain": "                                                                                                                                          ReplacingSorted 7 → 1"
             },
             {
-              "explain": "                                                                                                                                            FilterSortedStreamByRange × 13"
+              "explain": "                                                                                                                                            ExpressionTransform × 7"
             },
             {
-              "explain": "                                                                                                                                            Description: filter values in (-inf, (4638535692080535817)]"
+              "explain": "                                                                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 7 0 → 1"
             },
             {
-              "explain": "                                                                                                                                              ExpressionTransform × 13"
+              "explain": "                                                                                                                                                ReplacingSorted 10 → 1"
             },
             {
-              "explain": "                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                                                                                  ExpressionTransform × 10"
             },
             {
-              "explain": "                                                                                                                                                  ReplacingSorted 10 → 1"
+              "explain": "                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
             },
             {
-              "explain": "                                                                                                                                                    FilterSortedStreamByRange × 10"
+              "explain": "                                                                                                                                                      ReplacingSorted 11 → 1"
             },
             {
-              "explain": "                                                                                                                                                    Description: filter values in ((12315687659017009177), +inf]"
+              "explain": "                                                                                                                                                        FilterSortedStreamByRange × 11"
             },
             {
-              "explain": "                                                                                                                                                      ExpressionTransform × 10"
+              "explain": "                                                                                                                                                        Description: filter values in ((7836840788867043710), +inf]"
             },
             {
-              "explain": "                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
+              "explain": "                                                                                                                                                          ExpressionTransform × 11"
             },
             {
-              "explain": "                                                                                                                                                          ReplacingSorted 10 → 1"
+              "explain": "                                                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
             },
             {
-              "explain": "                                                                                                                                                            FilterSortedStreamByRange × 10"
+              "explain": "                                                                                                                                                              ReplacingSorted 11 → 1"
             },
             {
-              "explain": "                                                                                                                                                            Description: filter values in ((6184949049115839098), (12315687659017009177)]"
+              "explain": "                                                                                                                                                                FilterSortedStreamByRange × 11"
             },
             {
-              "explain": "                                                                                                                                                              ExpressionTransform × 10"
+              "explain": "                                                                                                                                                                Description: filter values in (-inf, (7836840788867043710)]"
             },
             {
-              "explain": "                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
+              "explain": "                                                                                                                                                                  ExpressionTransform × 11"
             },
             {
-              "explain": "                                                                                                                                                                  ReplacingSorted 10 → 1"
+              "explain": "                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
             },
             {
-              "explain": "                                                                                                                                                                    FilterSortedStreamByRange × 10"
+              "explain": "                                                                                                                                                                      ReplacingSorted 11 → 1"
             },
             {
-              "explain": "                                                                                                                                                                    Description: filter values in (-inf, (6184949049115839098)]"
+              "explain": "                                                                                                                                                                        FilterSortedStreamByRange × 11"
             },
             {
-              "explain": "                                                                                                                                                                      ExpressionTransform × 10"
+              "explain": "                                                                                                                                                                        Description: filter values in ((7835187601969065891), +inf]"
             },
             {
-              "explain": "                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 10 0 → 1"
+              "explain": "                                                                                                                                                                          ExpressionTransform × 11"
             },
             {
-              "explain": "                                                                                                                                                                          ReplacingSorted 13 → 1"
+              "explain": "                                                                                                                                                                            MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
             },
             {
-              "explain": "                                                                                                                                                                            FilterSortedStreamByRange × 13"
+              "explain": "                                                                                                                                                                              ReplacingSorted 11 → 1"
             },
             {
-              "explain": "                                                                                                                                                                            Description: filter values in ((13853962826384442785), +inf]"
+              "explain": "                                                                                                                                                                                FilterSortedStreamByRange × 11"
             },
             {
-              "explain": "                                                                                                                                                                              ExpressionTransform × 13"
+              "explain": "                                                                                                                                                                                Description: filter values in (-inf, (7835187601969065891)]"
             },
             {
-              "explain": "                                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                                                                                                                  ExpressionTransform × 11"
             },
             {
-              "explain": "                                                                                                                                                                                  ReplacingSorted 13 → 1"
+              "explain": "                                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
             },
             {
-              "explain": "                                                                                                                                                                                    FilterSortedStreamByRange × 13"
+              "explain": "                                                                                                                                                                                      ReplacingSorted 8 → 1"
             },
             {
-              "explain": "                                                                                                                                                                                    Description: filter values in ((9230567325784684806), (13853962826384442785)]"
+              "explain": "                                                                                                                                                                                        ExpressionTransform × 8"
             },
             {
-              "explain": "                                                                                                                                                                                      ExpressionTransform × 13"
+              "explain": "                                                                                                                                                                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 8 0 → 1"
             },
             {
-              "explain": "                                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
+              "explain": "                                                                                                                                                                                            ReplacingSorted 9 → 1"
             },
             {
-              "explain": "                                                                                                                                                                                          ReplacingSorted 13 → 1"
+              "explain": "                                                                                                                                                                                              ExpressionTransform × 9"
             },
             {
-              "explain": "                                                                                                                                                                                            FilterSortedStreamByRange × 13"
+              "explain": "                                                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 9 0 → 1"
             },
             {
-              "explain": "                                                                                                                                                                                            Description: filter values in ((4637416138061282986), (9230567325784684806)]"
+              "explain": "                                                                                                                                                                                                  ReplacingSorted 2 → 1"
             },
             {
-              "explain": "                                                                                                                                                                                              ExpressionTransform × 13"
+              "explain": "                                                                                                                                                                                                    ExpressionTransform × 2"
             },
             {
-              "explain": "                                                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                    Description: filter values in (-inf, (4637416138061282986)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                          ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                            FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                            Description: filter values in ((9230480057967107385), +inf]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                              ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                  ReplacingSorted 13 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                    FilterSortedStreamByRange × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                    Description: filter values in (-inf, (9230480057967107385)]"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                      ExpressionTransform × 13"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                        MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 13 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                          ReplacingSorted 12 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                            ExpressionTransform × 12"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                              MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 12 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                ReplacingSorted 11 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                  ExpressionTransform × 11"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                    MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 11 0 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                      ReplacingSorted 2 → 1"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                        ExpressionTransform × 2"
-            },
-            {
-              "explain": "                                                                                                                                                                                                                                          MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
+              "explain": "                                                                                                                                                                                                      MergeTreeSelect(pool: ReadPoolInOrder, algorithm: InOrder) × 2 0 → 1"
             },
             {
               "explain": "                (CreatingSet)"
@@ -4225,9 +3673,9 @@
           "version": "baseline",
           "rows": 7,
           "statistics": {
-            "elapsed": 2.357531242,
-            "rows_read": 8567444,
-            "bytes_read": 411471129
+            "elapsed": 0.430938946,
+            "rows_read": 1565863,
+            "bytes_read": 29245296
           },
           "digest": "3157a3f5f430cb965834564a6e1f005979852c5191b61c3685c1bc77b79aed69"
         },
@@ -4236,9 +3684,9 @@
           "version": "candidate",
           "rows": 7,
           "statistics": {
-            "elapsed": 227.863715992,
-            "rows_read": 10658273979,
-            "bytes_read": 685484526425
+            "elapsed": 11.896064695,
+            "rows_read": 9422474,
+            "bytes_read": 457930027
           },
           "digest": "3157a3f5f430cb965834564a6e1f005979852c5191b61c3685c1bc77b79aed69"
         },
@@ -4247,9 +3695,9 @@
           "version": "candidate",
           "rows": 7,
           "statistics": {
-            "elapsed": 192.534869835,
-            "rows_read": 10661566431,
-            "bytes_read": 685698430075
+            "elapsed": 3.604922966,
+            "rows_read": 9477110,
+            "bytes_read": 460546019
           },
           "digest": "3157a3f5f430cb965834564a6e1f005979852c5191b61c3685c1bc77b79aed69"
         },
@@ -4258,9 +3706,9 @@
           "version": "baseline",
           "rows": 7,
           "statistics": {
-            "elapsed": 1.77090295,
-            "rows_read": 8680528,
-            "bytes_read": 426734741
+            "elapsed": 0.740206558,
+            "rows_read": 1565880,
+            "bytes_read": 29247786
           },
           "digest": "3157a3f5f430cb965834564a6e1f005979852c5191b61c3685c1bc77b79aed69"
         },
@@ -4269,9 +3717,9 @@
           "version": "baseline",
           "rows": 7,
           "statistics": {
-            "elapsed": 0.821033924,
-            "rows_read": 8621650,
-            "bytes_read": 423376662
+            "elapsed": 0.765872459,
+            "rows_read": 1565883,
+            "bytes_read": 29247810
           },
           "digest": "3157a3f5f430cb965834564a6e1f005979852c5191b61c3685c1bc77b79aed69"
         },
@@ -4280,9 +3728,9 @@
           "version": "candidate",
           "rows": 7,
           "statistics": {
-            "elapsed": 193.601422672,
-            "rows_read": 10663621086,
-            "bytes_read": 685831923175
+            "elapsed": 2.645364918,
+            "rows_read": 9585606,
+            "bytes_read": 462348997
           },
           "digest": "3157a3f5f430cb965834564a6e1f005979852c5191b61c3685c1bc77b79aed69"
         }
@@ -4382,18 +3830,18 @@
       ],
       "timings": {
         "baseline": {
-          "median_seconds": 1.77090295,
-          "min_seconds": 0.821033924,
-          "max_seconds": 2.357531242
+          "median_seconds": 0.740206558,
+          "min_seconds": 0.430938946,
+          "max_seconds": 0.765872459
         },
         "candidate": {
-          "median_seconds": 193.601422672,
-          "min_seconds": 192.534869835,
-          "max_seconds": 227.863715992
+          "median_seconds": 3.604922966,
+          "min_seconds": 2.645364918,
+          "max_seconds": 11.896064695
         }
       },
-      "regenerated": "2026-11-03 commit job lookup: the commit's jobs come from materialized_views.workflow_job_by_head_sha by the commit's SHA and its runs' IDs instead of a scan of default.workflow_job by run ID (lib/api/tests/commit/query-validation.md). This case's working-tree SQL was regenerated from the builders and remeasured on this date; the other side of the comparison is unchanged.",
-      "measured_at": "2026-11-03T06:02:04.632Z",
+      "regenerated": "2026-11-05 index analysis and exact starts (lib/api/tests/commit/query-validation.md): this case's working-tree SQL (baseline) was regenerated from the builders, and its candidate is now the baseline recorded until then, the working query as of 16fdbd5de, not the rejected argMax variant: the case's earlier recordings showed both equal to the full-FINAL read, which takes over two minutes per execution and was not run again. Both sides were remeasured on this date.",
+      "measured_at": "2026-11-06T01:07:32.859Z",
       "equal_complete_rows": true
     }
   },
@@ -5603,7 +5051,7 @@
             "passed"
           ]
         },
-        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(run.rerun_number) AS sort_1,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_2,\n    toString(run.tests_id) AS sort_3,\n    toString(run.environments_id) AS sort_4,\n    toString(run.env_vars_id) AS sort_5,\n    toString(run.github_workflow_job_id) AS sort_6\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE run.tests_id IN (SELECT run.tests_id\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND run.outcome IN {candidate_outcomes: Array(String)}\n        GROUP BY run.tests_id)\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.rerun_number ASC, run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
+        "sql": "\nWITH (\n    SELECT groupArray(id)\n    FROM materialized_views.workflow_job_by_head_sha\n    WHERE head_sha = {sha: String}\n        AND run_id IN (\n            SELECT id\n            FROM default.workflow_run\n            WHERE id IN (\n                SELECT id\n                FROM materialized_views.workflow_run_by_head_sha\n                WHERE head_sha = {sha: String}\n            )\n                AND head_sha = {sha: String}\n                AND repository.full_name = {repo: String}\n        )\n) AS matched_job_ids\nSELECT\n    toString(run.tests_id) AS tests_id_string,\n    toString(run.environments_id) AS environments_id_string,\n    toString(run.env_vars_id) AS env_vars_id_string,\n    toString(run.github_workflow_job_id) AS github_workflow_job_id_string,\n    toString(toString(run.outcome)) AS sort_0,\n    toString(run.rerun_number) AS sort_1,\n    toString(toUnixTimestamp64Milli(run.ended_at)) AS sort_2,\n    toString(run.tests_id) AS sort_3,\n    toString(run.environments_id) AS sort_4,\n    toString(run.env_vars_id) AS sort_5,\n    toString(run.github_workflow_job_id) AS sort_6\nFROM (\n    SELECT run.tests_id AS tests_id,\n        run.environments_id AS environments_id,\n        run.env_vars_id AS env_vars_id,\n        run.github_workflow_job_id AS github_workflow_job_id,\n        argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) AS outcome,\n        argMax(run.rerun_number, (run.started_at, run.ended_at, toString(run.id))) AS rerun_number,\n        max(run.ended_at) AS ended_at\n    FROM ci.runs AS run FINAL\n    PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at\n        FROM ci.runs AS run\n        WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n            AND identity(run.tests_id) IN (SELECT run.tests_id\n                FROM ci.runs AS run\n                WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n                    AND run.outcome IN {candidate_outcomes: Array(String)}))\n    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))\n    GROUP BY run.tests_id, run.environments_id, run.env_vars_id, run.github_workflow_job_id\n    HAVING countIf(run.rerun_number IN {rerun_number: Array(UInt16)} AND run.outcome IN {outcome: Array(String)}) > 0\n        AND argMax(run.outcome, (run.started_at, run.ended_at, toString(run.id))) IN {last_attempt_outcome: Array(String)}\n) AS run\nWHERE 1\n    AND (1)\nORDER BY toString(run.outcome) ASC, run.rerun_number ASC, run.ended_at DESC, run.tests_id ASC, run.environments_id ASC, run.env_vars_id ASC, run.github_workflow_job_id ASC\nLIMIT {entries_limit: UInt64}\nSETTINGS optimize_move_to_prewhere_if_final = 0\n"
       },
       "rows": [
         {
@@ -5734,8 +5182,8 @@
       "description": "Fetch every retained attempt with the working-tree FINAL query; sort independently by started_at, ended_at and UUID string; check latest outcome and independent any-attempt predicates.",
       "attempts_count": 20,
       "attempts_digest": "6424aa12583f35e9733057bac8bff3598682e6c84c1bd1f8f3e07610f5a0b739",
-      "regenerated": "2026-11-03 commit job lookup: the commit's jobs come from materialized_views.workflow_job_by_head_sha by the commit's SHA and its runs' IDs instead of a scan of default.workflow_job by run ID (lib/api/tests/commit/query-validation.md). This case's working-tree SQL was regenerated from the builders and remeasured on this date.",
-      "measured_at": "2026-11-03T06:02:04.632Z"
+      "regenerated": "2026-11-05 index analysis and exact starts (lib/api/tests/commit/query-validation.md): this check's working-tree query was regenerated from the builders and run again on this date; its bundles and their attempts are the ones recorded before.",
+      "measured_at": "2026-11-06T01:07:32.859Z"
     }
   },
   "pagination": {

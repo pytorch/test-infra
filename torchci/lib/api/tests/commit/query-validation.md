@@ -798,6 +798,10 @@ Rejected: a scalar holding the candidate (job, test) keys exceeded 15 GB of
 memory, the old analyzer copying the nested scalar into every subquery; an
 inline `IN` on (job, test) without `PREWHERE` read 552M rows for no gain.
 
+Since 2026-11-05 the `FINAL` read is pruned to the exact starts of the
+candidate tests' rows on the commit instead of the tests' every retained row
+(see that day's section below).
+
 ### Expected failures are not pruned (2026-11-01)
 
 The pruned read costs about one granule per candidate test and part, since a
@@ -928,7 +932,8 @@ Measured on ce6ff46 (9,177,729 bundles, 2026-10-30): the per-status
 `groupUniqArrayIf` form took 7.5 to 7.8 s elapsed; the one-array form 3.1 to
 3.6 s, identical rows (7 rows, digest `12e5949c2ee7e03e`), 150M rows and 1.6
 GB read, about 105 MB of memory. One thread takes 16.3 s, so the query costs
-about 16 CPU-seconds and runs in the heavy workload (`CI_WORKLOAD_HEAVY`).
+about 16 CPU-seconds and runs in the heavy workload (`CI_WORKLOAD_HEAVY`);
+it left the workload on 2026-11-05, rewritten (see that day's section below).
 The full-`FINAL` baseline, every row of the commit's jobs read through `FINAL`
 and grouped into bundles, returns the same rows: recorded in
 `summary-query-validation.json` (`scripts/validateCommitSummaryQueries.cjs`,
@@ -1114,3 +1119,144 @@ same once `refs`, a `groupUniqArray`, is sorted. For the pull request head the
 two reads returned its three refs in a different order. `groupUniqArray`
 defines no order, and the summary sorts the branches it takes from the refs.
 The other seven rows were identical as returned.
+
+## Index analysis, counts by rank and exact starts (2026-11-05)
+
+On 2026-11-05 the commit page's header, which waits for the summary, took 9
+to 18 seconds on ce6ff46 through the dev server, longer than the table below
+it, whose first page took 8 to 51 seconds; a week before, the evidence had
+both within a few seconds. The runs table had grown to about 1.9 million
+granules in 220 to 730 parts, and three changes followed, each compared live
+with the statement it replaces on fixed commits, with identical rows.
+
+**Index analysis.** Before it reads `ci.runs` without `FINAL`, ClickHouse
+analyses the read against the main table and the by_job projection and takes
+the one with fewer marks. A condition the main table's primary key can use
+makes that analysis search the main table's index in every part, even when
+by_job, pruned by the commit's jobs, is the read that wins: a set of (job,
+test) keys naming thousands of tests, or a `NOT IN` on (test, start), which
+prunes nothing. Counting the rows of ce6ff46's 4,993 multi-row (job, test)
+keys, which name 3,763 tests, took 1.87 to 2.08 s with the test visible to
+the index and 0.85 to 0.93 s with `identity(run.tests_id)` (three alternating
+pairs, 4 threads), reading the same 11.0 million rows and returning the same
+count. `identity()` is ClickHouse's documented way to keep an expression out
+of index analysis; by_job still prunes by the key's job. The counts query
+held the key set in four reads and the shared starts' `NOT IN` in a fifth,
+and the page's grouped (shared-start) read holds the same `NOT IN`; the
+test, and the `NOT IN`'s start, now go through `identity()`. The `FINAL`
+read's `PREWHERE` at the shared starts keeps its key columns, since it is
+the read that must prune. Hiding the start as well as the test took the
+counts' multi-row branch from 1.78 to 1.06 s (best of four, 4 threads).
+
+**Counts by rank.** The counts query carried each test's bundles as an array
+of (job, status word) pairs, which each test's row then read some 25 times
+with string comparisons (`WORST_RESULT_SQL`, `CATEGORY_JOBS_SQL` and three
+array functions per status). It now gathers each test's bundles into two
+parallel arrays, jobs and UInt8 ranks (a status's place in
+`BUNDLE_STATUSES`, failed 1 to skipped 7), beside the test's least rank and
+the ranks it holds as bits, unfolds them with `ARRAY JOIN` into one row a
+bundle, its test's first bundle marked, and counts with `countIf` and
+`uniqExactIf` in one aggregation, returning the same rows. On ce6ff46 at one
+thread (best of two each): the query as of 16fdbd5de 22.7 s, with
+`identity()` alone 6.4 s, with ranks as well 4.7 s, all three with identical
+rows. Two other forms of the aggregation, grouping by the numeric worst rank
+and array functions over the test's rows without `ARRAY JOIN`, returned the
+same rows and were no faster (best of three at one thread: 4.47 and 4.50 s
+against 3.97 and 4.11 s for the chosen form in the same runs).
+
+**Exact starts for rare outcomes.** A page whose filters admit only bundles
+holding a rare outcome (the default commit page: failed, timed out, flaky and
+other) read `FINAL` pruned to the candidate tests, `PREWHERE run.tests_id IN
+(...)`, which reads each such test's every retained row, in every part and
+every day of retention: 9,087 of 1,876,804 granules in 223 of 232 parts for
+ce6ff46's 80 candidate tests (`EXPLAIN indexes = 1` in the evidence's
+`commit_status_sort` case), 6,452 granules on
+2026-11-01, growing with the table. It now prunes `FINAL` to the exact
+(test, environment, env var set, start) of the candidate tests' rows on the
+commit, found by a second by_job pass, as the attempts read prunes since
+2026-11-03 (`prunedRunsSource` in `lib/api/tests/test/runs/query.ts`):
+
+```sql
+FROM ci.runs AS run FINAL
+PREWHERE (run.tests_id, run.environments_id, run.env_vars_id, run.started_at) IN (
+    SELECT run.tests_id, run.environments_id, run.env_vars_id, run.started_at
+    FROM ci.runs AS run
+    WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))
+        AND identity(run.tests_id) IN (SELECT run.tests_id
+            FROM ci.runs AS run
+            WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))
+                AND run.outcome IN {candidate_outcomes: Array(String)}))
+WHERE run.github_workflow_job_id IN (SELECT arrayJoin(matched_job_ids))
+```
+
+The 1,147 starts on ce6ff46 keep 2 of 234 parts by their days and 178 of
+194,419 granules in them. Every stored version of a row shares its key, so
+`FINAL` still resolves each row's replacements, and every bundle of a
+candidate test on the commit is read whole, a superset of the bundles the
+filters select, as before. The second pass holds the tests through
+`identity()`, so it reads by_job by the commit's jobs alone: on ce6ff46 the
+two passes read 20.0 million rows, every row of the commit, in 0.22 s.
+Spelled plainly, ClickHouse served the second pass from the main table by the
+80 tests instead, 12.2 million rows in 0.31 s, a read that grows with each
+candidate test's retained history, the cost the old pruning paid, where
+by_job's grows only with the commit; whole page queries took the same time
+either way (four alternating pairs, 14.1 against 21.9 million rows read,
+measured in the review of 2026-11-05).
+
+The evidence replays every changed statement against the one it replaces, as
+recorded until this day (the working queries as of 16fdbd5de, which earlier
+recordings had shown equal to the full-`FINAL` baselines; those baselines
+read some 10.6 billion rows in two to four minutes per execution and were
+not run again), in alternating pairs with identical complete rows:
+
+| Case (evidence)                                                                                                                               | Before         | After          | Rows read before / after |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | ------------------------ |
+| Summary counts, ce6ff46 ([summary](summary-query-validation.json), 3 pairs)                                                                   | 6.5 to 14.0 s  | 1.5 to 5.2 s   | 23.0M / 23.0M            |
+| Summary counts, 97a3cf6 (1,006 jobs)                                                                                                          | 4.5 to 5.4 s   | 2.0 to 2.7 s   | 21.9M / 21.9M            |
+| Summary counts, 06b5f47 (pull request head)                                                                                                   | 1.4 to 1.9 s   | 0.85 to 1.1 s  | 4.9M / 4.9M              |
+| Default page, ce6ff46 (`commit_status_sort`, [shared starts](shared-starts-query-validation.json), 4 pairs)                                   | 2.0 to 17.7 s  | 0.39 to 0.63 s | 84.0M / 21.9M            |
+| `outcome=failed`, 97a3cf6 (`commit_outcome_failed`)                                                                                           | 0.43 to 0.96 s | 0.18 to 0.34 s | 22.5M / 19.5M            |
+| `outcome=failed` + `last_attempt_outcome=passed`, 9cc78e09 ([last attempt](../test/runs/last-attempt-outcome-query-validation.json), 3 pairs) | 2.6 to 11.9 s  | 0.43 to 0.77 s | 9.4M / 1.6M              |
+| Combined attempt filter, 9cc78e09 ([attempts](../test/runs/attempts-query-validation.json), 3 pairs)                                          | 0.29 to 6.9 s  | 0.11 to 0.13 s | 9.3M / 1.6M              |
+
+No summary case sends rows through the counts query's `FINAL` read: it looks
+for shared starts only inside the multi-row (job, test) keys, and every
+recorded plan shows that set empty; 97a3cf6's 28 shared starts lie across
+jobs, in one-row keys read straight off by_job. That branch's changed `NOT
+IN` is covered live by the page cases, whose grouped read takes those 28
+starts through `FINAL`, and was checked in the review of 2026-11-05 on
+synthetic rows with duplicate versions inside one key, in local ClickHouse
+(25.8 with both analyzers and 26.9; the scripts are not kept here), where the
+old counts query, its full-`FINAL` baseline and the new query returned the
+same rows.
+
+The eleven other shared-start cases take the grouped read, whose only change
+is the `NOT IN`: the same rows read, most a little faster (`-ended_at` 2.4
+to 3.2 s before and 1.4 to 2.2 s after, `status=xfailed` 4.5 to 8.8 and 2.9
+to 4.7 s) and the `worst_status` cases within the noise of a busy afternoon.
+
+Through the dev server, the working tree against a copy of 16fdbd5de on a
+second port, three alternating pairs of each request with identical
+responses: ce6ff46's summary 8.0 to 12.1 s before and 1.5 to 3.4 s after and
+its default first page 3.0 to 27.7 s and 2.4 to 3.3 s; 5837d68's (main,
+2026-11-04) summary 7.6 to 7.8 and 2.1 to 3.6 s and first page 4.6 to 11.7
+and 2.5 to 2.7 s; 06b5f47's summary 2.2 to 3.2 and 1.3 to 1.7 s, and its
+first page 0.34 to 0.41 and 0.41 to 0.54 s, a page with no failing test
+whose query reads the same 2.4 million rows in about 0.1 s either way.
+
+Expected failures stay out of the pruned read (`PRUNABLE_OUTCOMES`): pruned
+to their rows' exact starts, ce6ff46's 10,443 tests with an expected failure
+still cost 202 million rows and 15 to 50 s against 31 million and 7 to 13 s
+for the grouped read (three pairs, identical rows).
+
+The counts query left the heavy workload (`CI_WORKLOAD_HEAVY`) with this
+change: it costs about five seconds of one thread on a main commit, under
+the ten CPU-seconds the API README's "Heavy queries" sets, and queued behind
+tests pages it held up the commit page's header.
+
+Not changed: the neighbours query's 40 push candidates read the whole
+`head_commit` tuple, 275 MB, because the push table's key is
+`tupleElement(head_commit, 'timestamp')`; an explicit `PREWHERE` on the ref
+and repository read the same bytes and was no faster (0.47 to 0.62 s against
+0.44 to 0.58 s, identical rows). It runs beside the counts, so the summary
+waits for whichever ends last.

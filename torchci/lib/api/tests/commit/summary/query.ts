@@ -7,7 +7,7 @@ import {
   RUN_GROUP_FIELDS,
   withClause,
 } from "lib/api/tests/test/runs/query";
-import { BUNDLE_STATUSES } from "lib/runOutcomes";
+import { BUNDLE_STATUSES, BundleStatus } from "lib/runOutcomes";
 
 // The commit's workflow runs and pushes, as GitHub described them: how many,
 // the commit's message, author and timestamp, the branches of its push runs
@@ -217,74 +217,83 @@ ORDER BY direction
   };
 }
 
-// The status of a bundle holding one attempt, from that attempt's outcome:
-// BUNDLE_STATUS_SQL on one row.
-function singleAttemptStatusSql(outcome: string) {
-  return `multiIf(${outcome} = 'skipped', 'skipped', ${outcome} IN ('failed', 'error', 'crashed'), 'failed', ${outcome} = 'timed_out', 'timed_out', ${outcome} = 'passed', 'passed', ${outcome} = 'xfailed', 'xfailed', 'other')`;
+// A status's rank, its place in BUNDLE_STATUSES counted from 1: failed is 1
+// and skipped 7, so a test's worst status is its bundles' least rank. The
+// counts carry ranks rather than status words, a UInt8 a bundle instead of a
+// string to compare at every step.
+function statusRank(status: BundleStatus) {
+  return BUNDLE_STATUSES.indexOf(status) + 1;
 }
 
-// Each test's bundles as one array of (job, status) pairs, read with array
-// functions: one aggregate per test instead of two per status, which halves
-// the counts query's time on a large commit (query-validation.md, 2026-10-30).
-const PAIR_JOB = "tupleElement(pair, 1)";
-const PAIR_STATUS = "tupleElement(pair, 2)";
+const BUNDLE_STATUSES_SQL = `[${BUNDLE_STATUSES.map(
+  (status) => `'${status}'`
+).join(", ")}]`;
 
-// Whether any of a test's bundles has the status.
-function hasStatusSql(status: string) {
-  return `arrayExists(pair -> ${PAIR_STATUS} = '${status}', pairs)`;
+// The rank of a bundle holding one attempt, from that attempt's outcome:
+// BUNDLE_STATUS_SQL on one row, ranked.
+function singleAttemptRankSql(outcome: string) {
+  return `toUInt8(multiIf(${outcome} = 'skipped', ${statusRank(
+    "skipped"
+  )}, ${outcome} IN ('failed', 'error', 'crashed'), ${statusRank(
+    "failed"
+  )}, ${outcome} = 'timed_out', ${statusRank(
+    "timed_out"
+  )}, ${outcome} = 'passed', ${statusRank(
+    "passed"
+  )}, ${outcome} = 'xfailed', ${statusRank("xfailed")}, ${statusRank(
+    "other"
+  )}))`;
 }
 
-// The jobs of a test's bundles with the status, one per bundle.
-function jobsWithStatusSql(status: string) {
-  return `arrayMap(pair -> ${PAIR_JOB}, arrayFilter(pair -> ${PAIR_STATUS} = '${status}', pairs))`;
-}
-
-// How many of a test's bundles have the status.
-function bundlesWithStatusSql(status: string) {
-  return `arrayCount(pair -> ${PAIR_STATUS} = '${status}', pairs)`;
-}
-
-// A test's worst result: the first status, worst first, that any of its
-// bundles has.
-const WORST_RESULT_SQL = `multiIf(${BUNDLE_STATUSES.slice(0, -1)
-  .map((status) => `${hasStatusSql(status)}, '${status}'`)
-  .join(", ")}, '${BUNDLE_STATUSES[BUNDLE_STATUSES.length - 1]}')`;
-
-// The distinct jobs of the test's bundles with its worst result.
-const CATEGORY_JOBS_SQL = `arrayDistinct(arrayMap(pair -> ${PAIR_JOB}, arrayFilter(pair -> ${PAIR_STATUS} = category, pairs)))`;
+// The rank of a bundle of grouped attempts: BUNDLE_STATUS_SQL, ranked.
+const BUNDLE_RANK_SQL = `toUInt8(indexOf(${BUNDLE_STATUSES_SQL}, ${BUNDLE_STATUS_SQL}))`;
 
 // The counts over a source of bundles, each row one bundle's test, job,
-// status, start and end: per test its bundles as (job, status) pairs and
-// its worst result, then per worst result the tests and their jobs, with a
-// rollup row (category '') for the whole commit, which alone gives the
-// per-status figures over every test, the jobs of every bundle and the span
-// of the runs.
-export function commitTestCountsSql(bundles: string) {
+// rank, start and end. Each test's bundles are gathered into two parallel
+// arrays, their jobs and their ranks (one aggregation fills both, so the
+// positions agree), beside the test's worst rank, the set of ranks it holds
+// as bits and the span of its runs; the arrays are then unfolded back into
+// one row a bundle, the test's own columns beside it and its first bundle
+// marked, and counted per worst status: the tests (first bundles) and the
+// distinct jobs of the bundles of their worst status, and for each status the
+// tests holding it, the distinct jobs and the number of its bundles. The
+// rollup row (category '') counts the whole commit, the only row whose
+// per-status figures the summary reads. One aggregation over the unfolded
+// bundles replaced (2026-11-05) an array of (job, status word) pairs that
+// each test's row read some 25 times with string comparisons: a quarter less
+// time on one thread on a main commit (query-validation.md, 2026-11-05).
+function commitTestCountsSql(bundles: string) {
   return `SELECT
-    category,
-    count() AS tests,
-    uniqExactArray(category_jobs) AS jobs,
+    ${BUNDLE_STATUSES_SQL}[worst_rank] AS category,
+    countIf(bundle_index = 1) AS tests,
+    uniqExactIf(job_id, rank = worst_rank) AS jobs,
     ${BUNDLE_STATUSES.map(
       (status) =>
-        `countIf(${hasStatusSql(status)}) AS ${status}_tests,
-    uniqExactArray(${jobsWithStatusSql(status)}) AS ${status}_distinct_jobs,
-    sum(${bundlesWithStatusSql(status)}) AS ${status}_bundles`
+        `countIf(bundle_index = 1 AND bitTest(rank_bits, ${statusRank(
+          status
+        )})) AS ${status}_tests,
+    uniqExactIf(job_id, rank = ${statusRank(
+      status
+    )}) AS ${status}_distinct_jobs,
+    countIf(rank = ${statusRank(status)}) AS ${status}_bundles`
     ).join(",\n    ")},
-    uniqExactArray(arrayMap(pair -> ${PAIR_JOB}, pairs)) AS any_jobs,
+    uniqExact(job_id) AS any_jobs,
     min(first_started_at) AS first_started_at,
     max(last_ended_at) AS last_ended_at
 FROM (
     SELECT
         tests_id,
-        groupArray((job_id, status)) AS pairs,
-        ${WORST_RESULT_SQL} AS category,
-        ${CATEGORY_JOBS_SQL} AS category_jobs,
+        groupArray(job_id) AS job_ids,
+        groupArray(rank) AS ranks,
+        min(rank) AS worst_rank,
+        groupBitOr(bitShiftLeft(toUInt8(1), rank)) AS rank_bits,
         min(started_at) AS first_started_at,
         max(ended_at) AS last_ended_at
     FROM (${bundles}
     )
     GROUP BY tests_id
 )
+ARRAY JOIN job_ids AS job_id, ranks AS rank, arrayEnumerate(job_ids) AS bundle_index
 GROUP BY category WITH ROLLUP
 SETTINGS optimize_move_to_prewhere_if_final = 0
 `;
@@ -296,14 +305,23 @@ SETTINGS optimize_move_to_prewhere_if_final = 0
 // its only version, whose status is its outcome's, read straight off by_job;
 // and the other keys' rows, pruned by key on by_job, are read as FINAL would
 // return them and grouped into bundles. The keys partition the rows, so no
-// bundle is counted twice. The baseline the evidence compares it with reads
-// every row through FINAL (baselineQuery in
-// scripts/validateCommitSummaryQueries.cjs).
+// bundle is counted twice. The evidence compares it with the counts query it
+// replaced, which had been recorded equal to a read of every row through
+// FINAL (summary-query-validation.json).
+//
+// The (job, test) key sets hold the test through identity(), which index
+// analysis does not look into. The runs table's primary key leads with the
+// test, so a set naming some 3,800 tests made ClickHouse search the main
+// table's index, every part and some 1.9 million marks, before it chose
+// by_job for the read, which the job prunes: about a second for each read
+// holding the set, with the same rows read (2026-11-05). by_job still prunes
+// by the key's job.
 export function buildCommitTestCountsQuery(query: CommitSummaryQuery) {
   const scope = commitRunsScope(query);
   const where = `WHERE ${scope.filters.join("\n            AND ")}`;
+  const jobTest = "(run.github_workflow_job_id, identity(run.tests_id))";
   const multiRowWhere = `${where}
-            AND (run.github_workflow_job_id, run.tests_id) IN (SELECT arrayJoin(multi_row_keys))`;
+            AND ${jobTest} IN (SELECT arrayJoin(multi_row_keys))`;
   return {
     params: { ...scope.params },
     sql: `${withClause(scope)}
@@ -320,16 +338,16 @@ export function buildCommitTestCountsQuery(query: CommitSummaryQuery) {
 ${commitTestCountsSql(`
         SELECT run.tests_id AS tests_id,
             run.github_workflow_job_id AS job_id,
-            ${singleAttemptStatusSql("run.outcome")} AS status,
+            ${singleAttemptRankSql("run.outcome")} AS rank,
             run.started_at AS started_at,
             run.ended_at AS ended_at
         FROM ${CI_DATABASE}.runs AS run
         ${where}
-            AND (run.github_workflow_job_id, run.tests_id) NOT IN (SELECT arrayJoin(multi_row_keys))
+            AND ${jobTest} NOT IN (SELECT arrayJoin(multi_row_keys))
         UNION ALL
         SELECT run.tests_id AS tests_id,
             run.github_workflow_job_id AS job_id,
-            ${BUNDLE_STATUS_SQL} AS status,
+            ${BUNDLE_RANK_SQL} AS rank,
             min(run.started_at) AS started_at,
             max(run.ended_at) AS ended_at
         FROM ${classifiedRunsSource(multiRowWhere, [
