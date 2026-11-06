@@ -1,10 +1,10 @@
 import { Probot } from "probot";
 import { getInputArgs } from "./cliParser";
 import PytorchBotHandler from "./pytorchBotHandler";
-import { CachedConfigTracker } from "./utils";
+import { CachedLabelerConfigTracker } from "./utils";
 
 function pytorchBot(app: Probot): void {
-  const cachedConfigTracker = new CachedConfigTracker(app);
+  const cachedConfigTracker = new CachedLabelerConfigTracker(app);
 
   app.on("issue_comment.created", async (ctx) => {
     const commentBody = ctx.payload.comment.body;
