@@ -124,7 +124,7 @@ def recall_time_fig(rec: dict[str, Any], pop: str) -> go.Figure:
         fig,
         [rec[f"adaptive_time@{k}"]["time_share"] for k in KS],
         [rec[f"adaptive_time@{k}"] for k in KS],
-        f"{AFTER_NAME} (budgets of 5-100% of test time, scaled per change)",
+        f"{AFTER_NAME} (5-100%)",
         COLORS["adaptive"][0],
     )
     td = rec[TD]
