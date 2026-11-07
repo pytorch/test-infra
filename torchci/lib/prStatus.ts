@@ -492,7 +492,7 @@ export async function fetchLiveLabels(
 // names no approvers at all. trymerge reads approvers over GraphQL, where an
 // app's login lacks the "[bot]" suffix REST gives it (merge_rules.yaml names
 // "pytorchgreenlight", reviews come back from "pytorchgreenlight[bot]").
-async function hasMergeRuleApproval(
+export async function hasMergeRuleApproval(
   octokit: Octokit,
   owner: string,
   repo: string,
