@@ -149,6 +149,64 @@ class TestForwardSplit(unittest.TestCase):
         self.assertTrue((got["w"] > 0).all())
 
 
+class TestAfter(unittest.TestCase):
+    def unit(self, scale: float):
+        from torchci.td.analysis.selection import Unit
+
+        tests = [f"t{i}" for i in range(40)]
+        u = Unit(
+            "c:abc",
+            tests,
+            {t: 1.0 / (i + 1) for i, t in enumerate(tests)},
+            {t: 1.0 / (40 - i) for i, t in enumerate(tests)},
+            {t: float(1 + i % 5) for i, t in enumerate(tests)},
+        )
+        u.add_adaptive(scale)
+        return u
+
+    def test_budget_is_scaled_and_capped(self) -> None:
+        small, big = self.unit(0.75), self.unit(1.75)
+        self.assertLess(
+            small.share("adaptive_time@20")[1], big.share("adaptive_time@20")[1]
+        )
+        self.assertEqual(big.sel["adaptive_time@100"], set(big.tests))
+        self.assertLess(len(small.sel["adaptive_time@100"]), len(small.tests))
+
+    def test_td_matched_budget_follows_td_time(self) -> None:
+        u = self.unit(1.0)
+        td_time = u.share("before@25")[1]
+        got = u.share("adaptive_time@td25")[1]
+        self.assertLessEqual(
+            got, td_time + max(u.seconds.values()) / sum(u.seconds.values())
+        )
+
+    def test_time_scales_average_one_per_population(self) -> None:
+        from torchci.td.analysis.evaluate import time_scales
+
+        ids = ["m1", "m2", "p1", "p2", "p3"]
+        t = config.BUDGET_TARGETS[0]
+        risk = pd.DataFrame({"unit_id": ids[:4], f"budget_{t}": [15, 35, 20, 30]})
+        ev = pd.DataFrame(
+            {"kind": ["main", "main", "pr_off", "pr_on", "pr_off"]}, index=ids
+        )
+        got = time_scales(risk, ev, dict.fromkeys(ids))
+        self.assertAlmostEqual((got["m1"] + got["m2"]) / 2, 1.0)
+        self.assertAlmostEqual((got["p1"] + got["p2"] + got["p3"]) / 3, 1.0)
+        self.assertGreater(got["m2"], got["m1"])
+
+    def test_names(self) -> None:
+        from torchci.td.analysis.selection import name
+
+        self.assertEqual(name("before@25"), "TD, 25% of test files")
+        self.assertEqual(
+            name("adaptive_time@20"),
+            "After with a time budget, 20% of test time, scaled per change",
+        )
+        self.assertEqual(
+            name("adaptive_time@td25"), "After with a time budget, TD's test time today"
+        )
+
+
 class TestBreakdowns(unittest.TestCase):
     def test_random_catch(self) -> None:
         from torchci.td.analysis.breakdowns import random_catch

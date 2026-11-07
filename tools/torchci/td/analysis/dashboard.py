@@ -13,6 +13,7 @@ from plotly.offline import get_plotlyjs
 from torchci.td.analysis import config
 from torchci.td.analysis.dashboard_text import POP_NAMES, SIGNAL_NAMES
 from torchci.td.analysis.schema import read_manifest, RESULTS_FILE
+from torchci.td.analysis.selection import AFTER_NAME
 
 
 # The reference palette's first three categorical slots (light, dark): they stay apart
@@ -28,7 +29,9 @@ GRID = ("#e4e3df", "#3a3a37")
 SURFACE = ("#fcfcfb", "#1a1a19")
 KS = list(config.CUTOFFS)
 TD, FULL, LIGHT = "before@25", "adaptive_time@td25", "adaptive_time@td20"
-AFTER_NAME = "After with a time budget"
+# A grey with at least 3:1 contrast on both surfaces: layout shapes are not restyled in
+# dark mode.
+REFERENCE = "#7f7e79"
 
 
 def esc(value: Any) -> str:
@@ -88,7 +91,7 @@ def line(
 
 def td_today(fig: go.Figure, x: float, y: float, text: str) -> None:
     """TD as it runs today: a marker on its line and a dotted line at its test time."""
-    fig.add_vline(x=x, line={"color": MUTED[0], "dash": "dot", "width": 1})
+    fig.add_vline(x=x, line={"color": REFERENCE, "dash": "dot", "width": 1})
     fig.add_trace(
         go.Scatter(
             x=[x],
@@ -121,7 +124,7 @@ def recall_time_fig(rec: dict[str, Any], pop: str) -> go.Figure:
         fig,
         [rec[f"adaptive_time@{k}"]["time_share"] for k in KS],
         [rec[f"adaptive_time@{k}"] for k in KS],
-        f"{AFTER_NAME} (5-100% of test time on average)",
+        f"{AFTER_NAME} (budgets of 5-100% of test time, scaled per change)",
         COLORS["adaptive"][0],
     )
     td = rec[TD]
@@ -138,36 +141,6 @@ def recall_time_fig(rec: dict[str, Any], pop: str) -> go.Figure:
         f"{POP_NAMES[pop][0]} (n = {td['n']:,})",
         "Test time run",
         "Recall",
-    )
-
-
-def reds_fig(r: dict[str, Any]) -> go.Figure:
-    pol, cost = r["reds"]["policies"], r["cost"]["main"]
-    fig = go.Figure()
-    for prefix, name, color in (
-        ("before", "TD at other cutoffs", COLORS["before"][0]),
-        ("adaptive_time", AFTER_NAME, COLORS["adaptive"][0]),
-    ):
-        fig.add_trace(
-            go.Scatter(
-                x=[cost[f"{prefix}@{k}"]["time_share"] for k in KS],
-                y=[pol[f"{prefix}@{k}"]["net_central_per_quarter"] for k in KS],
-                name=name,
-                mode="lines+markers",
-                line={"color": color, "width": 2},
-                marker={"size": 6},
-                hovertemplate=f"test time %{{x:.0%}}<br>%{{y:+.1f}} reds per quarter<extra>{esc(name)}</extra>",
-            )
-        )
-    fig.add_hline(y=0, line={"color": MUTED[0], "width": 1})
-    x = cost[TD]["time_share"]
-    td_today(fig, x, 0.0, f"{x:.0%} of test time; the reference, 0 by definition")
-    fig.update_xaxes(tickformat=".0%")
-    return layout(
-        fig,
-        "Reds kept off main per quarter, against TD today (central estimate)",
-        "Test time run (landed changes)",
-        "Reds kept off main per quarter",
     )
 
 
@@ -247,7 +220,6 @@ def run(cache: Path, out: Path) -> None:
         raise RuntimeError(f"sanity checks failed: {r['sanity']['failed']}")
     figs = {f"time_{p}": recall_time_fig(r["recall"][p], p) for p in POP_NAMES}
     figs.update(
-        reds=reds_fig(r),
         precision=precision_fig(r),
         importance=importance_fig(r["importance"]),
     )

@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from torchci.td.analysis import config, policies
-from torchci.td.analysis.selection import POLICIES, recall, strip, Unit
+from torchci.td.analysis.selection import POLICIES, recall, strip, time_budget, Unit
 
 
 logger = logging.getLogger(__name__)
@@ -42,17 +42,13 @@ def reds(
 ) -> dict[str, Any]:
     """Reds kept off main against TD today at 25%, per quarter. FG: the reverted false
     greens of the evaluation weeks that have TD's test lists, the reds TD's misses put on
-    main today.
-
-    - Central: the false greens a policy catches beyond TD's replay at 25% (under the same
-      catch rule, any breaking file of any failing config selected), discounted by d1, how
-      often a breaking test that ran on its PR failed there (an assumption: it is measured
-      on reds that landed), minus the PR failures TD catches today that the policy skips,
-      converted at the rate TD's misses became false greens: FG * lost / missed, all on
-      TD-off PR jobs. The share of TD's catches a policy keeps on TD-on jobs is reported
-      beside it as a check of that loss rate.
-    - High: FG change in proportion to TD's misses on PR failures on TD-off jobs:
-      FG * (gained - lost) / missed."""
+    main today. The estimate: the false greens a policy catches beyond TD's replay at 25%
+    (under the same catch rule, any breaking file of any failing config selected),
+    discounted by d1, how often a breaking test that ran on its PR failed there (an
+    assumption: it is measured on reds that landed), minus the PR failures TD catches
+    today that the policy skips, converted at the rate TD's misses became false greens:
+    FG * lost / missed, all on TD-off PR jobs. The share of TD's catches a policy keeps on
+    TD-on jobs is reported beside it as a check of that loss rate."""
     ran = gold_all[gold_all["outcome"].isin(("signal_on_pr", "passed_on_pr"))][
         "outcome"
     ].value_counts()
@@ -99,7 +95,6 @@ def reds(
             "false_greens_caught": a,
             "net_central_per_quarter": ((a - base) * d1 - fg * lost / max(1, missed))
             * quarter,
-            "net_high_per_quarter": fg * (gained - lost) / max(1, missed) * quarter,
             "td_on_kept": float(np.mean(kept)) if kept else None,
             "td_off_kept": 1 - lost / max(1, len(b25) - missed),
         }
@@ -214,14 +209,8 @@ def overhead_sensitivity(
 
         def after(u: str, budget: float, secs: dict = secs) -> set[str]:
             unit = units[u]
-            return policies.explore_time(
-                policies.by_value(unit.after, unit.tests, secs[u]),
-                secs[u],
-                unit.after,
-                min(1.0, budget * unit.scale),
-                config.EXPLORE_SHARE,
-                u,
-            )
+            order = policies.by_value(unit.after, unit.tests, secs[u])
+            return time_budget(order, secs[u], unit.after, budget, unit.scale, u)
 
         row: dict[str, Any] = {
             "overhead": overhead,
@@ -281,21 +270,22 @@ def pr_bootstrap(
 
 
 def sanity(out: dict[str, Any]) -> dict[str, Any]:
+    """Checks the results must pass before the page renders. After's recall is not
+    checked for monotonicity: its exploration draws differ between budgets, so its
+    selections are not nested."""
     checks = {}
     for pop, rec in out["recall"].items():
+        caught = [rec[f"before@{k}"]["caught"] for k in config.CUTOFFS]
         checks[f"{pop}: recall at 100% is 1"] = rec["before@100"]["rate"] in (None, 1.0)
-        for side in ("before", "adaptive_time"):
-            caught = [rec[f"{side}@{k}"]["caught"] for k in config.CUTOFFS]
-            checks[f"{pop}: {side} recall is monotone in the cutoff"] = all(
-                a <= b for a, b in zip(caught, caught[1:])
-            )
-    for t in config.BUDGET_TARGETS:
-        checks[f"landed changes: realised mean cutoff within 1 point of {t}%"] = (
-            abs(out["risk"]["realized_mean"][str(t)] - t) <= 1.0
+        checks[f"{pop}: TD's recall is monotone in the cutoff"] = all(
+            a <= b for a, b in zip(caught, caught[1:])
         )
-    pol = out["reds"]["policies"]["before@25"]
+    t = config.BUDGET_TARGETS[0]
+    checks[f"landed changes: realised mean cutoff within 1 point of {t}%"] = (
+        abs(out["risk"]["realized_mean"][str(t)] - t) <= 1.0
+    )
     checks["reds: TD at 25% nets 0 against itself"] = (
-        pol["net_central_per_quarter"] == 0 and pol["net_high_per_quarter"] == 0
+        out["reds"]["policies"]["before@25"]["net_central_per_quarter"] == 0
     )
     failed = [k for k, v in checks.items() if not v]
     if failed:

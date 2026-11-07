@@ -23,9 +23,10 @@ POLICIES = (
     + [f"adaptive_time@{k}" for k in config.CUTOFFS]
     + [f"adaptive_time@{n}" for n in TIME_TARGETS]
 )
+AFTER_NAME = "After with a time budget"
 NAMES = {
-    "before": "TD today, {k}% of test files",
-    "adaptive_time": "After with a time budget, {k}",
+    "before": "TD, {k}% of test files",
+    "adaptive_time": AFTER_NAME + ", {k}",
 }
 TIME_TARGET_NAMES = {
     "td25": "TD's test time today",
@@ -36,7 +37,7 @@ TIME_TARGET_NAMES = {
 def name(policy: str) -> str:
     kind, k = policy.split("@")
     if kind == "adaptive_time" and k not in TIME_TARGET_NAMES:
-        return NAMES[kind].format(k=f"{k}% of test time on average")
+        return NAMES[kind].format(k=f"{k}% of test time, scaled per change")
     return NAMES[kind].format(k=TIME_TARGET_NAMES.get(k, k))
 
 
@@ -60,6 +61,21 @@ def unit_seconds(tests: list[str], raw: dict[str, float]) -> dict[str, float]:
         t: max(raw.get(t, 0.0) or fill, MIN_SECONDS) + config.FILE_OVERHEAD_SECONDS
         for t in tests
     }
+
+
+def time_budget(
+    order: list[str],
+    seconds: dict[str, float],
+    scores: dict[str, float],
+    share: float,
+    scale: float,
+    uid: str,
+) -> set[str]:
+    """The After system's selection: `share` of the tests' time times the unit's risk
+    multiplier `scale` (at most all of it), spent down `order` with exploration."""
+    return policies.explore_time(
+        order, seconds, scores, min(1.0, share * scale), config.EXPLORE_SHARE, uid
+    )
 
 
 class Unit:
@@ -101,13 +117,8 @@ class Unit:
             )
 
     def explore(self, share: float) -> set[str]:
-        return policies.explore_time(
-            self.value_order,
-            self.seconds,
-            self.after,
-            min(1.0, share * self.scale),
-            config.EXPLORE_SHARE,
-            self.uid,
+        return time_budget(
+            self.value_order, self.seconds, self.after, share, self.scale, self.uid
         )
 
     def share(self, policy: str) -> tuple[float, float]:

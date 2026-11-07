@@ -2,9 +2,10 @@
 
 An offline evaluation of pytorch's target determination (TD): TD as served today
 ("before") against the end state of the TD improvement work ("after": decayed failure
-ratings and co-edit PMI, the Qwen3 embedding heuristic, a calibrated ensemble over every
-signal, a risk-driven per-change cutoff, and an exploration slice), on the same failures
-and cutoffs. It writes one static HTML page.
+ratings and co-edit PMI, the Qwen3 embedding heuristic, an ensemble over every signal
+ranking tests by expected failures per second, a test-time budget the risk model scales
+per change, and an exploration slice), on the same failures. It writes one static HTML
+page.
 
 ## Run
 
@@ -35,6 +36,6 @@ expects td/llm's model, embedding cache and PR diffs at `<cache dir>/../llm_cach
   TD spends on the same change today.
 - For each policy and cutoff: recall with intervals, precision per test file and per
   test hour, the share of test files and of test time run.
-- Reds kept off main per quarter and the ensemble's signal importance. results.json
-  also holds a high reds estimate, the ensemble's calibration, the risk model's
-  precision / recall and the replay's fidelity, which the page does not show.
+- The ensemble's signal importance. results.json also holds reds kept off main per
+  quarter, the ensemble's calibration, the risk model's precision / recall and the
+  replay's fidelity, which the page does not show.

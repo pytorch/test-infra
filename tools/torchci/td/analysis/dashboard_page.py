@@ -17,14 +17,9 @@ from torchci.td.analysis.dashboard import (
     table,
     TD,
 )
-from torchci.td.analysis.dashboard_sections import (
-    cost_section,
-    history,
-    models_section,
-    reds_section,
-)
+from torchci.td.analysis.dashboard_sections import cost_section, history, models_section
 from torchci.td.analysis.dashboard_text import POP_NAMES
-from torchci.td.analysis.selection import name
+from torchci.td.analysis.selection import AFTER_NAME, name
 
 
 STYLE = """
@@ -52,7 +47,8 @@ window.addEventListener('load', function(){
   Plotly.relayout(d, {'paper_bgcolor':'%s','plot_bgcolor':'%s','font.color':'%s','xaxis.gridcolor':'%s','yaxis.gridcolor':'%s'});
   (d.data||[]).forEach(function(t,i){
    var c=(t.line&&t.line.color)||(t.marker&&t.marker.color);
-   if(typeof c==='string'&&map[c]){Plotly.restyle(d,{'line.color':map[c],'marker.color':map[c],'marker.line.color':map[c]},[i]);}
+   var m=t.marker&&t.marker.line&&t.marker.line.color;
+   if(typeof c==='string'&&map[c]){var u={'line.color':map[c],'marker.color':map[c]};u['marker.line.color']=map[m]||map[c];Plotly.restyle(d,u,[i]);}
   });
  });
 })();
@@ -64,7 +60,7 @@ def card(value: str, label: str, sub: str) -> str:
 
 
 def time_for_recall(rec: dict[str, Any], target: float) -> tuple[Optional[float], bool]:
-    """The share of test time at which After with a time budget reaches `target` recall,
+    """The share of test time at which After reaches `target` recall,
     linearly between the measured budgets; True when the smallest budget already does
     (the share is then an upper bound)."""
     pts = sorted(
@@ -90,17 +86,10 @@ def headline(r: dict[str, Any]) -> list[str]:
             card(
                 f"{pct(b['rate'], 0)} → {pct(a['rate'], 0)}",
                 f"{POP_NAMES[pop][0]} caught",
-                f"TD today vs After with a time budget, at the same test time ({pct(b['time_share'], 0)}; n = {a['n']:,}; After {pct(a['lo'], 0)}-{pct(a['hi'], 0)})",
+                f"TD today vs {AFTER_NAME} given TD's test time per change, scaled by the risk model (equal on average over all landed changes). "
+                f"On these changes TD ran {pct(b['time_share'], 0)} of test time, After {pct(a['time_share'], 0)}; n = {a['n']:,}; After {pct(a['lo'], 0)}-{pct(a['hi'], 0)}.",
             )
         )
-    red = r["reds"]["policies"][FULL]
-    cards.append(
-        card(
-            f"{red['net_central_per_quarter']:+.1f}",
-            "Reds kept off main per quarter (not established)",
-            f"After with a time budget, central estimate, of about {r['reds']['false_greens_per_quarter']:.0f} reverted false greens a quarter today",
-        )
-    )
     off = r["recall"]["pr_off"]
     need, bound = time_for_recall(off, off[TD]["rate"])
     if need is not None:
@@ -108,7 +97,7 @@ def headline(r: dict[str, Any]) -> list[str]:
             card(
                 f"{pct(off[TD]['time_share'], 0)} → {'≤ ' if bound else ''}{pct(need, 0)}",
                 "Test time for TD's PR recall today",
-                "After with a time budget, on PR failures on TD-off jobs",
+                f"{AFTER_NAME}, on PR failures on TD-off jobs",
             )
         )
     return cards
@@ -139,7 +128,7 @@ def recall_rows(rec: dict[str, Any]) -> list[list[Any]]:
 def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
     s = [f'<div class="cards">{"".join(headline(r))}</div>']
     s.append(
-        '<h2>Recall by test time</h2><p class="muted">CI cost is test time. TD cuts by share of test files (orange: its 5-100% cutoffs; the star and dotted line: TD today, 25%). After ranks by expected failures per second and stops at a test-time budget the risk model scales per change (green: 5-100% of test time on average). Bars are 95% Wilson intervals.</p>'
+        '<h2>Recall by test time</h2><p class="muted">CI cost is test time. TD cuts by share of test files (orange: its 5-100% cutoffs; the star and dotted line: TD today, 25%). After ranks by expected failures per second and stops at a test-time budget the risk model scales per change, with 5% of each budget spent on tests drawn below the cut (green: budgets of 5-100% of test time; the exploration draws differ between budgets, so a point can catch a failure the next one misses). Bars are 95% Wilson intervals.</p>'
     )
     s.append(
         '<div class="grid3">'
@@ -191,7 +180,6 @@ def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
         + "</details>"
     )
     s.append(history(r))
-    s.append(reds_section(r, divs))
     s.append(cost_section(r, divs))
     s.append(models_section(r, divs))
     style = STYLE % (

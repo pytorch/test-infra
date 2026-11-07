@@ -1,11 +1,11 @@
-"""The dashboard's sections below the recall charts: test history, reds on main,
-precision and cost, and what each signal adds to the ensemble."""
+"""The dashboard's sections below the recall charts: test history, precision and cost,
+and what each signal adds to the ensemble."""
 
 from typing import Any
 
 from torchci.td.analysis.dashboard import FULL, LIGHT, pct, table
 from torchci.td.analysis.dashboard_text import SIGNAL_NAMES
-from torchci.td.analysis.selection import name
+from torchci.td.analysis.selection import AFTER_NAME, name
 
 
 def history(r: dict[str, Any]) -> str:
@@ -49,54 +49,6 @@ def history(r: dict[str, Any]) -> str:
             rec,
         )
         + "</div></div>"
-    )
-
-
-def reds_section(r: dict[str, Any], divs: dict[str, str]) -> str:
-    red = r["reds"]
-    rows = [
-        [
-            name(p),
-            x["pr_gained"],
-            x["pr_lost"],
-            pct(x["td_off_kept"]),
-            pct(x["td_on_kept"]),
-            x["false_greens_caught"],
-            f"{x['net_central_per_quarter']:+.1f}",
-        ]
-        for p, x in red["policies"].items()
-        if p
-        in (
-            "before@15",
-            "before@20",
-            "before@25",
-            "adaptive_time@20",
-            "adaptive_time@30",
-            "adaptive_time@40",
-            FULL,
-            LIGHT,
-        )
-    ]
-    return (
-        "<h2>Reds on main</h2>"
-        + divs["reds"]
-        + f'<p class="muted">{red["false_greens_in_window"]} reverted false greens fell in the {red["gold_days"]} evaluation days ({red["false_greens"]} with TD\'s logged test lists, the ones the estimate uses). '
-        f"The estimate: false greens caught beyond TD's replay at 25% (which, under the same any-breaking-file rule, already catches {red['replay_catches_false_greens']}), times {pct(red['p_fail_on_pr_given_ran'], 0)} (an assumption: how often a breaking test that ran on its PR failed there, measured on reds that landed), minus TD's PR catches given up, at the rate TD's PR misses ({red['pr_missed_by_td']:,} on TD-off jobs) became false greens. "
-        "It rests on two dozen breakages and an assumed rate, so the sign of the change in reds on main is not established. The share of TD's PR catches kept is about the same on TD-on and TD-off jobs, which supports the loss term.</p>"
-        "<details open><summary>Terms</summary>"
-        + table(
-            [
-                "Policy",
-                "PR failures gained (TD-off)",
-                "PR failures lost (TD-off)",
-                "TD's PR catches kept (TD-off)",
-                "TD's PR catches kept (TD-on)",
-                f"Reverted false greens caught (of {red['false_greens']})",
-                "Reds kept off main per quarter",
-            ],
-            rows,
-        )
-        + "</details>"
     )
 
 
@@ -158,7 +110,7 @@ def cost_section(r: dict[str, Any], divs: dict[str, str]) -> str:
                 "Overhead per file",
                 "TD's test time share",
                 "TD today",
-                "After with a time budget",
+                AFTER_NAME,
             ],
             sens,
         )
