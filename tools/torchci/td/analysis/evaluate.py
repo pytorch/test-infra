@@ -12,7 +12,6 @@ The policies are in selection.py.
 
 import json
 import logging
-from collections import Counter
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -176,10 +175,6 @@ def build_results(
         "pr_off": model_checks.calibration(rows[rows["unit_id"].isin(pr_ids)]),
     }
     out["risk"] = model_checks.risk_summary(risk[risk["unit_id"].isin(units)], units_df)
-    out["time_multiplier"] = {
-        pop: dict(sorted(Counter(round(units[u].scale, 2) for u in ids).items()))
-        for pop, ids in (("main", main_ids), ("pr_off", pr_ids))
-    }
     out["fidelity"] = model_checks.fidelity(rows, ev)
     out["meta"] = {
         "units": {

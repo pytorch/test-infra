@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.offline import get_plotlyjs
 from torchci.td.analysis import config
-from torchci.td.analysis.dashboard_text import POP_NAMES
+from torchci.td.analysis.dashboard_text import POP_NAMES, SIGNAL_NAMES
 from torchci.td.analysis.schema import read_manifest, RESULTS_FILE
 
 
@@ -148,26 +148,24 @@ def reds_fig(r: dict[str, Any]) -> go.Figure:
         ("before", "TD at other cutoffs", COLORS["before"][0]),
         ("adaptive_time", AFTER_NAME, COLORS["adaptive"][0]),
     ):
-        xs = [cost[f"{prefix}@{k}"]["time_share"] for k in KS]
-        for est, dash, width in (("central", None, 2), ("high", "dot", 1)):
-            fig.add_trace(
-                go.Scatter(
-                    x=xs,
-                    y=[pol[f"{prefix}@{k}"][f"net_{est}_per_quarter"] for k in KS],
-                    name=f"{name} ({est})",
-                    mode="lines+markers" if est == "central" else "lines",
-                    line={"color": color, "width": width, "dash": dash},
-                    marker={"size": 6},
-                    hovertemplate=f"test time %{{x:.0%}}<br>%{{y:+.1f}} reds per quarter<extra>{esc(name)}, {est}</extra>",
-                )
+        fig.add_trace(
+            go.Scatter(
+                x=[cost[f"{prefix}@{k}"]["time_share"] for k in KS],
+                y=[pol[f"{prefix}@{k}"]["net_central_per_quarter"] for k in KS],
+                name=name,
+                mode="lines+markers",
+                line={"color": color, "width": 2},
+                marker={"size": 6},
+                hovertemplate=f"test time %{{x:.0%}}<br>%{{y:+.1f}} reds per quarter<extra>{esc(name)}</extra>",
             )
+        )
     fig.add_hline(y=0, line={"color": MUTED[0], "width": 1})
     x = cost[TD]["time_share"]
     td_today(fig, x, 0.0, f"{x:.0%} of test time; the reference, 0 by definition")
     fig.update_xaxes(tickformat=".0%")
     return layout(
         fig,
-        "Reds kept off main per quarter, against TD today",
+        "Reds kept off main per quarter, against TD today (central estimate)",
         "Test time run (landed changes)",
         "Reds kept off main per quarter",
     )
@@ -203,6 +201,35 @@ def precision_fig(r: dict[str, Any]) -> go.Figure:
     )
 
 
+def importance_fig(imp: list[dict[str, Any]]) -> go.Figure:
+    rows = imp[::-1]
+    fig = go.Figure(
+        go.Bar(
+            x=[r["mean"] for r in rows],
+            y=[SIGNAL_NAMES.get(r["feature"], r["feature"]) for r in rows],
+            orientation="h",
+            marker={"color": COLORS["after"][0]},
+            error_x={
+                "type": "data",
+                "symmetric": False,
+                "array": [r["hi"] - r["mean"] for r in rows],
+                "arrayminus": [r["mean"] - r["lo"] for r in rows],
+                "thickness": 1,
+            },
+            customdata=[[r["lo"], r["hi"], r["nonzero_share"]] for r in rows],
+            hovertemplate="%{x:.2%} (95%: %{customdata[0]:.2%} to %{customdata[1]:.2%}); signal non-zero on %{customdata[2]:.1%} of rows<extra></extra>",
+        )
+    )
+    fig.update_xaxes(tickformat=".1%")
+    return layout(
+        fig,
+        "What each signal adds to the ensemble's ranking",
+        "Failing tests lost from the 25% cut, signal shuffled",
+        "",
+        height=480,
+    )
+
+
 def table(head: list[str], rows: list[list[Any]]) -> str:
     th = "".join(f"<th>{esc(h)}</th>" for h in head)
     body = "".join(
@@ -212,12 +239,6 @@ def table(head: list[str], rows: list[list[Any]]) -> str:
 
 
 def run(cache: Path, out: Path) -> None:
-    from torchci.td.analysis.dashboard_model_figs import (
-        budget_fig,
-        calibration_fig,
-        importance_fig,
-        risk_fig,
-    )
     from torchci.td.analysis.dashboard_page import page
 
     manifest = read_manifest(cache, "evaluate")
@@ -228,10 +249,7 @@ def run(cache: Path, out: Path) -> None:
     figs.update(
         reds=reds_fig(r),
         precision=precision_fig(r),
-        calibration=calibration_fig(r["calibration"]),
         importance=importance_fig(r["importance"]),
-        risk=risk_fig(r["risk"]),
-        budget=budget_fig(r["time_multiplier"]["main"]),
     )
     divs = {
         k: pio.to_html(

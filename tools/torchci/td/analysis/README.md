@@ -35,5 +35,6 @@ expects td/llm's model, embedding cache and PR diffs at `<cache dir>/../llm_cach
   TD spends on the same change today.
 - For each policy and cutoff: recall with intervals, precision per test file and per
   test hour, the share of test files and of test time run.
-- Reds kept off main per quarter (central and high estimates), calibration and signal
-  importance of the ensemble, and the risk model's precision / recall.
+- Reds kept off main per quarter and the ensemble's signal importance. results.json
+  also holds a high reds estimate, the ensemble's calibration, the risk model's
+  precision / recall and the replay's fidelity, which the page does not show.

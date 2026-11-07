@@ -1,5 +1,4 @@
-"""The dashboard's HTML: headline cards, the findings, the charts with their tables, and
-the text."""
+"""The dashboard's HTML: headline cards and the charts with their tables."""
 
 import json
 from typing import Any, Optional
@@ -18,14 +17,13 @@ from torchci.td.analysis.dashboard import (
     table,
     TD,
 )
-from torchci.td.analysis.dashboard_findings import findings
 from torchci.td.analysis.dashboard_sections import (
     cost_section,
     history,
     models_section,
     reds_section,
 )
-from torchci.td.analysis.dashboard_text import CAVEATS, INVENTORY, METHODS, POP_NAMES
+from torchci.td.analysis.dashboard_text import POP_NAMES
 from torchci.td.analysis.selection import name
 
 
@@ -98,9 +96,9 @@ def headline(r: dict[str, Any]) -> list[str]:
     red = r["reds"]["policies"][FULL]
     cards.append(
         card(
-            f"{red['net_central_per_quarter']:+.0f} to {red['net_high_per_quarter']:+.0f}",
+            f"{red['net_central_per_quarter']:+.1f}",
             "Reds kept off main per quarter (not established)",
-            f"After with a time budget; central and high estimates, of about {r['reds']['false_greens_per_quarter']:.0f} reverted false greens a quarter today",
+            f"After with a time budget, central estimate, of about {r['reds']['false_greens_per_quarter']:.0f} reverted false greens a quarter today",
         )
     )
     off = r["recall"]["pr_off"]
@@ -140,11 +138,6 @@ def recall_rows(rec: dict[str, Any]) -> list[list[Any]]:
 
 def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
     s = [f'<div class="cards">{"".join(headline(r))}</div>']
-    s.append(
-        "<h2>What the numbers say</h2><ul>"
-        + "".join(f"<li>{esc(x)}</li>" for x in findings(r))
-        + "</ul>"
-    )
     s.append(
         '<h2>Recall by test time</h2><p class="muted">CI cost is test time. TD cuts by share of test files (orange: its 5-100% cutoffs; the star and dotted line: TD today, 25%). After ranks by expected failures per second and stops at a test-time budget the risk model scales per change (green: 5-100% of test time on average). Bars are 95% Wilson intervals.</p>'
     )
@@ -201,23 +194,6 @@ def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
     s.append(reds_section(r, divs))
     s.append(cost_section(r, divs))
     s.append(models_section(r, divs))
-    fid = r["fidelity"]
-    s.append(
-        "<h2>What is built today</h2><ul>"
-        + "".join(f"<li>{esc(x)}</li>" for x in INVENTORY)
-        + "</ul>"
-    )
-    s.append(
-        "<h2>Method</h2><ul>"
-        + "".join(f"<li>{esc(x)}</li>" for x in METHODS)
-        + f"<li>Replay check: on {fid['failures']:,} PR failures, the replay of today's TD puts the failing file on the same side of the 25% cut as TD's logged ranking {pct(fid['share'])} of the time.</li>"
-        f"<li>Samples: {', '.join(f'{v:,} {k} units' for k, v in r['meta']['units'].items())}; {r['meta']['gold_events']} reverted breakages and {r['meta']['silver_with_config_lists']} of {r['meta']['silver_units']} new-failure changes have TD's logged test lists for their failing configs ({r['meta']['gold_without_config_lists']} breakages without them are left out).</li></ul>"
-    )
-    s.append(
-        "<h2>Caveats</h2><ul>"
-        + "".join(f"<li>{esc(x)}</li>" for x in CAVEATS)
-        + "</ul>"
-    )
     style = STYLE % (
         SURFACE[0],
         INK[0],

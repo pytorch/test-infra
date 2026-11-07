@@ -1,9 +1,9 @@
 """The dashboard's sections below the recall charts: test history, reds on main,
-precision and cost, and the two models."""
+precision and cost, and what each signal adds to the ensemble."""
 
 from typing import Any
 
-from torchci.td.analysis.dashboard import esc, FULL, LIGHT, pct, table
+from torchci.td.analysis.dashboard import FULL, LIGHT, pct, table
 from torchci.td.analysis.dashboard_text import SIGNAL_NAMES
 from torchci.td.analysis.selection import name
 
@@ -63,7 +63,6 @@ def reds_section(r: dict[str, Any], divs: dict[str, str]) -> str:
             pct(x["td_on_kept"]),
             x["false_greens_caught"],
             f"{x['net_central_per_quarter']:+.1f}",
-            f"{x['net_high_per_quarter']:+.1f}",
         ]
         for p, x in red["policies"].items()
         if p
@@ -81,9 +80,9 @@ def reds_section(r: dict[str, Any], divs: dict[str, str]) -> str:
     return (
         "<h2>Reds on main</h2>"
         + divs["reds"]
-        + f'<p class="muted">{red["false_greens_in_window"]} reverted false greens fell in the {red["gold_days"]} evaluation days ({red["false_greens"]} with TD\'s logged test lists, the ones the estimates use). '
-        f"Central: false greens caught beyond TD's replay at 25% (which, under the same any-breaking-file rule, already catches {red['replay_catches_false_greens']}), times {pct(red['p_fail_on_pr_given_ran'], 0)} (an assumption: how often a breaking test that ran on its PR failed there, measured on reds that landed), minus TD's PR catches given up, at the rate TD's PR misses ({red['pr_missed_by_td']:,} on TD-off jobs) became false greens. High: false greens in proportion to TD's misses on PR failures. "
-        "The two disagree by a wide margin and rest on two dozen breakages: the sign of the change in reds on main is not established. The share of TD's PR catches kept is about the same on TD-on and TD-off jobs, which supports the loss term.</p>"
+        + f'<p class="muted">{red["false_greens_in_window"]} reverted false greens fell in the {red["gold_days"]} evaluation days ({red["false_greens"]} with TD\'s logged test lists, the ones the estimate uses). '
+        f"The estimate: false greens caught beyond TD's replay at 25% (which, under the same any-breaking-file rule, already catches {red['replay_catches_false_greens']}), times {pct(red['p_fail_on_pr_given_ran'], 0)} (an assumption: how often a breaking test that ran on its PR failed there, measured on reds that landed), minus TD's PR catches given up, at the rate TD's PR misses ({red['pr_missed_by_td']:,} on TD-off jobs) became false greens. "
+        "It rests on two dozen breakages and an assumed rate, so the sign of the change in reds on main is not established. The share of TD's PR catches kept is about the same on TD-on and TD-off jobs, which supports the loss term.</p>"
         "<details open><summary>Terms</summary>"
         + table(
             [
@@ -93,8 +92,7 @@ def reds_section(r: dict[str, Any], divs: dict[str, str]) -> str:
                 "TD's PR catches kept (TD-off)",
                 "TD's PR catches kept (TD-on)",
                 f"Reverted false greens caught (of {red['false_greens']})",
-                "Central per quarter",
-                "High per quarter",
+                "Reds kept off main per quarter",
             ],
             rows,
         )
@@ -169,14 +167,7 @@ def cost_section(r: dict[str, Any], divs: dict[str, str]) -> str:
 
 
 def models_section(r: dict[str, Any], divs: dict[str, str]) -> str:
-    cal, imp, rk = r["calibration"], r["importance"], r["risk"]
-    cal_text = "; ".join(
-        f"{label}: Brier {c['brier']:.2e} vs {c['brier_base']:.2e} for the base rate, mean prediction {pct(c['mean_p'], 3)} vs observed {pct(c['base_rate'], 3)}"
-        for label, c in (
-            ("landed changes", cal["main"]),
-            ("TD-off PR jobs", cal["pr_off"]),
-        )
-    )
+    imp = r["importance"]
     imp_rows = [
         [
             SIGNAL_NAMES.get(i["feature"], i["feature"]),
@@ -186,15 +177,8 @@ def models_section(r: dict[str, Any], divs: dict[str, str]) -> str:
         ]
         for i in imp
     ]
-    flag = [
-        [f"top {pct(f['flag_top'], 0)}", pct(f["precision"]), pct(f["recall"])]
-        for f in rk["flagging"]
-    ]
-    mult = [float(m) for m in r["time_multiplier"]["main"]]
     return (
-        '<h2>The ensemble</h2><div class="grid2"><div>'
-        + divs["calibration"]
-        + f'<p class="muted">Platt-scaled, but not calibrated: its Brier score is no better than the base rate\'s on either population, so its probabilities rank tests without being good absolute risks. {esc(cal_text)}. Bins with no failure are left out of the chart.</p></div><div>'
+        "<h2>The ensemble</h2>"
         + divs["importance"]
         + "<details><summary>Table</summary>"
         + table(
@@ -207,13 +191,5 @@ def models_section(r: dict[str, Any], divs: dict[str, str]) -> str:
             imp_rows,
         )
         + "</details>"
-        f'<p class="muted">Measured on the last 4 evaluation weeks ({imp[0]["units"]:,} units, {imp[0]["positives"]:,} failing tests), at TD\'s 25% file cut. A signal that is non-zero on few rows (edited, mentioned, public bindings, previously failed) cannot show its value here.</p></div></div>'
-        '<h2>The risk model and time budget</h2><div class="grid2"><div>'
-        + divs["risk"]
-        + f'<p class="muted">ROC AUC {rk["auc"]:.2f} (95% {rk["auc_lo"]:.2f}-{rk["auc_hi"]:.2f}), average precision {rk["average_precision"]:.3f} against a base rate of {pct(rk["base_rate"])} ({rk["positives"]} of {rk["units"]:,} landed changes broke main).</p>'
-        "<details><summary>Flagging the riskiest changes</summary>"
-        + table(["Flagged", "Precision", "Recall"], flag)
-        + "</details></div><div>"
-        + divs["budget"]
-        + f"<p class=\"muted\">Each change's test-time budget is multiplied by the risk model's cutoff for it (15-35%, mean 20%) over its population's mean cutoff: {min(mult):.2f}x to {max(mult):.2f}x on landed changes, 1x on average on landed changes and on PR jobs alike. The model is fit on landed changes; PR jobs lack line counts and get the median, so without that rescaling they would all sit higher.</p></div></div>"
+        f'<p class="muted">Measured on the last 4 evaluation weeks ({imp[0]["units"]:,} units, {imp[0]["positives"]:,} failing tests), at TD\'s 25% file cut. A signal that is non-zero on few rows (edited, mentioned, public bindings, previously failed) cannot show its value here.</p>'
     )
