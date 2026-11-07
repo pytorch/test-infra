@@ -12,6 +12,7 @@ The policies are in selection.py.
 
 import json
 import logging
+from collections import Counter
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -40,16 +41,7 @@ from torchci.td.analysis.selection import (
 
 logger = logging.getLogger(__name__)
 
-PAIRS = [
-    ("before@25", p)
-    for p in (
-        "after@25",
-        "adaptive@20",
-        "cheap_time@td25",
-        "adaptive_time@td25",
-        "adaptive_time@td20",
-    )
-] + [("cheap_time@td25", "adaptive_time@td25")]
+PAIRS = [("before@25", p) for p in ("adaptive_time@td25", "adaptive_time@td20")]
 
 
 def run(cache: Path) -> None:
@@ -78,10 +70,10 @@ def run(cache: Path) -> None:
     main_ids = sorted(
         u for u in units if ev.loc[u, "kind"] == "main" and ev.loc[u, "single"]
     )
-    budgets, scales = normalized_budgets(risk, ev, units)
+    scales = time_scales(risk, ev, units)
     for uid, u in units.items():
-        u.add_adaptive(budgets[uid], scales[uid])
-    views = Views(load(cache, "rankings", "main_ranks"), units, budgets, scales)
+        u.add_adaptive(scales[uid])
+    views = Views(load(cache, "rankings", "main_ranks"), units)
     results = build_results(
         units, views, ev, gold, silver, rows, risk, units_df, main_ids
     )
@@ -100,29 +92,17 @@ def run(cache: Path) -> None:
     write_manifest(cache, "evaluate", {}, results=path.name)
 
 
-def normalized_budgets(
-    risk, ev, units
-) -> tuple[dict[str, dict[int, int]], dict[str, float]]:
-    """The risk model's cutoffs, rescaled per population (landed changes, PR jobs) so each
-    population's mean is the target: the model is fit on landed changes, and PR jobs,
-    which lack line counts, would otherwise all sit higher. Also each unit's multiplier
-    for a time budget, its cutoff over its population's mean. Label-free: only the
-    cutoffs' means are used."""
+def time_scales(risk, ev, units) -> dict[str, float]:
+    """Each unit's multiplier on its test-time budget: the risk model's cutoff for the
+    first target mean over the mean cutoff of the unit's population (landed changes, PR
+    jobs), so each population's multipliers average 1. The model is fit on landed
+    changes, and PR jobs, which lack line counts, would otherwise all sit higher.
+    Label-free: only the cutoffs' means are used."""
     r = risk.set_index("unit_id").reindex(list(units))
     kind = ev.loc[list(units), "kind"].replace({"pr_on": "pr", "pr_off": "pr"})
-    budgets: dict[str, dict[int, int]] = {u: {} for u in units}
-    scales: dict[str, float] = {}
-    for t in config.BUDGET_TARGETS:
-        col = r[f"budget_{t}"].fillna(t)
-        means = col.groupby(kind).transform("mean")
-        for u, k in zip(
-            units,
-            np.clip(np.round(col * t / means), config.BUDGET_MIN, config.BUDGET_MAX),
-        ):
-            budgets[u][t] = int(k)
-        if t == config.BUDGET_TARGETS[0]:
-            scales = dict(zip(units, (col / means).to_numpy()))
-    return budgets, scales
+    t = config.BUDGET_TARGETS[0]
+    col = r[f"budget_{t}"].fillna(t)
+    return dict(zip(units, (col / col.groupby(kind).transform("mean")).to_numpy()))
 
 
 def build_results(
@@ -196,6 +176,10 @@ def build_results(
         "pr_off": model_checks.calibration(rows[rows["unit_id"].isin(pr_ids)]),
     }
     out["risk"] = model_checks.risk_summary(risk[risk["unit_id"].isin(units)], units_df)
+    out["time_multiplier"] = {
+        pop: dict(sorted(Counter(round(units[u].scale, 2) for u in ids).items()))
+        for pop, ids in (("main", main_ids), ("pr_off", pr_ids))
+    }
     out["fidelity"] = model_checks.fidelity(rows, ev)
     out["meta"] = {
         "units": {

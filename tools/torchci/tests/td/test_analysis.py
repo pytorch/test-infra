@@ -23,16 +23,20 @@ class TestPolicies(unittest.TestCase):
             ["c", "a", "b", "d"],
         )
 
-    def test_explore_is_deterministic_and_sized(self) -> None:
+    def test_explore_time_is_deterministic_and_within_budget(self) -> None:
         tests = [f"t{i}" for i in range(400)]
         scores = {t: 1.0 / (i + 1) for i, t in enumerate(tests)}
-        a = policies.explore_select(scores, tests, 20, 0.05, "c:abc")
-        b = policies.explore_select(scores, tests, 20, 0.05, "c:abc")
+        seconds = {t: 1.0 + (i % 7) * 3 for i, t in enumerate(tests)}
+        order = policies.by_value(scores, tests, seconds)
+        a = policies.explore_time(order, seconds, scores, 0.2, 0.05, "c:abc")
+        b = policies.explore_time(order, seconds, scores, 0.2, 0.05, "c:abc")
         self.assertEqual(a, b)
-        self.assertEqual(len(a), policies.cut_size(400, 20))
-        n_sel = policies.cut_size(400, 20)
-        head = set(policies.ranked(scores, tests)[: n_sel - round(0.05 * n_sel)])
-        self.assertTrue(head <= a)
+        total = sum(seconds.values())
+        self.assertLessEqual(
+            sum(seconds[t] for t in a), 0.2 * total + max(seconds.values())
+        )
+        head = set(policies.time_select(order, seconds, 0.2 * 0.95))
+        self.assertTrue(head < a)
 
 
 class TestSilver(unittest.TestCase):

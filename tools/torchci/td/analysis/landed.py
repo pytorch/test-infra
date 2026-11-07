@@ -19,13 +19,7 @@ class Views:
     """Per push, the failing configs' test lists and failing files; and the config views
     of the changes evaluated on them, built once."""
 
-    def __init__(
-        self,
-        ranks: pd.DataFrame,
-        units: dict[str, Unit],
-        budgets: dict[str, dict[int, int]],
-        scales: dict[str, float],
-    ) -> None:
+    def __init__(self, ranks: pd.DataFrame, units: dict[str, Unit]) -> None:
         self.lists: dict[str, dict[tuple[str, str], tuple[list[str], set[str]]]] = {}
         for (push, env, cfg), g in ranks.groupby(
             ["push_sha", "build_environment", "test_config"]
@@ -34,7 +28,7 @@ class Views:
                 list(g["candidates"].iloc[0]),
                 set(g["file"]),
             )
-        self.units, self.budgets, self.scales = units, budgets, scales
+        self.units = units
         self.built: dict[str, Unit] = {}
 
     def view(self, uid: str, push: str, env: str, cfg: str) -> Unit:
@@ -49,7 +43,7 @@ class Views:
                 u.after,
                 {t: u.seconds.get(t, fill) for t in cands},
             )
-            v.add_adaptive(self.budgets[uid], self.scales[uid])
+            v.add_adaptive(u.scale)
             self.built[key] = v
         return self.built[key]
 

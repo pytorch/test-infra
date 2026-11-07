@@ -197,8 +197,8 @@ def pr_recurrence(
 def overhead_sensitivity(
     units: dict[str, Unit], main_ids: list[str], off_pos: dict[str, list[str]]
 ) -> list[dict[str, Any]]:
-    """PR TD-off recall of the ensemble ranked per second and of cheapest-first, each at
-    the test time TD spends on the unit at 25%, under other per-file overheads."""
+    """PR TD-off recall of the After system with a time budget at the test time TD spends
+    on the unit at 25%, under other per-file overheads."""
     out = []
     for overhead in OVERHEADS:
         secs = {
@@ -211,6 +211,17 @@ def overhead_sensitivity(
 
         def share(u: str, sel: set[str], secs: dict = secs) -> float:
             return sum(secs[u][t] for t in sel) / sum(secs[u].values())
+
+        def after(u: str, budget: float, secs: dict = secs) -> set[str]:
+            unit = units[u]
+            return policies.explore_time(
+                policies.by_value(unit.after, unit.tests, secs[u]),
+                secs[u],
+                unit.after,
+                min(1.0, budget * unit.scale),
+                config.EXPLORE_SHARE,
+                u,
+            )
 
         row: dict[str, Any] = {
             "overhead": overhead,
@@ -226,32 +237,13 @@ def overhead_sensitivity(
                 )
             ),
         }
-        for name, order in (
-            (
-                "after",
-                lambda u, secs=secs: policies.by_value(
-                    units[u].after, units[u].tests, secs[u]
-                ),
-            ),
-            (
-                "cheap",
-                lambda u, secs=secs: policies.cheapest(units[u].tests, secs[u]),
-            ),
-        ):
-            sels = {
-                u: set(
-                    policies.time_select(
-                        order(u), secs[u], share(u, units[u].sel["before@25"])
-                    )
-                )
-                for u in off_pos
-            }
-            row[f"{name}_recall"] = float(
-                np.mean([bool(sels[u] & set(f)) for u, f in off_pos.items()])
-            )
-            row[f"{name}_test_share"] = float(
-                np.mean([len(sels[u]) / len(units[u].tests) for u in off_pos])
-            )
+        sels = {u: after(u, share(u, units[u].sel["before@25"])) for u in off_pos}
+        row["after_recall"] = float(
+            np.mean([bool(sels[u] & set(f)) for u, f in off_pos.items()])
+        )
+        row["after_test_share"] = float(
+            np.mean([len(sels[u]) / len(units[u].tests) for u in off_pos])
+        )
         out.append(row)
     return out
 
@@ -291,11 +283,8 @@ def pr_bootstrap(
 def sanity(out: dict[str, Any]) -> dict[str, Any]:
     checks = {}
     for pop, rec in out["recall"].items():
-        checks[f"{pop}: recall at 100% is 1"] = rec["before@100"]["rate"] in (
-            None,
-            1.0,
-        ) and rec["time@100"]["rate"] in (None, 1.0)
-        for side in ("before", "after", "time", "cheap"):
+        checks[f"{pop}: recall at 100% is 1"] = rec["before@100"]["rate"] in (None, 1.0)
+        for side in ("before", "adaptive_time"):
             caught = [rec[f"{side}@{k}"]["caught"] for k in config.CUTOFFS]
             checks[f"{pop}: {side} recall is monotone in the cutoff"] = all(
                 a <= b for a, b in zip(caught, caught[1:])

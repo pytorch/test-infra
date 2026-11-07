@@ -30,11 +30,6 @@ def by_value(
     return sorted(tests, key=lambda t: (-scores.get(t, 0.0) / seconds[t], t))
 
 
-def cheapest(tests: Sequence[str], seconds: Mapping[str, float]) -> list[str]:
-    """Tests by test time, cheapest first, ties by name."""
-    return sorted(tests, key=lambda t: (seconds[t], t))
-
-
 def time_select(
     order: Sequence[str], seconds: Mapping[str, float], share: float
 ) -> list[str]:
@@ -51,29 +46,6 @@ def time_select(
 def seed_of(unit_id: str) -> int:
     """A seed every shard of a unit derives alike (from its id, hence its commit)."""
     return int.from_bytes(hashlib.sha256(unit_id.encode()).digest()[:8], "little")
-
-
-def explore_swap(
-    selected: list[str],
-    order: Sequence[str],
-    scores: Mapping[str, float],
-    share: float,
-    unit_id: str,
-) -> set[str]:
-    """The exploration slice on a selection: its last `share` (by order) swapped for as many
-    tests drawn from the unselected ones, with probability proportional to their score,
-    seeded by the unit, so every shard draws the same tests."""
-    n_explore = int(round(share * len(selected)))
-    chosen = set(selected)
-    rest = [t for t in order if t not in chosen]
-    if not n_explore or not rest:
-        return chosen
-    w = np.array([max(scores.get(t, 0.0), 0.0) for t in rest], dtype=float) + 1e-12
-    rng = np.random.default_rng(seed_of(unit_id))
-    picked = rng.choice(
-        len(rest), size=min(n_explore, len(rest)), replace=False, p=w / w.sum()
-    )
-    return set(selected[: len(selected) - n_explore]) | {rest[i] for i in picked}
 
 
 def explore_time(
@@ -100,15 +72,3 @@ def explore_time(
             chosen.add(rest[i])
             left -= seconds[rest[i]]
     return chosen
-
-
-def explore_select(
-    scores: Mapping[str, float],
-    tests: Sequence[str],
-    k: int,
-    share: float,
-    unit_id: str,
-) -> set[str]:
-    """k percent of the tests by score, with the exploration slice drawn below the cut."""
-    order = ranked(scores, tests)
-    return explore_swap(order[: cut_size(len(order), k)], order, scores, share, unit_id)
