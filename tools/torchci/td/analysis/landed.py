@@ -19,11 +19,22 @@ class Views:
     """Per push, the failing configs' test lists and failing files; and the config views
     of the changes evaluated on them, built once."""
 
-    def __init__(self, ranks: pd.DataFrame, units: dict[str, Unit], budgets: dict[str, Any], time_targets: dict[str, float]) -> None:
+    def __init__(
+        self,
+        ranks: pd.DataFrame,
+        units: dict[str, Unit],
+        budgets: dict[str, dict[int, int]],
+        scales: dict[str, float],
+    ) -> None:
         self.lists: dict[str, dict[tuple[str, str], tuple[list[str], set[str]]]] = {}
-        for (push, env, cfg), g in ranks.groupby(["push_sha", "build_environment", "test_config"]):
-            self.lists.setdefault(push, {})[(env, cfg)] = (list(g["candidates"].iloc[0]), set(g["file"]))
-        self.units, self.budgets, self.time_targets = units, budgets, time_targets
+        for (push, env, cfg), g in ranks.groupby(
+            ["push_sha", "build_environment", "test_config"]
+        ):
+            self.lists.setdefault(push, {})[(env, cfg)] = (
+                list(g["candidates"].iloc[0]),
+                set(g["file"]),
+            )
+        self.units, self.budgets, self.scales = units, budgets, scales
         self.built: dict[str, Unit] = {}
 
     def view(self, uid: str, push: str, env: str, cfg: str) -> Unit:
@@ -31,13 +42,20 @@ class Views:
         if key not in self.built:
             u, cands = self.units[uid], self.lists[push][(env, cfg)][0]
             fill = median(u.seconds.values())
-            v = Unit(key, cands, u.before, u.after, {t: u.seconds.get(t, fill) for t in cands})
-            b = self.budgets.get(uid, {})
-            v.add_adaptive({t: int(b.get(f"budget_{t}", t)) for t in config.BUDGET_TARGETS}, self.time_targets)
+            v = Unit(
+                key,
+                cands,
+                u.before,
+                u.after,
+                {t: u.seconds.get(t, fill) for t in cands},
+            )
+            v.add_adaptive(self.budgets[uid], self.scales[uid])
             self.built[key] = v
         return self.built[key]
 
-    def events(self, inputs: list[tuple[list[str], str, set[str]]]) -> tuple[list, list[int]]:
+    def events(
+        self, inputs: list[tuple[list[str], str, set[str]]]
+    ) -> tuple[list, list[int]]:
         """(commit units, landing push, failing files) -> recall events over config views,
         and the indices of the inputs that had config lists."""
         events, kept = [], []
@@ -55,19 +73,39 @@ class Views:
         return events, kept
 
 
-def gold_events(views: Views, ev: pd.DataFrame, gold: pd.DataFrame) -> tuple[list, list[str], int, int]:
+def gold_events(
+    views: Views, ev: pd.DataFrame, gold: pd.DataFrame
+) -> tuple[list, list[str], int, int]:
     """Recall events of the eligible reverted breakages in the evaluation weeks, their
     outcomes, how many had no config lists, and how many false greens the window holds."""
-    commit_unit = {ev.loc[u, "sha"]: u for u in views.units if ev.loc[u, "kind"] == "main"}
+    commit_unit = {
+        ev.loc[u, "sha"]: u for u in views.units if ev.loc[u, "kind"] == "main"
+    }
     g = gold[gold["outcome"].isin(ELIGIBLE) & gold["window_closed"]]
     g = g[g["landed_at"].map(unix) >= unix(str(config.EVAL_START))]
-    inputs = [([commit_unit[s] for s in e.commit_shas if s in commit_unit], e.landing_sha, set(e.test_files)) for e in g.itertuples()]
+    inputs = [
+        (
+            [commit_unit[s] for s in e.commit_shas if s in commit_unit],
+            e.landing_sha,
+            set(e.test_files),
+        )
+        for e in g.itertuples()
+    ]
     events, kept = views.events(inputs)
-    return events, [g["outcome"].iloc[i] for i in kept], len(g) - len(kept), int((g["outcome"] == "false_green").sum())
+    return (
+        events,
+        [g["outcome"].iloc[i] for i in kept],
+        len(g) - len(kept),
+        int((g["outcome"] == "false_green").sum()),
+    )
 
 
-def silver_events(views: Views, ev: pd.DataFrame, silver_pos: dict[str, list[str]]) -> tuple[list, dict[str, Any]]:
+def silver_events(
+    views: Views, ev: pd.DataFrame, silver_pos: dict[str, list[str]]
+) -> tuple[list, dict[str, Any]]:
     """Recall events of the new failures on main, and each change's event by unit id."""
     ids = list(silver_pos)
-    events, kept = views.events([([u], ev.loc[u, "sha"], set(silver_pos[u])) for u in ids])
+    events, kept = views.events(
+        [([u], ev.loc[u, "sha"], set(silver_pos[u])) for u in ids]
+    )
     return events, {ids[i]: e for i, e in zip(kept, events)}

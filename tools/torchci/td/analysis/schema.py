@@ -21,25 +21,75 @@ TABLES: dict[str, dict[str, tuple[str, ...]]] = {
         "pushes": ("push_sha", "before_sha", "pushed_at", "commit_shas"),
         # Every landed main commit in the window, diffed against its parent.
         "commits": (
-            "sha", "parent", "push_sha", "pushed_at", "push_size", "pr_number",
-            "is_revert", "author_key", "files", "added", "deleted", "sig_added",
-            "sig_deleted", "mentioned", "diff_ok",
+            "sha",
+            "parent",
+            "push_sha",
+            "pushed_at",
+            "push_size",
+            "pr_number",
+            "is_revert",
+            "author_key",
+            "files",
+            "added",
+            "deleted",
+            "sig_added",
+            "sig_deleted",
+            "mentioned",
+            "diff_ok",
         ),
         # Failing test files of failed pull/trunk jobs on main pushes.
-        "main_fail": ("push_sha", "workflow", "build_environment", "test_config", "file", "completed_at"),
+        "main_fail": (
+            "push_sha",
+            "workflow",
+            "build_environment",
+            "test_config",
+            "file",
+            "completed_at",
+        ),
         # Every pull/trunk test job on main pushes: which shards reported and how.
-        "main_jobs": ("push_sha", "workflow", "build_environment", "test_config", "shard", "shards", "conclusion", "completed_at", "job_id"),
+        "main_jobs": (
+            "push_sha",
+            "workflow",
+            "build_environment",
+            "test_config",
+            "shard",
+            "shards",
+            "conclusion",
+            "completed_at",
+            "job_id",
+        ),
         # td_trunk_breakages events, with the landed commits of each event's stack.
         "gold": (
-            "landing_sha", "landed_at", "stack_size", "outcome", "test_files",
-            "window_closed", "commit_shas", "test_file_list", "test_outcomes",
+            "landing_sha",
+            "landed_at",
+            "stack_size",
+            "outcome",
+            "test_files",
+            "window_closed",
+            "commit_shas",
+            "test_file_list",
+            "test_outcomes",
         ),
         # PR-specific failures: per (PR, file) the first row overall (kind "first") and
         # the first TD-off row (kind "first_off"), each with its logged ranking.
         "pr_fail": (
-            "kind", "pr_number", "head_sha", "base_sha", "file", "failed_at", "td_off",
-            "run_id", "job_id", "workflow", "build_environment", "test_config",
-            "position", "n", "all_scores", "n_jobs", "n_heads",
+            "kind",
+            "pr_number",
+            "head_sha",
+            "base_sha",
+            "file",
+            "failed_at",
+            "td_off",
+            "run_id",
+            "job_id",
+            "workflow",
+            "build_environment",
+            "test_config",
+            "position",
+            "n",
+            "all_scores",
+            "n_jobs",
+            "n_heads",
         ),
         # Test files that ran in the jobs of a PR config at a head (run evidence).
         "pr_ran": ("pr_number", "head_sha", "build_environment", "test_config", "ran"),
@@ -55,12 +105,36 @@ TABLES: dict[str, dict[str, tuple[str, ...]]] = {
     },
     "labels": {
         "silver": ("sha", "push_sha", "pushed_at", "file", "fail_share", "train_ok"),
-        "units": ("unit_id", "kind", "time", "sha", "pr_number", "candidates", "positives", "observed", "logged"),
-        "gold": ("landing_sha", "landed_at", "outcome", "test_files", "window_closed", "commit_shas"),
+        "units": (
+            "unit_id",
+            "kind",
+            "time",
+            "sha",
+            "pr_number",
+            "candidates",
+            "positives",
+            "observed",
+            "logged",
+        ),
+        "gold": (
+            "landing_sha",
+            "landed_at",
+            "outcome",
+            "test_files",
+            "window_closed",
+            "commit_shas",
+        ),
     },
     "rankings": {
         # Test lists of the configs that failed at a silver or gold landing's main push.
-        "main_ranks": ("push_sha", "workflow", "build_environment", "test_config", "file", "candidates"),
+        "main_ranks": (
+            "push_sha",
+            "workflow",
+            "build_environment",
+            "test_config",
+            "file",
+            "candidates",
+        ),
     },
     "llm": {
         "scores": ("unit_id", "test", "llm_raw", "llm_tq"),
@@ -124,7 +198,9 @@ def load(cache: Path, step: str, name: str) -> Any:
         raise RuntimeError(f"{step} manifest has no table {name}")
     df = pd.read_pickle(cache / step / f"{name}.pkl")
     if len(df) != manifest["tables"][name]:
-        raise RuntimeError(f"{step}/{name} has {len(df)} rows, manifest says {manifest['tables'][name]}")
+        raise RuntimeError(
+            f"{step}/{name} has {len(df)} rows, manifest says {manifest['tables'][name]}"
+        )
     return df
 
 
@@ -150,5 +226,7 @@ def read_manifest(cache: Path, step: str) -> dict[str, Any]:
         raise RuntimeError(f"step {step} has not run: no {path.name}")
     manifest = json.loads(path.read_text())
     if manifest.get("status") != "ok":
-        raise RuntimeError(f"step {step} did not finish: status {manifest.get('status')}")
+        raise RuntimeError(
+            f"step {step} did not finish: status {manifest.get('status')}"
+        )
     return manifest

@@ -15,7 +15,16 @@ import secrets
 from pathlib import Path
 
 
-STEPS = ("fetch", "labels", "rankings", "llm", "features", "train", "evaluate", "report")
+STEPS = (
+    "fetch",
+    "labels",
+    "rankings",
+    "llm",
+    "features",
+    "train",
+    "evaluate",
+    "report",
+)
 
 
 def salt(cache: Path) -> str:
@@ -31,11 +40,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m torchci.td.analysis")
     parser.add_argument("step", choices=STEPS)
     parser.add_argument("--cache", type=Path, required=True)
-    parser.add_argument("--pytorch", type=Path, required=True, help="a pytorch clone, read only")
+    parser.add_argument(
+        "--pytorch", type=Path, required=True, help="a pytorch clone, read only"
+    )
     parser.add_argument("--out", type=Path, help="report: the HTML file to write")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
-    for name in ("GITHUB_TOKEN", "GH_TOKEN", "HUD_INTERNAL_BOT_TOKEN", "PR_NUMBER", "GITHUB_REF"):
+    for name in (
+        "GITHUB_TOKEN",
+        "GH_TOKEN",
+        "HUD_INTERNAL_BOT_TOKEN",
+        "PR_NUMBER",
+        "GITHUB_REF",
+    ):
         os.environ.pop(name, None)
     os.environ.setdefault("CLICKHOUSE_ENDPOINT", os.environ.get("CLICKHOUSE_HOST", ""))
     # scikit-learn's OpenMP pool would otherwise take every core of a shared host.

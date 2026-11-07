@@ -18,7 +18,10 @@ class TestPolicies(unittest.TestCase):
         self.assertEqual(policies.cut_size(10, 100), 10)
 
     def test_ties_break_by_name(self) -> None:
-        self.assertEqual(policies.ranked({"b": 1.0, "a": 1.0, "c": 2.0}, ["a", "b", "c", "d"]), ["c", "a", "b", "d"])
+        self.assertEqual(
+            policies.ranked({"b": 1.0, "a": 1.0, "c": 2.0}, ["a", "b", "c", "d"]),
+            ["c", "a", "b", "d"],
+        )
 
     def test_explore_is_deterministic_and_sized(self) -> None:
         tests = [f"t{i}" for i in range(400)]
@@ -34,29 +37,78 @@ class TestPolicies(unittest.TestCase):
 
 class TestSilver(unittest.TestCase):
     def jobs(self, push: str, conclusion: str = "success") -> list[dict]:
-        return [{"push_sha": push, "workflow": "pull", "build_environment": "linux", "test_config": "default",
-                 "shard": s, "shards": 2, "conclusion": conclusion, "completed_at": 0, "job_id": hash((push, s))} for s in (1, 2)]
+        return [
+            {
+                "push_sha": push,
+                "workflow": "pull",
+                "build_environment": "linux",
+                "test_config": "default",
+                "shard": s,
+                "shards": 2,
+                "conclusion": conclusion,
+                "completed_at": 0,
+                "job_id": hash((push, s)),
+            }
+            for s in (1, 2)
+        ]
 
-    def run_silver(self, fails: dict[str, list[str]], missing_shard: str = "") -> set[tuple[str, str]]:
+    def run_silver(
+        self, fails: dict[str, list[str]], missing_shard: str = ""
+    ) -> set[tuple[str, str]]:
         order = ["p0", "p1", "p2", "p3", "p4"]
         pushes = pd.DataFrame({"push_sha": order, "pushed_at": range(len(order))})
-        jobs = pd.DataFrame([j for p in order for j in self.jobs(p) if not (p == missing_shard and j["shard"] == 2)])
-        fail = pd.DataFrame([{"push_sha": p, "workflow": "pull", "build_environment": "linux", "test_config": "default", "file": f, "completed_at": 0}
-                             for p, fs in fails.items() for f in fs], columns=["push_sha", "workflow", "build_environment", "test_config", "file", "completed_at"])
+        jobs = pd.DataFrame(
+            [
+                j
+                for p in order
+                for j in self.jobs(p)
+                if not (p == missing_shard and j["shard"] == 2)
+            ]
+        )
+        fail = pd.DataFrame(
+            [
+                {
+                    "push_sha": p,
+                    "workflow": "pull",
+                    "build_environment": "linux",
+                    "test_config": "default",
+                    "file": f,
+                    "completed_at": 0,
+                }
+                for p, fs in fails.items()
+                for f in fs
+            ],
+            columns=[
+                "push_sha",
+                "workflow",
+                "build_environment",
+                "test_config",
+                "file",
+                "completed_at",
+            ],
+        )
         df = labels.silver(pushes, jobs, fail)
         return set(zip(df["push_sha"], df["file"]))
 
     def test_new_and_repeated(self) -> None:
-        self.assertEqual(self.run_silver({"p2": ["test_a"], "p3": ["test_a"]}), {("p2", "test_a")})
+        self.assertEqual(
+            self.run_silver({"p2": ["test_a"], "p3": ["test_a"]}), {("p2", "test_a")}
+        )
 
     def test_flake_is_not_new(self) -> None:
         self.assertEqual(self.run_silver({"p2": ["test_a"]}), set())
 
     def test_already_failing_before(self) -> None:
-        self.assertEqual(self.run_silver({"p1": ["test_a"], "p2": ["test_a"], "p3": ["test_a"]}), {("p1", "test_a")})
+        self.assertEqual(
+            self.run_silver({"p1": ["test_a"], "p2": ["test_a"], "p3": ["test_a"]}),
+            {("p1", "test_a")},
+        )
 
     def test_unreported_previous_push(self) -> None:
-        self.assertEqual(self.run_silver({"p2": ["test_a"], "p3": ["test_a"]}, missing_shard="p1"), set())
+        self.assertEqual(
+            self.run_silver({"p2": ["test_a"], "p3": ["test_a"]}, missing_shard="p1"),
+            set(),
+        )
 
 
 class TestBudget(unittest.TestCase):
@@ -78,8 +130,16 @@ class TestBudget(unittest.TestCase):
 
 class TestForwardSplit(unittest.TestCase):
     def test_training_rows_end_before_the_gap(self) -> None:
-        units = pd.DataFrame({"unit_id": ["a", "b", "c"], "time": [100, 200, 300], "train_ok": [True, True, False]})
-        rows = pd.DataFrame({"unit_id": ["a", "a", "b", "c"], "y": [1.0, 0.0, np.nan, 1.0]})
+        units = pd.DataFrame(
+            {
+                "unit_id": ["a", "b", "c"],
+                "time": [100, 200, 300],
+                "train_ok": [True, True, False],
+            }
+        )
+        rows = pd.DataFrame(
+            {"unit_id": ["a", "a", "b", "c"], "y": [1.0, 0.0, np.nan, 1.0]}
+        )
         got = models.training_rows(rows, units, before=250)
         self.assertEqual(set(got["unit_id"]), {"a"})
         self.assertTrue((got["w"] > 0).all())
@@ -94,7 +154,13 @@ class TestBreakdowns(unittest.TestCase):
         self.assertEqual(random_catch(4, 1, 4), 1.0)
 
     def test_caught_at_cut_ranks_within_units(self) -> None:
-        df = pd.DataFrame({"unit_id": ["u"] * 4 + ["v"] * 4, "test": list("abcd") * 2, "y": [1, 0, 0, 0, 0, 0, 0, 1.0]})
+        df = pd.DataFrame(
+            {
+                "unit_id": ["u"] * 4 + ["v"] * 4,
+                "test": list("abcd") * 2,
+                "y": [1, 0, 0, 0, 0, 0, 0, 1.0],
+            }
+        )
         p = np.array([0.1, 0.9, 0.5, 0.2, 0.9, 0.8, 0.7, 0.6])
         got = models.caught_at_cut(df, p)
         # 25% of 4 tests keeps positions 0 and 1 (get_top_per_tests): u's failing test

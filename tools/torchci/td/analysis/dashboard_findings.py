@@ -30,11 +30,16 @@ def findings(r: dict[str, Any]) -> list[str]:
     cur = r["pr_off_by_recurrence"]
     novel, often = list(cur.values())[0], list(cur.values())[-1]
     imp = r["importance"]
-    carries = [f"{SIGNAL_NAMES.get(i['feature'], i['feature']).lower()} {100 * i['mean']:.1f}" for i in imp if i["lo"] > 0]
-    unclear = [SIGNAL_NAMES.get(i["feature"], i["feature"]).lower() for i in imp if i["lo"] <= 0 and i["nonzero_share"] >= RARE]
-    rare = [SIGNAL_NAMES.get(i["feature"], i["feature"]).lower() for i in imp if i["lo"] <= 0 and i["nonzero_share"] < RARE]
+    label = lambda i: SIGNAL_NAMES.get(i["feature"], i["feature"]).lower()  # noqa: E731
+    common = [i for i in imp if i["nonzero_share"] >= RARE]
+    carries = [f"{label(i)} {100 * i['mean']:.1f}" for i in common if i["lo"] > 0]
+    unclear = [label(i) for i in common if i["lo"] <= 0]
+    rare = [label(i) for i in imp if i["nonzero_share"] < RARE]
     pl = off[PLANNED]
-    td_same = interp([(off[f"before@{k}"]["time_share"], off[f"before@{k}"]["rate"]) for k in KS], pl["time_share"])
+    td_same = interp(
+        [(off[f"before@{k}"]["time_share"], off[f"before@{k}"]["rate"]) for k in KS],
+        pl["time_share"],
+    )
     ens = boot[(CHEAP, FULL)]
     ov = {x["overhead"]: x for x in r["overhead_sensitivity"]}
     rk = r["risk"]
@@ -56,6 +61,10 @@ def findings(r: dict[str, Any]) -> list[str]:
         "Signals (failing tests that fall out of the 25% cut when the signal is shuffled, in points): "
         + (", ".join(carries) if carries else "none clearly above zero")
         + (f". No measurable effect here: {', '.join(unclear)}" if unclear else "")
-        + (f". Too rare in these populations to judge: {', '.join(rare)}" if rare else "")
+        + (
+            f". Present on under 1% of rows, too rare here to judge: {', '.join(rare)}"
+            if rare
+            else ""
+        )
         + ". This data supports no keep or drop verdict on a heuristic beyond that.",
     ]

@@ -8,7 +8,6 @@ those pure helpers are called: the heuristic classes run git and the GitHub API.
 import re
 import sys
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from torchci.td.analysis.ratings import normalize, sums
@@ -24,7 +23,11 @@ def pytorch(snapshot: str) -> Any:
     pytorch's `test` package never shadows the standard library's)."""
     if snapshot not in sys.path:
         sys.path.append(snapshot)
-    from tools.testing.target_determination.heuristics import edited_by_pr, filepath, utils
+    from tools.testing.target_determination.heuristics import (
+        edited_by_pr,
+        filepath,
+        utils,
+    )
 
     return edited_by_pr, filepath, utils
 
@@ -39,9 +42,15 @@ def edited(snapshot: str, changed: list[str], tests: Iterable[str]) -> set[str]:
     return out & set(tests)
 
 
-def filepath_raw(snapshot: str, changed: list[str], tests: list[str]) -> dict[str, float]:
+def filepath_raw(
+    snapshot: str, changed: list[str], tests: list[str]
+) -> dict[str, float]:
     _, fp, _ = pytorch(snapshot)
-    return {t: float(v) for t, v in fp.get_freq_dict(tests, changed).items() if v > 0 and t in tests}
+    return {
+        t: float(v)
+        for t, v in fp.get_freq_dict(tests, changed).items()
+        if v > 0 and t in tests
+    }
 
 
 def docs_only(snapshot: str, changed: list[str]) -> bool:
@@ -50,7 +59,9 @@ def docs_only(snapshot: str, changed: list[str]) -> bool:
 
 
 def public_bindings(changed: list[str], tests: Iterable[str]) -> bool:
-    return PUBLIC_BINDINGS in set(tests) and any(f.startswith("torch/") or f in PUBLIC_BINDINGS_FILES for f in changed)
+    return PUBLIC_BINDINGS in set(tests) and any(
+        f.startswith("torch/") or f in PUBLIC_BINDINGS_FILES for f in changed
+    )
 
 
 def td_sum(
@@ -65,7 +76,7 @@ def td_sum(
 ) -> dict[str, float]:
     """TD's aggregated score per test, as pytorch's AggregatedHeuristics sums today's
     non-trial heuristics; the LLM heuristic is 0 (its artifact was never uploaded)."""
-    total = {t: 0.0 for t in tests}
+    total = dict.fromkeys(tests, 0.0)
     tset = set(tests)
 
     def add(part: Mapping[str, float]) -> None:
@@ -73,9 +84,9 @@ def td_sum(
             if t in total:
                 total[t] += v
 
-    add({t: 1.0 for t in set(prev_failed) & tset})
-    add({t: 1.0 for t in edited(snapshot, changed, tests)})
-    add({t: 1.0 for t in set(mentioned) & tset})
+    add(dict.fromkeys(set(prev_failed) & tset, 1.0))
+    add(dict.fromkeys(edited(snapshot, changed, tests), 1.0))
+    add(dict.fromkeys(set(mentioned) & tset, 1.0))
     add(normalize(sums(fail, changed, tests)))
     add(normalize(sums(coedit, changed, tests)))
     add(normalize(sums(profiling, changed, tests)))

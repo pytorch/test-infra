@@ -11,7 +11,11 @@ from typing import Iterable, Mapping
 
 from torchci.td.historical_file_failure_correlation import filter_tests
 from torchci.td.td_heuristic_historical_edited_files import positive_pmi
-from torchci.td.utils import calculate_generic_test_ratings, HALF_LIFE_DAYS, positive_rounded
+from torchci.td.utils import (
+    calculate_generic_test_ratings,
+    HALF_LIFE_DAYS,
+    positive_rounded,
+)
 
 
 Ratings = Mapping[str, Mapping[str, float]]
@@ -27,7 +31,13 @@ STATS = {
 
 
 def gs_git(gs: Path, *args: str) -> str:
-    return subprocess.run(["git", "--no-optional-locks", "-C", str(gs), *args], capture_output=True, text=True, check=True, timeout=900).stdout
+    return subprocess.run(
+        ["git", "--no-optional-locks", "-C", str(gs), *args],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=900,
+    ).stdout
 
 
 class Versions:
@@ -54,7 +64,9 @@ class Versions:
         return json.loads(gs_git(self.gs, "show", f"{sha}:{self.path}"))
 
 
-def sums(ratings: Ratings, changed: Iterable[str], tests: Iterable[str]) -> dict[str, float]:
+def sums(
+    ratings: Ratings, changed: Iterable[str], tests: Iterable[str]
+) -> dict[str, float]:
     """pytorch's get_ratings_for_tests: per test, the sum over changed files, kept for
     the job's tests."""
     out: dict[str, float] = defaultdict(float)
@@ -65,7 +77,9 @@ def sums(ratings: Ratings, changed: Iterable[str], tests: Iterable[str]) -> dict
     return {t: v for t, v in out.items() if t in keep and v > 0}
 
 
-def normalize(scores: Mapping[str, float], top: float = 0.25, bottom: float = 0.0) -> dict[str, float]:
+def normalize(
+    scores: Mapping[str, float], top: float = 0.25, bottom: float = 0.0
+) -> dict[str, float]:
     """pytorch's normalize_ratings: the largest score maps to `top`, 0 to `bottom`."""
     if not scores:
         return {}
@@ -73,17 +87,27 @@ def normalize(scores: Mapping[str, float], top: float = 0.25, bottom: float = 0.
     return {t: v / mx * (top - bottom) + bottom for t, v in scores.items()}
 
 
-def rebuild_fail(history: list[dict], merge_bases: Mapping[str, dict], day: int) -> Ratings:
+def rebuild_fail(
+    history: list[dict], merge_bases: Mapping[str, dict], day: int
+) -> Ratings:
     """file_test_rating.json as the generator writes it on `day`: failures of the 90
     days before, minus those also failing on their merge base, decayed with a 7-day
     half-life to `day`."""
-    rows = [r for r in history if day - FAIL_DAYS * DAY <= r["ts"] < day and r["head_sha"] in merge_bases]
+    rows = [
+        r
+        for r in history
+        if day - FAIL_DAYS * DAY <= r["ts"] < day and r["head_sha"] in merge_bases
+    ]
     kept = filter_tests(rows, merge_bases)
-    ratings = calculate_generic_test_ratings(kept, merge_bases, lambda x: x["failure"], HALF_LIFE_DAYS, now=day)
+    ratings = calculate_generic_test_ratings(
+        kept, merge_bases, lambda x: x["failure"], HALF_LIFE_DAYS, now=day
+    )
     return positive_rounded(ratings)
 
 
-def rebuild_coedit(commits: list[tuple[int, list[str]]], tests: set[str], day: int) -> Ratings:
+def rebuild_coedit(
+    commits: list[tuple[int, list[str]]], tests: set[str], day: int
+) -> Ratings:
     """td_heuristic_historical_edited_files.json as the generator writes it on `day`:
     shrunk positive PMI over the main commits of the year before."""
     commit_files = []
@@ -96,9 +120,23 @@ def rebuild_coedit(commits: list[tuple[int, list[str]]], tests: set[str], day: i
 def main_commit_files(repo: Path, since: str) -> list[tuple[int, list[str]]]:
     """Every first-parent main commit since `since`, with its changed files (read-only)."""
     out = subprocess.run(
-        ["git", "--no-optional-locks", "-C", str(repo), "log", "--first-parent", "--no-renames",
-         f"--since={since}", "--name-only", "--format=%x00%ct", "main"],
-        capture_output=True, text=True, check=True, timeout=900,
+        [
+            "git",
+            "--no-optional-locks",
+            "-C",
+            str(repo),
+            "log",
+            "--first-parent",
+            "--no-renames",
+            f"--since={since}",
+            "--name-only",
+            "--format=%x00%ct",
+            "main",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=900,
     ).stdout
     commits = []
     for block in out.split("\x00")[1:]:

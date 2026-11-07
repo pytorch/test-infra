@@ -22,17 +22,27 @@ from torchci.td.llm.metrics import mcnemar_exact
 MIN_SECONDS = 0.1
 TIME_TARGETS = {"td25": 25, "td20": 20}
 POLICIES = (
-    [f"before@{k}" for k in config.CUTOFFS] + [f"after@{k}" for k in config.CUTOFFS] + [f"time@{k}" for k in config.CUTOFFS]
-    + [f"cheap@{k}" for k in config.CUTOFFS] + [f"adaptive@{t}" for t in config.BUDGET_TARGETS] + [f"adaptive_time@{n}" for n in TIME_TARGETS]
+    [f"before@{k}" for k in config.CUTOFFS]
+    + [f"after@{k}" for k in config.CUTOFFS]
+    + [f"time@{k}" for k in config.CUTOFFS]
+    + [f"cheap@{k}" for k in config.CUTOFFS]
+    + [f"adaptive@{t}" for t in config.BUDGET_TARGETS]
+    + [f"adaptive_time@{n}" for n in TIME_TARGETS]
     + [f"cheap_time@{n}" for n in TIME_TARGETS]
 )
 NAMES = {
-    "before": "TD today, {k}% of test files", "after": "Ensemble ranking, {k}% of test files",
-    "time": "Ensemble per second, {k}% of test time", "cheap": "Cheapest files first, {k}% of test time",
+    "before": "TD today, {k}% of test files",
+    "after": "Ensemble ranking, {k}% of test files",
+    "time": "Ensemble per second, {k}% of test time",
+    "cheap": "Cheapest files first, {k}% of test time",
     "adaptive": "After as planned: risk-driven cutoff, mean {k}% of files",
-    "adaptive_time": "After with a time budget: {k}", "cheap_time": "Cheapest files first, no model: {k}",
+    "adaptive_time": "After with a time budget: {k}",
+    "cheap_time": "Cheapest files first, no model: {k}",
 }
-TIME_TARGET_NAMES = {"td25": "TD's test time today", "td20": "the test time of TD at 20%"}
+TIME_TARGET_NAMES = {
+    "td25": "TD's test time today",
+    "td20": "the test time of TD at 20%",
+}
 
 
 def name(policy: str) -> str:
@@ -42,7 +52,13 @@ def name(policy: str) -> str:
 
 def rate(caught: int, n: int) -> dict[str, Any]:
     lo, hi = wilson(caught / n, n) if n else (0.0, 0.0)
-    return {"caught": caught, "n": n, "rate": caught / n if n else None, "lo": lo, "hi": hi}
+    return {
+        "caught": caught,
+        "n": n,
+        "rate": caught / n if n else None,
+        "lo": lo,
+        "hi": hi,
+    }
 
 
 def unit_seconds(tests: list[str], raw: dict[str, float]) -> dict[str, float]:
@@ -50,51 +66,101 @@ def unit_seconds(tests: list[str], raw: dict[str, float]) -> dict[str, float]:
     median known time) plus the per-file overhead."""
     known = [s for s in raw.values() if s > 0]
     fill = median(known) if known else 1.0
-    return {t: max(raw.get(t, 0.0) or fill, MIN_SECONDS) + config.FILE_OVERHEAD_SECONDS for t in tests}
+    return {
+        t: max(raw.get(t, 0.0) or fill, MIN_SECONDS) + config.FILE_OVERHEAD_SECONDS
+        for t in tests
+    }
 
 
 class Unit:
     """One unit's tests, its two score maps and its selection under every policy."""
 
-    def __init__(self, uid: str, tests: list[str], before: dict[str, float], after: dict[str, float], seconds: dict[str, float]) -> None:
-        self.uid, self.tests, self.before, self.after, self.seconds = uid, tests, before, after, seconds
+    def __init__(
+        self,
+        uid: str,
+        tests: list[str],
+        before: dict[str, float],
+        after: dict[str, float],
+        seconds: dict[str, float],
+    ) -> None:
+        self.uid, self.tests, self.before, self.after, self.seconds = (
+            uid,
+            tests,
+            before,
+            after,
+            seconds,
+        )
         self.sel: dict[str, set[str]] = {}
         b_order, a_order = policies.ranked(before, tests), policies.ranked(after, tests)
         self.value_order = policies.by_value(after, tests, seconds)
-        cheap_order = sorted(tests, key=lambda t: (seconds[t], t))
+        cheap_order = policies.cheapest(tests, seconds)
         for k in config.CUTOFFS:
             n = policies.cut_size(len(tests), k)
-            self.sel[f"before@{k}"], self.sel[f"after@{k}"] = set(b_order[:n]), set(a_order[:n])
-            self.sel[f"time@{k}"] = set(policies.time_select(self.value_order, seconds, k / 100))
-            self.sel[f"cheap@{k}"] = set(policies.time_select(cheap_order, seconds, k / 100))
+            self.sel[f"before@{k}"], self.sel[f"after@{k}"] = (
+                set(b_order[:n]),
+                set(a_order[:n]),
+            )
+            self.sel[f"time@{k}"] = set(
+                policies.time_select(self.value_order, seconds, k / 100)
+            )
+            self.sel[f"cheap@{k}"] = set(
+                policies.time_select(cheap_order, seconds, k / 100)
+            )
 
-    def add_adaptive(self, budget: dict[int, int], time_targets: dict[str, float]) -> None:
+    def add_adaptive(self, budget: dict[int, int], scale: float) -> None:
+        """The After systems, given the risk model's cutoff for each target mean and the
+        unit's risk multiplier `scale` (its cutoff over the mean cutoff of its population):
+        by share of files at that cutoff; by test time at the time TD spends on this unit
+        at 25% (and 20%) of its files, times `scale`; and cheapest-first at TD's time."""
         for t in config.BUDGET_TARGETS:
-            self.sel[f"adaptive@{t}"] = policies.explore_select(self.after, self.tests, budget[t], config.EXPLORE_SHARE, self.uid)
-        base = config.BUDGET_TARGETS[0]
-        cheap_order = sorted(self.tests, key=lambda t: (self.seconds[t], t))
-        for target, share in time_targets.items():
+            self.sel[f"adaptive@{t}"] = policies.explore_select(
+                self.after, self.tests, budget[t], config.EXPLORE_SHARE, self.uid
+            )
+        cheap_order = policies.cheapest(self.tests, self.seconds)
+        for target, k in TIME_TARGETS.items():
+            share = self.share(f"before@{k}")[1]
             self.sel[f"adaptive_time@{target}"] = policies.explore_time(
-                self.value_order, self.seconds, self.after, min(1.0, share * budget[base] / base), config.EXPLORE_SHARE, self.uid)
-            self.sel[f"cheap_time@{target}"] = set(policies.time_select(cheap_order, self.seconds, share))
+                self.value_order,
+                self.seconds,
+                self.after,
+                min(1.0, share * scale),
+                config.EXPLORE_SHARE,
+                self.uid,
+            )
+            self.sel[f"cheap_time@{target}"] = set(
+                policies.time_select(cheap_order, self.seconds, share)
+            )
 
     def share(self, policy: str) -> tuple[float, float]:
         """(share of tests, share of test time) the policy runs."""
         s = self.sel[policy]
-        return len(s) / len(self.tests), sum(self.seconds[t] for t in s) / sum(self.seconds.values())
+        return len(s) / len(self.tests), sum(self.seconds[t] for t in s) / sum(
+            self.seconds.values()
+        )
 
 
-def recall(units: dict[str, Unit], events: list[tuple[list[str], dict[str, list[str]]]]) -> dict[str, Any]:
+def recall(
+    units: dict[str, Unit], events: list[tuple[list[str], dict[str, list[str]]]]
+) -> dict[str, Any]:
     """events: (unit ids, unit id -> failing files); an event is caught under a policy
     when one of its units selects one of its failing files. Each policy also gets the
     mean shares of tests and test time over the events' units."""
     out = {}
     uids = sorted({u for us, _ in events for u in us if u in units})
     for p in POLICIES:
-        hit = [any(set(files.get(u, [])) & units[u].sel[p] for u in us if u in units) for us, files in events]
-        shares = np.array([units[u].share(p) for u in uids]) if uids else np.zeros((0, 2))
-        out[p] = {**rate(sum(hit), len(hit)), "hits": hit,
-                  "test_share": float(shares[:, 0].mean()) if uids else None, "time_share": float(shares[:, 1].mean()) if uids else None}
+        hit = [
+            any(set(files.get(u, [])) & units[u].sel[p] for u in us if u in units)
+            for us, files in events
+        ]
+        shares = (
+            np.array([units[u].share(p) for u in uids]) if uids else np.zeros((0, 2))
+        )
+        out[p] = {
+            **rate(sum(hit), len(hit)),
+            "hits": hit,
+            "test_share": float(shares[:, 0].mean()) if uids else None,
+            "time_share": float(shares[:, 1].mean()) if uids else None,
+        }
     return out
 
 
@@ -105,4 +171,10 @@ def strip(rec: dict[str, Any]) -> dict[str, Any]:
 def paired(rec: dict[str, Any], a: str, b: str) -> dict[str, Any]:
     gained = sum(1 for x, y in zip(rec[a]["hits"], rec[b]["hits"]) if y and not x)
     lost = sum(1 for x, y in zip(rec[a]["hits"], rec[b]["hits"]) if x and not y)
-    return {"from": a, "to": b, "gained": gained, "lost": lost, "p": mcnemar_exact(gained, lost)}
+    return {
+        "from": a,
+        "to": b,
+        "gained": gained,
+        "lost": lost,
+        "p": mcnemar_exact(gained, lost),
+    }

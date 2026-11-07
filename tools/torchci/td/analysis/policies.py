@@ -23,12 +23,21 @@ def top_k(scores: Mapping[str, float], tests: Sequence[str], k: int) -> set[str]
     return set(ranked(scores, tests)[: cut_size(len(tests), k)])
 
 
-def by_value(scores: Mapping[str, float], tests: Sequence[str], seconds: Mapping[str, float]) -> list[str]:
+def by_value(
+    scores: Mapping[str, float], tests: Sequence[str], seconds: Mapping[str, float]
+) -> list[str]:
     """Tests by expected failures caught per second of test time, ties by name."""
     return sorted(tests, key=lambda t: (-scores.get(t, 0.0) / seconds[t], t))
 
 
-def time_select(order: Sequence[str], seconds: Mapping[str, float], share: float) -> list[str]:
+def cheapest(tests: Sequence[str], seconds: Mapping[str, float]) -> list[str]:
+    """Tests by test time, cheapest first, ties by name."""
+    return sorted(tests, key=lambda t: (seconds[t], t))
+
+
+def time_select(
+    order: Sequence[str], seconds: Mapping[str, float], share: float
+) -> list[str]:
     """The prefix of `order` that first reaches `share` of the tests' total time."""
     budget, used, out = share * sum(seconds[t] for t in order), 0.0, []
     for t in order:
@@ -44,7 +53,13 @@ def seed_of(unit_id: str) -> int:
     return int.from_bytes(hashlib.sha256(unit_id.encode()).digest()[:8], "little")
 
 
-def explore_swap(selected: list[str], order: Sequence[str], scores: Mapping[str, float], share: float, unit_id: str) -> set[str]:
+def explore_swap(
+    selected: list[str],
+    order: Sequence[str],
+    scores: Mapping[str, float],
+    share: float,
+    unit_id: str,
+) -> set[str]:
     """The exploration slice on a selection: its last `share` (by order) swapped for as many
     tests drawn from the unselected ones, with probability proportional to their score,
     seeded by the unit, so every shard draws the same tests."""
@@ -55,11 +70,20 @@ def explore_swap(selected: list[str], order: Sequence[str], scores: Mapping[str,
         return chosen
     w = np.array([max(scores.get(t, 0.0), 0.0) for t in rest], dtype=float) + 1e-12
     rng = np.random.default_rng(seed_of(unit_id))
-    picked = rng.choice(len(rest), size=min(n_explore, len(rest)), replace=False, p=w / w.sum())
+    picked = rng.choice(
+        len(rest), size=min(n_explore, len(rest)), replace=False, p=w / w.sum()
+    )
     return set(selected[: len(selected) - n_explore]) | {rest[i] for i in picked}
 
 
-def explore_time(order: Sequence[str], seconds: Mapping[str, float], scores: Mapping[str, float], share: float, explore: float, unit_id: str) -> set[str]:
+def explore_time(
+    order: Sequence[str],
+    seconds: Mapping[str, float],
+    scores: Mapping[str, float],
+    share: float,
+    explore: float,
+    unit_id: str,
+) -> set[str]:
     """A time budget of `share` of the tests' time: its first (1 - explore) spent down
     `order`, the rest on tests drawn from those left, with probability proportional to
     their score, seeded by the unit; a drawn test that would overrun the budget is skipped."""
@@ -78,7 +102,13 @@ def explore_time(order: Sequence[str], seconds: Mapping[str, float], scores: Map
     return chosen
 
 
-def explore_select(scores: Mapping[str, float], tests: Sequence[str], k: int, share: float, unit_id: str) -> set[str]:
+def explore_select(
+    scores: Mapping[str, float],
+    tests: Sequence[str],
+    k: int,
+    share: float,
+    unit_id: str,
+) -> set[str]:
     """k percent of the tests by score, with the exploration slice drawn below the cut."""
     order = ranked(scores, tests)
     return explore_swap(order[: cut_size(len(order), k)], order, scores, share, unit_id)
