@@ -3,7 +3,7 @@ and what each signal adds to the ensemble."""
 
 from typing import Any
 
-from torchci.td.analysis.dashboard import FULL, LIGHT, pct, table
+from torchci.td.analysis.dashboard import esc, FULL, LIGHT, pct, table
 from torchci.td.analysis.dashboard_text import SIGNAL_NAMES
 from torchci.td.analysis.selection import AFTER_NAME, name
 
@@ -28,7 +28,7 @@ def history(r: dict[str, Any]) -> str:
         for label, v in r["pr_off_by_recurrence"].items()
     ]
     return (
-        '<h2>By test history</h2><div class="grid2"><div><p class="muted">Every new failure on main since 2026-01-05, by the test\'s failure share on main in the 14 days before: the first row is the fresh failures charted above, the others are mostly flaky re-failures.</p>'
+        f'<h2>By test history</h2><div class="grid2"><div><p class="muted">Changes with a new failure on main since {esc(r["meta"]["silver_eval_start"])}, by the failing test\'s failure share on main in the 14 days before (a change with failures in several rows counts in each): the first row is the fresh failures charted above, the others are mostly flaky re-failures.</p>'
         + table(
             [
                 "Test's prior failure share",
@@ -98,8 +98,8 @@ def cost_section(r: dict[str, Any], divs: dict[str, str]) -> str:
                 "Test files run (landed)",
                 "Test time run (landed)",
                 "Test time run (PR TD-off)",
-                "New main failures per 1,000 test hours",
-                "Test files run per new main failure",
+                "All new main failures per 1,000 test hours",
+                "Test files run per new main failure (all)",
             ],
             cost,
         )

@@ -5,7 +5,10 @@ Populations (evaluation weeks only, every After score out of time):
 - gold: reverted trunk breakages TD could have caught (false_green, signal_on_pr,
   passed_on_pr), caught when a breaking file is in the selection of one of the configs
   that failed (landed.py);
-- silver: landed changes that newly broke a test on main, the same way;
+- silver: landed changes that newly broke a test on main, from SILVER_EVAL_START, caught
+  when a failing file is in the selection over the change's full test list;
+- silver_fresh: the same, only failing files that did not fail on main in the
+  FAIL_SHARE_DAYS before;
 - pr_off: PR configs whose failure showed on a TD-off job, where every test could run.
 The policies are in selection.py.
 """
@@ -20,6 +23,7 @@ import numpy as np
 from torchci.td.analysis import breakdowns, config, model_checks
 from torchci.td.analysis.labels import unix
 from torchci.td.analysis.landed import gold_events, Views
+from torchci.td.analysis.ratings import DAY
 from torchci.td.analysis.schema import (
     load,
     RESULTS_FILE,
@@ -40,7 +44,10 @@ from torchci.td.analysis.selection import (
 
 logger = logging.getLogger(__name__)
 
-DAY = 86400
+# The unix epoch is a Thursday: weeks counted from this offset start on Mondays, as the
+# models' weeks do.
+MONDAY = 4 * DAY
+
 
 PAIRS = [("before@25", p) for p in ("adaptive_time@td25", "adaptive_time@td20")]
 
@@ -112,7 +119,7 @@ def time_scales(risk, ev, units) -> dict[str, float]:
     ids = list(units)
     r = risk.set_index("unit_id").reindex(ids)
     kind = ev.loc[ids, "kind"].replace({"pr_on": "pr", "pr_off": "pr"})
-    week = ev.loc[ids, "time"] // (7 * DAY)
+    week = (ev.loc[ids, "time"] - MONDAY) // (7 * DAY)
     t = config.BUDGET_TARGETS[0]
     col = r[f"budget_{t}"].fillna(t)
     mean = col.groupby([kind.to_numpy(), week.to_numpy()]).transform("mean")
@@ -134,8 +141,7 @@ def build_results(
     silver_view = {u: ([u], {u: f}) for u, f in silver_pos.items()}
     s_events = list(silver_view.values())
     # New failures of tests that already failed on main in the 14 days before are mostly
-    # flaky re-failures, which dominate some months; the fresh ones are likelier
-    # regressions.
+    # flaky re-failures; the fresh ones are likelier regressions.
     fresh = set(
         silver.loc[silver["fail_share"] == 0, ["sha", "file"]].itertuples(index=False)
     )
@@ -208,7 +214,10 @@ def build_results(
         "main": model_checks.calibration(rows[rows["unit_id"].isin(main_ids)]),
         "pr_off": model_checks.calibration(rows[rows["unit_id"].isin(pr_ids)]),
     }
-    out["risk"] = model_checks.risk_summary(risk[risk["unit_id"].isin(units)], units_df)
+    in_eval = set(main_ids) | {u for u in units if ev.loc[u, "kind"] != "main"}
+    out["risk"] = model_checks.risk_summary(
+        risk[risk["unit_id"].isin(in_eval)], units_df
+    )
     out["fidelity"] = model_checks.fidelity(rows, ev)
     out["rebuild_check"] = model_checks.rebuild_check(rows, ev, silver_pos)
     out["meta"] = {

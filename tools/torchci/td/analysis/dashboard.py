@@ -168,7 +168,7 @@ def precision_fig(r: dict[str, Any]) -> go.Figure:
     fig.update_xaxes(tickformat=".0%")
     return layout(
         fig,
-        "Precision: new main failures caught per 1,000 hours of test time run",
+        "Precision: all new main failures (flaky included) caught per 1,000 test hours",
         "Test time run (landed changes)",
         "Failures caught per 1,000 test hours",
     )

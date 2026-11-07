@@ -222,13 +222,13 @@ class TestOldRatings(unittest.TestCase):
         commits = [
             (day - DAY, ["a.py", "test/test_x.py"]),
             (day - 2 * DAY, ["a.py", "b.py", "test/test_x.py", "test/test_y.py"]),
-            (day - 400 * DAY, ["a.py", "test/test_x.py"]),
+            (day - 400 * DAY, ["z.py", "test/test_x.py"]),
             (day + DAY, ["a.py", "test/test_x.py"]),
         ]
         got = rebuild_coedit_old(commits, {"test_x", "test_y"}, day)
         self.assertAlmostEqual(got["a.py"]["test_x"], 1 / 2 + 1 / 4)
         self.assertAlmostEqual(got["b.py"]["test_y"], 1 / 4)
-        self.assertNotIn("c.py", got)
+        self.assertNotIn("z.py", got)
 
     def test_fail_counts_each_breaking_commit_once_undecayed(self) -> None:
         from torchci.td.analysis.ratings import DAY, rebuild_fail_old

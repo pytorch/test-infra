@@ -126,7 +126,7 @@ TABLES: dict[str, dict[str, tuple[str, ...]]] = {
         ),
     },
     "rankings": {
-        # Test lists of the configs that failed at a silver or gold landing's main push.
+        # Test lists of the configs that failed at a gold landing's main push.
         "main_ranks": (
             "push_sha",
             "workflow",

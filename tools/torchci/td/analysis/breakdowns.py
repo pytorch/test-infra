@@ -280,6 +280,11 @@ def sanity(out: dict[str, Any]) -> dict[str, Any]:
         checks[f"{pop}: TD's recall is monotone in the cutoff"] = all(
             a <= b for a, b in zip(caught, caught[1:])
         )
+    cost = out["cost"]["main"]
+    checks["landed changes: After at TD's test time spends it, within 1 point"] = (
+        abs(cost["adaptive_time@td25"]["time_share"] - cost["before@25"]["time_share"])
+        <= 0.01
+    )
     checks["reds: TD at 25% nets 0 against itself"] = (
         out["reds"]["policies"]["before@25"]["net_central_per_quarter"] == 0
     )

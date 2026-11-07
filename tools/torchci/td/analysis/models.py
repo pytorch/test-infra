@@ -39,6 +39,8 @@ PRED_START = FIRST_EVAL - timedelta(days=28)
 NEG_KEEP = 0.2
 MIN_POSITIVES = 10
 IMPORTANCE_WEEKS = 4
+# Commits are fetched from 21 days before the main window and breaks from its start.
+AUTHOR_DAYS = 30
 IMPORTANCE_REPEATS = 3
 SEED = 0
 ENSEMBLE_FEATURES = (*SIGNALS, "llm_raw", "llm_tq", "is_pr", *UNIT_STATS)
@@ -158,8 +160,9 @@ def ensemble_week(rows: pd.DataFrame, units: pd.DataFrame, week: int) -> pd.Data
 def author_history(
     units: pd.DataFrame, commits: pd.DataFrame, silver: pd.DataFrame
 ) -> pd.DataFrame:
-    """Per unit: the author's landings in the 180 days before, and their changes that newly
-    broke main and settled at least TRAIN_GAP_DAYS before. Authors stay hashed keys."""
+    """Per unit: the author's landings in the AUTHOR_DAYS before, and those of them that
+    newly broke main and settled at least TRAIN_GAP_DAYS before. A fixed lookback the data
+    covers keeps the features comparable across the window. Authors stay hashed keys."""
     landed = commits[commits["author_key"] != ""][["author_key", "pushed_at", "sha"]]
     broke = set(silver["sha"])
     out = []
@@ -170,8 +173,8 @@ def author_history(
             out.append((u.unit_id, 0, 0))
             continue
         t = int(u.time)
-        prior = g[(g["pushed_at"] < t) & (g["pushed_at"] >= t - 180 * DAY)]
-        settled = g[g["pushed_at"] < t - config.TRAIN_GAP_DAYS * DAY]
+        prior = g[(g["pushed_at"] < t) & (g["pushed_at"] >= t - AUTHOR_DAYS * DAY)]
+        settled = prior[prior["pushed_at"] < t - config.TRAIN_GAP_DAYS * DAY]
         out.append((u.unit_id, len(prior), int(settled["sha"].isin(broke).sum())))
     return pd.DataFrame(out, columns=["unit_id", "author_landings", "author_breaks"])
 
