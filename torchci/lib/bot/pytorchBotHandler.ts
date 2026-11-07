@@ -12,6 +12,7 @@ import {
   BOT_TRIAGE_ERROR_LABEL,
   BOT_TRIAGED_LABEL,
   fetchLiveLabels,
+  hasBindingHumanApproval,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -197,9 +198,11 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     return null;
   }
 
-  // With ignoreAutomatedReview, the automated PR review's reviews are dropped
-  // when its own verdict is changes requested, so that request cannot block the
-  // merge. Any other verdict of its (e.g. an approval) is kept and still counts.
+  // The automated PR review's reviews are dropped when its own verdict is
+  // changes requested and either ignoreAutomatedReview is set or, in
+  // pytorch/pytorch, a human approval satisfies merge_rules.yaml, so that
+  // request cannot block the merge. Any other verdict of its (e.g. an
+  // approval) is kept and still counts.
   async getApprovalStatus(ignoreAutomatedReview = false): Promise<string> {
     let reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
       this.ctx.octokit.pulls.listReviews,
@@ -211,16 +214,18 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       }
     );
     const isPyTorchPyTorchRepo = isPyTorchPyTorch(this.owner, this.repo);
-    if (ignoreAutomatedReview) {
-      const isAutomated = (review: PullRequestReview) =>
-        review.user?.login === AUTOMATED_REVIEWER_LOGIN;
-      const automatedVerdict = getApprovalStatusFromReviews(
-        reviews.filter(isAutomated),
-        isPyTorchPyTorchRepo
-      );
-      if (automatedVerdict === PR_CHANGES_REQUESTED) {
-        reviews = reviews.filter((review) => !isAutomated(review));
-      }
+    const isAutomated = (review: PullRequestReview) =>
+      review.user?.login === AUTOMATED_REVIEWER_LOGIN;
+    const automatedVerdict = getApprovalStatusFromReviews(
+      reviews.filter(isAutomated),
+      isPyTorchPyTorchRepo
+    );
+    if (
+      automatedVerdict === PR_CHANGES_REQUESTED &&
+      (ignoreAutomatedReview ||
+        (isPyTorchPyTorchRepo && (await this.approvedUnderMergeRules(reviews))))
+    ) {
+      reviews = reviews.filter((review) => !isAutomated(review));
     }
 
     if (!reviews.length) {
@@ -233,6 +238,25 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       isPyTorchPyTorchRepo,
       (message: string) => this.ctx.log(message)
     );
+  }
+
+  // Fails closed: the automated review keeps blocking if the rules or the
+  // changed files cannot be read.
+  async approvedUnderMergeRules(
+    reviews: PullRequestReview[]
+  ): Promise<boolean> {
+    try {
+      return await hasBindingHumanApproval(
+        this.ctx.octokit as any,
+        this.owner,
+        this.repo,
+        this.prNum,
+        reviews
+      );
+    } catch (error) {
+      this.ctx.log(`Could not check merge_rules.yaml approval: ${error}`);
+      return false;
+    }
   }
 
   async handleMerge(

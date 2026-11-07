@@ -1,6 +1,6 @@
-import approvalReReviewBot, {
+import approvalClearsReview, {
   APPROVED_DISMISSAL,
-} from "lib/bot/approvalReReviewBot";
+} from "lib/prReview/approvalClearsReview";
 import nock from "nock";
 import { Probot } from "probot";
 import { handleScope, requireDeepCopy } from "./common";
@@ -84,11 +84,13 @@ function mockLive(labels: string[] = ["in progress"], draft = false) {
     });
 }
 
-function mockDismiss(id: number) {
+// `after`, when given, must be done before the dismissal.
+function mockDismiss(id: number, after?: nock.Scope) {
   return nock("https://api.github.com")
     .put(
       `/repos/${REPO}/pulls/${PR_NUMBER}/reviews/${id}/dismissals`,
       (body) => {
+        expect(after?.isDone() ?? true).toBe(true);
         expect(body.message).toBe(APPROVED_DISMISSAL);
         return true;
       }
@@ -110,12 +112,12 @@ function mockCycleLabel() {
   return [remove, add];
 }
 
-describe("approvalReReviewBot", () => {
+describe("approvalClearsReview", () => {
   let probot: Probot;
 
   beforeEach(() => {
     probot = utils.testProbot();
-    probot.load(approvalReReviewBot);
+    probot.load(approvalClearsReview);
   });
 
   afterEach(() => {
@@ -133,12 +135,14 @@ describe("approvalReReviewBot", () => {
     handleScope(scopes);
   });
 
-  test("a change request on an older head re-runs the review", async () => {
+  test("a change request on an older head is dismissed and the review re-runs", async () => {
+    const cycle = mockCycleLabel();
     const scopes = [
       mockReviews([botRequest(10, OLD), humanApproval()]),
       mockMergeRules(),
       mockLive(),
-      ...mockCycleLabel(),
+      ...cycle,
+      mockDismiss(10, cycle[1]),
     ];
     await probot.receive(approvalEvent());
     handleScope(scopes);
@@ -149,7 +153,7 @@ describe("approvalReReviewBot", () => {
     [["in progress", "no automated review"], false],
     [["in progress"], true],
   ])(
-    "a PR that will not be reviewed again (labels %j, draft %s) is dismissed",
+    "a PR that will not be reviewed again (labels %j, draft %s) is not re-run",
     async (labels, draft) => {
       const scopes = [
         mockReviews([botRequest(10, OLD), humanApproval()]),
@@ -161,6 +165,28 @@ describe("approvalReReviewBot", () => {
       handleScope(scopes);
     }
   );
+
+  test("a change request posted after a binding approval is dismissed", async () => {
+    const event = approvalEvent("github-actions[bot]", "Bot");
+    Object.assign(event.payload.review, botRequest(10));
+    event.payload.review.state = "changes_requested";
+    const scopes = [
+      mockReviews([humanApproval(), botRequest(10)]),
+      mockMergeRules(),
+      mockDismiss(10),
+    ];
+    await probot.receive(event);
+    handleScope(scopes);
+  });
+
+  test("a change request without a binding approval stands", async () => {
+    const event = approvalEvent("github-actions[bot]", "Bot");
+    Object.assign(event.payload.review, botRequest(10));
+    event.payload.review.state = "changes_requested";
+    const scopes = [mockReviews([botRequest(10)])];
+    await probot.receive(event);
+    handleScope(scopes);
+  });
 
   test("an approval merge_rules.yaml does not accept changes nothing", async () => {
     const scopes = [

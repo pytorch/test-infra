@@ -17,6 +17,7 @@ import {
   fetchMergeRules,
   fetchTeamMembership,
 } from "lib/greenlight/greenlightEligibility";
+import { isBot } from "lib/greenlight/greenlightReviewGate";
 import {
   getApprovalStatusFromReviews,
   getApprovingReviewers,
@@ -523,6 +524,24 @@ export async function hasMergeRuleApproval(
     }
   }
   return false;
+}
+
+// Whether a human's standing approval satisfies merge_rules.yaml, which is
+// what lets it override the automated review's change request.
+export async function hasBindingHumanApproval(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  reviews: PullRequestReview[]
+): Promise<boolean> {
+  const humans = getApprovingReviewers(reviews, true).filter(
+    (login) => !isBot(login, undefined)
+  );
+  return (
+    humans.length > 0 &&
+    (await hasMergeRuleApproval(octokit, owner, repo, prNumber, humans))
+  );
 }
 
 /**
