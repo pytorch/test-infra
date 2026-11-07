@@ -1,0 +1,4 @@
+pandas==3.1.1
+numpy==2.5.4
+scikit-learn==1.9.1
+plotly==6.5.0
