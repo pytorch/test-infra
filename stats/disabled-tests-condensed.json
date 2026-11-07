@@ -1427,6 +1427,13 @@
       "linux"
     ]
   ],
+  "test_sdpa_dynamic_shapes_xpu (__main__.ReproTestsDeviceXPU)": [
+    "203902",
+    "https://github.com/pytorch/pytorch/issues/203902",
+    [
+      "xpu"
+    ]
+  ],
   "test_sdpa_rewriter_stacked_layers_with_mask_gpu (__main__.SDPAPatternRewriterGpuDynamicTests)": [
     "198998",
     "https://github.com/pytorch/pytorch/issues/198998",
