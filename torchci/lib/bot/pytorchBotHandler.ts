@@ -51,6 +51,20 @@ export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
 export const CIFLOW_PULL_LABEL = "ciflow/pull";
 // The automated PR review posts its reviews as this GitHub App.
 export const AUTOMATED_REVIEWER_LOGIN = "github-actions[bot]";
+// The first line of every review pytorch/pytorch's post_review.py posts.
+const AUTOMATED_REVIEW_MARKER = "<!-- hardened-pr-review -->";
+
+export function isAutomatedReviewRequest(review: {
+  user?: { login?: string } | null;
+  state: string;
+  body?: string | null;
+}): boolean {
+  return (
+    review.user?.login === AUTOMATED_REVIEWER_LOGIN &&
+    review.state.toUpperCase() === "CHANGES_REQUESTED" &&
+    (review.body ?? "").startsWith(AUTOMATED_REVIEW_MARKER)
+  );
+}
 // ShipIt (codesync) posts the merge command for a co-dev PR as this App once
 // its Phabricator diff has landed.
 export const SHIPIT_MERGE_LOGIN = "meta-codesync[bot]";
@@ -200,9 +214,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
   // The automated PR review's reviews are dropped when its own verdict is
   // changes requested and either ignoreAutomatedReview is set or, in
-  // pytorch/pytorch, a human approval satisfies merge_rules.yaml, so that
-  // request cannot block the merge. Any other verdict of its (e.g. an
-  // approval) is kept and still counts.
+  // pytorch/pytorch, that request is the hardened review's and a human
+  // approval satisfies merge_rules.yaml, so it cannot block the merge. Any
+  // other verdict of its (e.g. an approval) is kept and still counts.
   async getApprovalStatus(ignoreAutomatedReview = false): Promise<string> {
     let reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
       this.ctx.octokit.pulls.listReviews,
@@ -220,10 +234,23 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       reviews.filter(isAutomated),
       isPyTorchPyTorchRepo
     );
+    // The request that sets the verdict: the latest one that decides.
+    const effective = _.last(
+      _.sortBy(
+        reviews.filter(
+          (review) =>
+            isAutomated(review) && review.state.toLowerCase() !== "commented"
+        ),
+        (review) => Date.parse(review.submitted_at + "")
+      )
+    );
     if (
       automatedVerdict === PR_CHANGES_REQUESTED &&
       (ignoreAutomatedReview ||
-        (isPyTorchPyTorchRepo && (await this.approvedUnderMergeRules(reviews))))
+        (isPyTorchPyTorchRepo &&
+          effective !== undefined &&
+          isAutomatedReviewRequest(effective) &&
+          (await this.approvedUnderMergeRules(reviews))))
     ) {
       reviews = reviews.filter((review) => !isAutomated(review));
     }

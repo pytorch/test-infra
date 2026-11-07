@@ -6,7 +6,7 @@
 // pytorch/pytorch's scripts/pr_review/post_review.py posts that verdict as a
 // comment because the PR is approved.
 
-import { AUTOMATED_REVIEWER_LOGIN } from "lib/bot/pytorchBotHandler";
+import { isAutomatedReviewRequest } from "lib/bot/pytorchBotHandler";
 import { isPyTorchPyTorch } from "lib/bot/utils";
 import { isBot } from "lib/greenlight/greenlightReviewGate";
 import {
@@ -17,24 +17,9 @@ import {
 } from "lib/prStatus";
 import { Context, Probot } from "probot";
 
-// The first line of every review post_review.py posts.
-const REVIEW_MARKER = "<!-- hardened-pr-review -->";
-
 export const APPROVED_DISMISSAL =
   "Dismissed: an approval satisfies merge_rules.yaml, so the automated review " +
   "no longer blocks merging. Its findings are still shown above.";
-
-function isAutomatedRequest(review: {
-  user?: { login?: string } | null;
-  state: string;
-  body?: string | null;
-}): boolean {
-  return (
-    review.user?.login === AUTOMATED_REVIEWER_LOGIN &&
-    review.state.toUpperCase() === "CHANGES_REQUESTED" &&
-    (review.body ?? "").startsWith(REVIEW_MARKER)
-  );
-}
 
 async function handle(context: Context<"pull_request_review.submitted">) {
   const owner = context.payload.repository.owner.login;
@@ -46,7 +31,7 @@ async function handle(context: Context<"pull_request_review.submitted">) {
   const approval =
     review.state.toLowerCase() === "approved" &&
     !isBot(review.user?.login ?? "", review.user?.type);
-  if (!approval && !isAutomatedRequest(review)) {
+  if (!approval && !isAutomatedReviewRequest(review)) {
     return;
   }
 
@@ -57,7 +42,7 @@ async function handle(context: Context<"pull_request_review.submitted">) {
     pull_number: pr.number,
     per_page: 100,
   });
-  const standing = reviews.filter(isAutomatedRequest);
+  const standing = reviews.filter(isAutomatedReviewRequest);
   if (standing.length === 0) {
     return;
   }

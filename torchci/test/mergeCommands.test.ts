@@ -1698,6 +1698,7 @@ some other text lol
       all[1].user.login = "github-actions[bot]";
       all[1].state = "CHANGES_REQUESTED";
       all[1].submitted_at = "2024-01-02T00:00:00Z";
+      all[1].body = "<!-- hardened-pr-review -->\n**Automated review**";
       return [all[0], all[1]];
     }
 
@@ -1706,7 +1707,7 @@ some other text lol
         .get(
           `/repos/pytorch/pytorch/pulls/${event.payload.issue.number}/reviews?per_page=100`
         )
-        .reply(200, reviews(event.approver))
+        .reply(200, event.reviews ?? reviews(event.approver))
         .get(
           `/repos/pytorch/pytorch/pulls/${event.payload.issue.number}/files?per_page=100`
         )
@@ -1786,6 +1787,20 @@ some other text lol
       const scopes = [mockRules(event), mockRefused(event)];
       await probot.receive(event);
       handleScope(scopes);
+    });
+
+    test("a change request from another github-actions workflow still blocks", async () => {
+      const event = mergeEvent();
+      event.reviews = reviews();
+      event.reviews[1].body = "Lint found problems";
+      const scope = nock("https://api.github.com")
+        .get(
+          `/repos/pytorch/pytorch/pulls/${event.payload.issue.number}/reviews?per_page=100`
+        )
+        .reply(200, event.reviews);
+      const refused = mockRefused(event);
+      await probot.receive(event);
+      handleScope([scope, refused]);
     });
 
     test("unreadable merge rules leave it blocking", async () => {
