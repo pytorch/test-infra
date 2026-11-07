@@ -29,10 +29,10 @@ expects td/llm's model, embedding cache and PR diffs at `<cache dir>/../llm_cach
 
 - Populations: reverted trunk breakages (`td_trunk_breakages`), new failures on main,
   and PR-specific failures on TD-off (macOS) jobs.
-- Policies: TD's cut at k% of test files by TD's ranking and by the ensemble's; the
-  after system as planned (a risk-driven cutoff by share of files, mean 20% or 25%, with
-  an exploration slice); the after system with a test-time budget (ranking by expected
-  failures per second); and cheapest-files-first at the same test time, with no model.
+- Policies: TD's cut at k% of test files; and the after system with a test-time budget
+  (ranking by expected failures per second, the budget scaled per change by the risk
+  model, with an exploration slice), at k% of test time on average and at the test time
+  TD spends on the same change today.
 - For each policy and cutoff: recall with intervals, precision per test file and per
   test hour, the share of test files and of test time run.
 - Reds kept off main per quarter (central and high estimates), calibration and signal

@@ -1,10 +1,10 @@
 """The dashboard's charts of the two models: the ensemble's calibration and signal
-importance, the risk model's precision / recall and the cutoffs it picks."""
+importance, the risk model's precision / recall and the time-budget multipliers it
+gives."""
 
 from typing import Any
 
 import plotly.graph_objects as go
-from torchci.td.analysis import config
 from torchci.td.analysis.dashboard import COLORS, layout, MUTED
 from torchci.td.analysis.dashboard_text import SIGNAL_NAMES
 
@@ -106,26 +106,21 @@ def risk_fig(risk: dict[str, Any]) -> go.Figure:
     )
 
 
-def budget_fig(risk: dict[str, Any]) -> go.Figure:
-    fig = go.Figure()
-    for t, color in zip(
-        config.BUDGET_TARGETS, (COLORS["adaptive"][0], COLORS["after"][0])
-    ):
-        hist = {int(k): v for k, v in risk["budget_hist"][str(t)].items()}
-        fig.add_trace(
-            go.Bar(
-                x=sorted(hist),
-                y=[hist[k] for k in sorted(hist)],
-                name=f"mean {t}%",
-                marker={"color": color},
-                hovertemplate=f"%{{y}} changes at %{{x}}%<extra>mean {t}%</extra>",
-            )
+def budget_fig(mult: dict[str, int]) -> go.Figure:
+    xs = sorted(mult, key=float)
+    fig = go.Figure(
+        go.Bar(
+            x=[float(x) for x in xs],
+            y=[mult[x] for x in xs],
+            marker={"color": COLORS["adaptive"][0]},
+            hovertemplate="%{y} changes at %{x:.2f}x<extra></extra>",
         )
-    fig.update_layout(barmode="group", bargap=0.15)
+    )
+    fig.update_xaxes(ticksuffix="x")
     return layout(
         fig,
-        "Cutoffs the risk model picks per landed change",
-        "Cutoff (% of test files)",
+        "Time-budget multiplier the risk model gives each landed change",
+        "Multiplier on the change's test-time budget",
         "Landed changes",
         height=420,
     )

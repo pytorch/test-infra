@@ -27,16 +27,8 @@ MUTED = ("#52514e", "#c3c2b7")
 GRID = ("#e4e3df", "#3a3a37")
 SURFACE = ("#fcfcfb", "#1a1a19")
 KS = list(config.CUTOFFS)
-FULL_TIME = {
-    "td25": "After with a time budget, TD's test time",
-    "td20": "After with a time budget, TD-at-20% time",
-}
-FULL, LIGHT, CHEAP, PLANNED = (
-    "adaptive_time@td25",
-    "adaptive_time@td20",
-    "cheap_time@td25",
-    "adaptive@20",
-)
+TD, FULL, LIGHT = "before@25", "adaptive_time@td25", "adaptive_time@td20"
+AFTER_NAME = "After with a time budget"
 
 
 def esc(value: Any) -> str:
@@ -71,17 +63,14 @@ def line(
     recs: list[dict[str, Any]],
     name: str,
     color: str,
-    xfmt: str,
-    dash: Any = None,
-    errors: bool = True,
 ) -> None:
     fig.add_trace(
         go.Scatter(
             x=xs,
             y=[r["rate"] for r in recs],
             name=name,
-            mode="lines+markers" if errors else "lines",
-            line={"color": color, "width": 2, "dash": dash},
+            mode="lines+markers",
+            line={"color": color, "width": 2},
             marker={"size": 7},
             customdata=[[r["caught"], r["n"]] for r in recs],
             error_y={
@@ -91,30 +80,30 @@ def line(
                 "arrayminus": [r["rate"] - r["lo"] for r in recs],
                 "thickness": 1,
                 "width": 3,
-                "visible": errors,
             },
-            hovertemplate=f"x %{{x:{xfmt}}}<br>recall %{{y:.1%}} (%{{customdata[0]}} of %{{customdata[1]}})<extra>{esc(name)}</extra>",
+            hovertemplate=f"test time %{{x:.0%}}<br>recall %{{y:.1%}} (%{{customdata[0]}} of %{{customdata[1]}})<extra>{esc(name)}</extra>",
         )
     )
 
 
-def point(
-    fig: go.Figure, x: float, rec: dict[str, Any], name: str, xfmt: str, symbol: str
-) -> None:
+def td_today(fig: go.Figure, x: float, y: float, text: str) -> None:
+    """TD as it runs today: a marker on its line and a dotted line at its test time."""
+    fig.add_vline(x=x, line={"color": MUTED[0], "dash": "dot", "width": 1})
     fig.add_trace(
         go.Scatter(
             x=[x],
-            y=[rec["rate"]],
-            name=name,
-            mode="markers",
-            customdata=[[rec["caught"], rec["n"]]],
+            y=[y],
+            name="TD today (25% of files)",
+            mode="markers+text",
+            text=["TD today"],
+            textposition="top left",
             marker={
-                "size": 13,
-                "symbol": symbol,
-                "color": COLORS["adaptive"][0],
-                "line": {"width": 2, "color": COLORS["adaptive"][0]},
+                "size": 15,
+                "symbol": "star",
+                "color": COLORS["before"][0],
+                "line": {"width": 1, "color": INK[0]},
             },
-            hovertemplate=f"x %{{x:{xfmt}}}<br>recall %{{y:.1%}} (%{{customdata[0]}} of %{{customdata[1]}})<extra>{esc(name)}</extra>",
+            hovertemplate=f"TD today<br>{text}<extra></extra>",
         )
     )
 
@@ -125,84 +114,29 @@ def recall_time_fig(rec: dict[str, Any], pop: str) -> go.Figure:
         fig,
         [rec[f"before@{k}"]["time_share"] for k in KS],
         [rec[f"before@{k}"] for k in KS],
-        "TD today",
+        "TD at other cutoffs (5-100% of files)",
         COLORS["before"][0],
-        ".0%",
     )
     line(
         fig,
-        [rec[f"cheap@{k}"]["time_share"] for k in KS],
-        [rec[f"cheap@{k}"] for k in KS],
-        "Cheapest files first (no model)",
-        MUTED[0],
-        ".0%",
-        "dash",
-        False,
+        [rec[f"adaptive_time@{k}"]["time_share"] for k in KS],
+        [rec[f"adaptive_time@{k}"] for k in KS],
+        f"{AFTER_NAME} (5-100% of test time on average)",
+        COLORS["adaptive"][0],
     )
-    line(
+    td = rec[TD]
+    td_today(
         fig,
-        [rec[f"time@{k}"]["time_share"] for k in KS],
-        [rec[f"time@{k}"] for k in KS],
-        "Ensemble, per second of test time",
-        COLORS["after"][0],
-        ".0%",
+        td["time_share"],
+        td["rate"],
+        f"{td['time_share']:.0%} of test time, recall {td['rate']:.1%}",
     )
-    for t in config.BUDGET_TARGETS:
-        r = rec[f"adaptive@{t}"]
-        point(
-            fig,
-            r["time_share"],
-            r,
-            f"After as planned (mean {t}% of files)",
-            ".0%",
-            "circle-open",
-        )
-    for n, label in FULL_TIME.items():
-        r = rec[f"adaptive_time@{n}"]
-        point(fig, r["time_share"], r, label, ".0%", "diamond")
-    fig.update_xaxes(tickformat=".0%")
+    fig.update_xaxes(tickformat=".0%", range=[0, 1.02])
     fig.update_yaxes(tickformat=".0%", range=[0, 1.05])
     return layout(
         fig,
-        f"{POP_NAMES[pop][0]} (n = {rec['before@25']['n']:,})",
+        f"{POP_NAMES[pop][0]} (n = {td['n']:,})",
         "Test time run",
-        "Recall",
-    )
-
-
-def recall_count_fig(rec: dict[str, Any], pop: str) -> go.Figure:
-    fig = go.Figure()
-    line(
-        fig,
-        KS,
-        [rec[f"before@{k}"] for k in KS],
-        "TD today",
-        COLORS["before"][0],
-        ".0f",
-    )
-    line(
-        fig,
-        KS,
-        [rec[f"after@{k}"] for k in KS],
-        "Ensemble ranking",
-        COLORS["after"][0],
-        ".0f",
-    )
-    for t in config.BUDGET_TARGETS:
-        r = rec[f"adaptive@{t}"]
-        point(
-            fig,
-            100 * r["test_share"],
-            r,
-            f"After as planned (target mean {t}%)",
-            ".0f",
-            "circle-open",
-        )
-    fig.update_yaxes(tickformat=".0%", range=[0, 1.05])
-    return layout(
-        fig,
-        f"{POP_NAMES[pop][0]} (n = {rec['before@25']['n']:,})",
-        "Test files run (%)",
         "Recall",
     )
 
@@ -211,9 +145,8 @@ def reds_fig(r: dict[str, Any]) -> go.Figure:
     pol, cost = r["reds"]["policies"], r["cost"]["main"]
     fig = go.Figure()
     for prefix, name, color in (
-        ("before", "TD at other cuts", COLORS["before"][0]),
-        ("time", "Ensemble, per second of test time", COLORS["after"][0]),
-        ("cheap", "Cheapest files first (no model)", MUTED[0]),
+        ("before", "TD at other cutoffs", COLORS["before"][0]),
+        ("adaptive_time", AFTER_NAME, COLORS["adaptive"][0]),
     ):
         xs = [cost[f"{prefix}@{k}"]["time_share"] for k in KS]
         for est, dash, width in (("central", None, 2), ("high", "dot", 1)):
@@ -228,27 +161,13 @@ def reds_fig(r: dict[str, Any]) -> go.Figure:
                     hovertemplate=f"test time %{{x:.0%}}<br>%{{y:+.1f}} reds per quarter<extra>{esc(name)}, {est}</extra>",
                 )
             )
-    for n, label in FULL_TIME.items():
-        p = f"adaptive_time@{n}"
-        fig.add_trace(
-            go.Scatter(
-                x=[cost[p]["time_share"]],
-                y=[pol[p]["net_central_per_quarter"]],
-                name=f"{label} (central)",
-                mode="markers",
-                marker={
-                    "size": 13,
-                    "symbol": "diamond",
-                    "color": COLORS["adaptive"][0],
-                },
-                hovertemplate="test time %{x:.0%}<br>%{y:+.1f} reds per quarter<extra></extra>",
-            )
-        )
     fig.add_hline(y=0, line={"color": MUTED[0], "width": 1})
+    x = cost[TD]["time_share"]
+    td_today(fig, x, 0.0, f"{x:.0%} of test time; the reference, 0 by definition")
     fig.update_xaxes(tickformat=".0%")
     return layout(
         fig,
-        "Reds kept off main per quarter, against TD today at 25%",
+        "Reds kept off main per quarter, against TD today",
         "Test time run (landed changes)",
         "Reds kept off main per quarter",
     )
@@ -257,10 +176,9 @@ def reds_fig(r: dict[str, Any]) -> go.Figure:
 def precision_fig(r: dict[str, Any]) -> go.Figure:
     prec, cost = r["precision"], r["cost"]["main"]
     fig = go.Figure()
-    for prefix, name, color, dash in (
-        ("before", "TD today", COLORS["before"][0], None),
-        ("time", "Ensemble, per second of test time", COLORS["after"][0], None),
-        ("cheap", "Cheapest files first (no model)", MUTED[0], "dash"),
+    for prefix, name, color in (
+        ("before", "TD at other cutoffs", COLORS["before"][0]),
+        ("adaptive_time", AFTER_NAME, COLORS["adaptive"][0]),
     ):
         fig.add_trace(
             go.Scatter(
@@ -268,12 +186,14 @@ def precision_fig(r: dict[str, Any]) -> go.Figure:
                 y=[prec[f"{prefix}@{k}"]["per_1000_hours"] for k in KS],
                 name=name,
                 mode="lines+markers",
-                line={"color": color, "width": 2, "dash": dash},
+                line={"color": color, "width": 2},
                 marker={"size": 7},
                 customdata=[[prec[f"{prefix}@{k}"]["caught"]] for k in KS],
                 hovertemplate=f"test time %{{x:.0%}}<br>%{{y:.2f}} per 1,000 test hours (%{{customdata[0]}} caught)<extra>{esc(name)}</extra>",
             )
         )
+    x, y = cost[TD]["time_share"], prec[TD]["per_1000_hours"]
+    td_today(fig, x, y, f"{x:.0%} of test time, {y:.2f} per 1,000 test hours")
     fig.update_xaxes(tickformat=".0%")
     return layout(
         fig,
@@ -305,14 +225,13 @@ def run(cache: Path, out: Path) -> None:
     if r["sanity"]["failed"]:
         raise RuntimeError(f"sanity checks failed: {r['sanity']['failed']}")
     figs = {f"time_{p}": recall_time_fig(r["recall"][p], p) for p in POP_NAMES}
-    figs.update({f"count_{p}": recall_count_fig(r["recall"][p], p) for p in POP_NAMES})
     figs.update(
         reds=reds_fig(r),
         precision=precision_fig(r),
         calibration=calibration_fig(r["calibration"]),
         importance=importance_fig(r["importance"]),
         risk=risk_fig(r["risk"]),
-        budget=budget_fig(r["risk"]),
+        budget=budget_fig(r["time_multiplier"]["main"]),
     )
     divs = {
         k: pio.to_html(

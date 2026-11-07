@@ -5,20 +5,20 @@ import json
 from typing import Any, Optional
 
 from torchci.td.analysis.dashboard import (
-    CHEAP,
     COLORS,
     esc,
     FULL,
     GRID,
     INK,
     KS,
+    LIGHT,
     MUTED,
     pct,
-    PLANNED,
     SURFACE,
     table,
+    TD,
 )
-from torchci.td.analysis.dashboard_findings import findings, interp
+from torchci.td.analysis.dashboard_findings import findings
 from torchci.td.analysis.dashboard_sections import (
     cost_section,
     history,
@@ -66,10 +66,13 @@ def card(value: str, label: str, sub: str) -> str:
 
 
 def time_for_recall(rec: dict[str, Any], target: float) -> tuple[Optional[float], bool]:
-    """The share of test time at which the ensemble ranked per second reaches `target`
-    recall, linearly between the measured cutoffs; True when the smallest cutoff already
-    does (the share is then an upper bound)."""
-    pts = sorted((rec[f"time@{k}"]["time_share"], rec[f"time@{k}"]["rate"]) for k in KS)
+    """The share of test time at which After with a time budget reaches `target` recall,
+    linearly between the measured budgets; True when the smallest budget already does
+    (the share is then an upper bound)."""
+    pts = sorted(
+        (rec[f"adaptive_time@{k}"]["time_share"], rec[f"adaptive_time@{k}"]["rate"])
+        for k in KS
+    )
     if pts[0][1] >= target:
         return pts[0][0], True
     for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
@@ -84,13 +87,12 @@ def headline(r: dict[str, Any]) -> list[str]:
     cards = []
     for pop in ("gold", "pr_off", "silver"):
         rec = r["recall"][pop]
-        b, a, c, pl = rec["before@25"], rec[FULL], rec[CHEAP], rec[PLANNED]
+        b, a = rec[TD], rec[FULL]
         cards.append(
             card(
                 f"{pct(b['rate'], 0)} → {pct(a['rate'], 0)}",
                 f"{POP_NAMES[pop][0]} caught",
-                f"TD today vs After with a time budget, at the same test time (n = {a['n']:,}; After {pct(a['lo'], 0)}-{pct(a['hi'], 0)}). "
-                f"No model: {pct(c['rate'], 0)}. After as planned: {pct(pl['rate'], 0)} at {pct(pl['time_share'], 0)} of test time vs TD's {pct(b['time_share'], 0)}.",
+                f"TD today vs After with a time budget, at the same test time ({pct(b['time_share'], 0)}; n = {a['n']:,}; After {pct(a['lo'], 0)}-{pct(a['hi'], 0)})",
             )
         )
     red = r["reds"]["policies"][FULL]
@@ -102,27 +104,15 @@ def headline(r: dict[str, Any]) -> list[str]:
         )
     )
     off = r["recall"]["pr_off"]
-    need, bound = time_for_recall(off, off["before@25"]["rate"])
+    need, bound = time_for_recall(off, off[TD]["rate"])
     if need is not None:
         cards.append(
             card(
-                f"{pct(off['before@25']['time_share'], 0)} → {'≤ ' if bound else ''}{pct(need, 0)}",
+                f"{pct(off[TD]['time_share'], 0)} → {'≤ ' if bound else ''}{pct(need, 0)}",
                 "Test time for TD's PR recall today",
-                "the ensemble ranked per second of test time, on TD-off PR jobs",
+                "After with a time budget, on PR failures on TD-off jobs",
             )
         )
-    pl = off[PLANNED]
-    td_same = interp(
-        [(off[f"before@{k}"]["time_share"], off[f"before@{k}"]["rate"]) for k in KS],
-        pl["time_share"],
-    )
-    cards.append(
-        card(
-            f"{pct(pl['rate'], 0)} vs {pct(td_same, 0)}",
-            "After as planned vs TD, same test time",
-            f"PR failures on TD-off jobs at {pct(pl['time_share'], 0)} of test time: the planned cut by files buys no recall per hour",
-        )
-    )
     return cards
 
 
@@ -132,10 +122,19 @@ def recall_rows(rec: dict[str, Any]) -> list[list[Any]]:
 
     return [
         [name(p), fmt(rec[p])]
-        for p in rec
-        if p.split("@")[1] in ("15", "20", "25", "40")
-        or "adaptive" in p
-        or "cheap_time" in p
+        for p in (
+            "before@15",
+            "before@20",
+            TD,
+            "before@40",
+            "adaptive_time@10",
+            "adaptive_time@20",
+            "adaptive_time@30",
+            "adaptive_time@40",
+            "adaptive_time@50",
+            FULL,
+            LIGHT,
+        )
     ]
 
 
@@ -147,7 +146,7 @@ def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
         + "</ul>"
     )
     s.append(
-        '<h2>Recall by test time</h2><p class="muted">CI cost is test time. TD cuts by share of test files; the time budget ranks by expected failures per second and stops at a share of test time. Bars are 95% Wilson intervals.</p>'
+        '<h2>Recall by test time</h2><p class="muted">CI cost is test time. TD cuts by share of test files (orange: its 5-100% cutoffs; the star and dotted line: TD today, 25%). After ranks by expected failures per second and stops at a test-time budget the risk model scales per change (green: 5-100% of test time on average). Bars are 95% Wilson intervals.</p>'
     )
     s.append(
         '<div class="grid3">'
@@ -156,11 +155,6 @@ def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
             for p in POP_NAMES
         )
         + "</div>"
-    )
-    s.append(
-        '<details><summary>Recall by share of test files, TD\'s cutoff (the view the project planned in)</summary><div class="grid3">'
-        + "".join(f"<div>{divs['count_' + p]}</div>" for p in POP_NAMES)
-        + "</div></details>"
     )
     paired = [
         [

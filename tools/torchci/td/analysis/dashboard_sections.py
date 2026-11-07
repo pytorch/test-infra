@@ -3,7 +3,7 @@ precision and cost, and the two models."""
 
 from typing import Any
 
-from torchci.td.analysis.dashboard import CHEAP, esc, FULL, LIGHT, pct, PLANNED, table
+from torchci.td.analysis.dashboard import esc, FULL, LIGHT, pct, table
 from torchci.td.analysis.dashboard_text import SIGNAL_NAMES
 from torchci.td.analysis.selection import name
 
@@ -13,8 +13,7 @@ def history(r: dict[str, Any]) -> str:
         [
             label,
             f"{pct(v['before@25']['rate'])} (n = {v['before@25']['n']})",
-            pct(v["after@25"]["rate"]),
-            pct(v["time@20"]["rate"]),
+            pct(v["adaptive_time@20"]["rate"]),
             pct(v[FULL]["rate"]),
         ]
         for label, v in r["silver_by_share"].items()
@@ -24,8 +23,6 @@ def history(r: dict[str, Any]) -> str:
             label,
             f"{pct(v['before@25']['rate'])} (n = {v['before@25']['n']:,})",
             pct(v["random@25"]),
-            pct(v["after@25"]["rate"]),
-            pct(v[CHEAP]["rate"]),
             pct(v[FULL]["rate"]),
         ]
         for label, v in r["pr_off_by_recurrence"].items()
@@ -36,9 +33,8 @@ def history(r: dict[str, Any]) -> str:
             [
                 "Test's prior failure share",
                 "TD today",
-                "Ensemble, 25% of files",
-                "Ensemble, 20% of time",
-                "After with a time budget",
+                "After, 20% of test time",
+                "After, TD's test time",
             ],
             share,
         )
@@ -48,9 +44,7 @@ def history(r: dict[str, Any]) -> str:
                 "Other PRs",
                 "TD today",
                 "Random",
-                "Ensemble, 25% of files",
-                "Cheapest first, TD's time",
-                "After with a time budget",
+                "After, TD's test time",
             ],
             rec,
         )
@@ -77,14 +71,11 @@ def reds_section(r: dict[str, Any], divs: dict[str, str]) -> str:
             "before@15",
             "before@20",
             "before@25",
-            "time@20",
-            "time@40",
-            "cheap@40",
+            "adaptive_time@20",
+            "adaptive_time@30",
+            "adaptive_time@40",
             FULL,
             LIGHT,
-            CHEAP,
-            PLANNED,
-            "adaptive@25",
         )
     ]
     return (
@@ -129,14 +120,11 @@ def cost_section(r: dict[str, Any], divs: dict[str, str]) -> str:
             "before@15",
             "before@20",
             "before@25",
-            "after@20",
-            "after@25",
-            "time@20",
-            "time@30",
-            "time@40",
-            PLANNED,
-            "adaptive@25",
-            CHEAP,
+            "adaptive_time@10",
+            "adaptive_time@20",
+            "adaptive_time@30",
+            "adaptive_time@40",
+            "adaptive_time@50",
             FULL,
             LIGHT,
         )
@@ -146,7 +134,6 @@ def cost_section(r: dict[str, Any], divs: dict[str, str]) -> str:
             f"{x['overhead']:.0f} s",
             pct(x["td25_time_share"]),
             pct(x["before_recall"]),
-            f"{pct(x['cheap_recall'])} ({pct(x['cheap_test_share'], 0)} of files)",
             f"{pct(x['after_recall'])} ({pct(x['after_test_share'], 0)} of files)",
         ]
         for x in r["overhead_sensitivity"]
@@ -173,8 +160,7 @@ def cost_section(r: dict[str, Any], divs: dict[str, str]) -> str:
                 "Overhead per file",
                 "TD's test time share",
                 "TD today",
-                "Cheapest files first",
-                "Ensemble per second",
+                "After with a time budget",
             ],
             sens,
         )
@@ -204,10 +190,7 @@ def models_section(r: dict[str, Any], divs: dict[str, str]) -> str:
         [f"top {pct(f['flag_top'], 0)}", pct(f["precision"]), pct(f["recall"])]
         for f in rk["flagging"]
     ]
-    by_kind = "; ".join(
-        f"{k}: " + ", ".join(f"{v:.1f}% for target {t}%" for t, v in m.items())
-        for k, m in rk["mean_by_kind"].items()
-    )
+    mult = [float(m) for m in r["time_multiplier"]["main"]]
     return (
         '<h2>The ensemble</h2><div class="grid2"><div>'
         + divs["calibration"]
@@ -225,12 +208,12 @@ def models_section(r: dict[str, Any], divs: dict[str, str]) -> str:
         )
         + "</details>"
         f'<p class="muted">Measured on the last 4 evaluation weeks ({imp[0]["units"]:,} units, {imp[0]["positives"]:,} failing tests), at TD\'s 25% file cut. A signal that is non-zero on few rows (edited, mentioned, public bindings, previously failed) cannot show its value here.</p></div></div>'
-        '<h2>The risk model and cutoff</h2><div class="grid2"><div>'
+        '<h2>The risk model and time budget</h2><div class="grid2"><div>'
         + divs["risk"]
         + f'<p class="muted">ROC AUC {rk["auc"]:.2f} (95% {rk["auc_lo"]:.2f}-{rk["auc_hi"]:.2f}), average precision {rk["average_precision"]:.3f} against a base rate of {pct(rk["base_rate"])} ({rk["positives"]} of {rk["units"]:,} landed changes broke main).</p>'
         "<details><summary>Flagging the riskiest changes</summary>"
         + table(["Flagged", "Precision", "Recall"], flag)
         + "</details></div><div>"
         + divs["budget"]
-        + f'<p class="muted">Mean cutoff it picks, by population: {esc(by_kind)}. It is fit on landed changes; PR jobs lack line counts and get the median, so they sit higher, and the evaluation rescales each population\'s cutoffs to the target mean.</p></div></div>'
+        + f"<p class=\"muted\">Each change's test-time budget is multiplied by the risk model's cutoff for it (15-35%, mean 20%) over its population's mean cutoff: {min(mult):.2f}x to {max(mult):.2f}x on landed changes, 1x on average on landed changes and on PR jobs alike. The model is fit on landed changes; PR jobs lack line counts and get the median, so without that rescaling they would all sit higher.</p></div></div>"
     )
