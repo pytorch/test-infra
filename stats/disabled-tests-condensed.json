@@ -1053,6 +1053,13 @@
       "xpu"
     ]
   ],
+  "test_multiheadattention_fastpath_fp16_head_dim_alignment_xpu (__main__.TestTransformersAcceleratorXPU)": [
+    "203928",
+    "https://github.com/pytorch/pytorch/issues/203928",
+    [
+      "xpu"
+    ]
+  ],
   "test_multiple_module (__main__.TestInvokeSubgraphExportStrict)": [
     "150877",
     "https://github.com/pytorch/pytorch/issues/150877",
