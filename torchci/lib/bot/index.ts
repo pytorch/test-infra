@@ -1,3 +1,4 @@
+import approvalClearsReview from "lib/prReview/approvalClearsReview";
 import { Probot } from "probot";
 import actionableIssueBot from "./actionableIssueBot";
 import autoCcBot from "./autoCcBot";
@@ -19,6 +20,7 @@ import webhookToDynamo from "./webhookToDynamo";
 
 export default function bot(app: Probot) {
   actionableIssueBot(app);
+  approvalClearsReview(app);
   autoCcBot(app);
   autoLabelCodevTrunk(app);
   autoLabelBot(app);
