@@ -7,7 +7,9 @@ from utils.jwt_helper import (
     BUILDKITE_ISSUER,
     BUILDKITE_REPO_MAP,
     GITHUB_ISSUER,
+    LATE_REPORT_DELEGATES,
     load_ci_provider_mappings,
+    resolve_reporting_repo,
     verify_oidc_token,
 )
 from utils.misc import HTTPException
@@ -440,6 +442,109 @@ class TestTrustAnchorsCompiledIn(unittest.TestCase):
         }
         load_ci_provider_mappings(raw)
         self.assertNotIn(fake_issuer, _jwks_clients)
+
+
+TRIAGE_WORKFLOW = (
+    "pytorch/test-infra/.github/workflows/vllm-torch-nightly-triage.yml@refs/heads/main"
+)
+
+
+def _delegate(**overrides):
+    entry = {
+        "repository": "pytorch/test-infra",
+        "job_workflow_ref": TRIAGE_WORKFLOW,
+        "on_behalf_of": "vllm-project/vllm",
+    }
+    entry.update(overrides)
+    return entry
+
+
+def _load_delegates(*entries):
+    load_ci_provider_mappings(
+        {"providers": {"github": {"late_report_delegates": list(entries)}}}
+    )
+
+
+class TestLateReportDelegates(unittest.TestCase):
+    def setUp(self):
+        self.addCleanup(LATE_REPORT_DELEGATES.clear)
+        _load_delegates(_delegate())
+
+    def _claims(self, **overrides):
+        return _fake_github_claims(
+            **{
+                "repository": "pytorch/test-infra",
+                "job_workflow_ref": TRIAGE_WORKFLOW,
+                **overrides,
+            }
+        )
+
+    def test_late_report_from_the_delegate_reports_for_the_other_repo(self):
+        self.assertEqual(
+            resolve_reporting_repo(self._claims(), "late-report"), "vllm-project/vllm"
+        )
+
+    def test_other_events_from_the_delegate_stay_its_own(self):
+        for event in ("", "nightly", "periodic", "workflow_run"):
+            with self.subTest(event):
+                self.assertEqual(
+                    resolve_reporting_repo(self._claims(), event), "pytorch/test-infra"
+                )
+
+    def test_another_workflow_of_the_same_repo_is_not_a_delegate(self):
+        claims = self._claims(
+            job_workflow_ref="pytorch/test-infra/.github/workflows/other.yml"
+            "@refs/heads/main"
+        )
+        self.assertEqual(
+            resolve_reporting_repo(claims, "late-report"), "pytorch/test-infra"
+        )
+
+    def test_the_workflow_on_another_ref_is_not_a_delegate(self):
+        for ref in ("refs/heads/my-branch", "refs/pull/1/merge", "refs/tags/v1"):
+            with self.subTest(ref):
+                claims = self._claims(
+                    job_workflow_ref=TRIAGE_WORKFLOW.replace("refs/heads/main", ref)
+                )
+                self.assertEqual(
+                    resolve_reporting_repo(claims, "late-report"),
+                    "pytorch/test-infra",
+                )
+
+    def test_a_fork_with_the_same_workflow_is_not_a_delegate(self):
+        claims = self._claims()
+        claims["repository"] = "someone/test-infra"
+        self.assertEqual(
+            resolve_reporting_repo(claims, "late-report"), "someone/test-infra"
+        )
+
+    def test_a_token_without_job_workflow_ref_is_not_a_delegate(self):
+        # Buildkite tokens have no job_workflow_ref.
+        claims = {"repository": "pytorch/test-infra"}
+        self.assertEqual(
+            resolve_reporting_repo(claims, "late-report"), "pytorch/test-infra"
+        )
+
+    def test_nobody_is_a_delegate_without_config(self):
+        LATE_REPORT_DELEGATES.clear()
+        self.assertEqual(
+            resolve_reporting_repo(self._claims(), "late-report"), "pytorch/test-infra"
+        )
+
+    def test_reloading_the_config_replaces_the_delegates(self):
+        load_ci_provider_mappings({})
+        self.assertEqual(LATE_REPORT_DELEGATES, [])
+
+    def test_incomplete_or_unpinned_entries_are_skipped(self):
+        _load_delegates(
+            _delegate(on_behalf_of=""),
+            _delegate(repository="test-infra"),
+            _delegate(on_behalf_of="vllm"),
+            # No ref: would trust every version of the workflow.
+            _delegate(job_workflow_ref="pytorch/test-infra/.github/workflows/x.yml"),
+            "not-a-map",
+        )
+        self.assertEqual(LATE_REPORT_DELEGATES, [])
 
 
 if __name__ == "__main__":
