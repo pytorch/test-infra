@@ -58,10 +58,15 @@ async function handle(context: Context<"pull_request_review.submitted">) {
     return;
   }
 
-  // Re-run first: once the requests are dismissed, a redelivery of this
-  // webhook finds nothing to act on.
+  // A failed re-run still dismisses: the approval alone unblocks the PR.
   if (approval) {
-    await reReviewIfStale(context, standing);
+    try {
+      await reReviewIfStale(context, standing);
+    } catch (error) {
+      context.log.error(
+        `Could not re-run the automated review of ${owner}/${repo}#${pr.number}: ${error}`
+      );
+    }
   }
   for (const r of standing) {
     await octokit.pulls.dismissReview({

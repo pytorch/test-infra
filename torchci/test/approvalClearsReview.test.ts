@@ -148,6 +148,22 @@ describe("approvalClearsReview", () => {
     handleScope(scopes);
   });
 
+  test("a failed re-run still dismisses", async () => {
+    const scopes = [
+      mockReviews([botRequest(10, OLD), humanApproval()]),
+      mockMergeRules(),
+      mockLive(),
+      nock("https://api.github.com")
+        .delete(`/repos/${REPO}/issues/${PR_NUMBER}/labels/in%20progress`)
+        .reply(200, [])
+        .post(`/repos/${REPO}/issues/${PR_NUMBER}/labels`)
+        .reply(500),
+      mockDismiss(10),
+    ];
+    await probot.receive(approvalEvent());
+    handleScope(scopes);
+  });
+
   test.each([
     [["in progress", "ready for review"], false],
     [["in progress", "no automated review"], false],
