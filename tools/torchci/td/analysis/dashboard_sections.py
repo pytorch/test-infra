@@ -28,7 +28,7 @@ def history(r: dict[str, Any]) -> str:
         for label, v in r["pr_off_by_recurrence"].items()
     ]
     return (
-        '<h2>By test history</h2><div class="grid2"><div><p class="muted">New failures on main, by the test\'s failure share on main in the 14 days before.</p>'
+        '<h2>By test history</h2><div class="grid2"><div><p class="muted">Every new failure on main since 2026-01-05, by the test\'s failure share on main in the 14 days before: the first row is the fresh failures charted above, the others are mostly flaky re-failures.</p>'
         + table(
             [
                 "Test's prior failure share",

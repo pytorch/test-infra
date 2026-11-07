@@ -1,6 +1,8 @@
 """The rating files TD reads: the versions that were live (Before), and the time-decayed /
 PMI ratings (test-infra#9325) rebuilt for a day from the history before it (After), with test-infra's own generator
-functions (time decay on failures, shrunk positive PMI on co-edits)."""
+functions (time decay on failures, shrunk positive PMI on co-edits). Before the first
+version kept on generated-stats, Before reads the files rebuilt with the generators'
+formulas from before test-infra#9325 (undecayed failure counts, raw co-edit counts)."""
 
 import json
 import subprocess
@@ -115,6 +117,35 @@ def rebuild_coedit(
         if day - COEDIT_DAYS * DAY <= ts < day:
             commit_files.append((files, [x[5:-3] for x in files if x[5:-3] in tests]))
     return positive_rounded(positive_pmi(commit_files))
+
+
+def rebuild_fail_old(
+    history: list[dict], merge_bases: Mapping[str, dict], day: int
+) -> Ratings:
+    """file_test_rating.json as the generator before test-infra#9325 wrote it on `day`:
+    the same failures of the 90 days before, undecayed."""
+    rows = [
+        r
+        for r in history
+        if day - FAIL_DAYS * DAY <= r["ts"] < day and r["head_sha"] in merge_bases
+    ]
+    kept = filter_tests(rows, merge_bases)
+    return calculate_generic_test_ratings(kept, merge_bases, lambda x: x["failure"])
+
+
+def rebuild_coedit_old(
+    commits: list[tuple[int, list[str]]], tests: set[str], day: int
+) -> Ratings:
+    """td_heuristic_historical_edited_files.json as the generator before test-infra#9325
+    wrote it on `day`: for every test file a main commit of the year before edits, each
+    file of that commit adds 1 / (files in the commit)."""
+    out: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    for ts, files in commits:
+        if day - COEDIT_DAYS * DAY <= ts < day:
+            for t in [x[5:-3] for x in files if x[5:-3] in tests]:
+                for f in files:
+                    out[f][t] += 1 / len(files)
+    return out
 
 
 def main_commit_files(repo: Path, since: str) -> list[tuple[int, list[str]]]:

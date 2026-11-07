@@ -19,7 +19,7 @@ from typing import Any
 import numpy as np
 from torchci.td.analysis import breakdowns, config, model_checks
 from torchci.td.analysis.labels import unix
-from torchci.td.analysis.landed import gold_events, silver_events, Views
+from torchci.td.analysis.landed import gold_events, Views
 from torchci.td.analysis.schema import (
     load,
     RESULTS_FILE,
@@ -40,6 +40,8 @@ from torchci.td.analysis.selection import (
 
 logger = logging.getLogger(__name__)
 
+DAY = 86400
+
 PAIRS = [("before@25", p) for p in ("adaptive_time@td25", "adaptive_time@td20")]
 
 
@@ -51,7 +53,13 @@ def run(cache: Path) -> None:
     )
     rows = load(cache, "features", "rows")
     preds, risk = load(cache, "train", "preds"), load(cache, "train", "risk")
-    preds = preds[preds["week"] >= unix(str(config.EVAL_START))]
+    kind = preds["unit_id"].map(units_df.set_index("unit_id")["kind"])
+    first_week = np.where(
+        kind == "main",
+        unix(str(config.SILVER_EVAL_START)),
+        unix(str(config.EVAL_START)),
+    )
+    preds = preds[preds["week"] >= first_week]
     ev = units_df[units_df["unit_id"].isin(set(preds["unit_id"]))].set_index("unit_id")
     rows = rows[rows["unit_id"].isin(ev.index)].merge(
         preds[["unit_id", "test", "p"]], on=["unit_id", "test"], how="left"
@@ -66,15 +74,18 @@ def run(cache: Path) -> None:
             dict(zip(g["test"], g["p"].fillna(0.0))),
             unit_seconds(tests, dict(zip(g["test"], g["test_seconds"]))),
         )
-    main_ids = sorted(
+    silver_ids = sorted(
         u for u in units if ev.loc[u, "kind"] == "main" and ev.loc[u, "single"]
     )
+    main_ids = [
+        u for u in silver_ids if ev.loc[u, "time"] >= unix(str(config.EVAL_START))
+    ]
     scales = time_scales(risk, ev, units)
     for uid, u in units.items():
         u.add_adaptive(scales[uid])
     views = Views(load(cache, "rankings", "main_ranks"), units)
     results = build_results(
-        units, views, ev, gold, silver, rows, risk, units_df, main_ids
+        units, views, ev, gold, silver, rows, risk, units_df, main_ids, silver_ids
     )
     logger.info(
         "units evaluated: %d, config views of landed changes: %d",
@@ -94,24 +105,46 @@ def run(cache: Path) -> None:
 def time_scales(risk, ev, units) -> dict[str, float]:
     """Each unit's multiplier on its test-time budget: the risk model's cutoff for the
     first target mean over the mean cutoff of the unit's population (landed changes, PR
-    jobs), so each population's multipliers average 1. The model is fit on landed
-    changes, and PR jobs, which lack line counts, would otherwise all sit higher.
-    Label-free: only the cutoffs' means are used."""
-    r = risk.set_index("unit_id").reindex(list(units))
-    kind = ev.loc[list(units), "kind"].replace({"pr_on": "pr", "pr_off": "pr"})
+    jobs) in its week, so each population's multipliers average 1 every week and After
+    spends TD's test time on average. The model is fit on landed changes, and PR jobs,
+    which lack line counts, would otherwise all sit higher; its scores drift between
+    months, which a weekly mean absorbs. Label-free: only the cutoffs' means are used."""
+    ids = list(units)
+    r = risk.set_index("unit_id").reindex(ids)
+    kind = ev.loc[ids, "kind"].replace({"pr_on": "pr", "pr_off": "pr"})
+    week = ev.loc[ids, "time"] // (7 * DAY)
     t = config.BUDGET_TARGETS[0]
     col = r[f"budget_{t}"].fillna(t)
-    return dict(zip(units, (col / col.groupby(kind).transform("mean")).to_numpy()))
+    mean = col.groupby([kind.to_numpy(), week.to_numpy()]).transform("mean")
+    return dict(zip(ids, (col / mean).to_numpy()))
 
 
 def build_results(
-    units, views, ev, gold, silver, rows, risk, units_df, main_ids
+    units, views, ev, gold, silver, rows, risk, units_df, main_ids, silver_ids
 ) -> dict[str, Any]:
+    """main_ids: the landed changes of the evaluation weeks the PR and gold populations
+    use; silver_ids: those of the longer window of new failures on main, cut over each
+    change's full test list (TD's per-config lists are only logged from August 2026)."""
     g_events, g_outcomes, g_dropped, fg_window = gold_events(views, ev, gold)
     silver_pos = {
-        u: list(ev.loc[u, "positives"]) for u in main_ids if len(ev.loc[u, "positives"])
+        u: list(ev.loc[u, "positives"])
+        for u in silver_ids
+        if len(ev.loc[u, "positives"])
     }
-    s_events, silver_view = silver_events(views, ev, silver_pos)
+    silver_view = {u: ([u], {u: f}) for u, f in silver_pos.items()}
+    s_events = list(silver_view.values())
+    # New failures of tests that already failed on main in the 14 days before are mostly
+    # flaky re-failures, which dominate some months; the fresh ones are likelier
+    # regressions.
+    fresh = set(
+        silver.loc[silver["fail_share"] == 0, ["sha", "file"]].itertuples(index=False)
+    )
+    fresh_pos = {
+        u: kept
+        for u, fs in silver_pos.items()
+        if (kept := [f for f in fs if (ev.loc[u, "sha"], f) in fresh])
+    }
+    main_pos = {u: silver_pos[u] for u in main_ids if u in silver_pos}
     off_pos = {
         u: list(ev.loc[u, "positives"])
         for u in units
@@ -121,6 +154,7 @@ def build_results(
     pops = {
         "gold": g_events,
         "silver": s_events,
+        "silver_fresh": [([u], {u: f}) for u, f in fresh_pos.items()],
         "pr_off": [([u], {u: f}) for u, f in off_pos.items()],
     }
     rec = {name: recall(combined, evs) for name, evs in pops.items()}
@@ -145,7 +179,7 @@ def build_results(
         hours = (
             sum(units[u].seconds[t] for u in main_ids for t in units[u].sel[p]) / 3600
         )
-        caught = sum(len(set(f) & units[u].sel[p]) for u, f in silver_pos.items())
+        caught = sum(len(set(f) & units[u].sel[p]) for u, f in main_pos.items())
         out["precision"][p] = {
             "caught": caught,
             "selected": selected,
@@ -176,19 +210,20 @@ def build_results(
     }
     out["risk"] = model_checks.risk_summary(risk[risk["unit_id"].isin(units)], units_df)
     out["fidelity"] = model_checks.fidelity(rows, ev)
+    out["rebuild_check"] = model_checks.rebuild_check(rows, ev, silver_pos)
     out["meta"] = {
         "units": {
             k: int(v) for k, v in ev.loc[list(units), "kind"].value_counts().items()
         },
         "pr_off_prs": len({int(ev.loc[u, "pr_number"]) for u in off_pos}),
         "gold_without_config_lists": g_dropped,
-        "silver_with_config_lists": len(s_events),
         "silver_units": len(silver_pos),
+        "silver_eval_start": str(config.SILVER_EVAL_START.date()),
         "gold_events": len(g_events),
         "eval_start": str(config.EVAL_START.date()),
         "file_overhead_seconds": config.FILE_OVERHEAD_SECONDS,
         "window": [
-            str(config.WINDOW_START.date()),
+            str(config.MAIN_START.date()),
             str((config.WINDOW_STOP - timedelta(days=1)).date()),
         ],
     }

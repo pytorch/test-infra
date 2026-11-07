@@ -180,18 +180,25 @@ class TestAfter(unittest.TestCase):
             got, td_time + max(u.seconds.values()) / sum(u.seconds.values())
         )
 
-    def test_time_scales_average_one_per_population(self) -> None:
-        from torchci.td.analysis.evaluate import time_scales
+    def test_time_scales_average_one_per_population_and_week(self) -> None:
+        from torchci.td.analysis.evaluate import DAY, time_scales
 
-        ids = ["m1", "m2", "p1", "p2", "p3"]
+        ids = ["m1", "m2", "p1", "p2", "p3", "m3", "m4"]
         t = config.BUDGET_TARGETS[0]
-        risk = pd.DataFrame({"unit_id": ids[:4], f"budget_{t}": [15, 35, 20, 30]})
+        risk = pd.DataFrame(
+            {"unit_id": ids[:4] + ids[5:], f"budget_{t}": [15, 35, 20, 30, 15, 17]}
+        )
         ev = pd.DataFrame(
-            {"kind": ["main", "main", "pr_off", "pr_on", "pr_off"]}, index=ids
+            {
+                "kind": ["main", "main", "pr_off", "pr_on", "pr_off", "main", "main"],
+                "time": [0, DAY, 0, DAY, 2 * DAY, 8 * DAY, 9 * DAY],
+            },
+            index=ids,
         )
         got = time_scales(risk, ev, dict.fromkeys(ids))
         self.assertAlmostEqual((got["m1"] + got["m2"]) / 2, 1.0)
         self.assertAlmostEqual((got["p1"] + got["p2"] + got["p3"]) / 3, 1.0)
+        self.assertAlmostEqual((got["m3"] + got["m4"]) / 2, 1.0)
         self.assertGreater(got["m2"], got["m1"])
 
     def test_names(self) -> None:
@@ -205,6 +212,43 @@ class TestAfter(unittest.TestCase):
         self.assertEqual(
             name("adaptive_time@td25"), "After with a time budget, TD's test time today"
         )
+
+
+class TestOldRatings(unittest.TestCase):
+    def test_coedit_counts_each_commit_by_its_size(self) -> None:
+        from torchci.td.analysis.ratings import DAY, rebuild_coedit_old
+
+        day = 400 * DAY
+        commits = [
+            (day - DAY, ["a.py", "test/test_x.py"]),
+            (day - 2 * DAY, ["a.py", "b.py", "test/test_x.py", "test/test_y.py"]),
+            (day - 400 * DAY, ["a.py", "test/test_x.py"]),
+            (day + DAY, ["a.py", "test/test_x.py"]),
+        ]
+        got = rebuild_coedit_old(commits, {"test_x", "test_y"}, day)
+        self.assertAlmostEqual(got["a.py"]["test_x"], 1 / 2 + 1 / 4)
+        self.assertAlmostEqual(got["b.py"]["test_y"], 1 / 4)
+        self.assertNotIn("c.py", got)
+
+    def test_fail_counts_each_breaking_commit_once_undecayed(self) -> None:
+        from torchci.td.analysis.ratings import DAY, rebuild_fail_old
+
+        day = 200 * DAY
+        merge_bases = {
+            "s1": {"merge_base": "m", "changed_files": ["a.py", "b.py"]},
+            "s2": {"merge_base": "m", "changed_files": ["a.py"]},
+            "m": {"merge_base": "m0", "changed_files": []},
+        }
+        history = [
+            {"head_sha": "s1", "failure": "test_x", "ts": day - 80 * DAY},
+            {"head_sha": "s1", "failure": "test_x", "ts": day - 79 * DAY},
+            {"head_sha": "s2", "failure": "test_x", "ts": day - DAY},
+            {"head_sha": "s2", "failure": "test_y", "ts": day - 100 * DAY},
+        ]
+        got = rebuild_fail_old(history, merge_bases, day)
+        self.assertAlmostEqual(got["a.py"]["test_x"], 1 / 2 + 1)
+        self.assertAlmostEqual(got["b.py"]["test_x"], 1 / 2)
+        self.assertNotIn("test_y", got["a.py"])
 
 
 class TestBreakdowns(unittest.TestCase):

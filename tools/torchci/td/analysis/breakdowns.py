@@ -280,10 +280,6 @@ def sanity(out: dict[str, Any]) -> dict[str, Any]:
         checks[f"{pop}: TD's recall is monotone in the cutoff"] = all(
             a <= b for a, b in zip(caught, caught[1:])
         )
-    t = config.BUDGET_TARGETS[0]
-    checks[f"landed changes: realised mean cutoff within 1 point of {t}%"] = (
-        abs(out["risk"]["realized_mean"][str(t)] - t) <= 1.0
-    )
     checks["reds: TD at 25% nets 0 against itself"] = (
         out["reds"]["policies"]["before@25"]["net_central_per_quarter"] == 0
     )

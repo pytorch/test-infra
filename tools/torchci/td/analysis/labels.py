@@ -134,7 +134,7 @@ def run(cache: Path) -> None:
     pr_ran, universe = load(cache, "fetch", "pr_ran"), load(cache, "fetch", "universe")
     cands = candidates_by_month(universe, pr_fail)
     w0, w1 = (
-        int(config.WINDOW_START.replace(tzinfo=timezone.utc).timestamp()),
+        int(config.MAIN_START.replace(tzinfo=timezone.utc).timestamp()),
         int(config.WINDOW_STOP.replace(tzinfo=timezone.utc).timestamp()),
     )
 

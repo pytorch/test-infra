@@ -28,8 +28,13 @@ expects td/llm's model, embedding cache and PR diffs at `<cache dir>/../llm_cach
 
 ## What it measures
 
-- Populations: reverted trunk breakages (`td_trunk_breakages`), new failures on main,
-  and PR-specific failures on TD-off (macOS) jobs.
+- Populations: reverted trunk breakages (`td_trunk_breakages`) and PR-specific failures
+  on TD-off (macOS) jobs, evaluated from 2026-08-17 (TD's logged rankings, which both
+  need, start 2026-08-06); and new failures on main, evaluated from 2026-01-05 on landed
+  changes since 2025-11-10, cut over each change's full test list. Before July 2026,
+  generated-stats kept no rating files, so TD's replay there reads failure and co-edit
+  ratings rebuilt with the generators' formulas of the time; results.json reports how
+  closely that rebuild follows the live files where both exist.
 - Policies: TD's cut at k% of test files; and the after system with a test-time budget
   (ranking by expected failures per second, the budget scaled per change by the risk
   model, with an exploration slice), at k% of test time on average and at the test time

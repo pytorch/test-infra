@@ -1,5 +1,5 @@
-"""The rankings step: TD's logged test lists for the main pushes of the landed changes
-the evaluation scores."""
+"""The rankings step: TD's logged test lists for the main pushes of the reverted
+breakages the evaluation scores."""
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,16 +11,13 @@ from torchci.td.llm import events
 
 
 def run(cache: Path) -> None:
-    """For every landed change with a new failure (silver) or a reverted breakage (gold),
-    the test lists of the configs that failed at its main push, from TD's logged main-push
-    rows (the HUD Target Determinator page's shadow recall reads the same rows). The
-    evaluation cuts each config's own list, as TD does per job."""
-    silver, gold_df = load(cache, "labels", "silver"), load(cache, "labels", "gold")
+    """For every reverted breakage (gold), the test lists of the configs that failed at
+    its main push, from TD's logged main-push rows (the HUD Target Determinator page's
+    shadow recall reads the same rows). The evaluation cuts each config's own list, as TD
+    does per job."""
+    gold_df = load(cache, "labels", "gold")
     files: dict[str, set[str]] = {}
     when: dict[str, int] = {}
-    for r in silver.itertuples():
-        files.setdefault(r.push_sha, set()).add(r.file)
-        when[r.push_sha] = int(r.pushed_at)
     for r in gold_df.itertuples():
         files.setdefault(r.landing_sha, set()).update(r.test_files)
         when[r.landing_sha] = unix(r.landed_at)

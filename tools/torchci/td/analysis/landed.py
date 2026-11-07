@@ -1,10 +1,8 @@
 """Landed changes over the configs that failed at their main push: each change's scores
 cut over that config's own test list, as TD cuts each job (the shadow recall on HUD's
-Target Determinator page reads the same lists), for the reverted breakages (gold) and the
-new failures on main (silver)."""
+Target Determinator page reads the same lists), for the reverted breakages (gold)."""
 
 from statistics import median
-from typing import Any
 
 import pandas as pd
 from torchci.td.analysis import config
@@ -92,14 +90,3 @@ def gold_events(
         len(g) - len(kept),
         int((g["outcome"] == "false_green").sum()),
     )
-
-
-def silver_events(
-    views: Views, ev: pd.DataFrame, silver_pos: dict[str, list[str]]
-) -> tuple[list, dict[str, Any]]:
-    """Recall events of the new failures on main, and each change's event by unit id."""
-    ids = list(silver_pos)
-    events, kept = views.events(
-        [([u], ev.loc[u, "sha"], set(silver_pos[u])) for u in ids]
-    )
-    return events, {ids[i]: e for i, e in zip(kept, events)}

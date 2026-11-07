@@ -15,11 +15,16 @@ from torchci.td.llm.replay import CUT_PERCENT  # noqa: F401
 
 WINDOW_START = datetime(2026, 7, 15)
 WINDOW_STOP = datetime(2026, 11, 7)
-# Failure history read before the window, for the ratings a day early in the window
-# would have been generated from (the generators read 90 days).
-HISTORY_START = datetime(2026, 4, 16)
+# Landed changes and new failures on main go back further than the PR and gold windows:
+# their data (pushes, jobs, failed tests) is kept for over a year.
+MAIN_START = datetime(2025, 11, 10)
+# Failure history read before the main window, for the ratings a day early in it would
+# have been generated from (the generators read 90 days).
+HISTORY_START = datetime(2025, 8, 12)
 # First Monday that gets out-of-sample predictions; every later week up to the stop too.
 EVAL_START = datetime(2026, 8, 17)
+# New failures on main are evaluated from this Monday, after 8 weeks of training data.
+SILVER_EVAL_START = datetime(2026, 1, 5)
 # Before this day pytorch's tests.all_test_runs_by_name cannot tell a new test from a
 # TD skip, so gold false greens before it are an upper bound.
 GOLD_EXACT_FROM = datetime(2026, 9, 12)

@@ -47,7 +47,7 @@ def author_key(login: str, salt: str) -> str:
 
 def universe(repo: Path, cache: Path) -> pd.DataFrame:
     rows = []
-    month = config.WINDOW_START.replace(day=1)
+    month = config.MAIN_START.replace(day=1)
     while month < config.WINDOW_STOP:
         snap = pytorch_repo.snapshot(repo, cache / "corpus", month.strftime("%Y-%m"))
         rows.append(
@@ -101,7 +101,7 @@ def pushes() -> pd.DataFrame:
         "pushes",
         queries.MAIN_PUSHES,
         {
-            "start": day(config.WINDOW_START - timedelta(days=21)),
+            "start": day(config.MAIN_START - timedelta(days=21)),
             "stop": day(config.WINDOW_STOP),
         },
     )
@@ -353,4 +353,5 @@ def run(cache: Path, repo: Path, salt: str) -> None:
         "fetch",
         tables,
         window=[day(config.WINDOW_START), day(config.WINDOW_STOP)],
+        main_window=[day(config.MAIN_START), day(config.WINDOW_STOP)],
     )

@@ -79,7 +79,7 @@ def time_for_recall(rec: dict[str, Any], target: float) -> tuple[Optional[float]
 
 def headline(r: dict[str, Any]) -> list[str]:
     cards = []
-    for pop in ("gold", "pr_off", "silver"):
+    for pop in ("gold", "pr_off", "silver_fresh"):
         rec = r["recall"][pop]
         b, a = rec[TD], rec[FULL]
         cards.append(
@@ -148,6 +148,7 @@ def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
             f"{x['p']:.3f}",
         ]
         for p, xs in r["paired"].items()
+        if p in POP_NAMES
         for x in xs
     ]
     s.append(
@@ -199,7 +200,7 @@ def page(r: dict[str, Any], divs: dict[str, str], stamp: str) -> str:
     meta = r["meta"]
     head = (
         f'<h1>Target determination: TD today vs after the TD project</h1><div class="muted">Data {esc(meta["window"][0])} to {esc(meta["window"][1])}; '
-        f"After evaluated from {esc(meta['eval_start'])}. Generated {esc(stamp)}.</div>"
+        f"After evaluated from {esc(meta['eval_start'])} (new failures on main from {esc(meta['silver_eval_start'])}). Generated {esc(stamp)}.</div>"
     )
     return (
         f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>TD before and after</title>'

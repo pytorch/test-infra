@@ -31,8 +31,11 @@ logger = logging.getLogger(__name__)
 DAY = 86400
 # Calibration slices tried in turn, until one holds MIN_POSITIVES main positives.
 CALIB_DAYS = (28, 42, 56)
-# The first week the ensemble predicts (as risk-model features only before EVAL_START).
-PRED_START = config.EVAL_START - timedelta(days=14)
+# The first evaluated week (new failures on main start before the other populations),
+# and the first week the ensemble predicts: the 4 weeks before give the risk model its
+# first training features.
+FIRST_EVAL = min(config.EVAL_START, config.SILVER_EVAL_START)
+PRED_START = FIRST_EVAL - timedelta(days=28)
 NEG_KEEP = 0.2
 MIN_POSITIVES = 10
 IMPORTANCE_WEEKS = 4
@@ -263,8 +266,8 @@ def run(cache: Path) -> None:
         | ((units["kind"] == "pr_off") & units["observed"].notna())
     )
     rows["is_pr"] = rows["unit_id"].str.startswith("p:").astype(np.int8)
-    # Weeks before EVAL_START get predictions too, only as the risk model's training
-    # features; every reported figure uses weeks from EVAL_START.
+    # Weeks before FIRST_EVAL get predictions too, only as the risk model's training
+    # features; every reported figure uses weeks from FIRST_EVAL or later.
     preds = pd.concat(
         [ensemble_week(rows, units, w) for w in weeks(PRED_START)], ignore_index=True
     )
@@ -274,7 +277,9 @@ def run(cache: Path) -> None:
     # The risk model's ensemble features for training changes come from the ensemble
     # trained before each change's own week, so they are out-of-time too.
     table = risk_table(units, stats, preds, rows, authors)
-    risk = pd.concat([risk_week(table, w) for w in weeks()], ignore_index=True)
+    risk = pd.concat(
+        [risk_week(table, w) for w in weeks(FIRST_EVAL)], ignore_index=True
+    )
     imp = importance(rows, units)
     save(cache, "train", "preds", preds)
     save(cache, "train", "risk", risk)

@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from torchci.td.analysis import config, policies
+from torchci.td.analysis import config, labels, policies
 from torchci.td.analysis.breakdowns import BOOTSTRAP, SEED
 
 
@@ -107,4 +107,33 @@ def fidelity(rows: pd.DataFrame, ev: pd.DataFrame) -> dict[str, Any]:
         "failures": total,
         "same_side_of_cut": same,
         "share": same / total if total else None,
+    }
+
+
+def rebuild_check(
+    rows: pd.DataFrame, ev: pd.DataFrame, silver_pos: dict[str, list[str]]
+) -> dict[str, Any]:
+    """How closely TD's replay on the ratings rebuilt with the pre-test-infra#9325
+    formulas (Before's ratings where generated-stats kept no version) follows the replay
+    on the versions that were live, on the new failures on main since WINDOW_START, where
+    both exist: failures on the same side of the 25% cut, and TD's recall each way."""
+    w0 = labels.unix(str(config.WINDOW_START))
+    ids = {u for u in silver_pos if ev.loc[u, "time"] >= w0}
+    same = total = live_hits = rebuilt_hits = 0
+    for uid, g in rows[rows["unit_id"].isin(ids)].groupby("unit_id"):
+        tests = list(g["test"])
+        live = policies.top_k(dict(zip(tests, g["before_replay"])), tests, 25)
+        rebuilt = policies.top_k(dict(zip(tests, g["before_rebuilt"])), tests, 25)
+        files = silver_pos[uid]
+        same += sum((f in live) == (f in rebuilt) for f in files)
+        total += len(files)
+        live_hits += any(f in live for f in files)
+        rebuilt_hits += any(f in rebuilt for f in files)
+    n = len(ids)
+    return {
+        "units": n,
+        "failures": total,
+        "same_side_share": same / total if total else None,
+        "td_recall_live": live_hits / n if n else None,
+        "td_recall_rebuilt": rebuilt_hits / n if n else None,
     }

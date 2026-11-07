@@ -17,21 +17,28 @@ ORDER BY pushed_at
 {QUERY_SETTINGS}
 """
 
-# pull/trunk test jobs at main pushes; the shard is the second field of the parenthesis
-# in "<env> / test (<config>, <shard>, <shards>, <runner>)".
+# pull/trunk test jobs at main pushes, named "<env> / <kind> (<config>, <shard>, <shards>,
+# <runner>)"; the kind was "test-osdc" for many jobs from April to July 2026, and dynamo
+# configs run as "dynamo-test" since July 2026.
+TEST_JOB = "(?:test|test-osdc|dynamo-test)"
 MAIN_JOBS = f"""
-SELECT head_sha AS push_sha, workflow_name AS workflow,
-    trimBoth(splitByString(' / test (', name)[1]) AS build_environment,
-    trimBoth(splitByChar(',', splitByString(' / test (', name)[2])[1]) AS test_config,
-    toInt32OrZero(trimBoth(splitByChar(',', splitByString(' / test (', name)[2])[2])) AS shard,
-    toInt32OrZero(trimBoth(splitByChar(',', splitByString(' / test (', name)[2])[3])) AS shards,
-    conclusion, toUnixTimestamp(completed_at) AS completed_at, id AS job_id
-FROM default.workflow_job FINAL
-WHERE id IN (
-    SELECT id FROM materialized_views.workflow_job_by_head_sha
-    WHERE head_sha IN {{shas: Array(String)}}
-) AND workflow_name IN ('pull', 'trunk') AND head_branch = 'main'
-    AND name LIKE '% / test (%'
+SELECT push_sha, workflow, build_environment,
+    trimBoth(splitByChar(',', inner)[1]) AS test_config,
+    toInt32OrZero(trimBoth(splitByChar(',', inner)[2])) AS shard,
+    toInt32OrZero(trimBoth(splitByChar(',', inner)[3])) AS shards,
+    conclusion, completed_at, job_id
+FROM (
+    SELECT head_sha AS push_sha, workflow_name AS workflow,
+        extract(name, '^(.*) / {TEST_JOB} \\\\(') AS build_environment,
+        extract(name, ' / {TEST_JOB} \\\\((.*)\\\\)$') AS inner,
+        conclusion, toUnixTimestamp(completed_at) AS completed_at, id AS job_id
+    FROM default.workflow_job FINAL
+    WHERE id IN (
+        SELECT id FROM materialized_views.workflow_job_by_head_sha
+        WHERE head_sha IN {{shas: Array(String)}}
+    ) AND workflow_name IN ('pull', 'trunk') AND head_branch = 'main'
+        AND match(name, ' / {TEST_JOB} \\\\(')
+)
 {QUERY_SETTINGS}
 """
 

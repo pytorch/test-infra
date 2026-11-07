@@ -2,15 +2,18 @@
 (Before), and the After system's signals; plus one row of PR stats per unit.
 
 Every signal for a unit uses only data from before the unit's time: rating versions
-live then (Before), ratings rebuilt for the unit's day from history before that day
-(After), failures of the same PR before it, main failures by job completion time.
+live then (Before; before generated-stats kept any, the pre-test-infra#9325 formulas
+rebuilt for the unit's day, also recorded for every landed change as before_rebuilt to
+check them against the live versions), ratings rebuilt for the unit's day from history
+before that day (After), failures of the same PR before it, main failures by job
+completion time.
 """
 
 import json
 import logging
 import multiprocessing as mp
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -93,22 +96,33 @@ def version(kind: str, sha: str) -> Any:
     return CTX["versions"][kind].load(sha)
 
 
-def unit_rows(u: dict[str, Any], fail_new: Any, coedit_new: Any) -> pd.DataFrame:
+def unit_rows(
+    u: dict[str, Any], fail_new: Any, coedit_new: Any, rebuilt: tuple[Any, Any]
+) -> pd.DataFrame:
+    """One unit's rows. `rebuilt`: the day's failure and co-edit ratings rebuilt with
+    the generators' formulas from before test-infra#9325, Before's ratings where no live
+    version was kept."""
     snap, tests, changed, t = CTX["snapshot"], u["candidates"], u["changed"], u["time"]
     v = CTX["versions"]
-    fail_old, coedit_old = (
-        version("fail", v["fail"].live(t)),
-        version("coedit", v["coedit"].live(t)),
-    )
-    before = heuristics.td_sum(
-        snap,
-        changed,
-        tests,
-        fail_old,
-        coedit_old,
-        CTX["profiling"],
-        u["mentioned"],
-        u["prev_failed"],
+
+    def td(fail: Any, coedit: Any) -> dict[str, float]:
+        return heuristics.td_sum(
+            snap,
+            changed,
+            tests,
+            fail,
+            coedit,
+            CTX["profiling"],
+            u["mentioned"],
+            u["prev_failed"],
+        )
+
+    live = t >= CTX["live_from"]
+    from_rebuilt = td(*rebuilt) if u["kind"] == "main" or not live else None
+    before = (
+        td(version("fail", v["fail"].live(t)), version("coedit", v["coedit"].live(t)))
+        if live
+        else from_rebuilt
     )
     f_raw, c_raw = sums(fail_new, changed, tests), sums(coedit_new, changed, tests)
     fp_raw = heuristics.filepath_raw(snap, changed, tests)
@@ -121,6 +135,9 @@ def unit_rows(u: dict[str, Any], fail_new: Any, coedit_new: Any) -> pd.DataFrame
     df["before_replay"] = df["test"].map(before)
     df["before_score"] = (
         df["test"].map(u["logged"]) if u["logged"] is not None else df["before_replay"]
+    )
+    df["before_rebuilt"] = (
+        df["test"].map(from_rebuilt) if u["kind"] == "main" else np.nan
     )
     for name, part in (("fail", f_raw), ("coedit", c_raw), ("filepath", fp_raw)):
         df[name] = df["test"].map(part).fillna(0.0)
@@ -155,7 +172,11 @@ def run_day(day: int) -> list[pd.DataFrame]:
     units = CTX["by_day"][day]
     fail_new = ratings.rebuild_fail(CTX["history"], CTX["merge_bases"], day)
     coedit_new = ratings.rebuild_coedit(CTX["commit_files"], CTX["all_tests"], day)
-    out = [unit_rows(u, fail_new, coedit_new) for u in units]
+    rebuilt = (
+        ratings.rebuild_fail_old(CTX["history"], CTX["merge_bases"], day),
+        ratings.rebuild_coedit_old(CTX["commit_files"], CTX["all_tests"], day),
+    )
+    out = [unit_rows(u, fail_new, coedit_new, rebuilt) for u in units]
     logger.info(
         "day %s: %d units", datetime.fromtimestamp(day, timezone.utc).date(), len(units)
     )
@@ -236,6 +257,7 @@ def run(cache: Path, repo: Path) -> None:
     gs = cache.parent / "gs" if (cache.parent / "gs").exists() else cache / "gs"
     CTX["snapshot"] = str(cache.parent / "pytorch-src")
     CTX["versions"] = {k: ratings.Versions(gs, k) for k in ("fail", "coedit")}
+    CTX["live_from"] = max(v.times[0] for v in CTX["versions"].values())
     prof = ratings.Versions(gs, "profiling")
     CTX["profiling"] = prof.load(prof.pairs[-1][1])
     times = ratings.Versions(gs, "times")
@@ -258,7 +280,12 @@ def run(cache: Path, repo: Path) -> None:
     }
     universe = load(cache, "fetch", "universe")
     CTX["all_tests"] = set().union(*map(set, universe["tests"]))
-    CTX["commit_files"] = ratings.main_commit_files(repo, "2025-07-01")
+    CTX["commit_files"] = ratings.main_commit_files(
+        repo,
+        (config.MAIN_START - timedelta(days=ratings.COEDIT_DAYS + 1))
+        .date()
+        .isoformat(),
+    )
     CTX["fail_share"] = labels.make_fail_share(
         load(cache, "fetch", "main_fail"), load(cache, "fetch", "pushes")
     )
