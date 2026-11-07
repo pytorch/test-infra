@@ -66,9 +66,9 @@ def main() -> None:
 
         fetch.run(cache, repo, salt(cache))
     elif args.step == "rankings":
-        from torchci.td.analysis import fetch
+        from torchci.td.analysis import rankings
 
-        fetch.main_rankings(cache)
+        rankings.run(cache)
     elif args.step == "labels":
         from torchci.td.analysis import labels
 

@@ -13,7 +13,7 @@ python -m venv venv && venv/bin/pip install -r tools/torchci/requirements.txt \
   -r tools/torchci/td/analysis/requirements.txt && venv/bin/pip install -e tools/torchci
 # The llm step needs td/llm's requirements (torch, sentence-transformers) in its own venv.
 export CLICKHOUSE_ENDPOINT=... CLICKHOUSE_USERNAME=... CLICKHOUSE_PASSWORD=...  # read-only
-for step in fetch labels llm features train evaluate report; do
+for step in fetch labels rankings llm features train evaluate report; do
   venv/bin/python -m torchci.td.analysis $step --cache <cache dir> --pytorch <pytorch clone>
 done
 ```

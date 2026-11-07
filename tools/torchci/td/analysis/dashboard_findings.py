@@ -3,11 +3,10 @@ page comes from the evaluation."""
 
 from typing import Any, Optional
 
-from torchci.td.analysis.dashboard import KS, pct
+from torchci.td.analysis.dashboard import CHEAP, FULL, KS, pct, PLANNED
 from torchci.td.analysis.dashboard_text import SIGNAL_NAMES
 
 
-FULL, CHEAP, PLANNED = "adaptive_time@td25", "cheap_time@td25", "adaptive@20"
 # A signal non-zero on fewer rows than this cannot show its value in the importance test.
 RARE = 0.01
 

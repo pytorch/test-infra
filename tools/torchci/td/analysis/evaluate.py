@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from torchci.td.analysis import breakdowns, config
+from torchci.td.analysis import breakdowns, config, model_checks
 from torchci.td.analysis.labels import unix
 from torchci.td.analysis.landed import gold_events, silver_events, Views
 from torchci.td.analysis.schema import (
@@ -192,11 +192,11 @@ def build_results(
         for pop, ids in (("main", main_ids), ("pr_off", pr_ids))
     }
     out["calibration"] = {
-        "main": breakdowns.calibration(rows[rows["unit_id"].isin(main_ids)]),
-        "pr_off": breakdowns.calibration(rows[rows["unit_id"].isin(pr_ids)]),
+        "main": model_checks.calibration(rows[rows["unit_id"].isin(main_ids)]),
+        "pr_off": model_checks.calibration(rows[rows["unit_id"].isin(pr_ids)]),
     }
-    out["risk"] = breakdowns.risk_summary(risk[risk["unit_id"].isin(units)], units_df)
-    out["fidelity"] = breakdowns.fidelity(rows, ev)
+    out["risk"] = model_checks.risk_summary(risk[risk["unit_id"].isin(units)], units_df)
+    out["fidelity"] = model_checks.fidelity(rows, ev)
     out["meta"] = {
         "units": {
             k: int(v) for k, v in ev.loc[list(units), "kind"].value_counts().items()
