@@ -14,6 +14,13 @@
       "macos"
     ]
   ],
+  "test__int8_mm_m_32_k_32_n_48_compile_True_slice_False_xpu (__main__.TestBasicGEMMXPU)": [
+    "203977",
+    "https://github.com/pytorch/pytorch/issues/203977",
+    [
+      "xpu"
+    ]
+  ],
   "test_adaptive_avg_pooling_backward_fails_xpu (__main__.TestPoolingNNDeviceXPU)": [
     "203839",
     "https://github.com/pytorch/pytorch/issues/203839",
