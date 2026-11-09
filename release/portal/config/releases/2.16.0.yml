@@ -1,0 +1,21 @@
+# Per-release file for PyTorch 2.16.0. The steps are the shared ones in ../steps.yml; add
+# `remove`, `override` or `add` here only when this release's process differs (see
+# release/portal/README.md).
+#
+# `type`, `branch`, the milestone, the tracker issue and the validation issue are not
+# written here: the first two follow from the version and the rest are found on GitHub
+# by the rules under `discovery` in steps.yml.
+#
+# `dates` are the PLANNED dates, from "Release 2.16.0 | Key Dates" on dev-discuss
+# (https://dev-discuss.pytorch.org/t/3472, updated Nov 6, 2026):
+#   M3 release branch cut, RC1             week of 30 Nov  -> branch_cut 2026-11-30
+#   M4 branch finalized, final RC produced week of 7 Dec   -> final_rc   2026-12-07
+#   M6 release day                         17 Dec          -> ga         2026-12-17
+# The announcement says release day moved from Dec 22 to Dec 17; the cadence table in
+# RELEASE.md still shows Dec 22. A week-long milestone is dated by its first day.
+release: "2.16.0"
+
+dates:
+  branch_cut: 2026-11-30
+  final_rc: 2026-12-07
+  ga: 2026-12-17

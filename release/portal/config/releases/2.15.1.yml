@@ -1,0 +1,15 @@
+# Per-release file for PyTorch 2.15.1, a patch release cut from release/2.15. The steps
+# are the shared ones in ../steps.yml; the branch-cut steps are left out because they are
+# marked `types: [minor]`. The milestone (#72) and, once it exists, the tracker issue are
+# found on GitHub by the rules under `discovery` in steps.yml.
+#
+# `dates` are PLANNED dates and none is published yet: the cadence table in RELEASE.md
+# says only "(Nov 2026)" for the first patch release, and the milestone has no due date.
+# Fill them in when the 2.15.1 schedule is announced on dev-discuss (as it was for
+# 2.14.1). A patch release has no branch cut, so `branch_cut` stays null.
+release: "2.15.1"
+
+dates:
+  branch_cut: null
+  final_rc: null
+  ga: null
