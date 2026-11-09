@@ -5,6 +5,7 @@ import {
   REFUSAL_TTL_MS,
   requireGithubWriteAccess,
 } from "lib/api/auth";
+import { isPublicApiPath } from "lib/api/public";
 import { ErrorResponseSchema } from "lib/api/schema";
 import * as githubAuth from "lib/auth/githubAuth";
 import { getServerSession } from "next-auth";
@@ -48,7 +49,7 @@ describe("the GitHub gate on app/api routes", () => {
 
   test("every route under app/api except the document refuses an anonymous request", async () => {
     const routes = routeFiles().filter(
-      ({ path }) => path !== "/api/openapi.json"
+      ({ path }) => path !== "/api/openapi.json" && !isPublicApiPath(path)
     );
     expect(routes.length).toBeGreaterThanOrEqual(6);
     for (const { file, path } of routes) {
@@ -71,6 +72,20 @@ describe("the GitHub gate on app/api routes", () => {
       });
     }
     expect(authorize).not.toHaveBeenCalled();
+  });
+
+  test("only the release portal's routes are exempt from the gate", () => {
+    expect(
+      routeFiles()
+        .filter(({ path }) => isPublicApiPath(path))
+        .map(({ path }) => path)
+        .sort()
+    ).toEqual([
+      "/api/releases",
+      "/api/releases/{version}",
+      "/api/releases/{version}/artifacts",
+      "/api/releases/{version}/config",
+    ]);
   });
 
   test("a bearer token is checked by the shared gate and admitted", async () => {

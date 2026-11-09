@@ -28,6 +28,7 @@ describe("the pages in /api/openapi.json", () => {
   test("are tagged pages, for people, with an HTML answer and no token of their own", () => {
     expect(document.tags.map((tag: any) => tag.name)).toEqual([
       "tests",
+      "releases",
       "pages",
     ]);
     for (const tag of document.tags) expect(tag.description).toBeTruthy();

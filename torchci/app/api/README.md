@@ -3,7 +3,8 @@
 `app/api/` holds the HUD API: endpoints built on `lib/api/` and described by
 the generated [OpenAPI document](https://hud.pytorch.org/api/openapi.json).
 Every route under `app/api/` except the document's own is in that document
-under the `tests` tag, and every path under that tag is a route here. The
+under the `tests` tag, or under the `releases` tag if it is public (see
+[Public routes](#public-routes)), and every path under those tags is a route here. The
 document's `pages` tag lists the HUD pages built on the API, which live under
 `pages/tests/` (see [HUD pages](#hud-pages)). The endpoints under `pages/api/`
 predate it: they are not in the OpenAPI document and follow none of the
@@ -26,7 +27,8 @@ rejected with 400, never misread.
 
 ## Authentication
 
-Every route under `app/api/` except the OpenAPI document is behind the shared
+Every route under `app/api/` except the OpenAPI document and the [public
+routes](#public-routes) is behind the shared
 HUD GitHub gate in `lib/auth/githubAuth.ts`, the one `gcx-token` uses: the
 caller's GitHub token must belong to a user with write access to
 pytorch/pytorch, or on the allow list in `lib/auth/allowList.json`. The token
@@ -58,6 +60,20 @@ gate from the same memory and forwards the request, token included, naming
 the caller's path in `x-forwarded-path` so that `handleList` builds page links
 under `/api/authed/` for them; the answer comes back with its cache, challenge
 and retry headers.
+
+## Public routes
+
+The release portal's endpoints, `/api/releases` and everything under it, are public:
+anyone may read them, with no token. They carry the state of a PyTorch release and
+nothing of a caller's, and showing partners and contributors where a release stands is
+their purpose. A route is public by wrapping its handler in `publicRead`
+(`lib/api/public.ts`) instead of `requireGithubWriteAccess`, and by being under a prefix
+in `PUBLIC_API_PREFIXES`; `test/api/auth.test.ts` checks that the public routes are
+exactly the release portal's, and every other route still refuses an anonymous request.
+`publicRead` makes an answer cacheable by shared caches (a handler may set its own
+`Cache-Control`) and an error never, and the operations in the document declare
+`security: []` and the `releases` tag, with no 401, 403 or 503. Make a new route public
+only for data that is public already, and add its prefix on purpose.
 
 ## Heavy queries
 
@@ -303,6 +319,10 @@ old route in the same change.
 | `GET /api/tests/pull/{number}?repo=owner/name`        | A pull request's newest head commit as HUD knows it, and the pull request's page                                                                                      | `lib/api/tests/pull/`           |
 | `GET /api/tests/cost`                                 | Test-job runner-hours of the last 1, 3 or 7 whole UTC days by owner, workflow and machine, from the test_cost rollup, with the PR update and merge signals; prototype | `lib/api/tests/cost/`           |
 | `GET /api/tests/cost/trend`                           | Test-job runner-hours by day, week or month, owner and runner label, all and of pushes to main, with daily totals and pushes to main; prototype                       | `lib/api/tests/cost/trend.ts`   |
+| `GET /api/releases`                                   | The releases the release portal tracks, with progress, phase and status, and the ones not out yet; public                                                             | `lib/api/releases/`             |
+| `GET /api/releases/{version}`                         | One release's board: its phases and steps from the release config, the state of each, and the links of the release; public                                            | `lib/api/releases/`             |
+| `GET /api/releases/{version}/config`                  | The release's resolved config (shared steps merged with its own file); public                                                                                         | `lib/api/releases/`             |
+| `GET /api/releases/{version}/artifacts`               | The release's expected artifacts and whether each is present, missing, size_anomalous or unexpected, problems first, with the counts; public                          | `lib/api/releases/`             |
 | `GET /api/tests/cost/changes`                         | Two periods' test-job runner-hours by test file and workflow, all and of pushes to main, with each day's pushes to main: what changed; prototype                      | `lib/api/tests/cost/changes.ts` |
 
 The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
@@ -314,6 +334,24 @@ The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 | `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
 | `GET /tests/{organization}/{repo}/pull/{number}`  | The commit page of a pull request's newest head, found by `GET /api/tests/pull/{number}`                    | `pages/tests/[organization]/[repo]/pull/[number].tsx`                                    |
 | `GET /tests/{organization}/{repo}/cost`           | Runner-hours by owner, machine and workflow: `GET /api/tests/cost`                                          | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
+
+## Release endpoints
+
+The release portal reads two kinds of data. The state of each step and the observed
+artifacts are rows the portal's collector writes to `release_event` and
+`release_artifact_observation` in `RELEASE_DATABASE` (`lib/api/releases/database.ts`;
+DDL in `clickhouse_db_schema/`); a step's current state is the latest row for its
+(release, step, RC), read with `argMax`. The release config, the steps, their owners and
+checks, the dates and the links to show, is YAML in `release/portal/config` of
+pytorch/test-infra: `lib/api/releases/config.ts` fetches it from GitHub (`main`), keeps it
+five minutes and resolves it as the collector's `tools/torchci/release_portal_config.py`
+does, so a config change shows without a deploy; `test/api/releases/config.test.ts`
+resolves the committed files. A release's milestone, tracker issue and validation issue
+are found on GitHub by the rules in that config (`lib/api/releases/discover.ts`), again
+kept five minutes; when GitHub cannot be asked the board answers without those links.
+
+The index is not paginated (a few dozen releases), and says so with null pagination links.
+The artifact list is cursor paginated as the others are, problems first.
 
 ## Tests endpoints
 
