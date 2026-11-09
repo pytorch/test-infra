@@ -3,9 +3,11 @@
 // its findings still shown, when such an approval was given on the head or on
 // the request's own commit, so Dr.CI reports the PR approved. Checked when such
 // an approval arrives and when the automated review requests changes. A request
-// on a commit after the approval stays; when an approval arrives and one does,
-// the review re-runs, and pytorch/pytorch's scripts/pr_review/post_review.py
-// then blocks only on the changes since the approved commit.
+// on a commit after the approval stays. An approval of an earlier commit than
+// the head re-runs the review, unless the head is approved too, and
+// pytorch/pytorch's scripts/pr_review/post_review.py then blocks only on the
+// changes since the approved commit. It re-runs even with no request standing:
+// a run already under way was not told about the approval.
 
 import { isAutomatedReviewRequest } from "lib/bot/pytorchBotHandler";
 import { isPyTorchPyTorch } from "lib/bot/utils";
@@ -44,7 +46,8 @@ async function handle(context: Context<"pull_request_review.submitted">) {
     per_page: 100,
   });
   const standing = reviews.filter(isAutomatedReviewRequest);
-  if (standing.length === 0) {
+  const earlier = approval && review.commit_id !== pr.head.sha;
+  if (standing.length === 0 && !earlier) {
     return;
   }
   const approved = await bindingApprovalCommits(
@@ -61,13 +64,18 @@ async function handle(context: Context<"pull_request_review.submitted">) {
   const live = (
     await octokit.pulls.get({ owner, repo, pull_number: pr.number })
   ).data;
+  const head = live.head.sha;
   const covered = (r: { commit_id: string | null }) =>
-    approved.has(live.head.sha) ||
-    (r.commit_id !== null && approved.has(r.commit_id));
+    approved.has(head) || (r.commit_id !== null && approved.has(r.commit_id));
   const cleared = standing.filter(covered);
 
   // A failed re-run still dismisses what the approval covers.
-  if (approval && cleared.length < standing.length) {
+  if (
+    approval &&
+    !approved.has(head) &&
+    review.commit_id !== null &&
+    approved.has(review.commit_id)
+  ) {
     try {
       await reReview(context, live);
     } catch (error) {
@@ -110,7 +118,7 @@ async function reReview(
     return;
   }
   context.log(
-    `Re-running the automated review of ${owner}/${repo}#${pullNumber}: an approval does not cover its change request`
+    `Re-running the automated review of ${owner}/${repo}#${pullNumber}: an earlier commit than the head was approved`
   );
   // Remove before add, so the review workflow sees a fresh `labeled`.
   await context.octokit.issues.removeLabel(

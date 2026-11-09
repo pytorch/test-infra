@@ -19,7 +19,12 @@ const MERGE_RULES = `
   approved_by: [${APPROVER}]
 `;
 
-function approvalEvent(login = APPROVER, type = "User", repo = "pytorch") {
+function approvalEvent(
+  login = APPROVER,
+  type = "User",
+  repo = "pytorch",
+  commit = HEAD
+) {
   const event = requireDeepCopy("./fixtures/pull_request_review.json");
   event.payload.repository.owner.login = "pytorch";
   event.payload.repository.name = repo;
@@ -29,6 +34,8 @@ function approvalEvent(login = APPROVER, type = "User", repo = "pytorch") {
   event.payload.review.state = "approved";
   event.payload.review.user.login = login;
   event.payload.review.user.type = type;
+  event.payload.review.commit_id = commit;
+  event.payload.pull_request.head.sha = HEAD;
   return event;
 }
 
@@ -146,14 +153,16 @@ describe("approvalClearsReview", () => {
     handleScope(scopes);
   });
 
-  test("an approval of the request's own commit dismisses it after a push", async () => {
+  test("an approval of the request's own commit dismisses it and re-runs the review", async () => {
+    const cycle = mockCycleLabel();
     const scopes = [
       mockReviews([botRequest(10, OLD), humanApproval(APPROVER, OLD)]),
       mockMergeRules(),
       mockLive(),
-      mockDismiss(10),
+      ...cycle,
+      mockDismiss(10, cycle[1]),
     ];
-    await probot.receive(approvalEvent());
+    await probot.receive(approvalEvent(APPROVER, "User", "pytorch", OLD));
     handleScope(scopes);
   });
 
@@ -164,7 +173,39 @@ describe("approvalClearsReview", () => {
       mockLive(),
       ...mockCycleLabel(),
     ];
-    await probot.receive(approvalEvent());
+    await probot.receive(approvalEvent(APPROVER, "User", "pytorch", OLD));
+    handleScope(scopes);
+  });
+
+  test("an approval of an earlier commit re-runs the review with no request standing", async () => {
+    const scopes = [
+      mockReviews([humanApproval(APPROVER, OLD)]),
+      mockMergeRules(),
+      mockLive(),
+      ...mockCycleLabel(),
+    ];
+    await probot.receive(approvalEvent(APPROVER, "User", "pytorch", OLD));
+    handleScope(scopes);
+  });
+
+  test("an approval of an earlier commit does not re-run when the head is approved", async () => {
+    const other = { ...humanApproval("root"), id: 51 };
+    const rules = nock("https://api.github.com")
+      .get("/repos/pytorch/pytorch/contents/.github%2Fmerge_rules.yaml")
+      .reply(200, {
+        content: Buffer.from(
+          `- name: Core\n  patterns: ["torch/**"]\n  approved_by: [${APPROVER}, root]\n`
+        ).toString("base64"),
+      })
+      .get(`/repos/${REPO}/pulls/${PR_NUMBER}/files?per_page=100`)
+      .reply(200, [{ filename: "torch/x.py" }]);
+    const scopes = [
+      mockReviews([botRequest(10, OLD), other, humanApproval(APPROVER, OLD)]),
+      rules,
+      mockLive(),
+      mockDismiss(10),
+    ];
+    await probot.receive(approvalEvent(APPROVER, "User", "pytorch", OLD));
     handleScope(scopes);
   });
 
@@ -184,7 +225,7 @@ describe("approvalClearsReview", () => {
         .reply(500),
       mockDismiss(11),
     ];
-    await probot.receive(approvalEvent());
+    await probot.receive(approvalEvent(APPROVER, "User", "pytorch", OLD));
     handleScope(scopes);
   });
 
@@ -200,7 +241,7 @@ describe("approvalClearsReview", () => {
         mockMergeRules(),
         mockLive(labels, draft),
       ];
-      await probot.receive(approvalEvent());
+      await probot.receive(approvalEvent(APPROVER, "User", "pytorch", OLD));
       handleScope(scopes);
     }
   );
