@@ -7,7 +7,9 @@ name: vLLM torch-nightly triage
 # controlled A/B. This job reports jobs that fail in the former and pass in the latter.
 #
 # Reports to the job log, the run summary, and an artifact. Issues are filed by default
-# into pytorch/test-infra (not pytorch/pytorch).
+# into pytorch/test-infra (not pytorch/pytorch). The root-cause findings are also sent
+# to CRCR as late reports, which add them to the rows vLLM already reported for the
+# build, so they show on HUD at /crcr/vllm-project/vllm?event=nightly.
 #
 # ClickHouse stores job metadata only (the tables carry log_url pointers, not log
 # bodies), so this answers *which* jobs regressed, not *why*. Root-causing means
@@ -454,3 +456,95 @@ jobs:
             ${OVERRIDE:+--torch-version-override "${OVERRIDE}"} \
             ${EXECUTE} \
             "${upstream_args[@]}" 2>&1 | tee -a "${GITHUB_STEP_SUMMARY}"
+
+  # Turns the root-cause findings into CRCR late reports and uploads them as an
+  # artifact, for send-late-reports to send.
+  #
+  # It has to happen after the build: vLLM's report goes out hours into it and a CRCR
+  # row is write-once, while this runs ~11h in. So the findings are added afterwards,
+  # as a late report, to rows that belong to vllm-project/vllm.
+  #
+  # Separate from root-cause on purpose, for the same reason as file-issues: that job
+  # reads untrusted Buildkite logs, so it must never hold a credential that writes
+  # anywhere. The agent emits data; this job turns it into reports with a script that
+  # only matches jobs listed in the triage report. It holds no token either: sending
+  # is a separate job.
+  late-reports:
+    needs: [triage, root-cause]
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      needs.triage.outputs.has_report == 'true' &&
+      needs.root-cause.result == 'success'
+    outputs:
+      has_reports: ${{ steps.build.outputs.has_reports }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vllm-torch-nightly-triage
+          path: ${{ runner.temp }}/triage
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vllm-torch-nightly-findings
+          path: ${{ runner.temp }}/findings
+
+      - name: Build late reports
+        id: build
+        working-directory: tools
+        run: |
+          set -euo pipefail
+          # The model is the one root-cause runs; keep them in step.
+          PYTHONPATH=. python3 -m torchci.vllm_triage_crcr \
+            --findings "${RUNNER_TEMP}/findings/findings.json" \
+            --report "${RUNNER_TEMP}/triage/report.json" \
+            --output "${RUNNER_TEMP}/late-reports.json" \
+            --analyzer-version "${GITHUB_SHA::12}" \
+            --analyzer-model claude-opus-5-5 2>&1 | tee -a "${GITHUB_STEP_SUMMARY}"
+          if [[ -s "${RUNNER_TEMP}/late-reports.json" ]]; then
+            echo "has_reports=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Upload late reports
+        if: steps.build.outputs.has_reports == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vllm-torch-nightly-late-reports
+          path: ${{ runner.temp }}/late-reports.json
+          if-no-files-found: error
+
+  # Sends the late reports to CRCR.
+  send-late-reports:
+    needs: [late-reports]
+    if: |
+      always() &&
+      github.event_name != 'pull_request' &&
+      needs.late-reports.result == 'success' &&
+      needs.late-reports.outputs.has_reports == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # the relay authenticates this workflow by its OIDC token
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: vllm-torch-nightly-late-reports
+          path: ${{ runner.temp }}/late-reports
+
+      - uses: ./.github/actions/cross-repo-ci-relay-callback
+        with:
+          event-type: late-report
+          triage-verdict-list: "@${{ runner.temp }}/late-reports/late-reports.json"
