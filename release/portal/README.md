@@ -12,9 +12,16 @@ release/portal/config/
   releases/<ver>.yml   what changes for one release (dates, links, step changes)
 ```
 
-The ClickHouse tables are in `clickhouse_db_schema/misc.release_event`,
-`misc.release_artifact_observation` and `misc.release_config_snapshot`. The loader and
-validator are `tools/torchci/release_portal_config.py`.
+The ClickHouse tables are in `clickhouse_db_schema/misc.release_event` and
+`misc.release_artifact_observation`. The loader and validator are
+`tools/torchci/release_portal_config.py`.
+
+The config is read twice, and both read the files from this directory: the collector
+resolves it with that module, and HUD fetches the files from GitHub (`main`) and merges
+them in TypeScript with the same rules. A change merged here shows on HUD without a
+deploy. A release's board is always drawn from the config as it is on `main`, so a step
+removed from `steps.yml` later also disappears from the boards of past releases, unless
+that release's own file adds it back.
 
 ## Check it
 
@@ -97,6 +104,13 @@ branch, as `--analyze-missing-reverts-from-branch` does.
   `v<version>` exists. Either may be left out. Before it opens the step is to do and its
   check is not run; after it closes the step is done and its check is not run.
 
+### Resources
+
+`resources` in `steps.yml` lists the links a release's board shows besides its milestone,
+tracker issue and validation issue: the wheels, libtorch, docs, release notes and build
+matrix. A value is a URL, or `{test, release}` for one that moves when the release is out;
+`{version}`, `{minor}` and `{branch}` are filled in.
+
 ### Template variables
 
 Check parameters can use `{version}`, `{minor}`, `{branch}`, `{rc}`, `{tracker_issue}`,
@@ -119,9 +133,7 @@ add: []                      # complete steps for this release only
 
 The resolved config applies the file to `steps.yml` in this order: `remove`, then
 `override`, then `add`. An override cannot change `id` or `phase`. The result is
-validated as a whole, so removing a step another step depends on is an error. The
-collector stores the resolved config for each release in `misc.release_config_snapshot`,
-so a past release keeps showing the steps it was run with after the shared steps change.
+validated as a whole, so removing a step another step depends on is an error.
 
 ### What is found on GitHub, and what is configured
 
@@ -134,7 +146,8 @@ A release file does not name the release's GitHub objects. The `discovery` block
 | Tracker issue | an issue with the `release tracker` label titled `[v2.16.0] Release Tracker` (a dot after the `v` is accepted) |
 | Validation issue | for a minor release, `Release 2.16 validations ...` or `Release 2.16.0 validations ...`; for a patch release, `Release 2.15.1 validations ...` |
 
-If several issues match, the newest wins. If none matches, the link is empty and the steps
+The collector finds them for its own checks, and HUD finds them again when it draws a
+release, from the same rules. If several issues match, the newest wins. If none matches, the link is empty and the steps
 that need it show as to do, which is also how "tracker issue created" is observed. A
 patch release does not pick up its minor release's validation issue. The rules were
 checked against 2.9.0, 2.9.1, 2.12.1, 2.14.0, 2.14.1 and 2.15.0 and against 2.16.0, whose

@@ -319,11 +319,46 @@ def validate_shared(shared: Any, name: str = "steps.yml") -> List[str]:
             else:
                 phase_ids.add(phase["id"])
     errors.extend(_discovery_errors(name, shared.get("discovery")))
+    errors.extend(_resources_errors(name, shared.get("resources")))
     steps = shared.get("steps")
     if not isinstance(steps, list) or not steps:
         errors.append(f"{name}: steps must be a non-empty list")
         return errors
     errors.extend(_steps_errors(name, steps, phase_ids))
+    return errors
+
+
+RESOURCE_NAME = re.compile(r"^[a-z][a-z_]*$")
+RESOURCE_VARIABLES = ("version", "minor", "branch")
+
+
+def _resources_errors(name: str, resources: Any) -> List[str]:
+    if not isinstance(resources, dict) or not resources:
+        return [f"{name}: resources must be a non-empty map of link name to URL"]
+    errors = []
+    for key, value in resources.items():
+        where = f"{name}: resources.{key}"
+        if not (isinstance(key, str) and RESOURCE_NAME.match(key)):
+            errors.append(
+                f"{where}: a link name must be lower-case letters and underscores"
+            )
+        urls = (
+            list(value.values())
+            if isinstance(value, dict) and set(value) == {"test", "release"}
+            else [value]
+        )
+        if isinstance(value, dict) and set(value) != {"test", "release"}:
+            errors.append(f"{where}: a map needs exactly `test` and `release`")
+            continue
+        for url in urls:
+            if not (isinstance(url, str) and url.startswith("https://")):
+                errors.append(f"{where}: a URL must be a string starting with https://")
+                continue
+            unknown = _placeholders(url) - set(RESOURCE_VARIABLES)
+            if unknown:
+                errors.append(
+                    f"{where}: unknown variable(s) {sorted(unknown)}; one of {list(RESOURCE_VARIABLES)}"
+                )
     return errors
 
 
@@ -555,6 +590,7 @@ def resolve(
         # a link set in the release file; None means "found by discovery"
         "links": {k: links.get(k) for k in LINK_KEYS},
         "discovery": copy.deepcopy(shared["discovery"]),
+        "resources": copy.deepcopy(shared["resources"]),
         "phases": copy.deepcopy(shared["phases"]),
         "steps": resolved,
     }

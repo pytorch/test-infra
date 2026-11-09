@@ -53,6 +53,21 @@ discovery:
       minor: '^Release ({minor}|{version}) validations'
       patch: '^Release {version} validations'
 
+# The links on a release's board besides its milestone, tracker issue and validation
+# issue. A value is a URL, or {test, release} for one that moves when the release is
+# out (HUD shows `release` once every step is done). {version}, {minor} and {branch} are
+# filled in.
+resources:
+  wheels:
+    test: "https://download.pytorch.org/whl/test/"
+    release: "https://download.pytorch.org/whl/"
+  libtorch:
+    test: "https://download.pytorch.org/libtorch/test/"
+    release: "https://download.pytorch.org/libtorch/"
+  docs: "https://docs.pytorch.org/docs/{minor}/"
+  release_notes: "https://github.com/pytorch/pytorch/releases/tag/v{version}"
+  build_matrix: "https://github.com/pytorch/pytorch/blob/{branch}/.github/scripts/generate_binary_build_matrix.py"
+
 phases:
   - id: 1
     name: Preparation and branch cut

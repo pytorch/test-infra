@@ -36,10 +36,20 @@ DISCOVERY = {
 }
 
 
+RESOURCES = {
+    "wheels": {
+        "test": "https://download.pytorch.org/whl/test/",
+        "release": "https://download.pytorch.org/whl/",
+    },
+    "docs": "https://docs.pytorch.org/docs/{minor}/",
+}
+
+
 def _shared(*steps):
     return {
         "version": 1,
         "discovery": copy.deepcopy(DISCOVERY),
+        "resources": copy.deepcopy(RESOURCES),
         "phases": [{"id": 1, "name": "One"}, {"id": 2, "name": "Two"}],
         "steps": list(steps) or [_step("1.1"), _step("2.1")],
     }
@@ -435,6 +445,48 @@ class TestResolve(TestCase):
         self.assert_rejected(_release(dates={"launch": None}), "dates may only have")
         self.assert_rejected(_release(links={"blog": "x"}), "links may only have")
         self.assert_rejected(_release(extra=1), "unknown field")
+
+
+class TestResources(TestCase):
+    def errors(self, mutate):
+        shared = _shared()
+        mutate(shared["resources"])
+        return validate_shared(shared)
+
+    def test_valid(self):
+        self.assertEqual(self.errors(lambda r: None), [])
+
+    def test_a_link_is_a_url_or_a_test_release_pair(self):
+        self.assertEqual(
+            self.errors(lambda r: r.update(notes="https://x/{version}/{branch}")), []
+        )
+        for bad in (
+            "http://x",
+            "",
+            3,
+            {"test": "https://x"},
+            {"a": "https://x", "b": "https://y"},
+        ):
+            with self.subTest(bad=bad):
+                self.assertTrue(self.errors(lambda r: r.update(notes=bad)))
+
+    def test_unknown_variable_and_bad_name(self):
+        errors = self.errors(lambda r: r.update(notes="https://x/{rc}"))
+        self.assertTrue(any("unknown variable" in e for e in errors), errors)
+        self.assertTrue(self.errors(lambda r: r.update({"Bad-Name": "https://x"})))
+
+    def test_resources_are_required_and_carried_to_the_resolved_config(self):
+        shared = _shared()
+        del shared["resources"]
+        self.assertTrue(any("resources must be" in e for e in validate_shared(shared)))
+        self.assertEqual(resolve(_shared(), _release())["resources"], RESOURCES)
+
+    def test_the_committed_resources(self):
+        resources = cfg.load_resolved("2.16.0")["resources"]
+        self.assertEqual(
+            set(resources),
+            {"wheels", "libtorch", "docs", "release_notes", "build_matrix"},
+        )
 
 
 class TestDiscoveryRules(TestCase):
