@@ -197,7 +197,7 @@ providers:
         on_behalf_of: vllm-project/vllm
 ```
 
-A **late report** whose OIDC token has this `repository` and this exact `job_workflow_ref` (the workflow file at a ref, so only reviewed code on that branch matches) is handled as if `on_behalf_of` had sent it: the allowlist level and rate limit are that repo's, and its rows are the ones that get verdicts. The repo comes from the verified token and this file, never from the request body. A delegate can send late reports and nothing else; its other events count as its own repo's. An entry that lacks a field or a ref is skipped with a warning. The file is read at runtime (see `CI_PROVIDERS_URL`), so adding an entry needs no deploy; the Lambda code that reads it does.
+A **late report** whose OIDC token has this `repository` and this exact `job_workflow_ref` (the workflow file at a ref, so only reviewed code on that branch matches; GitHub sets this claim for a plain workflow as well as for a called reusable one) is handled as if `on_behalf_of` had sent it: the allowlist level and rate limit are that repo's, and its rows are the ones that get verdicts. The repo comes from the verified token and this file, never from the request body. A delegate can send late reports and nothing else; its other events count as its own repo's. An entry that lacks a field or a ref is skipped with a warning. The file is read at runtime (see `CI_PROVIDERS_URL`), so adding an entry needs no deploy; the Lambda code that reads it does.
 
 ### Error propagation back to the downstream workflow
 

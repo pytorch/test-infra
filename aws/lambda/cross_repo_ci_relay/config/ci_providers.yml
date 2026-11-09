@@ -19,8 +19,10 @@ providers:
     # repo.  The triage of a repo's torch-nightly failures can run outside that
     # repo; the relay otherwise lets a repo touch only its own rows.  An entry
     # needs the reporting repository and the exact job_workflow_ref (workflow file
-    # at a ref, so only reviewed code on that branch matches).  A delegate can
-    # send late reports and nothing else.
+    # at a ref, so only reviewed code on that branch matches).  GitHub sets
+    # job_workflow_ref for a plain workflow too, to its own file at the ref, so it
+    # works for a workflow that is not a called reusable one.  A delegate can send
+    # late reports and nothing else.
     late_report_delegates:
       # vLLM's torch-nightly triage runs in pytorch/test-infra and reports for
       # vllm-project/vllm (rows reported from Buildkite, vllm-project/vllm#51830).

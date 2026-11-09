@@ -479,6 +479,26 @@ class TestLateReportDelegates(unittest.TestCase):
             }
         )
 
+    def test_the_claims_of_a_direct_workflow_run_match(self):
+        # The triage workflow is a plain workflow, not a called reusable one. For
+        # such a job GitHub still sets job_workflow_ref, to the workflow's own file
+        # at the ref (the same as workflow_ref). This is the claim set of a push
+        # run of a direct workflow in a repo, captured from a real OIDC token.
+        claims = {
+            "iss": GITHUB_ISSUER,
+            "repository": "pytorch/test-infra",
+            "sub": "repo:pytorch/test-infra:ref:refs/heads/main",
+            "ref": "refs/heads/main",
+            "event_name": "schedule",
+            "workflow": "vLLM torch-nightly triage",
+            "workflow_ref": TRIAGE_WORKFLOW,
+            "job_workflow_ref": TRIAGE_WORKFLOW,
+            "job_workflow_sha": "83906d9a8b764cbbadbe9ab5eb5ffb641a69bfea",
+        }
+        self.assertEqual(
+            resolve_reporting_repo(claims, "late-report"), "vllm-project/vllm"
+        )
+
     def test_late_report_from_the_delegate_reports_for_the_other_repo(self):
         self.assertEqual(
             resolve_reporting_repo(self._claims(), "late-report"), "vllm-project/vllm"
