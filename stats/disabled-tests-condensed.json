@@ -276,6 +276,13 @@
       "xpu"
     ]
   ],
+  "test_conv_bias_rounds_before_log_softmax_float16_emulate_precision_casts_False_conv_offset_-100 (__main__.CudaReproTests)": [
+    "203836",
+    "https://github.com/pytorch/pytorch/issues/203836",
+    [
+      "xpu"
+    ]
+  ],
   "test_conv_bias_rounds_before_log_softmax_float16_emulate_precision_casts_False_conv_offset_-1000 (__main__.CudaReproTests)": [
     "203840",
     "https://github.com/pytorch/pytorch/issues/203840",
@@ -1373,13 +1380,6 @@
       "dynamo",
       "inductor",
       "linux",
-      "rocm"
-    ]
-  ],
-  "test_retained_handle_stale_after_watchdog_abort_backend_name_nccl (__main__.NCCLSymmetricMemoryLifecycleTest)": [
-    "200056",
-    "https://github.com/pytorch/pytorch/issues/200056",
-    [
       "rocm"
     ]
   ],
