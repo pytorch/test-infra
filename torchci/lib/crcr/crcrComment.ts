@@ -30,6 +30,10 @@
 // repo's recovery must not leave another repo's first mention unspent.
 // `notifiedHandlesByRepo` and `takeUnnotified` are that logic.
 
+import {
+  CrcrRunSelectionJob,
+  selectCurrentHeadCrcrJobs,
+} from "lib/crcr/runSelection";
 import { RecentWorkflowsData } from "lib/types";
 
 // Written next to each mention once that on-call has been notified for that
@@ -326,7 +330,7 @@ function isFailureConclusion(conclusion: string | undefined): boolean {
 
 /**
  * The rows that describe the commit the comment reports on: `headSha`'s rows,
- * one per job, at the latest attempt of its latest run.
+ * with one canonical downstream run per backend and final attempts from it.
  *
  * The head filter runs BEFORE attempts are resolved, and the order is the point.
  * A run of a superseded push can be re-run after the new push, so the highest
@@ -334,26 +338,30 @@ function isFailureConclusion(conclusion: string | undefined): boolean {
  * hand the job to that stale row and the head filter would then drop it --
  * deleting a real failure from the comment, and for an L4 job a blocking one.
  *
- * Rows with no head SHA are rows whose commit is unknown. They are kept, but only
- * for a job this commit has no row for: an unknown commit must not outrank a
- * known result for the same job, or the failure tie-break inside
- * latestAttemptPerJob would let an old red row keep a job red -- and at L4
- * blocking -- after this commit's run passed.
+ * Rows with no head SHA are retained only where this commit has no result for
+ * that job, preserving pre-SHA callback data without overriding known results.
  */
 export function latestAttemptsForHead(
   jobs: RecentWorkflowsData[],
   headSha: string
 ): RecentWorkflowsData[] {
-  const forHead = jobs.filter(
-    (job) => !job.head_sha || job.head_sha === headSha
-  );
-  const jobsOnThisCommit = new Set(
-    forHead.filter((job) => job.head_sha === headSha).map((job) => job.name)
-  );
-  return latestAttemptPerJob(
-    forHead.filter(
-      (job) => job.head_sha === headSha || !jobsOnThisCommit.has(job.name)
-    )
+  const candidates: Array<
+    CrcrRunSelectionJob & { source: RecentWorkflowsData }
+  > = jobs.map((job) => ({
+    source: job,
+    prNumber: job.pr_number,
+    headSha: job.head_sha,
+    downstreamRepo: job.downstreamRepo ?? "",
+    runId: String(job.runId ?? 0),
+    runAttempt: job.runAttempt ?? 1,
+    jobKey: job.name,
+    startedAt: job.startedAt ?? "",
+    recordId: String(job.id),
+    conclusion: job.conclusion,
+  }));
+
+  return selectCurrentHeadCrcrJobs(candidates, headSha).map(
+    (job) => job.source
   );
 }
 

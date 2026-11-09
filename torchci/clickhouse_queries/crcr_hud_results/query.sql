@@ -10,6 +10,7 @@ SELECT
     run_attempt,
     status,
     conclusion,
+    started_at,
     workflow_run_url,
     duration_seconds,
     failed_tests_json

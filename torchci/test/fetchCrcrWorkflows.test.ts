@@ -25,6 +25,7 @@ function row(overrides: Record<string, unknown> = {}) {
     id: "456",
     conclusion: "failure",
     completed_at: "2023-08-08 06:03:21",
+    started_at: "2023-08-08 06:00:00",
     html_url: "https://github.com/pytorch/crcr-test/actions/runs/555",
     head_sha: "abcdef1234567890",
     downstream_repo: "pytorch/crcr-test",
@@ -65,6 +66,7 @@ describe("fetchCrcrWorkflows", () => {
     expect(sql).toContain("pytorch_head_sha = ''");
     expect(sql).toContain("run_attempt");
     expect(sql).toContain("run_id");
+    expect(sql).toContain("started_at");
     expect(sql).toContain("downstream_repo");
   });
 
@@ -84,8 +86,8 @@ describe("fetchCrcrWorkflows", () => {
     queryClickhouseMock.mockResolvedValue([row()]);
 
     const [job] = await fetchCrcrWorkflows("pytorch/pytorch", [123]);
-    // The name is the check run name, which is also the job's identity across
-    // re-runs -- latestAttemptPerJob dedupes on it.
+    // The name is the check run name, which is the job's identity across
+    // workflows.
     expect(job.name).toBe(
       "crcr/pytorch/crcr-test/CRCR L3 CI/test-L3-checkrun-creation"
     );
@@ -93,6 +95,7 @@ describe("fetchCrcrWorkflows", () => {
     expect(job.downstreamLevel).toBe("L3");
     expect(job.runAttempt).toBe(2);
     expect(job.runId).toBe(999);
+    expect(job.startedAt).toBe("2023-08-08 06:00:00");
     expect(job.id).toBe(456);
     expect(job.html_url).toBe(
       "https://github.com/pytorch/crcr-test/actions/runs/555"
