@@ -44,13 +44,13 @@ function botRequest(id: number, commit = HEAD) {
   };
 }
 
-function humanApproval(login = APPROVER) {
+function humanApproval(login = APPROVER, commit = HEAD) {
   return {
     id: 50,
     user: { login, type: "User" },
     state: "APPROVED",
     body: "",
-    commit_id: HEAD,
+    commit_id: commit,
     author_association: "MEMBER",
     submitted_at: "2026-01-02T00:00:00Z",
   };
@@ -135,22 +135,46 @@ describe("approvalClearsReview", () => {
     handleScope(scopes);
   });
 
-  test("a change request on an older head is dismissed and the review re-runs", async () => {
-    const cycle = mockCycleLabel();
+  test("an approval of the head dismisses a request on an older commit without a re-run", async () => {
     const scopes = [
       mockReviews([botRequest(10, OLD), humanApproval()]),
       mockMergeRules(),
       mockLive(),
-      ...cycle,
-      mockDismiss(10, cycle[1]),
+      mockDismiss(10),
     ];
     await probot.receive(approvalEvent());
     handleScope(scopes);
   });
 
-  test("a failed re-run still dismisses", async () => {
+  test("an approval of the request's own commit dismisses it after a push", async () => {
     const scopes = [
-      mockReviews([botRequest(10, OLD), humanApproval()]),
+      mockReviews([botRequest(10, OLD), humanApproval(APPROVER, OLD)]),
+      mockMergeRules(),
+      mockLive(),
+      mockDismiss(10),
+    ];
+    await probot.receive(approvalEvent());
+    handleScope(scopes);
+  });
+
+  test("an approval of an earlier commit re-runs the review and leaves the request", async () => {
+    const scopes = [
+      mockReviews([botRequest(10), humanApproval(APPROVER, OLD)]),
+      mockMergeRules(),
+      mockLive(),
+      ...mockCycleLabel(),
+    ];
+    await probot.receive(approvalEvent());
+    handleScope(scopes);
+  });
+
+  test("a failed re-run still dismisses what the approval covers", async () => {
+    const older = {
+      ...botRequest(11, OLD),
+      submitted_at: "2025-12-01T00:00:00Z",
+    };
+    const scopes = [
+      mockReviews([older, botRequest(10), humanApproval(APPROVER, OLD)]),
       mockMergeRules(),
       mockLive(),
       nock("https://api.github.com")
@@ -158,7 +182,7 @@ describe("approvalClearsReview", () => {
         .reply(200, [])
         .post(`/repos/${REPO}/issues/${PR_NUMBER}/labels`)
         .reply(500),
-      mockDismiss(10),
+      mockDismiss(11),
     ];
     await probot.receive(approvalEvent());
     handleScope(scopes);
@@ -172,10 +196,9 @@ describe("approvalClearsReview", () => {
     "a PR that will not be reviewed again (labels %j, draft %s) is not re-run",
     async (labels, draft) => {
       const scopes = [
-        mockReviews([botRequest(10, OLD), humanApproval()]),
+        mockReviews([botRequest(10), humanApproval(APPROVER, OLD)]),
         mockMergeRules(),
         mockLive(labels, draft),
-        mockDismiss(10),
       ];
       await probot.receive(approvalEvent());
       handleScope(scopes);
@@ -189,7 +212,21 @@ describe("approvalClearsReview", () => {
     const scopes = [
       mockReviews([humanApproval(), botRequest(10)]),
       mockMergeRules(),
+      mockLive(),
       mockDismiss(10),
+    ];
+    await probot.receive(event);
+    handleScope(scopes);
+  });
+
+  test("a change request on a commit after the approval stands", async () => {
+    const event = approvalEvent("github-actions[bot]", "Bot");
+    Object.assign(event.payload.review, botRequest(10));
+    event.payload.review.state = "changes_requested";
+    const scopes = [
+      mockReviews([humanApproval(APPROVER, OLD), botRequest(10)]),
+      mockMergeRules(),
+      mockLive(),
     ];
     await probot.receive(event);
     handleScope(scopes);

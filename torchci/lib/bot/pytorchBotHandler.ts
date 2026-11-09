@@ -9,10 +9,10 @@ import { fetchCrcrAllowlist } from "../crcrAllowlist";
 import {
   AUTO_PR_TRIAGE_LABEL,
   AUTO_PR_TRIAGE_OPT_OUT_LABEL,
+  bindingApprovalCommits,
   BOT_TRIAGE_ERROR_LABEL,
   BOT_TRIAGED_LABEL,
   fetchLiveLabels,
-  hasBindingHumanApproval,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -215,7 +215,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
   // The automated PR review's reviews are dropped when its own verdict is
   // changes requested and either ignoreAutomatedReview is set or, in
   // pytorch/pytorch, that request is the hardened review's and a human
-  // approval satisfies merge_rules.yaml, so it cannot block the merge. Any
+  // approval that satisfies merge_rules.yaml covers its commit or the head, so
+  // it cannot block the merge. A request on a later commit than the approval
+  // still blocks: post_review.py blocks then only on the changes since. Any
   // other verdict of its (e.g. an approval) is kept and still counts.
   async getApprovalStatus(ignoreAutomatedReview = false): Promise<string> {
     let reviews: PullRequestReview[] = await this.ctx.octokit.paginate(
@@ -250,7 +252,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         (isPyTorchPyTorchRepo &&
           effective !== undefined &&
           isAutomatedReviewRequest(effective) &&
-          (await this.approvedUnderMergeRules(reviews))))
+          (await this.approvalOverrides(reviews, effective.commit_id))))
     ) {
       reviews = reviews.filter((review) => !isAutomated(review));
     }
@@ -267,19 +269,25 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     );
   }
 
-  // Fails closed: the automated review keeps blocking if the rules or the
-  // changed files cannot be read.
-  async approvedUnderMergeRules(
-    reviews: PullRequestReview[]
+  // Whether a binding approval covers `commit` or the head. Fails closed: the
+  // automated review keeps blocking if the rules, the changed files or the
+  // head cannot be read.
+  async approvalOverrides(
+    reviews: PullRequestReview[],
+    commit: string
   ): Promise<boolean> {
     try {
-      return await hasBindingHumanApproval(
+      const approved = await bindingApprovalCommits(
         this.ctx.octokit as any,
         this.owner,
         this.repo,
         this.prNum,
         reviews
       );
+      if (approved.has(commit)) {
+        return true;
+      }
+      return approved.size > 0 && approved.has(await this.ensureHeadSha());
     } catch (error) {
       this.ctx.log(`Could not check merge_rules.yaml approval: ${error}`);
       return false;

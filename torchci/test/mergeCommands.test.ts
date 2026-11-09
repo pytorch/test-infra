@@ -1781,6 +1781,57 @@ some other text lol
       handleScope(scopes);
     });
 
+    function mockHead(event: any, sha: string) {
+      return nock("https://api.github.com")
+        .get(`/repos/pytorch/pytorch/pulls/${event.payload.issue.number}`)
+        .reply(200, { head: { sha } });
+    }
+
+    test("an approval of an earlier commit than the request leaves it blocking", async () => {
+      const event = mergeEvent();
+      event.reviews = reviews();
+      event.reviews[0].commit_id = "e".repeat(40);
+      const scopes = [
+        mockRules(event),
+        mockHead(event, event.reviews[1].commit_id),
+        mockRefused(event),
+      ];
+      await probot.receive(event);
+      handleScope(scopes);
+    });
+
+    test("an approval of the head lets the merge past a request on an older commit", async () => {
+      const event = mergeEvent();
+      const pr_number = event.payload.issue.number;
+      const comment_number = event.payload.comment.id;
+      event.reviews = reviews();
+      event.reviews[0].commit_id = "e".repeat(40);
+      const scopes = [
+        mockRules(event),
+        mockHead(event, "e".repeat(40)),
+        nock("https://api.github.com")
+          .post(`/repos/pytorch/pytorch/issues/${pr_number}/labels`)
+          .reply(200, {})
+          .post(
+            `/repos/pytorch/pytorch/issues/comments/${comment_number}/reactions`,
+            (body) => {
+              expect(body).toMatchObject({ content: "+1" });
+              return true;
+            }
+          )
+          .reply(200, {})
+          .post(`/repos/pytorch/pytorch/dispatches`)
+          .reply(200, {}),
+        utils.mockPermissions(
+          "pytorch/pytorch",
+          event.payload.issue.user.login,
+          "write"
+        ),
+      ];
+      await probot.receive(event);
+      handleScope(scopes);
+    });
+
     test("an approval merge_rules.yaml does not accept still leaves it blocking", async () => {
       const event = mergeEvent();
       event.approver = "someone-else";

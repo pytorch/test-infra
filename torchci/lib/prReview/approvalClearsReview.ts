@@ -1,16 +1,17 @@
 // A human approval that satisfies merge_rules.yaml stops the automated review
-// from blocking: its standing change requests are dismissed, with their
-// findings still shown, so Dr.CI reports the PR approved. Checked when such an
-// approval arrives and when the automated review requests changes after one.
-// An approval when the request predates the head also re-runs the review, and
-// pytorch/pytorch's scripts/pr_review/post_review.py posts that verdict as a
-// comment because the PR is approved.
+// from blocking what it covers. A standing change request is dismissed, with
+// its findings still shown, when such an approval was given on the head or on
+// the request's own commit, so Dr.CI reports the PR approved. Checked when such
+// an approval arrives and when the automated review requests changes. A request
+// on a commit after the approval stays; when an approval arrives and one does,
+// the review re-runs, and pytorch/pytorch's scripts/pr_review/post_review.py
+// then blocks only on the changes since the approved commit.
 
 import { isAutomatedReviewRequest } from "lib/bot/pytorchBotHandler";
 import { isPyTorchPyTorch } from "lib/bot/utils";
 import { isBot } from "lib/greenlight/greenlightReviewGate";
 import {
-  hasBindingHumanApproval,
+  bindingApprovalCommits,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
@@ -46,29 +47,36 @@ async function handle(context: Context<"pull_request_review.submitted">) {
   if (standing.length === 0) {
     return;
   }
-  if (
-    !(await hasBindingHumanApproval(
-      octokit as any,
-      owner,
-      repo,
-      pr.number,
-      reviews as any
-    ))
-  ) {
+  const approved = await bindingApprovalCommits(
+    octokit as any,
+    owner,
+    repo,
+    pr.number,
+    reviews as any
+  );
+  if (approved.size === 0) {
     return;
   }
+  // Live state: the webhook can predate a push or a label change.
+  const live = (
+    await octokit.pulls.get({ owner, repo, pull_number: pr.number })
+  ).data;
+  const covered = (r: { commit_id: string | null }) =>
+    approved.has(live.head.sha) ||
+    (r.commit_id !== null && approved.has(r.commit_id));
+  const cleared = standing.filter(covered);
 
-  // A failed re-run still dismisses: the approval alone unblocks the PR.
-  if (approval) {
+  // A failed re-run still dismisses what the approval covers.
+  if (approval && cleared.length < standing.length) {
     try {
-      await reReviewIfStale(context, standing);
+      await reReview(context, live);
     } catch (error) {
       context.log.error(
         `Could not re-run the automated review of ${owner}/${repo}#${pr.number}: ${error}`
       );
     }
   }
-  for (const r of standing) {
+  for (const r of cleared) {
     await octokit.pulls.dismissReview({
       owner,
       repo,
@@ -79,18 +87,18 @@ async function handle(context: Context<"pull_request_review.submitted">) {
   }
 }
 
-// Re-runs the automated review when a request it made predates the head and
-// hardened-pr-review.yml would review the PR.
-async function reReviewIfStale(
+// Re-runs the automated review, if hardened-pr-review.yml would review the
+// PR, so that it reviews the head knowing about the approval.
+async function reReview(
   context: Context<"pull_request_review.submitted">,
-  standing: { commit_id: string | null }[]
+  live: {
+    state: string;
+    draft?: boolean;
+    labels: { name: string }[];
+  }
 ) {
   const { owner, repo } = context.repo();
   const pullNumber = context.payload.pull_request.number;
-  // Live state: the webhook can predate a push or a label change.
-  const live = (
-    await context.octokit.pulls.get({ owner, repo, pull_number: pullNumber })
-  ).data;
   const labels = live.labels.map((label) => label.name);
   const reviewable =
     live.state === "open" &&
@@ -98,11 +106,11 @@ async function reReviewIfStale(
     labels.includes(PR_STATUS_LABEL_IN_PROGRESS) &&
     !labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW) &&
     !labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT);
-  if (!reviewable || standing.every((r) => r.commit_id === live.head.sha)) {
+  if (!reviewable) {
     return;
   }
   context.log(
-    `Re-running the automated review of ${owner}/${repo}#${pullNumber}: approved since its change request`
+    `Re-running the automated review of ${owner}/${repo}#${pullNumber}: an approval does not cover its change request`
   );
   // Remove before add, so the review workflow sees a fresh `labeled`.
   await context.octokit.issues.removeLabel(
