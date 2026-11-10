@@ -10,6 +10,7 @@ from unittest import main, mock, TestCase
 from torchci.td.labels import (
     __main__ as cli,
     build,
+    exploration,
     exploration_rows,
     main_units,
     pr_units,
@@ -20,7 +21,7 @@ from torchci.td.llm import events
 
 
 H1, H2, H3 = "1" * 40, "2" * 40, "3" * 40
-CALL = "0123456789ab"
+CALL, CALL2 = "0123456789ab", "fedcba987654"
 START, STOP = datetime(2026, 11, 1), datetime(2026, 11, 4)
 DAY0 = 1793491200  # 2026-11-01 00:00 UTC
 CFG = {"workflow": "trunk", "build_environment": "linux", "test_config": "default"}
@@ -320,11 +321,168 @@ class TestExploredValidation(TestCase):
         self.assertEqual(warn.call_count, 3)
 
 
+class TestSelect(TestCase):
+    jobs = {**xjob(), **xjob(12), **xjob(13, attempt=2), **xjob(14, run_id=20)}
+
+    def ids(self, rows, head_jobs=(), start=START, stop=STOP, jobs=None):
+        dropped = Counter()
+        jobs = jobs or self.jobs
+        out = exploration.select(rows, jobs, list(head_jobs), start, stop, dropped)
+        return [(u["attempt"], u["call"]) for u in out], dropped
+
+    def test_too_many_calls_drops_the_job(self):
+        calls = [f"{i:012x}" for i in range(exploration.MAX_CALLS + 1)]
+        rows = [xrow(call=c) for c in calls] + [xrow(job_id=14, run_id=20)]
+        out, dropped = self.ids(rows)
+        self.assertEqual(out, [((20, 1), CALL)])
+        self.assertEqual(dropped, {"explored_row:too_many_calls": len(calls)})
+
+    def test_dynamo_job_names(self):
+        names = {
+            "linux-jammy-py3.14-clang21": (
+                "dynamo-unittest / py3.14 / dynamo-test / test "
+                "(dynamo_wrapped, 1, 7, linux.2xlarge)",
+                "dynamo-unittest / py3.14 / dynamo-test",
+                "dynamo_wrapped",
+            ),
+            "linux-jammy-py3.13-clang21": (
+                "dynamo-cpython-test / test (dynamo_cpython, 1, 7, linux.2xlarge)",
+                "dynamo-cpython-test",
+                "dynamo_cpython",
+            ),
+        }
+        for env, (name, prefix, cfg) in names.items():
+            row = {**xrow(), "build_environment": env, "test_config": cfg}
+            jobs = xjob(name=name)
+            head = [head_job(11, build_environment=prefix, test_config=cfg)]
+            head.append(head_job(15, build_environment=prefix, test_config=cfg))
+            (unit,) = exploration.select([row], jobs, head, START, STOP, Counter())
+            self.assertEqual(unit["group"][3:], (env, cfg))
+            ran = [{"job_id": 15, "ran": ["test_e"], "failed": []}]
+            rows = {"ran_files": ran, "ran_files_all": [], "explored_failures": []}
+            with stub(rows):
+                (u,) = exploration.explored_units(
+                    [unit], head, [], START, STOP, Counter()
+                )
+            self.assertEqual(u["observed"], ["test_e"])
+
+    def test_late_rerun_is_emitted_once(self):
+        first = head_job(11, created=DAY0 - 5 * 86400)
+        again = head_job(13, attempt=2, created=DAY0 + 33 * 3600)
+        old = xrow(ts="2026-10-27 01:00:00")
+        rerun = xrow(job_id=13, call=CALL2, ts="2026-11-02 10:00:00")
+        early = (datetime(2026, 10, 25), datetime(2026, 10, 28))
+        read_early = [old, rerun]
+        out, _ = self.ids(read_early, [first, again], *early)
+        self.assertEqual(out, [((10, 1), CALL)])
+        out, dropped = self.ids([rerun], [first, again])
+        self.assertEqual(out, [])
+        self.assertEqual(dropped["explored_unit:outside_window"], 1)
+
+    def test_rerun_keeps_first_attempt_and_its_calls(self):
+        rows = [
+            xrow(ts="2026-11-02 10:00:00"),
+            xrow(job_id=12, call=CALL2, ts="2026-11-02 10:05:00"),
+            xrow(job_id=12, ts="2026-11-02 10:06:00"),
+            xrow(job_id=13, call="aaaaaaaaaaaa", ts="2026-11-02 14:00:00"),
+        ]
+        out, dropped = self.ids(rows)
+        self.assertEqual(out, [((10, 1), CALL), ((10, 1), CALL2)])
+        self.assertEqual(
+            dropped, {"explored_row:later_attempt": 1, "explored_row:duplicate": 1}
+        )
+
+    def test_window_boundary(self):
+        before = [
+            xrow(ts="2026-10-31 23:59:59"),
+            xrow(job_id=14, run_id=20, ts="2026-11-01 00:00:01"),
+        ]
+        out, dropped = self.ids(before)
+        self.assertEqual(out, [])
+        self.assertEqual(dropped["explored_unit:outside_window"], 1)
+        self.assertEqual(
+            self.ids([xrow(ts="2026-11-01 00:00:00")])[0], [((10, 1), CALL)]
+        )
+        self.assertEqual(self.ids([xrow(ts="2026-11-04 00:00:00")])[0], [])
+
+
+class TestExploredUnits(TestCase):
+    def test_label_file(self):
+        label = exploration.label_file
+        self.assertEqual(label([drawn()], True, True, True), (True, ""))
+        self.assertEqual(label([drawn()], False, False, True), (False, ""))
+        self.assertEqual(label([drawn()], False, False, False), (None, "unreported"))
+        self.assertEqual(label([drawn()], False, True, True), (None, "report_failure"))
+        self.assertEqual(
+            label([drawn(top_part=True)], True, True, True), (None, "top_part")
+        )
+        pair = [drawn(test="test_e, A"), drawn(test="test_e, B", count=3)]
+        self.assertEqual(label(pair, True, True, True), (None, "propensity_mismatch"))
+
+    def test_outcomes_from_job_records_and_estimates(self):
+        tests = [drawn(), drawn("test_f", 100), drawn("test_g"), drawn("test_h", 1)]
+        tests += [drawn("test_i", 500), drawn("test_j", top_part=True)]
+        tests += [drawn("test_k")]
+        head = [head_job(11), head_job(15), head_job(16, attempt=2)]
+        head.append(head_job(17, test_config="crossref"))
+        (unit,) = exploration.select(
+            [xrow(tests)], xjob(), head, START, STOP, Counter()
+        )
+        rows = {
+            "ran_files": [
+                {"job_id": 11, "ran": ["test_e", "test_f", "test_h"], "failed": []},
+                {"job_id": 15, "ran": ["test_i", "test_k"], "failed": ["test_k"]},
+                {"job_id": 16, "ran": ["test_g"], "failed": []},
+                {"job_id": 17, "ran": ["test_g"], "failed": []},
+            ],
+            "explored_failures": [
+                {"job_id": 15, "test_file": "test_f"},
+                {"job_id": 11, "test_file": "test_i"},
+                {"job_id": 16, "test_file": "test_g"},
+            ],
+        }
+        e2 = events.parse_e2([e2_row(8, "test_f", head_sha=H2)])
+        dropped = Counter()
+        with stub(rows):
+            (u,) = exploration.explored_units([unit], head, e2, START, STOP, dropped)
+        self.assertEqual(u["unit_id"], f"x:8:{H2}:pull:linux:default:{CALL}")
+        self.assertEqual(u["positives"], ["test_f"])
+        self.assertEqual(u["observed"], ["test_e", "test_f", "test_h"])
+        self.assertNotIn("test_j", u["propensity"])
+        self.assertEqual(len(u["propensity"]), 6)
+        self.assertEqual(u["time"], DAY0 + 86400 + 10 * 3600)
+        self.assertEqual(
+            dropped,
+            {
+                "explored_file:unreported": 1,
+                "explored_file:failed_not_pr_specific": 1,
+                "explored_file:top_part": 1,
+                "explored_file:report_failure": 1,
+            },
+        )
+        est = exploration.estimates([u], unit["frame"])
+        self.assertEqual(est["clipped_files"], 1)
+        self.assertEqual(est["estimated_skipped_files"], 4 + 10 + 4 + 100 + 2 + 4)
+        self.assertEqual(est["estimated_labelled_files"], 4 + 10 + 100)
+        self.assertEqual(est["estimated_failing_skipped_files"], 10)
+        self.assertEqual(est["unlabelled_share"], 0.5)
+        self.assertEqual(est["out_of_frame_time_share"], 0.25)
+
+    def test_empty_draw_is_a_unit(self):
+        (unit,) = exploration.select([xrow([])], xjob(), [], START, STOP, Counter())
+        with stub({"explored_failures": []}):
+            (u,) = exploration.explored_units([unit], [], [], START, STOP, Counter())
+        self.assertEqual((u["candidates"], u["observed"]), ([], []))
+        est = exploration.estimates([u], unit["frame"])
+        self.assertEqual((est["explored_units"], est["frame_files"]), (1, 40))
+        self.assertIsNone(est["unlabelled_share"])
+
+
 def world():
     off = [5, 6, "trunk", "macos-arm64", "default", H1, 3, 10, '{"test_c": 1.0}']
     push = {"commit_shas": [], "title": ""}
     return {
-        "e2": [e2_row(7, "test_c")],
+        "e2": [e2_row(7, "test_c"), e2_row(8, "test_f", head_sha=H2)],
         "main_pushes": [
             {**push, "push_sha": H3, "pushed_at": DAY0 - 3600, "commit_shas": [H3]},
             {**push, "push_sha": H1, "pushed_at": DAY0 + 10, "commit_shas": [H1]},
@@ -352,8 +510,15 @@ def world():
         "head_jobs": [
             head_job(6, 5, sha=H1, workflow="trunk", build_environment="macos-arm64")
         ],
-        "ran_files": [{"job_id": 6, "ran": ["test_c", "test_d"], "failed": []}],
+        "unit_jobs": [head_job(11)],
+        "ran_files": [
+            {"job_id": 6, "ran": ["test_c", "test_d"], "failed": []},
+            {"job_id": 11, "ran": ["test_e", "test_f"], "failed": []},
+        ],
         "ran_files_all": [],
+        "exploration_rows": [xrow([drawn(), drawn("test_f")])],
+        "exploration_jobs": list(xjob().values()),
+        "explored_failures": [{"job_id": 11, "test_file": "test_f"}],
     }
 
 
@@ -378,10 +543,11 @@ class TestCli(TestCase):
 
     def test_writes_files(self):
         manifest, units, lists = self.run_build(world())
-        expected = {"main": 2, "pr_td_off": 1}
+        expected = {"main": 2, "pr_td_off": 1, "explored": 1}
         self.assertEqual(manifest["units"], expected)
         self.assertEqual(manifest["positives"], expected | {"main": 1})
         self.assertFalse(manifest["pr_kinds_skipped"])
+        self.assertEqual(manifest["estimates"]["estimated_failing_skipped_files"], 4.0)
         by_id = {u["unit_id"]: u for u in units}
         self.assertEqual(by_id[f"c:{H1}"]["positives"], ["test_a"])
         self.assertEqual(
@@ -389,12 +555,18 @@ class TestCli(TestCase):
         )
         self.assertEqual(lists[0]["tests"], ["cpp/test_x", "test_a", "test_b"])
 
+    def test_copes_with_no_exploration_rows(self):
+        rows = {**world(), "exploration_rows": [], "exploration_jobs": None}
+        manifest, _, _ = self.run_build(rows)
+        self.assertEqual(manifest["units"]["explored"], 0)
+        self.assertEqual(manifest["estimates"]["explored_units"], 0)
+
     def test_old_window_skips_pr_kinds(self):
         rows = {k: v for k, v in world().items() if k.startswith(("main", "failed"))}
         with self.assertLogs("torchci.td.labels", "WARNING"):
             manifest, _, _ = self.run_build(rows, now=datetime(2027, 11, 2))
         self.assertTrue(manifest["pr_kinds_skipped"])
-        self.assertEqual(manifest["units"], {"main": 2, "pr_td_off": 0})
+        self.assertEqual(manifest["units"], {"main": 2, "pr_td_off": 0, "explored": 0})
         manifest, _, _ = self.run_build(world(), now=datetime(2027, 11, 1))
         self.assertFalse(manifest["pr_kinds_skipped"])
 

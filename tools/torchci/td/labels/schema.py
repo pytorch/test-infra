@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 from typing import Any, Union
 
 
-MAIN, PR_TD_OFF = "main", "pr_td_off"
-KINDS = (MAIN, PR_TD_OFF)
+MAIN, PR_TD_OFF, EXPLORED = "main", "pr_td_off", "explored"
+KINDS = (MAIN, PR_TD_OFF, EXPLORED)
 DAY = 86400
 
 FIELDS = (

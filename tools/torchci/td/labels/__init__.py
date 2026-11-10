@@ -1,5 +1,6 @@
 """TD's label dataset: (unit, test file) -> failed, from HUD ClickHouse (read-only) and
-a pytorch clone (read-only git), for main pushes and TD-off PR jobs. See README.md."""
+a pytorch clone (read-only git), for main pushes, TD-off PR jobs and TD's exploration
+draws. See README.md."""
 
 import gzip
 import json
@@ -9,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from torchci.td.labels import main_units, pr_units, queries
+from torchci.td.labels import exploration, main_units, pr_units, queries
 from torchci.td.labels.schema import KINDS
 from torchci.td.llm.bundle import atomic_file
 from torchci.td.llm.cache import ensure_dir
@@ -46,12 +47,13 @@ def build(
     pr_kinds = start >= now - timedelta(days=queries.PR_LOOK_BACK_DAYS)
     e2: list = []
     td_off: dict = {}
+    selected: list = []
     if pr_kinds:
         e2 = queries.fetch_e2(start, stop)
         td_off = pr_units.fetch_td_off(e2, start, stop, dropped)
     else:
         logger.warning(
-            "window starts more than %d days ago: pr_td_off skipped",
+            "window starts more than %d days ago: pr_td_off and explored skipped",
             queries.PR_LOOK_BACK_DAYS,
         )
     rankings = [(e.failed_at, e.row.all_scores) for e in e2]
@@ -62,6 +64,13 @@ def build(
         start, stop, repo, out / "cache", main_units.cpp_tests(rankings)
     )
     units = main + pr_units.td_off_units(td_off)
+    if pr_kinds:
+        rows, jobs = exploration.fetch_rows(start, stop)
+        head_jobs = exploration.fetch_head_jobs(jobs) if rows else []
+        selected = exploration.select(rows, jobs, head_jobs, start, stop, dropped)
+        units += exploration.explored_units(
+            selected, head_jobs, e2, start, stop, dropped
+        )
     manifest = {
         "start": start.strftime("%Y-%m-%d"),
         "stop": stop.strftime("%Y-%m-%d"),
@@ -73,6 +82,9 @@ def build(
         },
         "months": [c["month"] for c in lists],
         "dropped": dict(sorted(dropped.items())),
+        "estimates": exploration.estimates(
+            units, sum((u["frame"] for u in selected), Counter())
+        ),
     }
     write_jsonl_gz(out / UNITS_FILE, units)
     write_jsonl_gz(out / CANDIDATES_FILE, lists)

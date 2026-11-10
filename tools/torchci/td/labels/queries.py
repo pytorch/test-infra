@@ -5,7 +5,7 @@ which follows pytorch's run_test.py."""
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Iterable
 
 from torchci.td.labels.schema import DAY, sql_time
@@ -28,6 +28,9 @@ RAN_BATCH = 200
 # PR labels need their jobs' test reports, which are kept about a year; E2 reads the TD
 # metric this far back.
 PR_LOOK_BACK_DAYS = 365
+# Metric rows land up to ~28 hours after their job; PR rows are read this long around
+# the window so every attempt and record of a unit that started inside it is seen.
+LATE_ROWS = timedelta(days=3)
 # A td_exploration row holds at most 500 drawn tests; larger ones are not parsed.
 MAX_INFO_BYTES = 512 * 1024
 SETTINGS = LLM_SETTINGS + ", max_result_rows = 20000000, max_result_bytes = 4000000000"
@@ -205,12 +208,24 @@ LEFT JOIN (
 {SETTINGS}
 """
 
+# The files td_test_failure_stats_v2 reports as failed explored files in the given jobs.
+EXPLORED_FAILURES = f"""
+SELECT job_id, JSONExtractString(info, 'test_name') AS test_file
+FROM misc.ossci_uploaded_metrics
+WHERE metric_name = 'td_test_failure_stats_v2' AND repo = 'pytorch/pytorch'
+    AND timestamp >= {{start: DateTime64(3)}} AND timestamp < {{stop: DateTime64(3)}}
+    AND job_id IN {{job_ids: Array(Int64)}} AND JSONExtractBool(info, 'explored')
+GROUP BY job_id, test_file
+{SETTINGS}
+"""
+
 
 def fetch_e2(start: datetime, stop: datetime) -> list[E2Event]:
-    """PR-specific first failures per (PR, file) in the window."""
+    """PR-specific first failures per (PR, file) up to LATE_ROWS past the window, so
+    explored failures near its end are covered."""
     params = {
         "start": sql_time(start),
-        "stop": sql_time(stop),
+        "stop": sql_time(stop + LATE_ROWS),
         "main_window": events.MAIN_WINDOW_SECONDS,
         "look_back_days": PR_LOOK_BACK_DAYS,
     }
