@@ -200,6 +200,56 @@ class TestPrBases(PrRepo):
         self.assertEqual(ctx.units, {})
         self.assertEqual(ctx.dropped, Counter({"pr_td_off:no_diff": 1}))
 
+    def test_failed_pr_numstat_is_nan(self):
+        meta = {"number": 7, "body": "", "base_sha": self.b1, "base_ref": "b"}
+        rows = {"pr_meta": [meta]}
+        timeout = subprocess.TimeoutExpired(["git"], 600)
+        with mock.patch.object(
+            label_queries, "ch", lambda name, sql, params: rows.get(name, [])
+        ), mock.patch.object(gitdata, "diff_numstat", side_effect=timeout):
+            ctx = context.build(
+                [unit("pr_td_off", self.h, T0, candidates=["test_p"], observed=[])],
+                {"2026-11": ["test_p"]},
+                self.repo,
+                START,
+                STOP,
+            )
+        (p,) = ctx.units.values()
+        self.assertEqual(p["changed"], ["torch/a.py"])
+        self.assertTrue(math.isnan(p["sig_added"]) and math.isnan(p["sig_deleted"]))
+
+    def test_one_numstat_per_head(self):
+        meta = {"number": 7, "body": "", "base_sha": self.b1, "base_ref": "b"}
+        rows = {"pr_meta": [meta]}
+        units = [
+            unit("pr_td_off", self.h, T0, candidates=["test_p"], observed=[])
+            | {"unit_id": f"p:7:{self.h}:{w}", "workflow": w}
+            for w in ("pull", "trunk")
+        ]
+        with mock.patch.object(
+            label_queries, "ch", lambda name, sql, params: rows.get(name, [])
+        ), mock.patch.object(
+            gitdata, "diff_numstat", wraps=gitdata.diff_numstat
+        ) as numstat:
+            ctx = context.build(units, {"2026-11": ["test_p"]}, self.repo, START, STOP)
+        numstat.assert_called_once_with(self.repo, self.b1, self.h)
+        self.assertEqual(len(ctx.units), 2)
+        for c in ctx.units.values():
+            self.assertEqual((c["sig_added"], c["sig_deleted"]), (1.0, 1.0))
+
+    def test_diff_numstat(self):
+        git(self.repo, "checkout", "-q", self.b1)
+        head = commit(
+            self.repo,
+            {"torch/below.py": "x\ny\n", "test/t.py": "t\n", "docs/d.md": "d\n"},
+            "edit",
+        )
+        got = gitdata.diff_numstat(self.repo, self.b1, head)
+        self.assertEqual(
+            sorted(got["files"]), ["docs/d.md", "test/t.py", "torch/below.py"]
+        )
+        self.assertEqual((got["sig_added"], got["sig_deleted"]), (1, 0))
+
     def test_pr_change_is_the_pr_only(self):
         changed, log = gitdata.pr_change(self.repo, self.b1, self.h)
         self.assertEqual(changed, ["torch/a.py"])
@@ -441,7 +491,7 @@ class TestBuild(PrRepo):
         self.assertEqual(p["changed"], ["torch/a.py"])
         self.assertEqual(p["prev_failed"], ["test_e"])
         self.assertEqual(p["mentioned"], ["test_h", "test_p"])
-        self.assertTrue(math.isnan(p["sig_added"]) and math.isnan(p["sig_deleted"]))
+        self.assertEqual((p["sig_added"], p["sig_deleted"]), (1.0, 1.0))
         self.assertEqual(ctx.history, rows["fail_history"])
         self.assertEqual((ctx.history_start, ctx.pr_failures_start), (T0 - 9, T0 + 10))
         self.assertIn(H2, ctx.merge_bases)

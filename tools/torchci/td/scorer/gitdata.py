@@ -134,6 +134,14 @@ def merge_base(repo: Path, a: str, b: str) -> Optional[str]:
     return out if SHA_RE.match(out) else None
 
 
+def diff_numstat(repo: Path, base: str, head: str) -> dict[str, Any]:
+    """numstat_change of a PR head against its merge base (`git diff --numstat -M`)."""
+    out = pytorch_repo.git(
+        repo, "diff", "--numstat", "-z", "-M", "--end-of-options", base, head
+    )
+    return numstat_change(out)
+
+
 def pr_change(repo: Path, base: str, head: str) -> tuple[list[str], str]:
     """A PR head's changed files against its merge base, as TD's query_changed_files
     lists them, and the `git log <base>..<head>` text MentionedInPR searches."""

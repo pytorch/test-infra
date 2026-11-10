@@ -184,6 +184,17 @@ def pr_bases(
     return out
 
 
+def pr_line_counts(repo: Path, base: str, head: str) -> tuple[float, float]:
+    """A PR head's significant lines added and deleted against its merge base; NaN
+    when the diff fails."""
+    try:
+        lines = gitdata.diff_numstat(repo, base, head)
+    except subprocess.SubprocessError as e:
+        logger.warning("git diff --numstat %s..%s failed: %r", base, head, e)
+        return math.nan, math.nan
+    return float(lines["sig_added"]), float(lines["sig_deleted"])
+
+
 def build(
     units: list[dict[str, Any]],
     months: dict[str, list[str]],
@@ -207,6 +218,7 @@ def build(
     merge_bases = history.fetch_merge_bases({r["head_sha"] for r in rows})
     out: dict[str, UnitContext] = {}
     texts: dict[str, str] = {}
+    line_counts: dict[tuple[str, str], tuple[float, float]] = {}
     tests: dict[str, set[str]] = {}
     for u in main:
         c = commits.get(u["sha"])
@@ -232,6 +244,10 @@ def build(
             logger.warning("git diff of %s failed: %r", u["unit_id"], e)
             dropped["pr_td_off:no_diff"] += 1
             continue
+        pair = (bases[u["unit_id"]], u["sha"])
+        if pair not in line_counts:
+            line_counts[pair] = pr_line_counts(repo, *pair)
+        sig = line_counts[pair]
         pr, cutoff = int(u["pr_number"]), history.pr_cutoff(u, starts)
         out[u["unit_id"]] = {
             "cutoff": cutoff,
@@ -239,8 +255,8 @@ def build(
             "prev_failed": history.prev_failed(
                 by_pr.get(pr, []), u["workflow"], cutoff
             ),
-            "sig_added": math.nan,
-            "sig_deleted": math.nan,
+            "sig_added": sig[0],
+            "sig_deleted": sig[1],
         }
         texts[u["unit_id"]] = log
         tests[u["unit_id"]] = set(unit_tests(u, months))
