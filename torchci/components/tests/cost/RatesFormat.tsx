@@ -5,8 +5,8 @@ const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
 // How to write a rates file, as the cost panel shows it: the plain form and
 // the wrapped one side by side, with the window's largest runners as the
-// examples' keys, and under them what keys and values mean. As wide as that
-// takes, so a caller can center it.
+// examples' keys, and under them what keys, values and a usage window mean.
+// As wide as that takes, so a caller can center it.
 export default function RatesFormat({
   exampleLabels,
   runners,
@@ -59,7 +59,7 @@ export default function RatesFormat({
           Or wrapped, with optional notes
         </Typography>
         <Box component="pre" sx={pre}>
-          {`{\n  "valid_from": "2026-10-01",\n  "basis": "how the rates were made",\n  "rates": {\n    "${a}": 1.23,\n    "${b}": 4.56\n  }\n}`}
+          {`{\n  "valid_from": "2026-10-01",\n  "window": {\n    "start": "2026-09-02",\n    "end": "2026-10-01"\n  },\n  "basis": "how the rates were made",\n  "rates": {\n    "${a}": 1.23,\n    "${b}": 4.56\n  }\n}`}
         </Box>
       </Box>
       <Box
@@ -79,6 +79,10 @@ export default function RatesFormat({
         <li>
           <b>Values:</b> $ per runner-hour, ≥ 0 (0 is free). Runners left out
           aren&apos;t priced.
+        </li>
+        <li>
+          <b>Usage window:</b> the UTC days of usage the rates were made from,
+          start and end both included.
         </li>
         <li>The values above are examples only.</li>
       </Box>

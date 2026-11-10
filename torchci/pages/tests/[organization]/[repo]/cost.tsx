@@ -22,6 +22,7 @@ import {
   type CostQuery,
   costTrendApiUrl,
   costUrlParams,
+  datesLabel,
   resolveCostQuery,
 } from "lib/tests/cost/query";
 import {
@@ -64,12 +65,7 @@ function copied(choices: CostChoices) {
 function datesOf(answer: RunnerHours): string {
   const first = answer.start.slice(0, 10);
   const last = new Date(Date.parse(answer.end) - 1).toISOString().slice(0, 10);
-  const range =
-    first === last
-      ? first
-      : `${first} to ${
-          last.slice(0, 4) === first.slice(0, 4) ? last.slice(5) : last
-        }`;
+  const range = datesLabel(first, last);
   const asked = COST_WINDOW_DAYS[answer.window];
   return answer.days < asked
     ? `${range} (${answer.days} of ${asked} days have data)`

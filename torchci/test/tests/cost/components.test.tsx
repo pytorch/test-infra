@@ -9,6 +9,7 @@ import CostMachineKey from "components/tests/cost/CostMachineKey";
 import CostPanel from "components/tests/cost/CostPanel";
 import MachineKey from "components/tests/cost/MachineKey";
 import OwnerChart from "components/tests/cost/OwnerChart";
+import RatesDropzone from "components/tests/cost/RatesDropzone";
 import RatesFormat from "components/tests/cost/RatesFormat";
 import RunnersDrawer from "components/tests/cost/RunnersDrawer";
 import { RunnerHoursSchema } from "lib/api/tests/cost/types";
@@ -18,6 +19,7 @@ import {
   parseRates,
   priceableRunners,
   pricedRunnerHours,
+  RATES_FILE_URL,
   type RatesFile,
   withRate,
 } from "lib/tests/cost/rates";
@@ -222,10 +224,61 @@ describe("CostFacts", () => {
 });
 
 describe("CostPanel", () => {
-  test("asks for a file until one is added", () => {
+  test("asks for a file until one is added, a link to download the rates file first", () => {
     const text = panel(null);
     expect(text).toContain("Apply your runner rates to see cost by owner");
-    expect(text).toContain("Choose rates file…");
+    expect(text).toContain(
+      "Download rates file Choose rates file… File format"
+    );
+  });
+
+  test("the rates file is a plain link to a new tab, in the error state too, that says it needs Meta access", () => {
+    expect(RATES_FILE_URL).toBe("https://fburl.com/pytorch-ci-rates");
+    for (const error of [null, "f.json has no rates."]) {
+      const markup = unstyled(
+        renderToStaticMarkup(
+          <RatesDropzone
+            dragging={false}
+            error={error}
+            exampleLabels={[]}
+            runners={0}
+            onChoose={noop}
+            onDismissError={noop}
+          />
+        )
+      );
+      const links = Array.from(
+        markup.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g),
+        ([, attributes, body]) => [decoded(attributes), words(body)]
+      );
+      expect(links.map(([, text]) => text)).toEqual(["Download rates file"]);
+      expect(links[0][0]).toContain(`href="${RATES_FILE_URL}"`);
+      expect(links[0][0]).toContain('target="_blank"');
+      expect(links[0][0]).toContain('rel="noopener noreferrer"');
+      expect(titles(markup)).toContain(
+        "Needs access to the internal rates file. Opens in a new tab."
+      );
+    }
+  });
+
+  test("names a file's usage window, and its valid_from only when that is not the window's last day", () => {
+    const withWindow = (valid_from: string) =>
+      panel(
+        parseRates(
+          JSON.stringify({
+            ...RATES_JSON,
+            valid_from,
+            window: { start: "2026-09-02", end: "2026-10-01", days: 30 },
+          }),
+          "rates.json"
+        )
+      );
+    const generated = withWindow("2026-10-01");
+    expect(generated).toContain("rates made from usage 2026-09-02 to 10-01");
+    expect(generated).not.toContain("valid from");
+    expect(withWindow("2026-10-15")).toContain(
+      "rates made from usage 2026-09-02 to 10-01 · valid from 2026-10-15"
+    );
   });
 
   test("names the file, its notes, its edits, the runners it leaves without a rate and its labels that did not run", () => {
@@ -442,9 +495,13 @@ describe("RatesFormat", () => {
       examples,
       examples,
     ]);
-    expect(files.map((f) => [f.validFrom, f.basis])).toEqual([
-      [null, null],
-      ["2026-10-01", "how the rates were made"],
+    expect(files.map((f) => [f.validFrom, f.window, f.basis])).toEqual([
+      [null, null, null],
+      [
+        "2026-10-01",
+        { start: "2026-09-02", end: "2026-10-01" },
+        "how the rates were made",
+      ],
     ]);
   });
 });

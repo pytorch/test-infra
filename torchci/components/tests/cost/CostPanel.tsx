@@ -6,7 +6,7 @@ import RatesDropzone, {
   RatesAction,
 } from "components/tests/cost/RatesDropzone";
 import RatesFormat from "components/tests/cost/RatesFormat";
-import { hoursLabel, rateLabel } from "lib/tests/cost/query";
+import { datesLabel, hoursLabel, rateLabel } from "lib/tests/cost/query";
 import {
   editedRates,
   priceableRunners,
@@ -256,11 +256,22 @@ export default function CostPanel({
               )
             </span>
           )}
-          {rates.validFrom !== null && (
+          {rates.window !== null && (
             <span>
-              {dot} valid from {rates.validFrom}
+              {dot} rates made from usage{" "}
+              <Box component="span" sx={{ whiteSpace: "nowrap" }}>
+                {datesLabel(rates.window.start, rates.window.end)}
+              </Box>
             </span>
           )}
+          {/* A generated file's valid_from is its window's last day, which
+              the window already says. */}
+          {rates.validFrom !== null &&
+            rates.validFrom !== rates.window?.end && (
+              <span>
+                {dot} valid from {rates.validFrom}
+              </span>
+            )}
           {rates.basis !== null && (
             <span>
               {dot} {rates.basis}
