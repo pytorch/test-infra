@@ -61,7 +61,7 @@ function commentWrite(check: (_body: string) => void) {
 
 beforeEach(() => {
   jest.spyOn(Date, "now").mockReturnValue(NOW);
-  jest.spyOn(github, "getPreReviewOctokit").mockResolvedValue(reader);
+  jest.spyOn(github, "getPrStatusOctokit").mockResolvedValue(reader);
 });
 
 afterEach(() => {
@@ -71,7 +71,7 @@ afterEach(() => {
 
 test("queued status refresh reads no response APIs and leaves unchanged comments alone", async () => {
   jest
-    .mocked(github.getPreReviewOctokit)
+    .mocked(github.getPrStatusOctokit)
     .mockRejectedValue(new Error("Unavailable"));
   let body = "";
   let scopes = [
@@ -103,7 +103,7 @@ test("queued status refresh reads no response APIs and leaves unchanged comments
     "author"
   );
   handleScope(scopes);
-  expect(github.getPreReviewOctokit).not.toHaveBeenCalled();
+  expect(github.getPrStatusOctokit).not.toHaveBeenCalled();
 });
 
 test("the triaged webhook promotes immediately and its label event refreshes Dr.CI", async () => {
@@ -128,7 +128,7 @@ test("the triaged webhook promotes immediately and its label event refreshes Dr.
   bot.load(prStatusBot);
   await bot.receive({ name: "pull_request", payload, id: "test" } as any);
   handleScope(scopes);
-  expect(github.getPreReviewOctokit).not.toHaveBeenCalled();
+  expect(github.getPrStatusOctokit).not.toHaveBeenCalled();
   payload.label.name = "in progress";
   const live = pull({ labels: [{ name: "triaged" }, { name: "in progress" }] });
   payload.pull_request = live;

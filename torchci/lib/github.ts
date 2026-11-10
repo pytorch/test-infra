@@ -33,12 +33,12 @@ export async function getOsdcMigrationOctokit(
 
 // Read-only PR status app with a separate rate limit for CI-comment and
 // status reconciliation. Periodic status reads never fall back to PyTorchBot.
-export async function getPreReviewOctokit(
+export async function getPrStatusOctokit(
   owner: string,
   repo: string
 ): Promise<Octokit | null> {
-  const appId = process.env.PRE_REVIEW_APP_ID;
-  const privateKey = process.env.PRE_REVIEW_PRIVATE_KEY;
+  const appId = process.env.PR_STATUS_APP_ID;
+  const privateKey = process.env.PR_STATUS_PRIVATE_KEY;
   if (!appId || !privateKey) {
     return null;
   }

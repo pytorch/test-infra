@@ -99,11 +99,11 @@ triaged PRs. Its separate concurrency group and dedicated read-only GitHub App
 keep status polling isolated from triage advancement and Dr.CI's GitHub rate limit.
 See [PR status coverage and examples](docs/pr-status.md) for details.
 
-Populate `PRE_REVIEW_APP_ID` and `PRE_REVIEW_PRIVATE_KEY` in the HUD deployment.
+Populate `PR_STATUS_APP_ID` and `PR_STATUS_PRIVATE_KEY` in the HUD deployment.
 An existing read-only app can be reused; no new app is required. The private key
 is base64-encoded PEM, and the app needs read access to PRs, issues, contents, and
 org members on `pytorch/pytorch`. Both variables are mandatory for the dedicated
-status reader (`getPreReviewOctokit`), which never falls back to PyTorchBot.
+status reader (`getPrStatusOctokit`), which never falls back to PyTorchBot.
 PyTorchBot performs status-comment writes and adds `in progress`, since that
 identity triggers automated review. If status reads fail during a CI rebuild,
 the rebuild preserves the existing PR Status section while updating CI results.

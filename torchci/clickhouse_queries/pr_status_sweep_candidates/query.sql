@@ -9,7 +9,7 @@ WITH open_prs AS (
         number,
         issue_url,
         COALESCE(
-            created_at >= {preReviewStartDate: Nullable(String)}
+            created_at >= {prStatusStartDate: Nullable(String)}
             AND hasAny(labels.name, {workflowLabels: Array(String)}),
             false
         ) AS in_workflow

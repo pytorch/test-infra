@@ -1,4 +1,4 @@
-import { markInProgressIfAccepted } from "lib/bot/preReviewSweep";
+import { markTriagedInProgress } from "lib/bot/triagedPromotion";
 import * as prStatus from "lib/prStatus";
 import nock from "nock";
 import { handleScope } from "./common";
@@ -17,7 +17,7 @@ const pull = (overrides = {}) => ({
   ...overrides,
 });
 const promote = () =>
-  markInProgressIfAccepted(reader, writer, "pytorch", "pytorch", 1);
+  markTriagedInProgress(reader, writer, "pytorch", "pytorch", 1);
 
 beforeEach(() => jest.spyOn(Date, "now").mockReturnValue(NOW));
 afterEach(() => {
@@ -75,10 +75,10 @@ test.each([
 
 test("does not read or write other owners or repositories", async () => {
   expect(
-    await markInProgressIfAccepted(reader, writer, "other", "pytorch", 1)
+    await markTriagedInProgress(reader, writer, "other", "pytorch", 1)
   ).toBe(false);
   expect(
-    await markInProgressIfAccepted(reader, writer, "pytorch", "vision", 1)
+    await markTriagedInProgress(reader, writer, "pytorch", "vision", 1)
   ).toBe(false);
 });
 

@@ -75,8 +75,8 @@ alone, and one PR's failure does not prevent checking the rest of the batch.
 
 GitHub status reads, including paginated comment lookup, use a dedicated
 read-only app with a rate limit separate from PyTorchBot. Only PyTorchBot writes
-comments. Populate both `PRE_REVIEW_APP_ID` and `PRE_REVIEW_PRIVATE_KEY` in the HUD
-deployment; they are mandatory for `getPreReviewOctokit`, the dedicated status
+comments. Populate both `PR_STATUS_APP_ID` and `PR_STATUS_PRIVATE_KEY` in the HUD
+deployment; they are mandatory for `getPrStatusOctokit`, the dedicated status
 reader. An existing read-only app can be reused. The private key is
 base64-encoded PEM, and the app needs read access to PRs, issues, contents, and
 org members on `pytorch/pytorch`. The recovery job never falls back to PyTorchBot

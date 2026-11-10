@@ -1,7 +1,7 @@
 {
   "params": {
     "repo": "String",
-    "preReviewStartDate": "Nullable(String)",
+    "prStatusStartDate": "Nullable(String)",
     "workflowLabels": "Array(String)",
     "drciCommentAuthor": "String",
     "drciCommentStart": "String",
@@ -10,7 +10,7 @@
   "tests": [
     {
       "repo": "pytorch/pytorch",
-      "preReviewStartDate": "2026-09-01",
+      "prStatusStartDate": "2026-09-01",
       "workflowLabels": [
         "triaged",
         "in progress",

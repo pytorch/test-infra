@@ -1,4 +1,4 @@
-import { getRotatingBatch } from "lib/bot/preReviewUtils";
+import { getRotatingBatch } from "lib/rotatingBatch";
 
 test("bounded rotation wraps and eventually includes every item", () => {
   const items = [1, 2, 3, 4, 5];

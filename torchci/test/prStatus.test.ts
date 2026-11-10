@@ -12,7 +12,7 @@ import {
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_START,
-  PRE_REVIEW_START_DATE,
+  PR_STATUS_START_DATE,
   PrStatusState,
   renderPrStatusSection,
   splicePrStatusSection,
@@ -97,7 +97,7 @@ describe("getPrStatusStage", () => {
       ...overrides,
       pullRequest: {
         ...overrides.pullRequest,
-        created_at: PRE_REVIEW_START_DATE!,
+        created_at: PR_STATUS_START_DATE!,
       },
     });
     expect(getPrStatusStage(atRollout)).toBe(stage);
@@ -106,7 +106,7 @@ describe("getPrStatusStage", () => {
       pullRequest: {
         ...atRollout.pullRequest,
         created_at: new Date(
-          Date.parse(PRE_REVIEW_START_DATE!) - 1
+          Date.parse(PR_STATUS_START_DATE!) - 1
         ).toISOString(),
       },
     };

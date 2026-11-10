@@ -36,7 +36,7 @@ function job(prNumber = 1) {
 beforeEach(() => {
   jest.spyOn(console, "error").mockImplementation(() => {});
   jest.spyOn(console, "warn").mockImplementation(() => {});
-  jest.spyOn(github, "getPreReviewOctokit").mockResolvedValue(reader);
+  jest.spyOn(github, "getPrStatusOctokit").mockResolvedValue(reader);
   jest.spyOn(workflows, "fetchRecentWorkflows").mockResolvedValue([job()]);
   jest.spyOn(workflows, "fetchFailedJobsFromCommits").mockResolvedValue([]);
   jest.spyOn(workflows, "fetchJobNamesFromCommits").mockResolvedValue([]);
@@ -148,10 +148,10 @@ test.each(["missing credentials", "app lookup failed"])(
   "%s preserves status and never uses PyTorchBot for status reads",
   async (failure) => {
     if (failure === "missing credentials") {
-      jest.mocked(github.getPreReviewOctokit).mockResolvedValue(null);
+      jest.mocked(github.getPrStatusOctokit).mockResolvedValue(null);
     } else {
       jest
-        .mocked(github.getPreReviewOctokit)
+        .mocked(github.getPrStatusOctokit)
         .mockRejectedValue(new Error("app unavailable"));
     }
     await updateDrciComments(writer, "pytorch", "pytorch", [1]);
@@ -166,8 +166,8 @@ test("the dedicated reader is shared and replaces stale progress with queued sta
   const scopes = [statusReads("", 1), statusReads("", 2)];
   await updateDrciComments(writer, "pytorch", "pytorch", [1, 2]);
   handleScope(scopes);
-  expect(github.getPreReviewOctokit).toHaveBeenCalledTimes(1);
-  expect(github.getPreReviewOctokit).toHaveBeenCalledWith("pytorch", "pytorch");
+  expect(github.getPrStatusOctokit).toHaveBeenCalledTimes(1);
+  expect(github.getPrStatusOctokit).toHaveBeenCalledWith("pytorch", "pytorch");
   expectCiUpdate("## PR Status: triaged");
   const body = jest.mocked(writer.rest.issues.updateComment).mock.calls[0][0]!
     .body!;
@@ -178,7 +178,7 @@ test("the dedicated reader is shared and replaces stale progress with queued sta
 });
 
 test("CI can create a missing comment even when the status reader is unavailable", async () => {
-  jest.mocked(github.getPreReviewOctokit).mockResolvedValue(null);
+  jest.mocked(github.getPrStatusOctokit).mockResolvedValue(null);
   jest.mocked(clickhouse.queryClickhouse).mockResolvedValue([]);
   const scope = nock("https://api.github.com")
     .get(`/repos/${REPO}/issues/1/comments`)

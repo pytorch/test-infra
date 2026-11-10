@@ -84,7 +84,7 @@ test("an empty ClickHouse candidate list does not read GitHub or write comments"
     "pr_status_sweep_candidates",
     {
       repo: REPO,
-      preReviewStartDate: prStatus.PRE_REVIEW_START_DATE,
+      prStatusStartDate: prStatus.PR_STATUS_START_DATE,
       workflowLabels: prStatus.PR_STATUS_LABELS,
       drciCommentAuthor: DRCI_COMMENT_AUTHOR,
       drciCommentStart: DRCI_COMMENT_START,

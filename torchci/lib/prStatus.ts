@@ -53,7 +53,22 @@ export const PR_STATUS_LABELS = [
 ];
 
 // Set to the rollout date
-export const PRE_REVIEW_START_DATE: string | null = "2026-09-01";
+export const PR_STATUS_START_DATE: string | null = "2026-09-01";
+
+/** Open, non-draft PRs created on or after the workflow rollout. */
+export function isPrStatusEligible(pr: {
+  state?: string;
+  draft?: boolean;
+  created_at?: string;
+}): boolean {
+  return (
+    PR_STATUS_START_DATE !== null &&
+    pr.state === "open" &&
+    !pr.draft &&
+    pr.created_at !== undefined &&
+    Date.parse(pr.created_at) >= Date.parse(PR_STATUS_START_DATE)
+  );
+}
 
 // Delimiters around the rendered section. The full-sweep render in drci.ts
 // rebuilds the whole comment and does not need them, but the label-event path
@@ -117,10 +132,10 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   // PRs predating the workflow are excluded from every phase, including drafts
   // and approvals whose labels would otherwise imply a stage.
   if (
-    PRE_REVIEW_START_DATE === null ||
+    PR_STATUS_START_DATE === null ||
     (state.pullRequest?.created_at !== undefined &&
       Date.parse(state.pullRequest.created_at) <
-        Date.parse(PRE_REVIEW_START_DATE))
+        Date.parse(PR_STATUS_START_DATE))
   ) {
     return "none";
   }
@@ -130,7 +145,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   }
   // A triaged PR still needs automated review, even with merge approval. The
   // The triaged webhook adds in progress without waiting for maintainer input.
-  if (hasPreReviewLabels(state.labels)) {
+  if (hasPendingTriageLabels(state.labels)) {
     return "triaged";
   }
   if (
@@ -160,7 +175,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   return "none";
 }
 
-export function hasPreReviewLabels(labels: string[]): boolean {
+export function hasPendingTriageLabels(labels: string[]): boolean {
   return (
     labels.includes(PR_STATUS_LABEL_TRIAGED) &&
     !labels.includes(PR_STATUS_LABEL_IN_PROGRESS) &&
@@ -362,7 +377,7 @@ export function splicePrStatusSection(
 // carrying workflow labels.
 
 /** Current outstanding users and teams, without inferring requests from reviews. */
-export function buildAssignedReviewers(
+export function buildRequestedReviewers(
   owner: string,
   requestedReviewers: { login?: string }[],
   requestedTeams: { slug?: string }[]
@@ -507,7 +522,7 @@ export async function fetchPrStatusState(
   const author = authorLogin ?? pull?.data.user?.login;
 
   const requestedReviewers = pull
-    ? buildAssignedReviewers(
+    ? buildRequestedReviewers(
         owner,
         pull.data.requested_reviewers ?? [],
         pull.data.requested_teams ?? []

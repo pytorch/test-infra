@@ -1,4 +1,4 @@
-import { getOctokit, getPreReviewOctokit } from "lib/github";
+import { getOctokit, getPrStatusOctokit } from "lib/github";
 import { refreshPrStatusComments } from "lib/prStatusSweep";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -17,7 +17,7 @@ export default async function handler(
     return res.status(403).json({ error: "Forbidden" });
   }
   try {
-    const reader = await getPreReviewOctokit("pytorch", "pytorch");
+    const reader = await getPrStatusOctokit("pytorch", "pytorch");
     if (!reader) {
       return res
         .status(503)

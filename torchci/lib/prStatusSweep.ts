@@ -1,4 +1,3 @@
-import { getRotatingBatch } from "lib/bot/preReviewUtils";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   DRCI_COMMENT_AUTHOR,
@@ -9,8 +8,9 @@ import {
   fetchPrStatusState,
   PR_STATUS_LABELS,
   PR_STATUS_START,
-  PRE_REVIEW_START_DATE,
+  PR_STATUS_START_DATE,
 } from "lib/prStatus";
+import { getRotatingBatch } from "lib/rotatingBatch";
 import { Octokit } from "octokit";
 import pLimit from "p-limit";
 
@@ -35,7 +35,7 @@ export async function refreshPrStatusComments(
     "pr_status_sweep_candidates",
     {
       repo: `${owner}/${repo}`,
-      preReviewStartDate: PRE_REVIEW_START_DATE,
+      prStatusStartDate: PR_STATUS_START_DATE,
       workflowLabels: PR_STATUS_LABELS,
       drciCommentAuthor: DRCI_COMMENT_AUTHOR,
       drciCommentStart: DRCI_COMMENT_START,

@@ -1,7 +1,10 @@
 import { isPyTorchPyTorch } from "lib/bot/utils";
-import { hasPreReviewLabels, PR_STATUS_LABEL_IN_PROGRESS } from "lib/prStatus";
+import {
+  hasPendingTriageLabels,
+  isPrStatusEligible,
+  PR_STATUS_LABEL_IN_PROGRESS,
+} from "lib/prStatus";
 import { Octokit } from "octokit";
-import { isInPreReview } from "./preReviewUtils";
 
 // Coalesce concurrent deliveries in this process. A later delivery always reads
 // live state again, including after a failed or partially successful label write.
@@ -12,7 +15,7 @@ const promotions = new Map<string, Promise<boolean>>();
  * reviewer assignments or responses. Only PyTorchBot writes the label: that identity
  * triggers automated review. The resulting label event refreshes Dr.CI status.
  */
-export async function markInProgressIfAccepted(
+export async function markTriagedInProgress(
   reader: Octokit,
   labeler: Octokit,
   owner: string,
@@ -33,8 +36,8 @@ export async function markInProgressIfAccepted(
       pull_number: prNumber,
     });
     if (
-      !isInPreReview(pr) ||
-      !hasPreReviewLabels(pr.labels.map((label) => label.name))
+      !isPrStatusEligible(pr) ||
+      !hasPendingTriageLabels(pr.labels.map((label) => label.name))
     ) {
       return false;
     }

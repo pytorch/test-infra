@@ -5,8 +5,9 @@ import { upsertPrStatusSection } from "lib/drciUtils";
 import { requestOutstandingChangesReviewers } from "lib/prReview/reReviewRequests";
 import {
   fetchLiveLabels,
-  hasPreReviewLabels,
+  hasPendingTriageLabels,
   hasPrStatusLabel,
+  isPrStatusEligible,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
@@ -15,8 +16,7 @@ import {
 } from "lib/prStatus";
 import { PR_CHANGES_REQUESTED } from "lib/reviewApproval";
 import { Context, Probot } from "probot";
-import { markInProgressIfAccepted } from "./preReviewSweep";
-import { isInPreReview } from "./preReviewUtils";
+import { markTriagedInProgress } from "./triagedPromotion";
 import { hasVerifiedHumanWritePermissions, isPyTorchPyTorch } from "./utils";
 
 async function removeLabelIfPresent(
@@ -188,8 +188,8 @@ async function handle(
 
   // Promotion only needs live eligibility, never reviewer approvals or responses.
   // Its label event refreshes Dr.CI, so comment-read failures cannot undo the move.
-  if (hasPreReviewLabels(labels) && isInPreReview(pullRequest)) {
-    await markInProgressIfAccepted(
+  if (hasPendingTriageLabels(labels) && isPrStatusEligible(pullRequest)) {
+    await markTriagedInProgress(
       context.octokit as any,
       context.octokit as any,
       owner,
