@@ -33,7 +33,8 @@ SCORER_FEATURES = (*SERVED, "test_seconds", "is_pr", *UNIT_STATS)
 # the two heuristics the scorer does not read.
 TD_ONLY = ("coedit_n", "profiling_n")
 TD_SUM_PARTS = (*SERVED, *TD_ONLY)
-RISK_FEATURES = (
+# The change stats heuristics.risk_inputs computes for the risk score.
+RISK_INPUTS = (
     "log_files",
     "log_src_files",
     "n_test_files",
@@ -41,13 +42,8 @@ RISK_FEATURES = (
     *AREA_FEATURES,
     "log_sig_added",
     "log_sig_deleted",
-    "sum_p",
-    "max_p",
-    "max_llm",
 )
-# The risk score's per-unit inputs the row builder computes; the rest come from the
-# scorer's predictions.
-RISK_INPUTS = tuple(f for f in RISK_FEATURES if f not in ("sum_p", "max_p", "max_llm"))
+RISK_FEATURES = RISK_INPUTS
 
 ROW_COLUMNS = (
     "unit_id",
@@ -62,4 +58,12 @@ ROW_COLUMNS = (
     *SCORER_FEATURES,
     *TD_ONLY,
 )
-UNIT_COLUMNS = ("unit_id", "kind", "time", "train_ok", "n_positives", *RISK_INPUTS)
+UNIT_COLUMNS = (
+    "unit_id",
+    "kind",
+    "time",
+    "train_ok",
+    "n_positives",
+    "uw",
+    *RISK_FEATURES,
+)

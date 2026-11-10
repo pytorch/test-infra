@@ -1,6 +1,7 @@
 """The scorer's rows: one per (unit, candidate test file) of torchci.td.labels' main and
 pr_td_off units, with the label, the training weight, the cost and every feature of
-spec.ROW_COLUMNS; plus one row of risk inputs per unit (spec.UNIT_COLUMNS).
+spec.ROW_COLUMNS; plus one row per unit with its weight and risk inputs
+(spec.UNIT_COLUMNS).
 
 Every input of a row predates its unit's cutoff (context.py): the failure ratings are
 rebuilt for the cutoff's day from the history before it, without the head's own
@@ -140,21 +141,28 @@ def selected_units(
             continue
         if u["kind"] == PR_TD_OFF and u["observed"] is None:
             continue
-        sampled = u["kind"] == MAIN and not u["positives"] and int(u["time"]) < t0
-        if sampled and not keep(u["unit_id"], UNIT_KEEP):
+        if unit_weight(u, t0) > 1 and not keep(u["unit_id"], UNIT_KEEP):
             continue
         out.append(u)
     return out
 
 
+def unit_weight(u: dict[str, Any], full_from: int) -> float:
+    """The weight selected_units' subsampling gives a unit: 1 / UNIT_KEEP for a main
+    unit without a positive before `full_from` (unix seconds), else 1."""
+    sampled = u["kind"] == MAIN and not u["positives"] and int(u["time"]) < full_from
+    return 1 / UNIT_KEEP if sampled else 1.0
+
+
 def weights(
-    u: dict[str, Any], tests: list[str], y: np.ndarray, full: bool
+    u: dict[str, Any], tests: list[str], y: np.ndarray, full_from: int
 ) -> np.ndarray:
-    """Each candidate's training weight, 0 where the row is not kept: a selected main
-    unit with no positive weighs 1 / UNIT_KEEP, a kept negative 1 / NEG_KEEP more."""
-    if full:
+    """Each candidate's training weight, 0 where the row is not kept: the unit's
+    unit_weight, a kept negative 1 / NEG_KEEP more; 1 for every candidate of a unit
+    from `full_from` (unix seconds) on."""
+    if int(u["time"]) >= full_from:
         return np.ones(len(tests))
-    unit_w = 1 / UNIT_KEEP if u["kind"] == MAIN and not u["positives"] else 1.0
+    unit_w = unit_weight(u, full_from)
     w = np.where(np.isnan(y), 0.0, unit_w)
     for i, t in enumerate(tests):
         if y[i] == 0:
@@ -188,7 +196,7 @@ def unit_rows(u: dict[str, Any], ratings: heuristics.Ratings) -> Optional[pd.Dat
     full = u["time"] >= CTX["full_from"]
     tests = candidates(u, months)
     y = labels(u, tests)
-    w = weights(u, tests, y, full)
+    w = weights(u, tests, y, CTX["full_from"])
     kept = np.flatnonzero(w > 0)
     if not len(kept):
         return None
@@ -256,7 +264,9 @@ def run_day(day: int) -> list[pd.DataFrame]:
     return out
 
 
-def unit_table(units: list[dict[str, Any]], ctx: Context) -> pd.DataFrame:
+def unit_table(
+    units: list[dict[str, Any]], ctx: Context, full_from: int
+) -> pd.DataFrame:
     rows = []
     for u in units:
         c = ctx.units[u["unit_id"]]
@@ -267,11 +277,14 @@ def unit_table(units: list[dict[str, Any]], ctx: Context) -> pd.DataFrame:
                 "time": int(u["time"]),
                 "train_ok": bool(u["train_ok"]),
                 "n_positives": len(u["positives"]),
+                "uw": unit_weight(u, full_from),
                 **heuristics.risk_inputs(c["stats"], c["sig_added"], c["sig_deleted"]),
             }
         )
     df = pd.DataFrame(rows, columns=list(spec.UNIT_COLUMNS))
-    return df.astype({"time": np.int64, "train_ok": bool, "n_positives": np.int64})
+    return df.astype(
+        {"time": np.int64, "train_ok": bool, "n_positives": np.int64, "uw": np.float64}
+    )
 
 
 def rows_for(
@@ -298,7 +311,7 @@ def rows_for(
             h, ctx.units[u["unit_id"]]["changed"]
         )
         have.append(u)
-    table = unit_table(have, ctx)
+    table = unit_table(have, ctx, epoch(full_from))
     by_day: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for u in have:
         by_day[day_of(ctx.units[u["unit_id"]]["cutoff"])].append(u)

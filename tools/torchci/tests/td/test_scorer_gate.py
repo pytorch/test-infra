@@ -75,6 +75,7 @@ def synthetic(n_units: int = 300, n_tests: int = 30, days: int = 120, seed: int 
         rows.append(frame[list(spec.ROW_COLUMNS)])
         unit = {"unit_id": uid, "kind": kind, "time": t, "train_ok": True}
         unit["n_positives"] = int(y.sum())
+        unit["uw"] = 5.0 if kind == "main" and not y.any() else 1.0
         unit.update({f: float(rng.random()) for f in spec.RISK_INPUTS})
         units.append(unit)
     return pd.concat(rows, ignore_index=True), pd.DataFrame(units)

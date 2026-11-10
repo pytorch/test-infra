@@ -3,7 +3,7 @@ import json
 import math
 import re
 from pathlib import Path
-from unittest import main, TestCase
+from unittest import main, mock, TestCase
 
 import numpy as np
 import pandas as pd
@@ -55,6 +55,7 @@ def synthetic(
         rows.append(frame[list(spec.ROW_COLUMNS)])
         unit = {"unit_id": uid, "kind": kind, "time": t, "train_ok": True}
         unit["n_positives"] = int(y.sum())
+        unit["uw"] = 5.0 if kind == "main" and not y.any() else 1.0
         unit.update({f: float(rng.random()) for f in spec.RISK_INPUTS})
         units.append(unit)
     return pd.concat(rows, ignore_index=True), pd.DataFrame(units)
@@ -103,8 +104,19 @@ class TestModelJson(TestCase):
         p = model_json.predict(self.doc, self.fixture["rows"])
         for got, want in zip(p, self.fixture["expected_p"]):
             self.assertAlmostEqual(got, want, delta=1e-11)
-        risk = model_json.risk(self.doc, self.fixture["risk_values"])
+        values = self.fixture["risk_values"]
+        risk = model_json.risk(self.doc, values)
         for got, want in zip(risk, self.fixture["expected_risk"]):
+            self.assertAlmostEqual(got, want, delta=1e-11)
+        r = self.doc["risk"]
+        s = r["intercept"] + sum(
+            c * (values[f] - m) / sc
+            for f, m, sc, c in zip(r["features"], r["mean"], r["scale"], r["coef"])
+        )
+        value = 1 / (1 + math.exp(-s))
+        f = sum(q <= value for q in r["quantiles"]) / len(r["quantiles"])
+        share = r["share_min"] + (r["share_max"] - r["share_min"]) * f
+        for got, want in zip(self.fixture["expected_risk"], (value, f, share)):
             self.assertAlmostEqual(got, want, delta=1e-11)
 
     def test_vectorised_matches_reference(self) -> None:
@@ -183,7 +195,7 @@ class TestModelJson(TestCase):
     def test_each_risk_rule_disables_only_risk(self) -> None:
         cases = {
             "unknown feature": lambda r: r.update(features=["log_files", "nope"]),
-            "duplicate": lambda r: r.update(features=["max_p", "max_p"]),
+            "duplicate": lambda r: r.update(features=["log_files", "log_files"]),
             "short fill": lambda r: r["fill"].pop(),
             "nan mean": lambda r: r["mean"].__setitem__(0, math.nan),
             "zero scale": lambda r: r["scale"].__setitem__(0, 0.0),
@@ -303,19 +315,30 @@ class TestTrain(TestCase):
         self.assertTrue(doc["calibrated"])
 
     def test_risk_parity_with_sklearn(self) -> None:
-        table = train.risk_table(self.rows, self.units, END, self.doc)
+        table = train.risk_table(self.units, END)
         names = list(spec.RISK_FEATURES)
         x = table[names].astype(float)
+        weight = table["uw"].to_numpy()
+        self.assertEqual(set(weight), {1.0, 5.0})
         pipe = make_pipeline(
             StandardScaler(),
             LogisticRegression(C=0.1, class_weight="balanced", max_iter=2000),
+        ).fit(
+            x.fillna(x.median()), table["y"], logisticregression__sample_weight=weight
+        )
+        unweighted = make_pipeline(
+            StandardScaler(),
+            LogisticRegression(C=0.1, class_weight="balanced", max_iter=2000),
         ).fit(x.fillna(x.median()), table["y"])
+        gap = 0.0
         for i in range(0, len(table), 37):
             values = {f: float(table[f].iloc[i]) for f in names}
             got, f, share = model_json.risk(self.doc, values)
             want = pipe.predict_proba(x.iloc[[i]])[0, 1]
             self.assertAlmostEqual(got, want, delta=1e-6)
             self.assertTrue(0.1 <= share <= 0.2 and 0 <= f <= 1)
+            gap = max(gap, abs(got - unweighted.predict_proba(x.iloc[[i]])[0, 1]))
+        self.assertGreater(gap, 1e-3)
         quantiles = self.doc["risk"]["quantiles"]
         self.assertEqual(quantiles, sorted(quantiles))
         shares = [
@@ -324,19 +347,30 @@ class TestTrain(TestCase):
         ]
         self.assertAlmostEqual(float(np.mean(shares)), 0.15, delta=0.01)
 
-    def test_risk_table_reweights_subsampled_negatives(self) -> None:
-        rows = self.rows[self.rows["unit_id"] == "u1"].copy()
-        rows["full"] = False
-        units = self.units[self.units["unit_id"] == "u1"]
-        table = train.risk_table(rows, units, END, self.doc)
-        p = train.predict_matrix(self.doc, train.matrix(rows))
-        y = rows["y"].to_numpy()
-        self.assertAlmostEqual(
-            table["sum_p"].iloc[0], (p * np.where(y == 0, 5, 1)).sum()
-        )
-        self.assertAlmostEqual(table["max_p"].iloc[0], p.max())
-        self.assertAlmostEqual(table["max_llm"].iloc[0], rows["llm_n"].max())
-        self.assertEqual(table["y"].iloc[0], int(units["n_positives"].iloc[0] > 0))
+    def test_risk_table_is_the_landed_unit_table(self) -> None:
+        units = self.units.copy()
+        units.loc[units["unit_id"] == "u1", "train_ok"] = False
+        table = train.risk_table(units, END - 10 * DAY)
+        want = train.landed_units(units, None, END - 10 * DAY)
+        self.assertEqual(list(table["unit_id"]), list(want["unit_id"]))
+        self.assertNotIn("u1", set(table["unit_id"]))
+        self.assertEqual(list(table["y"]), list((want["n_positives"] > 0).astype(int)))
+        for f in (*spec.RISK_FEATURES, "uw"):
+            self.assertEqual(list(table[f]), list(want[f]), f)
+
+    def test_risk_reads_no_scorer_output(self) -> None:
+        self.assertFalse({"sum_p", "max_p", "max_llm"} & set(spec.RISK_FEATURES))
+        self.assertEqual(spec.RISK_FEATURES, spec.RISK_INPUTS)
+        self.assertFalse(set(spec.RISK_FEATURES) & set(spec.SERVED))
+        doc = copy.deepcopy(self.doc)
+        doc["risk"]["features"][0] = "max_p"
+        self.assertEqual(model_json.validate(doc), "risk: bad features")
+
+    def test_fit_exports_once(self) -> None:
+        with mock.patch.object(train, "export", wraps=train.export) as export:
+            doc = train.fit(self.rows, self.units, END, TRAINED_AT, SOURCE)
+        self.assertEqual(export.call_count, 1)
+        self.assertEqual(json.dumps(doc), json.dumps(self.doc))
 
     def test_unexportable_risk_is_dropped(self) -> None:
         model = train.fit_scorer(train.training_rows(self.rows, self.units, END))

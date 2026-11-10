@@ -152,7 +152,7 @@
   "risk": {
    "features": [
     "log_files",
-    "max_p"
+    "n_test_files"
    ],
    "fill": [
     0.0,
@@ -160,11 +160,11 @@
    ],
    "mean": [
     1.0,
-    0.01
+    0.5
    ],
    "scale": [
     0.5,
-    0.02
+    2.0
    ],
    "coef": [
     0.7,
@@ -225,10 +225,10 @@
  ],
  "risk_values": {
   "log_files": 2.0,
-  "max_p": 0.05
+  "n_test_files": 5.0
  },
  "expected_risk": [
-  0.450166002688,
+  0.431680016522,
   0.8,
   0.18
  ],

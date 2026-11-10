@@ -1,7 +1,7 @@
 """Training: the scorer (gradient-boosted trees over spec.SCORER_FEATURES), its Platt
 scaling by a twin fit before the calibration slice, and the shadow risk score, exported
 as td_scorer.json (format 1). The exported, rounded document is the model of record:
-everything downstream (the risk model's inputs, the gate) scores that document."""
+everything downstream (the gate) scores that document."""
 
 import json
 import logging
@@ -16,7 +16,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from torchci.td.labels.schema import DAY, MAIN
 from torchci.td.scorer import model_json, spec
-from torchci.td.scorer.features import NEG_KEEP
 
 
 logger = logging.getLogger(__name__)
@@ -248,31 +247,10 @@ def sigmoid(s: np.ndarray) -> np.ndarray:
         return np.where(s < -model_json.EXP_LIMIT, 0.0, 1.0 / (1.0 + np.exp(-s)))
 
 
-def risk_table(
-    rows: pd.DataFrame, units: pd.DataFrame, end: int, doc: dict[str, Any]
-) -> pd.DataFrame:
-    """Per landed `train_ok` change before `end` that has rows: the risk features and
-    y = it newly broke a test. sum_p, max_p and max_llm come from the exported scorer's
-    p on the change's own rows (in-sample for the scorer); sum_p reweights the subsampled
-    negatives by 1 / NEG_KEEP so it estimates the sum over every candidate."""
-    ids = landed_units(units, None, end)
-    sub = rows[rows["unit_id"].isin(ids["unit_id"])]
-    p = predict_matrix(doc, matrix(sub, doc["features"]))
-    within = np.where(~sub["full"].astype(bool) & (sub["y"] == 0), 1 / NEG_KEEP, 1.0)
-    agg = (
-        pd.DataFrame(
-            {
-                "unit_id": sub["unit_id"].to_numpy(),
-                "wp": p * within,
-                "p": p,
-                "llm": sub["llm_n"].to_numpy(dtype=np.float64),
-            }
-        )
-        .groupby("unit_id")
-        .agg(sum_p=("wp", "sum"), max_p=("p", "max"), max_llm=("llm", "max"))
-        .reset_index()
-    )
-    table = ids.merge(agg, on="unit_id", how="inner")
+def risk_table(units: pd.DataFrame, end: int) -> pd.DataFrame:
+    """The landed `train_ok` changes before `end` with their risk inputs and weights from
+    the unit table, and y = it newly broke a test."""
+    table = landed_units(units, None, end)
     return table.assign(y=(table["n_positives"] > 0).astype(np.int64))
 
 
@@ -287,9 +265,9 @@ def order_statistics(
 
 
 def fit_risk(table: pd.DataFrame) -> Optional[dict[str, Any]]:
-    """The risk block: a standardised logistic regression on the changes in `table`, and
-    the order statistics of their risks for the share mapping; None when the table holds
-    one class only."""
+    """The risk block: a standardised logistic regression on the changes in `table`,
+    each weighing its `uw` (the row builder's subsampling), and the order statistics of
+    their risks for the share mapping; None when the table holds one class only."""
     if table["y"].nunique() < 2:
         logger.warning("risk: %d changes of one class only, no risk block", len(table))
         return None
@@ -300,7 +278,11 @@ def fit_risk(table: pd.DataFrame) -> Optional[dict[str, Any]]:
     scaler = StandardScaler().fit(x)
     model = LogisticRegression(
         C=RISK_C, class_weight="balanced", max_iter=RISK_MAX_ITER
-    ).fit(scaler.transform(x), table["y"].to_numpy())
+    ).fit(
+        scaler.transform(x),
+        table["y"].to_numpy(),
+        sample_weight=table["uw"].to_numpy(dtype=np.float64),
+    )
     risks = model.predict_proba(scaler.transform(x))[:, 1]
     return {
         "features": names,
@@ -324,13 +306,10 @@ def fit(
     with_risk: bool = True,
 ) -> dict[str, Any]:
     """The exported model trained on everything before `end`: scorer, Platt and (with
-    `with_risk`) the risk block fit on the exported scorer's predictions."""
+    `with_risk`) the risk block fit on the unit table's landed changes."""
     train = training_rows(rows, units, end)
     logger.info("scorer: %d rows, %d positives", len(train), int(train["y"].sum()))
     model = fit_scorer(train)
     platt = fit_platt(rows, units, end)
-    doc = export(model, platt, None, trained_at, end, source)
-    if with_risk:
-        risk = fit_risk(risk_table(rows, units, end, doc))
-        doc = export(model, platt, risk, trained_at, end, source)
-    return doc
+    risk = fit_risk(risk_table(units, end)) if with_risk else None
+    return export(model, platt, risk, trained_at, end, source)

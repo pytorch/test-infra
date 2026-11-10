@@ -61,7 +61,10 @@ validates and evaluates a model the way pytorch does, and a shared fixture
   up to 300 trees, 200 rows per leaf, L2 1.0, early stopping), Platt-scaled on the last 28
   days (42 or 56 when positives are scarce) by a twin fit before them.
 - **Risk score** (recorded, not used): a logistic regression on landed changes predicting
-  that a change newly breaks main, from its stats and the scorer's sum and max p. Its share
+  that a change newly breaks main, from the change alone: its files, source files, test
+  files, docs-only flag, areas and significant lines added and deleted (the scorer's p is
+  in-sample on training changes, so it is not an input). Each change weighs as the row
+  builder subsampled it (1 / 0.2 for a kept main unit without a positive). Its share
   averages 15% over landed changes; its mean on PR runs is not calibrated.
 
 ## The gate and the checks

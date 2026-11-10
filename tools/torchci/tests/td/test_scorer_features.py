@@ -299,26 +299,63 @@ class TestUnitRules(TestCase):
 
     def test_weights(self):
         tests = [f"t{i}" for i in range(1000)]
+        full_from = epoch(FULL_FROM)
         neg = unit("main", H1, T0)
-        w = features.weights(neg, tests, np.zeros(1000), False)
+        w = features.weights(neg, tests, np.zeros(1000), full_from)
         self.assertEqual(set(w), {0.0, 25.0})
         self.assertAlmostEqual((w > 0).mean(), 0.2, delta=0.04)
         np.testing.assert_array_equal(
-            w, features.weights(neg, tests, np.zeros(1000), False)
+            w, features.weights(neg, tests, np.zeros(1000), full_from)
         )
         pos = unit("main", H1, T0, positives=["t0"])
         y = np.zeros(1000)
         y[0] = 1.0
-        w = features.weights(pos, tests, y, False)
+        w = features.weights(pos, tests, y, full_from)
         self.assertEqual(w[0], 1.0)
         self.assertEqual(set(w[1:]), {0.0, 5.0})
         pr = unit("pr_td_off", H1, T0, positives=["t0"])
         y[1:3] = math.nan
-        w = features.weights(pr, tests, y, False)
+        w = features.weights(pr, tests, y, full_from)
         self.assertEqual((w[1], w[2]), (0.0, 0.0))
         np.testing.assert_array_equal(
-            features.weights(neg, tests, y, True), np.ones(1000)
+            features.weights(neg, tests, y, T0), np.ones(1000)
         )
+
+    def test_unit_weight_everywhere(self):
+        full_from = epoch(FULL_FROM)
+        cases = [(unit("main", f"{i:040d}", T0), 5.0) for i in range(100)] + [
+            (unit("main", H1, T0, positives=["test_b"]), 1.0),
+            (unit("main", H2, full_from), 1.0),
+            (unit("pr_td_off", H3, T0, observed=[]), 1.0),
+        ]
+        for u, want in cases:
+            self.assertEqual(features.unit_weight(u, full_from), want)
+        units = [u for u, _ in cases]
+        selected = features.selected_units(units, FULL_FROM)
+        dropped = [u for u in units if u not in selected]
+        self.assertTrue(dropped)
+        self.assertTrue(all(features.unit_weight(u, full_from) == 5.0 for u in dropped))
+        tests = [f"t{i}" for i in range(50)]
+        for u in selected:
+            w = features.weights(u, tests, np.zeros(50), full_from)
+            unit_w = features.unit_weight(u, full_from)
+            if int(u["time"]) < full_from:
+                self.assertEqual(set(w) - {0.0}, {unit_w / features.NEG_KEEP})
+        stats = {f: 0.0 for f in spec.UNIT_STATS} | {"n_files": 1.0}
+        ctx = Context(
+            {
+                u["unit_id"]: {"stats": stats, "sig_added": 1.0, "sig_deleted": 0.0}
+                for u in selected
+            },
+            [],
+            {},
+        )
+        table = features.unit_table(selected, ctx, full_from)
+        self.assertEqual(tuple(table.columns), spec.UNIT_COLUMNS)
+        self.assertEqual(
+            list(table["uw"]), [features.unit_weight(u, full_from) for u in selected]
+        )
+        self.assertEqual(set(table["uw"]), {1.0, 5.0})
 
 
 class TestRows(Stubbed):
@@ -386,6 +423,7 @@ class TestRows(Stubbed):
         self.assertEqual(tuple(table.columns), spec.UNIT_COLUMNS)
         self.assertEqual(table.attrs["dropped"], {"pr_td_off:no_merge_base": 1})
         self.assertEqual(list(table["n_positives"]), [1, 1, 0, 1])
+        self.assertEqual(list(table["uw"]), [1.0, 1.0, 1.0, 1.0])
         self.assertTrue(table["log_sig_added"].iloc[1:2].isna().all())
         self.assertEqual(table["log_sig_added"].iloc[0], math.log1p(4.0))
         main_b = rows[(rows["unit_id"] == "c:" + H1) & (rows["test"] == "test_b")].iloc[
