@@ -4,7 +4,7 @@ Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules 
 their latest recorded state from ClickHouse, fingerprints each PR whose author is eligible for it,
 and asks ``decision.decide`` whether to dispatch a review, skip it, or wait. A PR is eligible when a
 valid merge rule names its author, whatever files it changes, and it is based on ``main``, is a
-ghstack PR or is in a GitHub-native stack whose trunk is ``main``, as the listing shows (see
+ghstack PR or is in a GitHub-native stack whose trunk is ``main`` (see
 ``authority`` and TRUSTED_AUTHORS.md). The scan never fingerprints or dispatches any other PR; when
 a recent one is ineligible and its latest recorded row is a LAND, the scan dismisses greenlight's
 approval on it instead, writing no row. The ``shadow`` stamp marks an ineligible ``--pr`` target

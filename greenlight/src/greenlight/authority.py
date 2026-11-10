@@ -2,8 +2,8 @@
 
 ``eligible_rule`` asks ``cohort.assess_rules`` about one PR and logs the answer. ``Authority``
 answers ``shadow_for_pr`` for one pass from what the listing already holds, so it makes no GitHub
-call: a PR is shadow unless it was listed on a base trymerge accepts and a valid merge rule names its
-author. It also answers the stamp for a REVERTED row, the one row that denies, keeping it visible on
+call: a listed PR is shadow unless a valid merge rule names its author and the listing did not show
+a base trymerge refuses. It also answers the stamp for a REVERTED row, the one row that denies, keeping it visible on
 every recorded PR.
 """
 

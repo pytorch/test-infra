@@ -65,5 +65,5 @@ def admit_target(
     if allow_untrusted_author:
         logger.warning("--allow-untrusted-author: reviewing --pr %d by ineligible %r in shadow", pr, author)
         return Target(pr, author, True)
-    logger.warning("refusing --pr %d: author %r is not eligible for it", pr, author)
+    logger.warning("refusing --pr %d by %r: not eligible for it", pr, author)
     return Target(pr, author, True, refused=True) if author is not None else None
