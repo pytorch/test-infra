@@ -1,12 +1,8 @@
-import { getPreReviewStatus } from "lib/bot/preReviewUtils";
 import {
   fetchPrStatusState,
   getPrStatusStage,
-  hasPreReviewLabels,
   PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
-  PR_STATUS_LABEL_TRIAGED,
-  PRE_REVIEW_START_DATE,
 } from "lib/prStatus";
 import { Octokit } from "octokit";
 import pLimit from "p-limit";
@@ -15,6 +11,8 @@ import pLimit from "p-limit";
 // notification job, which DMs each reviewer a digest. It holds only public
 // GitHub data.
 
+// Triaged PRs no longer wait on pre-review, so pre_review is always empty. It
+// stays until Meta's internal digest, which reads it, is updated.
 export type ReviewStage = "pre_review" | "final_review";
 
 // Added by Meta's labeler to PRs whose author isn't a Meta employee
@@ -100,10 +98,8 @@ async function getStageSince(
 }
 
 /**
- * Lists who each open PR is waiting on: pending assigned reviewers in
- * pre-review, as decided by getPreReviewStatus, and requested reviewers in
- * final review. Teams are expanded so every member except the author gets the
- * PR.
+ * Lists who each open PR in final review is waiting on: its requested
+ * reviewers. Teams are expanded so every member except the author gets the PR.
  */
 export async function buildPrNotificationsManifest(
   octokit: Octokit,
@@ -111,23 +107,12 @@ export async function buildPrNotificationsManifest(
   repo: string,
   now: Date = new Date()
 ): Promise<PrNotificationsManifest> {
-  const candidates = await searchOpenPrs(
+  const prs = await searchOpenPrs(
     octokit,
     owner,
     repo,
     `label:"${PR_STATUS_LABEL_READY_FOR_REVIEW}"`
   );
-  if (PRE_REVIEW_START_DATE !== null) {
-    candidates.push(
-      ...(await searchOpenPrs(
-        octokit,
-        owner,
-        repo,
-        `label:"${PR_STATUS_LABEL_TRIAGED}" created:>=${PRE_REVIEW_START_DATE}`
-      ))
-    );
-  }
-  const prs = [...new Map(candidates.map((pr) => [pr.number, pr])).values()];
 
   const teamMembers = new Map<string, Promise<string[]>>();
   function getTeamMembers(team: string): Promise<string[]> {
@@ -171,57 +156,19 @@ export async function buildPrNotificationsManifest(
       throw new Error("review lookup failed");
     }
 
-    let stage: ReviewStage;
-    let stageLabel: string;
-    let pending: string[];
-    // Approved PRs are skipped, and a PR carrying two status labels mid-move
-    // counts as the later stage, as in the PR Status section
-    switch (getPrStatusStage(state)) {
-      case "preReview":
-        // An approval outside the merge rules doesn't end pre-review. Only
-        // include this stage when the PR is still carrying pre-review labels.
-        if (!hasPreReviewLabels(state.labels)) {
-          return null;
-        }
-        // getPreReviewStatus reads a failed lookup as no reviewers, which
-        // would drop the PR without recording it as failed
-        if (state.reviewerLookupFailed) {
-          throw new Error("reviewer lookup failed");
-        }
-        stage = "pre_review";
-        stageLabel = PR_STATUS_LABEL_TRIAGED;
-        pending = (
-          await getPreReviewStatus(
-            octokit,
-            owner,
-            repo,
-            pr.number,
-            labels,
-            author,
-            [],
-            state,
-            now.getTime()
-          )
-        ).pending;
-        break;
-      case "needsAdditionalApproval":
-      case "readyForReview": {
-        // An insufficient approval must not hide outstanding final-review
-        // requests. Earlier phases still wait for their normal promotion.
-        if (!state.labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW)) {
-          return null;
-        }
-        stage = "final_review";
-        stageLabel = PR_STATUS_LABEL_READY_FOR_REVIEW;
-        if (state.reviewerLookupFailed) {
-          throw new Error("reviewer lookup failed");
-        }
-        pending = state.requestedReviewers ?? [];
-        break;
-      }
-      default:
-        return null;
+    // Approved PRs are skipped. An insufficient approval must not hide
+    // outstanding final-review requests.
+    const stage = getPrStatusStage(state);
+    if (
+      (stage !== "readyForReview" && stage !== "needsAdditionalApproval") ||
+      !state.labels.includes(PR_STATUS_LABEL_READY_FOR_REVIEW)
+    ) {
+      return null;
     }
+    if (state.reviewerLookupFailed) {
+      throw new Error("reviewer lookup failed");
+    }
+    const pending = state.requestedReviewers ?? [];
     if (pending.length === 0) {
       return null;
     }
@@ -244,13 +191,13 @@ export async function buildPrNotificationsManifest(
         url: pr.html_url,
         author,
         open_source: labels.includes(OPEN_SOURCE_LABEL),
-        stage,
+        stage: "final_review",
         stage_since: await getStageSince(
           octokit,
           owner,
           repo,
           pr.number,
-          stageLabel
+          PR_STATUS_LABEL_READY_FOR_REVIEW
         ),
       },
       reviewers,
