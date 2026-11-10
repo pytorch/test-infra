@@ -39,14 +39,7 @@ SLACK_USERS_URL = (
 # The manifest is written two hours before the send, so an older one means
 # today's write failed.
 MAX_MANIFEST_AGE = timedelta(hours=6)
-PRE_REVIEW_OVERDUE = timedelta(days=2)
 NEW_YORK = ZoneInfo("America/New_York")
-PRE_REVIEW_QUEUE_URL = (
-    "https://github.com/pytorch/pytorch/pulls?q=is%3Apr%20is%3Aopen%20-is%3Adraft"
-    "%20review-requested%3A%40me%20label%3Atriaged%20-label%3A%22in%20progress%22"
-    "%20-label%3A%22ready%20for%20review%22"
-    "%20-label%3A%22missing%20actionable%20issue%22"
-)
 FINAL_REVIEW_QUEUE_URL = (
     "https://github.com/pytorch/pytorch/pulls?q=is%3Apr%20is%3Aopen"
     "%20review-requested%3A%40me%20label%3A%22ready%20for%20review%22"
@@ -77,52 +70,41 @@ def _format_pr(manifest: dict[str, Any], entry: dict[str, Any]) -> str:
     return f"• <{pr['url']}|#{entry['pr']} {_escape(pr['title'])}>"
 
 
-def render_digest(manifest: dict[str, Any], login: str, now: datetime) -> str | None:
-    """The Slack mrkdwn digest for `login`, or None if nothing waits on them."""
+def render_digest(manifest: dict[str, Any], login: str) -> str | None:
+    """The Slack mrkdwn digest for `login`, or None if nothing waits on them.
+    Pre-review entries of older manifests are ignored, since pre-review was
+    removed."""
     stages = manifest["reviewers"].get(login)
     if stages is None:
         return None
 
-    # PRs whose label time is unknown sort last and are never overdue
+    prs = manifest["prs"]
+    # PRs whose label time is unknown sort last
     never = datetime.max.replace(tzinfo=timezone.utc)
 
     def waiting_since(entry: dict[str, Any]) -> datetime:
-        since = manifest["prs"][str(entry["pr"])]["stage_since"]
+        since = prs[str(entry["pr"])]["stage_since"]
         return datetime.fromisoformat(since) if since else never
 
-    pre_review = sorted(stages["pre_review"], key=waiting_since)
     final_review = sorted(stages["final_review"], key=waiting_since)
-    if not pre_review and not final_review:
+    if not final_review:
         return None
-    overdue = [e for e in pre_review if waiting_since(e) < now - PRE_REVIEW_OVERDUE]
-    days = PRE_REVIEW_OVERDUE.days
 
-    lines = ["*Daily digest: PyTorch PRs waiting on your review*"]
-    if pre_review:
-        header = f"*Pre-review ({len(pre_review)})*"
-        accept = "To accept, :+1: the PR description or comment `@pytorchbot pre-review accept`."  # noqa: B950
-        lines += ["", f"{header} (<{PRE_REVIEW_QUEUE_URL}|full queue>)", accept, ""]
-        for title, entries in [
-            # Slack mrkdwn needs > escaped
-            (f"Waiting &gt;{days} days", overdue),
-            (f"Waiting ≤{days} days", [e for e in pre_review if e not in overdue]),
-        ]:
-            if entries:
-                lines.append(f"{title} ({len(entries)})")
-                lines.extend(_format_pr(manifest, e) for e in entries)
-    if final_review:
-        header = f"*Final review ({len(final_review)})*"
-        lines += ["", f"{header} (<{FINAL_REVIEW_QUEUE_URL}|full queue>)"]
-        prs = manifest["prs"]
-        # Manifests from before open_source was added hold only OSS PRs
-        oss = [e for e in final_review if prs[str(e["pr"])].get("open_source", True)]
-        for title, entries in [
-            ("OSS PRs", oss),
-            ("Maintainer PRs", [e for e in final_review if e not in oss]),
-        ]:
-            if entries:
-                lines.append(f"{title} ({len(entries)})")
-                lines.extend(_format_pr(manifest, e) for e in entries)
+    header = f"*Final review ({len(final_review)})*"
+    lines = [
+        "*Daily digest: PyTorch PRs waiting on your review*",
+        "",
+        f"{header} (<{FINAL_REVIEW_QUEUE_URL}|full queue>)",
+    ]
+    # Manifests from before open_source was added hold only OSS PRs
+    oss = [e for e in final_review if prs[str(e["pr"])].get("open_source", True)]
+    for title, entries in [
+        ("OSS PRs", oss),
+        ("Maintainer PRs", [e for e in final_review if e not in oss]),
+    ]:
+        if entries:
+            lines.append(f"{title} ({len(entries)})")
+            lines.extend(_format_pr(manifest, e) for e in entries)
     return "\n".join(lines)
 
 
@@ -172,7 +154,6 @@ def send_digests(
     users: dict[str, str],
     manifest: dict[str, Any],
     live: bool,
-    now: datetime,
 ) -> list[str]:
     """Send (or with live=False, print) the digest for every channel member,
     and return "<login>: <error>" for each send that failed."""
@@ -188,7 +169,7 @@ def send_digests(
         # Registrations saved before logins were lowercased keep their case,
         # but the manifest's reviewer keys are lowercase
         login = login.lower()
-        text = render_digest(manifest, login, now)
+        text = render_digest(manifest, login)
         if text is None:
             nothing += 1
             continue
@@ -235,7 +216,7 @@ def main() -> int:
             raise
         users = {}
     manifest = fetch_manifest(args.date or now.strftime("%Y-%m-%d"), now, args.live)
-    failures = send_digests(SlackClient(token), users, manifest, args.live, now)
+    failures = send_digests(SlackClient(token), users, manifest, args.live)
     return 1 if failures else 0
 
 
