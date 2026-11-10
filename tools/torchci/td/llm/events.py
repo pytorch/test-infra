@@ -1,4 +1,4 @@
-"""Event snapshot from HUD ClickHouse (written once: the TD metric keeps 90 days)."""
+"""Event snapshot from HUD ClickHouse."""
 
 import json
 import logging
@@ -264,7 +264,8 @@ def fetch(start: datetime, stop: datetime, out_dir: Path) -> dict[str, Any]:
     rankings = parse_e1_rankings(fetch_e1_rankings(e1, now)) if e1 else {}
     e1 = [replace(e, rows=rankings.get(e.landing_sha, [])) for e in e1]
     window = {"start": _ch_time(start), "stop": _ch_time(stop)}
-    e2_rows = _query("e2", E2_SQL, {**window, "main_window": MAIN_WINDOW_SECONDS})
+    e2_params = {"main_window": MAIN_WINDOW_SECONDS, "look_back_days": RETENTION_DAYS}
+    e2_rows = _query("e2", E2_SQL, {**window, **e2_params})
     e2 = parse_e2(e2_rows)
     write_text(out_dir / E1_FILE, _jsonl(e1))
     write_text(out_dir / E2_FILE, _jsonl(e2))

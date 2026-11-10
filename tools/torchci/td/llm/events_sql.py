@@ -26,7 +26,8 @@ METRIC_FILTER = (
 
 E2_SQL = f"""
 WITH
-    greatest({{start: DateTime64(3)}}, now64(3) - toIntervalDay({RETENTION_DAYS})) AS w0,
+    greatest({{start: DateTime64(3)}},
+        now64(3) - toIntervalDay({{look_back_days: UInt32}})) AS w0,
     least({{stop: DateTime64(3)}}, now64(3)) AS w1,
     {{main_window: UInt32}} AS main_window_s,
     metric_rows AS (

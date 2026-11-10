@@ -246,13 +246,14 @@ class TestFetch(TestCase):
         ]
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "snap"
-            for p in patches:
-                p.start()
+            started = [p.start() for p in patches]
             try:
                 meta = events.fetch(datetime(2026, 7, 13), datetime(2026, 11, 5), out)
             finally:
                 for p in patches:
                     p.stop()
+            e2_params = started[2].call_args.args[2]
+            self.assertEqual(e2_params["look_back_days"], events_sql.RETENTION_DAYS)
             self.assertEqual(
                 sorted(p.name for p in out.iterdir()),
                 sorted(

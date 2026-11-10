@@ -127,8 +127,8 @@ ranking by its own time, an E2 failure by its day). Once the first v2 bundle shi
 
 ### Events
 
-`evaluate fetch` reads HUD ClickHouse once, read-only, and writes a snapshot, because the
-TD rank metric (`td_test_failure_stats_v2`) keeps only 90 days:
+`evaluate fetch` reads HUD ClickHouse once, read-only, and writes a snapshot of the last
+90 days (`RETENTION_DAYS`):
 
 - **E1, trunk breakages**: the saved `td_trunk_breakages` query, in windows of at most 90
   days, with the logged main-push rankings of each landing for its breaking files.
