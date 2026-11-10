@@ -152,6 +152,39 @@ jobs:
             if (!/^gh\/[^/]+\/\d+\/head$/.test(headRef)) {
               console.log('Not a ghstack PR');
               core.setOutput('extra_claude_args', '');
+              try {
+                const { repository } = await github.graphql(`
+                  query ($owner: String!, $name: String!, $number: Int!) {
+                    repository(owner: $owner, name: $name) {
+                      pullRequest(number: $number) {
+                        stackEntry { position }
+                        stack { entries(first: 100) { nodes { position pullRequest { number closed } } } }
+                      }
+                    }
+                  }`, {
+                  owner: context.repo.owner,
+                  name: context.repo.repo,
+                  number: context.payload.issue.number,
+                });
+                const { stackEntry, stack } = repository.pullRequest;
+                const above = stackEntry && stack
+                  ? stack.entries.nodes.filter(
+                      (n) => n?.pullRequest && n.position > stackEntry.position && !n.pullRequest.closed)
+                  : [];
+                if (above.length > 0) {
+                  const numbers = above.map((n) => `#${n.pullRequest.number}`).join(', ');
+                  console.log(`Open PRs above this one in its GitHub stack: ${numbers}`);
+                  core.setOutput('stack_notice',
+                    `This PR is in a GitHub stack, and the open PRs above it (${numbers}) ` +
+                    'do not get commits pushed to its branch, so they cannot merge until ' +
+                    'the author updates the stack. If you push a commit, say so in your ' +
+                    'reply and tell the author to run `gh stack sync` before pushing again ' +
+                    '(`gh stack push` alone overwrites your commit; if the branch has new ' +
+                    'local commits, `git pull --rebase` it first).');
+                }
+              } catch (err) {
+                core.warning(`Could not read the GitHub stack of this PR: ${err.message}`);
+              }
               return;
             }
 
@@ -214,6 +247,7 @@ jobs:
         env:
           APPEND_SYSTEM_PROMPT: |
               ${{ steps.ghstack-check.outputs.ghstack_notice }}
+              ${{ steps.ghstack-check.outputs.stack_notice }}
               ${{ inputs.append_system_prompt }}
 
       - name: Upload usage metrics
