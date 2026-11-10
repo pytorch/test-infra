@@ -679,6 +679,20 @@
       "slow"
     ]
   ],
+  "test_event_record_after_input_mutation_non_escaping_no_error_via_stream_record_event_False_cuda (__main__.TestStreamsCUDA)": [
+    "204185",
+    "https://github.com/pytorch/pytorch/issues/204185",
+    [
+      "linux"
+    ]
+  ],
+  "test_event_record_after_input_mutation_non_escaping_removed_from_container_container_dict_cuda (__main__.TestStreamsCUDA)": [
+    "204186",
+    "https://github.com/pytorch/pytorch/issues/204186",
+    [
+      "linux"
+    ]
+  ],
   "test_extract_gradients_from_optimizer_set_to_none_cpu (__main__.TestIdentifyGradientsCPU)": [
     "202747",
     "https://github.com/pytorch/pytorch/issues/202747",
@@ -709,6 +723,14 @@
     "201030",
     "https://github.com/pytorch/pytorch/issues/201030",
     [
+      "rocm"
+    ]
+  ],
+  "test_fn_gradgrad_grid_sampler_2d_cuda_float64 (__main__.TestBwdGradientsCUDA)": [
+    "204184",
+    "https://github.com/pytorch/pytorch/issues/204184",
+    [
+      "inductor",
       "rocm"
     ]
   ],
