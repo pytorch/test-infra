@@ -107,8 +107,9 @@ references from PR descriptions. It verifies each current closing link or
 `Part of #<issue>` / `Part of pytorch/pytorch#<issue>` claim before requesting
 re-triage. Old links, comment-only mentions, code, and HTML comments do not count.
 
-Only open, non-draft PRs against `main` or a `gh/.../base` branch carrying both
-`open source` and `missing actionable issue` are re-triaged. PRs with
+Only open, non-draft PRs against `main`, against a `gh/.../base` branch, or in a
+GitHub-native stack on `main`, carrying both `open source` and
+`missing actionable issue`, are re-triaged. PRs with
 `no automated triage`, `in progress`, or `ready for review` are left alone. The
 bot removes the old triage outcome labels and re-adds `open source` to start the existing Auto PR
 Triage workflow. The missing-issue hold stays in place until that entry event

@@ -98,6 +98,22 @@ function pull(number: number, overrides: object = {}) {
     });
 }
 
+const ON_PR_BELOW = { ref: "alice/below" };
+const NATIVE_STACK_ON_MAIN = {
+  base: { ref: "main", sha: "e".repeat(40) },
+  id: 7,
+  number: 8,
+  position: 2,
+  size: 3,
+};
+const NATIVE_STACK_NOT_ON_MAIN = [
+  { ...NATIVE_STACK_ON_MAIN, base: { ref: "viable/strict" } },
+  null,
+  {},
+  { base: "main" },
+  { base: { ref: ["main"] } },
+].map((stack) => ({ base: ON_PR_BELOW, stack }));
+
 function requeue(
   number: number,
   outcomes = ["triaged", "bot-triaged"],
@@ -215,6 +231,7 @@ test.each([
   { state: "closed" },
   { draft: true },
   { base: { ref: "release/2.9" } },
+  ...NATIVE_STACK_NOT_ON_MAIN,
   {
     labels: LABELS.filter((name) => name !== MISSING).map((name) => ({ name })),
   },
@@ -315,6 +332,21 @@ test("re-triages ghstack base branches supported by Auto PR Triage", async () =>
     currentIssue(),
     timeline([{ source: reference(10) }]),
     pull(10, { body: "Part of #5", base: { ref: "gh/jansel/1/base" } }),
+    requeue(10),
+  ];
+  await bot.receive(event());
+  handleScope(scopes);
+});
+
+test("re-triages GitHub-native stack PRs on main supported by Auto PR Triage", async () => {
+  const scopes = [
+    currentIssue(),
+    timeline([{ source: reference(10) }]),
+    pull(10, {
+      body: "Part of #5",
+      base: ON_PR_BELOW,
+      stack: NATIVE_STACK_ON_MAIN,
+    }),
     requeue(10),
   ];
   await bot.receive(event());
@@ -608,6 +640,7 @@ test.each([
   { draft: true },
   { draft: undefined },
   { base: { ref: "release/2.9" } },
+  ...NATIVE_STACK_NOT_ON_MAIN,
   {
     labels: LABELS.filter((name) => name !== MISSING).map((name) => ({ name })),
   },
@@ -637,6 +670,20 @@ test.each([
 test("new wake-ups preserve ghstack eligibility", async () => {
   const scopes = [
     pull(10, { body: "Part of #5", base: { ref: "gh/author/1/base" } }),
+    issueLabels(),
+    requeue(10),
+  ];
+  await bot.receive(prEvent());
+  handleScope(scopes);
+});
+
+test("new wake-ups preserve GitHub-native stack eligibility", async () => {
+  const scopes = [
+    pull(10, {
+      body: "Part of #5",
+      base: ON_PR_BELOW,
+      stack: NATIVE_STACK_ON_MAIN,
+    }),
     issueLabels(),
     requeue(10),
   ];

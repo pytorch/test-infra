@@ -377,12 +377,17 @@ async function retriage(
     context.repo({ pull_number: number })
   );
   const labels = pr.labels.map((label) => label.name.toLowerCase());
+  // octokit's pull-request type has no `stack`; GitHub omits it for a PR in no
+  // native stack.
+  const stackTrunk = (pr as { stack?: { base?: { ref?: unknown } } | null })
+    .stack?.base?.ref;
   if (
     pr.state !== "open" ||
     pr.draft !== false ||
     // Match scripts/auto_pr_triage/assess_intake.py's targets_main gate.
     (pr.base.ref !== "main" &&
-      !(pr.base.ref.startsWith("gh/") && pr.base.ref.endsWith("/base"))) ||
+      !(pr.base.ref.startsWith("gh/") && pr.base.ref.endsWith("/base")) &&
+      stackTrunk !== "main") ||
     !labels.includes(PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE) ||
     labels.some((label) =>
       [
