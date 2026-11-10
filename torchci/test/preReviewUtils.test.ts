@@ -489,6 +489,28 @@ describe("getPreReviewStatus", () => {
 describe("markInProgressIfAccepted", () => {
   const octokit = utils.testOctokit();
 
+  test.each([
+    { requested: ["bob"] },
+    { requested: ["bob"], reactions: [thumbsDown("bob")] },
+    { requested: [] },
+  ])(
+    "advances triaged PRs even when pre-review is not accepted: %j",
+    async (response) => {
+      const scope = [...mockPr(response), ...mockMoveToInProgress()];
+      const status = await markInProgressIfAccepted(
+        octokit,
+        octokit,
+        "pytorch",
+        "pytorch",
+        1,
+        ["triaged"],
+        AUTHOR
+      );
+      expect(status.accepted).toBe(false);
+      handleScope(scope);
+    }
+  );
+
   test("reads with the pre-review app and only writes labels with PyTorchBot", async () => {
     const labeler = utils.testOctokit();
     const readerWrites = jest.spyOn(octokit.rest.issues, "addLabels");
@@ -633,6 +655,7 @@ describe("updateInProgressLabels", () => {
         triagedAt: ONE_WEEK_AGO,
         reactions: [thumbsDown("bob")],
       }),
+      ...mockMoveToInProgress(),
     ];
     const first = await updateInProgressLabels(
       octokit,
@@ -707,7 +730,11 @@ describe("updateInProgressLabels", () => {
   });
 
   test("never backs off silent reviewers before their deadline", async () => {
-    const scope = [search(), ...mockPr({ requested: ["bob"] })];
+    const scope = [
+      search(),
+      ...mockPr({ requested: ["bob"] }),
+      ...mockMoveToInProgress(),
+    ];
     const result = await updateInProgressLabels(
       octokit,
       octokit,
@@ -719,7 +746,7 @@ describe("updateInProgressLabels", () => {
     expect(result.failed).toEqual([]);
   });
 
-  test("backs off a verified merge approval without excluding other approvals from search", async () => {
+  test("advances a verified merge-approved PR while retaining legacy sweep backoff", async () => {
     jest.spyOn(prStatus, "fetchPrStatusState").mockResolvedValue({
       labels: ["triaged"],
       assignedReviewers: ["bob"],
@@ -733,6 +760,7 @@ describe("updateInProgressLabels", () => {
         .reply(200, [triaged()])
         .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
         .reply(200, []),
+      ...mockMoveToInProgress(),
     ];
     const result = await updateInProgressLabels(
       octokit,
@@ -759,7 +787,9 @@ describe("updateInProgressLabels", () => {
         .get("/repos/pytorch/pytorch/issues/1/timeline?per_page=100")
         .reply(200, [triaged()])
         .get("/repos/pytorch/pytorch/issues/1/reactions?per_page=100")
-        .reply(200, []),
+        .reply(200, [])
+        .get("/repos/pytorch/pytorch/pulls/1")
+        .reply(500),
     ];
     const result = await updateInProgressLabels(
       octokit,
@@ -806,6 +836,7 @@ describe("updateInProgressLabels", () => {
       }),
       ...mockMoveToInProgress(1),
       ...mockPr({ prNumber: 2, requested: ["alice"] }),
+      ...mockMoveToInProgress(2),
       ...mockPr({ prNumber: 3, requested: ["alice"], triagedAt: ONE_WEEK_AGO }),
       ...mockMoveToInProgress(3),
     ];
@@ -986,6 +1017,7 @@ describe("pre-review accept command", () => {
     const scope = [
       ...mockPr({ requested: ["bob"], teams: ["some-team"] }),
       mockTeam("some-team", ["carol"]),
+      ...mockMoveToInProgress(),
       mockAck(event),
     ];
 
@@ -995,7 +1027,11 @@ describe("pre-review accept command", () => {
 
   test("rejects accepts from non-assigned commenters", async () => {
     const event = acceptEvent("alice");
-    const scope = [...mockPr({ requested: ["bob"] }), mockReject(event)];
+    const scope = [
+      ...mockPr({ requested: ["bob"] }),
+      ...mockMoveToInProgress(),
+      mockReject(event),
+    ];
 
     await bot.receive(event);
     handleScope(scope);
