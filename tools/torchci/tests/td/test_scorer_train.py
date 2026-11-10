@@ -17,6 +17,7 @@ from torchci.td.scorer import model_json, spec, train
 
 FIXTURE = Path(__file__).parent / "fixtures" / "td_scorer_parity.json"
 END = 1793491200  # 2026-11-01 00:00 UTC
+PATHS = {"base": 0.1, "nodes": {"torch/": 0.12, "torch/_inductor/": 0.25}}
 SOURCE = {"run_id": 7, "commit": "abc1234"}
 TRAINED_AT = "2026-11-04T13:00:00Z"
 
@@ -57,6 +58,7 @@ def synthetic(
         unit["n_positives"] = int(y.sum())
         unit["uw"] = 5.0 if kind == "main" and not y.any() else 1.0
         unit.update({f: float(rng.random()) for f in spec.RISK_INPUTS})
+        unit.update({f: float(-3 * rng.random()) for f in spec.PATH_FEATURES})
         units.append(unit)
     return pd.concat(rows, ignore_index=True), pd.DataFrame(units)
 
@@ -104,20 +106,32 @@ class TestModelJson(TestCase):
         p = model_json.predict(self.doc, self.fixture["rows"])
         for got, want in zip(p, self.fixture["expected_p"]):
             self.assertAlmostEqual(got, want, delta=1e-11)
-        values = self.fixture["risk_values"]
-        risk = model_json.risk(self.doc, values)
-        for got, want in zip(risk, self.fixture["expected_risk"]):
-            self.assertAlmostEqual(got, want, delta=1e-11)
-        r = self.doc["risk"]
-        s = r["intercept"] + sum(
-            c * (values[f] - m) / sc
-            for f, m, sc, c in zip(r["features"], r["mean"], r["scale"], r["coef"])
+        case = self.fixture["risk_case"]
+        changed = case["changed"]
+        values = {"log_files": math.log1p(len(set(changed)))}
+        values.update(model_json.path_values(self.doc["risk"]["paths"], changed))
+        value, f, share = model_json.risk(self.doc, values)
+        self.assertAlmostEqual(value, case["expected_risk"], delta=1e-11)
+        self.assertEqual(f, case["expected_percentile"])
+        self.assertAlmostEqual(share, case["expected_share"], delta=1e-11)
+
+    def test_fixture_paths_case(self) -> None:
+        case = self.fixture["paths_case"]
+        for files, want in (
+            (case["changed"], case["expected"]),
+            (case["docs_changed"], case["docs_expected"]),
+            (case["long_changed"], case["long_expected"]),
+        ):
+            got = model_json.path_values(case["paths"], files)
+            self.assertEqual(list(got), list(spec.PATH_FEATURES))
+            for name in spec.PATH_FEATURES:
+                self.assertAlmostEqual(got[name], want[name], delta=1e-11)
+        self.assertTrue(
+            all(
+                math.isnan(v)
+                for v in model_json.path_values(case["paths"], []).values()
+            )
         )
-        value = 1 / (1 + math.exp(-s))
-        f = sum(q <= value for q in r["quantiles"]) / len(r["quantiles"])
-        share = r["share_min"] + (r["share_max"] - r["share_min"]) * f
-        for got, want in zip(self.fixture["expected_risk"], (value, f, share)):
-            self.assertAlmostEqual(got, want, delta=1e-11)
 
     def test_vectorised_matches_reference(self) -> None:
         x = np.array(self.fixture["rows"], dtype=float)
@@ -207,12 +221,40 @@ class TestModelJson(TestCase):
             "above one": lambda r: r.update(quantiles=[0.1, 1.5]),
             "shares": lambda r: r.update(share_min=0.3, share_max=0.2),
             "share above one": lambda r: r.update(share_max=1.5),
+            "no paths": lambda r: r.pop("paths"),
+            "paths not an object": lambda r: r.update(paths=[]),
+            "nodes not an object": lambda r: r["paths"].update(nodes=[]),
+            "base above one": lambda r: r["paths"].update(base=1.5),
+            "base bool": lambda r: r["paths"].update(base=True),
+            "rate below zero": lambda r: r["paths"]["nodes"].update({"a/": -0.1}),
+            "rate nan": lambda r: r["paths"]["nodes"].update({"a/": math.nan}),
+            "empty key": lambda r: r["paths"]["nodes"].update({"": 0.1}),
+            "long key": lambda r: r["paths"]["nodes"].update({"a" * 513: 0.1}),
+            "control key": lambda r: r["paths"]["nodes"].update({"a\tb": 0.1}),
+            "delete key": lambda r: r["paths"]["nodes"].update({"a\x7f": 0.1}),
+            "too many nodes": lambda r: r["paths"].update(
+                nodes={f"n{i}/": 0.1 for i in range(20001)}
+            ),
         }
         for name, mutate in cases.items():
             doc = copy.deepcopy(self.doc)
             mutate(doc["risk"])
             with self.subTest(name):
                 self.assertIsInstance(model_json.validate(doc), str)
+        doc = copy.deepcopy(self.doc)
+        doc["risk"]["paths"]["nodes"] = {"a" * 512: 0.0, "b/": 1.0}
+        self.assertIsNone(model_json.validate(doc))
+        doc["risk"]["paths"]["nodes"] = {f"n{i}/": 0.1 for i in range(20000)}
+        self.assertIsNone(model_json.validate(doc))
+        no_path = copy.deepcopy(self.doc)
+        r = no_path["risk"]
+        for key in ("features", *model_json.RISK_LISTS):
+            r[key] = r[key][:1]
+        r.pop("paths")
+        self.assertEqual(r["features"], ["log_files"])
+        self.assertIsNone(model_json.validate(no_path))
+        r["paths"] = {"base": 1.5, "nodes": {}}
+        self.assertEqual(model_json.validate(no_path), "risk: bad paths base")
         doc = copy.deepcopy(self.doc)
         doc["risk"] = []
         self.assertEqual(model_json.validate(doc), "risk: not an object")
@@ -234,7 +276,7 @@ class TestTrain(TestCase):
     def setUpClass(cls) -> None:
         cls.limits = threadpool_limits(limits=4)
         cls.rows, cls.units = synthetic()
-        cls.doc = train.fit(cls.rows, cls.units, END, TRAINED_AT, SOURCE)
+        cls.doc = train.fit(cls.rows, cls.units, END, TRAINED_AT, SOURCE, paths=PATHS)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -258,6 +300,7 @@ class TestTrain(TestCase):
         self.assertEqual(doc["data_through"], "2026-11-01T00:00:00Z")
         self.assertEqual(doc["gate"], {})
         self.assertEqual(doc["risk"]["features"], list(spec.RISK_FEATURES))
+        self.assertEqual(doc["risk"]["paths"], PATHS)
         self.assertTrue(doc["calibrated"])
         self.assertEqual(doc["platt"]["clip"], train.CLIP)
         text = json.dumps(doc)
@@ -358,9 +401,30 @@ class TestTrain(TestCase):
         for f in (*spec.RISK_FEATURES, "uw"):
             self.assertEqual(list(table[f]), list(want[f]), f)
 
+    def test_risk_needs_the_path_table(self) -> None:
+        doc = train.fit(self.rows, self.units, END, TRAINED_AT, SOURCE)
+        self.assertNotIn("risk", doc)
+        with_risk = {k: v for k, v in self.doc.items() if k != "risk"}
+        self.assertEqual(json.dumps(doc), json.dumps(with_risk))
+
+    def test_path_values_move_the_risk(self) -> None:
+        names = list(spec.RISK_FEATURES)
+        row = self.units.iloc[0]
+        values = {f: float(row[f]) for f in names}
+        risky = dict(values, **model_json.path_values(PATHS, ["torch/_inductor/ir.py"]))
+        safe = dict(values, **model_json.path_values(PATHS, ["aten/x.cpp"]))
+        r = self.doc["risk"]
+        slope = sum(
+            r["coef"][names.index(f)] / r["scale"][names.index(f)]
+            for f in spec.PATH_FEATURES
+        )
+        got = model_json.risk(self.doc, risky)[0] - model_json.risk(self.doc, safe)[0]
+        self.assertNotEqual(got, 0.0)
+        self.assertEqual(got > 0, slope > 0)
+
     def test_risk_reads_no_scorer_output(self) -> None:
         self.assertFalse({"sum_p", "max_p", "max_llm"} & set(spec.RISK_FEATURES))
-        self.assertEqual(spec.RISK_FEATURES, spec.RISK_INPUTS)
+        self.assertEqual(spec.RISK_FEATURES, (*spec.RISK_INPUTS, *spec.PATH_FEATURES))
         self.assertFalse(set(spec.RISK_FEATURES) & set(spec.SERVED))
         doc = copy.deepcopy(self.doc)
         doc["risk"]["features"][0] = "max_p"
@@ -368,7 +432,7 @@ class TestTrain(TestCase):
 
     def test_fit_exports_once(self) -> None:
         with mock.patch.object(train, "export", wraps=train.export) as export:
-            doc = train.fit(self.rows, self.units, END, TRAINED_AT, SOURCE)
+            doc = train.fit(self.rows, self.units, END, TRAINED_AT, SOURCE, paths=PATHS)
         self.assertEqual(export.call_count, 1)
         self.assertEqual(json.dumps(doc), json.dumps(self.doc))
 
@@ -412,7 +476,7 @@ class TestTrain(TestCase):
         self.assertIsNone(train.fit_risk(table))
 
     def test_deterministic(self) -> None:
-        again = train.fit(self.rows, self.units, END, TRAINED_AT, SOURCE)
+        again = train.fit(self.rows, self.units, END, TRAINED_AT, SOURCE, paths=PATHS)
         self.assertEqual(json.dumps(again), json.dumps(self.doc))
 
 

@@ -264,10 +264,13 @@ def order_statistics(
     return ordered[np.round(np.linspace(0, len(ordered) - 1, k)).astype(int)].tolist()
 
 
-def fit_risk(table: pd.DataFrame) -> Optional[dict[str, Any]]:
+def fit_risk(
+    table: pd.DataFrame, paths: Optional[dict[str, Any]] = None
+) -> Optional[dict[str, Any]]:
     """The risk block: a standardised logistic regression on the changes in `table`,
-    each weighing its `uw` (the row builder's subsampling), and the order statistics of
-    their risks for the share mapping; None when the table holds one class only."""
+    each weighing its `uw` (the row builder's subsampling), the order statistics of
+    their risks for the share mapping and the served path table (pathrisk.table); None
+    when the table holds one class only."""
     if table["y"].nunique() < 2:
         logger.warning("risk: %d changes of one class only, no risk block", len(table))
         return None
@@ -294,6 +297,7 @@ def fit_risk(table: pd.DataFrame) -> Optional[dict[str, Any]]:
         "quantiles": order_statistics(risks),
         "share_min": SHARE_MIN,
         "share_max": SHARE_MAX,
+        **({"paths": paths} if paths is not None else {}),
     }
 
 
@@ -304,12 +308,14 @@ def fit(
     trained_at: str,
     source: dict[str, Any],
     with_risk: bool = True,
+    paths: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """The exported model trained on everything before `end`: scorer, Platt and (with
-    `with_risk`) the risk block fit on the unit table's landed changes."""
+    `with_risk`) the risk block fit on the unit table's landed changes, serving the path
+    table `paths` (the block is dropped without one: its path features need it)."""
     train = training_rows(rows, units, end)
     logger.info("scorer: %d rows, %d positives", len(train), int(train["y"].sum()))
     model = fit_scorer(train)
     platt = fit_platt(rows, units, end)
-    risk = fit_risk(risk_table(units, end)) if with_risk else None
+    risk = fit_risk(risk_table(units, end), paths) if with_risk else None
     return export(model, platt, risk, trained_at, end, source)

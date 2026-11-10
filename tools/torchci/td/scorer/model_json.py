@@ -20,6 +20,10 @@ MAX_CLIP = 0.01
 MAX_TRAINED_AT = 32
 # exp(-x) overflows a float64 past x ~ 709.
 EXP_LIMIT = 700.0
+MAX_PATH_NODES = 20000
+MAX_KEY_CHARS = 512
+MAX_CHANGED_FILES = 10000
+RATE_FLOOR = 1e-6
 TREE_KEYS = ("feature", "threshold", "missing_left", "left", "right", "value", "leaf")
 RISK_LISTS = ("fill", "mean", "scale", "coef")
 # The org's push protection blocks pushed files holding a run of this many digits.
@@ -45,6 +49,69 @@ def is_index(x: Any) -> bool:
 
 def has_digit_run(text: str) -> bool:
     return DIGIT_RUN.search(text) is not None
+
+
+def is_rate(x: Any) -> bool:
+    return is_number(x) and 0 <= x <= 1
+
+
+def is_path_key(key: Any) -> bool:
+    """A `risk.paths` node key: a non-empty string of at most MAX_KEY_CHARS characters
+    without a control character (a directory ends with "/")."""
+    return (
+        isinstance(key, str)
+        and 0 < len(key) <= MAX_KEY_CHARS
+        and not any(ord(c) < 32 or ord(c) == 127 for c in key)
+    )
+
+
+def path_nodes(path: str) -> list[str]:
+    """The keys a file's rate is looked up under, in order: its own path, then its
+    directories from the deepest to the shallowest ("a/b/c.py", "a/b/", "a/"); keys
+    over MAX_KEY_CHARS characters are skipped, so a long path costs linear time."""
+    nodes = [path] if len(path) <= MAX_KEY_CHARS else []
+    end = path.rfind("/")
+    while end >= 0:
+        if end < MAX_KEY_CHARS:
+            nodes.append(path[: end + 1])
+        end = path.rfind("/", 0, end)
+    return nodes
+
+
+def file_rate(paths: Mapping[str, Any], path: str) -> float:
+    """The rate of the first node of path_nodes(path) in the table, else its base."""
+    nodes = paths["nodes"]
+    return next((nodes[n] for n in path_nodes(path) if n in nodes), paths["base"])
+
+
+def path_values(paths: Mapping[str, Any], files: Sequence[str]) -> dict[str, float]:
+    """spec.PATH_FEATURES of a change: the log of the max and of the mean of its files'
+    rates (each at least RATE_FLOOR), over its de-duplicated, sorted changed files (the
+    first MAX_CHANGED_FILES); NaN without files."""
+    changed = sorted(set(files))[:MAX_CHANGED_FILES]
+    if not changed:
+        return dict.fromkeys(spec.PATH_FEATURES, math.nan)
+    rates = [file_rate(paths, f) for f in changed]
+    return {
+        "path_revert_max": math.log(max(RATE_FLOOR, max(rates))),
+        "path_revert_mean": math.log(max(RATE_FLOOR, math.fsum(rates) / len(rates))),
+    }
+
+
+def paths_problem(paths: Any) -> Optional[str]:
+    """Why a `risk.paths` block is unusable, or None."""
+    if not isinstance(paths, dict) or not isinstance(paths.get("nodes"), dict):
+        return "risk: bad paths"
+    if not is_rate(paths.get("base")):
+        return "risk: bad paths base"
+    nodes = paths["nodes"]
+    if len(nodes) > MAX_PATH_NODES:
+        return f"risk: {len(nodes)} path nodes"
+    if not all(is_path_key(k) for k in nodes):
+        return "risk: bad path key"
+    if not all(is_rate(v) for v in nodes.values()):
+        return "risk: path rate outside [0, 1]"
+    return None
 
 
 def _check(ok: bool, reason: str) -> None:
@@ -117,6 +184,8 @@ def risk_problem(risk: Any) -> Optional[str]:
     hi: Any = risk.get("share_max")
     if not (is_number(lo) and is_number(hi) and 0 <= lo <= hi <= 1):
         return "risk: bad shares"
+    if "paths" in risk or any(f in spec.PATH_FEATURES for f in names):
+        return paths_problem(risk.get("paths"))
     return None
 
 
@@ -211,7 +280,8 @@ def risk(
     doc: Mapping[str, Any], values: Mapping[str, float]
 ) -> tuple[float, float, float]:
     """(risk, its percentile F among the training changes, budget share) of one change;
-    a missing or NaN value takes the block's fill."""
+    a missing or NaN value takes the block's fill. The caller supplies
+    spec.PATH_FEATURES in `values`, from path_values over the block's `paths`."""
     r = doc["risk"]
     s = r["intercept"]
     for name, fill, mean, scale, coef in zip(

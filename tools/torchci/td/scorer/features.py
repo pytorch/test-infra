@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 from torchci.td.labels.schema import DAY, epoch, MAIN, month_of, PR_TD_OFF, sql_time
 from torchci.td.llm.replay import FileTimes
-from torchci.td.scorer import context, heuristics, history, spec
+from torchci.td.scorer import context, heuristics, history, pathrisk, spec
 from torchci.td.scorer.context import Context
 from torchci.td.scorer.heuristics import Helpers
 
@@ -265,22 +265,32 @@ def run_day(day: int) -> list[pd.DataFrame]:
 
 
 def unit_table(
-    units: list[dict[str, Any]], ctx: Context, full_from: int
+    units: list[dict[str, Any]],
+    ctx: Context,
+    full_from: int,
+    history: Optional[pathrisk.History] = None,
 ) -> pd.DataFrame:
-    rows = []
-    for u in units:
-        c = ctx.units[u["unit_id"]]
-        rows.append(
-            {
-                "unit_id": u["unit_id"],
-                "kind": u["kind"],
-                "time": int(u["time"]),
-                "train_ok": bool(u["train_ok"]),
-                "n_positives": len(u["positives"]),
-                "uw": unit_weight(u, full_from),
-                **heuristics.risk_inputs(c["stats"], c["sig_added"], c["sig_deleted"]),
-            }
-        )
+    """One row per unit: its weight and risk inputs; spec.PATH_FEATURES from `history`
+    (pathrisk.unit_values), NaN without one."""
+    cs = [ctx.units[u["unit_id"]] for u in units]
+    paths = (
+        pathrisk.unit_values(history, [(c["cutoff"], c["changed"]) for c in cs])
+        if history is not None
+        else [dict.fromkeys(spec.PATH_FEATURES, math.nan)] * len(cs)
+    )
+    rows = [
+        {
+            "unit_id": u["unit_id"],
+            "kind": u["kind"],
+            "time": int(u["time"]),
+            "train_ok": bool(u["train_ok"]),
+            "n_positives": len(u["positives"]),
+            "uw": unit_weight(u, full_from),
+            **heuristics.risk_inputs(c["stats"], c["sig_added"], c["sig_deleted"]),
+            **path,
+        }
+        for u, c, path in zip(units, cs, paths)
+    ]
     df = pd.DataFrame(rows, columns=list(spec.UNIT_COLUMNS))
     return df.astype(
         {"time": np.int64, "train_ok": bool, "n_positives": np.int64, "uw": np.float64}
@@ -296,9 +306,10 @@ def rows_for(
     full_from: datetime,
     llm: Optional[Mapping[str, Mapping[str, float]]] = None,
     procs: int = PROCS,
+    history: Optional[pathrisk.History] = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """The rows and the unit table of the selected units (selected_units) that have
-    context and a month list."""
+    """The rows and the unit table (unit_table) of the selected units (selected_units)
+    that have context and a month list."""
     dropped: Counter = Counter(ctx.dropped)
     have = []
     for u in units:
@@ -311,7 +322,7 @@ def rows_for(
             h, ctx.units[u["unit_id"]]["changed"]
         )
         have.append(u)
-    table = unit_table(have, ctx, epoch(full_from))
+    table = unit_table(have, ctx, epoch(full_from), history)
     by_day: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for u in have:
         by_day[day_of(ctx.units[u["unit_id"]]["cutoff"])].append(u)
@@ -358,12 +369,14 @@ def build(
     full_from: datetime,
     llm: Optional[Mapping[str, Mapping[str, float]]] = None,
     procs: int = PROCS,
+    history: Optional[pathrisk.History] = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """The rows (spec.ROW_COLUMNS) and the unit table (spec.UNIT_COLUMNS) of the
     selected units (selected_units) of `units_dir` (a torchci.td.labels output) in
     [start, stop), naive UTC datetimes. With an `llm` mapping (unit id -> {test: llm_n},
     sparse), a unit it lacks is dropped: its diff could not be read, and TD always has
-    the LLM score. Without one, llm_n is 0.0 everywhere."""
+    the LLM score. Without one, llm_n is 0.0 everywhere. The unit table's path risk
+    comes from `history` (main's history, pathrisk.History)."""
     units, months = context.read_labels(units_dir)
     units = selected_units(context.window_units(units, start, stop), full_from)
     llm_dropped: Counter = Counter()
@@ -375,4 +388,4 @@ def build(
     h = heuristics.load_helpers(repo, units_dir / "cache")
     ctx = context.build(units, months, repo, start, stop)
     ctx.dropped.update(llm_dropped)
-    return rows_for(units, months, ctx, h, stats, full_from, llm, procs)
+    return rows_for(units, months, ctx, h, stats, full_from, llm, procs, history)

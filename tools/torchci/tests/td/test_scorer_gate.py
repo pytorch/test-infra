@@ -11,14 +11,29 @@ from unittest import main, mock, TestCase
 import numpy as np
 import pandas as pd
 from threadpoolctl import threadpool_limits
-from torchci.td.labels.schema import DAY
+from torchci.td.labels.schema import DAY, epoch
 from torchci.td.llm.replay import CUT_PERCENT
-from torchci.td.scorer import __main__ as cli, evaluate, gate, spec, train
+from torchci.td.scorer import (
+    __main__ as cli,
+    evaluate,
+    gate,
+    model_json,
+    pathrisk,
+    spec,
+    train,
+)
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "td_scorer_parity.json"
 CUTOFF = 1793491200  # 2026-11-01 00:00 UTC
 NOW = "2026-11-04T13:00:00Z"
+HISTORY = pathrisk.History.of(
+    [
+        {"sha": f"s{i}", "time": CUTOFF - (20 + i) * DAY, "files": ["torch/x.py"]}
+        | {"reverts": "s9" if i == 0 else None}
+        for i in range(10)
+    ]
+)
 
 
 def get_top_per_tests(n_tests: int, percent: int = 25) -> int:
@@ -77,6 +92,7 @@ def synthetic(n_units: int = 300, n_tests: int = 30, days: int = 120, seed: int 
         unit["n_positives"] = int(y.sum())
         unit["uw"] = 5.0 if kind == "main" and not y.any() else 1.0
         unit.update({f: float(rng.random()) for f in spec.RISK_INPUTS})
+        unit.update({f: float(-3 * rng.random()) for f in spec.PATH_FEATURES})
         units.append(unit)
     return pd.concat(rows, ignore_index=True), pd.DataFrame(units)
 
@@ -404,9 +420,10 @@ class TestRefit(TestCase):
         ]
         with mock.patch("torchci.td.scorer.features.build", **build) as b, mock.patch(
             "torchci.td.scorer.features.load_stats", return_value={}
-        ):
+        ), mock.patch.object(pathrisk.History, "load", return_value=HISTORY) as load:
             if "side_effect" not in build:
                 b.return_value = (self.rows, self.units)
+            self.history_load = load
             return cli.main(args), b
 
     def test_writes_the_model(self) -> None:
@@ -417,6 +434,10 @@ class TestRefit(TestCase):
             (datetime(2026, 7, 4), datetime(2026, 11, 1), datetime(2026, 9, 6)),
         )
         self.assertIsNone(build.call_args.kwargs["llm"])
+        self.assertIs(build.call_args.kwargs["history"], HISTORY)
+        self.history_load.assert_called_once_with(
+            Path("pt"), epoch(datetime(2026, 7, 4))
+        )
         doc = json.loads((self.out / spec.MODEL_FILE).read_text())
         self.assertEqual(doc["source"], {"run_id": 42, "commit": "0123456789ab"})
         self.assertEqual(doc["data_through"], "2026-11-01T00:00:00Z")
@@ -433,6 +454,19 @@ class TestRefit(TestCase):
         self.assertIsNotNone(report["pr_calibration"])
         self.assertTrue(report["model_calibrated"])
         self.assertEqual(gate.staleness(doc, gate.parse_time(NOW))[0], gate.OK)
+        self.assertEqual(
+            doc["risk"]["paths"], train.rounded(pathrisk.table(HISTORY, CUTOFF))
+        )
+        self.assertEqual(list(doc["risk"]["paths"]["nodes"]), ["torch/", "torch/x.py"])
+        self.assertIsNone(model_json.validate(doc))
+
+    def test_oversized_model_is_not_written(self) -> None:
+        with mock.patch.object(cli, "MAX_MODEL_BYTES", 10_000):
+            code, _ = self.refit()
+        self.assertEqual(code, cli.EXIT_ERROR)
+        self.assertFalse((self.out / spec.MODEL_FILE).exists())
+        report = json.loads((self.out / cli.REPORT_FILE).read_text())
+        self.assertIn("bytes, over 10000", report["error"])
 
     def test_calibration_twin_is_out_of_sample(self) -> None:
         with mock.patch.object(train, "fit", wraps=train.fit) as fit:

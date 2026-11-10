@@ -152,34 +152,49 @@
   "risk": {
    "features": [
     "log_files",
-    "n_test_files"
+    "path_revert_max",
+    "path_revert_mean"
    ],
    "fill": [
     0.0,
-    0.0
+    -2.0,
+    -2.5
    ],
    "mean": [
     1.0,
-    0.5
+    -2.0,
+    -2.5
    ],
    "scale": [
     0.5,
-    2.0
+    0.6,
+    0.8
    ],
    "coef": [
     0.7,
-    -0.3
+    0.9,
+    0.3
    ],
    "intercept": -1.0,
    "quantiles": [
-    0.1,
-    0.2,
-    0.3,
-    0.4,
-    0.5
+    0.5,
+    0.7,
+    0.85,
+    0.9,
+    0.95
    ],
    "share_min": 0.1,
-   "share_max": 0.2
+   "share_max": 0.2,
+   "paths": {
+    "base": 0.1,
+    "nodes": {
+     "torch/": 0.12,
+     "torch/_inductor/": 0.25,
+     "torch/_inductor/ir.py": 0.4,
+     "aten/": 0.05,
+     "docs/": 0.0
+    }
+   }
   },
   "gate": {}
  },
@@ -223,15 +238,59 @@
   0.088265460687,
   0.024482727435
  ],
- "risk_values": {
-  "log_files": 2.0,
-  "n_test_files": 5.0
+ "risk_case": {
+  "changed": [
+   "torch/_inductor/ir.py",
+   "torch/_inductor/lowering.py",
+   "torch/nn/modules/linear.py",
+   "aten/src/ATen/native/Foo.cpp",
+   "docs/source/index.rst",
+   "setup.py",
+   "torch/_inductor/ir.py"
+  ],
+  "expected_risk": 0.898818046851,
+  "expected_percentile": 0.6,
+  "expected_share": 0.16
  },
- "expected_risk": [
-  0.431680016522,
-  0.8,
-  0.18
- ],
+ "paths_case": {
+  "paths": {
+   "base": 0.1,
+   "nodes": {
+    "torch/": 0.12,
+    "torch/_inductor/": 0.25,
+    "torch/_inductor/ir.py": 0.4,
+    "aten/": 0.05,
+    "docs/": 0.0
+   }
+  },
+  "changed": [
+   "torch/_inductor/ir.py",
+   "torch/_inductor/lowering.py",
+   "torch/nn/modules/linear.py",
+   "aten/src/ATen/native/Foo.cpp",
+   "docs/source/index.rst",
+   "setup.py",
+   "torch/_inductor/ir.py"
+  ],
+  "expected": {
+   "path_revert_max": -0.916290731874,
+   "path_revert_mean": -1.875141078167
+  },
+  "docs_changed": [
+   "docs/a.md"
+  ],
+  "docs_expected": {
+   "path_revert_max": -13.815510557964,
+   "path_revert_mean": -13.815510557964
+  },
+  "long_changed": [
+   "torch/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/y.py"
+  ],
+  "long_expected": {
+   "path_revert_max": -2.1202635362,
+   "path_revert_mean": -2.1202635362
+  }
+ },
  "cut_case": {
   "td_order": [
    "h",

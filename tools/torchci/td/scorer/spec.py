@@ -43,7 +43,9 @@ RISK_INPUTS = (
     "log_sig_added",
     "log_sig_deleted",
 )
-RISK_FEATURES = RISK_INPUTS
+# Per-change aggregates of the revert rates of the paths it touches (pathrisk.py).
+PATH_FEATURES = ("path_revert_max", "path_revert_mean")
+RISK_FEATURES = (*RISK_INPUTS, *PATH_FEATURES)
 
 ROW_COLUMNS = (
     "unit_id",

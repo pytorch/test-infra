@@ -168,7 +168,7 @@ def refit(args: argparse.Namespace) -> int:
     from torchci.td import labels
     from torchci.td.labels.queries import PR_LOOK_BACK_DAYS
     from torchci.td.labels.schema import epoch
-    from torchci.td.scorer import evaluate, features, train
+    from torchci.td.scorer import evaluate, features, pathrisk, train
 
     now = utc_now(args.now)
     cutoff = (now - timedelta(days=SETTLE_DAYS)).replace(
@@ -190,6 +190,7 @@ def refit(args: argparse.Namespace) -> int:
             start, cutoff, args.pytorch, units_dir, now=now.replace(tzinfo=None)
         )
     llm = prepare(args, units_dir, start, cutoff, full_from)
+    history = pathrisk.History.load(args.pytorch, epoch(start))
     rows, units = features.build(
         units_dir,
         args.pytorch,
@@ -199,6 +200,7 @@ def refit(args: argparse.Namespace) -> int:
         full_from,
         llm=llm,
         procs=args.procs,
+        history=history,
     )
     out["dropped"] = dict(units.attrs.get("dropped", {}))
     live, live_disabled, out["live_note"] = load_live(args.live)
@@ -215,7 +217,8 @@ def refit(args: argparse.Namespace) -> int:
             out["reasons"].append(gate.FAIL + "the live model is disabled")
         doc = None
         if out["passed"]:
-            doc = train.fit(rows, units, epoch(cutoff), trained_at, source)
+            paths = pathrisk.table(history, epoch(cutoff))
+            doc = train.fit(rows, units, epoch(cutoff), trained_at, source, paths=paths)
             doc["gate"] = train.rounded(gate_record(out))
             out["model_calibrated"] = doc["calibrated"]
     write_report(args.out, train.rounded(out))
@@ -224,6 +227,11 @@ def refit(args: argparse.Namespace) -> int:
     text = json.dumps(doc, indent=1, allow_nan=False) + "\n"
     if model_json.validate(json.loads(text)) or model_json.has_digit_run(text):
         raise model_json.InvalidModel("the model to write failed validation")
+    size = len(text.encode())
+    if size > MAX_MODEL_BYTES:
+        raise model_json.InvalidModel(
+            f"the model to write is {size} bytes, over {MAX_MODEL_BYTES}"
+        )
     (args.out / spec.MODEL_FILE).write_text(text)
     logger.info("wrote %s", args.out / spec.MODEL_FILE)
     return EXIT_OK

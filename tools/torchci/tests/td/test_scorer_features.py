@@ -12,7 +12,15 @@ from unittest import main, mock, TestCase
 import numpy as np
 from torchci.td.labels.schema import epoch
 from torchci.td.llm.replay import FileTimes
-from torchci.td.scorer import context, features, gitdata, heuristics, spec
+from torchci.td.scorer import (
+    context,
+    features,
+    gitdata,
+    heuristics,
+    model_json,
+    pathrisk,
+    spec,
+)
 from torchci.td.scorer.context import Context
 from torchci.td.utils import calculate_generic_test_ratings, HALF_LIFE_DAYS
 
@@ -356,6 +364,37 @@ class TestUnitRules(TestCase):
             list(table["uw"]), [features.unit_weight(u, full_from) for u in selected]
         )
         self.assertEqual(set(table["uw"]), {1.0, 5.0})
+        self.assertTrue(table[list(spec.PATH_FEATURES)].isna().all().all())
+
+    def test_unit_table_path_risk(self):
+        commits = [
+            {"sha": f"s{i}", "time": T0 - (30 - i) * DAY, "files": ["torch/x.py"]}
+            | {"reverts": None}
+            for i in range(10)
+        ]
+        commits.append(
+            {"sha": "r", "time": T0 - 5 * DAY, "files": ["torch/x.py"], "reverts": "s0"}
+        )
+        h = pathrisk.History.of(commits)
+        stats = {f: 0.0 for f in spec.UNIT_STATS} | {"n_files": 1.0}
+        units = [unit("main", H1, T0 + 100), unit("pr_td_off", H2, T0 + 200)]
+        changed = (["torch/x.py"], [])
+        ctx = Context(
+            {
+                u["unit_id"]: {"stats": stats, "sig_added": 1.0, "sig_deleted": 0.0}
+                | {"cutoff": int(u["time"]), "changed": files}
+                for u, files in zip(units, changed)
+            },
+            [],
+            {},
+        )
+        table = features.unit_table(units, ctx, epoch(FULL_FROM), h)
+        week = pathrisk.week_start(T0 + 100)
+        want = model_json.path_values(pathrisk.table(h, week), ["torch/x.py"])
+        for name in spec.PATH_FEATURES:
+            self.assertEqual(table[name].iloc[0], want[name])
+            self.assertTrue(math.isnan(table[name].iloc[1]))
+        self.assertGreater(want["path_revert_max"], math.log(0.05))
 
 
 class TestRows(Stubbed):

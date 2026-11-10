@@ -31,17 +31,25 @@ validates and evaluates a model the way pytorch does, and a shared fixture
   `calibrated`, `features` (names, in column order), `scorer` (`baseline` and `trees`: per
   tree, parallel lists `feature`, `threshold`, `missing_left`, `left`, `right`, `value`,
   `leaf`), `platt` (`coef`, `intercept`, `clip`), `risk` (optional: `features`, `fill`,
-  `mean`, `scale`, `coef`, `intercept`, `quantiles`, `share_min`, `share_max`) and `gate`
-  (the gate's numbers, informational).
+  `mean`, `scale`, `coef`, `intercept`, `quantiles`, `share_min`, `share_max`, and
+  `paths` when a `path_*` feature is named: `base` and `nodes`, path keys to revert
+  rates) and `gate` (the gate's numbers, informational).
 - p = Platt(sigmoid(baseline + the leaf values)): at each node a NaN goes to
   `missing_left`, a value <= `threshold` goes left; the sigmoid's output is clipped to
   [clip, 1 - clip] before Platt's logistic step.
+- A file's revert rate is that of the first of its own path, then its directories from
+  the deepest ("a/b/c.py", "a/b/", "a/"), present in `paths.nodes` (keys over 512
+  characters never match), else `paths.base`. `path_revert_max` and `path_revert_mean`
+  are the log of the max and of the mean over the change's de-duplicated, sorted files
+  (the first 10000), each at least 1e-6; NaN without files.
 - Risk = sigmoid(intercept + sum of coef * (x - mean) / scale), NaN inputs replaced by
   `fill`; the share is `share_min + (share_max - share_min) * F`, F the risk's percentile
   among `quantiles`.
 - Limits pytorch enforces: at most 1000 trees, 255 nodes per tree, depth 8, 20000 nodes in
-  all, 5 MB; every number finite. Every float is rounded to 9 decimals: the org's secret
-  scanning blocks pushes holding a run of 15 or more digits.
+  all, 5 MB; every number finite; at most 20000 path nodes, rates in [0, 1], keys
+  non-empty, at most 512 characters, without control characters. Every float is rounded
+  to 9 decimals: the org's secret scanning blocks pushes holding a run of 15 or more
+  digits.
 
 ## Training
 
@@ -63,9 +71,19 @@ validates and evaluates a model the way pytorch does, and a shared fixture
 - **Risk score** (recorded, not used): a logistic regression on landed changes predicting
   that a change newly breaks main, from the change alone: its files, source files, test
   files, docs-only flag, areas and significant lines added and deleted (the scorer's p is
-  in-sample on training changes, so it is not an input). Each change weighs as the row
-  builder subsampled it (1 / 0.2 for a kept main unit without a positive). Its share
-  averages 15% over landed changes; its mean on PR runs is not calibrated.
+  in-sample on training changes, so it is not an input), plus the revert rates of the
+  paths it touches. Each change weighs as the row builder subsampled it (1 / 0.2 for a
+  kept main unit without a positive). Its share averages 15% over landed changes; its
+  mean on PR runs is not calibrated.
+- **Path revert rates** (`pathrisk.py`), from the clone's main (first-parent history):
+  a revert is a commit whose subject starts with `Revert ` or `Back out` and whose
+  message's first `This reverts commit <sha>` names an older main commit. Over the
+  non-revert commits of the 365 days up to 3 days before the table's time, a path's
+  rate is (reverted + 20 x its parent's rate) / (touches + 20), the root's the overall
+  rate; nodes touched fewer than 5 times, and keys holding a control character or a run
+  of 15 digits, are left out (their parent's rate applies). The model file serves the
+  table as of the cutoff; each training change reads the table as of the Monday 00:00
+  UTC on or before its cutoff, so no change sees its own revert.
 
 ## The gate and the checks
 
