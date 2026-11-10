@@ -1025,6 +1025,13 @@
       "xpu"
     ]
   ],
+  "test_max_autotune_ck_backend_cpp_wrapper_num_gemms_1 (__main__.TestCKBackend)": [
+    "204229",
+    "https://github.com/pytorch/pytorch/issues/204229",
+    [
+      "rocm"
+    ]
+  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
