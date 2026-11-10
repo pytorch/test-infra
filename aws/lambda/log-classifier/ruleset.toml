@@ -353,6 +353,30 @@ pattern = '^\s*(test.*) errored - num_retries_left:'
 name = 'pr_time_benchmarks regression'
 pattern = '^(REGRESSION|MISSING REGRESSION TEST): benchmark.*'
 
+# Merge-bot refusals of a GitHub-native stack (pytorch's .github/scripts/
+# native_stack.py and trymerge.py). trymerge prints the traceback, whose last line
+# carries the module-qualified class name, so neither the ghstack rules below nor
+# '^RuntimeError: ' match it. Every message embeds PR numbers, SHAs or branch
+# names: capture only the stable phrases. These sit above the ghstack rules
+# because a 'Could not fetch' error chains a git-command RuntimeError whose
+# branch names can contain 'merge' or 'rebase', which the ghstack rule matches.
+[[rule]]
+name = 'Native stack branch needs updating'
+pattern = '^native_stack\.NativeStackError: (?:PR #\d+ (?:(is not based on the tip of) |(has conflicts with the commits below it)|(contains \S+ commits that) \S+ does not have|landed in [0-9a-f]+, which .* (so its changes would not land again))|\S+ (is behind \S+ for PR) #\d+|Merging \S+ into \S+ \(PR #\d+\) (has conflicts; merge it locally)|Reapplying PR #\d+ (on its branch after its revert has conflicts))'
+
+[[rule]]
+name = 'Native stack refused'
+pattern = '^native_stack\.NativeStackError: (?:PR #\d+ (?:(is not in (?:the|a) stack)\s*$|(is a ghstack PR), |(is at the bottom of the stack), so its base must be|(targets) \S+ (instead of) \S+, the branch of PR|(is closed, but) PR #\d+ (below it is still open)|(is closed, but its branch has commits that never landed)|(is closed but not landed)|(already landed but is still open)|is in a stack based on \S+, (but only stacks based on \S+ can be (?:merged|rebased))|(has no changes to land)|(is opened from) \S+, (so rebasing it would push to)|(is closed)\s*$)|The head of PR #\d+ (is already in) \S+, (so it has nothing to rebase))'
+
+[[rule]]
+name = 'Native stack read failed or changed'
+pattern = '^native_stack\.NativeStackError: (?:(GraphQL errors): |(Could not read all) \d+ (PRs in the stack)|(Could not fetch) |PR #\d+ (was updated while preparing the merge))'
+
+# A NativeStackError message no rule above knows: still one group, not one per PR.
+[[rule]]
+name = 'Native stack error (other)'
+pattern = '^(native_stack\.NativeStackError): '
+
 # ghstack/merge infra errors that otherwise fall into the generic Python
 # RuntimeError rule below, which bakes the per-run PR number / revision sha /
 # branch name into the whole-line capture (every occurrence its own group).
