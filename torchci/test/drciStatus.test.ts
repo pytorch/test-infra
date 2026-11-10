@@ -19,8 +19,7 @@ nock.disableNetConnect();
 
 const REPO = "pytorch/pytorch";
 const SHA = "abcdefg";
-const OLD_SECTION = `${PR_STATUS_START}\n## PR Status: in pre-review\n\nWaiting: alice\n${PR_STATUS_END}\n`;
-const LIVE_SECTION = OLD_SECTION.replace("alice", "bob");
+const OLD_SECTION = `${PR_STATUS_START}\n## PR Status: queued triaged state\n\nWaiting: alice\n${PR_STATUS_END}\n`;
 const BODY = drciUtils.DRCI_COMMENT_START + OLD_SECTION + "old CI results";
 const reader = testOctokit();
 const writer = testOctokit();
@@ -107,17 +106,6 @@ function statusReads(failure = "", prNumber = 1) {
       requested_reviewers: [{ login: "bob" }],
       requested_teams: [],
     });
-  if (failure !== "reviews" && failure !== "pull") {
-    scope
-      .get(`/repos/${REPO}/issues/${prNumber}/comments`)
-      .reply(failure === "comment" ? 503 : 200, [
-        {
-          id: 100 + prNumber,
-          user: { login: drciUtils.DRCI_COMMENT_AUTHOR },
-          body: drciUtils.DRCI_COMMENT_START + LIVE_SECTION + "old CI results",
-        },
-      ]);
-  }
   return scope;
 }
 
@@ -145,7 +133,7 @@ function expectCiUpdate(section: string, commentId = 11) {
   expect(reader.rest.checks.create).not.toHaveBeenCalled();
 }
 
-test.each(["labels", "reviews", "pull", "comment"])(
+test.each(["labels", "reviews", "pull"])(
   "a failed %s read preserves PR Status while updating the CI comment and check",
   async (failure) => {
     const scope = statusReads(failure);
@@ -171,7 +159,7 @@ test.each(["missing credentials", "app lookup failed"])(
   }
 );
 
-test("the dedicated reader is shared across the sweep and preserves live pre-review progress", async () => {
+test("the dedicated reader is shared and replaces stale progress with queued status", async () => {
   jest
     .mocked(workflows.fetchRecentWorkflows)
     .mockResolvedValue([job(1), job(2)]);
@@ -180,7 +168,11 @@ test("the dedicated reader is shared across the sweep and preserves live pre-rev
   handleScope(scopes);
   expect(github.getPreReviewOctokit).toHaveBeenCalledTimes(1);
   expect(github.getPreReviewOctokit).toHaveBeenCalledWith("pytorch", "pytorch");
-  expectCiUpdate(LIVE_SECTION, 101);
+  expectCiUpdate("## PR Status: triaged");
+  const body = jest.mocked(writer.rest.issues.updateComment).mock.calls[0][0]!
+    .body!;
+  expect(body).toContain("queued for automated review");
+  expect(body).not.toContain("queued triaged state");
   expect(writer.rest.issues.updateComment).toHaveBeenCalledTimes(2);
   expect(writer.rest.checks.create).toHaveBeenCalledTimes(2);
 });

@@ -1,144 +1,130 @@
-import * as preReview from "lib/bot/preReviewSweep";
-import * as clickhouse from "lib/clickhouse";
-import * as workflows from "lib/fetchRecentWorkflows";
-import * as github from "lib/github";
-import * as rechecks from "lib/preReviewRechecks";
-import { NextApiRequest } from "next";
+import { markInProgressIfAccepted } from "lib/bot/preReviewSweep";
+import * as prStatus from "lib/prStatus";
 import nock from "nock";
-import drci from "../pages/api/drci/drci";
-import handler from "../pages/api/pre_review/sweep";
-import { mockRes } from "./nextApiMocks";
-import { testOctokit } from "./utils";
+import { handleScope } from "./common";
+import { mockAddLabels, mockGetPR, testOctokit } from "./utils";
 
 nock.disableNetConnect();
-
-describe("scheduled pre-review sweep", () => {
-  const savedBotKey = process.env.DRCI_BOT_KEY;
-  const reader = testOctokit();
-  const labeler = testOctokit();
-  const previous = {
-    123: { updatedAt: "2026-10-29T00:00:00Z", nextCheckAt: 1234 },
-  };
-  const result = {
-    checked: 1,
-    deferred: 0,
-    failed: [] as number[],
-    rechecks: {},
-  };
-
-  function req(overrides = {}) {
-    return {
-      method: "POST",
-      headers: { authorization: "test-bot-key" },
-      query: {},
-      body: {},
-      ...overrides,
-    } as NextApiRequest;
-  }
-
-  beforeEach(() => {
-    process.env.DRCI_BOT_KEY = "test-bot-key";
-    jest.spyOn(github, "getPreReviewOctokit").mockResolvedValue(reader);
-    jest.spyOn(github, "getOctokit").mockResolvedValue(labeler);
-    jest.spyOn(rechecks, "loadPreReviewRechecks").mockResolvedValue(previous);
-    jest.spyOn(rechecks, "savePreReviewRechecks").mockResolvedValue();
-    jest.spyOn(preReview, "updateInProgressLabels").mockResolvedValue(result);
-    jest.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
-    if (savedBotKey === undefined) {
-      delete process.env.DRCI_BOT_KEY;
-    } else {
-      process.env.DRCI_BOT_KEY = savedBotKey;
-    }
-  });
-
-  test("runs independently of Dr.CI and persists backoff across invocations", async () => {
-    const ci = jest
-      .spyOn(workflows, "fetchRecentWorkflows")
-      .mockRejectedValue(new Error("CI unavailable"));
-    const res = mockRes();
-    await handler(req(), res);
-    expect(preReview.updateInProgressLabels).toHaveBeenCalledWith(
-      reader,
-      labeler,
-      "pytorch",
-      "pytorch",
-      previous
-    );
-    expect(rechecks.savePreReviewRechecks).toHaveBeenCalledWith(
-      result.rechecks
-    );
-    expect(res._status).toBe(200);
-    expect(res._json).toEqual({ checked: 1, deferred: 0, failed_prs: [] });
-    expect(ci).not.toHaveBeenCalled();
-  });
-
-  test("Dr.CI no longer runs or waits for the pre-review sweep", async () => {
-    jest
-      .spyOn(workflows, "fetchRecentWorkflows")
-      .mockRejectedValue(new Error("CI unavailable"));
-    jest.spyOn(clickhouse, "queryClickhouse").mockResolvedValue([]);
-    const res = mockRes();
-    await drci(req({ body: { repo: "pytorch", org: "pytorch" } }), res);
-    expect(res._status).toBe(400);
-    expect(preReview.updateInProgressLabels).not.toHaveBeenCalled();
-    expect(github.getPreReviewOctokit).not.toHaveBeenCalled();
-  });
-
-  test.each([
-    { method: "GET", status: 405 },
-    { headers: {}, status: 403 },
-    { headers: { authorization: "wrong" }, status: 403 },
-  ])(
-    "rejects unauthorized/non-POST requests before accessing the apps: %j",
-    async ({ status, ...overrides }) => {
-      const res = mockRes();
-      await handler(req(overrides), res);
-      expect(res._status).toBe(status);
-      expect(github.getPreReviewOctokit).not.toHaveBeenCalled();
-    }
-  );
-
-  test("an unset bot key cannot authenticate an anonymous request", async () => {
-    delete process.env.DRCI_BOT_KEY;
-    const res = mockRes();
-    await handler(req({ headers: {} }), res);
-    expect(res._status).toBe(403);
-    expect(github.getPreReviewOctokit).not.toHaveBeenCalled();
-  });
-
-  test("never falls back to PyTorchBot when the pre-review app is unconfigured", async () => {
-    jest.mocked(github.getPreReviewOctokit).mockResolvedValue(null);
-    const res = mockRes();
-    await handler(req(), res);
-    expect(res._status).toBe(503);
-    expect(github.getOctokit).not.toHaveBeenCalled();
-    expect(preReview.updateInProgressLabels).not.toHaveBeenCalled();
-  });
-
-  test("does not perform an unthrottled sweep when its backoff store fails", async () => {
-    jest
-      .mocked(rechecks.loadPreReviewRechecks)
-      .mockRejectedValue(new Error("S3 unavailable"));
-    const res = mockRes();
-    await handler(req(), res);
-    expect(res._status).toBe(503);
-    expect(preReview.updateInProgressLabels).not.toHaveBeenCalled();
-  });
-
-  test("records successful backoff even when some PRs fail, and fails the scheduled job", async () => {
-    jest
-      .mocked(preReview.updateInProgressLabels)
-      .mockResolvedValue({ ...result, failed: [456] });
-    const res = mockRes();
-    await handler(req(), res);
-    expect(res._status).toBe(502);
-    expect(res._json.failed_prs).toEqual([456]);
-    expect(rechecks.savePreReviewRechecks).toHaveBeenCalledWith(
-      result.rechecks
-    );
-  });
+const REPO = "pytorch/pytorch";
+const reader = testOctokit();
+const writer = testOctokit();
+const NOW = Date.parse("2026-11-06T12:00:00Z");
+const pull = (overrides = {}) => ({
+  state: "open",
+  draft: false,
+  created_at: "2026-10-01T00:00:00Z",
+  labels: [{ name: "triaged" }],
+  ...overrides,
 });
+const promote = () =>
+  markInProgressIfAccepted(reader, writer, "pytorch", "pytorch", 1);
+
+beforeEach(() => jest.spyOn(Date, "now").mockReturnValue(NOW));
+afterEach(() => {
+  nock.cleanAll();
+  jest.restoreAllMocks();
+});
+
+test("advances an already-approved PR without reading review or response APIs", async () => {
+  // Neither snapshot approvals nor assigned reviewers influence the transition.
+  const scopes = [
+    mockGetPR(
+      REPO,
+      1,
+      pull({
+        requested_reviewers: [{ login: "maintainer" }],
+        requested_teams: [{ slug: "core" }],
+        mergeable_state: "clean",
+      })
+    ),
+    mockAddLabels(["in progress"], REPO, 1),
+  ];
+  const approvals = jest
+    .spyOn(prStatus, "fetchPrStatusState")
+    .mockResolvedValue({
+      labels: ["triaged"],
+
+      isApproved: true,
+      isMergeApproved: true,
+    });
+  const reads = jest.spyOn(reader, "paginate");
+  const readerWrites = jest.spyOn(reader.rest.issues, "addLabels");
+  const writerReads = jest.spyOn(writer.rest.pulls, "get");
+  expect(await promote()).toBe(true);
+  handleScope(scopes);
+  expect(approvals).not.toHaveBeenCalled();
+  expect(reads).not.toHaveBeenCalled();
+  expect(readerWrites).not.toHaveBeenCalled();
+  expect(writerReads).not.toHaveBeenCalled();
+});
+
+test.each([
+  { state: "closed" },
+  { draft: true },
+  { created_at: "2026-08-31T23:59:59Z" },
+  { created_at: "invalid" },
+  { labels: [] },
+  { labels: [{ name: "triaged" }, { name: "missing actionable issue" }] },
+  { labels: [{ name: "triaged" }, { name: "in progress" }] },
+  { labels: [{ name: "triaged" }, { name: "ready for review" }] },
+])("live eligibility prevents promotion on replay: %j", async (overrides) => {
+  const scope = mockGetPR(REPO, 1, pull(overrides));
+  expect(await promote()).toBe(false);
+  handleScope(scope);
+});
+
+test("does not read or write other owners or repositories", async () => {
+  expect(
+    await markInProgressIfAccepted(reader, writer, "other", "pytorch", 1)
+  ).toBe(false);
+  expect(
+    await markInProgressIfAccepted(reader, writer, "pytorch", "vision", 1)
+  ).toBe(false);
+});
+
+test("coalesces concurrent promotions and rechecks live labels on replay", async () => {
+  const scopes = [
+    mockGetPR(REPO, 1, pull()),
+    mockAddLabels(["in progress"], REPO, 1),
+  ];
+  expect(await Promise.all([promote(), promote()])).toEqual([true, true]);
+  handleScope(scopes);
+  const replay = mockGetPR(
+    REPO,
+    1,
+    pull({ labels: [{ name: "triaged" }, { name: "in progress" }] })
+  );
+  expect(await promote()).toBe(false);
+  handleScope(replay);
+});
+
+test.each(["read", "write", "partial write"])(
+  "retries a failed %s without duplicate review labels",
+  async (failure) => {
+    const first = nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(failure === "read" ? 503 : 200, pull());
+    if (failure !== "read")
+      first
+        .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+        .reply(503);
+    await expect(promote()).rejects.toMatchObject({ status: 503 });
+    handleScope(first);
+    const retry = [
+      mockGetPR(
+        REPO,
+        1,
+        pull({
+          labels:
+            failure === "partial write"
+              ? [{ name: "triaged" }, { name: "in progress" }]
+              : [{ name: "triaged" }],
+        })
+      ),
+    ];
+    if (failure !== "partial write")
+      retry.push(mockAddLabels(["in progress"], REPO, 1));
+    expect(await promote()).toBe(failure !== "partial write");
+    handleScope(retry);
+  }
+);

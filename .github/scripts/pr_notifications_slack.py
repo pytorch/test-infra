@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Daily PyTorch PR review digest for the PyTorch Slack workspace.
+Daily PyTorch final-review digest for the PyTorch Slack workspace.
 
 Reads the day's manifest of PRs waiting on each reviewer, written to S3 by the
 pr-notifications-manifest workflow, and DMs it to each member of the opt-in
@@ -71,9 +71,7 @@ def _format_pr(manifest: dict[str, Any], entry: dict[str, Any]) -> str:
 
 
 def render_digest(manifest: dict[str, Any], login: str) -> str | None:
-    """The Slack mrkdwn digest for `login`, or None if nothing waits on them.
-    Pre-review entries of older manifests are ignored, since pre-review was
-    removed."""
+    """The Slack mrkdwn digest for `login`, or None if nothing waits on them."""
     stages = manifest["reviewers"].get(login)
     if stages is None:
         return None

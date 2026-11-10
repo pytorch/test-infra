@@ -31,9 +31,8 @@ export async function getOsdcMigrationOctokit(
   return getAppOctokit(owner, repo, appId, privateKey);
 }
 
-// Read-only app with its own rate limit, shared with the pre-review app rollout
-// in #9272. Low-volume webhook callers may fall back while it is unconfigured;
-// the periodic sweep must not fall back to PyTorchBot.
+// Read-only PR status app with a separate rate limit for CI-comment and
+// status reconciliation. Periodic status reads never fall back to PyTorchBot.
 export async function getPreReviewOctokit(
   owner: string,
   repo: string

@@ -124,7 +124,6 @@ test("recovers a quiet later phase after dismissal, preserves CI, and leaves ide
       labels: ["ready for review"],
       isApproved: true,
       isMergeApproved: true,
-      assignedReviewers: [],
     })
   );
   const reviews = [
@@ -210,14 +209,13 @@ test("comment creation remains opt-in for existing callers", async () => {
       state: {
         labels: ["ready for review"],
         isApproved: false,
-        assignedReviewers: [],
       },
     }
   );
   handleScope(scope);
 });
 
-test("refreshes actual pre-review policy from the single live state read", async () => {
+test("refreshes queued triaged status without reading response APIs", async () => {
   const pr = pull(1, {
     created_at: ENTERED,
     labels: [{ name: "triaged" }],
@@ -225,19 +223,12 @@ test("refreshes actual pre-review policy from the single live state read", async
   });
   const scopes = [
     reads(pr),
-    api()
-      .get(`/repos/${REPO}/issues/1/timeline?per_page=100`)
-      .reply(200, [
-        { event: "labeled", label: { name: "triaged" }, created_at: ENTERED },
-      ])
-      .get(`/repos/${REPO}/issues/1/reactions?per_page=100`)
-      .reply(200, [{ content: "+1", user: { login: "alice" } }]),
     commentRead(1, formDrciComment(1, "pytorch", "pytorch", CI_RESULTS)),
     api()
       .patch(`/repos/${REPO}/issues/comments/10`, (body) => {
-        expect(body.body).toContain("**Waiting for pre-review:** `bob`.");
-        expect(body.body).toContain("**Pre-review accepted:** `alice`.");
-        expect(body.body).toContain("2026-11-05 16:30:00 UTC");
+        expect(body.body).toContain("## PR Status: triaged");
+        expect(body.body).toContain("queued for automated review");
+        expect(body.body).not.toMatch(/deadline/i);
         expect(body.body).toContain(CI_RESULTS);
         return true;
       })
@@ -247,7 +238,7 @@ test("refreshes actual pre-review policy from the single live state read", async
   handleScope(scopes);
 });
 
-test("includes drafts without polling pre-review reactions or timeline", async () => {
+test("includes drafts without polling reactions or timeline", async () => {
   const pr = pull(1, { draft: true, labels: [{ name: "triaged" }] });
   const scopes = [
     reads(pr),
@@ -277,7 +268,6 @@ test.each([false, true])(
         labels: ["ready for review"],
         isApproved: true,
         isMergeApproved: true,
-        assignedReviewers: [],
       })
     );
     const scopes = [
@@ -311,7 +301,6 @@ test("live label removal removes stale status while preserving CI", async () => 
     renderPrStatusSection({
       labels: ["in progress"],
       isApproved: false,
-      assignedReviewers: [],
     })
   );
   const scopes = [
@@ -404,7 +393,6 @@ test("rotates a numeric, deduplicated batch across all results without saved sta
     .mockResolvedValue({
       labels: ["in progress"],
       isApproved: false,
-      assignedReviewers: [],
     });
   const upsert = jest.spyOn(drci, "upsertPrStatusSection").mockResolvedValue();
   const checked = new Set<number>();

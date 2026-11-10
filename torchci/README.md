@@ -72,61 +72,46 @@ them to your local server.
 
 ## Deployment and monitoring
 
-### Pre-review deadlines
+### Triage advancement
 
-In `pytorch/pytorch`, reviewers have one shared week after the PR enters
-pre-review to pre-accept it. The clock starts when `triaged` is applied and
-restarts after re-triage, return from draft, or removal of `missing actionable
-issue`. A thumbs-up on the PR description or
-`@pytorchbot pre-review accept` counts immediately. After seven days, reviewers
-who have not responded count as accepting, including requested teams. Additional
-review requests, comments, commits, and reactions do not extend the deadline.
-A PR with no assigned reviewers also advances after the week.
+In `pytorch/pytorch`, an open, non-draft PR created on or after 2026-09-01
+advances as soon as it has `triaged` and none of `missing actionable issue`,
+`in progress`, or `ready for review`. PyTorchBot immediately adds `in progress`
+to start automated review. Human reviews, including an approval that satisfies
+the merge rules, do not prevent this transition. Reviewer responses and reactions
+are not inputs to triage advancement, and there is no waiting period or response
+command. This transition does not grant merge approval. A triaged PR still
+awaiting the bot's transition shows a queued status, not a reviewer action item.
 
-A thumbs-down on the description or an outstanding request for changes from an
-assigned reviewer blocks pre-acceptance, even after the deadline. For teams, any
-non-author member can accept, but an objection from a member takes precedence.
-Remove the thumbs-down, or approve/dismiss the change request, to clear it.
-An unavailable reviewer list, team membership, or triage history does not count
-as silence. A failed check is retried on the next sweep.
+Label promotion is handled by guarded webhooks. The retired deadline job is
+removed, and there is no scheduled label-repair fallback in this change. A missed
+webhook can leave an eligible PR queued until redelivery or a separate recovery
+change is deployed.
 
-The independent `pre-review-sweep.yml` workflow calls `/api/pre_review/sweep`
-every 15 minutes. Dr.CI does not run or wait for this sweep. No webhook,
-reaction, or recent CI activity is required. Every silent PR old enough to have
-reached its deadline is checked each sweep; younger PRs use rotating batches.
-Unchanged PRs with explicit objections or verified merge-rules approval are
-checked every six hours. A change to the PR's `updated_at` bypasses that delay;
-the periodic retry also catches reaction removal without an event. Backoff is
-stored in `s3://ossci-raw-job-status/pre-review/pytorch-pytorch/rechecks-v1.json`
-across invocations. Failures are retried without backoff. Approvals from people
-outside the merge rules do not exclude PRs from the search or prevent advancement.
-Searches split creation-date ranges to cover queues larger than GitHub's
-1,000-result search limit. Advancement happens on the first successful sweep
-after the deadline, subject to GitHub Actions scheduling and API availability.
+### PR Status recovery and reader configuration
 
-The same checks refresh the existing PyTorchBot `PR Status` section with silent,
-explicitly accepting, and objecting reviewers (without mentions) and the exact
-UTC deadline. Silent reviewers are omitted after the deadline. A short
-introduction explains pre-review and how to respond. Status and advancement
-share one policy snapshot. No-op refreshes do not edit the comment. All polling reads, including paginated comment lookup,
-use the dedicated app; PyTorchBot performs label and comment writes. See
-[PR status coverage and examples](docs/pr-status.md) for the lifecycle audit.
+PR Status is the first section of the existing PyTorchBot Dr.CI comment. Webhooks
+refresh it as workflow labels, reviews, reviewer requests, or draft state change.
+The independent `.github/workflows/pr-status-sweep.yml` workflow calls
+`POST /api/pr_status/sweep` every 15 minutes to recover quiet workflow PRs and
+missing or stale status comments. It only reconciles comments; it does not advance
+triaged PRs. Its separate concurrency group and dedicated read-only GitHub App
+keep status polling isolated from triage advancement and Dr.CI's GitHub rate limit.
+See [PR status coverage and examples](docs/pr-status.md) for details.
 
-The bot rechecks live PR state before adding `in progress`. Closed/draft PRs,
-PRs before the rollout date, and PRs labeled `in progress`, `ready for review`,
-or `missing actionable issue` are excluded. Pre-acceptance starts automated
-review; it does not grant merge approval.
+Populate `PRE_REVIEW_APP_ID` and `PRE_REVIEW_PRIVATE_KEY` in the HUD deployment.
+An existing read-only app can be reused; no new app is required. The private key
+is base64-encoded PEM, and the app needs read access to PRs, issues, contents, and
+org members on `pytorch/pytorch`. Both variables are mandatory for the dedicated
+status reader (`getPreReviewOctokit`), which never falls back to PyTorchBot.
+PyTorchBot performs status-comment writes and adds `in progress`, since that
+identity triggers automated review. If status reads fail during a CI rebuild,
+the rebuild preserves the existing PR Status section while updating CI results.
 
-Configure `PRE_REVIEW_APP_ID` and `PRE_REVIEW_PRIVATE_KEY` in the HUD deployment
-(the same read-only app credentials as test-infra PR #9272). The private key is
-base64-encoded PEM. The app needs read access to PRs, issues, contents, and org
-members on `pytorch/pytorch`. The sweep refuses to run without these credentials;
-it never falls back to PyTorchBot for polling. PyTorchBot still writes the
-`in progress` label, since that identity triggers automated review. The workflow
-uses the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN` for endpoint authentication,
-and the HUD's existing S3 credentials persist backoff, requiring GetObject and
-PutObject access to the cache key above. Missing credentials, storage failures,
-or failed PR checks fail the cron job visibly.
+The status workflow uses the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN` secrets
+for endpoint authentication. Coordinate the HUD endpoint deployment, removal of
+the retired deadline workflow, and population of the status-reader variables.
+This configuration does not require any S3 or cache changes.
 
 ### Deployment
 

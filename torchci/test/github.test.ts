@@ -1,4 +1,12 @@
-import { commitDataFromResponse } from "lib/github";
+import { commitDataFromResponse, getPreReviewOctokit } from "lib/github";
+import { App, Octokit } from "octokit";
+
+jest.mock("octokit", () => ({
+  App: jest.fn().mockImplementation(() => ({
+    octokit: { request: jest.fn().mockResolvedValue({ data: { id: 42 } }) },
+  })),
+  Octokit: jest.fn().mockImplementation(() => ({ reader: true })),
+}));
 
 // The two shapes a landed pytorch/pytorch commit carries its PR number in. The
 // HUD reads prNum from here, and every surface that needs a PR -- the PR cell,
@@ -100,5 +108,56 @@ describe("commitDataFromResponse", () => {
     const commit = commitDataFromResponse(response(SQUASH_MESSAGE));
     expect(commit.commitTitle).toBe(SQUASH_MESSAGE.split("\n")[0]);
     expect(commit.time).toBe("2026-09-20T16:31:20Z");
+  });
+});
+
+describe("dedicated PR status reader", () => {
+  const saved = {
+    id: process.env.PRE_REVIEW_APP_ID,
+    key: process.env.PRE_REVIEW_PRIVATE_KEY,
+  };
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.PRE_REVIEW_APP_ID = "status-reader-app";
+    process.env.PRE_REVIEW_PRIVATE_KEY =
+      Buffer.from("dummy-key").toString("base64");
+  });
+  afterEach(() => {
+    if (saved.id === undefined) delete process.env.PRE_REVIEW_APP_ID;
+    else process.env.PRE_REVIEW_APP_ID = saved.id;
+    if (saved.key === undefined) delete process.env.PRE_REVIEW_PRIVATE_KEY;
+    else process.env.PRE_REVIEW_PRIVATE_KEY = saved.key;
+  });
+  test.each(["PRE_REVIEW_APP_ID", "PRE_REVIEW_PRIVATE_KEY"])(
+    "missing %s does not silently use the writer app",
+    async (key) => {
+      delete process.env[key];
+      expect(await getPreReviewOctokit("pytorch", "pytorch")).toBeNull();
+      expect(App).not.toHaveBeenCalled();
+      expect(Octokit).not.toHaveBeenCalled();
+    }
+  );
+  test("the dedicated reader uses its configured identity and repository installation", async () => {
+    expect(await getPreReviewOctokit("pytorch", "pytorch")).toEqual({
+      reader: true,
+    });
+    expect(App).toHaveBeenCalledWith({
+      appId: "status-reader-app",
+      privateKey: "dummy-key",
+    });
+    const app = jest.mocked(App).mock.results[0].value;
+    expect(app.octokit.request).toHaveBeenCalledWith(
+      "GET /repos/{owner}/{repo}/installation",
+      { owner: "pytorch", repo: "pytorch" }
+    );
+    expect(Octokit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: {
+          appId: "status-reader-app",
+          privateKey: "dummy-key",
+          installationId: 42,
+        },
+      })
+    );
   });
 });

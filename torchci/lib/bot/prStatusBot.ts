@@ -2,7 +2,6 @@
 // CI-driven sweep. Only that section changes, preserving existing CI results.
 
 import { upsertPrStatusSection } from "lib/drciUtils";
-import { getPreReviewOctokit } from "lib/github";
 import { requestOutstandingChangesReviewers } from "lib/prReview/reReviewRequests";
 import {
   fetchLiveLabels,
@@ -187,21 +186,15 @@ async function handle(
     );
   }
 
-  // Share the policy read with the live comment and handle changes to reviewer
-  // requests, objections, or the deadline without waiting for CI activity.
-  if (
-    hasPreReviewLabels(labels) &&
-    pullRequest.user?.login &&
-    isInPreReview(pullRequest)
-  ) {
+  // Promotion only needs live eligibility, never reviewer approvals or responses.
+  // Its label event refreshes Dr.CI, so comment-read failures cannot undo the move.
+  if (hasPreReviewLabels(labels) && isInPreReview(pullRequest)) {
     await markInProgressIfAccepted(
-      (await getPreReviewOctokit(owner, repo)) ?? (context.octokit as any),
+      context.octokit as any,
       context.octokit as any,
       owner,
       repo,
-      pullRequest.number,
-      labels,
-      pullRequest.user.login
+      pullRequest.number
     );
     return;
   }
@@ -221,7 +214,7 @@ export default function prStatusBot(app: Probot): void {
     [
       "pull_request.labeled",
       "pull_request.unlabeled",
-      // Reviewer requests affect pre-review and re-review status.
+      // Reviewer requests affect re-review status.
       "pull_request.review_requested",
       // Retargeting changes the files an approval must cover.
       "pull_request.edited",

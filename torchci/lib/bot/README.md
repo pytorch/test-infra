@@ -272,6 +272,7 @@ ciflow_push_tags:
 **GitHub Webhooks:**
 
 - `pull_request.opened`, `pull_request.synchronize`
+- `prStatusBot.ts` additionally handles workflow-label, review, reviewer-request, draft-state, base-edit, and reopen events to refresh status and reconcile workflow transitions.
 
 **Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
 

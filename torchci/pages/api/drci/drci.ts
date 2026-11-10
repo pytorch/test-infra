@@ -810,7 +810,6 @@ export async function updateDrciComments(
       // The live read is memoized and shared with the section's pin read, so a
       // PR costs at most one GitHub comment read per sweep.
       const { id, body } =
-        status?.comment ??
         existingDrCiComments.get(pr_info.pr_number) ??
         (await readLiveComment());
 

@@ -4,7 +4,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 export const config = { maxDuration: 900 };
 
-// Reads use the dedicated pre-review app; only comment writes use PyTorchBot.
+// Reads use the dedicated PR status app; only comment writes use PyTorchBot.
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -21,7 +21,7 @@ export default async function handler(
     if (!reader) {
       return res
         .status(503)
-        .json({ error: "Pre-review app credentials are not configured" });
+        .json({ error: "PR status app credentials are not configured" });
     }
     const writer = await getOctokit("pytorch", "pytorch");
     const result = await refreshPrStatusComments(

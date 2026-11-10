@@ -1,4 +1,4 @@
-import { getPreReviewStatus, getRotatingBatch } from "lib/bot/preReviewUtils";
+import { getRotatingBatch } from "lib/bot/preReviewUtils";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   DRCI_COMMENT_AUTHOR,
@@ -7,8 +7,6 @@ import {
 } from "lib/drciUtils";
 import {
   fetchPrStatusState,
-  getPrStatusStage,
-  hasPrStatusLabel,
   PR_STATUS_LABELS,
   PR_STATUS_START,
   PRE_REVIEW_START_DATE,
@@ -25,7 +23,7 @@ export interface PrStatusSweepResult {
 }
 
 // Recover missed webhooks, quiet later phases, and PRs with no Dr.CI comment.
-// This only reconciles comments; deadline advancement remains in its own sweep.
+// This only reconciles comments.
 export async function refreshPrStatusComments(
   reader: Octokit,
   writer: Octokit,
@@ -76,26 +74,6 @@ export async function refreshPrStatusComments(
           }
           if (state.pullRequest?.state === "closed") {
             return;
-          }
-          if (
-            hasPrStatusLabel(state.labels) &&
-            getPrStatusStage(state) === "preReview"
-          ) {
-            state.preReview = await getPreReviewStatus(
-              reader,
-              owner,
-              repo,
-              pr.number,
-              state.labels,
-              state.authorLogin ?? "",
-              [],
-              state,
-              now
-            );
-            if (state.preReview.lookupFailed) {
-              failed.add(pr.number);
-              return;
-            }
           }
           if (state.mergeApprovalLookupFailed) {
             failed.add(pr.number);
