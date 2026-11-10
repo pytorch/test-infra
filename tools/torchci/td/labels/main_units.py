@@ -12,6 +12,7 @@ from torchci.td.labels import queries
 from torchci.td.labels.schema import epoch, MAIN, month_of, sql_time, unit_row
 from torchci.td.llm import pytorch_repo
 from torchci.td.llm.diff import SHA_RE
+from torchci.td.llm.events import test_file_of
 
 
 # A newly failing file must fail again within this many later pushes where its config
@@ -129,14 +130,23 @@ def units(
     return out
 
 
+def cpp_tests(rankings: Iterable[tuple[str, Iterable[str]]]) -> dict[str, set[str]]:
+    """Per month, the C++ test files in TD rankings, given (time, ranked keys) pairs."""
+    cpp: dict[str, set[str]] = defaultdict(set)
+    for when, keys in rankings:
+        cpp[when[:7]].update(test_file_of(k) for k in keys if k.startswith("cpp/"))
+    return cpp
+
+
 def candidates_by_month(
-    repo: Path, cache: Path, months: list[str]
+    repo: Path, cache: Path, months: list[str], cpp: dict[str, set[str]]
 ) -> list[dict[str, Any]]:
-    """Each month's test list: TESTS at main's last commit before the month."""
+    """Each month's test list: TESTS at main's last commit before the month, plus the C++
+    tests TD ranked that month (discover_tests.py lists none without a build)."""
     out = []
     for month in months:
         snap = pytorch_repo.snapshot(repo, cache, month)
-        tests = sorted(snap.tests)
+        tests = sorted(set(snap.tests) | cpp.get(month, set()))
         out.append({"month": month, "commit": snap.commit, "tests": tests})
     return out
 
@@ -171,7 +181,7 @@ def fetch_failures(
 
 
 def build(
-    start: datetime, stop: datetime, repo: Path, cache: Path
+    start: datetime, stop: datetime, repo: Path, cache: Path, cpp: dict[str, set[str]]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Main units in [start, stop) and the test lists of their months."""
     pushes = fetch_pushes(start, stop)
@@ -186,6 +196,6 @@ def build(
             if single_commit(p) and w0 <= int(p["pushed_at"]) < w1
         }
     )
-    lists = candidates_by_month(repo, cache, months)
+    lists = candidates_by_month(repo, cache, months, cpp)
     by_month = {c["month"]: c["tests"] for c in lists}
     return units(pushes, new_failures, by_month, start, stop), lists

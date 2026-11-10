@@ -1,17 +1,28 @@
 import gzip
 import json
 import tempfile
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import main, mock, TestCase
 
-from torchci.td.labels import __main__ as cli, build, main_units, queries, schema
+from torchci.td.labels import (
+    __main__ as cli,
+    build,
+    main_units,
+    pr_units,
+    queries,
+    schema,
+)
+from torchci.td.llm import events
 
 
 H1, H2, H3 = "1" * 40, "2" * 40, "3" * 40
+START, STOP = datetime(2026, 11, 1), datetime(2026, 11, 4)
 DAY0 = 1793491200  # 2026-11-01 00:00 UTC
 CFG = {"workflow": "trunk", "build_environment": "linux", "test_config": "default"}
+DEEP = "[" * 100000 + "]" * 100000
 
 
 def job(push, shard=1, shards=1, conclusion="success", **kw):
@@ -21,6 +32,33 @@ def job(push, shard=1, shards=1, conclusion="success", **kw):
 
 def fail(push, file, **kw):
     return {"push_sha": push, "file": file, **CFG, **kw}
+
+
+def e2_row(pr, file, failed_at="2026-11-02 10:00:00", **kw):
+    row = {
+        "pr_number": pr,
+        "test_file": file,
+        "failed_at": failed_at,
+        "run_id": 1,
+        "job_id": 2,
+        "workflow": "pull",
+        "build_environment": "linux",
+        "test_config": "default",
+        "position": 3,
+        "n": 4,
+        "max_score": 1.0,
+        "all_scores": json.dumps({file: 1.0, "cpp/test_x": 0.5}),
+        "head_sha": H1,
+        "nonpr_branches": [],
+        "pr_source": "pull_request",
+    }
+    return {**row, **kw}
+
+
+def head_job(job_id, run_id=10, attempt=1, sha=H2, created=DAY0 + 33 * 3600, **kw):
+    row = {"job_id": job_id, "run_id": run_id, "run_attempt": attempt}
+    row |= {"created": created, "head_sha": sha}
+    return {**row, **CFG, "workflow": "pull", **kw}
 
 
 def stub(rows):
@@ -78,10 +116,91 @@ class TestSilver(TestCase):
         self.assertEqual(u["positives"], ["t1", "test_a"])
         self.assertFalse(u["train_ok"])
 
+    def test_cpp_tests(self):
+        rankings = [("2026-11-02 10:00:00", {"cpp/test_y::A": 1.0, "test_nn": 0.0})]
+        self.assertEqual(main_units.cpp_tests(rankings), {"2026-11": {"cpp/test_y"}})
+
+
+class TestTdOff(TestCase):
+    def extra(self, env="macos-arm64", head=H1, scores=None, **kw):
+        scores = scores or json.dumps({"test_c": 1.0, "test_d, TestD": 0.5})
+        off = [5, 6, "trunk", env, "default", head, 3, 10, scores]
+        row = {"pr_number": 7, "test_file": "test_c", "n_jobs": 2, "n_heads": 1}
+        return {**row, "off_failed_at": "2026-11-02 11:00:00", "off": off, **kw}
+
+    def test_units_and_drops(self):
+        e2 = events.parse_e2([e2_row(7, "test_c"), e2_row(9, "test_z")])
+        dropped = Counter()
+        groups = pr_units.td_off_failures(e2, [self.extra()], dropped)
+        key = (7, H1, "trunk", "macos-arm64", "default")
+        self.assertEqual(list(groups), [key])
+        rows = {
+            "head_jobs": [head_job(6, 5, sha=H1, build_environment="macos-arm64")],
+            "ran_files": [{"job_id": 6, "ran": ["test_c", "test_d"], "failed": []}],
+        }
+        rows["head_jobs"][0]["workflow"] = "trunk"
+        with stub(rows):
+            (u,) = pr_units.td_off_units(groups)
+        self.assertEqual(u["unit_id"], f"p:7:{H1}:trunk:macos-arm64:default")
+        self.assertEqual(u["candidates"], ["test_c", "test_d"])
+        self.assertEqual((u["positives"], u["confirmed"]), (["test_c"], ["test_c"]))
+        self.assertEqual(u["observed"], ["test_c", "test_d"])
+        for bad in (self.extra(env="linux"), self.extra(head="")):
+            pr_units.td_off_failures(e2, [bad], dropped)
+        for scores in (DEEP, '{"a": 1' + "0" * 400 + "}", "[1]", '{"a": "x"}'):
+            pr_units.td_off_failures(e2, [self.extra(scores=scores)], dropped)
+        no_off = self.extra()
+        no_off["off"] = [0, 0, "", "", "", "", 0, 0, "{}"]
+        self.assertEqual(pr_units.td_off_failures(e2, [no_off], dropped), {})
+        self.assertEqual(
+            dropped,
+            {
+                "pr_td_off:cut_applied": 1,
+                "pr_td_off:no_head": 1,
+                "pr_td_off:malformed": 4,
+            },
+        )
+
+    def test_run_evidence_falls_back_to_all_test_runs(self):
+        key = (7, H1, "trunk", "macos-arm64", "default")
+        jobs = [head_job(j, 5, sha=H1, workflow="trunk") for j in (6, 7, 8)]
+        for j in jobs[:2]:
+            j["build_environment"] = "macos-arm64"
+        rows = {
+            "head_jobs": jobs,
+            "ran_files": [{"job_id": 6, "ran": ["test_c"], "failed": []}],
+            "ran_files_all": [{"job_id": 7, "ran": ["test_d"], "failed": []}],
+        }
+        calls = []
+
+        def ch(name, sql, params):
+            calls.append((name, params))
+            return rows[name]
+
+        with mock.patch.object(queries, "ch", ch):
+            out = pr_units.run_evidence({key: DAY0 + 86400 + 11 * 3600})
+        self.assertEqual(out, {key: {"test_c", "test_d"}})
+        self.assertEqual(calls[1][1], {"run_ids": [5], "job_ids": [6, 7]})
+        self.assertEqual(calls[2][1]["job_ids"], [7])
+        self.assertEqual(calls[2][1]["start"], "2026-10-31 11:00:00")
+
+    def test_e2_reads_back_a_year(self):
+        params = {}
+
+        def ch(name, sql, p):
+            params[name] = p
+            return []
+
+        with mock.patch.object(queries, "ch", ch):
+            self.assertEqual(queries.fetch_e2(START, STOP), [])
+        self.assertEqual(params["e2"]["look_back_days"], 365)
+
 
 def world():
+    off = [5, 6, "trunk", "macos-arm64", "default", H1, 3, 10, '{"test_c": 1.0}']
     push = {"commit_shas": [], "title": ""}
     return {
+        "e2": [e2_row(7, "test_c")],
         "main_pushes": [
             {**push, "push_sha": H3, "pushed_at": DAY0 - 3600, "commit_shas": [H3]},
             {**push, "push_sha": H1, "pushed_at": DAY0 + 10, "commit_shas": [H1]},
@@ -96,6 +215,21 @@ def world():
             {"job_id": 2, "file": "test_a"},
             {"job_id": 3, "file": "test_a"},
         ],
+        "pr_fail_extra": [
+            {
+                "pr_number": 7,
+                "test_file": "test_c",
+                "n_jobs": 1,
+                "n_heads": 1,
+                "off_failed_at": "2026-11-02 11:00:00",
+                "off": off,
+            }
+        ],
+        "head_jobs": [
+            head_job(6, 5, sha=H1, workflow="trunk", build_environment="macos-arm64")
+        ],
+        "ran_files": [{"job_id": 6, "ran": ["test_c", "test_d"], "failed": []}],
+        "ran_files_all": [],
     }
 
 
@@ -120,14 +254,25 @@ class TestCli(TestCase):
 
     def test_writes_files(self):
         manifest, units, lists = self.run_build(world())
-        self.assertEqual(manifest["units"], {"main": 2})
-        self.assertEqual(manifest["positives"], {"main": 1})
+        expected = {"main": 2, "pr_td_off": 1}
+        self.assertEqual(manifest["units"], expected)
+        self.assertEqual(manifest["positives"], expected | {"main": 1})
+        self.assertFalse(manifest["pr_kinds_skipped"])
         by_id = {u["unit_id"]: u for u in units}
         self.assertEqual(by_id[f"c:{H1}"]["positives"], ["test_a"])
         self.assertEqual(
             {tuple(sorted(u)) for u in units}, {tuple(sorted(schema.FIELDS))}
         )
-        self.assertEqual(lists[0]["tests"], ["test_a", "test_b"])
+        self.assertEqual(lists[0]["tests"], ["cpp/test_x", "test_a", "test_b"])
+
+    def test_old_window_skips_pr_kinds(self):
+        rows = {k: v for k, v in world().items() if k.startswith(("main", "failed"))}
+        with self.assertLogs("torchci.td.labels", "WARNING"):
+            manifest, _, _ = self.run_build(rows, now=datetime(2027, 11, 2))
+        self.assertTrue(manifest["pr_kinds_skipped"])
+        self.assertEqual(manifest["units"], {"main": 2, "pr_td_off": 0})
+        manifest, _, _ = self.run_build(world(), now=datetime(2027, 11, 1))
+        self.assertFalse(manifest["pr_kinds_skipped"])
 
     def test_rejects_empty_window(self):
         argv = ["--start", "2026-11-04", "--stop", "2026-11-04"]

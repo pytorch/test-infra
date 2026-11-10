@@ -1,14 +1,15 @@
 """TD's label dataset: (unit, test file) -> failed, from HUD ClickHouse (read-only) and
-a pytorch clone (read-only git), for main pushes. See README.md."""
+a pytorch clone (read-only git), for main pushes and TD-off PR jobs. See README.md."""
 
 import gzip
 import json
 import logging
-from datetime import datetime, timezone
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from torchci.td.labels import main_units
+from torchci.td.labels import main_units, pr_units, queries
 from torchci.td.labels.schema import KINDS
 from torchci.td.llm.bundle import atomic_file
 from torchci.td.llm.cache import ensure_dir
@@ -37,19 +38,41 @@ def build(
     now: Optional[datetime] = None,
 ) -> dict[str, Any]:
     """Writes the units, the monthly test lists and the manifest to `out`; returns the
-    manifest."""
+    manifest. PR kinds are skipped for a window that starts before E2's look-back, whose
+    PR-specific rule would see only part of it."""
     now = now or datetime.now(timezone.utc).replace(tzinfo=None)
     ensure_dir(out)
-    units, lists = main_units.build(start, stop, repo, out / "cache")
+    dropped: Counter = Counter()
+    pr_kinds = start >= now - timedelta(days=queries.PR_LOOK_BACK_DAYS)
+    e2: list = []
+    td_off: dict = {}
+    if pr_kinds:
+        e2 = queries.fetch_e2(start, stop)
+        td_off = pr_units.fetch_td_off(e2, start, stop, dropped)
+    else:
+        logger.warning(
+            "window starts more than %d days ago: pr_td_off skipped",
+            queries.PR_LOOK_BACK_DAYS,
+        )
+    rankings = [(e.failed_at, e.row.all_scores) for e in e2]
+    rankings += [
+        (g["failed_at"], g["row"].all_scores) for v in td_off.values() for g in v
+    ]
+    main, lists = main_units.build(
+        start, stop, repo, out / "cache", main_units.cpp_tests(rankings)
+    )
+    units = main + pr_units.td_off_units(td_off)
     manifest = {
         "start": start.strftime("%Y-%m-%d"),
         "stop": stop.strftime("%Y-%m-%d"),
         "built_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "pr_kinds_skipped": not pr_kinds,
         "units": {k: sum(u["kind"] == k for u in units) for k in KINDS},
         "positives": {
             k: sum(len(u["positives"]) for u in units if u["kind"] == k) for k in KINDS
         },
         "months": [c["month"] for c in lists],
+        "dropped": dict(sorted(dropped.items())),
     }
     write_jsonl_gz(out / UNITS_FILE, units)
     write_jsonl_gz(out / CANDIDATES_FILE, lists)

@@ -1,11 +1,11 @@
 """The unit row every kind writes, the kinds, and the time conversions the builder uses."""
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Union
 
 
-MAIN = "main"
-KINDS = (MAIN,)
+MAIN, PR_TD_OFF = "main", "pr_td_off"
+KINDS = (MAIN, PR_TD_OFF)
 DAY = 86400
 
 FIELDS = (
@@ -41,8 +41,15 @@ def epoch(value: datetime) -> int:
     return int(value.replace(tzinfo=timezone.utc).timestamp())
 
 
-def sql_time(value: datetime) -> str:
-    """A naive UTC datetime as a ClickHouse DateTime parameter."""
+def unix(value: str) -> int:
+    """Unix seconds of a ClickHouse UTC time string ("YYYY-MM-DD HH:MM:SS[.fff]")."""
+    return epoch(datetime.fromisoformat(str(value).replace("T", " ")[:19]))
+
+
+def sql_time(value: Union[datetime, int]) -> str:
+    """A naive UTC datetime or unix seconds as a ClickHouse DateTime parameter."""
+    if isinstance(value, int):
+        value = datetime.fromtimestamp(value, timezone.utc)
     return value.strftime("%Y-%m-%d %H:%M:%S")
 
 
