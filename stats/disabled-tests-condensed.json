@@ -112,6 +112,13 @@
       "slow"
     ]
   ],
+  "test_causal_variants_causal_variant_1_shape0_xpu (__main__.TestAttnBiasXPU)": [
+    "204240",
+    "https://github.com/pytorch/pytorch/issues/204240",
+    [
+      "xpu"
+    ]
+  ],
   "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
     "100074",
     "https://github.com/pytorch/pytorch/issues/100074",
@@ -659,6 +666,13 @@
   "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTests)": [
     "201542",
     "https://github.com/pytorch/pytorch/issues/201542",
+    [
+      "xpu"
+    ]
+  ],
+  "test_dynamic_shapes_persistent_reduction_no_x_dim_2 (__main__.ComboKernelDynamicShapesTests)": [
+    "204239",
+    "https://github.com/pytorch/pytorch/issues/204239",
     [
       "xpu"
     ]
