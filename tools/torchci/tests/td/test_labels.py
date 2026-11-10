@@ -10,6 +10,7 @@ from unittest import main, mock, TestCase
 from torchci.td.labels import (
     __main__ as cli,
     build,
+    exploration_rows,
     main_units,
     pr_units,
     queries,
@@ -19,6 +20,7 @@ from torchci.td.llm import events
 
 
 H1, H2, H3 = "1" * 40, "2" * 40, "3" * 40
+CALL = "0123456789ab"
 START, STOP = datetime(2026, 11, 1), datetime(2026, 11, 4)
 DAY0 = 1793491200  # 2026-11-01 00:00 UTC
 CFG = {"workflow": "trunk", "build_environment": "linux", "test_config": "default"}
@@ -53,6 +55,57 @@ def e2_row(pr, file, failed_at="2026-11-02 10:00:00", **kw):
         "pr_source": "pull_request",
     }
     return {**row, **kw}
+
+
+def drawn(file="test_e", count=250, top_part=False, test=None, **kw):
+    d = {"test": test or file, "test_file": file, "score": 0.0, "weight": 1.0}
+    d |= {"position": 9, "cost": 20.0, "count": count, "propensity": count / 1000}
+    return {**d, "top_part": top_part, **kw}
+
+
+def info_of(tests=None, **kw):
+    body = {
+        "sha": H2,
+        "pr_number": 8,
+        "call": CALL,
+        "replicates": 1000,
+        "frame": 40,
+        "out_of_frame": 2,
+        "out_of_frame_seconds": 900.0,
+        "skipped_seconds": 3600.0,
+        "explored": [drawn()] if tests is None else tests,
+    }
+    return json.dumps({**body, **kw})
+
+
+def xrow(tests=None, job_id=11, run_id=10, ts="2026-11-02 10:00:00", **info):
+    return {
+        "repo": "pytorch/pytorch",
+        "run_id": run_id,
+        "job_id": job_id,
+        "workflow": "pull",
+        "build_environment": "linux",
+        "test_config": "default",
+        "timestamp": ts,
+        "oversized": 0,
+        "info": info_of(tests, **info),
+    }
+
+
+def xjob(job_id=11, run_id=10, attempt=1, **kw):
+    row = {
+        "job_id": job_id,
+        "run_id": run_id,
+        "run_attempt": attempt,
+        "head_sha": H2,
+        "head_branch": "feature",
+        "workflow": "pull",
+        "name": "linux / test (default, 1, 2, linux.2xlarge)",
+        "repo": "pytorch/pytorch",
+        "td_scope": 1,
+        "run_prs": [8],
+    }
+    return {job_id: {**row, **kw}}
 
 
 def head_job(job_id, run_id=10, attempt=1, sha=H2, created=DAY0 + 33 * 3600, **kw):
@@ -194,6 +247,77 @@ class TestTdOff(TestCase):
         with mock.patch.object(queries, "ch", ch):
             self.assertEqual(queries.fetch_e2(START, STOP), [])
         self.assertEqual(params["e2"]["look_back_days"], 365)
+
+
+class TestExploredValidation(TestCase):
+    def check(self, row, jobs=None):
+        return exploration_rows.validate(row, xjob() if jobs is None else jobs)[0]
+
+    def test_accepts_and_takes_the_pr_from_github(self):
+        reason, unit = exploration_rows.validate(xrow(), xjob())
+        self.assertEqual(reason, "")
+        group = (8, H2, "pull", "linux", "default")
+        self.assertEqual((unit["group"], unit["call"]), (group, CALL))
+        self.assertEqual(unit["attempt"], (10, 1))
+        self.assertEqual(unit["frame"]["skipped_seconds"], 3600.0)
+        tagged = xjob(head_branch="ciflow/trunk/8", run_prs=[])
+        self.assertEqual(self.check(xrow(pr_number=None), tagged), "")
+        self.assertEqual(self.check(xrow(pr_number=None)), "")
+        self.assertEqual(self.check(xrow([])), "")
+
+    def test_each_rejection(self):
+        missing = drawn()
+        del missing["top_part"]
+        cases = {
+            "repo": [({**xrow(), "repo": "x/fork"}, None)],
+            "too_large": [({**xrow(), "oversized": 1}, None)],
+            "replicates": [(xrow(replicates=999), None)],
+            "too_many_tests": [(xrow([drawn()] * 501), None)],
+            "job_missing": [(xrow(), {})],
+            "run_mismatch": [(xrow(), xjob(run_id=99))],
+            "sha_mismatch": [(xrow(), xjob(head_sha=H3))],
+            "workflow_scope": [(xrow(), xjob(td_scope=0))],
+            "not_shard_1": [(xrow(), xjob(name="linux / test (default, 2, 2, x)"))],
+            "test_config": [(xrow(), xjob(name="linux / test (crossref, 1, 1, x)"))],
+            "no_pr": [(xrow(pr_number=None), xjob(run_prs=[]))],
+            "pr_ambiguous": [(xrow(pr_number=None), xjob(run_prs=[8, 9]))],
+            "pr_mismatch": [
+                (xrow(), xjob(run_prs=[9])),
+                (xrow(), xjob(run_prs=[], head_branch="ciflow/trunk/9")),
+            ],
+            "propensity": [
+                (xrow([drawn(count=0)]), None),
+                (xrow([drawn(count=1001)]), None),
+                (xrow([{**drawn(), "count": 10**400}]), None),
+                (xrow([{**drawn(), "propensity": 10**400}]), None),
+                (xrow([{**drawn(), "propensity": 0.5}]), None),
+            ],
+        }
+        cases["repo"].append((xrow(), xjob(repo="pytorch/ciforge")))
+        for reason, pairs in cases.items():
+            for row, jobs in pairs:
+                self.assertEqual(self.check(row, jobs), reason, reason)
+        malformed = [
+            {**xrow(), "info": "{not json"},
+            {**xrow(), "info": DEEP},
+            {**xrow(), "info": None},
+            {**xrow(), "job_id": "x"},
+            xrow(call="x"),
+            xrow(sha="abc"),
+            xrow(explored={}),
+            xrow(frame=-1),
+            xrow(skipped_seconds=float("nan")),
+            xrow(skipped_seconds=10**400),
+            xrow(out_of_frame_seconds=None),
+            xrow(pr_number=10**400),
+            xrow([missing]),
+            xrow([drawn(score="high")]),
+            xrow([drawn(test_file="")]),
+        ]
+        with mock.patch.object(exploration_rows.logger, "warning") as warn:
+            for row in malformed:
+                self.assertEqual(self.check(row), "malformed", str(row)[:80])
+        self.assertEqual(warn.call_count, 3)
 
 
 def world():

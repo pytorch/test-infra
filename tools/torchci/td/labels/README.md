@@ -48,6 +48,20 @@ rows and the TD-off rows read for the window: `discover_tests.py` lists none wit
 build. The offline TD analysis's `pr_on` units and its filter on commits the clone
 holds (`diff_ok`) are not ported: training filters on its features.
 
+## Exploration rows are untrusted
+
+Metric rows are uploaded by code a PR can change (ciflow tag pushes run a PR's own
+`run_test.py` with upload credentials). A row is used only when its repo is
+pytorch/pytorch, it parses within bounds (at most 500 drawn tests, 1000 replicates,
+every propensity equal to count / 1000 with 1 <= count <= 1000, finite and bounded
+numbers), and `default.workflow_job` confirms the job: a pytorch/pytorch job of the same
+run, head sha equal to the row's `sha`, a workflow TD runs in, and a name of shard 1 of
+the row's test config. The PR comes from GitHub's
+data (the pull_request run's PRs or the ciflow tag); the row's own `pr_number` only has
+to agree. Rows that fail are counted by reason, a row that does not parse counts as
+malformed, and query results are capped in size. This raises the bar for a forged row
+but does not prove it came from the job it names.
+
 ## Limits
 
 - PR labels go through E2, which reads the TD metric back 365 days

@@ -16,6 +16,7 @@ from torchci.td.llm.events_sql import (
     METRIC_FILTER,
     RANK_COLUMNS,
     SETTINGS as LLM_SETTINGS,
+    TD_SCOPE,
 )
 
 
@@ -27,7 +28,10 @@ RAN_BATCH = 200
 # PR labels need their jobs' test reports, which are kept about a year; E2 reads the TD
 # metric this far back.
 PR_LOOK_BACK_DAYS = 365
+# A td_exploration row holds at most 500 drawn tests; larger ones are not parsed.
+MAX_INFO_BYTES = 512 * 1024
 SETTINGS = LLM_SETTINGS + ", max_result_rows = 20000000, max_result_bytes = 4000000000"
+EXPLORATION_METRIC = "td_exploration"
 
 
 def ch(name: str, sql: str, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -163,6 +167,41 @@ FROM (
         AND time_inserted >= {{start: DateTime}} AND time_inserted < {{stop: DateTime}}
 )
 GROUP BY job_id
+{SETTINGS}
+"""
+
+# Every repo's rows: the repo is checked in Python so rejected rows are counted.
+EXPLORATION_ROWS = f"""
+SELECT m.repo AS repo, m.run_id AS run_id, m.job_id AS job_id,
+    m.build_environment AS build_environment, m.test_config AS test_config,
+    m.timestamp AS timestamp, length(m.info) > {MAX_INFO_BYTES} AS oversized,
+    if(oversized, '', m.info) AS info
+FROM misc.ossci_uploaded_metrics AS m
+WHERE m.metric_name = '{EXPLORATION_METRIC}'
+    AND m.timestamp >= {{start: DateTime64(3)}}
+    AND m.timestamp < {{stop: DateTime64(3)}}
+{SETTINGS}
+"""
+
+# The jobs td_exploration rows name, with the PRs GitHub links to their run: a
+# pull_request run's own PRs (a ciflow tag run's PR comes from its branch).
+EXPLORATION_JOBS = f"""
+SELECT j.*, {TD_SCOPE} AS td_scope, r.prs AS run_prs
+FROM (
+    SELECT id AS job_id, run_id, run_attempt, head_sha, head_branch,
+        workflow_name AS workflow, name, repository_full_name AS repo
+    FROM default.workflow_job FINAL
+    WHERE id IN {{job_ids: Array(Int64)}}
+) AS j
+LEFT JOIN (
+    SELECT id, if(event = 'pull_request',
+        arrayMap(p -> tupleElement(p, 'number'), pull_requests), []) AS prs
+    FROM default.workflow_run
+    WHERE id IN (
+        SELECT run_id FROM default.workflow_job WHERE id IN {{job_ids: Array(Int64)}}
+    )
+    LIMIT 1 BY id
+) AS r ON r.id = j.run_id
 {SETTINGS}
 """
 
