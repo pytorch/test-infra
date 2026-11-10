@@ -7,13 +7,15 @@ import {
 } from "lib/api/auth";
 import { ErrorResponseSchema } from "lib/api/schema";
 import * as githubAuth from "lib/auth/githubAuth";
+import * as clickhouse from "lib/clickhouse";
 import { getServerSession } from "next-auth";
 import { routeFiles } from "./routes";
 
 // The GitHub gate in front of every route under app/api: where the token
-// comes from, what each verdict of the shared gate becomes, and how long a
-// token that passed is remembered. GitHub itself is the mocked shared gate;
-// the HUD session is the mocked next-auth reader.
+// comes from, what each verdict of the shared gate becomes, how long a
+// token that passed is remembered, and which routes let HUD's public pages
+// through. GitHub itself is the mocked shared gate; the HUD session is the
+// mocked next-auth reader.
 
 jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
 
@@ -22,6 +24,48 @@ const sessionReader = getServerSession as jest.Mock;
 
 function request(path: string, headers: Record<string, string> = {}) {
   return new Request(`${ORIGIN}${path}`, { headers });
+}
+
+// What a browser adds to a request that one of HUD's pages makes.
+const FROM_A_HUD_PAGE = { "sec-fetch-site": "same-origin" };
+
+// The routes HUD's public pages under pages/tests/[organization] read. They
+// admit the pages' requests; every other route asks every caller for a
+// credential.
+const PAGE_ROUTES = [
+  "/api/tests",
+  "/api/tests/commit/{sha}",
+  "/api/tests/commit/{sha}/summary",
+  "/api/tests/cost",
+  "/api/tests/cost/changes",
+  "/api/tests/cost/trend",
+  "/api/tests/options",
+  "/api/tests/pull/{number}",
+  "/api/tests/test/{test_id}",
+  "/api/tests/test/{test_id}/runs",
+];
+
+// The gated routes: every route under app/api but the document's own.
+function gatedRoutes(): { file: string; path: string }[] {
+  return routeFiles().filter(({ path }) => path !== "/api/openapi.json");
+}
+
+// The route file's GET, called as Next.js calls it, with 1 for every path
+// parameter.
+async function callGet(
+  file: string,
+  path: string,
+  headers: Record<string, string> = {}
+): Promise<Response> {
+  const route = await import(file);
+  const params: Record<string, string> = {};
+  const concrete = path.replace(/\{(\w+)\}/g, (_segment, name: string) => {
+    params[name] = "1";
+    return "1";
+  });
+  return route.GET(request(concrete, headers), {
+    params: Promise.resolve(params),
+  });
 }
 
 type Context = { params: Promise<Record<string, string>> };
@@ -47,20 +91,10 @@ describe("the GitHub gate on app/api routes", () => {
   });
 
   test("every route under app/api except the document refuses an anonymous request", async () => {
-    const routes = routeFiles().filter(
-      ({ path }) => path !== "/api/openapi.json"
-    );
+    const routes = gatedRoutes();
     expect(routes.length).toBeGreaterThanOrEqual(6);
     for (const { file, path } of routes) {
-      const route = await import(file);
-      const params: Record<string, string> = {};
-      const concrete = path.replace(/\{(\w+)\}/g, (_segment, name: string) => {
-        params[name] = "1";
-        return "1";
-      });
-      const response: Response = await route.GET(request(concrete), {
-        params: Promise.resolve(params),
-      });
+      const response = await callGet(file, path);
       expect({ path, status: response.status }).toEqual({ path, status: 401 });
       expect(response.headers.get("WWW-Authenticate")).toBe("Bearer");
       const body = await response.json();
@@ -71,6 +105,83 @@ describe("the GitHub gate on app/api routes", () => {
       });
     }
     expect(authorize).not.toHaveBeenCalled();
+  });
+
+  test("the routes HUD's pages read admit a page's request, and no other route does", async () => {
+    // Past the gate, a handler answers as it would from an empty database.
+    jest.spyOn(clickhouse, "queryClickhouse").mockResolvedValue([]);
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const admitted: string[] = [];
+    for (const { file, path } of gatedRoutes()) {
+      const response = await callGet(file, path, FROM_A_HUD_PAGE);
+      if (response.status !== 401) admitted.push(path);
+    }
+    expect(admitted.sort()).toEqual(PAGE_ROUTES);
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  describe("a request one of HUD's pages made", () => {
+    let forPages: typeof gated;
+
+    beforeEach(() => {
+      forPages = requireGithubWriteAccess(handler, { admitHudPages: true });
+    });
+
+    test("passes a route that admits the pages, with no session or GitHub asked", async () => {
+      const response = await forPages(
+        request("/api/tests", FROM_A_HUD_PAGE),
+        context
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ answered: true });
+      // Still for its caller alone: no shared cache keeps it.
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+      expect(sessionReader).not.toHaveBeenCalled();
+      expect(authorize).not.toHaveBeenCalled();
+    });
+
+    test("is anonymous on a route that does not admit the pages", async () => {
+      const response = await gated(
+        request("/api/tests", FROM_A_HUD_PAGE),
+        context
+      );
+      expect(response.status).toBe(401);
+      expect((await response.json()).code).toBe("unauthenticated");
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    test.each(["same-site", "cross-site", "none", ""])(
+      "is not what a request with Sec-Fetch-Site %j is",
+      async (site) => {
+        const response = await forPages(
+          request("/api/tests", { "sec-fetch-site": site }),
+          context
+        );
+        expect(response.status).toBe(401);
+        expect(handler).not.toHaveBeenCalled();
+      }
+    );
+
+    test("still has a bearer token it sends checked", async () => {
+      authorize.mockResolvedValue({
+        ok: false,
+        status: 401,
+        error: "GitHub authentication failed",
+      });
+      const response = await forPages(
+        request("/api/tests", {
+          ...FROM_A_HUD_PAGE,
+          authorization: "Bearer token-sent-by-a-page",
+        }),
+        context
+      );
+      expect(response.status).toBe(401);
+      expect(response.headers.get("WWW-Authenticate")).toBe(
+        'Bearer error="invalid_token"'
+      );
+      expect(authorize).toHaveBeenCalledWith("token-sent-by-a-page");
+      expect(handler).not.toHaveBeenCalled();
+    });
   });
 
   test("a bearer token is checked by the shared gate and admitted", async () => {

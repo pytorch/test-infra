@@ -1,5 +1,7 @@
 import { requireGithubWriteAccess } from "lib/api/auth";
 import { commitRunsHandler } from "lib/api/tests/commit/handler";
 
-export const GET = requireGithubWriteAccess(commitRunsHandler);
+export const GET = requireGithubWriteAccess(commitRunsHandler, {
+  admitHudPages: true,
+});
 export const dynamic = "force-dynamic";

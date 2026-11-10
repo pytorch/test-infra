@@ -52,6 +52,21 @@ next; a handler that wants the browser to keep its answer says `private` and
 under `security`, and `errorResponses()` documents the statuses on every
 operation.
 
+HUD's pages under `pages/tests/[organization]/` are public, so a route that
+one of them reads lets the page's own requests through without a credential:
+it exports `GET = requireGithubWriteAccess(handler, { admitHudPages: true })`.
+A browser sends `Sec-Fetch-Site: same-origin` only with a request that a page
+of HUD's own origin made, and no script can set or change that header; a
+request that carries it and no bearer token passes those routes. The header
+is not a credential. A program can send it too and get what the public pages
+would show it, so open a route to the pages only when a page reads it.
+`GET /api/tests/run/{run_id}` stays closed to them: no page reads it, and
+each lookup scans every retained run. A browser too old to send the header,
+or one that reaches a production build over plain HTTP anywhere but
+localhost, does not send it, and its reader has to sign in.
+`test/api/auth.test.ts` lists the routes open to the pages and fails when the
+routes differ from that list.
+
 CLI and agent callers that the Vercel bot challenge blocks use the same path
 under `/api/authed/` (`pages/api/authed/[...path].ts`), which runs the same
 gate from the same memory and forwards the request, token included, naming
@@ -151,7 +166,8 @@ page of its newest commit, and the cost page, as operations tagged `pages`:
 HTML for people, with `security: []`, one `text/html` answer, and a summary
 that starts with "HUD page", so that a caller of the API can give a reader
 the page that shows what it fetched and knows which parameters that page
-takes. Nothing under
+takes. The pages are public: the routes they read admit their requests (see
+[Authentication](#authentication)). Nothing under
 `app/api/` serves them; `test/api/openapi.test.ts` checks the `pages` paths
 against the files under `pages/tests/[organization]/` as it checks the
 `tests` paths against the route files.
@@ -212,7 +228,9 @@ old route in the same change.
 
 - A route is `app/api/<resource>/route.ts`, with a `[name]` folder for each
   path parameter, and only exports `GET`, the handler wrapped in
-  `requireGithubWriteAccess`, and `dynamic = "force-dynamic"`, which keeps
+  `requireGithubWriteAccess` (with `{ admitHudPages: true }` when a HUD page
+  reads the route, see [Authentication](#authentication)), and
+  `dynamic = "force-dynamic"`, which keeps
   Next.js from running it at build time. Next.js answers HEAD by
   running `GET` and dropping the body, OPTIONS with 204, and the other
   standard methods with an empty 405.

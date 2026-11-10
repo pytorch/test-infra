@@ -3,10 +3,9 @@
 // know about the failure.
 
 // What a failed request's error carries besides its message: the response
-// status, when the server answered, which accessReasonOf reads for the
-// gate's refusals; the API's error text as info, which apiErrorMessage
-// reads; and the API's error code, which a page may branch on, as the API
-// asks, rather than on the text.
+// status, when the server answered, which mayPassOnRetry reads; the API's
+// error text as info, which apiErrorMessage reads; and the API's error code,
+// which a page may branch on, as the API asks, rather than on the text.
 export interface RequestFailure extends Error {
   status?: number;
   info?: unknown;

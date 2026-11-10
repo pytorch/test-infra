@@ -1,4 +1,3 @@
-import AccessNotice from "components/tests/AccessNotice";
 import LoadError from "components/tests/LoadError";
 import PageColumn from "components/tests/PageColumn";
 import TestsHeading from "components/tests/TestsHeading";
@@ -15,7 +14,6 @@ import {
   TestsFacet,
 } from "lib/tests/facets";
 import {
-  accessReasonOf,
   DEFAULT_TESTS_SORT,
   resolveTestsQuery,
   SEARCH_PAUSE_MS,
@@ -32,7 +30,6 @@ import {
   viewsOf,
   withoutView,
 } from "lib/tests/views";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -42,9 +39,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // spelled as the API spells them and left off at the API's defaults. The
 // choices, their labels and those defaults come from GET /api/tests/options;
 // the URL is resolved against them before the list is requested.
-// The API is behind the HUD GitHub gate, write access to pytorch/pytorch,
-// which the browser passes with its HUD sign-in cookie; when the API refuses,
-// the page says why in place of the table and offers the sign-in.
+// The page is public: the API's GitHub gate lets its requests through
+// (admitHudPages in lib/api/auth.ts), so the reader need not sign in.
 // The search field follows typing after SEARCH_PAUSE_MS (lib/tests/table.ts).
 // The hub's fixed-width column (PageColumn) holds the title and the table,
 // so the table does not stretch with the window and is whole at full width.
@@ -57,10 +53,6 @@ export default function Page() {
     typeof organization === "string" && typeof repo === "string"
       ? `${organization}/${repo}`
       : undefined;
-  // The API decides from the HUD sign-in cookie the browser sends with every
-  // request, so the page asks at once, whatever the client-side session has
-  // found out yet; that only words a refusal.
-  const session = useSession();
   const {
     options,
     error: optionsError,
@@ -96,14 +88,6 @@ export default function Page() {
     query,
     pending: searchPending,
   });
-  // The API refused the sign-in or the account: said once, in place of the
-  // table, with no Retry, since asking again would only repeat it. A 401 asks
-  // a reader who is not signed in to sign in, and tells one who is that the
-  // sign-in has stopped working.
-  const signedIn = session.status === "authenticated";
-  const accessReason =
-    accessReasonOf(listing.error, signedIn) ??
-    accessReasonOf(optionsError, signedIn);
 
   // Writes the given parameters into the URL, leaving off those that are
   // undefined and keeping every other parameter as it is. Typing replaces
@@ -204,19 +188,6 @@ export default function Page() {
     }
   };
 
-  if (accessReason !== undefined) {
-    return (
-      <PageColumn>
-        <TestsHeading
-          repo={repository}
-          options={options}
-          query={query}
-          onQueryChange={handleQueryChange}
-        />
-        <AccessNotice reason={accessReason} />
-      </PageColumn>
-    );
-  }
   return (
     <PageColumn>
       <TestsHeading

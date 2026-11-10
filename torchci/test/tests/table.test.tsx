@@ -71,7 +71,6 @@ import { COLUMN_HEADER_HEIGHT, NAME_FILTER_ROW_HEIGHT } from "lib/tests/layout";
 import { testPagePath, testRunsHref } from "lib/tests/links";
 import { endsTextSelection } from "lib/tests/selection";
 import {
-  accessReasonOf,
   apiErrorMessage,
   columnHeaderHeightFor,
   DEFAULT_TESTS_SORT,
@@ -1933,37 +1932,6 @@ describe("NameSearch", () => {
 // A URL query the page could not have written is still resolved, never
 // rejected: the type says so.
 const _unchecked: TestsUrlQuery = testsQueryFromUrl({ window: "anything" });
-
-describe("accessReasonOf", () => {
-  const failed = (status: number) =>
-    Object.assign(new Error("An error occurred while fetching the data"), {
-      status,
-    });
-
-  test("a 401 asks a signed-out reader to sign in", () => {
-    expect(accessReasonOf(failed(401), false)).toBe("signed_out");
-  });
-
-  test("a 401 tells a signed-in reader the sign-in stopped working", () => {
-    expect(accessReasonOf(failed(401), true)).toBe("expired");
-  });
-
-  test("a 403 is the account's access, signed in or not", () => {
-    expect(accessReasonOf(failed(403), true)).toBe("forbidden");
-    expect(accessReasonOf(failed(403), false)).toBe("forbidden");
-  });
-
-  test.each([400, 404, 500, 503])("a %i is some other failure", (status) => {
-    expect(accessReasonOf(failed(status), true)).toBeUndefined();
-  });
-
-  test("a connection failure has no status and is some other failure", () => {
-    expect(
-      accessReasonOf(new TypeError("Failed to fetch"), true)
-    ).toBeUndefined();
-    expect(accessReasonOf(undefined, false)).toBeUndefined();
-  });
-});
 
 describe("where the rows lead", () => {
   const test42: TestRecord = {

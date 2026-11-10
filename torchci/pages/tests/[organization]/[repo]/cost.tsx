@@ -1,5 +1,4 @@
 import { Box, Stack } from "@mui/material";
-import AccessNotice from "components/tests/AccessNotice";
 import CellDrawer, { type OpenCell } from "components/tests/cost/CellDrawer";
 import CostFacts from "components/tests/cost/CostFacts";
 import CostHeading from "components/tests/cost/CostHeading";
@@ -47,9 +46,7 @@ import {
   toggled,
 } from "lib/tests/cost/runnerHours";
 import { useCostTrend, useRunnerHours } from "lib/tests/cost/useCost";
-import { accessReasonOf } from "lib/tests/table";
 import { mergedUrlQuery } from "lib/tests/url";
-import { useSession } from "next-auth/react";
 import Router, { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -86,8 +83,7 @@ function datesOf(answer: RunnerHours): string {
 // owners and machines highlight. Every choice travels in
 // the URL under COST_PAGE_PARAMETER_DEFINITIONS' names, left off at its
 // default; the presets come with the runner-hours. The page never queries the
-// database; the API is behind the HUD GitHub gate, which the browser passes
-// with its sign-in.
+// database, and is public: the API's GitHub gate lets its requests through.
 //
 // Cost is a panel of its own under the runner-hours chart (CostPanel), from
 // a rates file the reader adds (lib/tests/cost/rates.ts), its rates editable
@@ -109,7 +105,6 @@ export default function Page() {
     typeof organization === "string" && typeof repo === "string"
       ? `${organization}/${repo}`
       : undefined;
-  const session = useSession();
   const query = useMemo(() => resolveCostQuery(router.query), [router.query]);
   const apiUrl = repository ? costApiUrl(repository, query.window) : null;
   const request = useRunnerHours(apiUrl);
@@ -352,8 +347,6 @@ export default function Page() {
   const scopeKey = query.workflows.join(",");
   useEffect(() => setCell(null), [scopeKey]);
 
-  const signedIn = session.status === "authenticated";
-  const accessReason = accessReasonOf(request.error, signedIn);
   const scope =
     prepared && view && view.scope.size > 0 ? scopeName(prepared, view) : null;
   const answer = request.runnerHours;
@@ -364,14 +357,6 @@ export default function Page() {
       onWindowChange={(window) => change({ window })}
     />
   );
-  if (accessReason !== undefined) {
-    return (
-      <PageColumn>
-        {heading}
-        <AccessNotice reason={accessReason} />
-      </PageColumn>
-    );
-  }
   const dates = answer ? datesOf(answer) : "";
   const ready =
     repository !== undefined &&
