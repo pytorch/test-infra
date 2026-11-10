@@ -954,13 +954,6 @@
       "linux"
     ]
   ],
-  "test_logs_out (__main__.LoggingTests)": [
-    "203789",
-    "https://github.com/pytorch/pytorch/issues/203789",
-    [
-      "xpu"
-    ]
-  ],
   "test_main_loop_scaling_shape0_use_fast_accum_False_scaling_block_sizes0_cuda (__main__.TestFP8LoweringCUDA)": [
     "188706",
     "https://github.com/pytorch/pytorch/issues/188706",
