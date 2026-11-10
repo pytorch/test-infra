@@ -546,37 +546,6 @@
       "linux"
     ]
   ],
-  "test_del_attr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
-    "195525",
-    "https://github.com/pytorch/pytorch/issues/195525",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_del_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
-    "195094",
-    "https://github.com/pytorch/pytorch/issues/195094",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_del_same_stream_no_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
-    "195553",
-    "https://github.com/pytorch/pytorch/issues/195553",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_del_subscr_multi_stream_sync_dealloc_cuda (__main__.TestStreamsCUDA)": [
-    "195166",
-    "https://github.com/pytorch/pytorch/issues/195166",
-    [
-      "linux"
-    ]
-  ],
   "test_device_observations_track_current_device_under_coor_origin_factory (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "203017",
     "https://github.com/pytorch/pytorch/issues/203017",
