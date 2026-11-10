@@ -6,6 +6,8 @@ import RatesDropzone, {
   RatesAction,
 } from "components/tests/cost/RatesDropzone";
 import RatesFormat from "components/tests/cost/RatesFormat";
+import FactPill from "components/tests/FactPill";
+import { VIEW_CHIP_HEIGHT } from "components/tests/ViewChips";
 import { datesLabel, hoursLabel, rateLabel } from "lib/tests/cost/query";
 import {
   editedRates,
@@ -14,6 +16,7 @@ import {
   type RatesFile,
 } from "lib/tests/cost/rates";
 import type { PreparedHours } from "lib/tests/cost/runnerHours";
+import { headerKeyFocusRing } from "lib/tests/headerColors";
 import {
   useCallback,
   useEffect,
@@ -80,6 +83,20 @@ function ListTip({
       </Box>
     </Tooltip>
   );
+}
+
+// What a file's usage window is, and how the page uses it. The days count
+// from its "YYYY-MM-DD" ends read as UTC, so no time zone moves them.
+function windowTip(start: string, end: string): string {
+  const days =
+    (Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) /
+      86_400_000 +
+    1;
+  return `${
+    days === 1
+      ? "Each rate is the average over this UTC day of usage."
+      : `Each rate is the average over these ${days} UTC days of usage, first and last included.`
+  } The page prices all its days with these rates.`;
 }
 
 // The cost page's panel in $, under the runner-hours chart: until a rates
@@ -206,6 +223,9 @@ export default function CostPanel({
       ·
     </Box>
   );
+  // With the window's pill, the first row is the pill's height and the
+  // actions are centered on it, so they stay level with the file's name.
+  const firstRow = rates.window === null ? undefined : `${VIEW_CHIP_HEIGHT}px`;
   const banner = (
     <Box sx={{ typography: "body2", color: "text.secondary" }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", columnGap: 2 }}>
@@ -225,7 +245,14 @@ export default function CostPanel({
           <InsertDriveFileOutlinedIcon
             sx={{ fontSize: 18, color: "text.secondary" }}
           />
-          <Box component="span" sx={{ color: "text.primary", fontWeight: 500 }}>
+          <Box
+            component="span"
+            sx={{
+              color: "text.primary",
+              fontWeight: 500,
+              lineHeight: firstRow,
+            }}
+          >
             {rates.file}
           </Box>
           <span>(in this tab only)</span>
@@ -256,13 +283,29 @@ export default function CostPanel({
               )
             </span>
           )}
+          {/* The pill is read, not pressed: it takes focus only so its
+              tooltip reaches the keyboard and a screen reader. */}
           {rates.window !== null && (
-            <span>
-              {dot} rates made from usage{" "}
-              <Box component="span" sx={{ whiteSpace: "nowrap" }}>
-                {datesLabel(rates.window.start, rates.window.end)}
+            <Tooltip
+              describeChild
+              title={windowTip(rates.window.start, rates.window.end)}
+              slotProps={{ tooltip: { sx: { maxWidth: 460 } } }}
+            >
+              <Box
+                component="span"
+                tabIndex={0}
+                sx={{
+                  display: "inline-flex",
+                  borderRadius: "999px",
+                  cursor: "help",
+                  "&:focus-visible": headerKeyFocusRing(theme),
+                }}
+              >
+                <FactPill label="Rates averaged over">
+                  {datesLabel(rates.window.start, rates.window.end)}
+                </FactPill>
               </Box>
-            </span>
+            </Tooltip>
           )}
           {/* A generated file's valid_from is its window's last day, which
               the window already says. */}
@@ -323,6 +366,7 @@ export default function CostPanel({
             flex: "none",
             display: "flex",
             alignItems: "center",
+            minHeight: firstRow,
             columnGap: 1,
             whiteSpace: "nowrap",
           }}

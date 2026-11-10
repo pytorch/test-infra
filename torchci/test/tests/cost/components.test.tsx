@@ -178,21 +178,23 @@ function chartRows(p: PreparedHours): string[][] {
   });
 }
 
-function panel(r: RatesFile | null): string {
-  return words(
-    renderToStaticMarkup(
-      <CostPanel
-        prepared={prepared}
-        rates={r}
-        error={null}
-        onFile={noop}
-        onClear={noop}
-        onDismissError={noop}
-        onUndoEdits={noop}
-        chart={(frame) => frame.banner}
-      />
-    )
+function panelMarkup(r: RatesFile | null): string {
+  return renderToStaticMarkup(
+    <CostPanel
+      prepared={prepared}
+      rates={r}
+      error={null}
+      onFile={noop}
+      onClear={noop}
+      onDismissError={noop}
+      onUndoEdits={noop}
+      chart={(frame) => frame.banner}
+    />
   );
+}
+
+function panel(r: RatesFile | null): string {
+  return words(panelMarkup(r));
 }
 
 describe("CostFacts", () => {
@@ -261,29 +263,50 @@ describe("CostPanel", () => {
     }
   });
 
-  test("names a file's usage window, and its valid_from only when that is not the window's last day", () => {
-    const withWindow = (valid_from: string) =>
-      panel(
+  test("puts a file's usage window in a pill whose tooltip counts its days, and its valid_from after it only when that is not the window's last day", () => {
+    // The file's window.days stays 30: the page counts the days itself.
+    const withWindow = (valid_from: string, start = "2026-09-02") =>
+      panelMarkup(
         parseRates(
           JSON.stringify({
             ...RATES_JSON,
             valid_from,
-            window: { start: "2026-09-02", end: "2026-10-01", days: 30 },
+            window: { start, end: "2026-10-01", days: 30 },
           }),
           "rates.json"
         )
       );
     const generated = withWindow("2026-10-01");
-    expect(generated).toContain("rates made from usage 2026-09-02 to 10-01");
-    expect(generated).not.toContain("valid from");
-    expect(withWindow("2026-10-15")).toContain(
-      "rates made from usage 2026-09-02 to 10-01 · valid from 2026-10-15"
+    expect(words(generated)).toContain(
+      "rates.json (in this tab only) Rates averaged over 2026-09-02 to 10-01 · example rates"
+    );
+    expect(words(generated)).not.toContain("valid from");
+    expect(titles(generated)).toContain(
+      "Each rate is the average over these 30 UTC days of usage, first and last included. The page prices all its days with these rates."
+    );
+    // The pill takes focus so its tooltip reaches the keyboard; it is not a
+    // button.
+    const [pill] = unstyled(generated).match(
+      /<span\b[^>]*title="Each[^>]*>/
+    ) ?? [""];
+    expect(pill).toContain('tabindex="0"');
+    expect(pill).not.toContain("role=");
+    expect(words(withWindow("2026-10-15"))).toContain(
+      "Rates averaged over 2026-09-02 to 10-01 · valid from 2026-10-15"
+    );
+    // One day; and Feb 28 to Oct 1, over a month's end and many zones' DST.
+    expect(titles(withWindow("2026-10-01", "2026-10-01"))).toContain(
+      "Each rate is the average over this UTC day of usage. The page prices all its days with these rates."
+    );
+    expect(titles(withWindow("2026-10-01", "2026-02-28"))).toContainEqual(
+      expect.stringContaining("these 216 UTC days")
     );
   });
 
   test("names the file, its notes, its edits, the runners it leaves without a rate and its labels that did not run", () => {
     const text = panel(rates);
     expect(text).toContain("rates.json (in this tab only)");
+    expect(text).not.toContain("Rates averaged over");
     expect(text).toContain("valid from 2026-10-01");
     expect(text).toContain("example rates for tests, not real prices");
     expect(text).toContain("2 runners have no rate");

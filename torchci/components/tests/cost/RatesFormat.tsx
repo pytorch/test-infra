@@ -81,8 +81,8 @@ export default function RatesFormat({
           aren&apos;t priced.
         </li>
         <li>
-          <b>Usage window:</b> the UTC days of usage the rates were made from,
-          start and end both included.
+          <b>Usage window:</b> the UTC days of usage the rates are averaged
+          over, start and end both included.
         </li>
         <li>The values above are examples only.</li>
       </Box>

@@ -1229,7 +1229,7 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   opens the file in the tab), "Download rates file", "Choose rates file…" and
   "File format" (a JSON of runner label → $ per runner-hour, or wrapped as
   `{valid_from, window, basis, rates}`; `window` is `{start, end}`, the UTC
-  days of usage the rates were made from, both included, and a bad one is
+  days of usage the rates are averaged over, both included, and a bad one is
   ignored as the notes are). "Download rates file" is a plain link to the
   internal rates file (`RATES_FILE_URL`, a Meta-only fburl; its tooltip says
   it needs access to the file) that opens in a new tab: the browser downloads
@@ -1240,12 +1240,13 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   The API holds no prices. A row's price key is its runner labels without
   self-hosted; 0 is a price, and a runner the file leaves out has no rate and
   stays out of the cost. Once added, a line under the band names the file, its
-  usage window as the page writes dates ("rates made from usage 2026-10-08 to
-  11-06"), its valid_from unless that is the window's last day, its basis, how
-  many of the window's runners it leaves without a rate and how many of its
-  labels didn't run (each listed in a tooltip), and Replace, Clear and File
-  format (the facts' "Priced" pill is the share, by scope); a file that can't
-  be read says why, keeping the one
+  usage window in a grey pill like the facts' (the page's date format, "Rates
+  averaged over 2026-10-08 to 11-06"; its tooltip counts the UTC days and says
+  the page prices all its days with these rates), its valid_from unless that
+  is the window's last day, its basis, how many of the window's runners it
+  leaves without a rate and how many of its labels didn't run (each listed in
+  a tooltip), and Replace, Clear and File format (the facts' "Priced" pill is
+  the share, by scope); a file that can't be read says why, keeping the one
   loaded, and a file pricing no runner in the window is refused, with an
   example label. Rates run from 0 to 100,000 $/h and read to 3 significant
   figures under $1. Each runner's $/h in the key is editable in place
