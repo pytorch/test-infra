@@ -139,6 +139,25 @@ install_numpy_1x() {
     fi
 }
 
+# Conda activation added the environment's Library/bin and bin directories to
+# PATH. A Windows venv only adds Scripts, but XPU runtime wheels install DLLs
+# in both of those other directories. Some DLLs are loaded by name at runtime
+# and need to be discoverable through PATH even when torch registers its own
+# DLL search directories with os.add_dll_directory.
+configure_windows_xpu_dll_path() {
+    if [[ ${TARGET_OS} != 'windows' || ${MATRIX_GPU_ARCH_TYPE:-} != 'xpu' ]]; then
+        return 0
+    fi
+
+    local dll_dir
+    for dll_dir in "${VIRTUAL_ENV}/Library/bin" "${VIRTUAL_ENV}/bin"; do
+        if [[ -d ${dll_dir} ]]; then
+            export PATH="${dll_dir}:${PATH}"
+            echo "Windows XPU DLL path: ${dll_dir}"
+        fi
+    done
+}
+
 # Run smoke tests
 run_smoke_tests() {
     local test_suffix="$1"
@@ -362,6 +381,9 @@ fi
 
 # Install numpy 1.x after torch install
 install_numpy_1x
+
+# Make pip-installed XPU runtime DLLs visible before the first torch import.
+configure_windows_xpu_dll_path
 
 # Report versions and sizes for this build. Before the smoke tests on purpose:
 # everything the report describes is already installed, and a failing smoke test
