@@ -72,7 +72,7 @@ them to your local server.
 
 ## Deployment and monitoring
 
-### Triage advancement
+### Triage advancement and recovery
 
 In `pytorch/pytorch`, an open, non-draft PR created on or after 2026-09-01
 advances as soon as it has `triaged` and none of `missing actionable issue`,
@@ -83,10 +83,14 @@ are not inputs to triage advancement, and there is no waiting period or response
 command. This transition does not grant merge approval. A triaged PR still
 awaiting the bot's transition shows a queued status, not a reviewer action item.
 
-Label promotion is handled by guarded webhooks. The retired deadline job is
-removed, and there is no scheduled label-repair fallback in this change. A missed
-webhook can leave an eligible PR queued until redelivery or a separate recovery
-change is deployed.
+`.github/workflows/triage-sweep.yml` calls `POST /api/triage/sweep` every
+15 minutes to recover missed transitions without a webhook or recent CI activity.
+Each run checks at most 100 PRs in a rotating batch, with concurrency 5. Ordinary
+PyTorchBot credentials handle both the live eligibility reads and the label write;
+the bot rechecks current state before adding `in progress`. The sweep has no S3
+or persisted-cache dependency. A larger queue takes multiple runs to cover, and
+GitHub Actions scheduling or API failures can delay recovery. Failed PR checks
+are reported by the endpoint and retried on later runs.
 
 ### PR Status recovery and reader configuration
 
@@ -108,10 +112,10 @@ PyTorchBot performs status-comment writes and adds `in progress`, since that
 identity triggers automated review. If status reads fail during a CI rebuild,
 the rebuild preserves the existing PR Status section while updating CI results.
 
-The status workflow uses the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN` secrets
-for endpoint authentication. Coordinate the HUD endpoint deployment, removal of
-the retired deadline workflow, and population of the status-reader variables.
-This configuration does not require any S3 or cache changes.
+Both recovery workflows use the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN`
+secrets for endpoint authentication. Coordinate the HUD endpoint deployment,
+workflow changes, and population of the status-reader variables before enabling
+the workflows. This configuration does not require any S3 or cache changes.
 
 ### Deployment
 

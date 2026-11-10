@@ -23,7 +23,7 @@ export interface PrStatusSweepResult {
 }
 
 // Recover missed webhooks, quiet later phases, and PRs with no Dr.CI comment.
-// This only reconciles comments.
+// This only reconciles comments; label promotion remains in its own sweep.
 export async function refreshPrStatusComments(
   reader: Octokit,
   writer: Octokit,

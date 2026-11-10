@@ -4,9 +4,8 @@ In `pytorch/pytorch`, PR Status is the first section of the existing PyTorchBot
 Dr.CI comment, above automated review and CI results. Workflow-label, review,
 reviewer-assignment, draft, and reopen webhooks refresh it. PRs created before
 2026-09-01 are outside this workflow and get no PR Status section, including
-drafts and approved PRs. Existing status-comment reconciliation handles quiet
-or missing comments without requiring CI activity; label promotion runs on
-handled webhooks.
+drafts and approved PRs. Independent recovery jobs handle missed triage
+transitions and quiet or missing status comments without requiring CI activity.
 
 ## Coverage
 
@@ -15,7 +14,7 @@ handled webhooks.
 | Before triage                    | No PR Status section without a workflow label. Helpful Links includes Auto PR Triage runs for PRs labeled `open source`.                                                                    |
 | Draft within the workflow        | Explicitly waiting for the author to mark it ready; triage advancement is paused while draft.                                                                                               |
 | Missing actionable issue         | Explains the actionable-issue / supporting-maintainer requirement, automatic re-triage when eligibility changes, and the manual fallback.                                                   |
-| Triaged                          | Queued for the bot to start automated review, not waiting on reviewers. Eligible PRs get `in progress` on handled webhooks.                                                                 |
+| Triaged                          | Queued for the bot to start automated review, not waiting on reviewers. Eligible PRs immediately get `in progress`; recovery retries missed transitions.                                    |
 | In progress                      | Explains author action, automated review, maintainer feedback, and CI readiness. The separate automated-review and CI sections provide running, completed, failed, and stale-review detail. |
 | Ready for maintainer review      | Explicitly waiting for a maintainer with merge rights. Shows reviewers asked for re-review after fixes; otherwise asks the author to address outstanding feedback.                          |
 | Needs additional approval        | Explains that an approver needs merge rights for the changed paths. This does not block triage advancement.                                                                                 |
@@ -38,20 +37,24 @@ transition. Reviewer responses and reactions are not advancement inputs; there
 is no waiting period or response command. Adding `in progress` does not grant
 merge approval.
 
-A triaged status means the bot's transition is queued, not that a reviewer owes
-a response. Closed PRs, drafts, PRs before the rollout date, and PRs already
-carrying one of the excluded labels do not advance.
+A triaged status means the bot's transition is queued or awaiting retry, not
+that a reviewer owes a response. Closed PRs, drafts, PRs before the rollout date,
+and PRs already carrying one of the excluded labels do not advance.
 
-Promotion is webhook-only in this change. The retired deadline job is removed;
-there is no scheduled label-repair fallback until a separate recovery change is
-deployed. A missed webhook can leave an eligible PR queued. The status-comment
-reconciliation job below does not advance labels.
+`.github/workflows/triage-sweep.yml` calls `POST /api/triage/sweep` every
+15 minutes to recover missed transitions. Each run checks at most 100 candidates
+in a rotating batch, with concurrency 5. It uses ordinary PyTorchBot credentials
+for both live GitHub reads and label writes, and has no S3 or persisted-cache
+dependency. A stable queue of 1,200 candidates takes 12 runs (about three hours)
+to cover; scheduling delays, a changing queue, or API failures may lengthen
+recovery. Failed checks are reported by the endpoint and retried on later runs.
+The comment-recovery job below does not perform this transition.
 
 ## Periodic status recovery
 
 `.github/workflows/pr-status-sweep.yml` calls `POST /api/pr_status/sweep` every
-15 minutes, at minutes 11, 26, 41, and 56. Its concurrency group is unchanged.
-ClickHouse selects open post-rollout PRs with a workflow
+15 minutes, at minutes 11, 26, 41, and 56. It has a separate concurrency group
+from triage recovery. ClickHouse selects open post-rollout PRs with a workflow
 label (including drafts and missing comments), plus open PRs whose bot-authored
 Dr.CI comment still contains the PR Status marker. The second group includes
 older PRs and PRs that lost their last workflow label, so stale status can still
@@ -84,10 +87,10 @@ for reads and needs no persisted cursor. The endpoint reports failed PR numbers
 with HTTP 502, and configuration or candidate-query failures with 503. A
 ClickHouse failure does not fall back to searching all GitHub PRs.
 
-The status workflow reuses the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN`
-secrets for endpoint authentication. Coordinate removal of the retired deadline
-workflow and populate the status-reader variables before deployment. No S3 or
-cache configuration is required for status reconciliation.
+Both recovery workflows reuse the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN`
+secrets for endpoint authentication. Deploy the matching HUD endpoints,
+coordinate the workflow changes, and populate the status-reader variables before
+enabling recovery. No S3 or cache configuration is required for these jobs.
 
 ## Status refresh during CI updates
 

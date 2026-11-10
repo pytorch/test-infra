@@ -1,3 +1,4 @@
+import { updateInProgressLabels } from "lib/bot/triageSweep";
 import { markTriagedInProgress } from "lib/bot/triagedPromotion";
 import * as prStatus from "lib/prStatus";
 import nock from "nock";
@@ -128,3 +129,47 @@ test.each(["read", "write", "partial write"])(
     handleScope(retry);
   }
 );
+
+test("the recovery sweep rotates at most 100 old or young PRs with five concurrent promotions", async () => {
+  const items = Array.from({ length: 250 }, (_, i) => ({
+    number: i + 1,
+    user: { login: "author" },
+    created_at: i < 150 ? "2026-09-01T00:00:00Z" : "2026-11-06T00:00:00Z",
+  }));
+  let active = 0;
+  let peak = 0;
+  const checked: number[][] = [];
+  jest.spyOn(reader.rest.search, "issuesAndPullRequests").mockImplementation(
+    async ({ page = 1 }: any) =>
+      ({
+        data: {
+          total_count: items.length,
+          items: items.slice((page - 1) * 100, page * 100),
+        },
+      } as any)
+  );
+  jest
+    .spyOn(reader.rest.pulls, "get")
+    .mockImplementation(async ({ pull_number }: any) => {
+      active++;
+      peak = Math.max(peak, active);
+      checked[checked.length - 1].push(pull_number);
+      await new Promise((resolve) => setImmediate(resolve));
+      active--;
+      return { data: pull() } as any;
+    });
+  jest
+    .spyOn(writer.rest.issues, "addLabels")
+    .mockResolvedValue({ data: [] } as any);
+  for (const now of [NOW, NOW + 15 * 60 * 1000]) {
+    jest.spyOn(Date, "now").mockReturnValue(now);
+    checked.push([]);
+    expect(
+      (await updateInProgressLabels(reader, writer, "pytorch", "pytorch"))
+        .checked
+    ).toBe(100);
+  }
+  expect(peak).toBeLessThanOrEqual(5);
+  expect(new Set(checked[0]).size).toBe(100);
+  expect(checked[1]).not.toEqual(checked[0]);
+});

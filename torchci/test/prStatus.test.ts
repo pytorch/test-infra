@@ -250,6 +250,7 @@ describe("getPrStatusMessage", () => {
       expect(message).toContain(
         'a maintainer can remove and re-add "triaged" to retry'
       );
+      expect(message).toContain("recovery sweep retries every 15 minutes");
       expect(message).not.toMatch(/deadline|👍|👎|@alice|@bob/i);
     }
   );
@@ -267,6 +268,7 @@ describe("getPrStatusMessage", () => {
       "queued for maintainer review without automated review"
     );
     expect(message).toContain('automatically advance it to "ready for review"');
+    expect(message).toContain("recovery sweep retries every 15 minutes");
     expect(message).not.toMatch(/queued for automated review/i);
   });
 
