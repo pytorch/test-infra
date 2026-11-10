@@ -2,9 +2,9 @@
 
 Both run once the merge rules are resolved. The ``@greenlight recheck`` requester must be in the
 evaluation cohort; the ``--pr`` target's author must be eligible for that PR, so a request carries
-authority only for a PR whose author a covering merge rule names. A refusal is logged and dispatches
-nothing, but a refused PR whose author GitHub can name still goes through the revert guard, and a
-failure there fails the pass.
+authority only for a PR whose author a valid merge rule names, on a base trymerge accepts. A refusal
+is logged and dispatches nothing, but a refused PR whose author GitHub can name still goes through
+the revert guard, and a failure there fails the pass.
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from greenlight.authority import Target, covering_rule
+from greenlight.authority import Target, eligible_rule
 from greenlight.constants import TARGET_REPO
-from greenlight.merge_authz import changed_files
+from greenlight.merge_authz import accepts_base
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -45,10 +45,11 @@ def admit_target(
 ) -> Target | None:
     """Judge the ``--pr`` target, or return None when the run must refuse it outright.
 
-    ``--pr`` names an arbitrary PR, so it is refused unless its author is eligible for that PR, or
-    greenlight would review/approve any PR on request. A refused PR whose author GitHub can name comes
-    back as a ``refused`` target instead, for the revert guard alone: an author outside every merge
-    rule is outside the cohort the scheduled scan lists, so nothing else would revoke it.
+    ``--pr`` names an arbitrary PR, so it is refused unless a valid merge rule names its author and
+    trymerge accepts its base, or greenlight would review/approve any PR on request. A refused PR whose
+    author GitHub can name comes back as a ``refused`` target instead, for the revert guard alone: an
+    author outside every merge rule is outside the cohort the scheduled scan lists, so nothing else
+    would revoke it.
     ``allow_untrusted_author`` (local iteration; never a workflow input) waives ONLY the refusal, never
     the lookup: a shadow LAND dismisses greenlight's live approval, so a skipped lookup would let a
     local flag revoke a real one. A failed read propagates, failing the pass before the revert guard
@@ -57,18 +58,12 @@ def admit_target(
     target = get_pr(client, TARGET_REPO, pr)
     user = target.user
     author = user.login if user is not None else None
-    read_at: str | None = None
-
-    def files() -> tuple[str, ...] | None:
-        nonlocal read_at
-        read_at = target.head.sha
-        return changed_files(target)
-
-    rule = covering_rule(pr, author, rules, files)
-    if rule is not None:
-        return Target(pr, author, False, read_at)
+    if not accepts_base(target):
+        logger.info("--pr %d by %s: trymerge refuses its base", pr, author)
+    elif eligible_rule(pr, author, rules) is not None:
+        return Target(pr, author, False)
     if allow_untrusted_author:
         logger.warning("--allow-untrusted-author: reviewing --pr %d by ineligible %r in shadow", pr, author)
-        return Target(pr, author, True, read_at)
+        return Target(pr, author, True)
     logger.warning("refusing --pr %d: author %r is not eligible for it", pr, author)
-    return Target(pr, author, True, read_at, refused=True) if author is not None else None
+    return Target(pr, author, True, refused=True) if author is not None else None

@@ -2,25 +2,23 @@
 
 Each scan lists the open PRs from ``cohort.evaluation_cohort`` (the merge_rules approvers), reads
 their latest recorded state from ClickHouse, fingerprints each PR whose author is eligible for it,
-and asks ``decision.decide`` whether to dispatch a review, skip it, or wait. An author is eligible
-when a merge rule names them and covers every file the PR changes. If the rule is path-scoped, it counts
-only on a PR based on ``main``, on a ghstack PR or on a PR in a GitHub-native stack whose trunk is ``main``
-(see ``authority`` and TRUSTED_AUTHORS.md). The scan never fingerprints or dispatches any other PR; when a
-recent one's author is determined ineligible and its latest recorded row is a LAND, the scan dismisses
-greenlight's approval on it instead, writing no row.
-A PR whose files read failed or was skipped stays undetermined: never dismissed, never dispatched.
-The ``shadow`` stamp marks an ineligible ``--pr`` target reviewed under the local-only
-``--allow-untrusted-author`` -- never approved, never rendered, no Dr. CI poke -- and the REVERTED
-row of an ineligible PR with no recorded row; on a recorded PR the REVERTED row is always
-non-shadow, since it can only deny. State is re-read from ClickHouse every scan. ``memory`` decides
-how much a listing scan lists: a full tick lists every open PR, on every tick until one completes,
-and again ``FULL_TICK_INTERVAL`` (less ``FULL_TICK_TOLERANCE``) after the start of the last full
-tick that completed; the fast ticks in between list the recently updated PRs plus the open
-Reverted-labelled ones (``pr_listing``). ``memory=None`` makes every tick full. A fast tick also
-reuses a PR's cached fingerprint result while its listed ``updated_at`` and head and the approver set
-are unchanged, but fingerprints afresh any PR it would dispatch (``scan_memory``); ``--pr`` and
-``--force`` never touch the cache. All GitHub, ClickHouse, and dispatch I/O sits behind injectable
-keyword seams so the loop is testable without any of them.
+and asks ``decision.decide`` whether to dispatch a review, skip it, or wait. A PR is eligible when a
+valid merge rule names its author, whatever files it changes, and it is based on ``main``, is a
+ghstack PR or is in a GitHub-native stack whose trunk is ``main``, as the listing shows (see
+``authority`` and TRUSTED_AUTHORS.md). The scan never fingerprints or dispatches any other PR; when
+a recent one is ineligible and its latest recorded row is a LAND, the scan dismisses greenlight's
+approval on it instead, writing no row. The ``shadow`` stamp marks an ineligible ``--pr`` target
+reviewed under the local-only ``--allow-untrusted-author`` -- never approved, never rendered, no Dr.
+CI poke -- and the REVERTED row of an ineligible PR with no recorded row; on a recorded PR the
+REVERTED row is always non-shadow, since it can only deny. State is re-read from ClickHouse every
+scan. ``memory`` decides how much a listing scan lists: a full tick lists every open PR, on every
+tick until one completes, and again ``FULL_TICK_INTERVAL`` (less ``FULL_TICK_TOLERANCE``) after the
+start of the last full tick that completed; the fast ticks in between list the recently updated PRs
+plus the open Reverted-labelled ones (``pr_listing``). ``memory=None`` makes every tick full. A fast
+tick also reuses a PR's cached fingerprint result while its listed ``updated_at`` and head and the
+approver set are unchanged, but fingerprints afresh any PR it would dispatch (``scan_memory``);
+``--pr`` and ``--force`` never touch the cache. All GitHub, ClickHouse, and dispatch I/O sits behind
+injectable keyword seams so the loop is testable without any of them.
 
 Both authz gates (``authz_gates``) run once the merge rules resolve.
 
@@ -33,10 +31,9 @@ The fingerprint step can also short-circuit: when a human has already decided a 
 approval from a merge-authorized login, or changes requested by anyone), the scan skips
 its fingerprint and dispatch. On the listing path an approval or changes-requested skips;
 on the ``--pr`` recheck path an approval is ignored (reviewed anyway) and changes-requested
-is refused with a comment instead of a dispatch. A candidate fingerprinted at a head other than
-the one its authority was read at is deferred to the next pass; a deferred ``--pr`` recheck exits 0
-without dispatching. Every listing tick that reaches its dispatch phase without a rate limit then relabels
-the PRs it listed that are reverted, kept by the recency filter or Stale-skipped (``verdict_labels``).
+is refused with a comment instead of a dispatch. Every listing tick that reaches its dispatch phase
+without a rate limit then relabels the PRs it listed that are reverted, kept by the recency filter or
+Stale-skipped (``verdict_labels``).
 """
 
 from __future__ import annotations
@@ -205,9 +202,6 @@ def run(
         authority = Authority(
             rules=snapshot.rules,
             authors=authors_by_number,
-            fetch_pr=lambda number: get_pr(client, TARGET_REPO, number),
-            failed=failed,
-            cancel_event=cancel_event,
             recorded=states.keys(),
             target=target,
         )
@@ -256,8 +250,7 @@ def run(
                 window=window,
             )
             fingerprint_numbers = [number for number in recent if not authority.shadow(number)]
-            undetermined = authority.undetermined
-            ineligible = [number for number in recent if authority.shadow(number) and number not in undetermined]
+            ineligible = [number for number in recent if authority.shadow(number)]
             revoke_ineligible_approvals(
                 client,
                 ineligible,
@@ -270,8 +263,6 @@ def run(
             )
         else:
             fingerprint_numbers, recent, ineligible = pr_numbers, [], []
-        undetermined = authority.undetermined
-        fingerprint_numbers = [number for number in fingerprint_numbers if number not in undetermined]
         worker_count = min(_FINGERPRINT_WORKERS, len(fingerprint_numbers))
         # PyGithub is not thread-safe, so each concurrent task borrows a client for its
         # exclusive use; sizing the pool to the worker count keeps queue.get non-blocking
@@ -332,7 +323,6 @@ def run(
             )
         if cache is not None:
             cache.commit()
-        pending = authority.dispatchable(pending)
         dispatch_failed: list[int] = []
         if cancel_event.is_set():
             # A rate limit tripped the fan-out. The completed candidates are deferred, not lost: no
@@ -384,9 +374,9 @@ def run(
             scan_runner.post_refusals(
                 client, TARGET_REPO, skips, bot_login=bot_login, get_pr=get_pr, upsert_comment=upsert_comment
             )
-        # A PR can land in failed twice (lookup and revert guard) and in failed and abandoned both.
+        # A PR can land in failed twice (the revert guard's revoke and record) and in failed and abandoned both.
         failed_prs = sorted(set(failed))
-        abandoned_prs = sorted(set(abandoned).union(authority.abandoned).difference(failed))
+        abandoned_prs = sorted(set(abandoned).difference(failed))
         if failed_prs or dispatch_failed or abandoned_prs:
             errors: list[str] = []
             if failed_prs:

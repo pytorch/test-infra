@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import pytest
 
-from greenlight import cohort
+from greenlight import cohort, merge_authz
 from greenlight.pr_hash import BOT_LOGINS
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 _HUMAN = "ezyang"
 
@@ -55,47 +51,60 @@ def test_evaluation_cohort_of_an_empty_set_is_empty():
 
 
 _AUTHOR = "albanD"
-_TORCH = "torch/nn/functional.py"
-_DOCS = "docs/source/nn.rst"
 
 
 @dataclass(frozen=True)
 class _Rule:
     approvers: frozenset[str]
-    covers_all: bool = False
-    paths: frozenset[str] = frozenset()
-
-    def covers(self, files: Iterable[str]) -> bool:
-        return set(files) <= self.paths
+    valid: bool = True
 
 
 def test_evaluation_cohort_membership_is_independent_of_eligibility():
     # A cohort member is evaluated; whether that evaluation has authority is assess_rules's answer.
     resolved = cohort.evaluation_cohort(frozenset({_HUMAN, "octocat"}))
     assert resolved == frozenset({_HUMAN, "octocat"})
-    docs_only = _Rule(frozenset({_HUMAN, "octocat"}), paths=frozenset({_DOCS}))
-    catch_all = _Rule(frozenset({_HUMAN}), covers_all=True)
-    assert cohort.assess_rules("octocat", (docs_only, catch_all), lambda: (_TORCH,)).rule is None
-    assert cohort.assess_rules(_HUMAN, (docs_only, catch_all), lambda: (_TORCH,)).rule is catch_all
+    rule = _Rule(frozenset({_HUMAN}))
+    assert cohort.assess_rules("octocat", (rule,)).rule is None
+    assert cohort.assess_rules(_HUMAN, (rule,)).rule is rule
 
 
-def test_assess_rules_refuses_greenlight_itself_although_a_catch_all_rule_names_it():
-    greenlight_review_bot = _Rule(frozenset({cohort.GREENLIGHT_APP_SLUG}), covers_all=True)
-    assert cohort.assess_rules(cohort.GREENLIGHT_APP_SLUG, (greenlight_review_bot,), lambda: None).rule is None
+def test_assess_rules_refuses_greenlight_itself_although_a_rule_names_it():
+    greenlight_review_bot = _Rule(frozenset({cohort.GREENLIGHT_APP_SLUG}))
+    assert cohort.assess_rules(cohort.GREENLIGHT_APP_SLUG, (greenlight_review_bot,)) == (
+        None,
+        "excluded (bot or greenlight)",
+    )
+
+
+def test_assess_rules_refuses_a_missing_author():
+    assert cohort.assess_rules(None, (_Rule(frozenset({_AUTHOR})),)) == (None, "no author")
+    assert cohort.assess_rules("", (_Rule(frozenset({_AUTHOR})),)) == (None, "no author")
 
 
 def test_assess_rules_matches_approvers_in_exact_case():
-    miscased = _Rule(frozenset({"alband"}), covers_all=True)
-    exact = _Rule(frozenset({_AUTHOR}), covers_all=True)
+    miscased = _Rule(frozenset({"alband"}))
+    exact = _Rule(frozenset({_AUTHOR}))
 
-    assert cohort.assess_rules(_AUTHOR, (miscased,), lambda: None).rule is None
-    assert cohort.assess_rules(_AUTHOR, (miscased, exact), lambda: None).rule is exact
+    assert cohort.assess_rules(_AUTHOR, (miscased,)) == (
+        None,
+        f"no merge rule names {_AUTHOR!r} in exact case; a rule names 'alband'",
+    )
+    assert cohort.assess_rules(_AUTHOR, (miscased, exact)) == (exact, "eligible")
 
 
-def test_assess_rules_needs_one_naming_rule_that_covers_every_changed_file():
-    torch_only = _Rule(frozenset({_AUTHOR}), paths=frozenset({_TORCH}))
-    docs_only = _Rule(frozenset({_AUTHOR}), paths=frozenset({_DOCS}))
-    both = _Rule(frozenset({_AUTHOR}), paths=frozenset({_TORCH, _DOCS}))
+def test_assess_rules_accepts_any_valid_rule_naming_the_author_whatever_its_paths():
+    docs_only = merge_authz.compile_rule("docs", ["docs/**"], frozenset({_AUTHOR}))
 
-    assert cohort.assess_rules(_AUTHOR, (torch_only, docs_only), lambda: (_TORCH, _DOCS)).rule is None
-    assert cohort.assess_rules(_AUTHOR, (torch_only, docs_only, both), lambda: (_TORCH, _DOCS)).rule is both
+    assert cohort.assess_rules(_AUTHOR, (docs_only,)) == (docs_only, "eligible")
+
+
+def test_assess_rules_never_qualifies_a_login_named_only_by_an_invalid_rule():
+    broken = merge_authz.compile_rule("broken", ["docs/{a,b}/**"], frozenset({_AUTHOR}))
+    assert not broken.valid
+
+    # The case-variant hint ignores the invalid rule too: it could not qualify the variant either.
+    assert cohort.assess_rules(_AUTHOR, (broken,)) == (None, f"no merge rule names {_AUTHOR!r} in exact case")
+    assert (
+        cohort.assess_rules(_AUTHOR.lower(), (broken,)).reason
+        == f"no merge rule names {_AUTHOR.lower()!r} in exact case"
+    )

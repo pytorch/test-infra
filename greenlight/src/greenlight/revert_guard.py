@@ -167,11 +167,11 @@ def exclude_reverted(
     ``known_labels`` holds the labels the caller already has; a PR absent from it has its labels
     read from GitHub, which is how the ``--pr`` path (no listing, so no labels) is covered too.
     ``shadow_for_pr`` returns True when the PR's row must be stamped shadow, i.e. carries no
-    authority. It is the scan's own lookup: it may read the PR's changed files from GitHub, at most
-    once per PR per scan, and it records its own failures instead of raising. A failure here is
-    collected into ``failed`` so the scan still fails closed, and a rate limit additionally trips
-    ``cancel_event`` so the fingerprint fan-out does not run on a throttled token. Either way the PR
-    is still dropped -- an exclusion never lapses because a step failed.
+    authority; it is the scan's own lookup, answered from the merge rules and the listing without a
+    GitHub call. A failed revoke or record is collected into ``failed`` so the scan still fails
+    closed, and a rate limit additionally trips ``cancel_event`` so the fingerprint fan-out does not
+    run on a throttled token. Either way the PR is still dropped -- an exclusion never lapses because
+    a step failed.
     """
     recorded = read_reverted(TARGET_REPO, pr_numbers)
     excluded = [

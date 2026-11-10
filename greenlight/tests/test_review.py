@@ -58,12 +58,13 @@ _CLIENT = cast("Github", object())
 
 _HASH_A = "a" * 64
 _HASH_B = "b" * 64
-# albanD and huydhn are named by a catch-all rule, so their PRs are authoritative at zero file reads.
-# alice, bob and carol are named only by a docs rule, so their PRs are authoritative only when every
-# changed file is under docs/.
+# albanD and huydhn are named by a catch-all rule, alice, bob and carol only by a docs rule: either
+# makes their PRs on a base trymerge accepts authoritative, whatever files they change.
 _SCOPED_AUTHOR = "carol"
-_DOCS_FILE = "docs/source/index.rst"
-_TORCH_FILE = "torch/nn/functional.py"
+# GitHub's casing of the approver the catch-all rule names as albanD: in the evaluation cohort, but
+# rule membership is exact-case, so no rule names this login and its PRs are shadow.
+_MISCASED_AUTHOR = "AlbanD"
+_REFUSED_BASE = "release/2.9"
 _RULES = (
     merge_authz.compile_rule("superuser", ["*"], frozenset({"albanD", "huydhn"})),
     merge_authz.compile_rule("docs", ["docs/**"], frozenset({"alice", "bob", _SCOPED_AUTHOR})),
@@ -98,6 +99,7 @@ def _open_pr(
     updated_at: datetime | None = None,
     labels: tuple[str, ...] = (),
     author: str = "albanD",
+    base_accepted: bool | None = True,
 ) -> OpenPR:
     return OpenPR(
         repo=TARGET_REPO,
@@ -107,6 +109,7 @@ def _open_pr(
         url=f"https://example.test/{number}",
         head_sha=head_sha or f"headsha{number}",
         updated_at=updated_at,
+        base_accepted=base_accepted,
         labels=labels,
     )
 
@@ -150,15 +153,12 @@ class _FakePR:
     head: _FakeHead
     user: _FakeUser | None = None
     files: tuple[str, ...] = ()
-    files_error: Exception | None = None
     files_read: list[int] = field(default_factory=list)
     base: _FakeRef = field(default_factory=lambda: _FakeRef("main"))
     raw_data: dict[str, object] = field(default_factory=dict)
 
     def get_files(self) -> list[_FakeFile]:
         self.files_read.append(self.number)
-        if self.files_error is not None:
-            raise self.files_error
         return [_FakeFile(name) for name in self.files]
 
 
@@ -252,7 +252,6 @@ def _run_scan(
     allow_untrusted_author: bool = False,
     author: str | None = "albanD",
     files: dict[int, tuple[str, ...]] | None = None,
-    files_errors: dict[int, Exception] | None = None,
     head_refs: dict[int, str] | None = None,
     base_refs: dict[int, str] | None = None,
     stack_trunks: dict[int, str] | None = None,
@@ -272,7 +271,6 @@ def _run_scan(
 ) -> _Scan:
     states = states or {}
     files = files or {}
-    files_errors = files_errors or {}
     head_refs = head_refs or {}
     base_refs = base_refs or {}
     stack_trunks = stack_trunks or {}
@@ -342,7 +340,8 @@ def _run_scan(
     def fake_get_pr(_client, _repo, number):
         # The comment upsert and the review dismissal are both faked, so the "PR" object need only
         # carry back its number, the head_sha the reverted-PR row is written from, the author the
-        # --pr gate reads, and the changed files and stack an eligibility check reads.
+        # --pr gate reads, and the head, base and stack its eligibility check reads; it records any
+        # files read, which no eligibility check makes.
         pr_fetches.append(number)
         trunk = stack_trunks.get(number)
         return _FakePR(
@@ -350,7 +349,6 @@ def _run_scan(
             _FakeHead(f"headsha{number}", head_refs.get(number, "feature-branch")),
             _FakeUser(author) if author is not None else None,
             files=files.get(number, ()),
-            files_error=files_errors.get(number),
             files_read=files_fetched,
             base=_FakeRef(base_refs.get(number, "main")),
             raw_data={} if trunk is None else {"stack": {"base": {"ref": trunk}}},
@@ -2242,14 +2240,10 @@ def test_pr_changes_requested_without_bot_login_logs_and_skips_posting(make_conf
     assert "BOT_LOGIN is required to post" in caplog.text
 
 
-# GitHub's casing of the approver the catch-all rule names as albanD: in the evaluation cohort, but
-# rule membership is exact-case, so no rule names this login and its PRs are shadow without a read.
-_MISCASED_AUTHOR = "AlbanD"
-
 _AUTHORITATIVE_VS_SHADOW = [
-    pytest.param(_SCOPED_AUTHOR, (_DOCS_FILE,), False, id="path-scoped-author-whose-rule-covers-the-pr"),
-    pytest.param(_SCOPED_AUTHOR, (_DOCS_FILE, _TORCH_FILE), True, id="path-scoped-author-whose-rule-misses-a-file"),
-    pytest.param(_MISCASED_AUTHOR, (_DOCS_FILE,), True, id="approver-a-rule-names-only-in-another-case"),
+    pytest.param(_SCOPED_AUTHOR, "main", False, id="path-scoped-author"),
+    pytest.param("albanD", _REFUSED_BASE, True, id="catch-all-author-on-a-base-trymerge-refuses"),
+    pytest.param(_MISCASED_AUTHOR, "main", True, id="approver-a-rule-names-only-in-another-case"),
 ]
 
 
@@ -2280,54 +2274,73 @@ def test_requester_gate_admits_every_evaluation_cohort_member(make_config, caplo
     assert "review requested by evaluation-cohort member alice" in caplog.text
 
 
-@pytest.mark.parametrize(("author", "changed", "shadow"), _AUTHORITATIVE_VS_SHADOW)
-def test_pr_target_gate_admits_exactly_the_prs_the_listing_scan_dispatches(make_config, author, changed, shadow):
+@pytest.mark.parametrize(("author", "base", "shadow"), _AUTHORITATIVE_VS_SHADOW)
+def test_pr_target_gate_admits_exactly_the_prs_the_listing_scan_dispatches(make_config, author, base, shadow):
     listing = _run_scan(
-        make_config, listed=[_open_pr(5, author=author)], fingerprints={5: ("headsha5", _HASH_A)}, files={5: changed}
+        make_config,
+        listed=[_open_pr(5, author=author, base_accepted=base == "main")],
+        fingerprints={5: ("headsha5", _HASH_A)},
     )
-    target = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=author, files={5: changed})
+    target = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=author, base_refs={5: base})
 
-    # Both paths ask the same merge-rule question of the same author and files, so --pr reviews
-    # exactly what the scheduled scan would, and refuses every PR the scan leaves undispatched.
+    # Both paths ask the same merge-rule and base question of the same author and base, so --pr
+    # reviews exactly what the scheduled scan would, and refuses every PR the scan leaves undispatched.
     expected = [] if shadow else [(5, False)]
     assert listing.dispatch_shadow == expected
     assert target.dispatch_shadow == expected
 
 
-def test_pr_target_gate_admits_a_path_scoped_author_whose_rule_covers_the_pr(make_config):
-    scan = _run_scan(
-        make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=_SCOPED_AUTHOR, files={5: (_DOCS_FILE,)}
-    )
+def test_pr_target_gate_admits_a_path_scoped_authors_pr_whatever_files_it_changes(make_config):
+    # Outside the docs rule's paths and past the 200-file cap: the size gate declines such a diff
+    # after dispatch, but eligibility never looks at the files.
+    many = tuple(f"torch/module{index}.py" for index in range(201))
+    scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=_SCOPED_AUTHOR, files={5: many})
 
-    # One GET yields the author, head and base, and the files are read once: the gate's answer
-    # seeds the pass, so nothing downstream reads them again.
+    # One GET yields the author, head and base, and no files are read: the gate's answer seeds the
+    # pass, so nothing downstream reads the PR again.
     assert scan.pr_fetches == [5]
-    assert scan.files_fetched == [5]
+    assert scan.files_fetched == []
     assert scan.dispatch_shadow == [(5, False)]
 
 
-def test_pr_target_gate_refuses_a_path_scoped_author_whose_rule_misses_a_file(make_config):
-    scan = _run_scan(
-        make_config,
-        pr=5,
-        fingerprints={5: ("headsha5", _HASH_A)},
-        author=_SCOPED_AUTHOR,
-        files={5: (_DOCS_FILE, _TORCH_FILE)},
-    )
+@pytest.mark.parametrize(
+    "pr_refs",
+    [
+        pytest.param({"head_refs": {5: "gh/carol/7/head"}, "base_refs": {5: "gh/carol/7/base"}}, id="ghstack"),
+        pytest.param({"base_refs": {5: "carol/part-1"}, "stack_trunks": {5: "main"}}, id="native-stack-on-main"),
+    ],
+)
+def test_pr_target_gate_admits_a_stacked_pr_off_main_that_trymerge_accepts(make_config, pr_refs):
+    scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=_SCOPED_AUTHOR, **pr_refs)
 
-    # Being named by a rule is not enough: trymerge would refuse this author's merge of this PR, so
-    # greenlight must not be pointed at it either.
+    assert scan.dispatch_shadow == [(5, False)]
+
+
+@pytest.mark.parametrize("author", ["albanD", _SCOPED_AUTHOR])
+@pytest.mark.parametrize(
+    "pr_refs",
+    [
+        pytest.param({"base_refs": {5: _REFUSED_BASE}}, id="in-no-stack"),
+        pytest.param({"base_refs": {5: "carol/part-1"}, "stack_trunks": {5: _REFUSED_BASE}}, id="stack-off-main"),
+    ],
+)
+def test_pr_target_gate_refuses_any_author_on_a_base_trymerge_refuses(make_config, caplog, author, pr_refs):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(make_config, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author=author, **pr_refs)
+
+    # Being named by a rule is not enough: trymerge would refuse this PR's merge, so greenlight must
+    # not be pointed at it either.
     assert scan.fingerprinted == []
     assert scan.dispatched == []
+    assert f"--pr 5 by {author}: trymerge refuses its base" in caplog.text
 
 
-@pytest.mark.parametrize(("author", "changed", "shadow"), _AUTHORITATIVE_VS_SHADOW)
-def test_the_listing_fingerprints_dispatches_marks_and_pokes_only_an_eligible_pr(make_config, author, changed, shadow):
+@pytest.mark.parametrize(("author", "base", "shadow"), _AUTHORITATIVE_VS_SHADOW)
+def test_the_listing_fingerprints_dispatches_marks_and_pokes_only_an_eligible_pr(make_config, author, base, shadow):
     scan = _run_scan(
         make_config,
-        listed=[_open_pr(1, author=author)],
+        listed=[_open_pr(1, author=author, base_accepted=base == "main")],
         fingerprints={1: ("headsha1", _HASH_A)},
-        files={1: changed},
     )
 
     # An eligible PR is fingerprinted, dispatched, marked in flight and poked, never as shadow; the
@@ -2339,13 +2352,12 @@ def test_the_listing_fingerprints_dispatches_marks_and_pokes_only_an_eligible_pr
     assert [number for _repo, number, _config in scan.poked] == ([] if shadow else [1])
 
 
-@pytest.mark.parametrize(("author", "changed", "shadow"), _AUTHORITATIVE_VS_SHADOW)
-def test_reverted_row_carries_the_prs_shadow_and_gates_the_poke(make_config, author, changed, shadow):
+@pytest.mark.parametrize(("author", "base", "shadow"), _AUTHORITATIVE_VS_SHADOW)
+def test_reverted_row_carries_the_prs_shadow_and_gates_the_poke(make_config, author, base, shadow):
     scan = _run_scan(
         make_config,
-        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=author)],
+        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=author, base_accepted=base == "main")],
         fingerprints={},
-        files={1: changed},
         bot_login="greenlight-app[bot]",
         dismissed_ids={1: [901]},
     )
@@ -2361,9 +2373,8 @@ def test_reverted_row_carries_the_prs_shadow_and_gates_the_poke(make_config, aut
 def test_mixed_cohort_batch_dispatches_only_its_eligible_prs(make_config):
     scan = _run_scan(
         make_config,
-        listed=[_open_pr(1, author="albanD"), _open_pr(2, author=_SCOPED_AUTHOR)],
+        listed=[_open_pr(1, author=_SCOPED_AUTHOR), _open_pr(2, author=_MISCASED_AUTHOR)],
         fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
-        files={2: (_TORCH_FILE,)},
     )
 
     # Every steady-state scan carries eligible and ineligible PRs at once, so a single per-scan
@@ -2438,10 +2449,15 @@ def test_allow_untrusted_author_with_an_unnameable_author_fails_closed_to_shadow
     assert scan.dispatched == [(5, "headsha5", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
-def test_catch_all_authors_cost_no_github_read_for_their_authority(make_config):
+def test_the_listing_scan_reads_no_pr_from_github_to_judge_any_authors_authority(make_config):
     scan = _run_scan(
         make_config,
-        listed=[_open_pr(1, updated_at=_NEW), _open_pr(2, updated_at=_NEW, author="huydhn")],
+        listed=[
+            _open_pr(1, updated_at=_NEW),
+            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(3, updated_at=_NEW, author=_MISCASED_AUTHOR),
+            _open_pr(4, updated_at=_NEW, base_accepted=False),
+        ],
         fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
     )
 
@@ -2450,165 +2466,74 @@ def test_catch_all_authors_cost_no_github_read_for_their_authority(make_config):
     assert scan.files_fetched == []
 
 
-def test_a_recorded_reverted_pr_is_revoked_without_reading_its_files(make_config):
-    scan = _run_scan(
-        make_config,
-        listed=[_open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_SCOPED_AUTHOR)],
-        fingerprints={},
-        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
-        files={1: (_DOCS_FILE,)},
-        files_errors={1: RuntimeError("files boom")},
-        bot_login="greenlight-app[bot]",
-        dismissed_ids={1: [901]},
-    )
-
-    # The recorded row already settles the stamp, so the read -- here one that would fail the pass --
-    # is never made.
-    assert scan.files_fetched == []
-    assert scan.dismissals == [(1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
-    assert scan.reverted_shadow == [(1, False)]
-    assert [number for _repo, number, _config in scan.poked] == [1]
-
-
-def test_after_a_rate_limit_files_reads_are_skipped_and_those_prs_are_abandoned_not_failed(make_config):
-    from github import RateLimitExceededException
-
-    scan = _run_scan(
-        make_config,
-        listed=[
-            _open_pr(1, updated_at=_NEW, labels=("Reverted",)),
-            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
-            _open_pr(3, updated_at=_NEW),
-        ],
-        fingerprints={3: ("headsha3", _HASH_A)},
-        files={2: (_DOCS_FILE,)},
-        bot_login="greenlight-app[bot]",
-        dismiss_errors={1: RateLimitExceededException(403)},
-        raises=RuntimeError,
-    )
-
-    # PR 1's dismissal hits the rate limit, so PR 2's files are never read on the throttled token: it
-    # is abandoned, like PR 3, whose fingerprint never ran, and neither is dispatched.
-    assert scan.files_fetched == []
-    assert scan.dispatched == []
-    assert str(scan.error) == "1 PR(s) failed during scan: [1]; 2 PR(s) abandoned due to rate limit: [2, 3]"
-
-
 def test_a_recorded_reverted_pr_is_stamped_non_shadow_even_when_its_author_is_not_eligible(make_config):
     scan = _run_scan(
         make_config,
         listed=[
-            _open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_SCOPED_AUTHOR),
-            _open_pr(2, updated_at=_NEW, labels=("Reverted",), author=_SCOPED_AUTHOR),
+            _open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_MISCASED_AUTHOR),
+            _open_pr(2, updated_at=_NEW, labels=("Reverted",), author=_MISCASED_AUTHOR),
         ],
         fingerprints={},
         states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
-        files={1: (_TORCH_FILE,), 2: (_TORCH_FILE,)},
         bot_login="greenlight-app[bot]",
         dismissed_ids={1: [901], 2: [902]},
     )
 
     # A REVERTED row can only deny, so on a PR greenlight has recorded it is stamped non-shadow though
-    # no rule naming the author covers the PR; an unrecorded PR keeps its own answer.
+    # no rule names the author; an unrecorded PR keeps its own answer.
     assert scan.dismissals == [
         (1, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE),
         (2, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE),
     ]
     assert scan.reverted_shadow == [(1, False), (2, True)]
-    assert scan.files_fetched == [2]
     assert [number for _repo, number, _config in scan.poked] == [1]
 
 
-def test_a_push_between_the_authority_read_and_the_fingerprint_defers_only_a_pr_whose_files_were_read(
-    make_config,
-):
+def test_an_unrecorded_reverted_pr_listed_only_by_the_issues_endpoint_is_judged_by_its_author_alone(make_config):
+    issues_copy = _open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_SCOPED_AUTHOR, base_accepted=None)
+    issues_copy = replace(issues_copy, head_sha=None)
+
     scan = _run_scan(
         make_config,
-        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
-        fingerprints={1: ("pushed1", _HASH_A), 2: ("pushed2", _HASH_A)},
-        files={1: (_DOCS_FILE,)},
+        updated=[issues_copy],
+        fingerprints={},
+        bot_login="greenlight-app[bot]",
+        dismissed_ids={1: [901]},
+        memory=_marked_memory(_NOW - timedelta(minutes=5)),
     )
 
-    # PR 1's authority was decided on the head its files were read at, and the fingerprint saw a newer
-    # head nobody decided, so it waits for the next pass without failing it. PR 2 needed no read, so a
-    # new head changes nothing for it.
-    assert sorted(scan.fingerprinted) == [1, 2]
-    assert scan.dispatch_shadow == [(2, False)]
+    # The issues endpoint carries no base, so a path-scoped author's REVERTED row stays visible.
+    assert scan.reverted_shadow == [(1, False)]
+    assert [number for _repo, number, _config in scan.poked] == [1]
 
 
-@pytest.mark.parametrize(
-    "stack_trunks",
-    [
-        pytest.param({}, id="in-no-stack"),
-        pytest.param({1: "release/2.9", 2: "release/2.9"}, id="in-a-native-stack-on-another-trunk"),
-    ],
-)
-def test_a_non_ghstack_pr_on_another_base_outside_a_stack_on_main_dispatches_only_a_catch_all_author(
-    make_config, stack_trunks
-):
-    scan = _run_scan(
-        make_config,
-        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
-        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A)},
-        files={1: (_DOCS_FILE,)},
-        base_refs={1: "release/2.9", 2: "release/2.9"},
-        stack_trunks=stack_trunks,
-    )
-
-    # trymerge refuses to land a PR on any base but main unless it is a ghstack PR or in a native stack on
-    # main, so the path-scoped author's PR is not dispatched, and its files are never listed. A catch-all
-    # author's authority never depends on the files.
-    assert scan.fingerprinted == [2]
-    assert scan.dispatch_shadow == [(2, False)]
-    assert scan.files_fetched == []
-
-
-@pytest.mark.parametrize(
-    ("changed", "dispatched"),
-    [
-        pytest.param((_DOCS_FILE,), [(1, False)], id="covered"),
-        pytest.param((_DOCS_FILE, _TORCH_FILE), [], id="uncovered"),
-    ],
-)
-def test_a_ghstack_pr_on_its_own_base_dispatches_a_path_scoped_author_only_when_its_rule_covers_the_pr(
-    make_config, changed, dispatched
-):
+def test_a_candidate_is_dispatched_at_the_head_its_fingerprint_read(make_config):
     scan = _run_scan(
         make_config,
         listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR)],
-        fingerprints={1: ("headsha1", _HASH_A)},
-        files={1: changed},
-        head_refs={1: "gh/carol/7/head"},
-        base_refs={1: "gh/carol/7/base"},
+        fingerprints={1: ("pushed1", _HASH_A)},
     )
 
-    # trymerge checks each PR of a ghstack stack against that PR's own file list, whatever its base.
-    assert scan.files_fetched == [1]
-    assert scan.dispatch_shadow == dispatched
+    # Authority comes from the merge rules and the listed base, not from the head, so a push after
+    # the listing defers nothing: the record job checks the reviewed head against the live one.
+    assert scan.dispatched == [(1, "pushed1", _HASH_A, DEFAULT_DISPATCH_REF)]
 
 
-@pytest.mark.parametrize(
-    ("changed", "dispatched"),
-    [
-        pytest.param((_DOCS_FILE,), [(1, False)], id="covered"),
-        pytest.param((_DOCS_FILE, _TORCH_FILE), [], id="uncovered"),
-    ],
-)
-def test_a_native_stack_pr_on_main_dispatches_a_path_scoped_author_only_when_its_rule_covers_the_pr(
-    make_config, changed, dispatched
-):
+def test_a_pr_listed_on_a_base_trymerge_refuses_is_dispatched_for_no_author(make_config):
     scan = _run_scan(
         make_config,
-        listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR)],
-        fingerprints={1: ("headsha1", _HASH_A)},
-        files={1: changed},
-        base_refs={1: "carol/part-1"},
-        stack_trunks={1: "main"},
+        listed=[
+            _open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR, base_accepted=False),
+            _open_pr(2, updated_at=_NEW, base_accepted=False),
+            _open_pr(3, updated_at=_NEW),
+        ],
+        fingerprints={3: ("headsha3", _HASH_A)},
     )
 
-    # trymerge checks each PR of a native stack on main against that PR's own file list, whatever its base.
-    assert scan.files_fetched == [1]
-    assert scan.dispatch_shadow == dispatched
+    # trymerge refuses to land a PR on any base but main unless it is a ghstack PR or in a native stack
+    # on main, so neither the path-scoped nor the catch-all author's PR there is reviewed.
+    assert scan.fingerprinted == [3]
+    assert scan.dispatch_shadow == [(3, False)]
 
 
 def test_a_refused_pr_target_by_an_author_outside_every_rule_still_has_its_revert_revoked(make_config):
@@ -2656,12 +2581,11 @@ def test_the_scan_lists_the_full_cohort_and_dispatches_only_its_eligible_prs(mak
     scan = _run_scan(
         make_config,
         listed=[
-            _open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_SCOPED_AUTHOR),
-            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(1, updated_at=_NEW, labels=("Reverted",), author=_MISCASED_AUTHOR),
+            _open_pr(2, updated_at=_NEW, author=_MISCASED_AUTHOR),
             _open_pr(3, updated_at=_NEW),
         ],
         fingerprints={3: ("headsha3", _HASH_A)},
-        files={1: (_TORCH_FILE,), 2: (_TORCH_FILE,)},
         bot_login="greenlight-app[bot]",
         dismissed_ids={1: [901]},
     )
@@ -2676,11 +2600,10 @@ def test_the_scan_lists_the_full_cohort_and_dispatches_only_its_eligible_prs(mak
 
 
 def _ineligible_pr_scan(make_config: Callable[..., Config], **kwargs: Any) -> _Scan:
-    # carol's docs rule misses the torch file, so this PR is determined ineligible after one files read.
+    # No rule names AlbanD in exact case, so this PR is ineligible.
     defaults: dict[str, Any] = {
-        "listed": [_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR)],
+        "listed": [_open_pr(1, updated_at=_NEW, author=_MISCASED_AUTHOR)],
         "fingerprints": {},
-        "files": {1: (_TORCH_FILE,)},
         "bot_login": "greenlight-app[bot]",
     }
     return _run_scan(make_config, **{**defaults, **kwargs})
@@ -2723,8 +2646,8 @@ def test_an_ineligible_pr_whose_latest_row_is_not_a_land_is_left_alone(make_conf
 @pytest.mark.parametrize(
     "listed",
     [
-        pytest.param([_open_pr(1, updated_at=_OLD, author=_SCOPED_AUTHOR)], id="outside-review-window"),
-        pytest.param([_open_pr(1, updated_at=_NEW, labels=("Stale",), author=_SCOPED_AUTHOR)], id="stale-labeled"),
+        pytest.param([_open_pr(1, updated_at=_OLD, author=_MISCASED_AUTHOR)], id="outside-review-window"),
+        pytest.param([_open_pr(1, updated_at=_NEW, labels=("Stale",), author=_MISCASED_AUTHOR)], id="stale-labeled"),
     ],
 )
 def test_an_ineligible_land_pr_outside_the_review_window_or_labelled_stale_is_never_dismissed(make_config, listed):
@@ -2737,39 +2660,17 @@ def test_an_ineligible_land_pr_outside_the_review_window_or_labelled_stale_is_ne
     assert scan.dispatched == []
 
 
-def test_an_undetermined_pr_is_never_dismissed_when_its_files_read_fails(make_config):
+def test_a_catch_all_authors_land_pr_on_a_base_trymerge_refuses_has_greenlights_approval_dismissed(make_config):
     scan = _ineligible_pr_scan(
         make_config,
+        listed=[_open_pr(1, updated_at=_NEW, base_accepted=False)],
         states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
-        files_errors={1: RuntimeError("files boom")},
-        raises=RuntimeError,
+        dismissed_ids={1: [901]},
     )
 
-    # A failed read decides nothing about the author, so the approval stands and the pass fails.
-    assert scan.dismissals == []
+    # trymerge would refuse the PR on that base anyway, so the approval authorizes nothing it should.
+    assert scan.dismissals == [(1, "greenlight-app[bot]", ineligible_approvals._NO_LONGER_ELIGIBLE_MESSAGE)]
     assert scan.fingerprinted == []
-    assert str(scan.error) == "1 PR(s) failed during scan: [1]"
-
-
-def test_an_undetermined_pr_is_never_dismissed_when_a_rate_limit_skips_its_files_read(make_config):
-    from github import RateLimitExceededException
-
-    scan = _ineligible_pr_scan(
-        make_config,
-        listed=[
-            _open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR),
-            _open_pr(2, updated_at=_NEW, labels=("Reverted",)),
-        ],
-        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
-        dismiss_errors={2: RateLimitExceededException(403)},
-        raises=RuntimeError,
-    )
-
-    # PR 2's revert-guard dismissal trips the rate limit, so PR 1's files are never read: undetermined,
-    # and abandoned rather than dismissed.
-    assert scan.dismissals == [(2, "greenlight-app[bot]", revert_guard._DISMISS_MESSAGE)]
-    assert scan.files_fetched == []
-    assert str(scan.error) == "1 PR(s) failed during scan: [2]; 1 PR(s) abandoned due to rate limit: [1]"
 
 
 def test_an_eligible_pr_whose_latest_row_is_a_land_keeps_its_approval_and_is_left_to_decide(make_config):
@@ -2778,7 +2679,6 @@ def test_an_eligible_pr_whose_latest_row_is_a_land_keeps_its_approval_and_is_lef
         listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
         fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_B)},
         states={1: _state(1, STATUS_LAND, _HASH_A, _NEW), 2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
-        files={1: (_DOCS_FILE,)},
         bot_login="greenlight-app[bot]",
     )
 
@@ -2792,7 +2692,7 @@ def test_a_failed_dismissal_is_logged_and_fails_the_pass_but_the_scan_goes_on(ma
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         scan = _ineligible_pr_scan(
             make_config,
-            listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
+            listed=[_open_pr(1, updated_at=_NEW, author=_MISCASED_AUTHOR), _open_pr(2, updated_at=_NEW)],
             fingerprints={2: ("headsha2", _HASH_A)},
             states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
             dismiss_errors={1: RuntimeError("dismiss boom")},
@@ -2811,7 +2711,7 @@ def test_a_rate_limited_dismissal_abandons_the_fanout_and_skips_the_dispatch_pha
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         scan = _ineligible_pr_scan(
             make_config,
-            listed=[_open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR), _open_pr(2, updated_at=_NEW)],
+            listed=[_open_pr(1, updated_at=_NEW, author=_MISCASED_AUTHOR), _open_pr(2, updated_at=_NEW)],
             fingerprints={2: ("headsha2", _HASH_A)},
             states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
             dismiss_errors={1: RateLimitExceededException(403)},
@@ -3389,13 +3289,12 @@ def test_a_listing_tick_hands_the_label_pass_each_set_it_reads(make_config, max_
             _open_pr(1, updated_at=_NEW, labels=("Reverted",)),
             _open_pr(2, updated_at=_NEW),
             _open_pr(3, updated_at=_NEW),
-            _open_pr(4, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(4, updated_at=_NEW, author=_MISCASED_AUTHOR),
             _open_pr(5, updated_at=_NEW, labels=("Stale",)),
             _open_pr(6, updated_at=_OLD, head_sha="idle6"),
         ],
         fingerprints={2: ("headsha2", _HASH_A), 3: ReviewSkip(CHANGES_REQUESTED, "changes requested by bob")},
         states={5: _state(5, STATUS_LAND, _HASH_A, _OLD), 6: _state(6, STATUS_NO_LAND, _HASH_A, _OLD)},
-        files={4: (_TORCH_FILE,)},
         bot_login="greenlight-app[bot]",
         max_dispatches=max_dispatches,
         timeout_minutes=30,
@@ -3436,30 +3335,6 @@ def test_a_fast_tick_hands_the_label_pass_the_prs_its_listing_returned(make_conf
     assert list(label_pass.eligible) == [4]
     assert label_pass.labels == {3: ("Reverted",), 4: ()}
     assert label_pass.heads == {3: "headsha3", 4: "headsha4"}
-
-
-def test_an_undetermined_pr_reaches_the_label_pass_as_neither_eligible_nor_ineligible(make_config):
-    passes: list[verdict_labels.LabelPass] = []
-
-    scan = _run_scan(
-        make_config,
-        listed=[
-            _open_pr(1, updated_at=_NEW, author=_SCOPED_AUTHOR),
-            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
-            _open_pr(3, updated_at=_NEW),
-        ],
-        fingerprints={3: ("headsha3", _HASH_A)},
-        files={2: (_TORCH_FILE,)},
-        files_errors={1: RuntimeError("files boom")},
-        label_prs=passes.append,
-        raises=RuntimeError,
-    )
-
-    (label_pass,) = passes
-    assert list(label_pass.recent) == [1, 2, 3]
-    assert list(label_pass.eligible) == [3]
-    assert list(label_pass.ineligible) == [2]
-    assert str(scan.error) == "1 PR(s) failed during scan: [1]"
 
 
 def test_the_label_pass_reads_a_pr_through_the_get_pr_seam_on_the_scans_main_client(make_config):
@@ -3504,12 +3379,11 @@ def test_the_label_pass_runs_once_the_revocations_and_the_dispatch_phase_are_don
         make_config,
         listed=[
             _open_pr(1, updated_at=_NEW, labels=("Reverted",)),
-            _open_pr(2, updated_at=_NEW, author=_SCOPED_AUTHOR),
+            _open_pr(2, updated_at=_NEW, author=_MISCASED_AUTHOR),
             _open_pr(3, updated_at=_NEW),
         ],
         fingerprints={3: ("headsha3", _HASH_A)},
         states={2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
-        files={2: (_TORCH_FILE,)},
         bot_login="greenlight-app[bot]",
         label_prs=passes.append,
     )

@@ -70,7 +70,7 @@ def _build_retry() -> Retry:
 
 def _build_authz_retry() -> Retry:
     # Serves the scan's merge-rules refresh (merge_rules.yaml + team expansion) and the verdict's
-    # eligibility check (merge rules, PR files): a handful of reads whose failure can cost a
+    # eligibility check (merge rules, the PR): a handful of reads whose failure can cost a
     # whole pass or verdict, so a 429 is waited out rather than raised as the scan's fail-fast retry does.
     # respect_retry_after_header honors a 429/5xx Retry-After capped at retry_after_max: at worst
     # total x cap (<=120s), inside the scan's runtime budget, on the SIGALRM-interruptible main

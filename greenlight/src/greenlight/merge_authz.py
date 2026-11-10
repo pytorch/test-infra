@@ -34,7 +34,7 @@ from greenlight.guards import IterationTimeout
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Mapping
 
-    from greenlight.github_types import _FilesPR
+    from greenlight.github_types import _BasedPR, _FilesPR
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +123,10 @@ class MergeRule:
     approvers: frozenset[str]
     covers_all: bool
     _matcher: _Matcher | None = field(default=None, repr=False)
+
+    @property
+    def valid(self) -> bool:
+        return self._matcher is not None
 
     def covers(self, files: Iterable[str]) -> bool:
         matcher = self._matcher
@@ -219,7 +223,7 @@ def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
     return resolve_merge_rules(client).authorized
 
 
-def native_stack_trunk(pr: _FilesPR) -> str | None:
+def native_stack_trunk(pr: _BasedPR) -> str | None:
     """Return the trunk branch of the GitHub-native stack the PR is in, or None when it is in none.
 
     PyGithub has no attribute for the REST ``stack`` object, which GitHub omits for a PR in no stack, so
@@ -232,10 +236,10 @@ def native_stack_trunk(pr: _FilesPR) -> str | None:
     return ref if isinstance(ref, str) else None
 
 
-def accepts_base(pr: _FilesPR) -> bool:
+def accepts_base(pr: _BasedPR) -> bool:
     """Whether trymerge accepts the PR's base: main, a ghstack PR's, or any in a GitHub-native stack on main.
 
-    trymerge refuses a PR on any other base, so only on these can the PR's own file list decide.
+    trymerge refuses a PR on any other base, so greenlight's verdict carries authority only on these.
     """
     return (
         pr.base.ref == constants.TARGET_BRANCH

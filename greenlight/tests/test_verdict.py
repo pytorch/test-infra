@@ -12,12 +12,15 @@ from github import GithubException, UnknownObjectException
 
 from greenlight import comment_format, constants, github_client, verdict, verdict_input
 
-# has_covering_rule is imported rather than read off the module: conftest swaps the module attribute
+# has_eligible_author is imported rather than read off the module: conftest swaps the module attribute
 # for a refusing guard in every test, while this name keeps the real function for the fake clients.
-from greenlight.verdict import VerdictRequest, has_covering_rule
+from greenlight.verdict import VerdictRequest, has_eligible_author
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
+
+    from greenlight.config import Config
 
 _FIXED = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
 _HASH = "a" * 64
@@ -625,14 +628,13 @@ def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing
         repo="pytorch/pytorch", pr_number=62, head_sha="reviewed", eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
     )
 
-    # Stands in for a path-scoped author's lookup, which answers only while the live head is the one
-    # it was handed.
+    # Stands in for the lookup, which answers only while the live head is the one it was handed.
     def eligible_on_the_live_head_only(
         token: str, repo: str, pr_number: int, head_sha: str, author: str | None
     ) -> bool:
         return head_sha == pr.head.sha
 
-    monkeypatch.setattr(verdict, "has_covering_rule", eligible_on_the_live_head_only)
+    monkeypatch.setattr(verdict, "has_eligible_author", eligible_on_the_live_head_only)
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
@@ -1186,7 +1188,7 @@ def test_no_land_dismisses_before_a_failing_eligibility_lookup_and_records_nothi
         rec.events.append("lookup")
         raise RuntimeError("merge rules unreadable")
 
-    monkeypatch.setattr(verdict, "has_covering_rule", failing_lookup)
+    monkeypatch.setattr(verdict, "has_eligible_author", failing_lookup)
 
     with pytest.raises(RuntimeError, match="merge rules unreadable"):
         verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
@@ -1963,6 +1965,9 @@ _MERGE_RULES = textwrap.dedent(
     - name: Docs Maintainers
       patterns: ["docs/**"]
       approved_by: [Scoped, pytorch/doc-writers]
+    - name: Broken
+      patterns: ["docs/{a,b}/**"]
+      approved_by: [OnlyBroken]
     """
 )
 _UNEXPECTED_PR_READ = AssertionError("the PR was read")
@@ -1988,40 +1993,36 @@ class _FakeOrg:
         return _FakeTeam()
 
 
-class _FakeFilesPR:
-    def __init__(self, client: _FakeRulesClient, files: list[str]) -> None:
-        self._files = files
-        self.head = _FakeHead(client.live_heads.pop(0), client.head_ref)
-        self.base = _FakeRef(client.live_bases.pop(0))
-        trunk = client.live_trunks.pop(0)
+class _FakeLivePR:
+    def __init__(self, head_sha: str, head_ref: str, base_ref: str, trunk: str | None) -> None:
+        self.head = _FakeHead(head_sha, head_ref)
+        self.base = _FakeRef(base_ref)
         self.raw_data: dict[str, object] = {} if trunk is None else {"stack": {"base": {"ref": trunk}}}
 
     def get_files(self) -> list[_FakeFile]:
-        return [_FakeFile(name) for name in self._files]
+        raise AssertionError("eligibility never lists the PR's files")
 
 
 class _FakeRulesClient:
-    """Serves merge_rules.yaml, one team and PR #7, whose head, base and stack trunk at each read are ``live_*``.
+    """Serves merge_rules.yaml, one team and PR #7 as it reads live: ``live_head``, its refs and stack trunk.
 
-    A ``None`` trunk is a PR in no native stack.
+    A ``None`` trunk is a PR in no native stack. ``pull_error`` replaces the PR read with that failure.
     """
 
     def __init__(
         self,
         *,
         merge_rules: str | Exception = _MERGE_RULES,
-        files: list[str] | Exception = _UNEXPECTED_PR_READ,
-        live_heads: tuple[str, ...] = (_REVIEWED, _REVIEWED),
-        live_bases: tuple[str, ...] = (constants.TARGET_BRANCH, constants.TARGET_BRANCH),
-        live_trunks: tuple[str | None, ...] = (None, None),
+        pull_error: Exception | None = None,
+        live_head: str = _REVIEWED,
         head_ref: str = "feature",
+        base_ref: str = constants.TARGET_BRANCH,
+        trunk: str | None = None,
     ) -> None:
         self.merge_rules = merge_rules
-        self.files = files
-        self.live_heads = list(live_heads)
-        self.live_bases = list(live_bases)
-        self.live_trunks = list(live_trunks)
-        self.head_ref = head_ref
+        self.pull_error = pull_error
+        self.live = _FakeLivePR(live_head, head_ref, base_ref, trunk)
+        self.pull_reads = 0
 
     def get_repo(self, full_name_or_id: str) -> _FakeRulesClient:
         return self
@@ -2031,119 +2032,149 @@ class _FakeRulesClient:
             raise self.merge_rules
         return _FakeContent(self.merge_rules)
 
-    def get_pull(self, number: int) -> _FakeFilesPR:
-        if isinstance(self.files, Exception):
-            raise self.files
-        return _FakeFilesPR(self, self.files)
+    def get_pull(self, number: int) -> _FakeLivePR:
+        self.pull_reads += 1
+        if self.pull_error is not None:
+            raise self.pull_error
+        return self.live
 
     def get_organization(self, login: str) -> _FakeOrg:
         return _FakeOrg()
 
 
 @pytest.fixture
-def covers(monkeypatch):
+def eligible(monkeypatch):
     def check(client: _FakeRulesClient, author: str | None) -> bool:
         monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
-        return has_covering_rule("tok", constants.TARGET_REPO, 7, _REVIEWED, author)
+        return has_eligible_author("tok", constants.TARGET_REPO, 7, _REVIEWED, author)
 
     return check
 
 
-def test_has_covering_rule_passes_a_catch_all_author_without_reading_the_pr(covers):
-    assert covers(_FakeRulesClient(), "CatchAll") is True
+@pytest.mark.parametrize("author", ["CatchAll", "Scoped", "TeamMember"])
+def test_has_eligible_author_passes_any_author_a_valid_rule_names_with_one_pr_read(eligible, author):
+    client = _FakeRulesClient()
+
+    assert eligible(client, author) is True
+    assert client.pull_reads == 1
 
 
-@pytest.mark.parametrize("author", ["Scoped", "TeamMember"])
-def test_has_covering_rule_passes_a_path_scoped_author_whose_rule_covers_every_file(covers, author):
-    assert covers(_FakeRulesClient(files=["docs/index.md"]), author) is True
+@pytest.mark.parametrize("author", ["mallory", "catchall", "OnlyBroken", None])
+def test_has_eligible_author_refuses_an_author_no_valid_rule_names_without_reading_the_pr(eligible, author):
+    client = _FakeRulesClient(pull_error=_UNEXPECTED_PR_READ)
 
-
-def test_has_covering_rule_refuses_a_path_scoped_author_whose_rule_misses_a_file(covers):
-    assert covers(_FakeRulesClient(files=["docs/index.md", "setup.py"]), "Scoped") is False
-
-
-def test_has_covering_rule_refuses_a_path_scoped_author_over_the_file_cap_though_its_rule_covers_every_file(covers):
-    files = [f"docs/page{index}.md" for index in range(constants.MAX_DIFF_FILES + 1)]
-
-    assert covers(_FakeRulesClient(files=files), "Scoped") is False
-
-
-def test_has_covering_rule_passes_a_path_scoped_author_of_a_ghstack_pr_on_its_own_base(covers):
-    base = "gh/scoped/1/base"
-    client = _FakeRulesClient(files=["docs/index.md"], head_ref="gh/scoped/1/head", live_bases=(base, base))
-
-    assert covers(client, "Scoped") is True
-
-
-def test_has_covering_rule_passes_a_path_scoped_author_of_a_native_stack_pr_on_its_own_base(covers):
-    base, trunk = "scoped/part-1", constants.TARGET_BRANCH
-    client = _FakeRulesClient(files=["docs/index.md"], live_bases=(base, base), live_trunks=(trunk, trunk))
-
-    assert covers(client, "Scoped") is True
+    assert eligible(client, author) is False
+    assert client.pull_reads == 0
 
 
 @pytest.mark.parametrize(
-    "pr",
+    "live",
     [
-        pytest.param({"live_bases": ("release/2.9",)}, id="release-base"),
-        pytest.param({"live_bases": ("scoped/part-1",), "live_trunks": ("release/2.9",)}, id="stack-on-another-trunk"),
-        pytest.param({"live_heads": ("c" * 40,)}, id="head-moved"),
-        pytest.param({"live_heads": (_REVIEWED, "c" * 40)}, id="head-moved-during-the-listing"),
-        pytest.param({"live_bases": (constants.TARGET_BRANCH, "release/2.9")}, id="base-moved-during-the-listing"),
+        pytest.param({"head_ref": "gh/scoped/1/head", "base_ref": "gh/scoped/1/base"}, id="ghstack-off-main"),
+        pytest.param({"base_ref": "scoped/part-1", "trunk": constants.TARGET_BRANCH}, id="native-stack-on-main"),
+        pytest.param({"trunk": "release/2.9"}, id="main-based-in-a-stack-off-main"),
     ],
 )
-def test_has_covering_rule_refuses_a_path_scoped_author_on_a_refused_base_or_a_moved_head_or_base(covers, pr):
-    assert covers(_FakeRulesClient(files=["docs/index.md"], **pr), "Scoped") is False
+@pytest.mark.parametrize("author", ["CatchAll", "Scoped"])
+def test_has_eligible_author_passes_a_pr_on_any_base_trymerge_accepts(eligible, live, author):
+    assert eligible(_FakeRulesClient(**live), author) is True
 
 
 @pytest.mark.parametrize(
-    "live_trunks",
+    ("live", "reason"),
     [
-        pytest.param((constants.TARGET_BRANCH, None), id="unstacked"),
-        pytest.param((constants.TARGET_BRANCH, "release/2.9"), id="trunk-changed"),
+        pytest.param({"live_head": "c" * 40}, "head moved", id="head-moved"),
+        pytest.param({"base_ref": "release/2.9"}, "base not accepted", id="release-base"),
+        pytest.param({"base_ref": "scoped/part-1", "trunk": "release/2.9"}, "base not accepted", id="stack-off-main"),
+        pytest.param({"base_ref": "scoped/part-1"}, "base not accepted", id="stack-left"),
     ],
 )
-def test_has_covering_rule_refuses_a_native_stack_pr_whose_stack_left_main_during_the_listing(
-    covers, caplog, live_trunks
+@pytest.mark.parametrize("author", ["CatchAll", "Scoped"])
+def test_has_eligible_author_refuses_any_author_off_the_reviewed_head_or_on_a_refused_base(
+    eligible, caplog, live, reason, author
 ):
-    base = "scoped/part-1"
-    client = _FakeRulesClient(files=["docs/index.md"], live_bases=(base, base), live_trunks=live_trunks)
-
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        assert covers(client, "Scoped") is False
+        assert eligible(_FakeRulesClient(**live), author) is False
 
-    assert "author 'Scoped' is not eligible: head or base moved" in caplog.text
+    assert f"author {author!r} is not eligible: {reason}" in caplog.text
 
 
 @pytest.mark.parametrize(
-    ("head_ref", "base", "live_trunks"),
+    "client",
     [
-        pytest.param("feature", constants.TARGET_BRANCH, (None, constants.TARGET_BRANCH), id="main-based-stacked"),
-        pytest.param("feature", constants.TARGET_BRANCH, (constants.TARGET_BRANCH, None), id="main-based-unstacked"),
-        pytest.param("gh/scoped/1/head", "gh/scoped/1/base", (None, constants.TARGET_BRANCH), id="ghstack-stacked"),
-        pytest.param("gh/scoped/1/head", "gh/scoped/1/base", ("release/2.9", None), id="ghstack-unstacked"),
+        pytest.param(_FakeRulesClient(merge_rules=UnknownObjectException(404)), id="merge-rules"),
+        pytest.param(_FakeRulesClient(pull_error=GithubException(502)), id="pull"),
     ],
 )
-def test_has_covering_rule_ignores_a_stack_trunk_change_on_a_main_based_or_ghstack_pr(
-    covers, head_ref, base, live_trunks
-):
-    client = _FakeRulesClient(
-        files=["docs/index.md"], head_ref=head_ref, live_bases=(base, base), live_trunks=live_trunks
-    )
-
-    assert covers(client, "Scoped") is True
+def test_has_eligible_author_raises_a_read_failure(eligible, client):
+    with pytest.raises(GithubException):
+        eligible(client, "CatchAll")
 
 
-def test_has_covering_rule_raises_a_read_failure(covers):
-    with pytest.raises(UnknownObjectException):
-        covers(_FakeRulesClient(merge_rules=UnknownObjectException(404)), "Scoped")
-
-
-def test_has_covering_rule_logs_its_decision_without_naming_a_rule_or_a_team_member(covers, caplog):
+def test_has_eligible_author_logs_its_decision_without_naming_a_rule_or_a_team_member(eligible, caplog):
     with caplog.at_level(logging.DEBUG, logger="greenlight"):
-        assert covers(_FakeRulesClient(files=["docs/index.md"]), "TeamMember") is True
+        assert eligible(_FakeRulesClient(), "TeamMember") is True
+        assert eligible(_FakeRulesClient(base_ref="release/2.9"), "Concealed") is False
 
     # The record job's log is public: a rule name can imply a team membership, and Concealed reaches
-    # greenlight through the team alone.
+    # greenlight through the team alone, so only its login, never the team or rule, may appear.
     assert "merge-rule eligibility" in caplog.text
-    assert not [word for word in ("Superusers", "Docs Maintainers", "Concealed") if word in caplog.text]
+    assert not [word for word in ("Superusers", "Docs Maintainers", "doc-writers") if word in caplog.text]
+
+
+def _record_land(
+    make_config: Callable[..., Config],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    client: _FakeRulesClient,
+    rec: _Recorder,
+    emit: _FakeEmit,
+) -> _FakePR:
+    monkeypatch.setattr(verdict, "has_eligible_author", has_eligible_author)
+    monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
+    pr = _FakePR(_REVIEWED, rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)], author="CatchAll")
+    vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
+    req = VerdictRequest(
+        repo=constants.TARGET_REPO, pr_number=7, head_sha=_REVIEWED, eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+    )
+    verdict.run(
+        req,
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+    return pr
+
+
+@pytest.mark.parametrize(
+    "live",
+    [
+        pytest.param({"live_head": "c" * 40}, id="head-moved"),
+        pytest.param({"base_ref": "release/2.9"}, id="refused-base"),
+    ],
+)
+def test_a_catch_all_authors_land_off_the_reviewed_head_or_on_a_refused_base_is_shadow(
+    make_config, tmp_path, monkeypatch, live
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+
+    pr = _record_land(make_config, tmp_path, monkeypatch, _FakeRulesClient(**live), rec, emit)
+
+    assert _decode(emit.row_gzip)["shadow"] is True
+    assert pr.created_reviews == []
+    assert "dismiss:1" in rec.events
+
+
+def test_a_record_time_pr_read_failure_fails_the_verdict_and_writes_no_row(make_config, tmp_path, monkeypatch):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    client = _FakeRulesClient(pull_error=GithubException(502))
+
+    with pytest.raises(GithubException):
+        _record_land(make_config, tmp_path, monkeypatch, client, rec, emit)
+
+    assert client.pull_reads == 1
+    assert emit.row_gzip is None
+    assert rec.events == []
