@@ -221,6 +221,9 @@ class TestModelJson(TestCase):
             "above one": lambda r: r.update(quantiles=[0.1, 1.5]),
             "shares": lambda r: r.update(share_min=0.3, share_max=0.2),
             "share above one": lambda r: r.update(share_max=1.5),
+            "share below the floor": lambda r: r.update(share_min=0.09),
+            "share above the ceiling": lambda r: r.update(share_max=0.41),
+            "share not a number": lambda r: r.update(share_min="0.1"),
             "no paths": lambda r: r.pop("paths"),
             "paths not an object": lambda r: r.update(paths=[]),
             "nodes not an object": lambda r: r["paths"].update(nodes=[]),
@@ -242,6 +245,11 @@ class TestModelJson(TestCase):
             with self.subTest(name):
                 self.assertIsInstance(model_json.validate(doc), str)
         doc = copy.deepcopy(self.doc)
+        doc["risk"].update(share_min=0.4, share_max=0.4)
+        self.assertIsNone(model_json.validate(doc))
+        doc["risk"].update(share_min=0.1, share_max=0.1)
+        self.assertIsNone(model_json.validate(doc))
+        doc = copy.deepcopy(self.doc)
         doc["risk"]["paths"]["nodes"] = {"a" * 512: 0.0, "b/": 1.0}
         self.assertIsNone(model_json.validate(doc))
         doc["risk"]["paths"]["nodes"] = {f"n{i}/": 0.1 for i in range(20000)}
@@ -260,6 +268,11 @@ class TestModelJson(TestCase):
         self.assertEqual(model_json.validate(doc), "risk: not an object")
         doc.pop("risk")
         self.assertIsNone(model_json.validate(doc))
+
+    def test_share(self) -> None:
+        self.assertEqual(model_json.share(0.18, 0.28, 0.0), 0.18)
+        self.assertAlmostEqual(model_json.share(0.18, 0.28, 0.5), 0.23)
+        self.assertEqual(model_json.share(0.18, 0.28, 1.0), 0.28)
 
     def test_digit_runs(self) -> None:
         self.assertTrue(model_json.has_digit_run("x" + "1" * 15))
@@ -384,11 +397,32 @@ class TestTrain(TestCase):
         self.assertGreater(gap, 1e-3)
         quantiles = self.doc["risk"]["quantiles"]
         self.assertEqual(quantiles, sorted(quantiles))
+        recent = table[table["time"] >= END - train.QUANTILE_DAYS * DAY]
+        self.assertLess(len(recent), len(table))
+        risks = pipe.predict_proba(x.loc[recent.index].fillna(x.median()))[:, 1]
+        want = np.sort(np.repeat(risks, recent["uw"].astype(int)))
+        self.assertEqual(len(quantiles), len(want))
+        self.assertLess(np.abs(np.array(quantiles) - want).max(), 1e-6)
         shares = [
-            model_json.risk(self.doc, {f: table[f].iloc[i] for f in names})[2]
-            for i in range(len(table))
+            model_json.risk(self.doc, {f: recent[f].iloc[i] for f in names})[2]
+            for i in range(len(recent))
         ]
-        self.assertAlmostEqual(float(np.mean(shares)), 0.15, delta=0.01)
+        mean_share = np.average(shares, weights=recent["uw"])
+        self.assertAlmostEqual(float(mean_share), train.TARGET_BASE, delta=0.01)
+        self.assertEqual(
+            (self.doc["risk"]["share_min"], self.doc["risk"]["share_max"]), (0.1, 0.2)
+        )
+
+    def test_base_sets_the_range(self) -> None:
+        doc = train.fit(
+            self.rows, self.units, END, TRAINED_AT, SOURCE, paths=PATHS, base=0.23
+        )
+        self.assertEqual(
+            (doc["risk"]["share_min"], doc["risk"]["share_max"]), (0.18, 0.28)
+        )
+        self.assertEqual(doc["risk"]["coef"], self.doc["risk"]["coef"])
+        self.assertEqual(train.share_range(train.TARGET_BASE), (0.1, 0.2))
+        self.assertEqual(train.share_range(0.35), (0.3, 0.4))
 
     def test_risk_table_is_the_landed_unit_table(self) -> None:
         units = self.units.copy()
@@ -473,7 +507,7 @@ class TestTrain(TestCase):
 
     def test_risk_needs_two_classes(self) -> None:
         table = pd.DataFrame({f: [0.1, 0.2] for f in spec.RISK_FEATURES}).assign(y=0)
-        self.assertIsNone(train.fit_risk(table))
+        self.assertIsNone(train.fit_risk(table, END))
 
     def test_deterministic(self) -> None:
         again = train.fit(self.rows, self.units, END, TRAINED_AT, SOURCE, paths=PATHS)

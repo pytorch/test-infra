@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import math
 import subprocess
 import sys
 import tempfile
@@ -12,13 +13,14 @@ import numpy as np
 import pandas as pd
 from threadpoolctl import threadpool_limits
 from torchci.td.labels.schema import DAY, epoch
-from torchci.td.llm.replay import CUT_PERCENT
 from torchci.td.scorer import (
     __main__ as cli,
+    calibration,
     evaluate,
     gate,
     model_json,
     pathrisk,
+    report,
     spec,
     train,
 )
@@ -98,33 +100,46 @@ def synthetic(n_units: int = 300, n_tests: int = 30, days: int = 120, seed: int 
 
 
 class TestCut(TestCase):
-    def test_fixture_cut_case(self) -> None:
-        case = json.loads(FIXTURE.read_text())["cut_case"]
-        self.assertEqual(case["percent"], CUT_PERCENT)
-        a, include = evaluate.matched_cut(case["td_order"], case["p"], case["cost"])
-        self.assertEqual(a, case["expected_exponent"])
-        self.assertEqual(include, case["expected_include"])
+    def test_fixture_budget_cut_case(self) -> None:
+        case = json.loads(FIXTURE.read_text())["budget_cut_case"]
+        tests, cost, share = case["tests"], case["cost"], case["budget_share"]
+        needs = evaluate.need(tests, case["p"], cost)
+        selected = sorted((t for t in tests if needs[t] < share), key=needs.get)
+        self.assertEqual(selected, case["expected_selected"])
+        total = sum(cost.values())
+        self.assertEqual(total, case["expected_total_seconds"])
+        self.assertEqual(
+            sum(cost[t] for t in selected), case["expected_selected_seconds"]
+        )
+        self.assertAlmostEqual(
+            share * total, case["expected_budget_seconds"], delta=1e-9
+        )
+        ascending = [*sorted(needs.values()), 1.0]
+        self.assertAlmostEqual(
+            evaluate.cost_share(ascending, share),
+            case["expected_selected_seconds"] / total,
+        )
+
+    def test_costlier_than_the_budget_ranked_first(self) -> None:
+        cost = {"big": 900.0, "a": 50.0, "b": 50.0}
+        needs = evaluate.need(
+            ["a", "b", "big"], {"big": 0.9, "a": 0.01, "b": 0.02}, cost
+        )
+        self.assertEqual(needs["big"], 0.0)
+        self.assertEqual([t for t in needs if needs[t] < 0.1], ["big"])
+        self.assertEqual(evaluate.cost_share([*sorted(needs.values()), 1.0], 0.1), 0.9)
+
+    def test_order_and_unknown_cost(self) -> None:
+        tests = ["b", "a", "c"]
+        needs = evaluate.need(tests, {t: 0.1 for t in tests}, {t: 10.0 for t in tests})
+        self.assertEqual(needs, {"a": 0.0, "b": 1 / 3, "c": 2 / 3})
+        self.assertEqual(evaluate.need([], {}, {}), {})
+        cost = {"a": 10.0, "b": math.nan, "c": 10.0}
+        self.assertIsNone(evaluate.need(tests, {t: 0.1 for t in tests}, cost))
 
     def test_count_matches_get_top_per_tests(self) -> None:
         for n in (1, 3, 4, 7, 100, 1147):
-            tests = [f"t{i:04d}" for i in range(n)]
-            p = {t: 1.0 / (i + 1) for i, t in enumerate(tests)}
-            _, include = evaluate.matched_cut(tests, p, {t: 10.0 for t in tests})
-            self.assertEqual(len(include), get_top_per_tests(n))
             self.assertEqual(evaluate.cut_count(n), get_top_per_tests(n))
-
-    def test_ties_and_fallback(self) -> None:
-        tests = ["b", "a", "c", "d", "e"]
-        p = {t: 0.1 for t in tests}
-        self.assertEqual(
-            evaluate.matched_cut(tests, p, {t: 1.0 for t in tests}), (0.0, ["a", "b"])
-        )
-        cost = {"b": 10.0, "a": 10.0, "c": 100.0, "d": 100.0, "e": 100.0}
-        p = {"b": 0.001, "a": 0.001, "c": 0.5, "d": 0.4, "e": 0.3}
-        self.assertEqual(evaluate.matched_cut(tests, p, cost), (None, ["b", "a"]))
-        self.assertEqual(evaluate.matched_cut([], {}, {}), (None, []))
-        cost = {t: float("nan") for t in tests}
-        self.assertEqual(evaluate.matched_cut(tests, p, cost), (None, ["b", "a"]))
 
     def test_td_order(self) -> None:
         rows = unit_rows("u", "main", ["b", "a", "c"], [0.1, 0.1, 0.2], [0, 0, 0], 0.0)
@@ -133,10 +148,22 @@ class TestCut(TestCase):
         self.assertEqual(evaluate.td_order(rows), ["c", "b", "a"])
 
 
+def events(need, td, f=None, kind="pr", cluster=None):
+    n = len(need)
+    return {
+        "unit": [f"u{i}" for i in range(n)],
+        "kind": [kind] * n,
+        "cluster": cluster or [f"c{i}" for i in range(n)],
+        "td": td,
+        "need": need,
+        "f": f or [0.5] * n,
+    }
+
+
 class TestEvaluate(TestCase):
     def test_hand_case(self) -> None:
         pr = unit_rows(
-            "p",
+            "p:7:h1:pull",
             "pr_td_off",
             ["a", "b", "c", "d"],
             [0.4, 0.3, 0.2, 0.1],
@@ -148,31 +175,59 @@ class TestEvaluate(TestCase):
             "main",
             ["a", "b", "c", "d"],
             [0.4, 0.3, 0.2, 0.1],
-            [0.9, 0.1, 0.0, 0.8],
+            [0.8, 0.1, 0.0, 0.9],
             [1.0, 0.0, 0.0, 1.0],
             fresh=[True, True, True, False],
         )
         explored = unit_rows("x", "explored", ["a"], [0.1], [0.1], [1.0])
         m = evaluate.evaluate(
-            lambda f: f["pp"].to_numpy(), pd.concat([pr, landed, explored])
+            lambda f: f["pp"].to_numpy(),
+            pd.concat([pr, landed, explored]),
+            {"m": 0.25, "p:7:h1:pull": 0.75},
         )
+        e = m["events"]
         self.assertEqual(m["units"], 2)
-        self.assertEqual(m["events"]["unit"], ["m", "p"])
-        self.assertEqual(m["events"]["td"], [True, False])
-        self.assertEqual(m["events"]["model"], [True, True])
-        self.assertEqual((m["pr"]["td"]["caught"], m["pr"]["model"]["caught"]), (0, 1))
-        self.assertEqual(m["pooled"]["model"]["rate"], 1.0)
-        self.assertEqual(m["pooled"]["td"]["n"], 2)
+        self.assertEqual(e["unit"], ["m", "p:7:h1:pull"])
+        self.assertEqual(e["cluster"], ["m", "pr:7"])
+        self.assertEqual(e["td"], [True, False])
+        self.assertEqual(e["need"], [0.25, 0.0])
+        self.assertEqual(e["f"], [0.25, 0.75])
+        self.assertEqual((m["pr"]["td"]["caught"], m["main"]["td"]["caught"]), (0, 1))
         self.assertAlmostEqual(m["pooled"]["test_share"], 0.5)
         self.assertAlmostEqual(m["pooled"]["td"]["cost_share"], 0.5)
-        self.assertEqual(m["exponents"], {"0.0": 2})
         self.assertEqual(m["td_cut_no_costs"], 0)
+        at = evaluate.with_model(m, evaluate.flat(0.2))
+        self.assertFalse({"events", "cuts"} & set(at))
+        self.assertEqual(
+            (at["pr"]["model"]["caught"], at["main"]["model"]["caught"]), (1, 0)
+        )
+        self.assertAlmostEqual(at["pooled"]["model"]["cost_share"], 0.25)
+        at = evaluate.with_model(m, evaluate.flat(0.3))
+        self.assertEqual(at["pooled"]["model"]["caught"], 2)
+        self.assertEqual(at["pooled"]["td"], m["pooled"]["td"])
         pr["cost"] = np.nan
         m = evaluate.evaluate(lambda f: f["pp"].to_numpy(), pd.concat([pr, landed]))
-        self.assertEqual((m["td_cut_no_costs"], m["exponents"]["None"]), (1, 1))
-        self.assertEqual((m["pr"]["td"]["caught"], m["pr"]["model"]["caught"]), (0, 0))
-        self.assertAlmostEqual(m["pooled"]["td"]["cost_share"], 0.5)
+        self.assertEqual(m["td_cut_no_costs"], 1)
+        self.assertEqual(m["events"]["need"], [0.25, None])
+        self.assertTrue(math.isnan(m["events"]["f"][0]))
+        at = evaluate.with_model(m, evaluate.flat(0.4))
+        self.assertEqual(
+            (at["pr"]["td"]["caught"], at["pr"]["model"]["caught"]), (0, 0)
+        )
+        self.assertAlmostEqual(at["pooled"]["td"]["cost_share"], 0.5)
+        self.assertAlmostEqual(at["pooled"]["model"]["cost_share"], 0.5)
         self.assertLess(m["pooled"]["td"]["lo"], 0.5)
+
+    def test_hits_spread_and_cluster(self) -> None:
+        e = events([0.05, 0.12, 0.19, None, None], [False, False, False, True, False])
+        e["f"] = [0.0, 0.0, 1.0, 0.0, 0.0]
+        self.assertEqual(
+            evaluate.hits(e, evaluate.spread(0.15)), [True, False, True, True, False]
+        )
+        self.assertEqual(evaluate.spread(0.23)(0.5), 0.23)
+        self.assertEqual(evaluate.cluster("p:12:abc:pull:x", "pr_td_off"), "pr:12")
+        self.assertEqual(evaluate.cluster("c:abc", "main"), "c:abc")
+        self.assertEqual(evaluate.cluster("u3", "pr_td_off"), "u3")
 
     def test_rate(self) -> None:
         self.assertEqual(evaluate.rate(0, 0)["rate"], None)
@@ -188,18 +243,74 @@ class TestEvaluate(TestCase):
         self.assertEqual((same["diff"], same["lo"], same["hi"]), (0.0, 0.0, 0.0))
         better = evaluate.paired_bootstrap([1, 1, 1, 1], [0, 0, 0, 0], units)
         self.assertEqual((better["diff"], better["lo"]), (1.0, 1.0))
-        self.assertEqual((better["events"], better["units"]), (4, 3))
+        self.assertEqual((better["events"], better["clusters"]), (4, 3))
         mixed = evaluate.paired_bootstrap([1, 0] * 50, [0, 1] * 50, list(range(100)))
         self.assertLess(mixed["lo"], 0)
         self.assertGreater(mixed["hi"], 0)
         again = evaluate.paired_bootstrap([1, 0] * 50, [0, 1] * 50, list(range(100)))
         self.assertEqual(mixed, again)
 
+    def test_bootstrap_resamples_clusters(self) -> None:
+        a = [1] * 50 + [0] * 50
+        b = [0] * 50 + [1] * 50
+        per_event = evaluate.paired_bootstrap(a, b, [str(i) for i in range(100)])
+        two = evaluate.paired_bootstrap(a, b, ["x"] * 50 + ["y"] * 50)
+        self.assertEqual(two["clusters"], 2)
+        self.assertGreater(two["hi"] - two["lo"], per_event["hi"] - per_event["lo"])
+        self.assertEqual((two["lo"], two["hi"]), (-1.0, 1.0))
+
+    def test_search(self) -> None:
+        n = 200
+        td = [i % 2 == 0 for i in range(n)]
+        need = [0.05 if t else 0.5 for t in td]
+        self.assertEqual(evaluate.search(events(need, td)), evaluate.BASES[0])
+        need = [0.18 if t else 0.5 for t in td]
+        got = evaluate.search(events(need, td))
+        self.assertEqual(got, 0.19)
+        self.assertGreater(evaluate.spread(got)(0.5), 0.18)
+        need = [0.45 if t else 0.5 for t in td]
+        self.assertIsNone(evaluate.search(events(need, td)))
+        main_only = events([0.0] * n, td, kind="main")
+        self.assertIsNone(evaluate.search(main_only))
+        mixed = events(need, td)
+        for k in mixed:
+            mixed[k] += main_only[k]
+        self.assertIsNone(evaluate.search(mixed))
+        few = events([0.05] * 99, [True] * 99)
+        self.assertIsNone(evaluate.search(few))
+        self.assertEqual(evaluate.search(events([0.05] * 100, [True] * 100)), 0.15)
+        unknown = events([0.05] * 99 + [None] * 50, [True] * 149)
+        self.assertEqual(evaluate.known_pr_events(unknown), 99)
+        self.assertIsNone(evaluate.search(unknown))
+        self.assertEqual(evaluate.BASES[0], 0.15)
+        self.assertEqual(evaluate.BASES[-1], 0.35)
+        self.assertEqual(len(evaluate.BASES), 21)
+
+    def test_percentiles(self) -> None:
+        doc = json.loads(FIXTURE.read_text())["doc"]
+        units = pd.DataFrame(
+            {
+                "unit_id": ["a", "b", "c"],
+                "time": [CUTOFF - 2 * DAY, CUTOFF - DAY, CUTOFF],
+            }
+        )
+        for f in spec.RISK_FEATURES:
+            units[f] = np.nan
+        units.loc[1, "log_files"] = 3.0
+        got = evaluate.percentiles(doc, units, CUTOFF - 2 * DAY, CUTOFF)
+        self.assertEqual(sorted(got), ["a", "b"])
+        r = doc["risk"]
+        fill = dict(zip(r["features"], r["fill"]))
+        self.assertEqual(got["a"], model_json.risk(doc, fill)[1])
+        self.assertEqual(got["b"], model_json.risk(doc, {**fill, "log_files": 3.0})[1])
+        doc.pop("risk")
+        self.assertIsNone(evaluate.percentiles(doc, units, 0, CUTOFF))
+
     def test_calibration(self) -> None:
-        self.assertIsNone(evaluate.calibration([0.5] * 100, [1] * 19 + [0] * 81))
+        self.assertIsNone(calibration.calibration([0.5] * 100, [1] * 19 + [0] * 81))
         p = np.array([0.1] * 50 + [0.3] * 50)
         y = np.array([0] * 45 + [1] * 5 + [0] * 35 + [1] * 15)
-        c = evaluate.calibration(p, y)
+        c = calibration.calibration(p, y)
         self.assertAlmostEqual(c["ratio"], 0.2 / 0.2)
         self.assertAlmostEqual(c["base_rate"], 0.2)
         self.assertAlmostEqual(c["brier"], float(np.mean((p - y) ** 2)))
@@ -211,7 +322,7 @@ class TestEvaluate(TestCase):
         rows, units = synthetic(n_units=30)
         units.loc[units["unit_id"] == "u29", "train_ok"] = False
         rows.loc[rows["unit_id"] == "u28", "full"] = False
-        got = evaluate.calibration_rows(rows, units, CUTOFF)
+        got = calibration.calibration_rows(rows, units, CUTOFF)
         self.assertNotIn("u28", set(got["unit_id"]))
         self.assertTrue(got["full"].all())
         self.assertTrue((got["kind"] == "main").all())
@@ -222,31 +333,77 @@ class TestEvaluate(TestCase):
 BOOT_OK = {"diff": 0.02, "lo": -0.01, "hi": 0.05, "events": 300}
 BOOT_BAD = {"diff": -0.06, "lo": -0.09, "hi": -0.02, "events": 300}
 CAL_OK = {"ratio": 1.1}
+BUDGET = {
+    "risk": True,
+    "base": 0.23,
+    "max_base": 0.35,
+    "max_loss": 0.01,
+    "known_pr_events": 300,
+}
+BUDGET_OK = {**BUDGET, "bootstrap": BOOT_OK}
 
 
 class TestGate(TestCase):
     def test_branches(self) -> None:
         cases = {
-            "pass": (BOOT_OK, None, CAL_OK, True),
-            "below TD": (BOOT_BAD, None, CAL_OK, False),
-            "no TD events": (None, None, CAL_OK, False),
-            "below live": (BOOT_OK, {**BOOT_BAD, "pr_events": 150}, CAL_OK, False),
-            "live ok": (BOOT_OK, {**BOOT_OK, "pr_events": 150}, CAL_OK, True),
-            "few live events": (BOOT_OK, {**BOOT_BAD, "pr_events": 99}, CAL_OK, True),
-            "no live events": (BOOT_OK, {"pr_events": 0}, CAL_OK, True),
-            "calibration skipped": (BOOT_OK, None, None, True),
-            "calibration low": (BOOT_OK, None, {"ratio": 0.4}, False),
-            "calibration high": (BOOT_OK, None, {"ratio": 2.1}, False),
+            "pass": (BUDGET_OK, None, CAL_OK, True),
+            "no base": ({**BUDGET_OK, "base": None}, None, CAL_OK, False),
+            "no PR events": ({**BUDGET, "bootstrap": None}, None, CAL_OK, False),
+            "too few PR events": (
+                {**BUDGET_OK, "known_pr_events": 99},
+                None,
+                CAL_OK,
+                False,
+            ),
+            "just enough PR events": (
+                {**BUDGET_OK, "known_pr_events": 100},
+                None,
+                CAL_OK,
+                True,
+            ),
+            "no risk": (
+                {**BUDGET, "risk": False, "base": None, "bootstrap": None},
+                None,
+                CAL_OK,
+                False,
+            ),
+            "below live": (BUDGET_OK, {**BOOT_BAD, "pr_events": 150}, CAL_OK, False),
+            "live ok": (BUDGET_OK, {**BOOT_OK, "pr_events": 150}, CAL_OK, True),
+            "few live events": (
+                BUDGET_OK,
+                {**BOOT_BAD, "pr_events": 99},
+                CAL_OK,
+                True,
+            ),
+            "no live events": (BUDGET_OK, {"pr_events": 0}, CAL_OK, True),
+            "calibration skipped": (BUDGET_OK, None, None, True),
+            "calibration low": (BUDGET_OK, None, {"ratio": 0.4}, False),
+            "calibration high": (BUDGET_OK, None, {"ratio": 2.1}, False),
         }
-        for name, (td, live, cal, want) in cases.items():
+        for name, (budget, live, cal, want) in cases.items():
             with self.subTest(name):
-                passed, reasons = gate.gate(td, live, cal)
+                passed, reasons = gate.gate(budget, live, cal)
                 self.assertEqual(passed, want, reasons)
                 self.assertEqual(
                     want, not any(r.startswith(gate.FAIL) for r in reasons)
                 )
-        _, reasons = gate.gate(BOOT_OK, None, None)
+        _, reasons = gate.gate(BUDGET_OK, None, None)
         self.assertIn("note: model calibration skipped: too few positives", reasons)
+        self.assertTrue(reasons[0].startswith("note: base 23%: model vs TD on PR"))
+        _, reasons = gate.gate({**BUDGET_OK, "base": None}, None, CAL_OK)
+        self.assertTrue(
+            reasons[0].startswith(
+                "FAIL: no base up to 35% keeps PR recall within 1 point of TD's cut: "
+            ),
+            reasons,
+        )
+        _, reasons = gate.gate({**BUDGET_OK, "known_pr_events": 99}, None, CAL_OK)
+        self.assertIn(
+            "FAIL: too few PR failures with test times to choose a base (99 < 100)",
+            reasons,
+        )
+        _, reasons = gate.gate({**BUDGET, "risk": False, "bootstrap": None}, None, None)
+        self.assertIn("FAIL: the twin has no risk score, so no time budget", reasons)
 
     def test_drift(self) -> None:
         self.assertEqual(
@@ -445,7 +602,7 @@ class TestRefit(TestCase):
         self.assertGreater(doc["gate"]["recall_vs_td"]["pooled"]["model"]["n"], 0)
         report = json.loads((self.out / cli.REPORT_FILE).read_text())
         self.assertTrue(report["passed"])
-        self.assertNotIn("events", report["vs_td"])
+        self.assertFalse({"events", "cuts"} & set(report["vs_td"]))
         summary = (self.out / cli.SUMMARY_FILE).read_text()
         self.assertIn("# TD scorer refit: passed", summary)
         self.assertIn("| TD |", summary)
@@ -459,6 +616,96 @@ class TestRefit(TestCase):
         )
         self.assertEqual(list(doc["risk"]["paths"]["nodes"]), ["torch/", "torch/x.py"])
         self.assertIsNone(model_json.validate(doc))
+        base = report["budget"]["base"]
+        self.assertIn(base, evaluate.BASES)
+        self.assertEqual(doc["gate"]["base"], base)
+        self.assertEqual(
+            (doc["risk"]["share_min"], doc["risk"]["share_max"]),
+            train.share_range(base),
+        )
+        self.assertIn(f"Time budget base: {base:.0%}", summary)
+        self.assertIn(f"note: base {base:.0%}: model vs TD on PR failures", summary)
+        self.assertGreater(report["vs_td"]["pr"]["model"]["n"], 0)
+
+    def test_chosen_base_reaches_the_model(self) -> None:
+        with mock.patch.object(evaluate, "search", return_value=0.27):
+            code, _ = self.refit()
+        self.assertEqual(code, cli.EXIT_OK)
+        doc = json.loads((self.out / spec.MODEL_FILE).read_text())
+        self.assertEqual(
+            (doc["risk"]["share_min"], doc["risk"]["share_max"]), (0.22, 0.32)
+        )
+        self.assertEqual(doc["gate"]["base"], 0.27)
+        self.assertEqual(
+            doc["gate"]["bootstrap_td"]["events"],
+            doc["gate"]["recall_vs_td"]["pr"]["td"]["n"],
+        )
+
+    def test_no_base_writes_no_model(self) -> None:
+        with mock.patch.object(evaluate, "search", return_value=None):
+            code, _ = self.refit()
+        self.assertEqual(code, cli.EXIT_NOT_WRITTEN)
+        self.assertFalse((self.out / spec.MODEL_FILE).exists())
+        summary = (self.out / cli.SUMMARY_FILE).read_text()
+        self.assertIn("FAIL: no base up to 35% keeps PR recall within 1 point", summary)
+        self.assertIn("Time budget base: 35% (ranked 30% to 40%", summary)
+        self.assertIn("no base up to 35% passed", summary)
+        report = json.loads((self.out / cli.REPORT_FILE).read_text())
+        self.assertIsNone(report["budget"]["base"])
+        self.assertEqual(report["budget"]["shown"], 0.35)
+
+    def test_twin_risk_as_of_the_gate_start(self) -> None:
+        gate_start = CUTOFF - 28 * DAY
+        with mock.patch.object(
+            pathrisk, "table", wraps=pathrisk.table
+        ) as table, mock.patch.object(train, "fit", wraps=train.fit) as fit:
+            out = evaluate.run_gate(
+                self.rows, self.units, CUTOFF, None, NOW, {}, HISTORY
+            )
+        self.assertEqual(table.call_args_list[0].args, (HISTORY, gate_start))
+        twin_call = fit.call_args_list[0]
+        self.assertEqual(twin_call.args[2], gate_start)
+        self.assertEqual(twin_call.kwargs["paths"], pathrisk.table(HISTORY, gate_start))
+        self.assertTrue(out["budget"]["risk"])
+        twin = train.fit(
+            self.rows,
+            self.units,
+            gate_start,
+            NOW,
+            {},
+            paths=pathrisk.table(HISTORY, gate_start),
+        )
+        f_of = evaluate.percentiles(twin, self.units, gate_start, CUTOFF)
+        m = evaluate.evaluate(
+            evaluate.predictor(twin),
+            evaluate.full_slice(self.rows, gate_start, CUTOFF),
+            f_of,
+        )
+        e = m["events"]
+        self.assertEqual(e["f"], [f_of[u] for u in e["unit"]])
+        self.assertGreater(len(set(e["f"])), 10)
+        self.assertEqual(out["budget"]["base"], evaluate.search(m["events"]))
+        self.assertEqual(
+            out["vs_td"]["pr"]["model"],
+            evaluate.with_model(m, evaluate.spread(out["budget"]["shown"]))["pr"][
+                "model"
+            ],
+        )
+
+    def test_no_risk_score_fails(self) -> None:
+        out = evaluate.run_gate(self.rows, self.units, CUTOFF, None, NOW, {})
+        self.assertFalse(out["passed"])
+        self.assertFalse(out["budget"]["risk"])
+        self.assertIsNone(out["budget"]["base"])
+        self.assertIn(
+            "FAIL: the twin has no risk score, so no time budget", out["reasons"]
+        )
+        self.assertNotIn("model", out["vs_td"]["pr"])
+        self.assertIsNone(out["budget"]["shown"])
+        text = report.summary({**out, "window": ["a", "b"]})
+        self.assertIn("| TD |", text)
+        self.assertNotIn("| model |", text)
+        self.assertNotIn("Time budget base", text)
 
     def test_oversized_model_is_not_written(self) -> None:
         with mock.patch.object(cli, "MAX_MODEL_BYTES", 10_000):
@@ -575,7 +822,10 @@ class TestRefit(TestCase):
         self.assertEqual(code, cli.EXIT_OK)
         report = json.loads((self.out / cli.REPORT_FILE).read_text())
         self.assertEqual(report["vs_live"]["since"], "2026-10-18T00:00:00Z")
+        self.assertEqual(report["vs_live"]["share"], report["budget"]["base"])
         self.assertGreater(report["bootstrap_live"]["pr_events"], 0)
+        summary = (self.out / cli.SUMMARY_FILE).read_text()
+        self.assertIn(f"both at {report['budget']['base']:.0%})", summary)
         self.assertIsNotNone(report["live_calibration"])
         live.write_text(json.dumps({**live_doc, "enabled": False}))
         self.out = Path(self.dir.name) / "out2"

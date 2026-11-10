@@ -20,6 +20,7 @@ MAX_CLIP = 0.01
 MAX_TRAINED_AT = 32
 # exp(-x) overflows a float64 past x ~ 709.
 EXP_LIMIT = 700.0
+SHARE_FLOOR, SHARE_CEILING = 0.10, 0.40
 MAX_PATH_NODES = 20000
 MAX_KEY_CHARS = 512
 MAX_CHANGED_FILES = 10000
@@ -182,8 +183,10 @@ def risk_problem(risk: Any) -> Optional[str]:
         return "risk: quantiles not ascending"
     lo: Any = risk.get("share_min")
     hi: Any = risk.get("share_max")
-    if not (is_number(lo) and is_number(hi) and 0 <= lo <= hi <= 1):
+    if not (is_number(lo) and is_number(hi)):
         return "risk: bad shares"
+    if not SHARE_FLOOR <= lo <= hi <= SHARE_CEILING:
+        return f"risk: shares outside [{SHARE_FLOOR}, {SHARE_CEILING}]"
     if "paths" in risk or any(f in spec.PATH_FEATURES for f in names):
         return paths_problem(risk.get("paths"))
     return None
@@ -292,4 +295,9 @@ def risk(
         s += coef * (x - mean) / scale
     value = sigmoid(s)
     f = bisect_right(r["quantiles"], value) / len(r["quantiles"])
-    return value, f, r["share_min"] + (r["share_max"] - r["share_min"]) * f
+    return value, f, share(r["share_min"], r["share_max"], f)
+
+
+def share(share_min: float, share_max: float, f: float) -> float:
+    """The budget's share of the job's test time for a change at risk percentile f."""
+    return share_min + (share_max - share_min) * f

@@ -19,10 +19,12 @@ def gate_record(out: dict[str, Any]) -> dict[str, Any]:
         for k in ("pr", "main", "pooled")
     }
     cal = out["calibration"]
+    budget = out["budget"]
     return {
         "window": out["window"],
+        "base": budget["base"],
         "recall_vs_td": recall,
-        "bootstrap_td": out["bootstrap_td"],
+        "bootstrap_td": budget["bootstrap"],
         "bootstrap_live": out["bootstrap_live"],
         "calibration": cal and {k: cal[k] for k in ("ratio", "brier", "positives")},
         "reasons": out["reasons"],
@@ -46,13 +48,27 @@ def summary(out: dict[str, Any]) -> str:
     lines += [f"- {r}" for r in out.get("reasons", [])]
     if "error" in out:
         lines += [f"- {gate.FAIL}error: {out['error']}"]
+    budget = out.get("budget") or {}
+    if budget.get("shown") is not None:
+        found = budget["base"] is not None
+        lo, hi = budget["range"]
+        lines += [
+            "",
+            f"Time budget base: {budget['shown']:.0%} (ranked {lo:.0%} to {hi:.0%} of"
+            " test time by risk)"
+            + ("" if found else f", no base up to {budget['max_base']:.0%} passed"),
+        ]
     sections: list[tuple[str, Any, tuple[str, ...]]] = [
         ("Twin vs TD (last 28 days)", out.get("vs_td"), ("td", "model"))
     ]
     if out.get("vs_live"):
         live = out["vs_live"]
         sections.append(
-            (f"Twin vs live (since {live['since']})", live["twin"], ("model",))
+            (
+                f"Twin vs live (since {live['since']}, both at {live['share']:.0%})",
+                live["twin"],
+                ("model",),
+            )
         )
         sections.append(("", live["live"], ("model",)))
     for title, metrics, cuts in sections:
@@ -64,15 +80,18 @@ def summary(out: dict[str, Any]) -> str:
                 f"## {title}",
                 "",
                 "| cut | PR failures | fresh main failures"
-                " | pooled | test share | cost share |",
+                " | pooled | share of tests | share of test time |",
                 "|---|---|---|---|---|---|",
             ]
         for cut in cuts:
             name = {"td": "TD", "model": "model"}[cut] if title else "live model"
             pooled = metrics["pooled"]
+            if cut not in pooled:
+                continue
+            tests = _share(pooled["test_share"]) if cut == "td" else "-"
             lines.append(
                 f"| {name} | {_pct(metrics['pr'][cut])} | {_pct(metrics['main'][cut])}"
-                f" | {_pct(pooled[cut])} | {_share(pooled['test_share'])}"
+                f" | {_pct(pooled[cut])} | {tests}"
                 f" | {_share(pooled[cut]['cost_share'])} |"
             )
     lines += ["", calibrated_line(out)]

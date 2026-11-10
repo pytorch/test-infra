@@ -266,6 +266,12 @@ class TestExploredValidation(TestCase):
         self.assertEqual(self.check(xrow(pr_number=None)), "")
         self.assertEqual(self.check(xrow([])), "")
 
+    def test_accepts_a_budget_era_row(self):
+        for base in ("budget", "td_cut"):
+            reason, unit = exploration_rows.validate(xrow(base=base), xjob())
+            self.assertEqual(reason, "", base)
+            self.assertEqual(unit, exploration_rows.validate(xrow(), xjob())[1])
+
     def test_each_rejection(self):
         missing = drawn()
         del missing["top_part"]

@@ -2,11 +2,12 @@
 
 A model that ranks pytorch's test files for target determination (TD), retrained every
 week. pytorch's TD job turns the TD heuristics' scores into p, the probability that a test
-fails because of the change. Each test job then keeps 25% of its test files, as before,
-ordered by p / cost ** a, where cost is the file's test time on that job plus 15 s and a
-(0 to 1) is picked on that job so the 25% cost the same test time as TD's own 25% would.
-The cut's CI cost stays as it was; only which files run changes. a = 1 is the order a
-test-time budget would use.
+fails because of the change, and scores the change's risk of breaking main. Each test job
+then runs a time budget instead of TD's 25% count cut: its test files ranked by p / cost
+(cost: the file's test time on that job plus 15 s; ties by name), taken while the time
+taken is below the change's share of the job's total test time (the file that crosses it
+is kept). The share is `share_min + (share_max - share_min) * F`, F the change's risk
+percentile among recent landed changes: riskier changes run more of their tests.
 
 ## How it plugs into TD
 
@@ -16,10 +17,13 @@ test-time budget would use.
 - pytorch's `tools/testing/do_target_determination_for_s3.py` downloads the file, and
   `tools/testing/target_determination/scorer/` evaluates it in pure Python. The TD job
   writes TD's heuristic sum to `td_results.json` as before, plus a `scorer` block with p for
-  every test and the risk score, and emits one `td_scorer` metric per TD run.
-- `run_test.py`'s cut step reads p and takes the matched order above. On any problem (no
-  model, an unreadable or invalid file, `"enabled": false`, a feature pytorch does not know,
-  missing test times, an exception), it takes TD's cut as before.
+  every test and the risk score, and emits one `td_scorer` metric per TD run. It writes a
+  fallback block instead when the model is missing, invalid, or trained more than 16 days
+  before the run, or when a heuristic behind a feature the model reads raised.
+- `run_test.py`'s cut step reads p and the budget share and takes the budget above, then
+  draws TD's exploration from the files left out with a fixed 5% of the job's total test
+  time, on top of the budget. On any problem (a fallback block, `"enabled": false`, no
+  risk score, missing test times, an exception), it takes TD's cut as before.
 
 ## The model file (format 1)
 
@@ -47,9 +51,10 @@ validates and evaluates a model the way pytorch does, and a shared fixture
   among `quantiles`.
 - Limits pytorch enforces: at most 1000 trees, 255 nodes per tree, depth 8, 20000 nodes in
   all, 5 MB; every number finite; at most 20000 path nodes, rates in [0, 1], keys
-  non-empty, at most 512 characters, without control characters. Every float is rounded
-  to 9 decimals: the org's secret scanning blocks pushes holding a run of 15 or more
-  digits.
+  non-empty, at most 512 characters, without control characters; 0.10 <= `share_min` <=
+  `share_max` <= 0.40 (else the risk block, and with it the budget, is unusable). Every
+  float is rounded to 9 decimals: the org's secret scanning blocks pushes holding a run
+  of 15 or more digits.
 
 ## Training
 
@@ -68,13 +73,17 @@ validates and evaluates a model the way pytorch does, and a shared fixture
 - **Scorer**: scikit-learn's `HistGradientBoostingClassifier` (depth 3, learning rate 0.05,
   up to 300 trees, 200 rows per leaf, L2 1.0, early stopping), Platt-scaled on the last 28
   days (42 or 56 when positives are scarce) by a twin fit before them.
-- **Risk score** (recorded, not used): a logistic regression on landed changes predicting
+- **Risk score**: a logistic regression on landed changes predicting
   that a change newly breaks main, from the change alone: its files, source files, test
   files, docs-only flag, areas and significant lines added and deleted (the scorer's p is
   in-sample on training changes, so it is not an input), plus the revert rates of the
   paths it touches. Each change weighs as the row builder subsampled it (1 / 0.2 for a
-  kept main unit without a positive). Its share averages 15% over landed changes; its
-  mean on PR runs is not calibrated.
+  kept main unit without a positive). F's quantiles are the order statistics of the risks
+  of the landed changes of the 90 days before the cutoff, weighted alike, so the share
+  averages the base over recent landed changes; failing PR jobs sit at a higher mean F.
+- **The budget's range**: `share_min`/`share_max` = base -/+ 0.05, the base chosen by the
+  gate (below): the smallest from 0.15 up to 0.35 that keeps PR recall within a point of
+  TD's cut.
 - **Path revert rates** (`pathrisk.py`), from the clone's main (first-parent history):
   a revert is a commit whose subject starts with `Revert ` or `Back out` and whose
   message's first `This reverts commit <sha>` names an older main commit. Over the
@@ -90,10 +99,16 @@ validates and evaluates a model the way pytorch does, and a shared fixture
 `python -m torchci.td.scorer refit` writes `td_scorer.json` only when a twin of the new
 model, trained before the slices it is judged on, passes:
 
-- against TD's own cut (replayed) on the last 28 settled days: the paired bootstrap's 95%
-  upper bound of the twin's recall minus TD's is not below 0;
+- against TD's own cut (replayed) on the last 28 settled days: the twin, with its risk
+  score and path table as of the slice's start, runs the budget per unit (each failing
+  file's "need": the share of the job's test time ranked ahead of it; the budget keeps it
+  when the need is below the share). The base is the smallest from 0.15 to 0.35, in steps
+  of 0.01, whose PR failure recall minus TD's has a paired bootstrap (resampling PRs) 95%
+  lower bound of at least -0.01; no such base fails the run. Fresh failures on main are
+  reported beside it;
 - against the live model, on the units after the live model's data, when there are at
-  least 100 PR failures: the same bound of the twin minus live is not below 0;
+  least 100 PR failures: both at a flat share equal to the chosen base, the paired
+  bootstrap's 95% upper bound of the twin's recall minus live's is not below 0;
 - calibration on landed changes over the last 56 days (at least 20 positives): mean p over
   the observed rate is within [0.5, 2]. New failures on main are rare, so this and Platt
   scaling are often skipped; the summary says whether the model is calibrated, and also
@@ -124,10 +139,13 @@ python -m torchci.td.scorer refit --pytorch ~/pytorch --stats-dir <generated-sta
 - **First model**: dispatch the workflow once from main after it lands; until a model is
   published, TD keeps its own cut and the daily check fails.
 - **Turn it off**: set `"enabled": false` in `stats/td_scorer.json` on `generated-stats`.
-  New TD runs fall back to TD's own cut within minutes (the test jobs of a workflow whose
-  TD job already ran keep its ranking), and the weekly publish never replaces a disabled
-  file. Turn it back on by setting `true` (the next refit then replaces it).
+  This is the only switch. New TD runs fall back to TD's own cut within minutes (the test
+  jobs of a workflow whose TD job already ran keep its ranking), and the weekly publish
+  never replaces a disabled file. Turn it back on by setting `true` (the next refit then
+  replaces it). Each refit writes the budget's range itself, so a hand edit of
+  `share_min`/`share_max` lasts only until the next publish.
 - **Roll back**: copy an earlier version of `stats/td_scorer.json` from the
   `generated-stats` history over the current one.
 - **Logged scores**: `td_test_failure_stats_v2` keeps TD's own position and scores; when
-  the model's cut ran, its `scorer` field holds the model, a and the deployed position.
+  the budget ran, its `scorer` field holds the model, the budget and the deployed
+  position.

@@ -1,7 +1,8 @@
 """Training: the scorer (gradient-boosted trees over spec.SCORER_FEATURES), its Platt
-scaling by a twin fit before the calibration slice, and the shadow risk score, exported
-as td_scorer.json (format 1). The exported, rounded document is the model of record:
-everything downstream (the gate) scores that document."""
+scaling by a twin fit before the calibration slice, and the risk score that sets each
+change's test-time budget, exported as td_scorer.json (format 1). The exported,
+rounded document is the model of record: everything downstream (the gate) scores that
+document."""
 
 import json
 import logging
@@ -39,8 +40,10 @@ PLATT_C = 1e6
 CLIP = 1e-7
 RISK_C = 0.1
 RISK_MAX_ITER = 2000
-SHARE_MIN, SHARE_MAX = 0.10, 0.20
 DECIMALS = 9
+WIDTH = 0.10
+TARGET_BASE = round(model_json.SHARE_FLOOR + WIDTH / 2, DECIMALS)
+QUANTILE_DAYS = 90
 # sklearn splits "NaN vs any value" at an infinite threshold; the format holds finite
 # numbers only, and every feature value is far below this one.
 MAX_THRESHOLD = 1e308
@@ -264,13 +267,22 @@ def order_statistics(
     return ordered[np.round(np.linspace(0, len(ordered) - 1, k)).astype(int)].tolist()
 
 
+def share_range(base: float) -> tuple[float, float]:
+    """(share_min, share_max) of the budget at `base`, rounded as the file holds them."""
+    return round(base - WIDTH / 2, DECIMALS), round(base + WIDTH / 2, DECIMALS)
+
+
 def fit_risk(
-    table: pd.DataFrame, paths: Optional[dict[str, Any]] = None
+    table: pd.DataFrame,
+    end: int,
+    paths: Optional[dict[str, Any]] = None,
+    base: float = TARGET_BASE,
 ) -> Optional[dict[str, Any]]:
     """The risk block: a standardised logistic regression on the changes in `table`,
-    each weighing its `uw` (the row builder's subsampling), the order statistics of
-    their risks for the share mapping and the served path table (pathrisk.table); None
-    when the table holds one class only."""
+    each weighing its `uw` (the row builder's subsampling); the share mapping's quantiles,
+    the order statistics of the risks of the changes of the QUANTILE_DAYS before `end`,
+    each repeated by its `uw`; the budget's range at `base`; and the served path table
+    (pathrisk.table). None when the table holds one class only."""
     if table["y"].nunique() < 2:
         logger.warning("risk: %d changes of one class only, no risk block", len(table))
         return None
@@ -279,14 +291,14 @@ def fit_risk(
     fill = frame.median().fillna(0.0)
     x = frame.fillna(fill).to_numpy()
     scaler = StandardScaler().fit(x)
+    weight = table["uw"].to_numpy(dtype=np.float64)
     model = LogisticRegression(
         C=RISK_C, class_weight="balanced", max_iter=RISK_MAX_ITER
-    ).fit(
-        scaler.transform(x),
-        table["y"].to_numpy(),
-        sample_weight=table["uw"].to_numpy(dtype=np.float64),
-    )
+    ).fit(scaler.transform(x), table["y"].to_numpy(), sample_weight=weight)
     risks = model.predict_proba(scaler.transform(x))[:, 1]
+    recent = (table["time"] >= end - QUANTILE_DAYS * DAY).to_numpy()
+    repeats = np.rint(weight[recent]).astype(np.int64)
+    share_min, share_max = share_range(base)
     return {
         "features": names,
         "fill": fill.tolist(),
@@ -294,9 +306,9 @@ def fit_risk(
         "scale": scaler.scale_.tolist(),
         "coef": model.coef_[0].tolist(),
         "intercept": float(model.intercept_[0]),
-        "quantiles": order_statistics(risks),
-        "share_min": SHARE_MIN,
-        "share_max": SHARE_MAX,
+        "quantiles": order_statistics(np.repeat(risks[recent], repeats)),
+        "share_min": share_min,
+        "share_max": share_max,
         **({"paths": paths} if paths is not None else {}),
     }
 
@@ -309,13 +321,15 @@ def fit(
     source: dict[str, Any],
     with_risk: bool = True,
     paths: Optional[dict[str, Any]] = None,
+    base: float = TARGET_BASE,
 ) -> dict[str, Any]:
     """The exported model trained on everything before `end`: scorer, Platt and (with
-    `with_risk`) the risk block fit on the unit table's landed changes, serving the path
-    table `paths` (the block is dropped without one: its path features need it)."""
+    `with_risk`) the risk block fit on the unit table's landed changes, with the budget
+    at `base` and serving the path table `paths` (the block is dropped without one: its
+    path features need it)."""
     train = training_rows(rows, units, end)
     logger.info("scorer: %d rows, %d positives", len(train), int(train["y"].sum()))
     model = fit_scorer(train)
     platt = fit_platt(rows, units, end)
-    risk = fit_risk(risk_table(units, end), paths) if with_risk else None
+    risk = fit_risk(risk_table(units, end), end, paths, base) if with_risk else None
     return export(model, platt, risk, trained_at, end, source)

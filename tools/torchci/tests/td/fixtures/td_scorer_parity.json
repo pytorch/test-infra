@@ -291,16 +291,16 @@
    "path_revert_mean": -2.1202635362
   }
  },
- "cut_case": {
-  "td_order": [
-   "h",
-   "b",
-   "d",
-   "c",
+ "budget_cut_case": {
+  "tests": [
    "a",
+   "b",
+   "c",
+   "d",
    "e",
    "f",
-   "g"
+   "g",
+   "h"
   ],
   "p": {
    "a": 0.3,
@@ -322,13 +322,17 @@
    "g": 18.0,
    "h": 380.0
   },
-  "percent": 25,
-  "expected_exponent": 0.2,
-  "expected_include": [
+  "budget_share": 0.25,
+  "expected_selected": [
    "b",
-   "a",
-   "d"
-  ]
+   "d",
+   "e",
+   "g",
+   "a"
+  ],
+  "expected_selected_seconds": 528.0,
+  "expected_total_seconds": 1243.0,
+  "expected_budget_seconds": 310.75
  },
  "numstat_case": {
   "records": [

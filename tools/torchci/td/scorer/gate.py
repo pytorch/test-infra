@@ -1,5 +1,6 @@
-"""The refit's gate (a twin of the new model against TD and the live model), the live
-model's drift, and the daily staleness check. Stdlib only: `check` runs without numpy."""
+"""The refit's gate (a twin of the new model's time budget against TD's cut and the live
+model), the live model's drift, and the daily staleness check. Stdlib only: `check` runs
+without numpy."""
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional, Union
@@ -29,26 +30,49 @@ def _interval(b: dict[str, Any]) -> str:
 
 
 def gate(
-    twin_vs_td: Optional[dict[str, Any]],
+    budget: dict[str, Any],
     twin_vs_live: Optional[dict[str, Any]],
     calibration: Optional[dict[str, Any]],
 ) -> tuple[bool, list[str]]:
     """(passed, reasons): failures start with FAIL, the rest are notes.
 
-    - twin_vs_td: paired_bootstrap of (twin - TD) recall on the last GATE_DAYS settled
-      days; fails when its upper bound is below 0, or when there are no events.
+    - budget: the twin's time budget against TD's cut on the last GATE_DAYS settled
+      days: "risk" (whether the twin has a risk score), "base" (the base the search
+      chose, None when none up to "max_base" keeps PR recall within "max_loss" of TD's),
+      "known_pr_events" (PR events with test times) and "bootstrap" (paired_bootstrap
+      of the budget's minus TD's PR recall at that base, else at "max_base"; None
+      without PR events). Fails without a risk score, without PR events, with fewer
+      than MIN_LIVE_PR_EVENTS known ones, or without a base.
     - twin_vs_live: the same against the live model on the units after its data, with
       "pr_events"; None without a live model; skipped below MIN_LIVE_PR_EVENTS PR events.
-    - calibration: evaluate.calibration of the twin; fails outside CALIBRATION_BAND,
+    - calibration: calibration.calibration of the twin; fails outside CALIBRATION_BAND,
       skipped when None (too few positives).
     """
     reasons = []
-    if twin_vs_td is None:
-        reasons.append(FAIL + "no failure events to compare the model with TD on")
-    elif twin_vs_td["hi"] < 0:
-        reasons.append(FAIL + "model below TD: " + _interval(twin_vs_td))
+    boot, known = budget["bootstrap"], budget["known_pr_events"]
+    if not budget["risk"]:
+        reasons.append(FAIL + "the twin has no risk score, so no time budget")
+    elif boot is None:
+        reasons.append(FAIL + "no PR failure events to compare the model with TD on")
+    elif known < MIN_LIVE_PR_EVENTS:
+        reasons.append(
+            FAIL
+            + "too few PR failures with test times to choose a base"
+            + f" ({known} < {MIN_LIVE_PR_EVENTS})"
+        )
+    elif budget["base"] is None:
+        reasons.append(
+            FAIL
+            + f"no base up to {budget['max_base']:.0%} keeps PR recall within"
+            + f" {budget['max_loss'] * 100:g} point of TD's cut: "
+            + _interval(boot)
+        )
     else:
-        reasons.append(NOTE + "model vs TD: " + _interval(twin_vs_td))
+        reasons.append(
+            NOTE
+            + f"base {budget['base']:.0%}: model vs TD on PR failures: "
+            + _interval(boot)
+        )
     if twin_vs_live is None:
         reasons.append(NOTE + "no live model to compare with")
     elif twin_vs_live.get("pr_events", 0) < MIN_LIVE_PR_EVENTS:

@@ -215,7 +215,9 @@ def refit(args: argparse.Namespace) -> int:
     threads = min(args.threads or MAX_FIT_THREADS, MAX_FIT_THREADS)
     with threadpool_limits(limits=threads):
         out.update(
-            evaluate.run_gate(rows, units, epoch(cutoff), live, trained_at, source)
+            evaluate.run_gate(
+                rows, units, epoch(cutoff), live, trained_at, source, history
+            )
         )
         if live_disabled:
             out["passed"] = False
@@ -223,7 +225,10 @@ def refit(args: argparse.Namespace) -> int:
         doc = None
         if out["passed"]:
             paths = pathrisk.table(history, epoch(cutoff))
-            doc = train.fit(rows, units, epoch(cutoff), trained_at, source, paths=paths)
+            base = out["budget"]["base"]
+            doc = train.fit(
+                rows, units, epoch(cutoff), trained_at, source, paths=paths, base=base
+            )
             doc["gate"] = train.rounded(gate_record(out))
             out["model_calibrated"] = doc["calibrated"]
     write_report(args.out, train.rounded(out))
