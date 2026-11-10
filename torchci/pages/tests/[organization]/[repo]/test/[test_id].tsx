@@ -1,18 +1,14 @@
 import { Alert } from "@mui/material";
-import AccessNotice from "components/tests/AccessNotice";
 import LoadError from "components/tests/LoadError";
 import PageColumn from "components/tests/PageColumn";
 import RunGrid from "components/tests/RunGrid";
 import TestHeader from "components/tests/TestHeader";
-import TestTitle from "components/tests/TestTitle";
 import { labelOf } from "lib/tests/facets";
 import { GridQuery, gridUrlParams, resolveGridQuery } from "lib/tests/grid";
-import { accessReasonOf } from "lib/tests/table";
 import { mergedUrlQuery } from "lib/tests/url";
 import { useTestDetail } from "lib/tests/useTestDetail";
 import { useTestGrid } from "lib/tests/useTestGrid";
 import { useTestsOptions } from "lib/tests/useTestsOptions";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
 
@@ -27,10 +23,8 @@ import { useMemo } from "react";
 // configuration marked, which the list's evidence links name
 // (gridUrlParams), resolved against GET /api/tests/options, which also
 // labels the language and the choices, like every label on the list page;
-// the choices are keys in the grid's header. The API is behind
-// the HUD GitHub gate, which the browser passes with its HUD sign-in cookie;
-// when the API refuses, the page says why in place of the test and offers
-// the sign-in, as the list page does.
+// the choices are keys in the grid's header. The page is public, as the
+// list page is: the API's GitHub gate lets its requests through.
 export default function Page() {
   const router = useRouter();
   const { organization, repo, test_id: testIdParam } = router.query;
@@ -39,10 +33,6 @@ export default function Page() {
       ? `${organization}/${repo}`
       : undefined;
   const testId = typeof testIdParam === "string" ? testIdParam : undefined;
-  // The API decides from the sign-in cookie; the client-side session only
-  // words a refusal.
-  const session = useSession();
-  const signedIn = session.status === "authenticated";
   const { detail, notFound, error, retry } = useTestDetail(testId);
   const {
     options,
@@ -66,10 +56,6 @@ export default function Page() {
   // The grid is asked for as soon as the choices are known, alongside the
   // test, and shown once the test is known to be this repository's.
   const runs = useTestGrid(missing ? undefined : testId, gridQuery);
-  const accessReason =
-    accessReasonOf(error, signedIn) ??
-    accessReasonOf(optionsError, signedIn) ??
-    accessReasonOf(runs.error, signedIn);
   // The language as the options label it; the value itself should the
   // options fail, since a word is better than a gap.
   const languageLabel =
@@ -94,14 +80,6 @@ export default function Page() {
     );
   };
 
-  if (accessReason !== undefined) {
-    return (
-      <PageColumn>
-        <TestTitle test={undefined} />
-        <AccessNotice reason={accessReason} />
-      </PageColumn>
-    );
-  }
   return (
     <PageColumn>
       <TestHeader

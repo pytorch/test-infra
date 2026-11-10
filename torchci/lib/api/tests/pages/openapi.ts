@@ -36,7 +36,7 @@ export const PAGES_TAG = "pages";
 
 // What every page's description says about itself: a page, not an API.
 const PAGE_NATURE =
-  "A HUD page, for people: HTML, not JSON. Give a reader its URL rather than fetching it. The page loads its data from the tests endpoints with the reader's HUD sign-in, so it needs no token of its own, and a program fetching it gets the HTML shell or the bot challenge. The repository is two path segments, {organization}/{repo}, where the API takes one repo value, pytorch/pytorch.";
+  "A HUD page, for people: HTML, not JSON. Give a reader its URL rather than fetching it. The page is public: it loads its data from the tests endpoints in the reader's browser, so the reader needs no token or sign-in, and a program fetching it gets the HTML shell or the bot challenge. The repository is two path segments, {organization}/{repo}, where the API takes one repo value, pytorch/pytorch.";
 
 const HTML_RESPONSE = {
   description: "The page, as HTML.",

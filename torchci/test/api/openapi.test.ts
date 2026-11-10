@@ -284,7 +284,7 @@ describe("GET /api/openapi.json", () => {
       expect(item.get.responses["403"].description).toMatch(/forbidden/);
       expect(item.get.responses["503"].description).toMatch(/Retry-After/);
     }
-    // The pages need no token of their own: the browser's sign-in is theirs.
+    // The pages are public: they need no token.
     for (const [path, item] of pathsTagged(document, "pages")) {
       expect({ path, security: item.get.security }).toEqual({
         path,

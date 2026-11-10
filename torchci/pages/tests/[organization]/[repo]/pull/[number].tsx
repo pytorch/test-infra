@@ -1,13 +1,10 @@
 import { Alert, Stack, Typography } from "@mui/material";
-import AccessNotice from "components/tests/AccessNotice";
 import CommitHeader from "components/tests/CommitHeader";
 import LoadError from "components/tests/LoadError";
 import PageColumn from "components/tests/PageColumn";
 import { HEADLINE_SX } from "lib/tests/header";
 import { pullPageTarget } from "lib/tests/pullPage";
-import { accessReasonOf } from "lib/tests/table";
 import { usePullRequestHead } from "lib/tests/usePullRequestHead";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 import { SWRConfig } from "swr";
@@ -18,11 +15,9 @@ import { SWRConfig } from "swr";
 // skips it), passing on the commit page's parameters its URL carries
 // (pullPageTarget in lib/tests/pullPage.ts). Until then it holds the commit
 // page's own loading header, so the commit page arrives without a jump. The
-// API is behind the HUD GitHub gate, which the browser passes with its HUD
-// sign-in cookie; when the API refuses, the page says why and offers the
-// sign-in, as the other hub pages do. A number HUD has no pull request for
-// is said in place of the commit; any other failure shows the API's error
-// with a Retry.
+// page is public, as the other hub pages are: the API's GitHub gate lets its
+// requests through. A number HUD has no pull request for is said in place of
+// the commit; any other failure shows the API's error with a Retry.
 
 // Each visit asks the API afresh, in an SWR cache of its own. From the
 // shared cache, a later visit in the same tab would get the head an earlier
@@ -47,8 +42,6 @@ function PullRequestPage() {
       ? `${organization}/${repo}`
       : undefined;
   const pullNumber = typeof number === "string" ? number : undefined;
-  const session = useSession();
-  const signedIn = session.status === "authenticated";
   const { pullRequest, notFound, error, retry } = usePullRequestHead(
     repository,
     pullNumber
@@ -66,8 +59,7 @@ function PullRequestPage() {
     void current.replace(pullPageTarget(repository, headSha, current.query));
   }, [repository, headSha]);
 
-  const accessReason = accessReasonOf(error, signedIn);
-  if (!notFound && error === undefined && accessReason === undefined) {
+  if (!notFound && error === undefined) {
     return (
       <PageColumn>
         <CommitHeader repo={repository ?? ""} commit={undefined} loading />
@@ -82,9 +74,7 @@ function PullRequestPage() {
             ? "Pull request"
             : `Pull request #${pullNumber}`}
         </Typography>
-        {accessReason !== undefined ? (
-          <AccessNotice reason={accessReason} />
-        ) : notFound ? (
+        {notFound ? (
           <Alert severity="warning">
             HUD has no pull request #{pullNumber} in {repository}.
           </Alert>
