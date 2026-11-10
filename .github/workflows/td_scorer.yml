@@ -1,0 +1,246 @@
+name: TD scorer
+
+on:
+  schedule:
+    # Mondays: refit the model on the last year of labels, gate it and publish it.
+    - cron: 17 13 * * 1
+    # Every day: check the published model and how often pytorch's TD falls back.
+    - cron: 41 15 * * *
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refit:
+    if: >-
+      github.repository == 'pytorch/test-infra' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 13 * * 1')
+    runs-on: linux.12xlarge
+    timeout-minutes: 300
+    concurrency:
+      group: td-scorer-refit
+      cancel-in-progress: false
+    outputs:
+      status: ${{ steps.refit.outputs.status }}
+    steps:
+      - name: Checkout pytorch/test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: test-infra
+          persist-credentials: false
+
+      - name: Checkout pytorch/pytorch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/pytorch
+          path: pytorch
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout generated-stats
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: generated-stats
+          path: generated-stats
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Restore the embedding cache
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: llm-cache
+          key: td-scorer-llm-${{ github.run_id }}
+          restore-keys: td-scorer-llm-
+
+      - name: Setup uv
+        uses: ./test-infra/.github/actions/setup-uv
+        with:
+          python-version: "3.12"
+          activate-environment: true
+
+      - name: Install dependencies
+        env:
+          UV_NO_CONFIG: "1"
+        run: |
+          set -euxo pipefail
+          uv pip install -r test-infra/tools/torchci/td/llm/requirements-torch.txt \
+            --index-url https://download.pytorch.org/whl/cpu
+          uv pip install -r test-infra/tools/torchci/td/llm/requirements.txt \
+            -r test-infra/tools/torchci/requirements.txt \
+            -r test-infra/tools/torchci/td/scorer/requirements.txt
+          uv pip install -e test-infra/tools/torchci
+
+      - name: Refit, gate and write the model
+        id: refit
+        timeout-minutes: 270
+        continue-on-error: true
+        env:
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+        run: |
+          set -uo pipefail
+          live=generated-stats/stats/td_scorer.json
+          [ -f "${live}" ] || live=""
+          python -m torchci.td.scorer refit --pytorch pytorch \
+            --stats-dir generated-stats/stats --live "${live}" --out out \
+            --fetch --procs 6 --threads "$(nproc)" --llm-cache llm-cache \
+            --run-id "${GITHUB_RUN_ID}" --commit "${GITHUB_SHA::12}"
+          status=$?
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          if [ -f out/summary.md ]; then
+            cat out/summary.md >> "${GITHUB_STEP_SUMMARY}"
+          fi
+          # 0: a model passed the gate and was written; 3: the gate kept the live model, or
+          # the live model is disabled; anything else is an error.
+          exit "${status}"
+
+      # Saved whatever the refit's outcome, so a gate failure or a timeout keeps the week's
+      # new embeddings (actions/cache saves only on success).
+      - name: Save the embedding cache
+        if: always()
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: llm-cache
+          key: td-scorer-llm-${{ github.run_id }}
+
+      - name: Upload the model and report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: td-scorer
+          path: |
+            out/td_scorer.json
+            out/report.json
+            out/summary.md
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Fail unless a model was written
+        if: always()
+        env:
+          STATUS: ${{ steps.refit.outputs.status }}
+        run: |
+          if [ "${STATUS}" != "0" ]; then
+            echo "refit exited with '${STATUS}' (3: the gate kept the live model, or it is disabled)"
+            exit 1
+          fi
+
+  publish:
+    needs: refit
+    if: needs.refit.outputs.status == '0'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: td-scorer-publish
+      cancel-in-progress: false
+    steps:
+      - name: Download the model
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: td-scorer
+          path: model
+
+      - name: Check the model file
+        run: |
+          set -euo pipefail
+          # The org's secret scanning blocks pushes holding a run of 15 or more digits.
+          if grep -qE '[0-9]{15,}' model/td_scorer.json; then
+            echo "td_scorer.json holds a run of 15 or more digits; not publishing"
+            exit 1
+          fi
+          python3 - <<'EOF'
+          import json
+          doc = json.load(open("model/td_scorer.json"))
+          assert doc["format"] == 1 and doc["enabled"] is True, "not an enabled format-1 model"
+          assert doc["data_through"] and doc["trained_at"], "no dates"
+          EOF
+
+      - name: Checkout generated-stats
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: generated-stats
+          path: generated-stats
+          fetch-depth: 1
+
+      - name: Push the model to generated-stats
+        working-directory: generated-stats
+        run: |
+          set -euo pipefail
+          git config user.name "Pytorch Test Infra"
+          git config user.email "test-infra@pytorch.org"
+          # Other workflows push to generated-stats too: rebuild the commit on the latest tip
+          # and retry when a push fails, e.g. because one of them pushed first.
+          for attempt in 1 2 3 4 5; do
+            if [ "${attempt}" -gt 1 ]; then
+              sleep $((attempt * 15))
+            fi
+            if ! git fetch --depth=1 origin generated-stats; then
+              continue
+            fi
+            git reset --hard FETCH_HEAD
+            # Never replace a model an operator disabled, nor one built on newer data.
+            set +e
+            python3 - <<'EOF'
+          import json, os, sys
+          path = "stats/td_scorer.json"
+          if not os.path.exists(path):
+              sys.exit(0)
+          live = json.load(open(path))
+          new = json.load(open("../model/td_scorer.json"))
+          if live.get("enabled") is not True:
+              print("::warning::The published model is disabled; not replacing it")
+              sys.exit(3)
+          if str(live.get("data_through", "")) > str(new["data_through"]):
+              print("::warning::The published model was built on newer data; not replacing it")
+              sys.exit(3)
+          EOF
+            guard=$?
+            set -e
+            if [ "${guard}" -eq 3 ]; then
+              exit 0
+            elif [ "${guard}" -ne 0 ]; then
+              echo "Could not compare with the published model"
+              exit 1
+            fi
+            cp ../model/td_scorer.json stats/td_scorer.json
+            git add stats/td_scorer.json
+            if git diff --cached --quiet; then
+              echo "No changes to push"
+              exit 0
+            fi
+            git commit -m "Updating the TD scorer model"
+            if git push origin HEAD:generated-stats; then
+              exit 0
+            fi
+          done
+          echo "Failed to push to generated-stats after 5 attempts"
+          exit 1
+
+  check:
+    if: >-
+      github.repository == 'pytorch/test-infra' &&
+      (github.event_name == 'workflow_dispatch' || github.event.schedule == '41 15 * * *')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pytorch/test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: pip3 install clickhouse-connect==0.8.14
+
+      - name: Check the published model and the fallback rate
+        working-directory: tools
+        env:
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+        run: |
+          set -o pipefail
+          python3 -m torchci.td.scorer check --metrics \
+            --model https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/td_scorer.json \
+            | tee -a "${GITHUB_STEP_SUMMARY}"
