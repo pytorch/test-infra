@@ -150,6 +150,14 @@ class TestEvaluateHoldout(TestCase):
             partial = holdout_set([1, 3])
             del partial.meta[key]
             self.assertFalse(holdout.holdout_ok(partial))
+        # An empty set is never complete, so it is never stored write-once.
+        empty = holdout_set([1, 3])
+        empty.meta.update(heads_with_td_job=0, heads_with_log=0)
+        self.assertFalse(holdout.holdout_complete(empty))
+        no_units = holdout_set([1, 3])
+        no_units.units = []
+        self.assertFalse(holdout.holdout_complete(no_units))
+        self.assertTrue(holdout.holdout_complete(holdout_set([1, 3])))
 
 
 class TestPublishRule(TestCase):

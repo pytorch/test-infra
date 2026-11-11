@@ -112,13 +112,14 @@ def first_events(shard: DayShard) -> list[tuple[Run, Unit, list[str]]]:
 
 
 def holdout_complete(shard: DayShard) -> bool:
-    """No fetch failed and at most MAX_MISSING_LOGS of the heads with a successful TD job
-    lack its log."""
+    """No fetch failed, it has units and heads with a successful TD job, and at most
+    MAX_MISSING_LOGS of those heads lack its log."""
     meta = shard.meta
-    if "heads_with_td_job" not in meta or "heads_with_log" not in meta:
+    if not meta.get("heads_with_td_job") or "heads_with_log" not in meta:
         return False
     return (
         meta.get("errors", 0) == 0
+        and bool(shard.units)
         and meta["heads_with_log"] >= (1 - MAX_MISSING_LOGS) * meta["heads_with_td_job"]
     )
 
