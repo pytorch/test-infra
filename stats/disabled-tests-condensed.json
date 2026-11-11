@@ -706,6 +706,13 @@
       "linux"
     ]
   ],
+  "test_event_record_after_input_mutation_non_escaping_removed_from_container_container_set_cuda (__main__.TestStreamsCUDA)": [
+    "204469",
+    "https://github.com/pytorch/pytorch/issues/204469",
+    [
+      "linux"
+    ]
+  ],
   "test_extract_gradients_from_optimizer_set_to_none_cpu (__main__.TestIdentifyGradientsCPU)": [
     "202747",
     "https://github.com/pytorch/pytorch/issues/202747",
