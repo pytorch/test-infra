@@ -57,10 +57,12 @@ Judge the change, not the author. Work from the diff outward into `./pytorch`.
    code. Trace changed functions to their callers in `./pytorch` to see if the change
    breaks them. For a skip, expected failure, or other gate the change adds or edits,
    trace what the gate does with its condition's value, on the platforms it names and on
-   the others, reading the gate's own implementation; a gate whose effect differs from
-   what the change says it does — wider, narrower, or a no-op, as with a decorator that
-   acts only on a real `bool` handed a lazily evaluated object, a misspelled flag, or an
-   inverted test — is a correctness finding.
+   the others: read the gate's own implementation where the checkout has it, and for a
+   gate from outside it (`unittest`, `pytest`) settle it from the condition's own type in
+   the checkout. A gate whose effect differs from what its condition says — wider,
+   narrower, or a no-op, as with a decorator that acts only on a real `bool` handed a
+   lazily evaluated object, a misspelled flag, or an inverted test — is a correctness
+   finding.
 2. **Preservation** — Did the change remove error handling, edge-case branches, safety
    checks, or validation without an obvious replacement? Silent removal of defensive
    logic is a NO_LAND signal.
