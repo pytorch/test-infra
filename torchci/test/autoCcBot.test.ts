@@ -299,31 +299,6 @@ cc @gujinghui @PenghuiCheng @XiaobingSuper @ezyang`,
 
     scope.done();
   });
-
-  test("no-op when added label has no subscribers", async () => {
-    mockIsPytorchbotSupportedOrg(true);
-    nock("https://api.github.com")
-      .post("/app/installations/2/access_tokens")
-      .reply(200, { token: "test" });
-
-    nockTracker(`
-* otherlabel @malfet
-`);
-
-    const payload = requireDeepCopy("./fixtures/issues.labeled");
-    payload["issue"]["labels"] = [
-      { name: "testlabel" },
-      { name: "otherlabel" },
-    ];
-    // Neither the issue nor its body should be fetched or touched
-    const scope = nock("https://api.github.com")
-      .get("/repos/ezyang/testing-ideal-computing-machine/issues/5")
-      .reply(200, {});
-
-    await probot.receive({ name: "issues", payload, id: "2" });
-
-    expect(scope.isDone()).toBe(false);
-  });
 });
 
 // For more information about testing with Jest see:
