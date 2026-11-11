@@ -2,6 +2,7 @@ import copy
 from unittest import main, TestCase
 
 from torchci import release_portal_config as cfg
+
 from torchci.release_portal_config import ConfigError, resolve, validate_shared
 
 

@@ -410,7 +410,7 @@ def _discovery_errors(name: str, discovery: Any) -> List[str]:
 
 def _steps_errors(name: str, steps: List[Any], phase_ids: Set[int]) -> List[str]:
     errors: List[str] = []
-    seen: Set[str] = set()
+    seen: Set[Optional[str]] = set()
     for i, step in enumerate(steps):
         sid = step.get("id") if isinstance(step, dict) else None
         where = f"{name}: step {sid}" if sid else f"{name}: step #{i + 1}"
@@ -495,16 +495,20 @@ def validate_release_file(release: Any, name: str) -> List[str]:
         errors.append(f'{name}: release must be a string like "2.16.0"')
     elif Path(name).stem != version:
         errors.append(f"{name}: release {version} does not match the file name")
-    version_ok = isinstance(version, str) and VERSION.match(version)
-    if "type" in release and release["type"] != _release_type(
-        version if version_ok else ""
-    ):
+    valid_version = (
+        version if isinstance(version, str) and VERSION.match(version) else None
+    )
+    if "type" in release and release["type"] != _release_type(valid_version or ""):
         errors.append(
             f"{name}: type {release['type']!r} does not follow from the version"
         )
-    if "branch" in release and version_ok and release["branch"] != _branch(version):
+    if (
+        "branch" in release
+        and valid_version is not None
+        and release["branch"] != _branch(valid_version)
+    ):
         errors.append(
-            f"{name}: branch {release['branch']!r} should be {_branch(version)}"
+            f"{name}: branch {release['branch']!r} should be {_branch(valid_version)}"
         )
     dates = release.get("dates") or {}
     if not isinstance(dates, dict) or set(dates) - set(ANCHORS):
