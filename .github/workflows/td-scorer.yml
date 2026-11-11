@@ -44,7 +44,7 @@ jobs:
           python -m pip install -r tools/torchci/requirements.txt
           python -m pip install -e tools/torchci
 
-      # The role trusts only this repository's refs/heads/main OIDC subject; a job
+      # The role trusts this repository's refs/heads/main OIDC subject; a job
       # environment would change the subject.
       - name: Configure AWS credentials
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
