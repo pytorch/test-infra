@@ -186,8 +186,6 @@ async function handle(
     );
   }
 
-  // Promotion only needs live eligibility, never reviewer approvals or responses.
-  // Its label event refreshes Dr.CI, so comment-read failures cannot undo the move.
   if (isAwaitingInProgress(labels) && isPrStatusEligible(pullRequest)) {
     await markTriagedInProgress(
       context.octokit as any,
