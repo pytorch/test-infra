@@ -1,8 +1,8 @@
 """CLI: `python -m torchci.td.scorer refit --day YYYY-MM-DD --out td-scorer.json`.
 
-`refit` builds missing day shards, fits the scorer and the risk score on the healthy days
-of the last year (train.WINDOW_DAYS) whose jobs have finished, runs the walk-forward months and the gate (gate.py) and
-writes the model file. It exits 1 when the gate fails; when no training or gate day is
+`refit` builds missing day shards, fits the scorer and the risk score on the healthy
+days of the last year (train.WINDOW_DAYS) whose jobs have finished, runs the
+walk-forward months and the gate (gate.py) and writes the model file. It exits 1 when the gate fails; when no training or gate day is
 healthy; when anything raises (the walk-forward decides the gate); and, with `--s3`,
 when a gate day was not built soundly (a fetch or the build failed, or it has no
 outcomes). With `--report-only`, neither the gate nor the days fail it.
@@ -69,6 +69,12 @@ def fetch_test_times() -> dict[str, Any]:
     return data
 
 
+def shipped_cutoff(day: date, today: date, first_gate_day: date) -> date:
+    """The day before which the shipped model is fitted: the refit day, but no day whose
+    jobs may still run, and never before the gate window."""
+    return max(first_gate_day, min(day, today - timedelta(days=FINAL_AFTER_DAYS)))
+
+
 def refit(args: argparse.Namespace) -> int:
     day = date.fromisoformat(args.day)
     today = datetime.now(timezone.utc).date()
@@ -113,11 +119,7 @@ def refit(args: argparse.Namespace) -> int:
     )
     head_logs = trunk.fetch_head_logs(p.head_sha for x in landings for p in x.pairs)
     history.finish(landings, head_logs)
-    # The shipped model takes the gate days too, but not the ones whose jobs may still
-    # run.
-    shipped_before = max(
-        gate_days[0], min(day, today - timedelta(days=FINAL_AFTER_DAYS))
-    )
+    shipped_before = shipped_cutoff(day, today, gate_days[0])
     print(
         f"days: {len(train_days)} training, {len(gate_days)} gate; the shipped model"
         f" is fitted on the days before {shipped_before}"

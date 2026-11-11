@@ -3,8 +3,8 @@
 `History` holds the training rows (rows.py) and the PR heads (risk.py) of every healthy
 day, holdout PRs left out, the PRs that ran each day, and the counted trunk landings. A
 model is fitted on the rows and heads of the days before a cut-off day, without the PRs
-given: the shipped model on every day before the gate window, and each walk-forward month
-on the days before it without that month's PRs.
+given: the shipped model on the days up to two days before the refit (__main__.py), and
+each walk-forward month on the days before it without that month's PRs.
 
 Walk-forward: for each calendar month M that starts at least a month after the first day
 of data, through the day before the refit, the model fitted on the days before M is

@@ -6,9 +6,10 @@ files that ran and the failed files, under the same rules as training (shards.py
 except that the job's conclusion is not required to be `failure`: the holdout workflow's
 test jobs conclude `success` whatever their tests do. One `run` per run with the TD log
 of a TD job at the same head sha, which ran but whose cut the holdout ignored. A unit
-whose head has no TD log is skipped. It is sound when no fetch failed, at most
-MAX_MISSING_LOGS of the heads with a successful TD job lack its log, and it has at least MIN_HOLDOUT_EVENTS
-PR-specific failures; it is stored as a shard file, write-once, only when sound.
+whose head has no TD log is skipped. It is complete when no fetch failed and at most
+MAX_MISSING_LOGS of the heads with a successful TD job lack its log, and then stored as a
+shard file, write-once; it is sound when it is complete and has at least
+MIN_HOLDOUT_EVENTS PR-specific failures outside must-run files.
 
 At TD's cost per job (TD's include list rebuilt from the log's aggregated scores, as
 gate.py does), each PR-specific failure is counted once per (PR, build env, test config,
@@ -110,16 +111,22 @@ def first_events(shard: DayShard) -> list[tuple[Run, Unit, list[str]]]:
     return out
 
 
-def holdout_ok(shard: DayShard) -> bool:
-    """No fetch failed, at most MAX_MISSING_LOGS of the heads with a successful TD job
-    lack its log, and it has at least MIN_HOLDOUT_EVENTS events that are not must-run."""
+def holdout_complete(shard: DayShard) -> bool:
+    """No fetch failed and at most MAX_MISSING_LOGS of the heads with a successful TD job
+    lack its log."""
     meta = shard.meta
     if "heads_with_td_job" not in meta or "heads_with_log" not in meta:
         return False
     return (
         meta.get("errors", 0) == 0
         and meta["heads_with_log"] >= (1 - MAX_MISSING_LOGS) * meta["heads_with_td_job"]
-        and sum(
+    )
+
+
+def holdout_ok(shard: DayShard) -> bool:
+    """Complete, with at least MIN_HOLDOUT_EVENTS events that are not must-run."""
+    return holdout_complete(shard) and (
+        sum(
             len(set(first) - must_run_files(run))
             for run, _, first in first_events(shard)
         )
@@ -201,12 +208,12 @@ def build_holdout() -> DayShard:
 
 def load_or_build(store: Optional[ShardStore]) -> DayShard:
     """The stored holdout set, else a new one, stored when `store` is given and it is
-    sound."""
+    complete."""
     data = store.get(HOLDOUT_KEY) if store is not None else None
     if data is not None:
         return load_shard(data)
     shard = build_holdout()
-    if store is not None and holdout_ok(shard):
+    if store is not None and holdout_complete(shard):
         store.put_if_absent(HOLDOUT_KEY, dump_shard(shard))
     return shard
 

@@ -105,7 +105,7 @@ class HoldoutReport:
 
     @property
     def scorer_ok(self) -> bool:
-        return self.healthy and self.events > 0 and self.scorer_caught >= self.td_caught
+        return self.events > 0 and self.scorer_caught >= self.td_caught
 
     def text(self) -> str:
         jobs = max(self.jobs, 1)

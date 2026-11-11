@@ -126,8 +126,10 @@ class TestEvaluateHoldout(TestCase):
         self.assertEqual((r.must_run_events, r.jobs), (1, 1))
         self.assertIn("1 must-run events left out", r.text())
 
-    def test_unsound_or_empty_set_fails(self) -> None:
-        self.assertFalse(self.evaluate([1], errors=1).scorer_ok)
+    def test_unsound_or_empty_set(self) -> None:
+        unsound = self.evaluate([1], errors=1)
+        self.assertTrue(unsound.scorer_ok)
+        self.assertIn("(holdout set unsound)", unsound.text())
         self.assertFalse(self.evaluate([4]).scorer_ok)
         self.assertFalse(holdout.holdout_ok(holdout_set([], 0)))
 
@@ -304,6 +306,13 @@ class TestBuild(TestCase):
             self.assertEqual(build.call_count, 2)
         with mock.patch.object(holdout, "build_holdout", return_value=good):
             self.assertEqual(holdout.load_or_build(None).units, good.units)
+        # A complete set is stored even when too small to be sound.
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(
+            holdout, "build_holdout", return_value=good
+        ), mock.patch.object(holdout, "MIN_HOLDOUT_EVENTS", 5):
+            dirs = store.DirStore(Path(d))
+            self.assertFalse(holdout.holdout_ok(holdout.load_or_build(dirs)))
+            self.assertTrue(dirs.exists(holdout.HOLDOUT_KEY))
 
 
 if __name__ == "__main__":

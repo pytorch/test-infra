@@ -322,6 +322,21 @@ def write_pytorch(root, offset, scorer=None):
         del sys.modules[name]
 
 
+class TestShippedCutoff(TestCase):
+    def test_cutoff(self) -> None:
+        today = date(2026, 11, 20)
+        gate0 = date(2026, 11, 6)
+        # A daily run leaves out the two days whose jobs may still run.
+        self.assertEqual(cli.shipped_cutoff(today, today, gate0), date(2026, 11, 18))
+        # A refit of an earlier day takes every day before it.
+        past = date(2026, 11, 10)
+        self.assertEqual(cli.shipped_cutoff(past, today, gate0), past)
+        # Never before the gate window, e.g. a pull request's one gate day.
+        self.assertEqual(
+            cli.shipped_cutoff(today, today, date(2026, 11, 19)), date(2026, 11, 19)
+        )
+
+
 class TestCli(TestCase):
     def build(self, day):
         pos = day.day % 2 == 0
