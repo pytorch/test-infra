@@ -1249,6 +1249,13 @@
       "macos"
     ]
   ],
+  "test_partitioner_activation_memory_budget_with_unbacked_symints_xpu (__main__.ReproTestsDeviceXPU)": [
+    "203837",
+    "https://github.com/pytorch/pytorch/issues/203837",
+    [
+      "xpu"
+    ]
+  ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
     "193150",
     "https://github.com/pytorch/pytorch/issues/193150",
