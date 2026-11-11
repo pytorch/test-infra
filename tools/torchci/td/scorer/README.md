@@ -90,8 +90,12 @@ and 2025-11-22 and 23 have no outcomes.
 
 ## The data window
 
-Training uses every healthy day from `FIRST_DATA_DAY` (`shards.py`, 2025-11-06) to 15
-days before the refit day; the 14 days after that are the gate window. 2025-11-06 is the
+A refit reads the healthy days of the last year (`WINDOW_DAYS`, 365, in `train.py`) up to
+the day before the refit, from `FIRST_DATA_DAY` (`shards.py`, 2025-11-06) at the
+earliest; the last 14 of them are the gate window, whose unhealthy days fail a run on
+main. The shipped model is fitted on all of them but the last two, whose jobs may still
+run, and the walk-forward months fall in the same year, so pytorch's older behaviour ages
+out of both. 2025-11-06 is the
 first whole day with all three sources: `tests.all_test_runs` has rows from 2025-11-05
 17:00 UTC on (a day earlier, only the runs of that evening have outcomes), while the TD
 logs (seen back to 2025-10-30) and the `td_exclusions` objects already exist for its runs.
@@ -118,8 +122,8 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
   request builds three days in memory and writes nothing), fits the scorer and the risk
   score on the data window, runs the walk-forward and the gate below, and writes the
   model. The job fails when the gate fails, when anything in the refit raises, when a
-  gate day could not be built soundly or the holdout set is unsound on main, or when
-  ClickHouse credentials are missing on main. A pull request's run trains on two days,
+  gate day could not be built soundly on main, or when ClickHouse credentials are
+  missing on main. A pull request's run trains on two days,
   too few for a walk-forward month, so its floor is not met; it only prints the report.
 - **check**: validates the model with pytorch main's `scorer_model.py`, compares its p
   and r with the trainer's on a sample (max difference 1e-6), and replays the gate's cut of
@@ -132,22 +136,26 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
 
 ## The gate
 
-Both checks below must pass for a model to publish. Every comparison is at TD's own cost
-per job: the scorer's cut may cost no more than TD's own include list, which the gate
-rebuilds from the TD log's aggregated scores the way `run_test.py` takes the top 25%.
+A model publishes when the floor (2) holds; the holdout (1) is reported only, because a
+fixed 2026 window drifts away from what pytorch tests and would come to refuse a good
+model. Every comparison is at TD's own cost per job: the scorer's cut may cost no more
+than TD's own include list, which the gate rebuilds from the TD log's aggregated scores
+the way `run_test.py` takes the top 25%.
 
-1. **Holdout** (the fair check): the `td-holdout-unstable` runs of 2026-08-30..09-18 ran
+1. **Holdout** (reported only, the unbiased view): the `td-holdout-unstable` runs of 2026-08-30..09-18 ran
    every test file with TD off, so their failures are not biased toward what TD chose to
    run. For each PR-specific failure there (not broken on main that day, counted once per
    PR, config and file, and left out when a must-run heuristic scored the file, as in the
    walk-forward), the gate asks whether TD's include list and the scorer's cut held the
-   file. The scorer must catch at least as many as TD. The holdout set is built once
+   file, and reports both counts. The holdout set is built once
    and stored write-once at
    `s3://ossci-raw-job-status/td_scorer/holdout/<SHARD_FORMAT>.jsonl.gz` (pull requests
-   build it in memory), and only when it is sound: no fetch failed, at most 15% of the heads with a
-   successful TD job lack its log, and at least 40 failures (`MIN_HOLDOUT_EVENTS`); an
-   unsound set fails the gate, and the run on main. Caveats: it is small, about 54
-   failures in 32 PRs, so a difference of a few failures is noise; its test jobs always
+   build it in memory), and only when it is sound: no fetch failed, at most 15% of the
+   heads with a successful TD job lack its log, and at least 40 failures outside must-run
+   files (`MIN_HOLDOUT_EVENTS`); an unsound set is reported as such. Caveats: it is
+   small, 54 failures in 32 PRs, 34 in 24 PRs once the must-run ones are left out (as of
+   2026-11, so below the 40 that make it sound), so a difference of a few failures is
+   noise; its test jobs always
    conclude `success`, so a failure there is not required to have failed its job. Its
    PRs are left out of training.
 2. **Floor**, over the walk-forward: for each calendar month that starts at least a
@@ -155,16 +163,16 @@ rebuilds from the TD log's aggregated scores the way `run_test.py` takes the top
    risk score are fitted on every healthy day before that month, without the month's PRs
    and the holdout PRs. Each month scores the PRs whose first TD run is in it, with their
    failures at the first failing head, minus the files a must-run heuristic scored there,
-   which both cuts run. Each PR with failures counts its recall for each side: of the
-   scorer's cut, and of TD's include list as the gate rebuilds it. Pooled over the months,
+   which the scorer's cut always runs. Each PR with failures counts its recall for each
+   side: of the scorer's cut, and of TD's include list as the gate rebuilds it. Pooled over the months,
    the scorer must reach 60% of TD (`FLOOR_RATIO`, `--floor-ratio`), over at least 30 PRs
    with failures (`MIN_FLOOR_PRS`). Before the scorer is published, the jobs ran TD's own
    cut, so TD's recall is about 1 and the measure favours TD. After it, failures are only
    observed in files the published scorer ran, so the months from then on favour the
-   scorer, and the holdout stays the only unbiased check.
+   scorer, and the holdout stays the only unbiased view.
 
-The shipped model is fitted on every healthy day up to 15 days before the refit. Reported
-only, per month and in total: the units, the event recall, the counted trunk landings and
+The shipped model is fitted on the year's healthy days up to two days before the refit
+(see "The data window"). Reported only, per month and in total: the units, the event recall, the counted trunk landings and
 how many the scorer caught (TD none, by construction), and the risk score's AUC on the
 months' PR heads; and the holdout counts (failures, PRs, TD and scorer catches, mean files
 per job), the walk-forward's wall time and the run's peak memory.

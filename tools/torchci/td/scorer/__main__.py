@@ -1,12 +1,11 @@
 """CLI: `python -m torchci.td.scorer refit --day YYYY-MM-DD --out td-scorer.json`.
 
-`refit` builds missing day shards, fits the scorer and the risk score on every healthy
-day before the gate window, runs the walk-forward months and the gate (gate.py) and
+`refit` builds missing day shards, fits the scorer and the risk score on the healthy days
+of the last year (train.WINDOW_DAYS) whose jobs have finished, runs the walk-forward months and the gate (gate.py) and
 writes the model file. It exits 1 when the gate fails; when no training or gate day is
 healthy; when anything raises (the walk-forward decides the gate); and, with `--s3`,
 when a gate day was not built soundly (a fetch or the build failed, or it has no
-outcomes) or the holdout set is unsound. With `--report-only`, neither the gate nor the
-days fail it.
+outcomes). With `--report-only`, neither the gate nor the days fail it.
 `check-pytorch` validates a model with pytorch's scorer_model.py, compares its p and r
 with the trainer's and replays the gate's cut with pytorch's select_tests, on a sample
 written by `refit --sample`; it exits 0 when all of that ran and matched, SKIPPED when
@@ -102,9 +101,7 @@ def refit(args: argparse.Namespace) -> int:
         return 0 if args.report_only else 1
     held = holdout.load_or_build(_store(args, holdout.HOLDOUT_PREFIX, "holdout"))
     if not holdout.holdout_ok(held):
-        print(f"the holdout set is unsound: {held.meta}")
-        if args.s3:
-            return 1
+        print(f"the holdout set is unsound (reported only): {held.meta}")
     times = rows.JobTimes(fetch_test_times())
 
     history = walkforward.History(times, {r.pr for r in held.runs})
@@ -116,8 +113,16 @@ def refit(args: argparse.Namespace) -> int:
     )
     head_logs = trunk.fetch_head_logs(p.head_sha for x in landings for p in x.pairs)
     history.finish(landings, head_logs)
-    print(f"days: {len(train_days)} training, {len(gate_days)} gate")
-    fit = history.fit(gate_days[0], set(), day.isoformat())
+    # The shipped model takes the gate days too, but not the ones whose jobs may still
+    # run.
+    shipped_before = max(
+        gate_days[0], min(day, today - timedelta(days=FINAL_AFTER_DAYS))
+    )
+    print(
+        f"days: {len(train_days)} training, {len(gate_days)} gate; the shipped model"
+        f" is fitted on the days before {shipped_before}"
+    )
+    fit = history.fit(shipped_before, set(), day.isoformat())
     print(f"training: {fit.text()}")
     model = fit.model
     Path(args.out).write_text(model_json.dumps(model))
@@ -261,8 +266,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument(
         "--train-days",
         type=int,
-        help="only the last N training days (default: every day from the first day"
-        " of data)",
+        help="only the last N training days (default: a year with the gate days,"
+        " train.WINDOW_DAYS)",
     )
     p.add_argument("--gate-days", type=int, default=train.GATE_DAYS)
     p.add_argument("--s3", action="store_true", help="read and write S3 day shards")

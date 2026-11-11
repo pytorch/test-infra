@@ -1,15 +1,16 @@
 """The publish gate: does the new scorer, at TD's own cost, catch what TD catches?
 
-A model publishes when both hold:
-- holdout (holdout.py): on the TD-off holdout's PR-specific failures in files no
-  must-run heuristic scored, the scorer's cut catches at least as many as TD's own
-  include list, job by job at TD's cost;
-- floor: pooled over the walk-forward months (walkforward.py), each scored by a model
-  fitted only on the days before it, the scorer scores at least FLOOR_RATIO of TD, over
-  at least MIN_FLOOR_PRS PRs with failures.
+A model publishes when the floor holds: pooled over the walk-forward months
+(walkforward.py), each scored by a model fitted only on the days before it, the scorer
+scores at least FLOOR_RATIO of TD, over at least MIN_FLOOR_PRS PRs with failures.
+The holdout (holdout.py) is reported only: on the TD-off holdout's PR-specific failures
+in files no must-run heuristic scored, how many the scorer's cut and TD's own include
+list catch, job by job at TD's cost. A fixed 2026 window drifts away from what pytorch
+tests, so it cannot decide a later model's fate.
 A window's score (evaluate_window) covers the PRs whose first TD run falls in it; each
 failure is taken once at its first failing head per (PR, build env, test config, file),
-and left out when a must-run heuristic scored the file in that job (both cuts run it).
+and left out when a must-run heuristic scored the file in that job (the scorer's cut
+always runs it).
 Each PR with failures weighs 1, and each side scores its recall on the PR's failures:
 the scorer's cut's, and TD's recomputed include list's (1 while the jobs ran TD's own
 cut, which ran every failing file; less once they ran the scorer's, whose misses are
@@ -142,8 +143,8 @@ class WindowReport:
 
 @dataclass
 class Gate:
-    """The publish rule: the holdout check, and the floor over the pooled walk-forward
-    months."""
+    """The publish rule, the floor over the pooled walk-forward months, and the holdout
+    report."""
 
     holdout: HoldoutReport
     prs_with_events: int = 0
@@ -175,7 +176,7 @@ class Gate:
 
     @property
     def passed(self) -> bool:
-        return self.holdout.scorer_ok and self.floor_ok
+        return self.floor_ok
 
     def text(self) -> str:
         ratio = self.scorer_score / self.td_score if self.td_score else float("nan")
@@ -185,8 +186,8 @@ class Gate:
                 f" {self.td_score:.1f} = {ratio:.3f} over {self.prs_with_events} PRs"
                 f" with events (needs >= {self.floor_ratio} x TD over >="
                 f" {MIN_FLOOR_PRS} PRs with events): {'ok' if self.floor_ok else 'FAIL'}",
-                self.holdout.text() + " (needs scorer >= TD):"
-                f" {'ok' if self.holdout.scorer_ok else 'FAIL'}",
+                self.holdout.text() + " (report only; scorer >= TD:"
+                f" {'yes' if self.holdout.scorer_ok else 'no'})",
                 f"result: {'PASS' if self.passed else 'FAIL'}",
             ]
         )

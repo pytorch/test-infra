@@ -27,6 +27,9 @@ from torchci.td.scorer.shards import FIRST_DATA_DAY
 
 
 GATE_DAYS = 14
+# A refit reads the last year of days: the shipped model is fitted on them and the
+# walk-forward months fall in them, so older pytorch behaviour ages out.
+WINDOW_DAYS = 365
 L2 = 10.0
 # TD logs come from the PR's own code, so a heuristic name in one proves nothing: only
 # TD's own heuristics (pytorch's target_determination HEURISTICS) enter the model.
@@ -49,10 +52,11 @@ TOL = 1e-9
 def training_days(
     refit_day: date, train: Optional[int] = None, gate: int = GATE_DAYS
 ) -> list[date]:
-    """Every day from FIRST_DATA_DAY (or the last `train` of them) to the day `gate` + 1
+    """The last `train` days (WINDOW_DAYS - `gate` by default, so that with the gate days
+    they make WINDOW_DAYS), from FIRST_DATA_DAY at the earliest, to the day `gate` + 1
     days before the refit day."""
     end = refit_day - timedelta(days=gate)
-    first = FIRST_DATA_DAY if train is None else end - timedelta(days=train)
+    first = end - timedelta(days=WINDOW_DAYS - gate if train is None else train)
     first = max(first, FIRST_DATA_DAY)
     return [first + timedelta(days=i) for i in range((end - first).days)]
 

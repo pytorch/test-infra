@@ -211,7 +211,8 @@ class TestEvaluateGate(TestCase):
         self.assertTrue(result.passed)
         self.assertIn("result: PASS", result.text())
         held.scorer_caught = -1
-        self.assertIn("(needs scorer >= TD): FAIL", result.text())
+        self.assertTrue(result.passed)
+        self.assertIn("(report only; scorer >= TD: no)", result.text())
 
     def test_td_include_sets_the_budget(self) -> None:
         shard = shards.DayShard(
@@ -454,7 +455,8 @@ class TestCli(TestCase):
             self.assertIn(HELD_PR, built_prs)
             # The shipped model, then the November month.
             self.assertEqual(len(fitted), 2)
-            cuts = (date(2026, 11, 8), date(2026, 11, 1))
+            # Today is 2026-11-11: the shipped model ends 2 days before it.
+            cuts = (date(2026, 11, 9), date(2026, 11, 1))
             for training, (heads, trunk_heads), cut in zip(fitted, risk_calls, cuts):
                 self.assertNotIn(HELD_PR, set(training.pr.tolist()))
                 self.assertLess(int(training.day.max()), cut.toordinal())
@@ -464,7 +466,7 @@ class TestCli(TestCase):
                 self.assertTrue(heads)
                 self.assertTrue(all(h.pr // 100 < cut.toordinal() for h in heads))
                 self.assertNotIn(HELD_PR, {h.pr for h in heads})
-            self.assertEqual([len(t) for _, t in risk_calls], [2, 1])
+            self.assertEqual([len(t) for _, t in risk_calls], [3, 1])
             november = [date(2026, 11, i).isoformat() for i in range(1, 10)]
             self.assertEqual(windows, [november])
             first = date(2026, 11, 1).toordinal()
@@ -528,7 +530,8 @@ class TestCli(TestCase):
                     holdout, "build_holdout", return_value=self.holdout_set(1)
                 ):
                     s3_run = self.refit_args(d, "2026-11-25", out="other.json")
-                    self.assertEqual(cli.main(s3_run + ["--s3"]), 1)
+                    # An unsound holdout set is reported only.
+                    self.assertEqual(cli.main(s3_run + ["--s3"]), 0)
                 self.assertEqual(cli.main(s3_run + ["--s3"]), 0)
                 self.broken = {date(2026, 11, 20)}
                 later = self.refit_args(d, "2026-11-24", out="other.json")

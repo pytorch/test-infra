@@ -64,6 +64,21 @@ UNITS = {
 }
 
 
+def edited_run_1():
+    """Run 1 with its failing file c also scored by the must-run EditedByPR."""
+    return shards.Run(
+        1,
+        7,
+        f"{1:040d}",
+        "2026-09-01 01:00:00",
+        ["Filepath", "EditedByPR"],
+        [],
+        {"Filepath": {"c": 1.0}, "EditedByPR": {"c": 1.0}},
+        None,
+        {},
+    )
+
+
 def holdout_set(run_ids, errors=0):
     return shards.DayShard(
         "holdout-v1",
@@ -104,19 +119,8 @@ class TestEvaluateHoldout(TestCase):
     def test_must_run_failures_left_out(self) -> None:
         # Run 1's failing file c, scored by EditedByPR: the scorer's cut always runs it
         # and TD's include list (a and b) does not, so it is no event for either side.
-        edited = shards.Run(
-            1,
-            7,
-            f"{1:040d}",
-            "2026-09-01 01:00:00",
-            ["Filepath", "EditedByPR"],
-            [],
-            {"Filepath": {"c": 1.0}, "EditedByPR": {"c": 1.0}},
-            None,
-            {},
-        )
         shard = holdout_set([1, 3])
-        shard.runs[0] = edited
+        shard.runs[0] = edited_run_1()
         r = holdout.evaluate_holdout(model(), shard, rows.JobTimes(TIMES))
         self.assertEqual((r.events, r.prs, r.td_caught, r.scorer_caught), (1, 1, 1, 0))
         self.assertEqual((r.must_run_events, r.jobs), (1, 1))
@@ -135,6 +139,10 @@ class TestEvaluateHoldout(TestCase):
         held.meta.update(heads_with_log=85)
         self.assertTrue(holdout.holdout_ok(held))
         with mock.patch.object(holdout, "MIN_HOLDOUT_EVENTS", 3):
+            self.assertFalse(holdout.holdout_ok(held))
+        with mock.patch.object(holdout, "MIN_HOLDOUT_EVENTS", 2):
+            self.assertTrue(holdout.holdout_ok(held))
+            held.runs[0] = edited_run_1()
             self.assertFalse(holdout.holdout_ok(held))
         for key in ("heads_with_td_job", "heads_with_log"):
             partial = holdout_set([1, 3])
@@ -175,10 +183,11 @@ class TestPublishRule(TestCase):
         self.assertTrue(self.report(gate.MIN_FLOOR_PRS, gate.MIN_FLOOR_PRS, 1).passed)
 
     @mock.patch.object(gate, "MIN_FLOOR_PRS", 1)
-    def test_both_needed(self) -> None:
+    def test_floor_decides_holdout_reports(self) -> None:
         self.assertTrue(self.report(0.6, 1, 1).passed)
         self.assertFalse(self.report(0.59, 1, 1).passed)
-        self.assertFalse(self.report(0.6, 1, 0).passed)
+        self.assertTrue(self.report(0.6, 1, 0).passed)
+        self.assertFalse(self.report(0.6, 1, 0).holdout.scorer_ok)
         self.assertFalse(self.report(0.0, 0, 1).passed)
         low = self.report(0.5, 1, 1)
         low.floor_ratio = 0.5

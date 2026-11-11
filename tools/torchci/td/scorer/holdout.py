@@ -112,14 +112,18 @@ def first_events(shard: DayShard) -> list[tuple[Run, Unit, list[str]]]:
 
 def holdout_ok(shard: DayShard) -> bool:
     """No fetch failed, at most MAX_MISSING_LOGS of the heads with a successful TD job
-    lack its log, and it has at least MIN_HOLDOUT_EVENTS events."""
+    lack its log, and it has at least MIN_HOLDOUT_EVENTS events that are not must-run."""
     meta = shard.meta
     if "heads_with_td_job" not in meta or "heads_with_log" not in meta:
         return False
     return (
         meta.get("errors", 0) == 0
         and meta["heads_with_log"] >= (1 - MAX_MISSING_LOGS) * meta["heads_with_td_job"]
-        and sum(len(new) for _, _, new in first_events(shard)) >= MIN_HOLDOUT_EVENTS
+        and sum(
+            len(set(first) - must_run_files(run))
+            for run, _, first in first_events(shard)
+        )
+        >= MIN_HOLDOUT_EVENTS
     )
 
 

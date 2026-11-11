@@ -48,9 +48,12 @@ def make_rows(n=4000, seed=0, envs=("linux-a", "linux-b"), raise_every=0):
 class TestWindows(TestCase):
     def test_days(self) -> None:
         days = train.training_days(date(2026, 11, 20))
-        self.assertEqual(days[0], FIRST_DATA_DAY)
+        self.assertEqual(days[0], date(2025, 11, 20))
         self.assertEqual(days[-1], date(2026, 11, 5))
-        self.assertEqual(len(days), (date(2026, 11, 6) - FIRST_DATA_DAY).days)
+        gate = train.gate_days(date(2026, 11, 20))
+        self.assertEqual(len(days) + len(gate), train.WINDOW_DAYS)
+        days = train.training_days(date(2026, 1, 20))
+        self.assertEqual(days[0], FIRST_DATA_DAY)
         self.assertEqual(
             train.training_days(date(2026, 11, 20), 3),
             [date(2026, 11, 3), date(2026, 11, 4), date(2026, 11, 5)],
