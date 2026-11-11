@@ -119,7 +119,7 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test("the periodic check reports reaction progress without CI or webhooks and doesn't rewrite unchanged comments", async () => {
+test("the periodic check advances without acceptance and doesn't rewrite unchanged comments", async () => {
   const writerReads = jest.spyOn(writer, "paginate");
   const writerPullReads = jest.spyOn(writer.rest.pulls, "get");
   const readerWrites = jest.spyOn(reader.rest.issues, "updateComment");
@@ -127,12 +127,16 @@ test("the periodic check reports reaction progress without CI or webhooks and do
   let scopes = [
     search(),
     policyReads(),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pull())
+      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+      .reply(200, []),
     commentRead(),
     commentWrite((value) => {
       body = value;
-      expect(value).toContain("**Waiting for pre-review:** `bob`.");
-      expect(value).toContain("**Pre-review accepted:** `alice`.");
-      expect(value).toContain("2026-11-05 16:30:00 UTC");
+      expect(value).toContain("## PR Status: in progress");
+      expect(value).not.toContain("Waiting for pre-review");
       expect(value).not.toMatch(/@(alice|bob)/);
     }),
   ];
@@ -141,7 +145,10 @@ test("the periodic check reports reaction progress without CI or webhooks and do
   ).toEqual([]);
   handleScope(scopes);
 
-  scopes = [search(), policyReads(), commentRead(body)];
+  const inProgress = pull({
+    labels: [{ name: "triaged" }, { name: "in progress" }],
+  });
+  scopes = [search(), policyReads({ pr: inProgress }), commentRead(body)];
   expect(
     (await updateInProgressLabels(reader, writer, "pytorch", "pytorch")).failed
   ).toEqual([]);
@@ -149,12 +156,8 @@ test("the periodic check reports reaction progress without CI or webhooks and do
 
   scopes = [
     search(),
-    policyReads({ reactions: [] }),
+    policyReads({ reactions: [], pr: inProgress }),
     commentRead(body),
-    commentWrite((value) => {
-      expect(value).toContain("**Waiting for pre-review:** `alice`, `bob`.");
-      expect(value).not.toContain("**Pre-review accepted:");
-    }),
   ];
   expect(
     (await updateInProgressLabels(reader, writer, "pytorch", "pytorch")).failed
@@ -192,7 +195,7 @@ test("fourteen silent reviewers expire together and the status advances even wit
   handleScope(scopes);
 });
 
-test("after expiry only the explicit team objection is shown, without crediting silent reviewers", async () => {
+test("an explicit team objection does not block advancement", async () => {
   jest.spyOn(Date, "now").mockReturnValue(Date.parse(DEADLINE));
   const scopes = [
     policyReads({
@@ -202,22 +205,25 @@ test("after expiry only the explicit team objection is shown, without crediting 
     nock("https://api.github.com")
       .get("/orgs/pytorch/teams/core/members?per_page=100")
       .reply(200, [{ login: "carol" }]),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pull())
+      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+      .reply(200, []),
     commentRead(),
     commentWrite((value) => {
-      expect(value).toContain(
-        "**Pre-review request changes:** `pytorch/core`."
-      );
+      expect(value).toContain("## PR Status: in progress");
       expect(value).not.toContain("`alice`");
       expect(value).not.toContain("`bob`");
       expect(value).not.toContain("**Pre-review accepted:");
-      expect(value).toContain("This deadline has passed");
+      expect(value).not.toContain("Pre-review deadline");
     }),
   ];
   expect((await checkPreReview()).accepted).toBe(false);
   handleScope(scopes);
 });
 
-test("the triaged label webhook immediately publishes pre-review status", async () => {
+test("the triaged label webhook immediately advances to in progress", async () => {
   const payload = requireDeepCopy("./fixtures/pull_request.labeled.json");
   payload.repository.owner.login = "pytorch";
   payload.repository.name = "pytorch";
@@ -230,9 +236,14 @@ test("the triaged label webhook immediately publishes pre-review status", async 
       .get(`/repos/${REPO}/issues/1/labels?per_page=100`)
       .reply(200, [{ name: "triaged" }]),
     policyReads(),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pull())
+      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+      .reply(200, []),
     commentRead(),
     commentWrite((value) =>
-      expect(value).toContain("**Waiting for pre-review:** `bob`.")
+      expect(value).toContain("## PR Status: in progress")
     ),
   ];
   const bot = testProbot();
@@ -251,10 +262,14 @@ test("the accept command updates progress before its comment reaches the timelin
   event.payload.comment.body = "@pytorchbot pre-review accept";
   const scopes = [
     policyReads({ reactions: [] }),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pull())
+      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+      .reply(200, []),
     commentRead(),
     commentWrite((value) => {
-      expect(value).toContain("**Pre-review accepted:** `alice`.");
-      expect(value).toContain("**Waiting for pre-review:** `bob`.");
+      expect(value).toContain("## PR Status: in progress");
     }),
     nock("https://api.github.com")
       .post(
@@ -269,7 +284,7 @@ test("the accept command updates progress before its comment reaches the timelin
   handleScope(scopes);
 });
 
-test("draft transitions replace an obsolete deadline and returning to review displays the reset deadline", async () => {
+test("draft transitions pause advancement and returning to review moves to in progress", async () => {
   const bot = testProbot();
   bot.load(prStatusBot);
   const payload = requireDeepCopy("./fixtures/pull_request.labeled.json");
@@ -303,8 +318,15 @@ test("draft transitions replace an obsolete deadline and returning to review dis
         { event: "ready_for_review", created_at: new Date(NOW).toISOString() },
       ],
     }),
+    nock("https://api.github.com")
+      .get(`/repos/${REPO}/pulls/1`)
+      .reply(200, pull())
+      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
+      .reply(200, []),
     commentRead(body),
-    commentWrite((value) => expect(value).toContain("2026-11-06 16:30:00 UTC")),
+    commentWrite((value) =>
+      expect(value).toContain("## PR Status: in progress")
+    ),
   ];
   await bot.receive({ name: "pull_request", payload, id: "ready" } as any);
   handleScope(scopes);

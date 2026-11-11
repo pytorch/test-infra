@@ -47,20 +47,14 @@ MANIFEST: dict[str, Any] = {
 
 
 class RenderDigestTest(unittest.TestCase):
-    def test_sections_oldest_first(self) -> None:
+    def test_final_review_oldest_first_ignoring_pre_review(self) -> None:
+        # alice's pre-review PRs are from a manifest written before pre-review
+        # was removed
         self.assertEqual(
-            pns.render_digest(MANIFEST, "alice", NOW),
+            pns.render_digest(MANIFEST, "alice"),
             "\n".join(
                 [
                     "*Daily digest: PyTorch PRs waiting on your review*",
-                    "",
-                    f"*Pre-review (2)* (<{pns.PRE_REVIEW_QUEUE_URL}|full queue>)",
-                    "To accept, :+1: the PR description or comment `@pytorchbot pre-review accept`.",  # noqa: B950
-                    "",
-                    "Waiting &gt;2 days (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/2|#2 Fix &lt;script&gt; &amp; co>",  # noqa: B950
-                    "Waiting ≤2 days (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/1|#1 PR 1>",
                     "",
                     f"*Final review (2)* (<{pns.FINAL_REVIEW_QUEUE_URL}|full queue>)",
                     "OSS PRs (1)",
@@ -71,21 +65,28 @@ class RenderDigestTest(unittest.TestCase):
             ),
         )
 
-    def test_final_review_only_has_no_pre_review_hint(self) -> None:
-        digest = pns.render_digest(MANIFEST, "bob", NOW) or ""
-        self.assertIn("Final review (1)", digest)
-        self.assertNotIn("Pre-review", digest)
+    def test_escapes_titles(self) -> None:
+        manifest = json.loads(json.dumps(MANIFEST))
+        manifest["reviewers"]["bob"]["final_review"] = [{"pr": 2}]
+        self.assertIn(
+            "#2 Fix &lt;script&gt; &amp; co>", pns.render_digest(manifest, "bob") or ""
+        )
+
+    def test_pre_review_only_gets_no_digest(self) -> None:
+        manifest = json.loads(json.dumps(MANIFEST))
+        manifest["reviewers"]["carol"]["pre_review"] = [{"pr": 1}]
+        self.assertIsNone(pns.render_digest(manifest, "carol"))
 
     def test_old_manifest_prs_count_as_oss(self) -> None:
         manifest = json.loads(json.dumps(MANIFEST))
         del manifest["prs"]["4"]["open_source"]
-        digest = pns.render_digest(manifest, "bob", NOW) or ""
+        digest = pns.render_digest(manifest, "bob") or ""
         self.assertIn("OSS PRs (1)", digest)
         self.assertNotIn("Maintainer PRs", digest)
 
     def test_nothing_waiting(self) -> None:
-        self.assertIsNone(pns.render_digest(MANIFEST, "carol", NOW))
-        self.assertIsNone(pns.render_digest(MANIFEST, "nobody", NOW))
+        self.assertIsNone(pns.render_digest(MANIFEST, "carol"))
+        self.assertIsNone(pns.render_digest(MANIFEST, "nobody"))
 
 
 class FetchManifestTest(unittest.TestCase):
@@ -149,7 +150,7 @@ class SendDigestsTest(unittest.TestCase):
         users = {"UALICE": "alice", "UBOB": "Bob", "UCAROL": "carol", "UDAVE": "alice"}
         out = io.StringIO()
         with redirect_stdout(out):
-            failures = pns.send_digests(slack, users, MANIFEST, live, NOW)
+            failures = pns.send_digests(slack, users, MANIFEST, live)
         return failures, slack, out.getvalue()
 
     def test_only_channel_members_are_messaged(self) -> None:
@@ -169,7 +170,7 @@ class SendDigestsTest(unittest.TestCase):
         users = {"UALICE": "alice", "UBOB": "bob"}
         out = io.StringIO()
         with redirect_stdout(out):
-            pns.send_digests(pns.SlackClient(""), users, MANIFEST, False, NOW)
+            pns.send_digests(pns.SlackClient(""), users, MANIFEST, False)
         self.assertIn("would send to UALICE (alice)", out.getvalue())
         self.assertIn("would send to UBOB (bob)", out.getvalue())
 

@@ -1,5 +1,4 @@
 import { Alert, Stack } from "@mui/material";
-import AccessNotice from "components/tests/AccessNotice";
 import CommitHeader from "components/tests/CommitHeader";
 import CommitSummaryRow from "components/tests/CommitSummaryRow";
 import CommitTable from "components/tests/CommitTable";
@@ -23,12 +22,11 @@ import {
   menuOrder,
   TestsFacet,
 } from "lib/tests/facets";
-import { accessReasonOf, SEARCH_PAUSE_MS } from "lib/tests/table";
+import { SEARCH_PAUSE_MS } from "lib/tests/table";
 import { mergedUrlQuery } from "lib/tests/url";
 import { useCommitSummary } from "lib/tests/useCommitSummary";
 import { useRunsListing } from "lib/tests/useRunsListing";
 import { useTestsOptions } from "lib/tests/useTestsOptions";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -40,12 +38,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 // lib/tests/commitPage.ts): the search, the column filters, the outcomes
 // listed and the sort; changes replace the entry in place. The runs come a
 // page at a time: the pages are asked for one after another while the list
-// is in the outcomes it loads whole (autoLoads), then on request. The API
-// is behind the HUD GitHub gate, which the browser passes with its HUD
-// sign-in cookie; when the API refuses, the page says why in place of the
-// commit and offers the sign-in, as the other hub pages do. The summary and
-// the runs are separate requests: when the summary fails, its error shows
-// above the table and the runs are listed all the same.
+// is in the outcomes it loads whole (autoLoads), then on request. The page
+// is public, as the other hub pages are: the API's GitHub gate lets its
+// requests through. The summary and the runs are separate requests: when
+// the summary fails, its error shows above the table and the runs are
+// listed all the same.
 
 export default function Page() {
   const router = useRouter();
@@ -55,8 +52,6 @@ export default function Page() {
       ? `${organization}/${repo}`
       : undefined;
   const sha = typeof shaParam === "string" ? shaParam.toLowerCase() : undefined;
-  const session = useSession();
-  const signedIn = session.status === "authenticated";
   const state = useMemo(
     () => commitPageStateFromUrl(router.query),
     [router.query]
@@ -106,11 +101,6 @@ export default function Page() {
       loadMore();
     }
   }, [runs, hasMore, runsLoading, loadingMore, runsError, loadMore]);
-
-  const accessReason =
-    accessReasonOf(error, signedIn) ??
-    accessReasonOf(optionsError, signedIn) ??
-    accessReasonOf(runsError, signedIn);
 
   // A change of view: into the URL, in place of the current entry, with
   // every other parameter kept and the defaults left off. The state and the
@@ -207,14 +197,6 @@ export default function Page() {
     [updateState]
   );
 
-  if (accessReason !== undefined) {
-    return (
-      <PageColumn>
-        <CommitHeader repo={repository ?? ""} commit={undefined} />
-        <AccessNotice reason={accessReason} />
-      </PageColumn>
-    );
-  }
   const loading = ready && summary === undefined && error === undefined;
   return (
     <PageColumn>

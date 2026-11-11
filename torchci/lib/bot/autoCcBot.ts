@@ -32,8 +32,20 @@ function myBot(app: Probot): void {
       "Started processing"
     );
     const subscriptions = await loadSubscriptions(context);
-    // @ts-ignore
-    const labels = payload[payloadType].labels.map((e) => e.name);
+    // Labels without subscribers can't add anyone to the cc list
+    const addedLabel = payload.label?.name;
+    if (addedLabel === undefined || !(addedLabel in subscriptions)) {
+      context.log({ addedLabel }, "no action: label has no subscribers");
+      return;
+    }
+    // When several labels are added at once, GitHub sends one webhook per label,
+    // each carrying a snapshot of the body taken before any of them were handled.
+    // Read the current body and labels instead, so that the first handler adds
+    // the cc for all labels and the rest see that nothing has changed.
+    const { data: current } = await context.octokit.issues.get(context.issue());
+    const labels = current.labels.map((e) =>
+      typeof e === "string" ? e : e.name ?? ""
+    );
     context.log({ labels });
     const cc = new Set();
     labels.forEach((l: string) => {
@@ -50,8 +62,7 @@ function myBot(app: Probot): void {
       context.log({ author: author }, "Removed self from subscriptions");
     }
     if (cc.size) {
-      // @ts-ignore
-      const body = payload[payloadType]["body"];
+      const body = current.body;
       const reCC = /cc( +@[a-zA-Z0-9-/]+)+/;
       const oldCCMatch = body ? body.match(reCC) : null;
       const prevCC = new Set();

@@ -21,9 +21,10 @@ import {
 
 const BLOCKED_RECHECK_MS = 6 * 60 * 60 * 1000;
 
-// Mark a triaged PR in progress once every reviewer agrees or times out. The
-// triaged label is kept, so a PR already past automated review (ready for
-// review) is skipped, or adding in progress again would trigger another review.
+// Mark eligible triaged PRs in progress without waiting for pre-review
+// acceptance or merge approval. Keep the existing reads/status plumbing for
+// now. The triaged label is kept, so later-stage PRs must be skipped to avoid
+// triggering another automated review.
 // Read through the pre-review app, but label as PyTorchBot: the automated
 // review workflow requires that identity to trigger a review.
 export async function markInProgressIfAccepted(
@@ -55,7 +56,7 @@ export async function markInProgressIfAccepted(
     state
   );
   labels = state?.labels ?? labels;
-  if (status.accepted && hasPreReviewLabels(labels)) {
+  if (hasPreReviewLabels(labels)) {
     // Search results and webhook payloads can be stale. In particular, an old
     // PR may have closed, become a draft, or advanced since the sweep found it.
     const { data: pr } = await octokit.rest.pulls.get({
@@ -70,9 +71,7 @@ export async function markInProgressIfAccepted(
       return status;
     }
     console.log(
-      `Adding "${PR_STATUS_LABEL_IN_PROGRESS}" to ${owner}/${repo}#${prNumber}, accepted by ${status.agreed.join(
-        ", "
-      )}; timed out: ${status.timedOut.join(", ")}`
+      `Adding "${PR_STATUS_LABEL_IN_PROGRESS}" to triaged PR ${owner}/${repo}#${prNumber}`
     );
     await labelOctokit.rest.issues.addLabels({
       owner,

@@ -34,6 +34,12 @@ the page that shows it as `hud_url`.
   its response, hands out cursors, and is where queries are measured and
   optimized. When the page needs data the API does not have, extend the API
   first, following its README, then the page.
+- The pages are public, though the API is behind its GitHub gate: the routes
+  the pages read let a page's own requests through without a credential
+  (`admitHudPages` in `lib/api/auth.ts`, the API README's
+  [Authentication](../../app/api/README.md#authentication)), so no page asks
+  its reader to sign in. A page that starts reading another route opens that
+  route to the pages in the same change.
 - From `lib/api/` import types (`import type { ... }`) and, at run time, only
   the parameter definitions in `lib/api/tests/pages/parameters.ts`: the
   page's URL query defined as the API's own zod definitions, picked by name
@@ -583,11 +589,6 @@ the grid of its runs by commit.
   with the code `not_found`, is a state of the page, not an error, and is
   never asked again; the hook reports it as `notFound`. The page branches on
   the API's code, as the API asks, not on its text.
-- The gate is handled as the list page handles it: the page asks at once,
-  whatever the client-side session has found out, and a 401 or 403 from the
-  API (`accessReasonOf`, which reads the status the hook keeps on the error)
-  shows the `AccessNotice` in place of the test, under the bare title, with
-  the sign-in where it helps.
 - The URL names a repository and the page shows only that repository's test:
   a test whose `repo` is another is treated as not found, so a pytorch test's
   id under a vision URL shows no pytorch test.
@@ -1167,9 +1168,8 @@ the rules above: nothing but `/api/tests` endpoints, its logic in
   not reached HUD yet, seconds old, is not seen, and the page opens the head
   before it.
 - A number HUD has no pull request record for shows a warning under the
-  headline "Pull request #N", with no Retry; the gate's refusals show the
-  `AccessNotice`, and any other failure, a malformed number among them, the
-  API's error with a Retry (`LoadError`).
+  headline "Pull request #N", with no Retry; any other failure, a malformed
+  number among them, shows the API's error with a Retry (`LoadError`).
 
 ## Cost page
 
@@ -1222,22 +1222,30 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   row names and cells are buttons, so all of it works from the keyboard.
   Escape closes the drawer, then clears the highlight, unless a text field or
   menu has it.
-- Cost by owner (`CostPanel`), under the runner-hours chart: the same chart
-  in $, from a rates file the reader adds, so the page never asks for a unit
-  up front. Until a file is added the panel's body asks for one: a dashed
-  area to drop it on (a file dropped anywhere on the page lands there, so a
-  miss never opens the file in the tab), "Choose rates file…" and "File
-  format" (a JSON of runner label → $ per runner-hour, or wrapped as
-  `{valid_from, basis, rates}`). The file is read in the browser into the
-  page's state (`lib/tests/cost/rates.ts`): never sent, stored, or
-  put in the URL, whose query HUD's analytics record, and reloading drops it;
-  the panel's split keys stay out of the URL with it. The API holds no
-  prices. A row's price key is its runner labels without self-hosted; 0 is a
-  price, and a runner the file leaves out has no rate and stays out of the
-  cost. Once added, a line under the band names the file,
-  its valid_from and basis, how many of the window's runners it leaves
-  without a rate and how many of its labels didn't run (each listed in a
-  tooltip), and Replace, Clear and File format (the facts' "Priced" pill is
+- Cost by owner (`CostPanel`), under the runner-hours chart: the same chart in
+  $, from a rates file the reader adds, so the page never asks for a unit up
+  front. Until a file is added the panel's body asks for one: a dashed area to
+  drop it on (a file dropped anywhere on the page lands there, so a miss never
+  opens the file in the tab), "Download rates file", "Choose rates file…" and
+  "File format" (a JSON of runner label → $ per runner-hour, or wrapped as
+  `{valid_from, window, basis, rates}`; `window` is `{start, end}`, the UTC
+  days of usage the rates are averaged over, both included, and a bad one is
+  ignored as the notes are). "Download rates file" is a plain link to the
+  internal rates file (`RATES_FILE_URL`, a Meta-only fburl; its tooltip says
+  it needs access to the file) that opens in a new tab: the browser downloads
+  the file and the reader adds it as any other; HUD never fetches it. The file
+  is read in the browser into the page's state (`lib/tests/cost/rates.ts`):
+  never sent, stored, or put in the URL, whose query HUD's analytics record,
+  and reloading drops it; the panel's split keys stay out of the URL with it.
+  The API holds no prices. A row's price key is its runner labels without
+  self-hosted; 0 is a price, and a runner the file leaves out has no rate and
+  stays out of the cost. Once added, a line under the band names the file, its
+  usage window in a grey pill like the facts' (the page's date format, "Rates
+  averaged over 2026-10-08 to 11-06"; its tooltip counts the UTC days and says
+  the page prices all its days with these rates), its valid_from unless that
+  is the window's last day, its basis, how many of the window's runners it
+  leaves without a rate and how many of its labels didn't run (each listed in
+  a tooltip), and Replace, Clear and File format (the facts' "Priced" pill is
   the share, by scope); a file that can't be read says why, keeping the one
   loaded, and a file pricing no runner in the window is refused, with an
   example label. Rates run from 0 to 100,000 $/h and read to 3 significant
@@ -1328,7 +1336,7 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   module-level function (no suite crumb), an unknown id (`/test/1`, the
   warning), a malformed id (`/test/abc`, the API's error with Retry), a test
   of another repository (its id under `/tests/pytorch/vision/`, the warning)
-  and, with `HUD_API_REQUIRE_AUTH=1`, the access notice when signed out.
+  and, with `HUD_API_REQUIRE_AUTH=1`, that it all loads signed out.
   Then the grid, in both themes: the five header keys and their URL
   parameters (the commit search with a hash in and out of the window and
   its messages, `commit=`; code source and window, `ran_on=`, `window=`;

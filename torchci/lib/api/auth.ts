@@ -10,12 +10,14 @@ import { authOptions } from "pages/api/auth/[...nextauth]";
 // belong to a user with write access to pytorch/pytorch, or on the allow list
 // in lib/auth/allowList.json. The token comes from an `Authorization: Bearer
 // <token>` header, as CLI and agent callers send it, else from the HUD
-// session's GitHub access token, as the browser pages have it. On a preview
-// deployment the preview login's session, which has no GitHub token, passes
-// instead: there the preview password is the gate. A request without a
-// credential is answered 401 (unauthenticated), one whose user lacks access
-// 403 (forbidden), one GitHub would not answer because it is rate limiting
-// HUD 503 (unavailable, with Retry-After), and one GitHub could not be asked
+// session's GitHub access token, as a signed-in browser has it. HUD's pages
+// under /tests/ are public, so a route they read lets the requests they make
+// through without a credential (admitHudPages). On a preview deployment the
+// preview login's session, which has no GitHub token, passes instead: there
+// the preview password is the gate. A request without a credential is
+// answered 401 (unauthenticated), one whose user lacks access 403
+// (forbidden), one GitHub would not answer because it is rate limiting HUD
+// 503 (unavailable, with Retry-After), and one GitHub could not be asked
 // about 500 (internal_error), all in the API's error shape. Under `next dev`
 // the gate stands open unless HUD_API_REQUIRE_AUTH=1.
 
@@ -242,13 +244,40 @@ export function forCallerOnly(response: Response): Response {
   return response;
 }
 
+// Whether one of HUD's own pages made the request, in a reader's browser.
+// The browser sends `Sec-Fetch-Site: same-origin` only with a request that a
+// document of HUD's own origin made, and no script can set or change the
+// header, so a page on another site cannot have a reader's browser claim it.
+// It is not a credential: a program can send the header too, and then gets
+// what the public pages would show it. A browser too old to send the header,
+// or one that reaches a production build over plain HTTP anywhere but
+// localhost, does not send it, and its reader has to sign in.
+export function isHudPageRequest(request: Request): boolean {
+  return request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+// What a route's gate lets through besides a credential.
+export interface GateOptions {
+  // HUD's public pages read this route, so it admits the requests they make
+  // (isHudPageRequest) without a credential. Without this option a route asks
+  // every caller for a credential, as the run lookup does, since no page
+  // reads it.
+  admitHudPages?: boolean;
+}
+
 // The gate's verdict on the request as the response to send, or null when
-// the caller may proceed.
+// the caller may proceed. A token in a header is checked whoever sends it.
+// A request without one passes if one of HUD's pages made it and the route
+// admits them; otherwise it needs the session.
 export async function refuseWithoutGithubWriteAccess(
-  request: Request
+  request: Request,
+  { admitHudPages = false }: GateOptions = {}
 ): Promise<Response | null> {
   if (isOpenForDevelopment()) return null;
   const bearer = bearerTokenOf(request);
+  if (bearer === null && admitHudPages && isHudPageRequest(request)) {
+    return null;
+  }
   const credential =
     bearer === null
       ? await sessionCredential()
@@ -268,9 +297,10 @@ export async function refuseWithoutGithubWriteAccess(
 // The route handler behind the gate, with the handler's own signature: the
 // refusal, or the handler's answer for its caller alone.
 export function requireGithubWriteAccess<Arguments extends RouteArguments>(
-  handler: (..._args: Arguments) => Promise<Response>
+  handler: (..._args: Arguments) => Promise<Response>,
+  options: GateOptions = {}
 ): (..._args: Arguments) => Promise<Response> {
   return async (...args) =>
-    (await refuseWithoutGithubWriteAccess(args[0])) ??
+    (await refuseWithoutGithubWriteAccess(args[0], options)) ??
     forCallerOnly(await handler(...args));
 }

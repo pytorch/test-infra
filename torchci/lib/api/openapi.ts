@@ -22,8 +22,8 @@ import type { z } from "zod/v4";
 // across the document, whatever the domain. Every operation under the
 // `tests` tag is behind the GitHub gate in lib/api/auth.ts, declared once as
 // the document's security requirement; the pages, under the `pages` tag,
-// declare none, since the browser's sign-in is theirs, and neither do the
-// operations under the `releases` tag, which are public (lib/api/public.ts).
+// declare none, since they are public, and neither do the operations under
+// the `releases` tag, which are public too (lib/api/public.ts).
 const SECURITY_SCHEME = "githubToken";
 export const API_TAG = "tests";
 const RESOURCES: ApiResource[] = [

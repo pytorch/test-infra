@@ -1,7 +1,7 @@
 // The pull request page, /tests/[organization]/[repo]/pull/[number]: the
 // API URL it asks, the commit page it opens with the parameters it passes
-// on, and the page itself, mounted with a stub router and session and a
-// fetch stub answered by hand.
+// on, and the page itself, mounted with a stub router and a fetch stub
+// answered by hand.
 
 import type { PullRequestHead } from "lib/api/tests/pull/types";
 import { pullPageTarget, pullRequestApiUrl } from "lib/tests/pullPage";
@@ -9,17 +9,12 @@ import Page from "pages/tests/[organization]/[repo]/pull/[number]";
 import { act, create, ReactTestRenderer } from "react-test-renderer";
 import { SWRConfig } from "swr";
 
-// The router the page reads, which records where the page sends the reader,
-// and a signed-in session.
+// The router the page reads, which records where the page sends the reader.
 const mockRouter = {
   query: { organization: "pytorch", repo: "pytorch", number: "203277" },
   replace: jest.fn(async (_url: string) => true),
 };
 jest.mock("next/router", () => ({ useRouter: () => mockRouter }));
-jest.mock("next-auth/react", () => ({
-  useSession: () => ({ status: "authenticated" }),
-  signIn: jest.fn(),
-}));
 
 const REPO = "pytorch/pytorch";
 const SHA = "b2bbfce524a163c99bb1ad47909387679100688d";
