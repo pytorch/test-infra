@@ -5,8 +5,8 @@ import { upsertPrStatusSection } from "lib/drciUtils";
 import { requestOutstandingChangesReviewers } from "lib/prReview/reReviewRequests";
 import {
   fetchLiveLabels,
-  hasPendingTriageLabels,
   hasPrStatusLabel,
+  isAwaitingInProgress,
   isPrStatusEligible,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
@@ -188,7 +188,7 @@ async function handle(
 
   // Promotion only needs live eligibility, never reviewer approvals or responses.
   // Its label event refreshes Dr.CI, so comment-read failures cannot undo the move.
-  if (hasPendingTriageLabels(labels) && isPrStatusEligible(pullRequest)) {
+  if (isAwaitingInProgress(labels) && isPrStatusEligible(pullRequest)) {
     await markTriagedInProgress(
       context.octokit as any,
       context.octokit as any,
