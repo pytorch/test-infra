@@ -139,11 +139,12 @@ rebuilds from the TD log's aggregated scores the way `run_test.py` takes the top
 1. **Holdout** (the fair check): the `td-holdout-unstable` runs of 2026-08-30..09-18 ran
    every test file with TD off, so their failures are not biased toward what TD chose to
    run. For each PR-specific failure there (not broken on main that day, counted once per
-   PR, config and file), the gate asks whether TD's include list and the scorer's cut held
-   the file. The scorer must catch at least as many as TD. The holdout set is built once
+   PR, config and file, and left out when a must-run heuristic scored the file, as in the
+   walk-forward), the gate asks whether TD's include list and the scorer's cut held the
+   file. The scorer must catch at least as many as TD. The holdout set is built once
    and stored write-once at
-   `s3://ossci-raw-job-status/td_scorer/holdout/v2.jsonl.gz` (pull requests build it in
-   memory), and only when it is sound: no fetch failed, at most 15% of the heads with a
+   `s3://ossci-raw-job-status/td_scorer/holdout/<SHARD_FORMAT>.jsonl.gz` (pull requests
+   build it in memory), and only when it is sound: no fetch failed, at most 15% of the heads with a
    successful TD job lack its log, and at least 40 failures (`MIN_HOLDOUT_EVENTS`); an
    unsound set fails the gate, and the run on main. Caveats: it is small, about 54
    failures in 32 PRs, so a difference of a few failures is noise; its test jobs always

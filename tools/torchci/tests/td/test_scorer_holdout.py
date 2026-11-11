@@ -101,6 +101,27 @@ class TestEvaluateHoldout(TestCase):
         self.assertEqual((r.events, r.prs, r.td_caught, r.scorer_caught), (2, 2, 1, 1))
         self.assertTrue(r.scorer_ok)
 
+    def test_must_run_failures_left_out(self) -> None:
+        # Run 1's failing file c, scored by EditedByPR: the scorer's cut always runs it
+        # and TD's include list (a and b) does not, so it is no event for either side.
+        edited = shards.Run(
+            1,
+            7,
+            f"{1:040d}",
+            "2026-09-01 01:00:00",
+            ["Filepath", "EditedByPR"],
+            [],
+            {"Filepath": {"c": 1.0}, "EditedByPR": {"c": 1.0}},
+            None,
+            {},
+        )
+        shard = holdout_set([1, 3])
+        shard.runs[0] = edited
+        r = holdout.evaluate_holdout(model(), shard, rows.JobTimes(TIMES))
+        self.assertEqual((r.events, r.prs, r.td_caught, r.scorer_caught), (1, 1, 1, 0))
+        self.assertEqual((r.must_run_events, r.jobs), (1, 1))
+        self.assertIn("1 must-run events left out", r.text())
+
     def test_unsound_or_empty_set_fails(self) -> None:
         self.assertFalse(self.evaluate([1], errors=1).scorer_ok)
         self.assertFalse(self.evaluate([4]).scorer_ok)
@@ -269,6 +290,7 @@ class TestBuild(TestCase):
             self.assertFalse(dirs.exists(holdout.HOLDOUT_KEY))
             holdout.load_or_build(dirs)
             self.assertTrue(dirs.exists(holdout.HOLDOUT_KEY))
+            self.assertTrue(dirs.exists(store.SHARD_FORMAT))
             self.assertEqual(holdout.load_or_build(dirs).units, good.units)
             self.assertEqual(build.call_count, 2)
         with mock.patch.object(holdout, "build_holdout", return_value=good):

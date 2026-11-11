@@ -13,13 +13,14 @@ PR-specific failures; it is stored as a shard file, write-once, only when sound.
 At TD's cost per job (TD's include list rebuilt from the log's aggregated scores, as
 gate.py does), each PR-specific failure is counted once per (PR, build env, test config,
 file), at its first failing run, for TD when its include list holds the file and for the
-scorer when its cut does.
+scorer when its cut does. A failure in a file a must-run heuristic scored is left out, as
+in the walk-forward (gate.py): the scorer's cut always runs it, TD's include list may not.
 """
 
 from datetime import date, timedelta
 from typing import Any, Mapping, Optional
 
-from torchci.td.scorer.gate import Evaluator, HoldoutReport
+from torchci.td.scorer.gate import Evaluator, HoldoutReport, must_run_files
 from torchci.td.scorer.logs import fetch_td_log
 from torchci.td.scorer.rows import JobTimes, unit_labels
 from torchci.td.scorer.rows_sql import MAIN_FAILURES_SQL, PR_OF_RUN, SETTINGS, units_sql
@@ -34,7 +35,7 @@ from torchci.td.scorer.shards import (
     td_platform,
     Unit,
 )
-from torchci.td.scorer.store import dump_shard, load_shard, ShardStore
+from torchci.td.scorer.store import dump_shard, load_shard, SHARD_FORMAT, ShardStore
 from torchci.td.scorer.trunk import TD_JOBS_SQL
 
 
@@ -42,7 +43,7 @@ HOLDOUT_WORKFLOW = "td-holdout-unstable"
 HOLDOUT_START = date(2026, 8, 30)
 HOLDOUT_STOP = date(2026, 9, 19)
 HOLDOUT_PREFIX = "td_scorer/holdout/"
-HOLDOUT_KEY = "v2"
+HOLDOUT_KEY = SHARD_FORMAT
 MIN_HOLDOUT_EVENTS = 40
 
 RUNS_SQL = f"""
@@ -212,7 +213,10 @@ def evaluate_holdout(
     ev = Evaluator(model, times)
     report = HoldoutReport(healthy=holdout_ok(shard))
     prs: set[int] = set()
-    for run, unit, new in first_events(shard):
+    for run, unit, first in first_events(shard):
+        must_run = must_run_files(run)
+        new = [f for f in first if f not in must_run]
+        report.must_run_events += len(first) - len(new)
         if not new:
             continue
         selected, include = ev.cut(run, unit)

@@ -169,7 +169,7 @@ def _load_pytorch(module_path: Path) -> Optional[Any]:
 
 def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional[int]:
     """Jobs whose selection by pytorch's select_tests differs from the gate's; None
-    when pytorch has no scorer.py."""
+    when pytorch has no scorer.py or its scorer.py has no select_tests."""
     if not (root / SCORER_DIR / "scorer.py").exists():
         return None
     sys.path.insert(0, str(root))
@@ -178,6 +178,8 @@ def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional
         from tools.testing.test_run import TestRun  # type: ignore[import]
     finally:
         sys.path.remove(str(root))
+    if getattr(scorer, "select_tests", None) is None:
+        return None
     mismatches = 0
     for job in jobs:
         block = {
@@ -241,7 +243,10 @@ def check_pytorch(args: argparse.Namespace) -> int:
     jobs = sample.get("jobs", [])
     mismatches = _replay_cuts(root, model, jobs)
     if mismatches is None:
-        print(f"SKIP: no {SCORER_DIR}/scorer.py: the cut was not replayed in pytorch")
+        print(
+            f"SKIP: no {SCORER_DIR}/scorer.py with select_tests: the cut was not"
+            " replayed in pytorch"
+        )
         return SKIPPED
     print(f"pytorch select_tests: {mismatches} of {len(jobs)} jobs select differently")
     return 0 if jobs and not mismatches else 1

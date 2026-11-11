@@ -379,6 +379,17 @@ class TestCli(TestCase):
         return trunk.TrunkLanding(f"{day}-landing", day, (pair,))
 
     def test_refit_end_to_end(self) -> None:
+        # refit decides which days are final from today's date; the days below were
+        # chosen for 2026-11-11.
+        class Clock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 11, 11, 12, tzinfo=tz)
+
+        with mock.patch.object(cli, "datetime", Clock):
+            self._refit_end_to_end()
+
+    def _refit_end_to_end(self) -> None:
         self.broken: set[date] = set()
         self.gap: set[date] = set()
         landings = [
@@ -553,6 +564,13 @@ class TestCli(TestCase):
             self.assertEqual(cli.main(args), 1)
             write_pytorch(root, "0.0", scorer="False")
             self.assertEqual(cli.main(args), 0)
+            target = root / cli.SCORER_DIR
+            (target / "scorer.py").write_text("TD_RESULTS_PATH = None\n")
+            for name in [
+                m for m in sys.modules if m == "tools" or m.startswith("tools.")
+            ]:
+                del sys.modules[name]
+            self.assertEqual(cli.main(args), cli.SKIPPED)
             write_pytorch(root, "0.0", scorer="True")
             self.assertEqual(cli.main(args), 1)
             write_pytorch(root, "0.0")

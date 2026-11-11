@@ -1,8 +1,9 @@
 """The publish gate: does the new scorer, at TD's own cost, catch what TD catches?
 
 A model publishes when both hold:
-- holdout (holdout.py): on the TD-off holdout's PR-specific failures, the scorer's cut
-  catches at least as many as TD's own include list, job by job at TD's cost;
+- holdout (holdout.py): on the TD-off holdout's PR-specific failures in files no
+  must-run heuristic scored, the scorer's cut catches at least as many as TD's own
+  include list, job by job at TD's cost;
 - floor: pooled over the walk-forward months (walkforward.py), each scored by a model
   fitted only on the days before it, the scorer scores at least FLOOR_RATIO of TD, over
   at least MIN_FLOOR_PRS PRs with failures.
@@ -99,6 +100,7 @@ class HoldoutReport:
     jobs: int = 0
     td_files: int = 0
     scorer_files: int = 0
+    must_run_events: int = 0
 
     @property
     def scorer_ok(self) -> bool:
@@ -110,8 +112,8 @@ class HoldoutReport:
             f"holdout: {self.events} events in {self.prs} PRs ({self.jobs} jobs),"
             f" TD caught {self.td_caught}, scorer caught {self.scorer_caught};"
             f" mean files per job TD {self.td_files / jobs:.1f}, scorer"
-            f" {self.scorer_files / jobs:.1f}"
-            + ("" if self.healthy else " (holdout set unsound)")
+            f" {self.scorer_files / jobs:.1f}; {self.must_run_events} must-run events"
+            " left out" + ("" if self.healthy else " (holdout set unsound)")
         )
 
 
