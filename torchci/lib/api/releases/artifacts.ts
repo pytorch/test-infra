@@ -157,7 +157,12 @@ function toRow(row: ArtifactDbRow): ArtifactRow {
     arch: row.arch,
     verdict: row.verdict,
     size_bytes: row.size_bytes === null ? null : Number(row.size_bytes),
-    vs_previous_pct: row.vs_previous_pct,
+    // The column is Float32, which reaches JSON widened (7.78 as 7.7799997): two
+    // decimals are all the collector computes.
+    vs_previous_pct:
+      row.vs_previous_pct === null
+        ? null
+        : Math.round(row.vs_previous_pct * 100) / 100,
     evidence: {
       // a missing artifact is evidenced by where it was expected
       url:

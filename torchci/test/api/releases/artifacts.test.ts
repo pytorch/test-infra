@@ -276,6 +276,27 @@ describe("listArtifacts", () => {
     });
   });
 
+  test("rounds the change against the previous release to two decimals", async () => {
+    // Float32 values as they reach the handler from ClickHouse
+    answer([
+      dbRow({ vs_previous_pct: 7.7799997 }),
+      dbRow({ vs_previous_pct: 5.7200003 }),
+      dbRow({ vs_previous_pct: -3.6300001 }),
+      dbRow({ vs_previous_pct: 24.27 }),
+      dbRow({ vs_previous_pct: 0 }),
+      dbRow({ vs_previous_pct: null }),
+    ]);
+    const page = await listArtifacts({ query: artifactQuery(), cursor: null });
+    expect(page.rows.map((row) => row.vs_previous_pct)).toEqual([
+      7.78,
+      5.72,
+      -3.63,
+      24.27,
+      0,
+      null,
+    ]);
+  });
+
   test("an empty release answers zero counts and no rows", async () => {
     answer([], []);
     const page = await listArtifacts({ query: artifactQuery(), cursor: null });
