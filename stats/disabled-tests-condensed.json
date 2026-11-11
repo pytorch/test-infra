@@ -119,6 +119,13 @@
       "xpu"
     ]
   ],
+  "test_causal_variants_causal_variant_2_shape1_xpu (__main__.TestAttnBiasXPU)": [
+    "204336",
+    "https://github.com/pytorch/pytorch/issues/204336",
+    [
+      "xpu"
+    ]
+  ],
   "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
     "100074",
     "https://github.com/pytorch/pytorch/issues/100074",
