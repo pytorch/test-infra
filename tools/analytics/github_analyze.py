@@ -6,7 +6,8 @@ import enum
 import json
 import os
 import re
-from datetime import datetime, timedelta
+import sys
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional, Union
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -254,6 +255,16 @@ class GitRepo:
             .split("\n")
         ]
 
+    def ref_exists(self, ref: str) -> bool:
+        """Whether the ref (a branch name, on this repo's remote) exists."""
+        try:
+            self._run_git_cmd(
+                "rev-parse", "--verify", "--quiet", f"{self.remote}/{ref}"
+            )
+            return True
+        except Exception:
+            return False
+
     def show_ref(self, ref) -> str:
         return self._run_git_cmd("show-ref", ref).split(" ")[0]
 
@@ -459,41 +470,169 @@ def print_contributor_stats(commits, delta: Optional[timedelta] = None) -> None:
         print(f"{author}: {count}")
 
 
-def commits_missing_in_branch(
+def milestone_issue_statuses(
     repo: GitRepo, branch: str, orig_branch: str, milestone_idx: int
-) -> None:
-    def get_commits_dict(x, y):
-        return build_commit_dict(repo.get_commit_list(x, y))
+) -> List[Dict[str, Any]]:
+    """
+    The status of every issue and PR in a milestone, as {"issue": <GitHub issue>,
+    "outstanding": bool, "reason": str}. The reasons:
 
-    main_commits = get_commits_dict(orig_branch, "main")
-    release_commits = get_commits_dict(orig_branch, branch)
+    - feature_request: labelled release-feature-request, not counted
+    - open: still open
+    - closed_before_cut: closed, and the release branch is not cut yet (so there is
+      nothing to pick)
+    - landed_before_cut: closed, and not mentioned by a commit on main after the cut
+    - on_release_branch: closed, landed on main after the cut, and picked
+    - not_on_release_branch: closed, landed on main after the cut, and not picked
+    """
+    branch_cut = repo.ref_exists(branch)
+    main_commits: Dict[str, GitCommit] = {}
+    release_commits: Dict[str, GitCommit] = {}
+    if branch_cut:
+
+        def get_commits_dict(x, y):
+            return build_commit_dict(repo.get_commit_list(x, y))
+
+        main_commits = get_commits_dict(orig_branch, "main")
+        release_commits = get_commits_dict(orig_branch, branch)
     print(f"len(main_commits)={len(main_commits)}")
     print(f"len(release_commits)={len(release_commits)}")
-    print("URL;Title;Status")
+    statuses = []
     for issue in gh_get_milestone_issues(
         "pytorch", "pytorch", milestone_idx, IssueState.ALL
     ):
-        # Skip issues with the release-feature-request label
         labels = [label["name"] for label in issue.get("labels", [])]
-        if "release-feature-request" in labels:
-            continue
         issue_url, state = issue["html_url"], issue["state"]
-        # Skip closed states if they were landed before merge date
-        if state == "closed":
-            mentioned_after_cut = any(
-                commit.is_issue_mentioned(issue_url) for commit in main_commits.values()
-            )
-            # If issue is not mentioned after cut, that it must be present in release branch
-            if not mentioned_after_cut:
-                continue
-            mentioned_in_release = any(
-                commit.is_issue_mentioned(issue_url)
-                for commit in release_commits.values()
-            )
-            # if Issue is mentioned is release branch, than it was picked already
-            if mentioned_in_release:
-                continue
-        print(f"{issue_url} ;{issue['title']};{state}")
+        if "release-feature-request" in labels:
+            outstanding, reason = False, "feature_request"
+        elif state != "closed":
+            outstanding, reason = True, "open"
+        elif not branch_cut:
+            outstanding, reason = False, "closed_before_cut"
+        elif not any(
+            commit.is_issue_mentioned(issue_url) for commit in main_commits.values()
+        ):
+            # not mentioned after the cut, so it must be present in the release branch
+            outstanding, reason = False, "landed_before_cut"
+        elif any(
+            commit.is_issue_mentioned(issue_url) for commit in release_commits.values()
+        ):
+            # mentioned in the release branch, so it was picked already
+            outstanding, reason = False, "on_release_branch"
+        else:
+            outstanding, reason = True, "not_on_release_branch"
+        statuses.append({"issue": issue, "outstanding": outstanding, "reason": reason})
+    return statuses
+
+
+def commits_missing_in_branch(
+    repo: GitRepo, branch: str, orig_branch: str, milestone_idx: int
+) -> None:
+    statuses = milestone_issue_statuses(repo, branch, orig_branch, milestone_idx)
+    print("URL;Title;Status")
+    for status in statuses:
+        if status["outstanding"]:
+            issue = status["issue"]
+            print(f"{issue['html_url']} ;{issue['title']};{issue['state']}")
+
+
+def milestone_step_rows(
+    release: str,
+    branch: str,
+    milestone_idx: int,
+    steps: List[Dict[str, Any]],
+    statuses: List[Dict[str, Any]],
+    branch_cut: bool,
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """
+    The misc.release_event rows for one scan of a release's milestone: one per release
+    portal step that checks milestone_outstanding_items, done when the milestone has at
+    most the step's max_outstanding outstanding items. The outstanding items, and the
+    count of every issue by reason, are in `details`.
+    """
+    outstanding = [status for status in statuses if status["outstanding"]]
+    by_reason: Dict[str, int] = {}
+    for status in statuses:
+        by_reason[status["reason"]] = by_reason.get(status["reason"], 0) + 1
+    milestone_url = f"https://github.com/pytorch/pytorch/milestone/{milestone_idx}"
+    if outstanding:
+        numbers = ", ".join(f"#{status['issue']['number']}" for status in outstanding)
+        evidence = f"{len(outstanding)} outstanding in milestone {release}: {numbers}"
+    else:
+        evidence = f"No outstanding items in milestone {release}"
+    details = json.dumps(
+        {
+            "milestone": milestone_idx,
+            "branch": branch,
+            "branch_cut": branch_cut,
+            "issues": len(statuses),
+            "by_reason": by_reason,
+            "outstanding": [
+                {
+                    "number": status["issue"]["number"],
+                    "kind": (
+                        "pull_request" if "pull_request" in status["issue"] else "issue"
+                    ),
+                    "title": status["issue"]["title"],
+                    "url": status["issue"]["html_url"],
+                    "state": status["issue"]["state"],
+                    "reason": status["reason"],
+                }
+                for status in outstanding
+            ],
+        }
+    )
+    return [
+        {
+            "release": release,
+            "step_id": step["id"],
+            "rc": "",
+            "status": (
+                "done"
+                if len(outstanding) <= step["check"]["max_outstanding"]
+                else "in_progress"
+            ),
+            "blocking": 0,
+            "evidence_text": evidence,
+            "evidence_url": milestone_url,
+            "check_type": "milestone_outstanding_items",
+            "source": "collector",
+            "run_id": run_id,
+            "run_url": run_url,
+            "config_sha": config_sha,
+            "details": details,
+            "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+        }
+        for step in steps
+    ]
+
+
+def insert_clickhouse_rows(table: str, rows: List[Dict[str, Any]]) -> None:
+    """Append rows to a ClickHouse table over its HTTP interface (JSONEachRow)."""
+    from urllib.parse import quote
+
+    endpoint = os.environ["CLICKHOUSE_ENDPOINT"].rstrip("/")
+    if not endpoint.startswith("http"):
+        endpoint = f"https://{endpoint}"
+    query = quote(f"INSERT INTO {table} FORMAT JSONEachRow")
+    request = Request(
+        f"{endpoint}/?query={query}",
+        data="\n".join(json.dumps(row) for row in rows).encode(),
+        headers={
+            "X-ClickHouse-User": os.environ["CLICKHOUSE_USERNAME"],
+            "X-ClickHouse-Key": os.environ["CLICKHOUSE_PASSWORD"],
+        },
+    )
+    try:
+        with urlopen(request):
+            pass
+    except HTTPError as err:
+        print(f"ClickHouse insert into {table} failed: {err.read().decode()[:500]}")
+        raise
 
 
 def commits_missing_in_release(
@@ -703,6 +842,19 @@ def parse_arguments():
         action="store_true",
         help="Analyze reverts applied to main branch but not applied to specified branch",
     )
+    parser.add_argument(
+        "--release",
+        type=str,
+        help="The release whose milestone to scan (e.g. 2.16.0): --branch and "
+        "--milestone-id default to its release branch and its title",
+    )
+    parser.add_argument(
+        "--write-to-clickhouse",
+        action="store_true",
+        help="With --missing-in-branch and --release, record the state of the release "
+        "portal steps that check the milestone in misc.release_event (CLICKHOUSE_ENDPOINT, "
+        "CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD)",
+    )
     parser.add_argument("--date", type=lambda d: datetime.strptime(d, "%Y-%m-%d"))
     parser.add_argument("--issue-num", type=int)
     return parser.parse_args()
@@ -736,6 +888,25 @@ def main():
         analyze_reverts_missing_from_branch(repo, args.branch)
         return
 
+    milestone_steps = []
+    if args.write_to_clickhouse and not args.release:
+        print("Error: --release is required with --write-to-clickhouse")
+        sys.exit(1)
+    if args.release:
+        # The release portal config says which steps check the milestone, the release
+        # branch to check it against and, by default, the milestone's title.
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from torchci.release_portal_config import load_resolved
+
+        config = load_resolved(args.release)
+        milestone_steps = [
+            step
+            for step in config["steps"]
+            if step["check"]["type"] == "milestone_outstanding_items"
+        ]
+        args.branch = args.branch or config["branch"]
+        args.milestone_id = args.milestone_id or args.release
+
     # Use milestone idx or search it along milestone titles
     try:
         milestone_idx = int(args.milestone_id)
@@ -747,12 +918,53 @@ def main():
                 milestone_idx = int(milestone.get("number", "-2"))
         if milestone_idx < 0:
             print(f"Could not find milestone {args.milestone_id}")
+            if args.write_to_clickhouse:
+                sys.exit(1)  # a scheduled run must not silently record nothing
             return
 
     if args.missing_in_branch:
-        commits_missing_in_branch(
+        if not args.write_to_clickhouse:
+            commits_missing_in_branch(
+                repo, args.branch, f"orig/{args.branch}", milestone_idx
+            )
+            return
+        statuses = milestone_issue_statuses(
             repo, args.branch, f"orig/{args.branch}", milestone_idx
         )
+        run_id = f"{os.environ.get('GITHUB_RUN_ID', '')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+        run_url = ""
+        if "GITHUB_RUN_ID" in os.environ:
+            run_url = (
+                f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+                f"{os.environ.get('GITHUB_REPOSITORY', 'pytorch/test-infra')}"
+                f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+            )
+        rows = milestone_step_rows(
+            args.release,
+            args.branch,
+            milestone_idx,
+            milestone_steps,
+            statuses,
+            repo.ref_exists(args.branch),
+            os.environ.get("GITHUB_SHA", "0" * 40),
+            run_id,
+            run_url,
+            datetime.now(timezone.utc),
+        )
+        outstanding = [status for status in statuses if status["outstanding"]]
+        print(
+            f"{args.release}: milestone {milestone_idx}, {len(statuses)} issues, "
+            f"{len(outstanding)} outstanding"
+        )
+        for status in statuses:
+            issue = status["issue"]
+            print(
+                f"{issue['html_url']} ;{issue['title']};{issue['state']};{status['reason']}"
+            )
+        for row in rows:
+            print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
         return
 
     if args.missing_in_release:
