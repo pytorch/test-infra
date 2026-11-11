@@ -23,6 +23,8 @@ jobs:
     # The AWS credentials below last role-duration-seconds from their step; the job must
     # end before them (the backfill budget is store.BACKFILL_SECONDS).
     timeout-minutes: 285
+    # TEMPORARY (PR test): the S3 role trusts this environment.
+    environment: trigger-nightly
     permissions:
       contents: read
       id-token: write
@@ -47,7 +49,6 @@ jobs:
       # The role trusts this repository's refs/heads/main OIDC subject; a job
       # environment would change the subject.
       - name: Configure AWS credentials
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
           role-to-assume: arn:aws:iam::308535385114:role/upload_to_ossci_raw_job_status
@@ -81,9 +82,21 @@ jobs:
           if [ "${ON_MAIN}" = "true" ]; then
             python -m torchci.td.scorer refit --s3 "${outputs[@]}"
           else
-            # Three days in memory: no S3, no publish, and the gate only reports.
-            python -m torchci.td.scorer refit --train-days 2 --gate-days 1 \
-              --report-only "${outputs[@]}"
+            # TEMPORARY (PR test): the main path (S3, every day, the backfill budget)
+            # under a test prefix, never the production one; the gate decides as on main.
+            python - "${outputs[@]}" <<'PY'
+          import sys
+          from torchci.td.scorer import __main__ as m, holdout, store
+          prefix = "td_scorer/pr-test-9427/"
+          rows = f"{prefix}rows/{store.SHARD_FORMAT}/"
+          store.S3_PREFIX = rows
+          m._store.__defaults__ = (rows, "")
+          holdout.HOLDOUT_PREFIX = f"{prefix}holdout/"
+          assert m._store.__defaults__[0].startswith(prefix)
+          assert holdout.HOLDOUT_PREFIX.startswith(prefix)
+          print(f"S3 prefixes: {rows} and {holdout.HOLDOUT_PREFIX}")
+          sys.exit(m.main(["refit", "--s3", *sys.argv[1:]]))
+          PY
           fi
 
       - name: Upload the model
@@ -117,7 +130,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: pytorch/pytorch
-          ref: main
+          # TEMPORARY (PR test): pytorch main has no scorer code yet.
+          ref: nm/305/2
           path: pytorch
           fetch-depth: 1
           persist-credentials: false
@@ -164,9 +178,8 @@ jobs:
 
   publish:
     needs: [refit, check]
-    if: >-
-      github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-      && needs.check.outputs.validated == 'true'
+    # TEMPORARY (PR test): runs on pull requests and really publishes.
+    if: needs.check.outputs.validated == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
