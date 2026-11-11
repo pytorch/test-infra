@@ -2,6 +2,7 @@ name: Recover PR status comments
 
 on:
   schedule:
+    # Offset from the independent triaged-label recovery sweep.
     - cron: "11,26,41,56 * * * *"
   workflow_dispatch:
 

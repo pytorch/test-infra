@@ -144,7 +144,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
     return "draft";
   }
   // A triaged PR still needs automated review, even with merge approval. The
-  // The triaged webhook adds in progress without waiting for maintainer input.
+  // recovery sweep will add in progress without waiting for maintainer input.
   if (isAwaitingInProgress(state.labels)) {
     return "triaged";
   }
@@ -297,10 +297,11 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         "## PR Status: triaged\n\n" +
         (state.labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT)
           ? "This PR is queued for maintainer review without automated review. " +
-            'The bot will automatically advance it to "ready for review".'
+            'The bot will automatically advance it to "ready for review". '
           : "This PR is queued for automated review. The bot should add " +
             '"in progress" shortly. If it does not, a maintainer can remove and ' +
-            're-add "triaged" to retry.')
+            're-add "triaged" to retry. ') +
+        "If a label event was missed, the recovery sweep retries every 15 minutes."
       );
     case "none":
       return "";
