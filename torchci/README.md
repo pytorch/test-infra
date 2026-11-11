@@ -72,50 +72,11 @@ them to your local server.
 
 ## Deployment and monitoring
 
-### Triage advancement and recovery
+### PR Status reader configuration
 
-In `pytorch/pytorch`, an open, non-draft PR created on or after 2026-09-01
-advances as soon as it has `triaged` and none of `missing actionable issue`,
-`in progress`, or `ready for review`. PyTorchBot immediately adds `in progress`
-to start automated review. Human reviews, including an approval that satisfies
-the merge rules, do not prevent this transition. Reviewer responses and reactions
-are not inputs to triage advancement, and there is no waiting period or response
-command. This transition does not grant merge approval. A triaged PR still
-awaiting the bot's transition shows a queued status, not a reviewer action item.
-
-`.github/workflows/triage-sweep.yml` calls `POST /api/triage/sweep` every
-15 minutes to recover missed transitions without a webhook or recent CI activity.
-Each run checks at most 100 PRs in a rotating batch, with concurrency 5. Ordinary
-PyTorchBot credentials handle both the live eligibility reads and the label write;
-the bot rechecks current state before adding `in progress`. The sweep has no S3
-or persisted-cache dependency. A larger queue takes multiple runs to cover, and
-GitHub Actions scheduling or API failures can delay recovery. Failed PR checks
-are reported by the endpoint and retried on later runs.
-
-### PR Status recovery and reader configuration
-
-PR Status is the first section of the existing PyTorchBot Dr.CI comment. Webhooks
-refresh it as workflow labels, reviews, reviewer requests, or draft state change.
-The independent `.github/workflows/pr-status-sweep.yml` workflow calls
-`POST /api/pr_status/sweep` every 15 minutes to recover quiet workflow PRs and
-missing or stale status comments. It only reconciles comments; it does not advance
-triaged PRs. Its separate concurrency group and dedicated read-only GitHub App
-keep status polling isolated from triage advancement and Dr.CI's GitHub rate limit.
-See [PR status coverage and examples](docs/pr-status.md) for details.
-
-Populate `PR_STATUS_APP_ID` and `PR_STATUS_PRIVATE_KEY` in the HUD deployment.
-An existing read-only app can be reused; no new app is required. The private key
-is base64-encoded PEM, and the app needs read access to PRs, issues, contents, and
-org members on `pytorch/pytorch`. Both variables are mandatory for the dedicated
-status reader (`getPrStatusOctokit`), which never falls back to PyTorchBot.
-PyTorchBot performs status-comment writes and adds `in progress`, since that
-identity triggers automated review. If status reads fail during a CI rebuild,
-the rebuild preserves the existing PR Status section while updating CI results.
-
-Both recovery workflows use the existing `DRCI_BOT_KEY` and `HUD_API_TOKEN`
-secrets for endpoint authentication. Coordinate the HUD endpoint deployment,
-workflow changes, and population of the status-reader variables before enabling
-the workflows. This configuration does not require any S3 or cache changes.
+Configure `PR_STATUS_APP_ID` and `PR_STATUS_PRIVATE_KEY` using the existing
+dedicated read-only GitHub App. See [`.env.example`](.env.example) for setup and
+required permissions.
 
 ### Deployment
 
