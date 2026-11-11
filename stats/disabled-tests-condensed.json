@@ -1,11 +1,4 @@
 {
-  "test_1mb_allocation_uses_small_block (__main__.TestXpu)": [
-    "196247",
-    "https://github.com/pytorch/pytorch/issues/196247",
-    [
-      "xpu"
-    ]
-  ],
   "test_Sparse_to_Sparse_copy__mps_bfloat16 (__main__.TestSparseMPS)": [
     "189842",
     "https://github.com/pytorch/pytorch/issues/189842",
@@ -648,20 +641,6 @@
       "linux"
     ]
   ],
-  "test_dynamic_shapes_2d_blocking_round_robin (__main__.ComboKernelDynamicShapesTests)": [
-    "201543",
-    "https://github.com/pytorch/pytorch/issues/201543",
-    [
-      "xpu"
-    ]
-  ],
-  "test_dynamic_shapes_activations_no_autotune (__main__.ComboKernelDynamicShapesTests)": [
-    "201542",
-    "https://github.com/pytorch/pytorch/issues/201542",
-    [
-      "xpu"
-    ]
-  ],
   "test_dynamic_shapes_persistent_reduction_no_x_dim_2 (__main__.ComboKernelDynamicShapesTests)": [
     "204239",
     "https://github.com/pytorch/pytorch/issues/204239",
@@ -804,13 +783,6 @@
   "test_graph_checkpoint_preserve_rng_state (__main__.TestXpu)": [
     "196308",
     "https://github.com/pytorch/pytorch/issues/196308",
-    [
-      "xpu"
-    ]
-  ],
-  "test_graph_empty_cache_after_side_stream_free_during_capture (__main__.TestXpu)": [
-    "196489",
-    "https://github.com/pytorch/pytorch/issues/196489",
     [
       "xpu"
     ]
@@ -1064,20 +1036,6 @@
     "https://github.com/pytorch/pytorch/issues/188692",
     []
   ],
-  "test_multi_kernel_nesting_and_global_constexpr (__main__.FxGraphRunnableTest)": [
-    "196392",
-    "https://github.com/pytorch/pytorch/issues/196392",
-    [
-      "xpu"
-    ]
-  ],
-  "test_multiheadattention_fastpath_fp16_head_dim_alignment_xpu (__main__.TestTransformersAcceleratorXPU)": [
-    "203928",
-    "https://github.com/pytorch/pytorch/issues/203928",
-    [
-      "xpu"
-    ]
-  ],
   "test_multiple_module (__main__.TestInvokeSubgraphExportStrict)": [
     "150877",
     "https://github.com/pytorch/pytorch/issues/150877",
@@ -1119,13 +1077,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_nested_and_autotuned_same_kernel (__main__.FxGraphRunnableTest)": [
-    "196899",
-    "https://github.com/pytorch/pytorch/issues/196899",
-    [
-      "xpu"
     ]
   ],
   "test_nested_compile_in_backend_preserves_user_objects_cuda (__main__.TestStreamsCUDA)": [
@@ -1298,13 +1249,6 @@
       "macos"
     ]
   ],
-  "test_partitioner_activation_memory_budget_with_unbacked_symints_xpu (__main__.ReproTestsDeviceXPU)": [
-    "203837",
-    "https://github.com/pytorch/pytorch/issues/203837",
-    [
-      "xpu"
-    ]
-  ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
     "193150",
     "https://github.com/pytorch/pytorch/issues/193150",
@@ -1392,13 +1336,6 @@
       "inductor",
       "linux",
       "rocm"
-    ]
-  ],
-  "test_round_robin_dispatch (__main__.ComboKernelBenchmarkTests)": [
-    "194896",
-    "https://github.com/pytorch/pytorch/issues/194896",
-    [
-      "xpu"
     ]
   ],
   "test_row_reduction_output_precision (__main__.TestNativeMatmulRowReduction)": [
