@@ -1,0 +1,21 @@
+# Per-release file for PyTorch 2.15.0, released on 2026-10-28. The steps are the shared
+# ones in ../steps.yml; add `remove`, `override` or `add` here only when this release's
+# process differed (see release/portal/README.md).
+#
+# `type`, `branch`, the milestone, the tracker issue and the validation issue are not
+# written here: the first two follow from the version and the rest are found on GitHub
+# by the rules under `discovery` in steps.yml.
+#
+# `dates` are the PLANNED dates, from "PyTorch Release 2.15 | Key Dates" on dev-discuss
+# (https://dev-discuss.pytorch.org/t/pytorch-release-2-15-key-dates/3434):
+#   M3 release branch cut, RC1             week of 5 Oct  -> branch_cut 2026-10-05
+#   M4 branch finalized, final RC produced week of 19 Oct -> final_rc   2026-10-19
+#   M6 release day                         28 Oct         -> ga         2026-10-28
+# A week-long milestone is dated by its first day. The release shipped on the planned
+# day; the actual dates are in the history of release/2.15 and its tags.
+release: "2.15.0"
+
+dates:
+  branch_cut: 2026-10-05
+  final_rc: 2026-10-19
+  ga: 2026-10-28
