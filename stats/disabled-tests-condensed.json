@@ -692,6 +692,13 @@
       "linux"
     ]
   ],
+  "test_event_record_after_input_mutation_non_escaping_no_error_via_stream_record_event_True_cuda (__main__.TestStreamsCUDA)": [
+    "204333",
+    "https://github.com/pytorch/pytorch/issues/204333",
+    [
+      "linux"
+    ]
+  ],
   "test_event_record_after_input_mutation_non_escaping_removed_from_container_container_dict_cuda (__main__.TestStreamsCUDA)": [
     "204186",
     "https://github.com/pytorch/pytorch/issues/204186",
