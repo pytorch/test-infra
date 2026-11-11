@@ -418,13 +418,6 @@
       "xpu"
     ]
   ],
-  "test_cpp_custom_op_runtime_dispatch_stays_in_cpp (__main__.TestCppWrapperCustomOps)": [
-    "202322",
-    "https://github.com/pytorch/pytorch/issues/202322",
-    [
-      "linux"
-    ]
-  ],
   "test_cuda_memory_leak_detection (__main__.TestMultiGPUCudaOnly)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -702,6 +695,27 @@
   "test_event_record_after_input_mutation_non_escaping_no_error_via_stream_record_event_True_cuda (__main__.TestStreamsCUDA)": [
     "204333",
     "https://github.com/pytorch/pytorch/issues/204333",
+    [
+      "linux"
+    ]
+  ],
+  "test_event_record_after_input_mutation_non_escaping_propagated_propagate_via_record_event_cuda (__main__.TestStreamsCUDA)": [
+    "204367",
+    "https://github.com/pytorch/pytorch/issues/204367",
+    [
+      "linux"
+    ]
+  ],
+  "test_event_record_after_input_mutation_non_escaping_propagated_propagate_via_wait_event_cuda (__main__.TestStreamsCUDA)": [
+    "204368",
+    "https://github.com/pytorch/pytorch/issues/204368",
+    [
+      "linux"
+    ]
+  ],
+  "test_event_record_after_input_mutation_non_escaping_propagated_propagate_via_wait_stream_cuda (__main__.TestStreamsCUDA)": [
+    "204369",
+    "https://github.com/pytorch/pytorch/issues/204369",
     [
       "linux"
     ]
