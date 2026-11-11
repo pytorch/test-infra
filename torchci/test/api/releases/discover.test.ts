@@ -8,9 +8,11 @@ import {
   NOTHING_FOUND,
 } from "lib/api/releases/discover";
 import { getOctokit } from "lib/github";
+import { Octokit } from "octokit";
 import { DISCOVERY, MINOR, SHARED } from "./fixtures";
 
 jest.mock("lib/github", () => ({ getOctokit: jest.fn() }));
+jest.mock("octokit", () => ({ Octokit: jest.fn() }));
 
 // Titles as they are in pytorch/pytorch.
 const ISSUES = [
@@ -121,9 +123,24 @@ describe("discoverLinks", () => {
     };
   }
 
+  const credentials = {
+    APP_ID: process.env.APP_ID,
+    PRIVATE_KEY: process.env.PRIVATE_KEY,
+  };
+
   beforeEach(() => {
     clearDiscoveryCache();
     (getOctokit as jest.Mock).mockReset();
+    (Octokit as unknown as jest.Mock).mockReset();
+    process.env.APP_ID = "1";
+    process.env.PRIVATE_KEY = "key";
+  });
+
+  afterAll(() => {
+    for (const [name, value] of Object.entries(credentials)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   });
 
   test("finds the milestone and the issues a release has", async () => {
@@ -161,6 +178,33 @@ describe("discoverLinks", () => {
     await discoverLinks(MINOR);
     await discoverLinks(MINOR);
     expect(getOctokit).toHaveBeenCalledTimes(1);
+  });
+
+  test("asks GitHub unauthenticated when the app's credentials are not set", async () => {
+    delete process.env.APP_ID;
+    delete process.env.PRIVATE_KEY;
+    // a preview deployment holds no PyTorchBot key; the data is public
+    (Octokit as unknown as jest.Mock).mockImplementation(() => fakeOctokit());
+    const links = await discoverLinks(MINOR);
+    expect(getOctokit).not.toHaveBeenCalled();
+    expect(Octokit).toHaveBeenCalledTimes(1);
+    expect(Octokit).toHaveBeenCalledWith();
+    expect(links.milestone?.number).toBe(71);
+  });
+
+  test("uses the app's installation when its credentials are set", async () => {
+    (getOctokit as jest.Mock).mockResolvedValue(fakeOctokit());
+    await discoverLinks(MINOR);
+    expect(getOctokit).toHaveBeenCalledWith("pytorch", "pytorch");
+    expect(Octokit).not.toHaveBeenCalled();
+  });
+
+  test("one credential alone is not enough, so it is unauthenticated too", async () => {
+    delete process.env.PRIVATE_KEY;
+    (Octokit as unknown as jest.Mock).mockImplementation(() => fakeOctokit());
+    await discoverLinks(MINOR);
+    expect(getOctokit).not.toHaveBeenCalled();
+    expect(Octokit).toHaveBeenCalledTimes(1);
   });
 
   test("a GitHub failure costs the links and nothing else", async () => {

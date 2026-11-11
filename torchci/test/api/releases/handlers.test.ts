@@ -20,6 +20,8 @@ import { committedFetch } from "./fixtures";
 
 jest.mock("lib/clickhouse", () => ({ queryClickhouse: jest.fn() }));
 jest.mock("lib/github", () => ({ getOctokit: jest.fn() }));
+// Discovery asks GitHub unauthenticated without the app's credentials; no test may reach it.
+jest.mock("octokit", () => ({ Octokit: jest.fn() }));
 jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
 
 const query = queryClickhouse as jest.Mock;
@@ -60,7 +62,22 @@ function fakeOctokit() {
   };
 }
 
+const credentials = {
+  APP_ID: process.env.APP_ID,
+  PRIVATE_KEY: process.env.PRIVATE_KEY,
+};
+
+afterAll(() => {
+  for (const [name, value] of Object.entries(credentials)) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+});
+
 beforeEach(() => {
+  // the board's links are found through the app's installation
+  process.env.APP_ID = "1";
+  process.env.PRIVATE_KEY = "key";
   clearConfigCache();
   clearDiscoveryCache();
   query.mockReset();

@@ -1,5 +1,6 @@
 import type { ReleaseConfig } from "lib/api/releases/types";
 import { getOctokit } from "lib/github";
+import { Octokit } from "octokit";
 import { z } from "zod/v4";
 
 // Finds a release's milestone, tracker issue and validation issue on GitHub by the
@@ -90,6 +91,18 @@ export function clearDiscoveryCache(): void {
   cache.clear();
 }
 
+// Everything discovery reads is public: the milestones and issues of a public repo. So
+// without the GitHub App's credentials it asks GitHub unauthenticated. That is what a
+// preview deployment does, which must not hold PyTorchBot's write-scoped key, and it
+// is enough for the five-minute cache below. The credentials, when set, give the
+// higher rate limit.
+async function discoveryOctokit(owner: string, repo: string): Promise<Octokit> {
+  if (process.env.APP_ID && process.env.PRIVATE_KEY) {
+    return getOctokit(owner, repo);
+  }
+  return new Octokit();
+}
+
 async function discover(config: ReleaseConfig): Promise<DiscoveredLinks> {
   const rules = z
     .object({
@@ -99,7 +112,7 @@ async function discover(config: ReleaseConfig): Promise<DiscoveredLinks> {
     })
     .parse(config.discovery);
   const [owner, repo] = rules.milestone.repo.split("/");
-  const octokit = await getOctokit(owner, repo);
+  const octokit = await discoveryOctokit(owner, repo);
   const version = config.release;
 
   const title = milestoneTitle(rules.milestone, version);
