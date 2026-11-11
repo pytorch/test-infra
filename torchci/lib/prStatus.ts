@@ -145,7 +145,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   }
   // A triaged PR still needs automated review, even with merge approval. The
   // The triaged webhook adds in progress without waiting for maintainer input.
-  if (hasPendingTriageLabels(state.labels)) {
+  if (isAwaitingInProgress(state.labels)) {
     return "triaged";
   }
   if (
@@ -175,7 +175,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   return "none";
 }
 
-export function hasPendingTriageLabels(labels: string[]): boolean {
+export function isAwaitingInProgress(labels: string[]): boolean {
   return (
     labels.includes(PR_STATUS_LABEL_TRIAGED) &&
     !labels.includes(PR_STATUS_LABEL_IN_PROGRESS) &&

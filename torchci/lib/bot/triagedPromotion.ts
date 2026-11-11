@@ -1,6 +1,6 @@
 import { isPyTorchPyTorch } from "lib/bot/utils";
 import {
-  hasPendingTriageLabels,
+  isAwaitingInProgress,
   isPrStatusEligible,
   PR_STATUS_LABEL_IN_PROGRESS,
 } from "lib/prStatus";
@@ -37,7 +37,7 @@ export async function markTriagedInProgress(
     });
     if (
       !isPrStatusEligible(pr) ||
-      !hasPendingTriageLabels(pr.labels.map((label) => label.name))
+      !isAwaitingInProgress(pr.labels.map((label) => label.name))
     ) {
       return false;
     }
