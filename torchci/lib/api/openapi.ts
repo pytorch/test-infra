@@ -1,3 +1,4 @@
+import { RELEASES_TAG, releasesApiOpenApi } from "lib/api/releases/openapi";
 import {
   ApiResource,
   componentSchemas,
@@ -21,7 +22,8 @@ import type { z } from "zod/v4";
 // across the document, whatever the domain. Every operation under the
 // `tests` tag is behind the GitHub gate in lib/api/auth.ts, declared once as
 // the document's security requirement; the pages, under the `pages` tag,
-// declare none, since they are public.
+// declare none, since they are public, and neither do the operations under
+// the `releases` tag, which are public too (lib/api/public.ts).
 const SECURITY_SCHEME = "githubToken";
 export const API_TAG = "tests";
 const RESOURCES: ApiResource[] = [
@@ -35,6 +37,7 @@ const RESOURCES: ApiResource[] = [
   runDetailApiOpenApi,
   costApiOpenApi,
   testsPagesOpenApi,
+  releasesApiOpenApi,
 ];
 
 const SHARED_SCHEMAS: Record<string, z.ZodType> = {
@@ -80,7 +83,7 @@ export function buildOpenApiDocument() {
       // The API has no version; the document describes what this deploy serves.
       version: process.env.VERCEL_GIT_COMMIT_SHA || "development",
       description:
-        "Generated from the zod schemas the HUD API handlers validate with. The API is unversioned: endpoints change together with their consumers, and info.version names the deploy that serves this document. Operations tagged `tests` are the JSON API; those tagged `pages` are the HUD pages built on it, listed so that a caller can give a reader the page that shows what it fetched.",
+        "Generated from the zod schemas the HUD API handlers validate with. The API is unversioned: endpoints change together with their consumers, and info.version names the deploy that serves this document. Operations tagged `tests` are the JSON API behind the GitHub gate; those tagged `releases` are the public release portal API; those tagged `pages` are the HUD pages built on the tests API, listed so that a caller can give a reader the page that shows what it fetched.",
     },
     servers: [{ url: "https://hud.pytorch.org" }],
     tags: [
@@ -88,6 +91,11 @@ export function buildOpenApiDocument() {
         name: API_TAG,
         description:
           "The tests API: JSON, behind the GitHub gate, for programs.",
+      },
+      {
+        name: RELEASES_TAG,
+        description:
+          "The release portal API: JSON, public, for programs and people who want to see where a PyTorch release stands. No token needed.",
       },
       {
         name: PAGES_TAG,

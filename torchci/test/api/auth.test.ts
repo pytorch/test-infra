@@ -5,6 +5,7 @@ import {
   REFUSAL_TTL_MS,
   requireGithubWriteAccess,
 } from "lib/api/auth";
+import { isPublicApiPath } from "lib/api/public";
 import { ErrorResponseSchema } from "lib/api/schema";
 import * as githubAuth from "lib/auth/githubAuth";
 import * as clickhouse from "lib/clickhouse";
@@ -45,9 +46,12 @@ const PAGE_ROUTES = [
   "/api/tests/test/{test_id}/runs",
 ];
 
-// The gated routes: every route under app/api but the document's own.
+// The gated routes: every route under app/api but the document's own and the
+// public ones (lib/api/public.ts).
 function gatedRoutes(): { file: string; path: string }[] {
-  return routeFiles().filter(({ path }) => path !== "/api/openapi.json");
+  return routeFiles().filter(
+    ({ path }) => path !== "/api/openapi.json" && !isPublicApiPath(path)
+  );
 }
 
 // The route file's GET, called as Next.js calls it, with 1 for every path
@@ -182,6 +186,20 @@ describe("the GitHub gate on app/api routes", () => {
       expect(authorize).toHaveBeenCalledWith("token-sent-by-a-page");
       expect(handler).not.toHaveBeenCalled();
     });
+  });
+
+  test("only the release portal's routes are exempt from the gate", () => {
+    expect(
+      routeFiles()
+        .filter(({ path }) => isPublicApiPath(path))
+        .map(({ path }) => path)
+        .sort()
+    ).toEqual([
+      "/api/releases",
+      "/api/releases/{version}",
+      "/api/releases/{version}/artifacts",
+      "/api/releases/{version}/config",
+    ]);
   });
 
   test("a bearer token is checked by the shared gate and admitted", async () => {
