@@ -5,7 +5,8 @@ page, built on the [HUD API](../../app/api/README.md)'s `GET /api/tests`.
 `/tests/[organization]/[repo]/test/[test_id]` is one test's own page, built on
 `GET /api/tests/test/{test_id}`; its section is [below](#test-page).
 `/tests/[organization]/[repo]/commit/[sha]` is one commit's page, built on
-`GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`; its
+`GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`, with
+GreenLight's verdict from `GET /api/tests/commit/{sha}/greenlight`; its
 section is [below](#commit-page).
 `/tests/[organization]/[repo]/pull/[number]` opens the commit page of a pull
 request's newest head, found by `GET /api/tests/pull/{number}`; its section
@@ -1035,12 +1036,14 @@ Linux 22.04 · x86_64 avx2 · GCC 11.4`; a one-line label with a single
 
 `/tests/[organization]/[repo]/commit/[sha]` is one commit's page: what happened
 to the repository's tests on that commit, built on
-`GET /api/tests/commit/{sha}/summary` for its header and summary row and
-`GET /api/tests/commit/{sha}` for its table. It keeps the rules above: nothing
-but `/api/tests` endpoints, types and parameter definitions only from
-`lib/api/`, the theme's colors, logic in `lib/tests/` (`lib/tests/commit.ts`,
-`lib/tests/commitPage.ts`, `lib/tests/bundle.ts`, `lib/tests/jobName.ts`,
-tested in `test/tests/`), and the hub's components: the header pieces
+`GET /api/tests/commit/{sha}/summary` for its header and summary row,
+`GET /api/tests/commit/{sha}` for its table and
+`GET /api/tests/commit/{sha}/greenlight` for the header's GreenLight pill. It
+keeps the rules above: nothing but `/api/tests` endpoints, types and parameter
+definitions only from `lib/api/`, the theme's colors, logic in `lib/tests/`
+(`lib/tests/commit.ts`, `lib/tests/commitPage.ts`, `lib/tests/bundle.ts`,
+`lib/tests/jobName.ts`, `lib/tests/greenlight.ts`, tested in `test/tests/`),
+and the hub's components: the header pieces
 (`PageHeader`, `FactPill`), the Name, Environment, Test Config and Owners
 columns (`sharedColumns`), the hub's grid (`HubDataGrid`), the Health cell's
 block (`CellBlock`), the grid's swatches and attempt pills.
@@ -1065,24 +1068,118 @@ block (`CellBlock`), the grid's swatches and attempt pills.
   the commit title with its trailing `(#N)` taken off; backtick
   spans are code; a `#N` inside
   the title, as the merge bot's reverts name the reverted pull request,
-  links that pull request too (`headline`). The facts are, first, the
-  pull request's number in a GitHub-blue pill linking the pull request
-  (`FactPill` with `tone="accent"` and `href`; `accentPillColors`, GitHub's
-  accent emphasis with white ink), for a pull request head and a merged
+  links that pull request too (`headline`). The facts are, after
+  GreenLight's pill, the pull request and the commit as one pill
+  (`PullRequestAndCommit`): the pull request's, "PR #204150" in the facts'
+  grey, linking the pull request, for a pull request head and a merged
   commit alike (`commitPullRequestNumber`: the API's pull request, else the
-  title's; 2026-11-02, after a muted number behind the title and a pill
-  before it), labelled "PR". A pull request from a fork gets it too: its
-  runs record no pull request at all (2026-11-02: 333 of 333 fork heads in
-  two days had an empty `pull_requests` array, their ciflow tag pushes
-  included), so the API finds it by the commit's SHA through
-  `materialized_views.pr_by_sha` and names the fork's branch as Branch; then "Commit" with the short SHA in monospace,
-  the full SHA as its tooltip, linking the commit on GitHub; then the author, when
+  title's), with the commit's short SHA in monospace set inside its end as
+  a chip, linking the commit on GitHub, the full SHA its tooltip. A pull
+  request from a fork gets it too: its runs record no pull request at all
+  (2026-11-02: 333 of 333 fork heads in two days had an empty
+  `pull_requests` array, their ciflow tag pushes included), so the API
+  finds it by the commit's SHA through `materialized_views.pr_by_sha` and
+  names the fork's branch as Branch. A commit of no pull request, a merge
+  bot's revert, has the same pill saying "Commit", the chip its value and
+  the whole pill its one link, so the SHA looks the same on every commit.
+  Then come the author, when
   it was committed, and on a branch the nearest commits with test jobs
   either way, the older to the left and the newer to the right, each by its
   short SHA, or for a pull request head its branch. A bright orange "Newer
   commit available" pill, shown on a pull request head the pull request had
   been pushed to since, was built and then removed on 2026-11-02 at the
   user's ask; the header has no attention tone.
+- The pull request and the commit were two pills until 2026-11-11, the
+  pull request's in GitHub's blue since 2026-11-02 (after a muted number
+  behind the title and a pill before it). The user: "The PR pill is
+  currently blue. I want to make it grey", and asked for the two as one
+  pill, "combined + layered". Of four drawn (nested, stacked, two-tone,
+  split) they chose the nested one. The blue tone is gone from `FactPill`
+  with its one use: color in a header says a status and nothing else. The
+  chip (`FactPill`'s `chip`, `pillChipColors`) is the page's own background
+  on the pill's grey, the look a header key has on the band, 2px inside
+  the pill's end so the two ends are concentric; a faint shadow lifts it in
+  the light mode and a faint edge marks it in the dark one. The SHA has no
+  word beside it inside the pull request, where it reads as that pull
+  request's commit; its link is named "Commit 573c889" for a reader who
+  does not see it. The pill holds two links and each answers alone: the
+  pointer on the pill's words darkens the pill (`:has`, as `HeaderCheck`
+  uses it), on the chip it rings the chip; from the keyboard the pull
+  request's link rings the whole pill and the commit's the chip. The chip
+  is pressed over the pill's whole height and out to its end, not only
+  where it is drawn. The pill is 171px wide where the two were 238px.
+- GreenLight's verdict is the first pill of the facts (`GreenLightPill`,
+  2026-11-11; first at the user's ask, the first build had it last), from
+  `GET /api/tests/commit/{sha}/greenlight` (`useCommitGreenlight`): asked
+  for alongside the summary, which it does not wait for, and again each
+  minute only while a review is in flight. It is a status pill in the hub's
+  hues (`tonePillColors`): a lamp, "Green Light" and the verdict in a word
+  or three (`greenlightSignal` in `lib/tests/greenlight.ts`). The colors
+  are the user's (2026-11-11). Green is "Approved". Yellow is "Needs human
+  review" and "Reverted". The facts' grey is everything with no verdict,
+  its lamp hollow: "No verdict", "Unavailable", and a review that reached
+  none, by how it ended, "Inference failed", "Inference cancelled",
+  "Inference stalled" (in flight for over an hour). Red was built for those
+  three at the user's ask and withdrawn within the hour ("the red is
+  confusing"): do not bring it back, and a refusal stays yellow, since red
+  on this page is a failed test. "Reviewing" is grey too, and its lamp
+  alone has color: it pulses from the refusal's yellow to the approval's
+  green and back, a second each way, a ring leaving it at each turn (`Lamp`
+  in `GreenLightPill`). Two other looks were built first and withdrawn the
+  same day: the whole pill swinging between the two colors ("The pulsing
+  between green and yellow is actually confusing"), then a green pill with
+  the pulsing lamp ("No this is not what I meant. Reviewing pill should be
+  grey. But the dot should be pulsating with yellow and green"). Do not
+  color or move the pill again. For a reader who asked for less motion
+  nothing moves and the lamp is a still yellow dot. What a status means is
+  not decided here: the sentence, the reason and the hour after which a
+  review in flight did not complete are the HUD verdict panel's own
+  (`describeGreenlightStatus`), so the two pages say the same.
+- Every commit of a repository GreenLight reviews has the pill, whatever
+  the answer (the user, 2026-11-11: "We should include the pill if there is
+  no verdict or if the inference failed. We should let the user know those
+  information"; the first build had no pill for a commit with no verdict or
+  for a verdict that failed to load, and said "Did not complete" for an
+  inference that failed). A commit with no verdict says "No verdict", and
+  its tray what is known of why, from the API's
+  `no_verdict_reason`: GreenLight has no review of the commit, or the commit
+  is of no pull request (`noVerdictSignal`). A verdict that could not be
+  read says "Unavailable", and its tray the failure with a Retry
+  (`LoadError`); a refresh that fails leaves the verdict it had
+  (`commitGreenlightState`). While the answer is on its way a placeholder
+  holds the pill's place (`PillSkeleton`), so the facts after it move by the
+  difference in width alone. A repository GreenLight does not review gets no
+  pill and no request (`isGreenlightRepo`), and holds no place for one.
+- The pill is a button (`FactPill` with `onClick`) and opens a tray, where
+  the old page has an accordion (the user's ask: "in the old UI, clicking
+  it expands it. Think about how we can better present this in the new
+  UI"). The tray unfolds from the pill's own footprint and lies over the
+  page, so the summary and the table do not move and closing it leaves the
+  reader where they were. For a verdict it holds the sentence for the
+  status with its reason code; the review's outline, each topic a title
+  over its details (`GreenLightOutline` in the tray's dress, so the model's
+  words stay the text nodes they are there: never render the message as
+  markup); and at its foot the pull request head the verdict is about, when
+  the commit shown is the one that head landed as, when the status was
+  recorded, the review's job on GitHub and, for a judgement, "Report wrong
+  verdict". It hangs from the pill's left edge while that fits the row of
+  pills, else from its right, and never crosses the row (`trayPlacement`);
+  it is as wide as what it holds, up to 560px, and as tall, and scrolls
+  with the page, never within itself. A click on the pill, a click
+  elsewhere or Escape folds it; focus stays on the pill, which says
+  `aria-expanded`, names the tray and keeps the look it has under the
+  pointer while the tray is open. It is closed on arrival whatever the
+  status, where the old panel opens itself for an approval: the pill
+  already says the verdict. The motion is the Web Animations API's, 300 ms
+  out and 160 ms back, the words leaving before the tray folds, and none
+  for a reader who asked for less.
+- The report button is the one exception to "no `pages/api/` endpoints": it
+  is the HUD's own (`GreenLightReportButton`), reused whole with its dialog
+  as it is (the user: "You don't need to stylize the report modal"), so
+  that both pages file the same report; it reads the reader's write access
+  and posts to `/api/greenlight/report`. It shows only to a signed-in
+  reader who may file one, as on the old page, so a signed-out reader's
+  tray has none.
 - The summary row (`CommitSummaryRow`) is two lines. The counts line: at
   left the statuses with runs, "5 failed · 8 timed out · 87 flaky ·
   4,721,574 passed …", each figure large (22px) and each a button that has
@@ -1357,6 +1454,37 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   said above the rows with its Unpin; the sticky header and footer while
   scrolling; and the Retry of a failed options load asking the options
   again.
+- For the commit page's GreenLight pill, open
+  `/tests/pytorch/pytorch/commit/<sha>` for a head GreenLight reviewed (the
+  heads of a recent pull request with a Green Light section in its Dr.CI
+  comment; `/api/tests/commit/<sha>/greenlight?repo=pytorch/pytorch` is a
+  plain JSON page to look at) and check, in both themes: the pill first in
+  the facts, in the verdict's tone; a review in flight in grey, its lamp
+  alone pulsing between yellow and green, and the lamp a still yellow dot
+  with the browser's reduced-motion emulation on; "No verdict" on a commit
+  GreenLight did not review, most of main; "Unavailable" and its Retry with
+  the request
+  blocked in the browser's network tools; no pill under another repository
+  (`/tests/pytorch/vision/commit/<sha>`); the placeholder holding the pill's
+  place on a slow connection; the tray opening by click, Enter and Space and
+  folding by each of them, by Escape, with focus back on the pill, and by a
+  click elsewhere, but not by a click inside it; the summary and the table
+  not moving; the tray within the row of pills in a narrow window; a merged
+  commit's tray naming the pull request head and linking its page; and,
+  signed in with write access, "Report wrong verdict" opening its dialog
+  over the tray (do not file one to test). The sign-in completes only on
+  the host `NEXTAUTH_URL` names, so a dev server opened by another name
+  shows no report button. Jest has no DOM, so the unfolding itself is only
+  seen here; slow it with the browser's animation tools.
+- For the commit header's pull request and commit pill, open a pull request
+  head, a commit on main and a merge bot's revert (a `Revert "..."` on main,
+  which has no pull request of its own) and check, in both themes: one grey
+  pill, the SHA a chip inside its end; the pointer on "PR #N" darkening the
+  pill and on the chip ringing the chip alone; Tab reaching the pull request,
+  the pill ringed, and then the commit, the chip ringed; a press just above
+  or below the chip, still within the pill, opening the commit; and the
+  revert's pill saying "Commit" and opening the commit wherever it is
+  pressed.
 - For the pull request page, open `/tests/pytorch/pytorch/pull/<number>` for
   an open pull request of pytorch/pytorch and check that the URL becomes the
   page of the head `gh pr view <number> --json headRefOid` names, that back

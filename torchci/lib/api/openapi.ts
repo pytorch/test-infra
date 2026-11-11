@@ -5,6 +5,7 @@ import {
   ErrorResponseSchema,
   SchemaRef,
 } from "lib/api/schema";
+import { commitGreenlightApiOpenApi } from "lib/api/tests/commit/greenlight/openapi";
 import { commitRunsApiOpenApi } from "lib/api/tests/commit/openapi";
 import { commitSummaryApiOpenApi } from "lib/api/tests/commit/summary/openapi";
 import { costApiOpenApi } from "lib/api/tests/cost/openapi";
@@ -33,6 +34,7 @@ const RESOURCES: ApiResource[] = [
   runsApiOpenApi,
   commitRunsApiOpenApi,
   commitSummaryApiOpenApi,
+  commitGreenlightApiOpenApi,
   pullRequestApiOpenApi,
   runDetailApiOpenApi,
   costApiOpenApi,

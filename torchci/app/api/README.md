@@ -209,9 +209,10 @@ A response that has a page carries it as `hud_url`, an absolute URL written by
 left off, on the origin the `/api/authed/` shim names itself with
 (`HUD_SELF_URL`, else production). `TestRecord.hud_url` is the test's page,
 bare, so every endpoint that returns a test carries it there; a run and the
-options have no page of their own and no other link; the commit's runs and
-summary carry the commit's page, bare, since the page chooses its outcomes,
-filters and sort itself; the pull request lookup carries the pull request's
+options have no page of their own and no other link; the commit's runs,
+summary and GreenLight verdict carry the commit's page, bare, since the page
+chooses its outcomes, filters and sort itself; the pull request lookup
+carries the pull request's
 page, bare, which opens the commit page of whatever head is newest when it
 is opened;
 `TestHealthEntry.hud_url` is that page opened on the runs the entry's health
@@ -325,33 +326,34 @@ old route in the same change.
 `lib/api/openapi.ts` so its paths and schemas appear in the document;
 `test/api/openapi.test.ts` fails while a route is missing from it.
 
-| Endpoint                                              | Scope                                                                                                                                                                 | Implementation                  |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `GET /api/tests`                                      | Repository tests and configuration health in a selected window and code sources                                                                                       | `lib/api/tests/`                |
-| `GET /api/tests/options`                              | Values the list offers a reader: fixed and catalog choices, with labels, and views                                                                                    | `lib/api/tests/options/`        |
-| `GET /api/tests/test/{test_id}`                       | One catalog test, its owners, and all available configuration health                                                                                                  | `lib/api/tests/test/`           |
-| `GET /api/tests/test/{test_id}/runs`                  | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration                                                 | `lib/api/tests/test/runs/`      |
-| `GET /api/tests/run/{run_id}`                         | One full run bundle, selected by any retained execution UUID; provisional                                                                                             | `lib/api/tests/run/`            |
-| `GET /api/tests/commit/{sha}?repo=owner/name`         | Retained run bundles across all tests on a repository commit                                                                                                          | `lib/api/tests/commit/`         |
-| `GET /api/tests/commit/{sha}/summary?repo=owner/name` | The commit as GitHub described it, its test counts by status, and the span of its runs                                                                                | `lib/api/tests/commit/summary/` |
-| `GET /api/tests/pull/{number}?repo=owner/name`        | A pull request's newest head commit as HUD knows it, and the pull request's page                                                                                      | `lib/api/tests/pull/`           |
-| `GET /api/tests/cost`                                 | Test-job runner-hours of the last 1, 3 or 7 whole UTC days by owner, workflow and machine, from the test_cost rollup, with the PR update and merge signals; prototype | `lib/api/tests/cost/`           |
-| `GET /api/tests/cost/trend`                           | Test-job runner-hours by day, week or month, owner and runner label, all and of pushes to main, with daily totals and pushes to main; prototype                       | `lib/api/tests/cost/trend.ts`   |
-| `GET /api/releases`                                   | The releases the release portal tracks, with progress, phase and status, and the ones not out yet; public                                                             | `lib/api/releases/`             |
-| `GET /api/releases/{version}`                         | One release's board: its phases and steps from the release config, the state of each, and the links of the release; public                                            | `lib/api/releases/`             |
-| `GET /api/releases/{version}/config`                  | The release's resolved config (shared steps merged with its own file); public                                                                                         | `lib/api/releases/`             |
-| `GET /api/releases/{version}/artifacts`               | The release's expected artifacts and whether each is present, missing, size_anomalous or unexpected, problems first, with the counts; public                          | `lib/api/releases/`             |
-| `GET /api/tests/cost/changes`                         | Two periods' test-job runner-hours by test file and workflow, all and of pushes to main, with each day's pushes to main: what changed; prototype                      | `lib/api/tests/cost/changes.ts` |
+| Endpoint                                                 | Scope                                                                                                                                                                 | Implementation                     |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `GET /api/tests`                                         | Repository tests and configuration health in a selected window and code sources                                                                                       | `lib/api/tests/`                   |
+| `GET /api/tests/options`                                 | Values the list offers a reader: fixed and catalog choices, with labels, and views                                                                                    | `lib/api/tests/options/`           |
+| `GET /api/tests/test/{test_id}`                          | One catalog test, its owners, and all available configuration health                                                                                                  | `lib/api/tests/test/`              |
+| `GET /api/tests/test/{test_id}/runs`                     | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration                                                 | `lib/api/tests/test/runs/`         |
+| `GET /api/tests/run/{run_id}`                            | One full run bundle, selected by any retained execution UUID; provisional                                                                                             | `lib/api/tests/run/`               |
+| `GET /api/tests/commit/{sha}?repo=owner/name`            | Retained run bundles across all tests on a repository commit                                                                                                          | `lib/api/tests/commit/`            |
+| `GET /api/tests/commit/{sha}/summary?repo=owner/name`    | The commit as GitHub described it, its test counts by status, and the span of its runs                                                                                | `lib/api/tests/commit/summary/`    |
+| `GET /api/tests/commit/{sha}/greenlight?repo=owner/name` | GreenLight's verdict on a repository commit: the status of that reviewed pull request head, or of the head that landed as it; or why it has none                      | `lib/api/tests/commit/greenlight/` |
+| `GET /api/tests/pull/{number}?repo=owner/name`           | A pull request's newest head commit as HUD knows it, and the pull request's page                                                                                      | `lib/api/tests/pull/`              |
+| `GET /api/tests/cost`                                    | Test-job runner-hours of the last 1, 3 or 7 whole UTC days by owner, workflow and machine, from the test_cost rollup, with the PR update and merge signals; prototype | `lib/api/tests/cost/`              |
+| `GET /api/tests/cost/trend`                              | Test-job runner-hours by day, week or month, owner and runner label, all and of pushes to main, with daily totals and pushes to main; prototype                       | `lib/api/tests/cost/trend.ts`      |
+| `GET /api/releases`                                      | The releases the release portal tracks, with progress, phase and status, and the ones not out yet; public                                                             | `lib/api/releases/`                |
+| `GET /api/releases/{version}`                            | One release's board: its phases and steps from the release config, the state of each, and the links of the release; public                                            | `lib/api/releases/`                |
+| `GET /api/releases/{version}/config`                     | The release's resolved config (shared steps merged with its own file); public                                                                                         | `lib/api/releases/`                |
+| `GET /api/releases/{version}/artifacts`                  | The release's expected artifacts and whether each is present, missing, size_anomalous or unexpected, problems first, with the counts; public                          | `lib/api/releases/`                |
+| `GET /api/tests/cost/changes`                            | Two periods' test-job runner-hours by test file and workflow, all and of pushes to main, with each day's pushes to main: what changed; prototype                      | `lib/api/tests/cost/changes.ts`    |
 
 The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 
-| Page                                              | Shows                                                                                                       | Implementation                                                                           |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                               | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/`            |
-| `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                                   |
-| `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
-| `GET /tests/{organization}/{repo}/pull/{number}`  | The commit page of a pull request's newest head, found by `GET /api/tests/pull/{number}`                    | `pages/tests/[organization]/[repo]/pull/[number].tsx`                                    |
-| `GET /tests/{organization}/{repo}/cost`           | Runner-hours by owner, machine and workflow: `GET /api/tests/cost`                                          | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
+| Page                                              | Shows                                                                                                                                                                                | Implementation                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                                                                                                        | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/`            |
+| `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                                                                                         | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                                   |
+| `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`, with GreenLight's verdict from `GET /api/tests/commit/{sha}/greenlight` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
+| `GET /tests/{organization}/{repo}/pull/{number}`  | The commit page of a pull request's newest head, found by `GET /api/tests/pull/{number}`                                                                                             | `pages/tests/[organization]/[repo]/pull/[number].tsx`                                    |
+| `GET /tests/{organization}/{repo}/cost`           | Runner-hours by owner, machine and workflow: `GET /api/tests/cost`                                                                                                                   | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
 
 ## Release endpoints
 
@@ -651,6 +653,49 @@ tenth of a second of server time. GitHub is not asked: the endpoint reads
 HUD's database only, so a push that has not reached HUD yet is not seen. The
 comparison with GitHub's heads and the measurements are in
 [query-validation.md](../../lib/api/tests/pull/query-validation.md).
+
+### GreenLight verdict
+
+`GET /api/tests/commit/{sha}/greenlight` answers with GreenLight's latest
+status for a commit, for the pill in the commit page's header. GreenLight is
+the automated review that decides whether a pull request may merge without
+human review. The endpoint has no SQL of its own. The commit's lookup is the
+summary's (`lookUpCommit` in `lib/api/tests/commit/summary/summary.ts`), which
+names the commit's pull request and says whether the commit is one of its
+heads; the ledger, `misc.greenlight_pr_state`, is then read through the saved
+query the HUD's verdict panel reads
+(`clickhouse_queries/greenlight_pr_state_history`), and the row is chosen by
+the panel's own rule (`selectStateForSha` in
+`lib/greenlight/greenlightHudState.ts`), so the pull request page and the
+commit page cannot name different verdicts for a commit.
+
+- A pull request head is matched as it is. A commit on a branch never carries
+  the SHA that was reviewed, so for one the query is also given the commit
+  and its committer timestamp, from which it recovers the head that landed as
+  it; `head_sha` in the answer is that head.
+- Never another commit's verdict. A head GreenLight did not review answers
+  `verdict: null`, and so do a commit of no pull request, a commit HUD does
+  not know (200, not 404: a page asks for every commit it shows, and most
+  have no verdict) and a repository GreenLight does not review, which is
+  answered without a query. `no_verdict_reason` says which it is,
+  `not_reviewed`, `no_pull_request`, `unknown_commit` or
+  `repository_not_reviewed`, so that a page can tell its reader why there is
+  no verdict, or `unrecognized_status` for a ledger status the API has no
+  value for; it is null beside a verdict.
+- `message` is written by the model and the pull request can influence it:
+  show it as text, never as markup. `job_url` is null unless the recorded job
+  is a `github.com` URL.
+- An in-flight status, `AI_REVIEW_DISPATCHED` or `AI_REVIEW_STARTED`, more
+  than an hour old is a review that did not complete. The answer keeps the
+  recorded status and `updated_at`; the reader applies the hour
+  (`describeGreenlightStatus`), as the verdict panel does.
+- The lookups run one after the other, the commit's and then the ledger's,
+  and are untagged: on 2026-11-11 the two took about 0.2 seconds of server
+  time together, 0.5 at worst over six rounds (the commit's read 65,000 rows,
+  the ledger's 7,000 for a pull request head and 115,000 for a commit on
+  main). `query_duration_ms`, which includes the client and the network, was
+  0.6 to 1.5 seconds from a devserver, 0.8 typically, and 0.3 to 0.6 for a
+  commit HUD does not know.
 
 ### Cost
 

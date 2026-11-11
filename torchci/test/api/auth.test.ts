@@ -36,6 +36,7 @@ const FROM_A_HUD_PAGE = { "sec-fetch-site": "same-origin" };
 const PAGE_ROUTES = [
   "/api/tests",
   "/api/tests/commit/{sha}",
+  "/api/tests/commit/{sha}/greenlight",
   "/api/tests/commit/{sha}/summary",
   "/api/tests/cost",
   "/api/tests/cost/changes",

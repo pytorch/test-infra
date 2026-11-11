@@ -126,44 +126,47 @@ function pullRequestPage(repo: string, number: number, apiUrl: string) {
   }/pull/${number}`;
 }
 
-// The summary of a commit's tests: null for a commit GitHub never told HUD
-// about, with no workflow run and no push. The counts read the runs table
-// while the commit's own lookup runs; the pull request's record and a branch
-// commit's neighbours follow the lookup, since they depend on it. A commit
+// What the commit's own lookups establish about it, before anything else is
+// read for it: its message, author and timestamp, the pull request it
+// belongs to and whether it is that pull request's head, and its branch.
+export interface CommitLookup {
+  row: CommitInfoRow;
+  // The commit's message, author and timestamp, from its workflow runs when
+  // it has any, else from its push.
+  message: string;
+  authorName: string;
+  committedAtMs: number;
+  // The pull request the runs record for the commit, as (number, API url).
+  recorded: [number, string] | undefined;
+  // The pull request found by the commit's SHA, for a fork's.
+  byHeadRow: PullRequestByHeadRow | undefined;
+  pullRequestHead: boolean;
+  branch: string | null;
+  pullRequestNumber: number | null;
+  // The lookups' elapsed milliseconds, each rounded, summed.
+  duration_ms: number;
+}
+
+// The commit as its workflow runs and pushes describe it: null for a commit
+// GitHub never told HUD about, with no workflow run and no push. A commit
 // whose runs record no pull request and that no push run put on a branch is
-// first looked up as a pull request head by its SHA
+// then looked up as a pull request head by its SHA
 // (buildCommitPullRequestByHeadQuery), which is how a pull request from a
-// fork is known. The counts query reads every run of the commit, about 5
-// seconds on one thread for a main commit's 9 million runs since 2026-11-05
-// (22 before; commit/query-validation.md), so it stays out of the heavy
-// workload, whose bar is about ten CPU-seconds (the API README's "Heavy
-// queries"): queued there, the page's header waited behind tests pages.
-export async function getCommitSummary(
-  query: CommitSummaryQuery
-): Promise<CommitSummary | null> {
-  const countsQuery = buildCommitTestCountsQuery(query);
-  const counts = timed(
-    queryClickhouse(
-      countsQuery.sql,
-      countsQuery.params,
-      "api_commit_summary_counts"
-    ) as Promise<CountsRow[]>
-  );
-  // Observed from the start, so a failure of the lookup below does not leave
-  // the counts' failure unhandled; awaiting counts still throws it.
-  counts.catch(() => undefined);
+// fork is known. The summary and the commit's GreenLight verdict both start
+// here, each under its own query ids (`queryIdPrefix`), so the two endpoints
+// never disagree about which pull request a commit belongs to.
+export async function lookUpCommit(
+  query: CommitSummaryQuery,
+  queryIdPrefix: string
+): Promise<CommitLookup | null> {
   const info = buildCommitInfoQuery(query);
   const lookup = await timed(
-    queryClickhouse(
-      info.sql,
-      info.params,
-      "api_commit_summary_info"
-    ) as Promise<CommitInfoRow[]>
+    queryClickhouse(info.sql, info.params, `${queryIdPrefix}_info`) as Promise<
+      CommitInfoRow[]
+    >
   );
   const row = lookup.result[0];
   if (row === undefined || (row.workflow_runs === 0 && row.pushes === 0)) {
-    // Let the counts finish rather than leave the query running unobserved.
-    await counts.catch(() => undefined);
     return null;
   }
   const fromWorkflow = row.workflow_runs > 0;
@@ -194,7 +197,7 @@ export async function getCommitSummary(
       queryClickhouse(
         byHeadQuery.sql,
         byHeadQuery.params,
-        "api_commit_summary_pull_request_by_head"
+        `${queryIdPrefix}_pull_request_by_head`
       ) as Promise<PullRequestByHeadRow[]>
     );
   }
@@ -227,6 +230,60 @@ export async function getCommitSummary(
       : branch !== null && titled !== null
       ? titled.pullRequest
       : null;
+  return {
+    row,
+    message,
+    authorName,
+    committedAtMs,
+    recorded,
+    byHeadRow,
+    pullRequestHead,
+    branch,
+    pullRequestNumber,
+    duration_ms: lookup.duration_ms + (byHead?.duration_ms ?? 0),
+  };
+}
+
+// The summary of a commit's tests: null for a commit GitHub never told HUD
+// about, with no workflow run and no push. The counts read the runs table
+// while the commit's own lookup runs (lookUpCommit); the pull request's
+// record and a branch commit's neighbours follow the lookup, since they
+// depend on it. The counts query reads every run of the commit, about 5
+// seconds on one thread for a main commit's 9 million runs since 2026-11-05
+// (22 before; commit/query-validation.md), so it stays out of the heavy
+// workload, whose bar is about ten CPU-seconds (the API README's "Heavy
+// queries"): queued there, the page's header waited behind tests pages.
+export async function getCommitSummary(
+  query: CommitSummaryQuery
+): Promise<CommitSummary | null> {
+  const countsQuery = buildCommitTestCountsQuery(query);
+  const counts = timed(
+    queryClickhouse(
+      countsQuery.sql,
+      countsQuery.params,
+      "api_commit_summary_counts"
+    ) as Promise<CountsRow[]>
+  );
+  // Observed from the start, so a failure of the lookup below does not leave
+  // the counts' failure unhandled; awaiting counts still throws it.
+  counts.catch(() => undefined);
+  const found = await lookUpCommit(query, "api_commit_summary");
+  if (found === null) {
+    // Let the counts finish rather than leave the query running unobserved.
+    await counts.catch(() => undefined);
+    return null;
+  }
+  const {
+    row,
+    message,
+    authorName,
+    committedAtMs,
+    recorded,
+    byHeadRow,
+    pullRequestHead,
+    branch,
+    pullRequestNumber,
+  } = found;
 
   // The record by number, unless the lookup by SHA read it already.
   const pullRequestQuery =
@@ -308,9 +365,8 @@ export async function getCommitSummary(
     ).toISOString(),
     hud_url: commitPageUrl(query.repo, query.sha),
     query_duration_ms:
-      lookup.duration_ms +
+      found.duration_ms +
       counted.duration_ms +
-      (byHead?.duration_ms ?? 0) +
       (pullRequest?.duration_ms ?? 0) +
       (neighbours?.duration_ms ?? 0),
   };

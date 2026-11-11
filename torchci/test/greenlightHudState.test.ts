@@ -3,6 +3,7 @@ import {
   buildGreenlightCommitParams,
   buildStateBySha,
   buildStatusByTrunkSha,
+  describeGreenlightStatus,
   GreenlightPrStateRow,
   isGreenlightApproved,
   isGreenlightRejected,
@@ -16,7 +17,15 @@ import {
 // destructured import would leave the route holding the real functions.
 import * as greenlightOutline from "lib/greenlight/greenlightOutline";
 import {
+  GREENLIGHT_INCOMPLETE_HEADLINE,
+  GREENLIGHT_LAND_HEADLINE,
   GREENLIGHT_MESSAGE_CAP,
+  GREENLIGHT_NO_LAND_HEADLINE,
+  GREENLIGHT_REVERTED_BODY,
+  GREENLIGHT_REVERTED_HEADLINE,
+  GREENLIGHT_REVIEWING_BODY,
+  GREENLIGHT_REVIEWING_HEADLINE,
+  GREENLIGHT_STALLED_REASON,
   GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
   GREENLIGHT_STATUS_AI_REVIEW_STARTED,
   GREENLIGHT_STATUS_CANCELLED,
@@ -25,6 +34,7 @@ import {
   GREENLIGHT_STATUS_NO_LAND,
   GREENLIGHT_STATUS_REVERTED,
 } from "lib/greenlight/greenlightRender";
+import { GREENLIGHT_IN_PROGRESS_STALE_MS } from "lib/greenlight/greenlightStaleness";
 import { ZERO_WIDTH_SPACE } from "lib/greenlight/greenlightSweep";
 import { CommitData } from "lib/types";
 import path from "path";
@@ -372,6 +382,158 @@ describe("selectStateForSha", () => {
   test("undefined when the PR has no recorded state at all", () => {
     expect(selectStateForSha(undefined, SHA_A)).toBeUndefined();
     expect(selectStateForSha([], SHA_A)).toBeUndefined();
+  });
+});
+
+describe("describeGreenlightStatus", () => {
+  // `version` as the saved query serves it: a DateTime64 with no zone
+  // designator, which is UTC.
+  const VERSION = "2026-08-24T21:57:40.736000";
+  const VERSION_MS = Date.UTC(2026, 7, 24, 21, 57, 40, 736);
+  const SOON_AFTER = new Date(VERSION_MS + 5 * 60 * 1000);
+
+  test("an approval drops the one reason that only restates it", () => {
+    expect(
+      describeGreenlightStatus(
+        GREENLIGHT_STATUS_LAND,
+        "clean",
+        VERSION,
+        SOON_AFTER
+      )
+    ).toEqual({
+      iconStatus: GREENLIGHT_STATUS_LAND,
+      headline: GREENLIGHT_LAND_HEADLINE,
+      body: "",
+      reason: "",
+    });
+  });
+
+  test("an approval carrying any other reason is anomalous, so it shows", () => {
+    expect(
+      describeGreenlightStatus(
+        GREENLIGHT_STATUS_LAND,
+        "not_trivial",
+        VERSION,
+        SOON_AFTER
+      )?.reason
+    ).toBe("not_trivial");
+  });
+
+  test("a refusal carries the row's own reason", () => {
+    expect(
+      describeGreenlightStatus(
+        GREENLIGHT_STATUS_NO_LAND,
+        "scope_too_large",
+        VERSION,
+        SOON_AFTER
+      )
+    ).toEqual({
+      iconStatus: GREENLIGHT_STATUS_NO_LAND,
+      headline: GREENLIGHT_NO_LAND_HEADLINE,
+      body: "",
+      reason: "scope_too_large",
+    });
+  });
+
+  test("a reverted PR says its fixed body and names no reason", () => {
+    expect(
+      describeGreenlightStatus(
+        GREENLIGHT_STATUS_REVERTED,
+        "reverted",
+        VERSION,
+        SOON_AFTER
+      )
+    ).toEqual({
+      iconStatus: GREENLIGHT_STATUS_REVERTED,
+      headline: GREENLIGHT_REVERTED_HEADLINE,
+      body: GREENLIGHT_REVERTED_BODY,
+      reason: "",
+    });
+  });
+
+  describe.each([
+    GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
+    GREENLIGHT_STATUS_AI_REVIEW_STARTED,
+  ])("in flight (%s)", (status) => {
+    test("inside the window it is a live review under its own mark", () => {
+      expect(
+        describeGreenlightStatus(
+          status,
+          "",
+          VERSION,
+          new Date(VERSION_MS + GREENLIGHT_IN_PROGRESS_STALE_MS - 1)
+        )
+      ).toEqual({
+        iconStatus: status,
+        headline: GREENLIGHT_REVIEWING_HEADLINE,
+        body: GREENLIGHT_REVIEWING_BODY,
+        reason: "",
+      });
+    });
+
+    test("at the window it did not complete, under the mark that says so", () => {
+      expect(
+        describeGreenlightStatus(
+          status,
+          "",
+          VERSION,
+          new Date(VERSION_MS + GREENLIGHT_IN_PROGRESS_STALE_MS)
+        )
+      ).toEqual({
+        // FAILED's lamp and label are the ones that already mean "did not
+        // complete"; the row's own in-flight mark would contradict the headline.
+        iconStatus: GREENLIGHT_STATUS_FAILED,
+        headline: GREENLIGHT_INCOMPLETE_HEADLINE,
+        body: "",
+        reason: GREENLIGHT_STALLED_REASON,
+      });
+    });
+
+    test("a version that does not parse is a review that stalled", () => {
+      expect(
+        describeGreenlightStatus(status, "", "not a time", SOON_AFTER)
+          ?.iconStatus
+      ).toBe(GREENLIGHT_STATUS_FAILED);
+    });
+  });
+
+  test.each([GREENLIGHT_STATUS_CANCELLED, GREENLIGHT_STATUS_FAILED])(
+    "%s did not complete, and names itself as the reason",
+    (status) => {
+      expect(
+        describeGreenlightStatus(status, "ignored", VERSION, SOON_AFTER)
+      ).toEqual({
+        iconStatus: status,
+        headline: GREENLIGHT_INCOMPLETE_HEADLINE,
+        body: "",
+        reason: status.toLowerCase(),
+      });
+    }
+  );
+
+  test("only an in-flight status ages: a verdict stands however old", () => {
+    const yearsLater = new Date(
+      VERSION_MS + 1000 * GREENLIGHT_IN_PROGRESS_STALE_MS
+    );
+    for (const status of [
+      GREENLIGHT_STATUS_LAND,
+      GREENLIGHT_STATUS_NO_LAND,
+      GREENLIGHT_STATUS_REVERTED,
+      GREENLIGHT_STATUS_CANCELLED,
+      GREENLIGHT_STATUS_FAILED,
+    ]) {
+      expect(
+        describeGreenlightStatus(status, "", VERSION, yearsLater)?.iconStatus
+      ).toBe(status);
+    }
+  });
+
+  test("a status with no case has nothing to show", () => {
+    for (const status of ["", "SHADOW_LAND", "land", " LAND"]) {
+      expect(
+        describeGreenlightStatus(status, "clean", VERSION, SOON_AFTER)
+      ).toBeUndefined();
+    }
   });
 });
 
