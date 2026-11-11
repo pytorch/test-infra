@@ -35,7 +35,7 @@ on:
           - torch_tensorrt
           - vllm
       target:
-        description: 'Target to create or refresh (e.g., rocm7.2, cu130) - only for create-target and refresh-index modes'
+        description: 'Target to create or refresh (e.g., rocm7.2, cu135) - only for create-target and refresh-index modes'
         required: false
         type: string
       include-prod:
@@ -76,7 +76,7 @@ jobs:
           if [[ ! "${TARGET}" =~ ^(cu[0-9]+|rocm[0-9]+\.[0-9]+|[a-z0-9.]+-preview)$ ]]; then
             echo "ERROR: Invalid target format '${TARGET}'"
             echo "Valid formats:"
-            echo "  - CUDA: cu118, cu121, cu126, cu128, cu129, cu130, etc."
+            echo "  - CUDA: cu132, cu134, cu135, etc."
             echo "  - ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2, etc."
             echo "  - Preview: rocm-preview, etc."
             exit 1
