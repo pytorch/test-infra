@@ -2,6 +2,7 @@ import gzip
 import json
 import os
 import re
+import sys
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
@@ -397,13 +398,26 @@ class TestShards(TestCase):
             self.assertEqual(dirs.get("2026-11-05"), b"one")
 
     def test_s3_store(self) -> None:
-        from botocore.exceptions import ClientError  # type: ignore[import]
+        # torchci pins boto3 1.19.12, whose botocore fails to import on Python 3.12, so
+        # the test stands in for both modules.
+        class ClientError(Exception):
+            def __init__(self, response, operation_name):
+                super().__init__(operation_name)
+                self.response = response
 
+        client = mock.Mock()
+        fakes = {
+            "boto3": mock.Mock(client=mock.Mock(return_value=client)),
+            "botocore": mock.Mock(),
+            "botocore.exceptions": mock.Mock(ClientError=ClientError),
+        }
+        with mock.patch.dict(sys.modules, fakes):
+            self._check_s3_store(client, ClientError)
+
+    def _check_s3_store(self, client, ClientError) -> None:
         missing = ClientError({"Error": {"Code": "404"}}, "HeadObject")
         denied = ClientError({"Error": {"Code": "AccessDenied"}}, "HeadObject")
-        client = mock.Mock()
-        with mock.patch("boto3.client", return_value=client):
-            s3 = store.S3Store()
+        s3 = store.S3Store()
         client.head_object.side_effect = missing
         self.assertTrue(s3.put_if_absent("d", b"x"))
         client.put_object.assert_called_once()
