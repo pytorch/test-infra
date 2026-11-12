@@ -16,6 +16,7 @@ from torchci.td.scorer import (
     risk,
     rows,
     shards,
+    start_up,
     store,
     train,
     trunk,
@@ -26,6 +27,7 @@ from torchci.td.scorer import (
 # Run 0 of 2026-10-06, a training day of the main refit below, is also a holdout PR.
 HELD_PR = date(2026, 10, 6).toordinal() * 100
 TIMES = {"linux-a": {"default": {"a": 10.0, "b": 10.0, "c": 10.0, "d": 100.0}}}
+START_UP = {"linux-a": {"default": 24.0}}
 
 
 def model(weight=1.0):
@@ -43,7 +45,7 @@ def model(weight=1.0):
         "features": {"n_files": {"weight": 1.0, "mean": 0.0, "scale": 1.0}},
         "quantiles": [i / 100 for i in range(101)],
     }
-    return model_json.build_model("2026-11-10", scorer, risk)
+    return model_json.build_model("2026-11-10", scorer, risk, START_UP)
 
 
 def run(run_id, pr, sha, created, scores, aggregated=None, heuristic="Filepath"):
@@ -159,7 +161,7 @@ class TestEvaluateGate(TestCase):
             ),
         ]
         report = gate.evaluate_window(
-            model(), self.shards(), {7, 8}, landings, rows.JobTimes(TIMES)
+            model(), self.shards(), {7, 8}, landings, rows.JobTimes(TIMES, START_UP)
         )
         self.assertEqual(report.days, ["2026-11-08", "2026-11-09"])
         # TD's include list is a and b (no aggregated scores: name order), so T = 68 s;
@@ -179,7 +181,9 @@ class TestEvaluateGate(TestCase):
         self.assertEqual(sum(report.risk_label), 3)
 
     def test_sample(self) -> None:
-        sample = gate.sample_model(model(), self.shards(), rows.JobTimes(TIMES))
+        sample = gate.sample_model(
+            model(), self.shards(), rows.JobTimes(TIMES, START_UP)
+        )
         self.assertEqual(len(sample.jobs), 4)
         self.assertTrue(sample.r)
         json.dumps(dataclasses.asdict(sample))
@@ -200,7 +204,7 @@ class TestEvaluateGate(TestCase):
 
     @mock.patch.object(gate, "MIN_FLOOR_PRS", 2)
     def test_floor(self) -> None:
-        times = rows.JobTimes(TIMES)
+        times = rows.JobTimes(TIMES, START_UP)
         window = gate.evaluate_window(model(), self.shards(), {7, 8}, [], times)
         held = gate.HoldoutReport(healthy=True, events=1, scorer_caught=1)
         result = gate.Gate.pooled(held, [window], 0.8)
@@ -222,7 +226,7 @@ class TestEvaluateGate(TestCase):
             ],
             units=[unit(1, failed=["b"])],
         )
-        times = rows.JobTimes(TIMES)
+        times = rows.JobTimes(TIMES, START_UP)
         report = gate.evaluate_window(model(), [shard], {7}, [], times)
         # T = cost(d) + cost(c) = 158 s: c, a and b fit, d does not.
         self.assertEqual((report.pr_events, report.pr_caught), (1, 1))
@@ -232,6 +236,25 @@ class TestEvaluateGate(TestCase):
         self.assertEqual(sample.jobs[0]["include"], ["c", "d"])
         self.assertEqual(sample.jobs[0]["selected"], ["a", "b", "c"])
 
+    def test_a_config_without_start_up_keeps_td_cut(self) -> None:
+        shard = shards.DayShard(
+            "2026-11-08",
+            runs=[
+                run(1, 7, "a" * 40, "t", {"c": 1.0}, aggregated={"d": 2.0, "c": 1.0})
+            ],
+            units=[unit(1, failed=["b"])],
+        )
+        times = rows.JobTimes(TIMES, {"linux-a": {"other": 24.0}})
+        sample = gate.Sample()
+        ev = gate.Evaluator(model(), times)
+        selected, include = ev.cut(shard.runs[0], shard.units[0], sample)
+        self.assertEqual((selected, include), ({"c", "d"}, {"c", "d"}))
+        self.assertEqual(sample.p, [])
+        self.assertEqual(sample.jobs[0]["selected"], ["c", "d"])
+        report = gate.evaluate_window(model(), [shard], {7}, [], times)
+        self.assertEqual((report.pr_events, report.pr_caught), (1, 0))
+        self.assertEqual(report.pr_recall_sum, report.td_recall_sum)
+
     def test_must_run_events_left_out(self) -> None:
         edited = run(1, 7, "a" * 40, "t", {"a": 1.0}, heuristic="EditedByPR")
         later = run(2, 7, "b" * 40, "u", {})
@@ -240,7 +263,9 @@ class TestEvaluateGate(TestCase):
             runs=[edited, later],
             units=[unit(1, failed=["a"]), unit(2, failed=["a", "b"])],
         )
-        report = gate.evaluate_window(model(), [shard], {7}, [], rows.JobTimes(TIMES))
+        report = gate.evaluate_window(
+            model(), [shard], {7}, [], rows.JobTimes(TIMES, START_UP)
+        )
         self.assertEqual(report.must_run_events, 1)
         self.assertEqual((report.pr_events, report.prs_with_events), (1, 1))
 
@@ -277,20 +302,25 @@ import statistics
 
 import numpy as np
 from tools.testing.test_run import TestRun
-from torchci.td.scorer import gate, model_json, rows
+from torchci.td.scorer import gate, model_json
 
 SELECT_NOTHING = __SELECT_NOTHING__
+
+
+class NoModel(Exception):
+    pass
 
 
 def select_tests(block, include, exclude, times, build_env_key, test_config):
     if SELECT_NOTHING:
         return [], include + exclude, {}
     model, scores, raised = block["model"], block["heuristics"], set(block["raised"])
+    start_up = model["start_up_seconds"].get(build_env_key, {}).get(test_config)
+    if start_up is None:
+        raise NoModel(f"no start-up for {build_env_key}/{test_config}")
     files = sorted({t.test_file for t in include + exclude})
     median = statistics.median(times.values()) if times else 0.0
-    secs = [times.get(f, median) for f in files]
-    skip, oh = rows.SKIP_OVERHEAD_SECONDS, model["overhead_seconds"]
-    costs = np.array([s + (skip if s < rows.MIN_RUN_SECONDS else oh) for s in secs])
+    costs = np.array([times.get(f, median) + start_up for f in files])
     p = model_json.p_files(model, scores, raised, build_env_key, test_config, files, costs)
     inc = {t.test_file for t in include}
     budget = sum(gate.cost_ms(c) for f, c in zip(files, costs) if f in inc)
@@ -324,6 +354,34 @@ def write_pytorch(root, offset, scorer=None):
         del sys.modules[name]
 
 
+class TestReplayCuts(TestCase):
+    def test_no_start_up_replays_as_td_cut(self) -> None:
+        shard = shards.DayShard(
+            "2026-11-08",
+            runs=[run(1, 7, "a" * 40, "t", {"c": 1.0}, aggregated={"d": 2.0})],
+            units=[
+                unit(1, failed=["b"]),
+                shards.Unit(1, "linux-a", "other", ["a", "b"], ["c", "d"], [], [], []),
+            ],
+        )
+        m = model()
+        jobs = gate.sample_model(m, [shard], rows.JobTimes(TIMES, START_UP)).jobs
+        self.assertEqual([j["test_config"] for j in jobs], ["default", "other"])
+        self.assertNotEqual(jobs[0]["selected"], jobs[0]["include"])
+        self.assertEqual(jobs[1]["selected"], jobs[1]["include"])
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            write_pytorch(root, "0.0", scorer="False")
+            self.assertEqual(cli._replay_cuts(root, m, jobs), 0)
+            # A gate that ran the scorer's cut where pytorch keeps TD's.
+            wrong = [{**jobs[1], "selected": jobs[0]["selected"]}]
+            self.assertEqual(cli._replay_cuts(root, m, wrong), 1)
+            # A pytorch that keeps TD's cut where the gate ran the scorer's.
+            no_table = {**m, "start_up_seconds": {}}
+            self.assertEqual(cli._replay_cuts(root, no_table, jobs[:1]), 1)
+            write_pytorch(root, "0.0")
+
+
 class TestShippedCutoff(TestCase):
     def test_cutoff(self) -> None:
         today = date(2026, 11, 20)
@@ -339,7 +397,18 @@ class TestShippedCutoff(TestCase):
         )
 
 
+START_UP_FIT = start_up.ConfigFit(
+    "linux-a", "default", 300, 30, c=500.0, a=1.0, k=24.0, lo=23.0, hi=25.0, finite=1.0
+)
+
+
 class TestCli(TestCase):
+    def setUp(self) -> None:
+        for name, value in (("fetch", []), ("fit_all", [START_UP_FIT])):
+            patcher = mock.patch.object(start_up, name, return_value=value)
+            setattr(self, f"start_up_{name}", patcher.start())
+            self.addCleanup(patcher.stop)
+
     def build(self, day):
         pos = day.day % 2 == 0
         runs, units = [], []
@@ -490,6 +559,8 @@ class TestCli(TestCase):
             self.assertTrue(fitted[0].trunk[fitted[0].day == first + 2].any())
             m = json.loads(out.read_text())
             self.assertEqual(m["version"], "2026-11-10")
+            self.assertEqual(m["start_up_seconds"], START_UP)
+            self.start_up_fetch.assert_called_with(date(2026, 11, 10))
             self.assertIn("Filepath", m["scorer"]["heuristics"])
             summary = json.loads(report.read_text())
             self.assertTrue(summary["passed"])
@@ -636,6 +707,15 @@ class TestCli(TestCase):
                 self.assertEqual(marked, {mark_before - timedelta(days=1)})
                 self.assertFalse(any(cache.exists(x.isoformat()) for x in empty))
             self.assertEqual(rebuilt & empty, empty - marked)
+
+    def test_start_up_fit_comes_first_and_fails_the_refit(self) -> None:
+        self.start_up_fetch.side_effect = RuntimeError("ClickHouse")
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(
+            store, "build_day_shard", side_effect=self.build
+        ) as build:
+            with self.assertRaises(RuntimeError):
+                cli.main(self.refit_args(d) + ["--report-only"])
+            build.assert_not_called()
 
     def test_workflow_time_budget(self) -> None:
         import yaml

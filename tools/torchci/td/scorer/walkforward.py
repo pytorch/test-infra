@@ -78,6 +78,7 @@ class Fit:
 class History:
     def __init__(self, times: JobTimes, exclude_prs: set[int]) -> None:
         self.exclude = exclude_prs
+        self.times = times
         self.builder: Optional[RowBuilder] = RowBuilder(times)
         self.rows: Optional[Rows] = None
         self.heads: dict[date, dict[str, Head]] = {}
@@ -118,7 +119,10 @@ class History:
         )
         return Fit(
             model=model_json.build_model(
-                version, train.fit_scorer(training), risk_block
+                version,
+                train.fit_scorer(training),
+                risk_block,
+                self.times.start_up_table,
             ),
             rows=len(training),
             positives=int(training.label.sum()),

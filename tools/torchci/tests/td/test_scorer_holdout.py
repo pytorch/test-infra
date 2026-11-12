@@ -7,6 +7,7 @@ from torchci.td.scorer.gate import Gate, HoldoutReport, WindowReport
 
 
 TIMES = {"linux-a": {"default": {"a": 10.0, "b": 10.0, "c": 10.0, "d": 100.0}}}
+START_UP = {"linux-a": {"default": 24.0}}
 
 
 def model():
@@ -17,7 +18,7 @@ def model():
         "build_env": {},
         "test_config": {},
     }
-    return {"overhead_seconds": rows.OVERHEAD_SECONDS, "scorer": scorer}
+    return {"start_up_seconds": START_UP, "scorer": scorer}
 
 
 def run(run_id, pr, created, scores, aggregated):
@@ -96,7 +97,7 @@ def holdout_set(run_ids, errors=0):
 class TestEvaluateHoldout(TestCase):
     def evaluate(self, run_ids, errors=0):
         return holdout.evaluate_holdout(
-            model(), holdout_set(run_ids, errors), rows.JobTimes(TIMES)
+            model(), holdout_set(run_ids, errors), rows.JobTimes(TIMES, START_UP)
         )
 
     def test_scorer_catches_more(self) -> None:
@@ -105,6 +106,12 @@ class TestEvaluateHoldout(TestCase):
         self.assertEqual((r.jobs, r.td_files, r.scorer_files), (1, 2, 2))
         self.assertTrue(r.scorer_ok)
         self.assertIn("1 events in 1 PRs", r.text())
+
+    def test_no_start_up_scores_td_cut(self) -> None:
+        held = holdout_set([1, 2, 4])
+        r = holdout.evaluate_holdout(model(), held, rows.JobTimes(TIMES))
+        self.assertEqual((r.events, r.td_caught, r.scorer_caught), (1, 0, 0))
+        self.assertEqual(r.td_files, r.scorer_files)
 
     def test_scorer_catches_fewer(self) -> None:
         r = self.evaluate([3])
@@ -121,7 +128,7 @@ class TestEvaluateHoldout(TestCase):
         # and TD's include list (a and b) does not, so it is no event for either side.
         shard = holdout_set([1, 3])
         shard.runs[0] = edited_run_1()
-        r = holdout.evaluate_holdout(model(), shard, rows.JobTimes(TIMES))
+        r = holdout.evaluate_holdout(model(), shard, rows.JobTimes(TIMES, START_UP))
         self.assertEqual((r.events, r.prs, r.td_caught, r.scorer_caught), (1, 1, 1, 0))
         self.assertEqual((r.must_run_events, r.jobs), (1, 1))
         self.assertIn("1 must-run events left out", r.text())

@@ -1,7 +1,8 @@
 """CLI: `python -m torchci.td.scorer refit --day YYYY-MM-DD --out td-scorer.json`.
 
-`refit` builds missing day shards, fits the scorer and the risk score on the healthy
-days of the last year (train.WINDOW_DAYS) whose jobs have finished, runs the
+`refit` fits each test config's start-up per file on the week before the refit day
+(start_up.py), builds missing day shards, fits the scorer and the risk score on the
+healthy days of the last year (train.WINDOW_DAYS) whose jobs have finished, runs the
 walk-forward months and the gate (gate.py) and writes the model file. It exits 1 when the gate fails; when no training or gate day is
 healthy; when anything raises (the walk-forward decides the gate); and, with `--s3`,
 when a gate day was not built soundly (a fetch or the build failed, or it has no
@@ -31,6 +32,7 @@ from torchci.td.scorer import (
     logs,
     model_json,
     rows,
+    start_up,
     store,
     train,
     trunk,
@@ -85,6 +87,9 @@ def refit(args: argparse.Namespace) -> int:
         today - timedelta(days=FINAL_AFTER_DAYS),
         today - timedelta(days=train.GATE_DAYS),
     )
+    start_up_fits = start_up.fit_all(start_up.fetch(day))
+    print(start_up.text(start_up_fits))
+    start_up_table = start_up.table(start_up_fits)
     source.ensure(train_days + gate_days)
     if source.gaps:
         print(
@@ -108,7 +113,7 @@ def refit(args: argparse.Namespace) -> int:
     held = holdout.load_or_build(_store(args, holdout.HOLDOUT_PREFIX, "holdout"))
     if not holdout.holdout_ok(held):
         print(f"the holdout set is unsound (reported only): {held.meta}")
-    times = rows.JobTimes(fetch_test_times())
+    times = rows.JobTimes(fetch_test_times(), start_up_table)
 
     history = walkforward.History(times, {r.pr for r in held.runs})
     for d in train_days + gate_days:
@@ -175,8 +180,9 @@ def _load_pytorch(module_path: Path) -> Optional[Any]:
 
 
 def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional[int]:
-    """Jobs whose selection by pytorch's select_tests differs from the gate's; None
-    when pytorch has no scorer.py or its scorer.py has no select_tests."""
+    """Jobs whose selection by pytorch's select_tests differs from the gate's, a
+    NoModel from it taken as TD's include list; None when pytorch has no scorer.py or
+    its scorer.py has no select_tests."""
     if not (root / SCORER_DIR / "scorer.py").exists():
         return None
     sys.path.insert(0, str(root))
@@ -187,6 +193,7 @@ def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional
         sys.path.remove(str(root))
     if getattr(scorer, "select_tests", None) is None:
         return None
+    no_model = getattr(scorer, "NoModel", None)
     mismatches = 0
     for job in jobs:
         block = {
@@ -194,15 +201,22 @@ def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional
             "heuristics": job["heuristics"],
             "raised": job["raised"],
         }
-        selected, _, _ = scorer.select_tests(
-            block,
-            [TestRun(f) for f in job["include"]],
-            [TestRun(f) for f in job["exclude"]],
-            job["times"],
-            job["build_env"],
-            job["test_config"],
-        )
-        mismatches += sorted({t.test_file for t in selected}) != job["selected"]
+        try:
+            selected, _, _ = scorer.select_tests(
+                block,
+                [TestRun(f) for f in job["include"]],
+                [TestRun(f) for f in job["exclude"]],
+                job["times"],
+                job["build_env"],
+                job["test_config"],
+            )
+            files = sorted({t.test_file for t in selected})
+        except Exception as e:
+            if no_model is None or not isinstance(e, no_model):
+                raise
+            logger.info("pytorch select_tests: %s; TD's cut", e)
+            files = sorted(set(job["include"]))
+        mismatches += files != job["selected"]
     return mismatches
 
 

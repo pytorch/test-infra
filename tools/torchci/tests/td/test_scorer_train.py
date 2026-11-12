@@ -169,7 +169,7 @@ class TestFitScorer(TestCase):
         self.assertGreater(
             scorer["build_env"]["linux-a"], scorer["build_env"]["linux-b"]
         )
-        model = model_json.build_model("2026-11-20", scorer, RISK)
+        model = model_json.build_model("2026-11-20", scorer, RISK, {})
         json.loads(model_json.dumps(model))
         p = model_json.p_files(
             model,
@@ -221,17 +221,21 @@ class TestModelJson(TestCase):
             "build_env": {"linux-a": 0.12},
             "test_config": {"default": 0.0, "distributed": -0.2},
         }
-        return model_json.build_model("2026-11-11", scorer, RISK)
+        return model_json.build_model(
+            "2026-11-11", scorer, RISK, {"linux-a": {"default": 13.8, "crossref": 26.1}}
+        )
 
     def test_shape(self) -> None:
         m = self.model()
         self.assertEqual(
             set(m),
-            {"schema", "version", "enabled", "overhead_seconds", "scorer", "risk"},
+            {"schema", "version", "enabled", "start_up_seconds", "scorer", "risk"},
         )
-        self.assertEqual(m["schema"], 1)
+        self.assertEqual(m["schema"], 2)
         self.assertIs(m["enabled"], True)
-        self.assertEqual(m["overhead_seconds"], 24.0)
+        self.assertEqual(
+            m["start_up_seconds"], {"linux-a": {"default": 13.8, "crossref": 26.1}}
+        )
         self.assertEqual(m["scorer"]["intercept"], -7.12345679)
         self.assertEqual(len(m["risk"]["quantiles"]), 101)
         with self.assertRaises(ValueError):

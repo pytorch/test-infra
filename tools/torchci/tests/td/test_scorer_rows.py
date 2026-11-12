@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import main, mock, skipUnless, TestCase
 
 import numpy as np
-from torchci.td.scorer import logs, rows, rows_sql, shards, store, trunk
+from torchci.td.scorer import logs, model_json, rows, rows_sql, shards, store, trunk
 
 
 TS = "2026-11-05T10:00:00.1234567Z "
@@ -830,30 +830,40 @@ class TestRows(TestCase):
             {
                 "linux-a": {"default": {"a": 10.0, "b": 20.0, "c": 60.0}},
                 "default": {"other": {"x": 4.0}, "default": {"y": 2.0}},
-            }
+            },
+            {"linux-a": {"default": 13.8}, "linux-b": {"other": 3.9}},
         )
-        oh = rows.OVERHEAD_SECONDS
-        self.assertEqual(times.cost("linux-a", "default", "a"), 10.0 + oh)
-        self.assertEqual(times.cost("linux-a", "default", "zz"), 20.0 + oh)
-        self.assertEqual(times.cost("linux-b", "other", "x"), 4.0 + oh)
-        self.assertEqual(times.cost("linux-b", "nope", "q"), 2.0 + oh)
-        skip = rows.SKIP_OVERHEAD_SECONDS
-        self.assertEqual(rows.JobTimes({}).cost("e", "c", "f"), skip)
+        self.assertEqual(times.start_up("linux-a", "default"), 13.8)
+        self.assertEqual(times.start_up("linux-b", "other"), 3.9)
+        self.assertIsNone(times.start_up("linux-a", "other"))
+        self.assertIsNone(times.start_up("linux-c", "default"))
+        self.assertEqual(times.cost("linux-a", "default", "a"), 10.0 + 13.8)
+        self.assertEqual(times.cost("linux-a", "default", "zz"), 20.0 + 13.8)
+        self.assertEqual(times.cost("linux-b", "other", "x"), 4.0 + 3.9)
+        fallback = rows.FALLBACK_START_UP_SECONDS
+        self.assertEqual(times.cost("linux-b", "nope", "q"), 2.0 + fallback)
+        self.assertEqual(times.seconds("linux-b", "nope", "q"), 2.0)
+        self.assertEqual(rows.JobTimes({}).cost("e", "c", "f"), fallback)
+        self.assertIsNone(rows.JobTimes({}).start_up("e", "c"))
 
-    def test_files_that_skip_here_cost_their_start_up(self) -> None:
+    def test_files_that_skip_here_cost_the_start_up(self) -> None:
         times = rows.JobTimes(
-            {"linux-a": {"distributed": {"a": 0.04, "b": 0.99, "c": 1.0, "d": 0.5}}}
+            {"linux-a": {"distributed": {"a": 0.0, "b": 0.99, "c": 1.0, "d": 0.5}}},
+            {"linux-a": {"distributed": 3.9}},
         )
-        oh, skip = rows.OVERHEAD_SECONDS, rows.SKIP_OVERHEAD_SECONDS
-        self.assertEqual(times.cost("linux-a", "distributed", "a"), 0.04 + skip)
-        self.assertEqual(times.cost("linux-a", "distributed", "b"), 0.99 + skip)
-        self.assertEqual(times.cost("linux-a", "distributed", "c"), 1.0 + oh)
-        # A missing file gets the median, 0.745 here, so it costs as one that skips.
-        self.assertEqual(times.cost("linux-a", "distributed", "zz"), 0.745 + skip)
+        self.assertEqual(times.cost("linux-a", "distributed", "a"), 3.9)
+        self.assertEqual(times.cost("linux-a", "distributed", "b"), 0.99 + 3.9)
+        self.assertEqual(times.cost("linux-a", "distributed", "c"), 1.0 + 3.9)
         self.assertEqual(times.seconds("linux-a", "distributed", "zz"), 0.745)
+        smallest = rows.JobTimes(
+            {"e": {"c": {"a": 0.0}}}, {"e": {"c": model_json.MIN_START_UP_SECONDS}}
+        )
+        self.assertGreaterEqual(smallest.cost("e", "c", "a"), 1.0)
 
     def test_builder(self) -> None:
-        times = rows.JobTimes({"default": {"default": {"a": 5.0}}})
+        times = rows.JobTimes(
+            {"default": {"default": {"a": 5.0}}}, {"linux-a": {"default": 13.8}}
+        )
         many_neg = [f"n{i}" for i in range(400)]
         shard = shards.DayShard(
             day="2026-11-05",
@@ -875,7 +885,7 @@ class TestRows(TestCase):
         pos = int(np.flatnonzero(r.label == 1)[0])
         self.assertEqual(r.scores[pos].tolist(), [0.25])
         self.assertEqual(r.active[pos].tolist(), [True])
-        self.assertEqual(r.cost[pos], 5.0 + rows.OVERHEAD_SECONDS)
+        self.assertEqual(r.cost[pos], 5.0 + 13.8)
         self.assertEqual(set(r.pr.tolist()), {100})
 
     def test_cap_per_pr(self) -> None:

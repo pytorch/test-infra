@@ -6,7 +6,10 @@ from torchci.td.scorer import logs, risk, rows, shards, train, trunk, walkforwar
 from torchci.td.scorer.risk import Head
 
 
-TIMES = rows.JobTimes({"linux-a": {"default": {"a": 10.0, "b": 10.0, "c": 10.0}}})
+START_UP = {"linux-a": {"default": 24.0}}
+TIMES = rows.JobTimes(
+    {"linux-a": {"default": {"a": 10.0, "b": 10.0, "c": 10.0}}}, START_UP
+)
 
 
 def day_shard(day: date, prs: list[int]) -> shards.DayShard:
@@ -110,6 +113,7 @@ class TestWalkForward(TestCase):
         self.assertEqual(fit.rows, int(keep.sum()))
         self.assertEqual(fit.positives, int(r.label[keep].sum()))
         self.assertEqual(fit.trunk_landings, 1)
+        self.assertEqual(fit.model["start_up_seconds"], START_UP)
         sub = r.subset(keep)
         self.assertTrue(np.all(sub.weight <= sub.base_weight))
         self.assertEqual(len(sub), fit.rows)

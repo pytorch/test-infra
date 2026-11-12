@@ -6,9 +6,9 @@ A learned layer over pytorch's target determination (TD) heuristics, retrained d
   (isotonic fit), and the calibrated log-odds are combined with non-negative weights plus
   build-env and test-config terms and ln(cost) into p. pytorch's `run_test.py` keeps the
   files EditedByPR or PreviouslyFailedInPR scored, then fills up to the cost of TD's own
-  cut by p / cost. A file's cost is its recorded seconds plus a per-file start-up: 24 s,
-  or 3 s for a file the job's config records under 1 s (it skips there, such as a
-  CUDA-only file on a CPU job).
+  cut by p / cost. A file's cost is its recorded seconds plus its config's start-up per
+  file, k, fitted daily per build env and test config (see "Data sources"); a job whose
+  config has no k keeps TD's own cut.
 - **Risk score**: one number per change, r in [-1, 1] with mean 0, from the change's
   changed-file counts. It is computed and logged in the TD job; nothing uses it to size
   the cut.
@@ -50,7 +50,22 @@ jobs, but not for nested reusable workflows such as `dynamo-unittest / dynamo-te
 - **Trunk breaks**: the saved query `td_trunk_breakages` (pairs with outcome `td_skipped`),
   `default.merges` (no `-f`; waived checks excluded) and `default.push`.
 - **Test cost**: `stats/test-times.json` on generated-stats, as `run_test.py` looks it up,
-  plus 24 s per file, or 3 s for a file the config records under 1 s.
+  plus the config's start-up per file k (`start_up_seconds` in the model file). The
+  training rows of a config without k use 24 s (`FALLBACK_START_UP_SECONDS`, `rows.py`);
+  its p is never served, since such a job keeps TD's cut.
+- **Start-up per file** (`start_up.py`): each refit first queries, one day at a time,
+  every successful test job (one shard) of a TD workflow on a TD platform in the 7 days
+  before the refit day: y, its `Test` step seconds (`default.workflow_job.steps`); s, the
+  sum of its test-case seconds in `tests.all_test_runs` (what `test-times.json`
+  averages); n, the test files it ran. Shards outside 0 < y <= 4 h, 1 <= n <= 2000,
+  s <= 16 y are dropped. Per build env and test config, y ~ c + a s + b n is fitted by
+  least squares with one pass that drops residuals beyond 5 robust standard deviations,
+  and k = b / a: the cut only depends on k, as the budget is TD's cut costed the same
+  way. A bootstrap over runs (60 resamples) gives k's 90% interval. k is kept when the
+  config has at least 300 shards from 30 runs, a >= 0.1, 1 <= k <= 600, 95% of the
+  bootstrap fits are finite and the interval is at most max(k / 2, 4 s) wide; the refit
+  prints the kept k and the rejected configs. A config whose file count never varies
+  (one file, such as `einops`) has no k. A failed query fails the refit.
 
 Training weighs each PR's positives at most 20 and its negatives at most 10,000, so a PR
 CI ran many times does not outweigh the rest: one PR run's negatives weigh about 1,500
@@ -120,8 +135,9 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
 
 `.github/workflows/td-scorer.yml`:
 
-- **refit**: builds missing day shards (S3 on main, within the backfill budget; a pull
-  request builds three days in memory and writes nothing), fits the scorer and the risk
+- **refit**: fits the start-up per file of each test config, builds missing day shards
+  (S3 on main, within the backfill budget; a pull request builds three days in memory
+  and writes nothing), fits the scorer and the risk
   score on the data window, runs the walk-forward and the gate below, and writes the
   model. The job fails when the gate fails, when anything in the refit raises, when a
   gate day could not be built soundly on main, or when ClickHouse credentials are
@@ -129,7 +145,8 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
   too few for a walk-forward month, so its floor is not met; it only prints the report.
 - **check**: validates the model with pytorch main's `scorer_model.py`, compares its p
   and r with the trainer's on a sample (max difference 1e-6), and replays the gate's cut of
-  a sample of jobs with pytorch's `scorer.select_tests` (same selection required). It runs
+  a sample of jobs with pytorch's `scorer.select_tests` (same selection required; for a
+  job whose config has no start-up, its `NoModel` counts as TD's include list). It runs
   pytorch's code from a sparse checkout of `tools/testing` and `tools/stats`. Any
   difference that is not finite fails it. While pytorch main has no `scorer_model.py` or
   no `scorer.py`, the check is skipped and counts as not validated.
@@ -142,7 +159,8 @@ A model publishes when the floor (2) holds; the holdout (1) is reported only, be
 fixed 2026 window drifts away from what pytorch tests and would come to refuse a good
 model. Every comparison is at TD's own cost per job: the scorer's cut may cost no more
 than TD's own include list, which the gate rebuilds from the TD log's aggregated scores
-the way `run_test.py` takes the top 25%.
+the way `run_test.py` takes the top 25%. A job whose config has no start-up k selects
+TD's include list on both sides.
 
 1. **Holdout** (reported only, the unbiased view): the `td-holdout-unstable` runs of
    2026-08-30..09-18 ran every test file with TD off, so their failures are not biased
