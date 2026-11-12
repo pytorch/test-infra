@@ -367,8 +367,9 @@ pytorch/test-infra: `lib/api/releases/config.ts` fetches it from GitHub (`main`)
 five minutes and resolves it as the collector's `tools/torchci/release_portal_config.py`
 does, so a config change shows without a deploy; `test/api/releases/config.test.ts`
 resolves the committed files. A release's milestone, tracker issue and validation issue
-are found on GitHub by the rules in that config (`lib/api/releases/discover.ts`), again
-kept five minutes; when GitHub cannot be asked the board answers without those links.
+are the links in the evidence of the steps that check them (`linksFromRows` in
+`lib/api/releases/board.ts`), so the board asks GitHub for nothing; a link the collector
+has not recorded yet is null.
 
 The index is not paginated (a few dozen releases), and says so with null pagination links.
 The artifact list is cursor paginated as the others are, problems first.

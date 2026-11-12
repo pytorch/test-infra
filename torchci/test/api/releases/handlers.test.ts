@@ -4,7 +4,6 @@ import { GET as getBoard } from "app/api/releases/[version]/route";
 import { GET as getIndex } from "app/api/releases/route";
 import { clearConfigCache } from "lib/api/releases/config";
 import { encodeArtifactCursor } from "lib/api/releases/cursor";
-import { clearDiscoveryCache } from "lib/api/releases/discover";
 import {
   ArtifactPageSchema,
   ReleaseBoardSchema,
@@ -14,14 +13,10 @@ import {
 import { ErrorResponseSchema } from "lib/api/schema";
 import * as githubAuth from "lib/auth/githubAuth";
 import { queryClickhouse } from "lib/clickhouse";
-import { getOctokit } from "lib/github";
 import { callRoute } from "../routes";
 import { committedFetch } from "./fixtures";
 
 jest.mock("lib/clickhouse", () => ({ queryClickhouse: jest.fn() }));
-jest.mock("lib/github", () => ({ getOctokit: jest.fn() }));
-// Discovery asks GitHub unauthenticated without the app's credentials; no test may reach it.
-jest.mock("octokit", () => ({ Octokit: jest.fn() }));
 jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
 
 const query = queryClickhouse as jest.Mock;
@@ -44,46 +39,10 @@ function stateRow(
   };
 }
 
-function fakeOctokit() {
-  return {
-    paginate: jest.fn(async () => [
-      {
-        number: 71,
-        title: "2.16.0",
-        html_url: "https://github.com/pytorch/pytorch/milestone/71",
-      },
-    ]),
-    rest: {
-      issues: { listMilestones: jest.fn() },
-      search: {
-        issuesAndPullRequests: jest.fn(async () => ({ data: { items: [] } })),
-      },
-    },
-  };
-}
-
-const credentials = {
-  APP_ID: process.env.APP_ID,
-  PRIVATE_KEY: process.env.PRIVATE_KEY,
-};
-
-afterAll(() => {
-  for (const [name, value] of Object.entries(credentials)) {
-    if (value === undefined) delete process.env[name];
-    else process.env[name] = value;
-  }
-});
-
 beforeEach(() => {
-  // the board's links are found through the app's installation
-  process.env.APP_ID = "1";
-  process.env.PRIVATE_KEY = "key";
   clearConfigCache();
-  clearDiscoveryCache();
   query.mockReset();
   query.mockResolvedValue([]);
-  (getOctokit as jest.Mock).mockReset();
-  (getOctokit as jest.Mock).mockResolvedValue(fakeOctokit());
   global.fetch = committedFetch() as unknown as typeof fetch;
 });
 
@@ -181,6 +140,7 @@ describe("GET /api/releases/{version}", () => {
         status: "blocked",
         blocking: 1,
         evidence_text: "3 outstanding",
+        evidence_url: "https://github.com/pytorch/pytorch/milestone/71",
       }),
       stateRow("2.16.0", "2.1", { rc: "rc1", status: "in_progress" }),
     ]);
@@ -246,22 +206,6 @@ describe("GET /api/releases/{version}", () => {
         code: "invalid_parameters",
       });
     }
-  });
-
-  test("the board still answers when GitHub cannot be asked for the links", async () => {
-    const warn = jest
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    (getOctokit as jest.Mock).mockRejectedValue(new Error("rate limited"));
-    query.mockResolvedValue([stateRow("2.16.0", "1.2")]);
-    const { status, body } = await callRoute(
-      getBoard,
-      "/api/releases/{version}",
-      { version: "2.16.0" }
-    );
-    expect(status).toBe(200);
-    expect(body.links.milestone).toBeNull();
-    warn.mockRestore();
   });
 });
 

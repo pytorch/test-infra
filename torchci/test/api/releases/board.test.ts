@@ -3,12 +3,12 @@ import {
   buildIndex,
   currentRc,
   effectiveLinks,
+  linksFromRows,
   nextMilestone,
 } from "lib/api/releases/board";
 import { resolveRelease } from "lib/api/releases/config";
-import { NOTHING_FOUND } from "lib/api/releases/discover";
 import { ReleaseBoardSchema, ReleaseIndexSchema } from "lib/api/releases/types";
-import { MINOR, row, SHARED } from "./fixtures";
+import { MINOR, row, SHARED, step } from "./fixtures";
 
 const NOW = new Date("2026-11-20T12:00:00Z");
 
@@ -56,7 +56,7 @@ describe("nextMilestone", () => {
 
 describe("buildBoard", () => {
   test("with no state, every step is to do and nothing is blocking", () => {
-    const board = buildBoard(MINOR, [], NOTHING_FOUND, NOW);
+    const board = buildBoard(MINOR, [], NOW);
     expect(ReleaseBoardSchema.parse(board)).toEqual(board);
     expect(board).toMatchObject({
       version: "2.16.0",
@@ -98,7 +98,6 @@ describe("buildBoard", () => {
           last_checked: "2026-12-01 22:00:00.000",
         }),
       ],
-      NOTHING_FOUND,
       NOW
     );
     expect(stepsOf(board)["1.2"]).toMatchObject({
@@ -121,7 +120,6 @@ describe("buildBoard", () => {
         row({ step_id: "1.1", status: "done", blocking: 1 }),
         row({ step_id: "1.2", status: "weird" }),
       ],
-      NOTHING_FOUND,
       NOW
     );
     expect(stepsOf(board)["1.1"]).toMatchObject({
@@ -135,7 +133,6 @@ describe("buildBoard", () => {
     const board = buildBoard(
       MINOR,
       [row({ step_id: "9.9", status: "done" })],
-      NOTHING_FOUND,
       NOW
     );
     expect(board.stats).toMatchObject({ done: 0, total: 4 });
@@ -153,7 +150,6 @@ describe("buildBoard", () => {
           evidence_text: "building",
         }),
       ],
-      NOTHING_FOUND,
       NOW
     );
     expect(board.current_rc).toBe("rc2");
@@ -174,7 +170,6 @@ describe("buildBoard", () => {
         row({ step_id: "1.2", rc: "", status: "done" }),
         row({ step_id: "2.2", rc: "rc2", status: "todo" }),
       ],
-      NOTHING_FOUND,
       NOW
     );
     expect(board.current_rc).toBe("rc2");
@@ -189,39 +184,28 @@ describe("buildBoard", () => {
         row({ step_id: "1.1", status: "done" }),
         row({ step_id: "1.2", status: "done" }),
       ],
-      NOTHING_FOUND,
       NOW
     );
     expect(board.phases.map((p) => p.collapsed)).toEqual([true, false]);
   });
 
   test("works out due dates from the milestone dates", () => {
-    const steps = stepsOf(buildBoard(MINOR, [], NOTHING_FOUND, NOW));
+    const steps = stepsOf(buildBoard(MINOR, [], NOW));
     expect(steps["1.1"].due).toBe("2026-11-23"); // 7 days before the branch cut
     expect(steps["1.2"].due).toBeNull();
     const undated = stepsOf(
-      buildBoard(resolveRelease(SHARED, null, "2.16.0"), [], NOTHING_FOUND, NOW)
+      buildBoard(resolveRelease(SHARED, null, "2.16.0"), [], NOW)
     );
     expect(undated["1.1"].due).toBeNull();
   });
 
   test("a step the portal cannot observe says what to check and where", () => {
-    const steps = stepsOf(
-      buildBoard(
-        MINOR,
-        [],
-        {
-          milestone: null,
-          validation_issue: null,
-          tracker_issue: {
-            number: 7,
-            title: "t",
-            url: "https://github.com/pytorch/pytorch/issues/7",
-          },
-        },
-        NOW
-      )
+    const withTracker = resolveRelease(
+      SHARED,
+      { release: "2.16.0", links: { tracker_issue: 7 } },
+      "2.16.0"
     );
+    const steps = stepsOf(buildBoard(withTracker, [], NOW));
     expect(steps["1.1"].manual).toEqual({
       what_to_check: "look",
       link: "https://x/2.16.0",
@@ -234,23 +218,19 @@ describe("buildBoard", () => {
   });
 
   test("a link that depends on something that does not exist yet is null", () => {
-    const steps = stepsOf(buildBoard(MINOR, [], NOTHING_FOUND, NOW));
+    const steps = stepsOf(buildBoard(MINOR, [], NOW));
     expect(steps["2.2"].manual?.link).toBeNull();
   });
 
-  test("the links are what was found, then the configured resources, then the artifacts page", () => {
+  test("the links are what the rows evidence, then the configured resources, then the artifacts page", () => {
     const board = buildBoard(
       MINOR,
-      [],
-      {
-        milestone: {
-          number: 71,
-          title: "2.16.0",
-          url: "https://github.com/pytorch/pytorch/milestone/71",
-        },
-        tracker_issue: null,
-        validation_issue: null,
-      },
+      [
+        row({
+          step_id: "1.2",
+          evidence_url: "https://github.com/pytorch/pytorch/milestone/71",
+        }),
+      ],
       NOW
     );
     expect(board.links).toEqual({
@@ -267,7 +247,7 @@ describe("buildBoard", () => {
     const rows = MINOR.steps.map((s) =>
       row({ step_id: s.id, status: "done", rc: s.rc_scoped ? "rc1" : "" })
     );
-    const board = buildBoard(MINOR, rows, NOTHING_FOUND, NOW);
+    const board = buildBoard(MINOR, rows, NOW);
     expect(board.links.wheels).toBe("https://download.pytorch.org/whl/");
   });
 
@@ -303,8 +283,100 @@ describe("buildBoard", () => {
       url: "https://github.com/pytorch/pytorch/issues/456",
     });
     expect(links.milestone).toEqual(found.milestone);
-    expect(buildBoard(config, [], found, NOW).links.tracker_issue).toBe(
+    expect(buildBoard(config, [], NOW).links.tracker_issue).toBe(
       "https://github.com/pytorch/pytorch/issues/123"
+    );
+  });
+});
+
+describe("the links found in the rows", () => {
+  const issueStep = (id: string, issue: string, expect: string) =>
+    step({
+      id,
+      check: {
+        type: "github_issue_state",
+        repo: "pytorch/pytorch",
+        issue,
+        expect,
+      },
+    });
+  // 1.2 checks the milestone, 2.2 shows the tracker as a manual link
+  const config = {
+    ...MINOR,
+    steps: [
+      ...MINOR.steps,
+      issueStep("1.6", "{tracker_issue}", "open"),
+      issueStep("2.7", "{validation_issue}", "open"),
+      issueStep("5.1", "{tracker_issue}", "closed"),
+    ],
+  };
+  const GITHUB = "https://github.com/pytorch/pytorch";
+  const rows = [
+    row({ step_id: "1.2", evidence_url: `${GITHUB}/milestone/71` }),
+    row({ step_id: "1.6", evidence_url: `${GITHUB}/issues/199813` }),
+    row({ step_id: "2.7", evidence_url: `${GITHUB}/issues/201644` }),
+  ];
+
+  test("are the evidence of the steps that check them, found by what they check", () => {
+    expect(linksFromRows(config, rows)).toEqual({
+      milestone: { number: 71, title: "", url: `${GITHUB}/milestone/71` },
+      tracker_issue: {
+        number: 199813,
+        title: "",
+        url: `${GITHUB}/issues/199813`,
+      },
+      validation_issue: {
+        number: 201644,
+        title: "",
+        url: `${GITHUB}/issues/201644`,
+      },
+    });
+  });
+
+  test("show on the board and fill the links of the manual steps", () => {
+    const board = buildBoard(config, rows, NOW);
+    expect(board.links).toMatchObject({
+      milestone: `${GITHUB}/milestone/71`,
+      tracker_issue: `${GITHUB}/issues/199813`,
+      validation_issue: `${GITHUB}/issues/201644`,
+    });
+    expect(stepsOf(board)["2.2"].manual?.link).toBe(`${GITHUB}/issues/199813`);
+  });
+
+  test("are null until the collector has recorded them", () => {
+    const board = buildBoard(config, [], NOW);
+    expect(board.links).toMatchObject({
+      milestone: null,
+      tracker_issue: null,
+      validation_issue: null,
+    });
+    expect(stepsOf(board)["2.2"].manual?.link).toBeNull();
+  });
+
+  test("ignore evidence that does not link to the right kind of object", () => {
+    const found = linksFromRows(config, [
+      // the closing step's evidence is the milestone, and the first step's is not a link
+      row({ step_id: "1.6", evidence_url: "" }),
+      row({ step_id: "5.1", evidence_url: `${GITHUB}/milestone/71` }),
+      row({ step_id: "1.2", evidence_url: `${GITHUB}/issues/5` }),
+      row({ step_id: "2.7", evidence_url: `${GITHUB}/issues/201644/` }),
+    ]);
+    expect(found).toEqual({
+      milestone: null,
+      tracker_issue: null,
+      validation_issue: null,
+    });
+  });
+
+  test("come from the first step with a link, and the release file wins", () => {
+    const found = linksFromRows(config, [
+      row({ step_id: "1.6", evidence_url: "" }),
+      row({ step_id: "5.1", evidence_url: `${GITHUB}/issues/199813` }),
+    ]);
+    expect(found.tracker_issue?.number).toBe(199813);
+    const set = { ...config, links: { ...config.links, tracker_issue: 5 } };
+    expect(buildBoard(set, rows, NOW).links.tracker_issue).toBe(
+      `${GITHUB}/issues/5`
     );
   });
 });

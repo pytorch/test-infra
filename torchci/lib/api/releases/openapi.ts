@@ -69,7 +69,7 @@ export const releasesApiOpenApi: ApiResource = {
         tags: [RELEASES_TAG],
         security: [],
         summary: "One release's board: its phases, steps and the state of each",
-        description: `The release's steps from its config, grouped by phase, each with the state the collector last recorded (done, blocked, in_progress or todo), whether it is blocking, the evidence behind it, when it was checked and, for a step the portal cannot observe, what to check and where. Steps scoped to a release candidate show the state for the newest candidate seen (\`current_rc\`). \`links\` has the release's milestone, tracker issue and validation issue, found on GitHub, and the resources named in the config. The portal is read-only: nothing here records a person's answer. ${CACHE_NOTE}`,
+        description: `The release's steps from its config, grouped by phase, each with the state the collector last recorded (done, blocked, in_progress or todo), whether it is blocking, the evidence behind it, when it was checked and, for a step the portal cannot observe, what to check and where. Steps scoped to a release candidate show the state for the newest candidate seen (\`current_rc\`). \`links\` has the release's milestone, tracker issue and validation issue, from the collector's evidence (null until it has recorded them), and the resources named in the config. The portal is read-only: nothing here records a person's answer. ${CACHE_NOTE}`,
         parameters: releasePathParameters(),
         responses: {
           "200": jsonResponse("The release board.", ref(ReleaseBoardSchema)),
