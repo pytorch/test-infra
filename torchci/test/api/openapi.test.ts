@@ -345,6 +345,7 @@ describe("GET /api/openapi.json", () => {
     expect(operation.parameters.map((p: any) => `${p.in}:${p.name}`)).toEqual([
       "path:version",
       "query:channel",
+      "query:rc",
       "query:package",
       "query:os",
       "query:verdict",
