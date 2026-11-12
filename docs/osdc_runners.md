@@ -378,6 +378,17 @@ floating one.
    Loopback is right when every participant is in this container, which is the usual single-node
    case. A job that really talks to another pod wants the pod IP instead, e.g.
    `echo "$(ip route get 1 | awk '{print $7; exit}') $(hostname)" >> /etc/hosts`.
+16. **The repository must be installed on the `pytorch-bot` GitHub App, or its jobs can queue
+   forever.** OSDC scale sets size themselves from the queue HUD reports, and HUD only sees jobs from
+   repositories the [`pytorch-bot`](https://github.com/apps/pytorch-bot) app is installed on. In every
+   org, `pytorch` included, the app is installed on selected repositories only. A job from a
+   repository it doesn't cover never reaches that queue, so no runner is ever provisioned for it. The
+   job then sits in `Queued` with no runner assigned and no error. EC2 runners scale from a separate
+   webhook that doesn't need this app, so a job can run fine on EC2 and then stall the moment it moves
+   here. Check that the repository's runs appear on HUD at `hud.pytorch.org/hud/<org>/<repo>/main`
+   before moving its jobs. If they don't, ask an org owner to add the repository to the app
+   (Configure → select the repository). A non-owner's request waits for an owner, and GitHub shows
+   the requester nothing after it is sent, so follow up with an owner directly.
 
 ---
 
@@ -394,4 +405,5 @@ them rather than re-deriving their contents.
 - Image build action — [`test-infra/.github/actions/docker-build-remote-buildkit`](https://github.com/pytorch/test-infra/tree/main/.github/actions/docker-build-remote-buildkit)
 - EC2 to OSDC label mapping — [`pytorch/pytorch:.github/arc.yaml`](https://github.com/pytorch/pytorch/blob/main/.github/arc.yaml)
 - Reusable workflow — [`test-infra/.github/workflows/linux_job_v3.yml`](https://github.com/pytorch/test-infra/blob/main/.github/workflows/linux_job_v3.yml)
+- Capacity-aware scaling from the HUD queue — `CAPACITY_AWARE_HUD_API_URL` in [`osdc/modules/arc-runners/templates/runner.yaml.tpl`](https://github.com/pytorch/ci-infra/blob/main/osdc/modules/arc-runners/templates/runner.yaml.tpl)
 - Shared HuggingFace cache — [`osdc/modules/hf-cache/README.md`](https://github.com/pytorch/ci-infra/blob/main/osdc/modules/hf-cache/README.md)
