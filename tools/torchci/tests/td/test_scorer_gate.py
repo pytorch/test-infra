@@ -1035,8 +1035,8 @@ class TestCli(TestCase):
             dropped = self.refit_files("--budget")
         self.assertEqual(dropped[2:], dropped[:2])
         self.assertEqual(dropped[:2], plain[:2])
-        # Without --budget both models are written before the walk-forward, as --out
-        # always was; with it, neither is.
+        # Without --budget both models are written before the walk-forward; with it,
+        # neither is.
         fold = RuntimeError("fold")
         self.assertEqual(self.refit_files(walk_forward=fold), [plain[0], None] * 2)
         failed = self.refit_files("--budget", walk_forward=fold)
@@ -1304,7 +1304,7 @@ class TestWorkflowPublish(TestCase):
                     self.assertIn("did not validate", got[2]["refused"])
         code, published, outputs = run_choose(step, self.plain, "[1", "on")
         self.assertEqual((code, published), (0, self.plain))
-        self.assertIn("not a JSON object", outputs["refused"])
+        self.assertIn("not valid JSON", outputs["refused"])
         # td-scorer.json never carries a budget block.
         with tempfile.TemporaryDirectory() as d:
             write_models(d, self.budgeted, self.budgeted)
@@ -1417,6 +1417,15 @@ class TestWorkflowPublish(TestCase):
         self.assertEqual(
             files, {"td-scorer.json": self.plain, "td-scorer-budget.json": off}
         )
+        # A live file of a later version (a re-run of an older run) stays.
+        newer = {**old, "version": "2099-01-01"}
+        live = {"td-scorer.json": newer, "td-scorer-budget.json": old}
+        out, commits, files = self.push(live, self.plain, self.budgeted)
+        self.assertEqual(commits, [["stats/td-scorer-budget.json"]])
+        self.assertEqual(
+            files, {"td-scorer.json": newer, "td-scorer-budget.json": self.budgeted}
+        )
+        self.assertIn("stats/td-scorer.json is newer", out)
         # A refused budget model: td-scorer.json's model lands under both names.
         out, commits, files = self.push({}, self.plain, self.budgeted, choose="false")
         self.assertEqual(commits, [both])

@@ -1,12 +1,13 @@
-"""The model file `td-scorer.json` (schema 2), the scorer's p and the budget rule, as
-pytorch evaluates them.
+"""The model files `td-scorer.json` and `td-scorer-budget.json` (schema 2), the scorer's
+p and the budget rule, as pytorch evaluates them.
 
 pytorch's `tools/testing/target_determination/scorer_model.py` is the definition of the
 format, of p and of the budget rule; this module writes that format and evaluates both
 the same way, so the gate measures the file that ships. check-pytorch compares the
 budget constants below with pytorch's.
 
-The optional `budget` block, {"share": s, "spread": k, "cost_exponent": a}, sizes each
+The optional `budget` block, {"share": s, "spread": k, "cost_exponent": a}, carried only
+by `td-scorer-budget.json` (`without_budget` gives `td-scorer.json`'s model), sizes each
 job's cut: budget_share gives s * (1 + k * r), r the change's risk clamped to [-1, 1],
 clamped to [MIN_SHARE, MAX_SHARE], as the share of the cost of all the job's files. A
 change touching build paths, or with an unknown count of them or an unknown r, gets the
@@ -69,6 +70,10 @@ def round_table(
 
 def valid_name(name: str) -> bool:
     return isinstance(name, str) and 0 < len(name) <= MAX_NAME
+
+
+def without_budget(model: Mapping[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in model.items() if k != "budget"}
 
 
 def budget_on(value: Optional[str]) -> bool:

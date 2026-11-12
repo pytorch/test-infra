@@ -21,10 +21,11 @@ The model is published on generated-stats
 files from the same refit, in one commit: `td-scorer.json`, which never carries a budget
 block, and `td-scorer-budget.json`, the same model with its block when the budget is on
 and kept, else the same bytes. pytorch checkouts with the budget rule
-(pytorch/pytorch#204628) read `td-scorer.json` first, as the master switch: when it gives
-no usable model (disabled, missing, stale or invalid), the job keeps TD's cut and no
-budget applies; otherwise they use `td-scorer-budget.json` when it gives a usable model
-too, else `td-scorer.json`. Older checkouts read only `td-scorer.json`.
+(`choose_scorer_block` in `tools/testing/do_target_determination_for_s3.py`) read
+`td-scorer.json` first, as the master switch: when it gives no usable model (disabled,
+missing, stale or invalid), the job keeps TD's cut and no budget applies; otherwise they
+use `td-scorer-budget.json` when it gives a usable model of the same version too, else
+`td-scorer.json`'s model without any block. Older checkouts read only `td-scorer.json`.
 
 ## The model contract
 
@@ -194,10 +195,12 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
   `td-scorer.json`): refuses a `td-scorer.json` with a budget block.
   `td-scorer-budget.json` keeps the refit's budget model when the check validated it
   and, if it has a block, `TD_SCORER_BUDGET`, read again and normalised the same way in
-  shell, is `on`; otherwise it gets `td-scorer.json`'s model. Both files go to generated-stats in one
-  commit, each left in place while its live copy's `enabled` is not true, and
-  `td-scorer-budget.json` also while the live `td-scorer.json` is not enabled. When the
-  budget model was refused, a last step fails the job after the push.
+  shell, is `on`; otherwise it gets `td-scorer.json`'s model. Both files go to
+  generated-stats in one commit, each left in place while its live copy's `enabled` is
+  not true, and `td-scorer-budget.json` also while the live `td-scorer.json` is not
+  enabled. A live file with a later version than the run's (a re-run of an older run) is
+  left in place too. When the budget model was refused, a last step fails the job after
+  the push.
 
 ## The gate
 
@@ -324,10 +327,12 @@ it; `td-scorer.json` has no block, so for it check-pytorch only warns.
   && mv m.json stats/td-scorer-budget.json` on generated-stats, committed and pushed), or
   set its `enabled` to false (the daily run then leaves it in place until it is enabled
   again or deleted). Checkouts with the budget rule then use the model without a block.
+  Deleting the file instead brings the block back on the next run while the variable
+  is on.
 - raw.githubusercontent.com caches the files for about 5 minutes, and a PR whose TD job
   already ran keeps that job's block for re-runs of its shards.
-- Re-running the publish job of an old workflow run publishes that run's (old) models,
-  block included if it had one; its choice reads the variable as it is now.
+- Re-running the publish job of an old workflow run publishes none of its models over
+  live ones of a later version.
 
 Rollback order: the variable off, cancel in-flight runs, delete `td-scorer-budget.json`
 from generated-stats, revert test-infra, then revert pytorch (checkouts with the budget

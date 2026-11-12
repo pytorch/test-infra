@@ -44,7 +44,7 @@ from typing import Any, Iterable, Mapping, Optional, Sequence
 
 from torchci.td.scorer import main_failures
 from torchci.td.scorer.cut import Evaluator, Job, share_sampled, window_jobs
-from torchci.td.scorer.model_json import valid_budget
+from torchci.td.scorer.model_json import valid_budget, without_budget
 from torchci.td.scorer.risk import collect_heads, evaluate, Head, labelled
 from torchci.td.scorer.rows import JobTimes
 from torchci.td.scorer.shards import DayShard, Run, Unit
@@ -349,7 +349,7 @@ def settle_budget(model: dict[str, Any], result: Gate) -> dict[str, Any]:
         return model
     why = "the retention check failed" if valid else "pytorch would reject the block"
     print(f"budget mode: on, block dropped ({why}): the scorer stays at TD's cost")
-    return {k: v for k, v in model.items() if k != "budget"}
+    return without_budget(model)
 
 
 def monitor_text(model: dict[str, Any], times: JobTimes, day: date) -> str:

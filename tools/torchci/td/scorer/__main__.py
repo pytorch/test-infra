@@ -78,12 +78,8 @@ def shipped_cutoff(day: date, today: date, first_gate_day: date) -> date:
     return max(first_gate_day, min(day, today - timedelta(days=FINAL_AFTER_DAYS)))
 
 
-def without_budget(model: dict[str, Any]) -> dict[str, Any]:
-    return {k: v for k, v in model.items() if k != "budget"}
-
-
 def write_models(args: argparse.Namespace, model: dict[str, Any]) -> None:
-    Path(args.out).write_text(model_json.dumps(without_budget(model)))
+    Path(args.out).write_text(model_json.dumps(model_json.without_budget(model)))
     if args.budget_out:
         Path(args.budget_out).write_text(model_json.dumps(model))
 
@@ -179,7 +175,10 @@ def refit(args: argparse.Namespace) -> int:
         }
         Path(args.report).write_text(json.dumps(summary, indent=2) + "\n")
     texts: dict[bool, str] = {}
-    for path, m in ((args.sample, without_budget(model)), (args.budget_sample, model)):
+    for path, m in (
+        (args.sample, model_json.without_budget(model)),
+        (args.budget_sample, model),
+    ):
         if not path:
             continue
         has_block = "budget" in m

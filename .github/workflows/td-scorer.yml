@@ -279,7 +279,7 @@ jobs:
         run: |
           set -euo pipefail
           has_block() {
-            python3 -c 'import json, sys; print("budget" in json.load(open(sys.argv[1])))' "$1"
+            python3 -I -c 'import json, sys; print("budget" in json.load(open(sys.argv[1])))' "$1"
           }
           plain_block=$(has_block td-scorer/td-scorer.json)
           if [ "${plain_block}" != "False" ]; then
@@ -301,7 +301,7 @@ jobs:
           elif [ "${budget_block}" = "True" ] && [ "${mode}" != "on" ]; then
             refused="td-scorer-budget.json has a budget block but TD_SCORER_BUDGET is not on"
           elif [ "${budget_block}" != "True" ] && [ "${budget_block}" != "False" ]; then
-            refused="td-scorer-budget.json is not a JSON object"
+            refused="td-scorer-budget.json is not valid JSON"
           fi
           echo "TD scorer budget mode: ${mode}; td-scorer-budget.json has a budget block: ${budget_block:-unknown}" | tee -a "${GITHUB_STEP_SUMMARY}"
           if [ -n "${refused}" ]; then
@@ -347,7 +347,10 @@ jobs:
           git config user.name "Pytorch Test Infra"
           git config user.email "test-infra@pytorch.org"
           enabled() {
-            python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("enabled") is True)' "$1"
+            python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1])).get("enabled") is True)' "$1"
+          }
+          version() {
+            python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1])).get("version", ""))' "$1"
           }
           # Other workflows push to generated-stats too: rebuild the commit on the latest tip
           # and retry when a push fails, e.g. because one of them pushed first.
@@ -360,8 +363,9 @@ jobs:
             fi
             git reset --hard FETCH_HEAD
             # enabled: false is an off switch; only a file that is absent or enabled is
-            # replaced. td-scorer.json's switches the scorer off for every checkout, so
-            # while it is off td-scorer-budget.json is not written either.
+            # replaced. td-scorer.json's flag turns the scorer off for every checkout, so
+            # while it is off td-scorer-budget.json is not written either. A live file
+            # with a later version (a re-run of an older run) is left in place too.
             for name in td-scorer.json td-scorer-budget.json; do
               if [ -f "stats/${name}" ] && [ "$(enabled "stats/${name}")" != "True" ]; then
                 echo "stats/${name} is not enabled: leaving it in place"
@@ -369,6 +373,11 @@ jobs:
                   echo "Not writing stats/td-scorer-budget.json either"
                   break
                 fi
+                continue
+              fi
+              if [ -f "stats/${name}" ] \
+                && [[ "$(version "stats/${name}")" > "$(version "../td-scorer/${name}")" ]]; then
+                echo "stats/${name} is newer than this run's model: leaving it in place"
                 continue
               fi
               if [ "${E2E}" = "true" ] && [ "${name}" = "td-scorer.json" ]; then
@@ -401,5 +410,5 @@ jobs:
         env:
           REFUSED: ${{ steps.choose.outputs.refused }}
         run: |
-          echo "::error::${REFUSED}; td-scorer-budget.json carries td-scorer.json's model"
+          echo "::error::${REFUSED}; td-scorer-budget.json did not get the budget model"
           exit 1
