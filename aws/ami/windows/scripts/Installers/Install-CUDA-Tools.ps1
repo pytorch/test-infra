@@ -69,7 +69,6 @@ function Install-CudaToolkit() {
     return
   }
 
-  
   Write-Output "Downloading toolkit installer, $toolkitBaseUrl/$toolkitInstaller"
   $tmpToolkitInstaller = New-TemporaryFile
   Invoke-WebRequest -Uri "$toolkitBaseUrl/$toolkitInstaller" -OutFile "$tmpToolkitInstaller"
