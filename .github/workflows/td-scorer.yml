@@ -23,9 +23,6 @@ jobs:
     # The AWS credentials below last role-duration-seconds from their step; the job must
     # end before them (the backfill budget is store.BACKFILL_SECONDS).
     timeout-minutes: 285
-    # TEMPORARY (end-to-end test on #9483): the S3 role trusts this environment, whose
-    # deployment branches are main and refs/pull/9483/merge; no environment elsewhere.
-    environment: ${{ github.event.pull_request.number == 9483 && 'trigger-nightly' || '' }}
     permissions:
       contents: read
       id-token: write
@@ -50,10 +47,7 @@ jobs:
       # The role trusts this repository's refs/heads/main OIDC subject; a job
       # environment would change the subject.
       - name: Configure AWS credentials
-        # TEMPORARY (end-to-end test): also on #9483's own pull request runs.
-        if: >-
-          (github.ref == 'refs/heads/main' && github.event_name != 'pull_request')
-          || github.event.pull_request.number == 9483
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
           role-to-assume: arn:aws:iam::308535385114:role/upload_to_ossci_raw_job_status
@@ -68,8 +62,6 @@ jobs:
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           ON_MAIN: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-          # TEMPORARY (end-to-end test): #9483's own pull request runs only.
-          E2E: ${{ github.event.pull_request.number == 9483 }}
           # The test budget is opt-in: refit gets --budget only when this repository
           # variable is "on" (model_json.budget_on).
           TD_SCORER_BUDGET: ${{ vars.TD_SCORER_BUDGET }}
@@ -102,26 +94,6 @@ jobs:
           echo "TD scorer budget: ${budget}"
           if [ "${ON_MAIN}" = "true" ]; then
             python -m torchci.td.scorer refit --s3 "${outputs[@]}"
-          elif [ "${E2E}" = "true" ]; then
-            # TEMPORARY (end-to-end test): the main path on S3 under the test prefix
-            # #305's test filled, never the production one, with the budget forced on.
-            python - "${outputs[@]}" --budget <<'PY'
-          import sys
-          from torchci.td.scorer import __main__ as m, holdout, store
-          prefix = "td_scorer/pr-test-9427/"
-          rows = f"{prefix}rows/{store.SHARD_FORMAT}/"
-          real_init = store.S3Store.__init__
-          def guarded_init(self, *args, **kwargs):
-              real_init(self, *args, **kwargs)
-              if not self.prefix.startswith(prefix):
-                  raise RuntimeError(f"S3 prefix {self.prefix} is not under {prefix}")
-          store.S3Store.__init__ = guarded_init
-          store.S3_PREFIX = rows
-          m._store.__defaults__ = (rows, "")
-          holdout.HOLDOUT_PREFIX = f"{prefix}holdout/"
-          print(f"S3 prefixes: {rows} and {holdout.HOLDOUT_PREFIX}")
-          sys.exit(m.main(["refit", "--s3", *sys.argv[1:]]))
-          PY
           else
             # Three days in memory: no S3, no publish, and the gate only reports.
             python -m torchci.td.scorer refit --train-days 2 --gate-days 1 \
@@ -185,8 +157,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: pytorch/pytorch
-          # TEMPORARY (end-to-end test): #9483 checks against pytorch's budget branch.
-          ref: ${{ github.event.pull_request.number == 9483 && 'nm/322/1' || 'main' }}
+          ref: main
           path: pytorch
           fetch-depth: 1
           persist-credentials: false
@@ -245,11 +216,8 @@ jobs:
 
   publish:
     needs: [refit, check]
-    # TEMPORARY (end-to-end test): also on #9483's own pull request runs, which publish
-    # stats/td-scorer-budget.json only (guarded below).
     if: >-
-      ((github.ref == 'refs/heads/main' && github.event_name != 'pull_request')
-      || github.event.pull_request.number == 9483)
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
       && needs.check.outputs.validated == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -273,8 +241,6 @@ jobs:
         env:
           TD_SCORER_BUDGET: ${{ vars.TD_SCORER_BUDGET }}
           BUDGET_VALIDATED: ${{ needs.check.outputs.budget_validated }}
-          # TEMPORARY (end-to-end test): the budget file's block is allowed on #9483 only.
-          E2E: ${{ github.event.pull_request.number == 9483 }}
           LC_ALL: C
         run: |
           set -euo pipefail
@@ -290,9 +256,6 @@ jobs:
           value="${value#"${value%%[![:space:]]*}"}"
           value="${value%"${value##*[![:space:]]}"}"
           value="${value,,}"
-          if [ "${E2E:-}" = "true" ]; then
-            value=on
-          fi
           mode=$([ "${value}" = "on" ] && echo on || echo off)
           budget_block=$(has_block td-scorer/td-scorer-budget.json || true)
           refused=""
@@ -310,31 +273,6 @@ jobs:
             echo "${refused}: publishing td-scorer.json's model under its name" | tee -a "${GITHUB_STEP_SUMMARY}"
           fi
 
-      # TEMPORARY (end-to-end test): publish only a budget model built today, with its
-      # block, that validated; anything else fails before the push.
-      - name: Guard the end-to-end publish
-        if: github.event.pull_request.number == 9483
-        env:
-          REFUSED: ${{ steps.choose.outputs.refused }}
-        run: |
-          set -euo pipefail
-          if [ "${GITHUB_RUN_ATTEMPT}" != "1" ]; then
-            echo "::error::a re-run never publishes the end-to-end model: start a fresh run"
-            exit 1
-          fi
-          if [ -n "${REFUSED}" ]; then
-            echo "::error::${REFUSED}"
-            exit 1
-          fi
-          python3 - <<'PY'
-          import datetime, json, sys
-          model = json.load(open("td-scorer/td-scorer-budget.json"))
-          today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-          if "budget" not in model or model["version"] != today:
-              sys.exit(f"budget block {'budget' in model}, version {model['version']} != {today}")
-          print(f"publishing td-scorer-budget.json {model['version']}: {model['budget']}")
-          PY
-
       - name: Checkout generated-stats branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -344,9 +282,6 @@ jobs:
 
       - name: Push the models to generated-stats
         working-directory: generated-stats
-        env:
-          # TEMPORARY (end-to-end test): #9483 writes td-scorer-budget.json only.
-          E2E: ${{ github.event.pull_request.number == 9483 }}
         run: |
           git config user.name "Pytorch Test Infra"
           git config user.email "test-infra@pytorch.org"
@@ -403,19 +338,9 @@ jobs:
                 fi
                 continue
               fi
-              if [ "${E2E}" = "true" ] && [ "${name}" = "td-scorer.json" ]; then
-                continue
-              fi
               cp "../td-scorer/${name}" "stats/${name}"
               git add "stats/${name}"
             done
-            if [ "${E2E}" = "true" ]; then
-              staged=$(git diff --cached --name-only)
-              if [ "${staged}" != "stats/td-scorer-budget.json" ]; then
-                echo "::error::the end-to-end test staged '${staged}', not exactly stats/td-scorer-budget.json: not pushing"
-                exit 1
-              fi
-            fi
             if git diff --cached --quiet; then
               echo "No changes to push"
               exit 0
@@ -434,4 +359,56 @@ jobs:
           REFUSED: ${{ steps.choose.outputs.refused }}
         run: |
           echo "::error::${REFUSED}; td-scorer-budget.json did not get the budget model"
+          exit 1
+
+  # TEMPORARY (end-to-end test cleanup, #9483's own pull request runs only): delete the
+  # test's stats/td-scorer-budget.json from generated-stats, and nothing else.
+  e2e-cleanup:
+    if: github.event.pull_request.number == 9483
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout generated-stats branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: generated-stats
+          path: generated-stats
+          fetch-depth: 1
+
+      - name: Delete stats/td-scorer-budget.json
+        working-directory: generated-stats
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_RUN_ATTEMPT}" != "1" ]; then
+            echo "::error::a re-run never deletes: start a fresh run"
+            exit 1
+          fi
+          git config user.name "Pytorch Test Infra"
+          git config user.email "test-infra@pytorch.org"
+          for attempt in 1 2 3 4 5; do
+            if [ "${attempt}" -gt 1 ]; then
+              sleep $((attempt * 15))
+            fi
+            if ! git fetch --depth=1 origin generated-stats; then
+              continue
+            fi
+            git reset --hard FETCH_HEAD
+            if [ ! -f stats/td-scorer-budget.json ]; then
+              echo "stats/td-scorer-budget.json is already absent"
+              exit 0
+            fi
+            git rm -q stats/td-scorer-budget.json
+            staged=$(git diff --cached --name-only)
+            if [ "${staged}" != "stats/td-scorer-budget.json" ]; then
+              echo "::error::staged '${staged}', not exactly stats/td-scorer-budget.json"
+              exit 1
+            fi
+            git commit -m "Removing the TD scorer end-to-end test's td-scorer-budget.json"
+            if git push origin HEAD:generated-stats; then
+              exit 0
+            fi
+          done
+          echo "Failed to push to generated-stats after 5 attempts"
           exit 1
