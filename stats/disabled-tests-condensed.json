@@ -773,6 +773,13 @@
       "dynamo"
     ]
   ],
+  "test_global_meta_ws_disables_flatten_global_meta_ws_False (__main__.TestBlackwellAutoWSConfigs)": [
+    "204640",
+    "https://github.com/pytorch/pytorch/issues/204640",
+    [
+      "xpu"
+    ]
+  ],
   "test_gradients_synchronizations (__main__.TensorPipeTensorPipeCudaDistAutogradTest)": [
     "158443",
     "https://github.com/pytorch/pytorch/issues/158443",
