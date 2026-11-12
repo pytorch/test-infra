@@ -1,0 +1,15 @@
+{
+  "params": {
+    "arch": "String",
+    "branches": "Array(String)",
+    "compilers": "Array(String)",
+    "device": "String",
+    "dtype": "String",
+    "granularity": "String",
+    "mode": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "suites": "Array(String)"
+  },
+  "tests": []
+}
