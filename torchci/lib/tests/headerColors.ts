@@ -1,4 +1,5 @@
 import type { Theme } from "@mui/material/styles";
+import { BlockColors, Hue, hueColors } from "lib/tests/blockColors";
 
 // The colors of the tests table's header band, defined once for the grid's
 // own styles and for the controls set on the band. Every color follows the
@@ -89,18 +90,64 @@ export function headerKeySx(theme: Theme, colors: HeaderKeyColors) {
   };
 }
 
-// The accent pill of a page header, the commit page's pull request number:
-// GitHub's blue, its accent emphasis in each mode, with white ink, which
-// reads at 5.3:1 on the light blue and 4.7:1 on the dark one.
-export interface AccentPillColors {
-  background: string;
-  text: string;
+// A pill's tone: a status, the commit page's GreenLight verdict, in the
+// hub's status colors, a hue's pale background with its ink (hueColors), as
+// a Health block and an attempt's pill are painted: green for good news,
+// yellow for what needs a look. A fact has no tone: the commit page's pull
+// request number was a pill in GitHub's blue until 2026-11-11, when the
+// user had it made grey, so that color in a header says a status and
+// nothing else.
+export type PillTone = "positive" | "caution";
+
+const TONE_HUES: Record<PillTone, Hue> = {
+  positive: "green",
+  caution: "yellow",
+};
+
+export function tonePillColors(theme: Theme, tone: PillTone): BlockColors {
+  return hueColors(theme, TONE_HUES[tone]);
 }
 
-export function accentPillColors(theme: Theme): AccentPillColors {
-  return theme.palette.mode === "dark"
-    ? { background: "#1f6feb", text: "#ffffff" }
-    : { background: "#0969da", text: "#ffffff" };
+// A chip set inside a pill's end (FactPill's `chip`), the commit inside its
+// pull request: the page's own background on the pill's grey, as a header
+// key is on the band, in the primary ink. At rest it is lifted off the pill
+// by a faint shadow in the light mode, and marked by a faint edge in the
+// dark one, where a shadow does not show; under the pointer it is ringed in
+// the secondary ink, as a key's edge is.
+export interface PillChipColors {
+  background: string;
+  text: string;
+  // The chip's box shadow at rest, and under the pointer.
+  rest: string;
+  hover: string;
+}
+
+export function pillChipColors(theme: Theme): PillChipColors {
+  const ring = `inset 0 0 0 1px ${theme.palette.text.secondary}`;
+  const lift = "0 1px 1.5px rgba(0, 0, 0, 0.1)";
+  return {
+    background: theme.palette.background.default,
+    text: theme.palette.text.primary,
+    ...(theme.palette.mode === "dark"
+      ? { rest: "inset 0 0 0 1px rgba(255, 255, 255, 0.1)", hover: ring }
+      : { rest: lift, hover: `${ring}, ${lift}` }),
+  };
+}
+
+// The lamp of a status pill, the dot before its words: GitHub's green and
+// yellow at the strength of a light, brighter than the ink beside it, which
+// is set for reading; the secondary text color for a pill with no status to
+// color.
+export function lampColor(theme: Theme, tone: PillTone | undefined): string {
+  const dark = theme.palette.mode === "dark";
+  switch (tone) {
+    case "positive":
+      return dark ? "#3fb950" : "#2da44e";
+    case "caution":
+      return dark ? "#d29922" : "#bf8700";
+    default:
+      return theme.palette.text.secondary;
+  }
 }
 
 // The keys' focus ring, for the keyboard.

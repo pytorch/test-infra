@@ -1,5 +1,6 @@
 import { Box, Link, Typography } from "@mui/material";
 import FactPill from "components/tests/FactPill";
+import GreenLightPill from "components/tests/GreenLightPill";
 import {
   FactsRow,
   HeaderCrumbs,
@@ -17,6 +18,7 @@ import {
   whenExact,
   whenLabel,
 } from "lib/tests/commit";
+import type { CommitGreenlightState } from "lib/tests/greenlight";
 import {
   HEADLINE_SX,
   MONOSPACE_FONT_FAMILY,
@@ -34,6 +36,10 @@ export interface CommitHeaderProps {
   // With no commit: whether one is on its way, so the header holds its
   // place, or there is none, so it says only what the page is.
   loading?: boolean;
+  // What there is to show for GreenLight's verdict on the commit
+  // (useCommitGreenlight), the first pill; null or left out where the commit
+  // gets none, in a repository GreenLight does not review.
+  greenlight?: CommitGreenlightState | null;
 }
 
 // When the commit was made, filled in on the client only: the server does
@@ -72,8 +78,7 @@ function MutedLink({
 // The commit's title as the headline (headline in lib/tests/commit.ts): its
 // text, the spans the author set in backticks as code, and any "#N" in it
 // as a muted link to that pull request. The "(#N)" a merged commit's title
-// ends in is taken off; that pull request is the first pill of the facts
-// row.
+// ends in is taken off; that pull request has its pill in the facts row.
 function Title({ repo, commit }: { repo: string; commit: CommitRecord }) {
   const { pieces } = headline(commit.title);
   return (
@@ -133,19 +138,66 @@ function Neighbours({ repo, commit }: { repo: string; commit: CommitRecord }) {
   );
 }
 
+// The commit and the pull request it belongs to, as one pill in the facts'
+// grey: the pull request's, "PR #204150", linking the pull request, with
+// the commit's short SHA set inside its end as a chip (FactPill's chip),
+// linking the commit on GitHub, the full SHA its tooltip. The SHA has no
+// word beside it there: inside the pull request it reads as that pull
+// request's commit, and the chip's link is named "Commit 573c889" for a
+// reader who does not see it. A commit with no pull request, a merge bot's
+// revert, has the same pill saying "Commit", the chip its value and the
+// whole pill its link, so the SHA looks the same on every commit.
+function PullRequestAndCommit({
+  repo,
+  commit,
+}: {
+  repo: string;
+  commit: CommitRecord;
+}) {
+  const pullRequestNumber = commitPullRequestNumber(commit);
+  const sha = shortSha(commit.sha);
+  const chip = {
+    href: commit.url,
+    name: `Commit ${sha}`,
+    title: commit.sha,
+    children: (
+      <Box
+        component="span"
+        sx={{ fontFamily: MONOSPACE_FONT_FAMILY, fontSize: "0.9em" }}
+      >
+        {sha}
+      </Box>
+    ),
+  };
+  return pullRequestNumber === null ? (
+    <FactPill label="Commit" chip={chip} />
+  ) : (
+    <FactPill
+      label="PR"
+      href={pullRequestUrl(repo, pullRequestNumber, commit)}
+      chip={chip}
+    >
+      {`#${pullRequestNumber}`}
+    </FactPill>
+  );
+}
+
 // The header of a commit's page, set from the hub's header pieces
 // (PageHeader): where the commit lives, as a monospace breadcrumb; its
-// title, the headline; and a row of facts as pills, first the pull request's
-// number linking it when the commit has one, the commit's short SHA linking
-// its page on GitHub, then the author, when it was committed, and on a
-// branch its neighbours, older to the left and newer to the right, the
-// branch itself being in the breadcrumb, or for a pull request head its
-// branch. Until the commit arrives a skeleton holds each line's place; with
-// no commit to show the headline says "Commit" and the rest is left out.
+// title, the headline; and a row of facts as pills: first GreenLight's
+// verdict on the commit, a pill in its tone that opens the reasons behind
+// it, or says that there is none (GreenLightPill); then the pull request
+// and the commit as one pill (PullRequestAndCommit), the author, when it
+// was committed, and on a branch its neighbours, older to the left and
+// newer to the right, the branch itself being in the breadcrumb, or for a
+// pull request head its branch.
+// Until the commit arrives a skeleton holds each line's place; with no
+// commit to show the headline says "Commit" and the rest is left out.
 export default function CommitHeader({
   repo,
   commit,
   loading = false,
+  greenlight,
 }: CommitHeaderProps) {
   if (commit === undefined) {
     if (!loading) {
@@ -158,29 +210,15 @@ export default function CommitHeader({
     return <HeaderSkeleton pillWidths={["18ch", "22ch", "16ch"]} />;
   }
   const author = commit.author.name ?? commit.author.login;
-  const pullRequestNumber = commitPullRequestNumber(commit);
   return (
     <Box>
       <HeaderCrumbs crumbs={commitCrumbs(repo, commit)} />
       <Title repo={repo} commit={commit} />
       <FactsRow>
-        {pullRequestNumber !== null && (
-          <FactPill
-            tone="accent"
-            label="PR"
-            href={pullRequestUrl(repo, pullRequestNumber, commit)}
-          >
-            {`#${pullRequestNumber}`}
-          </FactPill>
+        {greenlight != null && (
+          <GreenLightPill repo={repo} sha={commit.sha} state={greenlight} />
         )}
-        <FactPill label="Commit" href={commit.url} title={commit.sha}>
-          <Box
-            component="span"
-            sx={{ fontFamily: MONOSPACE_FONT_FAMILY, fontSize: "0.9em" }}
-          >
-            {shortSha(commit.sha)}
-          </Box>
-        </FactPill>
+        <PullRequestAndCommit repo={repo} commit={commit} />
         <FactPill label="Author" muted={author === null}>
           {author === null ? (
             UNKNOWN_VALUE

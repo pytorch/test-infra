@@ -24,6 +24,7 @@ import {
 } from "lib/tests/facets";
 import { SEARCH_PAUSE_MS } from "lib/tests/table";
 import { mergedUrlQuery } from "lib/tests/url";
+import { useCommitGreenlight } from "lib/tests/useCommitGreenlight";
 import { useCommitSummary } from "lib/tests/useCommitSummary";
 import { useRunsListing } from "lib/tests/useRunsListing";
 import { useTestsOptions } from "lib/tests/useTestsOptions";
@@ -60,6 +61,9 @@ export default function Page() {
     repository,
     sha
   );
+  // GreenLight's verdict on the commit, asked for alongside the summary so
+  // its pill is in the header when the header arrives.
+  const greenlight = useCommitGreenlight(repository, sha);
   const {
     options,
     error: optionsError,
@@ -205,6 +209,7 @@ export default function Page() {
           repo={repository ?? ""}
           commit={summary?.commit}
           loading={loading}
+          greenlight={greenlight}
         />
         {notFound && (
           <Alert severity="warning">

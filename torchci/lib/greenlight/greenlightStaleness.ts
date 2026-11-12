@@ -28,7 +28,7 @@ const CLICKHOUSE_DATETIME_RE =
 // time and would shift the staleness window by the host's offset. The HUD
 // ClickHouse server timezone is UTC, so build the epoch explicitly; the
 // Date.parse fallback only sees forms that do carry a zone. NaN when unparseable.
-function parseVersionMs(version: string): number {
+export function parseVersionMs(version: string): number {
   const trimmed = (version || "").trim();
   const parts = CLICKHOUSE_DATETIME_RE.exec(trimmed);
   if (parts === null) {

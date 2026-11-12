@@ -26,119 +26,19 @@ import GreenLightIcon from "components/greenlight/GreenLightIcon";
 import GreenLightOutline from "components/greenlight/GreenLightOutline";
 import GreenLightReportButton from "components/greenlight/GreenLightReportButton";
 import {
+  describeGreenlightStatus,
   isGreenlightApproved,
   normalizeSha,
   selectMessageView,
   selectStateForSha,
 } from "lib/greenlight/greenlightHudState";
-import {
-  GREENLIGHT_INCOMPLETE_HEADLINE,
-  GREENLIGHT_LAND_HEADLINE,
-  GREENLIGHT_NO_LAND_HEADLINE,
-  GREENLIGHT_REVERTED_BODY,
-  GREENLIGHT_REVERTED_HEADLINE,
-  GREENLIGHT_REVIEWING_BODY,
-  GREENLIGHT_REVIEWING_HEADLINE,
-  GREENLIGHT_SECTION_HEADER,
-  GREENLIGHT_STALLED_REASON,
-  GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED,
-  GREENLIGHT_STATUS_AI_REVIEW_STARTED,
-  GREENLIGHT_STATUS_CANCELLED,
-  GREENLIGHT_STATUS_FAILED,
-  GREENLIGHT_STATUS_LAND,
-  GREENLIGHT_STATUS_NO_LAND,
-  GREENLIGHT_STATUS_REVERTED,
-} from "lib/greenlight/greenlightRender";
+import { GREENLIGHT_SECTION_HEADER } from "lib/greenlight/greenlightRender";
 import { isReportableStatus } from "lib/greenlight/greenlightReport";
-import { isInProgressStale } from "lib/greenlight/greenlightStaleness";
 import { useGreenlightPrHistory } from "lib/greenlight/useGreenlightPrHistory";
-
-// The one reason code meaning "nothing to report". A literal because the enum
-// lives in Python; this is a display rule keyed off one member, not a copy of
-// the set.
-const LAND_REDUNDANT_REASON = "clean";
 
 // eval_job is a database column, so anchor the host: both a userinfo prefix and
 // a lookalike domain satisfy a mere "contains github.com".
 const SAFE_JOB_URL_RE = /^https:\/\/github\.com\/[^\s()<>"'\\]+$/;
-
-interface Described {
-  /**
-   * The status the mark should show, which is not always the row's own: a
-   * stale in-flight row is presented as a run that did not complete, and the
-   * lamp has to say the same thing as the headline beside it.
-   */
-  iconStatus: string;
-  headline: string;
-  /** Fixed prose for states that carry no model message. */
-  body: string;
-  /** The row's own reason for a verdict; the markers name themselves instead. */
-  reason: string;
-}
-
-/** Mirrors renderGreenlightSection: a status with no case here has no panel. */
-function describeStatus(
-  status: string,
-  rowReason: string,
-  version: string,
-  now: Date
-): Described | undefined {
-  switch (status) {
-    case GREENLIGHT_STATUS_LAND:
-      return {
-        iconStatus: status,
-        headline: GREENLIGHT_LAND_HEADLINE,
-        body: "",
-        // "clean" is the only reason a LAND may carry, so printing it just
-        // restates the headline. Keyed on the pair, not the status: a LAND
-        // carrying anything else is anomalous and worth showing.
-        reason: rowReason === LAND_REDUNDANT_REASON ? "" : rowReason,
-      };
-    case GREENLIGHT_STATUS_NO_LAND:
-      return {
-        iconStatus: status,
-        headline: GREENLIGHT_NO_LAND_HEADLINE,
-        body: "",
-        reason: rowReason,
-      };
-    case GREENLIGHT_STATUS_REVERTED:
-      return {
-        iconStatus: status,
-        headline: GREENLIGHT_REVERTED_HEADLINE,
-        body: GREENLIGHT_REVERTED_BODY,
-        reason: "",
-      };
-    case GREENLIGHT_STATUS_AI_REVIEW_STARTED:
-    case GREENLIGHT_STATUS_AI_REVIEW_DISPATCHED:
-      // An in-flight row past the window means the terminal emit was lost.
-      return isInProgressStale(version, now)
-        ? {
-            // FAILED, not the row's in-flight status: it is the status whose
-            // lamp and label already mean "did not complete", which is what
-            // the headline here says.
-            iconStatus: GREENLIGHT_STATUS_FAILED,
-            headline: GREENLIGHT_INCOMPLETE_HEADLINE,
-            body: "",
-            reason: GREENLIGHT_STALLED_REASON,
-          }
-        : {
-            iconStatus: status,
-            headline: GREENLIGHT_REVIEWING_HEADLINE,
-            body: GREENLIGHT_REVIEWING_BODY,
-            reason: "",
-          };
-    case GREENLIGHT_STATUS_CANCELLED:
-    case GREENLIGHT_STATUS_FAILED:
-      return {
-        iconStatus: status,
-        headline: GREENLIGHT_INCOMPLETE_HEADLINE,
-        body: "",
-        reason: status.toLowerCase(),
-      };
-    default:
-      return undefined;
-  }
-}
 
 /** Renders nothing when GreenLight has no state for this PR. */
 export default function GreenLightSection({
@@ -170,7 +70,7 @@ export default function GreenLightSection({
     return null;
   }
 
-  const described = describeStatus(
+  const described = describeGreenlightStatus(
     state.status.trim(),
     state.reason ?? "",
     state.version,

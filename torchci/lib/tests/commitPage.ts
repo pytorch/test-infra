@@ -127,6 +127,12 @@ export function commitSummaryApiUrl(repo: string, sha: string): string {
   )}/summary?repo=${encodeURIComponent(repo)}`;
 }
 
+export function commitGreenlightApiUrl(repo: string, sha: string): string {
+  return `/api/tests/commit/${encodeURIComponent(
+    sha
+  )}/greenlight?repo=${encodeURIComponent(repo)}`;
+}
+
 // A page of the commit's runs with the outcomes listed, narrowed by the
 // page's filters and search, in outcome order and within it the page's
 // sort: the API's status sort, worst first, then the page's.
