@@ -28,6 +28,10 @@ PR_POSITIVE_CAP = 20.0
 PR_NEGATIVE_CAP = 10000.0
 W_TRUNK = 10.0
 OVERHEAD_SECONDS = 24.0
+# A file the config records under MIN_RUN_SECONDS skips there (a CUDA-only file on a
+# CPU job); pytorch CI logs show such a file starting and exiting in about 3 s.
+MIN_RUN_SECONDS = 1.0
+SKIP_OVERHEAD_SECONDS = 3.0
 
 
 def sampled(run_id: int, build_env: str, test_config: str, test_file: str) -> bool:
@@ -47,7 +51,8 @@ def unit_labels(unit: Unit) -> tuple[list[str], list[str]]:
 class JobTimes:
     """Per-file seconds as run_test.py looks them up in test-times.json: the job base
     name's entry for the test config, else "default"'s for the config, else
-    "default"/"default"; a file without an entry gets the entry's median."""
+    "default"/"default"; a file without an entry gets the entry's median. A file's cost
+    adds OVERHEAD_SECONDS, or SKIP_OVERHEAD_SECONDS under MIN_RUN_SECONDS."""
 
     def __init__(self, data: Mapping[str, Any]) -> None:
         self.data = data
@@ -72,7 +77,10 @@ class JobTimes:
         return float(times.get(test_file, mid))
 
     def cost(self, job: str, config: str, test_file: str) -> float:
-        return self.seconds(job, config, test_file) + OVERHEAD_SECONDS
+        seconds = self.seconds(job, config, test_file)
+        if seconds < MIN_RUN_SECONDS:
+            return seconds + SKIP_OVERHEAD_SECONDS
+        return seconds + OVERHEAD_SECONDS
 
 
 @dataclass

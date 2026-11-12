@@ -19,8 +19,7 @@ landings are reported only: the scorer catches one when any of its pairs is in i
 of the job at the PR's last head; TD caught none by construction.
 
 The cut is pytorch's scorer.select_tests: must-run files first, by name, whatever their
-cost; the rest fill what is left of T by p / cost, ties by name, files the job's config
-records under MIN_RUN_SECONDS (they skip there) last, costs summed in integer
+cost; the rest fill what is left of T by p / cost, ties by name, costs summed in integer
 milliseconds. T is the cost of TD's own include list, recomputed from the TD log as
 run_test.py's get_top_per_tests(25) cuts it: the job's files (ran or excluded) by TD's
 aggregated score, then name, the first n * 25 // 100 + 1.
@@ -51,7 +50,6 @@ TD_PERCENT = 25
 SAMPLE_ROWS = 500
 SAMPLE_JOBS = 30
 MUST_RUN_HEURISTICS = ("EditedByPR", "PreviouslyFailedInPR")
-MIN_RUN_SECONDS = 1.0
 
 
 def cost_ms(cost_seconds: float) -> int:
@@ -62,20 +60,16 @@ def scorer_cut(
     files: Sequence[str],
     p: np.ndarray,
     costs: np.ndarray,
-    seconds: np.ndarray,
     budget_ms: int,
     must_run: set[str],
 ) -> set[str]:
-    """Must-run files first, then whole files by p / cost (ties by name), files under
-    MIN_RUN_SECONDS last, each added while the total stays <= budget_ms."""
+    """Must-run files first, then whole files by p / cost (ties by name), each added
+    while the total stays <= budget_ms."""
     ms = [cost_ms(c) for c in costs]
     selected = {f for f in files if f in must_run}
     used = sum(m for f, m in zip(files, ms) if f in selected)
     rest = [i for i, f in enumerate(files) if f not in must_run]
-    order = sorted(
-        rest, key=lambda i: (seconds[i] < MIN_RUN_SECONDS, -p[i] / costs[i], files[i])
-    )
-    for i in order:
+    for i in sorted(rest, key=lambda i: (-p[i] / costs[i], files[i])):
         if used + ms[i] <= budget_ms:
             selected.add(files[i])
             used += ms[i]
@@ -231,7 +225,6 @@ class Evaluator:
         """(the scorer's selection, TD's include list) for the job."""
         files = sorted(set(unit.ran) | set(unit.excluded))
         env, config = unit.build_env, unit.test_config
-        seconds = np.array([self.times.seconds(env, config, f) for f in files])
         costs = np.array([self.times.cost(env, config, f) for f in files])
         include = set(td_include(files, run.aggregated))
         budget = sum(cost_ms(c) for f, c in zip(files, costs) if f in include)
@@ -249,7 +242,7 @@ class Evaluator:
                 }
                 for f, c, pi in list(zip(files, costs, p))[:: max(1, len(files) // 5)]
             )
-        selected = scorer_cut(files, p, costs, seconds, budget, must_run_files(run))
+        selected = scorer_cut(files, p, costs, budget, must_run_files(run))
         if sample is not None and len(sample.jobs) < SAMPLE_JOBS:
             sample.jobs.append(
                 {
