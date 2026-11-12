@@ -430,6 +430,7 @@ class TestRunnerFleet(TestCase):
     def tearDown(self) -> None:
         os.environ.pop("RUNNER_FLEET", None)
         os.environ.pop("GITHUB_REF", None)
+        os.environ.pop("GITHUB_REPOSITORY_OWNER", None)
 
     def test_ec2_is_the_default(self) -> None:
         self.assertEqual(validation_runner("cpu", "linux"), "linux.2xlarge")
@@ -460,6 +461,26 @@ class TestRunnerFleet(TestCase):
         self.assertEqual(
             validation_runner("cuda", "linux"),
             "mt-rel-l-x86aavx2-11-41-a10g",
+        )
+
+    def test_other_orgs_stay_on_regular_runners_on_a_release_ref(self) -> None:
+        # meta-pytorch cannot allow-list pytorch/test-infra's reusables on its
+        # release runner groups, so its release-ref builds use regular runners.
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/heads/main"
+        os.environ["GITHUB_REPOSITORY_OWNER"] = "meta-pytorch"
+        self.assertEqual(validation_runner("cpu", "linux"), "mt-l-x86iavx512-8-64")
+        self.assertEqual(validation_runner("cuda", "linux"), "mt-l-x86aavx2-11-41-a10g")
+        self.assertEqual(
+            validation_runner("cpu", "linux-aarch64"), "mt-l-arm64g3-16-62"
+        )
+
+    def test_pytorch_keeps_release_runners(self) -> None:
+        os.environ["RUNNER_FLEET"] = "osdc"
+        os.environ["GITHUB_REF"] = "refs/heads/main"
+        os.environ["GITHUB_REPOSITORY_OWNER"] = "pytorch"
+        self.assertEqual(
+            validation_runner("cpu", "linux"), "mt-rel-l-x86iavx512-44-340"
         )
 
     def test_aarch64_has_no_gpu_runner(self) -> None:

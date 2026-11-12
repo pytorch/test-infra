@@ -164,8 +164,9 @@ WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 # OSDC (ARC) equivalents, selected by the runner-fleet input. Release-isolated
-# rel- runners on the refs a wheel is published from, regular ones otherwise, so
-# a pull request build does not sit in the release fleet. Only Linux has OSDC
+# rel- runners on the refs a wheel is published from (pytorch org only, see
+# RELEASE_RUNNER_ORGS), regular ones otherwise, so a pull request build does not
+# sit in the release fleet. Only Linux has OSDC
 # runners; Windows and macOS keep the labels above either way.
 EC2 = "ec2"
 OSDC = "osdc"
@@ -190,6 +191,12 @@ OSDC_RUNNERS = {
     ),
     (LINUX_AARCH64, CPU): (OSDC_LINUX_AARCH64_RUNNER, OSDC_REL_LINUX_AARCH64_RUNNER),
 }
+
+# Orgs whose release-ref builds use the release runners. Those runners only take
+# workflows on their group's allow-list, which must name pytorch/test-infra's
+# reusables; another org (meta-pytorch) can only allow-list them with a personal
+# access token, so its builds stay on the regular runners on every ref.
+RELEASE_RUNNER_ORGS = ("pytorch",)
 
 # The refs a wheel is published from, matching pytorch/pytorch's
 # _select-release-runner.yml.
@@ -239,22 +246,33 @@ def github_ref() -> str:
     return os.getenv("GITHUB_REF", "")
 
 
+def github_repository_owner() -> str:
+    """The calling repository's org; a reusable workflow sees its caller's.
+    Unset outside Actions, where pytorch keeps today's behaviour."""
+    return os.getenv("GITHUB_REPOSITORY_OWNER") or "pytorch"
+
+
 def is_release_ref(ref: str) -> bool:
     return any(ref.startswith(prefix) for prefix in RELEASE_REF_PREFIXES)
 
 
-def osdc_validation_runner(arch_type: str, os: str, ref: str) -> Optional[str]:
+def osdc_validation_runner(
+    arch_type: str, os: str, ref: str, owner: str
+) -> Optional[str]:
     """The OSDC label for a row, or None where OSDC has no equivalent."""
     key = (os, arch_type if arch_type in (CUDA, CUDA_AARCH64) else CPU)
     labels = OSDC_RUNNERS.get(key)
     if labels is None:
         return None
-    return labels[1] if is_release_ref(ref) else labels[0]
+    release = owner in RELEASE_RUNNER_ORGS and is_release_ref(ref)
+    return labels[1] if release else labels[0]
 
 
 def validation_runner(arch_type: str, os: str) -> str:
     if runner_fleet() == OSDC:
-        osdc = osdc_validation_runner(arch_type, os, github_ref())
+        osdc = osdc_validation_runner(
+            arch_type, os, github_ref(), github_repository_owner()
+        )
         if osdc is not None:
             return osdc
     if os == LINUX:
