@@ -91,6 +91,79 @@ class TestFeatures(TestCase):
         self.assertAlmostEqual(risk.risk_r(model(flat, 0.5), {}), 2 * 49.5 / 100 - 1)
 
 
+class TestBuildPaths(TestCase):
+    def test_is_build_path(self) -> None:
+        build = [
+            "third_party/x/y.c",
+            ".github/workflows/pull.yml",
+            ".ci/docker/build.sh",
+            "cmake/Modules/FindX.cmake",
+            "torchgen/gen.py",
+            "tools/setup_helpers/env.py",
+            "tools/autograd/derivatives.yaml",
+            "tools/testing/target_determination/scorer.py",
+            "tools/stats/upload.py",
+            "torch/testing/_internal/common_utils.py",
+            "test/dynamo_expected_failures/TestX.test_y",
+            "test/dynamo_skips/TestX",
+            "test/inductor_expected_failures/TestX",
+            "test/inductor_skips/TestX",
+            "test/run_test.py",
+            "CMakeLists.txt",
+            "caffe2/CMakeLists.txt",
+            "setup.py",
+            "setup.cfg",
+            "pyproject.toml",
+            "version.txt",
+            "BUILD.bazel",
+            "BUILD",
+            "WORKSPACE",
+            "test/conftest.py",
+            "pytest.ini",
+            "aten/src/ATen/native/native_functions.yaml",
+            "aten/src/ATen/native/tags.yaml",
+            "requirements.txt",
+            ".ci/requirements-ci.txt",
+            "requirements-build.txt",
+            "foo/x.cmake",
+            "tools/rules/x.bzl",
+            "aten/src/ATen/templates/Functions.h",
+            "tools/jit/gen.py",
+            "tools/pyi/gen_pyi.py",
+            "tools/amd_build/build_amd.py",
+            "MODULE.bazel",
+            ".bazelrc",
+            ".bazelversion",
+        ]
+        for path in build:
+            self.assertTrue(risk.is_build_path(path), path)
+        source = [
+            "torch/nn/modules/linear.py",
+            "test/test_nn.py",
+            "docs/source/index.rst",
+            "tools/run_test.py",
+            "test/run_test.pyi",
+            "requirements.md",
+            "my_requirements.txt",
+            "xthird_party/a.c",
+            "BUILD.txt",
+            "tools/statsx/a.py",
+            "test/inductor/test_x.py",
+        ]
+        for path in source:
+            self.assertFalse(risk.is_build_path(path), path)
+
+    def test_count_build_files(self) -> None:
+        for empty in ([], [""], ["", ""]):
+            self.assertIsNone(risk.count_build_files(empty))
+        self.assertEqual(risk.count_build_files(["setup.py", "torch/a.py"]), 1)
+        self.assertEqual(risk.count_build_files(["", "setup.py"]), 1)
+        many = ["torch/a.py"] * risk.MAX_CHANGED_FILES
+        self.assertEqual(risk.count_build_files(many), risk.MAX_CHANGED_FILES)
+        self.assertEqual(risk.count_build_files(many[1:]), 0)
+        self.assertNotIn("n_build_files", risk.FEATURES)
+
+
 class TestHeads(TestCase):
     def test_collect_heads(self) -> None:
         shard = shards.DayShard(

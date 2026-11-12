@@ -3,22 +3,25 @@
 `History` holds the training rows (rows.py) and the PR heads (risk.py) of every healthy
 day, holdout PRs left out, the PRs that ran each day, and the counted trunk landings. A
 model is fitted on the rows and heads of the days before a cut-off day, without the PRs
-given: the shipped model on the days up to two days before the refit (__main__.py), and
-each walk-forward month on the days before it without that month's PRs.
+given, with the configured budget block when there is one: the shipped model on the days
+up to two days before the refit (__main__.py), and each walk-forward month on the days
+before it without that month's PRs. `assemble` reads the days' shards and the trunk
+landings into a History, for refit and the sweep (sweep.py); it builds and writes nothing.
 
 Walk-forward: for each calendar month M that starts at least a month after the first day
-of data, through the day before the refit, the model fitted on the days before M is
-scored on M by gate.evaluate_window: the PRs whose first TD run is in M, at TD's cost per
-job, the counted trunk landings of M, and the risk score's AUC on those PRs' heads. The
-gate's floor pools the months (gate.Gate.pooled).
+of data, through the day before the refit (`folds`, shared with the sweep), the model
+fitted on the days before M is scored on M by gate.evaluate_window: the PRs whose first
+TD run is in M, at TD's cost per job and at the budget when the model has one, the
+counted trunk landings of M, and the risk score's AUC on those PRs' heads. The gate
+pools the months (gate.Gate.pooled).
 """
 
 from dataclasses import dataclass
-from datetime import date
-from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
+from datetime import date, datetime
+from typing import Any, Callable, Iterable, Iterator, Mapping, Optional, Sequence
 
 import numpy as np
-from torchci.td.scorer import model_json, risk, train
+from torchci.td.scorer import model_json, risk, train, trunk
 from torchci.td.scorer.gate import evaluate_window, WindowReport
 from torchci.td.scorer.logs import TDLog
 from torchci.td.scorer.risk import Head
@@ -102,8 +105,15 @@ class History:
         self.landings, self.logs = list(landings), logs
         self.rows, self.builder = self.builder.build(), None
 
-    def fit(self, before: date, exclude_prs: set[int], version: str) -> Fit:
-        """The model fitted on the days before `before`, without `exclude_prs`."""
+    def fit(
+        self,
+        before: date,
+        exclude_prs: set[int],
+        version: str,
+        budget: Optional[Mapping[str, float]] = None,
+    ) -> Fit:
+        """The model fitted on the days before `before`, without `exclude_prs`, carrying
+        `budget` as its budget block when given."""
         assert self.rows is not None
         keep = (self.rows.day < before.toordinal()) & ~np.isin(
             self.rows.pr, np.array(sorted(exclude_prs), dtype=np.int64)
@@ -123,6 +133,7 @@ class History:
                 train.fit_scorer(training),
                 risk_block,
                 self.times.start_up_table,
+                budget=budget,
             ),
             rows=len(training),
             positives=int(training.label.sum()),
@@ -132,6 +143,54 @@ class History:
             heads=len(heads),
             heuristics=training.heuristics,
         )
+
+
+def assemble(
+    load: Callable[[date], DayShard],
+    days: Sequence[date],
+    exclude_prs: set[int],
+    times: JobTimes,
+    stop: date,
+) -> History:
+    """The History of `days` (oldest first) without `exclude_prs`, with the counted
+    trunk landings from the first day to `stop`."""
+    history = History(times, exclude_prs)
+    for d in days:
+        history.add_shard(d, load(d))
+    landings = trunk.fetch_landings(
+        datetime.combine(days[0], datetime.min.time()),
+        datetime.combine(stop, datetime.min.time()),
+    )
+    head_logs = trunk.fetch_head_logs(p.head_sha for x in landings for p in x.pairs)
+    history.finish(landings, head_logs)
+    return history
+
+
+@dataclass
+class FoldSpec:
+    """One walk-forward month: its days, the days before it, the PRs that ran in it, the
+    PRs whose first TD run is in it, and its counted trunk landings."""
+
+    month: date
+    days: list[date]
+    before: list[date]
+    prs: set[int]
+    new_prs: set[int]
+    landings: list[TrunkLanding]
+
+
+def folds(history: History) -> Iterator[FoldSpec]:
+    days = sorted(history.prs)
+    for month in fold_months(days):
+        end = next_month(month)
+        in_month = [d for d in days if month <= d < end]
+        before = [d for d in days if d < month]
+        prs = set().union(*(history.prs[d] for d in in_month))
+        new_prs = prs - set().union(*(history.prs[d] for d in before))
+        landings = [
+            x for x in history.landings if month.isoformat() <= x.day < end.isoformat()
+        ]
+        yield FoldSpec(month, in_month, before, prs, new_prs, landings)
 
 
 @dataclass
@@ -146,24 +205,20 @@ def walk_forward(
     load: Callable[[date], DayShard],
     times: JobTimes,
     version: str,
+    budget: Optional[Mapping[str, float]] = None,
 ) -> list[Fold]:
-    days = sorted(history.prs)
-    folds = []
-    for month in fold_months(days):
-        end = next_month(month)
-        in_month = [d for d in days if month <= d < end]
-        before = [d for d in days if d < month]
-        prs = set().union(*(history.prs[d] for d in in_month))
-        new_prs = prs - set().union(*(history.prs[d] for d in before))
-        fit = history.fit(month, prs, version)
-        landings = [
-            x for x in history.landings if month.isoformat() <= x.day < end.isoformat()
-        ]
+    out = []
+    for spec in folds(history):
+        fit = history.fit(spec.month, spec.prs, version, budget)
         report = evaluate_window(
-            fit.model, (load(d) for d in in_month), new_prs, landings, times
+            fit.model,
+            (load(d) for d in spec.days),
+            spec.new_prs,
+            spec.landings,
+            times,
         )
-        folds.append(Fold(month.isoformat()[:7], len(before), report))
-    return folds
+        out.append(Fold(spec.month.isoformat()[:7], len(spec.before), report))
+    return out
 
 
 def _row(name: str, train_days: str, reports: Sequence[WindowReport]) -> dict:

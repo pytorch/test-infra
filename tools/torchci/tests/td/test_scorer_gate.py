@@ -1,20 +1,27 @@
 import dataclasses
+import hashlib
+import io
 import json
 import sys
 import tempfile
+import threading
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Optional
 from unittest import main, mock, TestCase
 
 import numpy as np
 from torchci.td.scorer import (
     __main__ as cli,
+    cut,
     gate,
     holdout,
     logs,
+    main_failures,
     model_json,
     risk,
     rows,
+    sample,
     shards,
     start_up,
     store,
@@ -22,6 +29,38 @@ from torchci.td.scorer import (
     trunk,
     walkforward,
 )
+
+
+GOLDEN_LANDINGS = (("2026-10-01", 5), ("2026-11-03", 6), ("2026-11-08", 7))
+GOLDEN = (
+    (
+        "0.6",
+        0,
+        "f24991bd588c668136b4fde51c326a0e4b9fe22dfb623a877b5ca4cce7ad8076",
+        "06d5fc6518f626fbd90bdb8a5ce087aa4f618f378278e1b642eccd6772a5c6e2",
+    ),
+    (
+        "2",
+        1,
+        "f24991bd588c668136b4fde51c326a0e4b9fe22dfb623a877b5ca4cce7ad8076",
+        "74511877b45c4003326e44c8efebdeef2a04b0f371460f14e553937bab9c3083",
+    ),
+)
+
+
+def canon(obj):
+    if isinstance(obj, float):
+        return float(f"{obj:.6g}") if obj == obj else "nan"
+    if isinstance(obj, dict):
+        return {k: canon(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [canon(v) for v in obj]
+    return obj
+
+
+def digest(obj):
+    text = json.dumps(canon(obj), sort_keys=True)
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 # Run 0 of 2026-10-06, a training day of the main refit below, is also a holdout PR.
@@ -73,55 +112,6 @@ def p_file(model, scores, raised, build_env, test_config, test_file, cost):
         model, scores, raised, build_env, test_config, [test_file], np.array([cost])
     )
     return float(p[0])
-
-
-class TestCut(TestCase):
-    def test_scorer_cut(self) -> None:
-        files = ["a", "b", "c", "d"]
-        p = np.array([0.1, 0.1, 0.5, 0.9])
-        costs = np.array([10.0, 10.0, 10.0, 100.0])
-        self.assertEqual(gate.scorer_cut(files, p, costs, 20000, set()), {"a", "c"})
-        self.assertEqual(
-            gate.scorer_cut(files, p, costs, 100000, set()), {"a", "b", "c"}
-        )
-        self.assertEqual(gate.scorer_cut(files, p, costs, 0, set()), set())
-        self.assertEqual(gate.scorer_cut(files, p, costs, 130000, set()), set(files))
-        self.assertEqual(gate.scorer_cut(files, p, costs, 20000, {"d"}), {"d"})
-        self.assertEqual(
-            gate.scorer_cut(files, p, costs, 120000, {"d", "b"}), {"b", "c", "d"}
-        )
-
-    def test_int_ms(self) -> None:
-        self.assertEqual(gate.cost_ms(0.0015), 2)
-        self.assertEqual(gate.cost_ms(24.0004), 24000)
-        files = ["a", "b", "c"]
-        costs = np.array([0.1, 0.2, 0.3])
-        # 0.1 + 0.2 > 0.3 in floats; in integer ms both fit exactly.
-        self.assertEqual(
-            gate.scorer_cut(files, np.array([0.9, 0.9, 0.0]), costs, 300, set()),
-            {"a", "b"},
-        )
-
-    def test_td_include(self) -> None:
-        files = list("abcdefgh")
-        self.assertEqual(gate.td_include(files, {"g": 2.0, "c": 1.0}), ["g", "c", "a"])
-        self.assertEqual(gate.td_include(["b", "a", "c"], {}), ["a"])
-        self.assertEqual(gate.td_include([], {}), [])
-
-    def test_must_run_files(self) -> None:
-        r = run(1, 7, "a" * 40, "t", {})
-        r = shards.Run(
-            **{
-                **r.__dict__,
-                "scores": {
-                    "EditedByPR": {"a": 1.0, "z": 0.0},
-                    "PreviouslyFailedInPR": {"b": 1.0},
-                    "Filepath": {"c": 1.0},
-                },
-                "raised": ["PreviouslyFailedInPR"],
-            }
-        )
-        self.assertEqual(gate.must_run_files(r), {"a"})
 
 
 class TestEvaluateGate(TestCase):
@@ -181,14 +171,14 @@ class TestEvaluateGate(TestCase):
         self.assertEqual(sum(report.risk_label), 3)
 
     def test_sample(self) -> None:
-        sample = gate.sample_model(
+        sampled = sample.sample_model(
             model(), self.shards(), rows.JobTimes(TIMES, START_UP)
         )
-        self.assertEqual(len(sample.jobs), 4)
-        self.assertTrue(sample.r)
-        json.dumps(dataclasses.asdict(sample))
+        self.assertEqual(len(sampled.jobs), 4)
+        self.assertTrue(sampled.r)
+        json.dumps(sampled.dump())
         m = model()
-        for row in sample.p:
+        for row in sampled.p:
             self.assertAlmostEqual(
                 row["p"],
                 p_file(
@@ -232,9 +222,9 @@ class TestEvaluateGate(TestCase):
         self.assertEqual((report.pr_events, report.pr_caught), (1, 1))
         self.assertEqual(report.td_include_caught, 0)
         self.assertEqual((report.pr_recall_sum, report.td_recall_sum), (1.0, 0.0))
-        sample = gate.sample_model(model(), [shard], times)
-        self.assertEqual(sample.jobs[0]["include"], ["c", "d"])
-        self.assertEqual(sample.jobs[0]["selected"], ["a", "b", "c"])
+        sampled = sample.sample_model(model(), [shard], times)
+        self.assertEqual(sampled.jobs[0]["include"], ["c", "d"])
+        self.assertEqual(sampled.jobs[0]["selected"], ["a", "b", "c"])
 
     def test_a_config_without_start_up_keeps_td_cut(self) -> None:
         shard = shards.DayShard(
@@ -245,12 +235,14 @@ class TestEvaluateGate(TestCase):
             units=[unit(1, failed=["b"])],
         )
         times = rows.JobTimes(TIMES, {"linux-a": {"other": 24.0}})
-        sample = gate.Sample()
-        ev = gate.Evaluator(model(), times)
-        selected, include = ev.cut(shard.runs[0], shard.units[0], sample)
+        sampled = sample.Sample()
+        ev = cut.Evaluator(model(), times)
+        selected, include = ev.cut(shard.runs[0], shard.units[0])
         self.assertEqual((selected, include), ({"c", "d"}, {"c", "d"}))
-        self.assertEqual(sample.p, [])
-        self.assertEqual(sample.jobs[0]["selected"], ["c", "d"])
+        sampled.add(ev, ev.prepare(shard.runs[0], shard.units[0]))
+        self.assertEqual(sampled.p, [])
+        self.assertEqual(sampled.jobs[0]["selected"], ["c", "d"])
+        self.assertIsNone(sampled.jobs[0]["budget_ms"])
         report = gate.evaluate_window(model(), [shard], {7}, [], times)
         self.assertEqual((report.pr_events, report.pr_caught), (1, 0))
         self.assertEqual(report.pr_recall_sum, report.td_recall_sum)
@@ -287,7 +279,22 @@ def file_probability(model, scores, cost, build_env_key, test_config, raised=())
 def risk_score(model, features):
     return risk.risk_r(model, features)
 
+def change_features(paths):
+    return risk.change_features(paths)
+
+budget_share = model_json.budget_share
+for _name in model_json.BUDGET_CONSTANTS:
+    globals()[_name] = getattr(model_json, _name)
+
 OFFSET = __OFFSET__
+"""
+
+
+FAKE_SCORER_PATHS = """
+from torchci.td.scorer import risk
+
+for _name in risk.BUILD_PATH_CONSTANTS:
+    globals()[_name] = getattr(risk, _name)
 """
 
 
@@ -302,9 +309,10 @@ import statistics
 
 import numpy as np
 from tools.testing.test_run import TestRun
-from torchci.td.scorer import gate, model_json
+from torchci.td.scorer import cut, model_json
 
 SELECT_NOTHING = __SELECT_NOTHING__
+BUDGET_OFFSET = 0
 
 
 class NoModel(Exception):
@@ -323,27 +331,38 @@ def select_tests(block, include, exclude, times, build_env_key, test_config):
     costs = np.array([times.get(f, median) + start_up for f in files])
     p = model_json.p_files(model, scores, raised, build_env_key, test_config, files, costs)
     inc = {t.test_file for t in include}
-    budget = sum(gate.cost_ms(c) for f, c in zip(files, costs) if f in inc)
+    share, _ = model_json.budget_share(model, block["build_files"], block["risk"])
+    a = 1.0 if share is None else model["budget"]["cost_exponent"]
+    budget = sum(cut.cost_ms(c) for f, c in zip(files, costs) if f in inc)
+    if share is not None:
+        budget = round(share * sum(cut.cost_ms(c) for c in costs))
     must = {
         f
-        for name in gate.MUST_RUN_HEURISTICS
+        for name in cut.MUST_RUN_HEURISTICS
         if name not in raised
         for f, s in scores.get(name, {}).items()
         if s
     }
-    return [TestRun(f) for f in gate.scorer_cut(files, p, costs, budget, must)], [], {}
+    order = cut.rank(files, p, costs, must, a)
+    selected = cut.fill(order, {f: cut.cost_ms(c) for f, c in zip(files, costs)}, budget)
+    return [TestRun(f) for f in selected], [], {"budget_ms": budget + BUDGET_OFFSET}
 """
 
 
-def write_pytorch(root, offset, scorer=None):
+def write_pytorch(root, offset, scorer=None, extra="", paths=""):
+    """A fake pytorch checkout; `paths` is appended to scorer_paths.py, None for none."""
     target = root / "tools" / "testing" / "target_determination"
     target.mkdir(parents=True, exist_ok=True)
     for pkg in (root / "tools", root / "tools" / "testing", target):
         (pkg / "__init__.py").write_text("")
     (root / "tools" / "testing" / "test_run.py").write_text(FAKE_TEST_RUN)
     (target / "scorer_model.py").write_text(
-        FAKE_SCORER_MODEL.replace("__OFFSET__", offset)
+        FAKE_SCORER_MODEL.replace("__OFFSET__", offset) + extra
     )
+    if paths is None:
+        (target / "scorer_paths.py").unlink(missing_ok=True)
+    else:
+        (target / "scorer_paths.py").write_text(FAKE_SCORER_PATHS + paths)
     if scorer is None:
         (target / "scorer.py").unlink(missing_ok=True)
     else:
@@ -365,7 +384,7 @@ class TestReplayCuts(TestCase):
             ],
         )
         m = model()
-        jobs = gate.sample_model(m, [shard], rows.JobTimes(TIMES, START_UP)).jobs
+        jobs = sample.sample_model(m, [shard], rows.JobTimes(TIMES, START_UP)).jobs
         self.assertEqual([j["test_config"] for j in jobs], ["default", "other"])
         self.assertNotEqual(jobs[0]["selected"], jobs[0]["include"])
         self.assertEqual(jobs[1]["selected"], jobs[1]["include"])
@@ -380,6 +399,187 @@ class TestReplayCuts(TestCase):
             no_table = {**m, "start_up_seconds": {}}
             self.assertEqual(cli._replay_cuts(root, no_table, jobs[:1]), 1)
             write_pytorch(root, "0.0")
+
+
+class TestBudgetGate(TestCase):
+    def test_window_budget_stats(self) -> None:
+        m = model()
+        m["budget"] = {"share": 0.1, "spread": 0.0, "cost_exponent": 1.0}
+        # TD includes c and d (aggregated); 10% of 226 s fits c alone (p 0.9).
+        r1 = run(1, 7, "a" * 40, "t1", {"c": 1.0}, aggregated={"c": 1.0, "d": 2.0})
+        r2 = run(2, 8, "b" * 40, "t2", {"c": 1.0}, aggregated={"c": 1.0, "d": 2.0})
+        r3 = run(3, 9, "c" * 40, "t3", {"c": 1.0})
+        shard = shards.DayShard(
+            "2026-11-08",
+            runs=[r1, r2, r3],
+            units=[
+                unit(1, failed=["c", "d"]),
+                unit(2, failed=["d"]),
+                unit(3),
+                # Not served (no start-up): neither sampled nor in the retention.
+                shards.Unit(
+                    2, "linux-a", "other", ["a", "b"], ["c", "d"], ["d"], [], []
+                ),
+            ],
+        )
+        times = rows.JobTimes(TIMES, START_UP)
+        with mock.patch.object(gate, "share_sampled", return_value=True):
+            w = gate.evaluate_window(m, [shard], {7, 8, 9}, [], times)
+        self.assertEqual((w.retention_prs, w.retention_kept), (2, 1))
+        # The unserved job's "d" is an event, caught in its TD include list.
+        self.assertEqual((w.pr_events, w.budget_caught), (4, 2))
+        self.assertEqual(w.share_jobs, 3)
+        self.assertEqual(w.share_total_ms, 3 * (34000 * 3 + 124000))
+        self.assertEqual(w.share_cost_ms, 3 * 34000)
+        self.assertAlmostEqual(w.share_seconds / w.share_total_seconds, 10 / 130)
+        # Without a budget block no job has a share, so no PR enters retention.
+        with mock.patch.object(gate, "share_sampled", return_value=True):
+            plain = gate.evaluate_window(model(), [shard], {7, 8, 9}, [], times)
+        self.assertEqual((plain.retention_prs, plain.retention_kept), (0, 0))
+        held = gate.HoldoutReport()
+        with mock.patch.object(gate, "MIN_FLOOR_PRS", 2):
+            result = gate.Gate.pooled(held, [w], budget=m["budget"])
+            self.assertFalse(result.budget_ok)
+            self.assertIn(
+                "per-PR retention of TD's catches 1 / 2 = 0.500", result.text()
+            )
+            with mock.patch.object(gate, "RETENTION_FLOOR", 0.5):
+                self.assertTrue(
+                    gate.Gate.pooled(held, [w], budget=m["budget"]).budget_ok
+                )
+            self.assertNotIn("budget", gate.Gate.pooled(held, [w]).summary())
+            summary = result.summary()
+            self.assertEqual(summary["budget"]["retention"], 0.5)
+            self.assertFalse(summary["budget_ok"])
+        empty = gate.BudgetCheck.pooled(m["budget"], [])
+        with mock.patch.object(gate, "MIN_FLOOR_PRS", 0):
+            self.assertFalse(empty.ok)
+        self.assertIn("0 / 0 = nan", empty.text())
+        # Without a block, no job is sampled for the share.
+        plain = gate.evaluate_window(model(), [shard], {7, 8, 9}, [], times)
+        self.assertEqual(plain.share_jobs, 0)
+        self.assertEqual(plain.budget_caught, plain.pr_caught)
+
+    def test_monitor_timeout(self) -> None:
+        release = threading.Event()
+
+        def slow(*args):
+            release.wait(10)
+            raise RuntimeError("late")
+
+        with mock.patch.object(
+            gate.main_failures, "fetch_main_landings", side_effect=slow
+        ), mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            gate.monitor(
+                model(), rows.JobTimes(TIMES, START_UP), date(2026, 11, 10), 0.05
+            )
+        release.set()
+        self.assertEqual(out.getvalue(), "main-failure monitor: unavailable: timeout\n")
+
+    def test_settle_budget(self) -> None:
+        m = model()
+        m["budget"] = dict(model_json.BUDGET)
+        ok = mock.Mock(budget_ok=True)
+        self.assertIs(gate.settle_budget(m, ok), m)
+        self.assertNotIn("budget", gate.settle_budget(m, mock.Mock(budget_ok=False)))
+        m["budget"] = {**model_json.BUDGET, "share": 1.01}
+        self.assertNotIn("budget", gate.settle_budget(m, ok))
+
+
+class TestCheckPytorchBudget(TestCase):
+    def setUp(self) -> None:
+        self.dir = tempfile.TemporaryDirectory()
+        d = Path(self.dir.name)
+        m = model()
+        m["budget"] = {"share": 0.3, "spread": 0.5, "cost_exponent": 0.5}
+        self.model = m
+        r1 = run(1, 7, "a" * 40, "t1", {"c": 1.0}, aggregated={"c": 1.0, "d": 2.0})
+        r2 = dataclasses.replace(r1, run_id=2, head_sha="b" * 40, changed_files=None)
+        r3 = dataclasses.replace(
+            r1, run_id=3, head_sha="c" * 40, changed_files=["setup.py"]
+        )
+        shard = shards.DayShard(
+            "d", runs=[r1, r2, r3], units=[unit(1), unit(2), unit(3)]
+        )
+        self.shard = shard
+        self.paths = d / "m.json", d / "s.json"
+        self.write(m)
+        self.root = d / "pytorch"
+
+    def write(self, m) -> None:
+        sampled = sample.sample_model(m, [self.shard], rows.JobTimes(TIMES, START_UP))
+        self.paths[0].write_text(model_json.dumps(m))
+        self.paths[1].write_text(json.dumps(sampled.dump()))
+
+    def tearDown(self) -> None:
+        self.dir.cleanup()
+        for name in [m for m in sys.modules if m == "tools" or m.startswith("tools.")]:
+            del sys.modules[name]
+
+    def check(self, extra="", scorer="False", model=None, paths="") -> int:
+        if model is not None:
+            self.write(model)
+        write_pytorch(self.root, "0.0", scorer=scorer, extra=extra, paths=paths)
+        m, s = self.paths
+        return cli.main(
+            ["check-pytorch", "--model", str(m), "--sample", str(s)]
+            + ["--pytorch-root", str(self.root)]
+        )
+
+    def test_comparisons(self) -> None:
+        jobs = json.loads(self.paths[1].read_text())["jobs"]
+        self.assertEqual([j["build_files"] for j in jobs], [0, None, 1])
+        self.assertEqual(self.check(), 0)
+        drifts: list[dict[str, Optional[str]]] = [
+            {"extra": "MIN_SHARE = 0.05\n"},
+            {"paths": "BUILD_DIRS = ('cmake/',)\n"},
+            {"paths": "del BUILD_SUFFIXES\n"},
+            {"paths": None},
+            {"extra": "change_features = lambda paths: {'n_files': 0}\n"},
+        ]
+        plain = {k: v for k, v in self.model.items() if k != "budget"}
+        for drift in drifts:
+            with self.subTest(drift=drift):
+                self.assertEqual(self.check(model=self.model, **drift), 1)
+                # Without a budget block the drift is only a warning.
+                with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                    self.assertEqual(self.check(model=plain, **drift), 0)
+                self.assertIn("WARNING (no budget block", out.getvalue())
+        target = self.root / cli.SCORER_DIR / "scorer.py"
+        write_pytorch(self.root, "0.0", scorer="False")
+        target.write_text(
+            target.read_text().replace("BUDGET_OFFSET = 0", "BUDGET_OFFSET = 1000")
+        )
+        m, s = self.paths
+        args = ["check-pytorch", "--model", str(m), "--sample", str(s)]
+        self.assertEqual(cli.main(args + ["--pytorch-root", str(self.root)]), 1)
+        # A pytorch without the budget rule: nothing to compare for a model without a
+        # block, a failure for a model with one.
+        old = "del budget_share\nfor _n in BUDGET_CONSTANTS:\n    del globals()[_n]\n"
+        old = old.replace("BUDGET_CONSTANTS", "model_json.BUDGET_CONSTANTS")
+        self.assertEqual(self.check(old, model=self.model), 1)
+        self.assertEqual(self.check(old, model=plain, paths=None), 0)
+
+    def test_sample_without_changed_files(self) -> None:
+        plain = {k: v for k, v in self.model.items() if k != "budget"}
+        for m, code in ((self.model, 1), (plain, 0)):
+            with self.subTest(budget="budget" in m):
+                self.write(m)
+                data = json.loads(self.paths[1].read_text())
+                for row in data["r"]:
+                    del row["files"]
+                self.paths[1].write_text(json.dumps(data))
+                write_pytorch(self.root, "0.0", scorer="False")
+                args = ["check-pytorch", "--model", str(self.paths[0])]
+                args += [
+                    "--sample",
+                    str(self.paths[1]),
+                    "--pytorch-root",
+                    str(self.root),
+                ]
+                with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                    self.assertEqual(cli.main(args), code)
+                self.assertIn("no sampled change has its files", out.getvalue())
 
 
 class TestShippedCutoff(TestCase):
@@ -690,6 +890,103 @@ class TestCli(TestCase):
         # td-scorer.yml tests the check-pytorch exit code against a literal 3.
         self.assertEqual(cli.SKIPPED, 3)
 
+    def run_refit(self, d, *extra, landings_main=None):
+        """refit of 2026-11-10 on 45 training days, today 2026-11-11: (exit code, model,
+        report, stdout)."""
+
+        class Clock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 11, 11, 12, tzinfo=tz)
+
+        self.broken, self.gap = set(), set()
+        landings = [self.landing(x, pr) for x, pr in GOLDEN_LANDINGS]
+        head_log = logs.TDLog({"Filepath": {"b": 0.5}}, ("Filepath",), (), ("x",), {})
+        head_logs = {p.head_sha: head_log for x in landings for p in x.pairs}
+        main = landings_main or mock.Mock(side_effect=RuntimeError("no ClickHouse"))
+        report = Path(d) / "r.json"
+        with mock.patch.object(
+            store, "build_day_shard", side_effect=self.build
+        ), mock.patch.object(cli, "datetime", Clock), mock.patch.object(
+            cli, "fetch_test_times", return_value=TIMES
+        ), mock.patch.object(
+            trunk, "fetch_landings", return_value=landings
+        ), mock.patch.object(
+            trunk, "fetch_head_logs", return_value=head_logs
+        ), mock.patch.object(
+            holdout, "build_holdout", return_value=self.holdout_set()
+        ), mock.patch.object(gate, "MIN_FLOOR_PRS", 1), mock.patch.object(
+            holdout, "MIN_HOLDOUT_EVENTS", 1
+        ), mock.patch.object(
+            gate.main_failures, "fetch_main_landings", main
+        ), mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            args = self.refit_args(
+                d, "2026-11-10", "--report", str(report), *extra, train_days=45
+            )
+            code = cli.main(args)
+        model = json.loads((Path(d) / "m.json").read_text())
+        return code, model, json.loads(report.read_text()), out.getvalue()
+
+    def test_refit_without_budget_is_unchanged(self) -> None:
+        # Digests of the model and the report a refit without --budget writes, floats at
+        # 6 significant digits.
+        for ratio, code, model_digest, report_digest in GOLDEN:
+            with tempfile.TemporaryDirectory() as d:
+                got = self.run_refit(d, "--floor-ratio", ratio)
+            self.assertEqual(got[0], code)
+            self.assertNotIn("budget", got[1])
+            self.assertEqual(digest(got[1]), model_digest)
+            self.assertEqual(digest(got[2]), report_digest)
+            self.assertNotIn("budget", got[3])
+            self.assertNotIn("main-failure monitor", got[3])
+
+    def test_refit_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            code, model, report, out = self.run_refit(d, "--budget")
+        self.assertEqual(code, 0)
+        self.assertEqual(model["budget"], model_json.BUDGET)
+        self.assertTrue(report["budget_ok"] and report["budget_kept"])
+        # One PR's failing file is displaced by a first-ranked file over the budget.
+        self.assertAlmostEqual(report["budget"]["retention"], 15 / 17)
+        self.assertGreater(report["budget"]["share_jobs"], 0)
+        self.assertIn("budget mode: on, block kept", out)
+        # The monitor's fetch raised: reported as unavailable, the run still passes.
+        self.assertIn("main-failure monitor: unavailable (RuntimeError", out)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(
+            gate, "RETENTION_FLOOR", 1.01
+        ):
+            code, model, report, out = self.run_refit(d, "--budget")
+        self.assertEqual(code, 0)
+        self.assertNotIn("budget", model)
+        self.assertFalse(report["budget_ok"] or report["budget_kept"])
+        self.assertIn("block dropped (the retention check failed)", out)
+        # The monitor runs last, after the model, the report and the sample exist.
+        with tempfile.TemporaryDirectory() as d:
+            sample_path = Path(d) / "s.json"
+
+            def written(*args):
+                for name in ("m.json", "r.json", "s.json"):
+                    self.assertTrue((Path(d) / name).exists(), name)
+
+            with mock.patch.object(gate, "monitor", side_effect=written) as called:
+                self.run_refit(d, "--budget", "--sample", str(sample_path))
+            self.assertEqual(called.call_count, 1)
+        landing = main_failures.MainLanding(
+            "f" * 40,
+            9,
+            "2026-11-02",
+            logs.TDLog({"Filepath": {"a": 1.0}}, ("Filepath",), (), ("x",), {"a": 1.0}),
+            (main_failures.MainUnit("linux-a", "default", ("a", "b", "c"), ("a",)),),
+        )
+        found = mock.Mock(return_value=([landing], {"landings_found": 1}))
+        with tempfile.TemporaryDirectory() as d:
+            out = self.run_refit(d, "--budget", landings_main=found)[3]
+        self.assertIn(
+            "main-failure monitor (report only, 2026-09-10..2026-11-10):", out
+        )
+        self.assertIn("budgeted cut caught 1 landings, 1 of 1 failures", out)
+        self.assertIn("TD's 25% cut caught 1 landings", out)
+
     def test_refit_marks_no_outcome_days_by_age(self) -> None:
         self.broken, self.gap = set(), set()
         today = date(2026, 11, 30)
@@ -772,6 +1069,49 @@ class TestCli(TestCase):
         # Fitting, the walk-forward, the holdout and the upload took ~25 minutes
         # locally on one year; leave them 90 on the runner.
         self.assertLessEqual(store.BACKFILL_SECONDS + 90 * 60, timeout)
+
+    def test_workflow_budget_switch(self) -> None:
+        import subprocess
+
+        import yaml
+
+        path = Path(__file__).parents[4] / ".github" / "workflows" / "td-scorer.yml"
+        jobs = yaml.safe_load(path.read_text())["jobs"]
+        variable = "${{ vars.TD_SCORER_BUDGET }}"
+        refit = next(s for s in jobs["refit"]["steps"] if s.get("id") == "refit")
+        self.assertEqual(refit["env"]["TD_SCORER_BUDGET"], variable)
+        self.assertIn("budget_on", refit["run"])
+        self.assertIn("outputs+=(--budget)", refit["run"])
+        for job in jobs.values():
+            for step in job["steps"]:
+                self.assertNotIn("vars.", step.get("run", ""))
+        names = [step.get("name", "") for step in jobs["publish"]["steps"]]
+        check = names.index("Refuse a budget block unless TD_SCORER_BUDGET is on")
+        self.assertLess(
+            check, names.index("Push stats/td-scorer.json to generated-stats")
+        )
+        step = jobs["publish"]["steps"][check]
+        self.assertEqual(step["env"]["TD_SCORER_BUDGET"], variable)
+        values = [" On\n", "ON", "on", "\ton \r", "\non", "off", "", "true", "1", "o n"]
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "td-scorer").mkdir()
+            for has_budget in (True, False):
+                m = model()
+                if has_budget:
+                    m["budget"] = model_json.BUDGET
+                (Path(d) / "td-scorer" / "td-scorer.json").write_text(json.dumps(m))
+                for value in values:
+                    env = {
+                        **step["env"],
+                        "TD_SCORER_BUDGET": value,
+                        "GITHUB_STEP_SUMMARY": str(Path(d) / "summary"),
+                        "PATH": "/usr/bin:/bin",
+                    }
+                    done = subprocess.run(
+                        ["bash", "-c", step["run"]], cwd=d, env=env, capture_output=True
+                    )
+                    allowed = not has_budget or model_json.budget_on(value)
+                    self.assertEqual(done.returncode == 0, allowed, repr(value))
 
     def test_fetch_test_times(self) -> None:
         with mock.patch.object(logs, "http_get", return_value=b'{"a": {}}') as get:

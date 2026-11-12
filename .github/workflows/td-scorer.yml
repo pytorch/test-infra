@@ -62,6 +62,9 @@ jobs:
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           ON_MAIN: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          # The test budget is opt-in: refit gets --budget only when this repository
+          # variable is "on" (model_json.budget_on).
+          TD_SCORER_BUDGET: ${{ vars.TD_SCORER_BUDGET }}
         run: |
           set -euo pipefail
           if [ -z "${CLICKHOUSE_ENDPOINT}" ]; then
@@ -78,6 +81,15 @@ jobs:
           outputs=(--out ../td-scorer/td-scorer.json
                    --report ../td-scorer/report.json
                    --sample ../td-scorer/sample.json)
+          budget=off
+          if python -c 'import os, sys
+          from torchci.td.scorer.model_json import budget_on
+          sys.exit(0 if budget_on(os.environ.get("TD_SCORER_BUDGET")) else 1)'; then
+            budget=on
+            outputs+=(--budget)
+          fi
+          echo "budget=${budget}" >> "${GITHUB_OUTPUT}"
+          echo "TD scorer budget: ${budget}"
           if [ "${ON_MAIN}" = "true" ]; then
             python -m torchci.td.scorer refit --s3 "${outputs[@]}"
           else
@@ -85,6 +97,31 @@ jobs:
             python -m torchci.td.scorer refit --train-days 2 --gate-days 1 \
               --report-only "${outputs[@]}"
           fi
+
+      - name: Summarise the budget
+        if: always() && steps.refit.outputs.ran == 'true'
+        working-directory: tools
+        env:
+          BUDGET: ${{ steps.refit.outputs.budget }}
+        run: |
+          python - <<'PY' >> "${GITHUB_STEP_SUMMARY}"
+          import json, os
+          from pathlib import Path
+          path = Path("../td-scorer/report.json")
+          report = json.loads(path.read_text()) if path.exists() else {}
+          budget = report.get("budget")
+          print(f"TD scorer budget mode: {os.environ.get('BUDGET') or 'unknown'}")
+          if budget:
+              kept = "kept" if report.get("budget_kept") else "dropped"
+              print(
+                  f"- block {budget['block']} {kept}; realised mean share of test-times"
+                  f" seconds {budget['seconds_share']:.3f}, of cost"
+                  f" {budget['cost_share']:.3f}; per-PR retention"
+                  f" {budget['retention']:.3f} ({budget['kept']} of {budget['prs']})"
+              )
+          else:
+              print("- no budget block: the scorer's cut spends what TD's cut costs")
+          PY
 
       - name: Upload the model
         if: always() && steps.refit.outputs.ran == 'true'
@@ -177,6 +214,26 @@ jobs:
         with:
           name: td-scorer
           path: td-scorer
+
+      # Fails closed: a model with a budget block publishes only while the repository
+      # variable is "on", normalised as model_json.budget_on does (trim ASCII
+      # whitespace, lowercase) without running repository code here.
+      - name: Refuse a budget block unless TD_SCORER_BUDGET is on
+        env:
+          TD_SCORER_BUDGET: ${{ vars.TD_SCORER_BUDGET }}
+          LC_ALL: C
+        run: |
+          set -euo pipefail
+          value="${TD_SCORER_BUDGET}"
+          value="${value#"${value%%[![:space:]]*}"}"
+          value="${value%"${value##*[![:space:]]}"}"
+          value="${value,,}"
+          has_budget=$(python3 -c 'import json, sys; print("budget" in json.load(open(sys.argv[1])))' td-scorer/td-scorer.json)
+          echo "TD scorer budget mode: $([ "${value}" = "on" ] && echo on || echo off); model has a budget block: ${has_budget}" | tee -a "${GITHUB_STEP_SUMMARY}"
+          if [ "${has_budget}" != "False" ] && [ "${value}" != "on" ]; then
+            echo "::error::td-scorer.json has a budget block but TD_SCORER_BUDGET is not on: not publishing"
+            exit 1
+          fi
 
       - name: Checkout generated-stats branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
