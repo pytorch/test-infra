@@ -48,9 +48,12 @@ def make_rows(n=4000, seed=0, envs=("linux-a", "linux-b"), raise_every=0):
 class TestWindows(TestCase):
     def test_days(self) -> None:
         days = train.training_days(date(2026, 11, 20))
-        self.assertEqual(days[0], FIRST_DATA_DAY)
+        self.assertEqual(days[0], date(2025, 11, 20))
         self.assertEqual(days[-1], date(2026, 11, 5))
-        self.assertEqual(len(days), (date(2026, 11, 6) - FIRST_DATA_DAY).days)
+        gate = train.gate_days(date(2026, 11, 20))
+        self.assertEqual(len(days) + len(gate), train.WINDOW_DAYS)
+        days = train.training_days(date(2026, 1, 20))
+        self.assertEqual(days[0], FIRST_DATA_DAY)
         self.assertEqual(
             train.training_days(date(2026, 11, 20), 3),
             [date(2026, 11, 3), date(2026, 11, 4), date(2026, 11, 5)],
@@ -166,7 +169,7 @@ class TestFitScorer(TestCase):
         self.assertGreater(
             scorer["build_env"]["linux-a"], scorer["build_env"]["linux-b"]
         )
-        model = model_json.build_model("2026-11-20", scorer, RISK)
+        model = model_json.build_model("2026-11-20", scorer, RISK, {})
         json.loads(model_json.dumps(model))
         p = model_json.p_files(
             model,
@@ -188,9 +191,10 @@ class TestFitScorer(TestCase):
 
     def test_only_td_heuristics(self) -> None:
         rows = make_rows()
-        rows.heuristics = ["Filepath", "Forged"]
-        scorer = train.fit_scorer(rows)
-        self.assertEqual(set(scorer["heuristics"]), {"Filepath"})
+        for other in ("Forged", "HistoricalClassFailurCorrelation"):
+            rows.heuristics = ["Filepath", other]
+            scorer = train.fit_scorer(rows)
+            self.assertEqual(set(scorer["heuristics"]), {"Filepath"})
 
     def test_no_positives(self) -> None:
         rows = make_rows()
@@ -218,17 +222,21 @@ class TestModelJson(TestCase):
             "build_env": {"linux-a": 0.12},
             "test_config": {"default": 0.0, "distributed": -0.2},
         }
-        return model_json.build_model("2026-11-11", scorer, RISK)
+        return model_json.build_model(
+            "2026-11-11", scorer, RISK, {"linux-a": {"default": 13.8, "crossref": 26.1}}
+        )
 
     def test_shape(self) -> None:
         m = self.model()
         self.assertEqual(
             set(m),
-            {"schema", "version", "enabled", "overhead_seconds", "scorer", "risk"},
+            {"schema", "version", "enabled", "start_up_seconds", "scorer", "risk"},
         )
-        self.assertEqual(m["schema"], 1)
+        self.assertEqual(m["schema"], 2)
         self.assertIs(m["enabled"], True)
-        self.assertEqual(m["overhead_seconds"], 24.0)
+        self.assertEqual(
+            m["start_up_seconds"], {"linux-a": {"default": 13.8, "crossref": 26.1}}
+        )
         self.assertEqual(m["scorer"]["intercept"], -7.12345679)
         self.assertEqual(len(m["risk"]["quantiles"]), 101)
         with self.assertRaises(ValueError):

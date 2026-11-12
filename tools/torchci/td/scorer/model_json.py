@@ -1,4 +1,4 @@
-"""The model file `td-scorer.json` (schema 1) and the scorer's p, as pytorch evaluates them.
+"""The model file `td-scorer.json` (schema 2) and the scorer's p, as pytorch evaluates them.
 
 pytorch's `tools/testing/target_determination/scorer.py` is the runtime definition of the
 format and of p; this module writes that format and evaluates p the same way, so the gate
@@ -9,16 +9,17 @@ import json
 from typing import Any, Mapping, Optional, Sequence
 
 import numpy as np
-from torchci.td.scorer.rows import OVERHEAD_SECONDS
 from torchci.td.scorer.store import SIG_DIGITS
 
 
-SCHEMA = 1
+SCHEMA = 2
 Y_MIN, Y_MAX = 1e-6, 1 - 1e-6
 MAX_POINTS = 512
 MAX_BUILD_ENVS = 2000
 MAX_TEST_CONFIGS = 500
 MAX_NAME = 200
+MIN_START_UP_SECONDS = 1.0
+MAX_START_UP_SECONDS = 600.0
 
 
 def round_sig(value: float) -> float:
@@ -53,9 +54,11 @@ def build_model(
     version: str,
     scorer: Mapping[str, Any],
     risk: Mapping[str, Any],
+    start_up_seconds: Mapping[str, Mapping[str, float]],
     enabled: bool = True,
-    overhead_seconds: float = OVERHEAD_SECONDS,
 ) -> dict[str, Any]:
+    """The model file; `start_up_seconds` is start_up.table's, already rounded and
+    filtered."""
     heuristics = {}
     for name, h in scorer["heuristics"].items():
         x, y = round_table(h["x"], h["y"])
@@ -64,7 +67,9 @@ def build_model(
         "schema": SCHEMA,
         "version": version,
         "enabled": enabled,
-        "overhead_seconds": round_sig(overhead_seconds),
+        "start_up_seconds": {
+            env: dict(configs) for env, configs in start_up_seconds.items()
+        },
         "scorer": {
             "intercept": round_sig(scorer["intercept"]),
             "cost_weight": round_sig(scorer["cost_weight"]),

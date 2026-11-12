@@ -14,7 +14,7 @@ from array import array
 from dataclasses import dataclass
 from datetime import date
 from statistics import median
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Optional
 
 import numpy as np
 from torchci.td.scorer.logs import active, TDLog
@@ -27,7 +27,9 @@ NEG_WEIGHT = 1 / NEG_RATE
 PR_POSITIVE_CAP = 20.0
 PR_NEGATIVE_CAP = 10000.0
 W_TRUNK = 10.0
-OVERHEAD_SECONDS = 24.0
+# The start-up of a file in a config with no fitted one (start_up.py), for its training
+# rows only: such a config keeps TD's cut, so its p is never served.
+FALLBACK_START_UP_SECONDS = 24.0
 
 
 def sampled(run_id: int, build_env: str, test_config: str, test_file: str) -> bool:
@@ -47,10 +49,17 @@ def unit_labels(unit: Unit) -> tuple[list[str], list[str]]:
 class JobTimes:
     """Per-file seconds as run_test.py looks them up in test-times.json: the job base
     name's entry for the test config, else "default"'s for the config, else
-    "default"/"default"; a file without an entry gets the entry's median."""
+    "default"/"default"; a file without an entry gets the entry's median. A file's cost
+    adds the config's start-up from `start_up` ({build env: {test config: k}}, as the
+    model file's start_up_seconds), else FALLBACK_START_UP_SECONDS."""
 
-    def __init__(self, data: Mapping[str, Any]) -> None:
+    def __init__(
+        self,
+        data: Mapping[str, Any],
+        start_up: Optional[Mapping[str, Mapping[str, float]]] = None,
+    ) -> None:
         self.data = data
+        self.start_up_table: Mapping[str, Mapping[str, float]] = start_up or {}
         self._entries: dict[tuple[str, str], tuple[Mapping[str, float], float]] = {}
 
     def entry(self, job: str, config: str) -> tuple[Mapping[str, float], float]:
@@ -67,9 +76,18 @@ class JobTimes:
             self._entries[key] = (times, mid)
         return self._entries[key]
 
-    def cost(self, job: str, config: str, test_file: str) -> float:
+    def seconds(self, job: str, config: str, test_file: str) -> float:
         times, mid = self.entry(job, config)
-        return float(times.get(test_file, mid)) + OVERHEAD_SECONDS
+        return float(times.get(test_file, mid))
+
+    def start_up(self, job: str, config: str) -> Optional[float]:
+        k = self.start_up_table.get(job, {}).get(config)
+        return None if k is None else float(k)
+
+    def cost(self, job: str, config: str, test_file: str) -> float:
+        k = self.start_up(job, config)
+        seconds = self.seconds(job, config, test_file)
+        return seconds + (FALLBACK_START_UP_SECONDS if k is None else k)
 
 
 @dataclass
