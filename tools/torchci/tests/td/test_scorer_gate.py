@@ -277,7 +277,7 @@ import statistics
 
 import numpy as np
 from tools.testing.test_run import TestRun
-from torchci.td.scorer import gate, model_json
+from torchci.td.scorer import gate, model_json, rows
 
 SELECT_NOTHING = __SELECT_NOTHING__
 
@@ -288,7 +288,9 @@ def select_tests(block, include, exclude, times, build_env_key, test_config):
     model, scores, raised = block["model"], block["heuristics"], set(block["raised"])
     files = sorted({t.test_file for t in include + exclude})
     median = statistics.median(times.values()) if times else 0.0
-    costs = np.array([times.get(f, median) + model["overhead_seconds"] for f in files])
+    secs = [times.get(f, median) for f in files]
+    skip, oh = rows.SKIP_OVERHEAD_SECONDS, model["overhead_seconds"]
+    costs = np.array([s + (skip if s < rows.MIN_RUN_SECONDS else oh) for s in secs])
     p = model_json.p_files(model, scores, raised, build_env_key, test_config, files, costs)
     inc = {t.test_file for t in include}
     budget = sum(gate.cost_ms(c) for f, c in zip(files, costs) if f in inc)

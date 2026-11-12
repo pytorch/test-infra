@@ -50,7 +50,7 @@ jobs, but not for nested reusable workflows such as `dynamo-unittest / dynamo-te
 - **Trunk breaks**: the saved query `td_trunk_breakages` (pairs with outcome `td_skipped`),
   `default.merges` (no `-f`; waived checks excluded) and `default.push`.
 - **Test cost**: `stats/test-times.json` on generated-stats, as `run_test.py` looks it up,
-  plus 24 s per file.
+  plus 24 s per file, or 3 s for a file the config records under 1 s.
 
 Training weighs each PR's positives at most 20 and its negatives at most 10,000, so a PR
 CI ran many times does not outweigh the rest: one PR run's negatives weigh about 1,500
