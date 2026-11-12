@@ -12,7 +12,7 @@ shard file, write-once; it is sound when it is complete and has at least
 MIN_HOLDOUT_EVENTS PR-specific failures outside must-run files.
 
 At TD's cost per job (TD's include list rebuilt from the log's aggregated scores, as
-gate.py does), each PR-specific failure is counted once per (PR, build env, test config,
+cut.py does), each PR-specific failure is counted once per (PR, build env, test config,
 file), at its first failing run, for TD when its include list holds the file and for the
 scorer when its cut does. A failure in a file a must-run heuristic scored is left out, as
 in the walk-forward (gate.py): the scorer's cut always runs it, TD's include list may not.
@@ -21,7 +21,8 @@ in the walk-forward (gate.py): the scorer's cut always runs it, TD's include lis
 from datetime import date, timedelta
 from typing import Any, Mapping, Optional
 
-from torchci.td.scorer.gate import Evaluator, HoldoutReport, must_run_files
+from torchci.td.scorer.cut import Evaluator, must_run_files
+from torchci.td.scorer.gate import HoldoutReport
 from torchci.td.scorer.logs import fetch_td_log
 from torchci.td.scorer.rows import JobTimes, unit_labels
 from torchci.td.scorer.rows_sql import MAIN_FAILURES_SQL, PR_OF_RUN, SETTINGS, units_sql

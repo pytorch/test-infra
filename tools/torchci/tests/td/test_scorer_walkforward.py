@@ -212,6 +212,50 @@ class TestWalkForward(TestCase):
         self.assertIn("total", text)
         self.assertIn("2026-02", text)
 
+    def test_folds(self) -> None:
+        specs = list(walkforward.folds(self.history))
+        self.assertEqual([s.month for s in specs], [date(2026, 1, 1), date(2026, 2, 1)])
+        jan = specs[0]
+        self.assertEqual(jan.days[0], date(2026, 1, 1))
+        self.assertEqual(jan.days[-1], date(2026, 1, 31))
+        self.assertEqual(jan.before, [d for d in self.days if d < jan.month])
+        self.assertEqual(jan.prs, self.month_prs("2026-01"))
+        self.assertEqual(jan.new_prs, jan.prs - self.month_prs("2026-01", before=True))
+        self.assertNotIn(7, jan.new_prs)
+        self.assertEqual([x.day for x in jan.landings], ["2026-01-10"])
+        self.assertEqual(specs[1].landings, [])
+
+    def test_fold_models_carry_the_budget(self) -> None:
+        budget = {"share": 0.2, "spread": 0.5, "cost_exponent": 0.5}
+        self.assertNotIn("budget", self.history.fit(date(2026, 1, 1), set(), "v").model)
+        fit = self.history.fit(date(2026, 1, 1), set(), "v", budget)
+        self.assertEqual(fit.model["budget"], budget)
+        models = []
+        real = walkforward.evaluate_window
+
+        def evaluate_window(model, *rest):
+            models.append(model)
+            return real(model, *rest)
+
+        with mock.patch.object(walkforward, "evaluate_window", evaluate_window):
+            folds = walkforward.walk_forward(
+                self.history, self.shards.__getitem__, TIMES, "v", budget
+            )
+        self.assertEqual([m["budget"] for m in models], [budget, budget])
+        self.assertTrue(all(f.report.share_jobs >= 0 for f in folds))
+
+    def test_assemble(self) -> None:
+        with mock.patch.object(
+            trunk, "fetch_landings", return_value=self.landings
+        ) as fetch, mock.patch.object(trunk, "fetch_head_logs", return_value={}):
+            history = walkforward.assemble(
+                self.shards.__getitem__, self.days[:3], {11}, TIMES, date(2026, 3, 1)
+            )
+        self.assertEqual(sorted(history.prs), self.days[:3])
+        self.assertEqual(history.landings, self.landings)
+        self.assertEqual(fetch.call_args.args[0].date(), self.days[0])
+        self.assertEqual(fetch.call_args.args[1].date(), date(2026, 3, 1))
+
     def test_no_folds(self) -> None:
         self.assertIn("no month", walkforward.text([]))
         self.assertEqual(walkforward.summary([]), [])

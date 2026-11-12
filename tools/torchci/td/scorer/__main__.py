@@ -2,50 +2,50 @@
 
 `refit` fits each test config's start-up per file on the week before the refit day
 (start_up.py) and exits 1 when fewer than start_up.MIN_ACCEPTED_CONFIGS have one, builds
-missing day shards, fits the scorer and the risk score on the
-healthy days of the last year (train.WINDOW_DAYS) whose jobs have finished, runs the
-walk-forward months and the gate (gate.py) and writes the model file. It exits 1 when the gate fails; when no training or gate day is
-healthy; when anything raises (the walk-forward decides the gate); and, with `--s3`,
-when a gate day was not built soundly (a fetch or the build failed, or it has no
-outcomes). With `--report-only`, neither the gate nor the days fail it.
-`check-pytorch` validates a model with pytorch's scorer_model.py, compares its p and r
-with the trainer's and replays the gate's cut with pytorch's select_tests, on a sample
-written by `refit --sample`; it exits 0 when all of that ran and matched, SKIPPED when
-pytorch lacks the scorer code, else 1.
+missing day shards, fits the scorer and the risk score on the healthy days of the last
+year (train.WINDOW_DAYS) whose jobs have finished, runs the walk-forward months and the
+gate (gate.py) and writes the model files: `--out` never carries a budget block, and
+`--budget-out` is the model as it ships, the same file unless it kept a block; `--sample`
+and `--budget-sample` are their sample rows. It exits 1 when the gate fails; when no
+training or gate day is healthy; when anything raises (the walk-forward decides the
+gate); and, with `--s3`, when a gate day was not built soundly (a fetch or the build
+failed, or it has no outcomes). With `--report-only`, neither the gate nor the days fail
+it. With `--budget`, every model carries model_json.BUDGET as its budget block, and the
+shipped model keeps it only when the gate's budget check passes; refit then writes the
+models and the samples after the walk-forward and, last, prints the report-only
+main-failure monitor (gate.monitor, which waits at most gate.MONITOR_SECONDS): main
+landings of the last two months caught by the budgeted cut and by TD's 25% cut.
+`check-pytorch` checks a model file against pytorch's TD scorer code (check_pytorch.py).
+`sweep` replays the cut at every point of the budget grid, read-only (sweep.py).
 """
 
 import argparse
-import importlib.util
 import json
 import logging
-import math
 import resource
 import sys
 import time
-from dataclasses import asdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from torchci.td.scorer import (
+    check_pytorch,
     gate,
     holdout,
     logs,
     model_json,
     rows,
+    sample,
     start_up,
     store,
+    sweep,
     train,
-    trunk,
     walkforward,
 )
 
 
-logger = logging.getLogger(__name__)
-
 FINAL_AFTER_DAYS = 2
-MAX_DIFF = 1e-6
-SKIPPED = 3
 TEST_TIMES_URL = (
     "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/"
     "test-times.json"
@@ -76,6 +76,12 @@ def shipped_cutoff(day: date, today: date, first_gate_day: date) -> date:
     """The day before which the shipped model is fitted: the refit day, but no day whose
     jobs may still run, and never before the gate window."""
     return max(first_gate_day, min(day, today - timedelta(days=FINAL_AFTER_DAYS)))
+
+
+def write_models(args: argparse.Namespace, model: dict[str, Any]) -> None:
+    Path(args.out).write_text(model_json.dumps(model_json.without_budget(model)))
+    if args.budget_out:
+        Path(args.budget_out).write_text(model_json.dumps(model))
 
 
 def refit(args: argparse.Namespace) -> int:
@@ -124,32 +130,31 @@ def refit(args: argparse.Namespace) -> int:
         print(f"the holdout set is unsound (reported only): {held.meta}")
     times = rows.JobTimes(fetch_test_times(), start_up_table)
 
-    history = walkforward.History(times, {r.pr for r in held.runs})
-    for d in train_days + gate_days:
-        history.add_shard(d, source.get(d))
-    landings = trunk.fetch_landings(
-        datetime.combine(train_days[0], datetime.min.time()),
-        datetime.combine(day, datetime.min.time()),
+    history = walkforward.assemble(
+        source.get, train_days + gate_days, {r.pr for r in held.runs}, times, day
     )
-    head_logs = trunk.fetch_head_logs(p.head_sha for x in landings for p in x.pairs)
-    history.finish(landings, head_logs)
     shipped_before = shipped_cutoff(day, today, gate_days[0])
     print(
         f"days: {len(train_days)} training, {len(gate_days)} gate; the shipped model"
         f" is fitted on the days before {shipped_before}"
     )
-    fit = history.fit(shipped_before, set(), day.isoformat())
+    budget = model_json.BUDGET if args.budget else None
+    fit = history.fit(shipped_before, set(), day.isoformat(), budget)
     print(f"training: {fit.text()}")
     model = fit.model
-    Path(args.out).write_text(model_json.dumps(model))
+    if budget is None:
+        write_models(args, model)
 
     started = time.monotonic()
-    folds = walkforward.walk_forward(history, source.get, times, day.isoformat())
+    folds = walkforward.walk_forward(
+        history, source.get, times, day.isoformat(), budget
+    )
     print(walkforward.text(folds))
     result = gate.Gate.pooled(
         holdout.evaluate_holdout(model, held, times),
         [f.report for f in folds],
         args.floor_ratio,
+        budget,
     )
     print(result.text())
     peak_gb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20
@@ -157,127 +162,40 @@ def refit(args: argparse.Namespace) -> int:
         f"walk-forward {time.monotonic() - started:.0f} s for {len(folds)} months,"
         f" peak RSS {peak_gb:.2f} GB"
     )
+    summary: dict[str, Any] = {}
+    if budget is not None:
+        candidate, model = model, gate.settle_budget(model, result)
+        summary["budget_kept"] = "budget" in model
+        write_models(args, model)
     if args.report:
-        summary = {**result.summary(), "walk_forward": walkforward.summary(folds)}
+        summary = {
+            **result.summary(),
+            **summary,
+            "walk_forward": walkforward.summary(folds),
+        }
         Path(args.report).write_text(json.dumps(summary, indent=2) + "\n")
-    if args.sample:
-        sample = gate.sample_model(
-            model, (source.get(d) for d in reversed(gate_days)), times
-        )
-        Path(args.sample).write_text(json.dumps(asdict(sample)) + "\n")
+    texts: dict[bool, str] = {}
+    for path, m in (
+        (args.sample, model_json.without_budget(model)),
+        (args.budget_sample, model),
+    ):
+        if not path:
+            continue
+        has_block = "budget" in m
+        if has_block not in texts:
+            sampled = sample.sample_model(
+                m, (source.get(d) for d in reversed(gate_days)), times
+            )
+            texts[has_block] = json.dumps(sampled.dump()) + "\n"
+        Path(path).write_text(texts[has_block])
+    if budget is not None:
+        gate.monitor(candidate, times, day)
     if result.passed:
         return 0
     if args.report_only:
         print("report only: the gate result does not fail this run")
         return 0
     return 1
-
-
-SCORER_DIR = Path("tools/testing/target_determination")
-
-
-def _load_pytorch(module_path: Path) -> Optional[Any]:
-    if not module_path.exists():
-        return None
-    spec = importlib.util.spec_from_file_location(
-        "pytorch_td_scorer_model", module_path
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional[int]:
-    """Jobs whose selection by pytorch's select_tests differs from the gate's, a
-    NoModel from it taken as TD's include list; None when pytorch has no scorer.py or
-    its scorer.py has no select_tests."""
-    if not (root / SCORER_DIR / "scorer.py").exists():
-        return None
-    sys.path.insert(0, str(root))
-    try:
-        from tools.testing.target_determination import scorer  # type: ignore[import]
-        from tools.testing.test_run import TestRun  # type: ignore[import]
-    finally:
-        sys.path.remove(str(root))
-    if getattr(scorer, "select_tests", None) is None:
-        return None
-    no_model = getattr(scorer, "NoModel", ())
-    mismatches = 0
-    for job in jobs:
-        block = {
-            "model": model,
-            "heuristics": job["heuristics"],
-            "raised": job["raised"],
-        }
-        try:
-            selected, _, _ = scorer.select_tests(
-                block,
-                [TestRun(f) for f in job["include"]],
-                [TestRun(f) for f in job["exclude"]],
-                job["times"],
-                job["build_env"],
-                job["test_config"],
-            )
-            files = sorted({t.test_file for t in selected})
-        except no_model as e:
-            logger.info("pytorch select_tests: %r; TD's cut", e)
-            files = sorted(set(job["include"]))
-        mismatches += files != job["selected"]
-    return mismatches
-
-
-def check_pytorch(args: argparse.Namespace) -> int:
-    root = Path(args.pytorch_root)
-    module = _load_pytorch(root / SCORER_DIR / "scorer_model.py")
-    if module is None:
-        print(
-            f"SKIP: no {SCORER_DIR}/scorer_model.py in {root} (pytorch main does not have"
-            " the TD scorer yet); the model was not checked against pytorch's validator"
-        )
-        return SKIPPED
-    raw = Path(args.model).read_bytes()
-    model = module.parse_model(raw)
-    sample = json.loads(Path(args.sample).read_text())
-    diffs = [
-        module.file_probability(
-            model,
-            row["scores"],
-            row["cost"],
-            row["build_env"],
-            row["test_config"],
-            row["raised"],
-        )
-        - row["p"]
-        for row in sample["p"]
-    ]
-    diffs += [
-        module.risk_score(model, row["features"]) - row["r"] for row in sample["r"]
-    ]
-    if not diffs:
-        print("FAIL: empty sample")
-        return 1
-    if not all(math.isfinite(d) for d in diffs):
-        print("FAIL: a p or r difference is not finite")
-        return 1
-    worst = max(abs(d) for d in diffs)
-    print(
-        f"pytorch validator: ok; max |diff| of p and r over {len(diffs)} rows:"
-        f" {worst:.3g}"
-    )
-    if worst > MAX_DIFF:
-        print(f"FAIL: p or r differ from pytorch's by more than {MAX_DIFF}")
-        return 1
-    jobs = sample.get("jobs", [])
-    mismatches = _replay_cuts(root, model, jobs)
-    if mismatches is None:
-        print(
-            f"SKIP: no {SCORER_DIR}/scorer.py with select_tests: the cut was not"
-            " replayed in pytorch"
-        )
-        return SKIPPED
-    print(f"pytorch select_tests: {mismatches} of {len(jobs)} jobs select differently")
-    return 0 if jobs and not mismatches else 1
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -297,24 +215,27 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.add_argument("--cache-dir", help="a local directory of day shards instead of S3")
     p.add_argument("--report", help="write the gate summary as JSON")
     p.add_argument("--sample", help="write sample rows for check-pytorch")
+    p.add_argument(
+        "--budget-out",
+        help="also write the model as it ships: with its budget block when it kept"
+        " one, else the same as --out",
+    )
+    p.add_argument("--budget-sample", help="write --budget-out's sample rows")
     p.add_argument("--floor-ratio", type=float, default=gate.FLOOR_RATIO)
+    p.add_argument(
+        "--budget",
+        action="store_true",
+        help="give the models model_json.BUDGET as their budget block, kept when the"
+        " gate's budget check passes",
+    )
     p.add_argument(
         "--report-only",
         action="store_true",
         help="print the gate report and exit 0 whatever the gate's result",
     )
     p.set_defaults(func=refit)
-    c = sub.add_parser(
-        "check-pytorch", help="check a model with pytorch's scorer_model.py"
-    )
-    c.add_argument("--model", required=True)
-    c.add_argument("--sample", required=True)
-    c.add_argument(
-        "--pytorch-root",
-        required=True,
-        help="a pytorch checkout holding at least tools/testing and tools/stats",
-    )
-    c.set_defaults(func=check_pytorch)
+    check_pytorch.add_parser(sub)
+    sweep.add_parser(sub)
     args = parser.parse_args(argv)
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"

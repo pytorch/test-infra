@@ -27,6 +27,57 @@ FEATURES = ("n_files", "n_test_files", "n_source_files", "n_areas", "docs_only")
 DOC_SUFFIXES = (".md", ".rst")
 NON_SOURCE_DIRS = ("test/", "docs/", "third_party/")
 QUANTILES = 101
+# The paths that give a change the top of the budget window; pytorch's scorer_paths.py
+# holds the same lists and check-pytorch compares them.
+MAX_CHANGED_FILES = 3000
+BUILD_DIRS = (
+    "third_party/",
+    "cmake/",
+    ".ci/",
+    ".github/",
+    "torchgen/",
+    "tools/setup_helpers/",
+    "tools/autograd/",
+    "tools/testing/",
+    "tools/stats/",
+    "torch/testing/_internal/",
+    "test/dynamo_expected_failures/",
+    "test/dynamo_skips/",
+    "test/inductor_expected_failures/",
+    "test/inductor_skips/",
+    "aten/src/ATen/templates/",
+    "tools/jit/",
+    "tools/pyi/",
+    "tools/amd_build/",
+)
+BUILD_FILES = ("test/run_test.py",)
+BUILD_BASENAMES = (
+    "CMakeLists.txt",
+    "setup.py",
+    "setup.cfg",
+    "pyproject.toml",
+    "version.txt",
+    "BUILD.bazel",
+    "BUILD",
+    "WORKSPACE",
+    "conftest.py",
+    "pytest.ini",
+    "native_functions.yaml",
+    "tags.yaml",
+    "MODULE.bazel",
+    ".bazelrc",
+    ".bazelversion",
+)
+BUILD_BASENAME_PREFIXES = ("requirements",)
+BUILD_SUFFIXES = (".cmake", ".bzl")
+BUILD_PATH_CONSTANTS = (
+    "MAX_CHANGED_FILES",
+    "BUILD_DIRS",
+    "BUILD_FILES",
+    "BUILD_BASENAMES",
+    "BUILD_BASENAME_PREFIXES",
+    "BUILD_SUFFIXES",
+)
 
 
 def is_docs(path: str) -> bool:
@@ -45,6 +96,29 @@ def change_features(paths: Sequence[str]) -> dict[str, int]:
         "n_areas": len({p.split("/", 1)[0] for p in paths}),
         "docs_only": int(bool(paths) and all(is_docs(p) for p in paths)),
     }
+
+
+def is_build_path(path: str) -> bool:
+    base = path.rsplit("/", 1)[-1]
+    return (
+        path.startswith(BUILD_DIRS)
+        or path in BUILD_FILES
+        or base in BUILD_BASENAMES
+        or (base.startswith(BUILD_BASENAME_PREFIXES) and base.endswith(".txt"))
+        or base.endswith(BUILD_SUFFIXES)
+    )
+
+
+def count_build_files(paths: Sequence[str]) -> Optional[int]:
+    """How many of a change's paths are build paths, empty paths dropped; None when no
+    path is left, and every path when the list has MAX_CHANGED_FILES or more, since
+    GitHub truncates the list there."""
+    paths = [p for p in paths if p]
+    if not paths:
+        return None
+    if len(paths) >= MAX_CHANGED_FILES:
+        return len(paths)
+    return sum(is_build_path(p) for p in paths)
 
 
 def risk_raw(model: Mapping[str, Any], features: Mapping[str, int]) -> float:

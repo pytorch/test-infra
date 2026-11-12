@@ -62,6 +62,9 @@ jobs:
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           ON_MAIN: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          # The test budget is opt-in: refit gets --budget only when this repository
+          # variable is "on" (model_json.budget_on).
+          TD_SCORER_BUDGET: ${{ vars.TD_SCORER_BUDGET }}
         run: |
           set -euo pipefail
           if [ -z "${CLICKHOUSE_ENDPOINT}" ]; then
@@ -77,7 +80,18 @@ jobs:
           mkdir -p ../td-scorer
           outputs=(--out ../td-scorer/td-scorer.json
                    --report ../td-scorer/report.json
-                   --sample ../td-scorer/sample.json)
+                   --sample ../td-scorer/sample.json
+                   --budget-out ../td-scorer/td-scorer-budget.json
+                   --budget-sample ../td-scorer/budget-sample.json)
+          budget=off
+          if python -c 'import os, sys
+          from torchci.td.scorer.model_json import budget_on
+          sys.exit(0 if budget_on(os.environ.get("TD_SCORER_BUDGET")) else 1)'; then
+            budget=on
+            outputs+=(--budget)
+          fi
+          echo "budget=${budget}" >> "${GITHUB_OUTPUT}"
+          echo "TD scorer budget: ${budget}"
           if [ "${ON_MAIN}" = "true" ]; then
             python -m torchci.td.scorer refit --s3 "${outputs[@]}"
           else
@@ -85,6 +99,31 @@ jobs:
             python -m torchci.td.scorer refit --train-days 2 --gate-days 1 \
               --report-only "${outputs[@]}"
           fi
+
+      - name: Summarise the budget
+        if: always() && steps.refit.outputs.ran == 'true'
+        working-directory: tools
+        env:
+          BUDGET: ${{ steps.refit.outputs.budget }}
+        run: |
+          python - <<'PY' >> "${GITHUB_STEP_SUMMARY}"
+          import json, os
+          from pathlib import Path
+          path = Path("../td-scorer/report.json")
+          report = json.loads(path.read_text()) if path.exists() else {}
+          budget = report.get("budget")
+          print(f"TD scorer budget mode: {os.environ.get('BUDGET') or 'unknown'}")
+          if budget:
+              kept = "kept" if report.get("budget_kept") else "dropped"
+              print(
+                  f"- block {budget['block']} {kept}; realised mean share of test-times"
+                  f" seconds {budget['seconds_share']:.3f}, of cost"
+                  f" {budget['cost_share']:.3f}; per-PR retention"
+                  f" {budget['retention']:.3f} ({budget['kept']} of {budget['prs']})"
+              )
+          else:
+              print("- no budget block: the scorer's cut spends what TD's cut costs")
+          PY
 
       - name: Upload the model
         if: always() && steps.refit.outputs.ran == 'true'
@@ -105,6 +144,7 @@ jobs:
       contents: read
     outputs:
       validated: ${{ steps.check.outputs.validated }}
+      budget_validated: ${{ steps.check.outputs.budget_validated }}
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -142,18 +182,30 @@ jobs:
           path: td-scorer
 
       # check-pytorch exits 3 when pytorch main lacks the TD scorer code: nothing was
-      # validated, so nothing publishes.
+      # validated, so nothing publishes. td-scorer-budget.json is checked too, but its
+      # result never fails this job: any exit but 0 only keeps its model from publishing.
       - name: Validate with pytorch, compare p and r, replay the cut
         id: check
         working-directory: tools
         run: |
+          check() {
+            python -m torchci.td.scorer check-pytorch --model "../td-scorer/$1" \
+              --sample "../td-scorer/$2" --pytorch-root ../pytorch
+          }
           set +e
-          python -m torchci.td.scorer check-pytorch \
-            --model ../td-scorer/td-scorer.json \
-            --sample ../td-scorer/sample.json \
-            --pytorch-root ../pytorch
+          check td-scorer.json sample.json
           code=$?
+          check td-scorer-budget.json budget-sample.json
+          budget_code=$?
           set -e
+          if [ "${budget_code}" -eq 0 ]; then
+            echo "budget_validated=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "budget_validated=false" >> "${GITHUB_OUTPUT}"
+            message="td-scorer-budget.json did not validate (check-pytorch exited ${budget_code}): its model does not publish"
+            echo "::warning::${message}"
+            echo "${message}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
           if [ "${code}" -eq 0 ]; then
             echo "validated=true" >> "${GITHUB_OUTPUT}"
           elif [ "${code}" -eq 3 ]; then
@@ -178,6 +230,49 @@ jobs:
           name: td-scorer
           path: td-scorer
 
+      # Fails closed. td-scorer.json never carries a budget block. td-scorer-budget.json
+      # keeps the refit's budget model only when check-pytorch validated it and, if it
+      # has a budget block, the repository variable is "on", normalised as
+      # model_json.budget_on does (trim ASCII whitespace, lowercase) without running
+      # repository code here; otherwise it gets td-scorer.json's model, and the last
+      # step fails the job after the push.
+      - name: Choose the models to publish
+        id: choose
+        env:
+          TD_SCORER_BUDGET: ${{ vars.TD_SCORER_BUDGET }}
+          BUDGET_VALIDATED: ${{ needs.check.outputs.budget_validated }}
+          LC_ALL: C
+        run: |
+          set -euo pipefail
+          has_block() {
+            python3 -I -c 'import json, sys; print("budget" in json.load(open(sys.argv[1])))' "$1"
+          }
+          plain_block=$(has_block td-scorer/td-scorer.json)
+          if [ "${plain_block}" != "False" ]; then
+            echo "::error::td-scorer.json has a budget block: not publishing"
+            exit 1
+          fi
+          value="${TD_SCORER_BUDGET}"
+          value="${value#"${value%%[![:space:]]*}"}"
+          value="${value%"${value##*[![:space:]]}"}"
+          value="${value,,}"
+          mode=$([ "${value}" = "on" ] && echo on || echo off)
+          budget_block=$(has_block td-scorer/td-scorer-budget.json || true)
+          refused=""
+          if [ "${BUDGET_VALIDATED}" != "true" ]; then
+            refused="td-scorer-budget.json did not validate with pytorch"
+          elif [ "${budget_block}" = "True" ] && [ "${mode}" != "on" ]; then
+            refused="td-scorer-budget.json has a budget block but TD_SCORER_BUDGET is not on"
+          elif [ "${budget_block}" != "True" ] && [ "${budget_block}" != "False" ]; then
+            refused="td-scorer-budget.json is not valid JSON"
+          fi
+          echo "TD scorer budget mode: ${mode}; td-scorer-budget.json has a budget block: ${budget_block:-unknown}" | tee -a "${GITHUB_STEP_SUMMARY}"
+          if [ -n "${refused}" ]; then
+            cp td-scorer/td-scorer.json td-scorer/td-scorer-budget.json
+            echo "refused=${refused}" >> "${GITHUB_OUTPUT}"
+            echo "${refused}: publishing td-scorer.json's model under its name" | tee -a "${GITHUB_STEP_SUMMARY}"
+          fi
+
       - name: Checkout generated-stats branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -185,11 +280,31 @@ jobs:
           path: generated-stats
           fetch-depth: 1
 
-      - name: Push stats/td-scorer.json to generated-stats
+      - name: Push the models to generated-stats
         working-directory: generated-stats
         run: |
           git config user.name "Pytorch Test Infra"
           git config user.email "test-infra@pytorch.org"
+          enabled() {
+            python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1])).get("enabled") is True)' "$1"
+          }
+          # Whether the live model $1 is from a later refit than this run's $2: both versions
+          # are ISO dates and the live one is no later than today (UTC), so a hand-edited
+          # or malformed version never freezes a file.
+          newer_live() {
+            python3 -I - "$1" "$2" <<'PY'
+          import datetime, json, sys
+          def day(path):
+              v = json.load(open(path)).get("version")
+              try:
+                  return datetime.date.fromisoformat(v) if isinstance(v, str) else None
+              except ValueError:
+                  return None
+          live, ours = day(sys.argv[1]), day(sys.argv[2])
+          today = datetime.datetime.now(datetime.timezone.utc).date()
+          print(live is not None and ours is not None and ours < live <= today)
+          PY
+          }
           # Other workflows push to generated-stats too: rebuild the commit on the latest tip
           # and retry when a push fails, e.g. because one of them pushed first.
           for attempt in 1 2 3 4 5; do
@@ -200,25 +315,48 @@ jobs:
               continue
             fi
             git reset --hard FETCH_HEAD
-            # enabled: false is the scorer's off switch; only a file that is absent or
-            # enabled is replaced.
-            if [ -f stats/td-scorer.json ]; then
-              enabled=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("enabled") is True)' stats/td-scorer.json)
-              if [ "${enabled}" != "True" ]; then
-                echo "stats/td-scorer.json is not enabled: leaving it in place"
-                exit 0
+            # enabled: false is an off switch; only a file that is absent or enabled is
+            # replaced. td-scorer.json's flag turns the scorer off for every checkout, so
+            # while it is off td-scorer-budget.json is not written either. A live file
+            # from a later refit (a re-run of an older run) is left in place too, and a
+            # later td-scorer.json keeps td-scorer-budget.json as it is.
+            for name in td-scorer.json td-scorer-budget.json; do
+              if [ -f "stats/${name}" ] && [ "$(enabled "stats/${name}")" != "True" ]; then
+                echo "stats/${name} is not enabled: leaving it in place"
+                if [ "${name}" = "td-scorer.json" ]; then
+                  echo "Not writing stats/td-scorer-budget.json either"
+                  break
+                fi
+                continue
               fi
-            fi
-            cp ../td-scorer/td-scorer.json stats/td-scorer.json
-            git add stats/td-scorer.json
+              if [ -f "stats/${name}" ] \
+                && [ "$(newer_live "stats/${name}" "../td-scorer/${name}")" = "True" ]; then
+                echo "::warning::stats/${name} is newer than this run's model: leaving it in place"
+                if [ "${name}" = "td-scorer.json" ]; then
+                  echo "Not writing stats/td-scorer-budget.json either"
+                  break
+                fi
+                continue
+              fi
+              cp "../td-scorer/${name}" "stats/${name}"
+              git add "stats/${name}"
+            done
             if git diff --cached --quiet; then
               echo "No changes to push"
               exit 0
             fi
-            git commit -m "Updating the TD scorer model"
+            git commit -m "Updating the TD scorer models"
             if git push origin HEAD:generated-stats; then
               exit 0
             fi
           done
           echo "Failed to push to generated-stats after 5 attempts"
+          exit 1
+
+      - name: Fail when td-scorer-budget.json was refused
+        if: steps.choose.outputs.refused != ''
+        env:
+          REFUSED: ${{ steps.choose.outputs.refused }}
+        run: |
+          echo "::error::${REFUSED}; td-scorer-budget.json did not get the budget model"
           exit 1

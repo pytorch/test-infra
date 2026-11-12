@@ -286,5 +286,102 @@ class TestModelJson(TestCase):
         )
 
 
+class TestBudget(TestCase):
+    def test_build_model_block(self) -> None:
+        m = TestModelJson().model()
+        self.assertNotIn("budget", m)
+        block = {"share": 0.1234567891234, "spread": 0.25, "cost_exponent": 0.5}
+        scorer = {
+            "intercept": 0.0,
+            "cost_weight": 0.0,
+            "heuristics": {},
+            "build_env": {},
+            "test_config": {},
+        }
+        with_block = model_json.build_model("v", scorer, RISK, {}, budget=block)
+        self.assertEqual(
+            with_block["budget"],
+            {"share": 0.123456789, "spread": 0.25, "cost_exponent": 0.5},
+        )
+        self.assertTrue(model_json.valid_budget(model_json.BUDGET))
+        budget = model_json.BUDGET
+        self.assertEqual((budget["share"], budget["cost_exponent"]), (0.175, 0.5))
+        self.assertAlmostEqual(budget["spread"], 0.05 / 0.175, places=8)
+        built = model_json.build_model("v", scorer, RISK, {}, budget=budget)["budget"]
+        self.assertEqual(built, budget)
+        self.assertGreaterEqual(
+            built["share"] * (1 - built["spread"]), model_json.MIN_SHARE
+        )
+        self.assertAlmostEqual(built["share"] * (1 + built["spread"]), 0.225)
+
+    def test_budget_share(self) -> None:
+        m = {"budget": {"share": 0.2, "spread": 0.5, "cost_exponent": 0.5}}
+        top = 0.2 * (1 + 0.5)
+        cases = [
+            ({}, 0, 0.0, (None, "none")),
+            (m, 1, 0.0, (top, "build_paths")),
+            (m, 1, -1.0, (top, "build_paths")),
+            (m, None, 0.0, (top, "build_paths")),
+            (m, True, 0.0, (top, "build_paths")),
+            (m, 0.0, 0.0, (top, "build_paths")),
+            (m, 0, None, (top, "unknown_risk")),
+            (m, 0, float("nan"), (top, "unknown_risk")),
+            (m, 0, float("inf"), (top, "unknown_risk")),
+            (m, 0, True, (top, "unknown_risk")),
+            (m, 0, "0.5", (top, "unknown_risk")),
+            (m, 0, 10**400, (top, "unknown_risk")),
+            (m, 0, -1.0, (0.2 * (1 + 0.5 * -1.0), "share")),
+            (m, 0, 0, (0.2, "share")),
+            (m, 0, 0.5, (0.2 * (1 + 0.5 * 0.5), "share")),
+            (m, 0, 1.0, (0.2 * 1.5, "share")),
+            (m, 0, 7.0, (0.2 * 1.5, "share")),
+            (m, 0, -7.0, (0.1, "share")),
+        ]
+        for model, build_files, r, want in cases:
+            self.assertEqual(
+                model_json.budget_share(model, build_files, r), want, (build_files, r)
+            )
+        low = {"budget": {"share": 0.12, "spread": 0.9, "cost_exponent": 1.0}}
+        self.assertEqual(model_json.budget_share(low, 0, -1.0), (0.10, "share"))
+        high = {"budget": {"share": 1.0, "spread": 0.5, "cost_exponent": 1.0}}
+        self.assertEqual(model_json.budget_share(high, 0, 1.0), (1.0, "share"))
+        self.assertEqual(model_json.budget_share(high, 1, None), (1.0, "build_paths"))
+
+    def test_valid_budget(self) -> None:
+        ok = {"share": 0.2, "spread": 0.5, "cost_exponent": 1.0}
+        self.assertTrue(model_json.valid_budget(ok))
+        for bad in (
+            {**ok, "spread": 1.0},
+            {**ok, "spread": -0.1},
+            {**ok, "cost_exponent": 1.5},
+            {**ok, "cost_exponent": -0.1},
+            {**ok, "share": 0.19},
+            {**ok, "share": 1.1, "spread": 0.0},
+            {**ok, "share": True},
+            {**ok, "share": float("nan")},
+            {**ok, "extra": 1},
+            {"share": 0.2, "spread": 0.0},
+        ):
+            self.assertFalse(model_json.valid_budget(bad), bad)
+        self.assertTrue(model_json.valid_budget({**ok, "share": 0.2 / 0.5 * 0.5}))
+
+    def test_budget_on(self) -> None:
+        # td-scorer.yml's publish job normalises the variable the same way in shell.
+        for value, on in (
+            (" On\n", True),
+            ("ON", True),
+            ("on", True),
+            ("\ton \r", True),
+            ("off", False),
+            ("", False),
+            (None, False),
+            ("true", False),
+            ("1", False),
+            ("o n", False),
+            ("\u00a0on", False),
+        ):
+            self.assertIs(model_json.budget_on(value), on, repr(value))
+
+
 if __name__ == "__main__":
     main()
