@@ -2,6 +2,7 @@ import {
   ARTIFACT_SEEK_KEYS,
   buildArtifactsQuery,
   buildArtifactSummaryQuery,
+  buildNewestRcQuery,
   listArtifacts,
 } from "lib/api/releases/artifacts";
 import {
@@ -26,6 +27,7 @@ function artifactQuery(extra: Partial<ArtifactQuery> = {}): ArtifactQuery {
 function dbRow(extra: Record<string, unknown> = {}) {
   return {
     channel: "test",
+    rc: "rc1",
     package_type: "wheel",
     project: "torch",
     accelerator: "cu130",
@@ -82,6 +84,43 @@ describe("the artifact page query", () => {
     expect(sql.indexOf("verdict = {verdict: String}")).toBeGreaterThan(
       sql.indexOf("LIMIT 1 BY")
     );
+  });
+
+  test("reads one release candidate's observations, and every release-channel one", () => {
+    const { sql, params } = buildArtifactsQuery(
+      artifactQuery({ rc: "rc3" }),
+      null,
+      10
+    );
+    expect(sql).toContain("(rc = '' OR rc = {rc: String})");
+    expect(params).toMatchObject({ rc: "rc3" });
+    // the release candidate narrows the observations the latest one is chosen from
+    expect(sql.indexOf("(rc = '' OR rc = {rc: String})")).toBeLessThan(
+      sql.indexOf("LIMIT 1 BY")
+    );
+    const none = buildArtifactsQuery(artifactQuery(), null, 10);
+    expect(none.sql).not.toContain("{rc");
+    expect(
+      buildArtifactSummaryQuery(artifactQuery({ rc: "rc3" })).sql
+    ).toContain("rc = {rc: String}");
+  });
+
+  test("the newest release candidate is chosen by number, so rc10 follows rc9", () => {
+    const { sql, params } = buildNewestRcQuery("2.16.0");
+    expect(sql).toContain("rc != ''");
+    expect(sql).toContain(
+      "ORDER BY toUInt32OrZero(replaceRegexpOne(rc, '^rc', '')) DESC"
+    );
+    expect(params).toEqual({ release: "2.16.0" });
+  });
+
+  test("an rc that is not rcN is rejected", () => {
+    expect(
+      ArtifactQuerySchema.safeParse({ version: "2.16.0", rc: "latest" }).success
+    ).toBe(false);
+    expect(
+      ArtifactQuerySchema.safeParse({ version: "2.16.0", rc: "rc10" }).success
+    ).toBe(true);
   });
 
   test("lists problems first and breaks ties by the artifact's coordinates", () => {
@@ -210,9 +249,13 @@ describe("cursors", () => {
 describe("listArtifacts", () => {
   beforeEach(() => query.mockReset());
 
-  function answer(rows: any[], summary: any[] = []) {
+  function answer(rows: any[], summary: any[] = [], newest: any[] = []) {
     query.mockImplementation(async (sql: string) =>
-      sql.includes("GROUP BY verdict") ? summary : rows
+      sql.includes("toUInt32OrZero")
+        ? newest
+        : sql.includes("GROUP BY verdict")
+        ? summary
+        : rows
     );
   }
 
@@ -256,6 +299,7 @@ describe("listArtifacts", () => {
       package: "wheel",
       project: "torch",
       channel: "test",
+      rc: "rc1",
       accelerator: "cu130",
       python: "3.14",
       os: "linux",
@@ -274,6 +318,38 @@ describe("listArtifacts", () => {
       vs_previous_pct: 1.5,
       verdict: "present",
     });
+  });
+
+  test("lists the newest release candidate when none is asked for, and says which", async () => {
+    answer([dbRow()], [], [{ rc: "rc3" }]);
+    const page = await listArtifacts({ query: artifactQuery(), cursor: null });
+    expect(page.rc).toBe("rc3");
+    // the rows and the counts are both read for it
+    const reads = query.mock.calls.filter(
+      ([sql]) => !sql.includes("toUInt32OrZero")
+    );
+    expect(reads).toHaveLength(2);
+    for (const [, params] of reads) expect(params).toMatchObject({ rc: "rc3" });
+  });
+
+  test("a release candidate that is asked for is used without looking for the newest", async () => {
+    answer([dbRow({ rc: "rc2" })], [], [{ rc: "rc3" }]);
+    const page = await listArtifacts({
+      query: artifactQuery({ rc: "rc2" }),
+      cursor: null,
+    });
+    expect(page.rc).toBe("rc2");
+    expect(
+      query.mock.calls.some(([sql]) => sql.includes("toUInt32OrZero"))
+    ).toBe(false);
+  });
+
+  test("a release with no release candidate has a null rc and an unscoped read", async () => {
+    answer([dbRow({ channel: "release", rc: "" })]);
+    const page = await listArtifacts({ query: artifactQuery(), cursor: null });
+    expect(page.rc).toBeNull();
+    expect(page.rows[0].rc).toBeNull();
+    for (const [sql] of query.mock.calls) expect(sql).not.toContain("{rc");
   });
 
   test("rounds the change against the previous release to two decimals", async () => {

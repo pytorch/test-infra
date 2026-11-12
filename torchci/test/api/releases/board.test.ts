@@ -239,7 +239,7 @@ describe("buildBoard", () => {
       milestone: "https://github.com/pytorch/pytorch/milestone/71",
       wheels: "https://download.pytorch.org/whl/test/",
       docs: "https://docs.pytorch.org/docs/2.16/",
-      artifacts: "/release/2.16.0/artifacts",
+      artifacts: "https://hud.pytorch.org/release/2.16.0/artifacts",
     });
   });
 

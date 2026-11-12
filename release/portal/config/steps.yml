@@ -152,6 +152,7 @@ steps:
     tier: S
     owner: domain-owners
     due: {anchor: branch_cut, offset_days: 0}
+    runbook: {url: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#pytorch-ecosystem-libraries"}
     check: {type: github_ref_exists, repos: [pytorch/vision, pytorch/audio, pytorch/executorch, pytorch/torchtitan, meta-pytorch/torchrec, meta-pytorch/data, meta-pytorch/torchtune], ref: "{branch}", kind: branch}
   - id: "1.10"
     phase: 1
@@ -198,6 +199,7 @@ steps:
     owner: domain-owners
     rc_scoped: true
     depends_on: ["1.9"]
+    runbook: {url: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#drafting-rcs-release-candidates-for-pytorch-and-domain-libraries"}
     check: {type: github_ref_exists, repos: [pytorch/vision, pytorch/audio], ref: "v{version}-{rc}", kind: tag}
   - id: "2.3"
     phase: 2

@@ -63,7 +63,9 @@ export const ARTIFACT_SEEK_KEYS: SeekKey[] = [
 ];
 
 // The latest observation of each artifact of the release that matches channel, package
-// and os. LIMIT 1 BY keeps the whole row, NULLs included, which argMax would skip.
+// and os, among the observations of one release candidate when query.rc is set (the
+// release channel has no release candidate, so its rows always match). LIMIT 1 BY keeps
+// the whole row, NULLs included, which argMax would skip.
 function latest(query: ArtifactQuery, params: Record<string, unknown>): string {
   const filters = ["release = {release: String}"];
   params.release = query.version;
@@ -78,9 +80,13 @@ function latest(query: ArtifactQuery, params: Record<string, unknown>): string {
       params[name] = value;
     }
   }
+  if (query.rc !== undefined) {
+    filters.push("(rc = '' OR rc = {rc: String})");
+    params.rc = query.rc;
+  }
   return `
 SELECT
-    channel, package_type, project, accelerator, python, os, arch,
+    channel, rc, package_type, project, accelerator, python, os, arch,
     toString(verdict) AS verdict,
     expected_url, observed_url, http_status, size_bytes, vs_previous_pct
 FROM ${RELEASE_DATABASE}.release_artifact_observation
@@ -129,8 +135,24 @@ GROUP BY verdict`,
   };
 }
 
+// The newest release candidate that has observations, as the board's current_rc is the
+// newest one that has a step state: by number, so rc10 follows rc9.
+export function buildNewestRcQuery(version: string) {
+  return {
+    sql: `
+SELECT rc
+FROM ${RELEASE_DATABASE}.release_artifact_observation
+WHERE release = {release: String} AND rc != ''
+GROUP BY rc
+ORDER BY toUInt32OrZero(replaceRegexpOne(rc, '^rc', '')) DESC
+LIMIT 1`,
+    params: { release: version },
+  };
+}
+
 interface ArtifactDbRow {
   channel: string;
+  rc: string;
   package_type: string;
   project: string;
   accelerator: string;
@@ -151,6 +173,7 @@ function toRow(row: ArtifactDbRow): ArtifactRow {
     package: row.package_type,
     project: row.project,
     channel: row.channel,
+    rc: row.rc === "" ? null : row.rc,
     accelerator: row.accelerator,
     python: row.python,
     os: row.os,
@@ -187,6 +210,16 @@ function positionOf(row: ArtifactDbRow): ArtifactCursor["position"]["values"] {
   ];
 }
 
+async function newestRc(version: string): Promise<string | null> {
+  const { sql, params } = buildNewestRcQuery(version);
+  const rows: { rc: string }[] = await queryClickhouse(
+    sql,
+    params,
+    "api_release_artifact_rc"
+  );
+  return rows[0]?.rc || null;
+}
+
 async function summarize(
   query: ArtifactQuery
 ): Promise<ArtifactPage["summary"]> {
@@ -211,10 +244,14 @@ export async function listArtifacts({
   query: ArtifactQuery;
   cursor: ArtifactCursor | null;
 }): Promise<ListPageData<ArtifactPage>> {
+  // The cursor binds the request's own query; the release candidate it resolves to is
+  // read again on each page, as the board's current_rc is.
+  const rc = query.rc ?? (await newestRc(query.version));
+  const scoped = rc === null ? query : { ...query, rc };
   const [summary, page] = await Promise.all([
-    summarize(query),
+    summarize(scoped),
     queryPage<ArtifactDbRow, ArtifactCursor>({
-      build: (boundary, limit) => buildArtifactsQuery(query, boundary, limit),
+      build: (boundary, limit) => buildArtifactsQuery(scoped, boundary, limit),
       queryId: "api_release_artifacts_page",
       cursor,
       limit: query.limit,
@@ -229,6 +266,7 @@ export async function listArtifacts({
     }),
   ]);
   return {
+    rc,
     summary,
     rows: page.page.map(toRow),
     next_cursor: page.next_cursor,

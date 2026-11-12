@@ -204,7 +204,7 @@ export const ReleaseBoardSchema = z
     links: z
       .record(z.string(), z.string().nullable())
       .describe(
-        "Where to find the release's things: tracker_issue, validation_issue and milestone, from the evidence the collector recorded; the resources named in the config (wheels, libtorch, docs, release_notes, build_matrix); artifacts, the artifact matrix path of this API's page. A link that does not exist yet is null."
+        "Where to find the release's things: tracker_issue, validation_issue and milestone, from the evidence the collector recorded; the resources named in the config (wheels, libtorch, docs, release_notes, build_matrix); artifacts, the URL of this release's artifact matrix page on HUD. A link that does not exist yet is null."
       ),
     stats: z
       .object({
@@ -333,6 +333,12 @@ export const ArtifactRowSchema = z
       .describe(
         "test for release candidates, release for the final artifacts."
       ),
+    rc: z
+      .string()
+      .nullable()
+      .describe(
+        "The release candidate the artifact was observed for, for example rc3; null for the release channel."
+      ),
     accelerator: z.string().describe("cpu, cu130, rocm7.1, xpu, ..."),
     python: z
       .string()
@@ -379,6 +385,12 @@ export const ArtifactRowSchema = z
 
 export const ArtifactPageSchema = z
   .object({
+    rc: z
+      .string()
+      .nullable()
+      .describe(
+        "The release candidate the test-channel rows and the counts are for: the rc parameter, else the newest release candidate with observations. null when the release has none."
+      ),
     summary: z
       .object({
         expected: z.number().int().describe("Artifacts in the selection."),
