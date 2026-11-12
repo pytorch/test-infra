@@ -6,6 +6,7 @@ import type {
   ReleaseIndex,
   ReleaseStep,
 } from "lib/api/releases/types";
+import { hudOrigin } from "lib/api/tests/pages/links";
 
 // What the portal shows of a release is computed here from two things: the release's
 // resolved config (its steps) and the current state rows from release_event. No I/O.
@@ -304,7 +305,8 @@ export function buildBoard(
       validation_issue: found.validation_issue?.url ?? null,
       milestone: found.milestone?.url ?? null,
       ...resourceLinks(config, out),
-      artifacts: `/release/${config.release}/artifacts`,
+      // absolute, like the tests API's hud_url, so a program can hand it on as it is
+      artifacts: `${hudOrigin()}/release/${config.release}/artifacts`,
     },
     stats: {
       done,
