@@ -398,7 +398,17 @@ class TestShippedCutoff(TestCase):
 
 
 START_UP_FIT = start_up.ConfigFit(
-    "linux-a", "default", 300, 30, c=500.0, a=1.0, k=24.0, lo=23.0, hi=25.0, finite=1.0
+    "linux-a",
+    "default",
+    300,
+    30,
+    30,
+    c=500.0,
+    a=1.0,
+    k=24.0,
+    lo=23.0,
+    hi=25.0,
+    finite=1.0,
 )
 
 
@@ -408,6 +418,9 @@ class TestCli(TestCase):
             patcher = mock.patch.object(start_up, name, return_value=value)
             setattr(self, f"start_up_{name}", patcher.start())
             self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(start_up, "MIN_ACCEPTED_CONFIGS", 1)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def build(self, day):
         pos = day.day % 2 == 0
@@ -716,6 +729,24 @@ class TestCli(TestCase):
             with self.assertRaises(RuntimeError):
                 cli.main(self.refit_args(d) + ["--report-only"])
             build.assert_not_called()
+
+    def test_too_few_start_ups_fail_the_refit(self) -> None:
+        self.start_up_fit_all.return_value = [START_UP_FIT] * 4
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(
+            start_up, "MIN_ACCEPTED_CONFIGS", 5
+        ), mock.patch.object(
+            store.Shards, "ensure", side_effect=RuntimeError("backfill")
+        ) as ensure:
+            self.assertEqual(start_up.size(start_up.table([START_UP_FIT] * 4)), 1)
+            self.assertEqual(cli.main(self.refit_args(d)), 1)
+            ensure.assert_not_called()
+            with self.assertRaisesRegex(RuntimeError, "backfill"):
+                cli.main(self.refit_args(d) + ["--report-only"])
+            self.start_up_fit_all.return_value = [
+                dataclasses.replace(START_UP_FIT, test_config=f"c{i}") for i in range(5)
+            ]
+            with self.assertRaisesRegex(RuntimeError, "backfill"):
+                cli.main(self.refit_args(d))
 
     def test_workflow_time_budget(self) -> None:
         import yaml

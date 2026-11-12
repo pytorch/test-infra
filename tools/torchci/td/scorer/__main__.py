@@ -1,7 +1,8 @@
 """CLI: `python -m torchci.td.scorer refit --day YYYY-MM-DD --out td-scorer.json`.
 
 `refit` fits each test config's start-up per file on the week before the refit day
-(start_up.py), builds missing day shards, fits the scorer and the risk score on the
+(start_up.py) and exits 1 when fewer than start_up.MIN_ACCEPTED_CONFIGS have one, builds
+missing day shards, fits the scorer and the risk score on the
 healthy days of the last year (train.WINDOW_DAYS) whose jobs have finished, runs the
 walk-forward months and the gate (gate.py) and writes the model file. It exits 1 when the gate fails; when no training or gate day is
 healthy; when anything raises (the walk-forward decides the gate); and, with `--s3`,
@@ -90,6 +91,14 @@ def refit(args: argparse.Namespace) -> int:
     start_up_fits = start_up.fit_all(start_up.fetch(day))
     print(start_up.text(start_up_fits))
     start_up_table = start_up.table(start_up_fits)
+    if start_up.size(start_up_table) < start_up.MIN_ACCEPTED_CONFIGS:
+        print(
+            f"only {start_up.size(start_up_table)} configs have a start-up (needs >="
+            f" {start_up.MIN_ACCEPTED_CONFIGS})"
+        )
+        if not args.report_only:
+            return 1
+        print("report only: continuing")
     source.ensure(train_days + gate_days)
     if source.gaps:
         print(
@@ -193,7 +202,7 @@ def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional
         sys.path.remove(str(root))
     if getattr(scorer, "select_tests", None) is None:
         return None
-    no_model = getattr(scorer, "NoModel", None)
+    no_model = getattr(scorer, "NoModel", ())
     mismatches = 0
     for job in jobs:
         block = {
@@ -211,10 +220,8 @@ def _replay_cuts(root: Path, model: Any, jobs: list[dict[str, Any]]) -> Optional
                 job["test_config"],
             )
             files = sorted({t.test_file for t in selected})
-        except Exception as e:
-            if no_model is None or not isinstance(e, no_model):
-                raise
-            logger.info("pytorch select_tests: %s; TD's cut", e)
+        except no_model as e:
+            logger.info("pytorch select_tests: %r; TD's cut", e)
             files = sorted(set(job["include"]))
         mismatches += files != job["selected"]
     return mismatches

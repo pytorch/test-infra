@@ -231,52 +231,40 @@ class Evaluator:
         include = set(td_include(files, run.aggregated))
         raised = self.heuristics - active(run.heuristics, run.raised)
         if self.times.start_up(env, config) is None:
-            self._sample_job(sample, run, raised, files, include, env, config, include)
-            return set(include), include
-        costs = np.array([self.times.cost(env, config, f) for f in files])
-        budget = sum(cost_ms(c) for f, c in zip(files, costs) if f in include)
-        p = p_files(self.model, run.scores, raised, env, config, files, costs)
-        if sample is not None and len(sample.p) < SAMPLE_ROWS:
-            sample.p.extend(
+            selected = set(include)
+        else:
+            costs = np.array([self.times.cost(env, config, f) for f in files])
+            budget = sum(cost_ms(c) for f, c in zip(files, costs) if f in include)
+            p = p_files(self.model, run.scores, raised, env, config, files, costs)
+            if sample is not None and len(sample.p) < SAMPLE_ROWS:
+                sample.p.extend(
+                    {
+                        "scores": {h: v[f] for h, v in run.scores.items() if f in v},
+                        "raised": sorted(raised),
+                        "cost": float(c),
+                        "build_env": env,
+                        "test_config": config,
+                        "p": float(pi),
+                    }
+                    for f, c, pi in list(zip(files, costs, p))[
+                        :: max(1, len(files) // 5)
+                    ]
+                )
+            selected = scorer_cut(files, p, costs, budget, must_run_files(run))
+        if sample is not None and len(sample.jobs) < SAMPLE_JOBS:
+            sample.jobs.append(
                 {
-                    "scores": {h: v[f] for h, v in run.scores.items() if f in v},
-                    "raised": sorted(raised),
-                    "cost": float(c),
+                    "heuristics": run.scores,
+                    "raised": sorted(raised | set(run.raised)),
+                    "include": sorted(include),
+                    "exclude": sorted(set(files) - include),
+                    "times": dict(self.times.entry(env, config)[0]),
                     "build_env": env,
                     "test_config": config,
-                    "p": float(pi),
+                    "selected": sorted(selected),
                 }
-                for f, c, pi in list(zip(files, costs, p))[:: max(1, len(files) // 5)]
             )
-        selected = scorer_cut(files, p, costs, budget, must_run_files(run))
-        self._sample_job(sample, run, raised, files, include, env, config, selected)
         return selected, include
-
-    def _sample_job(
-        self,
-        sample: Optional[Sample],
-        run: Run,
-        raised: set[str],
-        files: Sequence[str],
-        include: set[str],
-        env: str,
-        config: str,
-        selected: set[str],
-    ) -> None:
-        if sample is None or len(sample.jobs) >= SAMPLE_JOBS:
-            return
-        sample.jobs.append(
-            {
-                "heuristics": run.scores,
-                "raised": sorted(raised | set(run.raised)),
-                "include": sorted(include),
-                "exclude": sorted(set(files) - include),
-                "times": dict(self.times.entry(env, config)[0]),
-                "build_env": env,
-                "test_config": config,
-                "selected": sorted(selected),
-            }
-        )
 
 
 def evaluate_window(

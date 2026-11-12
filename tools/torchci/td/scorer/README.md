@@ -55,17 +55,21 @@ jobs, but not for nested reusable workflows such as `dynamo-unittest / dynamo-te
   its p is never served, since such a job keeps TD's cut.
 - **Start-up per file** (`start_up.py`): each refit first queries, one day at a time,
   every successful test job (one shard) of a TD workflow on a TD platform in the 7 days
-  before the refit day: y, its `Test` step seconds (`default.workflow_job.steps`); s, the
-  sum of its test-case seconds in `tests.all_test_runs` (what `test-times.json`
-  averages); n, the test files it ran. Shards outside 0 < y <= 4 h, 1 <= n <= 2000,
-  s <= 16 y are dropped. Per build env and test config, y ~ c + a s + b n is fitted by
-  least squares with one pass that drops residuals beyond 5 robust standard deviations,
-  and k = b / a: the cut only depends on k, as the budget is TD's cut costed the same
-  way. A bootstrap over runs (60 resamples) gives k's 90% interval. k is kept when the
-  config has at least 300 shards from 30 runs, a >= 0.1, 1 <= k <= 600, 95% of the
-  bootstrap fits are finite and the interval is at most max(k / 2, 4 s) wide; the refit
-  prints the kept k and the rejected configs. A config whose file count never varies
-  (one file, such as `einops`) has no k. A failed query fails the refit.
+  before the refit day: y, its `Test` step seconds (`default.workflow_job.steps`); s and
+  n, the sum of its test seconds and its test files in `default.test_run_summary`
+  (`file != ''`, the rows `test-times.json` averages; `tests.all_test_runs` doubles the
+  rows of some configs). Shards outside 0 < y <= 4 h, 1 <= n <= 2000, s <= 16 y are
+  dropped, and so are a config's shards above its 99th percentile of n or of s, so a few
+  crafted shards cannot lever the fit. Per build env and test config, y ~ c + a s + b n
+  is fitted by least squares with one pass that drops residuals beyond 5 robust standard
+  deviations, and k = b / a: the cut only depends on k, as the budget is TD's cut costed
+  the same way. A bootstrap over head SHAs (60 resamples) gives k's 90% interval. k is
+  kept when the config has at least 300 shards from 30 runs and 30 heads, a >= 0.1,
+  1 <= k <= 600, 95% of the bootstrap fits are finite, the interval starts at 1 s or
+  more and is at most max(k / 2, 4 s) wide; the refit prints the kept k and the rejected configs. A config
+  with fewer than three distinct file counts (such as `einops`, one file) has no k. The
+  refit fails when a query fails or fewer than 5 configs have k
+  (`MIN_ACCEPTED_CONFIGS`); with `--report-only` it only warns about the latter.
 
 Training weighs each PR's positives at most 20 and its negatives at most 10,000, so a PR
 CI ran many times does not outweigh the rest: one PR run's negatives weigh about 1,500
@@ -137,11 +141,10 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
 
 - **refit**: fits the start-up per file of each test config, builds missing day shards
   (S3 on main, within the backfill budget; a pull request builds three days in memory
-  and writes nothing), fits the scorer and the risk
-  score on the data window, runs the walk-forward and the gate below, and writes the
+  and writes nothing), fits the scorer and the risk score on the data window, runs the walk-forward and the gate below, and writes the
   model. The job fails when the gate fails, when anything in the refit raises, when a
-  gate day could not be built soundly on main, or when ClickHouse credentials are
-  missing on main. A pull request's run trains on two days,
+  gate day could not be built soundly or fewer than 5 test configs got a start-up on
+  main, or when ClickHouse credentials are missing on main. A pull request's run trains on two days,
   too few for a walk-forward month, so its floor is not met; it only prints the report.
 - **check**: validates the model with pytorch main's `scorer_model.py`, compares its p
   and r with the trainer's on a sample (max difference 1e-6), and replays the gate's cut of
