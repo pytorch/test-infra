@@ -24,8 +24,8 @@ jobs:
     # end before them (the backfill budget is store.BACKFILL_SECONDS).
     timeout-minutes: 285
     # TEMPORARY (end-to-end test on #9483): the S3 role trusts this environment, whose
-    # deployment branches are main and refs/pull/9483/merge.
-    environment: trigger-nightly
+    # deployment branches are main and refs/pull/9483/merge; no environment elsewhere.
+    environment: ${{ github.event.pull_request.number == 9483 && 'trigger-nightly' || '' }}
     permissions:
       contents: read
       id-token: write
@@ -318,6 +318,10 @@ jobs:
           REFUSED: ${{ steps.choose.outputs.refused }}
         run: |
           set -euo pipefail
+          if [ "${GITHUB_RUN_ATTEMPT}" != "1" ]; then
+            echo "::error::a re-run never publishes the end-to-end model: start a fresh run"
+            exit 1
+          fi
           if [ -n "${REFUSED}" ]; then
             echo "::error::${REFUSED}"
             exit 1
@@ -388,8 +392,8 @@ jobs:
             done
             if [ "${E2E}" = "true" ]; then
               staged=$(git diff --cached --name-only)
-              if [ -n "${staged}" ] && [ "${staged}" != "stats/td-scorer-budget.json" ]; then
-                echo "::error::the end-to-end test staged ${staged}: not pushing"
+              if [ "${staged}" != "stats/td-scorer-budget.json" ]; then
+                echo "::error::the end-to-end test staged '${staged}', not exactly stats/td-scorer-budget.json: not pushing"
                 exit 1
               fi
             fi
