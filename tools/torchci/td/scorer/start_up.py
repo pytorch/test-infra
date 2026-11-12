@@ -77,10 +77,14 @@ WITH
         WHERE {TD_JOB_SUCCESS} AND length(test_steps) = 1
     ),
     files AS (
-        SELECT job_id, workflow_id, sum(time) AS s, uniqExact(invoking_file) AS n
-        FROM default.test_run_summary
-        WHERE workflow_id IN (SELECT run_id FROM jobs)
-            AND job_id IN (SELECT id FROM jobs) AND file != '' AND {IS_FILE}
+        SELECT job_id, workflow_id, sum(case_s) AS s, uniqExact(invoking_file) AS n
+        FROM (
+            SELECT job_id, workflow_id, invoking_file, any(time) AS case_s
+            FROM default.test_run_summary
+            WHERE workflow_id IN (SELECT run_id FROM jobs)
+                AND job_id IN (SELECT id FROM jobs) AND file != '' AND {IS_FILE}
+            GROUP BY job_id, workflow_id, file, classname, invoking_file
+        )
         GROUP BY job_id, workflow_id
     )
 SELECT j.build_env AS build_env, j.test_config AS test_config, j.run_id AS run_id,

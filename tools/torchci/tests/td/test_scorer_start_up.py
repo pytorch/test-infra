@@ -351,7 +351,9 @@ class TestFetch(TestCase):
             "WHERE workflow_id IN (SELECT run_id FROM jobs)",
             "AND job_id IN (SELECT id FROM jobs)",
             "j.id = f.job_id AND j.run_id = f.workflow_id",
-            "sum(time) AS s, uniqExact(invoking_file) AS n",
+            "sum(case_s) AS s, uniqExact(invoking_file) AS n",
+            "any(time) AS case_s",
+            "GROUP BY job_id, workflow_id, file, classname, invoking_file",
             "ifNotFinite(toFloat64(j.y), -1) AS y",
             "ifNotFinite(toFloat64(f.s), -1) AS s",
         ):

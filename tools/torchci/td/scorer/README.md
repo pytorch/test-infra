@@ -57,8 +57,8 @@ jobs, but not for nested reusable workflows such as `dynamo-unittest / dynamo-te
   every successful test job (one shard) of a TD workflow on a TD platform in the 7 days
   before the refit day: y, its `Test` step seconds (`default.workflow_job.steps`); s and
   n, the sum of its test seconds and its test files in `default.test_run_summary`
-  (`file != ''`, the rows `test-times.json` averages; `tests.all_test_runs` doubles the
-  rows of some configs). Shards outside 0 < y <= 4 h, 1 <= n <= 2000, s <= 16 y are
+  (`file != ''`, the rows `test-times.json` averages), one row per test case: both
+  tables hold some jobs' test reports twice, which would double s. Shards outside 0 < y <= 4 h, 1 <= n <= 2000, s <= 16 y are
   dropped, and so are a config's shards above its 99th percentile of n or of s, so a few
   crafted shards cannot lever the fit. Per build env and test config, y ~ c + a s + b n
   is fitted by least squares with one pass that drops residuals beyond 5 robust standard
