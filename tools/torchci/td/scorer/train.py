@@ -32,12 +32,12 @@ GATE_DAYS = 14
 WINDOW_DAYS = 365
 L2 = 10.0
 # TD logs come from the PR's own code, so a heuristic name in one proves nothing: only
-# TD's own heuristics (pytorch's target_determination HEURISTICS) enter the model.
+# TD's own heuristics (pytorch's target_determination HEURISTICS) enter the model. Those
+# in trial mode there are left out: trial mode promises their scores never reorder tests.
 HEURISTICS = (
     "PreviouslyFailedInPR",
     "EditedByPR",
     "MentionedInPR",
-    "HistoricalClassFailurCorrelation",
     "CorrelatedWithHistoricalFailures",
     "HistorialEditedFiles",
     "Profiling",

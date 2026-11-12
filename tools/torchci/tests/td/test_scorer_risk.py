@@ -52,13 +52,26 @@ class TestFeatures(TestCase):
             {
                 "n_files": 6,
                 "n_test_files": 1,
-                "n_source_files": 1,
+                "n_source_files": 2,
                 "n_areas": 5,
                 "docs_only": 0,
             },
         )
-        self.assertEqual(risk.change_features(["docs/a.py", "x.md"])["docs_only"], 1)
-        self.assertEqual(risk.change_features([])["docs_only"], 1)
+
+    def test_docs_rule(self) -> None:
+        def features(paths: list[str]) -> tuple[int, int, int]:
+            f = risk.change_features(paths)
+            return f["n_files"], f["n_source_files"], f["docs_only"]
+
+        self.assertEqual(features(["CMakeLists.txt"]), (1, 1, 0))
+        self.assertEqual(features([".github/ci_commit_pins/triton.txt"]), (1, 1, 0))
+        self.assertEqual(features(["README.MD"]), (1, 0, 1))
+        self.assertEqual(features(["docs/x.RST", "torch/README.md"]), (2, 0, 1))
+        self.assertEqual(features(["docs/a.py", "x.md"]), (2, 0, 0))
+        self.assertEqual(features([""]), (0, 0, 0))
+        self.assertEqual(features([]), (0, 0, 0))
+        self.assertEqual(features(["", "x.md"]), (1, 0, 1))
+        self.assertEqual(features(["", "torch/a.py"]), (1, 1, 0))
 
     def test_risk_r(self) -> None:
         q = [float(i) for i in range(101)]

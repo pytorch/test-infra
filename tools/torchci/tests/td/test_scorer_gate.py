@@ -414,13 +414,15 @@ START_UP_FIT = start_up.ConfigFit(
 
 class TestCli(TestCase):
     def setUp(self) -> None:
-        for name, value in (("fetch", []), ("fit_all", [START_UP_FIT])):
-            patcher = mock.patch.object(start_up, name, return_value=value)
-            setattr(self, f"start_up_{name}", patcher.start())
-            self.addCleanup(patcher.stop)
-        patcher = mock.patch.object(start_up, "MIN_ACCEPTED_CONFIGS", 1)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        fetch = mock.patch.object(start_up, "fetch", return_value=[])
+        self.start_up_fetch = fetch.start()
+        self.addCleanup(fetch.stop)
+        fit_all = mock.patch.object(start_up, "fit_all", return_value=[START_UP_FIT])
+        self.start_up_fit_all = fit_all.start()
+        self.addCleanup(fit_all.stop)
+        min_accepted = mock.patch.object(start_up, "MIN_ACCEPTED_CONFIGS", 1)
+        min_accepted.start()
+        self.addCleanup(min_accepted.stop)
 
     def build(self, day):
         pos = day.day % 2 == 0
@@ -677,7 +679,16 @@ class TestCli(TestCase):
             self.assertEqual(cli.main(args), cli.SKIPPED)
             write_pytorch(root, "0.0", scorer="True")
             self.assertEqual(cli.main(args), 1)
+            write_pytorch(root, "0.0", scorer="False")
+            no_jobs = Path(d) / "no_jobs.json"
+            no_jobs.write_text(json.dumps({**json.loads(sample_bytes), "jobs": []}))
+            args[args.index(str(sample))] = str(no_jobs)
+            self.assertEqual(cli.main(args), 1)
             write_pytorch(root, "0.0")
+
+    def test_skipped_exit_code(self) -> None:
+        # td-scorer.yml tests the check-pytorch exit code against a literal 3.
+        self.assertEqual(cli.SKIPPED, 3)
 
     def test_refit_marks_no_outcome_days_by_age(self) -> None:
         self.broken, self.gap = set(), set()

@@ -8,6 +8,7 @@ the 101-point quantile table of the training heads' raw risk.
 """
 
 import math
+import os
 from bisect import bisect_right
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping, Optional, Sequence
@@ -21,25 +22,28 @@ from torchci.td.scorer.trunk import counted_pairs, TrunkLanding
 
 
 FEATURES = ("n_files", "n_test_files", "n_source_files", "n_areas", "docs_only")
-DOC_SUFFIXES = (".md", ".rst", ".txt")
+# pytorch's is_docs_only_change rule (target_determination/heuristics/utils.py), which
+# pytorch's scorer_model.py mirrors: the risk features must match on both sides.
+DOC_SUFFIXES = (".md", ".rst")
 NON_SOURCE_DIRS = ("test/", "docs/", "third_party/")
 QUANTILES = 101
 
 
 def is_docs(path: str) -> bool:
-    return path.startswith("docs/") or path.endswith(DOC_SUFFIXES)
+    return os.path.splitext(path)[1].lower() in DOC_SUFFIXES
 
 
 def change_features(paths: Sequence[str]) -> dict[str, int]:
+    """Empty paths (an empty diff's [""]) are dropped first."""
+    paths = [p for p in paths if p]
     return {
         "n_files": len(paths),
         "n_test_files": sum(p.startswith("test/") for p in paths),
         "n_source_files": sum(
-            not p.startswith(NON_SOURCE_DIRS) and not p.endswith(DOC_SUFFIXES)
-            for p in paths
+            not p.startswith(NON_SOURCE_DIRS) and not is_docs(p) for p in paths
         ),
         "n_areas": len({p.split("/", 1)[0] for p in paths}),
-        "docs_only": int(all(is_docs(p) for p in paths)),
+        "docs_only": int(bool(paths) and all(is_docs(p) for p in paths)),
     }
 
 

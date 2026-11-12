@@ -191,9 +191,10 @@ class TestFitScorer(TestCase):
 
     def test_only_td_heuristics(self) -> None:
         rows = make_rows()
-        rows.heuristics = ["Filepath", "Forged"]
-        scorer = train.fit_scorer(rows)
-        self.assertEqual(set(scorer["heuristics"]), {"Filepath"})
+        for other in ("Forged", "HistoricalClassFailurCorrelation"):
+            rows.heuristics = ["Filepath", other]
+            scorer = train.fit_scorer(rows)
+            self.assertEqual(set(scorer["heuristics"]), {"Filepath"})
 
     def test_no_positives(self) -> None:
         rows = make_rows()

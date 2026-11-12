@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import date, timedelta
 from unittest import main, mock, TestCase
 
@@ -7,6 +8,7 @@ from torchci.td.scorer.risk import Head
 
 
 START_UP = {"linux-a": {"default": 24.0}}
+PR7_FILES = ("pr7/only.py", "pr7/also.py")
 TIMES = rows.JobTimes(
     {"linux-a": {"default": {"a": 10.0, "b": 10.0, "c": 10.0}}}, START_UP
 )
@@ -83,13 +85,18 @@ class TestWalkForward(TestCase):
             pair = trunk.TrunkPair(pr, f"{day}-head", "linux-a", "default", "a")
             return trunk.TrunkLanding(f"{day}-landing", day, (pair,))
 
+        # PR 7 also lands before both months; as one of their PRs it must stay out
+        # of their risk fits, which `PR7_FILES` reaching a trunk head would show.
+        pr7_pair = trunk.TrunkPair(7, "pr7-head", "linux-a", "default", "a")
         self.landings = [
             landing("2025-12-20", 100001),
+            trunk.TrunkLanding("2025-12-20-pr7", "2025-12-20", (pr7_pair,)),
             landing("2025-12-21", 11),
             landing("2026-01-10", 100002),
         ]
         log = logs.TDLog({"Filepath": {"a": 1.0}}, ("Filepath",), (), ("t/x.py",), {})
         head_logs = {p.head_sha: log for x in self.landings for p in x.pairs}
+        head_logs["pr7-head"] = dataclasses.replace(log, changed_files=PR7_FILES)
         self.history = walkforward.History(TIMES, exclude_prs={11})
         for d in self.days:
             self.history.add_shard(d, self.shards[d])
@@ -167,6 +174,8 @@ class TestWalkForward(TestCase):
             self.assertFalse(prs & self.month_prs(fold.month))
             self.assertNotIn(11, prs)
             self.assertNotIn(11, {h.pr for h in heads})
+            self.assertNotIn(7, {h.pr for h in heads})
+            self.assertNotIn(list(PR7_FILES), [files for files, _ in trunk_heads])
             new = self.month_prs(fold.month) - self.month_prs(fold.month, before=True)
             self.assertNotIn(7, new)
             self.assertEqual(

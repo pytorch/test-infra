@@ -35,7 +35,8 @@ jobs, but not for nested reusable workflows such as `dynamo-unittest / dynamo-te
   <Heuristic>` followed by `  <TestRun> (<score>)` lines, `Error in <Heuristic>`,
   `Changed files: [...]`, and TD's summed scores after `Aggregated Heuristics`. A
   class-level TestRun counts as its file's maximum. Only TD's own heuristic names enter
-  the model (`HEURISTICS` in `train.py`): the log comes from the PR's code.
+  the model (`HEURISTICS` in `train.py`): the log comes from the PR's code. Heuristics
+  TD runs in trial mode are left out, as trial mode keeps them from reordering tests.
 - **TD-on jobs**: `additional_info/td_exclusions/<run_id>/<attempt>` in the same bucket. A
   (run, build env, test config) is TD-on when TD excluded files there.
 - **Outcomes**: `tests.all_test_runs` (one row per test case), joined to the job on its
