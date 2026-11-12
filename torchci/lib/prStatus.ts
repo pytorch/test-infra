@@ -254,17 +254,19 @@ function getPrStatusStageMessage(state: PrStatusState): string {
           ? "A maintainer requested changes. Please address their feedback " +
             "before the PR returns to maintainer review.\n\n"
           : "") +
-        "To become ready for review, the change must pass automated review " +
-        "and every maintainer comment must be addressed, either with a code " +
-        "change or a reply explaining why no change is needed. Any running " +
-        "CI must finish and every failure must be classified as unrelated " +
-        "to your PR (see status below in this comment).\n\n" +
+        "To become ready for review, please address automated review on " +
+        "your PR either with a code/PR description change. If a review " +
+        "comment is irrelevant, react with 👎 on that specific comment to " +
+        "reject it, and leave a short reply explaining why. The change " +
+        "must pass any running CI and existing failures must be classified " +
+        "as unrelated (see status below in this comment).\n\n" +
+        "Passing automated review does not guarantee that this PR will be " +
+        "merged. It still requires maintainer review and may be closed if " +
+        "its design or direction does not align with the project.\n\n" +
         "To minimize iteration time, feel free to run the pr-review skill " +
-        "from the repo locally. If an automated review comment is " +
-        "irrelevant, react with 👎 on that specific comment to reject it, " +
-        "and leave a short reply explaining why. To trigger a fresh " +
-        "automated review, make a new push or comment `@pytorchbot review`. " +
-        "To bypass automated review, please add the “no automated review” label."
+        "from the repo locally. To trigger a fresh automated review, make " +
+        "a new push or comment @pytorchbot review. To bypass automated " +
+        'review, please add the "no automated review" label.'
       );
     case "missingActionableIssue":
       return (

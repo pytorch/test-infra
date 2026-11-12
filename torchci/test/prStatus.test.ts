@@ -270,17 +270,17 @@ describe("getPrStatusMessage", () => {
     expect(message).not.toMatch(/queued for automated review/i);
   });
 
-  test("in progress explains maintainer feedback and CI readiness criteria", () => {
+  test("in progress explains automated feedback and CI readiness criteria", () => {
     const message = getPrStatusMessage(
       state({ labels: [PR_STATUS_LABEL_IN_PROGRESS] })
     );
-    expect(message).toContain("every maintainer comment must be addressed");
-    expect(message).toContain("a reply explaining why no change is needed");
+    expect(message).toContain("please address automated review on your PR");
+    expect(message).toContain("a code/PR description change");
     expect(message).toContain(
-      "Any running CI must finish and every failure must be classified as unrelated to your PR"
+      "The change must pass any running CI and existing failures must be classified as unrelated"
     );
     expect(message).toContain(
-      "To trigger a fresh automated review, make a new push or comment `@pytorchbot review`."
+      "To trigger a fresh automated review, make a new push or comment @pytorchbot review."
     );
   });
 
@@ -296,17 +296,19 @@ describe("getPrStatusMessage", () => {
             ? "A maintainer requested changes. Please address their feedback " +
               "before the PR returns to maintainer review.\n\n"
             : "") +
-          "To become ready for review, the change must pass automated review " +
-          "and every maintainer comment must be addressed, either with a code " +
-          "change or a reply explaining why no change is needed. Any running " +
-          "CI must finish and every failure must be classified as unrelated " +
-          "to your PR (see status below in this comment).\n\n" +
+          "To become ready for review, please address automated review on " +
+          "your PR either with a code/PR description change. If a review " +
+          "comment is irrelevant, react with 👎 on that specific comment to " +
+          "reject it, and leave a short reply explaining why. The change " +
+          "must pass any running CI and existing failures must be classified " +
+          "as unrelated (see status below in this comment).\n\n" +
+          "Passing automated review does not guarantee that this PR will be " +
+          "merged. It still requires maintainer review and may be closed if " +
+          "its design or direction does not align with the project.\n\n" +
           "To minimize iteration time, feel free to run the pr-review skill " +
-          "from the repo locally. If an automated review comment is " +
-          "irrelevant, react with 👎 on that specific comment to reject it, " +
-          "and leave a short reply explaining why. To trigger a fresh " +
-          "automated review, make a new push or comment `@pytorchbot review`. " +
-          "To bypass automated review, please add the “no automated review” label."
+          "from the repo locally. To trigger a fresh automated review, make " +
+          "a new push or comment @pytorchbot review. To bypass automated " +
+          'review, please add the "no automated review" label.'
       );
       expect(message.indexOf("react with 👎")).toBeLessThan(
         message.indexOf("@pytorchbot review")
@@ -325,9 +327,9 @@ describe("getPrStatusMessage", () => {
       "A maintainer requested changes. Please address their feedback before the PR returns to maintainer review."
     );
     expect(message).toContain(
-      "To trigger a fresh automated review, make a new push or comment `@pytorchbot review`."
+      "To trigger a fresh automated review, make a new push or comment @pytorchbot review."
     );
-    expect(message).toContain("the change must pass automated review");
+    expect(message).toContain("please address automated review on your PR");
     expect(message).not.toContain("The overall direction");
   });
 
