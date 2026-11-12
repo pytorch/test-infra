@@ -1,9 +1,10 @@
 """Who greenlight evaluates, and whose evaluation carries authority.
 
 ``evaluation_cohort`` answers the first: pytorch/pytorch's merge_rules approver set, minus bots and
-greenlight itself. ``assess_rules`` answers the second, for the scan and the verdict alike: one merge
-rule must name the author and cover every file the PR changes. Every other evaluation is shadow:
-recorded as usual, but never approved and never rendered by Dr. CI.
+greenlight itself. ``assess_rules`` answers the second, for the scan and the verdict alike: a valid
+merge rule must name the author, whatever files the PR changes; the callers also require a base
+trymerge accepts (``merge_authz.accepts_base``). Every other evaluation is shadow: recorded as usual,
+but never approved and never rendered by Dr. CI.
 
 ``pr_hash`` is the only greenlight import, and deliberately so -- its ``is_bot`` is the one bot
 predicate the fingerprint already relies on, and a second list here would drift from it.
@@ -16,7 +17,7 @@ from typing import TYPE_CHECKING, NamedTuple, Protocol
 from greenlight.pr_hash import is_bot
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Sequence
+    from collections.abc import Sequence
 
 __all__ = ["GREENLIGHT_APP_SLUG", "Eligibility", "EligibilityRule", "assess_rules", "evaluation_cohort"]
 
@@ -42,8 +43,7 @@ class EligibilityRule(Protocol):
     @property
     def approvers(self) -> frozenset[str]: ...
     @property
-    def covers_all(self) -> bool: ...
-    def covers(self, files: Iterable[str]) -> bool: ...
+    def valid(self) -> bool: ...
 
 
 class Eligibility(NamedTuple):
@@ -51,37 +51,24 @@ class Eligibility(NamedTuple):
     reason: str
 
 
-def assess_rules(
-    login: str | None,
-    rules: Sequence[EligibilityRule],
-    files: Callable[[], Sequence[str] | None],
-) -> Eligibility:
-    """Return the merge rule that gives ``login``'s evaluation authority, or None, with a reason.
+def assess_rules(login: str | None, rules: Sequence[EligibilityRule]) -> Eligibility:
+    """Return a valid merge rule that names ``login``, or None, with a reason.
 
-    Rule membership is exact-case, as trymerge compares approvers. ``files`` is called at most once,
-    and only when some rule names ``login`` but none has ``covers_all``; None from it means the
-    changed files are unknown or too many to check. An unknown author or unchecked files is never
-    eligible: a wrong None only withholds an approval, whereas a wrong rule would let a failed lookup
-    authorize a merge. The reason names no rule and no file, and an eligible one is plain "eligible":
-    the kind of rule that matched could reveal a concealed team membership.
+    Rule membership is exact-case, as trymerge compares approvers. Any valid rule qualifies, whatever
+    its paths: whether the PR's changes need a human is the review's call. A rule whose patterns
+    trymerge rejects matches no file, so it is ignored and qualifies nobody. The reason names no rule,
+    and an eligible one is plain "eligible": the kind of rule that matched could reveal a concealed
+    team membership.
     """
     if not login:
         return Eligibility(None, "no author")
     if not _is_evaluable(login):
         return Eligibility(None, "excluded (bot or greenlight)")
-    naming = [rule for rule in rules if login in rule.approvers]
-    if not naming:
-        return Eligibility(None, _unnamed_reason(login, rules))
-    for rule in naming:
-        if rule.covers_all:
+    valid = [rule for rule in rules if rule.valid]
+    for rule in valid:
+        if login in rule.approvers:
             return Eligibility(rule, "eligible")
-    changed = files()
-    if changed is None:
-        return Eligibility(None, "file listing unavailable")
-    for rule in naming:
-        if rule.covers(changed):
-            return Eligibility(rule, "eligible")
-    return Eligibility(None, f"no single merge rule naming this login covers all changed files ({len(changed)})")
+    return Eligibility(None, _unnamed_reason(login, valid))
 
 
 def _unnamed_reason(login: str, rules: Sequence[EligibilityRule]) -> str:
