@@ -353,8 +353,22 @@ jobs:
           enabled() {
             python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1])).get("enabled") is True)' "$1"
           }
-          version() {
-            python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1])).get("version", ""))' "$1"
+          # Whether the live model $1 is from a later refit than this run's $2: both versions
+          # are ISO dates and the live one is no later than today (UTC), so a hand-edited
+          # or malformed version never freezes a file.
+          newer_live() {
+            python3 -I - "$1" "$2" <<'PY'
+          import datetime, json, sys
+          def day(path):
+              v = json.load(open(path)).get("version")
+              try:
+                  return datetime.date.fromisoformat(v) if isinstance(v, str) else None
+              except ValueError:
+                  return None
+          live, ours = day(sys.argv[1]), day(sys.argv[2])
+          today = datetime.datetime.now(datetime.timezone.utc).date()
+          print(live is not None and ours is not None and ours < live <= today)
+          PY
           }
           # Other workflows push to generated-stats too: rebuild the commit on the latest tip
           # and retry when a push fails, e.g. because one of them pushed first.
@@ -369,7 +383,8 @@ jobs:
             # enabled: false is an off switch; only a file that is absent or enabled is
             # replaced. td-scorer.json's flag turns the scorer off for every checkout, so
             # while it is off td-scorer-budget.json is not written either. A live file
-            # with a later version (a re-run of an older run) is left in place too.
+            # from a later refit (a re-run of an older run) is left in place too, and a
+            # later td-scorer.json keeps td-scorer-budget.json as it is.
             for name in td-scorer.json td-scorer-budget.json; do
               if [ -f "stats/${name}" ] && [ "$(enabled "stats/${name}")" != "True" ]; then
                 echo "stats/${name} is not enabled: leaving it in place"
@@ -380,8 +395,12 @@ jobs:
                 continue
               fi
               if [ -f "stats/${name}" ] \
-                && [[ "$(version "stats/${name}")" > "$(version "../td-scorer/${name}")" ]]; then
-                echo "stats/${name} is newer than this run's model: leaving it in place"
+                && [ "$(newer_live "stats/${name}" "../td-scorer/${name}")" = "True" ]; then
+                echo "::warning::stats/${name} is newer than this run's model: leaving it in place"
+                if [ "${name}" = "td-scorer.json" ]; then
+                  echo "Not writing stats/td-scorer-budget.json either"
+                  break
+                fi
                 continue
               fi
               if [ "${E2E}" = "true" ] && [ "${name}" = "td-scorer.json" ]; then

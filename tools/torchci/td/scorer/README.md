@@ -198,8 +198,8 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
   shell, is `on`; otherwise it gets `td-scorer.json`'s model. Both files go to
   generated-stats in one commit, each left in place while its live copy's `enabled` is
   not true, and `td-scorer-budget.json` also while the live `td-scorer.json` is not
-  enabled. A live file with a later version than the run's (a re-run of an older run) is
-  left in place too. When the budget model was refused, a last step fails the job after
+  enabled. A live file from a later refit (its version an ISO date after the run's and
+  no later than today) is left in place too, both files when it is `td-scorer.json`. When the budget model was refused, a last step fails the job after
   the push.
 
 ## The gate
@@ -334,8 +334,8 @@ it; `td-scorer.json` has no block, so for it check-pytorch only warns.
 - Re-running the publish job of an old workflow run publishes none of its models over
   live ones of a later version.
 
-Rollback order: the variable off, cancel in-flight runs, delete `td-scorer-budget.json`
-from generated-stats, revert test-infra, then revert pytorch (checkouts with the budget
+Rollback order: the variable off, cancel in-flight runs (and re-run none of that day's),
+delete `td-scorer-budget.json` from generated-stats, revert test-infra, then revert pytorch (checkouts with the budget
 rule fall back to `td-scorer.json` when the budget file is missing, and older ones never
 read it).
 

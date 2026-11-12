@@ -1417,15 +1417,25 @@ class TestWorkflowPublish(TestCase):
         self.assertEqual(
             files, {"td-scorer.json": self.plain, "td-scorer-budget.json": off}
         )
-        # A live file of a later version (a re-run of an older run) stays.
-        newer = {**old, "version": "2099-01-01"}
+        # A live td-scorer.json from a later refit (a re-run of an older run) stays,
+        # and so does td-scorer-budget.json.
+        newer = {**old, "version": "2026-11-11"}
         live = {"td-scorer.json": newer, "td-scorer-budget.json": old}
         out, commits, files = self.push(live, self.plain, self.budgeted)
-        self.assertEqual(commits, [["stats/td-scorer-budget.json"]])
-        self.assertEqual(
-            files, {"td-scorer.json": newer, "td-scorer-budget.json": self.budgeted}
-        )
+        self.assertEqual((commits, files), ([], live))
         self.assertIn("stats/td-scorer.json is newer", out)
+        # ... a later td-scorer-budget.json alone stays while td-scorer.json updates.
+        live = {"td-scorer.json": old, "td-scorer-budget.json": newer}
+        out, commits, files = self.push(live, self.plain, self.budgeted)
+        self.assertEqual(commits, [["stats/td-scorer.json"]])
+        self.assertEqual(files["td-scorer-budget.json"], newer)
+        # A version in the future or that is no date never freezes a file.
+        for version in ("2062-11-12", "latest", None, 20261111):
+            with self.subTest(version=version):
+                odd = {**old, "version": version}
+                live = {"td-scorer.json": odd, "td-scorer-budget.json": odd}
+                out, commits, files = self.push(live, self.plain, self.budgeted)
+                self.assertEqual(commits, [both])
         # A refused budget model: td-scorer.json's model lands under both names.
         out, commits, files = self.push({}, self.plain, self.budgeted, choose="false")
         self.assertEqual(commits, [both])
