@@ -2,12 +2,12 @@
 // CI-driven sweep. Only that section changes, preserving existing CI results.
 
 import { upsertPrStatusSection } from "lib/drciUtils";
-import { getPreReviewOctokit } from "lib/github";
 import { requestOutstandingChangesReviewers } from "lib/prReview/reReviewRequests";
 import {
   fetchLiveLabels,
-  hasPreReviewLabels,
   hasPrStatusLabel,
+  isAwaitingInProgress,
+  isPrStatusEligible,
   PR_STATUS_LABEL_IN_PROGRESS,
   PR_STATUS_LABEL_READY_FOR_REVIEW,
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
@@ -16,8 +16,7 @@ import {
 } from "lib/prStatus";
 import { PR_CHANGES_REQUESTED } from "lib/reviewApproval";
 import { Context, Probot } from "probot";
-import { markInProgressIfAccepted } from "./preReviewSweep";
-import { isInPreReview } from "./preReviewUtils";
+import { markTriagedInProgress } from "./triagedPromotion";
 import { hasVerifiedHumanWritePermissions, isPyTorchPyTorch } from "./utils";
 
 async function removeLabelIfPresent(
@@ -187,21 +186,13 @@ async function handle(
     );
   }
 
-  // Share the policy read with the live comment and handle changes to reviewer
-  // requests, objections, or the deadline without waiting for CI activity.
-  if (
-    hasPreReviewLabels(labels) &&
-    pullRequest.user?.login &&
-    isInPreReview(pullRequest)
-  ) {
-    await markInProgressIfAccepted(
-      (await getPreReviewOctokit(owner, repo)) ?? (context.octokit as any),
+  if (isAwaitingInProgress(labels) && isPrStatusEligible(pullRequest)) {
+    await markTriagedInProgress(
+      context.octokit as any,
       context.octokit as any,
       owner,
       repo,
-      pullRequest.number,
-      labels,
-      pullRequest.user.login
+      pullRequest.number
     );
     return;
   }
@@ -221,7 +212,7 @@ export default function prStatusBot(app: Probot): void {
     [
       "pull_request.labeled",
       "pull_request.unlabeled",
-      // Reviewer requests affect pre-review and re-review status.
+      // Reviewer requests affect re-review status.
       "pull_request.review_requested",
       // Retargeting changes the files an approval must cover.
       "pull_request.edited",

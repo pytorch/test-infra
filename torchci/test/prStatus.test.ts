@@ -1,6 +1,4 @@
-import { PreReviewStatus } from "lib/bot/preReviewUtils";
 import {
-  buildAssignedReviewers,
   extractPrStatusSection,
   fetchLiveLabels,
   fetchPrStatusState,
@@ -14,7 +12,7 @@ import {
   PR_STATUS_LABEL_REVIEW_OPT_OUT,
   PR_STATUS_LABEL_TRIAGED,
   PR_STATUS_START,
-  PRE_REVIEW_START_DATE,
+  PR_STATUS_START_DATE,
   PrStatusState,
   renderPrStatusSection,
   splicePrStatusSection,
@@ -29,24 +27,6 @@ function state(overrides: Partial<PrStatusState> = {}): PrStatusState {
   return {
     labels: [],
     isApproved: false,
-    assignedReviewers: [],
-    ...overrides,
-  };
-}
-
-function preReview(overrides: Partial<PreReviewStatus> = {}): PreReviewStatus {
-  return {
-    assigned: ["alice", "bob", "pytorch/core"],
-    agreed: ["alice"],
-    pending: ["bob", "pytorch/core"],
-    rejected: [],
-    timedOut: [],
-    countedFrom: ["alice"],
-    expiresAt: "2026-11-05T16:30:00.000Z",
-    deadlinePassed: false,
-    isMergeApproved: false,
-    lookupFailed: false,
-    accepted: false,
     ...overrides,
   };
 }
@@ -56,37 +36,37 @@ describe("getPrStatusStage", () => {
     expect(getPrStatusStage(state({ labels: ["module: cuda"] }))).toBe("none");
   });
 
-  test("triaged with pending reviewers is pre-review", () => {
+  test("triaged with assigned reviewers is queued", () => {
     expect(
       getPrStatusStage(
         state({
           labels: [PR_STATUS_LABEL_TRIAGED],
-          assignedReviewers: ["alice"],
+          requestedReviewers: ["alice"],
         })
       )
-    ).toBe("preReview");
+    ).toBe("triaged");
   });
 
-  test("triaged with no reviewer assigned is still pre-review", () => {
+  test("triaged with no reviewer assigned is still queued", () => {
     expect(
       getPrStatusStage(
-        state({ labels: [PR_STATUS_LABEL_TRIAGED], assignedReviewers: [] })
+        state({ labels: [PR_STATUS_LABEL_TRIAGED], requestedReviewers: [] })
       )
-    ).toBe("preReview");
+    ).toBe("triaged");
   });
 
-  test.each([false, undefined])(
-    "an approval with merge rights %s cannot hide pre-review",
+  test.each([true, false, undefined])(
+    "an approval with merge rights %s cannot hide the automated review queue",
     (isMergeApproved) => {
       expect(
         getPrStatusStage(
           state({ labels: ["triaged"], isApproved: true, isMergeApproved })
         )
-      ).toBe("preReview");
+      ).toBe("triaged");
     }
   );
 
-  test("drafts pause pre-review", () => {
+  test("drafts pause promotion", () => {
     expect(
       getPrStatusStage(
         state({ labels: ["triaged"], pullRequest: { draft: true } })
@@ -95,14 +75,14 @@ describe("getPrStatusStage", () => {
   });
 
   test.each<[string, Partial<PrStatusState>]>([
-    ["preReview", { labels: ["triaged"] }],
+    ["triaged", { labels: ["triaged"] }],
     ["draft", { labels: ["triaged"], pullRequest: { draft: true } }],
     ["inProgress", { labels: ["in progress"] }],
     ["readyForReview", { labels: ["ready for review"] }],
     ["missingActionableIssue", { labels: ["missing actionable issue"] }],
     [
       "approved",
-      { labels: ["triaged"], isApproved: true, isMergeApproved: true },
+      { labels: ["ready for review"], isApproved: true, isMergeApproved: true },
     ],
     [
       "needsAdditionalApproval",
@@ -117,7 +97,7 @@ describe("getPrStatusStage", () => {
       ...overrides,
       pullRequest: {
         ...overrides.pullRequest,
-        created_at: PRE_REVIEW_START_DATE!,
+        created_at: PR_STATUS_START_DATE!,
       },
     });
     expect(getPrStatusStage(atRollout)).toBe(stage);
@@ -126,7 +106,7 @@ describe("getPrStatusStage", () => {
       pullRequest: {
         ...atRollout.pullRequest,
         created_at: new Date(
-          Date.parse(PRE_REVIEW_START_DATE!) - 1
+          Date.parse(PR_STATUS_START_DATE!) - 1
         ).toISOString(),
       },
     };
@@ -140,7 +120,7 @@ describe("getPrStatusStage", () => {
         state({
           labels: [PR_STATUS_LABEL_TRIAGED, PR_STATUS_LABEL_IN_PROGRESS],
           isApproved: true,
-          assignedReviewers: ["alice"],
+          requestedReviewers: ["alice"],
         })
       )
     ).toBe("approved");
@@ -173,7 +153,7 @@ describe("getPrStatusStage", () => {
             PR_STATUS_LABEL_TRIAGED,
             PR_STATUS_LABEL_MISSING_ACTIONABLE_ISSUE,
           ],
-          assignedReviewers: ["alice"],
+          requestedReviewers: ["alice"],
         })
       )
     ).toBe("missingActionableIssue");
@@ -234,7 +214,7 @@ describe("getPrStatusStage", () => {
       labels: ["triaged", "missing actionable issue"],
       stage: "missingActionableIssue",
     },
-    { labels: ["triaged"], stage: "preReview" },
+    { labels: ["triaged"], stage: "triaged" },
   ])(
     "failed merge verification preserves the workflow phase: %j",
     ({ labels, stage }) => {
@@ -253,75 +233,47 @@ describe("getPrStatusStage", () => {
 });
 
 describe("getPrStatusMessage", () => {
-  test("pre-review names only outstanding reviewers without mentions and shows the shared deadline", () => {
-    const message = getPrStatusMessage(
-      state({ labels: ["triaged"], preReview: preReview() })
-    );
-    expect(message).toContain(
-      "**Waiting for pre-review:** `bob`, `pytorch/core`."
-    );
-    expect(message).toContain("**Pre-review accepted:** `alice`.");
-    expect(message).toContain(
-      "**Pre-review deadline:** 2026-11-05 16:30:00 UTC."
-    );
-    expect(message).toContain("Adding reviewers does not extend this deadline");
-    expect(message).not.toMatch(/@(alice|bob|pytorch\/core)/);
-    expect(message).toContain(
-      "Pre-review is a quick check of the PR's overall direction"
-    );
-    expect(message).toContain("it does not grant merge approval");
-    expect(message).toContain("👍 on the PR description");
-    expect(message).toContain("`@pytorchbot pre-review accept` comment");
-    expect(message).toContain(
-      "request changes with a 👎 on the PR description"
-    );
-    expect(message).toContain(
-      "If you move the PR to draft to request changes, also leave a 👎 so your objection still blocks after it is marked ready."
-    );
-  });
+  test.each([true, false])(
+    "triaged PRs (approved=%s) are queued without waiting for acceptance",
+    (isApproved) => {
+      const message = getPrStatusMessage(
+        state({
+          labels: ["triaged"],
+          isApproved,
+          isMergeApproved: isApproved,
+          requestedReviewers: ["alice", "bob"],
+        })
+      );
+      expect(message).toContain("## PR Status: triaged");
+      expect(message).toContain("queued for automated review");
+      expect(message).toContain('should add "in progress" shortly');
+      expect(message).toContain(
+        'a maintainer can remove and re-add "triaged" to retry'
+      );
+      expect(message).not.toMatch(/deadline|👍|👎|@alice|@bob/i);
+    }
+  );
 
-  test("silent reviewers disappear after expiry without being credited as accepting", () => {
+  test("triaged automated-review opt-outs queue maintainer review", () => {
     const message = getPrStatusMessage(
       state({
-        labels: ["triaged"],
-        preReview: preReview({
-          pending: ["bob"],
-          rejected: ["bob"],
-          timedOut: ["pytorch/core"],
-          deadlinePassed: true,
-        }),
+        labels: ["triaged", "no automated review"],
+        isApproved: true,
+        isMergeApproved: true,
       })
     );
-    expect(message).toContain("**Pre-review request changes:** `bob`.");
-    expect(message).toContain("These block pre-review and do not expire");
-    expect(message).not.toContain("`pytorch/core`");
-    expect(message).not.toContain("accepted after timeout");
-    expect(message).toContain("**Pre-review accepted:** `alice`.");
-    expect(message).toContain("This deadline has passed");
-    expect(message).not.toContain("Waiting for pre-review:");
-  });
-
-  test("missing history and failed lookups never display successful acceptance", () => {
-    const unknown = getPrStatusMessage(
-      state({ labels: ["triaged"], preReview: preReview({ expiresAt: null }) })
+    expect(message).toContain("## PR Status: triaged");
+    expect(message).toContain(
+      "queued for maintainer review without automated review"
     );
-    expect(unknown).toContain("deadline:** unavailable");
-    expect(unknown).not.toContain("Invalid Date");
-    const failed = getPrStatusMessage(
-      state({
-        labels: ["triaged"],
-        preReview: preReview({ lookupFailed: true }),
-      })
-    );
-    expect(failed).toContain("could not be checked yet");
-    expect(failed).not.toContain("**Pre-review accepted:");
+    expect(message).toContain('automatically advance it to "ready for review"');
+    expect(message).not.toMatch(/queued for automated review/i);
   });
 
   test("in progress explains maintainer feedback and CI readiness criteria", () => {
     const message = getPrStatusMessage(
       state({ labels: [PR_STATUS_LABEL_IN_PROGRESS] })
     );
-    expect(message).toContain("The overall direction of the change is good.");
     expect(message).toContain("every maintainer comment must be addressed");
     expect(message).toContain("a reply explaining why no change is needed");
     expect(message).toContain(
@@ -343,7 +295,7 @@ describe("getPrStatusMessage", () => {
           (hasChangesRequested
             ? "A maintainer requested changes. Please address their feedback " +
               "before the PR returns to maintainer review.\n\n"
-            : "The overall direction of the change is good.\n\n") +
+            : "") +
           "To become ready for review, the change must pass automated review " +
           "and every maintainer comment must be addressed, either with a code " +
           "change or a reply explaining why no change is needed. Any running " +
@@ -470,38 +422,6 @@ describe("getPrStatusMessage", () => {
         "Please fix all CI failures and trigger " +
         'merge by commenting "@pytorchbot merge".'
     );
-  });
-
-  test("no assigned reviewers still has a deadline", () => {
-    const message = getPrStatusMessage(
-      state({
-        labels: ["triaged"],
-        preReview: preReview({
-          assigned: [],
-          agreed: [],
-          pending: [],
-          countedFrom: [],
-        }),
-      })
-    );
-    expect(message).toContain(
-      "No reviewers are assigned; the shared deadline still applies."
-    );
-    expect(message).toContain("2026-11-05 16:30:00 UTC");
-    expect(message).not.toContain("()");
-  });
-
-  test("reviewer names that did not come from GitHub are dropped", () => {
-    const message = getPrStatusMessage(
-      state({
-        labels: ["triaged"],
-        preReview: preReview({
-          pending: ["alice", "](https://evil.example) [x", "bob"],
-        }),
-      })
-    );
-    expect(message).toContain("**Waiting for pre-review:** `alice`, `bob`.");
-    expect(message).not.toContain("evil.example");
   });
 });
 
@@ -642,90 +562,6 @@ describe("extractPrStatusSection", () => {
     expect(
       extractPrStatusSection(`${DRCI_START}${PR_STATUS_START}\n## PR`)
     ).toBe("");
-  });
-});
-
-describe("buildAssignedReviewers", () => {
-  test("unions requested reviewers with people who already reviewed", () => {
-    expect(
-      buildAssignedReviewers(
-        "pytorch",
-        [{ login: "alice" }],
-        [],
-        [approvingReview("bob")],
-        "author"
-      )
-    ).toEqual(["alice", "bob"]);
-  });
-
-  test("dedupes someone who is both requested and has reviewed", () => {
-    expect(
-      buildAssignedReviewers(
-        "pytorch",
-        [{ login: "alice" }],
-        [],
-        [approvingReview("alice")],
-        "author"
-      )
-    ).toEqual(["alice"]);
-  });
-
-  test("teams are rendered as org/team and listed after users", () => {
-    expect(
-      buildAssignedReviewers(
-        "pytorch",
-        [{ login: "alice" }],
-        [{ slug: "core" }],
-        [],
-        "author"
-      )
-    ).toEqual(["alice", "pytorch/core"]);
-  });
-
-  test("entries with no login or slug are dropped, not rendered as undefined", () => {
-    expect(
-      buildAssignedReviewers(
-        "pytorch",
-        [{}, { login: "alice" }],
-        [{}],
-        [],
-        "author"
-      )
-    ).toEqual(["alice"]);
-  });
-
-  test("recovers only review authors with repository access", () => {
-    expect(
-      buildAssignedReviewers(
-        "pytorch",
-        [],
-        [],
-        [
-          {
-            user: { login: "alice" },
-            author_association: "MEMBER",
-          },
-          {
-            user: { login: "alice" },
-            author_association: "MEMBER",
-          },
-          {
-            user: { login: "past-contributor" },
-            author_association: "CONTRIBUTOR",
-          },
-          {
-            user: { login: "drive-by" },
-            author_association: "NONE",
-          },
-          { user: null, author_association: "MEMBER" },
-          {
-            user: { login: "author" },
-            author_association: "OWNER",
-          },
-        ] as any,
-        "author"
-      )
-    ).toEqual(["alice"]);
   });
 });
 
@@ -955,101 +791,6 @@ describe("fetchPrStatusState", () => {
     expect(octokit._getContent).not.toHaveBeenCalled();
   });
 
-  test("reads metadata for non-triaged PRs without building the assigned reviewer list", async () => {
-    const octokit = octokitStub({ reviews: [approvingReview("alice")] });
-    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
-      "in progress",
-    ]);
-
-    expect(state!.isApproved).toBe(true);
-    expect(state!.hasChangesRequested).toBe(false);
-    expect(state!.assignedReviewers).toEqual([]);
-    expect(octokit._get).toHaveBeenCalled();
-  });
-
-  test("fetches reviewers for a triaged PR", async () => {
-    const octokit = octokitStub({
-      reviews: [],
-      pull: {
-        user: { login: "author" },
-        requested_reviewers: [{ login: "alice" }],
-        requested_teams: [{ slug: "core" }],
-      },
-    });
-    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
-      "triaged",
-    ]);
-
-    expect(state!.assignedReviewers).toEqual(["alice", "pytorch/core"]);
-    expect(octokit._get).toHaveBeenCalled();
-  });
-
-  test("a reviewer GitHub dropped from requested_reviewers is recovered", async () => {
-    const octokit = octokitStub({
-      reviews: [
-        {
-          user: { login: "bob" },
-          state: "COMMENTED",
-          author_association: "MEMBER",
-          submitted_at: "2026-01-01T00:00:00Z",
-        },
-      ],
-      pull: {
-        user: { login: "author" },
-        requested_reviewers: [{ login: "alice" }],
-        requested_teams: [],
-      },
-    });
-    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
-      "triaged",
-    ]);
-    expect(state!.assignedReviewers).toEqual(["alice", "bob"]);
-  });
-
-  test("the PR author is not listed as a reviewer of their own PR", async () => {
-    const octokit = octokitStub({
-      reviews: [
-        {
-          user: { login: "author" },
-          state: "COMMENTED",
-          author_association: "OWNER",
-          submitted_at: "2026-01-01T00:00:00Z",
-        },
-      ],
-      pull: {
-        user: { login: "author" },
-        requested_reviewers: [{ login: "alice" }],
-        requested_teams: [],
-      },
-    });
-    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
-      "triaged",
-    ]);
-    expect(state!.assignedReviewers).toEqual(["alice"]);
-  });
-
-  test("a drive-by commenter cannot insert themselves into the reviewer list", async () => {
-    const octokit = octokitStub({
-      reviews: [
-        {
-          user: { login: "drive-by" },
-          state: "COMMENTED",
-          author_association: "NONE",
-          submitted_at: "2026-01-01T00:00:00Z",
-        },
-      ],
-      pull: {
-        user: { login: "author" },
-        requested_reviewers: [{ login: "alice" }],
-        requested_teams: [],
-      },
-    });
-    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
-      "triaged",
-    ]);
-    expect(state!.assignedReviewers).toEqual(["alice"]);
-  });
-
   test("an unauthorized approval does not mark the PR approved", async () => {
     const octokit = octokitStub({
       reviews: [
@@ -1154,62 +895,6 @@ describe("fetchPrStatusState", () => {
         "in progress",
       ])
     ).toBeNull();
-  });
-
-  test("a failed reviewer lookup degrades to reviewers seen in reviews when the author is known", async () => {
-    const octokit = octokitStub({
-      reviews: [approvingReview("alice")],
-      pullError: new Error("boom"),
-    });
-    const state = await fetchPrStatusState(
-      octokit,
-      "pytorch",
-      "pytorch",
-      1,
-      ["triaged"],
-      "author"
-    );
-    expect(state!.isApproved).toBe(true);
-    expect(state!.assignedReviewers).toEqual(["alice"]);
-  });
-
-  test("a failed reviewer lookup with no known author drops the list rather than risking the author", async () => {
-    const octokit = octokitStub({
-      reviews: [approvingReview("author")],
-      pullError: new Error("boom"),
-    });
-    const state = await fetchPrStatusState(octokit, "pytorch", "pytorch", 1, [
-      "triaged",
-    ]);
-    expect(state!.isApproved).toBe(true);
-    expect(state!.assignedReviewers).toEqual([]);
-  });
-
-  test("an explicit author wins over the one in the fetched PR", async () => {
-    const octokit = octokitStub({
-      reviews: [
-        {
-          user: { login: "real-author" },
-          state: "COMMENTED",
-          author_association: "MEMBER",
-          submitted_at: "2026-01-01T00:00:00Z",
-        },
-      ],
-      pull: {
-        user: { login: "stale" },
-        requested_reviewers: [{ login: "alice" }],
-        requested_teams: [],
-      },
-    });
-    const state = await fetchPrStatusState(
-      octokit,
-      "pytorch",
-      "pytorch",
-      1,
-      ["triaged"],
-      "real-author"
-    );
-    expect(state!.assignedReviewers).toEqual(["alice"]);
   });
 
   test("both reads failing returns unknown, not a false status", async () => {

@@ -10,8 +10,6 @@
 //
 // Rendering stays pure and testable; GitHub reads are isolated for fetching.
 
-import { PullRequestReview } from "@octokit/webhooks-types";
-import type { PreReviewStatus } from "lib/bot/preReviewUtils";
 import { getFilesChangedByPr, isPyTorchPyTorch } from "lib/bot/utils";
 import {
   fetchMergeRules,
@@ -55,7 +53,22 @@ export const PR_STATUS_LABELS = [
 ];
 
 // Set to the rollout date
-export const PRE_REVIEW_START_DATE: string | null = "2026-09-01";
+export const PR_STATUS_START_DATE: string | null = "2026-09-01";
+
+/** Open, non-draft PRs created on or after the workflow rollout. */
+export function isPrStatusEligible(pr: {
+  state?: string;
+  draft?: boolean;
+  created_at?: string;
+}): boolean {
+  return (
+    PR_STATUS_START_DATE !== null &&
+    pr.state === "open" &&
+    !pr.draft &&
+    pr.created_at !== undefined &&
+    Date.parse(pr.created_at) >= Date.parse(PR_STATUS_START_DATE)
+  );
+}
 
 // Delimiters around the rendered section. The full-sweep render in drci.ts
 // rebuilds the whole comment and does not need them, but the label-event path
@@ -79,7 +92,7 @@ export type PrStatusStage =
   | "readyForReview"
   | "inProgress"
   | "missingActionableIssue"
-  | "preReview"
+  | "triaged"
   | "none";
 
 export interface PrStatusState {
@@ -94,7 +107,6 @@ export interface PrStatusState {
   requestedReviewers?: string[];
   // Outstanding changes reviewers who have actually been asked to review again.
   reReviewers?: string[];
-  preReview?: PreReviewStatus;
   // The PR's current labels, as fetched for the Dr.CI comment.
   labels: string[];
   // Whether the PR currently carries a live approving review.
@@ -106,21 +118,12 @@ export interface PrStatusState {
   mergeApprovalLookupFailed?: boolean;
   // Whether an authorized reviewer has an outstanding request for changes.
   hasChangesRequested?: boolean;
-  // The reviewers assigned to the PR, without the leading "@". Teams are
-  // "org/team". Only read in the preReview stage, where it may legitimately be
-  // empty -- a triaged PR with no reviewer assigned yet renders the message
-  // explicitly rather than hiding the stage the PR is actually in.
-  // The preReview snapshot divides these into accepted, silent and objecting
-  // reviewers. Its periodic refresh also catches reactions without webhooks.
-  assignedReviewers: string[];
-  // True when the PR lookup failed, so assignedReviewers only has people who
-  // already reviewed.
+  // True when current PR metadata and requested reviewers could not be read.
   reviewerLookupFailed?: boolean;
 }
 
-// A verified merge approval outranks the workflow labels, which can lag a
-// review by a sweep. Other approvals cannot hide pre-review or a missing
-// actionable issue. Drafts take precedence over review status. Labels are checked
+// A verified merge approval outranks later workflow labels, but a triaged PR
+// still waits for automated review. Drafts take precedence. Labels are checked
 // most-advanced first so a PR that briefly carries two of them (a bot
 // mid-transition) reports the later stage.
 // During a move back to in progress, this temporarily reports ready for review
@@ -129,10 +132,10 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   // PRs predating the workflow are excluded from every phase, including drafts
   // and approvals whose labels would otherwise imply a stage.
   if (
-    PRE_REVIEW_START_DATE === null ||
+    PR_STATUS_START_DATE === null ||
     (state.pullRequest?.created_at !== undefined &&
       Date.parse(state.pullRequest.created_at) <
-        Date.parse(PRE_REVIEW_START_DATE))
+        Date.parse(PR_STATUS_START_DATE))
   ) {
     return "none";
   }
@@ -140,14 +143,10 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   if (state.pullRequest?.draft) {
     return "draft";
   }
-  // An approval outside the merge rules does not end pre-review, and must not
-  // hide its remaining reviewers or deadline. Unknown merge rights do not
-  // constitute the verified approval that lets the pre-review sweep skip a PR.
-  if (
-    hasPreReviewLabels(state.labels) &&
-    !(state.isApproved && state.isMergeApproved === true)
-  ) {
-    return "preReview";
+  // A triaged PR still needs automated review, even with merge approval. The
+  // The triaged webhook adds in progress without waiting for maintainer input.
+  if (isAwaitingInProgress(state.labels)) {
+    return "triaged";
   }
   if (
     state.isApproved &&
@@ -176,7 +175,7 @@ export function getPrStatusStage(state: PrStatusState): PrStatusStage {
   return "none";
 }
 
-export function hasPreReviewLabels(labels: string[]): boolean {
+export function isAwaitingInProgress(labels: string[]): boolean {
   return (
     labels.includes(PR_STATUS_LABEL_TRIAGED) &&
     !labels.includes(PR_STATUS_LABEL_IN_PROGRESS) &&
@@ -192,82 +191,14 @@ export function hasPrStatusLabel(labels: string[]): boolean {
   return PR_STATUS_LABELS.some((label) => labels.includes(label));
 }
 
-function formatReviewers(assignedReviewers: string[]): string {
-  return assignedReviewers
+function formatReviewers(reviewers: string[]): string {
+  return reviewers
     .filter((reviewer) => SAFE_REVIEWER_RE.test(reviewer))
     .map((reviewer) => `\`${reviewer}\``)
     .join(", ");
 }
 
-function getPreReviewMessage(status?: PreReviewStatus): string {
-  const heading =
-    "## PR Status: in pre-review\n\n" +
-    "Pre-review is a quick check of the PR's overall direction before " +
-    "automated and detailed maintainer review; it does not grant merge approval. " +
-    "Assigned reviewers can pre-accept with a 👍 on the PR description or a " +
-    "`@pytorchbot pre-review accept` comment, or request changes with a 👎 " +
-    "on the PR description. If you move the PR to draft to request changes, " +
-    "also leave a 👎 so your objection still blocks after it is marked ready.\n\n";
-  if (!status || status.lookupFailed) {
-    return (
-      heading +
-      "Pre-review responses or the reviewer list could not be checked yet. " +
-      "The bot will retry; this does not count as acceptance."
-    );
-  }
-  const lines: string[] = [];
-  const silent = status.pending.filter(
-    (reviewer) => !status.rejected.includes(reviewer)
-  );
-  if (silent.length) {
-    lines.push(`**Waiting for pre-review:** ${formatReviewers(silent)}.`);
-  }
-  if (status.agreed.length) {
-    lines.push(`**Pre-review accepted:** ${formatReviewers(status.agreed)}.`);
-  }
-  if (status.rejected.length) {
-    lines.push(
-      `**Pre-review request changes:** ${formatReviewers(status.rejected)}. ` +
-        "These block pre-review and do not expire. Address the feedback; " +
-        "the reviewer must remove their thumbs-down, or the change request " +
-        "must be approved or dismissed."
-    );
-  }
-  if (!status.assigned.length) {
-    lines.push("No reviewers are assigned; the shared deadline still applies.");
-  }
-  if (status.expiresAt) {
-    const timestamp = status.expiresAt
-      .replace("T", " ")
-      .replace(/\.\d{3}Z$/, " UTC");
-    lines.push(
-      `**Pre-review deadline:** ${timestamp}. ` +
-        (status.deadlinePassed
-          ? "This deadline has passed; reviewers who did not respond no longer block pre-review."
-          : "Reviewers who have not responded by then no longer block pre-review. " +
-            "Adding reviewers does not extend this deadline.")
-    );
-  } else {
-    lines.push(
-      "**Pre-review deadline:** unavailable because the entry time could not " +
-        "be determined. The bot will retry; unanswered requests still block " +
-        "until the deadline is known."
-    );
-  }
-  if (status.accepted) {
-    lines.push(
-      'Pre-review is complete; the bot will mark this PR "in progress".'
-    );
-  }
-  lines.push(
-    "Progress refreshes on bot checks, including the scheduled check every " +
-      "15 minutes. Unchanged PRs with objections are rechecked every six hours."
-  );
-  return heading + lines.join("\n\n");
-}
-
-// Contributor-facing explanations of the workflow. The pre-review details use
-// the same snapshot as the advancement policy, including team responses.
+// Contributor-facing explanations of the workflow.
 export function getPrStatusMessage(state: PrStatusState): string {
   const message = getPrStatusStageMessage(state);
   if (
@@ -290,8 +221,7 @@ function getPrStatusStageMessage(state: PrStatusState): string {
     case "draft":
       return (
         "## PR Status: draft\n\n" +
-        "This PR is waiting for its author to mark it ready for review. " +
-        "Pre-review does not advance while the PR is a draft."
+        "This PR is waiting for its author to mark it ready for review."
       );
     case "approved":
       return (
@@ -323,7 +253,7 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         (state.hasChangesRequested
           ? "A maintainer requested changes. Please address their feedback " +
             "before the PR returns to maintainer review.\n\n"
-          : "The overall direction of the change is good.\n\n") +
+          : "") +
         "To become ready for review, the change must pass automated review " +
         "and every maintainer comment must be addressed, either with a code " +
         "change or a reply explaining why no change is needed. Any running " +
@@ -362,8 +292,16 @@ function getPrStatusStageMessage(state: PrStatusState): string {
         "rechecks existing links and support. If re-triage is still needed, " +
         "comment `@pytorchbot triage` to run Auto PR Triage again."
       );
-    case "preReview":
-      return getPreReviewMessage(state.preReview);
+    case "triaged":
+      return (
+        "## PR Status: triaged\n\n" +
+        (state.labels.includes(PR_STATUS_LABEL_REVIEW_OPT_OUT)
+          ? "This PR is queued for maintainer review without automated review. " +
+            'The bot will automatically advance it to "ready for review".'
+          : "This PR is queued for automated review. The bot should add " +
+            '"in progress" shortly. If it does not, a maintainer can remove and ' +
+            're-add "triaged" to retry.')
+      );
     case "none":
       return "";
   }
@@ -438,37 +376,20 @@ export function splicePrStatusSection(
 // ClickHouse mirror or a later CI sweep. Callers limit these requests to PRs
 // carrying workflow labels.
 
-/**
- * Combines current reviewer requests with people who already responded, because
- * GitHub removes a user from `requested_reviewers` after any review. Teams
- * cannot be recovered after GitHub removes their request.
- */
-export function buildAssignedReviewers(
+/** Current outstanding users and teams, without inferring requests from reviews. */
+export function buildRequestedReviewers(
   owner: string,
   requestedReviewers: { login?: string }[],
-  requestedTeams: { slug?: string }[],
-  reviews: PullRequestReview[],
-  authorLogin: string
+  requestedTeams: { slug?: string }[]
 ): string[] {
-  // CONTRIBUTOR is excluded because a past contribution does not prove review
-  // access.
-  const ASSIGNABLE_REVIEWER_ASSOCIATIONS = ["COLLABORATOR", "MEMBER", "OWNER"];
   const users = requestedReviewers
     .map((user) => user?.login)
     .filter((login): login is string => Boolean(login));
-  const reviewers = reviews
-    .filter((review) =>
-      ASSIGNABLE_REVIEWER_ASSOCIATIONS.includes(review.author_association)
-    )
-    .map((review) => review.user?.login)
-    .filter(
-      (login): login is string => Boolean(login) && login !== authorLogin
-    );
   const teams = requestedTeams
     .map((team) => team?.slug)
     .filter((slug): slug is string => Boolean(slug))
     .map((slug) => `${owner}/${slug}`);
-  return Array.from(new Set([...users, ...reviewers, ...teams]));
+  return Array.from(new Set([...users, ...teams]));
 }
 
 /** Fetches current labels, including every page, rather than webhook snapshots. */
@@ -526,11 +447,10 @@ async function hasMergeRuleApproval(
 }
 
 /**
- * Fetches approval and current PR metadata for every workflow stage, plus
- * reviewer assignments for triaged PRs. Draft status cannot be inferred from
- * labels: a draft may carry any workflow label, including no triaged label.
- * Returns null when reviews are unavailable so callers preserve current status.
- * A failed PR lookup still returns approval but may omit assigned reviewers.
+ * Fetches approval, current PR metadata, and outstanding reviewer requests.
+ * Draft status cannot be inferred from labels. Returns null when reviews are
+ * unavailable so callers preserve current status; failed PR metadata leaves
+ * current reviewer requests unknown.
  */
 export async function fetchPrStatusState(
   octokit: Octokit,
@@ -538,7 +458,7 @@ export async function fetchPrStatusState(
   repo: string,
   prNumber: number,
   labels: string[],
-  // Used to exclude the author from recovered reviewers if the PR lookup fails.
+  // Excludes the author from outstanding change requests if PR metadata fails.
   authorLogin?: string
 ): Promise<PrStatusState | null> {
   const [reviewsResult, pullResult] = await Promise.allSettled([
@@ -598,28 +518,14 @@ export async function fetchPrStatusState(
     }
   }
 
-  // Without a known author, omit recovered reviewers rather than risk listing
-  // the author as responsible for reviewing their own PR.
+  // Keep a supplied author for filtering outstanding change requests.
   const author = authorLogin ?? pull?.data.user?.login;
 
-  const assignedReviewers =
-    liveLabels.includes(PR_STATUS_LABEL_TRIAGED) && author
-      ? buildAssignedReviewers(
-          owner,
-          pull?.data.requested_reviewers ?? [],
-          pull?.data.requested_teams ?? [],
-          reviews as any,
-          author
-        )
-      : [];
-
   const requestedReviewers = pull
-    ? buildAssignedReviewers(
+    ? buildRequestedReviewers(
         owner,
         pull.data.requested_reviewers ?? [],
-        pull.data.requested_teams ?? [],
-        [],
-        author ?? ""
+        pull.data.requested_teams ?? []
       )
     : undefined;
   const outstandingChanges = new Set(
@@ -647,7 +553,6 @@ export async function fetchPrStatusState(
     isMergeApproved,
     mergeApprovalLookupFailed,
     hasChangesRequested: approvalStatus === PR_CHANGES_REQUESTED,
-    assignedReviewers,
     reviewerLookupFailed: pullResult.status === "rejected",
   };
 }

@@ -11,9 +11,7 @@ import pLimit from "p-limit";
 // notification job, which DMs each reviewer a digest. It holds only public
 // GitHub data.
 
-// Triaged PRs no longer wait on pre-review, so pre_review is always empty. It
-// stays until Meta's internal digest, which reads it, is updated.
-export type ReviewStage = "pre_review" | "final_review";
+export type ReviewStage = "final_review";
 
 // Added by Meta's labeler to PRs whose author isn't a Meta employee
 const OPEN_SOURCE_LABEL = "open source";
@@ -231,7 +229,7 @@ export async function buildPrNotificationsManifest(
         manifest.prs[pr.number] = waiting.pr;
         for (const { login, via } of waiting.reviewers) {
           const key = login.toLowerCase();
-          manifest.reviewers[key] ??= { pre_review: [], final_review: [] };
+          manifest.reviewers[key] ??= { final_review: [] };
           const entries = manifest.reviewers[key][waiting.pr.stage];
           const existing = entries.find((entry) => entry.pr === pr.number);
           if (!existing) {
@@ -247,7 +245,6 @@ export async function buildPrNotificationsManifest(
 
   manifest.failed_prs.sort((a, b) => a - b);
   for (const stages of Object.values(manifest.reviewers)) {
-    stages.pre_review.sort((a, b) => a.pr - b.pr);
     stages.final_review.sort((a, b) => a.pr - b.pr);
   }
   return manifest;

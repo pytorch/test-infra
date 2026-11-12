@@ -1,10 +1,8 @@
 import { Client } from "@opensearch-project/opensearch";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { getPreReviewStatus } from "lib/bot/preReviewUtils";
 import { isEligibleCommitForSimilarFailureCheck } from "lib/commitUtils";
 import { pinLedger } from "lib/crcr/crcrComment";
-import { getPreReviewOctokit } from "lib/github";
 import { buildGreenlightOpenedLine } from "lib/greenlight/greenlightComment";
 import {
   hasS3Log,
@@ -16,8 +14,6 @@ import {
   extractPrStatusSection,
   fetchLiveLabels,
   fetchPrStatusState,
-  getPrStatusStage,
-  hasPreReviewLabels,
   hasPrStatusLabel,
   PrStatusState,
   renderPrStatusSection,
@@ -359,11 +355,7 @@ export async function upsertPrStatusSection(
     return;
   }
 
-  const reader =
-    options.reader ??
-    (hasPreReviewLabels(labels)
-      ? (await getPreReviewOctokit(owner, repo)) ?? octokit
-      : octokit);
+  const reader = options.reader ?? octokit;
   // No workflow label means remove stale status without fetching reviews.
   let section = "";
   let state: PrStatusState | null | undefined = options.state;
@@ -382,22 +374,6 @@ export async function upsertPrStatusSection(
     }
     if (state.pullRequest?.state === "closed") {
       return;
-    }
-    if (
-      hasPrStatusLabel(state.labels) &&
-      getPrStatusStage(state) === "preReview" &&
-      !state.preReview
-    ) {
-      state.preReview = await getPreReviewStatus(
-        reader,
-        owner,
-        repo,
-        prNum,
-        labels,
-        authorLogin ?? state.authorLogin ?? "",
-        [],
-        state
-      );
     }
     section = hasPrStatusLabel(state.labels)
       ? renderPrStatusSection(state)
@@ -444,8 +420,8 @@ export async function upsertPrStatusSection(
  * Refresh the status for a full CI-comment rebuild using the dedicated reader.
  * Null means preserve the existing section while still updating CI results;
  * never fall back to PyTorchBot for status reads if the reader is unavailable.
- * Pre-review progress is read from the bot's current comment, avoiding a
- * second reaction/timeline poll outside the independent pre-review sweep.
+ * Live labels render queued status directly, without consulting reviewer
+ * responses or preserving stale workflow instructions.
  */
 export async function getPrStatusForCi(
   reader: Octokit | null,
@@ -454,7 +430,6 @@ export async function getPrStatusForCi(
   prNumber: number
 ): Promise<{
   section: string;
-  comment?: { id: number; body: string };
 } | null> {
   if (!isPyTorchPyTorch(owner, repo)) {
     return { section: "" };
@@ -463,8 +438,7 @@ export async function getPrStatusForCi(
     return null;
   }
   try {
-    // Even the workflow's presence must be read live: a pre-triage mirror
-    // cannot tell us whether a webhook has already published pre-review status.
+    // A pre-triage mirror cannot tell us whether labels have advanced yet.
     const liveLabels = await fetchLiveLabels(reader, owner, repo, prNumber);
     if (!hasPrStatusLabel(liveLabels)) {
       return { section: "" };
@@ -486,17 +460,7 @@ export async function getPrStatusForCi(
     if (!hasPrStatusLabel(state.labels)) {
       return { section: "" };
     }
-    if (getPrStatusStage(state) !== "preReview") {
-      return { section: renderPrStatusSection(state) };
-    }
-    const comment = await getDrciComment(reader, owner, repo, prNumber);
-    const currentStatus = extractPrStatusSection(comment.body);
-    return {
-      section: currentStatus.includes("## PR Status: in pre-review\n")
-        ? currentStatus
-        : renderPrStatusSection(state),
-      comment,
-    };
+    return { section: renderPrStatusSection(state) };
   } catch (error) {
     console.error(
       `PR status read failed for ${owner}/${repo}#${prNumber}`,

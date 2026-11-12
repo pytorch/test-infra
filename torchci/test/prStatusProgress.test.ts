@@ -1,10 +1,5 @@
 import prStatusBot from "lib/bot/prStatusBot";
 import {
-  markInProgressIfAccepted,
-  updateInProgressLabels,
-} from "lib/bot/preReviewSweep";
-import pytorchBot from "lib/bot/pytorchBot";
-import {
   DRCI_COMMENT_AUTHOR,
   DRCI_COMMENT_START,
   getDrciComment,
@@ -12,7 +7,6 @@ import {
   upsertPrStatusSection,
 } from "lib/drciUtils";
 import * as github from "lib/github";
-import { PR_STATUS_END, PR_STATUS_START } from "lib/prStatus";
 import nock from "nock";
 import { handleScope, requireDeepCopy } from "./common";
 import { testOctokit, testProbot } from "./utils";
@@ -20,8 +14,6 @@ import { testOctokit, testProbot } from "./utils";
 nock.disableNetConnect();
 
 const REPO = "pytorch/pytorch";
-const ENTERED = "2026-10-29T16:30:00Z";
-const DEADLINE = "2026-11-05T16:30:00.000Z";
 const NOW = Date.parse("2026-10-30T16:30:00Z");
 const REST = "\n## Helpful Links\nlinks\n## CI results\nexisting results\n";
 const INITIAL_COMMENT = DRCI_COMMENT_START + REST;
@@ -42,32 +34,12 @@ function pull(overrides = {}) {
   };
 }
 
-function reaction(login: string, content = "+1") {
-  return { content, user: { login } };
-}
-
 function statusReads({ reviews = [] as object[], pr = pull() } = {}) {
   return nock("https://api.github.com")
     .get(`/repos/${REPO}/pulls/1/reviews?per_page=100`)
     .reply(200, reviews)
     .get(`/repos/${REPO}/pulls/1`)
     .reply(200, pr);
-}
-
-function policyReads({
-  reactions = [reaction("alice")],
-  events = [] as object[],
-  reviews = [] as object[],
-  pr = pull(),
-} = {}) {
-  return statusReads({ reviews, pr })
-    .get(`/repos/${REPO}/issues/1/timeline?per_page=100`)
-    .reply(200, [
-      { event: "labeled", label: { name: "triaged" }, created_at: ENTERED },
-      ...events,
-    ])
-    .get(`/repos/${REPO}/issues/1/reactions?per_page=100`)
-    .reply(200, reactions);
 }
 
 function commentRead(body = INITIAL_COMMENT) {
@@ -87,31 +59,9 @@ function commentWrite(check: (_body: string) => void) {
     .reply(200, {});
 }
 
-function search() {
-  return nock("https://api.github.com")
-    .get("/search/issues")
-    .query(true)
-    .reply(200, {
-      total_count: 1,
-      items: [{ ...pull(), updated_at: ENTERED }],
-    });
-}
-
-async function checkPreReview() {
-  return markInProgressIfAccepted(
-    reader,
-    writer,
-    "pytorch",
-    "pytorch",
-    1,
-    ["triaged"],
-    "author"
-  );
-}
-
 beforeEach(() => {
   jest.spyOn(Date, "now").mockReturnValue(NOW);
-  jest.spyOn(github, "getPreReviewOctokit").mockResolvedValue(reader);
+  jest.spyOn(github, "getPrStatusOctokit").mockResolvedValue(reader);
 });
 
 afterEach(() => {
@@ -119,111 +69,44 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test("the periodic check advances without acceptance and doesn't rewrite unchanged comments", async () => {
-  const writerReads = jest.spyOn(writer, "paginate");
-  const writerPullReads = jest.spyOn(writer.rest.pulls, "get");
-  const readerWrites = jest.spyOn(reader.rest.issues, "updateComment");
+test("queued status refresh reads no response APIs and leaves unchanged comments alone", async () => {
+  jest
+    .mocked(github.getPrStatusOctokit)
+    .mockRejectedValue(new Error("Unavailable"));
   let body = "";
   let scopes = [
-    search(),
-    policyReads(),
-    nock("https://api.github.com")
-      .get(`/repos/${REPO}/pulls/1`)
-      .reply(200, pull())
-      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
-      .reply(200, []),
+    statusReads(),
     commentRead(),
     commentWrite((value) => {
       body = value;
-      expect(value).toContain("## PR Status: in progress");
-      expect(value).not.toContain("Waiting for pre-review");
-      expect(value).not.toMatch(/@(alice|bob)/);
+      expect(value).toContain("## PR Status: triaged");
+      expect(value).toContain("queued for automated review");
+      expect(value).not.toMatch(/deadline|@alice|@bob/i);
     }),
   ];
-  expect(
-    (await updateInProgressLabels(reader, writer, "pytorch", "pytorch")).failed
-  ).toEqual([]);
+  await upsertPrStatusSection(
+    writer,
+    "pytorch",
+    "pytorch",
+    1,
+    ["triaged"],
+    "author"
+  );
   handleScope(scopes);
-
-  const inProgress = pull({
-    labels: [{ name: "triaged" }, { name: "in progress" }],
-  });
-  scopes = [search(), policyReads({ pr: inProgress }), commentRead(body)];
-  expect(
-    (await updateInProgressLabels(reader, writer, "pytorch", "pytorch")).failed
-  ).toEqual([]);
-  handleScope(scopes); // No PATCH was mocked: identical progress is a no-op.
-
-  scopes = [
-    search(),
-    policyReads({ reactions: [], pr: inProgress }),
-    commentRead(body),
-  ];
-  expect(
-    (await updateInProgressLabels(reader, writer, "pytorch", "pytorch")).failed
-  ).toEqual([]);
+  scopes = [statusReads(), commentRead(body)];
+  await upsertPrStatusSection(
+    writer,
+    "pytorch",
+    "pytorch",
+    1,
+    ["triaged"],
+    "author"
+  );
   handleScope(scopes);
-  expect(writerReads).not.toHaveBeenCalled();
-  expect(writerPullReads).not.toHaveBeenCalled();
-  expect(readerWrites).not.toHaveBeenCalled();
+  expect(github.getPrStatusOctokit).not.toHaveBeenCalled();
 });
 
-test("fourteen silent reviewers expire together and the status advances even without the label webhook", async () => {
-  jest.spyOn(Date, "now").mockReturnValue(Date.parse(DEADLINE));
-  const pr = pull({
-    requested_reviewers: Array.from({ length: 14 }, (_, i) => ({
-      login: `reviewer-${i}`,
-    })),
-  });
-  const scopes = [
-    search(),
-    policyReads({ pr, reactions: [] }),
-    nock("https://api.github.com")
-      .get(`/repos/${REPO}/pulls/1`)
-      .reply(200, pr)
-      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
-      .reply(200, []),
-    commentRead(),
-    commentWrite((value) => {
-      expect(value).toContain("## PR Status: in progress");
-      expect(value).not.toContain("Waiting for pre-review");
-    }),
-  ];
-  expect(
-    (await updateInProgressLabels(reader, writer, "pytorch", "pytorch")).failed
-  ).toEqual([]);
-  handleScope(scopes);
-});
-
-test("an explicit team objection does not block advancement", async () => {
-  jest.spyOn(Date, "now").mockReturnValue(Date.parse(DEADLINE));
-  const scopes = [
-    policyReads({
-      pr: pull({ requested_teams: [{ slug: "core" }] }),
-      reactions: [reaction("carol", "-1")],
-    }),
-    nock("https://api.github.com")
-      .get("/orgs/pytorch/teams/core/members?per_page=100")
-      .reply(200, [{ login: "carol" }]),
-    nock("https://api.github.com")
-      .get(`/repos/${REPO}/pulls/1`)
-      .reply(200, pull())
-      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
-      .reply(200, []),
-    commentRead(),
-    commentWrite((value) => {
-      expect(value).toContain("## PR Status: in progress");
-      expect(value).not.toContain("`alice`");
-      expect(value).not.toContain("`bob`");
-      expect(value).not.toContain("**Pre-review accepted:");
-      expect(value).not.toContain("Pre-review deadline");
-    }),
-  ];
-  expect((await checkPreReview()).accepted).toBe(false);
-  handleScope(scopes);
-});
-
-test("the triaged label webhook immediately advances to in progress", async () => {
+test("the triaged webhook promotes immediately and its label event refreshes Dr.CI", async () => {
   const payload = requireDeepCopy("./fixtures/pull_request.labeled.json");
   payload.repository.owner.login = "pytorch";
   payload.repository.name = "pytorch";
@@ -235,56 +118,35 @@ test("the triaged label webhook immediately advances to in progress", async () =
     nock("https://api.github.com")
       .get(`/repos/${REPO}/issues/1/labels?per_page=100`)
       .reply(200, [{ name: "triaged" }]),
-    policyReads(),
     nock("https://api.github.com")
       .get(`/repos/${REPO}/pulls/1`)
       .reply(200, pull())
       .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
       .reply(200, []),
-    commentRead(),
-    commentWrite((value) =>
-      expect(value).toContain("## PR Status: in progress")
-    ),
   ];
   const bot = testProbot();
   bot.load(prStatusBot);
   await bot.receive({ name: "pull_request", payload, id: "test" } as any);
   handleScope(scopes);
-});
-
-test("the accept command updates progress before its comment reaches the timeline", async () => {
-  const event = requireDeepCopy("./fixtures/pull_request_comment.json");
-  event.payload.repository.owner.login = "pytorch";
-  event.payload.repository.name = "pytorch";
-  event.payload.repository.full_name = REPO;
-  Object.assign(event.payload.issue, pull());
-  event.payload.comment.user.login = "alice";
-  event.payload.comment.body = "@pytorchbot pre-review accept";
-  const scopes = [
-    policyReads({ reactions: [] }),
+  expect(github.getPrStatusOctokit).not.toHaveBeenCalled();
+  payload.label.name = "in progress";
+  const live = pull({ labels: [{ name: "triaged" }, { name: "in progress" }] });
+  payload.pull_request = live;
+  const refresh = [
     nock("https://api.github.com")
-      .get(`/repos/${REPO}/pulls/1`)
-      .reply(200, pull())
-      .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
-      .reply(200, []),
+      .get(`/repos/${REPO}/issues/1/labels?per_page=100`)
+      .reply(200, live.labels),
+    statusReads({ pr: live }),
     commentRead(),
-    commentWrite((value) => {
-      expect(value).toContain("## PR Status: in progress");
-    }),
-    nock("https://api.github.com")
-      .post(
-        `/repos/${REPO}/issues/comments/${event.payload.comment.id}/reactions`,
-        { content: "+1" }
-      )
-      .reply(200, {}),
+    commentWrite((value) =>
+      expect(value).toContain("## PR Status: in progress")
+    ),
   ];
-  const bot = testProbot();
-  bot.load(pytorchBot);
-  await bot.receive(event);
-  handleScope(scopes);
+  await bot.receive({ name: "pull_request", payload, id: "promoted" } as any);
+  handleScope(refresh);
 });
 
-test("draft transitions pause advancement and returning to review moves to in progress", async () => {
+test("drafts pause advancement and returning to review immediately promotes", async () => {
   const bot = testProbot();
   bot.load(prStatusBot);
   const payload = requireDeepCopy("./fixtures/pull_request.labeled.json");
@@ -294,7 +156,6 @@ test("draft transitions pause advancement and returning to review moves to in pr
   delete payload.label;
   payload.action = "converted_to_draft";
   Object.assign(payload.pull_request, pull({ draft: true }));
-  let body = "";
   let scopes = [
     nock("https://api.github.com")
       .get(`/repos/${REPO}/pulls/1/reviews?per_page=100`)
@@ -303,9 +164,8 @@ test("draft transitions pause advancement and returning to review moves to in pr
       .reply(200, pull({ draft: true })),
     commentRead(),
     commentWrite((value) => {
-      body = value;
       expect(value).toContain("## PR Status: draft");
-      expect(value).not.toContain("Pre-review deadline");
+      expect(value).not.toContain("deadline");
     }),
   ];
   await bot.receive({ name: "pull_request", payload, id: "draft" } as any);
@@ -313,20 +173,11 @@ test("draft transitions pause advancement and returning to review moves to in pr
   payload.action = "ready_for_review";
   payload.pull_request.draft = false;
   scopes = [
-    policyReads({
-      events: [
-        { event: "ready_for_review", created_at: new Date(NOW).toISOString() },
-      ],
-    }),
     nock("https://api.github.com")
       .get(`/repos/${REPO}/pulls/1`)
       .reply(200, pull())
       .post(`/repos/${REPO}/issues/1/labels`, { labels: ["in progress"] })
       .reply(200, []),
-    commentRead(body),
-    commentWrite((value) =>
-      expect(value).toContain("## PR Status: in progress")
-    ),
   ];
   await bot.receive({ name: "pull_request", payload, id: "ready" } as any);
   handleScope(scopes);
@@ -362,27 +213,6 @@ test("finds the bot's comment after the first page, ignoring copied markers and 
     id: 10,
     body: INITIAL_COMMENT,
   });
-  handleScope(scopes);
-});
-
-test("pre-review status refresh reads reactions through the dedicated app", async () => {
-  const scopes = [
-    policyReads(),
-    commentRead(),
-    commentWrite((value) => {
-      expect(value).toContain("**Pre-review accepted:** `alice`.");
-    }),
-  ];
-  const writerReads = jest.spyOn(writer, "paginate");
-  await upsertPrStatusSection(
-    writer,
-    "pytorch",
-    "pytorch",
-    1,
-    ["triaged"],
-    "author"
-  );
-  expect(writerReads).not.toHaveBeenCalled();
   handleScope(scopes);
 });
 
@@ -430,26 +260,22 @@ test.each(["in progress", "ready for review", "missing actionable issue"])(
 );
 
 describe("status preservation during CI rebuilds", () => {
-  const section = (waiting: string) =>
-    `${PR_STATUS_START}\n## PR Status: in pre-review\n\nWaiting: ${waiting}\n${PR_STATUS_END}\n`;
-  const currentBody = DRCI_COMMENT_START + section("bob") + REST;
-
   function liveLabels() {
     return nock("https://api.github.com")
       .get(`/repos/${REPO}/issues/1/labels?per_page=100`)
       .reply(200, [{ name: "triaged" }]);
   }
 
-  test("discovers live workflow labels and preserves progress without needing a mirror or polling reactions", async () => {
-    const scopes = [liveLabels(), statusReads(), commentRead(currentBody)];
-    expect(await getPrStatusForCi(reader, "pytorch", "pytorch", 1)).toEqual({
-      section: section("bob"),
-      comment: { id: 10, body: currentBody },
-    });
+  test("the CI rebuild renders the live queued status", async () => {
+    const scopes = [liveLabels(), statusReads()];
+    const result = await getPrStatusForCi(reader, "pytorch", "pytorch", 1);
+    expect(result?.section).toContain("## PR Status: triaged");
+    expect(result?.section).toContain("queued for automated review");
+    expect(result?.section).not.toMatch(/deadline/i);
     handleScope(scopes);
   });
 
-  test.each(["labels", "reviews", "pull", "comment"])(
+  test.each(["labels", "reviews", "pull"])(
     "a failed %s read asks the CI rebuild to preserve its existing section",
     async (failure) => {
       jest.spyOn(console, "error").mockImplementation(() => {});
@@ -463,22 +289,13 @@ describe("status preservation during CI rebuilds", () => {
         );
       } else {
         scopes.push(liveLabels());
-        if (failure === "comment") {
-          scopes.push(
-            statusReads(),
-            nock("https://api.github.com")
-              .get(`/repos/${REPO}/issues/1/comments`)
-              .reply(503)
-          );
-        } else {
-          scopes.push(
-            nock("https://api.github.com")
-              .get(`/repos/${REPO}/pulls/1/reviews?per_page=100`)
-              .reply(failure === "reviews" ? 503 : 200, [])
-              .get(`/repos/${REPO}/pulls/1`)
-              .reply(failure === "pull" ? 503 : 200, pull())
-          );
-        }
+        scopes.push(
+          nock("https://api.github.com")
+            .get(`/repos/${REPO}/pulls/1/reviews?per_page=100`)
+            .reply(failure === "reviews" ? 503 : 200, [])
+            .get(`/repos/${REPO}/pulls/1`)
+            .reply(failure === "pull" ? 503 : 200, pull())
+        );
       }
       expect(
         await getPrStatusForCi(reader, "pytorch", "pytorch", 1)

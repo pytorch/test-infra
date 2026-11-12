@@ -1,5 +1,4 @@
 import { PullRequestReview } from "@octokit/webhooks-types";
-import { getPreReviewOctokit } from "lib/github";
 import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
@@ -30,8 +29,6 @@ import {
   cherryPickClassifications,
 } from "./Constants";
 import { addCiflowLabelsAtMerge } from "./mergeCiflowLabels";
-import { markInProgressIfAccepted } from "./preReviewSweep";
-import { isInPreReview } from "./preReviewUtils";
 import PytorchBotLogger from "./pytorchbotLogger";
 import {
   hasWritePermissions as _hasWP,
@@ -600,44 +597,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     await updateDrciComments(ctx.octokit, owner, repo, [prNum]);
   }
 
-  async handlePreReviewAccept() {
-    await this.logger.log("pre-review accept");
-    const { ctx, owner, repo, prNum } = this;
-    if (!isPyTorchPyTorch(owner, repo)) {
-      return;
-    }
-
-    const login = this.getCommandAuthor();
-    const pr = ctx.payload?.issue ?? ctx.payload?.pull_request;
-    if (!login || !pr?.user?.login) {
-      return;
-    }
-    if (!isInPreReview(pr)) {
-      return await this.rejectComment();
-    }
-    // The scheduled run retries incomplete accepts, including PRs with no
-    // reactions, so a failed check here doesn't lose the command.
-    // Only acknowledge accepts that count toward the in progress label
-    if (
-      (
-        await markInProgressIfAccepted(
-          (await getPreReviewOctokit(owner, repo)) ?? ctx.octokit,
-          ctx.octokit,
-          owner,
-          repo,
-          prNum,
-          pr.labels.map((label: any) => label.name),
-          pr.user.login,
-          [login]
-        )
-      ).countedFrom.includes(login)
-    ) {
-      await this.ackComment();
-    } else {
-      await this.rejectComment();
-    }
-  }
-
   // The review workflow treats `in progress` being labeled by pytorch-bot as a
   // request to review again, so cycling the label re-runs it.
   async handleReview() {
@@ -783,9 +742,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       split_args = shlex.split(inputArgs);
       args = parser.parse_args(split_args);
     } catch (err: any) {
-      if (split_args[0] === "pre-review") {
-        await this.rejectComment();
-      }
       // If the args are invalid, comment with the error + some help.
       await this.addComment(
         "❌ 🤖 pytorchbot command failed: \n```\n" +
@@ -825,9 +781,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         case "drci": {
           return await this.handleDrCI();
-        }
-        case "pre-review": {
-          return await this.handlePreReviewAccept();
         }
         case "review": {
           return await this.handleReview();

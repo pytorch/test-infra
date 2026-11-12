@@ -60,10 +60,35 @@ describe("getManifestKey", () => {
 describe("buildPrNotificationsManifest", () => {
   const octokit = utils.testOctokit();
 
+  test.each([true, false])(
+    "queued triaged PRs (merge approved=%s) do not ask maintainers for acceptance",
+    async (isMergeApproved) => {
+      // A search snapshot can lag removal of ready for review. Live stage wins.
+      jest.spyOn(prStatus, "fetchPrStatusState").mockResolvedValue({
+        labels: ["triaged"],
+        isApproved: true,
+        isMergeApproved,
+        requestedReviewers: ["bob"],
+      });
+      const scope = mockSearch('label:"ready for review"', [
+        searchItem(1, ["ready for review"]),
+      ]);
+      const manifest = await buildPrNotificationsManifest(
+        octokit,
+        "pytorch",
+        "pytorch",
+        NOW
+      );
+      handleScope(scope);
+      expect(manifest.prs).toEqual({});
+      expect(manifest.reviewers).toEqual({});
+      expect(manifest.failed_prs).toEqual([]);
+    }
+  );
+
   test("lists requested reviewers of PRs in final review and expands teams", async () => {
     const scope = [
-      // Triaged PRs no longer wait on pre-review, so they aren't searched. PR 6
-      // is skipped without any lookups.
+      // PR 6 is skipped without any lookups.
       mockSearch('label:"ready for review"', [
         searchItem(1, ["ready for review", "open source"]),
         searchItem(2, ["ready for review"]),
@@ -133,13 +158,12 @@ describe("buildPrNotificationsManifest", () => {
       },
       reviewers: {
         // Lowercase, whatever GitHub returned
-        bob: { pre_review: [], final_review: [{ pr: 1 }] },
+        bob: { final_review: [{ pr: 1 }] },
         carol: {
-          pre_review: [],
           final_review: [{ pr: 2, via: "pytorch/infra" }],
         },
         // Asked directly, so the team doesn't show
-        dave: { pre_review: [], final_review: [{ pr: 2 }] },
+        dave: { final_review: [{ pr: 2 }] },
       },
       failed_prs: [],
     });
@@ -150,7 +174,6 @@ describe("buildPrNotificationsManifest", () => {
       labels: ["ready for review"],
       isApproved: true,
       mergeApprovalLookupFailed: true,
-      assignedReviewers: [],
       requestedReviewers: ["bob"],
     });
     const scopes = [

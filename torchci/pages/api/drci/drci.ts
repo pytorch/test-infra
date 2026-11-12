@@ -71,7 +71,7 @@ import {
 import {
   getOctokit,
   getOctokitWithUserToken,
-  getPreReviewOctokit,
+  getPrStatusOctokit,
 } from "lib/github";
 import { buildGreenlightSections } from "lib/greenlight/greenlightComment";
 import {
@@ -331,7 +331,7 @@ export async function updateDrciComments(
   // app lookup must not move status reads back onto PyTorchBot's rate limit.
   const prStatusReaderPromise = (
     isPyTorchPyTorch(owner, repo) && workflowsByPR.size > 0
-      ? getPreReviewOctokit(owner, repo)
+      ? getPrStatusOctokit(owner, repo)
       : Promise.resolve(null)
   ).catch((e) => {
     console.error("PR status reader unavailable for", owner, repo, e);
@@ -810,7 +810,6 @@ export async function updateDrciComments(
       // The live read is memoized and shared with the section's pin read, so a
       // PR costs at most one GitHub comment read per sweep.
       const { id, body } =
-        status?.comment ??
         existingDrCiComments.get(pr_info.pr_number) ??
         (await readLiveComment());
 

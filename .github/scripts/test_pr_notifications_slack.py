@@ -29,53 +29,26 @@ def pr(
 MANIFEST: dict[str, Any] = {
     "generated_at": "2026-10-05T12:00:00.000Z",
     "prs": {
-        "1": pr(1, "2026-10-04T00:00:00Z"),
         "2": pr(2, "2026-09-30T00:00:00Z", title="Fix <script> & co"),
         "3": pr(3, None, open_source=False),
         "4": pr(4, "2026-10-01T00:00:00Z"),
     },
     "reviewers": {
-        "alice": {
-            "pre_review": [{"pr": 1}, {"pr": 2}],
-            "final_review": [{"pr": 3}, {"pr": 4}],
-        },
-        "bob": {"pre_review": [], "final_review": [{"pr": 4}]},
-        "carol": {"pre_review": [], "final_review": []},
+        "alice": {"final_review": [{"pr": 3}, {"pr": 4}]},
+        "bob": {"final_review": [{"pr": 4}]},
+        "carol": {"final_review": []},
     },
     "failed_prs": [],
 }
 
 
 class RenderDigestTest(unittest.TestCase):
-    def test_final_review_oldest_first_ignoring_pre_review(self) -> None:
-        # alice's pre-review PRs are from a manifest written before pre-review
-        # was removed
-        self.assertEqual(
-            pns.render_digest(MANIFEST, "alice"),
-            "\n".join(
-                [
-                    "*Daily digest: PyTorch PRs waiting on your review*",
-                    "",
-                    f"*Final review (2)* (<{pns.FINAL_REVIEW_QUEUE_URL}|full queue>)",
-                    "OSS PRs (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/4|#4 PR 4>",
-                    "Maintainer PRs (1)",
-                    "• <https://github.com/pytorch/pytorch/pull/3|#3 PR 3>",
-                ]
-            ),
-        )
-
     def test_escapes_titles(self) -> None:
         manifest = json.loads(json.dumps(MANIFEST))
         manifest["reviewers"]["bob"]["final_review"] = [{"pr": 2}]
         self.assertIn(
             "#2 Fix &lt;script&gt; &amp; co>", pns.render_digest(manifest, "bob") or ""
         )
-
-    def test_pre_review_only_gets_no_digest(self) -> None:
-        manifest = json.loads(json.dumps(MANIFEST))
-        manifest["reviewers"]["carol"]["pre_review"] = [{"pr": 1}]
-        self.assertIsNone(pns.render_digest(manifest, "carol"))
 
     def test_old_manifest_prs_count_as_oss(self) -> None:
         manifest = json.loads(json.dumps(MANIFEST))

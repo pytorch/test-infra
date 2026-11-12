@@ -431,7 +431,7 @@ async function retriage(
 
   // Reset the previous outcome before waking Auto PR Triage. Keep the missing
   // issue hold until the new entry event is sent, so intermediate label events
-  // cannot accidentally advance the PR to pre-review or automated review.
+  // cannot accidentally advance the PR to automated review.
   for (const name of TRIAGE_OUTCOMES) {
     if (labels.includes(name)) {
       await removeLabel(name);
