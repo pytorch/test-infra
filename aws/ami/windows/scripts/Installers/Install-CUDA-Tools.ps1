@@ -7,6 +7,7 @@ function New-TemporaryDirectory() {
 }
 
 $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
+$cudnnBaseUrl = "https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/windows-x86_64"
 $ProgressPreference = 'SilentlyContinue'
 
 # installerArgs
@@ -23,20 +24,27 @@ $cudnn_lib_folder="lib\x64"
 Switch ($cudaVersion) {
   "13.2" {
     $cudnn_subfolder="cudnn-windows-x86_64-9.26.0.51_cuda13-archive"
+    $toolkitBaseUrl = "https://developer.download.nvidia.com/compute/cuda/13.2.2/local_installers"
     $toolkitInstaller = "cuda_13.2.2_windows.exe"
     $installerArgs = ""
   }
   "13.4" {
     $cudnn_subfolder="cudnn-windows-x86_64-9.26.0.51_cuda13-archive"
+    $toolkitBaseUrl = "https://developer.download.nvidia.com/compute/cuda/13.4.2/local_installers"
     $toolkitInstaller = "cuda_13.4.2_windows_x86_64.exe"
     $installerArgs = ""
   }
+  "13.5" {
+    $cudnn_subfolder="cudnn-windows-x86_64-9.28.1.4_cuda13-archive"
+    $toolkitBaseUrl = "https://developer.download.nvidia.com/compute/cuda/13.5.0/local_installers"
+    $toolkitInstaller = "cuda_13.5.0_windows_x86_64.exe"
+    $installerArgs = ""
+  }
   default {
-    Write-Error "Unsupported CUDA_VERSION '$cudaVersion'. This AMI builds 13.2 and 13.4 only."
+    Write-Error "Unsupported CUDA_VERSION '$cudaVersion'. This AMI builds 13.2, 13.4 and 13.5 only."
     exit 1
   }
 }
-
 
 $cudnnZip = "$cudnn_subfolder.zip"
 $cudnn_lib_folder="lib"
@@ -61,9 +69,10 @@ function Install-CudaToolkit() {
     return
   }
 
-  Write-Output "Downloading toolkit installer, $windowsS3BaseUrl/$toolkitInstaller"
+  
+  Write-Output "Downloading toolkit installer, $toolkitBaseUrl/$toolkitInstaller"
   $tmpToolkitInstaller = New-TemporaryFile
-  Invoke-WebRequest -Uri "$windowsS3BaseUrl/$toolkitInstaller" -OutFile "$tmpToolkitInstaller"
+  Invoke-WebRequest -Uri "$toolkitBaseUrl/$toolkitInstaller" -OutFile "$tmpToolkitInstaller"
   $tmpExtractedInstaller = New-TemporaryDirectory
   7z x "$tmpToolkitInstaller" -o"$tmpExtractedInstaller"
   $cudaInstallLogs = New-TemporaryDirectory
@@ -94,9 +103,9 @@ function Install-Cudnn() {
     return
   }
 
-  Write-Output "Downloading cudnnArchive, $windowsS3BaseUrl/$cudnnZip"
+  Write-Output "Downloading cudnnArchive, $cudnnBaseUrl/$cudnnZip"
   $tmpCudnnInstall = New-TemporaryFile
-  Invoke-WebRequest -Uri "$windowsS3BaseUrl/$cudnnZip" -OutFile "$tmpCudnnInstall"
+  Invoke-WebRequest -Uri "$cudnnBaseUrl/$cudnnZip" -OutFile "$tmpCudnnInstall"
   $tmpCudnnExtracted = New-TemporaryDirectory
   7z x "$tmpCudnnInstall" -o"$tmpCudnnExtracted"
 
