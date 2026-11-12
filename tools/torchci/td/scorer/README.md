@@ -28,6 +28,12 @@ The build-env terms are keyed by the job base name (the job name before ` / test
 key of `td_exclusions` and of `test-times.json`; it equals `BUILD_ENVIRONMENT` for most
 jobs, but not for nested reusable workflows such as `dynamo-unittest / dynamo-test (3.12)`.
 
+`version` is the refit's UTC date (ISO). pytorch's TD job drops a model whose version is
+more than 7 days old, more than a day ahead or not a date, and every job then keeps TD's
+cut: a refit that stops publishing for a week turns the scorer off. Heuristics in trial
+mode in pytorch's `HEURISTICS` never score there; `train.HEURISTICS` must leave them out
+too, or `check-pytorch`'s replay disagrees with the gate and nothing publishes.
+
 ## Data sources
 
 - **Heuristic scores**: the TD job's log
