@@ -258,6 +258,7 @@ describe("GET /api/releases/{version}/config", () => {
 describe("GET /api/releases/{version}/artifacts", () => {
   const artifactRow = {
     channel: "test",
+    rc: "rc2",
     package_type: "wheel",
     project: "torch",
     accelerator: "cu130",
@@ -275,7 +276,9 @@ describe("GET /api/releases/{version}/artifacts", () => {
 
   function answer(rows: unknown[]) {
     query.mockImplementation(async (sql: string) =>
-      sql.includes("GROUP BY verdict")
+      sql.includes("toUInt32OrZero")
+        ? [{ rc: "rc2" }]
+        : sql.includes("GROUP BY verdict")
         ? [{ verdict: "missing", artifacts: "1" }]
         : rows
     );
@@ -294,6 +297,7 @@ describe("GET /api/releases/{version}/artifacts", () => {
     );
     expect(status).toBe(200);
     expect(ArtifactPageSchema.parse(body)).toEqual(body);
+    expect(body.rc).toBe("rc2");
     expect(body.summary).toEqual({
       expected: 1,
       present: 0,

@@ -105,7 +105,7 @@ export const releasesApiOpenApi: ApiResource = {
         tags: [RELEASES_TAG],
         security: [],
         summary: "A release's expected artifacts and whether each is there",
-        description: `One row per expected artifact (accelerator, Python, OS, architecture and package type, per channel), as the collector last saw it on download.pytorch.org, PyPI and Docker Hub: present, missing, size_anomalous or unexpected. Rows come problems first. \`summary\` counts every artifact that matches channel, os and package, so the counts stay put when verdict narrows the rows. Cursor paginated. A release with no recorded artifacts answers zero counts and no rows. ${CACHE_NOTE}`,
+        description: `One row per expected artifact (accelerator, Python, OS, architecture and package type, per channel), as the collector last saw it on download.pytorch.org, PyPI and Docker Hub: present, missing, size_anomalous or unexpected. The test-channel rows are those of one release candidate: \`rc\`, else the newest that has observations (\`rc\` in the response says which). Rows come problems first. \`summary\` counts every artifact that matches channel, os and package, so the counts stay put when verdict narrows the rows. Cursor paginated. A release with no recorded artifacts answers zero counts and no rows. ${CACHE_NOTE}`,
         parameters: artifactParameters(),
         responses: {
           "200": jsonResponse(

@@ -333,6 +333,12 @@ export const ArtifactRowSchema = z
       .describe(
         "test for release candidates, release for the final artifacts."
       ),
+    rc: z
+      .string()
+      .nullable()
+      .describe(
+        "The release candidate the artifact was observed for, for example rc3; null for the release channel."
+      ),
     accelerator: z.string().describe("cpu, cu130, rocm7.1, xpu, ..."),
     python: z
       .string()
@@ -379,6 +385,12 @@ export const ArtifactRowSchema = z
 
 export const ArtifactPageSchema = z
   .object({
+    rc: z
+      .string()
+      .nullable()
+      .describe(
+        "The release candidate the test-channel rows and the counts are for: the rc parameter, else the newest release candidate with observations. null when the release has none."
+      ),
     summary: z
       .object({
         expected: z.number().int().describe("Artifacts in the selection."),
