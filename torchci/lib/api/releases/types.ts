@@ -204,7 +204,7 @@ export const ReleaseBoardSchema = z
     links: z
       .record(z.string(), z.string().nullable())
       .describe(
-        "Where to find the release's things: tracker_issue, validation_issue and milestone as found on GitHub; the resources named in the config (wheels, libtorch, docs, release_notes, build_matrix); artifacts, the artifact matrix path of this API's page. A link that does not exist yet is null."
+        "Where to find the release's things: tracker_issue, validation_issue and milestone, from the evidence the collector recorded; the resources named in the config (wheels, libtorch, docs, release_notes, build_matrix); artifacts, the artifact matrix path of this API's page. A link that does not exist yet is null."
       ),
     stats: z
       .object({
@@ -296,7 +296,7 @@ export const ReleaseConfigSchema = z
     links: z
       .record(z.string(), z.union([z.string(), z.number()]).nullable())
       .describe(
-        "Links set by hand in the release file; null means found on GitHub."
+        "Links set by hand in the release file; null means the link of the collector's evidence is used."
       ),
     discovery: z
       .record(z.string(), z.unknown())

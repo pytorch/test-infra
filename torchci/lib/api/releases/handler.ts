@@ -12,7 +12,6 @@ import {
   artifactCursorMatchesQuery,
   decodeArtifactCursor,
 } from "lib/api/releases/cursor";
-import { discoverLinks } from "lib/api/releases/discover";
 import {
   parseArtifactParams,
   parseReleaseIndexParams,
@@ -90,8 +89,7 @@ export async function releaseBoardHandler(
         `The portal has no release ${version}`
       );
     }
-    const links = await discoverLinks(release.config);
-    return ok(buildBoard(release.config, release.rows, links, new Date()));
+    return ok(buildBoard(release.config, release.rows, new Date()));
   } catch (error) {
     return failQuery(
       "GET /api/releases/{version}",

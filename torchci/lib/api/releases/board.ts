@@ -1,5 +1,4 @@
 import { fillTemplate } from "lib/api/releases/config";
-import type { DiscoveredLinks, FoundObject } from "lib/api/releases/discover";
 import { isoFromClickhouse, StepStateRow } from "lib/api/releases/state";
 import type {
   ReleaseBoard,
@@ -10,6 +9,17 @@ import type {
 
 // What the portal shows of a release is computed here from two things: the release's
 // resolved config (its steps) and the current state rows from release_event. No I/O.
+
+export interface FoundObject {
+  number: number;
+  title: string;
+  url: string;
+}
+export interface DiscoveredLinks {
+  milestone: FoundObject | null;
+  tracker_issue: FoundObject | null;
+  validation_issue: FoundObject | null;
+}
 
 type Status = ReleaseStep["status"];
 type ConfigStep = ReleaseConfig["steps"][number];
@@ -71,15 +81,78 @@ const NO_LINKS: DiscoveredLinks = {
   validation_issue: null,
 };
 
+function rowsByKey(rows: StepStateRow[]): Map<string, StepStateRow> {
+  return new Map(rows.map((row) => [`${row.step_id}\u0000${row.rc}`, row]));
+}
+
+// The release's milestone, tracker issue and validation issue, as the collector recorded
+// them: the evidence of the step that checks it links to it. The steps are found by what
+// they check, not by id (a milestone_outstanding_items step checks "{milestone}", a
+// github_issue_state step checks "{tracker_issue}"), and only a link of the right shape
+// counts, so a step whose evidence links elsewhere is passed over. Nothing is asked of
+// GitHub: a link the collector has not recorded yet is null.
+const GITHUB_PYTORCH = "https://github\\.com/pytorch/pytorch";
+const LINK_SOURCES: {
+  link: keyof DiscoveredLinks;
+  field: string;
+  placeholder: string;
+  url: RegExp;
+}[] = [
+  {
+    link: "milestone",
+    field: "milestone",
+    placeholder: "{milestone}",
+    url: new RegExp(`^${GITHUB_PYTORCH}/milestone/(\\d+)$`),
+  },
+  {
+    link: "tracker_issue",
+    field: "issue",
+    placeholder: "{tracker_issue}",
+    url: new RegExp(`^${GITHUB_PYTORCH}/issues/(\\d+)$`),
+  },
+  {
+    link: "validation_issue",
+    field: "issue",
+    placeholder: "{validation_issue}",
+    url: new RegExp(`^${GITHUB_PYTORCH}/issues/(\\d+)$`),
+  },
+];
+
+export function linksFromRows(
+  config: ReleaseConfig,
+  rows: StepStateRow[]
+): DiscoveredLinks {
+  const rc = currentRc(rows);
+  const byKey = rowsByKey(rows);
+  const links: DiscoveredLinks = { ...NO_LINKS };
+  for (const source of LINK_SOURCES) {
+    for (const step of config.steps) {
+      const check = step.check as Record<string, unknown>;
+      if (check[source.field] !== source.placeholder) continue;
+      const row = byKey.get(
+        `${step.id}\u0000${step.rc_scoped ? rc ?? "" : ""}`
+      );
+      const match = source.url.exec(row?.evidence_url ?? "");
+      if (match) {
+        links[source.link] = {
+          number: Number(match[1]),
+          title: "",
+          url: match[0],
+        };
+        break;
+      }
+    }
+  }
+  return links;
+}
+
 function stepViews(
   config: ReleaseConfig,
   rows: StepStateRow[],
   links: DiscoveredLinks
 ): { views: StepView[]; rc: string | null } {
   const rc = currentRc(rows);
-  const byKey = new Map(
-    rows.map((row) => [`${row.step_id}\u0000${row.rc}`, row])
-  );
+  const byKey = rowsByKey(rows);
   const linkValues = {
     version: config.release,
     minor: config.release.split(".").slice(0, 2).join("."),
@@ -145,7 +218,7 @@ function currentPhase(config: ReleaseConfig, views: StepView[]): string {
   return open?.name ?? "Released";
 }
 
-// What the release file sets by hand wins over what was found: a number names the
+// What the release file sets by hand wins over what the rows say: a number names the
 // issue or milestone, a URL is used as it is; any other value is ignored.
 function chosen(
   override: string | number | null | undefined,
@@ -212,10 +285,9 @@ function resourceLinks(
 export function buildBoard(
   config: ReleaseConfig,
   rows: StepStateRow[],
-  links: DiscoveredLinks,
   now: Date
 ): ReleaseBoard {
-  const found = effectiveLinks(config, links);
+  const found = effectiveLinks(config, linksFromRows(config, rows));
   const { views, rc } = stepViews(config, rows, found);
   const checked = views.flatMap((v) =>
     v.last_checked ? [v.last_checked] : []
