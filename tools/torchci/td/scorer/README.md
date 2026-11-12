@@ -16,8 +16,15 @@ A learned layer over pytorch's target determination (TD) heuristics, retrained d
   0 on average over changes like the training heads). It is computed and logged in the
   TD job, and sizes the budget when the model has a budget block.
 
-The model file is published at
-`https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/td-scorer.json`.
+The model is published on generated-stats
+(`https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/`) as two
+files from the same refit, in one commit: `td-scorer.json`, which never carries a budget
+block, and `td-scorer-budget.json`, the same model with its block when the budget is on
+and kept, else the same bytes. pytorch checkouts with the budget rule
+(pytorch/pytorch#204628) read `td-scorer.json` first, as the master switch: when it gives
+no usable model (disabled, missing, stale or invalid), the job keeps TD's cut and no
+budget applies; otherwise they use `td-scorer-budget.json` when it gives a usable model
+too, else `td-scorer.json`. Older checkouts read only `td-scorer.json`.
 
 ## The model contract
 
@@ -156,7 +163,8 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
 - **refit**: fits the start-up per file of each test config, builds missing day shards
   (S3 on main, within the backfill budget; a pull request builds three days in memory
   and writes nothing), fits the scorer and the risk score on the data window, runs the
-  walk-forward and the gate below, and writes the model. It passes `--budget` only when
+  walk-forward and the gate below, and writes both model files and their samples
+  (`sample.json`, `budget-sample.json`). It passes `--budget` only when
   the repository variable `TD_SCORER_BUDGET`, trimmed and lowercased, is exactly `on`
   (`model_json.budget_on`); the step summary gives the budget mode and, with a budget,
   the realised share of test-times seconds. The job fails when the gate fails, when
@@ -178,11 +186,18 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
   must-run files over the budget when the gate days have them. It runs pytorch's code
   from a sparse checkout of `tools/testing` and `tools/stats`. Any difference that is
   not finite fails it. While pytorch main has no `scorer_model.py` or no `scorer.py`,
-  the check is skipped and counts as not validated.
-- **publish** (main only, no secrets, and only after the check validated the model):
-  pushes `stats/td-scorer.json` to generated-stats. Before pushing it reads
-  `TD_SCORER_BUDGET` again, normalised the same way in shell, and fails rather than
-  publish a model with a budget block while the variable is not `on`.
+  the check is skipped and counts as not validated. It checks `td-scorer.json` with
+  `sample.json`, which decides `validated`, and `td-scorer-budget.json` with
+  `budget-sample.json`, which only sets `budget_validated`: any exit but 0 there is a
+  warning, never a failed job.
+- **publish** (main only, no secrets, and only after the check validated
+  `td-scorer.json`): refuses a `td-scorer.json` with a budget block.
+  `td-scorer-budget.json` keeps the refit's budget model when the check validated it
+  and, if it has a block, `TD_SCORER_BUDGET`, read again and normalised the same way in
+  shell, is `on`; otherwise it gets `td-scorer.json`'s model. Both files go to generated-stats in one
+  commit, each left in place while its live copy's `enabled` is not true, and
+  `td-scorer-budget.json` also while the live `td-scorer.json` is not enabled. When the
+  budget model was refused, a last step fails the job after the push.
 
 ## The gate
 
@@ -233,9 +248,10 @@ budget check (3) decides whether the model keeps its budget block.
    0.75-0.92 in the months with 50 PRs or more; a guard against a broken model, not a
    quality target) over at least 30 such PRs. Only served jobs, those whose config has a
    start-up, count: the budget does not apply to the others. Otherwise refit writes
-   the model without the block, and the scorer stays at TD's cost; the floor and the
-   publish decision are unchanged. The refit settles the block first, then writes the
-   model and the sample from the final model. Once the budget is live, PR failures are
+   `td-scorer-budget.json` without the block, and the scorer stays at TD's cost; the
+   floor and the publish decision are unchanged. The refit settles the block first, then
+   writes `--out` and `--sample` from the model without the block, and `--budget-out` and
+   `--budget-sample` from the final model. Once the budget is live, PR failures are
    only observed in files the budgeted cut ran, so the check passes by construction:
    it guards the switch-on, not later drift.
 
@@ -285,7 +301,8 @@ The budget is opt-in: refit writes a block only when `TD_SCORER_BUDGET` is `on`,
 gate's budget check passes. Before switching it on:
 
 - pytorch main must have the budget rule. With the variable on and an older pytorch
-  main, check-pytorch exits 1 and nothing publishes.
+  main, check-pytorch fails on `td-scorer-budget.json`, which then gets the plain model,
+  and the run fails after publishing.
 - Something must watch quality afterwards, because the budget check passes by
   construction once the budget is live: either an exploration slice (a small random
   share of jobs that run beyond the cut, so its misses stay observable), or a named
@@ -293,26 +310,29 @@ gate's budget check passes. Before switching it on:
   weeks.
 
 check-pytorch couples the two repos: while the budget is on, a pytorch change to the
-budget constants, the build paths or `change_features` stops every publish until
-`model_json.py` and `risk.py` mirror it; while it is off, check-pytorch only warns.
+budget constants, the build paths or `change_features` keeps the block out of
+`td-scorer-budget.json`, and fails every run, until `model_json.py` and `risk.py` mirror
+it; `td-scorer.json` has no block, so for it check-pytorch only warns.
 
 ### Turning the budget off
 
-- `"enabled": false` (below) stops the scorer, budget included, on the next TD job.
+- `"enabled": false` in `td-scorer.json` (below) stops the scorer, budget included.
 - To end the budget alone: set `TD_SCORER_BUDGET` to anything but `on`, cancel every
   in-flight run of the workflow (mandatory: a run that started with the variable on
-  publishes a model with a block after the key is deleted), and only then remove the
-  block from the live file
-  (`jq -c 'del(.budget)' stats/td-scorer.json > m.json && mv m.json stats/td-scorer.json`
-  on generated-stats, committed and pushed); the next daily run publishes without one.
-- raw.githubusercontent.com caches the file for about 5 minutes, and a PR whose TD job
+  publishes a block after the key is deleted), and only then delete the key from the
+  live `td-scorer-budget.json` (`jq -c 'del(.budget)' stats/td-scorer-budget.json > m.json
+  && mv m.json stats/td-scorer-budget.json` on generated-stats, committed and pushed), or
+  set its `enabled` to false (the daily run then leaves it in place until it is enabled
+  again or deleted). Checkouts with the budget rule then use the model without a block.
+- raw.githubusercontent.com caches the files for about 5 minutes, and a PR whose TD job
   already ran keeps that job's block for re-runs of its shards.
-- Re-running the publish job of an old workflow run publishes that run's (old) model,
-  block included if it had one; its re-check reads the variable as it is now.
+- Re-running the publish job of an old workflow run publishes that run's (old) models,
+  block included if it had one; its choice reads the variable as it is now.
 
-Rollback order: the variable off, cancel in-flight runs, delete the budget key from the
-live file, revert test-infra, then revert pytorch (pytorch ignores a missing block, but
-an older pytorch rejects a model that has one, and runs TD's own cut).
+Rollback order: the variable off, cancel in-flight runs, delete `td-scorer-budget.json`
+from generated-stats, revert test-infra, then revert pytorch (checkouts with the budget
+rule fall back to `td-scorer.json` when the budget file is missing, and older ones never
+read it).
 
 ### The sweep
 
@@ -334,10 +354,11 @@ the selection of the defaults are not in this package.
 
 ## Turning the scorer off
 
-Set `"enabled": false` in `stats/td-scorer.json` on the generated-stats branch. pytorch's
-TD job then uses TD's own cut, budget or not, and the publish job never replaces a file
-whose `enabled` is not true. Setting it back to true (or deleting the file) lets the next
-daily run publish again. "Turning the budget off" above ends the budget alone.
+Set `"enabled": false` in `stats/td-scorer.json` on the generated-stats branch. Every
+pytorch checkout's TD job then uses TD's own cut, budget or not, and the publish job
+writes neither file while it stays off. Setting it back to true (or deleting the file)
+lets the next daily run publish again. "Turning the budget off" above ends the budget
+alone.
 
 ## Running locally
 
@@ -347,14 +368,16 @@ From `tools/` with `pip install -e torchci`, and `CLICKHOUSE_ENDPOINT`,
 ```bash
 python -m torchci.td.scorer refit --day 2026-11-10 --train-days 2 --gate-days 1 \
   --cache-dir /tmp/td-shards --out /tmp/td-scorer.json --sample /tmp/sample.json \
+  --budget-out /tmp/td-scorer-budget.json --budget-sample /tmp/budget-sample.json \
   --report-only
 python -m torchci.td.scorer check-pytorch --model /tmp/td-scorer.json \
   --sample /tmp/sample.json --pytorch-root ../../pytorch
 ```
 
 `--cache-dir` keeps day shards in a local directory instead of S3; `check-pytorch` reads
-the sample `refit --sample` writes. The sweep reads that cache directory, and takes the
-start-up table from a model file, such as the published one:
+the sample `refit --sample` writes (`--budget-sample`'s for `td-scorer-budget.json`).
+The sweep reads that cache directory, and takes the start-up table from a model file,
+such as the published one:
 
 ```bash
 curl -sSo /tmp/test-times.json \

@@ -1,7 +1,9 @@
+import contextlib
 import dataclasses
 import hashlib
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import threading
@@ -13,6 +15,7 @@ from unittest import main, mock, TestCase
 import numpy as np
 from torchci.td.scorer import (
     __main__ as cli,
+    check_pytorch,
     cut,
     gate,
     holdout,
@@ -391,13 +394,13 @@ class TestReplayCuts(TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             write_pytorch(root, "0.0", scorer="False")
-            self.assertEqual(cli._replay_cuts(root, m, jobs), 0)
+            self.assertEqual(check_pytorch._replay_cuts(root, m, jobs), 0)
             # A gate that ran the scorer's cut where pytorch keeps TD's.
             wrong = [{**jobs[1], "selected": jobs[0]["selected"]}]
-            self.assertEqual(cli._replay_cuts(root, m, wrong), 1)
+            self.assertEqual(check_pytorch._replay_cuts(root, m, wrong), 1)
             # A pytorch that keeps TD's cut where the gate ran the scorer's.
             no_table = {**m, "start_up_seconds": {}}
-            self.assertEqual(cli._replay_cuts(root, no_table, jobs[:1]), 1)
+            self.assertEqual(check_pytorch._replay_cuts(root, no_table, jobs[:1]), 1)
             write_pytorch(root, "0.0")
 
 
@@ -545,7 +548,7 @@ class TestCheckPytorchBudget(TestCase):
                 with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
                     self.assertEqual(self.check(model=plain, **drift), 0)
                 self.assertIn("WARNING (no budget block", out.getvalue())
-        target = self.root / cli.SCORER_DIR / "scorer.py"
+        target = self.root / check_pytorch.SCORER_DIR / "scorer.py"
         write_pytorch(self.root, "0.0", scorer="False")
         target.write_text(
             target.read_text().replace("BUDGET_OFFSET = 0", "BUDGET_OFFSET = 1000")
@@ -860,23 +863,23 @@ class TestCli(TestCase):
                 "--pytorch-root",
                 str(root),
             ]
-            self.assertEqual(cli.main(args), cli.SKIPPED)
+            self.assertEqual(cli.main(args), check_pytorch.SKIPPED)
             self.assertTrue(json.loads(sample.read_text())["jobs"])
             write_pytorch(root, "0.0")
-            self.assertEqual(cli.main(args), cli.SKIPPED)
+            self.assertEqual(cli.main(args), check_pytorch.SKIPPED)
             write_pytorch(root, "1e-3")
             self.assertEqual(cli.main(args), 1)
             write_pytorch(root, "float('nan')", scorer="False")
             self.assertEqual(cli.main(args), 1)
             write_pytorch(root, "0.0", scorer="False")
             self.assertEqual(cli.main(args), 0)
-            target = root / cli.SCORER_DIR
+            target = root / check_pytorch.SCORER_DIR
             (target / "scorer.py").write_text("TD_RESULTS_PATH = None\n")
             for name in [
                 m for m in sys.modules if m == "tools" or m.startswith("tools.")
             ]:
                 del sys.modules[name]
-            self.assertEqual(cli.main(args), cli.SKIPPED)
+            self.assertEqual(cli.main(args), check_pytorch.SKIPPED)
             write_pytorch(root, "0.0", scorer="True")
             self.assertEqual(cli.main(args), 1)
             write_pytorch(root, "0.0", scorer="False")
@@ -888,7 +891,7 @@ class TestCli(TestCase):
 
     def test_skipped_exit_code(self) -> None:
         # td-scorer.yml tests the check-pytorch exit code against a literal 3.
-        self.assertEqual(cli.SKIPPED, 3)
+        self.assertEqual(check_pytorch.SKIPPED, 3)
 
     def run_refit(self, d, *extra, landings_main=None):
         """refit of 2026-11-10 on 45 training days, today 2026-11-11: (exit code, model,
@@ -942,9 +945,12 @@ class TestCli(TestCase):
 
     def test_refit_budget(self) -> None:
         with tempfile.TemporaryDirectory() as d:
-            code, model, report, out = self.run_refit(d, "--budget")
+            budget_out = ["--budget-out", str(Path(d) / "b.json")]
+            code, model, report, out = self.run_refit(d, "--budget", *budget_out)
+            shipped = json.loads((Path(d) / "b.json").read_text())
         self.assertEqual(code, 0)
-        self.assertEqual(model["budget"], model_json.BUDGET)
+        self.assertNotIn("budget", model)
+        self.assertEqual(shipped, {**model, "budget": model_json.BUDGET})
         self.assertTrue(report["budget_ok"] and report["budget_kept"])
         # One PR's failing file is displaced by a first-ranked file over the budget.
         self.assertAlmostEqual(report["budget"]["retention"], 15 / 17)
@@ -955,21 +961,26 @@ class TestCli(TestCase):
         with tempfile.TemporaryDirectory() as d, mock.patch.object(
             gate, "RETENTION_FLOOR", 1.01
         ):
-            code, model, report, out = self.run_refit(d, "--budget")
+            budget_out = ["--budget-out", str(Path(d) / "b.json")]
+            code, model, report, out = self.run_refit(d, "--budget", *budget_out)
+            shipped = json.loads((Path(d) / "b.json").read_text())
         self.assertEqual(code, 0)
         self.assertNotIn("budget", model)
+        self.assertEqual(shipped, model)
         self.assertFalse(report["budget_ok"] or report["budget_kept"])
         self.assertIn("block dropped (the retention check failed)", out)
         # The monitor runs last, after the model, the report and the sample exist.
         with tempfile.TemporaryDirectory() as d:
             sample_path = Path(d) / "s.json"
 
+            outputs = ["--sample", str(sample_path), *self.budget_outputs(d)]
+
             def written(*args):
-                for name in ("m.json", "r.json", "s.json"):
+                for name in ("m.json", "r.json", "s.json", "b.json", "bs.json"):
                     self.assertTrue((Path(d) / name).exists(), name)
 
             with mock.patch.object(gate, "monitor", side_effect=written) as called:
-                self.run_refit(d, "--budget", "--sample", str(sample_path))
+                self.run_refit(d, "--budget", *outputs)
             self.assertEqual(called.call_count, 1)
         landing = main_failures.MainLanding(
             "f" * 40,
@@ -986,6 +997,50 @@ class TestCli(TestCase):
         )
         self.assertIn("budgeted cut caught 1 landings, 1 of 1 failures", out)
         self.assertIn("TD's 25% cut caught 1 landings", out)
+
+    def budget_outputs(self, d):
+        return ["--budget-out", str(Path(d) / "b.json")] + [
+            "--budget-sample",
+            str(Path(d) / "bs.json"),
+        ]
+
+    def refit_files(self, *extra, walk_forward=None):
+        """The bytes of m.json, s.json, b.json and bs.json a refit wrote, None for a
+        file it did not write."""
+        names = ("m.json", "s.json", "b.json", "bs.json")
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(
+            cli.walkforward, "walk_forward", side_effect=walk_forward
+        ) if walk_forward else contextlib.nullcontext():
+            args = ["--sample", str(Path(d) / "s.json"), *self.budget_outputs(d)]
+            try:
+                self.run_refit(d, *args, *extra)
+            except RuntimeError:
+                pass
+            paths = [Path(d) / name for name in names]
+            return [p.read_bytes() if p.exists() else None for p in paths]
+
+    def test_refit_writes_both_models_and_samples(self) -> None:
+        plain = self.refit_files()
+        self.assertEqual(plain[2:], plain[:2])
+        self.assertNotIn("budget", json.loads(plain[0]))
+        budget = self.refit_files("--budget")
+        self.assertEqual(budget[:2], plain[:2])
+        self.assertEqual(json.loads(budget[2])["budget"], model_json.BUDGET)
+        self.assertNotEqual(budget[3], budget[1])
+        budget_ms = [j["budget_ms"] for j in json.loads(budget[3])["jobs"]]
+        self.assertNotEqual(
+            budget_ms, [j["budget_ms"] for j in json.loads(budget[1])["jobs"]]
+        )
+        with mock.patch.object(gate, "RETENTION_FLOOR", 1.01):
+            dropped = self.refit_files("--budget")
+        self.assertEqual(dropped[2:], dropped[:2])
+        self.assertEqual(dropped[:2], plain[:2])
+        # Without --budget both models are written before the walk-forward, as --out
+        # always was; with it, neither is.
+        fold = RuntimeError("fold")
+        self.assertEqual(self.refit_files(walk_forward=fold), [plain[0], None] * 2)
+        failed = self.refit_files("--budget", walk_forward=fold)
+        self.assertEqual(failed, [None] * 4)
 
     def test_refit_marks_no_outcome_days_by_age(self) -> None:
         self.broken, self.gap = set(), set()
@@ -1071,12 +1126,7 @@ class TestCli(TestCase):
         self.assertLessEqual(store.BACKFILL_SECONDS + 90 * 60, timeout)
 
     def test_workflow_budget_switch(self) -> None:
-        import subprocess
-
-        import yaml
-
-        path = Path(__file__).parents[4] / ".github" / "workflows" / "td-scorer.yml"
-        jobs = yaml.safe_load(path.read_text())["jobs"]
+        jobs = workflow_jobs()
         variable = "${{ vars.TD_SCORER_BUDGET }}"
         refit = next(s for s in jobs["refit"]["steps"] if s.get("id") == "refit")
         self.assertEqual(refit["env"]["TD_SCORER_BUDGET"], variable)
@@ -1086,32 +1136,21 @@ class TestCli(TestCase):
             for step in job["steps"]:
                 self.assertNotIn("vars.", step.get("run", ""))
         names = [step.get("name", "") for step in jobs["publish"]["steps"]]
-        check = names.index("Refuse a budget block unless TD_SCORER_BUDGET is on")
-        self.assertLess(
-            check, names.index("Push stats/td-scorer.json to generated-stats")
-        )
-        step = jobs["publish"]["steps"][check]
+        self.assertLess(names.index(CHOOSE), names.index(PUSH))
+        self.assertLess(names.index(PUSH), names.index(REFUSED))
+        step = workflow_step(jobs["publish"], CHOOSE)
         self.assertEqual(step["env"]["TD_SCORER_BUDGET"], variable)
         values = [" On\n", "ON", "on", "\ton \r", "\non", "off", "", "true", "1", "o n"]
-        with tempfile.TemporaryDirectory() as d:
-            (Path(d) / "td-scorer").mkdir()
-            for has_budget in (True, False):
-                m = model()
-                if has_budget:
-                    m["budget"] = model_json.BUDGET
-                (Path(d) / "td-scorer" / "td-scorer.json").write_text(json.dumps(m))
-                for value in values:
-                    env = {
-                        **step["env"],
-                        "TD_SCORER_BUDGET": value,
-                        "GITHUB_STEP_SUMMARY": str(Path(d) / "summary"),
-                        "PATH": "/usr/bin:/bin",
-                    }
-                    done = subprocess.run(
-                        ["bash", "-c", step["run"]], cwd=d, env=env, capture_output=True
-                    )
+        plain = model()
+        for has_budget in (True, False):
+            budgeted = {**plain, "budget": model_json.BUDGET} if has_budget else plain
+            for value in values:
+                with self.subTest(has_budget=has_budget, value=value):
+                    code, published, outputs = run_choose(step, plain, budgeted, value)
+                    self.assertEqual(code, 0)
                     allowed = not has_budget or model_json.budget_on(value)
-                    self.assertEqual(done.returncode == 0, allowed, repr(value))
+                    self.assertEqual(published, budgeted if allowed else plain)
+                    self.assertEqual("refused" not in outputs, allowed)
 
     def test_fetch_test_times(self) -> None:
         with mock.patch.object(logs, "http_get", return_value=b'{"a": {}}') as get:
@@ -1121,6 +1160,269 @@ class TestCli(TestCase):
             with mock.patch.object(logs, "http_get", return_value=body):
                 with self.assertRaises(RuntimeError):
                     cli.fetch_test_times()
+
+
+WORKFLOW = Path(__file__).parents[4] / ".github" / "workflows" / "td-scorer.yml"
+CHECK = "Validate with pytorch, compare p and r, replay the cut"
+CHOOSE = "Choose the models to publish"
+PUSH = "Push the models to generated-stats"
+REFUSED = "Fail when td-scorer-budget.json was refused"
+STUB_PYTHON = """#!/bin/bash
+echo "$*" >> "${CALLS}"
+case "$*" in
+  *td-scorer-budget.json*) exit "${BUDGET_CODE}" ;;
+  *) exit "${PLAIN_CODE}" ;;
+esac
+"""
+
+
+def workflow_jobs():
+    import yaml
+
+    return yaml.safe_load(WORKFLOW.read_text())["jobs"]
+
+
+def workflow_step(job, name):
+    return next(s for s in job["steps"] if s.get("name") == name)
+
+
+def run_step(step, cwd, env):
+    """A step's shell run as GitHub's default bash shell runs it, in its
+    working-directory under `cwd`: (exit code, stdout, its GITHUB_OUTPUT lines)."""
+    out = Path(cwd) / "github_output"
+    out.write_text("")
+    env = {
+        **step.get("env", {}),
+        "GITHUB_OUTPUT": str(out),
+        "GITHUB_STEP_SUMMARY": str(Path(cwd) / "summary"),
+        "PATH": "/usr/bin:/bin",
+        "HOME": str(cwd),
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        **env,
+    }
+    done = subprocess.run(
+        ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", step["run"]],
+        cwd=Path(cwd) / step.get("working-directory", ""),
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    outputs = dict(line.split("=", 1) for line in out.read_text().splitlines())
+    return done.returncode, done.stdout, outputs
+
+
+def write_models(d, plain, budgeted):
+    models = Path(d) / "td-scorer"
+    models.mkdir(exist_ok=True)
+    (models / "td-scorer.json").write_text(model_json.dumps(plain))
+    text = budgeted if isinstance(budgeted, str) else model_json.dumps(budgeted)
+    (models / "td-scorer-budget.json").write_text(text)
+
+
+def run_choose(step, plain, budgeted, value="on", validated="true"):
+    """(exit code, the td-scorer-budget.json it leaves, its outputs)."""
+    with tempfile.TemporaryDirectory() as d:
+        write_models(d, plain, budgeted)
+        env = {"TD_SCORER_BUDGET": value, "BUDGET_VALIDATED": validated}
+        code, _, outputs = run_step(step, d, env)
+        published = (Path(d) / "td-scorer" / "td-scorer-budget.json").read_text()
+    return code, json.loads(published), outputs
+
+
+class TestWorkflowPublish(TestCase):
+    def setUp(self) -> None:
+        self.jobs = workflow_jobs()
+        self.plain = model()
+        self.budgeted = {**self.plain, "budget": model_json.BUDGET}
+
+    def test_check_exit_codes(self) -> None:
+        check = self.jobs["check"]
+        self.assertEqual(
+            check["outputs"]["budget_validated"],
+            "${{ steps.check.outputs.budget_validated }}",
+        )
+        choose = workflow_step(self.jobs["publish"], CHOOSE)
+        self.assertEqual(
+            choose["env"]["BUDGET_VALIDATED"],
+            "${{ needs.check.outputs.budget_validated }}",
+        )
+        step = workflow_step(check, CHECK)
+        expected_calls = [
+            f"-m torchci.td.scorer check-pytorch --model ../td-scorer/{m}"
+            f" --sample ../td-scorer/{s} --pytorch-root ../pytorch"
+            for m, s in (
+                ("td-scorer.json", "sample.json"),
+                ("td-scorer-budget.json", "budget-sample.json"),
+            )
+        ]
+        for plain, budget in [(p, b) for p in (0, 3, 1) for b in (0, 1, 3)]:
+            with self.subTest(
+                plain=plain, budget=budget
+            ), tempfile.TemporaryDirectory() as d:
+                (Path(d) / "tools").mkdir()
+                stub = Path(d) / "bin" / "python"
+                stub.parent.mkdir()
+                stub.write_text(STUB_PYTHON)
+                stub.chmod(0o755)
+                calls = Path(d) / "calls"
+                env = {
+                    "PATH": f"{stub.parent}:/usr/bin:/bin",
+                    "CALLS": str(calls),
+                    "PLAIN_CODE": str(plain),
+                    "BUDGET_CODE": str(budget),
+                }
+                code, out, outputs = run_step(step, d, env)
+                self.assertEqual(calls.read_text().splitlines(), expected_calls)
+                self.assertEqual(code, 0 if plain in (0, 3) else plain)
+                budget_ok = "true" if budget == 0 else "false"
+                self.assertEqual(outputs.pop("budget_validated"), budget_ok)
+                if plain in (0, 3):
+                    validated = "true" if plain == 0 else "false"
+                    self.assertEqual(outputs, {"validated": validated})
+                self.assertEqual("::warning::" in out, budget != 0)
+                summary = Path(d) / "summary"
+                self.assertEqual(summary.exists(), budget != 0)
+
+    def test_choose(self) -> None:
+        step = workflow_step(self.jobs["publish"], CHOOSE)
+        # A budget model without a block publishes whatever the variable says.
+        for value in ("on", "off"):
+            got = run_choose(step, self.plain, self.plain, value)
+            self.assertEqual(got, (0, self.plain, {}))
+        self.assertEqual(
+            run_choose(step, self.plain, self.budgeted), (0, self.budgeted, {})
+        )
+        code, published, outputs = run_choose(step, self.plain, self.budgeted, "off")
+        self.assertEqual((code, published), (0, self.plain))
+        self.assertIn("TD_SCORER_BUDGET is not on", outputs["refused"])
+        for validated in ("false", ""):
+            for budgeted in (self.budgeted, self.plain):
+                with self.subTest(validated=validated, block="budget" in budgeted):
+                    got = run_choose(step, self.plain, budgeted, "on", validated)
+                    self.assertEqual(got[:2], (0, self.plain))
+                    self.assertIn("did not validate", got[2]["refused"])
+        code, published, outputs = run_choose(step, self.plain, "[1", "on")
+        self.assertEqual((code, published), (0, self.plain))
+        self.assertIn("not a JSON object", outputs["refused"])
+        # td-scorer.json never carries a budget block.
+        with tempfile.TemporaryDirectory() as d:
+            write_models(d, self.budgeted, self.budgeted)
+            env = {"TD_SCORER_BUDGET": "on", "BUDGET_VALIDATED": "true"}
+            code, out, outputs = run_step(step, d, env)
+        self.assertEqual((code, outputs), (1, {}))
+        self.assertIn("::error::td-scorer.json has a budget block", out)
+
+    def test_refused_fails_the_job(self) -> None:
+        step = workflow_step(self.jobs["publish"], REFUSED)
+        self.assertEqual(step["if"], "steps.choose.outputs.refused != ''")
+        with tempfile.TemporaryDirectory() as d:
+            code, out, _ = run_step(step, d, {"REFUSED": "why"})
+        self.assertEqual(code, 1)
+        self.assertIn("::error::why", out)
+
+    def git(self, cwd, *args) -> str:
+        env = {
+            "PATH": "/usr/bin:/bin",
+            "HOME": str(cwd),
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@example.com",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@example.com",
+        }
+        done = subprocess.run(
+            ["git", *args], cwd=cwd, env=env, check=True, capture_output=True, text=True
+        )
+        return done.stdout
+
+    def push(self, live, plain, budgeted, choose=None):
+        """Runs the push step on a generated-stats branch holding `live` (stats file
+        name to model), after the choose step when `choose` is its BUDGET_VALIDATED:
+        (stdout, the branch's new commits as lists of changed paths, its stats files)."""
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        root = Path(d.name)
+        origin = root / "origin.git"
+        self.git(root, "init", "-q", "--bare", str(origin))
+        seed = root / "seed"
+        (seed / "stats").mkdir(parents=True)
+        (seed / "stats" / "other.json").write_text("{}")
+        for name, m in live.items():
+            (seed / "stats" / name).write_text(model_json.dumps(m))
+        self.git(seed, "init", "-q")
+        self.git(seed, "add", ".")
+        self.git(seed, "commit", "-q", "-m", "seed")
+        self.git(seed, "push", "-q", str(origin), "HEAD:generated-stats")
+        url = f"file://{origin}"
+        self.git(
+            root,
+            "clone",
+            "-q",
+            "--depth=1",
+            "-b",
+            "generated-stats",
+            url,
+            "generated-stats",
+        )
+        write_models(root, plain, budgeted)
+        if choose is not None:
+            env = {"TD_SCORER_BUDGET": "on", "BUDGET_VALIDATED": choose}
+            self.assertEqual(
+                run_step(workflow_step(self.jobs["publish"], CHOOSE), root, env)[0], 0
+            )
+        code, out, _ = run_step(workflow_step(self.jobs["publish"], PUSH), root, {})
+        self.assertEqual(code, 0, out)
+        log = self.git(origin, "log", "--format=%x00", "--name-only", "generated-stats")
+        commits = [sorted(c.split()) for c in log.split("\x00")[1:]][:-1]
+        listed = self.git(origin, "ls-tree", "--name-only", "generated-stats", "stats/")
+        files = {
+            name: json.loads(self.git(origin, "show", f"generated-stats:stats/{name}"))
+            for name in ("td-scorer.json", "td-scorer-budget.json")
+            if f"stats/{name}" in listed.split()
+        }
+        return out, commits, files
+
+    def test_push(self) -> None:
+        both = ["stats/td-scorer-budget.json", "stats/td-scorer.json"]
+        old = model(0.5)
+        off = {**old, "enabled": False}
+        out, commits, files = self.push({}, self.plain, self.budgeted)
+        self.assertEqual(commits, [both])
+        self.assertEqual(
+            files,
+            {"td-scorer.json": self.plain, "td-scorer-budget.json": self.budgeted},
+        )
+        out, commits, files = self.push(
+            {"td-scorer.json": old, "td-scorer-budget.json": old},
+            self.plain,
+            self.budgeted,
+        )
+        self.assertEqual(commits, [both])
+        # A disabled td-scorer.json stops both files.
+        live = {"td-scorer.json": off, "td-scorer-budget.json": old}
+        out, commits, files = self.push(live, self.plain, self.budgeted)
+        self.assertEqual((commits, files), ([], live))
+        self.assertIn("No changes to push", out)
+        # ... and keeps td-scorer-budget.json from being created.
+        out, commits, files = self.push(
+            {"td-scorer.json": off}, self.plain, self.budgeted
+        )
+        self.assertEqual((commits, files), ([], {"td-scorer.json": off}))
+        # A disabled td-scorer-budget.json stays while td-scorer.json updates.
+        live = {"td-scorer.json": old, "td-scorer-budget.json": off}
+        out, commits, files = self.push(live, self.plain, self.budgeted)
+        self.assertEqual(commits, [["stats/td-scorer.json"]])
+        self.assertEqual(
+            files, {"td-scorer.json": self.plain, "td-scorer-budget.json": off}
+        )
+        # A refused budget model: td-scorer.json's model lands under both names.
+        out, commits, files = self.push({}, self.plain, self.budgeted, choose="false")
+        self.assertEqual(commits, [both])
+        self.assertEqual(
+            files, {"td-scorer.json": self.plain, "td-scorer-budget.json": self.plain}
+        )
 
 
 if __name__ == "__main__":
