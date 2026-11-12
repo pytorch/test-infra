@@ -801,6 +801,13 @@
       "xpu"
     ]
   ],
+  "test_grid_sampler_expand_preserves_view_xpu (__main__.GPUTests)": [
+    "204580",
+    "https://github.com/pytorch/pytorch/issues/204580",
+    [
+      "xpu"
+    ]
+  ],
   "test_group_norm_backward_large_input_bfloat16_trigger_32bit_overflow_True_mps_bfloat16 (__main__.TestConsistencyMPS)": [
     "186866",
     "https://github.com/pytorch/pytorch/issues/186866",
