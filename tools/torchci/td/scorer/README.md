@@ -6,7 +6,8 @@ A learned layer over pytorch's target determination (TD) heuristics, retrained d
   (isotonic fit), and the calibrated log-odds are combined with non-negative weights plus
   build-env and test-config terms and ln(cost) into p. pytorch's `run_test.py` keeps the
   files EditedByPR or PreviouslyFailedInPR scored, then fills up to the cost of TD's own
-  cut by p / cost.
+  cut by p / cost. Files the job's config records under 1 s skip there (a CUDA-only file
+  on a CPU job) and only take what budget is left.
 - **Risk score**: one number per change, r in [-1, 1] with mean 0, from the change's
   changed-file counts. It is computed and logged in the TD job; nothing uses it to size
   the cut.
