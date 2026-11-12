@@ -67,9 +67,12 @@ class JobTimes:
             self._entries[key] = (times, mid)
         return self._entries[key]
 
-    def cost(self, job: str, config: str, test_file: str) -> float:
+    def seconds(self, job: str, config: str, test_file: str) -> float:
         times, mid = self.entry(job, config)
-        return float(times.get(test_file, mid)) + OVERHEAD_SECONDS
+        return float(times.get(test_file, mid))
+
+    def cost(self, job: str, config: str, test_file: str) -> float:
+        return self.seconds(job, config, test_file) + OVERHEAD_SECONDS
 
 
 @dataclass

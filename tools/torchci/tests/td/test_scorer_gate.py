@@ -78,25 +78,38 @@ class TestCut(TestCase):
         files = ["a", "b", "c", "d"]
         p = np.array([0.1, 0.1, 0.5, 0.9])
         costs = np.array([10.0, 10.0, 10.0, 100.0])
-        self.assertEqual(gate.scorer_cut(files, p, costs, 20000, set()), {"a", "c"})
-        self.assertEqual(
-            gate.scorer_cut(files, p, costs, 100000, set()), {"a", "b", "c"}
-        )
-        self.assertEqual(gate.scorer_cut(files, p, costs, 0, set()), set())
-        self.assertEqual(gate.scorer_cut(files, p, costs, 130000, set()), set(files))
-        self.assertEqual(gate.scorer_cut(files, p, costs, 20000, {"d"}), {"d"})
-        self.assertEqual(
-            gate.scorer_cut(files, p, costs, 120000, {"d", "b"}), {"b", "c", "d"}
-        )
+        secs = costs - 5.0
+
+        def cut(budget: int, must: set[str]) -> set[str]:
+            return gate.scorer_cut(files, p, costs, secs, budget, must)
+
+        self.assertEqual(cut(20000, set()), {"a", "c"})
+        self.assertEqual(cut(100000, set()), {"a", "b", "c"})
+        self.assertEqual(cut(0, set()), set())
+        self.assertEqual(cut(130000, set()), set(files))
+        self.assertEqual(cut(20000, {"d"}), {"d"})
+        self.assertEqual(cut(120000, {"d", "b"}), {"b", "c", "d"})
+
+    def test_files_that_skip_here_only_take_budget_left_over(self) -> None:
+        files = ["a", "b", "c", "d"]
+        p = np.array([0.9, 0.9, 0.1, 0.1])
+        secs = np.array([0.04, 0.99, 100.0, 100.0])
+        costs = secs + 24.0
+        cut = gate.scorer_cut(files, p, costs, secs, 248_000, set())
+        self.assertEqual(cut, {"c", "d"})
+        cut = gate.scorer_cut(files, p, costs, secs, 272_040, set())
+        self.assertEqual(cut, {"a", "c", "d"})
+        self.assertEqual(gate.scorer_cut(files, p, costs, secs, 24_040, {"b"}), {"b"})
 
     def test_int_ms(self) -> None:
         self.assertEqual(gate.cost_ms(0.0015), 2)
         self.assertEqual(gate.cost_ms(24.0004), 24000)
         files = ["a", "b", "c"]
         costs = np.array([0.1, 0.2, 0.3])
+        secs = np.array([1.0, 1.0, 1.0])
         # 0.1 + 0.2 > 0.3 in floats; in integer ms both fit exactly.
         self.assertEqual(
-            gate.scorer_cut(files, np.array([0.9, 0.9, 0.0]), costs, 300, set()),
+            gate.scorer_cut(files, np.array([0.9, 0.9, 0.0]), costs, secs, 300, set()),
             {"a", "b"},
         )
 
@@ -288,7 +301,8 @@ def select_tests(block, include, exclude, times, build_env_key, test_config):
     model, scores, raised = block["model"], block["heuristics"], set(block["raised"])
     files = sorted({t.test_file for t in include + exclude})
     median = statistics.median(times.values()) if times else 0.0
-    costs = np.array([times.get(f, median) + model["overhead_seconds"] for f in files])
+    secs = np.array([times.get(f, median) for f in files])
+    costs = secs + model["overhead_seconds"]
     p = model_json.p_files(model, scores, raised, build_env_key, test_config, files, costs)
     inc = {t.test_file for t in include}
     budget = sum(gate.cost_ms(c) for f, c in zip(files, costs) if f in inc)
@@ -299,7 +313,8 @@ def select_tests(block, include, exclude, times, build_env_key, test_config):
         for f, s in scores.get(name, {}).items()
         if s
     }
-    return [TestRun(f) for f in gate.scorer_cut(files, p, costs, budget, must)], [], {}
+    cut = gate.scorer_cut(files, p, costs, secs, budget, must)
+    return [TestRun(f) for f in cut], [], {}
 """
 
 
