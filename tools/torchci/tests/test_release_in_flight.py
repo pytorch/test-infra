@@ -6,10 +6,13 @@ from unittest import main, TestCase
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from datetime import datetime, timezone
+
 from analytics.github_analyze import (  # noqa: E402
     GitRepo,
     release_in_preparation,
     releases_in_flight,
+    revert_step_rows,
 )
 
 
@@ -113,6 +116,100 @@ class ReleasesInFlight(TestCase):
 
     def test_nothing_is_in_flight_without_a_main_version(self):
         self.assertEqual(releases_in_flight(GitRepo(self.tmp.name, "origin"), []), [])
+
+
+class _Commit:
+    def __init__(self, commit_hash, title, pr_url=""):
+        self.commit_hash = commit_hash
+        self.title = title
+        self.pr_url = pr_url
+
+
+def _revert(status, number=None, tags=()):
+    return {
+        "commit": _Commit(
+            "a" * 40,
+            "Revert something",
+            f"https://github.com/pytorch/pytorch/pull/{number}" if number else "",
+        ),
+        "phabricator_revision": None,
+        "reverted_commit": "b" * 40,
+        "rc_tags": list(tags),
+        "status": status,
+    }
+
+
+class RevertStepRows(TestCase):
+    def rows(self, reverts):
+        return revert_step_rows(
+            "2.15.1",
+            "release/2.15",
+            [{"id": "2.13"}],
+            {"main_only": 9, "branch_only": 1, "reverts": reverts},
+            "0" * 40,
+            "1-1",
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+            datetime(2026, 11, 12, tzinfo=timezone.utc),
+        )
+
+    def test_a_revert_of_a_release_candidate_commit_keeps_the_step_open(self):
+        (row,) = self.rows(
+            [
+                _revert("in_release_candidate", 11, ["v2.15.0-rc3"]),
+                _revert("not_needed"),
+                _revert("cherry_picked"),
+            ]
+        )
+        self.assertEqual((row["step_id"], row["status"]), ("2.13", "in_progress"))
+        self.assertIn("#11", row["evidence_text"])
+        self.assertEqual(row["check_type"], "reverts_missing_from_branch")
+        self.assertEqual(row["rc"], "")
+        self.assertEqual(
+            row["evidence_url"],
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+        )
+
+    def test_no_such_revert_is_done_whatever_else_is_on_main(self):
+        (row,) = self.rows([_revert("not_needed"), _revert("cherry_picked")])
+        self.assertEqual(row["status"], "done")
+        self.assertIn("2 other revert(s)", row["evidence_text"])
+
+    def test_the_details_list_only_the_reverts_to_act_on(self):
+        import json
+
+        (row,) = self.rows(
+            [
+                _revert("in_release_candidate", 11, ["v2.15.0-rc3"]),
+                _revert("not_needed"),
+            ]
+        )
+        details = json.loads(row["details"])
+        self.assertEqual(details["reverts_on_main_not_on_branch"], 2)
+        self.assertEqual(
+            details["by_status"], {"in_release_candidate": 1, "not_needed": 1}
+        )
+        self.assertEqual(len(details["missing"]), 1)
+        self.assertEqual(details["missing"][0]["rc_tags"], ["v2.15.0-rc3"])
+
+    def test_a_revert_without_a_pr_is_named_by_its_commit(self):
+        (row,) = self.rows([_revert("in_release_candidate", None, ["v2.15.0-rc1"])])
+        self.assertIn("aaaaaaaaa", row["evidence_text"])
+
+    def test_without_a_run_the_evidence_is_the_comparison(self):
+        (row,) = revert_step_rows(
+            "2.15.1",
+            "release/2.15",
+            [{"id": "2.13"}],
+            {"main_only": 0, "branch_only": 0, "reverts": []},
+            "0" * 40,
+            "-1",
+            "",
+            datetime(2026, 11, 12, tzinfo=timezone.utc),
+        )
+        self.assertEqual(
+            row["evidence_url"],
+            "https://github.com/pytorch/pytorch/compare/release/2.15...main",
+        )
 
 
 if __name__ == "__main__":
