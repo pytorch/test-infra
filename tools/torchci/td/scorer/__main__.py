@@ -17,6 +17,7 @@ main-failure monitor (gate.monitor, which waits at most gate.MONITOR_SECONDS): m
 landings of the last two months caught by the budgeted cut and by TD's 25% cut.
 `check-pytorch` checks a model file against pytorch's TD scorer code (check_pytorch.py).
 `sweep` replays the cut at every point of the budget grid, read-only (sweep.py).
+`upload-report` sends refit's report to HUD (report_upload.py).
 """
 
 import argparse
@@ -35,6 +36,7 @@ from torchci.td.scorer import (
     holdout,
     logs,
     model_json,
+    report_upload,
     rows,
     sample,
     start_up,
@@ -171,6 +173,13 @@ def refit(args: argparse.Namespace) -> int:
         summary = {
             **result.summary(),
             **summary,
+            "days": {
+                "training": len(train_days),
+                "gate": len(gate_days),
+                "gaps": len(source.gaps),
+                "unhealthy": len(source.unhealthy),
+                "missing": len(source.missing),
+            },
             "walk_forward": walkforward.summary(folds),
         }
         Path(args.report).write_text(json.dumps(summary, indent=2) + "\n")
@@ -236,6 +245,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     p.set_defaults(func=refit)
     check_pytorch.add_parser(sub)
     sweep.add_parser(sub)
+    report_upload.add_parser(sub)
     args = parser.parse_args(argv)
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"

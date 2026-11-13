@@ -8,6 +8,7 @@ import BreakagesSection, {
 } from "components/targetDeterminator/BreakagesSection";
 import KeyMetricsSection from "components/targetDeterminator/KeyMetricsSection";
 import RankingSection from "components/targetDeterminator/RankingSection";
+import RefitSection from "components/targetDeterminator/RefitSection";
 import SavingsSection, {
   useSavingsData,
 } from "components/targetDeterminator/SavingsSection";
@@ -40,6 +41,7 @@ import {
   PENDING_NOTE,
   rangeText,
   RANKS_DATA_FROM,
+  REFITS_DATA_FROM,
   REVERT_WINDOW_DAYS,
   savedShare,
   sectionLimits,
@@ -62,6 +64,7 @@ import {
   slotStarts,
   useChunkedTdQuery,
 } from "lib/targetDeterminatorChunks";
+import { type RefitRow } from "lib/targetDeterminatorRefits";
 import {
   type BreakageRow,
   type ChurnRow,
@@ -1356,6 +1359,50 @@ interface Contract {
   literals: string[];
 }
 
+// Every field of RefitRow, the row the refit section reads.
+const REFIT_COLUMNS = [
+  "run_id",
+  "run_attempt",
+  "created_at",
+  "run_status",
+  "run_conclusion",
+  "refit_status",
+  "refit_conclusion",
+  "refit_minutes",
+  "refit_failed_step",
+  "check_status",
+  "check_conclusion",
+  "publish_status",
+  "publish_conclusion",
+  "report_attempt",
+  "report_infos",
+  "report_valid",
+  "passed",
+  "floor_ok",
+  "floor_ratio",
+  "budget_on",
+  "budget_retention",
+  "budget_retention_floor",
+  "budget_ok",
+  "budget_seconds_share",
+  "holdout_events",
+  "holdout_td_caught",
+  "holdout_scorer_caught",
+  "holdout_healthy",
+  "days_training",
+  "days_gaps",
+  "days_unhealthy",
+  "days_missing",
+  "total_ratio",
+  "wf_month",
+  "wf_prs",
+  "wf_ratio",
+  "wf_event_recall",
+  "wf_trunk_landings",
+  "wf_trunk_caught",
+  "wf_risk_auc",
+] satisfies (keyof RefitRow)[];
+
 const CONTRACTS: Record<string, Contract> = {
   [TD_QUERIES.savings]: {
     columns: [
@@ -1494,6 +1541,24 @@ const CONTRACTS: Record<string, Contract> = {
       "earlier_created >= later_created - look_back",
     ],
   },
+  [TD_QUERIES.refits]: {
+    columns: REFIT_COLUMNS,
+    params: WINDOW,
+    horizonDays: CLAMP_DAYS.refits,
+    grains: [],
+    literals: [
+      "repository.full_name = 'pytorch/test-infra'",
+      "path = '.github/workflows/td-scorer.yml'",
+      "head_branch = 'main'",
+      "event IN ('schedule', 'workflow_dispatch')",
+      "name IN ('refit', 'check', 'publish')",
+      "metric_name = 'td_scorer_refit'",
+      "repo = 'pytorch/test-infra'",
+      "'ossci_uploaded_metrics/td_scorer_refit_'",
+      "'.jsonl.gz'",
+      `toDateTime64('${REFITS_DATA_FROM} 00:00:00', 3)`,
+    ],
+  },
 };
 
 describe("clamp widths", () => {
@@ -1504,6 +1569,7 @@ describe("clamp widths", () => {
       breakages: 90,
       ranks: 90,
       stability: 49,
+      refits: 365,
     });
   });
 
@@ -1692,6 +1758,7 @@ const TOTALS: Record<string, unknown[]> = {
   [TD_QUERIES.breakages]: [breakageTotal({})],
   [TD_QUERIES.ranks]: [rank({})],
   [TD_QUERIES.churn]: [churn({})],
+  [TD_QUERIES.refits]: [],
 };
 
 type SectionProps = { params: TdParams; charts: TdChartsState };
@@ -1722,7 +1789,8 @@ function WithoutKeyMetrics({ params, charts }: SectionProps) {
     createElement(SavingsSection, { data: savings, charts }),
     createElement(BreakagesSection, { data: breakages, charts }),
     createElement(RankingSection, { params, charts }),
-    createElement(StabilitySection, { params, charts })
+    createElement(StabilitySection, { params, charts }),
+    createElement(RefitSection, { params })
   );
 }
 
@@ -1739,6 +1807,18 @@ const decode = (text: string) =>
     .replace(/&amp;/g, "&");
 
 describe("section rendering", () => {
+  // The refit section reads the live model over the network; a server render
+  // never fetches, and this fails any test that would.
+  const realFetch = global.fetch;
+  beforeAll(() => {
+    global.fetch = jest.fn(() =>
+      Promise.reject(new Error("no network in tests"))
+    ) as typeof fetch;
+  });
+  afterAll(() => {
+    expect(global.fetch).not.toHaveBeenCalled();
+    global.fetch = realFetch;
+  });
   afterEach(() => {
     jest.useRealTimers();
     mockApi.respond = () => ({});
@@ -2191,17 +2271,19 @@ describe("section rendering", () => {
 
   it("shows every tile and every chart once on the page", () => {
     const all = opened(...(Object.keys(TD_CHARTS) as TdChartKey[]));
+    // Late enough for the refit section to count days of its own.
     const { html } = renderSection(
       TdSections,
-      pick("2026-10-01", "2026-11-05"),
-      NOW,
+      pick("2026-10-15", "2026-11-21"),
+      ms("2026-11-20T12:00:00.000"),
       answered,
       all
     );
     const found = (pattern: RegExp) =>
       [...html.matchAll(pattern)].map((match) => decode(match[1]));
     const labels = found(/aria-label="([^"]*) chart"/g);
-    expect(labels).toHaveLength(13);
+    // 13 TD chart tiles and the refit section's 4 tiles that open its views.
+    expect(labels).toHaveLength(17);
     expect(new Set(labels).size).toBe(labels.length);
     const keys = Object.keys(TD_CHARTS).sort();
     expect(found(/ id="td-chart-([^"]*)"/g).sort()).toEqual(keys);

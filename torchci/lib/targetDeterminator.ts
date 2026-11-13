@@ -45,6 +45,8 @@ export const RANKS_DATA_FROM = "2026-08-07";
 // the later one, so this is the first day whose look-back lies inside the data.
 export const STABILITY_DATA_FROM = "2026-10-20";
 export const STABILITY_LOOK_BACK_DAYS = 14;
+// The daily scorer refit (td_scorer_refits) runs on main from this UTC day.
+export const REFITS_DATA_FROM = "2026-11-12";
 // td_selection_churn's hist rows count changes in buckets this many points
 // wide.
 export const CHANGE_BUCKET_PCT = 0.1;
@@ -57,6 +59,7 @@ export const CLAMP_DAYS = {
   breakages: 90,
   ranks: 90,
   stability: 49,
+  refits: 365,
 };
 
 // How long the source tables keep their rows.
@@ -83,6 +86,7 @@ export const TD_QUERIES = {
   breakages: "td_trunk_breakages",
   ranks: "td_failure_ranks",
   churn: "td_selection_churn",
+  refits: "td_scorer_refits",
 };
 
 // Whole UTC days in ClickHouse's DateTime64(3) literal form.
@@ -163,6 +167,11 @@ export function sectionLimits(now: number = Date.now()) {
         retainedFrom(RETENTION_DAYS.stability - STABILITY_LOOK_BACK_DAYS, now)
       ),
       validReason: `Run-to-run data is complete from ${STABILITY_DATA_FROM} and kept for a year.`,
+    },
+    refits: {
+      validFrom: dayStart(REFITS_DATA_FROM),
+      validReason: `The daily refit runs on main from ${REFITS_DATA_FROM}.`,
+      clampDays: CLAMP_DAYS.refits,
     },
   } satisfies Record<string, RangeLimit>;
 }
@@ -333,7 +342,7 @@ export function hoursText(value: unknown): string {
 
 // The window is snapped to whole UTC days, and these queries are too heavy to
 // re-run on focus, on reconnect or after a failure.
-const TD_SWR_CONFIG = {
+export const TD_SWR_CONFIG = {
   revalidateIfStale: false,
   revalidateOnFocus: false,
   revalidateOnReconnect: false,

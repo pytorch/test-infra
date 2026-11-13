@@ -133,6 +133,14 @@ jobs:
           path: td-scorer/
           if-no-files-found: ignore
 
+      # Monitoring only: a failed upload never keeps a validated model from publishing.
+      - name: Upload the report to HUD
+        if: ${{ !cancelled() && steps.refit.outputs.ran == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && hashFiles('td-scorer/report.json') != '' }}
+        timeout-minutes: 5
+        continue-on-error: true
+        working-directory: tools
+        run: python -m torchci.td.scorer upload-report --report ../td-scorer/report.json
+
   # pytorch's validator and evaluator run in their own job, away from the AWS role and
   # the ClickHouse secrets.
   check:
