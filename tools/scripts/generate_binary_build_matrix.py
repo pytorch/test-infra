@@ -616,7 +616,6 @@ def generate_wheels_matrix(
         package_type = "manywheel"
 
     upload_to_base_bucket = "yes"
-    explicitly_requested_arches = arches is not None
     if arches is None:
         # Define default compute architectures
         arches = []
@@ -701,13 +700,7 @@ def generate_wheels_matrix(
             }
             ret.append(entry)
 
-    if (
-        getting_started
-        and channel == NIGHTLY
-        and os == LINUX
-        and with_rocm == ENABLE
-        and not explicitly_requested_arches
-    ):
+    if getting_started and channel == NIGHTLY and os == LINUX and with_rocm == ENABLE:
         ret += rocm_preview_getting_started_entries(
             python_versions, use_only_dl_pytorch_org
         )

@@ -176,18 +176,13 @@ def sync_rocm_alpha_entries(version_entry, acc_arch_map):
     It is seeded from the ROCm entry so OSes without ROCm keep their notes.
     """
     for os_vers in version_entry.values():
-        for pkg_key, pkg_vers in os_vers.items():
+        for pkg_vers in os_vers.values():
             if ROCM_ALPHA_LABEL not in acc_arch_map:
                 pkg_vers.pop(ROCM_ALPHA_LABEL, None)
-                continue
-            if ROCM_ALPHA_LABEL in pkg_vers or ROCM_LABEL not in pkg_vers:
-                continue
-            rebuilt = {}
-            for acc_key, instr in pkg_vers.items():
-                rebuilt[acc_key] = instr
-                if acc_key == ROCM_LABEL:
-                    rebuilt[ROCM_ALPHA_LABEL] = copy.deepcopy(instr)
-            os_vers[pkg_key] = rebuilt
+            elif ROCM_LABEL in pkg_vers:
+                pkg_vers.setdefault(
+                    ROCM_ALPHA_LABEL, copy.deepcopy(pkg_vers[ROCM_LABEL])
+                )
 
 
 def sync_cuda_entries(version_entry, acc_arch_map):
@@ -369,8 +364,6 @@ def extract_arch_ver_map(release_matrix):
                 "rocm",
                 max(rocm_ver_list.values(), key=version_key),
             )
-        else:
-            acc_arch_ver_map[chan].pop(ROCM_LABEL, None)
         rocm_preview = [
             x["gpu_arch_version"]
             for x in release_matrix[chan]["linux"]
@@ -382,8 +375,6 @@ def extract_arch_ver_map(release_matrix):
                 rocm_preview[0],
                 "alpha",
             )
-        else:
-            acc_arch_ver_map[chan].pop(ROCM_ALPHA_LABEL, None)
         for cuda_ver, label in zip(cuda_list, CUDA_LABELS):
             acc_arch_ver_map[chan][label] = ("cuda", cuda_ver)
 
