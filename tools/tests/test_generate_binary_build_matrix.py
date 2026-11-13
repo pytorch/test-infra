@@ -197,6 +197,48 @@ class GenerateBuildMatrixTest(TestCase):
                 self.assertIn("3.15", versions)
                 self.assertIn("3.15t", versions)
 
+    def _install_commands(self, channel: str, getting_started: bool) -> set:
+        commands = set()
+        for operating_system in ("linux", "linux-aarch64", "windows", "macos-arm64"):
+            out = generate_build_matrix(
+                "wheel",
+                operating_system,
+                channel,
+                "enable",
+                "enable" if operating_system in ("linux",) else "disable",
+                "enable",
+                "enable" if operating_system in ("linux", "windows") else "disable",
+                "false",
+                "false",
+                "disable",
+                "true" if getting_started else "false",
+                None,
+                "disable",
+            )
+            # 3.15 / 3.15t are torch-only on every channel (TORCH_ONLY_PYTHON_ARCHES)
+            commands |= {
+                entry["installation"]
+                for entry in out["include"]
+                if entry["python_version"] not in ("3.15", "3.15t")
+            }
+        return commands
+
+    def test_getting_started_nightly_installs_torch_only(self):
+        commands = self._install_commands("nightly", getting_started=True)
+        self.assertTrue(commands)
+        for command in commands:
+            self.assertIn("pip3 install --pre torch --index-url", command)
+            self.assertNotIn("torchvision", command)
+
+    def test_getting_started_test_and_release_still_install_torchvision(self):
+        for channel in ("test", "release"):
+            for command in self._install_commands(channel, getting_started=True):
+                self.assertIn("torch torchvision", command)
+
+    def test_nightly_validation_matrix_still_installs_torchvision(self):
+        for command in self._install_commands("nightly", getting_started=False):
+            self.assertIn("torch torchvision", command)
+
     def test_python_3_15_excluded_on_windows_arm64(self):
         # windows-arm64 pins its own short version list.
         versions = self._test_channel_python_versions("windows-arm64")

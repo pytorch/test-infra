@@ -10,7 +10,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_11-cpu",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -24,7 +24,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_11-cuda13_2",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -38,7 +38,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_11-cuda13_4",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -52,7 +52,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_11-rocm10_1",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -66,7 +66,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_12-cpu",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -80,7 +80,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_12-cuda13_2",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -94,7 +94,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_12-cuda13_4",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -108,7 +108,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_12-rocm10_1",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -122,7 +122,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_13-cpu",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -136,7 +136,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_13-cuda13_2",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -150,7 +150,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_13-cuda13_4",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -164,7 +164,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_13-rocm10_1",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -178,7 +178,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14-cpu",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -192,7 +192,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14-cuda13_2",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -206,7 +206,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14-cuda13_4",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -220,7 +220,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14-rocm10_1",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -234,7 +234,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14t-cpu",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -248,7 +248,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14t-cuda13_2",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -262,7 +262,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14t-cuda13_4",
         "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -276,7 +276,7 @@
         "package_type": "manywheel",
         "build_name": "manywheel-py3_14t-rocm10_1",
         "validation_runner": "linux.2xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -464,7 +464,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_11-cpu",
         "validation_runner": "windows.4xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -478,7 +478,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_11-cuda13_2",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -492,7 +492,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_11-cuda13_4",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -506,7 +506,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_12-cpu",
         "validation_runner": "windows.4xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -520,7 +520,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_12-cuda13_2",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -534,7 +534,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_12-cuda13_4",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -548,7 +548,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_13-cpu",
         "validation_runner": "windows.4xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -562,7 +562,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_13-cuda13_2",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -576,7 +576,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_13-cuda13_4",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -590,7 +590,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14-cpu",
         "validation_runner": "windows.4xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -604,7 +604,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14-cuda13_2",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -618,7 +618,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14-cuda13_4",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -632,7 +632,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14t-cpu",
         "validation_runner": "windows.4xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -646,7 +646,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14t-cuda13_2",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu132",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -660,7 +660,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14t-cuda13_4",
         "validation_runner": "windows.g4dn.xlarge",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu134",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -805,7 +805,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_11-cpu",
         "validation_runner": "macos-m1-stable",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -819,7 +819,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_12-cpu",
         "validation_runner": "macos-m1-stable",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -833,7 +833,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_13-cpu",
         "validation_runner": "macos-m1-stable",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -847,7 +847,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14-cpu",
         "validation_runner": "macos-m1-stable",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
@@ -861,7 +861,7 @@
         "package_type": "wheel",
         "build_name": "wheel-py3_14t-cpu",
         "validation_runner": "macos-m1-stable",
-        "installation": "pip3 install --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cpu",
+        "installation": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
         "channel": "nightly",
         "upload_to_base_bucket": "no",
         "stable_version": "2.15.0"
