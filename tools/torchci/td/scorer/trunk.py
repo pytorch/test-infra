@@ -191,7 +191,7 @@ def counted_landings(
 
 
 def fetch_landings(start: datetime, stop: datetime) -> list[TrunkLanding]:
-    events = [r for r in fetch_e1(start, stop) if r.get("grain") == "event"]
+    events = [r for r in fetch_e1(start, stop, query) if r.get("grain") == "event"]
     if not events:
         return []
     window = {
