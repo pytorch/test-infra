@@ -119,14 +119,6 @@
       "xpu"
     ]
   ],
-  "test_checkpointing_resets_persistent_refs (__main__.CudaGraphTreeTests)": [
-    "100074",
-    "https://github.com/pytorch/pytorch/issues/100074",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_clip_grad_norm_2d (__main__.TestClipGradNormWorldSize4)": [
     "153236",
     "https://github.com/pytorch/pytorch/issues/153236",
@@ -1151,13 +1143,6 @@
       "xpu"
     ]
   ],
-  "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
-    "195219",
-    "https://github.com/pytorch/pytorch/issues/195219",
-    [
-      "linux"
-    ]
-  ],
   "test_non_blocking_d2h_event_sync_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsCUDA)": [
     "198524",
     "https://github.com/pytorch/pytorch/issues/198524",
@@ -1567,15 +1552,6 @@
     [
       "asan",
       "linux",
-      "slow"
-    ]
-  ],
-  "test_torchvision_models_efficientnet_b1 (__main__.TestVisionTracing)": [
-    "123889",
-    "https://github.com/pytorch/pytorch/issues/123889",
-    [
-      "linux",
-      "rocm",
       "slow"
     ]
   ],
