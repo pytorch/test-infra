@@ -7,9 +7,9 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { releaseErrorMessage } from "lib/releasePortal/api";
 import NextLink from "next/link";
 import type { ReactNode } from "react";
-import { releaseErrorMessage } from "lib/releasePortal/api";
 
 export function ReleasePage({ children }: { children: ReactNode }) {
   return (

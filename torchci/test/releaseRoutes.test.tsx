@@ -4,9 +4,9 @@ import type {
   ReleaseIndex,
 } from "lib/api/releases/types";
 import type { ReleaseResource } from "lib/releasePortal/api";
+import { ReleaseIndexPageContent } from "pages/release";
 import { ReleaseArtifactsPageContent } from "pages/release/[version]/artifacts";
 import { ReleaseBoardPageContent } from "pages/release/[version]/index";
-import { ReleaseIndexPageContent } from "pages/release";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const retry = async () => {};
@@ -91,7 +91,13 @@ const board: ReleaseBoard = {
 
 const artifacts: ArtifactPage = {
   rc: "rc3",
-  summary: { expected: 2, present: 1, missing: 1, size_anomalous: 0, unexpected: 0 },
+  summary: {
+    expected: 2,
+    present: 1,
+    missing: 1,
+    size_anomalous: 0,
+    unexpected: 0,
+  },
   rows: [
     {
       package: "wheel",
@@ -114,7 +120,9 @@ const artifacts: ArtifactPage = {
 describe("release routes", () => {
   test("renders the release index and its loading state", () => {
     expect(
-      renderToStaticMarkup(<ReleaseIndexPageContent resource={resource(undefined)} />)
+      renderToStaticMarkup(
+        <ReleaseIndexPageContent resource={resource(undefined)} />
+      )
     ).toContain("Loading release data");
 
     const html = renderToStaticMarkup(
