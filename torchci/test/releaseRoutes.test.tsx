@@ -3,7 +3,10 @@ import type {
   ReleaseBoard,
   ReleaseIndex,
 } from "lib/api/releases/types";
-import type { ReleaseResource } from "lib/releasePortal/api";
+import {
+  releaseIndexUrlForNotFound,
+  type ReleaseResource,
+} from "lib/releasePortal/api";
 import { ReleaseIndexPageContent } from "pages/release";
 import { ReleaseArtifactsPageContent } from "pages/release/[version]/artifacts";
 import { ReleaseBoardPageContent } from "pages/release/[version]/index";
@@ -186,5 +189,87 @@ describe("release routes", () => {
     );
     expect(failed).toContain("Could not load artifacts for release 2.16.0");
     expect(failed).toContain("Retry");
+
+    const missing = renderToStaticMarkup(
+      <ReleaseArtifactsPageContent
+        version="9.9.9"
+        artifacts={resource<ArtifactPage>(undefined, {
+          status: 404,
+          code: "not_found",
+        })}
+        index={resource(index)}
+        onPrevious={undefined}
+        onNext={undefined}
+      />
+    );
+    expect(missing).toContain("Release 9.9.9 not found");
+    expect(missing).toContain("Known: 2.16.0");
+  });
+
+  test("fetches the release index only for an unknown release", () => {
+    expect(releaseIndexUrlForNotFound("2.16.0", resource(board))).toBeNull();
+    expect(
+      releaseIndexUrlForNotFound(
+        "9.9.9",
+        resource<ReleaseBoard>(undefined, { status: 404, code: "not_found" })
+      )
+    ).toBe("/api/releases");
+    expect(
+      releaseIndexUrlForNotFound(
+        "2.16.0",
+        resource(board, { status: 404, code: "not_found" })
+      )
+    ).toBeNull();
+  });
+
+  test("renders unsafe evidence as text instead of a link", () => {
+    const unsafeBoard = {
+      ...board,
+      phases: [
+        {
+          ...board.phases[0],
+          steps: [
+            {
+              ...board.phases[0].steps[0],
+              evidence: {
+                text: "Unsafe evidence",
+                url: "javascript:alert(1)",
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const unsafeArtifacts = {
+      ...artifacts,
+      rows: [
+        {
+          ...artifacts.rows[0],
+          evidence: { url: "data:text/html,unsafe", http_status: 404 },
+        },
+      ],
+    };
+
+    const boardHtml = renderToStaticMarkup(
+      <ReleaseBoardPageContent
+        version="2.16.0"
+        board={resource(unsafeBoard)}
+        index={resource(index)}
+      />
+    );
+    expect(boardHtml).toContain("Unsafe evidence");
+    expect(boardHtml).not.toContain("javascript:");
+
+    const artifactsHtml = renderToStaticMarkup(
+      <ReleaseArtifactsPageContent
+        version="2.16.0"
+        artifacts={resource(unsafeArtifacts)}
+        index={resource(index)}
+        onPrevious={undefined}
+        onNext={undefined}
+      />
+    );
+    expect(artifactsHtml).toContain("HTTP 404");
+    expect(artifactsHtml).not.toContain("data:text/html");
   });
 });

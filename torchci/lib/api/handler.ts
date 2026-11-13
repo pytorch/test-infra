@@ -128,6 +128,7 @@ export async function handleList<
       _cursor: Cursor,
       _query: Omit<Params, "cursor">
     ) => boolean;
+    beforeList?: (_query: Omit<Params, "cursor">) => Promise<Response | null>;
     list: (_request: {
       query: Omit<Params, "cursor">;
       cursor: Cursor | null;
@@ -154,6 +155,8 @@ export async function handleList<
     );
   }
   try {
+    const earlyResponse = await endpoint.beforeList?.(query);
+    if (earlyResponse) return earlyResponse;
     const { next_cursor, previous_cursor, ...page } = await endpoint.list({
       query,
       cursor,
