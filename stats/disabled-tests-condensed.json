@@ -201,6 +201,22 @@
       "linux"
     ]
   ],
+  "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "204680",
+    "https://github.com/pytorch/pytorch/issues/204680",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
+  "test_constants_pinned_async_copy_disabled_on_rocm_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "204681",
+    "https://github.com/pytorch/pytorch/issues/204681",
+    [
+      "inductor",
+      "rocm"
+    ]
+  ],
   "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
     "199423",
     "https://github.com/pytorch/pytorch/issues/199423",
@@ -776,6 +792,13 @@
   "test_global_meta_ws_disables_flatten_global_meta_ws_False (__main__.TestBlackwellAutoWSConfigs)": [
     "204640",
     "https://github.com/pytorch/pytorch/issues/204640",
+    [
+      "xpu"
+    ]
+  ],
+  "test_global_meta_ws_disables_flatten_global_meta_ws_True (__main__.TestBlackwellAutoWSConfigs)": [
+    "204684",
+    "https://github.com/pytorch/pytorch/issues/204684",
     [
       "xpu"
     ]
