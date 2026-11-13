@@ -2,96 +2,24 @@ name: GitHub Analytics Daily
 
 on:
   schedule:
-    # Every day at 14:00 UTC, for the milestone-status job
+    # Every day at 14:00 UTC
     - cron: 0 14 * * *
   pull_request:
     paths:
       - .github/workflows/github-analytics-daily.yml
       - tools/analytics/github_analyze.py
   workflow_call:
-    inputs:
-      branch:
-        description: "PyTorch release branch. e.g. release/2.7"
-        default: "release/2.10"
-        required: false
-        type: string
-      milestone-id:
-        description: 'Release milestone ID. e.g. 54'
-        default: 57
-        required: false
-        type: string
   workflow_dispatch:
-    inputs:
-      branch:
-        description: "PyTorch release branch. e.g. release/2.7"
-        default: "release/2.10"
-        required: false
-        type: string
-      milestone-id:
-        description: 'Release milestone ID. e.g. 54'
-        default: 57
-        required: false
-        type: string
 
 jobs:
-  github-analyze:
-    # The scheduled run is the milestone-status job below; this one takes its branch
-    # and milestone from the caller.
-    if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout test-infra
-      uses: actions/checkout@v4
-
-    - name: Checkout PyTorch repository
-      uses: actions/checkout@v4
-      with:
-        repository: pytorch/pytorch
-        path: pytorch
-        fetch-depth: 0  # Need full history for analysis
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      run: |
-        set -eux
-        python3 -m pip install --upgrade pip
-        python3 -m pip install requests==2.31.0 tqdm==4.64.1
-
-    - name: Show missing reverts
-      env:
-          BRANCH: ${{ inputs.branch || 'release/2.10' }}
-      run: |
-        python3 tools/analytics/github_analyze.py \
-          --repo-path ./pytorch \
-          --remote origin \
-          --branch "${BRANCH}" \
-          --analyze-missing-reverts-from-branch
-
-    - name: Show outstanding milestone issues
-      env:
-          BRANCH: ${{ inputs.branch || 'release/2.10' }}
-          MILESTONE: ${{ inputs.milestone-id || '57' }}
-      run: |
-        python3 tools/analytics/github_analyze.py \
-          --repo-path ./pytorch \
-          --remote origin \
-          --branch "${BRANCH}" \
-          --milestone-id "${MILESTONE}" \
-          --missing-in-branch
-
-  # Records the state of the release portal steps that check the milestone (1.2, 2.9, 3.1)
-  # for each release in flight in misc.release_event. The release branch and the steps come
-  # from release/portal/config. Update RELEASES when a release ships or a new one opens.
+  # For each release in flight (github_analyze.py --in-flight picks them from the version.txt
+  # of main and of the latest release branches, and the open milestones): lists the reverts
+  # on main that are missing from its release branch, and scans its milestone, recording the
+  # state of the release portal steps that check it (1.2, 2.9, 3.1) in misc.release_event.
   # A release branch that is not cut yet (release/2.16) only has its open items counted.
-  milestone-status:
+  # A release in flight needs release/portal/config/releases/<version>.yml.
+  github-analyze:
     runs-on: ubuntu-latest
-    env:
-      RELEASES: "2.15.1 2.16.0"
 
     steps:
     - name: Checkout test-infra
@@ -102,7 +30,7 @@ jobs:
       with:
         repository: pytorch/pytorch
         path: pytorch
-        fetch-depth: 0  # Need full history for analysis
+        fetch-depth: 0  # Need full history and the release tags for analysis
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -112,30 +40,22 @@ jobs:
     - name: Install dependencies
       run: python3 -m pip install PyYAML==6.0.3
 
-    - name: Record the state of the milestone steps of each release
+    - name: Analyze the releases in flight
       env:
         GITHUB_TOKEN: ${{ github.token }}
         # A pull request only shows the status; it must not write to ClickHouse.
         WRITE_TO_CLICKHOUSE: ${{ github.event_name != 'pull_request' }}
-        CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_RELEASE_PORTAL_URL }}
-        CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_RELEASE_PORTAL_USERNAME }}
-        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_RELEASE_PORTAL_PASSWORD }}
+        CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+        CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
       run: |
-        set -u
+        set -eu
         write=""
         if [ "${WRITE_TO_CLICKHOUSE}" = "true" ]; then
           write="--write-to-clickhouse"
         fi
-        # One release failing must not hide the other's status.
-        failed=0
-        for release in ${RELEASES}; do
-          echo "::group::${release}"
-          python3 tools/analytics/github_analyze.py \
-            --repo-path ./pytorch \
-            --remote origin \
-            --release "${release}" \
-            --missing-in-branch \
-            ${write} || failed=1
-          echo "::endgroup::"
-        done
-        exit "${failed}"
+        python3 tools/analytics/github_analyze.py \
+          --repo-path ./pytorch \
+          --remote origin \
+          --in-flight \
+          ${write}

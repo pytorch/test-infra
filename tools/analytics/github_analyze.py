@@ -8,7 +8,7 @@ import os
 import re
 import sys
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -264,6 +264,21 @@ class GitRepo:
             return True
         except Exception:
             return False
+
+    def tag_exists(self, tag: str) -> bool:
+        """Whether the tag exists in this checkout."""
+        try:
+            self._run_git_cmd("rev-parse", "--verify", "--quiet", f"refs/tags/{tag}")
+            return True
+        except Exception:
+            return False
+
+    def show_file(self, ref: str, path: str) -> Optional[str]:
+        """The file at the ref (a branch name, on this repo's remote), or None."""
+        try:
+            return self._run_git_cmd("show", f"{self.remote}/{ref}:{path}")
+        except Exception:
+            return None
 
     def show_ref(self, ref) -> str:
         return self._run_git_cmd("show-ref", ref).split(" ")[0]
@@ -635,6 +650,162 @@ def insert_clickhouse_rows(table: str, rows: List[Dict[str, Any]]) -> None:
         raise
 
 
+def workflow_run_info() -> Tuple[str, str]:
+    """The id and URL of the GitHub Actions run this is part of ("" when it is not one)."""
+    run_id = f"{os.environ.get('GITHUB_RUN_ID', '')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+    run_url = ""
+    if "GITHUB_RUN_ID" in os.environ:
+        run_url = (
+            f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+            f"{os.environ.get('GITHUB_REPOSITORY', 'pytorch/test-infra')}"
+            f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+        )
+    return run_id, run_url
+
+
+def record_milestone_steps(
+    repo: GitRepo,
+    release: str,
+    config: Dict[str, Any],
+    milestone_idx: int,
+    write: bool,
+) -> None:
+    """
+    Scan the release's milestone and print every issue with its reason and the state of
+    each release portal step that checks the milestone. With write, record those rows in
+    misc.release_event.
+    """
+    branch = config["branch"]
+    milestone_steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "milestone_outstanding_items"
+    ]
+    statuses = milestone_issue_statuses(repo, branch, f"orig/{branch}", milestone_idx)
+    run_id, run_url = workflow_run_info()
+    rows = milestone_step_rows(
+        release,
+        branch,
+        milestone_idx,
+        milestone_steps,
+        statuses,
+        repo.ref_exists(branch),
+        os.environ.get("GITHUB_SHA", "0" * 40),
+        run_id,
+        run_url,
+        datetime.now(timezone.utc),
+    )
+    outstanding = [status for status in statuses if status["outstanding"]]
+    print(
+        f"{release}: milestone {milestone_idx}, {len(statuses)} issues, "
+        f"{len(outstanding)} outstanding"
+    )
+    for status in statuses:
+        issue = status["issue"]
+        print(
+            f"{issue['html_url']} ;{issue['title']};{issue['state']};{status['reason']}"
+        )
+    for row in rows:
+        print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+    if write:
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
+
+
+def release_in_preparation(repo: GitRepo, ref: str) -> Optional[str]:
+    """
+    The release the branch is preparing, from its version.txt: main is 2.16.0a0, so 2.16.0.
+    A release branch keeps its a0 version after the release (release/2.15 is 2.15.0a0), so
+    the version is bumped past every patch that is already tagged: release/2.15 is 2.15.1
+    once v2.15.0 exists, and 2.15.2 once v2.15.1 does.
+    """
+    text = repo.show_file(ref, "version.txt")
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", text.strip()) if text else None
+    if not match:
+        return None
+    major, minor, patch = (int(part) for part in match.groups())
+    while repo.tag_exists(f"v{major}.{minor}.{patch}"):
+        patch += 1
+    return f"{major}.{minor}.{patch}"
+
+
+def releases_in_flight(
+    repo: GitRepo, open_milestones: Iterable[str], release_lines: int = 3
+) -> List[str]:
+    """
+    The releases in flight, newest first: for main and each of the latest release
+    branches, the release it is preparing (release_in_preparation) when its milestone is
+    still open. 2.16.0 before its branch is cut and 2.15.1 once 2.15.0 has shipped are
+    both in flight, and so is a release that is being prepared on its branch.
+    """
+    text = repo.show_file("main", "version.txt")
+    match = re.match(r"(\d+)\.(\d+)\.", text.strip()) if text else None
+    if not match:
+        return []
+    major, minor = int(match.group(1)), int(match.group(2))
+    open_titles = set(open_milestones)
+    releases: List[str] = []
+    for back in range(release_lines):
+        if minor - back < 0:
+            break
+        ref = "main" if back == 0 else f"release/{major}.{minor - back}"
+        release = release_in_preparation(repo, ref)
+        if release and release in open_titles and release not in releases:
+            releases.append(release)
+    return releases
+
+
+def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
+    """
+    For each release in flight that has a release portal config file: list the reverts
+    missing from its release branch (from the branch cut until the release) and scan its
+    milestone, recording the state of the steps that check them. One scan failing does not
+    hide another, nor another release's. Returns whether every scan succeeded.
+    """
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from torchci.release_portal_config import load_resolved, RELEASES_DIR
+
+    milestones = gh_get_milestones()
+    releases = releases_in_flight(repo, [m.get("title", "") for m in milestones])
+    print(f"Releases in flight: {', '.join(releases) if releases else 'none'}")
+    ok = True
+    for release in releases:
+        print(f"::group::{release}")
+        try:
+            if not (RELEASES_DIR / f"{release}.yml").exists():
+                print(
+                    f"::warning::{release} is in flight but has no "
+                    f"release/portal/config/releases/{release}.yml: skipped"
+                )
+                continue
+            config = load_resolved(release)
+            milestone_idx = next(
+                int(m["number"]) for m in milestones if m.get("title") == release
+            )
+            scans = []
+            # The reverts matter from the branch cut until the release: the release's step
+            # has the same window (opens: branch_cut, closes: ga).
+            if repo.ref_exists(config["branch"]) and not repo.tag_exists(f"v{release}"):
+                scans.append(lambda: record_revert_steps(repo, release, config, write))
+            scans.append(
+                lambda: record_milestone_steps(
+                    repo, release, config, milestone_idx, write
+                )
+            )
+            for scan in scans:
+                try:
+                    scan()
+                except Exception as err:
+                    print(f"::error::{release}: {err}")
+                    ok = False
+        except Exception as err:
+            print(f"::error::{release}: {err}")
+            ok = False
+        finally:
+            print("::endgroup::")
+    return ok
+
+
 def commits_missing_in_release(
     repo: GitRepo,
     branch: str,
@@ -715,12 +886,19 @@ def extract_commit_hash_from_revert(text):
     return None
 
 
-def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
+RC_TAG_PATTERN = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$")
+
+
+def find_missing_reverts(repo: GitRepo, branch: str) -> Dict[str, Any]:
     """
-    Analyze reverts applied to main branch but not applied to specified branch.
-    This identifies potential missing revert commits that may need to be cherry-picked
-    to the release branch. Also detects if reverted commits from main were cherry-picked
-    to the branch.
+    The reverts applied to main but not to the branch: these may need to be cherry-picked
+    to the release branch. {"main_only": commits on main not on the branch, "branch_only":
+    commits on the branch not on main, "reverts": [...]}, each revert with its `status`:
+
+    - cherry_picked: the reverted commit was cherry-picked to the branch
+    - in_release_candidate: the reverted commit is in a release candidate, so it may be
+      on the branch and the revert is needed (the ones to act on)
+    - not_needed: the reverted commit does not appear to be on the branch
     """
     # Get commits from main that are not in the specified branch
     main_only_commits = build_commit_dict(repo.get_commit_list(branch, "main"))
@@ -728,12 +906,6 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
     # Get commits from the specified branch that are not in main
     branch_only_commits = build_commit_dict(repo.get_commit_list("main", branch))
     branch_only_reverts = set()
-
-    print(f"Analyzing reverts in main branch not present in {branch} branch")
-    print(f"Total commits in main but not in {branch}: {len(main_only_commits)}")
-    print(f"Total commits in {branch} but not in main: {len(branch_only_commits)}")
-    print()
-
     for commit_hash, commit in branch_only_commits.items():
         revert_hash = extract_commit_hash_from_revert(commit.body)
         if revert_hash != None:
@@ -741,57 +913,77 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         if is_revert(commit):
             branch_only_reverts.add(commit_hash)
 
-    # Find reverts in main that are not in the specified branch
-    reverts_missing_from_branch = []
+    reverts = []
+    for commit in main_only_commits.values():
+        if not is_revert(commit):
+            continue
+        # Try to identify what was reverted
+        revert_revision = get_revert_revision(commit)
+        ghf_revert_revision = get_ghf_revert_revision(commit)
+        rc_tags: List[str] = []
+        if ghf_revert_revision:
+            # Tags matching v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+ for the reverted commit
+            rc_tags = [
+                tag
+                for tag in repo.get_tags_for_commit(ghf_revert_revision)
+                if RC_TAG_PATTERN.match(tag)
+            ]
+        if ghf_revert_revision and ghf_revert_revision in branch_only_reverts:
+            status = "cherry_picked"
+        elif rc_tags:
+            status = "in_release_candidate"
+        else:
+            status = "not_needed"
+        reverts.append(
+            {
+                "commit": commit,
+                "phabricator_revision": revert_revision,
+                "reverted_commit": ghf_revert_revision,
+                "rc_tags": rc_tags,
+                "status": status,
+            }
+        )
+    return {
+        "main_only": len(main_only_commits),
+        "branch_only": len(branch_only_commits),
+        "reverts": reverts,
+    }
 
-    for commit_hash, commit in main_only_commits.items():
-        if is_revert(commit):
-            reverts_missing_from_branch.append(commit)
 
-    if not reverts_missing_from_branch:
+def print_missing_reverts(branch: str, found: Dict[str, Any]) -> None:
+    print(f"Analyzing reverts in main branch not present in {branch} branch")
+    print(f"Total commits in main but not in {branch}: {found['main_only']}")
+    print(f"Total commits in {branch} but not in main: {found['branch_only']}")
+    print()
+
+    reverts = found["reverts"]
+    if not reverts:
         print(f"No reverts found in main branch that are missing from {branch} branch.")
         return
 
     print(
-        f"Found {len(reverts_missing_from_branch)} revert(s) in main branch not present in {branch} branch:"
+        f"Found {len(reverts)} revert(s) in main branch not present in {branch} branch:"
     )
     print("=" * 80)
 
-    for commit in reverts_missing_from_branch:
-        # Try to identify what was reverted
-        revert_revision = get_revert_revision(commit)
-        ghf_revert_revision = get_ghf_revert_revision(commit)
+    for revert in reverts:
+        commit = revert["commit"]
+        if revert["phabricator_revision"]:
+            print(f"Reverted Phabricator Diff: {revert['phabricator_revision']}")
+        elif revert["reverted_commit"]:
+            print(f"Reverted GitHub Commit: {revert['reverted_commit']}")
 
-        reverted_commit_hash = None
-        if revert_revision:
-            print(f"Reverted Phabricator Diff: {revert_revision}")
-        elif ghf_revert_revision:
-            print(f"Reverted GitHub Commit: {ghf_revert_revision}")
-            reverted_commit_hash = ghf_revert_revision
+        if revert["rc_tags"]:
+            print(
+                f"🏷️  Tags matching v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+ for commit {revert['reverted_commit']}:"
+            )
+            for tag in revert["rc_tags"]:
+                print(f"   - {tag}")
 
-        # Print tags for all reverted commits matching the pattern v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+
-        has_matching_tags = False
-        if ghf_revert_revision:
-            tags = repo.get_tags_for_commit(ghf_revert_revision)
-            # Filter tags matching pattern: v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+
-            pattern = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$")
-            matching_tags = [tag for tag in tags if pattern.match(tag)]
-            if matching_tags:
-                has_matching_tags = True
-                print(
-                    f"🏷️  Tags matching v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+ for commit {ghf_revert_revision}:"
-                )
-                for tag in matching_tags:
-                    print(f"   - {tag}")
-
-        # Check if the reverted commit was cherry-picked to the branch
-        cherry_picked_to_branch = False
-        if reverted_commit_hash:
-            if reverted_commit_hash in branch_only_reverts:
-                cherry_picked_to_branch = True
-                print(
-                    f"✅  DETECTED: The reverted commit {reverted_commit_hash} was cherry-picked to {branch}"
-                )
+        if revert["status"] == "cherry_picked":
+            print(
+                f"✅  DETECTED: The reverted commit {revert['reverted_commit']} was cherry-picked to {branch}"
+            )
 
         print(f"Commit Hash: {commit.commit_hash}")
         print(f"Author: {commit.author}")
@@ -800,9 +992,9 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         if commit.pr_url:
             print(f"PR URL: {commit.pr_url}")
 
-        if cherry_picked_to_branch:
+        if revert["status"] == "cherry_picked":
             pass  # Already printed the detected message
-        elif has_matching_tags:
+        elif revert["status"] == "in_release_candidate":
             print(
                 f"🔴  WARNING: This is possibly a revert of a commit that was included in a release candidate. The reverted commit may be present in {branch}."
             )
@@ -815,6 +1007,132 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
             f"Body Preview: {commit.body[:200]}{'...' if len(commit.body) > 200 else ''}"
         )
         print("-" * 80)
+
+
+def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
+    """
+    Analyze reverts applied to main branch but not applied to specified branch.
+    This identifies potential missing revert commits that may need to be cherry-picked
+    to the release branch. Also detects if reverted commits from main were cherry-picked
+    to the branch.
+    """
+    print_missing_reverts(branch, find_missing_reverts(repo, branch))
+
+
+def revert_step_rows(
+    release: str,
+    branch: str,
+    steps: List[Dict[str, Any]],
+    found: Dict[str, Any],
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """
+    The misc.release_event rows for one scan of the reverts missing from a release
+    branch: one per release portal step that checks reverts_missing_from_branch, done
+    when no revert is in_release_candidate (find_missing_reverts): a revert on main of a
+    commit that was in a release candidate, which the branch may still carry. The reverts
+    that need action are in `details`, and the count of every revert by status.
+    """
+    reverts = found["reverts"]
+    by_status: Dict[str, int] = {}
+    for revert in reverts:
+        by_status[revert["status"]] = by_status.get(revert["status"], 0) + 1
+    needed = [
+        revert for revert in reverts if revert["status"] == "in_release_candidate"
+    ]
+
+    def short(revert: Dict[str, Any]) -> str:
+        commit = revert["commit"]
+        match = re.search(r"/pull/(\d+)$", commit.pr_url or "")
+        return f"#{match.group(1)}" if match else commit.commit_hash[:9]
+
+    if needed:
+        evidence = (
+            f"{len(needed)} revert(s) on main of release candidate commits may need to be "
+            f"cherry-picked to {branch}: " + ", ".join(short(r) for r in needed)
+        )
+    else:
+        evidence = (
+            f"No revert of a release candidate commit is missing from {branch} "
+            f"({len(reverts)} other revert(s) on main are listed in the details)"
+        )
+    order = {"in_release_candidate": 0, "not_needed": 1, "cherry_picked": 2}
+    details = json.dumps(
+        {
+            "branch": branch,
+            "reverts_on_main_not_on_branch": len(reverts),
+            "by_status": by_status,
+            # every revert on main that is not on the branch, those to act on first
+            "reverts": [
+                {
+                    "commit": revert["commit"].commit_hash,
+                    "title": revert["commit"].title,
+                    "url": revert["commit"].pr_url,
+                    "status": revert["status"],
+                    "reverted_commit": revert["reverted_commit"],
+                    "rc_tags": revert["rc_tags"],
+                }
+                for revert in sorted(reverts, key=lambda r: order[r["status"]])
+            ],
+        }
+    )
+    return [
+        {
+            "release": release,
+            "step_id": step["id"],
+            "rc": "",
+            "status": "in_progress" if needed else "done",
+            "blocking": 0,
+            "evidence_text": evidence,
+            "evidence_url": run_url
+            or f"https://github.com/pytorch/pytorch/compare/{branch}...main",
+            "check_type": "reverts_missing_from_branch",
+            "source": "collector",
+            "run_id": run_id,
+            "run_url": run_url,
+            "config_sha": config_sha,
+            "details": details,
+            "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+        }
+        for step in steps
+    ]
+
+
+def record_revert_steps(
+    repo: GitRepo, release: str, config: Dict[str, Any], write: bool
+) -> None:
+    """
+    Print the reverts on main that are missing from the release's branch, and the state of
+    each release portal step that checks them. With write, record those rows in
+    misc.release_event.
+    """
+    branch = config["branch"]
+    steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "reverts_missing_from_branch"
+    ]
+    found = find_missing_reverts(repo, branch)
+    print_missing_reverts(branch, found)
+    run_id, run_url = workflow_run_info()
+    rows = revert_step_rows(
+        release,
+        branch,
+        steps,
+        found,
+        os.environ.get("GITHUB_SHA", "0" * 40),
+        run_id,
+        run_url,
+        datetime.now(timezone.utc),
+    )
+    for row in rows:
+        print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+    if write and rows:
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
 
 
 def parse_arguments():
@@ -849,9 +1167,16 @@ def parse_arguments():
         "--milestone-id default to its release branch and its title",
     )
     parser.add_argument(
+        "--in-flight",
+        action="store_true",
+        help="Scan every release in flight (releases_in_flight): the reverts missing "
+        "from its release branch and its milestone. --write-to-clickhouse records the "
+        "milestone steps",
+    )
+    parser.add_argument(
         "--write-to-clickhouse",
         action="store_true",
-        help="With --missing-in-branch and --release, record the state of the release "
+        help="With --in-flight, or --missing-in-branch and --release, record the state of the release "
         "portal steps that check the milestone in misc.release_event (CLICKHOUSE_ENDPOINT, "
         "CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD)",
     )
@@ -875,6 +1200,9 @@ def main():
 
     repo = GitRepo(args.repo_path, remote)
 
+    if args.in_flight:
+        sys.exit(0 if analyze_releases_in_flight(repo, args.write_to_clickhouse) else 1)
+
     if args.analyze_stacks:
         analyze_stacks(repo)
         return
@@ -888,7 +1216,6 @@ def main():
         analyze_reverts_missing_from_branch(repo, args.branch)
         return
 
-    milestone_steps = []
     if args.write_to_clickhouse and not args.release:
         print("Error: --release is required with --write-to-clickhouse")
         sys.exit(1)
@@ -899,11 +1226,6 @@ def main():
         from torchci.release_portal_config import load_resolved
 
         config = load_resolved(args.release)
-        milestone_steps = [
-            step
-            for step in config["steps"]
-            if step["check"]["type"] == "milestone_outstanding_items"
-        ]
         args.branch = args.branch or config["branch"]
         args.milestone_id = args.milestone_id or args.release
 
@@ -928,43 +1250,7 @@ def main():
                 repo, args.branch, f"orig/{args.branch}", milestone_idx
             )
             return
-        statuses = milestone_issue_statuses(
-            repo, args.branch, f"orig/{args.branch}", milestone_idx
-        )
-        run_id = f"{os.environ.get('GITHUB_RUN_ID', '')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
-        run_url = ""
-        if "GITHUB_RUN_ID" in os.environ:
-            run_url = (
-                f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
-                f"{os.environ.get('GITHUB_REPOSITORY', 'pytorch/test-infra')}"
-                f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
-            )
-        rows = milestone_step_rows(
-            args.release,
-            args.branch,
-            milestone_idx,
-            milestone_steps,
-            statuses,
-            repo.ref_exists(args.branch),
-            os.environ.get("GITHUB_SHA", "0" * 40),
-            run_id,
-            run_url,
-            datetime.now(timezone.utc),
-        )
-        outstanding = [status for status in statuses if status["outstanding"]]
-        print(
-            f"{args.release}: milestone {milestone_idx}, {len(statuses)} issues, "
-            f"{len(outstanding)} outstanding"
-        )
-        for status in statuses:
-            issue = status["issue"]
-            print(
-                f"{issue['html_url']} ;{issue['title']};{issue['state']};{status['reason']}"
-            )
-        for row in rows:
-            print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
-        insert_clickhouse_rows("misc.release_event", rows)
-        print(f"Inserted {len(rows)} rows into misc.release_event")
+        record_milestone_steps(repo, args.release, config, milestone_idx, True)
         return
 
     if args.missing_in_release:
