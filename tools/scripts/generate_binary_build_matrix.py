@@ -209,6 +209,8 @@ RELEASE_REF_PREFIXES = (
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
+# The nightly instructions on the Get Started page install torch only.
+PACKAGES_TO_INSTALL_GETTING_STARTED_NIGHTLY_WHL = "torch"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
@@ -442,11 +444,12 @@ def get_wheel_install_command(
     use_only_dl_pytorch_org: bool,
     getting_started: bool = False,
 ) -> str:
-    PACKAGES_TO_INSTALL = (
-        PACKAGES_TO_INSTALL_GETTING_STARTED_WHL
-        if getting_started
-        else PACKAGES_TO_INSTALL_WHL
-    )
+    if getting_started and channel == NIGHTLY:
+        PACKAGES_TO_INSTALL = PACKAGES_TO_INSTALL_GETTING_STARTED_NIGHTLY_WHL
+    elif getting_started:
+        PACKAGES_TO_INSTALL = PACKAGES_TO_INSTALL_GETTING_STARTED_WHL
+    else:
+        PACKAGES_TO_INSTALL = PACKAGES_TO_INSTALL_WHL
 
     # Validate torch only (no torchvision) for versions without published
     # torchvision wheels, e.g. 3.15 / 3.15t.
