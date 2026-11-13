@@ -1323,14 +1323,72 @@ in the browser (`lib/tests/cost/runnerHours.ts`, tested in
   $, from a rates file the reader adds, so the page never asks for a unit up
   front. Until a file is added the panel's body asks for one: a dashed area to
   drop it on (a file dropped anywhere on the page lands there, so a miss never
-  opens the file in the tab), "Download rates file", "Choose rates file…" and
-  "File format" (a JSON of runner label → $ per runner-hour, or wrapped as
+  opens the file in the tab), two lines saying what to bring and that HUD
+  never receives or stores it, and two buttons, "Download rates file" and
+  "Choose rates file…". One button is filled, the most direct way to rates the
+  page has: the reader's own file here, "Load Meta rates" where that exists
+  (below), with the other in grey. The format is not a button: "See the
+  format" ends the two lines and opens it under the buttons, which stay where
+  they were (a JSON of runner label → $ per runner-hour, or wrapped as
   `{valid_from, window, basis, rates}`; `window` is `{start, end}`, the UTC
   days of usage the rates are averaged over, both included, and a bad one is
-  ignored as the notes are). "Download rates file" is a plain link to the
-  internal rates file (`RATES_FILE_URL`, a Meta-only fburl; its tooltip says
-  it needs access to the file) that opens in a new tab: the browser downloads
-  the file and the reader adds it as any other; HUD never fetches it. The file
+  ignored as the notes are); a file that can't be read opens it too.
+  There are two links to the internal rates, both Meta-only fburls, one for
+  each button. "Download rates file" is a plain link to the internal rates
+  file (`RATES_FILE_URL`; its tooltip says it needs access to the file) that
+  opens in a new tab: the browser downloads the file and the reader adds it
+  as any other; HUD never fetches it. On HUD, and on the origins HUD sends
+  the rates on to (`ratesWindow` in `lib/tests/cost/handoff.ts`), "Load Meta
+  rates" takes the download's place and loads the internal rates in one
+  click, with no file, through the other link (`HANDOFF_LINK`, fixed in the
+  code: no setting switches it off or points it elsewhere). It
+  opens that link in a small window; after Meta's sign-in the link
+  redirects the window to `public/rates-handoff.html` with the rates in the
+  URL's fragment (`#rates=`, the unpadded base64url of the zlib-deflated JSON
+  of `{valid_from, window, basis, rates}`), which a browser sends to no
+  server; that page takes the fragment off the address bar, passes the rates
+  to the waiting cost page over a `BroadcastChannel` and closes; when no
+  cost page answers, as when the link is opened on its own, it offers them as
+  a file instead ("Download rates file", made in the page from the fragment).
+  The page cannot fetch the rates itself: the internal side sends no CORS headers,
+  refuses frames, and cuts the window's tie to the page, so the rates come
+  back over a channel and the page cannot tell when the window closes. The
+  static page is outside the app so that HUD's analytics, which record each
+  page's URL, never run where the fragment is. A page of the app is never
+  meant to be opened with the rates, but can be (the link pointed at another
+  HUD address, or a deployment without the static page, where that address is
+  the app's not-found page), so a script in the document's head
+  (`pages/_document.tsx`, `lib/tests/cost/ratesFragment.ts`) takes a rates
+  fragment off the address before the app's code and analytics run, and the
+  tracker drops it from what it reports. The cost page listens only
+  between the click and the rates' arrival, a Cancel or three minutes
+  (`useRatesHandoff`): rates that arrive unasked are not taken, and the window
+  says no page is waiting. While it waits, the button's arrow gives way to a
+  turning ring and a line under the buttons says so,
+  with the file's download as the way round a blocked window; the download is
+  on the error line too. The link is a fixed redirect, so it leads back to one
+  origin, the home (HUD, `HANDOFF_HOME`), and holds the rates, so whoever
+  regenerates them re-points it (the internal tool that builds the file has a
+  command for that). A cost page
+  elsewhere uses the same link through the home: on a developer's own machine
+  (`http://localhost`, any port) or one of Meta's development hosts over
+  https (`RETURN_ORIGIN_PATTERNS`, which the static page lists too and is the
+  one to enforce; plain http counts only on the machine itself, since
+  elsewhere whoever answers for the name on the reader's network would get
+  the rates), the window opens on the home's static page with
+  `#return=<origin>`. That page tells its opener it is ready in a message
+  only the asker's origin can read, takes the link from the answer only when
+  it comes from that origin and that window (so a page elsewhere cannot have
+  rates sent to a listed origin it is not on), asks the reader ("Send the Meta
+  rates to another site?"), and on Continue remembers the asker in the
+  window's session storage and goes to the link; back with the rates, it
+  sends them on to the asker's own copy of the static page, which delivers
+  them. So local and development servers take one more click, and need the
+  home to be deployed with the page. Preview deployments are not listed:
+  their names follow a pattern rather than being owned, and they run code
+  nobody has reviewed, so they keep "Download rates file", as does any other
+  origin. Rates loaded this way
+  are named "Meta rates" where a file's name goes. The file
   is read in the browser into the page's state (`lib/tests/cost/rates.ts`):
   never sent, stored, or put in the URL, whose query HUD's analytics record,
   and reloading drops it; the panel's split keys stay out of the URL with it.

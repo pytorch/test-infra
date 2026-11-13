@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<!--
+  Where the Meta-only rates link lands (lib/tests/cost/handoff.ts): the rates
+  arrive in this URL's fragment, which the browser sends to no server. The
+  page takes the fragment off the address bar and passes the rates to the cost
+  page that is waiting for them over a BroadcastChannel, and closes. Opened
+  with no cost page waiting, it offers the rates as a file instead.
+
+  The link leads to one origin, HUD's. A cost page on another origin (a local
+  server, a development host) opens this page on HUD first, asking for the
+  rates to be sent on to it: the page checks the asker is on its short list,
+  has it prove it is the window that opened this one, asks the reader, and
+  only then remembers the asker in this window's session storage and goes to
+  the link. When the link brings the window back with the rates, the page
+  sends them on to the asker's own copy of this page, which delivers them.
+
+  It is a static file outside the app on purpose: nothing else runs here, so
+  no analytics or other script ever sees the fragment. It loads no other
+  resource, and follows HUD's light or dark mode through system colors.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light dark" />
+    <title>PyTorch CI HUD</title>
+    <style>
+      html {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: Canvas;
+        color: CanvasText;
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        max-width: 40ch;
+        padding: 24px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        opacity: 0.72;
+        overflow-wrap: anywhere;
+      }
+      #actions {
+        margin-top: 16px;
+      }
+      button {
+        font: inherit;
+        padding: 6px 14px;
+        margin: 0 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Passing the rates to the cost page…</h1>
+      <p id="detail"></p>
+      <div id="actions" hidden>
+        <button id="continue" type="button">Continue</button>
+        <button id="cancel" type="button">Cancel</button>
+        <button id="download" type="button" hidden>Download rates file</button>
+      </div>
+    </main>
+    <script>
+      (function () {
+        // First, before anything else can read it: the fragment off the
+        // address bar.
+        var fragment = window.location.hash.slice(1);
+        window.history.replaceState(null, "", window.location.pathname);
+
+        // HUD's own mode where the reader chose one, else the system's.
+        try {
+          var mode = window.localStorage.getItem("themeMode");
+          if (mode === "dark" || mode === "light") {
+            document.documentElement.style.colorScheme = mode;
+          }
+        } catch (error) {
+          // Storage may be off limits; the system's mode stands.
+        }
+
+        function say(title, detail) {
+          document.getElementById("title").textContent = title;
+          document.getElementById("detail").textContent = detail;
+        }
+
+        // The origins this page sends the rates on to: a developer's own
+        // machine, and Meta's development hosts over https. Plain http is
+        // taken from the machine itself only: anywhere else, whoever answers
+        // for the name on the reader's network is the origin, and would get
+        // the rates. handoff.ts lists the same, to offer the button only
+        // where this page will answer.
+        var RETURN_ORIGINS = [
+          /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/,
+          /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.fbinfra\.net(:\d+)?$/,
+        ];
+        function maySendTo(origin) {
+          return (
+            origin !== window.location.origin &&
+            RETURN_ORIGINS.some(function (pattern) {
+              return pattern.test(origin);
+            })
+          );
+        }
+
+        // The asker this window was told to send the rates on to, kept in
+        // the window's own session storage across its trip to the link and
+        // back: nothing else can carry it, as the link drops whatever it is
+        // given. Read once, and only for a while.
+        var RETURN_KEY = "hud-rates-return";
+        var RETURN_FRESH_MS = 15 * 60 * 1000;
+        function rememberReturn(origin) {
+          window.sessionStorage.setItem(
+            RETURN_KEY,
+            JSON.stringify({ origin: origin, at: Date.now() })
+          );
+        }
+        function takeReturn() {
+          var kept = null;
+          try {
+            kept = JSON.parse(window.sessionStorage.getItem(RETURN_KEY));
+            window.sessionStorage.removeItem(RETURN_KEY);
+          } catch (error) {
+            return null;
+          }
+          if (
+            !kept ||
+            typeof kept.origin !== "string" ||
+            typeof kept.at !== "number" ||
+            Date.now() - kept.at > RETURN_FRESH_MS ||
+            !maySendTo(kept.origin)
+          ) {
+            return null;
+          }
+          return kept.origin;
+        }
+
+        // A cost page on another origin asks for the rates to be sent on to
+        // it. The asker has to be on the list, and has to be the window that
+        // opened this one: this page tells its opener it is ready in a
+        // message only the asker's origin can read, and goes on only when
+        // the answer comes from that origin and that window. So a page
+        // elsewhere cannot have rates sent to a listed origin it is not on.
+        // The answer names the link, which this page follows only once the
+        // reader agrees.
+        function start(asker) {
+          if (!maySendTo(asker)) {
+            say("This page can't send the rates there", asker);
+            return;
+          }
+          var opener = window.opener;
+          if (!opener) {
+            say(
+              "No cost page asked for the rates",
+              "Open the cost page and choose Load Meta rates."
+            );
+            return;
+          }
+          say("Waiting for the cost page…", asker);
+          function onAnswer(event) {
+            if (event.origin !== asker || event.source !== opener) return;
+            var answer = event.data;
+            if (!answer || answer.type !== "go") return;
+            var link;
+            try {
+              link = new URL(answer.link);
+            } catch (error) {
+              return;
+            }
+            // A web address only: https, or this page's own scheme where a
+            // local server is the one being tried.
+            if (
+              link.protocol !== "https:" &&
+              link.protocol !== window.location.protocol
+            ) {
+              return;
+            }
+            window.removeEventListener("message", onAnswer);
+            confirmSend(asker, link.href);
+          }
+          window.addEventListener("message", onAnswer);
+          opener.postMessage({ type: "ready" }, asker);
+        }
+
+        function confirmSend(asker, link) {
+          say(
+            "Send the Meta rates to another site?",
+            asker +
+              " asked for them. Continue only if you chose Load Meta rates there."
+          );
+          var actions = document.getElementById("actions");
+          document.getElementById("continue").onclick = function () {
+            actions.hidden = true;
+            rememberReturn(asker);
+            say("Opening Meta sign-in…", "");
+            window.location.replace(link);
+          };
+          document.getElementById("cancel").onclick = function () {
+            actions.hidden = true;
+            say("Nothing was sent", "You can close this window.");
+            window.close();
+          };
+          actions.hidden = false;
+        }
+
+        // With no cost page to take them, the rates can still be kept as a
+        // file, to drop on a cost page anywhere: the payload is the unpadded
+        // base64url of the zlib-deflated JSON of a rates file. Inflating
+        // stops at a rates file's largest size, so a small payload cannot
+        // grow without bound.
+        var MAX_FILE_BYTES = 1000000;
+        function inflate(payload) {
+          var binary = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+          var bytes = new Uint8Array(binary.length);
+          for (var at = 0; at < binary.length; at++) {
+            bytes[at] = binary.charCodeAt(at);
+          }
+          var inflater = new DecompressionStream("deflate");
+          var writer = inflater.writable.getWriter();
+          // Bytes that are not deflated fail the reading below; the writing
+          // fails with it, and is not waited for.
+          writer
+            .write(bytes)
+            .then(function () {
+              return writer.close();
+            })
+            .catch(function () {});
+          var reader = inflater.readable.getReader();
+          var chunks = [];
+          var size = 0;
+          function more() {
+            return reader.read().then(function (chunk) {
+              if (chunk.done) {
+                return new Blob(chunks, { type: "application/json" });
+              }
+              size += chunk.value.byteLength;
+              if (size > MAX_FILE_BYTES) {
+                reader.cancel();
+                throw new Error("More than a rates file holds.");
+              }
+              chunks.push(chunk.value);
+              return more();
+            });
+          }
+          return more();
+        }
+
+        // The one button, in place of the question's two: it saves the file
+        // from this page's memory, asking no server for it.
+        function offerFile(payload) {
+          if (typeof DecompressionStream === "undefined") return;
+          var actions = document.getElementById("actions");
+          var download = document.getElementById("download");
+          download.onclick = function () {
+            new Promise(function (resolve) {
+              resolve(inflate(payload));
+            }).then(
+              function (file) {
+                var address = URL.createObjectURL(file);
+                var link = document.createElement("a");
+                link.setAttribute("href", address);
+                link.setAttribute("download", "pytorch_ci_runner_rates.json");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.setTimeout(function () {
+                  URL.revokeObjectURL(address);
+                }, 60000);
+                say(
+                  "Rates file downloaded",
+                  "Drop it on the cost page. You can close this window."
+                );
+              },
+              function () {
+                actions.hidden = true;
+                say(
+                  "These rates can't be kept as a file",
+                  "Open the cost page and choose Load Meta rates."
+                );
+              }
+            );
+          };
+          document.getElementById("continue").hidden = true;
+          document.getElementById("cancel").hidden = true;
+          download.hidden = false;
+          actions.hidden = false;
+        }
+
+        // The cost page on this origin listens only after its button was
+        // pressed, and answers when it takes the rates. When none answers,
+        // as when the link is opened on its own, the rates are offered as a
+        // file instead.
+        function deliver(payload) {
+          if (typeof BroadcastChannel === "undefined") {
+            say(
+              "This browser can't pass the rates on",
+              "Download the file and drop it on the cost page instead."
+            );
+            offerFile(payload);
+            return;
+          }
+          var channel = new BroadcastChannel("hud-cost-rates");
+          var taken = false;
+          channel.onmessage = function (event) {
+            if (!event.data || event.data.type !== "received") return;
+            taken = true;
+            channel.close();
+            say("Rates sent to the cost page", "You can close this window.");
+            window.close();
+          };
+          channel.postMessage({ type: "rates", payload: payload });
+          window.setTimeout(function () {
+            if (taken) return;
+            channel.close();
+            say(
+              "No cost page is waiting for rates",
+              "Choose Load Meta rates on the cost page, or download the file and drop it there."
+            );
+            offerFile(payload);
+          }, 1500);
+        }
+
+        var given = new URLSearchParams(fragment);
+        var asker = given.get("return");
+        var payload = given.get("rates");
+        if (asker) {
+          start(asker);
+          return;
+        }
+        // Rates are base64url; anything else in their place is not rates.
+        if (!payload || !/^[A-Za-z0-9_-]+$/.test(payload)) {
+          say(
+            "No rates to pass on",
+            "This window passes rates to the cost page. Open the cost page and choose Load Meta rates."
+          );
+          return;
+        }
+        var sendOnTo = takeReturn();
+        if (sendOnTo) {
+          say("Sending the rates on…", sendOnTo);
+          window.location.replace(
+            sendOnTo + "/rates-handoff.html#rates=" + payload
+          );
+          return;
+        }
+        deliver(payload);
+      })();
+    </script>
+  </body>
+</html>

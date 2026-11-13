@@ -18,6 +18,11 @@ import {
   type TrendRollup,
 } from "lib/api/tests/cost/windows";
 import {
+  HANDOFF_RATES_NAME,
+  ratesWindow,
+  type RatesWindow,
+} from "lib/tests/cost/handoff";
+import {
   costApiUrl,
   type CostQuery,
   costTrendApiUrl,
@@ -47,6 +52,7 @@ import {
   toggled,
 } from "lib/tests/cost/runnerHours";
 import { useCostTrend, useRunnerHours } from "lib/tests/cost/useCost";
+import { useRatesHandoff } from "lib/tests/cost/useRatesHandoff";
 import { mergedUrlQuery } from "lib/tests/url";
 import Router, { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -84,7 +90,11 @@ function datesOf(answer: RunnerHours): string {
 // Cost is a panel of its own under the runner-hours chart (CostPanel), from
 // a rates file the reader adds (lib/tests/cost/rates.ts), its rates editable
 // in the panel's key: held in this component's state only, never in the URL,
-// storage or a request, and so are the panel's split keys. It follows the
+// storage or a request, and so are the panel's split keys. Once a link for
+// them exists, the internal rates also load in one click, on HUD and on the
+// origins HUD sends them on to: a Meta sign-in window hands them to the page
+// (lib/tests/cost/handoff.ts), and they are held as a file's are. It follows
+// the
 // page's scope and highlight; with a file the facts gain a row in $, and the
 // matrix and the workflows card stay in runner-hours.
 //
@@ -160,41 +170,71 @@ export default function Page() {
       : null
   );
 
-  // Reads a rates file into memory; a bad file leaves the loaded rates as
-  // they were and says what is wrong with it.
-  const loadRates = useCallback(
-    async (file: File) => {
+  // Takes rates as a rates file's JSON, from a file or from the Meta window,
+  // into memory under the name given; bad rates leave the loaded ones as
+  // they were and say what is wrong with them.
+  const loadRatesText = useCallback(
+    (text: string, name: string) => {
       try {
-        if (file.size > MAX_RATES_BYTES) {
-          throw new Error(
-            `${file.name} is ${Math.round(
-              file.size / 1000
-            )} KB; a rates file is a few KB.`
-          );
-        }
-        const next = parseRates(await file.text(), file.name);
-        // A file pricing no runner here is a file of something else (or of
-        // misspelled labels): it would draw every bar at $0.
+        const next = parseRates(text, name);
+        // Rates pricing no runner here are rates of something else (or of
+        // misspelled labels): they would draw every bar at $0.
         if (
           prepared !== undefined &&
           ratesCoverage(prepared, next).priced === 0
         ) {
           const [example] = priceableRunners(prepared);
           throw new Error(
-            `None of ${
-              file.name
-            }'s labels ran in this window; keys are runner labels${
+            `None of the labels in ${name} ran in this window; keys are runner labels${
               example === undefined ? "" : ` like ${example.label}`
             }.`
           );
         }
         setRates(next);
         setRatesError(null);
-      } catch (e) {
-        setRatesError(e instanceof Error ? e.message : String(e));
+      } catch (error) {
+        setRatesError(error instanceof Error ? error.message : String(error));
       }
     },
     [prepared]
+  );
+  // Reads a rates file into memory.
+  const loadRates = useCallback(
+    async (file: File) => {
+      if (file.size > MAX_RATES_BYTES) {
+        setRatesError(
+          `${file.name} is ${Math.round(
+            file.size / 1000
+          )} KB; a rates file is a few KB.`
+        );
+        return;
+      }
+      let text: string;
+      try {
+        text = await file.text();
+      } catch (error) {
+        setRatesError(error instanceof Error ? error.message : String(error));
+        return;
+      }
+      loadRatesText(text, file.name);
+    },
+    [loadRatesText]
+  );
+  // The window that loads the internal rates in one click from this origin:
+  // null until the page is in the browser, where the origin has none, and
+  // where the browser has no channel for the rates to arrive on.
+  const [handoffWindow, setHandoffWindow] = useState<RatesWindow | null>(null);
+  useEffect(() => {
+    setHandoffWindow(
+      typeof BroadcastChannel === "undefined"
+        ? null
+        : ratesWindow(window.location.origin)
+    );
+  }, []);
+  const handoff = useRatesHandoff(
+    handoffWindow,
+    (text) => loadRatesText(text, HANDOFF_RATES_NAME),
+    setRatesError
   );
   const openRunners = (row: OwnerRow) => {
     setCell(null);
@@ -420,6 +460,7 @@ export default function Page() {
             prepared={prepared}
             rates={rates}
             error={ratesError}
+            handoff={handoff}
             onFile={loadRates}
             onClear={() => {
               setRates(null);

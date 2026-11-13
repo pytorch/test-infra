@@ -16,6 +16,7 @@ import {
   type RatesFile,
 } from "lib/tests/cost/rates";
 import type { PreparedHours } from "lib/tests/cost/runnerHours";
+import type { RatesHandoff } from "lib/tests/cost/useRatesHandoff";
 import { headerKeyFocusRing } from "lib/tests/headerColors";
 import {
   useCallback,
@@ -38,6 +39,8 @@ export interface CostPanelProps {
   prepared: PreparedHours;
   rates: RatesFile | null;
   error: string | null;
+  // The one-click way to the internal rates, where the origin has one.
+  handoff?: RatesHandoff | null;
   onFile: (_file: File) => void;
   onClear: () => void;
   onDismissError: () => void;
@@ -109,6 +112,7 @@ export default function CostPanel({
   prepared,
   rates,
   error,
+  handoff = null,
   onFile,
   onClear,
   onDismissError,
@@ -205,6 +209,7 @@ export default function CostPanel({
           <RatesDropzone
             dragging={dragging}
             error={error}
+            handoff={handoff}
             exampleLabels={examples}
             runners={runners.length}
             onChoose={choose}
