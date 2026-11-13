@@ -140,9 +140,15 @@ def truncate_diff(text: str, budget: int = DIFF_BUDGET) -> str:
     return "\n".join(out)
 
 
-def build_prompt(
-    title: str, body: str, diffstat: str, diff_text: str, candidates: Sequence[str]
-) -> str:
+def system_prompt(candidates: Sequence[str]) -> str:
+    """prompt.md, then the candidate list. The system prompt holds everything the
+    changes of a day share, so the model provider's prompt cache serves it to the next
+    call: the list is about three quarters of a typical call's input."""
+    listed = "\n".join(candidates)
+    return f"{SYSTEM_PROMPT}\n# Candidate test files ({len(candidates)})\n{listed}\n"
+
+
+def build_prompt(title: str, body: str, diffstat: str, diff_text: str) -> str:
     body = body.strip()
     if len(body) > BODY_BUDGET:
         body = body[:BODY_BUDGET] + "\n...[truncated]"
@@ -157,8 +163,6 @@ def build_prompt(
             f"# PR description\n<pr_description>\n{body or '(none)'}\n</pr_description>",
             f"# Changed files\n<changed_files>\n{diffstat}\n</changed_files>",
             f"# Diff\n<diff>\n{diff_text}\n</diff>",
-            f"# Candidate test files ({len(candidates)})",
-            "\n".join(candidates),
             "\nName the test files this change can break. Use the exact names from the"
             " candidate list.",
         ]
@@ -166,10 +170,15 @@ def build_prompt(
 
 
 def query_model(
-    prompt: str, model: str, effort: str, timeout: int = QUERY_TIMEOUT_SECONDS
+    prompt: str,
+    system: str,
+    model: str,
+    effort: str,
+    timeout: int = QUERY_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
-    """Run `claude -p` with no tools and return the CLI's JSON envelope (the answer
-    under `structured_output`); SelectionError if the call fails."""
+    """Run `claude -p` with no tools on `prompt` under the system prompt `system` and
+    return the CLI's JSON envelope (the answer under `structured_output`);
+    SelectionError if the call fails."""
     command = [
         "claude",
         "-p",
@@ -180,7 +189,7 @@ def query_model(
         "--effort",
         effort,
         "--system-prompt",
-        SYSTEM_PROMPT,
+        system,
         "--tools",
         "",
         "--output-format",
@@ -354,13 +363,12 @@ def select(args: argparse.Namespace) -> Optional[dict[str, Any]]:
     candidates = candidate_tests(repo)
     stat = diff.git(repo, "diff", "--stat=200", "--no-renames", "--no-color", *revs)
     title, body = pr_text(args, head)
-    prompt = build_prompt(
-        title, body, stat.stdout, diff.git_diff(repo, base, head), candidates
-    )
+    system = system_prompt(candidates)
+    prompt = build_prompt(title, body, stat.stdout, diff.git_diff(repo, base, head))
     if args.print_prompt:
-        print(prompt)
+        print(f"{system}\n{prompt}")
         return None
-    result = query_model(prompt, args.model, args.effort)
+    result = query_model(prompt, system, args.model, args.effort)
     answer: Any = result.get("structured_output")
     scores, unknown = scores_from_answer(answer, candidates)
     record.update(
@@ -401,7 +409,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--print-prompt",
         action="store_true",
-        help="print the prompt instead of calling the model; writes no file",
+        help="print the system prompt and the prompt instead of calling the model;"
+        " writes no file",
     )
     return parser
 

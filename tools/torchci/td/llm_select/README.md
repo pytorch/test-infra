@@ -68,5 +68,7 @@ python -P -m torchci.td.llm_select.selector --pytorch ~/pytorch --out /dev/null 
   --print-prompt | less
 ```
 
-One call takes one to four minutes and costs about $0.20 with the default model and
-effort.
+A call takes 10 to 20 seconds with the default model and effort, and cost $0.10 on
+average over 150 PR heads of one day. The test list is about 13,500 tokens and sits in
+the system prompt, so the provider's prompt cache serves it to the calls that follow
+within a few minutes; the diff is most of the rest.
