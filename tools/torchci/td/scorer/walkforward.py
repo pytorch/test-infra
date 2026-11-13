@@ -14,8 +14,22 @@ fitted on the days before M is scored on M by gate.evaluate_window: the PRs whos
 TD run is in M, at TD's cost per job and at the budget when the model has one, the
 counted trunk landings of M, and the risk score's AUC on those PRs' heads. The gate
 pools the months (gate.Gate.pooled).
+
+Candidates (`candidates`, report only): History also records the PRs with a run where a
+heuristic of train.CANDIDATES ran and did not raise. For each of those months with such
+new PRs, two models are fitted on the days before it the same way, one over
+train.HEURISTICS and one with train.CANDIDATES added, neither with a budget block, and
+both score those PRs and the month's counted trunk landings of those PRs, at TD's cost.
+A month whose earlier days have no row where a candidate was active gives it no weight,
+so both models agree there. Once the scorer is published, PR failures are only observed
+in files the published cut ran, so a candidate that would have run other files gets no
+credit from them; the counted trunk landings (tests TD skipped on the PR that then broke
+trunk) are not biased that way. The months are taken newest first and none starts after
+CANDIDATES_SECONDS, so the report cannot use up the refit job's time.
 """
 
+import logging
+import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Callable, Iterable, Iterator, Mapping, Optional, Sequence
@@ -23,11 +37,16 @@ from typing import Any, Callable, Iterable, Iterator, Mapping, Optional, Sequenc
 import numpy as np
 from torchci.td.scorer import model_json, risk, train, trunk
 from torchci.td.scorer.gate import evaluate_window, WindowReport
-from torchci.td.scorer.logs import TDLog
+from torchci.td.scorer.logs import active, TDLog
 from torchci.td.scorer.risk import Head
 from torchci.td.scorer.rows import JobTimes, RowBuilder, Rows
 from torchci.td.scorer.shards import DayShard
 from torchci.td.scorer.trunk import counted_pairs, TrunkLanding
+
+
+logger = logging.getLogger(__name__)
+
+CANDIDATES_SECONDS = 1800
 
 
 def next_month(day: date) -> date:
@@ -86,12 +105,18 @@ class History:
         self.rows: Optional[Rows] = None
         self.heads: dict[date, dict[str, Head]] = {}
         self.prs: dict[date, set[int]] = {}
+        self.candidate_prs: set[int] = set()
         self.landings: list[TrunkLanding] = []
         self.logs: Mapping[str, TDLog] = {}
 
     def add_shard(self, day: date, shard: DayShard) -> None:
         assert self.builder is not None
         self.prs[day] = {r.pr for r in shard.runs}
+        self.candidate_prs.update(
+            r.pr
+            for r in shard.runs
+            if active(r.heuristics, r.raised).intersection(train.CANDIDATES)
+        )
         self.builder.add_shard(shard, self.exclude)
         self.heads[day] = {}
         risk.collect_heads(shard, self.heads[day], self.exclude)
@@ -111,9 +136,11 @@ class History:
         exclude_prs: set[int],
         version: str,
         budget: Optional[Mapping[str, float]] = None,
+        heuristics: Optional[Sequence[str]] = None,
     ) -> Fit:
         """The model fitted on the days before `before`, without `exclude_prs`, carrying
-        `budget` as its budget block when given."""
+        `budget` as its budget block when given, over train.HEURISTICS or, when given,
+        `heuristics`."""
         assert self.rows is not None
         keep = (self.rows.day < before.toordinal()) & ~np.isin(
             self.rows.pr, np.array(sorted(exclude_prs), dtype=np.int64)
@@ -127,10 +154,15 @@ class History:
         risk_block = risk.fit_risk(
             heads, risk.trunk_heads(landings, self.logs, excluded)
         )
+        scorer = (
+            train.fit_scorer(training)
+            if heuristics is None
+            else train.fit_scorer(training, heuristics)
+        )
         return Fit(
             model=model_json.build_model(
                 version,
-                train.fit_scorer(training),
+                scorer,
                 risk_block,
                 self.times.start_up_table,
                 budget=budget,
@@ -221,6 +253,45 @@ def walk_forward(
     return out
 
 
+def candidates(
+    history: History,
+    load: Callable[[date], DayShard],
+    times: JobTimes,
+    version: str,
+    seconds: float = CANDIDATES_SECONDS,
+) -> tuple[list[Fold], list[Fold]]:
+    """Report only: (the folds of the model over train.HEURISTICS, those of the model
+    with train.CANDIDATES added), for the months with new PRs where a candidate was
+    active, each scored on those PRs and their counted trunk landings of the month. No
+    other month is fitted. The months are fitted newest first, and none starts after
+    `seconds`: the older ones are then left out, and logged."""
+    base: list[Fold] = []
+    added: list[Fold] = []
+    deadline = time.monotonic() + seconds
+    for spec in reversed(list(folds(history))):
+        prs = spec.new_prs & history.candidate_prs
+        if not prs:
+            continue
+        if time.monotonic() > deadline:
+            logger.warning(
+                "candidates: out of time after %d months, %s and earlier left out",
+                len(base),
+                spec.month.isoformat()[:7],
+            )
+            break
+        landings = [x for x in spec.landings if any(p.pr in prs for p in x.pairs)]
+        for out, heuristics in (
+            (base, None),
+            (added, train.HEURISTICS + train.CANDIDATES),
+        ):
+            fit = history.fit(spec.month, spec.prs, version, heuristics=heuristics)
+            report = evaluate_window(
+                fit.model, (load(d) for d in spec.days), prs, landings, times
+            )
+            out.append(Fold(spec.month.isoformat()[:7], len(spec.before), report))
+    return base[::-1], added[::-1]
+
+
 def _row(name: str, train_days: str, reports: Sequence[WindowReport]) -> dict:
     prs = sum(x.prs_with_events for x in reports)
     scorer = sum(x.pr_recall_sum for x in reports)
@@ -271,5 +342,43 @@ def text(folds: Sequence[Fold]) -> str:
             f"   {row['event_recall']:>12.3f}  {row['trunk_landings']:>14}"
             f" ({row['trunk_caught']})"
             f"{'':>15}{row['risk_auc']:.3f} ({row['heads']})"
+        )
+    return "\n".join(lines)
+
+
+def candidates_summary(base: Sequence[Fold], added: Sequence[Fold]) -> dict[str, Any]:
+    """`summary` of each side of `candidates`, and how many PRs both scored."""
+    return {
+        "heuristics": list(train.CANDIDATES),
+        "prs": sum(f.report.prs for f in base),
+        "scorer": summary(base),
+        "with_candidates": summary(added),
+    }
+
+
+def candidates_text(base: Sequence[Fold], added: Sequence[Fold]) -> str:
+    table = candidates_summary(base, added)
+    names = ", ".join(table["heuristics"])
+    if not base:
+        return (
+            f"candidates (report only): {names}: no walk-forward month has new PRs"
+            " where a candidate ran"
+        )
+    lines = [
+        f"candidates (report only): {names}, on the {table['prs']} PRs where a"
+        " candidate ran: the scorer without and with the candidates, at TD's cost"
+        " (ratios to TD)",
+        "month    train days  PRs w/ events       TD   scorer (ratio)"
+        "  with candidates (ratio)  events  event recall (with)"
+        "  trunk landings (scorer caught, with)",
+    ]
+    for row, with_ in zip(table["scorer"], table["with_candidates"]):
+        lines.append(
+            f"{row['month']:<8} {row['train_days']:>10}  {row['prs_with_events']:>13}"
+            f"  {row['td']:>7.1f}  {row['scorer']:>7.1f} ({row['ratio']:.3f})"
+            f"  {with_['scorer']:>15.1f} ({with_['ratio']:.3f})  {row['events']:>6}"
+            f"  {row['event_recall']:>11.3f} ({with_['event_recall']:.3f})"
+            f"  {row['trunk_landings']:>14}"
+            f" ({row['trunk_caught']}, {with_['trunk_caught']})"
         )
     return "\n".join(lines)

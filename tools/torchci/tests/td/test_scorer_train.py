@@ -196,6 +196,17 @@ class TestFitScorer(TestCase):
             scorer = train.fit_scorer(rows)
             self.assertEqual(set(scorer["heuristics"]), {"Filepath"})
 
+    def test_a_candidate_enters_only_when_allowed(self) -> None:
+        self.assertFalse(set(train.CANDIDATES) & set(train.HEURISTICS))
+        rows = make_rows()
+        rows.heuristics = ["Trial", "Profiling"]
+        scorer = train.fit_scorer(rows)
+        self.assertEqual(set(scorer["heuristics"]), {"Profiling"})
+        self.assertEqual(train.fit_scorer(rows, train.HEURISTICS), scorer)
+        scorer = train.fit_scorer(rows, train.HEURISTICS + ("Trial",))
+        self.assertEqual(set(scorer["heuristics"]), {"Trial", "Profiling"})
+        self.assertGreater(scorer["heuristics"]["Trial"]["weight"], 0.5)
+
     def test_no_positives(self) -> None:
         rows = make_rows()
         rows.label[:] = 0

@@ -9,7 +9,7 @@
 """
 
 from datetime import date, timedelta
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
 import numpy as np
 from torchci.td.scorer.model_json import (
@@ -45,6 +45,11 @@ HEURISTICS = (
     "Filepath",
     "PublicBindings",
 )
+# Candidates: heuristics pytorch's TD runs in trial mode, so they never enter the
+# shipped model; the refit only reports the walk-forward with them added
+# (walkforward.candidates). One is promoted by moving its name to HEURISTICS once
+# pytorch has dropped its trial_mode.
+CANDIDATES = ("LLMSelection",)
 MAX_ITER = 50
 TOL = 1e-9
 
@@ -229,12 +234,13 @@ def fit_logistic(
     return beta
 
 
-def fit_scorer(rows: Rows) -> dict[str, Any]:
-    """The `scorer` block of the model file, unrounded except for the tables."""
+def fit_scorer(rows: Rows, heuristics: Sequence[str] = HEURISTICS) -> dict[str, Any]:
+    """The `scorer` block of the model file, unrounded except for the tables, over the
+    heuristics of `rows` named in `heuristics`."""
     if not len(rows) or not rows.label.any():
         raise ValueError("no positive training rows")
     w, y = rows.weight, rows.label.astype(float)
-    names = sorted(h for h in rows.heuristics if h in HEURISTICS)
+    names = sorted(h for h in rows.heuristics if h in heuristics)
     tables, columns = {}, []
     for h in names:
         j = rows.heuristics.index(h)
