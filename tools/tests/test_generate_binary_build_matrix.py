@@ -6,6 +6,8 @@ from unittest import main, TestCase
 
 from tools.scripts.generate_binary_build_matrix import (
     generate_build_matrix,
+    generate_wheels_matrix,
+    initialize_globals,
     OSDC_RUNNERS,
     parse_version,
     ROCM_ARCHES_DICT,
@@ -157,7 +159,12 @@ class GenerateBuildMatrixTest(TestCase):
             None,
             "enable" if python_abi3 else "disable",
         )
-        return {entry["python_version"] for entry in out["include"]}
+        # Preview rows have their own Python list; don't let them mask a gap.
+        return {
+            entry["python_version"]
+            for entry in out["include"]
+            if entry["desired_cuda"] != ROCM_PREVIEW_DESIRED_CUDA
+        }
 
     def test_python_3_15_enabled_by_default(self):
         # 3.15 / 3.15t are in the default matrix for the nightly and test
@@ -475,28 +482,96 @@ class GenerateBuildMatrixTest(TestCase):
             {entry["python_version"] for entry in preview},
             set(ROCM_PREVIEW_PYTHON_ARCHES),
         )
+        self.assertEqual(len(preview), len(ROCM_PREVIEW_PYTHON_ARCHES))
         for entry in preview:
             self.assertEqual(entry["gpu_arch_version"], ROCM_PREVIEW_VERSION)
+            self.assertEqual(entry["package_type"], "manywheel")
+            self.assertEqual(entry["container_image"], "")
+            self.assertEqual(entry["upload_to_base_bucket"], "no")
             self.assertEqual(
                 entry["installation"],
                 "pip3 install --pre torch --index-url "
                 "https://download.pytorch.org/whl/nightly/rocm-preview",
             )
 
-    def test_rocm_preview_only_on_nightly_getting_started_wheels(self):
-        cases = [("nightly", "false", "wheel"), ("nightly", "true", "libtorch")]
-        cases += [(channel, "true", "wheel") for channel in ("test", "release")]
-        for channel, getting_started, package_type in cases:
-            self.assertNotIn(
-                ROCM_PREVIEW_DESIRED_CUDA,
-                {
-                    entry["desired_cuda"]
-                    for entry in self._rocm_entries(
-                        channel, getting_started, package_type
-                    )
-                },
-                f"{channel}/{getting_started}/{package_type}",
+    def _has_rocm_preview(self, matrix) -> bool:
+        return any(
+            entry["desired_cuda"] == ROCM_PREVIEW_DESIRED_CUDA
+            for entry in matrix["include"]
+        )
+
+    def test_rocm_preview_only_on_nightly_getting_started_linux(self):
+        for channel in ("test", "release"):
+            self.assertFalse(
+                self._has_rocm_preview(
+                    {"include": self._rocm_entries(channel, "true")}
+                ),
+                channel,
             )
+        for getting_started in ("true", "false"):
+            for operating_system in (
+                "linux",
+                "linux-aarch64",
+                "windows",
+                "macos-arm64",
+            ):
+                if (getting_started, operating_system) == ("true", "linux"):
+                    continue
+                matrix = generate_build_matrix(
+                    "all",
+                    operating_system,
+                    "nightly",
+                    "enable",
+                    "enable",
+                    "enable",
+                    "disable",
+                    "false",
+                    "false",
+                    "disable",
+                    getting_started,
+                    None,
+                )
+                self.assertFalse(
+                    self._has_rocm_preview(matrix),
+                    f"{operating_system}/getting_started={getting_started}",
+                )
+
+    def test_rocm_preview_respects_matrix_options(self):
+        def matrix(with_rocm="enable", limit_pr_builds="false"):
+            return generate_build_matrix(
+                "wheel",
+                "linux",
+                "nightly",
+                "enable",
+                with_rocm,
+                "enable",
+                "disable",
+                limit_pr_builds,
+                "false",
+                "disable",
+                "true",
+                None,
+            )
+
+        self.assertTrue(self._has_rocm_preview(matrix()))
+        self.assertFalse(self._has_rocm_preview(matrix(with_rocm="disable")))
+        # The PR-limited matrix keeps only 3.11, which preview does not ship.
+        self.assertFalse(self._has_rocm_preview(matrix(limit_pr_builds="true")))
+
+        initialize_globals("nightly", "linux", False, True)
+        explicit = generate_wheels_matrix(
+            "linux",
+            "nightly",
+            "enable",
+            "enable",
+            "enable",
+            "disable",
+            False,
+            False,
+            getting_started=True,
+            arches=["cpu"],
+        )
+        self.assertFalse(self._has_rocm_preview({"include": explicit}))
 
 
 def parse_args():

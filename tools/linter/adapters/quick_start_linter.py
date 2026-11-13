@@ -369,6 +369,8 @@ def extract_arch_ver_map(release_matrix):
                 "rocm",
                 max(rocm_ver_list.values(), key=version_key),
             )
+        else:
+            acc_arch_ver_map[chan].pop(ROCM_LABEL, None)
         rocm_preview = [
             x["gpu_arch_version"]
             for x in release_matrix[chan]["linux"]
@@ -380,6 +382,8 @@ def extract_arch_ver_map(release_matrix):
                 rocm_preview[0],
                 "alpha",
             )
+        else:
+            acc_arch_ver_map[chan].pop(ROCM_ALPHA_LABEL, None)
         for cuda_ver, label in zip(cuda_list, CUDA_LABELS):
             acc_arch_ver_map[chan][label] = ("cuda", cuda_ver)
 
