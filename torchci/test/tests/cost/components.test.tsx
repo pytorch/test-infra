@@ -226,11 +226,85 @@ describe("CostFacts", () => {
 });
 
 describe("CostPanel", () => {
-  test("asks for a file until one is added, a link to download the rates file first", () => {
+  test("asks for a file until one is added: what to bring and what becomes of it, the way to its format in those words, and two buttons, a link to download the rates file first", () => {
     const text = panel(null);
     expect(text).toContain("Apply your runner rates to see cost by owner");
     expect(text).toContain(
-      "Download rates file Choose rates file… File format"
+      "Drop a JSON of $ per runner-hour here, or choose one. HUD never receives or stores it. See the format"
+    );
+    expect(text).toContain("Download rates file Choose rates file…");
+    // The format is not a button of its own, and nothing says where the
+    // file stays.
+    expect(text).not.toContain("File format");
+    expect(text).not.toContain("stays in this tab");
+  });
+
+  test("one button is filled, the most direct way to rates: Meta's where they load in a click, else the reader's own file", () => {
+    // Each button's words, and whether it is the filled one.
+    const buttons = (handoff: boolean, error: string | null = null) =>
+      Array.from(
+        unstyled(
+          renderToStaticMarkup(
+            <RatesDropzone
+              dragging={false}
+              error={error}
+              handoff={
+                handoff ? { waiting: false, load: noop, cancel: noop } : null
+              }
+              exampleLabels={[]}
+              runners={0}
+              onChoose={noop}
+              onDismissError={noop}
+            />
+          )
+        ).matchAll(
+          /<(button|a)\b[^>]*class="([^"]*\bMuiButton-root\b[^"]*)"[^>]*>([\s\S]*?)<\/\1>/g
+        ),
+        ([, , classes, body]) => [
+          words(body),
+          /\bMuiButton-contained\b/.test(classes),
+        ]
+      );
+    expect(buttons(true)).toEqual([
+      ["Load Meta rates", true],
+      ["Choose rates file…", false],
+    ]);
+    expect(buttons(false)).toEqual([
+      ["Download rates file", false],
+      ["Choose rates file…", true],
+    ]);
+    // A file that could not be read changes the words, not which is filled.
+    expect(buttons(true, "f.json has no rates.")).toEqual([
+      ["Load Meta rates", true],
+      ["Choose another file…", false],
+    ]);
+  });
+
+  test("the format opens from words in the description that say so to assistive technology, closed until asked for", () => {
+    const markup = unstyled(
+      renderToStaticMarkup(
+        <RatesDropzone
+          dragging={false}
+          error={null}
+          exampleLabels={[]}
+          runners={0}
+          onChoose={noop}
+          onDismissError={noop}
+        />
+      )
+    );
+    // The one control that opens something, up to the end of its words.
+    const control = markup.match(
+      /<span\b([^>]*\baria-expanded="[^"]*"[^>]*)>([\s\S]*?)<\/span>/
+    );
+    expect(control).not.toBeNull();
+    const [, attributes = "", body = ""] = control ?? [];
+    expect(words(body)).toBe("See the format");
+    expect(decoded(attributes)).toContain('aria-expanded="false"');
+    expect(decoded(attributes)).toContain('role="button"');
+    // Its name for assistive technology holds the words on the page.
+    expect(decoded(attributes)).toContain(
+      'aria-label="See the format of a rates file"'
     );
   });
 
@@ -261,6 +335,62 @@ describe("CostPanel", () => {
         "Needs access to the internal rates file. Opens in a new tab."
       );
     }
+  });
+
+  test("where the origin has a link for it, the Meta rates load from a button that opens a window, and the file's download moves to the waiting and error lines", () => {
+    const dropzone = (waiting: boolean, error: string | null) =>
+      unstyled(
+        renderToStaticMarkup(
+          <RatesDropzone
+            dragging={false}
+            error={error}
+            handoff={{ waiting, load: noop, cancel: noop }}
+            exampleLabels={[]}
+            runners={0}
+            onChoose={noop}
+            onDismissError={noop}
+          />
+        )
+      );
+    const links = (markup: string) =>
+      Array.from(
+        markup.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g),
+        ([, attributes, body]) => [decoded(attributes), words(body)]
+      );
+    const downloads = (markup: string, text: string) => {
+      const found = links(markup);
+      expect(found.map(([, body]) => body)).toEqual([text]);
+      expect(found[0][0]).toContain(`href="${RATES_FILE_URL}"`);
+      expect(found[0][0]).toContain('target="_blank"');
+      expect(found[0][0]).toContain('rel="noopener noreferrer"');
+    };
+
+    const idle = dropzone(false, null);
+    expect(words(idle)).toContain("Load Meta rates Choose rates file…");
+    expect(links(idle)).toEqual([]);
+    expect(titles(idle)).toContain(
+      "Needs access to the internal rates. Opens a Meta sign-in window."
+    );
+    // Nothing turns, and nothing waits, until the button is pressed.
+    expect(idle).not.toContain('role="progressbar"');
+    expect(words(idle)).not.toContain("Waiting for the rates");
+
+    const waiting = dropzone(true, null);
+    expect(words(waiting)).toContain(
+      "Waiting for the rates from the Meta window… Cancel If no window opened, allow pop-ups for this site, or download the rates file and drop it here."
+    );
+    downloads(waiting, "download the rates file");
+    // The button it was asked from turns while the page waits.
+    expect(waiting).toContain('role="progressbar"');
+
+    const failed = dropzone(
+      false,
+      "No rates arrived from the Meta window. Try again, or download the rates file."
+    );
+    expect(words(failed)).toContain(
+      "Couldn't load the rates. No rates arrived from the Meta window. Try again, or download the rates file. Dismiss · Download rates file"
+    );
+    downloads(failed, "Download rates file");
   });
 
   test("puts a file's usage window in a pill whose tooltip counts its days, and its valid_from after it only when that is not the window's last day", () => {

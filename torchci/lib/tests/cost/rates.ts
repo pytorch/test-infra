@@ -9,12 +9,16 @@ import {
 // of runner label → $ per runner-hour, optionally wrapped with when the rates
 // hold from, the days of usage they were made from and how they were made.
 // The file is read in the browser into the page's memory: never sent, stored,
-// or put in the URL (whose query HUD's analytics record), and reloading the
-// page drops it. The API holds no prices, so without a file the page counts
-// runner-hours only.
+// or put in the page's URL (whose query HUD's analytics record), and
+// reloading the page drops it. The API holds no prices, so without a file the
+// page counts runner-hours only. The internal rates can also arrive without
+// a file, handed to the page by a Meta sign-in window (handoff.ts); they are
+// held the same way.
 
 // The internal rates file, an fburl that opens only for Meta employees: a
 // link the reader's browser follows to download it; HUD never fetches it.
+// The one-click way to the same rates is a link of its own (HANDOFF_LINK in
+// handoff.ts).
 export const RATES_FILE_URL = "https://fburl.com/pytorch-ci-rates";
 
 export interface RatesFile {

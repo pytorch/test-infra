@@ -1,3 +1,4 @@
+import { withoutRatesFragment } from "lib/tests/cost/ratesFragment";
 import { NextRouter } from "next/router";
 import ReactGA from "react-ga4";
 
@@ -92,12 +93,14 @@ export function trackRouteEvent(
     return;
   }
 
+  // A fragment that carries the cost page's rates is never reported
+  // (lib/tests/cost/ratesFragment.ts); any other address goes as it is.
   const payload = {
     ...info,
-    url: window.location.href,
+    url: withoutRatesFragment(window.location.href),
     windowPathname: window.location.pathname,
     routerPathname: router.pathname,
-    routerPath: router.asPath,
+    routerPath: withoutRatesFragment(router.asPath),
     ...(isDebugMode() ? { debug_mode: true } : {}),
   };
 
