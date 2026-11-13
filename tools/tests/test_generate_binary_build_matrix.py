@@ -9,6 +9,9 @@ from tools.scripts.generate_binary_build_matrix import (
     OSDC_RUNNERS,
     parse_version,
     ROCM_ARCHES_DICT,
+    ROCM_PREVIEW_DESIRED_CUDA,
+    ROCM_PREVIEW_PYTHON_ARCHES,
+    ROCM_PREVIEW_VERSION,
     validation_runner,
 )
 
@@ -312,9 +315,11 @@ class GenerateBuildMatrixTest(TestCase):
                 self.assertNotIn("torchvision", entry["installation"])
                 self.assertIn("torch", entry["installation"])
 
-    def _rocm_versions(self, channel: str, getting_started: str) -> set:
+    def _rocm_entries(
+        self, channel: str, getting_started: str, package_type: str = "wheel"
+    ) -> list:
         out = generate_build_matrix(
-            "wheel",
+            package_type,
             "linux",
             channel,
             "enable",
@@ -327,10 +332,13 @@ class GenerateBuildMatrixTest(TestCase):
             getting_started,
             None,
         )
+        return [entry for entry in out["include"] if entry["gpu_arch_type"] == "rocm"]
+
+    def _rocm_versions(self, channel: str, getting_started: str) -> set:
         return {
             entry["gpu_arch_version"]
-            for entry in out["include"]
-            if entry["gpu_arch_type"] == "rocm"
+            for entry in self._rocm_entries(channel, getting_started)
+            if entry["desired_cuda"] != ROCM_PREVIEW_DESIRED_CUDA
         }
 
     def _cuda_versions(
@@ -456,6 +464,39 @@ class GenerateBuildMatrixTest(TestCase):
             versions = self._rocm_versions(channel, "false")
             self.assertEqual(versions, set(ROCM_ARCHES_DICT[channel]), channel)
             self.assertGreater(len(versions), 1, channel)
+
+    def test_getting_started_nightly_offers_rocm_preview(self):
+        preview = [
+            entry
+            for entry in self._rocm_entries("nightly", "true")
+            if entry["desired_cuda"] == ROCM_PREVIEW_DESIRED_CUDA
+        ]
+        self.assertEqual(
+            {entry["python_version"] for entry in preview},
+            set(ROCM_PREVIEW_PYTHON_ARCHES),
+        )
+        for entry in preview:
+            self.assertEqual(entry["gpu_arch_version"], ROCM_PREVIEW_VERSION)
+            self.assertEqual(
+                entry["installation"],
+                "pip3 install --pre torch --index-url "
+                "https://download.pytorch.org/whl/nightly/rocm-preview",
+            )
+
+    def test_rocm_preview_only_on_nightly_getting_started_wheels(self):
+        cases = [("nightly", "false", "wheel"), ("nightly", "true", "libtorch")]
+        cases += [(channel, "true", "wheel") for channel in ("test", "release")]
+        for channel, getting_started, package_type in cases:
+            self.assertNotIn(
+                ROCM_PREVIEW_DESIRED_CUDA,
+                {
+                    entry["desired_cuda"]
+                    for entry in self._rocm_entries(
+                        channel, getting_started, package_type
+                    )
+                },
+                f"{channel}/{getting_started}/{package_type}",
+            )
 
 
 def parse_args():

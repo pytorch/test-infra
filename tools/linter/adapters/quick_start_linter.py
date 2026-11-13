@@ -149,7 +149,11 @@ def get_gpu_info(acc_key, instr, acc_arch_map):
         return acc_arch_map["accnone"]
     if acc_key not in acc_arch_map:
         return (None, None)
-    return acc_arch_map[acc_key]
+    return acc_arch_map[acc_key][:2]
+
+
+def is_rocm_preview(matrix_entry):
+    return matrix_entry.get("desired_cuda") == ROCM_PREVIEW_DESIRED_CUDA
 
 
 # This method is used for generating new published_versions.json file
@@ -158,6 +162,32 @@ def get_gpu_info(acc_key, instr, acc_arch_map):
 # json object.
 CUDA_LABELS = ["cuda.x", "cuda.y", "cuda.z"]
 UNAVAILABLE_NOTE = "<b>NOTE:</b> Not available for this build"
+
+# ROCm preview (TheRock alpha) wheels; the matrix marks them with this
+# desired_cuda, and the page shows them as a second ROCm box.
+ROCM_PREVIEW_DESIRED_CUDA = "rocm-preview"
+ROCM_LABEL = "rocm5.x"
+ROCM_ALPHA_LABEL = "rocm.alpha"
+
+
+def sync_rocm_alpha_entries(version_entry, acc_arch_map):
+    """Add the ROCm alpha box to an entry when the channel ships it, else drop it.
+
+    It is seeded from the ROCm entry so OSes without ROCm keep their notes.
+    """
+    for os_vers in version_entry.values():
+        for pkg_key, pkg_vers in os_vers.items():
+            if ROCM_ALPHA_LABEL not in acc_arch_map:
+                pkg_vers.pop(ROCM_ALPHA_LABEL, None)
+                continue
+            if ROCM_ALPHA_LABEL in pkg_vers or ROCM_LABEL not in pkg_vers:
+                continue
+            rebuilt = {}
+            for acc_key, instr in pkg_vers.items():
+                rebuilt[acc_key] = instr
+                if acc_key == ROCM_LABEL:
+                    rebuilt[ROCM_ALPHA_LABEL] = copy.deepcopy(instr)
+            os_vers[pkg_key] = rebuilt
 
 
 def sync_cuda_entries(version_entry, acc_arch_map):
@@ -204,6 +234,7 @@ def update_versions(versions, release_matrix, release_version):
             versions["latest_stable"] = version
 
     sync_cuda_entries(versions["versions"][version], acc_arch_map)
+    sync_rocm_alpha_entries(versions["versions"][version], acc_arch_map)
 
     # Perform update of the json file from release matrix
     for os_key, os_vers in versions["versions"][version].items():
@@ -213,13 +244,27 @@ def update_versions(versions, release_matrix, release_version):
                 gpu_arch_type, gpu_arch_version = get_gpu_info(
                     acc_key, instr, acc_arch_map
                 )
+                want_preview = acc_key == ROCM_ALPHA_LABEL and DEFAULT not in instr
 
                 pkg_arch_matrix = [
                     x
                     for x in release_matrix[os_key]
                     if (x["package_type"], x["gpu_arch_type"], x["gpu_arch_version"])
                     == (package_type, gpu_arch_type, gpu_arch_version)
+                    and is_rocm_preview(x) == want_preview
                 ]
+
+                if (
+                    want_preview
+                    and not pkg_arch_matrix
+                    and os_key == OperatingSystem.LINUX.value
+                ):
+                    # The alpha ships pip wheels only, no libtorch.
+                    instr["note"] = UNAVAILABLE_NOTE
+                    instr["command" if package_type != "libtorch" else "versions"] = (
+                        None
+                    )
+                    continue
 
                 if gpu_arch_type is None:
                     # The channel ships no build for this accelerator (e.g. no
@@ -302,7 +347,7 @@ def extract_arch_ver_map(release_matrix):
         return {
             x["desired_cuda"]: x["gpu_arch_version"]
             for x in release_matrix[chan]["linux"]
-            if x["gpu_arch_type"] == gpu_arch_type
+            if x["gpu_arch_type"] == gpu_arch_type and not is_rocm_preview(x)
         }
 
     # Compare numerically: as strings, "7.14" sorts before "7.2".
@@ -323,6 +368,17 @@ def extract_arch_ver_map(release_matrix):
             acc_arch_ver_map[chan]["rocm5.x"] = (
                 "rocm",
                 max(rocm_ver_list.values(), key=version_key),
+            )
+        rocm_preview = [
+            x["gpu_arch_version"]
+            for x in release_matrix[chan]["linux"]
+            if is_rocm_preview(x)
+        ]
+        if rocm_preview:
+            acc_arch_ver_map[chan][ROCM_ALPHA_LABEL] = (
+                "rocm",
+                rocm_preview[0],
+                "alpha",
             )
         for cuda_ver, label in zip(cuda_list, CUDA_LABELS):
             acc_arch_ver_map[chan][label] = ("cuda", cuda_ver)

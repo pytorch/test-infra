@@ -66,6 +66,13 @@ ROCM_ARCHES_DICT = {
     "release": ["7.14", "10.0"],
 }
 
+# ROCm preview (TheRock alpha) publishes torch-only nightly wheels to
+# whl/nightly/rocm-preview. Only the getting-started page lists it; keep the
+# version in sync with pytorch/pytorch .ci/docker/ci_commit_pins/rocm-preview.txt.
+ROCM_PREVIEW_VERSION = "10.3"
+ROCM_PREVIEW_DESIRED_CUDA = "rocm-preview"
+ROCM_PREVIEW_PYTHON_ARCHES = ["3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"]
+
 # CUDA versions that can only produce the runtime docker image. The devel image
 # apt-installs cuda-toolkit-<major>-<minor> from NVIDIA's repo.
 # Keep in sync with pytorch/pytorch .github/scripts/generate_binary_build_matrix.py,
@@ -609,6 +616,7 @@ def generate_wheels_matrix(
         package_type = "manywheel"
 
     upload_to_base_bucket = "yes"
+    explicitly_requested_arches = arches is not None
     if arches is None:
         # Define default compute architectures
         arches = []
@@ -693,7 +701,53 @@ def generate_wheels_matrix(
             }
             ret.append(entry)
 
+    if (
+        getting_started
+        and channel == NIGHTLY
+        and os == LINUX
+        and with_rocm == ENABLE
+        and not explicitly_requested_arches
+    ):
+        ret += rocm_preview_getting_started_entries(
+            python_versions, use_only_dl_pytorch_org
+        )
+
     return ret
+
+
+def rocm_preview_getting_started_entries(
+    python_versions: List[str], use_only_dl_pytorch_org: bool
+) -> List[Dict[str, Any]]:
+    # No builder image: these rows only feed the getting-started page.
+    return [
+        {
+            "python_version": python_version,
+            "gpu_arch_type": ROCM,
+            "gpu_arch_version": ROCM_PREVIEW_VERSION,
+            "desired_cuda": ROCM_PREVIEW_DESIRED_CUDA,
+            "container_image": "",
+            "package_type": "manywheel",
+            "build_name": f"manywheel-py{python_version}-{ROCM_PREVIEW_DESIRED_CUDA}".replace(
+                ".", "_"
+            ),
+            "validation_runner": validation_runner(ROCM, LINUX),
+            "installation": get_wheel_install_command(
+                LINUX,
+                NIGHTLY,
+                ROCM,
+                ROCM_PREVIEW_VERSION,
+                ROCM_PREVIEW_DESIRED_CUDA,
+                python_version,
+                use_only_dl_pytorch_org,
+                getting_started=True,
+            ),
+            "channel": NIGHTLY,
+            "upload_to_base_bucket": "no",
+            "stable_version": CURRENT_VERSION,
+        }
+        for python_version in python_versions
+        if python_version in ROCM_PREVIEW_PYTHON_ARCHES
+    ]
 
 
 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE: Dict[str, Callable[..., List[Dict[str, str]]]] = {
