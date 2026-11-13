@@ -188,34 +188,47 @@ WHERE f.job_id IN (SELECT id FROM jobs) AND {REAL_FAILURE}
 """
 
 CI_FAILED = "outcome IN ('failed', 'error')"
+CI_CRASHED = "outcome IN ('crashed', 'timed_out')"
+# run_test.py's NUM_PROCESS_RETRIES: a test that crashes or times out in more processes
+# than this gets an adhoc junit failure; fewer leave the retry process's outcome to decide.
+CRASH_RETRIES = 2
 # ci.runs and ci.tests, given a `jobs` CTE: `ci_tests` maps a pytorch/pytorch test to
 # the file run_test.py names (`test/` and `.py` stripped, `cpp/<binary>` as is), and
-# `case_fails` is one row per test case and process (report_uuid) with a failed or
-# rerun attempt: `any_failed`, and `last_failed` unless it is rerun-only (attempt 0
-# failed, every attempt but the last failed, and only the last passed). ci.runs is a
+# `case_fails` is one row per test case with a failed, crashed or rerun attempt:
+# `any_failed`, and `last_failed` unless it is rerun-only in every process (report_uuid:
+# attempt 0 failed, every attempt but the last failed, and only the last passed); both
+# hold for a case that crashed in more than CRASH_RETRIES processes. ci.runs is a
 # ReplacingMergeTree read without FINAL, so every aggregate ignores duplicate rows.
 CI_CASES = f"""ci_tests AS (
         SELECT id,
             replaceRegexpOne(replaceRegexpOne(file, '^test/', ''), '\\\\.py$', '')
                 AS test_file
         FROM ci.tests
-        WHERE repo = 'pytorch/pytorch' AND file NOT IN {NOT_A_FILE!r}
-            AND test_file NOT IN {NOT_A_FILE!r}
+        WHERE repo = 'pytorch/pytorch' AND test_file NOT IN {NOT_A_FILE!r}
     ),
-    case_fails AS (
+    process_fails AS (
         SELECT github_workflow_job_id AS job_id, tests_id,
-            max({CI_FAILED}) AS any_failed,
-            any_failed AND NOT (
+            max({CI_FAILED}) AS process_failed,
+            process_failed AND NOT (
                 minIf(rerun_number, {CI_FAILED}) = 0
                 AND uniqExactIf(rerun_number, {CI_FAILED}) = max(rerun_number)
                 AND uniqExactIf(rerun_number, outcome = 'passed') = 1
                 AND maxIf(rerun_number, outcome = 'passed') = max(rerun_number)
-            ) AS last_failed
+            ) AS process_last_failed,
+            max({CI_CRASHED}) AS process_crashed
         FROM ci.runs
         WHERE github_workflow_job_id IN (SELECT id FROM jobs)
             AND started_at >= {{start: DateTime64(3)}}
-            AND ({CI_FAILED} OR rerun_number > 0)
+            AND ({CI_FAILED} OR {CI_CRASHED} OR rerun_number > 0)
         GROUP BY job_id, tests_id, report_uuid
+    ),
+    case_fails AS (
+        SELECT job_id, tests_id,
+            countIf(process_crashed) > {CRASH_RETRIES} AS consistent,
+            max(process_failed) OR consistent AS any_failed,
+            max(process_last_failed) OR consistent AS last_failed
+        FROM process_fails
+        GROUP BY job_id, tests_id
     )"""
 
 # OUTCOMES from ci.runs. ci.runs has no run id, so `workflow_id` is the run of the job

@@ -166,12 +166,12 @@ month's days pass the health rule with about 5% of the TD-on jobs of the nearby 
 
 **Backfill**: each refit builds the missing shards of the window newest first, writing
 each healthy one once built, and stops starting new days after `BACKFILL_SECONDS` (3
-hours, `store.py`); building a day takes about 30-60 s (1.5-2.5 min from `ci.runs`), and
-the whole year took about 3 hours. It then trains and gates on the days it has and
-prints how many are still missing; the next runs build them. The refit job's 285 minutes
-cover the backfill, about 25 minutes of fitting, walk-forward and holdout on one year
-(more on the runner), and the upload, and end before its S3 credentials expire after 300
-minutes (`role-duration-seconds`).
+hours, `store.py`); building a day takes about 30-60 s (1.5-2.5 min from `ci.runs`),
+and the whole year took about 3 hours. It then trains and gates on the days it has and
+prints how many are still missing; the next runs build them. A run that got only part
+way passes or fails on its gate like any other. The refit job's 285 minutes cover the backfill, about 25 minutes of
+fitting, walk-forward and holdout on one year (more on the runner), and the upload, and
+end before its S3 credentials expire after 300 minutes (`role-duration-seconds`).
 
 ## The daily workflow
 
@@ -231,59 +231,63 @@ budget check (3) decides whether the model keeps its budget block.
 1. **Holdout** (reported only, the unbiased view): the `td-holdout-unstable` runs of
    2026-08-30..09-18 ran every test file with TD off, so their failures are not biased
    toward what TD chose to run. For each PR-specific failure there (not broken on main
-   that day, counted once per PR, config and file, and left out when a must-run heuristic
-   scored the file, as in the walk-forward), the gate asks whether TD's include list and
-   the scorer's cut held the file, and reports both counts. The holdout set is stored
-   write-once at `s3://ossci-raw-job-status/td_scorer/holdout/<SHARD_FORMAT>.jsonl.gz`
-   (pull requests build it in memory) once it is complete: no fetch failed and at most 15%
-   of the heads with a successful TD job lack its log. It is sound when it also has at
+   that day, counted once per PR, config and file, and left out when a must-run
+   heuristic scored the file, as in the walk-forward), the gate asks whether TD's
+   include list and the scorer's cut held the file, and reports both counts. The holdout
+   set is built once and stored write-once at
+   `s3://ossci-raw-job-status/td_scorer/holdout/<SHARD_FORMAT>.jsonl.gz` (pull requests
+   build it in memory), and only when it is complete: no fetch failed and at most 15% of
+   the heads with a successful TD job lack its log. It is sound when it also has at
    least 40 failures outside must-run files (`MIN_HOLDOUT_EVENTS`); an unsound set is
-   reported as such. Caveats: it is small, 54 failures in 32 PRs, 34 in 24 PRs once the
-   must-run ones are left out (as of 2026-11, so below the 40 that make it sound), so a
-   difference of a few failures is noise; its test jobs always conclude `success`, so a
-   failure there is not required to have failed its job. Its PRs are left out of training.
-2. **Floor**, over the walk-forward: for each calendar month that starts at least a month
-   after the first healthy day, through the day before the refit, a scorer and a risk
-   score are fitted on every healthy day before that month, without the month's PRs and
-   the holdout PRs. Each month scores the PRs whose first TD run is in it, with their
-   failures at the first failing head, minus the files a must-run heuristic scored there,
-   which the scorer's cut always runs. Each PR with failures counts its recall for each
-   side: of the scorer's cut, and of TD's include list as the gate rebuilds it. Pooled
-   over the months, the scorer must reach 60% of TD (`FLOOR_RATIO`, `--floor-ratio`), over
-   at least 30 PRs with failures (`MIN_FLOOR_PRS`). Before the scorer is published, jobs
-   ran TD's own cut, so TD's recall is about 1 and the measure favours TD; after, failures
-   are only observed in files the scorer ran, so later months favour the scorer, and the
-   holdout stays the only unbiased view.
+   reported as such. Caveats:
+   it is small, 54 failures in 32 PRs, 34 in 24 PRs once the must-run ones are left out
+   (as of 2026-11, so below the 40 that make it sound), so a difference of a few
+   failures is noise; its test jobs always conclude `success`, so a failure there is not
+   required to have failed its job. Its PRs are left out of training.
+2. **Floor**, over the walk-forward: for each calendar month that starts at least a
+   month after the first healthy day, through the day before the refit, a scorer and a
+   risk score are fitted on every healthy day before that month, without the month's PRs
+   and the holdout PRs. Each month scores the PRs whose first TD run is in it, with
+   their failures at the first failing head, minus the files a must-run heuristic scored
+   there, which the scorer's cut always runs. Each PR with failures counts its recall
+   for each side: of the scorer's cut, and of TD's include list as the gate rebuilds it.
+   Pooled over the months, the scorer must reach 60% of TD (`FLOOR_RATIO`,
+   `--floor-ratio`), over at least 30 PRs with failures (`MIN_FLOOR_PRS`). Before the
+   scorer is published, the jobs ran TD's own cut, so TD's recall is about 1 and the
+   measure favours TD. After it, failures are only observed in files the published
+   scorer ran, so later months favour the scorer; the holdout stays the only unbiased view.
+
 3. **Budget check** (only with `--budget`): every walk-forward model carries the block,
-   and over the pooled months the budgeted cut's per-PR detection retention (the share of
-   PRs with failures inside TD's include list, at their first failing head and must-run
-   files left out, for which it catches at least one) must reach `RETENTION_FLOOR`
-   (`gate.py`, 0.65: with the start-up table of 2026-11-12 the walk-forward of Jan-Nov
-   2026 gave 0.79 pooled over 966 PRs at the default window, 0.75-0.92 in the months with
-   50 PRs or more; a guard against a broken model, not a quality target) over at least 30
-   such PRs. Only served jobs (whose config has a start-up) count: the budget does not
-   apply to the others. Otherwise refit writes `td-scorer-budget.json` without the block,
-   and the scorer stays at TD's cost; the floor and the publish decision are unchanged.
-   The refit settles the block first, then writes `--out` and `--sample` from the model
-   without the block, and `--budget-out` and `--budget-sample` from the final model. Once
-   the budget is live, PR failures are only observed in files the budgeted cut ran, so the
-   check passes by construction: it guards the switch-on, not later drift.
+   and over the pooled months the per-PR detection retention of the budgeted cut, the
+   share of PRs with failures inside TD's include list (at their first failing head,
+   must-run files left out) for which the budgeted cut catches at least one of them,
+   must reach `RETENTION_FLOOR` (`gate.py`, 0.65: with the start-up table of 2026-11-12
+   the walk-forward of Jan-Nov 2026 gave 0.79 pooled over 966 PRs at the default window,
+   0.75-0.92 in the months with 50 PRs or more; a guard against a broken model, not a
+   quality target) over at least 30 such PRs. Only served jobs, those whose config has a
+   start-up, count: the budget does not apply to the others. Otherwise refit writes
+   `td-scorer-budget.json` without the block, and the scorer stays at TD's cost; the
+   floor and the publish decision are unchanged. The refit settles the block first, then
+   writes `--out` and `--sample` from the model without the block, and `--budget-out` and
+   `--budget-sample` from the final model. Once the budget is live, PR failures are
+   only observed in files the budgeted cut ran, so the check passes by construction:
+   it guards the switch-on, not later drift.
 
 The shipped model is fitted on the year's healthy days up to two days before the refit
-(see "The data window"). Reported only, per month and in total: the units, the event recall, the counted trunk
-landings and how many the scorer caught (TD none, by construction), and the risk score's
-AUC on the months' PR heads; and the holdout counts (failures, PRs, TD and scorer
-catches, mean files per job), the walk-forward's wall time and the run's peak memory.
-With a budget, also the budgeted cut's catches and its realised mean share of the jobs'
-cost and of their test-times seconds (ratios of sums over a 1 in 20 hash sample of the
-served jobs), and the main-failure monitor: the last two months' main landings with new,
-confirmed failures, replayed on the main push's TD log, caught by the budgeted cut and
-by TD's 25% cut. The monitor is report only (any signal taken after the rollout is
-selected against the deployed cut), runs after the model, the report and the sample are
-written, never fails the run, and prints "unavailable" when its fetch fails or takes
-longer than `gate.MONITOR_SECONDS`. That bounds the wait, not the process: TD log
-fetches already queued when it gives up finish before the process exits (minutes at
-worst, after everything is written).
+(see "The data window"). Reported only, per month and in total: the units, the event
+recall, the counted trunk landings and how many the scorer caught (TD none, by
+construction), and the risk score's AUC on the months' PR heads; and the holdout counts
+(failures, PRs, TD and scorer catches, mean files per job), the walk-forward's wall time
+and the run's peak memory. With a budget, also the budgeted cut's catches and its
+realised mean share of the jobs' cost and of their test-times seconds (ratios of sums
+over a 1 in 20 hash sample of the served jobs), and the main-failure monitor: the last two
+months' main landings with new, confirmed failures, replayed on the main push's TD log,
+caught by the budgeted cut and by TD's 25% cut. The monitor is report only (any signal
+taken after the rollout is selected against the deployed cut), runs after the model, the
+report and the sample are written, never fails the run, and prints "unavailable" when
+its fetch fails or takes longer than `gate.MONITOR_SECONDS`. That bounds the wait, not
+the process: TD log fetches already queued when it gives up finish before the process
+exits (minutes at worst, after everything is written).
 
 ## Monitoring
 

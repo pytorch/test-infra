@@ -840,14 +840,18 @@ class TestOutcomeSqlShape(TestCase):
             )
             self.assertIn("WHERE repo = 'pytorch/pytorch'", sql)
             self.assertIn(mapping, sql)
-            self.assertIn("file NOT IN ('', 'expected')", sql)
+            self.assertIn("AND test_file NOT IN ('', 'expected')\n", sql)
+            self.assertNotIn(" file NOT IN", sql)
             self.assertEqual(sql.count(bound), bounds)
             self.assertEqual(
                 sql.count("github_workflow_job_id IN (SELECT id FROM jobs)"), bounds
             )
             self.assertIn("GROUP BY job_id, tests_id, report_uuid", sql)
+            self.assertIn("countIf(process_crashed) > 2 AS consistent", sql)
             self.assertIn(
-                "AND (outcome IN ('failed', 'error') OR rerun_number > 0)", sql
+                "AND (outcome IN ('failed', 'error') OR outcome IN ('crashed',"
+                " 'timed_out') OR rerun_number > 0)",
+                sql,
             )
             self.assertNotIn("all_test_runs", sql)
             self.assertNotIn("FINAL", sql)
@@ -971,11 +975,18 @@ class TestUnitsSql(TestCase):
             21: "test/test_late.py",
             22: "test/test_crashlast.py",
             23: "test/test_skipmid.py",
+            24: "test/test_c3.py",
+            25: "test/test_t3.py",
+            26: "test/test_c1.py",
+            27: "test/test_t1.py",
+            28: "test/test_c2.py",
+            29: "test/test_cdup.py",
         }
         tests = [(i, "pytorch/pytorch", f) for i, f in files.items()]
         tests.append((8, "pytorch/vision", "test/test_v.py"))
         u1 = "00000000-0000-0000-0000-000000000001"
         u2 = "00000000-0000-0000-0000-000000000002"
+        u3 = "00000000-0000-0000-0000-000000000003"
         at = "2026-11-01 01:00:00"
         runs = [
             (11, 1, u1, 0, "failed", at),
@@ -1021,6 +1032,23 @@ class TestUnitsSql(TestCase):
             (11, 23, u1, 0, "failed", at),
             (11, 23, u1, 1, "skipped", at),
             (11, 23, u1, 2, "passed", at),
+            (11, 24, u1, 0, "crashed", at),
+            (11, 24, u2, 0, "crashed", at),
+            (11, 24, u3, 0, "crashed", at),
+            (11, 25, u1, 3, "timed_out", at),
+            (11, 25, u2, 0, "timed_out", at),
+            (11, 25, u3, 0, "crashed", at),
+            (11, 26, u1, 0, "crashed", at),
+            (11, 26, u2, 0, "passed", at),
+            (11, 27, u1, 0, "timed_out", at),
+            (11, 27, u2, 0, "passed", at),
+            (11, 28, u1, 0, "crashed", at),
+            (11, 28, u2, 0, "timed_out", at),
+            (11, 28, u3, 0, "passed", at),
+            (11, 29, u1, 0, "crashed", at),
+            (11, 29, u1, 0, "crashed", at),
+            (11, 29, u1, 0, "crashed", at),
+            (11, 29, u2, 0, "passed", at),
             (999, 2, u1, 0, "failed", at),
             (12, 17, u1, 0, "failed", at),
         ]
@@ -1032,12 +1060,14 @@ class TestUnitsSql(TestCase):
                 ("ci.runs", CI_RUNS_SCHEMA, runs),
                 ("ci.tests", CI_TESTS_SCHEMA, tests),
             ),
-            {"runs": [1], "shas": ["h"], "max_failing": 10, "start": DAY["start"]},
+            {"runs": [1], "shas": ["h"], "max_failing": 20, "start": DAY["start"]},
         )
         got = {r["test_config"]: (r["ran"], r["failed"], r["neither"]) for r in out}
-        failed = ["cpp/basic", "test_a", "test_crashlast", "test_dup", "test_ff"]
-        failed += ["test_late", "test_mixed", "test_skipmid", "test_split", "test_two"]
-        ran = failed + ["test_b", "test_crash", "test_fp", "test_rr", "test_to"]
+        failed = ["cpp/basic", "test_a", "test_c3", "test_crashlast", "test_dup"]
+        failed += ["test_ff", "test_late", "test_mixed", "test_skipmid", "test_split"]
+        failed += ["test_t3", "test_two"]
+        ran = failed + ["test_b", "test_c1", "test_c2", "test_cdup", "test_crash"]
+        ran += ["test_fp", "test_rr", "test_t1", "test_to"]
         self.assertEqual(
             got,
             {
@@ -1059,8 +1089,11 @@ class TestUnitsSql(TestCase):
             (8, "pytorch/vision", "test/test_v.py"),
             (9, "pytorch/pytorch", "test/test_rerun.py"),
             (12, "pytorch/pytorch", "test/test_crash.py"),
+            (13, "pytorch/pytorch", "test/test_c3.py"),
         ]
         u1 = "00000000-0000-0000-0000-000000000001"
+        u2 = "00000000-0000-0000-0000-000000000002"
+        u3 = "00000000-0000-0000-0000-000000000003"
         at = "2026-11-01 01:00:00"
         runs = [
             (21, 1, u1, 0, "failed", at),
@@ -1071,6 +1104,13 @@ class TestUnitsSql(TestCase):
             (21, 9, u1, 1, "passed", at),
             (22, 2, u1, 0, "error", at),
             (22, 12, u1, 0, "crashed", at),
+            (22, 12, u2, 0, "timed_out", at),
+            (21, 13, u1, 0, "crashed", at),
+            (21, 13, u2, 0, "timed_out", at),
+            (21, 13, u3, 0, "crashed", at),
+            (25, 13, u1, 0, "crashed", at),
+            (25, 13, u2, 0, "crashed", at),
+            (25, 13, u3, 0, "crashed", at),
             (23, 3, u1, 0, "failed", at),
             (24, 3, u1, 0, "failed", at),
             (25, 3, u1, 0, "failed", at),
@@ -1088,7 +1128,12 @@ class TestUnitsSql(TestCase):
         )
         got = sorted((r["build_env"], r["test_config"], r["test_file"]) for r in out)
         self.assertEqual(
-            got, [("linux-a", "default", "test_a"), ("linux-b", "default", "test_b")]
+            got,
+            [
+                ("linux-a", "default", "test_a"),
+                ("linux-a", "default", "test_c3"),
+                ("linux-b", "default", "test_b"),
+            ],
         )
 
 
