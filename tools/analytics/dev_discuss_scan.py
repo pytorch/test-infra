@@ -269,7 +269,11 @@ def title_pattern(
     pattern: str = patterns[release_type] if isinstance(patterns, dict) else patterns
     minor = ".".join(version.split(".")[:2])
     values = {"version": re.escape(version), "minor": re.escape(minor)}
-    return re.compile(re.sub(r"\{(\w+)\}", lambda m: values[m.group(1)], pattern))
+
+    def fill(match: "re.Match[str]") -> str:
+        return values[match.group(1)]
+
+    return re.compile(re.sub(r"\{(\w+)\}", fill, pattern))
 
 
 def find_topic(
