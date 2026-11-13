@@ -117,9 +117,9 @@ jobs:
         GITHUB_TOKEN: ${{ github.token }}
         # A pull request only shows the status; it must not write to ClickHouse.
         WRITE_TO_CLICKHOUSE: ${{ github.event_name != 'pull_request' }}
-        CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_RELEASE_PORTAL_URL }}
-        CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_RELEASE_PORTAL_USERNAME }}
-        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_RELEASE_PORTAL_PASSWORD }}
+        CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+        CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
       run: |
         set -u
         write=""
