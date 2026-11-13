@@ -93,10 +93,12 @@ OUTCOMES = f"""outcomes AS (
     )"""
 
 
-def units_sql(job_failed: str = "j.conclusion = 'failure'") -> str:
+def units_sql(
+    job_failed: str = "j.conclusion = 'failure'", outcomes: str = OUTCOMES
+) -> str:
     """Per (run, build env, test config): the files that ran, failed and are neither, as
-    shards.py defines them, from OUTCOMES joined to the job `j` on both ids;
-    `job_failed` says whether job `j` failed."""
+    shards.py defines them, from `outcomes` (OUTCOMES or CI_OUTCOMES) joined to the job
+    `j` on both ids; `job_failed` says whether job `j` failed."""
     return f"""
 WITH
     jobs AS (
@@ -110,7 +112,7 @@ WITH
         ORDER BY _inserted_at DESC
         LIMIT 1 BY id
     ),
-    {OUTCOMES},
+    {outcomes},
     job_files AS (
         SELECT j.id AS job_id, j.run_id AS run_id, j.run_attempt AS attempt,
             j.build_env AS build_env, j.test_config AS test_config,
@@ -151,9 +153,7 @@ ORDER BY run_id, build_env, test_config
 UNITS_SQL = units_sql()
 
 # head_branch 'main' alone also matches fork PR runs from a branch named main.
-MAIN_FAILURES_SQL = f"""
-WITH
-    candidates AS (
+MAIN_JOBS = f"""    candidates AS (
         SELECT id, run_id, workflow_name AS workflow, {JOB_COLUMNS}
         FROM default.workflow_job
         PREWHERE id IN (
@@ -174,11 +174,85 @@ WITH
                 AND event IN ('push', 'schedule')
                 AND repository.full_name = 'pytorch/pytorch'
         )
-    )
+    )"""
+
+MAIN_FAILURES_SQL = f"""
+WITH
+{MAIN_JOBS}
 SELECT DISTINCT j.build_env AS build_env, j.test_config AS test_config,
     replaceAll(f.invoking_file, '.', '/') AS test_file
 FROM tests.all_test_runs AS f
 INNER JOIN jobs AS j ON j.id = f.job_id AND j.run_id = f.workflow_id
 WHERE f.job_id IN (SELECT id FROM jobs) AND {REAL_FAILURE}
+{SETTINGS}
+"""
+
+CI_FAILED = "outcome IN ('failed', 'error')"
+# ci.runs and ci.tests, given a `jobs` CTE: `ci_tests` maps a pytorch/pytorch test to
+# the file run_test.py names (`test/` and `.py` stripped, `cpp/<binary>` as is), and
+# `case_fails` is one row per test case and process (report_uuid) with a failed or
+# rerun attempt: `any_failed`, and `last_failed` unless it is rerun-only (attempt 0
+# failed, every attempt but the last failed, and only the last passed). ci.runs is a
+# ReplacingMergeTree read without FINAL, so every aggregate ignores duplicate rows.
+CI_CASES = f"""ci_tests AS (
+        SELECT id,
+            replaceRegexpOne(replaceRegexpOne(file, '^test/', ''), '\\\\.py$', '')
+                AS test_file
+        FROM ci.tests
+        WHERE repo = 'pytorch/pytorch' AND file NOT IN {NOT_A_FILE!r}
+            AND test_file NOT IN {NOT_A_FILE!r}
+    ),
+    case_fails AS (
+        SELECT github_workflow_job_id AS job_id, tests_id,
+            max({CI_FAILED}) AS any_failed,
+            any_failed AND NOT (
+                minIf(rerun_number, {CI_FAILED}) = 0
+                AND uniqExactIf(rerun_number, {CI_FAILED}) = max(rerun_number)
+                AND uniqExactIf(rerun_number, outcome = 'passed') = 1
+                AND maxIf(rerun_number, outcome = 'passed') = max(rerun_number)
+            ) AS last_failed
+        FROM ci.runs
+        WHERE github_workflow_job_id IN (SELECT id FROM jobs)
+            AND started_at >= {{start: DateTime64(3)}}
+            AND ({CI_FAILED} OR rerun_number > 0)
+        GROUP BY job_id, tests_id, report_uuid
+    )"""
+
+# OUTCOMES from ci.runs. ci.runs has no run id, so `workflow_id` is the run of the job
+# the row names: units_sql's join on run_id holds by construction and checks nothing.
+CI_OUTCOMES = f"""{CI_CASES},
+    ran AS (
+        SELECT r.github_workflow_job_id AS job_id, t.test_file AS test_file
+        FROM ci.runs AS r INNER JOIN ci_tests AS t ON t.id = r.tests_id
+        WHERE r.github_workflow_job_id IN (SELECT id FROM jobs)
+            AND r.started_at >= {{start: DateTime64(3)}}
+        GROUP BY job_id, test_file
+    ),
+    file_fails AS (
+        SELECT c.job_id AS job_id, t.test_file AS test_file,
+            max(c.any_failed) AS bad, max(c.last_failed) AS real_failure
+        FROM case_fails AS c INNER JOIN ci_tests AS t ON t.id = c.tests_id
+        GROUP BY job_id, test_file
+    ),
+    outcomes AS (
+        SELECT a.job_id AS job_id, j2.run_id AS workflow_id, a.test_file AS test_file,
+            f.bad AS bad, f.real_failure AS real_failure
+        FROM ran AS a
+        INNER JOIN jobs AS j2 ON j2.id = a.job_id
+        LEFT JOIN file_fails AS f ON f.job_id = a.job_id AND f.test_file = a.test_file
+    )"""
+
+CI_UNITS_SQL = units_sql(outcomes=CI_OUTCOMES)
+
+CI_MAIN_FAILURES_SQL = f"""
+WITH
+{MAIN_JOBS},
+    {CI_CASES}
+SELECT DISTINCT j.build_env AS build_env, j.test_config AS test_config,
+    t.test_file AS test_file
+FROM case_fails AS c
+INNER JOIN ci_tests AS t ON t.id = c.tests_id
+INNER JOIN jobs AS j ON j.id = c.job_id
+WHERE c.last_failed
 {SETTINGS}
 """

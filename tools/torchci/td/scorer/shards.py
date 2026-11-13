@@ -10,7 +10,8 @@ A file failed when, at its latest attempt, it had a real failure (not rerun-only
 that concluded `failure` with at most MAX_FAILING_FILES failing files. A file that failed
 in any other way (rerun-only, passed at a later attempt of the same job, or in a job past
 the cap or not concluded `failure`) is neither. Training rows (rows.py) and gate events
-(gate.py) are derived from shards.
+(gate.py) are derived from shards. A day's outcomes come from ci.runs while the day is at
+most CI_RUNS_MAX_AGE_DAYS old when it is built, else from tests.all_test_runs.
 
 A shard is healthy when no fetch failed, at most MAX_MISSING_LOGS of its TD-on runs lack a
 parsable TD log, and it has units whenever it has TD-on runs; only healthy days are stored
@@ -22,7 +23,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable, Optional, TypeVar
 
 import requests
@@ -34,6 +35,8 @@ from torchci.td.scorer.logs import (
     RAW_BUCKET_URL,
 )
 from torchci.td.scorer.rows_sql import (
+    CI_MAIN_FAILURES_SQL,
+    CI_UNITS_SQL,
     MAIN_FAILURES_SQL,
     NOT_A_FILE,
     RUNS_SQL,
@@ -52,6 +55,9 @@ MAX_MISSING_LOGS = 0.15
 # tests.all_test_runs' inserts start at 2025-11-05 17:00 UTC; TD logs and td_exclusions
 # exist before that.
 FIRST_DATA_DAY = date(2025, 11, 6)
+# ci.runs keeps 14 days (TTL started_at + 14 days): a day read from it is at most 12 days
+# old, so it never reads a day that is partly expired.
+CI_RUNS_MAX_AGE_DAYS = 12
 
 
 @dataclass(frozen=True)
@@ -198,8 +204,21 @@ def fetch_all(
     return [r for r, _ in results], sum(failed for _, failed in results)
 
 
-def build_day_shard(day: date) -> DayShard:
+def outcome_queries(day: date, today: date) -> tuple[str, str, str]:
+    """The outcome source of `day` built on `today`, and its units and main-failures
+    queries: ci.runs while the day is at most CI_RUNS_MAX_AGE_DAYS old."""
+    if (today - day).days <= CI_RUNS_MAX_AGE_DAYS:
+        return "ci.runs", CI_UNITS_SQL, CI_MAIN_FAILURES_SQL
+    return "tests.all_test_runs", UNITS_SQL, MAIN_FAILURES_SQL
+
+
+def build_day_shard(day: date, today: Optional[date] = None) -> DayShard:
+    """`today` (UTC now when None) picks the outcome source (outcome_queries)."""
     started = datetime.now()
+    source, units_sql, main_sql = outcome_queries(
+        day, today or datetime.now(timezone.utc).date()
+    )
+    suffix = "_ci" if source == "ci.runs" else ""
     runs = query("td_scorer_runs", RUNS_SQL, ch_day(day))
     exclusions, exclusion_errors = fetch_all(
         lambda r: fetch_exclusions(int(r["run_id"]), int(r["attempts"])), runs
@@ -216,10 +235,11 @@ def build_day_shard(day: date) -> DayShard:
         "runs": sorted(by_run),
         "shas": sorted({r["head_sha"] for r in runs}),
         "max_failing": MAX_FAILING_FILES,
+        "start": ch_day(day)["start"],
     }
-    unit_rows = query("td_scorer_units", UNITS_SQL, params) if by_run else []
+    unit_rows = query("td_scorer_units" + suffix, units_sql, params) if by_run else []
     main_failed: dict[tuple[str, str], set[str]] = {}
-    for row in query("td_scorer_main_failures", MAIN_FAILURES_SQL, ch_day(day)):
+    for row in query("td_scorer_main_failures" + suffix, main_sql, ch_day(day)):
         key = (row["build_env"], row["test_config"])
         main_failed.setdefault(key, set()).add(row["test_file"])
     shard = DayShard(day=day.isoformat())
@@ -269,6 +289,7 @@ def build_day_shard(day: date) -> DayShard:
         "units_seen": len(unit_rows),
         "units": len(shard.units),
         "runs": len(shard.runs),
+        "outcomes": source,
         "fetch_seconds": round((fetched - started).total_seconds(), 1),
         "build_seconds": round((datetime.now() - started).total_seconds(), 1),
     }

@@ -8,7 +8,7 @@ A learned layer over pytorch's target determination (TD) heuristics, retrained d
   files EditedByPR or PreviouslyFailedInPR scored, then fills the job's budget by
   p / cost ** a: the cost of TD's own cut with a = 1, or, when the model carries a budget
   block, a share of the cost of all the job's files sized by the change's risk (see
-  "The test budget"). A file's cost is its recorded seconds plus its config's start-up
+  BUDGET.md). A file's cost is its recorded seconds plus its config's start-up
   per file, k, fitted daily per build env and test config (see "Data sources"); a job
   whose config has no k keeps TD's own cut.
 - **Risk score**: one number per change, r in [-1, 1] from the change's changed-file
@@ -56,16 +56,27 @@ too, or `check-pytorch`'s replay disagrees with the gate and nothing publishes.
   TD runs in trial mode are left out, as trial mode keeps them from reordering tests.
 - **TD-on jobs**: `additional_info/td_exclusions/<run_id>/<attempt>` in the same bucket. A
   (run, build env, test config) is TD-on when TD excluded files there.
-- **Outcomes**: `tests.all_test_runs` (one row per test case), joined to the job on its
-  id and its run. A file failed in a PR job when it had a real failure (a failure or an
-  error, not rerun-only) at its latest attempt, in a job that concluded `failure` with at
-  most 20 failing files. A file that failed in any other way (rerun-only, passed at a
-  later attempt of the same job, or in a job past the cap or not concluded `failure`) is
-  neither a positive nor a negative, and so is a file that failed in that config on main
-  that day: any real failure in a TD-scope job of a `push` or `schedule` run of
-  pytorch/pytorch on `main` (a fork PR's branch named `main` does not count). The
-  `expected` pseudo-file is not a test file.
-- **Trunk breaks**: the saved query `td_trunk_breakages` (pairs with outcome `td_skipped`),
+- **Outcomes**, one row per test case, from the day's source ("Day shards"):
+  `tests.all_test_runs` (junit), joined to the job on its id and its run, or `ci.runs` +
+  `ci.tests` for the day's job ids and `repo = 'pytorch/pytorch'`, the file being
+  `ci.tests.file` less a leading `test/` and a trailing `.py`. A ci case failed with a
+  `failed` or `error` attempt in its process (`report_uuid`), is rerun-only when its
+  attempts (`rerun_number`) failed up to the last, which passed, and also failed when it
+  crashed or timed out in more than two processes (junit's adhoc failure). ci lacks
+  collection and internal errors (junit's `pytest::internal`) and C++ binaries outside
+  Google Test (`vec256`). ci rows are the test process's word (job id, no run id), so
+  they can add or hide failures (a forged later `passed` makes a case rerun-only; a copied
+  row can replace a failed one, as ci.runs' ReplacingMergeTree key lacks outcome and
+  `report_uuid`), bounded by the per-PR caps and the gate. A file failed in a PR job when
+  it had a real failure (not rerun-only) at its latest attempt, in a job that concluded
+  `failure` with at most 20 failing files. A file that failed in any other way
+  (rerun-only, passed at a later attempt of the same job, or in a job past the cap or not
+  concluded `failure`) is neither a positive nor a negative, and so is a file that failed
+  in that config on main that day, in the same source: any real failure in a TD-scope job
+  of a `push` or `schedule` run of pytorch/pytorch on `main` (a fork PR's branch named
+  `main` does not count). Empty and `expected` file names are not test files.
+- **Trunk breaks**: the saved query `td_trunk_breakages` (pairs with outcome
+  `td_skipped`, read from `tests.all_test_runs` whatever a day's outcome source),
   `default.merges` (no `-f`; waived checks excluded) and `default.push`.
 - **Main failures** (evaluation only, never training): new, confirmed test failures on
   main after merging, with the main push's own TD log (`main_failures.py`, whose docstring
@@ -109,8 +120,15 @@ before the run, whose jobs have finished. A shard is also written only when heal
 fetch of a TD log or td_exclusions object failed (a 404 is a missing object, any other
 error is a failure), at most 15% of its TD-on runs lack a parsable TD log, and it has
 outcomes whenever it has TD-on runs. Any change to the labels, the features or the format
-of a shard bumps `SHARD_FORMAT` in `store.py`, which starts a new prefix. The ClickHouse
-S3 replicator does not ingest this prefix.
+of a shard bumps `SHARD_FORMAT` in `store.py`, which starts a new prefix; a change of the
+outcome source of days not yet built is not one. The ClickHouse S3 replicator does not
+ingest this prefix. A day's outcomes come from `ci.runs` (which keeps 14 days) when it is
+at most `CI_RUNS_MAX_AGE_DAYS` (12, `shards.py`) days before the build's UTC date (not
+`--day`), else from `tests.all_test_runs`; meta `outcomes` names it (none: the latter).
+`tests.all_test_runs` is written until the end of 2026; then no source can rebuild a day
+older than 12, so the refit must build shards at least every ~10 days (an unbuilt day
+then fails the run on main as a gate day or becomes a permanent gap), and a
+`SHARD_FORMAT` bump must convert the stored shards.
 
 An unhealthy day is left out of training, the gate and the walk-forward, and is listed
 in the run's output:
@@ -148,12 +166,12 @@ month's days pass the health rule with about 5% of the TD-on jobs of the nearby 
 
 **Backfill**: each refit builds the missing shards of the window newest first, writing
 each healthy one once built, and stops starting new days after `BACKFILL_SECONDS` (3
-hours, `store.py`); building a day takes about 30-60 s, and the whole year took about 3
-hours. It then trains and gates on the days it has and prints how many are still
-missing; the next runs build them. A run that got only part way passes or fails on its
-gate like any other. The refit job's 285 minutes cover the backfill, about 25 minutes of
-fitting, walk-forward and holdout on one year (more on the runner), and the upload, and
-end before its S3 credentials expire after 300 minutes (`role-duration-seconds`).
+hours, `store.py`); building a day takes about 30-60 s (1.5-2.5 min from `ci.runs`), and
+the whole year took about 3 hours. It then trains and gates on the days it has and
+prints how many are still missing; the next runs build them. The refit job's 285 minutes
+cover the backfill, about 25 minutes of fitting, walk-forward and holdout on one year
+(more on the runner), and the upload, and end before its S3 credentials expire after 300
+minutes (`role-duration-seconds`).
 
 ## The daily workflow
 
@@ -213,63 +231,59 @@ budget check (3) decides whether the model keeps its budget block.
 1. **Holdout** (reported only, the unbiased view): the `td-holdout-unstable` runs of
    2026-08-30..09-18 ran every test file with TD off, so their failures are not biased
    toward what TD chose to run. For each PR-specific failure there (not broken on main
-   that day, counted once per PR, config and file, and left out when a must-run
-   heuristic scored the file, as in the walk-forward), the gate asks whether TD's
-   include list and the scorer's cut held the file, and reports both counts. The holdout
-   set is built once and stored write-once at
-   `s3://ossci-raw-job-status/td_scorer/holdout/<SHARD_FORMAT>.jsonl.gz` (pull requests
-   build it in memory), and only when it is complete: no fetch failed and at most 15% of
-   the heads with a successful TD job lack its log. It is sound when it also has at
+   that day, counted once per PR, config and file, and left out when a must-run heuristic
+   scored the file, as in the walk-forward), the gate asks whether TD's include list and
+   the scorer's cut held the file, and reports both counts. The holdout set is stored
+   write-once at `s3://ossci-raw-job-status/td_scorer/holdout/<SHARD_FORMAT>.jsonl.gz`
+   (pull requests build it in memory) once it is complete: no fetch failed and at most 15%
+   of the heads with a successful TD job lack its log. It is sound when it also has at
    least 40 failures outside must-run files (`MIN_HOLDOUT_EVENTS`); an unsound set is
-   reported as such. Caveats:
-   it is small, 54 failures in 32 PRs, 34 in 24 PRs once the must-run ones are left out
-   (as of 2026-11, so below the 40 that make it sound), so a difference of a few
-   failures is noise; its test jobs always conclude `success`, so a failure there is not
-   required to have failed its job. Its PRs are left out of training.
-2. **Floor**, over the walk-forward: for each calendar month that starts at least a
-   month after the first healthy day, through the day before the refit, a scorer and a
-   risk score are fitted on every healthy day before that month, without the month's PRs
-   and the holdout PRs. Each month scores the PRs whose first TD run is in it, with
-   their failures at the first failing head, minus the files a must-run heuristic scored
-   there, which the scorer's cut always runs. Each PR with failures counts its recall
-   for each side: of the scorer's cut, and of TD's include list as the gate rebuilds it.
-   Pooled over the months, the scorer must reach 60% of TD (`FLOOR_RATIO`,
-   `--floor-ratio`), over at least 30 PRs with failures (`MIN_FLOOR_PRS`). Before the
-   scorer is published, the jobs ran TD's own cut, so TD's recall is about 1 and the
-   measure favours TD. After it, failures are only observed in files the published
-   scorer ran, so later months favour the scorer; the holdout stays the only unbiased view.
-
+   reported as such. Caveats: it is small, 54 failures in 32 PRs, 34 in 24 PRs once the
+   must-run ones are left out (as of 2026-11, so below the 40 that make it sound), so a
+   difference of a few failures is noise; its test jobs always conclude `success`, so a
+   failure there is not required to have failed its job. Its PRs are left out of training.
+2. **Floor**, over the walk-forward: for each calendar month that starts at least a month
+   after the first healthy day, through the day before the refit, a scorer and a risk
+   score are fitted on every healthy day before that month, without the month's PRs and
+   the holdout PRs. Each month scores the PRs whose first TD run is in it, with their
+   failures at the first failing head, minus the files a must-run heuristic scored there,
+   which the scorer's cut always runs. Each PR with failures counts its recall for each
+   side: of the scorer's cut, and of TD's include list as the gate rebuilds it. Pooled
+   over the months, the scorer must reach 60% of TD (`FLOOR_RATIO`, `--floor-ratio`), over
+   at least 30 PRs with failures (`MIN_FLOOR_PRS`). Before the scorer is published, jobs
+   ran TD's own cut, so TD's recall is about 1 and the measure favours TD; after, failures
+   are only observed in files the scorer ran, so later months favour the scorer, and the
+   holdout stays the only unbiased view.
 3. **Budget check** (only with `--budget`): every walk-forward model carries the block,
-   and over the pooled months the per-PR detection retention of the budgeted cut, the
-   share of PRs with failures inside TD's include list (at their first failing head,
-   must-run files left out) for which the budgeted cut catches at least one of them,
-   must reach `RETENTION_FLOOR` (`gate.py`, 0.65: with the start-up table of 2026-11-12
-   the walk-forward of Jan-Nov 2026 gave 0.79 pooled over 966 PRs at the default window,
-   0.75-0.92 in the months with 50 PRs or more; a guard against a broken model, not a
-   quality target) over at least 30 such PRs. Only served jobs, those whose config has a
-   start-up, count: the budget does not apply to the others. Otherwise refit writes
-   `td-scorer-budget.json` without the block, and the scorer stays at TD's cost; the
-   floor and the publish decision are unchanged. The refit settles the block first, then
-   writes `--out` and `--sample` from the model without the block, and `--budget-out` and
-   `--budget-sample` from the final model. Once the budget is live, PR failures are
-   only observed in files the budgeted cut ran, so the check passes by construction:
-   it guards the switch-on, not later drift.
+   and over the pooled months the budgeted cut's per-PR detection retention (the share of
+   PRs with failures inside TD's include list, at their first failing head and must-run
+   files left out, for which it catches at least one) must reach `RETENTION_FLOOR`
+   (`gate.py`, 0.65: with the start-up table of 2026-11-12 the walk-forward of Jan-Nov
+   2026 gave 0.79 pooled over 966 PRs at the default window, 0.75-0.92 in the months with
+   50 PRs or more; a guard against a broken model, not a quality target) over at least 30
+   such PRs. Only served jobs (whose config has a start-up) count: the budget does not
+   apply to the others. Otherwise refit writes `td-scorer-budget.json` without the block,
+   and the scorer stays at TD's cost; the floor and the publish decision are unchanged.
+   The refit settles the block first, then writes `--out` and `--sample` from the model
+   without the block, and `--budget-out` and `--budget-sample` from the final model. Once
+   the budget is live, PR failures are only observed in files the budgeted cut ran, so the
+   check passes by construction: it guards the switch-on, not later drift.
 
 The shipped model is fitted on the year's healthy days up to two days before the refit
-(see "The data window"). Reported only, per month and in total: the units, the event
-recall, the counted trunk landings and how many the scorer caught (TD none, by
-construction), and the risk score's AUC on the months' PR heads; and the holdout counts
-(failures, PRs, TD and scorer catches, mean files per job), the walk-forward's wall time
-and the run's peak memory. With a budget, also the budgeted cut's catches and its
-realised mean share of the jobs' cost and of their test-times seconds (ratios of sums
-over a 1 in 20 hash sample of the served jobs), and the main-failure monitor: the last two
-months' main landings with new, confirmed failures, replayed on the main push's TD log,
-caught by the budgeted cut and by TD's 25% cut. The monitor is report only (any signal
-taken after the rollout is selected against the deployed cut), runs after the model, the
-report and the sample are written, never fails the run, and prints "unavailable" when
-its fetch fails or takes longer than `gate.MONITOR_SECONDS`. That bounds the wait, not
-the process: TD log fetches already queued when it gives up finish before the process
-exits (minutes at worst, after everything is written).
+(see "The data window"). Reported only, per month and in total: the units, the event recall, the counted trunk
+landings and how many the scorer caught (TD none, by construction), and the risk score's
+AUC on the months' PR heads; and the holdout counts (failures, PRs, TD and scorer
+catches, mean files per job), the walk-forward's wall time and the run's peak memory.
+With a budget, also the budgeted cut's catches and its realised mean share of the jobs'
+cost and of their test-times seconds (ratios of sums over a 1 in 20 hash sample of the
+served jobs), and the main-failure monitor: the last two months' main landings with new,
+confirmed failures, replayed on the main push's TD log, caught by the budgeted cut and
+by TD's 25% cut. The monitor is report only (any signal taken after the rollout is
+selected against the deployed cut), runs after the model, the report and the sample are
+written, never fails the run, and prints "unavailable" when its fetch fails or takes
+longer than `gate.MONITOR_SECONDS`. That bounds the wait, not the process: TD log
+fetches already queued when it gives up finish before the process exits (minutes at
+worst, after everything is written).
 
 ## Monitoring
 
@@ -283,91 +297,15 @@ gate decides. One key per attempt, not overwritten (other bytes there fail the j
 
 ## The test budget
 
-pytorch's `scorer_model.py` defines the optional top-level block
-`"budget": {"share": s, "spread": k, "cost_exponent": a}` and `model_json.py` mirrors it:
-
-- **Bounds**, checked by pytorch's validator so that no model file can push PR testing
-  below them: exactly these keys, finite numbers, `0 <= k < 1`, `0 <= a <= 1`,
-  `0.10 <= s x (1 - k)` and `s <= 1`. The 0.10 floor (`MIN_SHARE`) bounds cost, not
-  seconds: with start-up k per file, 10% of cost is a smaller share of test-times seconds.
-- **The share** of a job's total cost (TD's include plus exclude lists) is
-  `s x (1 + k x r)`, clamped to [0.10, 1], with r clamped to [-1, 1]. A change with an
-  unknown r, or that touches build, dependency or test-infrastructure paths (`BUILD_*`
-  in pytorch's `scorer_paths.py`, mirrored in `risk.py`, counted by the TD job into the
-  block's `build_files`; an unknown count, a change listing no path, or one listing
-  3,000 files or more counts as build paths), gets the top of the window, `s x (1 + k)`.
-  The files are ranked by p / cost ** a, must-run files first, and fill the budget as
-  whole files; the top-ranked file always runs, even when it costs more than what is
-  left, so no file is too big ever to run. A job whose config has no start-up k keeps
-  TD's own cut: the budget applies to the configs the model serves.
-- **Staleness**: the TD job drops the block (the rest of the model stays) when the
-  model's version is more than 3 days before today (UTC); the whole model goes after 7
-  (see "The model contract").
-- **Defaults**: `model_json.BUDGET`, the block `--budget` writes: s = 0.175 and
-  k = 0.05 / 0.175, a window of 12.5% to 22.5% of cost, and a = 0.5.
-
-The budget is opt-in: refit writes a block only when `TD_SCORER_BUDGET` is `on`, and the
-gate's budget check passes. Before switching it on:
-
-- pytorch main must have the budget rule. With the variable on and an older pytorch
-  main, check-pytorch fails on `td-scorer-budget.json`, which then gets the plain model,
-  and the run fails after publishing.
-- Something must watch quality afterwards, as the budget check passes by construction
-  once the budget is live: an exploration slice (a small random share of jobs run beyond
-  the cut, so its misses stay observable), or a named person reading the daily step
-  summary and the main-failure monitor for the first weeks.
-
-check-pytorch couples the two repos: while the budget is on, a pytorch change to the
-budget constants, the build paths or `change_features` keeps the block out of
-`td-scorer-budget.json`, and fails every run, until `model_json.py` and `risk.py` mirror
-it; `td-scorer.json` has no block, so for it check-pytorch only warns.
-
-### Turning the budget off
-
-- `"enabled": false` in `td-scorer.json` (below) stops the scorer, budget included.
-- To end the budget alone: set `TD_SCORER_BUDGET` to anything but `on`, cancel every
-  in-flight run of the workflow (mandatory: a run that started with the variable on
-  publishes a block after the key is deleted), and only then delete the key from the
-  live `td-scorer-budget.json` (`jq -c 'del(.budget)' stats/td-scorer-budget.json > m.json
-  && mv m.json stats/td-scorer-budget.json` on generated-stats, committed and pushed), or
-  set its `enabled` to false (the daily run then leaves it in place until it is enabled
-  again or deleted). Checkouts with the budget rule then use the model without a block.
-  Deleting the file instead brings the block back on the next run while the variable
-  is on.
-- raw.githubusercontent.com caches the files for about 5 minutes, and a PR whose TD job
-  already ran keeps that job's block for re-runs of its shards.
-- Re-running the publish job of an old workflow run publishes none of its models over
-  live ones of a later version.
-
-Rollback order: the variable off, cancel in-flight runs (and re-run none of that day's),
-delete `td-scorer-budget.json` from generated-stats, revert test-infra, then revert pytorch (checkouts with the budget
-rule fall back to `td-scorer.json` when the budget file is missing, and older ones never
-read it).
-
-### The sweep
-
-`python -m torchci.td.scorer sweep` replays the cut, read-only, at every point of a grid
-of orders (`--orders`, p / cost ** a and TD's own ranking), spreads (`--spreads`) and
-base shares (`--bases`), scored walk-forward (or by one `--model` file on the gate days).
-Per point it writes one JSON row (realised share of cost and of seconds, main landings
-and failures caught against TD's 25% cut, per-PR and per-event retention of TD's PR
-catches, holdout catches by the model fitted before the holdout window) and per-landing
-and per-PR vectors to an `.npz` next to it. It reads the shards and the holdout set from
-`--cache-dir` only (a missing one fails the run before anything is written), test times
-from `--test-times` and each config's start-up from the `start_up_seconds` of a model
-file, `--start-up` or else `--model`'s (exactly one of them; their sha256 are recorded),
-and main failures from `--main-cache`, fetched once and written there when the file is
-absent; a cache of another window is refused, and so is an `--out` inside `--cache-dir`
-or naming an input. Only served jobs count toward the realised share and the retention,
-as in the gate. The `.npz` also holds each landing's and PR's r and budget mode. Bootstraps and
-the selection of the defaults are not in this package.
+The optional budget block, switching it on and off, and the sweep: BUDGET.md.
 
 ## Turning the scorer off
 
 Set `"enabled": false` in `stats/td-scorer.json` on the generated-stats branch: every
 pytorch checkout's TD job then uses TD's own cut, budget or not, and the publish job
 writes neither file while it stays off. Once it is true again (or the file is deleted),
-the next daily run publishes again; "Turning the budget off" above ends the budget alone.
+the next daily run publishes again; "Turning the budget off" in BUDGET.md ends the
+budget alone.
 
 ## Running locally
 
