@@ -729,6 +729,13 @@
       "linux"
     ]
   ],
+  "test_fake_export_cuda_conj_cpu_float32 (__main__.TestExportOpInfoCPU)": [
+    "204745",
+    "https://github.com/pytorch/pytorch/issues/204745",
+    [
+      "linux"
+    ]
+  ],
   "test_find_learning_rate_ensembling_FeatureAlphaDropout_mechanism_functional_call_cpu (__main__.TestExamplesCorrectnessCPU)": [
     "180437",
     "https://github.com/pytorch/pytorch/issues/180437",
