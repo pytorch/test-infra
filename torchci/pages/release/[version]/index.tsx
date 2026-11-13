@@ -27,7 +27,9 @@ import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
 
-function routeVersion(value: string | string[] | undefined): string | undefined {
+function routeVersion(
+  value: string | string[] | undefined
+): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
@@ -177,7 +179,9 @@ export default function ReleaseBoardPage() {
   const router = useRouter();
   const version = routeVersion(router.query.version);
   const board = useReleaseResource<ReleaseBoard>(
-    version === undefined ? null : `/api/releases/${encodeURIComponent(version)}`
+    version === undefined
+      ? null
+      : `/api/releases/${encodeURIComponent(version)}`
   );
   const index = useReleaseResource<ReleaseIndex>(
     version === undefined ? null : "/api/releases"

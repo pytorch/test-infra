@@ -95,7 +95,11 @@ export function ReleaseArtifactsPageContent({
           <Link component={NextLink} href="/release" underline="hover">
             Releases
           </Link>
-          <Link component={NextLink} href={`/release/${version}`} underline="hover">
+          <Link
+            component={NextLink}
+            href={`/release/${version}`}
+            underline="hover"
+          >
             {version}
           </Link>
           <Typography color="text.primary">Artifacts</Typography>
@@ -133,7 +137,9 @@ export function ReleaseArtifactsPageContent({
           <TableBody>
             {page.rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>No artifacts match this selection.</TableCell>
+                <TableCell colSpan={6}>
+                  No artifacts match this selection.
+                </TableCell>
               </TableRow>
             ) : (
               page.rows.map((artifact) => (
@@ -148,21 +154,26 @@ export function ReleaseArtifactsPageContent({
                     artifact.arch,
                   ].join("/")}
                 >
-                  <TableCell>{artifact.project} · {artifact.package}</TableCell>
+                  <TableCell>
+                    {artifact.project} · {artifact.package}
+                  </TableCell>
                   <TableCell>
                     {artifact.os}/{artifact.arch} · {artifact.accelerator}
                     {artifact.python === "" ? "" : ` · py${artifact.python}`}
                   </TableCell>
                   <TableCell>
-                    {artifact.channel}{artifact.rc === null ? "" : ` · ${artifact.rc}`}
+                    {artifact.channel}
+                    {artifact.rc === null ? "" : ` · ${artifact.rc}`}
                   </TableCell>
                   <TableCell>{artifact.verdict.replaceAll("_", " ")}</TableCell>
                   <TableCell>{sizeLabel(artifact.size_bytes)}</TableCell>
                   <TableCell>
                     {artifact.evidence.url === null ? (
-                      artifact.evidence.http_status === null
-                        ? "—"
-                        : `HTTP ${artifact.evidence.http_status}`
+                      artifact.evidence.http_status === null ? (
+                        "—"
+                      ) : (
+                        `HTTP ${artifact.evidence.http_status}`
+                      )
                     ) : (
                       <Link
                         href={artifact.evidence.url}
@@ -209,7 +220,8 @@ export default function ReleaseArtifactsPage() {
     if (version === undefined) return;
     void router.push({
       pathname: router.pathname,
-      query: nextCursor === null ? { version } : { version, cursor: nextCursor },
+      query:
+        nextCursor === null ? { version } : { version, cursor: nextCursor },
     });
   };
 
@@ -230,10 +242,12 @@ export default function ReleaseArtifactsPage() {
           artifacts.data?.pagination.previous === null ||
           artifacts.data === undefined
             ? undefined
-            : () => setCursor(artifacts.data?.pagination.previous?.cursor ?? null)
+            : () =>
+                setCursor(artifacts.data?.pagination.previous?.cursor ?? null)
         }
         onNext={
-          artifacts.data?.pagination.next === null || artifacts.data === undefined
+          artifacts.data?.pagination.next === null ||
+          artifacts.data === undefined
             ? undefined
             : () => setCursor(artifacts.data?.pagination.next?.cursor ?? null)
         }

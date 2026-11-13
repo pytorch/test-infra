@@ -5,10 +5,7 @@ import {
   ReleasePage,
 } from "components/release/ReleasePage";
 import type { ReleaseIndex } from "lib/api/releases/types";
-import {
-  ReleaseResource,
-  useReleaseResource,
-} from "lib/releasePortal/api";
+import { ReleaseResource, useReleaseResource } from "lib/releasePortal/api";
 import Head from "next/head";
 import NextLink from "next/link";
 
