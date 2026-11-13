@@ -114,7 +114,8 @@ export const releasesApiOpenApi: ApiResource = {
           ),
           ...publicErrors(
             ref,
-            "A missing, malformed or unsupported parameter (invalid_parameters); a malformed or unsupported cursor (invalid_cursor); or a cursor issued for a different query (cursor_query_mismatch)."
+            "A missing, malformed or unsupported parameter (invalid_parameters); a malformed or unsupported cursor (invalid_cursor); or a cursor issued for a different query (cursor_query_mismatch).",
+            "No release has this version (not_found)."
           ),
         },
       },

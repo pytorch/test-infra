@@ -20,9 +20,11 @@ import {
 import type { ReleaseBoard, ReleaseIndex } from "lib/api/releases/types";
 import {
   isReleaseNotFound,
+  releaseIndexUrlForNotFound,
   ReleaseResource,
   useReleaseResource,
 } from "lib/releasePortal/api";
+import { isSafeReleaseUrl } from "lib/releasePortal/url";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
@@ -142,30 +144,33 @@ export function ReleaseBoardPageContent({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {phase.steps.map((step) => (
-                  <TableRow key={step.id}>
-                    <TableCell>
-                      {step.id} · {step.name}
-                    </TableCell>
-                    <TableCell>{statusLabel(step.status)}</TableCell>
-                    <TableCell>{step.owner}</TableCell>
-                    <TableCell>{step.due ?? "—"}</TableCell>
-                    <TableCell>
-                      {step.evidence?.url === null || step.evidence === null ? (
-                        step.evidence?.text || "—"
-                      ) : (
-                        <Link
-                          href={step.evidence.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          underline="hover"
-                        >
-                          {step.evidence.text || "Open evidence"}
-                        </Link>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {phase.steps.map((step) => {
+                  const evidenceUrl = step.evidence?.url;
+                  return (
+                    <TableRow key={step.id}>
+                      <TableCell>
+                        {step.id} · {step.name}
+                      </TableCell>
+                      <TableCell>{statusLabel(step.status)}</TableCell>
+                      <TableCell>{step.owner}</TableCell>
+                      <TableCell>{step.due ?? "—"}</TableCell>
+                      <TableCell>
+                        {isSafeReleaseUrl(evidenceUrl) ? (
+                          <Link
+                            href={evidenceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            underline="hover"
+                          >
+                            {step.evidence?.text || "Open evidence"}
+                          </Link>
+                        ) : (
+                          step.evidence?.text || "—"
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -184,7 +189,7 @@ export default function ReleaseBoardPage() {
       : `/api/releases/${encodeURIComponent(version)}`
   );
   const index = useReleaseResource<ReleaseIndex>(
-    version === undefined ? null : "/api/releases"
+    releaseIndexUrlForNotFound(version, board)
   );
 
   return (

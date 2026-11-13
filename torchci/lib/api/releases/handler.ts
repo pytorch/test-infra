@@ -129,18 +129,25 @@ export async function releaseArtifactsHandler(
   request: Request,
   { params }: { params: Promise<{ version: string }> }
 ): Promise<Response> {
-  const response = await handleList(
-    request,
-    await requestQuery(request, params),
-    {
-      route: "GET /api/releases/{version}/artifacts",
-      failure: "Failed to list the release's artifacts",
-      parse: parseArtifactParams,
-      decodeCursor: decodeArtifactCursor,
-      cursorMatchesQuery: artifactCursorMatchesQuery,
-      list: listArtifacts,
-    }
-  );
+  const query = await requestQuery(request, params);
+  const response = await handleList(request, query, {
+    route: "GET /api/releases/{version}/artifacts",
+    failure: "Failed to list the release's artifacts",
+    parse: parseArtifactParams,
+    decodeCursor: decodeArtifactCursor,
+    cursorMatchesQuery: artifactCursorMatchesQuery,
+    beforeList: async ({ version }) => {
+      if ((await readRelease(version)) === null) {
+        return jsonError(
+          404,
+          "not_found",
+          `The portal has no release ${version}`
+        );
+      }
+      return null;
+    },
+    list: listArtifacts,
+  });
   if (response.ok) response.headers.set("Cache-Control", CACHE_CONTROL);
   return response;
 }

@@ -54,6 +54,17 @@ export function isReleaseNotFound(error: unknown): boolean {
   return failure?.status === 404 || failure?.code === "not_found";
 }
 
+export function releaseIndexUrlForNotFound(
+  version: string | undefined,
+  resource: ReleaseResource<unknown>
+): string | null {
+  return version !== undefined &&
+    resource.data === undefined &&
+    isReleaseNotFound(resource.error)
+    ? "/api/releases"
+    : null;
+}
+
 export function releaseErrorMessage(error: unknown): string {
   const failure = error as ReleaseRequestError | null;
   return typeof failure?.info === "string"

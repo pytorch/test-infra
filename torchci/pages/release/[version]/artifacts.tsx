@@ -21,9 +21,11 @@ import {
 import type { ArtifactPage, ReleaseIndex } from "lib/api/releases/types";
 import {
   isReleaseNotFound,
+  releaseIndexUrlForNotFound,
   ReleaseResource,
   useReleaseResource,
 } from "lib/releasePortal/api";
+import { isSafeReleaseUrl } from "lib/releasePortal/url";
 import Head from "next/head";
 import NextLink from "next/link";
 import { useRouter } from "next/router";
@@ -168,13 +170,7 @@ export function ReleaseArtifactsPageContent({
                   <TableCell>{artifact.verdict.replaceAll("_", " ")}</TableCell>
                   <TableCell>{sizeLabel(artifact.size_bytes)}</TableCell>
                   <TableCell>
-                    {artifact.evidence.url === null ? (
-                      artifact.evidence.http_status === null ? (
-                        "—"
-                      ) : (
-                        `HTTP ${artifact.evidence.http_status}`
-                      )
-                    ) : (
+                    {isSafeReleaseUrl(artifact.evidence.url) ? (
                       <Link
                         href={artifact.evidence.url}
                         target="_blank"
@@ -185,6 +181,10 @@ export function ReleaseArtifactsPageContent({
                           ? "Open"
                           : `HTTP ${artifact.evidence.http_status}`}
                       </Link>
+                    ) : artifact.evidence.http_status === null ? (
+                      "—"
+                    ) : (
+                      `HTTP ${artifact.evidence.http_status}`
                     )}
                   </TableCell>
                 </TableRow>
@@ -214,7 +214,7 @@ export default function ReleaseArtifactsPage() {
     version === undefined ? null : artifactEndpoint(version, cursor)
   );
   const index = useReleaseResource<ReleaseIndex>(
-    version === undefined ? null : "/api/releases"
+    releaseIndexUrlForNotFound(version, artifacts)
   );
   const setCursor = (nextCursor: string | null) => {
     if (version === undefined) return;
