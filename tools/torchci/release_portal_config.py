@@ -86,6 +86,10 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "optional": set(),
     },
     "crcr_summary": {"required": set(), "optional": set()},
+    "dev_discuss_post": {
+        "required": {"title_regex"},
+        "optional": {"carries_dates"},
+    },
 }
 ISSUE_EXPECT = ("open", "closed")
 REF_KINDS = ("branch", "tag")
@@ -144,6 +148,45 @@ def _placeholders(value: Any) -> Set[str]:
     return set()
 
 
+def _dev_discuss_post_errors(where: str, check: Dict[str, Any]) -> List[str]:
+    """`title_regex` is one pattern, or one per release type like a discovery rule's;
+    `carries_dates` says the post is the release's key dates."""
+    errors = []
+    patterns = check.get("title_regex")
+    if isinstance(patterns, dict):
+        if set(patterns) != set(RELEASE_TYPES):
+            errors.append(
+                f"{where}: check dev_discuss_post `title_regex` map needs exactly {list(RELEASE_TYPES)}"
+            )
+        patterns = list(patterns.values())
+    else:
+        patterns = [patterns]
+    for pattern in patterns if "title_regex" in check else []:
+        if not (isinstance(pattern, str) and pattern):
+            errors.append(
+                f"{where}: check dev_discuss_post `title_regex` must be a non-empty string"
+            )
+            continue
+        unknown = _placeholders(pattern) - set(DISCOVERY_VARIABLES)
+        if unknown:
+            errors.append(
+                f"{where}: check dev_discuss_post `title_regex` can use only "
+                f"{list(DISCOVERY_VARIABLES)}, not {sorted(unknown)}"
+            )
+            continue
+        try:
+            re.compile(_fill(pattern, "2.16.0", escape=True))
+        except re.error as e:
+            errors.append(
+                f"{where}: check dev_discuss_post `title_regex` is not a valid regex: {e}"
+            )
+    if "carries_dates" in check and not isinstance(check["carries_dates"], bool):
+        errors.append(
+            f"{where}: check dev_discuss_post `carries_dates` must be a boolean"
+        )
+    return errors
+
+
 def _check_errors(where: str, check: Any) -> List[str]:
     if not isinstance(check, dict) or "type" not in check:
         return [f"{where}: check must be a map with a `type`"]
@@ -191,6 +234,8 @@ def _check_errors(where: str, check: Any) -> List[str]:
             errors.append(
                 f"{where}: check index_listing `package_types` must be a non-empty list from {list(PACKAGE_TYPES)}"
             )
+    elif ctype == "dev_discuss_post":
+        errors.extend(_dev_discuss_post_errors(where, check))
     elif ctype == "milestone_outstanding_items":
         if "max_outstanding" in check and (
             not isinstance(check["max_outstanding"], int)

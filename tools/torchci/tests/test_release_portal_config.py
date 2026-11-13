@@ -75,7 +75,7 @@ class TestCommittedConfig(TestCase):
     def test_the_shared_steps_cover_five_phases_and_resolve(self):
         resolved = cfg.load_resolved("2.16.0")
         self.assertEqual([p["id"] for p in resolved["phases"]], [1, 2, 3, 4, 5])
-        self.assertEqual(len(resolved["steps"]), 46)
+        self.assertEqual(len(resolved["steps"]), 50)
         self.assertEqual(resolved["branch"], "release/2.16")
 
     def test_every_step_id_is_unique_and_in_its_phase(self):

@@ -182,6 +182,21 @@ steps:
     due: {anchor: branch_cut, offset_days: 2}
     depends_on: ["1.8"]
     check: {type: manual_link, what_to_check: "version.txt in pytorch and the domain libraries on the default branch is the next minor", link: "https://github.com/pytorch/pytorch/blob/main/version.txt"}
+  - id: "1.13"
+    phase: 1
+    name: Key dates posted on dev-discuss
+    tier: M
+    owner: release-manager
+    check: {type: dev_discuss_post, carries_dates: true, title_regex: {minor: '^(PyTorch )?Release {minor}(\.0)? \| Key Dates', patch: '^PyTorch Release {version}$'}}
+  - id: "1.14"
+    phase: 1
+    name: Branch cut announced on dev-discuss
+    types: [minor]
+    tier: M
+    owner: release-manager
+    due: {anchor: branch_cut, offset_days: 0}
+    depends_on: ["1.8"]
+    check: {type: dev_discuss_post, title_regex: '^PyTorch Release {minor} Branch Cut is Complete'}
 
   # ---------------------------------------------------------------- 2. RC build and validation
   - id: "2.1"
@@ -286,6 +301,15 @@ steps:
     owner: release-manager
     window: {opens: branch_cut, closes: ga}
     check: {type: reverts_missing_from_branch, repo: pytorch/pytorch, branch: "{branch}"}
+  - id: "2.14"
+    phase: 2
+    name: RC1 announced on dev-discuss
+    types: [minor]
+    tier: M
+    owner: release-manager
+    due: {anchor: branch_cut, offset_days: 7}
+    depends_on: ["2.1"]
+    check: {type: dev_discuss_post, title_regex: '^PyTorch {minor} RC1 produced'}
 
   # ---------------------------------------------------------------- 3. Final release candidate
   - id: "3.1"
@@ -355,6 +379,15 @@ steps:
     due: {anchor: ga, offset_days: -2}
     depends_on: ["3.4", "3.5", "3.7"]
     check: {type: manual_link, what_to_check: "The decision is recorded on the tracker issue", link: "{tracker_issue_url}"}
+  - id: "3.10"
+    phase: 3
+    name: Final RC announced on dev-discuss
+    types: [minor]
+    tier: M
+    owner: release-manager
+    due: {anchor: final_rc, offset_days: 7}
+    depends_on: ["3.4"]
+    check: {type: dev_discuss_post, title_regex: '^PyTorch {minor} Final RC (Available|produced)'}
 
   # ---------------------------------------------------------------- 4. Promotion and release day
   - id: "4.1"
@@ -408,11 +441,11 @@ steps:
     check: {type: url_exists, url: "https://docs.pytorch.org/docs/{minor}/"}
   - id: "4.7"
     phase: 4
-    name: Announcement posted
+    name: Announcement posted on dev-discuss
     tier: M
     owner: marketing
     due: {anchor: ga, offset_days: 0}
-    check: {type: manual_link, what_to_check: "The announcement is posted on dev-discuss and the blog", link: "https://dev-discuss.pytorch.org/"}
+    check: {type: dev_discuss_post, title_regex: '^PyTorch {version} General Availability'}
   - id: "4.8"
     phase: 4
     name: Google Colab issue opened
