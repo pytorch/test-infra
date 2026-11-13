@@ -151,6 +151,30 @@ class TestBasesAndShas(TestCase):
         self.assertNotIn(user, "\n".join(logs.output) + str(raised.exception))
         self.assertIn("Traceback", "\n".join(logs.output))
 
+    def test_query_errors_keep_the_clickhouse_code(self) -> None:
+        url = "HTTPDriver for https://abc123.clickhouse.example:8443"
+        cases = [
+            (f"{url} received ClickHouse error code 159", " (code 159)"),
+            (
+                f"{url} received ClickHouse error code 202\n Code: 202. DB::Exception",
+                " (code 202)",
+            ),
+            (f"{url} returned response code 500", ""),
+        ]
+        for text, suffix in cases:
+
+            def failing(sql, params, text=text):
+                raise ValueError(text)
+
+            with mock.patch(
+                "torchci.clickhouse.query_clickhouse", failing
+            ), self.assertLogs(events.logger, "ERROR"):
+                with self.assertRaises(RuntimeError) as raised:
+                    events._query("q", "SELECT 1", {})
+            self.assertEqual(
+                str(raised.exception), f"q query failed: ValueError{suffix}"
+            )
+
 
 class TestMainBranchFilter(TestCase):
     def test_only_main_failures_drop_a_pr_failure(self) -> None:
@@ -187,36 +211,39 @@ class TestDeduplication(TestCase):
 
 
 class TestSavedQuerySettings(TestCase):
-    def test_appends_readonly_to_the_settings_line(self) -> None:
+    def test_appends_the_offline_settings_to_the_settings_line(self) -> None:
         sql = "-- settings are below\nSELECT 1\nSETTINGS max_threads = 8, max_execution_time = 60\n"
-        out = events.with_readonly(sql)
+        out = events.with_offline_settings(sql)
         self.assertTrue(
             out.endswith(
-                "SETTINGS max_threads = 8, max_execution_time = 60, readonly = 2\n"
+                "SETTINGS max_threads = 8, max_execution_time = 60,"
+                " readonly = 2, max_execution_time = 600\n"
             )
         )
         self.assertIn("-- settings are below\nSELECT 1\n", out)
 
     def test_zero_or_two_settings_lines_raise(self) -> None:
         with self.assertRaises(ValueError):
-            events.with_readonly("SELECT 1\n")
+            events.with_offline_settings("SELECT 1\n")
         with self.assertRaises(ValueError):
-            events.with_readonly(
+            events.with_offline_settings(
                 "SELECT 1\nSETTINGS a = 1\nUNION ALL SELECT 2\nSETTINGS b = 2\n"
             )
 
     def test_settings_must_be_the_last_line(self) -> None:
         with self.assertRaises(ValueError):
-            events.with_readonly("SELECT 1\nSETTINGS a = 1\n-- trailing comment\n")
+            events.with_offline_settings(
+                "SELECT 1\nSETTINGS a = 1\n-- trailing comment\n"
+            )
         self.assertTrue(
-            events.with_readonly("SELECT 1\nSETTINGS a = 1\n\n\n").endswith(
-                "readonly = 2\n"
+            events.with_offline_settings("SELECT 1\nSETTINGS a = 1\n\n\n").endswith(
+                "max_execution_time = 600\n"
             )
         )
 
     def test_saved_query_has_one_settings_line(self) -> None:
         sql, params = events.saved_breakages_query()
-        self.assertTrue(sql.rstrip().endswith("readonly = 2"))
+        self.assertTrue(sql.rstrip().endswith(events.OFFLINE_SETTINGS))
         self.assertEqual(
             set(params["params"]), {"startTime", "stopTime", "tdWorkflows"}
         )

@@ -1069,6 +1069,17 @@ class TestTrunk(TestCase):
                 trunk.fetch_landings(datetime(2026, 10, 1), datetime(2026, 11, 5)), []
             )
 
+    def test_fetch_landings_retries_a_busy_breakages_chunk(self) -> None:
+        busy = RuntimeError("td_trunk_breakages query failed: DatabaseError (code 202)")
+        with mock.patch.object(
+            shards, "_query", side_effect=[busy, [{"grain": "total"}]]
+        ) as query, mock.patch("torchci.td.scorer.shards.time.sleep") as sleep:
+            out = trunk.fetch_landings(datetime(2026, 10, 1), datetime(2026, 11, 5))
+        self.assertEqual(out, [])
+        self.assertEqual(query.call_count, 2)
+        sleep.assert_called_once()
+        self.assertIn("max_execution_time = 600", query.call_args.args[1])
+
 
 if __name__ == "__main__":
     main()
