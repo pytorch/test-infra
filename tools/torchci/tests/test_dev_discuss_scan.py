@@ -16,6 +16,7 @@ from analytics.dev_discuss_scan import (  # noqa: E402
     post_step_rows,
     title_pattern,
 )
+
 from torchci import release_portal_config as cfg  # noqa: E402
 
 

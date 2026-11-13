@@ -265,9 +265,8 @@ def title_pattern(
     check: Dict[str, Any], version: str, release_type: str
 ) -> "re.Pattern[str]":
     """The step's title regex for the release, with {version} and {minor} escaped."""
-    pattern = check["title_regex"]
-    if isinstance(pattern, dict):
-        pattern = pattern[release_type]
+    patterns = check["title_regex"]
+    pattern: str = patterns[release_type] if isinstance(patterns, dict) else patterns
     minor = ".".join(version.split(".")[:2])
     values = {"version": re.escape(version), "minor": re.escape(minor)}
     return re.compile(re.sub(r"\{(\w+)\}", lambda m: values[m.group(1)], pattern))
