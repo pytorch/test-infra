@@ -91,8 +91,11 @@ validation issues are not counted. It works for a patch release too: 2.15.1 and 
 have their own milestone, so both are checked at the same time.
 
 `reverts_missing_from_branch` is only meaningful between the branch cut and the release, so
-its step has a `window` (below). It lists the reverts on main that are not on the release
-branch, as `--analyze-missing-reverts-from-branch` does.
+its step has a `window` (below). It finds the reverts on main that are not on the release
+branch, as `--analyze-missing-reverts-from-branch` does, and the step is done unless one of
+them is of a commit that was in a release candidate. Only those reverts, the ones to
+cherry-pick, are listed in the recorded `details`; the others (already cherry-picked, or of a
+commit the branch never had) are only counted by status.
 
 ### Steps that apply only some of the time
 

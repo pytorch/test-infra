@@ -174,24 +174,32 @@ class RevertStepRows(TestCase):
     def test_no_such_revert_is_done_whatever_else_is_on_main(self):
         (row,) = self.rows([_revert("not_needed"), _revert("cherry_picked")])
         self.assertEqual(row["status"], "done")
-        self.assertIn("2 other revert(s)", row["evidence_text"])
-        self.assertEqual(len(json.loads(row["details"])["reverts"]), 2)
+        self.assertEqual(
+            row["evidence_text"],
+            "No revert of a release candidate commit is missing from release/2.15",
+        )
+        # the reverts that need nothing are counted, not listed
+        details = json.loads(row["details"])
+        self.assertEqual(details["reverts"], [])
+        self.assertEqual(details["reverts_on_main_not_on_branch"], 2)
+        self.assertEqual(details["by_status"], {"not_needed": 1, "cherry_picked": 1})
 
-    def test_the_details_list_every_revert_with_those_to_act_on_first(self):
+    def test_the_details_list_only_the_reverts_to_cherry_pick(self):
         (row,) = self.rows(
             [
                 _revert("in_release_candidate", 11, ["v2.15.0-rc3"]),
                 _revert("not_needed"),
+                _revert("cherry_picked"),
             ]
         )
         details = json.loads(row["details"])
-        self.assertEqual(details["reverts_on_main_not_on_branch"], 2)
+        self.assertEqual(details["reverts_on_main_not_on_branch"], 3)
         self.assertEqual(
-            details["by_status"], {"in_release_candidate": 1, "not_needed": 1}
+            details["by_status"],
+            {"in_release_candidate": 1, "not_needed": 1, "cherry_picked": 1},
         )
         self.assertEqual(
-            [r["status"] for r in details["reverts"]],
-            ["in_release_candidate", "not_needed"],
+            [r["status"] for r in details["reverts"]], ["in_release_candidate"]
         )
         self.assertEqual(details["reverts"][0]["rc_tags"], ["v2.15.0-rc3"])
 
