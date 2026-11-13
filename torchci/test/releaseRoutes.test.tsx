@@ -121,7 +121,7 @@ describe("release routes", () => {
   test("renders the release index and its loading state", () => {
     expect(
       renderToStaticMarkup(
-        <ReleaseIndexPageContent resource={resource(undefined)} />
+        <ReleaseIndexPageContent resource={resource<ReleaseIndex>(undefined)} />
       )
     ).toContain("Loading release data");
 
@@ -148,7 +148,10 @@ describe("release routes", () => {
     const missing = renderToStaticMarkup(
       <ReleaseBoardPageContent
         version="9.9.9"
-        board={resource(undefined, { status: 404, code: "not_found" })}
+        board={resource<ReleaseBoard>(undefined, {
+          status: 404,
+          code: "not_found",
+        })}
         index={resource(index)}
       />
     );
@@ -173,7 +176,9 @@ describe("release routes", () => {
     const failed = renderToStaticMarkup(
       <ReleaseArtifactsPageContent
         version="2.16.0"
-        artifacts={resource(undefined, { info: "The database is busy" })}
+        artifacts={resource<ArtifactPage>(undefined, {
+          info: "The database is busy",
+        })}
         index={resource(index)}
         onPrevious={undefined}
         onNext={undefined}
