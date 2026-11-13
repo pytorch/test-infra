@@ -1033,8 +1033,9 @@ def revert_step_rows(
     The misc.release_event rows for one scan of the reverts missing from a release
     branch: one per release portal step that checks reverts_missing_from_branch, done
     when no revert is in_release_candidate (find_missing_reverts): a revert on main of a
-    commit that was in a release candidate, which the branch may still carry. The reverts
-    that need action are in `details`, and the count of every revert by status.
+    commit that was in a release candidate, which the branch may still carry. Only the
+    reverts that need action are listed in `details`; the others (already cherry-picked, or
+    of a commit the branch never had) are only counted, by status.
     """
     reverts = found["reverts"]
     by_status: Dict[str, int] = {}
@@ -1055,17 +1056,13 @@ def revert_step_rows(
             f"cherry-picked to {branch}: " + ", ".join(short(r) for r in needed)
         )
     else:
-        evidence = (
-            f"No revert of a release candidate commit is missing from {branch} "
-            f"({len(reverts)} other revert(s) on main are listed in the details)"
-        )
-    order = {"in_release_candidate": 0, "not_needed": 1, "cherry_picked": 2}
+        evidence = f"No revert of a release candidate commit is missing from {branch}"
     details = json.dumps(
         {
             "branch": branch,
             "reverts_on_main_not_on_branch": len(reverts),
             "by_status": by_status,
-            # every revert on main that is not on the branch, those to act on first
+            # the reverts to cherry-pick; the others are counted in by_status
             "reverts": [
                 {
                     "commit": revert["commit"].commit_hash,
@@ -1075,7 +1072,7 @@ def revert_step_rows(
                     "reverted_commit": revert["reverted_commit"],
                     "rc_tags": revert["rc_tags"],
                 }
-                for revert in sorted(reverts, key=lambda r: order[r["status"]])
+                for revert in needed
             ],
         }
     )
