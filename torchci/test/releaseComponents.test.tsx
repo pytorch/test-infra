@@ -62,6 +62,13 @@ describe("release components", () => {
     expect(
       renderToStaticMarkup(<ReleaseEvidenceCell evidence={null} />)
     ).toContain("Not checked");
+    const unsafe = renderToStaticMarkup(
+      <ReleaseEvidenceCell
+        evidence={{ text: "Unsafe evidence", url: "javascript:alert(1)" }}
+      />
+    );
+    expect(unsafe).toContain("Unsafe evidence");
+    expect(unsafe).not.toContain("javascript:");
   });
 
   test("labels known links and filters unavailable ones", () => {
@@ -71,6 +78,7 @@ describe("release components", () => {
           tracker_issue: "https://example.com/tracker",
           release_notes: "https://example.com/notes",
           wheels: null,
+          docs: "data:text/html,unsafe",
         }}
       />
     );
@@ -78,6 +86,8 @@ describe("release components", () => {
     expect(html).toContain("Tracker");
     expect(html).toContain("Release notes");
     expect(html).not.toContain("Wheels");
+    expect(html).not.toContain("Docs");
+    expect(html).not.toContain("data:text/html");
   });
 
   test("renders nothing when no release links are available", () => {

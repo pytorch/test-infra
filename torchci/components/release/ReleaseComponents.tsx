@@ -1,6 +1,7 @@
 import { Box, Card, Chip, Link, Stack, Typography } from "@mui/material";
 import type { ReleaseBoard, ReleaseStep } from "lib/api/releases/types";
 import { STEP_STATUSES, TIERS } from "lib/api/releases/types";
+import { isSafeReleaseUrl } from "lib/releasePortal/url";
 import type { ReactNode } from "react";
 
 export type ReleaseStatus = (typeof STEP_STATUSES)[number];
@@ -117,7 +118,7 @@ export function ReleaseEvidenceCell({ evidence }: { evidence: Evidence }) {
     return <Typography color="text.secondary">Not checked</Typography>;
   }
 
-  if (evidence.url === null) {
+  if (!isSafeReleaseUrl(evidence.url)) {
     return <Typography>{evidence.text}</Typography>;
   }
 
@@ -130,7 +131,7 @@ export function ReleaseEvidenceCell({ evidence }: { evidence: Evidence }) {
 
 export function ReleaseLinksRow({ links }: { links: ReleaseLinks }) {
   const availableLinks = Object.entries(links).filter(
-    (entry): entry is [string, string] => entry[1] !== null
+    (entry): entry is [string, string] => isSafeReleaseUrl(entry[1])
   );
 
   if (availableLinks.length === 0) {
