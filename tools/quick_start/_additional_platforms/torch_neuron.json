@@ -1,0 +1,7 @@
+{
+  "name": "AWS Trainium (TorchNeuron)",
+  "support_channel": "https://github.com/aws-neuron/torch-neuronx/issues",
+  "stable": {
+    "linux": "pip3 install torch==2.14.0 --index-url https://download.pytorch.org/whl/cpu && pip3 install \"torch-neuronx==2.14.*\" \"neuronx-cc==2.*\" \"nki>=0.6\" --extra-index-url https://pip.repos.neuron.amazonaws.com"
+  }
+}
