@@ -1057,22 +1057,25 @@ def revert_step_rows(
     else:
         evidence = (
             f"No revert of a release candidate commit is missing from {branch} "
-            f"({len(reverts)} other revert(s) on main do not apply)"
+            f"({len(reverts)} other revert(s) on main are listed in the details)"
         )
+    order = {"in_release_candidate": 0, "not_needed": 1, "cherry_picked": 2}
     details = json.dumps(
         {
             "branch": branch,
             "reverts_on_main_not_on_branch": len(reverts),
             "by_status": by_status,
-            "missing": [
+            # every revert on main that is not on the branch, those to act on first
+            "reverts": [
                 {
                     "commit": revert["commit"].commit_hash,
                     "title": revert["commit"].title,
                     "url": revert["commit"].pr_url,
+                    "status": revert["status"],
                     "reverted_commit": revert["reverted_commit"],
                     "rc_tags": revert["rc_tags"],
                 }
-                for revert in needed
+                for revert in sorted(reverts, key=lambda r: order[r["status"]])
             ],
         }
     )

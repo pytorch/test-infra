@@ -1,8 +1,10 @@
+import json
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from unittest import main, TestCase
+
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -173,10 +175,9 @@ class RevertStepRows(TestCase):
         (row,) = self.rows([_revert("not_needed"), _revert("cherry_picked")])
         self.assertEqual(row["status"], "done")
         self.assertIn("2 other revert(s)", row["evidence_text"])
+        self.assertEqual(len(json.loads(row["details"])["reverts"]), 2)
 
-    def test_the_details_list_only_the_reverts_to_act_on(self):
-        import json
-
+    def test_the_details_list_every_revert_with_those_to_act_on_first(self):
         (row,) = self.rows(
             [
                 _revert("in_release_candidate", 11, ["v2.15.0-rc3"]),
@@ -188,8 +189,11 @@ class RevertStepRows(TestCase):
         self.assertEqual(
             details["by_status"], {"in_release_candidate": 1, "not_needed": 1}
         )
-        self.assertEqual(len(details["missing"]), 1)
-        self.assertEqual(details["missing"][0]["rc_tags"], ["v2.15.0-rc3"])
+        self.assertEqual(
+            [r["status"] for r in details["reverts"]],
+            ["in_release_candidate", "not_needed"],
+        )
+        self.assertEqual(details["reverts"][0]["rc_tags"], ["v2.15.0-rc3"])
 
     def test_a_revert_without_a_pr_is_named_by_its_commit(self):
         (row,) = self.rows([_revert("in_release_candidate", None, ["v2.15.0-rc1"])])
