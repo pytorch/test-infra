@@ -265,6 +265,21 @@ class GitRepo:
         except Exception:
             return False
 
+    def tag_exists(self, tag: str) -> bool:
+        """Whether the tag exists in this checkout."""
+        try:
+            self._run_git_cmd("rev-parse", "--verify", "--quiet", f"refs/tags/{tag}")
+            return True
+        except Exception:
+            return False
+
+    def show_file(self, ref: str, path: str) -> Optional[str]:
+        """The file at the ref (a branch name, on this repo's remote), or None."""
+        try:
+            return self._run_git_cmd("show", f"{self.remote}/{ref}:{path}")
+        except Exception:
+            return None
+
     def show_ref(self, ref) -> str:
         return self._run_git_cmd("show-ref", ref).split(" ")[0]
 
@@ -635,6 +650,142 @@ def insert_clickhouse_rows(table: str, rows: List[Dict[str, Any]]) -> None:
         raise
 
 
+def record_milestone_steps(
+    repo: GitRepo,
+    release: str,
+    config: Dict[str, Any],
+    milestone_idx: int,
+    write: bool,
+) -> None:
+    """
+    Scan the release's milestone and print every issue with its reason and the state of
+    each release portal step that checks the milestone. With write, record those rows in
+    misc.release_event.
+    """
+    branch = config["branch"]
+    milestone_steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "milestone_outstanding_items"
+    ]
+    statuses = milestone_issue_statuses(repo, branch, f"orig/{branch}", milestone_idx)
+    run_id = f"{os.environ.get('GITHUB_RUN_ID', '')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+    run_url = ""
+    if "GITHUB_RUN_ID" in os.environ:
+        run_url = (
+            f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+            f"{os.environ.get('GITHUB_REPOSITORY', 'pytorch/test-infra')}"
+            f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+        )
+    rows = milestone_step_rows(
+        release,
+        branch,
+        milestone_idx,
+        milestone_steps,
+        statuses,
+        repo.ref_exists(branch),
+        os.environ.get("GITHUB_SHA", "0" * 40),
+        run_id,
+        run_url,
+        datetime.now(timezone.utc),
+    )
+    outstanding = [status for status in statuses if status["outstanding"]]
+    print(
+        f"{release}: milestone {milestone_idx}, {len(statuses)} issues, "
+        f"{len(outstanding)} outstanding"
+    )
+    for status in statuses:
+        issue = status["issue"]
+        print(
+            f"{issue['html_url']} ;{issue['title']};{issue['state']};{status['reason']}"
+        )
+    for row in rows:
+        print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+    if write:
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
+
+
+def release_in_preparation(repo: GitRepo, ref: str) -> Optional[str]:
+    """
+    The release the branch is preparing, from its version.txt: main is 2.16.0a0, so 2.16.0.
+    A release branch keeps its a0 version after the release (release/2.15 is 2.15.0a0), so
+    the version is bumped past every patch that is already tagged: release/2.15 is 2.15.1
+    once v2.15.0 exists, and 2.15.2 once v2.15.1 does.
+    """
+    text = repo.show_file(ref, "version.txt")
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)", text.strip()) if text else None
+    if not match:
+        return None
+    major, minor, patch = (int(part) for part in match.groups())
+    while repo.tag_exists(f"v{major}.{minor}.{patch}"):
+        patch += 1
+    return f"{major}.{minor}.{patch}"
+
+
+def releases_in_flight(
+    repo: GitRepo, open_milestones: Iterable[str], release_lines: int = 3
+) -> List[str]:
+    """
+    The releases in flight, newest first: for main and each of the latest release
+    branches, the release it is preparing (release_in_preparation) when its milestone is
+    still open. 2.16.0 before its branch is cut and 2.15.1 once 2.15.0 has shipped are
+    both in flight, and so is a release that is being prepared on its branch.
+    """
+    text = repo.show_file("main", "version.txt")
+    match = re.match(r"(\d+)\.(\d+)\.", text.strip()) if text else None
+    if not match:
+        return []
+    major, minor = int(match.group(1)), int(match.group(2))
+    open_titles = set(open_milestones)
+    releases: List[str] = []
+    for back in range(release_lines):
+        if minor - back < 0:
+            break
+        ref = "main" if back == 0 else f"release/{major}.{minor - back}"
+        release = release_in_preparation(repo, ref)
+        if release and release in open_titles and release not in releases:
+            releases.append(release)
+    return releases
+
+
+def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
+    """
+    For each release in flight that has a release portal config file: list the reverts
+    missing from its release branch (when the branch is cut) and scan its milestone. One
+    release failing does not hide another's. Returns whether every release succeeded.
+    """
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from torchci.release_portal_config import load_resolved, RELEASES_DIR
+
+    milestones = gh_get_milestones()
+    releases = releases_in_flight(repo, [m.get("title", "") for m in milestones])
+    print(f"Releases in flight: {', '.join(releases) if releases else 'none'}")
+    ok = True
+    for release in releases:
+        print(f"::group::{release}")
+        try:
+            if not (RELEASES_DIR / f"{release}.yml").exists():
+                print(
+                    f"::warning::{release} is in flight but has no "
+                    f"release/portal/config/releases/{release}.yml: skipped"
+                )
+                continue
+            config = load_resolved(release)
+            if repo.ref_exists(config["branch"]):
+                analyze_reverts_missing_from_branch(repo, config["branch"])
+            milestone_idx = next(
+                int(m["number"]) for m in milestones if m.get("title") == release
+            )
+            record_milestone_steps(repo, release, config, milestone_idx, write)
+        except Exception as err:
+            print(f"::error::{release}: {err}")
+            ok = False
+        finally:
+            print("::endgroup::")
+    return ok
+
+
 def commits_missing_in_release(
     repo: GitRepo,
     branch: str,
@@ -849,9 +1000,16 @@ def parse_arguments():
         "--milestone-id default to its release branch and its title",
     )
     parser.add_argument(
+        "--in-flight",
+        action="store_true",
+        help="Scan every release in flight (releases_in_flight): the reverts missing "
+        "from its release branch and its milestone. --write-to-clickhouse records the "
+        "milestone steps",
+    )
+    parser.add_argument(
         "--write-to-clickhouse",
         action="store_true",
-        help="With --missing-in-branch and --release, record the state of the release "
+        help="With --in-flight, or --missing-in-branch and --release, record the state of the release "
         "portal steps that check the milestone in misc.release_event (CLICKHOUSE_ENDPOINT, "
         "CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD)",
     )
@@ -875,6 +1033,9 @@ def main():
 
     repo = GitRepo(args.repo_path, remote)
 
+    if args.in_flight:
+        sys.exit(0 if analyze_releases_in_flight(repo, args.write_to_clickhouse) else 1)
+
     if args.analyze_stacks:
         analyze_stacks(repo)
         return
@@ -888,7 +1049,6 @@ def main():
         analyze_reverts_missing_from_branch(repo, args.branch)
         return
 
-    milestone_steps = []
     if args.write_to_clickhouse and not args.release:
         print("Error: --release is required with --write-to-clickhouse")
         sys.exit(1)
@@ -899,11 +1059,6 @@ def main():
         from torchci.release_portal_config import load_resolved
 
         config = load_resolved(args.release)
-        milestone_steps = [
-            step
-            for step in config["steps"]
-            if step["check"]["type"] == "milestone_outstanding_items"
-        ]
         args.branch = args.branch or config["branch"]
         args.milestone_id = args.milestone_id or args.release
 
@@ -928,43 +1083,7 @@ def main():
                 repo, args.branch, f"orig/{args.branch}", milestone_idx
             )
             return
-        statuses = milestone_issue_statuses(
-            repo, args.branch, f"orig/{args.branch}", milestone_idx
-        )
-        run_id = f"{os.environ.get('GITHUB_RUN_ID', '')}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
-        run_url = ""
-        if "GITHUB_RUN_ID" in os.environ:
-            run_url = (
-                f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
-                f"{os.environ.get('GITHUB_REPOSITORY', 'pytorch/test-infra')}"
-                f"/actions/runs/{os.environ['GITHUB_RUN_ID']}"
-            )
-        rows = milestone_step_rows(
-            args.release,
-            args.branch,
-            milestone_idx,
-            milestone_steps,
-            statuses,
-            repo.ref_exists(args.branch),
-            os.environ.get("GITHUB_SHA", "0" * 40),
-            run_id,
-            run_url,
-            datetime.now(timezone.utc),
-        )
-        outstanding = [status for status in statuses if status["outstanding"]]
-        print(
-            f"{args.release}: milestone {milestone_idx}, {len(statuses)} issues, "
-            f"{len(outstanding)} outstanding"
-        )
-        for status in statuses:
-            issue = status["issue"]
-            print(
-                f"{issue['html_url']} ;{issue['title']};{issue['state']};{status['reason']}"
-            )
-        for row in rows:
-            print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
-        insert_clickhouse_rows("misc.release_event", rows)
-        print(f"Inserted {len(rows)} rows into misc.release_event")
+        record_milestone_steps(repo, args.release, config, milestone_idx, True)
         return
 
     if args.missing_in_release:
