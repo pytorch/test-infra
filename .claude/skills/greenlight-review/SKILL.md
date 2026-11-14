@@ -199,10 +199,10 @@ decides it, and a path it mentions only says where that happens.
   `.github/scripts/tryrebase.py`, `.github/scripts/greenlight_*.py`, the modules those
   scripts import from `.github/scripts/`, and anything else deciding who or what may
   approve or land a PR.
-- Code ownership: any `CODEOWNERS` file, `OWNERSHIP.yaml`, the scripts that generate or
-  check them (`scripts/codeowners/`), and anything else deciding who owns code. Who owns
-  code, and whose review a change requests, is a human's call whether or not an ownership
-  rule gates a merge, and even when the edit is generated or mirrors its sibling entries.
+- Code ownership: any `CODEOWNERS` or `OWNERSHIP.yaml` file, and the scripts that generate
+  or check them (`scripts/codeowners/`). Who owns code is a human's call, whether or not an
+  ownership rule gates a merge, and even when the edit is generated or mirrors its sibling
+  entries.
 - Re-landing a reverted change: the PR, or a commit it applies again, was reverted from
   main (as its comments or description show), and the description does not say what
   broke and what in the diff fixes it, as you confirm by reading the diff.
