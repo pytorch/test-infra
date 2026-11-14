@@ -1334,6 +1334,13 @@
       "linux"
     ]
   ],
+  "test_sparse_sparse_mul_xpu_bfloat16 (__main__.TestSparseXPU)": [
+    "204889",
+    "https://github.com/pytorch/pytorch/issues/204889",
+    [
+      "xpu"
+    ]
+  ],
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
