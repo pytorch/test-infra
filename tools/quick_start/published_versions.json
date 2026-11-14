@@ -20,6 +20,10 @@
           "rocm5.x": {
             "note": null,
             "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm10.1"
+          },
+          "rocm.alpha": {
+            "note": null,
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/rocm-preview"
           }
         },
         "libtorch": {
@@ -46,6 +50,10 @@
             "versions": {
               "Download here (cxx11 ABI):": "https://download.pytorch.org/libtorch/nightly/rocm10.1/libtorch-shared-with-deps-latest.zip"
             }
+          },
+          "rocm.alpha": {
+            "note": "<b>NOTE:</b> Not available for this build",
+            "versions": null
           }
         }
       },
@@ -62,6 +70,11 @@
             "default": true
           },
           "rocm5.x": {
+            "note": "# ROCm is not available on MacOS, please use default package",
+            "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
+            "default": true
+          },
+          "rocm.alpha": {
             "note": "# ROCm is not available on MacOS, please use default package",
             "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cpu",
             "default": true
@@ -98,6 +111,13 @@
             "versions": {
               "Download arm64 libtorch here (ROCm and CUDA are not supported):": "https://download.pytorch.org/libtorch/nightly/cpu/libtorch-macos-arm64-latest.zip"
             }
+          },
+          "rocm.alpha": {
+            "note": null,
+            "default": true,
+            "versions": {
+              "Download arm64 libtorch here (ROCm and CUDA are not supported):": "https://download.pytorch.org/libtorch/nightly/cpu/libtorch-macos-arm64-latest.zip"
+            }
           }
         }
       },
@@ -116,6 +136,10 @@
             "command": "pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu134"
           },
           "rocm5.x": {
+            "note": "<b>NOTE:</b> ROCm is not available on Windows",
+            "command": null
+          },
+          "rocm.alpha": {
             "note": "<b>NOTE:</b> ROCm is not available on Windows",
             "command": null
           }
@@ -140,6 +164,10 @@
             }
           },
           "rocm5.x": {
+            "note": "<b>NOTE:</b> ROCm is not available on Windows",
+            "versions": null
+          },
+          "rocm.alpha": {
             "note": "<b>NOTE:</b> ROCm is not available on Windows",
             "versions": null
           }
