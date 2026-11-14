@@ -104,8 +104,8 @@ describe("the committed config", () => {
     const patch = (await loadReleaseConfig("2.15.1")).config;
     expect(ReleaseConfigSchema.parse(minor)).toEqual(minor);
     expect(ReleaseConfigSchema.parse(patch)).toEqual(patch);
-    expect(minor.steps).toHaveLength(46);
-    expect(patch.steps).toHaveLength(34);
+    expect(minor.steps).toHaveLength(50);
+    expect(patch.steps).toHaveLength(35);
     expect(minor.dates).toEqual({
       branch_cut: "2026-11-30",
       final_rc: "2026-12-07",
@@ -163,7 +163,7 @@ describe("the committed config", () => {
       type: "minor",
       branch: "release/2.99",
     });
-    expect(config.steps).toHaveLength(46);
+    expect(config.steps).toHaveLength(50);
   });
 });
 

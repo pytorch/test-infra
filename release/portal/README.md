@@ -78,6 +78,7 @@ release, the portal sees the tag), and a step the portal cannot observe uses
 | `github_workflow_run` | `repo`, `workflow`, `ref` | the latest run on the ref succeeded |
 | `index_listing` | `index` (`download.pytorch.org`, `pypi`, `dockerhub`), `channel` (`test`, `release`), `package_types` | every expected artifact is present; the detail is in the artifact matrix |
 | `crcr_summary` | none | downstream CI results for the RC (phase 2 of the portal) |
+| `dev_discuss_post` | `title_regex` (one pattern, or one per release type), `carries_dates` (optional) | a post whose title matches exists in the Release Announcements category of dev-discuss (below) |
 
 A new check type needs a collector implementation, an entry in `CHECK_TYPES` in the
 validator, and a row here.
@@ -90,9 +91,22 @@ computes it. Issues labelled `release-feature-request` and the release's own tra
 validation issues are not counted. It works for a patch release too: 2.15.1 and 2.16.0 each
 have their own milestone, so both are checked at the same time.
 
+`dev_discuss_post` is checked by `tools/analytics/dev_discuss_scan.py`, the `dev-discuss-scan`
+job of GitHub Analytics Daily, for every release in flight (an open milestone of the latest
+release lines with no `v<version>` tag yet). The announcement steps are 1.13 key dates, 1.14
+branch cut, 2.14 RC1, 3.10 final RC and 4.7 GA; each is to do until its post exists. The key
+dates post (`carries_dates: true`) also holds the planned dates, read from its milestone table
+(M3, M4 and M6 of a minor release; M3 and M4 of a patch release). The step is done only when
+`dates` in the release file are the post's; otherwise it is in progress and the job fails,
+printing the `dates` block to put in the file. A release in flight without a release file
+fails the job too.
+
 `reverts_missing_from_branch` is only meaningful between the branch cut and the release, so
-its step has a `window` (below). It lists the reverts on main that are not on the release
-branch, as `--analyze-missing-reverts-from-branch` does.
+its step has a `window` (below). It finds the reverts on main that are not on the release
+branch, as `--analyze-missing-reverts-from-branch` does, and the step is done unless one of
+them is of a commit that was in a release candidate. Only those reverts, the ones to
+cherry-pick, are listed in the recorded `details`; the others (already cherry-picked, or of a
+commit the branch never had) are only counted by status.
 
 ### Steps that apply only some of the time
 

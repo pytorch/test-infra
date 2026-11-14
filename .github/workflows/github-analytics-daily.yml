@@ -8,6 +8,8 @@ on:
     paths:
       - .github/workflows/github-analytics-daily.yml
       - tools/analytics/github_analyze.py
+      - tools/analytics/dev_discuss_scan.py
+      - release/portal/config/**
   workflow_call:
   workflow_dispatch:
 
@@ -59,3 +61,41 @@ jobs:
           --remote origin \
           --in-flight \
           ${write}
+
+  # Scans the Release Announcements category of dev-discuss for each release in flight (the
+  # open milestones of the latest release lines whose tag does not exist yet): records in
+  # misc.release_event whether the post of each announcement step exists (key dates, branch
+  # cut, RC1, final RC, GA). It also reads the planned dates of the key dates post and fails
+  # when release/portal/config/releases/<version>.yml does not have them, printing the
+  # `dates` block to put in it. A separate job, so a dev-discuss or GitHub error here does not
+  # hide the analysis above, and the other way round.
+  dev-discuss-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout test-infra
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: python3 -m pip install PyYAML==6.0.3
+
+    - name: Scan the release announcements of the releases in flight
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        # A pull request only shows the status; it must not write to ClickHouse.
+        WRITE_TO_CLICKHOUSE: ${{ github.event_name != 'pull_request' }}
+        CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+        CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+        CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+      run: |
+        set -eu
+        write=""
+        if [ "${WRITE_TO_CLICKHOUSE}" = "true" ]; then
+          write="--write-to-clickhouse"
+        fi
+        python3 tools/analytics/dev_discuss_scan.py ${write}
