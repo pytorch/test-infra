@@ -24,7 +24,7 @@ For another Linux image, install the driver and runtime before you install Torch
 ### pip
 
 Use the selector above to get the stable installation command.
-Keep the version pins because earlier `torch-neuronx` versions use the XLA-based backend.
+The `torch-neuronx` package installs its compatible PyTorch version automatically.
 
 For complete driver, runtime, and package instructions, see the
 [TorchNeuron installation guide](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/torch/get-started/quickstart-torch-neuron.html).
