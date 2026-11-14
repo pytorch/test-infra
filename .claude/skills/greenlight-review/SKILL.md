@@ -114,10 +114,10 @@ order it gives.
 
 ### Never trivial
 
-Three items stop on the path alone, so editing any file they name is enough: executable
+Four items stop on the path alone, so editing any file they name is enough: executable
 documentation build configuration, pytorch's `.claude/` and `.agents/` trees and
-instruction files, and merge authorization. Every other item says what decides it, and a
-path it mentions only says where that happens.
+instruction files, merge authorization, and code ownership. Every other item says what
+decides it, and a path it mentions only says where that happens.
 
 - Breaking the user-facing surface: removing, deprecating, or renaming something PyTorch
   offers to outside code, or changing its signature, a default, a limit, or its documented
@@ -199,6 +199,10 @@ path it mentions only says where that happens.
   `.github/scripts/tryrebase.py`, `.github/scripts/greenlight_*.py`, the modules those
   scripts import from `.github/scripts/`, and anything else deciding who or what may
   approve or land a PR.
+- Code ownership: any `CODEOWNERS` file, `OWNERSHIP.yaml`, the scripts that generate or
+  check them (`scripts/codeowners/`), and anything else deciding who owns code. Who owns
+  code, and whose review a change requests, is a human's call whether or not an ownership
+  rule gates a merge, and even when the edit is generated or mirrors its sibling entries.
 - Re-landing a reverted change: the PR, or a commit it applies again, was reverted from
   main (as its comments or description show), and the description does not say what
   broke and what in the diff fixes it, as you confirm by reading the diff.
@@ -260,7 +264,7 @@ own review covers it. Documentation and instruction files are not code or build 
 even where no OSS build reads them.
 `skip_but_pass_in_sandcastle` and its `_if` form skip in OSS, and the OSS CMake build
 reads `build_variables.bzl`, so neither counts.
-Not when the change edits a file one of the three path items of **Never trivial** names.
+Not when the change edits a file one of the four path items of **Never trivial** names.
 
 **Type annotations** — an annotation added where there was none, or `Any` (including
 `Any | None` and a bare generic such as `tuple`) replaced by a narrower type or by
