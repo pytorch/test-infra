@@ -39,13 +39,13 @@ GOLDEN = (
     (
         "0.6",
         0,
-        "f24991bd588c668136b4fde51c326a0e4b9fe22dfb623a877b5ca4cce7ad8076",
+        "8bb636c89409b556263fb44c1ec76155fca6b7ab590e8a6528b5e40ffd6a6064",
         "06d5fc6518f626fbd90bdb8a5ce087aa4f618f378278e1b642eccd6772a5c6e2",
     ),
     (
         "2",
         1,
-        "f24991bd588c668136b4fde51c326a0e4b9fe22dfb623a877b5ca4cce7ad8076",
+        "8bb636c89409b556263fb44c1ec76155fca6b7ab590e8a6528b5e40ffd6a6064",
         "74511877b45c4003326e44c8efebdeef2a04b0f371460f14e553937bab9c3083",
     ),
 )
@@ -64,6 +64,32 @@ def canon(obj):
 def digest(obj):
     text = json.dumps(canon(obj), sort_keys=True)
     return hashlib.sha256(text.encode()).hexdigest()
+
+
+# The values the golden refit fits that depend on the CPU the test runs on. Its few
+# synthetic landings do not pin them down: the weights are noise around 1e-27 and the
+# intercept moves by about 4% with the BLAS kernel numpy picks (OPENBLAS_CORETYPE).
+CPU_DEPENDENT = (
+    ("risk", "features", "n_areas", "weight"),
+    ("risk", "features", "n_files", "weight"),
+    ("risk", "features", "n_source_files", "weight"),
+    ("scorer", "build_env", "linux-a"),
+    ("scorer", "cost_weight"),
+    ("scorer", "intercept"),
+    ("scorer", "test_config", "default"),
+)
+
+
+def model_digest(model_json):
+    """digest of a model without its CPU_DEPENDENT values."""
+    model_json = json.loads(json.dumps(model_json))
+    for path in CPU_DEPENDENT:
+        node = model_json
+        for key in path[:-1]:
+            node = node[key]
+        assert isinstance(node[path[-1]], float), path
+        del node[path[-1]]
+    return digest(model_json)
 
 
 # Run 0 of 2026-10-06, a training day of the main refit below, is also a holdout PR.
@@ -933,12 +959,12 @@ class TestCli(TestCase):
     def test_refit_without_budget_is_unchanged(self) -> None:
         # Digests of the model and the report a refit without --budget writes, floats at
         # 6 significant digits.
-        for ratio, code, model_digest, report_digest in GOLDEN:
+        for ratio, code, golden_model, report_digest in GOLDEN:
             with tempfile.TemporaryDirectory() as d:
                 got = self.run_refit(d, "--floor-ratio", ratio)
             self.assertEqual(got[0], code)
             self.assertNotIn("budget", got[1])
-            self.assertEqual(digest(got[1]), model_digest)
+            self.assertEqual(model_digest(got[1]), golden_model)
             self.assertEqual(digest(got[2]), report_digest)
             self.assertNotIn("budget", got[3])
             self.assertNotIn("main-failure monitor", got[3])
