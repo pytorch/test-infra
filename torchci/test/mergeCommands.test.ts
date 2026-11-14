@@ -1674,6 +1674,194 @@ some other text lol
     });
   });
 
+  describe("a merge_rules.yaml approval and the automated review", () => {
+    const RULES = `
+- name: Core
+  patterns: ["*"]
+  approved_by: [huydhn]
+`;
+
+    function mergeEvent() {
+      const event = requireDeepCopy("./fixtures/pull_request_comment.json");
+      event.payload.comment.body = "@pytorchbot merge";
+      event.payload.repository.owner.login = "pytorch";
+      event.payload.repository.name = "pytorch";
+      return event;
+    }
+
+    // huydhn approves, then the automated review requests changes.
+    function reviews(approver = "huydhn") {
+      const all = requireDeepCopy("./fixtures/pull_request_reviews.json");
+      all[0].user.login = approver;
+      all[0].state = "APPROVED";
+      all[0].submitted_at = "2024-01-01T00:00:00Z";
+      all[1].user.login = "github-actions[bot]";
+      all[1].state = "CHANGES_REQUESTED";
+      all[1].submitted_at = "2024-01-02T00:00:00Z";
+      all[1].body = "<!-- hardened-pr-review -->\n**Automated review**";
+      return [all[0], all[1]];
+    }
+
+    function mockRules(event: any, rules: number | string = RULES) {
+      const scope = nock("https://api.github.com")
+        .get(
+          `/repos/pytorch/pytorch/pulls/${event.payload.issue.number}/reviews?per_page=100`
+        )
+        .reply(200, event.reviews ?? reviews(event.approver))
+        .get(
+          `/repos/pytorch/pytorch/pulls/${event.payload.issue.number}/files?per_page=100`
+        )
+        .reply(200, [{ filename: "torch/x.py" }]);
+      const contents = scope.get(
+        "/repos/pytorch/pytorch/contents/.github%2Fmerge_rules.yaml"
+      );
+      if (typeof rules === "number") {
+        contents.reply(rules);
+      } else {
+        contents.reply(200, {
+          content: Buffer.from(rules).toString("base64"),
+        });
+      }
+      return scope;
+    }
+
+    function mockRefused(event: any) {
+      return nock("https://api.github.com")
+        .post(
+          `/repos/pytorch/pytorch/issues/comments/${event.payload.comment.id}/reactions`,
+          (body) => {
+            expect(body).toMatchObject({ content: "confused" });
+            return true;
+          }
+        )
+        .reply(200, {})
+        .post(
+          `/repos/pytorch/pytorch/issues/${event.payload.issue.number}/comments`,
+          (body) => {
+            expect(JSON.stringify(body)).toContain(
+              "This PR has pending changes requested"
+            );
+            return true;
+          }
+        )
+        .reply(200);
+    }
+
+    test("lets the merge past the automated review's changes requested", async () => {
+      const event = mergeEvent();
+      const pr_number = event.payload.issue.number;
+      const comment_number = event.payload.comment.id;
+      const scopes = [
+        mockRules(event),
+        nock("https://api.github.com")
+          .post(`/repos/pytorch/pytorch/issues/${pr_number}/labels`)
+          .reply(200, {})
+          .post(
+            `/repos/pytorch/pytorch/issues/comments/${comment_number}/reactions`,
+            (body) => {
+              expect(body).toMatchObject({ content: "+1" });
+              return true;
+            }
+          )
+          .reply(200, {})
+          .post(`/repos/pytorch/pytorch/dispatches`, (body) => {
+            expect(JSON.stringify(body)).toContain(
+              `{"event_type":"try-merge","client_payload":{"pr_num":${pr_number},"comment_id":${comment_number}}}`
+            );
+            return true;
+          })
+          .reply(200, {}),
+        utils.mockPermissions(
+          "pytorch/pytorch",
+          event.payload.issue.user.login,
+          "write"
+        ),
+      ];
+      await probot.receive(event);
+      handleScope(scopes);
+    });
+
+    function mockHead(event: any, sha: string) {
+      return nock("https://api.github.com")
+        .get(`/repos/pytorch/pytorch/pulls/${event.payload.issue.number}`)
+        .reply(200, { head: { sha } });
+    }
+
+    test("an approval of an earlier commit than the request leaves it blocking", async () => {
+      const event = mergeEvent();
+      event.reviews = reviews();
+      event.reviews[0].commit_id = "e".repeat(40);
+      const scopes = [
+        mockRules(event),
+        mockHead(event, event.reviews[1].commit_id),
+        mockRefused(event),
+      ];
+      await probot.receive(event);
+      handleScope(scopes);
+    });
+
+    test("an approval of the head lets the merge past a request on an older commit", async () => {
+      const event = mergeEvent();
+      const pr_number = event.payload.issue.number;
+      const comment_number = event.payload.comment.id;
+      event.reviews = reviews();
+      event.reviews[0].commit_id = "e".repeat(40);
+      const scopes = [
+        mockRules(event),
+        mockHead(event, "e".repeat(40)),
+        nock("https://api.github.com")
+          .post(`/repos/pytorch/pytorch/issues/${pr_number}/labels`)
+          .reply(200, {})
+          .post(
+            `/repos/pytorch/pytorch/issues/comments/${comment_number}/reactions`,
+            (body) => {
+              expect(body).toMatchObject({ content: "+1" });
+              return true;
+            }
+          )
+          .reply(200, {})
+          .post(`/repos/pytorch/pytorch/dispatches`)
+          .reply(200, {}),
+        utils.mockPermissions(
+          "pytorch/pytorch",
+          event.payload.issue.user.login,
+          "write"
+        ),
+      ];
+      await probot.receive(event);
+      handleScope(scopes);
+    });
+
+    test("an approval merge_rules.yaml does not accept still leaves it blocking", async () => {
+      const event = mergeEvent();
+      event.approver = "someone-else";
+      const scopes = [mockRules(event), mockRefused(event)];
+      await probot.receive(event);
+      handleScope(scopes);
+    });
+
+    test("a change request from another github-actions workflow still blocks", async () => {
+      const event = mergeEvent();
+      event.reviews = reviews();
+      event.reviews[1].body = "Lint found problems";
+      const scope = nock("https://api.github.com")
+        .get(
+          `/repos/pytorch/pytorch/pulls/${event.payload.issue.number}/reviews?per_page=100`
+        )
+        .reply(200, event.reviews);
+      const refused = mockRefused(event);
+      await probot.receive(event);
+      handleScope([scope, refused]);
+    });
+
+    test("unreadable merge rules leave it blocking", async () => {
+      const event = mergeEvent();
+      const scopes = [mockRules(event, 500), mockRefused(event)];
+      await probot.receive(event);
+      handleScope(scopes);
+    });
+  });
+
   test("Comment only workflows don't let a PR get merged in pytorch org", async () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";

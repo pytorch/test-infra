@@ -15,6 +15,7 @@ import {
   fetchMergeRules,
   fetchTeamMembership,
 } from "lib/greenlight/greenlightEligibility";
+import { isBot } from "lib/greenlight/greenlightReviewGate";
 import {
   getApprovalStatusFromReviews,
   getApprovingReviewers,
@@ -22,6 +23,7 @@ import {
   PR_APPROVED,
   PR_CHANGES_REQUESTED,
 } from "lib/reviewApproval";
+import _ from "lodash";
 import { Octokit } from "octokit";
 
 // The three mutually-exclusive status labels of the PR workflow. A PR carrying
@@ -415,7 +417,7 @@ export async function fetchLiveLabels(
 // names no approvers at all. trymerge reads approvers over GraphQL, where an
 // app's login lacks the "[bot]" suffix REST gives it (merge_rules.yaml names
 // "pytorchgreenlight", reviews come back from "pytorchgreenlight[bot]").
-async function hasMergeRuleApproval(
+export async function hasMergeRuleApproval(
   octokit: Octokit,
   owner: string,
   repo: string,
@@ -426,6 +428,15 @@ async function hasMergeRuleApproval(
     fetchMergeRules(octokit),
     getFilesChangedByPr(octokit, owner, repo, prNumber),
   ]);
+  return await rulesAccept(octokit, rules, files, approvers);
+}
+
+async function rulesAccept(
+  octokit: Octokit,
+  rules: Awaited<ReturnType<typeof fetchMergeRules>>,
+  files: string[],
+  approvers: string[]
+): Promise<boolean> {
   const logins = approvers.map((approver) => approver.replace(/\[bot\]$/, ""));
   for (const rule of rules) {
     if (rule.matches === null || !files.every(rule.matches)) {
@@ -446,6 +457,50 @@ async function hasMergeRuleApproval(
     }
   }
   return false;
+}
+
+// The commits that human approvals satisfying merge_rules.yaml were given on:
+// for each human whose latest review approves, the commit of their latest
+// approval, kept when those approvers satisfy the rules. Such an approval
+// overrides the automated review's change request on the same commit, and any
+// request once it covers the head.
+export async function bindingApprovalCommits(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  prNumber: number,
+  reviews: PullRequestReview[]
+): Promise<Set<string>> {
+  const humans = getApprovingReviewers(reviews, true).filter(
+    (login) => !isBot(login, undefined)
+  );
+  const byCommit = new Map<string, string[]>();
+  for (const login of humans) {
+    const approvals = reviews.filter(
+      (r) => r.user?.login === login && r.state.toUpperCase() === "APPROVED"
+    );
+    const latest = _.maxBy(approvals, (r) => Date.parse(r.submitted_at + ""));
+    if (latest?.commit_id) {
+      byCommit.set(latest.commit_id, [
+        ...(byCommit.get(latest.commit_id) ?? []),
+        login,
+      ]);
+    }
+  }
+  const binding = new Set<string>();
+  if (byCommit.size === 0) {
+    return binding;
+  }
+  const [rules, files] = await Promise.all([
+    fetchMergeRules(octokit),
+    getFilesChangedByPr(octokit, owner, repo, prNumber),
+  ]);
+  for (const [commit, approvers] of byCommit) {
+    if (await rulesAccept(octokit, rules, files, approvers)) {
+      binding.add(commit);
+    }
+  }
+  return binding;
 }
 
 /**
