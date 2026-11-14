@@ -15,6 +15,10 @@ shipped model keeps it only when the gate's budget check passes; refit then writ
 models and the samples after the walk-forward and, last, prints the report-only
 main-failure monitor (gate.monitor, which waits at most gate.MONITOR_SECONDS): main
 landings of the last two months caught by the budgeted cut and by TD's 25% cut.
+Once the models and the samples are written, and when a candidate heuristic
+(train.CANDIDATES) was logged, refit also prints, report only, the walk-forward with the
+candidates added (walkforward.candidates) and adds it to `--report`; an error there is
+logged and changes nothing else.
 `check-pytorch` checks a model file against pytorch's TD scorer code (check_pytorch.py).
 `sweep` replays the cut at every point of the budget grid, read-only (sweep.py).
 """
@@ -44,6 +48,8 @@ from torchci.td.scorer import (
     walkforward,
 )
 
+
+logger = logging.getLogger(__name__)
 
 FINAL_AFTER_DAYS = 2
 TEST_TIMES_URL = (
@@ -82,6 +88,29 @@ def write_models(args: argparse.Namespace, model: dict[str, Any]) -> None:
     Path(args.out).write_text(model_json.dumps(model_json.without_budget(model)))
     if args.budget_out:
         Path(args.budget_out).write_text(model_json.dumps(model))
+
+
+def report_candidates(
+    args: argparse.Namespace,
+    history: walkforward.History,
+    source: store.Shards,
+    times: rows.JobTimes,
+    summary: dict[str, Any],
+) -> None:
+    """Report only: when a candidate heuristic was logged, prints the walk-forward with
+    the candidates added (walkforward.candidates) and, with `--report`, adds it to the
+    report under `candidates`. Never raises."""
+    if not history.candidate_prs:
+        return
+    try:
+        compared = walkforward.candidates(history, source.get, times, args.day)
+        print(walkforward.candidates_text(*compared))
+        if args.report and compared[0]:
+            summary["candidates"] = walkforward.candidates_summary(*compared)
+            Path(args.report).write_text(json.dumps(summary, indent=2) + "\n")
+    except Exception as e:
+        logger.error("candidates report failed: %s", e, exc_info=True)
+        print(f"candidates (report only): unavailable ({type(e).__name__}: {e})")
 
 
 def refit(args: argparse.Namespace) -> int:
@@ -188,6 +217,7 @@ def refit(args: argparse.Namespace) -> int:
             )
             texts[has_block] = json.dumps(sampled.dump()) + "\n"
         Path(path).write_text(texts[has_block])
+    report_candidates(args, history, source, times, summary)
     if budget is not None:
         gate.monitor(candidate, times, day)
     if result.passed:

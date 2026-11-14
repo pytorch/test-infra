@@ -274,6 +274,39 @@ its fetch fails or takes longer than `gate.MONITOR_SECONDS`. That bounds the wai
 the process: TD log fetches already queued when it gives up finish before the process
 exits (minutes at worst, after everything is written).
 
+## Candidate heuristics
+
+A candidate is a heuristic pytorch's TD runs in trial mode, named in `train.CANDIDATES`
+(`LLMSelection`): the TD log has its scores, so the day shards hold them, but it never
+enters the shipped model (see "The model contract"). The refit reports what it would
+add. For each walk-forward month with new PRs where a candidate ran and did not raise,
+two models are fitted on the days before the month, as the walk-forward fits its own:
+one over `train.HEURISTICS`, one with the candidates added, neither with a budget block.
+Both score those PRs, and the month's counted trunk landings of those PRs, at TD's own
+cost. Per month and pooled, the report gives TD's score, each model's score and its
+ratio to TD's, the event recall of each, and the trunk landings each caught. A month
+whose earlier days have no row where a candidate was active gives it no weight, so both
+models agree there: the first month a candidate is logged shows no difference.
+
+The report has the floor's bias: once the scorer is published, PR failures are only
+observed in files the published cut ran, so a candidate that would have run other files
+gets no credit from them. The counted trunk landings (tests TD skipped on the PR that
+then broke trunk) are the view that is not biased that way.
+
+It is report only: printed once the models and the samples are written, and added to
+`--report` under `candidates`, it changes neither the shipped model nor the exit code,
+and an error in it is logged, not raised. Each month with candidate PRs costs two more
+fits; the months are taken newest first and none starts after
+`walkforward.CANDIDATES_SECONDS` (30 minutes), so the report cannot use up the refit
+job's time.
+
+To promote a candidate, in this order:
+
+1. pytorch drops the heuristic's `trial_mode`, so its scores reorder tests there.
+2. Its name moves from `train.CANDIDATES` to `train.HEURISTICS`: the next refit fits it
+   into the shipped model, and `check-pytorch` replays the gate's cut with pytorch's
+   code.
+
 ## The test budget
 
 pytorch's `scorer_model.py` defines the optional top-level block

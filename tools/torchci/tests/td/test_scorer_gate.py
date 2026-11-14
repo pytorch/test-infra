@@ -1042,6 +1042,63 @@ class TestCli(TestCase):
         failed = self.refit_files("--budget", walk_forward=fold)
         self.assertEqual(failed, [None] * 4)
 
+    def test_refit_reports_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            plain = self.run_refit(d)
+        self.assertNotIn("candidates", plain[2])
+        self.assertNotIn("candidates", plain[3])
+        build = self.build
+
+        # A candidate ran for every other PR.
+        def logged(day):
+            shard = build(day)
+            for i in range(0, len(shard.runs), 2):
+                names = ["Filepath", "Trial"]
+                shard.runs[i] = dataclasses.replace(shard.runs[i], heuristics=names)
+            return shard
+
+        def refit(d, side_effect=None):
+            with mock.patch.object(self, "build", logged), mock.patch.object(
+                train, "CANDIDATES", ("Trial",)
+            ), mock.patch.object(
+                cli.walkforward, "candidates", side_effect=side_effect
+            ) if side_effect else contextlib.nullcontext():
+                got = self.run_refit(d, "--sample", str(Path(d) / "s.json"))
+            return got, (Path(d) / "s.json").read_bytes()
+
+        with tempfile.TemporaryDirectory() as d:
+            (code, model, report, out), sample_bytes = refit(d)
+        # The shipped model and the gate are those of the same days without it.
+        self.assertEqual((code, model), plain[:2])
+        table = report.pop("candidates")
+        self.assertEqual(report, plain[2])
+        self.assertEqual((table["heuristics"], table["prs"]), (["Trial"], 135))
+        total, with_total = table["scorer"][-1], table["with_candidates"][-1]
+        self.assertEqual((total["month"], total["prs_with_events"]), ("total", 53))
+        self.assertEqual(with_total["prs_with_events"], 53)
+        self.assertEqual((total["trunk_landings"], total["td"]), (0, with_total["td"]))
+        self.assertIn(
+            "candidates (report only): Trial, on the 135 PRs where a candidate ran", out
+        )
+        self.assertLess(out.index("result: PASS"), out.index("candidates (report"))
+
+        # It runs once the model, the report and the sample exist, and never fails the
+        # run or changes them.
+        with tempfile.TemporaryDirectory() as d:
+
+            def written(*args):
+                for name in ("m.json", "r.json", "s.json"):
+                    self.assertTrue((Path(d) / name).exists(), name)
+                raise RuntimeError("no candidates")
+
+            failed, failed_sample = refit(d, written)
+        self.assertEqual(failed[:3], (code, model, report))
+        self.assertEqual(failed_sample, sample_bytes)
+        self.assertIn(
+            "candidates (report only): unavailable (RuntimeError: no candidates)",
+            failed[3],
+        )
+
     def test_refit_marks_no_outcome_days_by_age(self) -> None:
         self.broken, self.gap = set(), set()
         today = date(2026, 11, 30)
