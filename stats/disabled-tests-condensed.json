@@ -14,6 +14,13 @@
       "xpu"
     ]
   ],
+  "test_an_accepted_producer_with_an_assert_is_not_benchmarked_later (__main__.MultiTemplateFusionDecisionGpuTest)": [
+    "204913",
+    "https://github.com/pytorch/pytorch/issues/204913",
+    [
+      "xpu"
+    ]
+  ],
   "test_aoti_debug_printer_codegen_cuda (__main__.AOTInductorTestDualWrapper)": [
     "189322",
     "https://github.com/pytorch/pytorch/issues/189322",
@@ -1145,6 +1152,13 @@
       "macos"
     ]
   ],
+  "test_partitioner_activation_memory_budget_with_unbacked_symints_xpu (__main__.ReproTestsDeviceXPU)": [
+    "203837",
+    "https://github.com/pytorch/pytorch/issues/203837",
+    [
+      "xpu"
+    ]
+  ],
   "test_perf_atomic_contention (__main__.TestPartitionedScatterOpt)": [
     "193150",
     "https://github.com/pytorch/pytorch/issues/193150",
@@ -1178,6 +1192,13 @@
     "188705",
     "https://github.com/pytorch/pytorch/issues/188705",
     []
+  ],
+  "test_regional_fallback_by_default_invoke_subgraph_xpu (__main__.GPUTests)": [
+    "195876",
+    "https://github.com/pytorch/pytorch/issues/195876",
+    [
+      "xpu"
+    ]
   ],
   "test_remote_timeout_to_here_in_jit (__main__.FaultyJitFaultyAgentRpcTest)": [
     "69178",
@@ -1334,9 +1355,23 @@
       "linux"
     ]
   ],
+  "test_sparse_add_aliased_out_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
+    "204912",
+    "https://github.com/pytorch/pytorch/issues/204912",
+    [
+      "xpu"
+    ]
+  ],
   "test_sparse_sparse_mul_xpu_bfloat16 (__main__.TestSparseXPU)": [
     "204889",
     "https://github.com/pytorch/pytorch/issues/204889",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_complex128 (__main__.TestSparseXPU)": [
+    "204911",
+    "https://github.com/pytorch/pytorch/issues/204911",
     [
       "xpu"
     ]
