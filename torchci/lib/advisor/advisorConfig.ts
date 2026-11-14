@@ -16,7 +16,11 @@
 // Exception: PRs carrying a label in OUTAGE_GUARD_BYPASS_LABELS are EXPECTED to
 // fail broadly (e.g. ci-no-td runs the full suite), so instead of bailing they
 // are capped to DEFAULT_MAX_DISPATCH_PER_PR via a stable-hash subset.
-export const DEFAULT_MAX_NEW_FAILURES = 8;
+//
+// Set to the most AI-cleared checks pytorch/pytorch's trymerge lets one merge
+// skip (IGNORABLE_FAILED_CHECKS_THESHOLD in .github/scripts/trymerge.py): a PR
+// with up to that many failures can merge once the advisor clears them all.
+export const DEFAULT_MAX_NEW_FAILURES = 10;
 
 // Hard ceiling on how many advisor analyses auto-dispatch will ever fan out on a
 // single PR head. Applies on every path that proceeds past the outage guard; it
@@ -58,7 +62,6 @@ export const ADVISOR_REPOS: Record<string, AdvisorRepoConfig> = {
   "pytorch/pytorch": {
     workflowFile: "claude-autorevert-advisor.yml",
     defaultBranch: "main",
-    maxNewFailures: 8,
     maxDispatchPerPr: 32,
   },
 };
