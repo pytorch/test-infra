@@ -11,7 +11,9 @@
 -- counts only when its repo is pytorch/test-infra, its S3 key is exactly the one the workflow
 -- writes for its own run id and attempt, and that attempt's `upload` job succeeded with its
 -- upload step run, not skipped. The newest such attempt up to the run's latest wins. When one
--- key holds rows with different info (report_infos > 1), no figure is read from it.
+-- key holds rows with different info (report_infos > 1), no figure is read from it. An
+-- overwrite of the key before the S3 replicator reads it is not caught: the replicator reads the
+-- key's current bytes, so every row then holds the overwrite.
 -- Figures are read as nullable: a missing key or a null (a non-finite value) reads null, never 0.
 --
 -- ClickHouse runs a CTE at each reference: job_rows runs twice (the upload gate and the job
@@ -100,6 +102,7 @@ jobs AS (
         anyIf(failed_step, name = 'refit') AS refit_failed_step,
         anyIf(conclusion, name = 'check') AS check_conclusion,
         anyIf(conclusion, name = 'publish') AS publish_conclusion,
+        anyIf(conclusion, name = 'upload') AS upload_conclusion,
         anyIf(upload_step, name = 'upload') AS report_upload
     FROM (
         SELECT * FROM job_rows
@@ -162,6 +165,7 @@ SELECT
     refit_failed_step,
     check_conclusion,
     publish_conclusion,
+    upload_conclusion,
     report_upload,
     report_attempt,
     report_infos,

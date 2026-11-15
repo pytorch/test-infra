@@ -62,6 +62,7 @@ function refit(partial: Partial<RefitRow> = {}): RefitRow {
     refit_failed_step: "",
     check_conclusion: "success",
     publish_conclusion: "success",
+    upload_conclusion: "success",
     report_upload: "success",
     report_attempt: 1,
     report_infos: 1,
@@ -240,25 +241,45 @@ describe("reportState", () => {
       refit_conclusion: "failure",
       created_at: "2026-11-20 11:00:00.000",
     };
-    expect(reportState(refit({ ...failed, report_upload: "" }), NOW)).toBe(
-      "none"
-    );
+    const notRun = { ...failed, upload_conclusion: "", report_upload: "" };
+    expect(reportState(refit(notRun), NOW)).toBe("none");
+    expect(
+      reportState(refit({ ...notRun, upload_conclusion: "skipped" }), NOW)
+    ).toBe("none");
     expect(
       reportState(refit({ ...failed, report_upload: "skipped" }), NOW)
     ).toBe("none");
     expect(
+      reportState(refit({ ...notRun, refit_conclusion: "cancelled" }), NOW)
+    ).toBe("none");
+  });
+
+  it("is missing at once when the upload failed", () => {
+    const failed = {
+      ...missing,
+      refit_conclusion: "failure",
+      created_at: "2026-11-20 11:00:00.000",
+    };
+    expect(
       reportState(
-        refit({ ...failed, refit_conclusion: "cancelled", report_upload: "" }),
+        refit({ ...failed, upload_conclusion: "failure", report_upload: "" }),
         NOW
       )
-    ).toBe("none");
-    expect(
-      reportState(refit({ ...failed, report_upload: "failure" }), NOW)
-    ).toBe("pending");
+    ).toBe("missing");
     expect(
       reportState(
-        refit({ ...failed, report_upload: "failure" }),
-        NOW + 86400000
+        refit({ ...failed, upload_conclusion: "cancelled", report_upload: "" }),
+        NOW
+      )
+    ).toBe("missing");
+    expect(
+      reportState(
+        refit({
+          ...failed,
+          upload_conclusion: "failure",
+          report_upload: "failure",
+        }),
+        NOW
       )
     ).toBe("missing");
     expect(
@@ -658,7 +679,8 @@ describe("refit section", () => {
         refit({
           run_id: "1",
           refit_conclusion: "failure",
-          refit_failed_step: "Install dependencies",
+          refit_failed_step: "Set up the TD scorer",
+          upload_conclusion: "skipped",
           report_upload: "",
           report_attempt: 0,
           report_infos: 0,

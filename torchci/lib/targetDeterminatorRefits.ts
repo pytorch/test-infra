@@ -18,6 +18,7 @@ export interface RefitRow {
   refit_failed_step: string;
   check_conclusion: string;
   publish_conclusion: string;
+  upload_conclusion: string;
   report_upload: string;
   report_attempt: ChNum;
   report_infos: ChNum;
@@ -172,11 +173,20 @@ export function reportState(row: RefitRow, now: number): ReportState {
   if (row.run_status !== "completed") {
     return "pending";
   }
-  // The upload step runs only on a report file the refit left; '' is a run
-  // without an upload job.
+  const upload = row.upload_conclusion;
+  if (
+    row.report_upload === "failure" ||
+    (upload !== "" && upload !== "success" && upload !== "skipped")
+  ) {
+    return "missing";
+  }
+  // The upload step runs only on a report file the refit left; an upload job
+  // that did not run, or ran and skipped that step, had no report to send.
   if (
     row.refit_conclusion !== "success" &&
-    (row.report_upload === "" || row.report_upload === "skipped")
+    (upload === "" ||
+      upload === "skipped" ||
+      (upload === "success" && row.report_upload === "skipped"))
   ) {
     return "none";
   }

@@ -1374,6 +1374,7 @@ const REFIT_COLUMNS = [
   "refit_failed_step",
   "check_conclusion",
   "publish_conclusion",
+  "upload_conclusion",
   "report_upload",
   "report_attempt",
   "report_infos",
