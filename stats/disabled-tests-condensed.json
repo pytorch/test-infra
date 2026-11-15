@@ -962,6 +962,13 @@
       "xpu"
     ]
   ],
+  "test_mem_get_info_with_pyzes (__main__.TestXpu)": [
+    "205024",
+    "https://github.com/pytorch/pytorch/issues/205024",
+    [
+      "xpu"
+    ]
+  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
@@ -1372,6 +1379,13 @@
   "test_sparse_sparse_mul_xpu_complex128 (__main__.TestSparseXPU)": [
     "204911",
     "https://github.com/pytorch/pytorch/issues/204911",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_complex64 (__main__.TestSparseXPU)": [
+    "205023",
+    "https://github.com/pytorch/pytorch/issues/205023",
     [
       "xpu"
     ]
