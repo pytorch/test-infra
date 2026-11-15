@@ -202,11 +202,11 @@ item says what decides it, and a path it mentions only says where that happens.
 - Code ownership: any `CODEOWNERS` or `OWNERSHIP.yaml` file, the auto-pr-triage rosters
   (`.github/auto-pr-triage/extra_ownership_metadata.json` and `team_members.json` beside
   it), and the scripts that generate or check `CODEOWNERS` (`scripts/codeowners/`). It
-  also covers a test file's `# Owner(s):` header that the diff changes or removes, and
-  that header falls under this item alone, not under text consumed as configuration; the
-  header of a test file the diff adds falls under neither. Who owns code is a human's
-  call, whether or not an ownership rule gates a merge, and even when the edit is
-  generated or mirrors its sibling entries.
+  also covers a test file's `# Owner(s):` header that the diff changes, removes, or adds
+  to a file that already has one, and that header falls under this item alone, not under
+  text consumed as configuration; the header of a test file the diff adds falls under
+  neither. Who owns code is a human's call, whether or not an ownership rule gates a
+  merge, and even when the edit is generated or mirrors its sibling entries.
 - Re-landing a reverted change: the PR, or a commit it applies again, was reverted from
   main (as its comments or description show), and the description does not say what
   broke and what in the diff fixes it, as you confirm by reading the diff.
