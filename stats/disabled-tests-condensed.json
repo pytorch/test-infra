@@ -588,6 +588,13 @@
       "slow"
     ]
   ],
+  "test_event_multiprocess_xpu_event_xpu_event_xpu (__main__.TestXPUMultiprocessingXPU)": [
+    "205058",
+    "https://github.com/pytorch/pytorch/issues/205058",
+    [
+      "xpu"
+    ]
+  ],
   "test_event_record_after_input_mutation_non_escaping_no_error_via_stream_record_event_False_cuda (__main__.TestStreamsCUDA)": [
     "204185",
     "https://github.com/pytorch/pytorch/issues/204185",
