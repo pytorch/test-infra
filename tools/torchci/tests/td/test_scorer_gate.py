@@ -1199,20 +1199,30 @@ class TestCli(TestCase):
                     self.assertEqual("refused" not in outputs, allowed)
 
     def test_workflow_report_upload(self) -> None:
-        refit, name = workflow_jobs()["refit"], "Upload the report to HUD"
-        names = [step.get("name") for step in refit["steps"]]
-        self.assertEqual(names[-2:], ["Upload the model", name])
-        step = workflow_step(refit, name)
+        # HUD counts a report only when the job named `upload` succeeded.
+        jobs = workflow_jobs()
+        upload, name = jobs["upload"], "Upload the report to HUD"
+        self.assertEqual(upload["needs"], "refit")
         for term in (
             "!cancelled()",
-            "steps.refit.outputs.ran == 'true'",
+            "needs.refit.outputs.ran == 'true'",
             "github.ref == 'refs/heads/main'",
             "github.event_name != 'pull_request'",
-            "hashFiles('td-scorer/report.json') != ''",
         ):
-            self.assertIn(term, step["if"])
-        self.assertIs(step["continue-on-error"], True)
-        self.assertEqual(step["timeout-minutes"], 5)
+            self.assertIn(term, upload["if"])
+        self.assertNotIn("continue-on-error", upload)
+        self.assertLessEqual(upload["timeout-minutes"], 15)
+        for job in jobs.values():
+            needs = job.get("needs", [])
+            self.assertNotIn("upload", [needs] if isinstance(needs, str) else needs)
+        self.assertNotIn(name, [s.get("name") for s in jobs["refit"]["steps"]])
+        names = [s.get("name") for s in upload["steps"]]
+        self.assertEqual(names[-1], name)
+        aws = workflow_step(upload, "Configure AWS credentials")
+        self.assertLess(names.index(aws["name"]), names.index(name))
+        self.assertLessEqual(aws["with"]["role-duration-seconds"], 900)
+        step = workflow_step(upload, name)
+        self.assertEqual(step["if"], "hashFiles('td-scorer/report.json') != ''")
         self.assertNotIn("env", step)
         self.assertNotIn("${{", step["run"])
         self.assertIn("upload-report --report ../td-scorer/report.json", step["run"])

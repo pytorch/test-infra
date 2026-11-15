@@ -1,4 +1,5 @@
 import gzip
+import io
 import json
 import sys
 import tempfile
@@ -19,7 +20,8 @@ ENV = {
     "GITHUB_WORKFLOW": "TD scorer refit",
     "GITHUB_JOB": "refit",
 }
-KEY = "ossci_uploaded_metrics/td_scorer_refit_19400000001_2.jsonl.gz"
+NAME = "ossci_uploaded_metrics/td_scorer_refit_19400000001_2"
+KEY = f"{NAME}.jsonl.gz"
 REPORT_TEXT = (
     '{"passed": true, "floor_ratio": 0.6, "ratio": NaN,'
     ' "budget": {"retention": Infinity, "cost_share": -Infinity},'
@@ -138,7 +140,7 @@ class TestReportUpload(TestCase):
         size = len(self.client.put_object.call_args.kwargs["Body"])
         self.assertEqual(
             logged.output,
-            [f"INFO:{report_upload.__name__}:uploaded {KEY} ({size} bytes)"],
+            [f"INFO:{report_upload.__name__}:uploaded {NAME} ({size} bytes)"],
         )
 
     def test_body_never_holds_nan(self) -> None:
@@ -155,11 +157,35 @@ class TestReportUpload(TestCase):
         self.uploaded_row()
 
     def test_existing_key_is_not_overwritten(self) -> None:
+        class Clock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 11, 15, 12, tzinfo=tz)
+
+        with mock.patch.object(report_upload, "datetime", Clock):
+            self._check_existing_key()
+
+    def _check_existing_key(self) -> None:
+        self.assertEqual(self.upload(), 0)
+        written = self.client.put_object.call_args.kwargs["Body"]
+        self.client.reset_mock()
         self.client.head_object.side_effect = None
+        self.client.get_object.return_value = {"Body": io.BytesIO(written)}
         with self.assertLogs(report_upload.logger, "INFO") as logged:
             self.assertEqual(self.upload(), 0)
+        self.assertIn(f"{NAME} already holds this report", logged.output[0])
+        self.assertEqual(self.client.get_object.call_args.kwargs["Key"], KEY)
+        self.client.get_object.return_value = {"Body": io.BytesIO(written + b"x")}
+        with self.assertLogs(report_upload.logger, "ERROR"), mock.patch(
+            "sys.stdout", new_callable=io.StringIO
+        ) as out:
+            self.assertEqual(self.upload(), 1)
+        self.assertEqual(
+            out.getvalue(),
+            f"::error::{NAME} was already written by another writer: not overwritten\n",
+        )
         self.client.put_object.assert_not_called()
-        self.assertIn(f"{KEY} already exists", logged.output[0])
+        self.client.delete_object.assert_not_called()
 
     def test_refusals_write_nothing(self) -> None:
         bad_env = [

@@ -6,12 +6,14 @@ import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { ABSENT, parseStamp } from "lib/greenlight/qualityFigures";
 import { minutesText } from "lib/targetDeterminator";
 import {
-  OUTCOME_TEXT,
-  REPORT_TEXT,
-  RefitRow,
+  REFIT_OUTCOME_LABELS,
   refitOutcome,
+  RefitRow,
+  REPORT_TEXT,
+  reportInconsistent,
   reportState,
   runUrl,
+  verdict,
 } from "lib/targetDeterminatorRefits";
 import { num } from "lib/targetDeterminatorRows";
 import { useMemo } from "react";
@@ -34,11 +36,6 @@ export interface RefitTableRow {
   url?: string;
 }
 
-function verdict(ok: unknown): string {
-  const value = num(ok);
-  return value === 1 ? "met" : value === 0 ? "not met" : "unknown";
-}
-
 // Figures are read only from a report that is present: the query blanks any
 // other, and this keeps a missing figure a dash rather than a 0.
 export function refitTableRows(rows: RefitRow[], now: number): RefitTableRow[] {
@@ -48,16 +45,23 @@ export function refitTableRows(rows: RefitRow[], now: number): RefitTableRow[] {
     const present = report === "present";
     const healthy = num(row.holdout_healthy);
     const floor = num(row.floor_ratio);
+    const attempt = num(row.report_attempt);
+    const notes = [
+      present && attempt !== num(row.refit_attempt)
+        ? `figures from attempt ${attempt}`
+        : undefined,
+      reportInconsistent(row) ? "inconsistent with the refit job" : undefined,
+    ].filter((note) => note !== undefined);
     return {
       id: row.run_id,
       day: parseStamp(row.created_at)?.format("YYYY-MM-DD") ?? ABSENT,
-      outcome: OUTCOME_TEXT[outcome],
+      outcome: REFIT_OUTCOME_LABELS[outcome],
       failedStep:
         outcome === "refit_failed" || outcome === "gate_failed"
           ? row.refit_failed_step || ABSENT
           : ABSENT,
       minutes: minutesText(row.refit_minutes),
-      report: REPORT_TEXT[report],
+      report: [REPORT_TEXT[report], ...notes].join("; "),
       pooled: present
         ? `${percentFormatter(num(row.total_ratio))} (floor ${percentFormatter(
             floor
@@ -87,7 +91,7 @@ const COLUMNS = [
   { field: "outcome", headerName: "Outcome", width: 180 },
   { field: "failedStep", headerName: "Failed step", flex: 1, minWidth: 200 },
   { field: "minutes", headerName: "Refit job", width: 100 },
-  { field: "report", headerName: "Report", width: 140 },
+  { field: "report", headerName: "Report", flex: 1, minWidth: 200 },
   {
     field: "pooled",
     headerName: "Scorer / TD recall, pooled",

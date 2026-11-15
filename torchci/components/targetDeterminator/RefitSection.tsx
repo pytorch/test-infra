@@ -24,12 +24,14 @@ import {
   latestReport,
   type LiveModel,
   MODEL_MAX_AGE_DAYS,
-  OUTCOME_TEXT,
   readLiveModel,
+  REFIT_OUTCOME_LABELS,
   type RefitMonth,
   refitOutcome,
   type RefitRow,
+  REPORT_TEXT,
   reportMonths,
+  verdict,
 } from "lib/targetDeterminatorRefits";
 import { num, type TdQueryState } from "lib/targetDeterminatorRows";
 import { useState } from "react";
@@ -147,7 +149,7 @@ function monthOptions(months: RefitMonth[]): EChartsOption {
   return {
     useUTC: true,
     grid: { containLabel: true },
-    yAxis: { min: 0, max: 1 },
+    yAxis: { min: 0 },
     tooltip: {
       trigger: "axis",
       formatter: (params: any) => {
@@ -160,10 +162,12 @@ function monthOptions(months: RefitMonth[]): EChartsOption {
 
 function MonthChart({
   report,
+  emptyText,
   loading,
   error,
 }: {
   report: RefitRow | undefined;
+  emptyText: string;
   loading: boolean;
   error?: string;
 }) {
@@ -176,7 +180,7 @@ function MonthChart({
           height={CHART_HEIGHT}
           loading={loading}
           error={error}
-          emptyText={months.length === 0 ? NO_REPORT : undefined}
+          emptyText={months.length === 0 ? emptyText : undefined}
         >
           <Box sx={{ height: CHART_HEIGHT }}>
             <TimeSeriesPanelWithData
@@ -229,12 +233,17 @@ export function RefitSectionView({
   const latest = rows[0];
   const outcome = latest === undefined ? undefined : refitOutcome(latest);
   const published = rows.filter((r) => refitOutcome(r) === "published").length;
-  const report = latestReport(rows, now);
+  const newest = latestReport(rows, now);
+  const report = newest?.state === "present" ? newest.row : undefined;
   const month =
     report === undefined ? undefined : lastCompleteMonth(reportMonths(report));
   const floor = num(report?.floor_ratio);
   const budgetOn = num(report?.budget_on) === 1;
-  const noFigure = empty ? NO_DATA_IN_WINDOW : NO_REPORT;
+  const noFigure = empty
+    ? NO_DATA_IN_WINDOW
+    : newest === undefined || report !== undefined
+    ? NO_REPORT
+    : `Newest report: ${REPORT_TEXT[newest.state].toLowerCase()}`;
   const monthSub =
     month === undefined
       ? report === undefined
@@ -261,7 +270,7 @@ export function RefitSectionView({
           loading={live.state === "loading"}
           value={LIVE_TEXT[live.state]}
           sub={liveModelSub(live)}
-          caveat={`Read now from generated-stats, whatever the picked window. pytorch uses td-scorer.json while it is enabled and at most ${MODEL_MAX_AGE_DAYS} days old, and a test budget only from td-scorer-budget.json of the same refit, at most ${BUDGET_MAX_AGE_DAYS} days old.`}
+          caveat={`Read now from generated-stats, whatever the picked window. This mirrors pytorch's enabled, age and version rules, not its full check of the files: pytorch uses td-scorer.json while it is enabled and at most ${MODEL_MAX_AGE_DAYS} days old, and a test budget only from td-scorer-budget.json of the same refit, at most ${BUDGET_MAX_AGE_DAYS} days old.`}
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -269,7 +278,7 @@ export function RefitSectionView({
           label="Latest refit"
           {...toggle("runs")}
           {...queryProps}
-          value={outcome === undefined ? "-" : OUTCOME_TEXT[outcome]}
+          value={outcome === undefined ? "-" : REFIT_OUTCOME_LABELS[outcome]}
           sub={
             latest === undefined
               ? NO_DATA_IN_WINDOW
@@ -293,7 +302,7 @@ export function RefitSectionView({
           {...queryProps}
           value={empty ? "-" : `${published} of ${rows.length}`}
           sub={empty ? NO_DATA_IN_WINDOW : undefined}
-          caveat="Runs in the counted window whose new model reached generated-stats. A run that does not publish leaves the previous model live."
+          caveat="Runs in the counted window whose publish job succeeded. That job can succeed without changing the live files, and fail after pushing td-scorer.json; a run that does not publish leaves the previous model live."
         />
       </Grid>
       <Grid size={TILE_SPAN}>
@@ -336,9 +345,7 @@ export function RefitSectionView({
               ? "Budget off in the latest report"
               : `floor ${percentFormatter(
                   num(report.budget_retention_floor)
-                )}: ${
-                  num(report.budget_ok) === 1 ? "met" : "not met"
-                }; ${percentFormatter(
+                )}: ${verdict(report.budget_ok)}; ${percentFormatter(
                   num(report.budget_seconds_share)
                 )} of test time`
           }
@@ -346,7 +353,12 @@ export function RefitSectionView({
         />
       </Grid>
       {open.has("months") && (
-        <MonthChart report={report} loading={loading} error={error} />
+        <MonthChart
+          report={report}
+          emptyText={noFigure}
+          loading={loading}
+          error={error}
+        />
       )}
       {open.has("runs") && (
         <RefitTable rows={rows} loading={loading} error={error} now={now} />

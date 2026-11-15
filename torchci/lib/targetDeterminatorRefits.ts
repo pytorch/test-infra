@@ -9,18 +9,16 @@ import { type ChNum, num } from "lib/targetDeterminatorRows";
 // Statuses and conclusions are '' for a job the run has no row for.
 export interface RefitRow {
   run_id: string;
-  run_attempt: ChNum;
   created_at: string;
   run_status: string;
   run_conclusion: string;
-  refit_status: string;
+  refit_attempt: ChNum;
   refit_conclusion: string;
   refit_minutes: ChNum;
   refit_failed_step: string;
-  check_status: string;
   check_conclusion: string;
-  publish_status: string;
   publish_conclusion: string;
+  report_upload: string;
   report_attempt: ChNum;
   report_infos: ChNum;
   report_valid: ChNum;
@@ -50,20 +48,10 @@ export interface RefitRow {
   wf_risk_auc: ChNum[];
 }
 
-export type RefitOutcome =
-  | "running"
-  | "cancelled"
-  | "refit_failed"
-  | "gate_failed"
-  | "check_failed"
-  | "not_validated"
-  | "publish_failed"
-  | "published"
-  | "unknown";
-
-export const OUTCOME_TEXT: Record<RefitOutcome, string> = {
+export const REFIT_OUTCOME_LABELS = {
   running: "Running",
   cancelled: "Cancelled",
+  timed_out: "Refit timed out",
   refit_failed: "Refit failed",
   gate_failed: "Gate failed",
   check_failed: "Check failed",
@@ -72,8 +60,33 @@ export const OUTCOME_TEXT: Record<RefitOutcome, string> = {
   published: "Published",
   unknown: "Unknown",
 };
+export type RefitOutcome = keyof typeof REFIT_OUTCOME_LABELS;
+
+// The refit job's timeout-minutes in .github/workflows/td-scorer.yml.
+export const REFIT_TIMEOUT_MINUTES = 285;
+// The refit job's step that fits, gates and writes the report.
+export const REFIT_STEP = "Refit, gate and write the model";
+// The upload job's step the query requires to have succeeded for a report.
+export const REPORT_UPLOAD_STEP = "Upload the report to HUD";
 
 const FAILED = new Set(["failure", "timed_out"]);
+
+// workflow_job records a job stopped at its timeout-minutes as cancelled.
+function refitTimedOut(row: RefitRow): boolean {
+  return (
+    row.refit_conclusion === "timed_out" ||
+    (row.refit_conclusion === "cancelled" &&
+      (num(row.refit_minutes) ?? 0) >= REFIT_TIMEOUT_MINUTES - 1)
+  );
+}
+
+// A report of an earlier attempt than the refit job's says nothing of it; a
+// later one re-uploaded the same refit's report.
+function reportOfRefit(row: RefitRow): boolean {
+  const report = num(row.report_attempt);
+  const refit = num(row.refit_attempt);
+  return report !== null && refit !== null && refit > 0 && report >= refit;
+}
 
 // From the jobs alone; the report only tells a failed gate from another
 // failure of the refit job.
@@ -85,11 +98,16 @@ export function refitOutcome(row: RefitRow): RefitOutcome {
   if (refit === "") {
     return row.run_conclusion === "cancelled" ? "cancelled" : "unknown";
   }
+  if (refitTimedOut(row)) {
+    return "timed_out";
+  }
   if (refit === "cancelled") {
     return "cancelled";
   }
-  if (FAILED.has(refit)) {
-    return num(row.passed) === 0 ? "gate_failed" : "refit_failed";
+  if (refit === "failure") {
+    return num(row.passed) === 0 && reportOfRefit(row)
+      ? "gate_failed"
+      : "refit_failed";
   }
   if (refit !== "success") {
     return "unknown";
@@ -116,20 +134,30 @@ export function refitOutcome(row: RefitRow): RefitOutcome {
     : "unknown";
 }
 
-export type ReportState =
-  | "present"
-  | "pending"
-  | "missing"
-  | "conflicting"
-  | "invalid";
+// Only a refit whose report disagrees with its own job: it succeeded with a
+// failed gate, or failed at the gate step with a passed one.
+export function reportInconsistent(row: RefitRow): boolean {
+  const passed = num(row.passed);
+  if (passed === null || !reportOfRefit(row)) {
+    return false;
+  }
+  return (
+    (row.refit_conclusion === "success" && passed === 0) ||
+    (row.refit_conclusion === "failure" &&
+      row.refit_failed_step === REFIT_STEP &&
+      passed === 1)
+  );
+}
 
-export const REPORT_TEXT: Record<ReportState, string> = {
+export const REPORT_TEXT = {
   present: "Uploaded",
   pending: "Not yet uploaded",
   missing: "Missing",
+  none: "None (refit stopped before its report)",
   conflicting: "Conflicting rows",
   invalid: "Not valid JSON",
 };
+export type ReportState = keyof typeof REPORT_TEXT;
 
 export const REPORT_PENDING_HOURS = 6;
 
@@ -141,18 +169,37 @@ export function reportState(row: RefitRow, now: number): ReportState {
       ? "present"
       : "invalid";
   }
+  if (row.run_status !== "completed") {
+    return "pending";
+  }
+  // The upload step runs only on a report file the refit left; '' is a run
+  // without an upload job.
+  if (
+    row.refit_conclusion !== "success" &&
+    (row.report_upload === "" || row.report_upload === "skipped")
+  ) {
+    return "none";
+  }
   const created = parseStamp(row.created_at)?.valueOf();
   const recent =
     created !== undefined && now - created < REPORT_PENDING_HOURS * 3600000;
-  return row.run_status !== "completed" || recent ? "pending" : "missing";
+  return recent ? "pending" : "missing";
 }
 
-// The rows are newest first; figures come only from a report that is present.
+// The report of the newest run that has one, as the rows are newest first.
+// Its figures are read only when it is present: an unreadable newest report
+// is never replaced by an older one.
 export function latestReport(
   rows: RefitRow[],
   now: number
-): RefitRow | undefined {
-  return rows.find((row) => reportState(row, now) === "present");
+): { row: RefitRow; state: ReportState } | undefined {
+  const row = rows.find((r) => (num(r.report_attempt) ?? 0) > 0);
+  return row === undefined ? undefined : { row, state: reportState(row, now) };
+}
+
+export function verdict(ok: unknown): string {
+  const value = num(ok);
+  return value === 1 ? "met" : value === 0 ? "not met" : "unknown";
 }
 
 export interface RefitMonth {
@@ -241,7 +288,9 @@ export type LiveModel =
       budget: BudgetState;
     };
 
-const FETCH_FAILED = Symbol("fetch failed");
+// A file generated-stats answers 404 for; pytorch reads a missing budget file
+// as no budget.
+export const NO_FILE = Symbol("no file");
 
 interface ModelFile {
   enabled: boolean;
@@ -285,7 +334,7 @@ export function liveModel(
   budget: unknown,
   now: number
 ): LiveModel {
-  const model = plain === FETCH_FAILED ? undefined : readModelFile(plain);
+  const model = readModelFile(plain);
   if (model === undefined) {
     return { state: "unknown" };
   }
@@ -296,10 +345,15 @@ export function liveModel(
   if (!usableAge(ageDays, MODEL_MAX_AGE_DAYS)) {
     return { state: "stale", version: model.version, ageDays };
   }
-  const file = budget === FETCH_FAILED ? undefined : readModelFile(budget);
-  const fileAge = file === undefined ? null : modelAgeDays(file.version, now);
+  const file = budget === NO_FILE ? NO_FILE : readModelFile(budget);
+  const fileAge =
+    file === undefined || file === NO_FILE
+      ? null
+      : modelAgeDays(file.version, now);
   const budgetState: BudgetState =
-    file === undefined
+    file === NO_FILE
+      ? "off"
+      : file === undefined
       ? "unknown"
       : !file.enabled || !usableAge(fileAge, MODEL_MAX_AGE_DAYS)
       ? "unusable"
@@ -318,13 +372,18 @@ export function liveModel(
   };
 }
 
-// Never rejects: a file that cannot be fetched or parsed reads as unknown.
+// Never rejects: a file that cannot be fetched or parsed reads as unknown,
+// and a budget file that is not there as no budget.
 export async function readLiveModel(now: number): Promise<LiveModel> {
   const [plain, budget] = await Promise.allSettled([
     fetcherCatchErrorStatus(LIVE_MODEL_URLS.plain),
     fetcherCatchErrorStatus(LIVE_MODEL_URLS.budget),
   ]);
   const value = (result: PromiseSettledResult<unknown>) =>
-    result.status === "fulfilled" ? result.value : FETCH_FAILED;
-  return liveModel(value(plain), value(budget), now);
+    result.status === "fulfilled" ? result.value : undefined;
+  const budgetFile =
+    budget.status === "rejected" && budget.reason?.status === 404
+      ? NO_FILE
+      : value(budget);
+  return liveModel(value(plain), budgetFile, now);
 }

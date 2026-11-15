@@ -6,6 +6,8 @@ import {
   type RefitSectionViewProps,
 } from "components/targetDeterminator/RefitSection";
 import { refitTableRows } from "components/targetDeterminator/RefitTable";
+import fs from "fs";
+import yaml from "js-yaml";
 import { countedRange, sectionLimits } from "lib/targetDeterminator";
 import {
   lastCompleteMonth,
@@ -13,13 +15,20 @@ import {
   LIVE_MODEL_URLS,
   liveModel,
   modelAgeDays,
+  NO_FILE,
   readLiveModel,
+  REFIT_STEP,
+  REFIT_TIMEOUT_MINUTES,
   refitOutcome,
+  REPORT_UPLOAD_STEP,
+  reportInconsistent,
   reportMonths,
   reportState,
   runUrl,
+  verdict,
   type RefitRow,
 } from "lib/targetDeterminatorRefits";
+import path from "path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -44,18 +53,16 @@ const NOW = ms("2026-11-20T12:00:00.000");
 function refit(partial: Partial<RefitRow> = {}): RefitRow {
   return {
     run_id: "43432678301",
-    run_attempt: 1,
     created_at: "2026-11-20 03:17:00.000000000",
     run_status: "completed",
     run_conclusion: "success",
-    refit_status: "completed",
+    refit_attempt: 1,
     refit_conclusion: "success",
     refit_minutes: 117.6,
     refit_failed_step: "",
-    check_status: "completed",
     check_conclusion: "success",
-    publish_status: "completed",
     publish_conclusion: "success",
+    report_upload: "success",
     report_attempt: 1,
     report_infos: 1,
     report_valid: 1,
@@ -108,9 +115,29 @@ describe("refitOutcome", () => {
       "refit_failed",
     ],
     [
-      "a timed-out refit",
+      "a refit cancelled at its timeout",
+      { refit_conclusion: "cancelled", refit_minutes: 284.2, passed: null },
+      "timed_out",
+    ],
+    [
+      "a refit cancelled before its timeout",
+      { refit_conclusion: "cancelled", refit_minutes: 283.9 },
+      "cancelled",
+    ],
+    [
+      "a refit with a timed_out conclusion",
       { refit_conclusion: "timed_out", passed: null },
+      "timed_out",
+    ],
+    [
+      "a re-run refit whose only report is an earlier attempt's",
+      { refit_conclusion: "failure", passed: 0, refit_attempt: 2 },
       "refit_failed",
+    ],
+    [
+      "a failed gate whose report a later attempt re-uploaded",
+      { refit_conclusion: "failure", passed: 0, report_attempt: 2 },
+      "gate_failed",
     ],
     ["a failed check", { check_conclusion: "failure" }, "check_failed"],
     ["a check job not yet recorded", { check_conclusion: "" }, "unknown"],
@@ -126,6 +153,60 @@ describe("refitOutcome", () => {
     expect(
       refitOutcome(refit({ refit_conclusion: "failure", passed: 1 }))
     ).toBe("refit_failed");
+  });
+});
+
+describe("the workflow the refit section reads", () => {
+  const workflow = yaml.load(
+    fs.readFileSync(
+      path.resolve(__dirname, "..", "..", ".github/workflows/td-scorer.yml"),
+      "utf8"
+    )
+  ) as { jobs: Record<string, any> };
+  const steps = (job: string) =>
+    (workflow.jobs[job].steps as { name?: string }[]).map((s) => s.name);
+
+  it("times the refit job out at REFIT_TIMEOUT_MINUTES", () => {
+    expect(workflow.jobs.refit["timeout-minutes"]).toBe(REFIT_TIMEOUT_MINUTES);
+    expect(steps("refit")).toContain(REFIT_STEP);
+  });
+
+  it("uploads the report in a job named upload, after refit", () => {
+    expect(workflow.jobs.upload.needs).toBe("refit");
+    expect(steps("upload")).toContain(REPORT_UPLOAD_STEP);
+  });
+});
+
+describe("reportInconsistent", () => {
+  it.each<[string, Partial<RefitRow>, boolean]>([
+    ["a green refit whose report passed", {}, false],
+    ["a green refit whose report failed", { passed: 0 }, true],
+    [
+      "a refit failed at its gate step whose report passed",
+      { refit_conclusion: "failure", refit_failed_step: REFIT_STEP },
+      true,
+    ],
+    [
+      "a refit failed at another step whose report passed",
+      {
+        refit_conclusion: "failure",
+        refit_failed_step: "Install dependencies",
+      },
+      false,
+    ],
+    [
+      "a failed gate",
+      {
+        refit_conclusion: "failure",
+        refit_failed_step: REFIT_STEP,
+        passed: 0,
+      },
+      false,
+    ],
+    ["a report of an earlier attempt", { passed: 0, refit_attempt: 2 }, false],
+    ["no report", { passed: null }, false],
+  ])("flags %s: %s", (_name, partial, flagged) => {
+    expect(reportInconsistent(refit(partial))).toBe(flagged);
   });
 });
 
@@ -153,14 +234,63 @@ describe("reportState", () => {
     ).toBe("pending");
   });
 
-  it("finds the newest present report", () => {
+  it("is none when the refit stopped before its upload step ran", () => {
+    const failed = {
+      ...missing,
+      refit_conclusion: "failure",
+      created_at: "2026-11-20 11:00:00.000",
+    };
+    expect(reportState(refit({ ...failed, report_upload: "" }), NOW)).toBe(
+      "none"
+    );
+    expect(
+      reportState(refit({ ...failed, report_upload: "skipped" }), NOW)
+    ).toBe("none");
+    expect(
+      reportState(
+        refit({ ...failed, refit_conclusion: "cancelled", report_upload: "" }),
+        NOW
+      )
+    ).toBe("none");
+    expect(
+      reportState(refit({ ...failed, report_upload: "failure" }), NOW)
+    ).toBe("pending");
+    expect(
+      reportState(
+        refit({ ...failed, report_upload: "failure" }),
+        NOW + 86400000
+      )
+    ).toBe("missing");
+    expect(
+      reportState(refit({ ...missing, report_upload: "" }), NOW + 86400000)
+    ).toBe("missing");
+  });
+
+  it("finds the newest report, readable or not", () => {
     const rows = [
       refit({ run_id: "3", ...missing, created_at: "2026-11-19 00:00:00" }),
       refit({ run_id: "2", report_infos: 2 }),
       refit({ run_id: "1" }),
     ];
-    expect(latestReport(rows, NOW)?.run_id).toBe("1");
-    expect(latestReport([], NOW)).toBeUndefined();
+    expect(latestReport(rows, NOW)).toMatchObject({
+      row: { run_id: "2" },
+      state: "conflicting",
+    });
+    expect(latestReport(rows.slice(2), NOW)).toMatchObject({
+      row: { run_id: "1" },
+      state: "present",
+    });
+    expect(latestReport(rows.slice(0, 1), NOW)).toBeUndefined();
+  });
+
+  it("reads a verdict as met, not met or unknown", () => {
+    expect([1, 0, null, "1", "nan"].map(verdict)).toEqual([
+      "met",
+      "not met",
+      "unknown",
+      "met",
+      "unknown",
+    ]);
   });
 });
 
@@ -255,6 +385,7 @@ describe("liveModel", () => {
       "unusable"
     );
     expect(budget(model("2026-11-20"))).toBe("off");
+    expect(budget(NO_FILE)).toBe("off");
     expect(budget("not json")).toBe("unknown");
   });
 
@@ -321,6 +452,24 @@ describe("readLiveModel", () => {
     serve({
       [LIVE_MODEL_URLS.plain]: json(model("2026-11-20")),
       [LIVE_MODEL_URLS.budget]: { body: "{not json" },
+    });
+    expect(await readLiveModel(now)).toMatchObject({ budget: "unknown" });
+    serve({ [LIVE_MODEL_URLS.plain]: json(model("2026-11-20")) });
+    expect(await readLiveModel(now)).toMatchObject({ budget: "unknown" });
+  });
+
+  it("reads a budget file generated-stats does not have as no budget", async () => {
+    serve({
+      [LIVE_MODEL_URLS.plain]: json(model("2026-11-20")),
+      [LIVE_MODEL_URLS.budget]: { status: 404, body: "404: Not Found" },
+    });
+    expect(await readLiveModel(now)).toMatchObject({
+      state: "usable",
+      budget: "off",
+    });
+    serve({
+      [LIVE_MODEL_URLS.plain]: json(model("2026-11-20")),
+      [LIVE_MODEL_URLS.budget]: { status: 500, body: "boom" },
     });
     expect(await readLiveModel(now)).toMatchObject({ budget: "unknown" });
   });
@@ -403,6 +552,28 @@ describe("refit section", () => {
       refits: { loading: false, rows: [refit({ budget_on: 0 })] },
     });
     expect(off.html).toContain("Budget off in the latest report");
+    const unknown = render({
+      refits: { loading: false, rows: [refit({ budget_ok: null })] },
+    });
+    expect(unknown.html).toContain("floor 65.0%: unknown;");
+  });
+
+  it("says the newest report is unreadable rather than show an older one", () => {
+    const { html, charts } = render({
+      refits: {
+        loading: false,
+        rows: [refit({ run_id: "2", report_infos: 2 }), refit({ run_id: "1" })],
+      },
+      open: new Set(["months"]),
+    });
+    expect(html).toContain("Newest report: conflicting rows");
+    expect(html).not.toContain("97.0%");
+    expect(html).not.toContain("0.61");
+    expect(charts).toHaveLength(0);
+    const invalid = render({
+      refits: { loading: false, rows: [refit({ report_valid: 0 })] },
+    });
+    expect(invalid.html).toContain("Newest report: not valid json");
   });
 
   it("opens the month chart with fixed series names and the report's floor", () => {
@@ -419,6 +590,7 @@ describe("refit section", () => {
     ]);
     expect(charts[0].series[0].markLine.data).toEqual([{ yAxis: 0.55 }]);
     expect(charts[0].series[1].markLine).toBeUndefined();
+    expect((charts[0] as any).additionalOptions.yAxis).toEqual({ min: 0 });
   });
 
   it("marks partial months on the chart and in the tooltip", () => {
@@ -475,6 +647,31 @@ describe("refit section", () => {
         days: "330 trained, 0 missing (2 gaps, 1 unhealthy)",
         url: "https://github.com/pytorch/test-infra/actions/runs/1",
       },
+    ]);
+  });
+
+  it("notes the figures' attempt, an inconsistent report and a run without one", () => {
+    const table = refitTableRows(
+      [
+        refit({ run_id: "3", refit_attempt: 2, report_attempt: 1 }),
+        refit({ run_id: "2", passed: 0 }),
+        refit({
+          run_id: "1",
+          refit_conclusion: "failure",
+          refit_failed_step: "Install dependencies",
+          report_upload: "",
+          report_attempt: 0,
+          report_infos: 0,
+          report_valid: 0,
+          passed: null,
+        }),
+      ],
+      NOW
+    );
+    expect(table.map((row) => [row.outcome, row.report])).toEqual([
+      ["Published", "Uploaded; figures from attempt 1"],
+      ["Published", "Uploaded; inconsistent with the refit job"],
+      ["Refit failed", "None (refit stopped before its report)"],
     ]);
   });
 

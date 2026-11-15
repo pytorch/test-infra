@@ -64,7 +64,10 @@ import {
   slotStarts,
   useChunkedTdQuery,
 } from "lib/targetDeterminatorChunks";
-import { type RefitRow } from "lib/targetDeterminatorRefits";
+import {
+  type RefitRow,
+  REPORT_UPLOAD_STEP,
+} from "lib/targetDeterminatorRefits";
 import {
   type BreakageRow,
   type ChurnRow,
@@ -1362,18 +1365,16 @@ interface Contract {
 // Every field of RefitRow, the row the refit section reads.
 const REFIT_COLUMNS = [
   "run_id",
-  "run_attempt",
   "created_at",
   "run_status",
   "run_conclusion",
-  "refit_status",
+  "refit_attempt",
   "refit_conclusion",
   "refit_minutes",
   "refit_failed_step",
-  "check_status",
   "check_conclusion",
-  "publish_status",
   "publish_conclusion",
+  "report_upload",
   "report_attempt",
   "report_infos",
   "report_valid",
@@ -1551,7 +1552,12 @@ const CONTRACTS: Record<string, Contract> = {
       "path = '.github/workflows/td-scorer.yml'",
       "head_branch = 'main'",
       "event IN ('schedule', 'workflow_dispatch')",
-      "name IN ('refit', 'check', 'publish')",
+      "name IN ('refit', 'check', 'publish', 'upload')",
+      "name = 'upload'",
+      "conclusion = 'success'",
+      "upload_step = 'success'",
+      `'${REPORT_UPLOAD_STEP}'`,
+      "(run_id, run_attempt) IN (SELECT run_id, run_attempt FROM uploads)",
       "metric_name = 'td_scorer_refit'",
       "repo = 'pytorch/test-infra'",
       "'ossci_uploaded_metrics/td_scorer_refit_'",
@@ -1569,7 +1575,7 @@ describe("clamp widths", () => {
       breakages: 90,
       ranks: 90,
       stability: 49,
-      refits: 365,
+      refits: 90,
     });
   });
 

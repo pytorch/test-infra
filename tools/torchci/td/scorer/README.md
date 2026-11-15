@@ -170,8 +170,8 @@ end before its S3 credentials expire after 300 minutes (`role-duration-seconds`)
   anything in the refit raises, when a gate day could not be built soundly or fewer than
   5 test configs got a start-up on main, or when ClickHouse credentials are missing on
   main. A pull request's run trains on two days, too few for a walk-forward month, so its
-  floor is not met; it only prints the report. On main, a last step uploads the report
-  to HUD ("Monitoring"); a failed upload never fails the job or keeps a model back.
+  floor is not met; it only prints the report.
+- **upload** (main only, after refit, whatever its result): "Monitoring"; no job needs it.
 - **check**: validates the model with pytorch main's `scorer_model.py`, compares its p
   and r with the trainer's on a sample (max difference 1e-6), checks that pytorch's
   `change_features` gives the same counts on the sampled changes and that its budget
@@ -273,13 +273,13 @@ exits (minutes at worst, after everything is written).
 
 ## Monitoring
 
-On main, the refit job's last step runs `python -m torchci.td.scorer upload-report`
-(`report_upload.py`): `report.json`, with `days` (training and gate days used, gaps,
-unhealthy and missing) and non-finite numbers as null, goes once per run attempt to
-`s3://ossci-raw-job-status/ossci_uploaded_metrics/td_scorer_refit_<run_id>_<attempt>.jsonl.gz`,
-never overwritten, which ClickHouse ingests into `misc.ossci_uploaded_metrics` as one row
-with `metric_name` `td_scorer_refit` (`METRIC_NAME`). HUD's Target Determinator page shows
-it in "Daily scorer refit". Its figures are informational: the workflow's gate decides.
+The `upload` job's `upload-report` (`report_upload.py`) writes `report.json`, with `days`
+(training and gate days used, gaps, unhealthy, missing) and non-finite numbers as null,
+as one `misc.ossci_uploaded_metrics` row (metric `td_scorer_refit`, `METRIC_NAME`). HUD's
+Target Determinator page ("Daily scorer refit") counts a report only if that attempt's
+`upload` job succeeded, so the job name is a contract; its figures are informational: the
+gate decides. One key per attempt, not overwritten (other bytes there fail the job):
+`s3://ossci-raw-job-status/ossci_uploaded_metrics/td_scorer_refit_<run_id>_<attempt>.jsonl.gz`.
 
 ## The test budget
 
@@ -289,7 +289,7 @@ pytorch's `scorer_model.py` defines the optional top-level block
 - **Bounds**, checked by pytorch's validator so that no model file can push PR testing
   below them: exactly these keys, finite numbers, `0 <= k < 1`, `0 <= a <= 1`,
   `0.10 <= s x (1 - k)` and `s <= 1`. The 0.10 floor (`MIN_SHARE`) bounds cost, not
-  seconds: with each file's start-up k added, 10% of cost is less of test-times seconds.
+  seconds: with start-up k per file, 10% of cost is a smaller share of test-times seconds.
 - **The share** of a job's total cost (TD's include plus exclude lists) is
   `s x (1 + k x r)`, clamped to [0.10, 1], with r clamped to [-1, 1]. A change with an
   unknown r, or that touches build, dependency or test-infrastructure paths (`BUILD_*`
@@ -366,8 +366,8 @@ the selection of the defaults are not in this package.
 
 Set `"enabled": false` in `stats/td-scorer.json` on the generated-stats branch: every
 pytorch checkout's TD job then uses TD's own cut, budget or not, and the publish job
-writes neither file while it stays off. Set back to true (or deleted), the next daily
-run publishes again. "Turning the budget off" above ends the budget alone.
+writes neither file while it stays off. Once it is true again (or the file is deleted),
+the next daily run publishes again; "Turning the budget off" above ends the budget alone.
 
 ## Running locally
 

@@ -1,6 +1,6 @@
 -- The TD scorer's daily refit (pytorch/test-infra .github/workflows/td-scorer.yml): one row per
 -- schedule or workflow_dispatch run on main created in the window, newest first, with the
--- state of its refit, check and publish jobs and the figures of the report it uploaded.
+-- state of its refit, check, publish and upload jobs and the figures of the report it uploaded.
 --
 -- Runs and jobs are ReplacingMergeTree tables with unmerged versions: each id keeps its newest
 -- version. A "re-run failed jobs" attempt holds only the jobs it re-ran, so each job name takes
@@ -8,17 +8,19 @@
 --
 -- The report is a misc.ossci_uploaded_metrics row with metric td_scorer_refit. Anyone who can
 -- write that S3 prefix can write such a row, and every column of it is self-declared, so a row
--- counts only when its repo is pytorch/test-infra and its S3 key is exactly the one the refit
--- writes for its own run id and attempt; the newest attempt up to the run's latest wins. When
--- one key holds rows with different info (report_infos > 1), no figure is read from it.
+-- counts only when its repo is pytorch/test-infra, its S3 key is exactly the one the workflow
+-- writes for its own run id and attempt, and that attempt's `upload` job succeeded with its
+-- upload step run, not skipped. The newest such attempt up to the run's latest wins. When one
+-- key holds rows with different info (report_infos > 1), no figure is read from it.
 -- Figures are read as nullable: a missing key or a null (a non-finite value) reads null, never 0.
 --
--- ClickHouse runs a CTE at each reference: runs is read twice, for the job lookup and the output.
+-- ClickHouse runs a CTE at each reference: job_rows runs twice (the upload gate and the job
+-- states) and runs three times (twice through job_rows, once for the output).
 WITH
 least({stopTime: DateTime64(3)}, now64(3)) AS window_end,
 greatest(
     {startTime: DateTime64(3)},
-    window_end - INTERVAL 365 DAY,
+    window_end - INTERVAL 90 DAY,
     -- The workflow's first day on main.
     toDateTime64('2026-11-12 00:00:00', 3)
 ) AS window_start,
@@ -60,29 +62,45 @@ job_rows AS (
         tupleElement(
             arrayFirst(s -> tupleElement(s, 'conclusion') = 'failure', steps),
             'name'
-        ) AS failed_step
+        ) AS failed_step,
+        tupleElement(
+            arrayFirst(
+                s -> tupleElement(s, 'name') = 'Upload the report to HUD', steps
+            ),
+            'conclusion'
+        ) AS upload_step
     FROM default.workflow_job
     WHERE
         id IN (
             SELECT id FROM materialized_views.workflow_job_by_head_sha
             WHERE (head_sha, run_id) IN (SELECT head_sha, run_id FROM runs)
         )
-        AND name IN ('refit', 'check', 'publish')
+        AND name IN ('refit', 'check', 'publish', 'upload')
     ORDER BY id, status = 'completed' DESC, _inserted_at DESC
     LIMIT 1 BY id
+),
+
+uploads AS (
+    SELECT
+        run_id,
+        run_attempt
+    FROM job_rows
+    WHERE
+        name = 'upload'
+        AND conclusion = 'success'
+        AND upload_step = 'success'
 ),
 
 jobs AS (
     SELECT
         run_id,
-        anyIf(status, name = 'refit') AS refit_status,
+        anyIf(run_attempt, name = 'refit') AS refit_attempt,
         anyIf(conclusion, name = 'refit') AS refit_conclusion,
         anyIf(minutes, name = 'refit') AS refit_minutes,
         anyIf(failed_step, name = 'refit') AS refit_failed_step,
-        anyIf(status, name = 'check') AS check_status,
         anyIf(conclusion, name = 'check') AS check_conclusion,
-        anyIf(status, name = 'publish') AS publish_status,
-        anyIf(conclusion, name = 'publish') AS publish_conclusion
+        anyIf(conclusion, name = 'publish') AS publish_conclusion,
+        anyIf(upload_step, name = 'upload') AS report_upload
     FROM (
         SELECT * FROM job_rows
         ORDER BY run_attempt DESC
@@ -108,6 +126,7 @@ reports AS (
             toString(run_id), '_', toString(run_attempt), '.jsonl.gz'
         )
         AND run_attempt > 0
+        AND (run_id, run_attempt) IN (SELECT run_id, run_attempt FROM uploads)
     GROUP BY run_id, run_attempt
 ),
 
@@ -134,18 +153,16 @@ run_reports AS (
 
 SELECT
     toString(run_id) AS run_id,
-    run_attempt,
     created_at,
     run_status,
     run_conclusion,
-    refit_status,
+    refit_attempt,
     refit_conclusion,
     refit_minutes,
     refit_failed_step,
-    check_status,
     check_conclusion,
-    publish_status,
     publish_conclusion,
+    report_upload,
     report_attempt,
     report_infos,
     isValidJSON(info) AS report_valid,

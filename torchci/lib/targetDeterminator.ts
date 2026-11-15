@@ -59,7 +59,7 @@ export const CLAMP_DAYS = {
   breakages: 90,
   ranks: 90,
   stability: 49,
-  refits: 365,
+  refits: 90,
 };
 
 // How long the source tables keep their rows.

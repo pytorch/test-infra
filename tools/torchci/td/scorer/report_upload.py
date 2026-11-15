@@ -5,9 +5,9 @@ METRIC_NAME as its metric name and the report as its `info`, every non-finite fl
 it turned into null: one NaN in `info` makes ClickHouse read every key of it as 0. It is
 written once, gzipped, to
 `s3://ossci-raw-job-status/ossci_uploaded_metrics/td_scorer_refit_<run_id>_<attempt>.jsonl.gz`,
-which the ClickHouse S3 replicator ingests; an existing key is never overwritten. It runs
-only in a schedule or workflow_dispatch run of pytorch/test-infra on main, and writes
-nothing otherwise.
+which the ClickHouse S3 replicator ingests. An existing key is never overwritten: holding
+other bytes, it fails the run. It runs only in a schedule or workflow_dispatch run of
+pytorch/test-infra on main, and writes nothing otherwise.
 """
 
 import argparse
@@ -111,12 +111,16 @@ def upload_report(args: argparse.Namespace) -> int:
     data = body(row(report, env, datetime.now(timezone.utc)))
     name = f"{METRIC_NAME}_{env['GITHUB_RUN_ID']}_{env['GITHUB_RUN_ATTEMPT']}"
     s3 = store.S3Store(prefix=PREFIX)
-    key = s3._key(name)
-    if not s3.put_if_absent(name, data):
-        logger.info("%s already exists: left as it is", key)
+    if s3.put_if_absent(name, data):
+        logger.info("uploaded %s%s (%d bytes)", PREFIX, name, len(data))
         return 0
-    logger.info("uploaded %s (%d bytes)", key, len(data))
-    return 0
+    if s3.get(name) == data:
+        logger.info("%s%s already holds this report: left as it is", PREFIX, name)
+        return 0
+    message = f"{PREFIX}{name} was already written by another writer: not overwritten"
+    logger.error(message)
+    print(f"::error::{message}", flush=True)
+    return 1
 
 
 def add_parser(sub: Any) -> None:
