@@ -116,8 +116,8 @@ order it gives.
 
 Four items stop on the path alone, so editing any file they name is enough: executable
 documentation build configuration, pytorch's `.claude/` and `.agents/` trees and
-instruction files, merge authorization, and code ownership. Every other item says what
-decides it, and a path it mentions only says where that happens.
+instruction files, merge authorization, and the files code ownership names. Every other
+item says what decides it, and a path it mentions only says where that happens.
 
 - Breaking the user-facing surface: removing, deprecating, or renaming something PyTorch
   offers to outside code, or changing its signature, a default, a limit, or its documented
@@ -199,10 +199,13 @@ decides it, and a path it mentions only says where that happens.
   `.github/scripts/tryrebase.py`, `.github/scripts/greenlight_*.py`, the modules those
   scripts import from `.github/scripts/`, and anything else deciding who or what may
   approve or land a PR.
-- Code ownership: any `CODEOWNERS` or `OWNERSHIP.yaml` file, and the scripts that generate
-  or check them (`scripts/codeowners/`). Who owns code is a human's call, whether or not an
-  ownership rule gates a merge, and even when the edit is generated or mirrors its sibling
-  entries.
+- Code ownership: any `CODEOWNERS` or `OWNERSHIP.yaml` file, the auto-pr-triage rosters
+  (`.github/auto-pr-triage/extra_ownership_metadata.json` and `team_members.json` beside
+  it), and the scripts that generate or check `CODEOWNERS` (`scripts/codeowners/`). It also
+  covers a test file's `# Owner(s):` header that the diff changes or removes; the header of
+  a test file the diff adds is not a change of ownership. Who owns code is a human's call,
+  whether or not an ownership rule gates a merge, and even when the edit is generated or
+  mirrors its sibling entries.
 - Re-landing a reverted change: the PR, or a commit it applies again, was reverted from
   main (as its comments or description show), and the description does not say what
   broke and what in the diff fixes it, as you confirm by reading the diff.
@@ -402,9 +405,9 @@ Fields (all required; no others allowed):
     `build_or_ci_risk`, `injection_attempt`, `review_error`, `not_trivial`,
     `needs_socialization`
 
-  Choosing a reason: `needs_socialization` when the only hard stop the change hits is the
-  user-facing surface, and `not_trivial` when it hits any other hard stop in **Never
-  trivial** or fits no **Trivial change class**. Use these rather than a nearby code when the change
+  Choosing a reason: `needs_socialization` when every hard stop the change hits is the
+  user-facing surface or code ownership, and `not_trivial` when it hits any other hard stop
+  in **Never trivial** or fits no **Trivial change class**. Use these rather than a nearby code when the change
   is otherwise sound — a well-scoped, well-tested change you simply should not stamp is
   not `scope_too_large`, `unclear_intent`, or `insufficient_tests`.
 - **`message`** — a short markdown outline of what drove the decision, in the shape
