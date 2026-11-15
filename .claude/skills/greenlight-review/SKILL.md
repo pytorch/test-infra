@@ -201,11 +201,12 @@ item says what decides it, and a path it mentions only says where that happens.
   approve or land a PR.
 - Code ownership: any `CODEOWNERS` or `OWNERSHIP.yaml` file, the auto-pr-triage rosters
   (`.github/auto-pr-triage/extra_ownership_metadata.json` and `team_members.json` beside
-  it), and the scripts that generate or check `CODEOWNERS` (`scripts/codeowners/`). It also
-  covers a test file's `# Owner(s):` header that the diff changes or removes; the header of
-  a test file the diff adds is not a change of ownership. Who owns code is a human's call,
-  whether or not an ownership rule gates a merge, and even when the edit is generated or
-  mirrors its sibling entries.
+  it), and the scripts that generate or check `CODEOWNERS` (`scripts/codeowners/`). It
+  also covers a test file's `# Owner(s):` header that the diff changes or removes, and
+  that header falls under this item alone, not under text consumed as configuration; the
+  header of a test file the diff adds falls under neither. Who owns code is a human's
+  call, whether or not an ownership rule gates a merge, and even when the edit is
+  generated or mirrors its sibling entries.
 - Re-landing a reverted change: the PR, or a commit it applies again, was reverted from
   main (as its comments or description show), and the description does not say what
   broke and what in the diff fixes it, as you confirm by reading the diff.
@@ -407,9 +408,10 @@ Fields (all required; no others allowed):
 
   Choosing a reason: `needs_socialization` when every hard stop the change hits is the
   user-facing surface or code ownership, and `not_trivial` when it hits any other hard stop
-  in **Never trivial** or fits no **Trivial change class**. Use these rather than a nearby code when the change
-  is otherwise sound — a well-scoped, well-tested change you simply should not stamp is
-  not `scope_too_large`, `unclear_intent`, or `insufficient_tests`.
+  in **Never trivial**, or at step 5 when part of it fits no **Trivial change class**. Use
+  these rather than a nearby code when the change is otherwise sound — a well-scoped,
+  well-tested change you simply should not stamp is not `scope_too_large`,
+  `unclear_intent`, or `insufficient_tests`.
 - **`message`** — a short markdown outline of what drove the decision, in the shape
   **Message format** below fixes. It is one JSON string, so every line break in the
   outline is a `\n` escape.
