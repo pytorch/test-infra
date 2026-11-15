@@ -3,6 +3,7 @@ import dataclasses
 import hashlib
 import io
 import json
+import math
 import subprocess
 import sys
 import tempfile
@@ -81,13 +82,15 @@ CPU_DEPENDENT = (
 
 
 def model_digest(model_json):
-    """digest of a model without its CPU_DEPENDENT values."""
+    """digest of a model without its CPU_DEPENDENT values, which must be finite
+    floats."""
     model_json = json.loads(json.dumps(model_json))
     for path in CPU_DEPENDENT:
         node = model_json
         for key in path[:-1]:
             node = node[key]
-        assert isinstance(node[path[-1]], float), path
+        value = node[path[-1]]
+        assert isinstance(value, float) and math.isfinite(value), (path, value)
         del node[path[-1]]
     return digest(model_json)
 
