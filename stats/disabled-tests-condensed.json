@@ -216,6 +216,22 @@
       "rocm"
     ]
   ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "199423",
+    "https://github.com/pytorch/pytorch/issues/199423",
+    [
+      "inductor",
+      "linux"
+    ]
+  ],
+  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestDualWrapper)": [
+    "199424",
+    "https://github.com/pytorch/pytorch/issues/199424",
+    [
+      "inductor",
+      "linux"
+    ]
+  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
