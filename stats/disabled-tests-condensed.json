@@ -209,22 +209,6 @@
       "rocm"
     ]
   ],
-  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "199423",
-    "https://github.com/pytorch/pytorch/issues/199423",
-    [
-      "inductor",
-      "linux"
-    ]
-  ],
-  "test_constants_pinned_async_parallel_copy_tasks_cuda (__main__.AOTInductorTestDualWrapper)": [
-    "199424",
-    "https://github.com/pytorch/pytorch/issues/199424",
-    [
-      "inductor",
-      "linux"
-    ]
-  ],
   "test_conv2d_unary_cpu_cpp_wrapper (__main__.TestCppWrapper)": [
     "158331",
     "https://github.com/pytorch/pytorch/issues/158331",
@@ -656,6 +640,13 @@
     "https://github.com/pytorch/pytorch/issues/204745",
     [
       "linux"
+    ]
+  ],
+  "test_flattened_submesh_no_getattr_compile_on_one_rank (__main__.TestDTensorCompileWithCompiledAutograd)": [
+    "193002",
+    "https://github.com/pytorch/pytorch/issues/193002",
+    [
+      "rocm"
     ]
   ],
   "test_float8_e4m3fn_uint8_decode_codegen_cuda (__main__.TestFP8TypesCUDA)": [
@@ -1224,6 +1215,22 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_remove_noop_slice_negative_start_cpu (__main__.CpuTests)": [
+    "205105",
+    "https://github.com/pytorch/pytorch/issues/205105",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
+  "test_remove_noop_slice_scatter_negative_start_cpu (__main__.CpuTests)": [
+    "205106",
+    "https://github.com/pytorch/pytorch/issues/205106",
+    [
+      "asan",
+      "linux"
     ]
   ],
   "test_rerun_then_pass (__main__.TestJunitOutcomes)": [
