@@ -398,16 +398,8 @@ def generate_versions() -> Dict[Path, str]:
     for chan in ("nightly", "release"):
         update_versions(versions, release_matrix[chan], chan)
 
-    # Keep preview out so the website's ROCm version isn't taken from it.
-    website_matrix = {
-        chan: {
-            os_key: [x for x in rows if not is_rocm_preview(x)]
-            for os_key, rows in oss.items()
-        }
-        for chan, oss in release_matrix.items()
-    }
     return {
-        QUICK_START_DIR / "releases.json": json.dumps(website_matrix, indent=2) + "\n",
+        QUICK_START_DIR / "releases.json": json.dumps(release_matrix, indent=2) + "\n",
         QUICK_START_DIR / "published_versions.json": json.dumps(versions, indent=2)
         + "\n",
     }
