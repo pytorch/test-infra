@@ -53,6 +53,7 @@ TEMPLATE_VARIABLES = (
     "milestone",
     "tracker_issue_url",
     "validation_issue_url",
+    "triton_version",
 )
 _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 
@@ -86,6 +87,8 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "optional": set(),
     },
     "crcr_summary": {"required": set(), "optional": set()},
+    "triton_release_branch": {"required": set(), "optional": set()},
+    "pypi_release": {"required": {"package", "version"}, "optional": set()},
     "dev_discuss_post": {
         "required": {"title_regex"},
         "optional": {"carries_dates"},
@@ -241,6 +244,12 @@ def _check_errors(where: str, check: Any) -> List[str]:
             )
     elif ctype == "dev_discuss_post":
         errors.extend(_dev_discuss_post_errors(where, check))
+    elif ctype == "pypi_release":
+        for key in ("package", "version"):
+            if key in check and not (isinstance(check[key], str) and check[key]):
+                errors.append(
+                    f"{where}: check pypi_release `{key}` must be a non-empty string"
+                )
     elif ctype == "milestone_outstanding_items":
         if "max_outstanding" in check and (
             not isinstance(check["max_outstanding"], int)

@@ -78,6 +78,8 @@ release, the portal sees the tag), and a step the portal cannot observe uses
 | `github_workflow_run` | `repo`, `workflow`, `ref` | the latest run on the ref succeeded |
 | `index_listing` | `index` (`download.pytorch.org`, `pypi`, `dockerhub`), `channel` (`test`, `release`), `package_types` | every expected artifact is present; the detail is in the artifact matrix |
 | `crcr_summary` | none | downstream CI results for the RC (phase 2 of the portal) |
+| `triton_release_branch` | none | `triton-lang/triton` has the release branch `release/X.Y.x` of `versions.triton`, and the triton pin of pytorch is on it (below) |
+| `pypi_release` | `package`, `version` | `version` of the package is on PyPI |
 | `dev_discuss_post` | `title_regex` (one pattern, or one per release type), `carries_dates` (optional) | a post whose title matches exists in the Release Announcements category of dev-discuss (below) |
 
 A new check type needs a collector implementation, an entry in `CHECK_TYPES` in the
@@ -108,6 +110,14 @@ them is of a commit that was in a release candidate. Only those reverts, the one
 cherry-pick, are listed in the recorded `details`; the others (already cherry-picked, or of a
 commit the branch never had) are only counted by status.
 
+`triton_release_branch` and `pypi_release` are checked by `tools/analytics/triton_scan.py`, the
+`triton-scan` job of GitHub Analytics Daily, for every release in flight, from `versions.triton`
+of its release file (a release without it leaves both steps to do and the job warns). The
+branch is `release/<major>.<minor>.x` of the triton version (`release/3.9.x` for `3.9.0`). The pin
+is `.ci/docker/ci_commit_pins/triton.txt` of pytorch's release branch, or of `main` before the
+branch is cut; the step is done when the pin is on the triton release branch, and in progress
+while the branch exists without it.
+
 ### Steps that apply only some of the time
 
 - `types: [minor]` limits a step to minor releases (the default is both). A patch release
@@ -129,7 +139,8 @@ matrix. A value is a URL, or `{test, release}` for one that moves when the relea
 
 Check parameters can use `{version}`, `{minor}`, `{branch}`, `{rc}`, `{tracker_issue}`,
 `{validation_issue}`, `{milestone}`, `{tracker_issue_url}` and `{validation_issue_url}`.
-The last four come from the release file. Any other `{name}` is an error.
+The last four come from the release file. `{triton_version}` is `versions.triton`. Any other
+`{name}` is an error.
 
 ## releases/&lt;version&gt;.yml
 

@@ -25,6 +25,7 @@
 #   {version} 2.16.0   {minor} 2.16   {branch} release/2.16   {rc} rc1
 #   {tracker_issue} {validation_issue} {milestone}   (from the release file)
 #   {tracker_issue_url} {validation_issue_url}       (the same issues as links)
+#   {triton_version} 3.9.0                           (`versions.triton` of the release file)
 #
 # Schema and merge rules: release/portal/README.md. Validate with
 #   python3 -m torchci.release_portal_config   (from tools/)
@@ -89,7 +90,7 @@ steps:
     tier: M
     owner: release-manager
     due: {anchor: branch_cut, offset_days: -7}
-    check: {type: manual_link, what_to_check: "Triton release branch created and the pin update PR merged at least a week before the cut", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#cutting-a-release-branch-preparations"}
+    check: {type: triton_release_branch}
   - id: "1.2"
     phase: 1
     name: No open feature or release-blocking issues in the milestone
@@ -310,6 +311,15 @@ steps:
     due: {anchor: branch_cut, offset_days: 7}
     depends_on: ["2.1"]
     check: {type: dev_discuss_post, title_regex: '^PyTorch {minor} RC1 produced'}
+
+  - id: "2.15"
+    phase: 2
+    name: Triton is released to PyPI
+    tier: M
+    owner: release-manager
+    due: {anchor: final_rc, offset_days: -3}
+    depends_on: ["1.1"]
+    check: {type: pypi_release, package: triton, version: "{triton_version}"}
 
   # ---------------------------------------------------------------- 3. Final release candidate
   - id: "3.1"
