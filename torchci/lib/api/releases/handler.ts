@@ -8,6 +8,7 @@ import {
 import { listArtifacts } from "lib/api/releases/artifacts";
 import { buildBoard, buildIndex } from "lib/api/releases/board";
 import { loadReleaseConfig, loadSharedConfig } from "lib/api/releases/config";
+import { getMilestoneItems } from "lib/api/releases/milestone";
 import {
   artifactCursorMatchesQuery,
   decodeArtifactCursor,
@@ -120,6 +121,32 @@ export async function releaseConfigHandler(
     return failQuery(
       "GET /api/releases/{version}/config",
       "Failed to read the release's config",
+      error
+    );
+  }
+}
+
+export async function releaseMilestoneItemsHandler(
+  request: Request,
+  { params }: { params: Promise<{ version: string }> }
+): Promise<Response> {
+  const parsed = parseReleaseParams(await requestQuery(request, params));
+  if (!parsed.success) return rejectParameters(parsed.error);
+  const { version } = parsed.data;
+  try {
+    const release = await readRelease(version);
+    if (release === null) {
+      return jsonError(
+        404,
+        "not_found",
+        `The portal has no release ${version}`
+      );
+    }
+    return ok(await getMilestoneItems(version, release.config.branch));
+  } catch (error) {
+    return failQuery(
+      "GET /api/releases/{version}/milestone",
+      "Failed to read the release's milestone items",
       error
     );
   }

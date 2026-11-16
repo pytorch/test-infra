@@ -9,6 +9,7 @@ import {
   ReleaseBoardSchema,
   ReleaseConfigSchema,
   ReleaseIndexSchema,
+  ReleaseMilestoneItemsSchema,
   ReleaseStepSchema,
 } from "lib/api/releases/types";
 import type { SchemaRef } from "lib/api/schema";
@@ -44,6 +45,7 @@ export const releasesApiOpenApi: ApiResource = {
     ReleaseConfig: ReleaseConfigSchema,
     ReleaseArtifact: ArtifactRowSchema,
     ReleaseArtifactPage: ArtifactPageSchema,
+    ReleaseMilestoneItems: ReleaseMilestoneItemsSchema,
   },
   paths: (ref) => ({
     "/api/releases": {
@@ -115,6 +117,27 @@ export const releasesApiOpenApi: ApiResource = {
           ...publicErrors(
             ref,
             "A missing, malformed or unsupported parameter (invalid_parameters); a malformed or unsupported cursor (invalid_cursor); or a cursor issued for a different query (cursor_query_mismatch)."
+          ),
+        },
+      },
+    },
+    "/api/releases/{version}/milestone": {
+      get: {
+        operationId: "getReleaseMilestoneItems",
+        tags: [RELEASES_TAG],
+        security: [],
+        summary: "A release's outstanding milestone issues and pull requests",
+        description: `The latest collector scan of the release's GitHub milestone. Each outstanding item is either still open or was closed on main after branch cut but is not yet on the release branch. A null `milestone` and `last_checked` mean the collector has not scanned this release yet; they do not mean the milestone is empty. ${CACHE_NOTE}`,
+        parameters: releasePathParameters(),
+        responses: {
+          "200": jsonResponse(
+            "The latest milestone scan.",
+            ref(ReleaseMilestoneItemsSchema)
+          ),
+          ...publicErrors(
+            ref,
+            "A malformed version (invalid_parameters).",
+            "No release has this version (not_found)."
           ),
         },
       },
