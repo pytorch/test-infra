@@ -364,6 +364,7 @@ describe("GET /api/releases/{version}/artifacts", () => {
   });
 
   test("rejects a cursor it did not issue, and one issued for a different query", async () => {
+    query.mockRejectedValue(new Error("ClickHouse is unavailable"));
     const garbage = await callRoute(
       getArtifacts,
       "/api/releases/{version}/artifacts",
@@ -374,6 +375,8 @@ describe("GET /api/releases/{version}/artifacts", () => {
     );
     expect(garbage.status).toBe(400);
     expect(garbage.body.code).toBe("invalid_cursor");
+    expect(query).not.toHaveBeenCalled();
+    query.mockResolvedValue([]);
     const cursor = encodeArtifactCursor({
       version: 1,
       resource: "release-artifacts",
@@ -405,6 +408,20 @@ describe("GET /api/releases/{version}/artifacts", () => {
     expect(status).toBe(200);
     expect(body.summary.expected).toBe(0);
     expect(body.rows).toEqual([]);
+  });
+
+  test("an unknown release is a 404 before listing artifacts", async () => {
+    const { status, body } = await callRoute(
+      getArtifacts,
+      "/api/releases/{version}/artifacts",
+      { version: "2.99.0" }
+    );
+    expect(status).toBe(404);
+    expect(body).toEqual({
+      error: "The portal has no release 2.99.0",
+      code: "not_found",
+    });
+    expect(query).toHaveBeenCalledTimes(1);
   });
 });
 
