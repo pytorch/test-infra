@@ -1264,6 +1264,9 @@ PYPI_HOSTED_NVIDIA_PACKAGES = {
     # 9.27.0.42 is published to PyPI only; pypi.nvidia.com stops at 9.26.0.51. PyPI
     # carries every version already mirrored, so switching the source drops none.
     "nvidia-cudnn-cu13",
+    # 3.8.0 is published to PyPI only; pypi.nvidia.com stops at 3.7.2. PyPI
+    # carries every version already mirrored, so switching the source drops none.
+    "nvidia-nvshmem-cu13",
 }
 
 # NVIDIA packages outside the nvidia-/cuda- prefix whose wheels are published to
