@@ -7,6 +7,13 @@
       "macos"
     ]
   ],
+  "test_a_hook_returning_none_keeps_the_default_decision (__main__.MultiTemplateFusionDecisionGpuTest)": [
+    "205130",
+    "https://github.com/pytorch/pytorch/issues/205130",
+    [
+      "rocm"
+    ]
+  ],
   "test_adaptive_avg_pooling_backward_fails_xpu (__main__.TestPoolingNNDeviceXPU)": [
     "203839",
     "https://github.com/pytorch/pytorch/issues/203839",
@@ -1015,6 +1022,14 @@
       "xpu"
     ]
   ],
+  "test_non_blocking_d2h_event_sync_cuda (__main__.GPUTests)": [
+    "195219",
+    "https://github.com/pytorch/pytorch/issues/195219",
+    [
+      "linux",
+      "rocm"
+    ]
+  ],
   "test_non_blocking_d2h_event_sync_dynamic_shapes (__main__.DynamicShapesCodegenGPUTestsCUDA)": [
     "198524",
     "https://github.com/pytorch/pytorch/issues/198524",
@@ -1222,7 +1237,17 @@
     "https://github.com/pytorch/pytorch/issues/205105",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_remove_noop_slice_negative_start_cuda (__main__.GPUTests)": [
+    "205131",
+    "https://github.com/pytorch/pytorch/issues/205131",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_remove_noop_slice_scatter_negative_start_cpu (__main__.CpuTests)": [
@@ -1230,7 +1255,17 @@
     "https://github.com/pytorch/pytorch/issues/205106",
     [
       "asan",
-      "linux"
+      "linux",
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_remove_noop_slice_scatter_negative_start_cuda (__main__.GPUTests)": [
+    "205132",
+    "https://github.com/pytorch/pytorch/issues/205132",
+    [
+      "linux",
+      "rocm"
     ]
   ],
   "test_rerun_then_pass (__main__.TestJunitOutcomes)": [
