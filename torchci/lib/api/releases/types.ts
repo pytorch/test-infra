@@ -226,6 +226,80 @@ export const ReleaseBoardSchema = z
   })
   .describe("A release's progress: its phases, steps and the state of each.");
 
+const MilestoneItemSchema = z
+  .object({
+    number: z
+      .number()
+      .int()
+      .positive()
+      .describe("GitHub issue or pull request number."),
+    kind: z
+      .enum(["issue", "pull_request"])
+      .describe("Whether the milestone item is an issue or pull request."),
+    title: z.string().describe("The GitHub item's title."),
+    url: z.string().describe("The GitHub item's canonical URL."),
+    state: z.string().describe("The state GitHub reported for the item."),
+    reason: z
+      .string()
+      .describe("Why the collector considers the item outstanding."),
+  })
+  .describe("One outstanding milestone issue or pull request.");
+
+// The collector persists this exact object in release_event.details. It remains
+// separate from the public response so the API can add its path identity and
+// observation time without making storage details part of the contract.
+export const CollectedMilestoneItemsSchema = z.object({
+  milestone: z.number().int().positive(),
+  branch: z.string(),
+  branch_cut: z.boolean(),
+  issues: z.number().int().nonnegative(),
+  by_reason: z.record(z.string(), z.number().int().nonnegative()),
+  outstanding: z.array(MilestoneItemSchema),
+});
+
+export const ReleaseMilestoneItemsSchema = z
+  .object({
+    version: VersionSchema,
+    milestone: z
+      .number()
+      .int()
+      .positive()
+      .nullable()
+      .describe("The release's GitHub milestone; null before the first scan."),
+    branch: z
+      .string()
+      .describe(
+        "The release branch the collector compared against, or the configured branch before the first scan."
+      ),
+    branch_cut: z
+      .boolean()
+      .nullable()
+      .describe(
+        "Whether that branch existed at the latest scan; null before it."
+      ),
+    issues: z
+      .number()
+      .int()
+      .nonnegative()
+      .nullable()
+      .describe(
+        "Items the collector found in the milestone; null before its first scan."
+      ),
+    by_reason: z
+      .record(z.string(), z.number().int().nonnegative())
+      .describe("Every milestone item counted by the collector's disposition."),
+    outstanding: z
+      .array(MilestoneItemSchema)
+      .describe("Items still open or not yet on the release branch."),
+    last_checked: z
+      .string()
+      .nullable()
+      .describe("When the collector last scanned the milestone, ISO 8601 UTC."),
+  })
+  .describe(
+    "The latest milestone scan for a release. A null milestone and last_checked mean the collector has not scanned it yet, not that it found no outstanding items."
+  );
+
 const ConfigStepSchema = z
   .object({
     id: z.string().describe("Step id."),
@@ -417,3 +491,4 @@ export type ReleaseStep = z.infer<typeof ReleaseStepSchema>;
 export type ReleaseConfig = z.infer<typeof ReleaseConfigSchema>;
 export type ArtifactRow = z.infer<typeof ArtifactRowSchema>;
 export type ArtifactPage = z.infer<typeof ArtifactPageSchema>;
+export type ReleaseMilestoneItems = z.infer<typeof ReleaseMilestoneItemsSchema>;

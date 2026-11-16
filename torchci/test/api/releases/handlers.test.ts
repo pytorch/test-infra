@@ -1,5 +1,6 @@
 import { GET as getArtifacts } from "app/api/releases/[version]/artifacts/route";
 import { GET as getConfig } from "app/api/releases/[version]/config/route";
+import { GET as getMilestone } from "app/api/releases/[version]/milestone/route";
 import { GET as getBoard } from "app/api/releases/[version]/route";
 import { GET as getIndex } from "app/api/releases/route";
 import { clearConfigCache } from "lib/api/releases/config";
@@ -9,6 +10,7 @@ import {
   ReleaseBoardSchema,
   ReleaseConfigSchema,
   ReleaseIndexSchema,
+  ReleaseMilestoneItemsSchema,
 } from "lib/api/releases/types";
 import { ErrorResponseSchema } from "lib/api/schema";
 import * as githubAuth from "lib/auth/githubAuth";
@@ -425,10 +427,115 @@ describe("GET /api/releases/{version}/artifacts", () => {
   });
 });
 
+describe("GET /api/releases/{version}/milestone", () => {
+  const details = JSON.stringify({
+    milestone: 71,
+    branch: "release/2.16",
+    branch_cut: true,
+    issues: 3,
+    by_reason: { open: 1, on_release_branch: 1, not_on_release_branch: 1 },
+    outstanding: [
+      {
+        number: 123,
+        kind: "issue",
+        title: "Open release issue",
+        url: "https://github.com/pytorch/pytorch/issues/123",
+        state: "open",
+        reason: "open",
+      },
+      {
+        number: 456,
+        kind: "pull_request",
+        title: "Closed but missing from branch",
+        url: "https://github.com/pytorch/pytorch/pull/456",
+        state: "closed",
+        reason: "not_on_release_branch",
+      },
+    ],
+  });
+
+  function answerMilestone(detailsValue: string | null) {
+    query.mockImplementation(async (sql: string) =>
+      sql.includes("check_type = 'milestone_outstanding_items'")
+        ? detailsValue === null
+          ? []
+          : [
+              {
+                details: detailsValue,
+                last_checked: "2026-12-01 10:00:00.000",
+              },
+            ]
+        : [stateRow("2.16.0", "1.2")]
+    );
+  }
+
+  test("returns the latest collector detail with its observed time", async () => {
+    answerMilestone(details);
+    const { status, body, headers } = await callRoute(
+      getMilestone,
+      "/api/releases/{version}/milestone",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(ReleaseMilestoneItemsSchema.parse(body)).toEqual(body);
+    expect(body).toMatchObject({
+      version: "2.16.0",
+      milestone: 71,
+      branch: "release/2.16",
+      outstanding: [
+        { number: 123, reason: "open" },
+        { number: 456, reason: "not_on_release_branch" },
+      ],
+      last_checked: "2026-12-01T10:00:00.000Z",
+    });
+    expect(headers.get("Cache-Control")).toMatch(/^public, /);
+  });
+
+  test("distinguishes an unscanned milestone from an empty one", async () => {
+    answerMilestone(null);
+    const { status, body } = await callRoute(
+      getMilestone,
+      "/api/releases/{version}/milestone",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      version: "2.16.0",
+      milestone: null,
+      branch: "release/2.16",
+      branch_cut: null,
+      issues: null,
+      by_reason: {},
+      outstanding: [],
+      last_checked: null,
+    });
+  });
+
+  test("does not expose malformed collector details", async () => {
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    answerMilestone("not JSON");
+    const { status, body } = await callRoute(
+      getMilestone,
+      "/api/releases/{version}/milestone",
+      { version: "2.16.0" }
+    );
+    expect(status).toBe(500);
+    expect(body.code).toBe("internal_error");
+    expect(JSON.stringify(body)).not.toContain("not JSON");
+    error.mockRestore();
+  });
+});
+
 describe("public access", () => {
   test("none of the endpoints asks for a credential or the GitHub gate", async () => {
     const authorize = jest.spyOn(githubAuth, "authorizeGithubToken");
-    query.mockResolvedValue([stateRow("2.16.0", "1.1")]);
+    query.mockImplementation(async (sql: string) =>
+      sql.includes("check_type = 'milestone_outstanding_items'")
+        ? []
+        : [stateRow("2.16.0", "1.1")]
+    );
     const calls = [
       callRoute(getIndex, "/api/releases"),
       callRoute(getBoard, "/api/releases/{version}", { version: "2.16.0" }),
@@ -436,6 +543,9 @@ describe("public access", () => {
         version: "2.16.0",
       }),
       callRoute(getArtifacts, "/api/releases/{version}/artifacts", {
+        version: "2.16.0",
+      }),
+      callRoute(getMilestone, "/api/releases/{version}/milestone", {
         version: "2.16.0",
       }),
     ];

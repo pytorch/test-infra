@@ -316,6 +316,7 @@ describe("GET /api/openapi.json", () => {
       "/api/releases/{version}",
       "/api/releases/{version}/artifacts",
       "/api/releases/{version}/config",
+      "/api/releases/{version}/milestone",
     ]);
     for (const [path, item] of pathsTagged(document, "releases")) {
       expect({ path, security: item.get.security }).toEqual({

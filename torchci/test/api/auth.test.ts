@@ -200,6 +200,7 @@ describe("the GitHub gate on app/api routes", () => {
       "/api/releases/{version}",
       "/api/releases/{version}/artifacts",
       "/api/releases/{version}/config",
+      "/api/releases/{version}/milestone",
     ]);
   });
 
