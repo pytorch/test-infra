@@ -14,11 +14,14 @@
 # The announcement says release day moved from Dec 22 to Dec 17; the cadence table in
 # RELEASE.md still shows Dec 22. A week-long milestone is dated by its first day.
 #
-# `versions` (triton, torchvision, torchaudio) is not set yet: nobody has decided what
-# ships with 2.16.0 (main's .ci/docker/triton_version.txt says 3.9.0 today, which may
-# still change). Add it with the release plan; set a library to null if it is not part
-# of the release.
+# `versions`: 2.16.0 ships triton 3.9.0 again (already on PyPI, and main's
+# .ci/docker/triton_version.txt says 3.9.0) and no new torchvision or torchaudio release.
 release: "2.16.0"
+
+versions:
+  triton: "3.9.0"
+  torchvision: null
+  torchaudio: null
 
 dates:
   branch_cut: 2026-11-30
