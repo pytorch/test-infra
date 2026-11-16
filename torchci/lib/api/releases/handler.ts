@@ -8,11 +8,11 @@ import {
 import { listArtifacts } from "lib/api/releases/artifacts";
 import { buildBoard, buildIndex } from "lib/api/releases/board";
 import { loadReleaseConfig, loadSharedConfig } from "lib/api/releases/config";
-import { getMilestoneItems } from "lib/api/releases/milestone";
 import {
   artifactCursorMatchesQuery,
   decodeArtifactCursor,
 } from "lib/api/releases/cursor";
+import { getMilestoneItems } from "lib/api/releases/milestone";
 import {
   parseArtifactParams,
   parseReleaseIndexParams,

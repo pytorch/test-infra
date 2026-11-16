@@ -287,9 +287,7 @@ export const ReleaseMilestoneItemsSchema = z
       ),
     by_reason: z
       .record(z.string(), z.number().int().nonnegative())
-      .describe(
-        "Every milestone item counted by the collector's disposition."
-      ),
+      .describe("Every milestone item counted by the collector's disposition."),
     outstanding: z
       .array(MilestoneItemSchema)
       .describe("Items still open or not yet on the release branch."),
@@ -493,6 +491,4 @@ export type ReleaseStep = z.infer<typeof ReleaseStepSchema>;
 export type ReleaseConfig = z.infer<typeof ReleaseConfigSchema>;
 export type ArtifactRow = z.infer<typeof ArtifactRowSchema>;
 export type ArtifactPage = z.infer<typeof ArtifactPageSchema>;
-export type ReleaseMilestoneItems = z.infer<
-  typeof ReleaseMilestoneItemsSchema
->;
+export type ReleaseMilestoneItems = z.infer<typeof ReleaseMilestoneItemsSchema>;
