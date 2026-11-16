@@ -127,7 +127,7 @@ export const releasesApiOpenApi: ApiResource = {
         tags: [RELEASES_TAG],
         security: [],
         summary: "A release's outstanding milestone issues and pull requests",
-        description: `The latest collector scan of the release's GitHub milestone. Each outstanding item is either still open or was closed on main after branch cut but is not yet on the release branch. A null `milestone` and `last_checked` mean the collector has not scanned this release yet; they do not mean the milestone is empty. ${CACHE_NOTE}`,
+        description: `The latest collector scan of the release's GitHub milestone. Each outstanding item is either still open or was closed on main after branch cut but is not yet on the release branch. A null \`milestone\` and \`last_checked\` mean the collector has not scanned this release yet; they do not mean the milestone is empty. ${CACHE_NOTE}`,
         parameters: releasePathParameters(),
         responses: {
           "200": jsonResponse(
