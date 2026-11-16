@@ -514,7 +514,11 @@ describe("GET /api/releases/{version}/milestone", () => {
 describe("public access", () => {
   test("none of the endpoints asks for a credential or the GitHub gate", async () => {
     const authorize = jest.spyOn(githubAuth, "authorizeGithubToken");
-    query.mockResolvedValue([stateRow("2.16.0", "1.1")]);
+    query.mockImplementation(async (sql: string) =>
+      sql.includes("check_type = 'milestone_outstanding_items'")
+        ? []
+        : [stateRow("2.16.0", "1.1")]
+    );
     const calls = [
       callRoute(getIndex, "/api/releases"),
       callRoute(getBoard, "/api/releases/{version}", { version: "2.16.0" }),
