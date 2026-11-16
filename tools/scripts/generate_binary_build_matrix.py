@@ -55,7 +55,9 @@ CUDA_ARCHES_DICT = {
     # (pytorch/pytorch#190385), and 13.2 covers the same GPU architectures.
     # release/2.15 was cut with 13.0, so the 2.15 candidates on the test
     # channel still build it.
-    "nightly": ["13.2", "13.4"],
+    # 13.5 is nightly only so far (pytorch/pytorch#204391); the 2.15 branch was
+    # cut without it.
+    "nightly": ["13.2", "13.4", "13.5"],
     "test": ["13.0", "13.2", "13.4"],
     "release": ["13.2", "13.4"],
 }
@@ -80,6 +82,7 @@ CUDA_CUDNN_VERSIONS = {
     "13.0": {"cuda": "13.0.0", "cudnn": "9"},
     "13.2": {"cuda": "13.2.0", "cudnn": "9"},
     "13.4": {"cuda": "13.4.0", "cudnn": "9"},
+    "13.5": {"cuda": "13.5.0", "cudnn": "9"},
 }
 
 STABLE_CUDA_VERSIONS = {
@@ -94,8 +97,10 @@ STABLE_CUDA_VERSIONS = {
 CUDA_ARCHES_NO_WINDOWS_DICT = {
     # 13.0 is no longer built on nightly, so nothing is excluded there. On the
     # test channel it is Linux-only. 13.4 has Windows wheels on nightly and in
-    # the 2.15 candidates; 2.14 releases have none.
-    "nightly": [],
+    # the 2.15 candidates; 2.14 releases have none. 13.5 is Linux-only until the
+    # first Windows cu135 nightly is published (pytorch/pytorch#205032 only just
+    # landed), so validation does not look for wheels that do not exist yet.
+    "nightly": ["13.5"],
     "test": ["13.0"],
     "release": ["13.0"],
 }
@@ -106,8 +111,9 @@ CUDA_ARCHES_NO_WINDOWS_DICT = {
 # users cannot rely on. Only affects the getting-started matrix; nightly, test
 # and release builds and their validation are unchanged.
 # 13.0 is only still built for the 2.15 candidates on the test channel; it must
-# not appear in the pytorch.org install selector.
-CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0"]
+# not appear in the pytorch.org install selector. 13.5 is new on nightly and is
+# not advertised until it has been validated.
+CUDA_ARCHES_NO_GETTING_STARTED: List[str] = ["13.0", "13.5"]
 
 # Same idea for Python: 2.14 ships 3.15 / 3.15t wheels, but CPython 3.15 is still
 # a pre-release, so it must not be offered on the getting-started page yet.
