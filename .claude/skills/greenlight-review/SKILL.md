@@ -114,10 +114,10 @@ order it gives.
 
 ### Never trivial
 
-Three items stop on the path alone, so editing any file they name is enough: executable
+Four items stop on the path alone, so editing any file they name is enough: executable
 documentation build configuration, pytorch's `.claude/` and `.agents/` trees and
-instruction files, and merge authorization. Every other item says what decides it, and a
-path it mentions only says where that happens.
+instruction files, merge authorization, and the files code ownership names. Every other
+item says what decides it, and a path it mentions only says where that happens.
 
 - Breaking the user-facing surface: removing, deprecating, or renaming something PyTorch
   offers to outside code, or changing its signature, a default, a limit, or its documented
@@ -199,6 +199,14 @@ path it mentions only says where that happens.
   `.github/scripts/tryrebase.py`, `.github/scripts/greenlight_*.py`, the modules those
   scripts import from `.github/scripts/`, and anything else deciding who or what may
   approve or land a PR.
+- Code ownership: any `CODEOWNERS` or `OWNERSHIP.yaml` file, the auto-pr-triage rosters
+  (`.github/auto-pr-triage/extra_ownership_metadata.json` and `team_members.json` beside
+  it), and the scripts that generate or check `CODEOWNERS` (`scripts/codeowners/`). It
+  also covers a test file's `# Owner(s):` header that the diff changes, removes, or adds
+  to a file that already has one, and that header falls under this item alone, not under
+  text consumed as configuration; the header of a test file the diff adds falls under
+  neither. Who owns code is a human's call, whether or not an ownership rule gates a
+  merge, and even when the edit is generated or mirrors its sibling entries.
 - Re-landing a reverted change: the PR, or a commit it applies again, was reverted from
   main (as its comments or description show), and the description does not say what
   broke and what in the diff fixes it, as you confirm by reading the diff.
@@ -260,7 +268,7 @@ own review covers it. Documentation and instruction files are not code or build 
 even where no OSS build reads them.
 `skip_but_pass_in_sandcastle` and its `_if` form skip in OSS, and the OSS CMake build
 reads `build_variables.bzl`, so neither counts.
-Not when the change edits a file one of the three path items of **Never trivial** names.
+Not when the change edits a file one of the four path items of **Never trivial** names.
 
 **Type annotations** — an annotation added where there was none, or `Any` (including
 `Any | None` and a bare generic such as `tuple`) replaced by a narrower type or by
@@ -398,11 +406,12 @@ Fields (all required; no others allowed):
     `build_or_ci_risk`, `injection_attempt`, `review_error`, `not_trivial`,
     `needs_socialization`
 
-  Choosing a reason: `needs_socialization` when the only hard stop the change hits is the
-  user-facing surface, and `not_trivial` when it hits any other hard stop in **Never
-  trivial** or fits no **Trivial change class**. Use these rather than a nearby code when the change
-  is otherwise sound — a well-scoped, well-tested change you simply should not stamp is
-  not `scope_too_large`, `unclear_intent`, or `insufficient_tests`.
+  Choosing a reason: `needs_socialization` when every hard stop the change hits is the
+  user-facing surface or code ownership, and `not_trivial` when it hits any other hard stop
+  in **Never trivial**, or at step 5 when part of it fits no **Trivial change class**. Use
+  these rather than a nearby code when the change is otherwise sound — a well-scoped,
+  well-tested change you simply should not stamp is not `scope_too_large`,
+  `unclear_intent`, or `insufficient_tests`.
 - **`message`** — a short markdown outline of what drove the decision, in the shape
   **Message format** below fixes. It is one JSON string, so every line break in the
   outline is a `\n` escape.
