@@ -176,13 +176,17 @@ def sync_rocm_alpha_entries(version_entry, acc_arch_map):
     It is seeded from the ROCm entry so OSes without ROCm keep their notes.
     """
     for os_vers in version_entry.values():
-        for pkg_vers in os_vers.values():
+        for pkg_key, pkg_vers in os_vers.items():
             if ROCM_ALPHA_LABEL not in acc_arch_map:
                 pkg_vers.pop(ROCM_ALPHA_LABEL, None)
-            elif ROCM_LABEL in pkg_vers:
-                pkg_vers.setdefault(
-                    ROCM_ALPHA_LABEL, copy.deepcopy(pkg_vers[ROCM_LABEL])
+            elif ROCM_LABEL in pkg_vers and ROCM_ALPHA_LABEL not in pkg_vers:
+                # Insert right after the ROCm box, like the CUDA labels.
+                items = list(pkg_vers.items())
+                at = list(pkg_vers).index(ROCM_LABEL) + 1
+                items.insert(
+                    at, (ROCM_ALPHA_LABEL, copy.deepcopy(pkg_vers[ROCM_LABEL]))
                 )
+                os_vers[pkg_key] = dict(items)
 
 
 def sync_cuda_entries(version_entry, acc_arch_map):
