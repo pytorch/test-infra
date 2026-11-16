@@ -539,13 +539,13 @@ def _versions_errors(name: str, versions: Any) -> List[str]:
         return [f"{name}: versions may only have {list(VERSION_COMPONENTS)}"]
     errors = []
     if not isinstance(versions.get("triton"), str):
-        errors.append(f"{name}: versions.triton is required, a string like \"3.9.0\"")
+        errors.append(f'{name}: versions.triton is required, a string like "3.9.0"')
     for key, value in versions.items():
         if key in OPTIONAL_COMPONENTS and value is None:
             continue
         if not (isinstance(value, str) and VERSION.match(value)):
             errors.append(
-                f"{name}: versions.{key} must be a string like \"3.9.0\""
+                f'{name}: versions.{key} must be a string like "3.9.0"'
                 + (" or null" if key in OPTIONAL_COMPONENTS else "")
             )
     return errors

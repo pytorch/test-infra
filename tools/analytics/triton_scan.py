@@ -171,11 +171,12 @@ def triton_step_rows(
                     if triton_version
                     else None
                 )
+            package: str = check["package"]
             status, evidence, url, details = pypi_result(
-                check["package"],
+                package,
                 version,
                 release,
-                lambda v, package=check["package"]: uploaded(package, v),
+                lambda v: uploaded(package, v),
             )
         rows.append(
             {
