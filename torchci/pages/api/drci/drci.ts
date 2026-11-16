@@ -90,7 +90,10 @@ import {
   removeCancelledJobAfterRetry,
   removeJobNameSuffix,
 } from "lib/jobUtils";
-import { buildPrReviewSections } from "lib/prReview/prReviewComment";
+import {
+  buildPrReviewSections,
+  prReviewSectionForLabels,
+} from "lib/prReview/prReviewComment";
 import {
   fetchPrReviewHeadVerdicts,
   maybePromoteToReadyForReview,
@@ -303,10 +306,13 @@ export async function updateDrciComments(
   const prReviewSectionsPromise = buildPrReviewSections(
     owner,
     repo,
-    headShaByPr
+    headShaByPr,
+    recentWorkflows.concat(workflowsFromPendingComments)
   ).catch((e) => {
     console.error("pr review section build threw for", owner, repo, e);
-    return new Map<number, string>();
+    // Unknown is not evidence that a new request has no status, nor that an
+    // old passing verdict can promote the PR past that request.
+    return null;
   });
   // Read only for pytorch/pytorch. Empty otherwise or on error, which
   // promotes nothing.
@@ -776,7 +782,11 @@ export async function updateDrciComments(
       // Runs before the PR status section below so it renders the new stage.
       const review = prReviewHeadVerdicts.get(pr_info.pr_number);
       let promotion: PromotionOutcome = "not_eligible";
-      if (review !== undefined) {
+      if (
+        review !== undefined &&
+        prReviewSections !== null &&
+        !prReviewSections.get(pr_info.pr_number)?.missingRequest
+      ) {
         try {
           promotion = await maybePromoteToReadyForReview(
             octokit,
@@ -824,7 +834,10 @@ export async function updateDrciComments(
         pr_info.headRef,
         labels,
         withStaleReviewNote(
-          prReviewSections.get(pr_info.pr_number) ?? "",
+          prReviewSectionForLabels(
+            prReviewSections?.get(pr_info.pr_number),
+            labels || []
+          ),
           promotion
         )
       );

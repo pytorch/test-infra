@@ -27,6 +27,33 @@ describe("pr_review_verdicts_for_prs", () => {
       "ORDER BY pr_number, review_run_id DESC, review_run_attempt DESC, phase = 'terminal' DESC, timestamp DESC LIMIT 1 BY pr_number"
     );
   });
+
+  it("relates a review to its capture and preserves the attempt start time", () => {
+    expect(SQL).toContain("trigger_run_id");
+    expect(SQL).toContain(
+      "WINDOW attempt AS (PARTITION BY pr_number, review_run_id, review_run_attempt)"
+    );
+    expect(SQL).toContain("countIf(phase = 'started') OVER attempt > 0");
+    expect(SQL).toContain(
+      "minIf(toUnixTimestamp64Milli(timestamp), phase = 'started') OVER attempt"
+    );
+    expect(SQL).toContain(
+      "min(toUnixTimestamp64Milli(timestamp) - duration_ms) OVER attempt"
+    );
+  });
+});
+
+describe("recent_pr_workflows_query", () => {
+  const WORKFLOWS = readSql("recent_pr_workflows_query");
+  it("carries capture provenance and draft state through both UNION branches", () => {
+    for (const column of [
+      "w.path AS workflowPath",
+      "w.event AS workflowEvent",
+      "recent_prs.draft AS prDraft",
+    ]) {
+      expect(WORKFLOWS.split(column)).toHaveLength(3);
+    }
+  });
 });
 
 // Read by the ready for review promotion (fetchPrReviewHeadVerdicts).

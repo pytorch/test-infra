@@ -106,6 +106,10 @@ export interface RecentWorkflowsData extends BasicJobData {
   // to run (ex .github/workflows/trunk.yml) together even when they have
   // different names.
   workflowUniqueId: number;
+  // Provenance of the trusted capture workflow, used by PR review recovery.
+  workflowPath?: string;
+  workflowEvent?: string;
+  prDraft?: boolean;
   jobName: string;
   id: number;
   completed_at: string;
