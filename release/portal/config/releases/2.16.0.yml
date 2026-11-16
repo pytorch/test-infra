@@ -13,6 +13,11 @@
 #   M6 release day                         17 Dec          -> ga         2026-12-17
 # The announcement says release day moved from Dec 22 to Dec 17; the cadence table in
 # RELEASE.md still shows Dec 22. A week-long milestone is dated by its first day.
+#
+# `versions` (triton, torchvision, torchaudio) is not set yet: nobody has decided what
+# ships with 2.16.0 (main's .ci/docker/triton_version.txt says 3.9.0 today, which may
+# still change). Add it with the release plan; set a library to null if it is not part
+# of the release.
 release: "2.16.0"
 
 dates:

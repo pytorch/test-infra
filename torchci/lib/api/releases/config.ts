@@ -100,6 +100,15 @@ const ReleaseFileSchema = z.object({
       validation_issue: z.union([z.string(), z.number()]).nullable().optional(),
     })
     .optional(),
+  // triton is required when `versions` is; a library that is not part of the
+  // release is null or left out.
+  versions: z
+    .object({
+      triton: z.string(),
+      torchvision: z.string().nullable().optional(),
+      torchaudio: z.string().nullable().optional(),
+    })
+    .optional(),
   remove: z.array(z.string()).optional(),
   override: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
   add: z.array(StepSchema).optional(),
@@ -173,6 +182,11 @@ export function resolveRelease(
       milestone: file?.links?.milestone ?? null,
       tracker_issue: file?.links?.tracker_issue ?? null,
       validation_issue: file?.links?.validation_issue ?? null,
+    },
+    versions: {
+      triton: file?.versions?.triton ?? null,
+      torchvision: file?.versions?.torchvision ?? null,
+      torchaudio: file?.versions?.torchaudio ?? null,
     },
     discovery: shared.discovery,
     resources: shared.resources,

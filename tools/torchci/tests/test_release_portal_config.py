@@ -394,6 +394,59 @@ class TestResolve(TestCase):
         resolved = resolve(_shared(), _release(links={"tracker_issue": 123}))
         self.assertEqual(resolved["links"]["tracker_issue"], 123)
 
+    def test_versions_are_null_unless_the_release_sets_them(self):
+        none = {"triton": None, "torchvision": None, "torchaudio": None}
+        self.assertEqual(resolve(_shared(), _release())["versions"], none)
+        resolved = resolve(
+            _shared(),
+            _release(
+                versions={
+                    "triton": "3.9.0",
+                    "torchvision": "0.30.0",
+                    "torchaudio": None,
+                }
+            ),
+        )
+        self.assertEqual(
+            resolved["versions"],
+            {"triton": "3.9.0", "torchvision": "0.30.0", "torchaudio": None},
+        )
+
+    def test_a_library_may_be_left_out_but_triton_may_not(self):
+        resolved = resolve(_shared(), _release(versions={"triton": "3.9.0"}))
+        self.assertEqual(
+            resolved["versions"],
+            {"triton": "3.9.0", "torchvision": None, "torchaudio": None},
+        )
+        self.assert_rejected(
+            _release(versions={"torchvision": "0.30.0"}), "versions.triton is required"
+        )
+        self.assert_rejected(
+            _release(versions={"triton": None}), "versions.triton is required"
+        )
+
+    def test_version_values_and_names_are_checked(self):
+        self.assert_rejected(
+            _release(versions={"triton": "3.9"}), "versions.triton must be a string"
+        )
+        self.assert_rejected(
+            _release(versions={"triton": "3.9.0", "torchvision": 0.3}),
+            "versions.torchvision must be a string like",
+        )
+        self.assert_rejected(
+            _release(versions={"triton": "3.9.0", "torchtext": "0.18.0"}),
+            "versions may only have",
+        )
+        self.assert_rejected(_release(versions=["3.9.0"]), "versions may only have")
+
+    def test_the_committed_versions(self):
+        from torchci.release_portal_config import load_resolved
+
+        self.assertEqual(
+            load_resolved("2.15.0")["versions"],
+            {"triton": "3.9.0", "torchvision": "0.29.2", "torchaudio": "2.11.1"},
+        )
+
     def test_dates_are_strings(self):
         import datetime
 

@@ -13,7 +13,17 @@
 #   M6 release day                         28 Oct         -> ga         2026-10-28
 # A week-long milestone is dated by its first day. The release shipped on the planned
 # day; the actual dates are in the history of release/2.15 and its tags.
+#
+# `versions` are what shipped with it, read from the release itself: triton from
+# .ci/docker/triton_version.txt on release/2.15, torchvision and torchaudio from the
+# dev-discuss announcements (https://dev-discuss.pytorch.org/t/3470) and the tags
+# v0.29.2 and v2.11.1.
 release: "2.15.0"
+
+versions:
+  triton: "3.9.0"
+  torchvision: "0.29.2"
+  torchaudio: "2.11.1"
 
 dates:
   branch_cut: 2026-10-05

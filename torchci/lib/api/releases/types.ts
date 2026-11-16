@@ -372,6 +372,15 @@ export const ReleaseConfigSchema = z
       .describe(
         "Links set by hand in the release file; null means the link of the collector's evidence is used."
       ),
+    versions: z
+      .object({
+        triton: z.string().nullable(),
+        torchvision: z.string().nullable(),
+        torchaudio: z.string().nullable(),
+      })
+      .describe(
+        "The versions that ship with the release. triton is null until the release file sets it; torchvision and torchaudio are null when the library is not part of the release."
+      ),
     discovery: z
       .record(z.string(), z.unknown())
       .describe(

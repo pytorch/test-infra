@@ -136,6 +136,7 @@ The last four come from the release file. Any other `{name}` is an error.
 ```yaml
 release: "2.16.0"            # matches the file name; the only required field
 dates: {branch_cut: 2026-11-30, final_rc: 2026-12-07, ga: 2026-12-17}   # planned, or null
+versions: {triton: "3.9.0", torchvision: "0.30.0", torchaudio: null}    # what ships (below)
 remove: []                   # shared step ids to drop
 override: {}                 # step id -> fields to replace (null drops a field)
 add: []                      # complete steps for this release only
@@ -170,6 +171,26 @@ milestone exists and whose tracker does not yet.
 The planned **dates** are the one thing GitHub does not have: milestones carry no due
 date. Actual dates come from the history of the branch and the tags. A link set in the
 release file is used as is, for the case where a rule picks the wrong object.
+
+### Versions
+
+`versions` records what ships with the release besides pytorch itself:
+
+```yaml
+versions:
+  triton: "3.9.0"        # required when `versions` is set
+  torchvision: "0.29.2"  # a version, or null (or left out) when the release does not ship it
+  torchaudio: "2.11.1"
+```
+
+The three versions are not derived from the pytorch version, and a release may ship
+without torchvision or torchaudio, so they are written down. `versions` itself is
+optional: a release whose versions are not decided yet leaves it out, and the resolved
+config then has `null` for all three. Only these three names are allowed, and a version
+is `X.Y.Z`. The resolved config and the release API carry them as `versions`. No step
+uses them yet: today's checks for the domain libraries (1.9, 2.2) still look for
+`release/{minor}` and `v{version}-{rc}` in torchvision and torchaudio, which do not exist
+for a release whose libraries have their own version numbers.
 
 ## Changing the process
 

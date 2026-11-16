@@ -7,6 +7,9 @@
 # says only "(Nov 2026)" for the first patch release, and the milestone has no due date.
 # Fill them in when the 2.15.1 schedule is announced on dev-discuss (as it was for
 # 2.14.1). A patch release has no branch cut, so `branch_cut` stays null.
+#
+# `versions` is not set: add it once it is known whether the patch release ships a new
+# triton, torchvision or torchaudio.
 release: "2.15.1"
 
 dates:
