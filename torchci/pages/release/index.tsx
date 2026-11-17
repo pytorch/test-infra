@@ -155,12 +155,23 @@ export function ReleaseIndexPageContent({
             <TableBody>
               {releases.map((release) => (
                 <TableRow
+                  aria-label={`Open release ${release.version} board`}
                   hover
                   key={release.version}
                   onClick={() => {
                     window.location.assign(releaseBoardUrl(release.version));
                   }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.target === event.currentTarget &&
+                      (event.key === "Enter" || event.key === " ")
+                    ) {
+                      event.preventDefault();
+                      window.location.assign(releaseBoardUrl(release.version));
+                    }
+                  }}
                   sx={{ cursor: "pointer" }}
+                  tabIndex={0}
                 >
                   <TableCell component="th" scope="row">
                     <Link

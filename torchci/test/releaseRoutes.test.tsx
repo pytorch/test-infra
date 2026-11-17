@@ -232,6 +232,8 @@ describe("release routes", () => {
     expect(html).toContain("2.15.1");
     expect(html).toContain('href="/release/2.16.0"');
     expect(html).toContain('href="/release/2.15.1"');
+    expect(html).toContain('aria-label="Open release 2.16.0 board"');
+    expect(html).toContain('tabindex="0"');
   });
 
   test("renders empty and failed release indexes", () => {
