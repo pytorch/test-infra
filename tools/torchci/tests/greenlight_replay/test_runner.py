@@ -3,7 +3,8 @@
 The reviewer itself is never launched: one real run costs roughly $1.33 and ten minutes.
 ``runner._invoke_cli`` is the single seam every launch goes through and is replaced here.
 What comes BACK from a launch is classified by ``transcript`` and tested in
-``test_transcript``; this file covers getting the launch right and looping over it.
+``test_transcript``; this file covers getting the launch right and looping over it, with
+the policy's own detector and record checks run for real against this repository's tree.
 """
 
 import dataclasses
@@ -18,6 +19,7 @@ from replay_runner_fixtures import (
     ABSENT,
     envelope,
     GOOD_VERDICT,
+    head_hook_settings,
     replay_policy,
     result_element,
     ScratchTestCase,
@@ -28,8 +30,13 @@ from torchci.greenlight_replay import (
     stack as stack_mod,
     transcript,
 )
+from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.inputs import ReplayInputs
+from torchci.greenlight_replay.workflow_steps import (
+    MANIFEST_BASENAME,
+    SENTINEL_BASENAME,
+)
 
 
 THIS_PR = {"number": 167890, "title": "The PR under review", "this": True}
@@ -70,11 +77,18 @@ def _forbidden_invoke(command, prompt, env, cwd):
 
 
 class FakeCli:
-    """Stands in for ``runner._invoke_cli``, one scripted reply per attempt."""
+    """Stands in for ``runner._invoke_cli``, one scripted reply per attempt.
 
-    def __init__(self, *replies):
+    A reply whose output opens a session leaves the sentinel there, as the policy's
+    SessionStart hook does in ``$RUNNER_TEMP``, unless ``hooks_run`` is False; a
+    ``loaded`` path is appended to the manifest as InstructionsLoaded would.
+    """
+
+    def __init__(self, *replies, hooks_run=True, loaded=()):
         self.replies = list(replies)
         self.calls = []
+        self.hooks_run = hooks_run
+        self.loaded = list(loaded)
 
     def __call__(self, command, prompt, env, cwd):
         self.calls.append(
@@ -83,8 +97,13 @@ class FakeCli:
         exit_code, stdout, verdict = self.replies[
             min(len(self.calls) - 1, len(self.replies) - 1)
         ]
+        run_dir = Path(env[remap.RUN_DIR_ENV])
+        if self.hooks_run and '"subtype": "init"' in stdout:
+            (Path(env["RUNNER_TEMP"]) / SENTINEL_BASENAME).write_text("ok\n")
+            with open(Path(env["RUNNER_TEMP"]) / MANIFEST_BASENAME, "a") as manifest:
+                for path in self.loaded:
+                    manifest.write(json.dumps({"file_path": str(path)}) + "\n")
         if verdict is not None:
-            run_dir = Path(env[remap.RUN_DIR_ENV])
             runner.verdict_path(run_dir).write_text(
                 json.dumps(verdict), encoding="utf-8"
             )
@@ -97,7 +116,7 @@ class RunnerTestCase(ScratchTestCase):
         # refuses one that does not, which is itself asserted below.
         self.run_dir = self.scratch("greenlight-runner-")
         self.workspace = self.scratch("greenlight-runner-ws-")
-        self.policy = replay_policy(self.workspace)
+        self.policy = replay_policy()
         diff_path = self.run_dir / remap.DIFF_BASENAME
         diff_path.write_text("diff --git a/torch/x.py b/torch/x.py\n")
         self.inputs = ReplayInputs(
@@ -114,8 +133,8 @@ class RunnerTestCase(ScratchTestCase):
         patched.start()
         self.addCleanup(patched.stop)
 
-    def review(self, *replies, **repo):
-        fake = FakeCli(*replies)
+    def review(self, *replies, hooks_run=True, loaded=(), **options):
+        fake = FakeCli(*replies, hooks_run=hooks_run, loaded=loaded)
         with mock.patch.object(runner, "_invoke_cli", fake):
             result = runner.run_review(
                 self.policy,
@@ -124,7 +143,7 @@ class RunnerTestCase(ScratchTestCase):
                 self.run_dir,
                 pr_number=167890,
                 head_sha="a" * 40,
-                **repo,
+                **options,
             )
         self.last_cli = fake
         return result
@@ -142,47 +161,52 @@ class TestEndToEnd(RunnerTestCase):
         ]
         return command.split()[-1]
 
-    def test_the_reviewed_repo_reaches_the_prompt_and_the_read_sandbox(self):
-        self.policy = dataclasses.replace(
-            self.policy,
-            prompt_template=(
-                "You are reviewing ${{ steps.target.outputs.repo }} PR "
-                "#${{ steps.target.outputs.pr }} under "
-                "./${{ steps.target.outputs.checkout }}.\n"
-            ),
+    def test_the_target_reaches_the_prompt_the_read_sandbox_and_the_record_checks(
+        self,
+    ):
+        prompt = (
+            "You are reviewing ${{ steps.target.outputs.repo }} PR "
+            "#${{ steps.target.outputs.pr }} under "
+            "./${{ steps.target.outputs.checkout }}.\n"
         )
-        for repo, checkout in (
-            ({}, "pytorch"),
-            ({"repo": "pytorch/pytorch"}, "pytorch"),
-            ({"repo": "pytorch/vision"}, "target"),
-        ):
-            with self.subTest(repo=repo):
-                self.review((0, envelope(result_element()), GOOD_VERDICT), **repo)
-                name = repo.get("repo", "pytorch/pytorch")
+        vision = Target(
+            "pytorch/vision",
+            "target",
+            ".claude/skills/greenlight-review/repos/vision.md",
+            True,
+        )
+        for target in (self.policy.target, vision):
+            with self.subTest(repo=target.repo):
+                self.policy = dataclasses.replace(
+                    replay_policy(),
+                    prompt_template=prompt,
+                    target=target,
+                    hook_settings=head_hook_settings(target.checkout),
+                    detector_dirname=target.checkout,
+                )
+                result = self.review((0, envelope(result_element()), GOOD_VERDICT))
                 self.assertEqual(
                     self.last_cli.calls[0]["prompt"],
-                    f"You are reviewing {name} PR #167890 under ./{checkout}.\n",
+                    f"You are reviewing {target.repo} PR #167890 under "
+                    f"./{target.checkout}.\n",
                 )
-                self.assertEqual(self.read_sandbox_checkout(), checkout)
-
-    def test_a_repo_the_harness_cannot_replay_never_reaches_the_model(self):
-        # The seam refuses any launch, so reaching the model fails with AssertionError.
-        with self.assertRaises(ValueError):
-            runner.run_review(
-                self.policy,
-                self.workspace,
-                self.inputs,
-                self.run_dir,
-                pr_number=167890,
-                head_sha="a" * 40,
-                repo="facebook/vision",
-            )
+                self.assertEqual(self.read_sandbox_checkout(), target.checkout)
+                # The arm's own verdict command accepted it for that repo.
+                self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
 
     def test_a_written_valid_verdict_comes_back_as_a_success(self):
         result = self.review((0, envelope(result_element()), GOOD_VERDICT))
         self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
         self.assertEqual(result.status, "NO_LAND")
         self.assertAlmostEqual(result.cost_usd, 1.3312)
+
+    def test_the_recorded_message_is_the_one_the_record_path_scrubs(self):
+        token = "ghp_" + "A1b2C3d4E5" * 4
+        leaky = {**GOOD_VERDICT, "message": f"- Change\n  - leaks {token}"}
+        result = self.review((0, envelope(result_element()), leaky))
+        self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
+        self.assertNotIn(token, result.message)
+        self.assertIn("[REDACTED]", result.message)
 
     def test_an_oversized_diff_returns_the_policys_canned_verdict_without_a_run(self):
         self.inputs = dataclasses.replace(
@@ -249,11 +273,12 @@ class TestRetry(RunnerTestCase):
         self.assertEqual(result.outcome, runner.Outcome.NO_VERDICT)
 
     def test_a_rejected_verdict_is_recorded_rather_than_re_rolled(self):
-        # Re-running a review whose answer the harness disliked makes this last-of-two
-        # rather than CI's single draw.
+        # Re-running a review whose answer the record path refused makes this
+        # last-of-two rather than CI's single draw.
         bad = {**GOOD_VERDICT, "reason": "vibes"}
         result = self.review((0, envelope(result_element()), bad))
-        self.assertEqual(result.outcome, runner.Outcome.SCHEMA_INVALID)
+        self.assertEqual(result.outcome, runner.Outcome.REJECTED)
+        self.assertIn("vibes", result.error)
         self.assertEqual(len(self.last_cli.calls), 1)
         self.assertFalse(result.retried)
 
@@ -277,6 +302,73 @@ class TestRetry(RunnerTestCase):
     def test_a_budget_trip_is_not_retried(self):
         self.review((1, envelope(result_element(result=ABSENT)), None))
         self.assertEqual(len(self.last_cli.calls), 1)
+
+
+class TestDetector(RunnerTestCase):
+    """The policy's own detector runs after each session that started, as CI runs it."""
+
+    def test_a_session_whose_hooks_ran_and_loaded_nothing_passes(self):
+        result = self.review((0, envelope(result_element()), GOOD_VERDICT))
+        self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
+
+    def test_a_missing_sentinel_is_hooks_not_loaded_whatever_the_verdict(self):
+        result = self.review(
+            (0, envelope(result_element()), GOOD_VERDICT), hooks_run=False
+        )
+        self.assertEqual(result.outcome, runner.Outcome.HOOKS_NOT_LOADED)
+        self.assertIn("sentinel", result.error)
+        self.assertEqual(len(self.last_cli.calls), 1)
+
+    def test_an_instruction_file_loaded_from_the_checkout_fails_the_review(self):
+        planted = self.workspace / self.policy.detector_dirname / "CLAUDE.md"
+        result = self.review(
+            (0, envelope(result_element()), GOOD_VERDICT), loaded=[planted]
+        )
+        self.assertEqual(result.outcome, runner.Outcome.UNTRUSTED_INSTRUCTIONS)
+        self.assertIn("CLAUDE.md", result.error)
+
+    def test_an_instruction_file_outside_the_checkout_is_allowed(self):
+        trusted = self.workspace / ".claude" / "CLAUDE.md"
+        result = self.review(
+            (0, envelope(result_element()), GOOD_VERDICT), loaded=[trusted]
+        )
+        self.assertEqual(result.outcome, runner.Outcome.SUCCESS)
+
+    def test_a_sentinel_an_earlier_attempt_left_does_not_pass_this_one(self):
+        (self.run_dir / SENTINEL_BASENAME).write_text("ok\n")
+        result = self.review(
+            (0, envelope(result_element()), GOOD_VERDICT), hooks_run=False
+        )
+        self.assertEqual(result.outcome, runner.Outcome.HOOKS_NOT_LOADED)
+
+    def test_a_symlinked_sentinel_is_removed_rather_than_followed(self):
+        elsewhere = self.scratch("greenlight-runner-elsewhere-") / "kept"
+        elsewhere.write_text("ok\n")
+        (self.run_dir / SENTINEL_BASENAME).symlink_to(elsewhere)
+        result = self.review(
+            (0, envelope(result_element()), GOOD_VERDICT), hooks_run=False
+        )
+        self.assertEqual(result.outcome, runner.Outcome.HOOKS_NOT_LOADED)
+        self.assertTrue(elsewhere.is_file())
+
+    def test_a_directory_where_the_manifest_goes_is_refused_before_a_launch(self):
+        (self.run_dir / MANIFEST_BASENAME).mkdir()
+        fake = FakeCli((0, envelope(result_element()), GOOD_VERDICT))
+        with mock.patch.object(runner, "_invoke_cli", fake):
+            with self.assertRaises(ValueError):
+                runner.run_review(
+                    self.policy,
+                    self.workspace,
+                    self.inputs,
+                    self.run_dir,
+                    pr_number=1,
+                    head_sha="a" * 40,
+                )
+        self.assertEqual(fake.calls, [])
+
+    def test_a_session_that_never_started_keeps_its_own_outcome(self):
+        result = self.review((1, "Killed: 9\n", None), hooks_run=False)
+        self.assertEqual(result.outcome, runner.Outcome.API_ERROR)
 
 
 class TestInvocation(RunnerTestCase):
@@ -324,16 +416,15 @@ class TestInvocation(RunnerTestCase):
 
     def test_the_process_group_is_covered_by_a_plain_timeout(self):
         argv = self.command()["command"]
-        self.assertEqual(
-            argv[:4], ["timeout", "-k", "10", str(runner.DEFAULT_TIMEOUT_S)]
-        )
+        self.assertEqual(argv[:4], ["timeout", "-k", "10", str(self.policy.timeout_s)])
         self.assertNotIn("--foreground", argv)
 
-    def test_the_timeout_sits_above_the_policys_hard_review_budget(self):
-        # A step timeout below the hard budget would kill the reviewer before the pacing
-        # hook's final tier ever fired, so it would never be told to write up and stop.
-        hard_budget_s = self.policy.review_budget_minutes[2] * 60
-        self.assertGreater(runner.DEFAULT_TIMEOUT_S, hard_budget_s)
+    def test_the_policys_timeout_is_the_default_and_the_operators_overrides_it(self):
+        self.policy = dataclasses.replace(self.policy, timeout_s=1500)
+        self.review((0, envelope(result_element()), GOOD_VERDICT))
+        self.assertEqual(self.last_cli.calls[0]["command"][3], "1500")
+        self.review((0, envelope(result_element()), GOOD_VERDICT), timeout_s=60)
+        self.assertEqual(self.last_cli.calls[0]["command"][3], "60")
 
     def test_the_prompt_reaches_the_reviewer_with_its_interpolations_resolved(self):
         prompt = self.command()["prompt"]

@@ -237,18 +237,20 @@ class TestTheDegradedCheckReadsTheCheckpoint(unittest.TestCase):
         entries = load_checkpoint(self.path).values()
         self.assertEqual(sum(1 for entry in entries if not entry["new_decision"]), 0)
 
-    def test_a_recovered_verdict_counts_as_a_verdict(self):
-        # A budget trip whose verdict was recovered from the turn record is work
-        # that was paid for and kept. It counts as a verdict for the ratio, and
-        # it carries the policy's reason rather than the harness prefix.
+    def test_a_recovered_verdict_counts_as_a_failure(self):
+        # CI fails a tripped session, so the verdict recovered from its turn record
+        # is never recorded there: here it is a diagnostic, and the run a failure
+        # for the ratio, carrying the harness prefix rather than the policy's reason.
         record_run(
             self.path,
             1,
             result(outcome=Outcome.BUDGET_TRIP, status="NO_LAND", reason="clean"),
         )
         entry = load_checkpoint(self.path)[1]
-        self.assertEqual(entry["new_decision"], "NO_LAND")
-        self.assertEqual(entry["new_decision_reason"], "clean")
+        self.assertEqual(entry["new_decision"], "")
+        self.assertEqual(
+            entry["new_decision_reason"], HARNESS_REASON_PREFIX + "budget_trip"
+        )
 
     def test_a_trip_that_recovered_nothing_still_counts_as_a_failure(self):
         record_run(self.path, 1, failed(Outcome.BUDGET_TRIP))

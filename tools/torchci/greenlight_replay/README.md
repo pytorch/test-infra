@@ -28,12 +28,14 @@ $40 and runs for over an hour at the default parallelism.
 The dry run makes every check a real run makes short of invoking a model, and
 prints what it checked and what it did not. It confirms the scratch root is
 usable, the binaries are on the reviewer's PATH and the policy ref exists on the
-remote, then fetches the policy and checks it: the workflow parses, the diff caps
-and canned verdict are readable, any stack step is a version the harness
-recognises, the verdict schema uses only keywords the harness implements, every
-hook script resolves, and the inference profile maps to a model. That costs a few
-seconds and about 34 MB. Fetching twice is safe: materializing clears its
-destination and re-extracts, so a dry run does not spoil the real run after it.
+remote, then fetches the policy and checks it: the workflow parses and its shape
+is one the harness registers ([PARITY.md](PARITY.md)), the policy's own
+`greenlight target` accepts the repo, the diff caps and the hook settings derive,
+every hook script resolves, the canned verdicts pass the policy's own record
+checks, any stack step is a version the harness recognises, and the inference
+profile maps to a model. That costs a few seconds and about 34 MB. Fetching twice
+is safe: materializing clears its destination and re-extracts, so a dry run does
+not spoil the real run after it.
 
 What it does not do is the per-run work: the blobless clone of the repo, the worktree
 slots, and each pull request's diff, metadata and stack context. Those are
@@ -79,8 +81,8 @@ naming that record, so they need neither ClickHouse nor an authenticated `gh`.
 | `--output` | `greenlight_replay_<timestamp>.csv` | destination; `.gitignore` covers `greenlight_replay_*.csv`, but one outside the checkout is tidier |
 | `--workdir` | `/tmp/greenlight-replay` | scratch root; keep it under `/tmp/greenlight-*` |
 | `--resume` | off | re-run only what has no verdict yet |
-| `--timeout-minutes` | `37` | wall clock allowed per reviewer run |
-| `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to, `pytorch/<name>` only: it picks the clone, the slot's checkout directory (`pytorch` for pytorch/pytorch, `target` otherwise, as in CI), the trusted tree, the prompt's repo, `restrict-read.py`'s argument and the repo policy staged into the slots (see [WORKSPACE.md](WORKSPACE.md)) |
+| `--timeout-minutes` | the policy's | wall clock allowed per reviewer run; the default is the review step's `timeout-minutes` |
+| `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to, `pytorch/<name>` only. It picks the clone and the trusted tree, and the policy's own `greenlight target`, which must accept it, names the slot's checkout directory (`pytorch` for pytorch/pytorch, `target` otherwise, as in CI), the prompt's repo and `restrict-read.py`'s argument. The repo policy staged into the slots is the repo's own (see [WORKSPACE.md](WORKSPACE.md)) |
 | `--trusted-ref` | its main as fetched | full 40-hex commit of `--repo` the trusted tree is checked out at: the skills the sanitize step restores and the repo's own `.github/greenlight/review.md`. CI passes one commit to every arm, so both stage from the same policy |
 | `--model` | the policy's profile, mapped unless on Bedrock | model id for the local CLI |
 | `--context-window` | `1000000` | window that model must report; pair it with `--model` or Bedrock |
@@ -141,13 +143,14 @@ Whatever you compute, say which population it is over, and put the run's own
 funnel line beside it; in CI, that line is in the collect job's log.
 
 **4. An empty `new_decision` is the harness, not a refusal.** The reviewer timing
-out, tripping its budget, returning malformed JSON, or coming back empty all land
+out, tripping its budget, coming back empty, writing a verdict the record job's
+checks refuse, or loading an instruction file from the reviewed checkout all land
 the same way: `new_decision` blank and `new_decision_reason` prefixed with
 `harness:`. None of them is the policy declining to approve. Filter on that
 prefix before counting anything, and check the exit status: a `3` means more than
 half the runs are that shape and the file is describing an outage.
 
-**5. This is not a re-run of CI.** See the deviations below. The serving path,
+**5. This is not a re-run of CI.** See [PARITY.md](PARITY.md). The serving path,
 the context window and the comment set can all differ, and none is a controlled
 variable here — a difference between `decision` and `new_decision` can come from
 any of them as easily as from the policy. That is misreading 1's confound from a
@@ -165,8 +168,8 @@ charged to the first stage that rejects it, so the counts partition the input.
 re-derived. **The stage list is `frame.FUNNEL_STAGES`**; read that rather than a
 list in prose here, which goes stale. Three of those deserve saying out loud:
 
-**Size-gate declines are excluded.** When the diff was over the workflow's line or
-byte cap, CI dropped a canned `NO_LAND` in place and never started a model.
+**Size-gate declines are excluded.** When the diff was over the workflow's line,
+byte or file cap, CI dropped a canned `NO_LAND` in place and never started a model.
 Re-running one of those measures the cap, not the policy, so they are dropped
 from the frame by matching the canned message, as are the staging gates' canned
 declines ([WORKSPACE.md](WORKSPACE.md)). A *new* cap can still decline a
@@ -257,18 +260,20 @@ logged and folded into the exit-status ratio; the file has no placeholder for it
 ## Cost, time and stopping early
 
 Measured over 872 real CI reviewer runs: **$1.33 and 9 to 11 minutes per run**,
-with the slowest at 36 minutes. A run that comes back with no verdict or an
-invalid one is retried once, and both attempts are billed.
+with the slowest at 36 minutes. A run that comes back with no verdict is retried
+once, as CI's scan re-dispatches a failed review, and both attempts are billed. One
+whose verdict the record checks refuse is not: the model did answer, and a second
+draw would bias the sample.
 
-The 37-minute default timeout is not derived from that spread. It is the CI model
-step's own bound, and it sits above the 33-minute hard review budget so the
-reviewer runs out of budget before it runs out of process.
+The default timeout is not derived from that spread. It is the policy's review
+step's own bound, which the shipped workflow sets above its hard review budget so
+the reviewer runs out of budget before it runs out of process.
 
 The first pull request of a sweep runs alone before the rest fan out. That warms
 the prompt cache — concurrent cold starts each pay the whole prompt in — and it
 is also the circuit breaker. Three outcomes cannot vary by pull request: the
-model the gateway resolved, the schema the policy ships, and the prompt the CLI
-parsed. If the warm-up hits one, every remaining run would hit it too, so the
+model the gateway resolved, the prompt the CLI parsed, and the hooks the session
+loaded. If the warm-up hits one, every remaining run would hit it too, so the
 sweep stops there rather than billing them. Its one diagnostic row is still
 written, and the exit status is `1`.
 
@@ -312,51 +317,10 @@ beside its CLI pin in `greenlight-policy-replay.yml`; the two change together.
 
 ## How this differs from CI
 
-Six deviations, taken deliberately:
-
-- **Different serving.** CI runs the model through Bedrock at a 200k context
-  window. This runs it through a local gateway at 1M. Same model, different
-  serving path and different window. A Bedrock run on CI's CLI removes both.
-- **Different CLI build.** The local `claude` is whatever is installed, not the
-  build `anthropics/claude-code-action` pins, which the CI replay installs.
-- **Different comment set.** The reviewer sees only comments created strictly
-  before the replayed verdict, which is the point — it must not read what was
-  written in response to the verdict it is reproducing. A comment whose
-  `createdAt` cannot be parsed is dropped here, where CI would have shown it.
-- **Stack context read back, not captured.** Everything the stack step read is
-  read again as of `decision_version`, with these gaps:
-  - `decision_version` lands a median of about 8 minutes after the step ran, and
-    the stack can move in between: of 50 ghstack rows measured, 3 get a different
-    stack at `decision_version` than at review start. In 2, the listing itself
-    changed by the cutoff: #197608's gained #197618 and #197651's lost #197660.
-    The exact instant, the `AI_REVIEW_STARTED` row in `misc.greenlight_pr_state`,
-    would cost one more ClickHouse lookup and is not used.
-  - A pull request's head at the cutoff is picked by commit date, which matched
-    the actual push time in 937 of 948 cases. Over all 4,733 pushes the median
-    push lag is 11 s; the 11 misses were 5 late pushes and 6 from one account
-    whose clock ran 7 h fast. One re-pushed within seconds of the step is
-    ambiguous: 1 of 244 ghstack pull requests with context in the 2026-09 corpus.
-  - Whether it was open then is read from `closedAt`, which a later reopen
-    rewrites, so one closed at the cutoff and reopened since reads as open: 1 in
-    3,517 checks (pytorch/pytorch#197050).
-  - Titles are read as they are today, and so is a GitHub stack's membership.
-- **A channel CI does not have.** The reviewer runs with the developer's real
-  `$HOME`, so user-level hooks still fire — including, on some setups, a
-  `SessionStart` that injects a skills catalog. `--append-system-prompt`
-  neutralises it. The greenlight skill's Security section trains the model to
-  classify unexpected out-of-band instructions as `injection_attempt`, so such a
-  run carries both the injection and a directive about it. A scratch `HOME` would
-  remove both; it is untested, because testing it costs a model run.
-- **Different harness.** Three hook registrations the workflow makes are absent,
-  for two reasons: `validate-on-stop.sh` hardcodes a path the per-run remap moves,
-  so the verdict is validated and retried by this tool instead; and the
-  instruction-loading detector's `SessionStart` and `InstructionsLoaded` hooks
-  exist to leave a manifest for a later CI step that does not run here.
-
-Everything else comes from the policy tree at the ref under test: the prompt, the
-diff caps, the canned too-large verdict, the schema, the remaining hooks, the
-staging script and its canned verdicts, and the sanitize step that strips the
-reviewed checkout's own agent instructions before the model sees it.
+Where the replay derives each input from the policy under test, runs the policy's
+own code, or reproduces a step in harness code, and which differences it declares
+rather than closes, is in [PARITY.md](PARITY.md), with the registry of review
+workflow shapes the harness reproduces and how to register one.
 
 **It invokes `claude` directly rather than through any local wrapper**, because a
 wrapper that forces its own flags makes `--restricted` unusable and loads MCP

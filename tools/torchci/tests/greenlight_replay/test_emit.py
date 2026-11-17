@@ -174,12 +174,12 @@ class TestTheWrittenFile(unittest.TestCase):
 
     def test_a_failure_row_reads_back_with_its_outcome_intact(self):
         row = replayed(
-            exported_row(), failed(Outcome.SCHEMA_INVALID, error="missing 'reason'")
+            exported_row(), failed(Outcome.REJECTED, error="missing 'reason'")
         )
         _, path = self._write([row])
         [parsed] = load_rows(path)
         self.assertEqual(
-            parsed["new_decision_reason"], HARNESS_REASON_PREFIX + "schema_invalid"
+            parsed["new_decision_reason"], HARNESS_REASON_PREFIX + "rejected"
         )
         self.assertEqual(parsed["new_decision"], "")
         self.assertIn("missing 'reason'", parsed["new_decision_message"])

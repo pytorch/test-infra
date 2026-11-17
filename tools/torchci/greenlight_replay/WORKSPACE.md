@@ -89,9 +89,10 @@ silent: the reviewer would read a missing file, or an earlier sweep's stack, and
 return a verdict that looks real.
 
 The reviewer's workspace root is **a pool slot**, not the policy tree: a slot
-holds the checkout at `pytorch` for pytorch/pytorch, or `target` for any other
-repo, and a per-slot *copy* of the policy's `.claude` beside it, which is the
-whole of what `restrict-read.py` will let it read.
+holds the checkout in the directory the policy's `greenlight target` names
+(`pytorch` for pytorch/pytorch, `target` for any other repo) and a per-slot *copy*
+of the policy's `.claude` beside it, which is the whole of what `restrict-read.py`
+will let it read.
 
 `runs/` is a sibling of the slots rather than a child, and that is load-bearing.
 Each run directory is passed to the reviewer as its own `--add-dir`, and

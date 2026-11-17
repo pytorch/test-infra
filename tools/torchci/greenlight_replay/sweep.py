@@ -59,14 +59,15 @@ from torchci.greenlight_replay.workspace import (
 RUNS_DIRNAME = "runs"
 
 # Outcomes the warm-up cannot recover from, because none of them depends on
-# which pull request was reviewed: the model the gateway resolved, the schema the
-# policy ships, the prompt the CLI parsed. Seeing one on the first run means
+# which pull request was reviewed: the model the gateway resolved, the prompt the
+# CLI parsed, the hooks the session loaded. Seeing one on the first run means
 # seeing it on every run, so the sweep stops rather than paying for the rest.
 # Deliberately wider than the runner's own RETRYABLE, which asks whether one more
 # attempt on THIS pull request could help; this asks whether the next thirty
-# could.
+# could. A verdict the record path rejects, and an instruction file a pull request
+# smuggled past the sanitize step, are not here: each is that pull request's.
 FATAL_OUTCOMES = frozenset(
-    {Outcome.API_ERROR, Outcome.SCHEMA_INVALID, Outcome.EMPTY_RUN}
+    {Outcome.API_ERROR, Outcome.EMPTY_RUN, Outcome.HOOKS_NOT_LOADED}
 )
 
 # Measured over 872 real CI reviewer runs: 9-11 minutes and $1.33 apiece.
@@ -171,7 +172,6 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
                 timeout_s=sweep.timeout_s,
                 model=sweep.model,
                 context_window=sweep.context_window,
-                repo=sweep.repo,
             )
 
         if replay_inputs.too_large:
@@ -249,7 +249,9 @@ def prepare_workspace(sweep: Sweep, worktree: Path) -> Path:
     workspace = WorktreePool.workspace_of(worktree)
     with sweep.workspace_lock:
         if workspace not in sweep.prepared:
-            install_policy_half(sweep.policy_source, worktree, sweep.repo)
+            install_policy_half(
+                sweep.policy_source, worktree, sweep.policy.target.checkout
+            )
             sweep.prepared.add(workspace)
     return workspace
 

@@ -3,9 +3,12 @@
 This module owns the invocation only -- the command line and the retry loop. Composing the
 reviewer's environment belongs to ``reviewer_env``, composing the hook settings layer to
 ``settings``, and reading what came back belongs to ``transcript``, which is where the
-failure modes that survive a clean exit code are documented. ``build_env``,
-``bedrock_enabled``, ``SUBPROCESS_PATH``, ``BEDROCK_SWITCH``, ``write_settings``,
-``Outcome`` and ``RunResult`` are re-exported here because this is where callers meet them.
+failure modes that survive a clean exit code are documented. After each attempt the
+policy's detector and record checks run as the policy's own code, through ``detector``
+and ``arm_code``.
+``build_env``, ``bedrock_enabled``, ``SUBPROCESS_PATH``, ``BEDROCK_SWITCH``,
+``write_settings``, ``Outcome`` and ``RunResult`` are re-exported here because this is
+where callers meet them.
 
 This is the part of the replay that spends money, so every rule below exists because a run
 that looked fine on the wire was not. Measurements are from this machine on 2026-09-18,
@@ -35,9 +38,8 @@ What the flags buy, and what each costs if dropped:
   run the reviewer at the CLI default while the policy says otherwise, and nothing in the
   result would show it, so what was passed is logged at launch instead.
 * ``timeout`` is the GNU binary, invoked WITHOUT ``--foreground`` so it signals the whole
-  process group; the CLI has no timeout flag of its own. The default is 37 minutes because
-  that is the CI model step's own bound, and it sits above the 33-minute hard review budget
-  so the reviewer runs out of budget before it runs out of process.
+  process group; the CLI has no timeout flag of its own. The bound is the policy's action
+  step ``timeout-minutes`` unless the operator passes one.
 * The environment is replaced wholesale rather than inherited, so ``GITHUB_WORKSPACE`` must
   be set explicitly: ``restrict-read.py`` fails closed without it and denies every read.
 
@@ -53,9 +55,9 @@ import subprocess
 import time
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
 
-from torchci.greenlight_replay.checkout import DEFAULT_REPO
+from torchci.greenlight_replay.arm_code import accept_verdict
+from torchci.greenlight_replay.detector import clear_detector_files, run_detector
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.inputs import ReplayInputs
 from torchci.greenlight_replay.policy import Policy
@@ -73,7 +75,6 @@ from torchci.greenlight_replay.transcript import (
     Outcome,
     RETRYABLE,
     RunResult,
-    schema_support_violation,
     verdict_fields,
     verdict_path,
 )
@@ -84,7 +85,6 @@ __all__ = [
     "CLAUDE_BIN",
     "DEFAULT_CONTEXT_WINDOW",
     "DEFAULT_MODEL",
-    "DEFAULT_TIMEOUT_S",
     "SUBPROCESS_PATH",
     "TIMEOUT_BIN",
     "Outcome",
@@ -103,7 +103,6 @@ logger = logging.getLogger(__name__)
 # Only the fully qualified id selects the 1M window; a bare alias silently resolves to 200k.
 DEFAULT_MODEL = "claude-opus-5[1m]"
 DEFAULT_CONTEXT_WINDOW = 1_000_000
-DEFAULT_TIMEOUT_S = 37 * 60
 
 CLAUDE_BIN = "claude"
 TIMEOUT_BIN = "timeout"
@@ -171,12 +170,11 @@ def run_review(
     *,
     pr_number: int,
     head_sha: str,
-    timeout_s: int = DEFAULT_TIMEOUT_S,
+    timeout_s: int | None = None,
     model: str = DEFAULT_MODEL,
     context_window: int = DEFAULT_CONTEXT_WINDOW,
-    repo: str = DEFAULT_REPO,
 ) -> RunResult:
-    """Review one pull request of ``repo``, retrying once when no usable verdict came back.
+    """Review one pull request, retrying once when no verdict came back.
 
     ``workspace`` is what the reviewer is given as ``GITHUB_WORKSPACE`` and as its working
     directory. ``restrict-read.py``'s entire allowlist is three roots beneath it -- the
@@ -188,19 +186,12 @@ def run_review(
     share one checkout.
 
     ``run_dir`` holds the reviewer's scratch files and must already contain the diff and
-    metadata that ``inputs`` wrote there.
+    metadata that ``inputs`` wrote there. ``timeout_s`` defaults to the policy's.
     """
     if inputs.too_large:
         return canned_result(policy.too_large_verdict)
 
     _assert_paths_agree(inputs, run_dir)
-    schema = json.loads(Path(policy.schema_path).read_text(encoding="utf-8"))
-    # Checked before the loop, not inside it: a schema the harness cannot interpret fails
-    # every pull request identically, so discovering it after a run means paying for a
-    # review whose verdict could never have been accepted.
-    unsupported = schema_support_violation(schema)
-    if unsupported is not None:
-        raise ValueError(f"{policy.schema_path}: {unsupported}")
     attempts: list[RunResult] = []
     for _ in range(2):
         attempts.append(
@@ -208,13 +199,11 @@ def run_review(
                 policy,
                 workspace,
                 run_dir,
-                schema,
                 pr_number,
                 head_sha,
-                timeout_s,
+                policy.timeout_s if timeout_s is None else timeout_s,
                 model,
                 context_window,
-                repo,
             )
         )
         if attempts[-1].outcome not in RETRYABLE:
@@ -290,21 +279,21 @@ def _attempt(
     policy: Policy,
     workspace: Path,
     run_dir: Path,
-    schema: Mapping[str, Any],
     pr_number: int,
     head_sha: str,
     timeout_s: int,
     model: str,
     context_window: int,
-    repo: str,
 ) -> RunResult:
     run_dir = Path(run_dir)
-    # A verdict left by the previous attempt would be read as this attempt's answer.
+    # A verdict, sentinel or manifest left by the previous attempt would be read as this
+    # attempt's.
     verdict_path(run_dir).unlink(missing_ok=True)
+    clear_detector_files(run_dir)
     (run_dir / MCP_CONFIG_FILENAME).write_text(
         json.dumps({"mcpServers": {}}), encoding="utf-8"
     )
-    write_settings(policy, run_dir, repo)
+    write_settings(policy, run_dir)
     command = build_command(
         policy, run_dir, workspace, timeout_s=timeout_s, model=model
     )
@@ -328,15 +317,28 @@ def _attempt(
     )
     started = time.monotonic()
     exit_code, stdout, stderr = _invoke_cli(
-        command, render_prompt(policy, pr_number, head_sha, repo), env, workspace
+        command, render_prompt(policy, pr_number, head_sha), env, workspace
     )
+    duration_s = time.monotonic() - started
     return classify(
         exit_code,
         stdout,
         stderr,
         run_dir=run_dir,
-        schema=schema,
         model=model,
         context_window=context_window,
-        duration_s=time.monotonic() - started,
+        duration_s=duration_s,
+        detect=lambda: run_detector(
+            policy.detector_script,
+            run_dir,
+            Path(workspace) / policy.detector_dirname,
+        ),
+        accept=lambda verdict_file: accept_verdict(
+            policy.root,
+            policy.record_step,
+            verdict_file,
+            repo=policy.target.repo,
+            pr_number=pr_number,
+            head_sha=head_sha,
+        ),
     )

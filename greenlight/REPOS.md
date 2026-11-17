@@ -306,6 +306,12 @@ policy was staged; `not_trivial` (`greenlight-files-verdict.json`) when the diff
 change to a repo's own config or policy; `scope_too_large` (`too-large-verdict.json`) from the size gate. The record job records
 and dismisses on them as on any `NO_LAND`.
 
+**Policy replay.** The policy replay CI (`greenlight-policy-replay.yml`) runs for every change to what
+a review reads or runs: anything under `.claude`, the root `CLAUDE.md`, `CLAUDE.local.md` and
+`.mcp.json`, the review workflow, and greenlight's `src`, `pyproject.toml` and `uv.lock`. The torchci
+workflow's replay tests fail when the review workflow's shape, the local action it uses included, is
+not one the replay registers (`tools/torchci/greenlight_replay/PARITY.md`).
+
 **Residual.** GitHub compares concurrency group names case-insensitively and evaluates them from the
 raw input, so a case variant of another repo's name joins that repo's group and can cancel its run;
 its own run then fails `greenlight target`. Dispatching needs `actions: write`, which can cancel runs

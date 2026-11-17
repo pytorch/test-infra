@@ -19,7 +19,6 @@ from torchci.greenlight_replay.runner import DEFAULT_CONTEXT_WINDOW
 
 
 DEFAULT_PARALLELISM = 4
-DEFAULT_TIMEOUT_MINUTES = 37
 
 # Must stay under a top-level /tmp/greenlight-* directory. restrict-read.py's
 # scratch allowlist is a plain string prefix -- realpath('/tmp') + '/greenlight-'
@@ -119,8 +118,9 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout-minutes",
         type=positive_int,
-        default=DEFAULT_TIMEOUT_MINUTES,
-        help="wall clock allowed per reviewer run (default: %(default)s)",
+        default=None,
+        help="wall clock allowed per reviewer run (default: the policy's review step "
+        "timeout-minutes)",
     )
     parser.add_argument(
         "--repo",

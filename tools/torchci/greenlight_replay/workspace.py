@@ -1,9 +1,10 @@
 """What one reviewer slot has to look like, and how it gets that way.
 
 A pool slot is the reviewer's ``GITHUB_WORKSPACE``. ``WorktreePool`` lays out the
-checkout half of it, at ``checkout.checkout_dirname(repo)``; the policy half has
-to be copied in beside that, and the checkout has to be stripped of its own agent
-instructions before the reviewer is pointed at it. Both are done here, per slot.
+checkout half of it, in the directory the policy's ``greenlight target`` named; the
+policy half has to be copied in beside that, and the checkout has to be stripped of
+its own agent instructions before the reviewer is pointed at it. Both are done here,
+per slot.
 
 A policy tree with ``repo-policy.py`` decides, as the workflow does, which repo
 policy the slots hold and whether the model runs at all: ``stage_policy_half``
@@ -25,11 +26,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from torchci.greenlight_replay.checkout import (
-    checkout_dirname,
-    DEFAULT_REPO,
-    WorktreePool,
-)
+from torchci.greenlight_replay.checkout import PRIMARY_CHECKOUT, WorktreePool
 from torchci.greenlight_replay.policy import Policy
 
 
@@ -52,12 +49,12 @@ class WorkspaceLayoutError(RuntimeError):
     """A reviewer workspace is missing one of restrict-read.py's allowed roots."""
 
 
-def workspace_roots(repo: str = DEFAULT_REPO) -> tuple[str, ...]:
-    """restrict-read.py's entire allowlist for ``repo``, relative to the workspace root.
+def workspace_roots(checkout: str = PRIMARY_CHECKOUT) -> tuple[str, ...]:
+    """restrict-read.py's entire allowlist, relative to the workspace root.
 
     The pool supplies the checkout; the policy tree supplies the rest.
     """
-    return (checkout_dirname(repo), *POLICY_ROOTS)
+    return (checkout, *POLICY_ROOTS)
 
 
 def stage_policy_half(
@@ -122,7 +119,7 @@ def _run_repo_policy(script: Path, args: Sequence[str]) -> str:
 
 
 def install_policy_half(
-    policy_root: Path, worktree: Path, repo: str = DEFAULT_REPO
+    policy_root: Path, worktree: Path, checkout: str = PRIMARY_CHECKOUT
 ) -> Path:
     """Copy ``policy_root``'s ``.claude`` in beside the checkout, and check the result.
 
@@ -135,7 +132,7 @@ def install_policy_half(
     destination = workspace / POLICY_SUBDIR
     _clear_policy_half(destination)
     shutil.copytree(Path(policy_root) / POLICY_SUBDIR, destination)
-    check_workspace(workspace, repo)
+    check_workspace(workspace, checkout)
     return workspace
 
 
@@ -162,14 +159,14 @@ def _clear_policy_half(destination: Path) -> None:
     shutil.rmtree(destination)
 
 
-def check_workspace(workspace: Path, repo: str = DEFAULT_REPO) -> None:
+def check_workspace(workspace: Path, checkout: str = PRIMARY_CHECKOUT) -> None:
     """Refuse a workspace whose layout would silently starve the reviewer.
 
     Handed the checkout the other way round -- the reviewed tree at the root, or
     the policy half missing -- the reads the prompt depends on are denied one by
     one, and the run still exits clean with a verdict formed from no code.
     """
-    roots = workspace_roots(repo)
+    roots = workspace_roots(checkout)
     missing = [root for root in roots if not (workspace / root).is_dir()]
     if missing:
         raise WorkspaceLayoutError(

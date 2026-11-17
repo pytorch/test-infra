@@ -144,8 +144,8 @@ def parse_row(cells: Mapping[str, str]) -> Row:
     """Validate one row's cells, keeping nothing that fails.
 
     A ``harness:`` reason makes the row a failure even when ``new_decision``
-    carries a status: a payload the policy's schema rejected keeps its status
-    there, and that status is not a verdict the policy stands behind.
+    carries a status: the replay leaves it blank on such a row, and a status
+    there anyway is not a verdict the policy stands behind.
     """
     reason = _cell(cells, "new_decision_reason")
     verdict = _cell(cells, "new_decision")
