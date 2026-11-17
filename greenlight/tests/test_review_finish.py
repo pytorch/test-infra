@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 import threading
 from datetime import datetime, timedelta
 from typing import Any, NoReturn
 
 import pytest
+from github import GithubException
 
-from greenlight import merge_authz, review_finish
+from greenlight import merge_authz, review_finish, verdict_labels
 from greenlight.authority import Authority
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_finish import PreparedScan
 from greenlight.scan_memory import ScanMemory
+from greenlight.state import PRState
 
 _NOW = datetime(2026, 11, 16, 12, 0, 0)
 _HASH = "a" * 64
@@ -29,6 +32,7 @@ def _prepared(**overrides: Any) -> PreparedScan:
         "stack": contextlib.ExitStack(),
         "client": object(),
         "token": "t",
+        "dispatch_token": "t",
         "build_github": _unreachable,
         "pr": None,
         "max_dispatches": None,
@@ -66,7 +70,7 @@ def _prepared(**overrides: Any) -> PreparedScan:
 
 
 def test_without_optional_work_nothing_optional_runs_and_a_clean_safety_pass_returns():
-    review_finish.finish(_prepared(), optional=False)
+    assert review_finish.finish(_prepared(), optional=False) == 0
 
 
 @pytest.mark.parametrize(
@@ -131,8 +135,9 @@ def test_the_optional_work_fingerprints_dispatches_and_labels_on_the_entrys_repo
         label_prs=label_prs,
     )
     with prepared.stack:
-        review_finish.finish(prepared)
+        dispatched = review_finish.finish(prepared)
 
+    assert dispatched == 1
     assert seen == {
         "fingerprint": ("pytorch/vision", 1),
         "dispatch": ("pytorch/vision", 1, False),
@@ -156,3 +161,114 @@ def test_errors_name_failed_dispatch_failed_and_abandoned_prs_once_each():
         review_finish.finish(prepared)
 
     assert str(excinfo.value) == "1 PR(s) failed during scan: [9]; failed to dispatch 1 PR(s): [1]"
+
+
+class _Client:
+    def __init__(self, token: str) -> None:
+        self.token = token
+        self.closed = 0
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def _dispatching(**overrides: Any) -> tuple[PreparedScan, list[tuple[object, int]]]:
+    """A prepared scan of PRs 1 to 3, all dispatchable, whose dispatch records the client and PR it got."""
+    dispatched: list[tuple[object, int]] = []
+
+    def dispatch(client, number, _head, _hash, _ref, *, shadow, repo):
+        dispatched.append((client, number))
+
+    fields: dict[str, Any] = {
+        "build_github": lambda token, **_kwargs: _Client(token),
+        "fingerprint": lambda *_args: ("h" * 40, _HASH),
+        "dispatch": dispatch,
+        "emit_dispatched": lambda **_kwargs: None,
+        "poke": lambda _number: None,
+        "label_prs": lambda _label_pass: None,
+        "authority": Authority(rules=_RULES, authors=dict.fromkeys((1, 2, 3), "alice"), recorded=()),
+        "fingerprint_numbers": [1, 2, 3],
+        "recent": [1, 2, 3],
+        "labels_by_number": dict.fromkeys((1, 2, 3), ()),
+        "head_sha_by_number": dict.fromkeys((1, 2, 3), "h" * 40),
+        "updated_at_by_number": dict.fromkeys((1, 2, 3), _NOW),
+    }
+    fields.update(overrides)
+    return _prepared(**fields), dispatched
+
+
+def test_finish_returns_how_many_reviews_it_dispatched_under_a_cap_set_after_prepare():
+    prepared, dispatched = _dispatching()
+    prepared.max_dispatches = 2
+
+    with prepared.stack:
+        assert review_finish.finish(prepared) == 2
+
+    assert len(dispatched) == 2
+
+
+def test_the_dispatch_uses_the_scan_client_when_the_dispatch_token_is_the_scan_token():
+    scan_client = _Client("t")
+    prepared, dispatched = _dispatching(client=scan_client)
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    assert {client for client, _number in dispatched} == {scan_client}
+
+
+def test_the_dispatch_goes_through_a_client_on_the_dispatch_token_when_it_differs():
+    built: list[_Client] = []
+
+    def build_github(token, **_kwargs):
+        built.append(_Client(token))
+        return built[-1]
+
+    prepared, dispatched = _dispatching(dispatch_token="dispatch", build_github=build_github)
+
+    with prepared.stack:
+        review_finish.finish(prepared)
+
+    [dispatch_client] = [client for client in built if client.token == "dispatch"]
+    assert {client for client, _number in dispatched} == {dispatch_client}
+    assert dispatch_client.closed == 1
+
+
+def test_nothing_to_dispatch_builds_no_dispatch_client():
+    built: list[str] = []
+
+    def build_github(token, **_kwargs):
+        built.append(token)
+        return _Client(token)
+
+    prepared, _dispatched = _dispatching(
+        dispatch_token="dispatch", build_github=build_github, fingerprint=lambda *_args: ("h" * 40, _HASH)
+    )
+    prepared.states.update(
+        {
+            number: PRState(pr_number=number, status="LAND", eval_hash=_HASH, head_sha="h" * 40, version=_NOW, run_id=1)
+            for number in (1, 2, 3)
+        }
+    )
+
+    with prepared.stack:
+        assert review_finish.finish(prepared) == 0
+
+    assert "dispatch" not in built
+
+
+def test_a_rate_limit_on_a_dispatch_sets_the_event_defers_the_rest_and_skips_the_label_pass(caplog):
+    def dispatch(_client, number, _head, _hash, _ref, *, shadow, repo):
+        raise GithubException(429, {"message": "secondary rate limit"})
+
+    prepared, _dispatched = _dispatching(dispatch=dispatch, label_prs=verdict_labels.label_listed_prs)
+
+    with caplog.at_level(logging.INFO, logger="greenlight"), pytest.raises(RuntimeError) as excinfo, prepared.stack:
+        review_finish.finish(prepared)
+
+    assert prepared.cancel_event.is_set()
+    assert str(excinfo.value) == "failed to dispatch 1 PR(s): [1]"
+    messages = [record.getMessage() for record in caplog.records]
+    assert "deferred PR #2 dispatch: a rate limit stopped this tick's GitHub work" in messages
+    assert "deferred PR #3 dispatch: a rate limit stopped this tick's GitHub work" in messages
+    assert "label pass skipped: a rate limit stopped this tick's GitHub work" in messages

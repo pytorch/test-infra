@@ -2,7 +2,8 @@
 
 The ``--max`` cap goes to the stalest candidates first. A dispatched PR gets an
 ``AI_REVIEW_DISPATCHED`` marker row and, once that row is written and unless the PR is shadow, a
-Dr. CI poke.
+Dr. CI poke. A rate limit on a dispatch sets the run's cancel event, and once that event is set no
+further candidate is dispatched: the rest are deferred to a later tick.
 """
 
 from __future__ import annotations
@@ -10,11 +11,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Protocol
 
+from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
 from greenlight.scan_runner import _staleness_key_for_state
 from greenlight.state import next_run_id
 
 if TYPE_CHECKING:
+    import threading
     from collections.abc import Callable
     from datetime import datetime
 
@@ -84,11 +87,20 @@ def _dispatch_pending(
     emit_dispatched: Callable[..., None],
     poke: Callable[[int], None],
     shadow_for_pr: Callable[[int], bool],
-) -> list[int]:
+    cancel_event: threading.Event,
+) -> tuple[list[int], int]:
+    """Dispatch the stalest ``pending`` candidates, up to ``max_dispatches``.
+
+    Returns the PRs whose dispatch failed and how many were dispatched.
+    """
     ordered = sorted(pending, key=_staleness_key)
     limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
     dispatch_failed: list[int] = []
-    for candidate in ordered[:limit]:
+    dispatched = 0
+    for position, candidate in enumerate(ordered[:limit]):
+        if cancel_event.is_set():
+            _defer(ordered[position:limit], "a rate limit stopped this tick's GitHub work")
+            break
         # Resolved once per candidate so the workflow input, the marker row, and the poke decision
         # can never disagree about which cohort this PR is in.
         shadow = shadow_for_pr(candidate.pr_number)
@@ -99,11 +111,18 @@ def _dispatch_pending(
         except IterationTimeout:
             raise
         except Exception as exc:
+            if is_rate_limit_error(exc):
+                cancel_event.set()
             logger.error("failed to dispatch review for PR #%d: %s", candidate.pr_number, exc, exc_info=True)
             dispatch_failed.append(candidate.pr_number)
             continue
+        dispatched += 1
         logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
         _emit_dispatch_marker(candidate, emit_dispatched, poke, repo=repo, shadow=shadow)
-    for candidate in ordered[limit:]:
-        logger.info("deferred PR #%d dispatch: --max cap reached", candidate.pr_number)
-    return dispatch_failed
+    _defer(ordered[limit:], "--max cap reached")
+    return dispatch_failed, dispatched
+
+
+def _defer(candidates: list[_Candidate], why: str) -> None:
+    for candidate in candidates:
+        logger.info("deferred PR #%d dispatch: %s", candidate.pr_number, why)

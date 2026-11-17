@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 from github import GithubException, RateLimitExceededException, UnknownObjectException
 
-from greenlight import drain, github_client, merge_authz, repo_scan, writers
+from greenlight import drain, github_client, merge_authz, quota, repo_scan, writers
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
@@ -142,14 +142,28 @@ def _unexpected_merge_rules_read(_client: object, repo: str) -> NoReturn:
 
 
 def test_the_primary_reads_its_eligibility_patiently_and_others_fail_fast(monkeypatch):
-    built: list[tuple[str, str]] = []
-    monkeypatch.setattr(github_client, "build_authz_client", lambda token: built.append(("patient", token)))
-    monkeypatch.setattr(github_client, "build_client", lambda token: built.append(("fast", token)))
+    built: list[tuple[str, str, object]] = []
+    monkeypatch.setattr(
+        github_client, "build_authz_client", lambda token, *, meter: built.append(("patient", token, meter))
+    )
+    monkeypatch.setattr(github_client, "build_client", lambda token, *, meter: built.append(("fast", token, meter)))
 
     repo_scan.eligibility_client(BUILTIN_PYTORCH, "t1")()
     repo_scan.eligibility_client(_VISION, "t2")()
 
-    assert built == [("patient", "t1"), ("fast", "t2")]
+    assert built == [("patient", "t1", None), ("fast", "t2", None)]
+
+
+def test_the_eligibility_client_carries_the_repos_meter(monkeypatch):
+    built: list[tuple[str, object]] = []
+    monkeypatch.setattr(github_client, "build_authz_client", lambda _token, *, meter: built.append(("patient", meter)))
+    monkeypatch.setattr(github_client, "build_client", lambda _token, *, meter: built.append(("fast", meter)))
+    tick = quota.TickMeter()
+
+    repo_scan.eligibility_client(BUILTIN_PYTORCH, "t1", meter=tick.meter(TARGET_REPO))()
+    repo_scan.eligibility_client(_VISION, "t2", meter=tick.meter("pytorch/vision"))()
+
+    assert built == [("patient", tick.meter(TARGET_REPO)), ("fast", tick.meter("pytorch/vision"))]
 
 
 def test_eligibility_caches_are_made_once_per_repo_eligibility_and_minimum_role_with_their_policy():
@@ -230,7 +244,7 @@ def test_a_served_repo_runs_the_whole_review_with_its_entry_memory_and_eligibili
     assert kwargs["bot_login"] == "bot[bot]"
     assert kwargs["ref"] == "main"
     assert memory.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
-    monkeypatch.setattr(github_client, "build_client", lambda _token: _Client())
+    monkeypatch.setattr(github_client, "build_client", lambda _token, **_kwargs: _Client())
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", lambda _client, _repo: _SNAPSHOT)
     assert kwargs["resolve_merge_rules"]() is _SNAPSHOT
     cache = scan.caches[("pytorch/vision", "merge_rules", "write")]
@@ -275,7 +289,7 @@ def test_a_write_permission_repo_reviews_with_its_writers_through_its_own_cache(
         roles.append(minimum_role)
         return _SNAPSHOT
 
-    monkeypatch.setattr(github_client, "build_client", lambda _token: _Client())
+    monkeypatch.setattr(github_client, "build_client", lambda _token, **_kwargs: _Client())
     monkeypatch.setattr(writers, "resolve_writers", resolve)
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
     assert scan.review.call_args.kwargs["entry"] == writer_entry

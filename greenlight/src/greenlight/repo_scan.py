@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from greenlight.config import Config
     from greenlight.merge_authz import MergeRulesSnapshot
+    from greenlight.quota import RequestMeter
     from greenlight.repo_config import Eligibility, MinimumRole, RepoEntry
     from greenlight.review_finish import BuildClient
 
@@ -84,11 +85,14 @@ def eligibility_resolver(entry: RepoEntry) -> Callable[[Github], MergeRulesSnaps
     return resolve
 
 
-def eligibility_client(entry: RepoEntry, token: str) -> Callable[[], Github]:
-    """The primary's eligibility reads ride out a short rate limit (``build_authz_client``); others fail fast."""
+def eligibility_client(entry: RepoEntry, token: str, *, meter: RequestMeter | None = None) -> Callable[[], Github]:
+    """The primary's eligibility reads ride out a short rate limit (``build_authz_client``); others fail fast.
+
+    ``meter`` counts and stops the client's requests (``quota``).
+    """
     if is_primary(entry.repo):
-        return lambda: github_client.build_authz_client(token)
-    return lambda: github_client.build_client(token)
+        return lambda: github_client.build_authz_client(token, meter=meter)
+    return lambda: github_client.build_client(token, meter=meter)
 
 
 def eligibility_cache(
@@ -126,7 +130,7 @@ def scan_repo(
     bot_login: str = "",
     build_github: BuildClient = github_client.build_client,
     get_identity: Callable[[Github, str], RepoIdentity] = fetch_identity,
-    run_review: Callable[..., None] = review.run,
+    run_review: Callable[..., int] = review.run,
     run_drain: Callable[..., drain.DrainReport] = drain.drain,
     **review_kwargs: Any,
 ) -> None:

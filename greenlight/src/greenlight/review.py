@@ -22,7 +22,9 @@ without any of them.
 ``prepare`` runs the safety work: both authz gates (``authz_gates``) once the merge rules resolve,
 the listing, the state read, the revert guard, the recency filter and the ineligible revoke.
 ``review_finish.finish`` runs the optional work (fan-out, dispatch, label pass, refusals) and raises
-the errors; ``run`` is both. Dr. CI is poked only for a repo whose ``status_comment`` is ``drci``.
+the errors; ``run`` is both, and returns how many reviews it dispatched. A caller may pass the run's
+``cancel_event`` (a tick-wide rate-limit latch) and a separate token for the dispatch. Dr. CI is poked
+only for a repo whose ``status_comment`` is ``drci``.
 
 Reverted PRs are excluded before any of that on the listing path, and on the ``--pr`` path once its
 gate admits the target or refuses one whose author GitHub can name (a refused target with no author
@@ -112,15 +114,17 @@ def _no_poke(_pr_number: int) -> None:
     return None
 
 
-def run(config: Config, *, entry: RepoEntry = BUILTIN_PYTORCH, optional: bool = True, **kwargs: Any) -> None:
+def run(config: Config, *, entry: RepoEntry = BUILTIN_PYTORCH, optional: bool = True, **kwargs: Any) -> int:
     """``prepare`` then ``review_finish.finish``, inside one ExitStack; ``kwargs`` are ``prepare``'s keywords.
 
-    ``optional=False`` runs only the safety work and raises its errors.
+    ``optional=False`` runs only the safety work and raises its errors. Returns how many reviews were
+    dispatched: 0 when ``prepare`` stopped the scan early.
     """
     with contextlib.ExitStack() as stack:
         prepared = prepare(config, entry=entry, stack=stack, **kwargs)
-        if prepared is not None:
-            review_finish.finish(prepared, optional=optional)
+        if prepared is None:
+            return 0
+        return review_finish.finish(prepared, optional=optional)
 
 
 def prepare(
@@ -154,11 +158,13 @@ def prepare(
     resolve_merge_rules: Callable[[], MergeRulesSnapshot],
     now: Callable[[], datetime] = _utcnow,
     memory: ScanMemory | None = None,
+    cancel_event: threading.Event | None = None,
+    dispatch_token: str | None = None,
 ) -> PreparedScan | None:
     """Run ``entry``'s safety work; None when the scan stops early (a refused requester or ``--pr`` target).
 
     The clients, the Dr. CI poke pool and the fingerprint workers are closed and drained when ``stack``
-    exits.
+    exits. ``cancel_event`` defaults to a fresh event and ``dispatch_token`` to the scan's token.
     """
     repo = entry.repo
     if entry.mode == "off":
@@ -209,7 +215,8 @@ def prepare(
     # trips it, which gates the dispatch phase. It reflects "the cancel event fired," which
     # is broader than a non-empty `abandoned` -- a rate limit on the last task leaves nothing to
     # cancel (abandoned stays empty) yet must still skip dispatch.
-    cancel_event = threading.Event()
+    if cancel_event is None:
+        cancel_event = threading.Event()
     authority = Authority(
         rules=snapshot.rules,
         authors=authors_by_number,
@@ -271,6 +278,7 @@ def prepare(
         stack=stack,
         client=client,
         token=token,
+        dispatch_token=token if dispatch_token is None else dispatch_token,
         build_github=build_github,
         pr=pr,
         max_dispatches=max_dispatches,
