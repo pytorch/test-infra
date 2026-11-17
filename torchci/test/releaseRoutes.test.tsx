@@ -95,16 +95,16 @@ const board: ReleaseBoard = {
 const artifacts: ArtifactPage = {
   rc: "rc3",
   summary: {
-    expected: 2,
+    expected: 3,
     present: 1,
     missing: 1,
-    size_anomalous: 0,
-    unexpected: 0,
+    size_anomalous: 1,
+    unexpected: 1,
   },
   rows: [
     {
       package: "wheel",
-      project: "torch",
+      project: "missing-project",
       channel: "test",
       rc: "rc3",
       accelerator: "cpu",
@@ -115,6 +115,48 @@ const artifacts: ArtifactPage = {
       size_bytes: null,
       vs_previous_pct: null,
       evidence: { url: "https://example.com/wheel", http_status: 404 },
+    },
+    {
+      package: "wheel",
+      project: "size-anomaly-project",
+      channel: "test",
+      rc: "rc3",
+      accelerator: "cu128",
+      python: "3.13",
+      os: "linux",
+      arch: "x86_64",
+      verdict: "size_anomalous",
+      size_bytes: 910_000_000,
+      vs_previous_pct: 41,
+      evidence: { url: "https://example.com/anomaly", http_status: 200 },
+    },
+    {
+      package: "docker",
+      project: "unexpected-project",
+      channel: "test",
+      rc: "rc3",
+      accelerator: "cpu",
+      python: "",
+      os: "linux",
+      arch: "aarch64",
+      verdict: "unexpected",
+      size_bytes: 182_000_000,
+      vs_previous_pct: 4,
+      evidence: { url: "https://example.com/unexpected", http_status: 200 },
+    },
+    {
+      package: "wheel",
+      project: "present-project",
+      channel: "test",
+      rc: "rc3",
+      accelerator: "cpu",
+      python: "3.12",
+      os: "linux",
+      arch: "x86_64",
+      verdict: "present",
+      size_bytes: 190_000_000,
+      vs_previous_pct: 1.2,
+      evidence: { url: "https://example.com/present", http_status: 200 },
     },
   ],
   pagination: { next: null, previous: null },
@@ -185,8 +227,20 @@ describe("release routes", () => {
       />
     );
     expect(html).toContain("Release 2.16.0 artifacts");
-    expect(html).toContain("torch · wheel");
-    expect(html).toContain("1/2 present");
+    expect(html).toContain("Expected");
+    expect(html).toContain("Size-anomalous");
+    expect(html).toContain("1 unexpected artifact in this selection.");
+    expect(html).toContain("910 MB");
+    expect(html).toContain("+41%");
+    expect(html.indexOf("missing-project")).toBeLessThan(
+      html.indexOf("size-anomaly-project")
+    );
+    expect(html.indexOf("size-anomaly-project")).toBeLessThan(
+      html.indexOf("unexpected-project")
+    );
+    expect(html.indexOf("unexpected-project")).toBeLessThan(
+      html.indexOf("present-project")
+    );
 
     const failed = renderToStaticMarkup(
       <ReleaseArtifactsPageContent
