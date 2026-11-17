@@ -267,3 +267,56 @@ def test_require_key_names_the_missing_key_and_its_source():
     assert app_tokens.require_key({"a": "1"}, "a", "secret s") == "1"
     with pytest.raises(ValueError, match="secret s is missing required key 'b'"):
         app_tokens.require_key({}, "b", "secret s")
+
+
+class _IdentityClient:
+    def __init__(self, data: dict[str, object]) -> None:
+        self.requester = self
+        self.data = data
+        self.closed = 0
+
+    def requestJsonAndCheck(self, verb: str, url: str) -> tuple[dict[str, str], dict[str, object]]:
+        return {}, {**self.data, "url": url}
+
+    def close(self) -> None:
+        self.closed += 1
+
+
+def test_env_tokens_use_the_scan_token_for_every_repo_after_its_live_checks(make_config):
+    built: list[_IdentityClient] = []
+
+    def build(_token: str) -> Any:
+        built.append(_IdentityClient({"full_name": "pytorch/vision", "private": False, "default_branch": "main"}))
+        return built[-1]
+
+    tokens = app_tokens.EnvTokens(make_config(github_token="scan"), build)
+
+    assert tokens.repo_token(_VISION) == "scan"
+    assert tokens.dispatch_token() == "scan"
+    assert app_tokens.EnvTokens(make_config(github_token="scan", dispatch_token="d")).dispatch_token() == "d"
+    assert [client.closed for client in built] == [1]
+
+
+@pytest.mark.parametrize(
+    ("identity", "reason"),
+    [
+        pytest.param({"full_name": "pytorch/Vision"}, "GitHub names it 'pytorch/Vision'", id="case"),
+        pytest.param({"private": True}, "it is private", id="private"),
+        pytest.param({"default_branch": "master"}, "its default branch is 'master'", id="branch"),
+    ],
+)
+def test_env_tokens_refuse_a_repo_failing_a_live_check(make_config, identity, reason):
+    data: dict[str, object] = {"full_name": "pytorch/vision", "private": False, "default_branch": "main", **identity}
+    tokens = app_tokens.EnvTokens(make_config(github_token="scan"), lambda _token: _IdentityClient(data))  # type: ignore[arg-type,return-value]
+
+    with pytest.raises(RepoUnavailable, match=reason):
+        tokens.repo_token(_VISION)
+
+
+def test_env_tokens_need_the_scan_token(make_config):
+    tokens = app_tokens.EnvTokens(make_config(dispatch_token="d"))
+
+    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
+        tokens.dispatch_token()
+    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
+        tokens.repo_token(_VISION)

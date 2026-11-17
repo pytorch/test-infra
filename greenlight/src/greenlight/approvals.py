@@ -205,7 +205,8 @@ class _Entry[T]:
 class ReviewReader:
     """Reads PRs and their reviews with ``If-None-Match``, keeping each URL's ETag and parsed result.
 
-    A 304 reuses the kept result. Read failures propagate.
+    A 304 reuses the kept result. Read failures propagate. ``rebind`` hands a reader that outlives its client (the
+    scan keeps one per repo between ticks) the next client's requester.
     """
 
     def __init__(self, requester: JsonRequester, *, per_page: int = REVIEWS_PER_PAGE) -> None:
@@ -213,6 +214,10 @@ class ReviewReader:
         self._per_page = per_page
         self._pulls: dict[tuple[str, int], _Entry[PullFacts]] = {}
         self._pages: dict[tuple[str, int, int], _Entry[tuple[ReviewRecord, ...]]] = {}
+
+    def rebind(self, requester: JsonRequester) -> None:
+        """Send every later read through ``requester``, keeping every kept result."""
+        self._requester = requester
 
     def pull(self, repo: str, number: int) -> PullFacts:
         return self._get(

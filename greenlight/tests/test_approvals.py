@@ -475,6 +475,21 @@ def test_reader_prune_keeps_only_the_named_prs():
     assert requester.gets()[-4:] == [(0, None), (1, None), (0, '"e8"'), (1, '"r8"')]
 
 
+def test_reader_rebind_sends_later_reads_through_the_new_requester_and_keeps_its_results():
+    first = _FakeRequester()
+    first.set(_REVIEWS_URL, _page(1), '"r1"', page=1)
+    reader = ReviewReader(first)
+    assert [r.id for r in reader.reviews("pytorch/vision", 7)] == [1]
+    second = _FakeRequester()
+    second.set(_REVIEWS_URL, _page(1), '"r1"', page=1)
+
+    reader.rebind(second)
+
+    assert [r.id for r in reader.reviews("pytorch/vision", 7)] == [1]
+    assert first.gets() == [(1, None)]
+    assert second.gets() == [(1, '"r1"')]
+
+
 def test_dismiss_review_puts_the_dismissal():
     requester = _FakeRequester()
 
