@@ -13,7 +13,7 @@
 --- loses an alarm because the heuristic guessed wrong. See the is_stale
 --- definition below for what it can and cannot establish.
 ---
---- Scope: the org param plus an optional repo param (repository name, '' = every repo in org).
+--- Scope: the org param plus an optional repo param (repository name, '' = every repo in org except pytorch-canary).
 --- The defaults (pytorch / pytorch) keep the original pytorch/pytorch-only
 --- behaviour for callers that pass no parameters, e.g. tools/torchci/queue_alert.py; the
 --- metrics page passes repo = '' to cover the whole pytorch org.
@@ -182,7 +182,12 @@ ec2_queued_jobs AS (
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
         AND workflow.repository.'owner'.'login' = {org: String}
         AND (
-            {repo: String} = ''
+            --- pytorch-canary is for testing CI changes, so it is left out of
+            --- the org-wide view
+            (
+                {repo: String} = ''
+                AND workflow.repository.'name' != 'pytorch-canary'
+            )
             OR workflow.repository.'name' = {repo: String}
         )
         AND NOT (
@@ -224,7 +229,12 @@ arc_queued_jobs AS (
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
         AND workflow.repository.'owner'.'login' = {org: String}
         AND (
-            {repo: String} = ''
+            --- pytorch-canary is for testing CI changes, so it is left out of
+            --- the org-wide view
+            (
+                {repo: String} = ''
+                AND workflow.repository.'name' != 'pytorch-canary'
+            )
             OR workflow.repository.'name' = {repo: String}
         )
         AND NOT (
