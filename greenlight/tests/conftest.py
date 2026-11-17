@@ -17,7 +17,7 @@ def _no_real_watchdog_exit(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_real_merge_rule_lookup(monkeypatch):
-    """Refuse ``verdict.has_eligible_author``, which reads the merge rules from live GitHub.
+    """Refuse ``verdict.has_eligible_author``, which reads the eligibility source from live GitHub.
 
     ``_run_full`` looks the function up on the module at call time, which is the attribute patched
     here; ``set_eligible`` swaps a fake in. A test module that imports the function itself binds the
@@ -37,12 +37,22 @@ class _FakeEligibility:
         self.authors = authors
         self.calls: list[tuple[str, str, int, str, str | None]] = []
         self.eligibilities: list[str] = []
+        self.author_types: list[str | None] = []
 
     def __call__(
-        self, token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: str
+        self,
+        token: str,
+        repo: str,
+        pr_number: int,
+        head_sha: str,
+        author: str | None,
+        *,
+        eligibility: str,
+        author_type: str | None,
     ) -> bool:
         self.calls.append((token, repo, pr_number, head_sha, author))
         self.eligibilities.append(eligibility)
+        self.author_types.append(author_type)
         return author in self.authors
 
 

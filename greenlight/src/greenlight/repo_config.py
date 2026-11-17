@@ -65,7 +65,6 @@ _ENUMS: dict[str, tuple[str, ...]] = {
 _PINNED_FIELDS = ("status_comment", "safety", "eligibility")
 _KNOWN_KEYS = frozenset({"repo", *_ENUMS})
 _REPO_NAME = re.compile(r"pytorch/[A-Za-z0-9._-]+")
-WRITE_PERMISSION_UNSUPPORTED = "write_permission eligibility is not supported by this release"
 
 
 class _Loader(yaml.SafeLoader):

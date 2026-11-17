@@ -97,7 +97,7 @@ PyTorch Green Light has one unit of work — the `review` phase:
 valid merge rule must name the author, whatever files the PR changes, and the PR must be on a base
 `merge_authz.accepts_base` accepts: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
 is `main`, matched by branch names. The scan judges the base from the listing (`pr_listing`), the
-`--pr` gate and the verdict (`verdict.has_eligible_author`, which also requires the reviewed head)
+`--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's

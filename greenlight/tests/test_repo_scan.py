@@ -3,13 +3,13 @@ from __future__ import annotations
 import dataclasses
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, NoReturn
 from unittest.mock import Mock
 
 import pytest
 from github import RateLimitExceededException
 
-from greenlight import drain, github_client, merge_authz, repo_scan
+from greenlight import drain, github_client, merge_authz, repo_scan, writers
 from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, RepoConfig, RepoEntry
@@ -95,11 +95,25 @@ def test_the_merge_rules_resolver_reads_the_entrys_own_repo(monkeypatch):
     assert calls == ["pytorch/vision"]
 
 
-def test_write_permission_eligibility_is_not_supported_by_this_release():
-    resolve = repo_scan.eligibility_resolver(dataclasses.replace(_VISION, eligibility="write_permission"))
+def test_the_write_permission_resolver_reads_the_entrys_own_writers(monkeypatch):
+    calls: list[str] = []
 
-    with pytest.raises(ValueError, match="write_permission eligibility is not supported by this release"):
-        resolve(object())  # type: ignore[arg-type]
+    def resolve(_client, repo):
+        calls.append(repo)
+        return _SNAPSHOT
+
+    monkeypatch.setattr(writers, "resolve_writers", resolve)
+    monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
+
+    resolver = repo_scan.eligibility_resolver(dataclasses.replace(_VISION, eligibility="write_permission"))
+
+    assert resolver(object()) is _SNAPSHOT  # type: ignore[arg-type]
+    assert calls == ["pytorch/vision"]
+    assert resolver.__name__ == "writers of pytorch/vision"
+
+
+def _unexpected_merge_rules_read(_client: object, repo: str) -> NoReturn:
+    raise AssertionError(f"a write_permission entry read the merge rules of {repo}")
 
 
 def test_the_primary_reads_its_eligibility_patiently_and_others_fail_fast(monkeypatch):
@@ -192,6 +206,20 @@ def test_a_served_repo_runs_the_whole_review_with_its_entry_memory_and_eligibili
     assert cache._ttl_seconds == make_config().merge_rules_ttl_seconds
     assert all(client.closed == 1 for client in scan.clients)
     scan.drain.assert_not_called()
+
+
+def test_a_write_permission_repo_reviews_with_its_writers_through_its_own_cache(make_config, monkeypatch):
+    writer_entry = dataclasses.replace(_VISION, eligibility="write_permission")
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, writer_entry))
+
+    scan.run(make_config, "pytorch/vision")
+
+    monkeypatch.setattr(github_client, "build_client", lambda _token: _Client())
+    monkeypatch.setattr(writers, "resolve_writers", lambda _client, _repo: _SNAPSHOT)
+    monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
+    assert scan.review.call_args.kwargs["entry"] == writer_entry
+    assert scan.review.call_args.kwargs["resolve_merge_rules"]() is _SNAPSHOT
+    assert set(scan.caches) == {("pytorch/vision", "write_permission")}
 
 
 def test_a_pr_recheck_gets_no_memory(make_config):

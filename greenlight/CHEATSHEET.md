@@ -11,8 +11,8 @@ one-shot `verdict` and `drci-poke` subcommands:
 
 - `review` — scan the open PRs from the evaluation cohort in `--repo` (default `pytorch/pytorch`;
   its `repos.yaml` entry decides the mode, [REPOS.md](REPOS.md)) (every
-  `approved_by` login in `merge_rules.yaml`, team refs expanded, minus bots and minus greenlight
-  itself); for each, compute its fingerprint (`eval_hash`), read its latest state from
+  `approved_by` login in `merge_rules.yaml`, team refs expanded, or on a `write_permission` repo every
+  User account with push access, minus bots and minus greenlight itself); for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
   (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed eligible PRs. A full tick
   lists every open PR — on every tick until one completes, and again 15 minutes (less 30 s of
@@ -49,12 +49,12 @@ one-shot `verdict` and `drci-poke` subcommands:
   `updated_at` is older than `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS` (default 24), or that carries
   the `Stale` label, is skipped without fingerprinting unless a review is in-flight or retry-eligible
   (cancelled/failed); an explicit `@greenlight recheck` (the `--pr` path) reviews it regardless. A PR a
-  human has already decided — approved by a `merge_rules.yaml` approver (bots excluded) or with
+  human has already decided — approved by a `merge_rules.yaml` approver or writer (bots excluded) or with
   changes requested by any non-bot reviewer — is also skipped without fingerprinting or dispatch,
   and no state is written, so the scan resumes if that changes. Needs
   `PYTORCH_GREENLIGHT_GITHUB_TOKEN`; any scan with at least one PR also reads ClickHouse
-  (`CLICKHOUSE_*`). Only a PR whose author a valid `merge_rules.yaml` rule names, whatever files it
-  changes, on a base trymerge accepts by branch name — `main`, a ghstack PR's, or a GitHub-native
+  (`CLICKHOUSE_*`). Only a PR whose author a valid `merge_rules.yaml` rule names (on a
+  `write_permission` repo: a User with write access), whatever files it changes, on a base trymerge accepts by branch name — `main`, a ghstack PR's, or a GitHub-native
   stack's whose trunk is `main` — is fingerprinted and dispatched. Every other listed PR is still
   state-read and revert-guarded but not dispatched, and when it is inside the review window and not labelled `Stale`, and its
   latest recorded row is a `LAND`, the scan dismisses greenlight's approval. A shadow review — the
@@ -63,7 +63,8 @@ one-shot `verdict` and `drci-poke` subcommands:
   Dr. CI's render and the land-time merge gate, and is not poked to Dr. CI; a `REVERTED` row on a
   PR with a recorded row is never shadow. `--requester` needs a login in the evaluation cohort, and
   `--pr` needs an eligible target (see below). Onboarding or offboarding
-  an author is a `merge_rules.yaml` change in the repo, live on the scan once its cached rules are
+  an author is a `merge_rules.yaml` change in the repo (a push-access change on a `write_permission`
+  repo), live on the scan once its cached rules are
   `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` old (kept between scans in one process); an
   author no rule names drops out of the listing and keeps any approval until it is dismissed by
   hand. [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md) has the details. Every listing tick that reaches its
@@ -210,7 +211,7 @@ the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/comm
 
 The end-to-end flow, per cohort PR:
 
-1. `review` reads `merge_rules.yaml`, then scans the open PRs it lists (every one on a full tick;
+1. `review` reads `merge_rules.yaml` (or a `write_permission` repo's writers), then scans the open PRs it lists (every one on a full tick;
    on a fast tick, the recently updated ones plus the open `Reverted`-labelled ones),
    dropping any draft PR from the listing outright — never fingerprinted or dispatched, though
    a `--pr` run still reviews a draft. It
