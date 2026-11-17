@@ -275,24 +275,32 @@ def test_reason_prefix_matches_python() -> None:
     )
 
 
-def test_repo_allowlist_matches_python() -> None:
-    extracted = _ts_repos()
-    assert extracted == constants.DRCI_STATUS_COMMENT_REPOS, ts_source.drift(
-        _TS_CONFIG,
-        _PY_CONSTANTS,
-        f"symmetric difference: {sorted(extracted ^ constants.DRCI_STATUS_COMMENT_REPOS)}",
-    )
-
-
 def test_repos_yaml_drci_entries_match_the_render_allowlist() -> None:
     # A drci entry posts no status comment of its own, so the HUD must render every one of them, and
-    # a repo the HUD renders without a drci entry would show greenlight's state twice.
+    # a repo the HUD renders without a drci entry would show greenlight's state twice. The scan reads
+    # repos.yaml live from main and Vercel deploys torchci from main, so the two go live together.
     config = repo_config.load_local()
     assert config.error is None
     entries = [entry for entry in config.served if entry.status_comment == "drci"]
     entries += [entry for entry, _reason in config.safety_only if entry.status_comment == "drci"]
     drci = frozenset(constants.normalize_repo(entry.repo) for entry in entries)
-    assert drci == constants.DRCI_STATUS_COMMENT_REPOS == _ts_repos()
+    extracted = _ts_repos()
+    assert drci == extracted, ts_source.drift(
+        _TS_CONFIG,
+        "greenlight/repos.yaml",
+        f"GREENLIGHT_REPOS must equal the status_comment: drci entries; "
+        f"symmetric difference: {sorted(drci ^ extracted)}",
+    )
+
+
+def test_primary_repo_matches_python() -> None:
+    extracted = ts_source.ts_string(_TS_CONFIG, "GREENLIGHT_PRIMARY_REPO")
+    assert extracted == constants.TARGET_REPO, ts_source.drift(
+        _TS_CONFIG,
+        _PY_CONSTANTS,
+        f"GREENLIGHT_PRIMARY_REPO is {extracted!r}, Python's TARGET_REPO is {constants.TARGET_REPO!r}. Dr. CI shows "
+        f"the eligibility line, read from that repo's merge rules, only there.",
+    )
 
 
 def test_greenlight_login_matches_python() -> None:

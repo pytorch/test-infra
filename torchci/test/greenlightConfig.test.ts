@@ -1,6 +1,9 @@
+import { isDrCIEnabled } from "lib/bot/utils";
 import {
+  GREENLIGHT_PRIMARY_REPO,
   GREENLIGHT_REPOS,
   greenlightRepoKey,
+  isGreenlightPrimaryRepo,
   isGreenlightRepo,
 } from "lib/greenlight/greenlightConfig";
 
@@ -44,5 +47,25 @@ describe("greenlightConfig", () => {
   it("rejects repos that are not greenlight repos", () => {
     expect(isGreenlightRepo("pytorch", "vision")).toBe(false);
     expect(isGreenlightRepo("some", "other")).toBe(false);
+  });
+
+  it("lists only repos Dr.CI serves", () => {
+    // greenlight posts no status comment of its own on these repos, so a repo Dr.CI
+    // does not comment on would show greenlight's state nowhere.
+    for (const repo of GREENLIGHT_REPOS) {
+      const [owner, name] = repo.split("/");
+      expect([repo, isDrCIEnabled(owner, name)]).toEqual([repo, true]);
+    }
+  });
+
+  it("renders the primary repo", () => {
+    expect(GREENLIGHT_REPOS).toContain(GREENLIGHT_PRIMARY_REPO);
+  });
+
+  it("matches the primary repo regardless of case, and no other repo", () => {
+    expect(isGreenlightPrimaryRepo("pytorch", "pytorch")).toBe(true);
+    expect(isGreenlightPrimaryRepo("PyTorch", "PyTorch")).toBe(true);
+    expect(isGreenlightPrimaryRepo("pytorch", "executorch")).toBe(false);
+    expect(isGreenlightPrimaryRepo("pytorch", "pytorch-canary")).toBe(false);
   });
 });

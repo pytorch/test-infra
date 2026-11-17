@@ -1,14 +1,17 @@
 // Server-side glue for the Green Light section of the Dr.CI comment. Reads the
 // authoritative greenlight state for a whole Dr.CI sweep out of ClickHouse in one
 // batched query, then delegates the (pure) rendering to lib/greenlight/greenlightRender.
-// A PR with no state at all gets the eligibility line from greenlightEligibility, and
-// so does a PR whose only state is shadow, unless that line is "waiting". The same
-// line, unless "waiting", replaces a verdict reached on an earlier commit.
+// On the primary repo, a PR with no state at all gets the eligibility line from
+// greenlightEligibility, and so does a PR whose only state is shadow, unless that line
+// is "waiting". The same line, unless "waiting", replaces a verdict reached on an
+// earlier commit. That line reads the primary repo's merge rules, so every other repo
+// gets its recorded non-shadow state alone.
 
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { isOutdatedVerdict } from "lib/greenlight/greenlightCommitLine";
 import {
   greenlightRepoKey,
+  isGreenlightPrimaryRepo,
   isGreenlightRepo,
 } from "lib/greenlight/greenlightConfig";
 import {
@@ -79,7 +82,8 @@ async function eligibilityLine(
  * line is "waiting"; a left-behind verdict gives way to that line on the same terms,
  * and stays when its check throws. Omitted are PRs whose state or eligibility
  * renders to nothing, those whose own render threw, and those with no verdict
- * whose check threw. Empty (and issues no query) when the repo isn't a greenlight
+ * whose check threw. Off the primary repo there is no eligibility line: only the
+ * rendered rows. Empty (and issues no query) when the repo isn't a greenlight
  * repo or no PRs were passed. The caller wraps this so a ClickHouse error can
  * never break the Dr.CI comment.
  */
@@ -146,6 +150,9 @@ export async function buildGreenlightSections(
     }
   }
 
+  if (!isGreenlightPrimaryRepo(owner, repo)) {
+    return sections;
+  }
   const check = greenlightEligibilityGate(octokit, owner, repo);
   // For a PR that already has a row: a shadow-only one, whose finished review the
   // scan repeats only once the PR changes, or a verdict on an earlier commit, which
@@ -182,7 +189,8 @@ export async function buildGreenlightSections(
 }
 
 // The eligibility line for a pull_request.opened webhook, read off the PR the
-// payload carries; "" for any other event or repo. `context` is probot's.
+// payload carries; "" for any other event, or any repo but the primary one.
+// `context` is probot's.
 export async function buildGreenlightOpenedLine(
   owner: string,
   repo: string,
@@ -192,7 +200,8 @@ export async function buildGreenlightOpenedLine(
   if (
     context.payload?.action !== "opened" ||
     !pr ||
-    !isGreenlightRepo(owner, repo)
+    !isGreenlightRepo(owner, repo) ||
+    !isGreenlightPrimaryRepo(owner, repo)
   ) {
     return "";
   }

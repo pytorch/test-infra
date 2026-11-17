@@ -96,7 +96,6 @@ def test_unknown_top_level_keys_are_ignored_with_a_warning(caplog):
         pytest.param(_entry("pytorch/vision", mode="<absent>"), "mode is missing", id="missing-field"),
         pytest.param(_entry("pytorch/vision", safety="none"), "safety 'none' is not one of", id="bad-enum"),
         pytest.param(_entry("pytorch/vision", safety="pytorchbot"), "safety: pytorchbot is only for", id="pytorchbot"),
-        pytest.param(_entry("pytorch/vision", status_comment="drci"), "status_comment: drci is only for", id="drci"),
         pytest.param(_entry("pytorch/vision", mode="active"), "safety: gate cannot be active", id="active-gate"),
     ],
 )
@@ -107,6 +106,18 @@ def test_a_bad_non_primary_entry_is_refused_and_the_rest_still_served(entry, rea
     [(repo, why)] = config.refused
     assert reason in why
     assert f"{repo} is refused: {why}" in config.problems
+
+
+def test_a_non_primary_drci_entry_is_served():
+    # Which repos Dr. CI renders is the drci entries themselves, mirrored by torchci's GREENLIGHT_REPOS
+    # (tests/test_render_sync.py), so the loader takes drci for any repo.
+    config = _parse(_entry("pytorch/vision", status_comment="drci"))
+
+    assert config.refused == ()
+    assert config.lookup("pytorch/vision") == (
+        RepoEntry("pytorch/vision", "drci", "gate", "merge_rules", "shadow"),
+        True,
+    )
 
 
 def test_every_copy_of_a_duplicated_repo_is_refused_case_insensitively():

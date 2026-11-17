@@ -41,9 +41,13 @@ ends one of three ways, and every problem is logged and reported by the scan:
   understand.
 - **refused**: no work at all. `repo` missing or not `pytorch/<name>`; a field missing or outside
   its values; the repo listed twice, compared case-insensitively (every copy is refused);
-  `pytorchbot` outside `constants.PYTORCHBOT_GUARDED_REPOS`; `drci` outside
-  `constants.DRCI_STATUS_COMMENT_REPOS`; `safety: gate` with `mode: active`, which this release
-  cannot serve safely.
+  `pytorchbot` outside `constants.PYTORCHBOT_GUARDED_REPOS`; `safety: gate` with `mode: active`,
+  which this release cannot serve safely.
+
+`status_comment: drci` is accepted for any entry: the HUD renders exactly the `drci` entries, through
+`GREENLIGHT_REPOS` in `torchci/lib/greenlight/greenlightConfig.ts`, which must equal them
+(`tests/test_render_sync.py`) and name only repos Dr. CI serves (`torchci/test/greenlightConfig.test.ts`).
+See "Dr. CI as the status surface" below.
 
 The primary entry, `pytorch/pytorch`, is never refused. Its `status_comment`, `safety` and
 `eligibility` are pinned to the built-in values above: a different value is logged and ignored,
@@ -56,6 +60,37 @@ rather than keeping them going.
 
 `tests/test_repo_config.py` keeps a file with any problem, or a primary entry that differs from
 the built-in, from merging.
+
+## Dr. CI as the status surface (`status_comment: drci`)
+
+A `drci` entry posts no GreenLight comment; Dr. CI renders the recorded state in its own comment
+(`torchci/lib/greenlight/greenlightComment.ts`), and GreenLight pokes Dr. CI after each row so the
+render is prompt. Shadow rows are never rendered, and only a served, `active` entry is poked.
+
+- **pytorch/pytorch** (the primary repo) also gets the eligibility line: on a PR with no row, or
+  only shadow rows, or a verdict on an earlier commit, Dr. CI says GreenLight is waiting, that the
+  PR can't be reviewed due to `merge_rules.yaml`, or that it is too big
+  ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)). That line is computed from pytorch/pytorch's merge
+  rules (`greenlightEligibility.ts`), so no other repo gets it.
+- **Any other `drci` repo** gets its recorded non-shadow state alone: nothing on a PR with no row
+  or only shadow rows, and a verdict on an earlier commit stays, marked outdated. In this release no
+  repo but pytorch/pytorch can be `active` (`gate` cannot be), so such a repo records only shadow
+  rows and its Dr. CI comment shows no GreenLight state until it may be active.
+
+**Making a repo `drci`**, in this order:
+
+1. The pinned scan release must include the change that lets the loader accept `drci` for any repo:
+   an older release refuses the entry, and every tick fails until the pin moves.
+2. One PR adds or changes the entry and adds the repo to `GREENLIGHT_REPOS`. The repo must pass
+   torchci's `isDrCIEnabled` and should be in `.github/workflows/update-drci-comments.yml`'s
+   matrix (add it in the same PR if missing): that 15-minute sweep is what re-renders a PR after a
+   lost poke. Both surfaces go live from the merge: the scan reads `repos.yaml` from main, and
+   Vercel deploys torchci from main.
+3. Switch to `drci` while the repo is still in shadow: GreenLight never deletes the comments it
+   already posted, so a repo switched later keeps a stale GreenLight comment on its open PRs.
+
+Dr. CI rebuilds a PR's comment only when the PR's current head has workflow runs, so a repo whose
+CI skips some PRs entirely shows no GreenLight state on them.
 
 ## Live checks
 

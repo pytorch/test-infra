@@ -367,7 +367,7 @@ either side stops routing both formats.
 Every status the `verdict` command records — reviewing, did-not-complete, LAND, NO_LAND —
 goes into one canonical greenlight comment, upserted in place, unless the row is shadow or Dr. CI
 shows that state instead: the repo's `repos.yaml` entry says `status_comment: drci` (today only
-`pytorch/pytorch`; allowed only in `constants.DRCI_STATUS_COMMENT_REPOS`). Then the upsert is skipped
+`pytorch/pytorch`; see "Dr. CI as the status surface" in REPOS.md). Then the upsert is skipped
 entirely, because Dr. CI already renders the same state from the emitted row inside its own
 comment and two comments saying the same thing is worse than one. The `LAND` approving review
 and the `NO_LAND` dismissal are the merge gate and are unaffected on every repo. Only the status
@@ -375,7 +375,7 @@ comment is delegated: the scan's `@greenlight recheck` refusal (its own marker, 
 a PR") is still posted by greenlight on every repo, `pytorch/pytorch` included.
 
 The two surfaces are wired by separate allowlists that must agree: greenlight suppresses on the
-`drci` entries of `repos.yaml`, held to `constants.DRCI_STATUS_COMMENT_REPOS`, and the HUD renders on `GREENLIGHT_REPOS`
+`drci` entries of `repos.yaml`, and the HUD renders on `GREENLIGHT_REPOS`
 (`torchci/lib/greenlight/greenlightConfig.ts`). A repo in the first but not the second is
 auto-approved by the merge gate with its status shown nowhere, so add and remove repos in both
 at once; `greenlight/tests/test_render_sync.py` fails when the two lists drift apart.

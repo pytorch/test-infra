@@ -8,7 +8,10 @@
 
 import yaml from "js-yaml";
 import { getFilesChangedByPr } from "lib/bot/utils";
-import { GREENLIGHT_APP_SLUG } from "lib/greenlight/greenlightConfig";
+import {
+  GREENLIGHT_APP_SLUG,
+  GREENLIGHT_PRIMARY_REPO,
+} from "lib/greenlight/greenlightConfig";
 import {
   GREENLIGHT_IN_PROGRESS_EMOJI,
   GREENLIGHT_NEEDS_HUMAN_EMOJI,
@@ -43,9 +46,11 @@ export interface MergeRule {
   coversAll: boolean;
 }
 
+const [MERGE_RULES_OWNER, MERGE_RULES_REPO] =
+  GREENLIGHT_PRIMARY_REPO.split("/");
 const MERGE_RULES_FILE = {
-  owner: "pytorch",
-  repo: "pytorch",
+  owner: MERGE_RULES_OWNER,
+  repo: MERGE_RULES_REPO,
   path: ".github/merge_rules.yaml",
 };
 const TARGET_BRANCH = "main";

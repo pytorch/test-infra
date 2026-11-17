@@ -6,7 +6,6 @@ import pytest
 
 from greenlight import guards, repo_config, verdict
 from greenlight.config import Config
-from greenlight.constants import DRCI_STATUS_COMMENT_REPOS, normalize_repo
 
 
 @pytest.fixture(autouse=True)
@@ -72,7 +71,7 @@ def set_eligible(monkeypatch):
 
 
 def _served_active_entry(repo: str) -> repo_config.RepoEntry:
-    drci = normalize_repo(repo) in DRCI_STATUS_COMMENT_REPOS
+    drci = repo_config.is_primary(repo)
     return repo_config.RepoEntry(
         repo,
         status_comment="drci" if drci else "greenlight",
@@ -86,8 +85,8 @@ def _served_active_entry(repo: str) -> repo_config.RepoEntry:
 def set_repo_entry(monkeypatch):
     """Answer ``verdict``'s repos.yaml lookup without the job checkout's file.
 
-    By default every repo is served and active, its status comment Dr. CI's exactly for the repos the
-    HUD renders. ``set_repo_entry(repo, entry, served=...)`` overrides one repo, and ``entry=None``
+    By default every repo is served and active, its status comment Dr. CI's exactly for the primary
+    repo. ``set_repo_entry(repo, entry, served=...)`` overrides one repo, and ``entry=None``
     makes it absent.
     """
     overrides: dict[str, tuple[repo_config.RepoEntry, bool] | None] = {}
