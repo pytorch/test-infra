@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping
     from datetime import datetime
 
     from greenlight.repo_config import Settings
@@ -40,37 +40,54 @@ class _Entry:
 
 @dataclass(slots=True)
 class DrainPass:
-    """One pass of the ``off`` drain over a repo's open PRs (``drain``).
+    """One pass of the ``off`` drain over a repo's open PRs (``drain``, which says why it is safe).
 
-    ``recorded`` holds the PRs that had a ledger row when the pass started (read before the others).
-    ``checked`` maps each PR the pass read to the listed ``updated_at`` it read it at, kept only once
-    that ``updated_at`` was ``FINGERPRINT_QUIET`` old (or the listing gave none); a PR is pending while
-    it is not there at its listed ``updated_at``, so one opened, reopened or updated is read again.
+    ``recorded`` holds the PRs that had a ledger row when the pass started. ``checked`` holds the PRs
+    the pass read successfully; a PR is pending while it is open and not there, so a later update to
+    a checked PR does not make it pending again, while one opened or reopened during the pass is.
+    ``attempted`` maps each PR the pass tried to read, successfully or not, to the sequence number of
+    its last attempt (``attempts`` is the last one given), which ``pending`` orders failed PRs by.
     ``blocker`` says why the pass cannot complete the drain even if it finds nothing (review runs older
-    than the off switch were unfinished, or could not be read, when it started), or is None. ``reads``,
+    than the off switch were unfinished, or could not be read, when it started), or is None.
     ``dismissed`` and ``failures`` are the pass's totals so far.
     """
 
     number: int
     blocker: str | None
     recorded: frozenset[int] = frozenset()
-    checked: dict[int, datetime | None] = field(default_factory=dict)
-    reads: int = 0
+    checked: set[int] = field(default_factory=set)
+    attempted: dict[int, int] = field(default_factory=dict)
+    attempts: int = 0
     dismissed: int = 0
     failures: int = 0
 
-    def pending(self, number: int, updated_at: datetime | None) -> bool:
-        return number not in self.checked or self.checked[number] != updated_at
+    def pending(self, open_prs: Iterable[int]) -> list[int]:
+        """The open PRs not checked yet, in reading order.
 
-    def check(self, number: int, updated_at: datetime | None, listed_at: datetime) -> None:
-        """Keep the PR as checked at ``updated_at`` once that is ``FINGERPRINT_QUIET`` old at ``listed_at``."""
-        if updated_at is None or listed_at - updated_at >= FINGERPRINT_QUIET:
-            self.checked[number] = updated_at
+        Never attempted first, those in ``recorded`` before the rest, each by number; then the ones
+        attempted already, the oldest attempt first, so a PR whose read keeps failing goes behind
+        every PR still awaiting its first read.
+        """
+        return sorted(
+            (number for number in open_prs if number not in self.checked),
+            key=lambda number: (
+                number in self.attempted,
+                self.attempted.get(number, 0),
+                number not in self.recorded,
+                number,
+            ),
+        )
+
+    def attempt(self, number: int) -> None:
+        """Record a read attempt on ``number``, successful or not, as the pass's latest."""
+        self.attempts += 1
+        self.attempted[number] = self.attempts
 
 
 class ScanMemory:
     """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain:
-    when the process first saw the repo off, and the pass under way (``DrainPass``).
+    when the process first saw the repo off, and the pass under way (``DrainPass``: the PRs it checked
+    and its read attempts), which ends when no open PR is pending.
 
     ``last_settings`` is the repo's config as last read when that read was not unreadable, which an
     unreadable read serves instead (``repo_config.read_settings``), or None.

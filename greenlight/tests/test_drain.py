@@ -10,7 +10,7 @@ import pytest
 from github import RateLimitExceededException
 
 from greenlight import drain
-from greenlight.constants import DISPATCH_REPO, FINGERPRINT_QUIET, WORKFLOW_FILE
+from greenlight.constants import DISPATCH_REPO, DRAIN_PRS_PER_TICK, WORKFLOW_FILE
 from greenlight.guards import IterationTimeout
 from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
@@ -255,36 +255,49 @@ def test_an_iteration_timeout_propagates(make_config):
     assert [client.closed for client in run.clients] == [1]
 
 
-def test_a_checked_pr_is_skipped_while_its_updated_at_is_unchanged(make_config):
+def test_a_checked_pr_is_skipped(make_config):
     run = _Drain([_Pull(1), _Pull(2), _Pull(3)])
     current = run.memory.start_drain_pass(None)
-    current.checked[2] = _OLD
-    current.checked[3] = _OLD - timedelta(seconds=1)
+    current.checked.update({2, 3})
 
     report = run.tick(make_config)
 
-    assert run.read == [1, 3]
-    assert report.complete
+    assert run.read == [1]
+    assert (report.complete, report.checked) == (True, 3)
 
 
-def test_only_a_quiet_pr_is_kept_as_checked_and_a_young_one_is_read_again(make_config, monkeypatch):
-    monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 2)
-    young = _NOW - FINGERPRINT_QUIET + timedelta(seconds=1)
-    run = _Drain([_Pull(1), _Pull(2, young), _Pull(3, None)])
+def test_a_pr_updated_just_before_every_tick_does_not_keep_the_pass_open(make_config, monkeypatch):
+    monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 1)
+    run = _Drain([_Pull(1), _Pull(2), _Pull(3)])
 
-    run.tick(make_config)
-    current = run.memory.drain_pass()
-    assert current is not None
-    assert current.checked == {1: _OLD}
+    reports = []
+    for _ in range(6):
+        run.clock += timedelta(minutes=2)
+        run.pulls[0] = _Pull(1, run.clock - timedelta(seconds=1))
+        reports.append(run.tick(make_config))
 
-    assert not run.tick(make_config).complete
-    assert run.read == [1, 2, 2, 3]
-    assert current.checked == {1: _OLD, 3: None}
+    assert run.read == [1, 2, 3]
+    assert [(report.pass_number, report.complete) for report in reports] == [(1, False), (1, False)] + [(1, True)] * 4
 
-    run.clock = _NOW + timedelta(seconds=1)
-    report = run.tick(make_config)
-    assert run.read == [1, 2, 2, 3, 2]
-    assert (report.complete, report.checked) == (True, 5)
+
+def test_failing_prs_in_front_do_not_starve_the_pr_behind_them(make_config):
+    failing = range(1, DRAIN_PRS_PER_TICK + 1)
+    behind = DRAIN_PRS_PER_TICK + 1
+    run = _Drain([_Pull(n) for n in (*failing, behind)], errors={n: RuntimeError("boom") for n in failing})
+
+    first = run.tick(make_config)
+    assert run.read == list(failing)
+    assert (first.checked, first.failed) == (0, tuple(failing))
+
+    second = run.tick(make_config)
+    assert run.read[DRAIN_PRS_PER_TICK:] == [behind, *failing[:-1]]
+    assert (second.checked, second.complete) == (1, False)
+
+    run.errors = {}
+    third = run.tick(make_config)
+    assert run.read[2 * DRAIN_PRS_PER_TICK :] == [failing[-1], *failing[:-1]]
+    assert (third.pass_number, third.checked, third.complete) == (1, behind, False)
+    assert third.reason == f"the pass failed on {2 * DRAIN_PRS_PER_TICK - 1} PR(s)"
 
 
 def test_an_empty_repo_completes_without_a_bot_login(make_config):
@@ -454,7 +467,7 @@ def test_the_dispatch_client_is_closed_when_the_runs_read_fails(make_config):
     assert [client.closed for client in run.clients] == [1, 1]
 
 
-def test_a_pr_reopened_before_the_prs_already_checked_is_checked_before_the_pass_ends(make_config, monkeypatch):
+def test_a_pr_reopened_during_the_pass_is_still_read_before_it_ends(make_config, monkeypatch):
     monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 2)
     run = _Drain([_Pull(2), _Pull(3), _Pull(4)])
 
@@ -470,18 +483,16 @@ def test_a_pr_reopened_before_the_prs_already_checked_is_checked_before_the_pass
     assert second.reason == "the pass dismissed 1 approval(s)"
 
 
-def test_a_pr_updated_after_its_check_is_checked_again_before_the_pass_ends(make_config, monkeypatch):
+def test_a_pr_updated_after_its_check_is_not_read_again_in_the_same_pass(make_config, monkeypatch):
     monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 1)
     run = _Drain([_Pull(1), _Pull(2)])
 
     run.tick(make_config)
-    run.pulls[0] = _Pull(1, _OLD + timedelta(minutes=10))
+    run.pulls[0] = _Pull(1, _NOW)
     second = run.tick(make_config)
-    third = run.tick(make_config)
 
-    assert run.read == [1, 1, 2]
-    assert not second.complete
-    assert (third.pass_number, third.complete, third.checked) == (1, True, 3)
+    assert run.read == [1, 2]
+    assert (second.pass_number, second.complete, second.checked) == (1, True, 2)
 
 
 def test_the_default_clock_is_naive_utc():

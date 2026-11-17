@@ -5,8 +5,9 @@ cut; ``RateLimitStop``, or any failure ``github_client.is_rate_limit_error`` rec
 tick's latch; any other ``IterationTimeout`` propagates and aborts the tick; anything else is logged
 with its traceback and becomes the repo's error. A cut or a missed turn is the repo's error when its
 full tick was due, and a warning otherwise; the PRs a repo's Phase B failed on before a cut or a rate
-limit stopped it are reported with that stop (``failed_before``). A latch set by work that absorbed the rate limit, with
-nothing after it to skip, is still named in the errors (``name_the_rate_limit``).
+limit stopped it are always its error, whether or not its full tick was due (``failed_before``). A
+latch set by work that absorbed the rate limit, with nothing after it to skip, is still named in the
+errors (``name_the_rate_limit``).
 """
 
 from __future__ import annotations
@@ -60,16 +61,11 @@ class Outcomes:
         self.tick.latch.set()
         self.error(repo, f"{step} stopped: {RATE_LIMITED}")
 
-    def failed_before(self, repo: str, outcome: Outcome, failed: Iterable[int], *, full_tick_due: bool) -> None:
-        """Report the PRs a repo's Phase B failed on before a cut or a rate limit stopped it, with that stop."""
+    def failed_before(self, repo: str, outcome: Outcome, failed: Iterable[int]) -> None:
+        """Record, as the repo's error, the PRs its Phase B failed on before a cut or a rate limit stopped it."""
         found = sorted(set(failed))
-        if not found or outcome not in ("cut", "rate limit"):
-            return
-        message = f"Phase B failed on {len(found)} PR(s) before it stopped: {found}"
-        if outcome == "cut":
-            self.shortfall(repo, message, full_tick_due=full_tick_due)
-        else:
-            self.error(repo, message)
+        if found and outcome in ("cut", "rate limit"):
+            self.error(repo, f"Phase B failed on {len(found)} PR(s) before it stopped: {found}")
 
     def name_the_rate_limit(self) -> None:
         """Record the rate limit as an error when the latch is set and no error names it yet."""

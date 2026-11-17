@@ -792,7 +792,7 @@ def test_a_rate_limit_minting_the_dispatch_token_skips_every_repo(make_config):
     [
         pytest.param(
             quota.RepoBudgetExceeded("pytorch/pytorch: floor"),
-            f"{TARGET_REPO}: Phase B failed on 1 PR(s) before it stopped: [123]; its full tick did not fit",
+            f"{TARGET_REPO}: Phase B failed on 1 PR(s) before it stopped: [123]",
             id="cut",
         ),
         pytest.param(
@@ -817,7 +817,7 @@ def test_phase_b_failures_go_with_the_stop_and_not_with_the_safety_work(make_con
     assert "finish pytorch/pytorch (safety only)" in run.events
 
 
-def test_phase_b_failures_of_a_fast_tick_cut_are_a_warning(make_config, caplog):
+def test_phase_b_failures_of_a_fast_tick_cut_are_errors_and_only_the_cut_is_a_warning(make_config, caplog):
     run = _Tick(
         _config(BUILTIN_PYTORCH),
         failures={(TARGET_REPO, "finish"): quota.RepoBudgetExceeded("pytorch/pytorch: floor")},
@@ -825,10 +825,11 @@ def test_phase_b_failures_of_a_fast_tick_cut_are_a_warning(make_config, caplog):
     )
     _full_tick_done(run, TARGET_REPO)
 
-    with caplog.at_level(logging.WARNING, logger="greenlight"):
+    with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         run.run(make_config)
 
-    assert "Phase B failed on 1 PR(s) before it stopped: [123]; its PRs wait for the next tick" in caplog.text
+    assert str(excinfo.value) == f"{TARGET_REPO}: Phase B failed on 1 PR(s) before it stopped: [123]"
+    assert f"{TARGET_REPO}: Phase B cut short: pytorch/pytorch: floor; its PRs wait for the next tick" in caplog.text
 
 
 @pytest.mark.parametrize("fast", [False, True])
