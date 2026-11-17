@@ -252,6 +252,20 @@ def test_a_failed_read_neither_ends_nor_restarts_the_wait_for_a_moved_head():
     assert clock.sleeps == [60, 120, 240]
 
 
+def test_a_read_on_the_head_starts_the_wait_over_even_when_its_reviews_cannot_be_read():
+    clock = _Clock()
+    requester = _ScriptedRequester(
+        [_pull(head=NEW), _pull(), _pull(head=NEW), _pull(head=NEW), _pull()],
+        [RuntimeError("502"), []],
+    )
+
+    assert _wait(requester, clock) == EXIT_OK
+
+    # Moved at 0 s, on the head at 60 s with a failed reviews read, moved at 180 and 420 s (240 s after the
+    # wait restarted), then on the head with no approval at 720 s: it passes instead of being superseded.
+    assert clock.sleeps == [60, 120, 240, 300]
+
+
 def test_a_moved_head_at_the_deadline_times_out_naming_it(caplog: pytest.LogCaptureFixture) -> None:
     clock = _Clock()
 

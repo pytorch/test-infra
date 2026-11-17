@@ -58,6 +58,13 @@ class _Off:
     facts: PullFacts
 
 
+@dataclass(frozen=True)
+class _Failed:
+    """A check that failed; ``on_head`` when its read of the PR found it open on the target head first."""
+
+    on_head: bool
+
+
 def _positive(value: str, what: str, maximum: int | None = None) -> int:
     if not _DIGITS.fullmatch(value) or int(value) < 1:
         raise ValueError(f"{what} must be a positive integer, got {value!r}")
@@ -84,7 +91,8 @@ def _delays() -> Iterator[int]:
     return itertools.chain(GATE_POLL_DELAYS, itertools.repeat(GATE_POLL_DELAYS[-1]))
 
 
-def _check(reader: ReviewReader, target: GateTarget, recheck: Callable[[], None]) -> GateDecision | _Off | None:
+def _check(reader: ReviewReader, target: GateTarget, recheck: Callable[[], None]) -> GateDecision | _Off | _Failed:
+    on_head = False
     try:
         facts = reader.pull(target.repo, target.pr)
         if not facts.is_open:
@@ -93,10 +101,11 @@ def _check(reader: ReviewReader, target: GateTarget, recheck: Callable[[], None]
             facts = reader.pull(target.repo, target.pr)
         if not facts.is_open or facts.head_sha.lower() != target.head_sha.lower():
             return _Off(facts)
+        on_head = True
         return gate_decision(reader.reviews(target.repo, target.pr), target.head_sha)
     except Exception:
         logger.error("gate check of %s#%d failed; holding", target.repo, target.pr, exc_info=True)
-        return None
+        return _Failed(on_head)
 
 
 def _superseded(target: GateTarget, facts: PullFacts) -> int:
@@ -140,7 +149,10 @@ def wait_for_gate(
             if read_at - moved_since >= GATE_SUPERSEDED_AFTER:
                 return _superseded(target, outcome.facts)
             held = f"it reads at head {outcome.facts.head_sha}, not {target.head_sha}"
-        elif outcome is not None:
+        elif isinstance(outcome, _Failed):
+            if outcome.on_head:
+                moved_since = None
+        else:
             moved_since = None
             if outcome.passes:
                 logger.info("gate passes for %s#%d: %s", target.repo, target.pr, outcome.reason)
