@@ -44,14 +44,21 @@ class _ContentsRepo:
 
 
 class _Client:
-    def __init__(self, contents: object = None) -> None:
+    def __init__(self, contents: object = None, identity: RepoIdentity | None = None) -> None:
         self.closed = 0
         self.repo = _ContentsRepo(contents)
         self.names: list[str] = []
+        self.identity = identity
+        self.requester = self
 
     def get_repo(self, full_name_or_id: str) -> _ContentsRepo:
         self.names.append(full_name_or_id)
         return self.repo
+
+    def requestJsonAndCheck(self, verb: str, url: str) -> tuple[dict[str, str], dict[str, object]]:
+        assert (verb, url[: len("/repos/")]) == ("GET", "/repos/")
+        identity = self.identity or _identity(url[len("/repos/") :])
+        return {}, identity._asdict()
 
     def close(self) -> None:
         self.closed += 1
@@ -105,6 +112,29 @@ def test_identity_problem(identity, problem):
         assert problem in found
 
 
+def test_check_identity_passes_a_repo_passing_every_live_check_and_refuses_any_other():
+    repo_scan.check_identity(_VISION, _Client())  # type: ignore[arg-type]
+
+    with pytest.raises(repo_scan.RepoUnavailable, match="it is private"):
+        repo_scan.check_identity(_VISION, _Client(identity=_identity("pytorch/vision", private=True)))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("entry", "served", "work"),
+    [
+        pytest.param(dataclasses.replace(_VISION, mode="off"), True, ("drain", False), id="off"),
+        pytest.param(dataclasses.replace(BUILTIN_PYTORCH, mode="off"), False, ("drain", False), id="off-safety-only"),
+        pytest.param(BUILTIN_PYTORCH, True, ("review", True), id="pytorchbot"),
+        pytest.param(BUILTIN_PYTORCH, False, ("review", False), id="pytorchbot-safety-only"),
+        pytest.param(_VISION, True, ("review", True), id="gate-shadow"),
+        pytest.param(dataclasses.replace(_VISION, mode="active"), True, ("review", True), id="gate-active"),
+        pytest.param(_VISION, False, ("none", False), id="gate-safety-only"),
+    ],
+)
+def test_repo_work_routes_every_entry(entry, served, work):
+    assert repo_scan.repo_work(entry, served=served) == work
+
+
 def test_the_merge_rules_resolver_reads_the_entrys_own_repo(monkeypatch):
     calls: list[str] = []
 
@@ -114,8 +144,11 @@ def test_the_merge_rules_resolver_reads_the_entrys_own_repo(monkeypatch):
 
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", resolve)
 
-    assert repo_scan.eligibility_resolver(_VISION)(object()) is _SNAPSHOT  # type: ignore[arg-type]
+    label, fetch = repo_scan.eligibility_resolver(_VISION)
+
+    assert fetch(object()) is _SNAPSHOT  # type: ignore[arg-type]
     assert calls == ["pytorch/vision"]
+    assert label == "merge rules of pytorch/vision"
 
 
 @pytest.mark.parametrize("minimum_role", ["write", "maintain"])
@@ -130,11 +163,11 @@ def test_the_write_permission_resolver_reads_the_entrys_own_writers_at_its_minim
     monkeypatch.setattr(merge_authz, "resolve_merge_rules", _unexpected_merge_rules_read)
 
     entry = dataclasses.replace(_VISION, eligibility="write_permission", minimum_role=minimum_role)
-    resolver = repo_scan.eligibility_resolver(entry)
+    label, fetch = repo_scan.eligibility_resolver(entry)
 
-    assert resolver(object()) is _SNAPSHOT  # type: ignore[arg-type]
+    assert fetch(object()) is _SNAPSHOT  # type: ignore[arg-type]
     assert calls == [("pytorch/vision", minimum_role)]
-    assert resolver.__name__ == f"{minimum_role}-role writers of pytorch/vision"
+    assert label == f"{minimum_role}-role writers of pytorch/vision"
 
 
 def _unexpected_merge_rules_read(_client: object, repo: str) -> NoReturn:
@@ -185,6 +218,11 @@ def test_eligibility_caches_are_made_once_per_repo_eligibility_and_minimum_role_
         ("pytorch/vision", "write_permission", "maintain"),
     }
     assert (first._ttl_seconds, first._max_stale_seconds) == (600.0, 1800.0)
+    assert (first._label, other._label, maintainers._label) == (
+        "merge rules of pytorch/vision",
+        "write-role writers of pytorch/vision",
+        "maintain-role writers of pytorch/vision",
+    )
 
 
 def _file(**fields: str) -> _Content:
@@ -208,7 +246,7 @@ class _Scan:
         self.tokens: list[str] = []
 
     def _build(self, token: str, **_kwargs: object) -> Any:
-        client = _Client(self.contents)
+        client = _Client(self.contents, self.identity)
         self.clients.append(client)
         self.tokens.append(token)
         return client
@@ -230,7 +268,6 @@ class _Scan:
             pr=pr,
             bot_login="bot[bot]",
             build_github=self._build,
-            get_identity=lambda _client, name: self.identity or _identity(name),
             run_review=self.review,
             run_drain=self.drain,
             ref="main",
@@ -335,14 +372,21 @@ def test_an_invalid_primary_file_runs_only_its_safety_work_then_fails(make_confi
     assert scan.review.call_args.kwargs["entry"] == BUILTIN_PYTORCH
 
 
-def test_a_file_with_an_unknown_key_runs_only_the_safety_work_then_fails(make_config):
+def test_a_safety_only_gate_repo_gets_no_work_forgets_its_drain_and_fails(make_config, caplog):
     scan = _Scan(_file(extra="1"))
+    memory = scan.memories["pytorch/vision"] = ScanMemory()
+    memory.off_since(datetime(2026, 1, 1))
 
-    with pytest.raises(RuntimeError, match=r"pytorch/vision: safety-only: unknown key\(s\) \['extra'\]"):
+    with (
+        caplog.at_level(logging.WARNING, logger="greenlight"),
+        pytest.raises(RuntimeError, match=r"pytorch/vision: safety-only: unknown key\(s\) \['extra'\]"),
+    ):
         scan.run(make_config, "pytorch/vision")
 
-    assert scan.review.call_args.kwargs["optional"] is False
-    assert scan.review.call_args.kwargs["entry"] == _VISION
+    scan.review.assert_not_called()
+    scan.drain.assert_not_called()
+    assert memory.off_since(datetime(2026, 2, 2)) == datetime(2026, 2, 2)
+    assert "a safety-only gate entry has no safety work yet" in caplog.text
 
 
 def test_a_refused_repo_gets_no_work_and_fails_with_its_reason(make_config):
@@ -505,12 +549,14 @@ def test_a_scan_needs_a_token(make_config):
 
 
 @pytest.mark.parametrize(("dispatch_token", "expected"), [(None, _TOKEN), ("dispatch", "dispatch")])
-def test_the_config_and_the_dispatch_use_the_dispatch_token(make_config, dispatch_token, expected):
+def test_the_config_is_read_with_the_scan_token_and_the_dispatch_uses_the_dispatch_token(
+    make_config, dispatch_token, expected
+):
     scan = _Scan(_MISSING)
 
     scan.run(make_config, TARGET_REPO, dispatch_token=dispatch_token)
 
-    assert scan.tokens == [expected, _TOKEN]
+    assert scan.tokens == [_TOKEN]
     assert scan.review.call_args.kwargs["dispatch_token"] == expected
 
 

@@ -727,13 +727,13 @@ All gates must pass before a change is complete.
 ## Layout
 
 ```text
-src/greenlight/
+src/greenlight/    # the modules the per-repo config, the drain and the tick added: REPOS.md, "Modules"
   __init__.py      # package exports (Config, __version__)
   __main__.py      # `python -m greenlight` entry point
   cli.py           # CLI parsing (review + verdict + drci-poke + check-config subcommands), dispatch, exit codes
   lambda_handler.py # AWS Lambda entry point: load secrets, mint App token, run one review scan via cli.main
   runner.py        # run_forever(): resilient daemon loop; execute_once(): one-shot phase run
-  review.py        # scan evaluation-cohort PRs: list, read state, revert guard, ineligible revoke; review_finish.py fingerprints, dispatches and labels; raises on failure
+  review.py        # one repo's review scan: prepare (rules, listing, state, revert guard, ineligible revoke); run is prepare, then review_finish.finish; raises on failure
   repo_config.py, repo_scan.py, review_finish.py, drain.py, snapshot_cache.py # per-repo config, scan and drain: see REPOS.md's "Modules"
   pr_listing.py    # list the scan's open PRs: a full listing, or a fast one (recently updated, plus open Reverted-labelled PRs)
   scan_memory.py   # what a process carries between listing scans: when the last full tick that completed started, and the fingerprint results a fast tick reuses
@@ -746,7 +746,7 @@ src/greenlight/
   review_gate.py   # detect PRs a human already decided, so the scan skips fingerprint + dispatch
   revert_guard.py  # permanently exclude reverted PRs: revoke greenlight's approval, record the REVERTED row
   ineligible_approvals.py # revoke greenlight's approval on a listed PR that is no longer eligible
-  merge_authz.py   # resolve merge_rules.yaml: the authorized-login set (the fingerprint comment allowlist) and each rule's approvers and trymerge file patterns; test a PR's base as trymerge does; list a PR's changed files
+  merge_authz.py   # resolve a repo's merge_rules.yaml: the authorized-login set (the fingerprint comment allowlist) and each rule's approvers and trymerge file patterns; test a PR's base as trymerge does; list a PR's changed files
   state.py         # read a PR's latest recorded state from misc.greenlight_pr_state (deliberately shadow-unfiltered), and, for the GL/* labels, the non-shadow rows pytorch's land gate reads
   state_emit.py    # build and emit a state row to S3 for replicator ingestion; single source of the row schema and object key
   decision.py      # decide which scanned PRs need a (re-)dispatch (new/changed vs. in-flight AI_REVIEW_STARTED)

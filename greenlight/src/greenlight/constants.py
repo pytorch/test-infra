@@ -105,7 +105,8 @@ REPO_CONFIG_PATH = ".github/greenlight/config.yml"
 CONFIG_MAX_BYTES = 8192
 DRAIN_PRS_PER_TICK = 100
 
-# Phase B starts no GitHub request this long after the tick started, inside the scan's 2-minute schedule.
+# The Phase B of a repo other than the primary starts no GitHub request this long after the tick started,
+# inside the scan's 2-minute schedule; the primary's Phase B keeps its own limits, with no deadline.
 TICK_DEADLINE = timedelta(seconds=110)
 OTHER_REPO_TIME_BUDGET = timedelta(seconds=20)
 OTHER_REPO_REQUEST_BUDGET = 400

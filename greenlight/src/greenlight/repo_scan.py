@@ -1,23 +1,24 @@
-"""The per-repo decisions of one scan: its config, the live checks, its eligibility source, its mode.
+"""The per-repo decisions of one scan: its config, the live checks, its eligibility source, its work.
 
 ``scan_repo`` reads the repo's own ``.github/greenlight/config.yml`` fresh every scan
 (``repo_config.read_settings``; an unreadable file serves the settings of the repo's last read in its
 ``ScanMemory``, kept for nothing else), checks what GitHub reports for the repo
-(the exact canonical name, public, default branch ``main``: ``accepts_base`` judges bases against
-``main``, so a repo on another default branch would get no reviews), and then drains it when its mode
-is ``off`` or runs ``review.run`` on it otherwise: whole when served, only its safety work when
-safety-only. A repo whose settings give no entry (no file, a refused file, an unreadable one), or one
-that fails a live check, gets no work at all. Every problem the settings carry fails the scan, after
-the work they still allow ran.
+(``check_identity``: the exact canonical name, public, default branch ``main``: ``accepts_base``
+judges bases against ``main``, so a repo on another default branch would get no reviews), and then
+does the work ``repo_work`` gives its entry: the drain when its mode is ``off``; the review
+(``review.run``), whole when served and only its safety work when safety-only; or nothing for a
+safety-only ``gate`` entry, which has no safety work yet. A repo whose settings give no entry (no
+file, a refused file, an unreadable one), or one that fails a live check, gets no work at all. Every
+problem the settings carry fails the scan, after the work they still allow ran.
 The dispatch and the drain's read of the review runs use the dispatch token
-(``PYTORCH_GREENLIGHT_DISPATCH_TOKEN``, falling back to the scan token): both are on
-``DISPATCH_REPO``.
+(``Config.dispatch_or_scan_token``): both are on ``DISPATCH_REPO``. ``tick`` routes every repo it
+scans through the same ``repo_work`` and ``check_identity``.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, NamedTuple, NoReturn
+from typing import TYPE_CHECKING, Literal, NamedTuple, NoReturn
 
 from greenlight import drain, github_client, merge_authz, review, writers
 from greenlight.constants import REPO_CONFIG_PATH, TARGET_BRANCH
@@ -27,6 +28,7 @@ from greenlight.snapshot_cache import SnapshotCache
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Unpack
 
     from github import Github
 
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
     from greenlight.merge_authz import MergeRulesSnapshot
     from greenlight.quota import RequestMeter
     from greenlight.repo_config import Eligibility, MinimumRole, RepoEntry
+    from greenlight.review import RunFn, ScanOptions
     from greenlight.review_finish import BuildClient
 
     EligibilityCaches = dict[tuple[str, Eligibility, MinimumRole], SnapshotCache[Github, MergeRulesSnapshot]]
@@ -43,6 +46,10 @@ logger = logging.getLogger(__name__)
 # An eligibility source may be served stale on a transient failure for this many TTLs; past that the
 # repo's scan fails, as it would at once with no snapshot.
 _ELIGIBILITY_MAX_STALE_TTLS = 3
+
+
+class RepoUnavailable(Exception):
+    """A repo's token cannot be had, or GitHub's report of it fails a live check: no work this scan."""
 
 
 class RepoIdentity(NamedTuple):
@@ -71,27 +78,50 @@ def identity_problem(entry: RepoEntry, identity: RepoIdentity) -> str | None:
     return None
 
 
-def eligibility_resolver(entry: RepoEntry) -> Callable[[Github], MergeRulesSnapshot]:
-    """The fetch of ``entry``'s eligibility source: its merge rules, or its minimum role's holders as one rule."""
+def check_identity(entry: RepoEntry, client: Github) -> None:
+    """Raise ``RepoUnavailable`` when what GitHub reports for ``entry``'s repo fails a live check."""
+    problem = identity_problem(entry, fetch_identity(client, entry.repo))
+    if problem is not None:
+        raise RepoUnavailable(problem)
+
+
+class RepoWork(NamedTuple):
+    """What a scan does for an entry: its ``kind`` of work, and whether its review goes past the safety work."""
+
+    kind: Literal["drain", "review", "none"]
+    optional: bool
+
+
+def repo_work(entry: RepoEntry, *, served: bool) -> RepoWork:
+    """The work of ``entry``, served or safety-only, on either entry point (``scan_repo``, ``tick``).
+
+    ``off`` drains. A ``pytorchbot`` entry, or a served ``gate`` one, is reviewed, past its safety work
+    only when served. A safety-only ``gate`` entry gets nothing: a gate repo has no safety work yet.
+    """
+    if entry.mode == "off":
+        return RepoWork("drain", optional=False)
+    if entry.safety == "pytorchbot" or served:
+        return RepoWork("review", optional=served)
+    return RepoWork("none", optional=False)
+
+
+def eligibility_resolver(entry: RepoEntry) -> tuple[str, Callable[[Github], MergeRulesSnapshot]]:
+    """How ``entry``'s eligibility source is named in the logs, and its fetch: its merge rules, or its
+    minimum role's holders as one rule."""
     if entry.eligibility == "write_permission":
-
-        def resolve_writers(client: Github) -> MergeRulesSnapshot:
-            return writers.resolve_writers(client, entry.repo, minimum_role=entry.minimum_role)
-
-        resolve_writers.__name__ = f"{entry.minimum_role}-role writers of {entry.repo}"
-        return resolve_writers
-
-    def resolve(client: Github) -> MergeRulesSnapshot:
-        return merge_authz.resolve_merge_rules(client, entry.repo)
-
-    resolve.__name__ = f"merge rules of {entry.repo}"
-    return resolve
+        return (
+            f"{entry.minimum_role}-role writers of {entry.repo}",
+            lambda client: writers.resolve_writers(client, entry.repo, minimum_role=entry.minimum_role),
+        )
+    return f"merge rules of {entry.repo}", lambda client: merge_authz.resolve_merge_rules(client, entry.repo)
 
 
 def eligibility_client(entry: RepoEntry, token: str, *, meter: RequestMeter | None = None) -> Callable[[], Github]:
-    """The primary's eligibility reads ride out a short rate limit (``build_authz_client``); others fail fast.
+    """The primary's eligibility client (``build_authz_client``), else the fail-fast one.
 
-    ``meter`` counts and stops the client's requests (``quota``).
+    The primary's client rides out a short rate limit only on the unmetered single-repo path
+    (``scan_repo``); inside the tick, ``meter`` counts and stops the client's requests and latches the
+    tick on the first rate limit, without waiting it out (``quota``).
     """
     if is_primary(entry.repo):
         return lambda: github_client.build_authz_client(token, meter=meter)
@@ -105,8 +135,10 @@ def eligibility_cache(
     key = (entry.repo, entry.eligibility, entry.minimum_role)
     cache = caches.get(key)
     if cache is None:
+        label, fetch = eligibility_resolver(entry)
         cache = SnapshotCache(
-            eligibility_resolver(entry),
+            fetch,
+            label=label,
             ttl_seconds=ttl_seconds,
             max_stale_seconds=_ELIGIBILITY_MAX_STALE_TTLS * ttl_seconds,
         )
@@ -148,10 +180,9 @@ def scan_repo(
     pr: int | None = None,
     bot_login: str = "",
     build_github: BuildClient = github_client.build_client,
-    get_identity: Callable[[Github, str], RepoIdentity] = fetch_identity,
-    run_review: Callable[..., int] = review.run,
+    run_review: RunFn = review.run,
     run_drain: Callable[..., drain.DrainReport] = drain.drain,
-    **review_kwargs: Any,
+    **review_kwargs: Unpack[ScanOptions],
 ) -> None:
     """Scan ``repo`` once as its config says.
 
@@ -160,7 +191,7 @@ def scan_repo(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
-    dispatch_token = config.dispatch_token or token
+    dispatch_token = config.dispatch_or_scan_token
     memory = None if memories is None else memories.setdefault(repo, ScanMemory())
     client = build_github(token)
     try:
@@ -172,14 +203,18 @@ def scan_repo(
                 raise RuntimeError(f"{repo} has no GreenLight config at {REPO_CONFIG_PATH}")
             _raise(repo, [settings.problem])
         entry = settings.entry
-        problem = identity_problem(entry, get_identity(client, repo))
+        errors: list[str] = [] if settings.problem is None else [settings.problem]
+        try:
+            check_identity(entry, client)
+        except RepoUnavailable as exc:
+            errors.append(f"refused for this scan: {exc}")
+            _raise(repo, errors)
     finally:
         github_client.close_client(client)
-    errors: list[str] = [] if settings.problem is None else [settings.problem]
-    if problem is not None:
-        errors.append(f"refused for this scan: {problem}")
-        _raise(repo, errors)
-    if entry.mode == "off":
+    work = repo_work(entry, served=settings.served)
+    if memory is not None and work.kind != "drain":
+        memory.clear_drain()
+    if work.kind == "drain":
         if memory is None:
             logger.warning("%s is off: --pr reviews nothing", repo)
         else:
@@ -193,20 +228,19 @@ def scan_repo(
             )
             if (problem := drain_error(report)) is not None:
                 errors.append(problem)
-        _raise_any(repo, errors)
-        return
-    if memory is not None:
-        memory.clear_drain()
-    run_review(
-        config,
-        entry=entry,
-        optional=settings.served,
-        pr=pr,
-        bot_login=bot_login,
-        build_github=build_github,
-        resolve_merge_rules=eligibility_thunk(config, entry, eligibility_caches, token),
-        memory=memory,
-        dispatch_token=dispatch_token,
-        **review_kwargs,
-    )
+    elif work.kind == "none":
+        logger.warning("%s: a safety-only gate entry has no safety work yet; nothing runs for it", repo)
+    else:
+        run_review(
+            config,
+            entry=entry,
+            optional=work.optional,
+            pr=pr,
+            bot_login=bot_login,
+            build_github=build_github,
+            resolve_merge_rules=eligibility_thunk(config, entry, eligibility_caches, token),
+            memory=memory,
+            dispatch_token=dispatch_token,
+            **review_kwargs,
+        )
     _raise_any(repo, errors)

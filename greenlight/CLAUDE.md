@@ -103,7 +103,7 @@ is `main`, matched by branch names. The scan judges the base from the listing (`
 `--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
-`LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
+`LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the repo's mode (REPOS.md), the verdict's
 record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
 guard: a `REVERTED` row, which can only deny, is non-shadow on a PR that already has a recorded row
 and follows the PR's eligibility otherwise. A shadow verdict is never approved and always dismisses

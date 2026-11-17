@@ -109,6 +109,14 @@ def test_blank_dispatch_token_becomes_none(blank):
     assert Config(dispatch_token=blank).dispatch_token is None
 
 
+def test_the_dispatch_repo_token_is_the_dispatch_token_else_the_scan_token():
+    assert Config(github_token="scan", dispatch_token="dispatch").dispatch_or_scan_token == "dispatch"
+    assert Config(github_token="scan").dispatch_or_scan_token == "scan"
+    assert Config(dispatch_token="dispatch").dispatch_or_scan_token == "dispatch"
+    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN is required"):
+        _ = Config().dispatch_or_scan_token
+
+
 @pytest.mark.parametrize("var", ["PYTORCH_GREENLIGHT_DRCI_TOKEN", "PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN"])
 @pytest.mark.parametrize("blank", BLANK_VALUES)
 def test_blank_drci_tokens_become_none(var, blank):

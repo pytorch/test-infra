@@ -13,8 +13,9 @@ calls it on a response only when the ``Retry`` would retry that status, so a 429
 client's forcelist, and any 403, reach the caller as a ``GithubException`` for its own rate-limit check.
 PyGithub's 301, 302 and 202 follow-ups pass neither seam and are not counted.
 
-``QuotaGauge`` estimates the installation's remaining requests between reads of ``GET /rate_limit``,
-and ``phase_b_stop`` builds the stop a repo's optional work runs under.
+``QuotaGauge`` estimates the installation's remaining requests between reads of ``GET /rate_limit``
+(``core_quota``; none once the latch is set, and a rate-limited read sets it), and ``phase_b_stop``
+builds the stop a repo's optional work runs under.
 """
 
 from __future__ import annotations
@@ -29,13 +30,14 @@ from github import Auth
 from urllib3.exceptions import MaxRetryError, ResponseError
 from urllib3.util.retry import Retry
 
-from greenlight.github_client import is_rate_limit_status
+from greenlight.github_client import is_rate_limit_error, is_rate_limit_status
 from greenlight.guards import IterationTimeout
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from types import TracebackType
 
+    from github import Github
     from urllib3.connectionpool import ConnectionPool
     from urllib3.response import BaseHTTPResponse
 
@@ -58,7 +60,7 @@ class RateLimitStop(IterationTimeout):
 
 
 class TickMeter:
-    """One tick's rate-limit latch, its request total and the repo meters it made, in the order it made them."""
+    """One tick's rate-limit latch, its request total and the repo meters it made."""
 
     def __init__(self) -> None:
         self.latch = threading.Event()
@@ -70,11 +72,6 @@ class TickMeter:
     def total(self) -> int:
         with self._lock:
             return self._total
-
-    @property
-    def meters(self) -> tuple[RequestMeter, ...]:
-        with self._lock:
-            return tuple(self._meters.values())
 
     def meter(self, repo: str) -> RequestMeter:
         """``repo``'s meter for this tick, made on first use."""
@@ -195,24 +192,43 @@ class MeteredRetry(Retry):
         return retry
 
 
+def core_quota(client: Github) -> tuple[int, int]:
+    """The installation's core ``(remaining, limit)``, from ``GET /rate_limit`` (which costs no quota)."""
+    core = client.get_rate_limit().resources.core
+    return core.remaining, core.limit
+
+
 class QuotaGauge:
     """The installation's core quota, estimated between reads by subtracting what the tick counted since.
 
-    ``read`` returns the core ``(remaining, limit)`` (``GET /rate_limit``, which costs no quota).
+    ``read`` returns the core ``(remaining, limit)`` (``GET /rate_limit``, which costs no quota); None
+    reads nothing, and the estimate stays unknown.
     """
 
-    def __init__(self, tick: TickMeter, read: Callable[[], tuple[int, int]]) -> None:
+    def __init__(self, tick: TickMeter, read: Callable[[], tuple[int, int]] | None) -> None:
         self._tick = tick
         self._read = read
         self._reading: tuple[int, int, int] | None = None
 
     def refresh(self) -> None:
-        """Read the quota now; a failed read is logged and the last reading kept."""
+        """Read the quota now, unless the tick's latch is set.
+
+        A rate-limited read sets the latch; any other failed read is logged and the last reading kept.
+        """
+        if self._read is None or self._tick.latch.is_set():
+            return
         try:
             remaining, limit = self._read()
         except IterationTimeout:
             raise
-        except Exception:
+        except Exception as exc:
+            if is_rate_limit_error(exc):
+                logger.warning(
+                    "reading the installation's rate limit hit a rate limit; the tick stops its GitHub work",
+                    exc_info=True,
+                )
+                self._tick.latch.set()
+                return
             logger.warning("cannot read the installation's rate limit; keeping the last reading", exc_info=True)
             return
         self._reading = (remaining, limit, self._tick.total)

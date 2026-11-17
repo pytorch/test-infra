@@ -214,9 +214,9 @@ def resolve_merge_rules(client: AuthzClient, repo: str) -> MergeRulesSnapshot:
     return MergeRulesSnapshot(authorized=frozenset(logins), rules=tuple(merge_rules))
 
 
-def resolve_authorized_logins(client: AuthzClient, repo: str = constants.TARGET_REPO) -> frozenset[str]:
-    """Return the lowercased set of logins authorized to approve a merge in ``repo``."""
-    return resolve_merge_rules(client, repo).authorized
+def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
+    """Return the lowercased set of logins authorized to approve a merge in pytorch/pytorch."""
+    return resolve_merge_rules(client, constants.TARGET_REPO).authorized
 
 
 def native_stack_trunk(pr: _BasedPR) -> str | None:

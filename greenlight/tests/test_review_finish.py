@@ -109,6 +109,27 @@ def test_without_optional_work_the_safety_works_failures_still_raise():
         review_finish.finish(_prepared(failed=[7, 3, 7]), optional=False)
 
 
+def test_without_optional_work_the_optional_works_failures_never_raise():
+    assert review_finish.finish(_prepared(optional_failed=[5]), optional=False) == 0
+
+
+def test_the_optional_works_failures_are_kept_apart_and_raised_with_the_safety_works():
+    def fingerprint(_client, _repo, number, _authorized, _skip):
+        raise RuntimeError(f"fingerprint {number} down")
+
+    prepared = _prepared(
+        build_github=lambda _token, **_kwargs: object(),
+        fingerprint=fingerprint,
+        poke=lambda _number: None,
+        label_prs=lambda _label_pass: None,
+        failed=[7],
+    )
+    with pytest.raises(RuntimeError, match=r"^2 PR\(s\) failed during scan: \[1, 7\]$"), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert (prepared.failed, prepared.optional_failed) == ([7], [1])
+
+
 def test_the_optional_work_fingerprints_dispatches_and_labels_on_the_entrys_repo():
     seen: dict[str, object] = {}
 
@@ -298,6 +319,15 @@ def test_the_dispatch_count_holds_when_a_budget_stop_ends_the_dispatches():
         review_finish.finish(prepared)
 
     assert prepared.dispatched == 1
+
+
+def test_a_dispatch_without_a_dispatch_token_fails_loudly():
+    prepared, dispatched = _dispatching(dispatch_token=None)
+
+    with pytest.raises(ValueError, match="there is no dispatch token"), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert dispatched == []
 
 
 def test_a_safety_only_finish_counts_nothing():

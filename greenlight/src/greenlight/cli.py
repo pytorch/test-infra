@@ -67,8 +67,8 @@ def build_parser() -> argparse.ArgumentParser:
             "accepts. Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have a "
             f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), read from its "
-            "default branch every scan; its mode decides what the scan does (REPOS.md). PYTORCH_GREENLIGHT_DISPATCH_TOKEN, when set, "
-            "dispatches the review workflow and reads its runs instead."
+            "default branch every scan; its mode decides what the scan does (REPOS.md). "
+            "PYTORCH_GREENLIGHT_DISPATCH_TOKEN, when set, dispatches the review workflow and reads its runs instead."
         ),
     )
     review_parser.add_argument(

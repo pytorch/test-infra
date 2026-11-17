@@ -88,15 +88,10 @@ def _dispatch_pending(
     poke: Callable[[int], None],
     shadow_for_pr: Callable[[int], bool],
     cancel_event: threading.Event,
-) -> tuple[list[int], int]:
-    """Dispatch the stalest ``pending`` candidates, up to ``max_dispatches``.
-
-    Returns the PRs whose dispatch failed and how many were dispatched.
-    """
+) -> list[int]:
     ordered = sorted(pending, key=_staleness_key)
     limit = len(ordered) if max_dispatches is None else max(0, max_dispatches)
     dispatch_failed: list[int] = []
-    dispatched = 0
     for position, candidate in enumerate(ordered[:limit]):
         if cancel_event.is_set():
             _defer(ordered[position:limit], "a rate limit stopped this tick's GitHub work")
@@ -116,11 +111,10 @@ def _dispatch_pending(
             logger.error("failed to dispatch review for PR #%d: %s", candidate.pr_number, exc, exc_info=True)
             dispatch_failed.append(candidate.pr_number)
             continue
-        dispatched += 1
         logger.info("dispatched review for PR #%d (%s)", candidate.pr_number, candidate.reason)
         _emit_dispatch_marker(candidate, emit_dispatched, poke, repo=repo, shadow=shadow)
     _defer(ordered[limit:], "--max cap reached")
-    return dispatch_failed, dispatched
+    return dispatch_failed
 
 
 def _defer(candidates: list[_Candidate], why: str) -> None:

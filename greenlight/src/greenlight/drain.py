@@ -2,24 +2,25 @@
 
 The scan dispatches nothing for an off repo and runs this instead, as its safety work. It does not
 trust the ledger, since an approval can exist with no row (a lost upload, a cancelled record job).
-Each tick lists every open PR, drafts and every author included, and works through the pass's
-queue: first the PRs that had a ledger row when the pass started, where nearly every real approval
-is, then every open PR by number, so a PR opened or recorded during the pass is still reached. It
-reads greenlight's reviews on at most ``DRAIN_PRS_PER_TICK`` of them, from the listed PR objects (one
-request each), dismissing every live approval through the loop the ineligible revoke uses, and
-keeps a cursor in the repo's ``ScanMemory`` so the next tick resumes there. A pass ends when the
-queue has been covered once. Within a pass a PR found clean is skipped while its listed
-``updated_at`` is unchanged, and is remembered as clean only when that ``updated_at`` was at least
-``FINGERPRINT_QUIET`` old at the clock read after the listing; a new pass forgets them.
+Each tick lists every open PR, drafts and every author included, and reads greenlight's reviews,
+from the listed PR objects (one request each), on at most ``DRAIN_PRS_PER_TICK`` of the pass's
+pending PRs: first those that had a ledger row when the pass started, where nearly every real
+approval is, then the rest, each by number. It dismisses every live approval through the loop the
+ineligible revoke uses. A PR is pending until the pass has checked it at its listed ``updated_at``,
+which is kept only when it was at least ``FINGERPRINT_QUIET`` old at the clock read after the
+listing (else the PR is read again); a PR whose read failed stays pending. So a PR opened, reopened
+or updated anywhere in the order is checked again before the pass ends, once no open PR is pending;
+the next pass starts over.
 
-"drain complete" is logged only after a whole pass that found no live approval and failed on no PR,
-and that started once no ``WORKFLOW_FILE`` run on ``DISPATCH_REPO`` created before the scan first
-saw the repo off was still unfinished. The runs do not say which repo they review, so every older
+"drain complete" is logged only after a pass that found no live approval and failed on no PR, and
+that started once no ``WORKFLOW_FILE`` run on ``DISPATCH_REPO`` created before the scan first saw the
+repo off was still unfinished. The runs do not say which repo they review, so every older
 unfinished run counts, whatever its repo: no review dispatched while the repo was on can still
 approve from its older checkout once the line is logged. Remove a repo's config file only after it.
-Those runs are read with the dispatch token, since a token scoped to the drained repo cannot read them.
-Once the drain is complete no new pass starts while the repo stays off: each later tick logs that
-and reads nothing, until the repo leaves ``off`` (``ScanMemory.clear_drain``).
+Those runs are read with the dispatch token, since a token scoped to the drained repo cannot read them;
+without one, the pass that starts cannot complete the drain. Once the drain is complete no new pass
+starts while the repo stays off: each later tick logs that and reads nothing, until the repo leaves
+``off`` (``ScanMemory.clear_drain``).
 """
 
 from __future__ import annotations
@@ -91,32 +92,23 @@ def _listed(pull: PullRequest) -> Callable[[Github, str, int], VerdictPR]:
     return get_pr
 
 
-def _older_unfinished_runs(
+def _blocker(
     client: Github,
     *,
     token: str,
-    runs_token: str,
+    dispatch_token: str | None,
     build_github: Callable[[str], Github],
     unfinished_runs: _RunsFn,
     off_since: datetime,
-) -> int:
-    """``unfinished_runs`` through ``client``, or through a client on ``runs_token`` when that is another token."""
-    if runs_token == token:
-        return unfinished_runs(client, off_since)
-    runs_client = build_github(runs_token)
-    try:
-        return unfinished_runs(runs_client, off_since)
-    finally:
-        github_client.close_client(runs_client)
-
-
-def _start_pass(memory: ScanMemory, older: int, recorded: frozenset[int]) -> DrainPass:
-    blocker = (
-        f"{older} {WORKFLOW_FILE} run(s) created before the repo went off were unfinished when the pass started"
-        if older
-        else None
-    )
-    return memory.start_drain_pass(blocker, recorded=recorded)
+) -> str | None:
+    """Why a pass starting now cannot complete the drain, or None: review runs older than the off switch."""
+    if dispatch_token is None:
+        return "the review runs could not be read: there is no dispatch token"
+    with github_client.dispatch_client(client, token, dispatch_token, build_github) as runs_client:
+        older = unfinished_runs(runs_client, off_since)
+    if not older:
+        return None
+    return f"{older} {WORKFLOW_FILE} run(s) created before the repo went off were unfinished when the pass started"
 
 
 def drain(
@@ -125,6 +117,7 @@ def drain(
     repo: str,
     memory: ScanMemory,
     bot_login: str,
+    dispatch_token: str | None,
     build_github: Callable[[str], Github] = github_client.build_client,
     list_prs: Callable[[Github, str], Sequence[PullRequest]] = list_open_pulls,
     read_states: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
@@ -132,19 +125,17 @@ def drain(
     dismiss: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
     now: Callable[[], datetime] = _utcnow,
     cancel_event: threading.Event | None = None,
-    dispatch_token: str | None = None,
 ) -> DrainReport:
     """Run one tick's slice of ``repo``'s drain. Listing and state-read failures raise; a PR's failure is reported.
 
     A rate limit on a PR sets ``cancel_event`` (a fresh event by default) and ends the slice, as does an
-    event already set. The older review runs are read with ``dispatch_token`` (default the scan token).
+    event already set. The older review runs are read with ``dispatch_token``; None cannot read them.
     """
     if cancel_event is None:
         cancel_event = threading.Event()
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to drain a repo")
-    runs_token = token if dispatch_token is None else dispatch_token
     off_since = memory.off_since(now())
     completed_by = memory.drain_completed_by()
     if completed_by is not None:
@@ -157,19 +148,17 @@ def drain(
         current = memory.drain_pass()
         if current is None:
             recorded = frozenset(read_states(repo, sorted(pulls)).keys())
-            older = _older_unfinished_runs(
+            blocker = _blocker(
                 client,
                 token=token,
-                runs_token=runs_token,
+                dispatch_token=dispatch_token,
                 build_github=build_github,
                 unfinished_runs=unfinished_runs,
                 off_since=off_since,
             )
-            current = _start_pass(memory, older, recorded)
-        queue = [(0, number) for number in sorted(current.recorded) if number in pulls]
-        queue.extend((1, number) for number in sorted(pulls))
+            current = memory.start_drain_pass(blocker, recorded=recorded)
         failed: list[int] = []
-        reached_end = _work(client, repo, current, queue, pulls, listed_at, bot_login, dismiss, failed, cancel_event)
+        reached_end = _work(client, repo, current, pulls, listed_at, bot_login, dismiss, failed, cancel_event)
     finally:
         github_client.close_client(client)
     return _report(memory, repo, current, reached_end=reached_end, failed=failed)
@@ -179,7 +168,6 @@ def _work(
     client: Github,
     repo: str,
     current: DrainPass,
-    queue: Sequence[tuple[int, int]],
     pulls: dict[int, PullRequest],
     listed_at: datetime,
     bot_login: str,
@@ -187,20 +175,14 @@ def _work(
     failed: list[int],
     cancel_event: threading.Event,
 ) -> bool:
-    """Work the queue from the pass's cursor; True once the pass reached its end."""
-    reads = 0
-    for key in queue:
-        if current.cursor is not None and key <= current.cursor:
-            continue
-        number = key[1]
-        pull = pulls[number]
-        updated_at = naive_utc(pull.updated_at) if pull.updated_at is not None else None
-        if current.is_clean(number, updated_at):
-            current.cursor = key
-            continue
-        if reads >= DRAIN_PRS_PER_TICK or cancel_event.is_set():
-            return False
-        reads += 1
+    """Read the pass's pending PRs, the recorded ones first, each by number; True once none is pending."""
+    updated = {
+        number: None if pull.updated_at is None else naive_utc(pull.updated_at) for number, pull in pulls.items()
+    }
+    pending = [number for number in sorted(pulls) if current.pending(number, updated[number])]
+    for number in sorted(pending, key=lambda number: number not in current.recorded)[:DRAIN_PRS_PER_TICK]:
+        if cancel_event.is_set():
+            break
         outcome = dismiss_each(
             client,
             [number],
@@ -208,20 +190,18 @@ def _work(
             bot_login=bot_login,
             message=_OFF_MESSAGE,
             why=f"in {repo}, which is off",
-            get_pr=_listed(pull),
+            get_pr=_listed(pulls[number]),
             dismiss=dismiss,
             failed=failed,
             cancel_event=cancel_event,
         )
-        current.cursor = key
         if number not in outcome:
             current.failures += 1
             continue
-        current.checked += 1
+        current.reads += 1
         current.dismissed += outcome[number]
-        if outcome[number] == 0:
-            current.remember_clean(number, updated_at, listed_at)
-    return not cancel_event.is_set()
+        current.check(number, updated[number], listed_at)
+    return not cancel_event.is_set() and not any(current.pending(number, updated[number]) for number in pulls)
 
 
 def _report(memory: ScanMemory, repo: str, current: DrainPass, *, reached_end: bool, failed: list[int]) -> DrainReport:
@@ -240,14 +220,14 @@ def _report(memory: ScanMemory, repo: str, current: DrainPass, *, reached_end: b
         memory.end_drain_pass()
     if complete:
         memory.complete_drain(current.number)
-        logger.info("%s: drain complete (pass %d, checked %d)", repo, current.number, current.checked)
+        logger.info("%s: drain complete (pass %d, checked %d)", repo, current.number, current.reads)
     else:
         logger.info(
             "%s: pass %d, checked %d, dismissed %d, not complete: %s",
             repo,
             current.number,
-            current.checked,
+            current.reads,
             current.dismissed,
             reason,
         )
-    return DrainReport(current.number, current.checked, current.dismissed, complete, reason, tuple(failed))
+    return DrainReport(current.number, current.reads, current.dismissed, complete, reason, tuple(failed))

@@ -30,14 +30,15 @@ def _meter(phase: quota.Phase = "B", stop: Callable[[], str | None] | None = Non
     return meter
 
 
-def test_the_tick_makes_one_meter_per_repo_in_the_order_it_made_them():
+def test_the_tick_makes_one_meter_per_repo():
     tick = quota.TickMeter()
 
     vision = tick.meter(_REPO)
     pytorch = tick.meter("pytorch/pytorch")
 
     assert tick.meter(_REPO) is vision
-    assert tick.meters == (vision, pytorch)
+    assert tick.meter("pytorch/pytorch") is pytorch
+    assert (vision.repo, pytorch.repo) == (_REPO, "pytorch/pytorch")
     assert vision.latch is pytorch.latch is tick.latch
 
 
@@ -383,6 +384,67 @@ def test_a_failed_read_keeps_the_last_reading(caplog):
 
     assert (gauge.remaining(), gauge.limit) == (3999, 5000)
     assert "keeping the last reading" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(GithubException(429, {"message": "slow down"}), id="429"),
+        pytest.param(github.RateLimitExceededException(403, {"message": "rate limit"}, {}), id="403"),
+    ],
+)
+def test_a_rate_limited_read_sets_the_latch_and_keeps_the_last_reading(caplog, error):
+    tick = quota.TickMeter()
+    calls: list[int] = []
+
+    def read() -> tuple[int, int]:
+        calls.append(1)
+        if len(calls) > 1:
+            raise error
+        return 4000, 5000
+
+    gauge = quota.QuotaGauge(tick, read)
+    gauge.refresh()
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        gauge.refresh()
+
+    assert tick.latch.is_set()
+    assert (gauge.remaining(), gauge.limit) == (4000, 5000)
+    [record] = caplog.records
+    assert "hit a rate limit" in record.getMessage()
+    assert record.exc_info is not None
+
+
+def test_the_gauge_reads_nothing_once_the_latch_is_set():
+    tick = quota.TickMeter()
+    readings = iter([(4000, 5000)])
+    gauge = quota.QuotaGauge(tick, lambda: next(readings))
+    gauge.refresh()
+    tick.latch.set()
+
+    gauge.refresh()
+
+    assert gauge.remaining() == 4000
+
+
+def test_a_gauge_with_nothing_to_read_stays_unknown():
+    gauge = quota.QuotaGauge(quota.TickMeter(), None)
+
+    gauge.refresh()
+
+    assert (gauge.remaining(), gauge.limit) == (None, None)
+
+
+def test_core_quota_reads_the_core_resource():
+    class _Core:
+        remaining, limit = 4321, 5000
+
+    class _RateClient:
+        def get_rate_limit(self) -> Any:
+            return type("Overview", (), {"resources": type("Resources", (), {"core": _Core})})
+
+    assert quota.core_quota(_RateClient()) == (4321, 5000)  # type: ignore[arg-type]
 
 
 def test_an_iteration_timeout_during_a_read_propagates():
