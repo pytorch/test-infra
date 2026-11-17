@@ -107,6 +107,27 @@ class TestIsotonic(TestCase):
         self.assert_table(x, y)
         self.assertGreater(len(x), 10)
 
+    def test_centered_table(self) -> None:
+        x, y = train.centered_table([0.0, 1.0], [0.01, 0.1])
+        self.assertEqual(x, [0.0, 1.0])
+        self.assertEqual(y[0], 0.5)
+        shift = math.log(0.1 / 0.9) - math.log(0.01 / 0.99)
+        self.assertAlmostEqual(y[1], 1 / (1 + math.exp(-shift)), places=9)
+        self.assert_table(x, y)
+        flat = train.isotonic_table(np.array([]), np.array([]), np.array([]))
+        self.assertEqual(train.centered_table(*flat), ([0.0], [0.5]))
+
+    def test_centered_table_saturates(self) -> None:
+        # Score 0 never fails (clipped to Y_MIN) and a top score always does: the
+        # shifted top passes Y_MAX and clips there, and the table stays valid.
+        x, y = train.centered_table(
+            [0.0, 0.2, 0.5, 1.0], [model_json.Y_MIN, 1e-3, 0.5, model_json.Y_MAX]
+        )
+        self.assert_table(x, y)
+        self.assertEqual(y[0], 0.5)
+        self.assertLess(y[1], model_json.Y_MAX)
+        self.assertEqual(y[2:], [model_json.Y_MAX, model_json.Y_MAX])
+
     def test_round_table(self) -> None:
         x, y = model_json.round_table(
             [0.0, 0.20833333333333331, 0.20833333333333334, 0.5],
@@ -181,6 +202,57 @@ class TestFitScorer(TestCase):
             np.array([50.0, 50.0]),
         )
         self.assertGreater(p[0], p[1])
+
+    def test_tables_centered(self) -> None:
+        rows = make_rows(raise_every=7)
+        rows.active[:, 1] = False
+        scorer = train.fit_scorer(rows)
+        for h in scorer["heuristics"].values():
+            self.assertEqual(h["y"][0], 0.5)
+        idle = scorer["heuristics"]["Profiling"]
+        self.assertEqual((idle["x"], idle["y"]), ([0.0], [0.5]))
+
+    def test_raised_counts_as_scored_zero(self) -> None:
+        model = model_json.build_model(
+            "2026-11-20", train.fit_scorer(make_rows(raise_every=7)), RISK, {}
+        )
+        files, costs = ["a", "b"], np.array([50.0, 80.0])
+        scores = {"Filepath": {"a": 0.9}, "Profiling": {"a": 0.2, "b": 0.7}}
+        raised = model_json.p_files(
+            model, scores, {"Filepath"}, "linux-a", "default", files, costs
+        )
+        zero = model_json.p_files(
+            model,
+            {"Profiling": scores["Profiling"]},
+            set(),
+            "linux-a",
+            "default",
+            files,
+            costs,
+        )
+        np.testing.assert_array_equal(raised, zero)
+
+    def test_partial_coverage_keeps_weight(self) -> None:
+        # A strong heuristic that did not run on every other row, at a rare failure
+        # rate: a file's signal shows only where it ran. Not running must count as
+        # scoring 0, not as more evidence than any pick it can make, which would pull
+        # its weight toward 0.
+        def rows_with(off_every):
+            rows = make_rows(n=20000, seed=4)
+            if off_every:
+                rows.active[::off_every, 0] = False
+            seen = np.where(rows.active[:, 0], rows.scores[:, 0], 0.0)
+            z = -8 + 6 * seen
+            rng = np.random.default_rng(5)
+            rows.label = (rng.random(len(z)) < 1 / (1 + np.exp(-z))).astype(np.int8)
+            return rows
+
+        full, half = (
+            train.fit_scorer(rows_with(off))["heuristics"]["Filepath"]["weight"]
+            for off in (0, 2)
+        )
+        self.assertGreater(full, 0.5)
+        self.assertGreater(half, 0.75 * full)
 
     def test_limits_and_names(self) -> None:
         rows = make_rows(envs=("linux-a", "x" * 201, "linux-c"))

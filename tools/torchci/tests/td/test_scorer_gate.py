@@ -40,13 +40,13 @@ GOLDEN = (
     (
         "0.6",
         0,
-        "8bb636c89409b556263fb44c1ec76155fca6b7ab590e8a6528b5e40ffd6a6064",
+        "9546d9e100b81349359865b6836aaf2efc39d403e6b4ce3c880e8340e8e94196",
         "518fd2a4b8d000d660c00544688bdb36dfe3aafc4e7962dbcfa92a9aa24eca12",
     ),
     (
         "2",
         1,
-        "8bb636c89409b556263fb44c1ec76155fca6b7ab590e8a6528b5e40ffd6a6064",
+        "9546d9e100b81349359865b6836aaf2efc39d403e6b4ce3c880e8340e8e94196",
         "2a487444e0e7ac3a111155713eb8008db18ff1f8aff47028f799f35d28fb07d5",
     ),
 )
@@ -998,8 +998,10 @@ class TestCli(TestCase):
         self.assertNotIn("budget", model)
         self.assertEqual(shipped, {**model, "budget": model_json.BUDGET})
         self.assertTrue(report["budget_ok"] and report["budget_kept"])
-        # One PR's failing file is displaced by a first-ranked file over the budget.
-        self.assertAlmostEqual(report["budget"]["retention"], 15 / 17)
+        # Every training row costs the same, so the fit leaves cost_weight to where its
+        # solver ends: negative here, which ranks the cheap files first and keeps every
+        # PR's catches within the budget.
+        self.assertEqual(report["budget"]["retention"], 1.0)
         self.assertGreater(report["budget"]["share_jobs"], 0)
         self.assertIn("budget mode: on, block kept", out)
         # The monitor's fetch raised: reported as unavailable, the run still passes.
