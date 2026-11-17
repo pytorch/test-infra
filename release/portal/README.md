@@ -78,6 +78,8 @@ release, the portal sees the tag), and a step the portal cannot observe uses
 | `github_workflow_run` | `repo`, `workflow`, `ref` | the latest run on the ref succeeded |
 | `index_listing` | `index` (`download.pytorch.org`, `pypi`, `dockerhub`), `channel` (`test`, `release`), `package_types` | every expected artifact is present; the detail is in the artifact matrix |
 | `crcr_summary` | none | downstream CI results for the RC (phase 2 of the portal) |
+| `triton_release_branch` | none | `triton-lang/triton` has the release branch `release/X.Y.x` of `versions.triton`, and the triton pin of pytorch is on it (below) |
+| `pypi_release` | `package`, `version` | `version` of the package is on PyPI |
 | `dev_discuss_post` | `title_regex` (one pattern, or one per release type), `carries_dates` (optional) | a post whose title matches exists in the Release Announcements category of dev-discuss (below) |
 
 A new check type needs a collector implementation, an entry in `CHECK_TYPES` in the
@@ -90,6 +92,12 @@ unpicked cherry-pick), as `--missing-in-branch` in `tools/analytics/github_analy
 computes it. Issues labelled `release-feature-request` and the release's own tracker and
 validation issues are not counted. It works for a patch release too: 2.15.1 and 2.16.0 each
 have their own milestone, so both are checked at the same time.
+
+Once the release is out (its `v<version>` tag exists) these steps are done whatever is left in
+the milestone, and the evidence still lists the leftover items. The milestone of a shipped
+release is often left open, so the daily job scans a shipped release of the latest release
+lines until its milestone is closed, and the step does not stay at what the last scan before
+the release found.
 
 `dev_discuss_post` is checked by `tools/analytics/dev_discuss_scan.py`, the `dev-discuss-scan`
 job of GitHub Analytics Daily, for every release in flight (an open milestone of the latest
@@ -107,6 +115,14 @@ branch, as `--analyze-missing-reverts-from-branch` does, and the step is done un
 them is of a commit that was in a release candidate. Only those reverts, the ones to
 cherry-pick, are listed in the recorded `details`; the others (already cherry-picked, or of a
 commit the branch never had) are only counted by status.
+
+`triton_release_branch` and `pypi_release` are checked by `tools/analytics/triton_scan.py`, the
+`triton-scan` job of GitHub Analytics Daily, for every release in flight, from `versions.triton`
+of its release file (a release without it leaves both steps to do and the job warns). The
+branch is `release/<major>.<minor>.x` of the triton version (`release/3.9.x` for `3.9.0`). The pin
+is `.ci/docker/ci_commit_pins/triton.txt` of pytorch's release branch, or of `main` before the
+branch is cut; the step is done when the pin is on the triton release branch, and in progress
+while the branch exists without it.
 
 ### Steps that apply only some of the time
 
@@ -129,13 +145,15 @@ matrix. A value is a URL, or `{test, release}` for one that moves when the relea
 
 Check parameters can use `{version}`, `{minor}`, `{branch}`, `{rc}`, `{tracker_issue}`,
 `{validation_issue}`, `{milestone}`, `{tracker_issue_url}` and `{validation_issue_url}`.
-The last four come from the release file. Any other `{name}` is an error.
+The last four come from the release file. `{triton_version}` is `versions.triton`. Any other
+`{name}` is an error.
 
 ## releases/&lt;version&gt;.yml
 
 ```yaml
 release: "2.16.0"            # matches the file name; the only required field
 dates: {branch_cut: 2026-11-30, final_rc: 2026-12-07, ga: 2026-12-17}   # planned, or null
+versions: {triton: "3.9.0", torchvision: "0.30.0", torchaudio: null}    # what ships (below)
 remove: []                   # shared step ids to drop
 override: {}                 # step id -> fields to replace (null drops a field)
 add: []                      # complete steps for this release only
@@ -170,6 +188,26 @@ milestone exists and whose tracker does not yet.
 The planned **dates** are the one thing GitHub does not have: milestones carry no due
 date. Actual dates come from the history of the branch and the tags. A link set in the
 release file is used as is, for the case where a rule picks the wrong object.
+
+### Versions
+
+`versions` records what ships with the release besides pytorch itself:
+
+```yaml
+versions:
+  triton: "3.9.0"        # required when `versions` is set
+  torchvision: "0.29.2"  # a version, or null (or left out) when the release does not ship it
+  torchaudio: "2.11.1"
+```
+
+The three versions are not derived from the pytorch version, and a release may ship
+without torchvision or torchaudio, so they are written down. `versions` itself is
+optional: a release whose versions are not decided yet leaves it out, and the resolved
+config then has `null` for all three. Only these three names are allowed, and a version
+is `X.Y.Z`. The resolved config and the release API carry them as `versions`. No step
+uses them yet: today's checks for the domain libraries (1.9, 2.2) still look for
+`release/{minor}` and `v{version}-{rc}` in torchvision and torchaudio, which do not exist
+for a release whose libraries have their own version numbers.
 
 ## Changing the process
 

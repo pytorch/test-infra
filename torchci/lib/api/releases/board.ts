@@ -202,7 +202,23 @@ function stepViews(
   return { views, rc };
 }
 
-function releaseStatus(views: StepView[]): Status {
+// The release is out once its final tag exists: the step that checks the pytorch tag
+// v{version} (not an RC tag, not a branch) is done. Steps left after that, like the
+// post-release ones, or a milestone item that was never moved, do not keep it in flight.
+export function isReleased(config: ReleaseConfig, views: StepView[]): boolean {
+  return config.steps.some((step) => {
+    const check = step.check as Record<string, unknown>;
+    return (
+      check.type === "github_ref_exists" &&
+      check.kind === "tag" &&
+      check.ref === "v{version}" &&
+      views.some((v) => v.id === step.id && v.status === "done")
+    );
+  });
+}
+
+function releaseStatus(config: ReleaseConfig, views: StepView[]): Status {
+  if (isReleased(config, views)) return "done";
   if (views.length > 0 && views.every((v) => v.status === "done"))
     return "done";
   if (views.some((v) => v.blocking)) return "blocked";
@@ -213,6 +229,7 @@ function releaseStatus(views: StepView[]): Status {
 }
 
 function currentPhase(config: ReleaseConfig, views: StepView[]): string {
+  if (isReleased(config, views)) return "Released";
   const open = config.phases.find((phase) =>
     views.some((v) => v.phase === phase.id && v.status !== "done")
   );
@@ -294,7 +311,7 @@ export function buildBoard(
     v.last_checked ? [v.last_checked] : []
   );
   const done = views.filter((v) => v.status === "done").length;
-  const out = releaseStatus(views) === "done";
+  const out = releaseStatus(config, views) === "done";
   return {
     version: config.release,
     type: config.type,
@@ -350,7 +367,7 @@ export function buildIndex(
       return {
         config,
         views,
-        status: releaseStatus(views),
+        status: releaseStatus(config, views),
         phase: currentPhase(config, views),
       };
     })

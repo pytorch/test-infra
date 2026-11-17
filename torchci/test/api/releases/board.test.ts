@@ -461,6 +461,67 @@ describe("buildIndex", () => {
     });
   });
 
+  describe("once the release tag exists", () => {
+    const tagStep = step({
+      id: "2.3",
+      check: {
+        type: "github_ref_exists",
+        repos: ["pytorch/pytorch"],
+        ref: "v{version}",
+        kind: "tag",
+      },
+    });
+    const shared = { ...SHARED, steps: [...SHARED.steps, tagStep] };
+    const config = resolveRelease(shared, { release: "2.15.0" }, "2.15.0");
+    const released = (status: "done" | "todo") =>
+      buildIndex(
+        [
+          {
+            config,
+            rows: [
+              row({ release: "2.15.0", step_id: "1.2", status: "in_progress" }),
+              row({ release: "2.15.0", step_id: "2.3", status }),
+            ],
+          },
+        ],
+        NOW
+      );
+
+    test("the release is completed whatever steps are left", () => {
+      const index = released("done");
+      expect(ReleaseIndexSchema.parse(index)).toEqual(index);
+      expect(index.releases[0]).toMatchObject({
+        status: "done",
+        phase: "Released",
+        ga_planned: false,
+        progress: { done: 1, total: 5 },
+      });
+      expect(index.active).toEqual([]);
+    });
+
+    test("the release is not completed while the tag step is not done", () => {
+      const index = released("todo");
+      expect(index.releases[0]).toMatchObject({
+        status: "in_progress",
+        ga_planned: true,
+      });
+      expect(index.active.map((a) => a.version)).toEqual(["2.15.0"]);
+    });
+
+    test("an RC tag does not complete the release", () => {
+      const index = buildIndex(
+        [
+          {
+            config: MINOR,
+            rows: [row({ step_id: "2.1", rc: "rc1", status: "done" })],
+          },
+        ],
+        NOW
+      );
+      expect(index.releases[0].status).toBe("in_progress");
+    });
+  });
+
   test("a release with no state yet is to do, in its first phase", () => {
     const fresh = buildIndex([{ config: MINOR, rows: [] }], NOW).releases[0];
     expect(fresh).toMatchObject({

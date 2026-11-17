@@ -82,6 +82,43 @@ describe("resolving a release", () => {
   });
 });
 
+describe("the versions of a release", () => {
+  test("are null unless the release file sets them", () => {
+    expect(resolveRelease(SHARED, null, "2.16.0").versions).toEqual({
+      triton: null,
+      torchvision: null,
+      torchaudio: null,
+    });
+  });
+
+  test("a library that is not part of the release is null or left out", () => {
+    const set = resolveRelease(
+      SHARED,
+      {
+        release: "2.16.0",
+        versions: { triton: "3.9.0", torchvision: "0.30.0", torchaudio: null },
+      },
+      "2.16.0"
+    );
+    expect(set.versions).toEqual({
+      triton: "3.9.0",
+      torchvision: "0.30.0",
+      torchaudio: null,
+    });
+    const tritonOnly = resolveRelease(
+      SHARED,
+      { release: "2.16.0", versions: { triton: "3.9.0" } },
+      "2.16.0"
+    );
+    expect(tritonOnly.versions).toEqual({
+      triton: "3.9.0",
+      torchvision: null,
+      torchaudio: null,
+    });
+    expect(ReleaseConfigSchema.safeParse(tritonOnly).success).toBe(true);
+  });
+});
+
 describe("fillTemplate", () => {
   test("fills what it has and gives null when a value is missing", () => {
     expect(
@@ -104,8 +141,8 @@ describe("the committed config", () => {
     const patch = (await loadReleaseConfig("2.15.1")).config;
     expect(ReleaseConfigSchema.parse(minor)).toEqual(minor);
     expect(ReleaseConfigSchema.parse(patch)).toEqual(patch);
-    expect(minor.steps).toHaveLength(50);
-    expect(patch.steps).toHaveLength(35);
+    expect(minor.steps).toHaveLength(51);
+    expect(patch.steps).toHaveLength(36);
     expect(minor.dates).toEqual({
       branch_cut: "2026-11-30",
       final_rc: "2026-12-07",
@@ -163,7 +200,7 @@ describe("the committed config", () => {
       type: "minor",
       branch: "release/2.99",
     });
-    expect(config.steps).toHaveLength(50);
+    expect(config.steps).toHaveLength(51);
   });
 });
 

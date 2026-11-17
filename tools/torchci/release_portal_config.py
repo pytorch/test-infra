@@ -53,6 +53,7 @@ TEMPLATE_VARIABLES = (
     "milestone",
     "tracker_issue_url",
     "validation_issue_url",
+    "triton_version",
 )
 _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 
@@ -86,6 +87,8 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "optional": set(),
     },
     "crcr_summary": {"required": set(), "optional": set()},
+    "triton_release_branch": {"required": set(), "optional": set()},
+    "pypi_release": {"required": {"package", "version"}, "optional": set()},
     "dev_discuss_post": {
         "required": {"title_regex"},
         "optional": {"carries_dates"},
@@ -120,6 +123,11 @@ RUNBOOK_KEYS = ("script", "skill", "url")
 DISCOVERY_KINDS = ("milestone", "tracker_issue", "validation_issue")
 LINK_KEYS = DISCOVERY_KINDS
 DISCOVERY_VARIABLES = ("version", "minor")
+
+# The versions that ship with a release. triton is always there when `versions` is;
+# a library that is not part of the release is null (or left out).
+VERSION_COMPONENTS = ("triton", "torchvision", "torchaudio")
+OPTIONAL_COMPONENTS = ("torchvision", "torchaudio")
 
 
 class ConfigError(Exception):
@@ -236,6 +244,12 @@ def _check_errors(where: str, check: Any) -> List[str]:
             )
     elif ctype == "dev_discuss_post":
         errors.extend(_dev_discuss_post_errors(where, check))
+    elif ctype == "pypi_release":
+        for key in ("package", "version"):
+            if key in check and not (isinstance(check[key], str) and check[key]):
+                errors.append(
+                    f"{where}: check pypi_release `{key}` must be a non-empty string"
+                )
     elif ctype == "milestone_outstanding_items":
         if "max_outstanding" in check and (
             not isinstance(check["max_outstanding"], int)
@@ -518,6 +532,25 @@ def _fill(template: str, version: str, escape: bool = False) -> str:
     return _PLACEHOLDER.sub(lambda m: values[m.group(1)], template)
 
 
+def _versions_errors(name: str, versions: Any) -> List[str]:
+    if versions is None:
+        return []
+    if not isinstance(versions, dict) or set(versions) - set(VERSION_COMPONENTS):
+        return [f"{name}: versions may only have {list(VERSION_COMPONENTS)}"]
+    errors = []
+    if not isinstance(versions.get("triton"), str):
+        errors.append(f'{name}: versions.triton is required, a string like "3.9.0"')
+    for key, value in versions.items():
+        if key in OPTIONAL_COMPONENTS and value is None:
+            continue
+        if not (isinstance(value, str) and VERSION.match(value)):
+            errors.append(
+                f'{name}: versions.{key} must be a string like "3.9.0"'
+                + (" or null" if key in OPTIONAL_COMPONENTS else "")
+            )
+    return errors
+
+
 def validate_release_file(release: Any, name: str) -> List[str]:
     if not isinstance(release, dict):
         return [f"{name}: must be a map"]
@@ -528,6 +561,7 @@ def validate_release_file(release: Any, name: str) -> List[str]:
         "branch",
         "dates",
         "links",
+        "versions",
         "remove",
         "override",
         "add",
@@ -571,6 +605,7 @@ def validate_release_file(release: Any, name: str) -> List[str]:
         errors.append(f"{name}: links may only have {sorted(LINK_KEYS)}")
     elif any(v is not None and not isinstance(v, (str, int)) for v in links.values()):
         errors.append(f"{name}: a link must be a number, a string or null")
+    errors.extend(_versions_errors(name, release.get("versions")))
     for key in ("remove", "add"):
         if key in release and not isinstance(release[key] or [], list):
             errors.append(f"{name}: {key} must be a list")
@@ -638,6 +673,10 @@ def resolve(
         },
         # a link set in the release file; None means "found by discovery"
         "links": {k: links.get(k) for k in LINK_KEYS},
+        # None: not decided yet (triton) or not part of the release (a library)
+        "versions": {
+            k: (release.get("versions") or {}).get(k) for k in VERSION_COMPONENTS
+        },
         "discovery": copy.deepcopy(shared["discovery"]),
         "resources": copy.deepcopy(shared["resources"]),
         "phases": copy.deepcopy(shared["phases"]),
