@@ -158,7 +158,11 @@ Checked read-only on 2026-11-17:
 - a `pull_request_target` run's checks land on the PR's head commit;
 - `GET /repos/{o}/{r}/branches/main` shows classic protection to a read token (`protection.enabled`:
   false on test-infra and pytorch, true on executorch and vision);
-- GitHub's native "dismiss stale approvals" withdraws every approval, human ones included, on a push.
+- GitHub's native "dismiss stale approvals" withdraws every approval, human ones included, on a push;
+- an ordinary `pull_request` run of the gate in test-infra reports `job.workflow_repository`
+  `pytorch/test-infra`, `job.workflow_file_path` `.github/workflows/greenlight-gate.yml` and
+  `job.workflow_sha` the PR's merge commit, and its checkout and `gate-check` run end to end (about 10 s
+  to a pass on a PR with no GreenLight approval).
 
 **Open: checks that need write access** (a sandbox repo with the org ruleset, or test-infra in shadow,
 before it goes `active`):
