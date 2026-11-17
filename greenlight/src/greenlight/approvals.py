@@ -16,7 +16,7 @@ from greenlight import constants
 from greenlight.cohort import GREENLIGHT_APP_SLUG
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable
+    from collections.abc import Callable, Collection, Iterable, Iterator
 
     from greenlight.github_types import GateReview, JsonRequester, VerdictPR, _VerdictReview
 
@@ -52,7 +52,7 @@ def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message
     The login is passed in (the greenlight App's ``<slug>[bot]`` account) since an App token cannot call
     ``get_user``.
     """
-    return dismiss_approvals(live_approvals(pr.get_reviews(), bot_login), message)
+    return dismiss_approvals(_iter_live_approvals(pr.get_reviews(), bot_login, exact=False), message)
 
 
 def counted_review[R: GateReview](reviews: Iterable[R], login: str) -> R | None:
@@ -76,18 +76,21 @@ def live_approvals[R: GateReview](reviews: Iterable[R], login: str, *, exact: bo
     ``Bot`` account, so a user account that merely spells the App's login never counts. A null user or an empty
     login never matches.
     """
+    return list(_iter_live_approvals(reviews, login, exact=exact))
+
+
+def _iter_live_approvals[R: GateReview](reviews: Iterable[R], login: str, *, exact: bool) -> Iterator[R]:
+    """``live_approvals`` one review at a time, so a dismissal loop acts on each page before the next is read."""
     folded = login.lower()
-    found: list[R] = []
     for review in reviews:
         user = review.user
         if review.state != REVIEW_STATE_APPROVED or user is None or not user.login:
             continue
         if exact:
             if user.login == login and user.type == _BOT_USER_TYPE:
-                found.append(review)
+                yield review
         elif user.login.lower() == folded:
-            found.append(review)
-    return found
+            yield review
 
 
 @dataclass(frozen=True)

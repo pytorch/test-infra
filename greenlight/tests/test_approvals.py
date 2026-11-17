@@ -50,6 +50,20 @@ def test_dismiss_prior_greenlight_approvals_only_dismisses_own_approved():
     assert [r.dismissed_with for r in reviews[1:5]] == [None, None, None, None]
 
 
+def test_dismiss_prior_greenlight_approvals_dismisses_each_page_before_a_later_page_fails():
+    first = _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED")
+
+    class _FailingPages(_FakeVerdictPR):
+        def get_reviews(self) -> Any:
+            yield first
+            raise RuntimeError("502 on page 2")
+
+    with pytest.raises(RuntimeError, match="page 2"):
+        approvals.dismiss_prior_greenlight_approvals(_FailingPages(), bot_login="greenlight-app[bot]", message="x")
+
+    assert first.dismissed_with == "x"
+
+
 def test_dismiss_prior_greenlight_approvals_when_none_match():
     reviews = [_FakeVerdictReview(1, _FakeActor("alice"), "APPROVED")]
     pr = _FakeVerdictPR(reviews=reviews)
