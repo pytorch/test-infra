@@ -36,6 +36,7 @@ class PRView:
         self.records: dict[int, OpenPR] = {}
         self.listed_at: datetime | None = None
         self._markers: dict[int, tuple[Marker, datetime]] = {}
+        self._read_alone: dict[int, datetime] = {}
 
     @property
     def built(self) -> bool:
@@ -45,6 +46,7 @@ class PRView:
         """Replace every record with a full listing's, forgetting the markers of the PRs it no longer holds."""
         self.records = {record.number: record for record in records}
         self._markers = {number: seen for number, seen in self._markers.items() if number in self.records}
+        self._read_alone = {number: at for number, at in self._read_alone.items() if number in self.records}
         self.listed_at = listed_at
 
     def apply(self, records: Iterable[OpenPR], listed_at: datetime) -> None:
@@ -55,7 +57,16 @@ class PRView:
             else:
                 self.records.pop(record.number, None)
                 self._markers.pop(record.number, None)
+                self._read_alone.pop(record.number, None)
         self.listed_at = listed_at
+
+    def read_alone(self, number: int, pr_updated_at: datetime) -> None:
+        """Record that the PR was read on its own while its marker's ``pull_request`` event was ``pr_updated_at``."""
+        self._read_alone[number] = pr_updated_at
+
+    def read_alone_at(self, number: int) -> datetime | None:
+        """The marker's ``pull_request`` event the PR was last read on its own at, or None."""
+        return self._read_alone.get(number)
 
     def note(self, markers: Mapping[int, Marker], now: datetime) -> set[int]:
         """Keep a reading taken at ``now``; return the PRs whose marker it changed."""

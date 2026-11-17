@@ -115,3 +115,18 @@ def test_a_marker_newer_than_the_listed_update_moves_the_pr_into_the_window():
     assert window == [replace(view.records[1], updated_at=commented), view.records[3]]
     assert wide == [replace(view.records[1], updated_at=commented), view.records[2], view.records[3]]
     assert view.records[1].updated_at == idle
+
+
+def test_a_read_alone_is_remembered_until_a_listing_drops_or_closes_its_pr():
+    view = PRView()
+    view.rebuild([record(1), record(2), record(3)], NOW)
+    for number in (1, 2, 3):
+        view.read_alone(number, NOW)
+
+    assert view.read_alone_at(1) == NOW
+    view.apply([record(2, state="closed")], NOW)
+    view.rebuild([record(1)], NOW)
+
+    assert view.read_alone_at(1) == NOW
+    assert view.read_alone_at(2) is None
+    assert view.read_alone_at(3) is None

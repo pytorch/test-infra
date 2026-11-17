@@ -110,6 +110,12 @@ def _part(table: str, number: str, where: str, **values: str) -> str:
     return f"SELECT {number}, {columns} FROM default.{table} WHERE {where} GROUP BY number"  # noqa: S608
 
 
+def _kept_max(event_time: str) -> str:
+    """The newest ``event_time``, dropping rows dated past ``FUTURE_EVENT_TOLERANCE``: a row capped at the clock
+    instead would read as a fresh event for as long as it stays ahead of it."""
+    return f"maxIfOrNull({event_time}, {event_time} <= now() + toIntervalSecond(%(future_tolerance)s))"
+
+
 def _review_part(table: str, author: str, column: str) -> str:
     where = f"pull_request.number IN known AND repository.full_name = %(repo)s AND {_human(author)}"
     return _part(table, "pull_request.number AS number", where, **{column: "uniqExact(dynamoKey)"})
@@ -120,7 +126,7 @@ _PARTS = (
         "pull_request",
         "number",
         "number IN known AND startsWith(dynamoKey, %(pr_prefix)s)",
-        pr_updated_at="max(parseDateTimeBestEffortOrNull(updated_at))",
+        pr_updated_at=_kept_max("parseDateTimeBestEffortOrNull(updated_at)"),
     ),
     _review_part("pull_request_review", "review.user", "reviews"),
     _review_part("pull_request_review_comment", "comment.user", "review_comments"),
@@ -144,14 +150,11 @@ _EVENT_TIMES = {
 
 
 def _newest(table: str) -> str:
-    """``table``'s newest event time, dropping rows dated past ``FUTURE_EVENT_TOLERANCE``: a row capped at the clock
-    instead would read as a fresh event for as long as it stays ahead of it."""
-    event_time = _EVENT_TIMES[table]
-    kept = f"{event_time} <= now() + toIntervalSecond(%(future_tolerance)s)"
-    return f"(SELECT maxIfOrNull({event_time}, {kept}) FROM default.{table}) AS {table}"  # noqa: S608
+    return f"(SELECT {_kept_max(_EVENT_TIMES[table])} FROM default.{table}) AS {table}"  # noqa: S608
 
 
 _FRESHNESS_SQL = f"SELECT now() AS server_now, {', '.join(_newest(table) for table in TABLES)}"
+_FUTURE: dict[str, object] = {"future_tolerance": int(FUTURE_EVENT_TOLERANCE.total_seconds())}
 
 
 def _query(sql: str, params: dict[str, object], connect: Callable[[], Client] | None) -> list[dict[str, Any]]:
@@ -182,6 +185,7 @@ def read_markers(
         "issue_prefix": f"https://api.github.com/repos/{repo}/issues/",
         "bot_logins": tuple(sorted(BOT_LOGINS)),
         "bot_suffix": BOT_LOGIN_SUFFIX,
+        **_FUTURE,
     }
     markers = dict.fromkeys(known, EMPTY_MARKER)
     for row in _query(_MARKERS_SQL, params, connect):
@@ -199,6 +203,5 @@ def read_markers(
 
 def read_freshness(*, connect: Callable[[], Client] | None = None) -> Freshness:
     """The four tables' freshness, read now."""
-    params: dict[str, object] = {"future_tolerance": int(FUTURE_EVENT_TOLERANCE.total_seconds())}
-    (row,) = _query(_FRESHNESS_SQL, params, connect)
+    (row,) = _query(_FRESHNESS_SQL, dict(_FUTURE), connect)
     return Freshness(server_now=naive_utc(row["server_now"]), newest={table: _time(row[table]) for table in TABLES})

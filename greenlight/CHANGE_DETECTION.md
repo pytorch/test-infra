@@ -33,7 +33,9 @@ from GitHub every tick. A PR whose marker shows a non-bot comment or a `pull_req
 than the view's `updated_at` counts as updated then when the review window is applied, so a PR whose
 place in GitHub's updated order lags still enters it. When the marker's `pull_request` event is newer
 than the view's record, the view missed that event (a draft marked ready, a label, a base change, a
-close): the tick reads that PR from GitHub on its own, up to 20 a tick, while the reading is fresh.
+close): the tick reads that PR from GitHub on its own, up to 20 a tick, while the reading is fresh,
+and not again until its marker shows a newer `pull_request` event (a failed read is retried; a rate
+limit stops the tick's GitHub work, as on any listing).
 
 The marker is part of the fingerprint cache key, so what `updated_at` cannot show (a review
 dismissal, a review edit, an inline comment edit or delete, a quick second review) invalidates the
@@ -71,8 +73,9 @@ fingerprints of changed PRs; every 15 minutes, the revert guard over the PRs wit
 `REVERTED` row and the LAND revalidation. ClickHouse: about 1 s of server time per repo per tick. The
 review tables cannot be read by PR number without reading their whole `pull_request` Tuple, so their
 narrow columns are read in full; a projection or materialized view keyed by repo and PR number on the
-HUD cluster would bound every read. Each `clickhouse` repo adds a marker query of its own; one
-combined query is due before several repos use `clickhouse`.
+HUD cluster would bound every read. Each `clickhouse` repo adds a marker query and a freshness query
+of its own (the freshness answer is the same for every repo); one combined marker query and one
+freshness reading per tick are due before several repos use `clickhouse`.
 
 **Access.** The scan's ClickHouse user must read the four webhook tables (only the columns
 `change_feed.py` names) and be allowed to set `max_execution_time` (a `readonly=1` profile refuses

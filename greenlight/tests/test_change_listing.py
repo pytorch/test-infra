@@ -555,21 +555,41 @@ def test_a_failed_read_is_logged_and_skipped(caplog):
     assert "2 read alone" in caplog.text
 
 
-def test_a_rate_limit_ends_the_reads(caplog):
+def test_a_rate_limit_reading_a_pr_alone_raises_as_a_listings_does():
     sources, memory = _missed(1, 2, 3)
-    sources.single_errors = {2: GithubException(429, {"message": "secondary rate limit"})}
+    error = GithubException(429, {"message": "secondary rate limit"})
+    sources.single_errors = {2: error}
 
-    with caplog.at_level(logging.INFO, logger="greenlight"):
-        listing = _list(memory, sources)
+    with pytest.raises(GithubException) as raised:
+        _list(memory, sources)
+
+    assert raised.value is error
+    assert [event for event in sources.events if event.startswith(("read", "list reverted"))] == [
+        f"read {TARGET_REPO} #1",
+        f"read {TARGET_REPO} #2",
+    ]
+
+
+def test_a_pr_read_alone_is_read_again_only_once_its_marker_moves_and_a_failed_read_is_retried():
+    sources, memory = _missed(1, 2)
+    sources.single[1] = record(1, updated_at=_IDLE, draft=True)
+    sources.single_errors = {2: RuntimeError("502 from GitHub")}
+
+    _list(memory, sources)
+    sources.events.clear()
+    _list(memory, sources, now=_NOW + timedelta(minutes=2))
+
+    # PR1's read returned a record still behind its marker (a row dated ahead of GitHub, say): it is not read
+    # again at the same marker, while PR2's read failed and is retried.
+    assert [event for event in sources.events if event.startswith("read")] == [f"read {TARGET_REPO} #2"]
+    sources.events.clear()
+    sources.markers[1] = Marker(pr_updated_at=_EVENT + timedelta(minutes=1))
+    _list(memory, sources, now=_NOW + timedelta(minutes=4))
 
     assert [event for event in sources.events if event.startswith("read")] == [
         f"read {TARGET_REPO} #1",
         f"read {TARGET_REPO} #2",
     ]
-    assert listing.candidates.numbers == [1]
-    [warning] = [entry for entry in caplog.records if entry.levelno == logging.WARNING]
-    assert warning.getMessage() == f"{TARGET_REPO}: a rate limit stopped reading PR #2 and the rest alone"
-    assert warning.exc_info is not None
 
 
 def test_an_iteration_timeout_reading_a_pr_alone_propagates():

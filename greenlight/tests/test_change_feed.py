@@ -113,6 +113,7 @@ def test_markers_bind_the_repo_and_the_bot_rule_from_pr_hash_and_constants():
         "issue_prefix": "https://api.github.com/repos/pytorch/pytorch/issues/",
         "bot_logins": tuple(sorted(pr_hash.BOT_LOGINS)),
         "bot_suffix": constants.BOT_LOGIN_SUFFIX,
+        "future_tolerance": int(constants.FUTURE_EVENT_TOLERANCE.total_seconds()),
     }
     assert frozenset(cast("tuple[str, ...]", params["bot_logins"])) == pr_hash.BOT_LOGINS
 
@@ -132,7 +133,8 @@ def test_markers_read_each_table_by_its_repo_through_its_cheapest_columns():
     query, _, _ = _read_markers_query([7])
 
     assert "FROM default.pull_request WHERE number IN known AND startsWith(dynamoKey, %(pr_prefix)s)" in query
-    assert "max(parseDateTimeBestEffortOrNull(updated_at))" in query
+    parsed = "parseDateTimeBestEffortOrNull(updated_at)"
+    assert f"maxIfOrNull({parsed}, {parsed} <= now() + toIntervalSecond(%(future_tolerance)s))" in query
     for table in ("pull_request_review", "pull_request_review_comment"):
         assert f"FROM default.{table} WHERE pull_request.number IN known AND repository.full_name = %(repo)s" in query
     assert query.count("uniqExact(dynamoKey)") == 2
