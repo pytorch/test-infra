@@ -478,7 +478,7 @@ In production the scheduled scan runs as an AWS Lambda, `greenlight-scan`, in th
 `pytorch-gha-infra-2` account (`us-east-1`), triggered by an EventBridge `rate(2 minutes)`
 schedule. The function runs `python3.13` with handler `greenlight.lambda_handler.handler`, a
 300 s timeout, and `reserved_concurrent_executions = 1`. It runs `greenlight review --all-repos`,
-one tick over every configured repo ([REPOS.md](REPOS.md)), on the CLI's one-shot `execute_once` path,
+one tick over every configured repo ([REPOS.md](REPOS.md); onboarding a repo: [ONBOARDING.md](ONBOARDING.md)), on the CLI's one-shot `execute_once` path,
 minting least-privilege GitHub App installation tokens per job and repo in-process (`app_tokens.py`), resolving `BOT_LOGIN` from the App's own
 `GET /app` slug, and reading the App PEM and ClickHouse
 password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The handler sets

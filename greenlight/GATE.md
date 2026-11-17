@@ -129,8 +129,9 @@ repo's error). The Lambda mints new tokens every tick and GitHub ties an ETag to
 these reads get no 304: the sweep costs one reviews read per open PR per window (about 1,500 requests an
 hour for 380 open PRs), and a PR's unchanged state is what keeps it from being read in between. When
 ClickHouse cannot be read, it still withdraws approvals on another commit or base, leaves the rest for the
-next tick, and reports the error. It logs, each tick, how many PRs it read and
-how long it took.
+next tick, and reports the error. It logs, each tick, how many PRs it read, how long it took, and
+the rules' answer: `gate rules enforced`, `gate rules not enforced: <problems>`, or `gate rules unread`
+when the read failed.
 
 **Base rule**: in a gate repo the base must be `main` and the repo's default branch must be `main`,
 in the listing, the `--pr` gate, the record job and its re-read (`merge_authz.accepts_base_for`);
@@ -182,6 +183,8 @@ before it goes `active`):
 
 ## Onboarding a gate repo
 
+These are the gate's steps of the whole onboarding flow in [ONBOARDING.md](ONBOARDING.md).
+
 1. The `greenlight-scan` Lambda's pinned release includes the gate (this change) before any gate entry
    is `active`; an older release refuses `gate` with `active`, so no backing check would run.
 2. The repo's default branch is `main` and uses rulesets only (no classic protection), with at least 1
@@ -193,8 +196,10 @@ before it goes `active`):
    merges on a stale approval. Open PRs need a push, an update or a reopen to get their first run.
 4. GreenLight's App is installed on the repo; its config entry (`safety: gate`, `mode: shadow`) and its
    policy file land in test-infra.
-5. In shadow, run the open checks above, and confirm the record job's rules check passes (its log names
-   any missing rule).
+5. In shadow, run the open checks above, and confirm the rules check passes. The record job reads the
+   rules only for an authoritative `LAND`, so a shadow record job never reads them: the evidence is the
+   scan's approval-backing log line, read every tick with the repo's App token, which says
+   `gate rules enforced` or names each missing rule.
 6. The repo fits the scan's safety phase: its open PRs and its open PRs with a verdict are read every
    tick and every window (about 0.35 s a read); the scan logs both counts and the time each tick.
 7. A config PR flips the entry to `active`.

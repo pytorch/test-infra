@@ -20,7 +20,8 @@ repos:
 - `safety`: `pytorchbot` relies on pytorchbot's trymerge reading the ledger at land time
   (`greenlight_guard.py`); `gate` is for repos without pytorchbot: a required workflow and the
   scan's approval-backing check keep GreenLight's approval to the commit it reviewed
-  ([GATE.md](GATE.md), which also holds the onboarding steps).
+  ([GATE.md](GATE.md), which also holds the gate's onboarding steps; the whole flow is in
+  [ONBOARDING.md](ONBOARDING.md)).
 - `eligibility`: whose PRs carry authority. `merge_rules` reads the repo's own
   `.github/merge_rules.yaml`; a missing or broken file fails that repo's scan, never falling back
   to anything else. `write_permission` counts every User account with push access to the repo
