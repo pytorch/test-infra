@@ -79,14 +79,15 @@ describe("release components", () => {
           release_notes: "https://example.com/notes",
           wheels: null,
           docs: "data:text/html,unsafe",
-          docker: "https://hub.docker.com/r/pytorch/pytorch",
+          docker_image: "https://hub.docker.com/r/pytorch/pytorch",
         }}
       />
     );
 
     expect(html).toContain("Tracker");
     expect(html).toContain("Release notes");
-    expect(html).toContain("Docker");
+    expect(html).toContain("Docker Image");
+    expect(html).toContain('href="https://hub.docker.com/r/pytorch/pytorch"');
     expect(html).toContain("Wheels unavailable");
     expect(html).toContain("Docs unavailable");
     expect(html).not.toContain("data:text/html");
