@@ -6,10 +6,11 @@ from typing import Any
 
 import pytest
 
+from greenlight.approvals import ReviewReader
 from greenlight.change_feed import Marker
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
 from greenlight.review_gate import CHANGES_REQUESTED, ReviewSkip
-from greenlight.scan_memory import FingerprintCache, ScanMemory
+from greenlight.scan_memory import BackingMemory, DrainPass, FingerprintCache, ScanMemory
 
 _STARTED = datetime(2026, 10, 13, 12, 0, 0)
 
@@ -237,6 +238,42 @@ def test_drain_passes_are_numbered_and_end_or_clear_forgets_the_current_one():
     assert (second.number, second.blocker) == (2, "runs unfinished")
     memory.clear_drain()
     assert memory.drain_pass() is None
+
+
+def test_a_pass_has_no_blocker_unless_given_one():
+    assert DrainPass(1, _STARTED).blocker is None
+
+
+def test_a_cold_memory_has_an_empty_backing_slot():
+    backing = ScanMemory().backing
+
+    assert backing == BackingMemory()
+    assert (backing.reader, backing.sweep, backing.sweeps, backing.waiting) == (None, None, 0, frozenset())
+
+
+def test_backing_sweeps_are_numbered_and_carry_their_start_and_recorded_prs():
+    backing = BackingMemory()
+
+    first = backing.start_sweep(_STARTED, recorded=frozenset({4}))
+    assert backing.sweep is first
+    assert (first.number, first.started_at, first.blocker, first.recorded) == (1, _STARTED, None, frozenset({4}))
+    later = _STARTED + timedelta(minutes=16)
+    second = backing.start_sweep(later, recorded=frozenset())
+    assert (second.number, second.started_at, backing.sweep) == (2, later, second)
+
+
+def test_clearing_the_drain_never_touches_the_backing_slot():
+    memory = ScanMemory()
+    backing = memory.backing
+    backing.reader = ReviewReader(object())  # type: ignore[arg-type]
+    sweep = backing.start_sweep(_STARTED, recorded=frozenset({1}))
+    backing.waiting = frozenset({2})
+
+    memory.clear_drain()
+
+    assert memory.backing is backing
+    assert (backing.sweep, backing.sweeps, backing.waiting) == (sweep, 1, frozenset({2}))
+    assert backing.reader is not None
 
 
 def test_a_drain_pass_orders_unattempted_prs_recorded_first_then_attempted_ones_oldest_attempt_first():

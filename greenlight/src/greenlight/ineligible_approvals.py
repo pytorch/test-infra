@@ -26,7 +26,7 @@ _NO_LONGER_ELIGIBLE_MESSAGE = (
 )
 
 
-def dismiss_each(
+def dismiss_each[P](
     client: Github,
     numbers: Sequence[int],
     *,
@@ -34,7 +34,7 @@ def dismiss_each(
     bot_login: str,
     message: str,
     why: str,
-    get_pr: Callable[[Github, str, int], VerdictPR],
+    get_pr: Callable[[Github, str, int], P],
     dismiss: Callable[..., list[int]],
     failed: list[int],
     cancel_event: threading.Event,

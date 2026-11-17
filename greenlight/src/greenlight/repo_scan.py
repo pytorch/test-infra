@@ -5,13 +5,16 @@
 (``check_identity``: the exact canonical name, public, default branch ``main``: ``accepts_base``
 judges bases against ``main``, so a repo on another default branch would get no reviews), and then
 does the work ``repo_work`` gives the entry: the drain when its mode is ``off``; the review
-(``review.run``), whole when served and only its safety work when safety-only; or nothing for a
-safety-only ``gate`` entry, which has no safety work yet. A refused or absent repo, or one that fails
-a live check, gets no work at all. Every such problem, an unreadable config and a safety-only entry
-fail the scan, the last two after the safety work ran. The config read, the dispatch and the drain's
-read of the review runs use the dispatch token (``Config.dispatch_or_scan_token``): all three are on
-``DISPATCH_REPO``. ``tick`` routes every configured repo at once through the same ``repo_work`` and
-``check_identity``.
+(``review.run``), whole when served and only its safety work when safety-only. A ``gate`` entry that
+is not off first runs the approval-backing check (``backs_approvals``, ``approval_backing``), its
+safety work, which is all a safety-only one gets; an ``active`` one whose check could not read its
+branch rules, or found GreenLight's gate not enforced, is not reviewed (``dispatch_refusal``). ``--pr``
+runs no backing check. A refused or absent repo, or one that fails a live check, gets no work at all.
+Every such problem, an unreadable config and a safety-only entry fail the scan, the last two after
+the safety work ran. The config read, the dispatch and the drain's read of the review runs use the
+dispatch token (``Config.dispatch_or_scan_token``): all three are on ``DISPATCH_REPO``. ``tick``
+routes every configured repo at once through the same ``repo_work``, ``backs_approvals``,
+``dispatch_refusal`` and ``check_identity``.
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Literal, NamedTuple, NoReturn
 
-from greenlight import drain, github_client, merge_authz, review, writers
+from greenlight import approval_backing, drain, github_client, merge_authz, review, writers
 from greenlight.constants import TARGET_BRANCH
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_CONFIG, is_primary
@@ -32,6 +35,7 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.approval_backing import BackingReport
     from greenlight.config import Config
     from greenlight.merge_authz import MergeRulesSnapshot
     from greenlight.quota import RequestMeter
@@ -88,7 +92,7 @@ def check_identity(entry: RepoEntry, client: Github) -> None:
 class RepoWork(NamedTuple):
     """What a scan does for an entry: its ``kind`` of work, and whether its review goes past the safety work."""
 
-    kind: Literal["drain", "review", "none"]
+    kind: Literal["drain", "review", "backing"]
     optional: bool
 
 
@@ -96,13 +100,34 @@ def repo_work(entry: RepoEntry, *, served: bool) -> RepoWork:
     """The work of ``entry``, served or safety-only, on either entry point (``scan_repo``, ``tick``).
 
     ``off`` drains. A ``pytorchbot`` entry, or a served ``gate`` one, is reviewed, past its safety work
-    only when served. A safety-only ``gate`` entry gets nothing: a gate repo has no safety work yet.
+    only when served. A safety-only ``gate`` entry gets its approval-backing check alone.
     """
     if entry.mode == "off":
         return RepoWork("drain", optional=False)
     if entry.safety == "pytorchbot" or served:
         return RepoWork("review", optional=served)
-    return RepoWork("none", optional=False)
+    return RepoWork("backing", optional=False)
+
+
+def backs_approvals(entry: RepoEntry) -> bool:
+    """Whether ``entry`` runs the approval-backing check as its safety work: a ``gate`` entry that is not off."""
+    return entry.safety == "gate" and entry.mode != "off"
+
+
+def dispatch_refusal(entry: RepoEntry, report: BackingReport | None) -> str | None:
+    """Why ``entry`` may not be reviewed this tick, or None.
+
+    Only an ``active`` gate entry is refused: when its backing ``report`` (None: the check did not finish)
+    has no rules answer, or says GreenLight's gate is not enforced on it.
+    """
+    if entry.safety != "gate" or entry.mode != "active":
+        return None
+    rules = None if report is None else report.rules
+    if rules is None:
+        return "no dispatch this tick: the rules could not be read"
+    if not rules.enforced:
+        return f"no dispatch this tick: GreenLight's gate is not enforced on {entry.repo}: {'; '.join(rules.problems)}"
+    return None
 
 
 def eligibility_resolver(entry: RepoEntry) -> tuple[str, Callable[[Github], MergeRulesSnapshot]]:
@@ -213,6 +238,7 @@ def scan_repo(
     build_github: BuildClient = github_client.build_client,
     run_review: RunFn = review.run,
     run_drain: Callable[..., drain.DrainReport] = drain.drain,
+    run_backing: Callable[..., BackingReport] = approval_backing.check,
     **review_kwargs: Unpack[ScanOptions],
 ) -> None:
     """Scan ``repo`` once as its config entry says.
@@ -245,6 +271,11 @@ def scan_repo(
     work = repo_work(entry, served=served)
     if memory is not None and work.kind != "drain":
         memory.clear_drain()
+    refusal = None
+    if memory is not None and backs_approvals(entry):
+        backing = run_backing(config, entry=entry, memory=memory, bot_login=bot_login, build_github=build_github)
+        errors.extend(backing.errors)
+        refusal = dispatch_refusal(entry, backing)
     if work.kind == "drain":
         if memory is None:
             logger.warning("%s is off: --pr reviews nothing", repo)
@@ -259,8 +290,11 @@ def scan_repo(
             )
             if (problem := drain_error(report)) is not None:
                 errors.append(problem)
-    elif work.kind == "none":
-        logger.warning("%s: a safety-only gate entry has no safety work yet; nothing runs for it", repo)
+    elif work.kind == "backing":
+        if memory is None:
+            logger.warning("%s: a safety-only gate entry is not reviewed: --pr does nothing", repo)
+    elif refusal is not None:
+        errors.append(refusal)
     else:
         run_review(
             config,

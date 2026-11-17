@@ -171,8 +171,6 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
     problems: list[str] = []
     if raw["safety"] == "pytorchbot" and repo not in PYTORCHBOT_GUARDED_REPOS:
         problems.append(f"safety: pytorchbot is only for {sorted(PYTORCHBOT_GUARDED_REPOS)}")
-    if raw["safety"] == "gate" and raw["mode"] == "active":
-        problems.append("safety: gate cannot be active in this release")
     return problems
 
 

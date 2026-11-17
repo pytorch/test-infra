@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
     from github import Github
 
+    from greenlight.app_tokens import TokenSource
     from greenlight.scan_memory import ScanMemory
-    from greenlight.tick import TokenSource
 
 logger = logging.getLogger(__name__)
 
@@ -276,11 +276,11 @@ def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
 def _all_repos_run(
     args: argparse.Namespace, config: Config, bot_login: str, tokens: TokenSource | None
 ) -> Callable[[Config], None]:
-    from greenlight import tick  # lazy: keeps this module importable without PyGithub
+    from greenlight import app_tokens, tick  # lazy: keeps this module importable without PyGithub
 
     return functools.partial(
         tick.run_tick,
-        tokens=tick.EnvTokens(config) if tokens is None else tokens,
+        tokens=app_tokens.EnvTokens(config) if tokens is None else tokens,
         config_cache=_CONFIG_CACHE,
         eligibility_caches=_ELIGIBILITY_CACHES,
         memories=_SCAN_MEMORY,

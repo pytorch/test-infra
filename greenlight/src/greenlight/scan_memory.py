@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import datetime
 
+    from greenlight.approvals import ReviewReader
     from greenlight.change_feed import Marker
     from greenlight.scan_runner import FingerprintResult
 
@@ -53,21 +54,22 @@ _NO_MARKERS: Markers = MappingProxyType({})
 
 @dataclass(slots=True)
 class DrainPass:
-    """One pass of the ``off`` drain over a repo's open PRs (``drain``, which says why it is safe).
+    """One pass over a repo's open PRs: the ``off`` drain's (``drain``, which says why it is safe), or a
+    ``gate`` repo's approval-backing sweep (``approval_backing``).
 
     ``recorded`` holds the PRs that had a ledger row when the pass started. ``checked`` holds the PRs
     the pass read successfully; a PR is pending while it is open and not there, so a later update to
     a checked PR does not make it pending again, while one opened or reopened during the pass is.
     ``attempted`` maps each PR the pass tried to read, successfully or not, to the sequence number of
     its last attempt (``attempts`` is the last one given), which ``pending`` orders failed PRs by.
-    ``blocker`` says why the pass cannot complete the drain even if it finds nothing (review runs older
-    than the off switch were unfinished, or could not be read, when it started), or is None.
-    ``dismissed`` and ``failures`` are the pass's totals so far.
+    ``blocker`` says why a drain pass cannot complete the drain even if it finds nothing (review runs
+    older than the off switch were unfinished, or could not be read, when it started), or is None.
+    ``dismissed`` and ``failures`` are a drain pass's totals so far.
     """
 
     number: int
     started_at: datetime
-    blocker: str | None
+    blocker: str | None = None
     recorded: frozenset[int] = frozenset()
     checked: set[int] = field(default_factory=set)
     attempted: dict[int, int] = field(default_factory=dict)
@@ -98,11 +100,35 @@ class DrainPass:
         self.attempted[number] = self.attempts
 
 
+@dataclass(slots=True)
+class BackingMemory:
+    """A ``gate`` repo's approval-backing check from one tick to the next (``approval_backing``).
+
+    ``reader`` keeps each PR's and each review page's ETag and parsed result, so an unchanged PR costs a
+    304; it is None until the first check. ``sweep`` is the sweep of every open PR under way (its
+    ``started_at`` opens its window), or None; ``sweeps`` is the last sweep number given. ``waiting``
+    holds the PRs whose approval may yet be backed by a LAND row not ingested, read again next tick.
+    ``checked_at`` is when the check last ran, or None.
+    """
+
+    reader: ReviewReader | None = None
+    sweep: DrainPass | None = None
+    sweeps: int = 0
+    waiting: frozenset[int] = frozenset()
+    checked_at: datetime | None = None
+
+    def start_sweep(self, started_at: datetime, *, recorded: frozenset[int]) -> DrainPass:
+        self.sweeps += 1
+        self.sweep = DrainPass(self.sweeps, started_at, recorded=recorded)
+        return self.sweep
+
+
 class ScanMemory:
     """When the last full and wide listing ticks that completed started, the fingerprint results to reuse,
-    a ``clickhouse`` repo's view of its open PRs (``view``), and the drain: when the process first saw
-    the repo off, and the pass under way (``DrainPass``: the PRs it checked and its read attempts), which
-    ends when no open PR is pending.
+    a ``clickhouse`` repo's view of its open PRs (``view``), the drain: when the process first saw the
+    repo off, and the pass under way (``DrainPass``: the PRs it checked and its read attempts), which
+    ends when no open PR is pending, and a ``gate`` repo's approval-backing check (``backing``), which
+    ``clear_drain`` never touches.
 
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
     the execution environment between invocations. A full tick (the sweep) is due when none has
@@ -123,6 +149,7 @@ class ScanMemory:
         self._off_since: datetime | None = None
         self._drain_passes = 0
         self._drain_pass: DrainPass | None = None
+        self.backing = BackingMemory()
 
     def sweep_due(self, now: datetime) -> bool:
         return _due(now, self._last_full_tick_started, self.full_tick_interval)

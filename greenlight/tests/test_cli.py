@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, drci_poke, repo_scan, tick, verdict
+from greenlight import app_tokens, cli, drci_poke, repo_scan, tick, verdict
 from greenlight.config import Config
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
@@ -869,7 +869,7 @@ def test_main_all_repos_runs_one_tick_with_the_environments_tokens_and_the_proce
     assert isinstance(run_tick.call_args.args[0], Config)
     kwargs = _pop_caches(run_tick.call_args.kwargs)
     tokens = kwargs.pop("tokens")
-    assert isinstance(tokens, tick.EnvTokens)
+    assert isinstance(tokens, app_tokens.EnvTokens)
     assert tokens.dispatch_token() == "dispatch"
     assert kwargs == {
         "memories": cli._SCAN_MEMORY,
