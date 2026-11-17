@@ -71,6 +71,33 @@ live_runner_pools AS (
         AND runner_name != ''
 ),
 
+--- Runner pools hosted by GitHub (ubuntu-latest, macos-15-xlarge, and larger
+--- runners with org-chosen names like 16-core-ubuntu or linux.24_04.4x).
+--- Their queues are GitHub's, not ours, so they are hidden for repos other
+--- than pytorch/pytorch (whose rows are left exactly as before). A label
+--- counts as GitHub-hosted if a job asking for only that label ran on a
+--- GitHub runner in the last week: either in the 'GitHub Actions' runner
+--- group, or on a larger runner, which GitHub names <label>-<runner id>.
+--- A queued job's runner group is empty until it starts, so the label is the
+--- only thing to match on.
+github_hosted_runner_pools AS (
+    SELECT groupUniqArray(labels) AS pools
+    FROM default.workflow_job
+    WHERE
+        created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
+        AND runner_name != ''
+        AND LENGTH(labels) = 1
+        AND (
+            runner_group_name = 'GitHub Actions'
+            OR (
+                startsWith(runner_name, concat(labels[1], '-'))
+                AND match(
+                    substring(runner_name, LENGTH(labels[1]) + 2), '^\\d+$'
+                )
+            )
+        )
+),
+
 --- EC2/LF runners: existing logic, only jobs in queued status
 ec2_queued_jobs AS (
     SELECT
@@ -158,6 +185,10 @@ ec2_queued_jobs AS (
             {repo: String} = ''
             OR workflow.repository.'name' = {repo: String}
         )
+        AND NOT (
+            workflow.repository.'full_name' != 'pytorch/pytorch'
+            AND has((SELECT pools FROM github_hosted_runner_pools), job.labels)
+        )
         AND job.status = 'queued'
         AND job.created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
         AND LENGTH(job.steps) = 0
@@ -195,6 +226,10 @@ arc_queued_jobs AS (
         AND (
             {repo: String} = ''
             OR workflow.repository.'name' = {repo: String}
+        )
+        AND NOT (
+            workflow.repository.'full_name' != 'pytorch/pytorch'
+            AND has((SELECT pools FROM github_hosted_runner_pools), job.labels)
         )
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
