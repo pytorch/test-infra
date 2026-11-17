@@ -14,9 +14,9 @@ with the CLI modes kept for local use. It also has the one-shot `verdict`, `drci
   `approved_by` login in `merge_rules.yaml`, team refs expanded, or on a `write_permission` repo every
   User account with push access (maintain with `minimum_role: maintain`), minus bots and minus greenlight itself); for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
-  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed eligible PRs. A full tick
-  lists every open PR — on every tick until one completes, and again 15 minutes (less 30 s of
-  tolerance) after the start of the last full tick that completed — and the fast ticks between list
+  (`greenlight-pr-review.yml` on `pytorch/test-infra`) for new or changed eligible PRs. On a repo whose
+  `change_source` is `clickhouse` the ticks differ ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)); on a `github` repo a full tick
+  lists every open PR — on every tick until one completes, and again 15 minutes after the start of the last that completed — and the fast ticks between list
   the PRs updated inside the review window plus the open `Reverted`-labelled PRs. A PR whose place in
   GitHub's updated order lags its `updated_at`, and an idle PR reverted only by its recorded row, wait
   for the next full tick; so does a PR idle longer than the review window (24 h by default) whose
@@ -221,7 +221,7 @@ the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/comm
 The end-to-end flow, per cohort PR:
 
 1. `review` reads `merge_rules.yaml` (or a `write_permission` repo's writers), then scans the open PRs it lists (every one on a full tick;
-   on a fast tick, the recently updated ones plus the open `Reverted`-labelled ones),
+   on a fast tick, the recently updated ones plus the open `Reverted`-labelled ones; a `clickhouse` repo as CHANGE_DETECTION.md says),
    dropping any draft PR from the listing outright — never fingerprinted or dispatched, though
    a `--pr` run still reviews a draft. It
    also drops any reverted PR (labeled `Reverted`, or with a `REVERTED` row already recorded),
