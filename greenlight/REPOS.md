@@ -18,7 +18,9 @@ repos:
   row); `greenlight` has GreenLight post its own comment. Shadow rows get no GreenLight comment on
   any repo.
 - `safety`: `pytorchbot` relies on pytorchbot's trymerge reading the ledger at land time
-  (`greenlight_guard.py`); `gate` is for repos without pytorchbot.
+  (`greenlight_guard.py`); `gate` is for repos without pytorchbot: a required workflow and the
+  scan's approval-backing check keep GreenLight's approval to the commit it reviewed
+  ([GATE.md](GATE.md), which also holds the onboarding steps).
 - `eligibility`: whose PRs carry authority. `merge_rules` reads the repo's own
   `.github/merge_rules.yaml`; a missing or broken file fails that repo's scan, never falling back
   to anything else. `write_permission` counts every User account with push access to the repo
@@ -47,8 +49,7 @@ ends one of three ways, and every problem is logged and reported by the scan:
   understand.
 - **refused**: no work at all. `repo` missing or not `pytorch/<name>`; a field missing or outside
   its values; the repo listed twice, compared case-insensitively (every copy is refused);
-  `pytorchbot` outside `constants.PYTORCHBOT_GUARDED_REPOS`; `safety: gate` with `mode: active`,
-  which this release cannot serve safely; a `change_source` outside its values; a
+  `pytorchbot` outside `constants.PYTORCHBOT_GUARDED_REPOS`; a `change_source` outside its values; a
   `full_tick_minutes` that is not an integer from 60 to 1440, or on an entry whose `change_source`
   is not `clickhouse`.
 
@@ -87,9 +88,9 @@ render is prompt. Shadow rows are never rendered, and only a served, `active` en
   ([TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md)). That line is computed from pytorch/pytorch's merge
   rules (`greenlightEligibility.ts`), so no other repo gets it.
 - **Any other `drci` repo** gets its recorded non-shadow state alone: nothing on a PR with no row
-  or only shadow rows, and a verdict on an earlier commit stays, marked outdated. In this release no
-  repo but pytorch/pytorch can be `active` (`gate` cannot be), so such a repo records only shadow
-  rows and its Dr. CI comment shows no GreenLight state until it may be active.
+  or only shadow rows, and a verdict on an earlier commit stays, marked outdated. Until a `gate`
+  repo is `active` with its gate enforced ([GATE.md](GATE.md)), it records only shadow rows, and its
+  Dr. CI comment shows no GreenLight state.
 
 **Making a repo `drci`**, in this order:
 
@@ -111,7 +112,8 @@ CI skips some PRs entirely shows no GreenLight state on them.
 Before any work, the scan checks what GitHub reports for the repo (`GET /repos/{repo}`; in the
 Lambda, the App installation's repository listing): the
 entry's name must be the canonical `full_name` exactly, the repo must be public, and its default
-branch must be `main`, the base `merge_authz.accepts_base` judges PRs against. A repo failing one
+branch must be `main`, the base every repo's rule judges PRs against (`merge_authz.accepts_base_for`:
+on a `gate` repo, `main` alone). A repo failing one
 gets no work on that scan and the scan fails. The same checks run in CI, in the `Test` step of
 `greenlight-tests.yml` (`GREENLIGHT_LIVE_CONFIG_CHECK=1` with the workflow's read-only token), with
 one more for an `eligibility: merge_rules` entry: its `.github/merge_rules.yaml` must exist, pass the
@@ -182,13 +184,15 @@ entries, then the other safety-only ones, each in file order (`tick.py`).
 
 - **Phase A, safety work**, never stopped by a budget or a floor: a `pytorchbot` repo lists its
   PRs and runs the revert guard and the ineligible revoke (`review.prepare`); an `off` repo runs
-  its drain slice; a `gate` repo has no Phase A work yet. A safety-only entry stops here.
+  its drain slice; a `gate` repo that is not `off` runs its approval-backing check
+  ([GATE.md](GATE.md)). A safety-only entry stops here.
 - **Phase B, optional work**: `pytorch/pytorch` finishes its scan (fan-out, dispatch, label pass),
   stopped only once fewer than `QUOTA_FLOOR_PRIMARY` (1000) requests are left on the installation.
   Then each other served `active` or `shadow` repo, in order, runs its whole scan within
   `OTHER_REPO_TIME_BUDGET` (20 s) and `OTHER_REPO_REQUEST_BUDGET` (400 requests), stopped below
   `QUOTA_FLOOR_OTHERS` (3000) and never past `TICK_DEADLINE`, 110 s after the tick started. A
-  repo whose turn starts past that deadline gets no turn.
+  repo whose turn starts past that deadline gets no turn. An `active` `gate` repo whose gate is not
+  enforced, or whose rules could not be read in Phase A, gets no turn and fails the tick.
 - A repo whose Phase B is cut short, or that gets no turn, fails the tick when its full tick (or a
   `clickhouse` repo's wide tick) was due: it is not marked done, so it shows every tick until its
   budget is sized. On a
@@ -295,7 +299,9 @@ config, read every scan and served stale on any failure but a rate limit, and ea
 eligibility source, kept for `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` (600 s). A transient
 failure (a GitHub 5xx, a network error or timeout) serves the last eligibility snapshot for at most
 three TTLs; a broken or missing source, or a rate limit, fails the repo's scan at once. `--pr`
-rechecks share the caches but never the tick memory.
+rechecks share the caches but never the tick memory. A `gate` repo's approval-backing check keeps
+its own memory (`scan_memory.BackingMemory`: the review reader's ETags, what each PR was last read
+at, the sweep and the waiting PRs); its rules are read every tick, never cached.
 
 So a change to `merge_rules.yaml`, or to who can push to a write_permission repo, reaches the scan
 within the TTL rather than on the next tick. The record job's eligibility check reads the rules, or
@@ -320,7 +326,14 @@ author_eligibility.py # the record job's live eligibility check for one PR, by t
 tick.py               # one tick over every configured repo: Phase A safety work, then Phase B optional work
 tick_outcomes.py      # how a tick's steps ended (cut, rate limit, failure) and the shared dispatch cap
 quota.py              # per-tick request metering at PyGithub's and urllib3's seams, the rate-limit latch and the quota gauge
-app_tokens.py         # the Lambda's App tokens: the dispatch token, the installation listing and one token per repo
+app_tokens.py         # the scan's token sources: the Lambda's App tokens (dispatch, installation listing, one per repo) and the environment's
+approvals.py          # GreenLight's review logic: live approvals, the gate's predicate, the conditional review reader, dismissals
+gate_check.py         # `greenlight gate-check`, the poll the gate workflow runs (GATE.md)
+gate_rules.py         # whether a gate repo's branch rules enforce the gate
+land_approval.py      # the record job's approval: pinned to the reviewed head, re-read, re-given after a push
+approval_backing.py   # a gate repo's Phase A check: withdraw every live approval the ledger does not back
+backing_judge.py      # the backing check's rules for one approval, and the ledger's newest row
+backing_reads.py      # the backing check's reads in one tick: which PRs it reads, its judgements and dismissals
 change_feed.py        # HUD ClickHouse's webhook tables: each PR's marker and the tables' freshness (CHANGE_DETECTION.md)
 pr_view.py            # a clickhouse repo's view of its open PRs and their last markers, kept between ticks
 change_listing.py     # a listing tick's kind (full, wide, event, or a github repo's full or fast) and its candidates

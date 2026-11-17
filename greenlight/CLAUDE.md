@@ -99,13 +99,15 @@ PyTorch Green Light has one unit of work — the `review` phase:
 
 `cohort.assess_rules` answers a different question, per PR: whose evaluation carries authority. A
 valid merge rule must name the author, whatever files the PR changes, and the PR must be on a base
-`merge_authz.accepts_base` accepts: `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
+`merge_authz.accepts_base` accepts (on a `safety: gate` repo, `main` alone: `merge_authz.accepts_base_for`,
+GATE.md): `main`, a ghstack PR's, or a GitHub-native stack's whose trunk
 is `main`, matched by branch names. The scan judges the base from the listing (`pr_listing`), the
 `--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
 `LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the repo's mode (REPOS.md), the verdict's
-record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
+record-time downgrade (eligibility, and on a `gate` repo its rules check and App login: GATE.md),
+`verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
 guard: a `REVERTED` row, which can only deny, is non-shadow on a PR that already has a recorded row
 and follows the PR's eligibility otherwise. A shadow verdict is never approved and always dismisses
 any prior greenlight approval; every shadow row is filtered out of both HUD readers (Dr. CI's
@@ -134,7 +136,9 @@ The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 back over HTTP through `https://hud.pytorch.org/api/greenlight/pr_state` and gates on the stored
 `head_sha`, not on `eval_hash`.
 
-Add a repo's scan logic to `review.prepare()` (safety work) or `review_finish.finish()` (optional work), and work across repos to
+Add a repo's scan logic to `review.prepare()` (a `pytorchbot` repo's safety work) or `review_finish.finish()` (optional work);
+an `off` repo's drain (`drain.py`) and a `gate` repo's approval-backing check (`approval_backing.py`) are safety work outside
+`prepare`; work across repos goes to
 `tick.py`; `review.run()` and `tick.run_tick()` **must keep raising on failure** (`run_tick` raises one error for every repo's).
 The CLI runs the `review` phase through one of two execution paths, so the phase can move between
 cron-driven and daemon deployment with no change to its logic:
@@ -159,7 +163,7 @@ In production the scheduled scan instead deploys as the `greenlight-scan` AWS La
 repo (REPOS.md) with App tokens per job and repo: it runs the one-shot path with no single-instance lock and both hang-guard layers off
 (`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
 relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. A warm Lambda
-keeps the scan's tick memory (kept fingerprints, a drain's progress) and its config and merge-rules
+keeps the scan's tick memory (kept fingerprints, a drain's progress, a gate repo's approval-backing memory) and its config and merge-rules
 caches between invocations; a CLI one-shot always lists in full.
 
 ## Comments

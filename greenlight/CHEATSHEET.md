@@ -127,6 +127,8 @@ just review --ref my-branch          # dispatch the reviewer workflow at this te
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
 just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an ineligible author's PR, in shadow
 just review --all-repos --max 30     # one tick over every configured repo, as the Lambda runs it
+just run gate-check --repo pytorch/test-infra --pr 123 --head-sha "$SHA" --timeout-minutes 1
+                                     # the gate's poll on one PR (GATE.md): exit 0 passes, 1 holds past the timeout
 ```
 
 `--all-repos` refuses `--repo`, `--pr`, `--force`, `--requester` and `--allow-untrusted-author`.

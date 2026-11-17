@@ -22,7 +22,10 @@ eligible, onboarding and offboarding, and the risks this design accepts.
 A PR is authoritative only when a rule in its repo's `merge_rules.yaml` names its author
 (`cohort.assess_rules`), whatever files the PR changes, and trymerge accepts its base
 (`merge_authz.accepts_base`): a PR based on `main`, a ghstack PR, one whose head branch is named
-`gh/<user>/<N>/head`, or a PR in a GitHub-native stack whose trunk is `main`. Team refs are expanded
+`gh/<user>/<N>/head`, or a PR in a GitHub-native stack whose trunk is `main`. On a `safety: gate`
+repo ([GATE.md](GATE.md)) the base must be `main` and the repo's default branch `main`
+(`merge_authz.accepts_base_for`): ghstack and native-stack bases count only where pytorchbot's
+trymerge lands the PR. Team refs are expanded
 to their members, and approver membership is exact-case against the author's login as GitHub
 reports it. Whether the changes need a human is the review's call; the size gate in
 `greenlight-pr-review.yml` declines a diff over 2000 lines or 200 files with a canned `NO_LAND`.
@@ -54,12 +57,12 @@ Where it is checked:
   through the revert guard.
 - **The verdict** (`author_eligibility.has_eligible_author`) runs the check again for every `LAND` or
   `NO_LAND` recorded without `--shadow`: once the author qualifies, one fresh read of the PR must
-  find the reviewed head on a base trymerge accepts. Any failure fails the command before the row is
+  find the reviewed head on a base the repo's rule accepts. Any failure fails the command before the row is
   written.
 
 All three log their answer with a reason that names no rule, team or file: the scan and the `--pr`
 gate `PR #<n> by <login>: <reason>` for every PR they check (`PR #<n> by <login>: base not accepted`
-and `--pr <n> by <login>: trymerge refuses its base` for a refused base), the verdict
+and `--pr <n> by <login>: its base '<ref>' is not accepted` for a refused base), the verdict
 `merge-rule eligibility on <repo>#<n>: author '<login>' is eligible` (`write-permission eligibility`
 on a write_permission repo) or `... is not eligible: <reason>`. Besides `eligible`, a reason is one
 of `no author`, `excluded (bot or greenlight)` and `no merge rule names '<login>' in exact case`
