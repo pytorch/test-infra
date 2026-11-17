@@ -7,7 +7,7 @@ import pytest
 
 from greenlight import backing_judge
 from greenlight.approvals import ReviewActor, ReviewRecord
-from greenlight.backing_judge import BACKED, WAITING, Judgement, judge
+from greenlight.backing_judge import BACKED, UNKNOWN, WAITING, Judgement, judge
 from greenlight.constants import (
     BACKING_WAIT_MAX,
     LEDGER_MARGIN,
@@ -95,16 +95,50 @@ def test_an_approval_on_a_base_other_than_main_is_unbacked():
     assert _judge(gate=_row(STATUS_LAND), base="release/2.9") == _unbacked("the base is release/2.9, not main")
 
 
-@pytest.mark.parametrize("status", [STATUS_NO_LAND, STATUS_REVERTED, STATUS_CANCELLED, STATUS_FAILED])
-def test_a_denying_latest_row_unbacks_the_approval(status):
-    assert _judge(gate=_row(status)) == _unbacked(f"GreenLight's latest verdict row for the head is {status}")
+@pytest.mark.parametrize("head", [pytest.param(_HEAD, id="same-head"), pytest.param(_OLD, id="another-head")])
+@pytest.mark.parametrize(
+    "version",
+    [
+        pytest.param(_SUBMITTED - timedelta(minutes=1), id="older"),
+        pytest.param(_SUBMITTED + timedelta(seconds=1), id="newer"),
+    ],
+)
+def test_a_reverted_row_unbacks_the_approval_whenever_it_was_written(head, version):
+    assert _judge(gate=_row(STATUS_REVERTED, head=head, version=version)) == _unbacked(
+        "GreenLight's latest row for the PR is REVERTED"
+    )
 
 
-@pytest.mark.parametrize("status", [STATUS_AI_REVIEW_STARTED, STATUS_LAND])
+@pytest.mark.parametrize(
+    "status", [STATUS_AI_REVIEW_STARTED, STATUS_LAND, STATUS_NO_LAND, STATUS_CANCELLED, STATUS_FAILED]
+)
 def test_a_row_newer_than_the_approval_unbacks_it(status):
     gate = _row(status, head=_OLD if status == STATUS_LAND else _HEAD, version=_SUBMITTED + timedelta(seconds=1))
 
     assert _judge(gate=gate) == _unbacked(f"a newer {status} row")
+
+
+@pytest.mark.parametrize("head", [pytest.param(_HEAD, id="same-head"), pytest.param(_OLD, id="another-head")])
+@pytest.mark.parametrize("status", [STATUS_NO_LAND, STATUS_CANCELLED, STATUS_FAILED])
+def test_an_older_denying_row_waits_while_the_ledger_has_not_moved_past_a_fresh_approval(status, head):
+    assert _judge(gate=_row(status, head=head), ledger_newest=_SUBMITTED) == WAITING
+
+
+@pytest.mark.parametrize("head", [pytest.param(_HEAD, id="same-head"), pytest.param(_OLD, id="another-head")])
+@pytest.mark.parametrize("status", [STATUS_NO_LAND, STATUS_CANCELLED, STATUS_FAILED])
+def test_an_older_denying_row_unbacks_the_approval_once_the_ledger_moved_past_it(status, head):
+    assert _judge(gate=_row(status, head=head), ledger_newest=_SUBMITTED + LEDGER_MARGIN) == _unbacked(
+        "no LAND row backs it on the head"
+    )
+
+
+@pytest.mark.parametrize("status", [STATUS_NO_LAND, STATUS_CANCELLED, STATUS_FAILED])
+def test_an_older_denying_row_unbacks_an_approval_past_the_wait_max(status):
+    old = _NOW - BACKING_WAIT_MAX
+
+    assert _judge(_approval(submitted=old), gate=_row(status, version=old - timedelta(minutes=1))) == _unbacked(
+        "no LAND row backs it on the head"
+    )
 
 
 @pytest.mark.parametrize(
@@ -136,6 +170,36 @@ def test_an_approval_without_a_time_never_waits():
     assert _judge(_approval(submitted=None), gate=_row(STATUS_AI_REVIEW_STARTED)) == _unbacked(
         "no LAND row backs it on the head"
     )
+
+
+@pytest.mark.parametrize(
+    "gate",
+    [
+        pytest.param(None, id="no-row"),
+        pytest.param(_row(STATUS_LAND), id="land-on-the-head"),
+        pytest.param(_row(STATUS_REVERTED), id="reverted"),
+        pytest.param(_row(STATUS_NO_LAND, version=_SUBMITTED + timedelta(seconds=1)), id="newer-no-land"),
+    ],
+)
+def test_an_unknown_ledger_leaves_an_approval_on_the_head_unknown(gate):
+    assert _judge(gate=gate, ledger_newest=None, ledger_known=False) == UNKNOWN
+    assert Judgement("unknown", "the ledger could not be read") == UNKNOWN
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reason"),
+    [
+        pytest.param(
+            {"rules": GateRules(enforced=False, problems=("p",))},
+            "GreenLight's gate is not enforced on pytorch/vision: p",
+            id="rules",
+        ),
+        pytest.param({"head": _OLD}, f"it was given on {_HEAD}, not on the head {_OLD}", id="commit"),
+        pytest.param({"base": "release/2.9"}, "the base is release/2.9, not main", id="base"),
+    ],
+)
+def test_an_unknown_ledger_still_unbacks_by_the_rules_the_commit_and_the_base(overrides, reason):
+    assert _judge(ledger_known=False, **overrides) == _unbacked(reason)
 
 
 def test_a_row_of_an_unknown_status_never_lets_an_approval_wait():

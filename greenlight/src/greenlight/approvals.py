@@ -10,45 +10,63 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from greenlight import constants
 from greenlight.cohort import GREENLIGHT_APP_SLUG
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable, Iterator
+    from collections.abc import Callable, Collection, Iterable
 
     from greenlight.github_types import GateReview, JsonRequester, VerdictPR, _VerdictReview
 
 GREENLIGHT_LOGIN = f"{GREENLIGHT_APP_SLUG}{constants.BOT_LOGIN_SUFFIX}"
 REVIEWS_PER_PAGE = 100
+REVIEW_STATE_APPROVED = "APPROVED"
 
-_REVIEW_STATE_APPROVED = "APPROVED"
+_UNCOUNTED_STATES = frozenset({"COMMENTED", "PENDING"})
 _BOT_USER_TYPE = "Bot"
 _PR_STATE_OPEN = "open"
 
 
-def greenlight_reviews(pr: VerdictPR, bot_login: str) -> Iterator[_VerdictReview]:
-    """Yield every review authored by ``bot_login`` (any state) -- greenlight's own reviews.
+def on_commit(review: GateReview, sha: str) -> bool:
+    """Whether ``review`` was given on ``sha``, compared case-insensitively; a review on no known commit is not."""
+    commit = review.commit_id
+    if not commit:
+        return False
+    return commit.lower() == sha.lower()
 
-    The login is passed in (the greenlight App's ``<slug>[bot]`` account) since an App token
-    cannot call ``get_user``. Null-user and empty-login reviews are skipped; match is case-insensitive.
-    """
-    target = bot_login.lower()
-    for review in pr.get_reviews():
-        user = review.user
-        if user is not None and user.login and user.login.lower() == target:
-            yield review
+
+def dismiss_approvals(reviews: Iterable[_VerdictReview], message: str) -> list[int]:
+    """Dismiss each of ``reviews`` with ``message``; the ids dismissed, in order. A failed dismissal raises."""
+    dismissed: list[int] = []
+    for review in reviews:
+        review.dismiss(message)
+        dismissed.append(review.id)
+    return dismissed
 
 
 def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
-    """Dismiss every prior APPROVED review authored by ``bot_login`` (see ``greenlight_reviews``)."""
-    dismissed: list[int] = []
-    for review in greenlight_reviews(pr, bot_login):
-        if review.state == _REVIEW_STATE_APPROVED:
-            review.dismiss(message)
-            dismissed.append(review.id)
-    return dismissed
+    """Dismiss every live approval ``bot_login`` gave on ``pr`` (``live_approvals``, logins compared in any case).
+
+    The login is passed in (the greenlight App's ``<slug>[bot]`` account) since an App token cannot call
+    ``get_user``.
+    """
+    return dismiss_approvals(live_approvals(pr.get_reviews(), bot_login), message)
+
+
+def counted_review[R: GateReview](reviews: Iterable[R], login: str) -> R | None:
+    """``login``'s latest review that is not COMMENTED or PENDING (logins compared in any case), or None.
+
+    It is the one review of an author pytorchbot's trymerge counts. ``reviews`` are oldest first, as GitHub lists them.
+    """
+    folded = login.lower()
+    counted: R | None = None
+    for review in reviews:
+        user = review.user
+        if user is not None and user.login and user.login.lower() == folded and review.state not in _UNCOUNTED_STATES:
+            counted = review
+    return counted
 
 
 def live_approvals[R: GateReview](reviews: Iterable[R], login: str, *, exact: bool = False) -> list[R]:
@@ -62,7 +80,7 @@ def live_approvals[R: GateReview](reviews: Iterable[R], login: str, *, exact: bo
     found: list[R] = []
     for review in reviews:
         user = review.user
-        if review.state != _REVIEW_STATE_APPROVED or user is None or not user.login:
+        if review.state != REVIEW_STATE_APPROVED or user is None or not user.login:
             continue
         if exact:
             if user.login == login and user.type == _BOT_USER_TYPE:
@@ -76,7 +94,6 @@ def live_approvals[R: GateReview](reviews: Iterable[R], login: str, *, exact: bo
 class GateDecision:
     passes: bool
     reason: str
-    stale_commits: tuple[str | None, ...] = ()
 
 
 def _commit_label(commit: str | None) -> str:
@@ -86,19 +103,14 @@ def _commit_label(commit: str | None) -> str:
 def gate_decision(reviews: Iterable[GateReview], head_sha: str) -> GateDecision:
     """PASS unless a live GreenLight approval stands on a commit other than ``head_sha``.
 
-    Every live approval counts, not only GreenLight's latest non-COMMENTED review: dismissing a review turns it
-    into a comment on GitHub, so a dismissal can make an older approval the one that counts again.
+    Every live approval counts, not only GreenLight's latest non-COMMENTED review: GitHub's docs say a dismissal
+    changes a review to a comment and do not say whether required approvals then count an older approval.
     """
-    head = head_sha.lower()
     live = live_approvals(reviews, GREENLIGHT_LOGIN, exact=True)
-    stale = tuple(dict.fromkeys(r.commit_id for r in live if not r.commit_id or r.commit_id.lower() != head))
+    stale = dict.fromkeys(review.commit_id for review in live if not on_commit(review, head_sha))
     if stale:
         named = ", ".join(_commit_label(commit) for commit in stale)
-        return GateDecision(
-            passes=False,
-            reason=f"live GreenLight approval on {named} while the head is {head_sha}",
-            stale_commits=stale,
-        )
+        return GateDecision(passes=False, reason=f"live GreenLight approval on {named} while the head is {head_sha}")
     if live:
         return GateDecision(passes=True, reason=f"every live GreenLight approval is on the head {head_sha}")
     return GateDecision(passes=True, reason="no live GreenLight approval")
@@ -120,20 +132,21 @@ class ReviewRecord:
 
     @classmethod
     def from_payload(cls, payload: object) -> ReviewRecord:
-        data = _mapping(payload, "review")
+        data = payload_mapping(payload, "review")
         user = data.get("user")
         actor = None
         if user is not None:
-            fields = _mapping(user, "review user")
+            fields = payload_mapping(user, "review user")
             actor = ReviewActor(
-                login=_optional(fields, "login", str, "review user"), type=_optional(fields, "type", str, "review user")
+                login=payload_optional(fields, "login", str, "review user"),
+                type=payload_optional(fields, "type", str, "review user"),
             )
         return cls(
-            id=_required(data, "id", int, "review"),
+            id=payload_required(data, "id", int, "review"),
             user=actor,
-            state=_required(data, "state", str, "review"),
-            commit_id=_optional(data, "commit_id", str, "review"),
-            submitted_at=_timestamp(_optional(data, "submitted_at", str, "review")),
+            state=payload_required(data, "state", str, "review"),
+            commit_id=payload_optional(data, "commit_id", str, "review"),
+            submitted_at=_timestamp(payload_optional(data, "submitted_at", str, "review")),
         )
 
 
@@ -143,8 +156,6 @@ class PullFacts:
     state: str
     head_sha: str
     base_ref: str
-    default_branch: str | None
-    updated_at: datetime | None
 
     @property
     def is_open(self) -> bool:
@@ -152,38 +163,40 @@ class PullFacts:
 
     @classmethod
     def from_payload(cls, payload: object) -> PullFacts:
-        data = _mapping(payload, "pull request")
-        head = _mapping(data.get("head"), "pull request head")
-        base = _mapping(data.get("base"), "pull request base")
-        base_repo = base.get("repo")
-        default_branch = None
-        if base_repo is not None:
-            default_branch = _optional(_mapping(base_repo, "base repo"), "default_branch", str, "base repo")
+        data = payload_mapping(payload, "pull request")
+        head = payload_mapping(data.get("head"), "pull request head")
+        base = payload_mapping(data.get("base"), "pull request base")
         return cls(
-            number=_required(data, "number", int, "pull request"),
-            state=_required(data, "state", str, "pull request"),
-            head_sha=_required(head, "sha", str, "pull request head"),
-            base_ref=_required(base, "ref", str, "pull request base"),
-            default_branch=default_branch,
-            updated_at=_timestamp(_optional(data, "updated_at", str, "pull request")),
+            number=payload_required(data, "number", int, "pull request"),
+            state=payload_required(data, "state", str, "pull request"),
+            head_sha=payload_required(head, "sha", str, "pull request head"),
+            base_ref=payload_required(base, "ref", str, "pull request base"),
         )
 
 
-def _mapping(value: object, what: str) -> dict[str, Any]:
+def payload_mapping(value: object, what: str) -> dict[str, Any]:
+    """``value`` as a JSON object; ``ValueError`` naming ``what`` when it is not one."""
     if not isinstance(value, dict):
-        raise ValueError(f"{what} payload is not an object: {type(value).__name__}")
+        raise ValueError(f"{what} is not an object: {type(value).__name__}")
     return value
 
 
-def _required[T](data: dict[str, Any], key: str, kind: type[T], what: str) -> T:
+def payload_is[T](value: object, kind: type[T]) -> TypeGuard[T]:
+    """Whether ``value`` is a ``kind``; a JSON boolean passes only as a ``bool``, though Python counts it an ``int``."""
+    return isinstance(value, kind) and (kind is bool or not isinstance(value, bool))
+
+
+def payload_required[T](data: dict[str, Any], key: str, kind: type[T], what: str) -> T:
+    """``data[key]`` as a ``kind`` (``payload_is``); ``ValueError`` naming ``what`` when it is absent or not one."""
     value = data.get(key)
-    if not isinstance(value, kind) or isinstance(value, bool):
+    if not payload_is(value, kind):
         raise ValueError(f"{what} field {key!r} is not a {kind.__name__}: {value!r}")
     return value
 
 
-def _optional[T](data: dict[str, Any], key: str, kind: type[T], what: str) -> T | None:
-    return None if data.get(key) is None else _required(data, key, kind, what)
+def payload_optional[T](data: dict[str, Any], key: str, kind: type[T], what: str) -> T | None:
+    """``data[key]`` as a ``kind``, or None when it is absent or null (``payload_required``)."""
+    return None if data.get(key) is None else payload_required(data, key, kind, what)
 
 
 def _timestamp(value: str | None) -> datetime | None:

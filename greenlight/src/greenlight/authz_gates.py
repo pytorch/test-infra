@@ -60,7 +60,7 @@ def admit_target(
     target = get_pr(client, entry.repo, pr)
     user = target.user
     author = user.login if user is not None else None
-    if not accepts_base_for(target, strict=entry.safety == "gate"):
+    if not accepts_base_for(target, strict=entry.strict_base):
         logger.info("--pr %d by %s: its base %r is not accepted", pr, author, target.base.ref)
     elif eligible_rule(pr, author, rules) is not None:
         return Target(pr, author, False)

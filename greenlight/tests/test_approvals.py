@@ -15,8 +15,13 @@ from greenlight.approvals import (
     ReviewActor,
     ReviewReader,
     ReviewRecord,
+    counted_review,
     gate_decision,
     live_approvals,
+    on_commit,
+    payload_is,
+    payload_optional,
+    payload_required,
 )
 from greenlight.cohort import GREENLIGHT_APP_SLUG
 from tests.test_github_client import _FakeActor, _FakeVerdictPR, _FakeVerdictReview
@@ -70,16 +75,68 @@ def test_greenlight_login_is_the_app_bot_account():
     assert GREENLIGHT_LOGIN == f"{GREENLIGHT_APP_SLUG}{constants.BOT_LOGIN_SUFFIX}" == "pytorchgreenlight[bot]"
 
 
-def test_greenlight_reviews_yields_every_state_of_the_login_only():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
-        _FakeVerdictReview(2, _FakeActor("alice"), "APPROVED"),
-        _FakeVerdictReview(3, _FakeActor("GREENLIGHT-APP[BOT]"), "DISMISSED"),
-        _FakeVerdictReview(4, None, "APPROVED"),
-    ]
-    found = approvals.greenlight_reviews(_FakeVerdictPR(reviews=reviews), "greenlight-app[bot]")
+def test_dismiss_approvals_dismisses_each_in_order_and_returns_their_ids():
+    reviews = [_FakeVerdictReview(4, _FakeActor("a"), "APPROVED"), _FakeVerdictReview(2, _FakeActor("b"), "APPROVED")]
 
-    assert [r.id for r in found] == [1, 3]
+    assert approvals.dismiss_approvals(reviews, "gone") == [4, 2]
+    assert [r.dismissed_with for r in reviews] == ["gone", "gone"]
+
+
+def test_dismiss_approvals_raises_on_a_failed_dismissal_and_dismisses_nothing_after_it():
+    class _Refusing(_FakeVerdictReview):
+        def dismiss(self, message: str) -> None:
+            raise RuntimeError("403")
+
+    later = _FakeVerdictReview(2, _FakeActor("a"), "APPROVED")
+
+    with pytest.raises(RuntimeError, match="403"):
+        approvals.dismiss_approvals([_Refusing(1, _FakeActor("a"), "APPROVED"), later], "gone")
+    assert later.dismissed_with is None
+
+
+@pytest.mark.parametrize(
+    ("commit", "sha", "on"),
+    [
+        pytest.param(HEAD, HEAD, True, id="same"),
+        pytest.param(HEAD.upper(), HEAD, True, id="case"),
+        pytest.param(OLD, HEAD, False, id="other"),
+        pytest.param(None, HEAD, False, id="unknown"),
+        pytest.param("", "", False, id="empty"),
+    ],
+)
+def test_on_commit_is_a_known_commit_equal_to_the_sha_in_any_case(commit: str | None, sha: str, on: bool) -> None:
+    assert on_commit(_record(1, commit_id=commit), sha) is on
+
+
+def test_counted_review_is_the_latest_review_of_the_login_that_is_not_a_comment_or_pending():
+    reviews = [
+        _record(1, commit_id=OLD),
+        _record(2, state="DISMISSED"),
+        _record(3, state="COMMENTED"),
+        _record(4, state="PENDING"),
+        _record(5, login="alice"),
+        _record(6, login=None, type=None),
+    ]
+
+    counted = counted_review(reviews, GREENLIGHT_LOGIN)
+
+    assert counted is not None
+    assert counted.id == 2
+
+
+def test_counted_review_folds_the_logins_case():
+    counted = counted_review([_record(1), _record(2, login="PyTorchGreenLight[BOT]", state="DISMISSED")], "x")
+    found = counted_review(
+        [_record(1), _record(2, login="PyTorchGreenLight[BOT]", state="DISMISSED")], GREENLIGHT_LOGIN
+    )
+
+    assert counted is None
+    assert found is not None
+    assert found.id == 2
+
+
+def test_counted_review_is_none_with_only_comments():
+    assert counted_review([_record(1, state="COMMENTED"), _record(2, login="")], GREENLIGHT_LOGIN) is None
 
 
 def test_live_approvals_inexact_folds_case_and_ignores_type():
@@ -132,14 +189,13 @@ def test_gate_passes_with_no_greenlight_review():
 
     assert decision.passes
     assert decision.reason == "no live GreenLight approval"
-    assert decision.stale_commits == ()
 
 
 def test_gate_passes_with_only_dismissed_and_commented_reviews():
     decision = gate_decision([_record(1, state="DISMISSED", commit_id=OLD), _record(2, state="COMMENTED")], HEAD)
 
     assert decision.passes
-    assert decision.stale_commits == ()
+    assert decision.reason == "no live GreenLight approval"
 
 
 def test_gate_passes_when_every_live_approval_is_on_the_head():
@@ -153,9 +209,7 @@ def test_gate_holds_on_an_approval_of_an_older_commit():
     decision = gate_decision([_record(1, commit_id=OLD)], HEAD)
 
     assert not decision.passes
-    assert decision.stale_commits == (OLD,)
-    assert OLD in decision.reason
-    assert HEAD in decision.reason
+    assert decision.reason == f"live GreenLight approval on {OLD} while the head is {HEAD}"
 
 
 def test_gate_holds_on_an_older_approval_behind_a_newer_dismissed_one():
@@ -164,7 +218,7 @@ def test_gate_holds_on_an_older_approval_behind_a_newer_dismissed_one():
     decision = gate_decision(reviews, HEAD)
 
     assert not decision.passes
-    assert decision.stale_commits == (OLDER,)
+    assert decision.reason == f"live GreenLight approval on {OLDER} while the head is {HEAD}"
 
 
 def test_gate_names_each_stale_commit_once_and_an_unknown_one():
@@ -173,8 +227,7 @@ def test_gate_names_each_stale_commit_once_and_an_unknown_one():
     decision = gate_decision(reviews, HEAD)
 
     assert not decision.passes
-    assert decision.stale_commits == (OLD, None)
-    assert "an unknown commit" in decision.reason
+    assert decision.reason == f"live GreenLight approval on {OLD}, an unknown commit while the head is {HEAD}"
 
 
 def test_gate_ignores_an_approval_from_a_user_spelling_the_app_login():
@@ -252,21 +305,12 @@ def test_review_record_rejects_a_bad_payload(payload: object) -> None:
 def test_pull_facts_parse_the_payload():
     facts = PullFacts.from_payload(_pull_payload())
 
-    assert facts == PullFacts(
-        number=7,
-        state="open",
-        head_sha=HEAD,
-        base_ref="main",
-        default_branch="main",
-        updated_at=datetime(2026, 11, 17, 10, 20, 30, tzinfo=UTC),
-    )
+    assert facts == PullFacts(number=7, state="open", head_sha=HEAD, base_ref="main")
     assert facts.is_open
 
 
-def test_pull_facts_without_base_repo_or_update_time():
-    facts = PullFacts.from_payload(_pull_payload(base={"ref": "main", "repo": None}, updated_at=None, state="closed"))
-
-    assert (facts.default_branch, facts.updated_at, facts.is_open) == (None, None, False)
+def test_pull_facts_of_a_closed_pr_are_not_open():
+    assert not PullFacts.from_payload(_pull_payload(state="closed")).is_open
 
 
 @pytest.mark.parametrize(
@@ -276,13 +320,48 @@ def test_pull_facts_without_base_repo_or_update_time():
         pytest.param(_pull_payload(head=None), id="no-head"),
         pytest.param(_pull_payload(head={"ref": "x"}), id="no-head-sha"),
         pytest.param(_pull_payload(base={"repo": None}), id="no-base-ref"),
-        pytest.param(_pull_payload(base={"ref": "main", "repo": []}), id="base-repo-not-object"),
         pytest.param(_pull_payload(number="7"), id="string-number"),
     ],
 )
 def test_pull_facts_reject_a_bad_payload(payload: object) -> None:
     with pytest.raises(ValueError):
         PullFacts.from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("value", "kind", "passes"),
+    [
+        pytest.param(7, int, True, id="int"),
+        pytest.param(True, int, False, id="bool-is-no-int"),
+        pytest.param(False, bool, True, id="bool"),
+        pytest.param("7", int, False, id="text-is-no-int"),
+        pytest.param(None, str, False, id="null"),
+    ],
+)
+def test_payload_is_counts_a_json_boolean_only_as_a_bool(value: object, kind: type, passes: bool) -> None:
+    assert payload_is(value, kind) is passes
+
+
+def test_payload_required_names_the_field_it_rejects():
+    assert payload_required({"n": 3}, "n", int, "thing") == 3
+    with pytest.raises(ValueError, match="thing field 'n' is not a int: True"):
+        payload_required({"n": True}, "n", int, "thing")
+    with pytest.raises(ValueError, match="thing field 'n' is not a int: None"):
+        payload_required({}, "n", int, "thing")
+
+
+def test_payload_optional_takes_an_absent_or_null_field_as_none():
+    assert payload_optional({}, "n", int, "thing") is None
+    assert payload_optional({"n": None}, "n", int, "thing") is None
+    assert payload_optional({"n": 4}, "n", int, "thing") == 4
+    with pytest.raises(ValueError, match="thing field 'n'"):
+        payload_optional({"n": "4"}, "n", int, "thing")
+
+
+def test_payload_mapping_names_what_is_not_an_object():
+    assert approvals.payload_mapping({"a": 1}, "thing") == {"a": 1}
+    with pytest.raises(ValueError, match="thing is not an object: list"):
+        approvals.payload_mapping([], "thing")
 
 
 class _FakeRequester:

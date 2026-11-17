@@ -103,6 +103,11 @@ class RepoEntry:
     change_source: ChangeSource = _DEFAULT_CHANGE_SOURCE
     full_tick_minutes: int = FULL_TICK_MINUTES_DEFAULT
 
+    @property
+    def strict_base(self) -> bool:
+        """Whether the repo takes the strict base rule (``merge_authz.accepts_base_for``): a ``gate`` repo does."""
+        return self.safety == "gate"
+
 
 BUILTIN_PYTORCH = RepoEntry(TARGET_REPO, "drci", "pytorchbot", "merge_rules", "active")
 

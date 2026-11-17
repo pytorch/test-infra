@@ -888,10 +888,15 @@ class _FakeVerdictFile:
         self.filename = filename
 
 
+class _FakeBaseRepo:
+    default_branch = "main"
+
+
 class _FakePRPart:
     def __init__(self, ref: str, sha: str) -> None:
         self.ref = ref
         self.sha = sha
+        self.repo = _FakeBaseRepo()
 
 
 class _FakeVerdictLabel:

@@ -49,15 +49,18 @@ class _PR:
         base: str = "main",
         reviews: list[_Review] | None = None,
         trunk: str | None = None,
+        default_branch: str = "main",
     ) -> None:
         self.head = SimpleNamespace(sha=head, ref="feature")
-        self.base = SimpleNamespace(ref=base)
+        self.base = SimpleNamespace(ref=base, repo=SimpleNamespace(default_branch=default_branch))
         self.raw_data: dict[str, object] = {} if trunk is None else {"stack": {"base": {"ref": trunk}}}
         self.reviews = reviews if reviews is not None else []
         self._events = events
         self.pinned: list[str] = []
+        self.review_reads = 0
 
     def get_reviews(self) -> list[_Review]:
+        self.review_reads += 1
         return list(self.reviews)
 
     def create_review(self, *, commit: Commit, body: str, event: str) -> _Review:
@@ -121,7 +124,8 @@ def test_live_approvals_all_on_the_reviewed_head_are_left_as_they_are(caplog):
     events: list[str] = []
     standing = [
         _Review(1, _BOT, "APPROVED", _HEAD, events),
-        _Review(2, "GreenLight-App[Bot]", "APPROVED", _HEAD, events),
+        _Review(2, "GreenLight-App[Bot]", "APPROVED", _HEAD.upper(), events),
+        _Review(3, _BOT, "COMMENTED", _OLD, events),
     ]
     pr = _PR(events, reviews=standing)
 
@@ -130,20 +134,50 @@ def test_live_approvals_all_on_the_reviewed_head_are_left_as_they_are(caplog):
 
     # Nothing to re-read either: no approval was posted.
     assert events == []
+    assert pr.review_reads == 1
     assert f"already approved {_REPO}#7 at {_HEAD}; skipping re-approval" in caplog.text
 
 
-def test_a_live_approval_on_another_commit_dismisses_them_all_and_approves_again_pinned():
+def test_a_live_approval_on_another_commit_dismisses_them_all_and_approves_again_pinned(caplog):
     events: list[str] = []
     standing = [_Review(1, _BOT, "APPROVED", _HEAD, events), _Review(2, _BOT, "APPROVED", _OLD, events)]
     others = [_Review(3, "alice", "APPROVED", _OLD, events), _Review(4, _BOT, "COMMENTED", _OLD, events)]
     pr = _PR(events, reviews=[*standing, *others])
 
-    _approve(_Client(events, fresh=_PR(events, reviews=pr.reviews)), pr)
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        _approve(_Client(events, fresh=_PR(events, reviews=pr.reviews)), pr)
 
     assert events == ["dismiss:1", "dismiss:2", f"approve:{_HEAD}", "reread:7"]
     assert [review.dismissed_with for review in standing] == [land_approval.SUPERSEDED_MESSAGE] * 2
     assert [review.dismissed_with for review in others] == [None, None]
+    assert pr.review_reads == 1
+    assert f"dismissed 2 prior greenlight approval(s) on {_REPO}#7" in caplog.text
+
+
+def test_an_approval_on_the_head_behind_a_newer_dismissed_review_is_given_again():
+    # trymerge counts an author's latest review that is not a comment: once a human dismisses GreenLight's
+    # newest approval, the older one on the head no longer counts on pytorch/pytorch.
+    events: list[str] = []
+    older = _Review(1, _BOT, "APPROVED", _HEAD, events)
+    dismissed = _Review(2, _BOT, "DISMISSED", _HEAD, events)
+    pr = _PR(events, reviews=[older, dismissed])
+
+    _approve(_Client(events, fresh=_PR(events, reviews=pr.reviews)), pr, strict_base=False)
+
+    assert events == ["dismiss:1", f"approve:{_HEAD}", "reread:7"]
+    assert older.dismissed_with == land_approval.SUPERSEDED_MESSAGE
+    assert pr.review_reads == 1
+
+
+def test_no_review_of_greenlights_yet_approves_without_dismissing():
+    events: list[str] = []
+    pr = _PR(
+        events, reviews=[_Review(1, _BOT, "COMMENTED", _HEAD, events), _Review(2, "alice", "APPROVED", _HEAD, events)]
+    )
+
+    _approve(_Client(events, fresh=_PR(events, reviews=pr.reviews)), pr)
+
+    assert events == [f"approve:{_HEAD}", "reread:7"]
 
 
 def test_a_live_approval_on_an_unknown_commit_is_dismissed_and_replaced():
@@ -176,6 +210,8 @@ def test_a_head_that_moved_by_the_re_read_dismisses_greenlights_approvals(caplog
         pytest.param({"base": "alice/part-1", "trunk": "main"}, False, False, id="pytorchbot-native-stack-on-main"),
         pytest.param({"base": "main"}, False, False, id="pytorchbot-native-stack-retargeted-to-main"),
         pytest.param({"base": "main"}, True, False, id="gate-still-on-main"),
+        pytest.param({"base": "main", "default_branch": "trunk"}, True, True, id="gate-main-no-longer-the-default"),
+        pytest.param({"base": "main", "default_branch": "trunk"}, False, False, id="pytorchbot-ignores-the-default"),
     ],
 )
 def test_a_base_the_repos_rule_refuses_by_the_re_read_dismisses_greenlights_approvals(fresh, strict_base, dismissed):

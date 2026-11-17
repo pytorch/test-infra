@@ -2,7 +2,10 @@
 
 It holds while a live GreenLight approval stands on a commit other than the PR's head (``approvals.gate_decision``)
 and passes as soon as none does. It polls with backoff until the deadline; any failed check counts as a hold, so
-it never passes on an error. A PR closed or moved off the given head is superseded: a later run gates the new head.
+it never passes on an error. A PR still closed when re-read ``GATE_SUPERSEDED_RECHECK`` seconds later is
+superseded. One open on another head holds, polling as before, and is superseded once every read for
+``GATE_SUPERSEDED_AFTER`` seconds has found it there, since a read can lag the push that started this run; a read
+on the given head ends the wait. A superseded run fails: the run of the PR's current head gates it.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ from greenlight.approvals import GateDecision, PullFacts, ReviewReader, gate_dec
 from greenlight.config import Config
 from greenlight.constants import (
     GATE_POLL_DELAYS,
+    GATE_SUPERSEDED_AFTER,
     GATE_SUPERSEDED_RECHECK,
     GATE_TIMEOUT_MINUTES_DEFAULT,
     GATE_TIMEOUT_MINUTES_MAX,
@@ -48,7 +52,9 @@ class GateTarget:
 
 
 @dataclass(frozen=True)
-class _Superseded:
+class _Off:
+    """A read that found the PR closed, after its recheck, or open on a head other than the target's."""
+
     facts: PullFacts
 
 
@@ -78,33 +84,31 @@ def _delays() -> Iterator[int]:
     return itertools.chain(GATE_POLL_DELAYS, itertools.repeat(GATE_POLL_DELAYS[-1]))
 
 
-def _on_head(facts: PullFacts, head_sha: str) -> bool:
-    return facts.is_open and facts.head_sha.lower() == head_sha.lower()
-
-
-def _check(
-    reader: ReviewReader, target: GateTarget, sleep: Callable[[float], None]
-) -> GateDecision | _Superseded | None:
+def _check(reader: ReviewReader, target: GateTarget, recheck: Callable[[], None]) -> GateDecision | _Off | None:
     try:
         facts = reader.pull(target.repo, target.pr)
-        if not _on_head(facts, target.head_sha):
-            logger.info(
-                "%s#%d reads %s at %s, not open at %s; re-reading in %d s",
-                target.repo,
-                target.pr,
-                facts.state,
-                facts.head_sha,
-                target.head_sha,
-                GATE_SUPERSEDED_RECHECK,
-            )
-            sleep(GATE_SUPERSEDED_RECHECK)
+        if not facts.is_open:
+            logger.info("%s#%d reads %s; re-reading it", target.repo, target.pr, facts.state)
+            recheck()
             facts = reader.pull(target.repo, target.pr)
-            if not _on_head(facts, target.head_sha):
-                return _Superseded(facts)
+        if not facts.is_open or facts.head_sha.lower() != target.head_sha.lower():
+            return _Off(facts)
         return gate_decision(reader.reviews(target.repo, target.pr), target.head_sha)
     except Exception:
         logger.error("gate check of %s#%d failed; holding", target.repo, target.pr, exc_info=True)
         return None
+
+
+def _superseded(target: GateTarget, facts: PullFacts) -> int:
+    logger.error(
+        "superseded: %s#%d is %s at head %s, not open at %s; the gate of its current head decides",
+        target.repo,
+        target.pr,
+        facts.state,
+        facts.head_sha,
+        target.head_sha,
+    )
+    return EXIT_FAILURE
 
 
 def wait_for_gate(
@@ -114,29 +118,39 @@ def wait_for_gate(
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> int:
-    """Check until the gate passes, the PR is superseded, or the deadline's final check still holds."""
+    """Check until the gate passes, the PR is superseded, or the deadline's final check still holds.
+
+    No wait, the closed PR's recheck included, runs past the deadline.
+    """
     deadline = monotonic() + target.timeout_minutes * 60
     delays = _delays()
+    moved_since: float | None = None
+
+    def recheck() -> None:
+        sleep(min(GATE_SUPERSEDED_RECHECK, max(0.0, deadline - monotonic())))
+
     while True:
-        outcome = _check(reader, target, sleep)
-        if isinstance(outcome, _Superseded):
-            logger.error(
-                "superseded: %s#%d is %s at head %s, not open at %s; the gate of its current head decides",
-                target.repo,
-                target.pr,
-                outcome.facts.state,
-                outcome.facts.head_sha,
-                target.head_sha,
-            )
-            return EXIT_FAILURE
-        if outcome is not None and outcome.passes:
-            logger.info("gate passes for %s#%d: %s", target.repo, target.pr, outcome.reason)
-            return EXIT_OK
-        if outcome is not None:
-            logger.info("gate holds for %s#%d: %s", target.repo, target.pr, outcome.reason)
+        outcome = _check(reader, target, recheck)
+        held: str | None = None
+        if isinstance(outcome, _Off):
+            if not outcome.facts.is_open:
+                return _superseded(target, outcome.facts)
+            read_at = monotonic()
+            moved_since = read_at if moved_since is None else moved_since
+            if read_at - moved_since >= GATE_SUPERSEDED_AFTER:
+                return _superseded(target, outcome.facts)
+            held = f"it reads at head {outcome.facts.head_sha}, not {target.head_sha}"
+        elif outcome is not None:
+            moved_since = None
+            if outcome.passes:
+                logger.info("gate passes for %s#%d: %s", target.repo, target.pr, outcome.reason)
+                return EXIT_OK
+            held = outcome.reason
+        if held is not None:
+            logger.info("gate holds for %s#%d: %s", target.repo, target.pr, held)
         remaining = deadline - monotonic()
         if remaining <= 0:
-            held = "the last check failed" if outcome is None else outcome.reason
+            held = "the last check failed" if held is None else held
             logger.error(
                 "gate still holds for %s#%d after %d minutes: %s",
                 target.repo,
@@ -154,7 +168,7 @@ def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
         help="hold while a GreenLight approval stands on a commit other than the PR's head",
         description=(
             "The merge gate's check: poll the PR's reviews until no live GreenLight approval stands on a commit "
-            "other than --head-sha (exit 0), the PR is closed or moved off --head-sha (exit 1), or the timeout "
+            "other than --head-sha (exit 0), the PR is closed or stays on another head (exit 1), or the timeout "
             "ends with the approval still standing (exit 1). Any failed check holds. Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN with pull-request read access."
         ),
