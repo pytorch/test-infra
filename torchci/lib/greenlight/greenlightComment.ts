@@ -200,7 +200,6 @@ export async function buildGreenlightOpenedLine(
   if (
     context.payload?.action !== "opened" ||
     !pr ||
-    !isGreenlightRepo(owner, repo) ||
     !isGreenlightPrimaryRepo(owner, repo)
   ) {
     return "";
