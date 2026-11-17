@@ -2,8 +2,9 @@
 
 The gate (``gate_check``), the verdict and the scan all judge GreenLight's approvals through these predicates, which
 accept PyGithub review objects and ``ReviewRecord`` alike. ``ReviewReader`` reads a PR and its reviews with conditional
-requests: a 304 costs no rate-limit request. A PR payload embeds its base and head repositories, so its ETag can
-change while the PR itself does not.
+requests: a 304 costs no rate-limit request, but GitHub ties an ETag to the token that received it, so a 304 comes
+back only while the token is the same. A PR payload embeds its base and head repositories, so its ETag can change
+while the PR itself does not.
 """
 
 from __future__ import annotations

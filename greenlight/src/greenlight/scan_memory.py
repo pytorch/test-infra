@@ -117,8 +117,9 @@ class BackingKey:
 class BackingMemory:
     """A ``gate`` repo's approval-backing check from one tick to the next (``approval_backing``).
 
-    ``reader`` keeps each PR's and each review page's ETag and parsed result, so an unchanged PR costs a
-    304; it is None until the first check. ``sweep`` is the sweep of every open PR under way (its
+    ``reader`` keeps each PR's and each review page's ETag and parsed result, which answer a 304 only while
+    the token is the same (not across the Lambda's ticks, which mint new tokens); it is None until the first
+    check. ``sweep`` is the sweep of every open PR under way (its
     ``started_at`` opens its window), or None; ``sweeps`` is the last sweep number given. ``waiting``
     holds the PRs read again next tick: their approval may yet be backed by a LAND row not ingested, or
     the ledger could not be read to judge it. ``keys`` holds each open PR's key as of its last settled read.
