@@ -138,24 +138,22 @@ the day before the refit, from `FIRST_DATA_DAY` (`shards.py`, 2025-11-06) at the
 earliest; the last 14 of them are the gate window, whose unhealthy days fail a run on
 main. The shipped model is fitted on all of them but the last two, whose jobs may still
 run, and the walk-forward months fall in the same year, so pytorch's older behaviour ages
-out of both. 2025-11-06 is the
-first whole day with all three sources: `tests.all_test_runs` has rows from 2025-11-05
-17:00 UTC on (a day earlier, only the runs of that evening have outcomes), while the TD
-logs (seen back to 2025-10-30) and the `td_exclusions` objects already exist for its runs.
-`td_trunk_breakages` only reports landings from 2026-07-13 on, so earlier days have no
-counted trunk breaks. In June 2026 most `td_exclusions` objects are keyed `NoBuildEnv` /
-`NoTestConfig` instead of the job's build env and test config, so that month's days pass
-the health rule with about 5% of the TD-on jobs of the months around it.
+out of both. 2025-11-06 is the first whole day with all three sources:
+`tests.all_test_runs` has rows from 2025-11-05 17:00 UTC on (that day, only its evening
+runs have outcomes); TD logs (seen back to 2025-10-30) and `td_exclusions` already exist
+for its runs. `td_trunk_breakages` only reports landings from 2026-07-13 on, so earlier
+days have no counted trunk breaks. In June 2026 most `td_exclusions` objects are keyed
+`NoBuildEnv` / `NoTestConfig` instead of the job's build env and test config, so that
+month's days pass the health rule with about 5% of the TD-on jobs of the nearby months.
 
 **Backfill**: each refit builds the missing shards of the window newest first, writing
-each healthy one as soon as it is built, and stops starting new days after
-`BACKFILL_SECONDS` (3 hours, `store.py`); building a day takes about 30-60 s, and the
-whole year took about 3 hours. It then trains and gates on the days it has, prints how
-many days are still missing, and the next runs build them. A run that got only part way
-passes or fails on its gate like any other. The refit job's 285 minutes cover the
-backfill, about 25 minutes of fitting, walk-forward and holdout on one year (more on the
-runner), and the upload, and end before its S3 credentials expire after 300 minutes
-(`role-duration-seconds`).
+each healthy one once built, and stops starting new days after `BACKFILL_SECONDS` (3
+hours, `store.py`); building a day takes about 30-60 s, and the whole year took about 3
+hours. It then trains and gates on the days it has and prints how many are still
+missing; the next runs build them. A run that got only part way passes or fails on its
+gate like any other. The refit job's 285 minutes cover the backfill, about 25 minutes of
+fitting, walk-forward and holdout on one year (more on the runner), and the upload, and
+end before its S3 credentials expire after 300 minutes (`role-duration-seconds`).
 
 ## The daily workflow
 
@@ -164,8 +162,8 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
 - **refit**: fits the start-up per file of each test config, builds missing day shards
   (S3 on main, within the backfill budget; a pull request builds three days in memory
   and writes nothing), fits the scorer and the risk score on the data window, runs the
-  walk-forward and the gate below, and writes both model files and their samples
-  (`sample.json`, `budget-sample.json`). It passes `--budget` only when
+  walk-forward and the gate below, and writes both model files, their samples
+  (`sample.json`, `budget-sample.json`) and `report.json`. It passes `--budget` only when
   the repository variable `TD_SCORER_BUDGET`, trimmed and lowercased, is exactly `on`
   (`model_json.budget_on`); the step summary gives the budget mode and, with a budget,
   the realised share of test-times seconds. The job fails when the gate fails, when
@@ -173,24 +171,24 @@ runner), and the upload, and end before its S3 credentials expire after 300 minu
   5 test configs got a start-up on main, or when ClickHouse credentials are missing on
   main. A pull request's run trains on two days, too few for a walk-forward month, so its
   floor is not met; it only prints the report.
+- **upload** (main only, after refit, whatever its result): "Monitoring"; no job needs it.
 - **check**: validates the model with pytorch main's `scorer_model.py`, compares its p
   and r with the trainer's on a sample (max difference 1e-6), checks that pytorch's
   `change_features` gives the same counts on the sampled changes and that its budget
   constants (`scorer_model.py`) and build-path lists (`scorer_paths.py`) equal
   `model_json`'s and `risk.py`'s (skipped while pytorch has no budget rule and the model
-  no block; any difference fails the check only when the model has a budget block, and
-  is a warning otherwise, since without one the cut is the same), and replays the gate's
-  cut of a sample of jobs with pytorch's `scorer.select_tests`, with their r and
-  build-file count (same selection and same `budget_ms` required; for a job whose config
-  has no start-up, its `NoModel` counts as TD's include list with no budget). The sample
-  includes jobs served by the model with an unknown r, with build paths, and with
-  must-run files over the budget when the gate days have them. It runs pytorch's code
-  from a sparse checkout of `tools/testing` and `tools/stats`. Any difference that is
-  not finite fails it. While pytorch main has no `scorer_model.py` or no `scorer.py`,
-  the check is skipped and counts as not validated. It checks `td-scorer.json` with
-  `sample.json`, which decides `validated`, and `td-scorer-budget.json` with
-  `budget-sample.json`, which only sets `budget_validated`: any exit but 0 there is a
-  warning, never a failed job.
+  no block; a difference is a warning unless the model has a budget block, since without
+  one the cut is the same), and replays the gate's cut of a sample of jobs with
+  pytorch's `scorer.select_tests`, with their r and build-file count (same selection and
+  same `budget_ms` required; for a job whose config has no start-up, its `NoModel`
+  counts as TD's include list with no budget). The sample includes jobs served by the
+  model with an unknown r, with build paths, and with must-run files over the budget
+  when the gate days have them. It runs pytorch's code from a sparse checkout of
+  `tools/testing` and `tools/stats`. Any difference that is not finite fails it. While
+  pytorch main has no `scorer_model.py` or no `scorer.py`, the check is skipped and
+  counts as not validated. It checks `td-scorer.json` with `sample.json`, which decides
+  `validated`, and `td-scorer-budget.json` with `budget-sample.json`, which only sets
+  `budget_validated`: any exit but 0 there is a warning, never a failed job.
 - **publish** (main only, no secrets, and only after the check validated
   `td-scorer.json`): refuses a `td-scorer.json` with a budget block.
   `td-scorer-budget.json` keeps the refit's budget model when the check validated it
@@ -239,8 +237,7 @@ budget check (3) decides whether the model keeps its budget block.
    `--floor-ratio`), over at least 30 PRs with failures (`MIN_FLOOR_PRS`). Before the
    scorer is published, the jobs ran TD's own cut, so TD's recall is about 1 and the
    measure favours TD. After it, failures are only observed in files the published
-   scorer ran, so the months from then on favour the scorer, and the holdout stays the
-   only unbiased view.
+   scorer ran, so later months favour the scorer; the holdout stays the only unbiased view.
 
 3. **Budget check** (only with `--budget`): every walk-forward model carries the block,
    and over the pooled months the per-PR detection retention of the budgeted cut, the
@@ -274,6 +271,16 @@ its fetch fails or takes longer than `gate.MONITOR_SECONDS`. That bounds the wai
 the process: TD log fetches already queued when it gives up finish before the process
 exits (minutes at worst, after everything is written).
 
+## Monitoring
+
+The `upload` job's `upload-report` (`report_upload.py`) writes `report.json`, with `days`
+(training and gate days used, gaps, unhealthy, missing) and non-finite numbers as null,
+as one `misc.ossci_uploaded_metrics` row (metric `td_scorer_refit`, `METRIC_NAME`). HUD's
+Target Determinator page ("Daily scorer refit") counts a report only if that attempt's
+`upload` job succeeded, so the job name is a contract; its figures are informational: the
+gate decides. One key per attempt, not overwritten (other bytes there fail the job):
+`s3://ossci-raw-job-status/ossci_uploaded_metrics/td_scorer_refit_<run_id>_<attempt>.jsonl.gz`.
+
 ## The test budget
 
 pytorch's `scorer_model.py` defines the optional top-level block
@@ -282,8 +289,7 @@ pytorch's `scorer_model.py` defines the optional top-level block
 - **Bounds**, checked by pytorch's validator so that no model file can push PR testing
   below them: exactly these keys, finite numbers, `0 <= k < 1`, `0 <= a <= 1`,
   `0.10 <= s x (1 - k)` and `s <= 1`. The 0.10 floor (`MIN_SHARE`) bounds cost, not
-  seconds: with each file's start-up k added, 10% of cost is a smaller share of
-  test-times seconds.
+  seconds: with start-up k per file, 10% of cost is a smaller share of test-times seconds.
 - **The share** of a job's total cost (TD's include plus exclude lists) is
   `s x (1 + k x r)`, clamped to [0.10, 1], with r clamped to [-1, 1]. A change with an
   unknown r, or that touches build, dependency or test-infrastructure paths (`BUILD_*`
@@ -306,11 +312,10 @@ gate's budget check passes. Before switching it on:
 - pytorch main must have the budget rule. With the variable on and an older pytorch
   main, check-pytorch fails on `td-scorer-budget.json`, which then gets the plain model,
   and the run fails after publishing.
-- Something must watch quality afterwards, because the budget check passes by
-  construction once the budget is live: either an exploration slice (a small random
-  share of jobs that run beyond the cut, so its misses stay observable), or a named
-  person who reads the daily step summary and the main-failure monitor for the first
-  weeks.
+- Something must watch quality afterwards, as the budget check passes by construction
+  once the budget is live: an exploration slice (a small random share of jobs run beyond
+  the cut, so its misses stay observable), or a named person reading the daily step
+  summary and the main-failure monitor for the first weeks.
 
 check-pytorch couples the two repos: while the budget is on, a pytorch change to the
 budget constants, the build paths or `change_features` keeps the block out of
@@ -359,11 +364,10 @@ the selection of the defaults are not in this package.
 
 ## Turning the scorer off
 
-Set `"enabled": false` in `stats/td-scorer.json` on the generated-stats branch. Every
+Set `"enabled": false` in `stats/td-scorer.json` on the generated-stats branch: every
 pytorch checkout's TD job then uses TD's own cut, budget or not, and the publish job
-writes neither file while it stays off. Setting it back to true (or deleting the file)
-lets the next daily run publish again. "Turning the budget off" above ends the budget
-alone.
+writes neither file while it stays off. Once it is true again (or the file is deleted),
+the next daily run publishes again; "Turning the budget off" above ends the budget alone.
 
 ## Running locally
 

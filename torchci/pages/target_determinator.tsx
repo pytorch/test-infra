@@ -10,6 +10,7 @@ import BreakagesSection, {
 } from "components/targetDeterminator/BreakagesSection";
 import KeyMetricsSection from "components/targetDeterminator/KeyMetricsSection";
 import RankingSection from "components/targetDeterminator/RankingSection";
+import RefitSection from "components/targetDeterminator/RefitSection";
 import SavingsSection, {
   useSavingsData,
 } from "components/targetDeterminator/SavingsSection";
@@ -69,6 +70,7 @@ export function TdSections({
       <BreakagesSection data={breakages} charts={charts} />
       <RankingSection params={params} charts={charts} />
       <StabilitySection params={params} charts={charts} />
+      <RefitSection params={params} />
     </Stack>
   );
 }
@@ -147,9 +149,10 @@ export default function Page() {
         Main runs every test. This page shows what that means for contributors:
         how much time and CI it saves, which breakages it lets through, whether
         it picks the right tests, and how stable its picks are from one push to
-        the next. Times are in UTC, counted in whole days. Each section counts
-        the part of the picked window its data covers. Click a figure to open
-        its chart.
+        the next. The last section follows the daily refit of TD&apos;s scorer
+        and how well it does. Times are in UTC, counted in whole days. Each
+        section counts the part of the picked window its data covers. Click a
+        figure to open its chart.
       </Typography>
       <Stack
         direction="row"

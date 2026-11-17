@@ -41,13 +41,13 @@ GOLDEN = (
         "0.6",
         0,
         "8bb636c89409b556263fb44c1ec76155fca6b7ab590e8a6528b5e40ffd6a6064",
-        "06d5fc6518f626fbd90bdb8a5ce087aa4f618f378278e1b642eccd6772a5c6e2",
+        "518fd2a4b8d000d660c00544688bdb36dfe3aafc4e7962dbcfa92a9aa24eca12",
     ),
     (
         "2",
         1,
         "8bb636c89409b556263fb44c1ec76155fca6b7ab590e8a6528b5e40ffd6a6064",
-        "74511877b45c4003326e44c8efebdeef2a04b0f371460f14e553937bab9c3083",
+        "2a487444e0e7ac3a111155713eb8008db18ff1f8aff47028f799f35d28fb07d5",
     ),
 )
 
@@ -819,6 +819,10 @@ class TestCli(TestCase):
             self.assertEqual(summary["prs_with_events"], total["prs_with_events"])
             self.assertGreater(total["prs_with_events"], 0)
             self.assertEqual(total["trunk_landings"], 2)
+            self.assertEqual(
+                summary["days"],
+                {"training": 45, "gate": 2, "gaps": 0, "unhealthy": 0, "missing": 0},
+            )
             self.assertTrue((Path(d) / "cache" / "holdout" / "v2.jsonl.gz").exists())
             other = self.refit_args(d, out="other.json", **two_months)
             self.assertEqual(cli.main(other + ["--floor-ratio", "2"]), 1)
@@ -870,9 +874,22 @@ class TestCli(TestCase):
                 self.assertEqual(cli.main(s3_run + ["--s3"]), 0)
                 self.broken = {date(2026, 11, 20)}
                 later = self.refit_args(d, "2026-11-24", out="other.json")
-                self.assertEqual(cli.main(later + ["--s3"]), 0)
+                late_report = Path(d) / "late.json"
+                self.assertEqual(
+                    cli.main(later + ["--s3", "--report", str(late_report)]), 0
+                )
+                self.assertEqual(
+                    json.loads(late_report.read_text())["days"],
+                    {"training": 2, "gate": 2, "gaps": 0, "unhealthy": 1, "missing": 0},
+                )
                 self.broken, self.gap = set(), {date(2026, 11, 23)}
-                self.assertEqual(cli.main(later + ["--s3"]), 0)
+                self.assertEqual(
+                    cli.main(later + ["--s3", "--report", str(late_report)]), 0
+                )
+                self.assertEqual(
+                    json.loads(late_report.read_text())["days"],
+                    {"training": 3, "gate": 1, "gaps": 1, "unhealthy": 0, "missing": 0},
+                )
                 self.broken = {date(2026, 11, 22)}
                 self.assertEqual(cli.main(later + ["--s3"]), 1)
                 self.assertEqual(cli.main(later + ["--s3", "--report-only"]), 0)
@@ -1180,6 +1197,35 @@ class TestCli(TestCase):
                     allowed = not has_budget or model_json.budget_on(value)
                     self.assertEqual(published, budgeted if allowed else plain)
                     self.assertEqual("refused" not in outputs, allowed)
+
+    def test_workflow_report_upload(self) -> None:
+        # HUD counts a report only when the job named `upload` succeeded.
+        jobs = workflow_jobs()
+        upload, name = jobs["upload"], "Upload the report to HUD"
+        self.assertEqual(upload["needs"], "refit")
+        for term in (
+            "!cancelled()",
+            "needs.refit.outputs.ran == 'true'",
+            "github.ref == 'refs/heads/main'",
+            "github.event_name != 'pull_request'",
+        ):
+            self.assertIn(term, upload["if"])
+        self.assertNotIn("continue-on-error", upload)
+        self.assertLessEqual(upload["timeout-minutes"], 15)
+        for job in jobs.values():
+            needs = job.get("needs", [])
+            self.assertNotIn("upload", [needs] if isinstance(needs, str) else needs)
+        self.assertNotIn(name, [s.get("name") for s in jobs["refit"]["steps"]])
+        names = [s.get("name") for s in upload["steps"]]
+        self.assertEqual(names[-1], name)
+        aws = workflow_step(upload, "Configure AWS credentials")
+        self.assertLess(names.index(aws["name"]), names.index(name))
+        self.assertLessEqual(aws["with"]["role-duration-seconds"], 900)
+        step = workflow_step(upload, name)
+        self.assertEqual(step["if"], "hashFiles('td-scorer/report.json') != ''")
+        self.assertNotIn("env", step)
+        self.assertNotIn("${{", step["run"])
+        self.assertIn("upload-report --report ../td-scorer/report.json", step["run"])
 
     def test_fetch_test_times(self) -> None:
         with mock.patch.object(logs, "http_get", return_value=b'{"a": {}}') as get:
