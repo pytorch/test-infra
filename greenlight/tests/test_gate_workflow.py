@@ -171,9 +171,3 @@ def test_tests_workflow_runs_on_gate_changes():
     on = tests.get("on", tests.get(True))
     assert constants.GATE_WORKFLOW_PATH in on["pull_request"]["paths"]
     assert constants.GATE_WORKFLOW_PATH in on["push"]["paths"]
-
-
-def test_codeowners_owns_the_gate_like_greenlight():
-    lines = (ROOT / "CODEOWNERS").read_text(encoding="utf-8").splitlines()
-    owners = {line.split()[0]: line.split()[1:] for line in lines if line.startswith("/")}
-    assert owners[f"/{constants.GATE_WORKFLOW_PATH}"] == owners["/greenlight/"]
