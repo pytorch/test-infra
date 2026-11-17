@@ -391,6 +391,13 @@
       "xpu"
     ]
   ],
+  "test_correctness_RAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202889",
+    "https://github.com/pytorch/pytorch/issues/202889",
+    [
+      "xpu"
+    ]
+  ],
   "test_cuda_memory_leak_detection (__main__.TestMultiGPUCudaOnly)": [
     "104695",
     "https://github.com/pytorch/pytorch/issues/104695",
@@ -1037,6 +1044,13 @@
       "xpu"
     ]
   ],
+  "test_mutate_realized_buffer_in_make_fx_graph_case_foreach_reads_sibling_target_xpu (__main__.GPUTests)": [
+    "200423",
+    "https://github.com/pytorch/pytorch/issues/200423",
+    [
+      "xpu"
+    ]
+  ],
   "test_mutating_custom_op_with_device_arg_under_coor (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202796",
     "https://github.com/pytorch/pytorch/issues/202796",
@@ -1251,6 +1265,13 @@
   "test_pointwise_query_producer_head_dims2_xpu (__main__.TestFlexDecodingXPU)": [
     "198714",
     "https://github.com/pytorch/pytorch/issues/198714",
+    [
+      "xpu"
+    ]
+  ],
+  "test_power_draw_returns_float (__main__.TestXpu)": [
+    "205324",
+    "https://github.com/pytorch/pytorch/issues/205324",
     [
       "xpu"
     ]
@@ -1486,9 +1507,23 @@
       "xpu"
     ]
   ],
+  "test_sparse_add_aliased_out_xpu_complex64 (__main__.TestSparseCSRDeviceXPU)": [
+    "205322",
+    "https://github.com/pytorch/pytorch/issues/205322",
+    [
+      "xpu"
+    ]
+  ],
   "test_sparse_add_xpu_complex128 (__main__.TestSparseCSRDeviceXPU)": [
     "205267",
     "https://github.com/pytorch/pytorch/issues/205267",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_add_xpu_float32 (__main__.TestSparseCSRDeviceXPU)": [
+    "205323",
+    "https://github.com/pytorch/pytorch/issues/205323",
     [
       "xpu"
     ]
@@ -1524,6 +1559,13 @@
   "test_sparse_sparse_mul_xpu_float32 (__main__.TestSparseXPU)": [
     "205265",
     "https://github.com/pytorch/pytorch/issues/205265",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_float64 (__main__.TestSparseXPU)": [
+    "205321",
+    "https://github.com/pytorch/pytorch/issues/205321",
     [
       "xpu"
     ]
