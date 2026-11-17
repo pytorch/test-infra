@@ -117,8 +117,15 @@ def drain(
     unfinished_runs: _RunsFn = count_unfinished_review_runs,
     dismiss: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
     now: Callable[[], datetime] = _utcnow,
+    cancel_event: threading.Event | None = None,
 ) -> DrainReport:
-    """Run one tick's slice of ``repo``'s drain. Listing and state-read failures raise; a PR's failure is reported."""
+    """Run one tick's slice of ``repo``'s drain. Listing and state-read failures raise; a PR's failure is reported.
+
+    A rate limit on a PR sets ``cancel_event`` (a fresh event by default) and ends the slice, as does an
+    event already set.
+    """
+    if cancel_event is None:
+        cancel_event = threading.Event()
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to drain a repo")
@@ -134,7 +141,7 @@ def drain(
         queue = [(0, number) for number in sorted(current.recorded) if number in pulls]
         queue.extend((1, number) for number in sorted(pulls))
         failed: list[int] = []
-        reached_end = _work(client, repo, current, queue, pulls, listed_at, bot_login, dismiss, failed)
+        reached_end = _work(client, repo, current, queue, pulls, listed_at, bot_login, dismiss, failed, cancel_event)
     finally:
         github_client.close_client(client)
     return _report(memory, repo, current, reached_end=reached_end, failed=failed)
@@ -150,9 +157,9 @@ def _work(
     bot_login: str,
     dismiss: Callable[..., list[int]],
     failed: list[int],
+    cancel_event: threading.Event,
 ) -> bool:
     """Work the queue from the pass's cursor; True once the pass reached its end."""
-    cancel_event = threading.Event()
     reads = 0
     for key in queue:
         if current.cursor is not None and key <= current.cursor:

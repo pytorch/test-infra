@@ -77,6 +77,7 @@ class Config:
     review_window_hours: float = _DEFAULT_REVIEW_WINDOW_HOURS
     drci_poke_delay_seconds: float = _DEFAULT_DRCI_POKE_DELAY_SECONDS
     github_token: str | None = field(default=None, repr=False)
+    dispatch_token: str | None = field(default=None, repr=False)
     drci_token: str | None = field(default=None, repr=False)
     drci_internal_token: str | None = field(default=None, repr=False)
 
@@ -85,6 +86,7 @@ class Config:
         object.__setattr__(self, "log_level", _normalize_log_level(self.log_level))
         object.__setattr__(self, "lock_path", _clean(self.lock_path))
         object.__setattr__(self, "github_token", _clean(self.github_token))
+        object.__setattr__(self, "dispatch_token", _clean(self.dispatch_token))
         object.__setattr__(self, "drci_token", _clean(self.drci_token))
         object.__setattr__(self, "drci_internal_token", _clean(self.drci_internal_token))
         for name in _POSITIVE_FIELDS:
@@ -123,6 +125,7 @@ class Config:
                 source, "PYTORCH_GREENLIGHT_DRCI_POKE_DELAY_SECONDS", _DEFAULT_DRCI_POKE_DELAY_SECONDS
             ),
             github_token=source.get("PYTORCH_GREENLIGHT_GITHUB_TOKEN"),
+            dispatch_token=source.get("PYTORCH_GREENLIGHT_DISPATCH_TOKEN"),
             drci_token=source.get("PYTORCH_GREENLIGHT_DRCI_TOKEN"),
             drci_internal_token=source.get("PYTORCH_GREENLIGHT_DRCI_INTERNAL_TOKEN"),
         )

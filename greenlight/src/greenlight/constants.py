@@ -104,6 +104,17 @@ DEFAULT_TIMEOUT_MINUTES = 45
 REPOS_CONFIG_PATH = "greenlight/repos.yaml"
 DRAIN_PRS_PER_TICK = 100
 
+# Phase B starts no GitHub request this long after the tick started, inside the scan's 2-minute schedule.
+TICK_DEADLINE = timedelta(seconds=110)
+OTHER_REPO_TIME_BUDGET = timedelta(seconds=20)
+OTHER_REPO_REQUEST_BUDGET = 400
+# Optional work stops below these remaining installation requests, the other repos' before the primary's;
+# Phase A's safety work never stops for them.
+QUOTA_FLOOR_OTHERS = 3000
+QUOTA_FLOOR_PRIMARY = 1000
+# Dispatches held back from the primary for the other repos, at most --max.
+DISPATCH_RESERVE = 5
+
 FULL_TICK_INTERVAL = timedelta(minutes=15)
 # A tick scheduled one interval after a full tick can start slightly early; the tolerance keeps it a
 # full tick instead of pushing the full listing back a whole schedule period.

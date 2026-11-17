@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import datetime
 from typing import TYPE_CHECKING, NoReturn, cast
 
@@ -65,7 +66,7 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
         emitted.append(kwargs)
 
     pending = [_candidate(1, run_id=None), _candidate(2, run_id=4), _candidate(3, run_id=0)]
-    failed = scan_dispatch._dispatch_pending(
+    failed, dispatched_count = scan_dispatch._dispatch_pending(
         _CLIENT,
         pending,
         repo=TARGET_REPO,
@@ -75,11 +76,13 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
         emit_dispatched=emit,
         poke=_noop_poke,
         shadow_for_pr=_never_shadow,
+        cancel_event=threading.Event(),
     )
 
     # One marker per successfully dispatched candidate: never-reviewed (None) and legacy run_id 0
     # both base at run_id 1; a prior run 4 supersedes with run_id 5.
     assert failed == []
+    assert dispatched_count == 3
     assert sorted(dispatched) == [1, 2, 3]
     assert {call["pr_number"]: call["run_id"] for call in emitted} == {1: 1, 2: 5, 3: 1}
     for call in emitted:
@@ -98,7 +101,7 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
     def emit(**kwargs):
         emitted.append(kwargs)
 
-    failed = scan_dispatch._dispatch_pending(
+    failed, dispatched_count = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=2)],
         repo=TARGET_REPO,
@@ -108,11 +111,13 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
         emit_dispatched=emit,
         poke=poked.append,
         shadow_for_pr=_never_shadow,
+        cancel_event=threading.Event(),
     )
 
     # A failed dispatch never fired the workflow, so no in-flight marker may be emitted for it --
     # and with no marker written there is nothing for Dr. CI to re-render, so no poke either.
     assert failed == [1]
+    assert dispatched_count == 0
     assert emitted == []
     assert poked == []
 
@@ -131,7 +136,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
         emitted.append(pr_number)
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
-        failed = scan_dispatch._dispatch_pending(
+        failed, dispatched_count = scan_dispatch._dispatch_pending(
             _CLIENT,
             [_candidate(1, run_id=None), _candidate(2, run_id=None)],
             repo=TARGET_REPO,
@@ -141,11 +146,13 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
             emit_dispatched=boom_emit,
             poke=poked.append,
             shadow_for_pr=_never_shadow,
+            cancel_event=threading.Event(),
         )
 
     # The workflow already fired, so a marker-emit failure is logged and swallowed: PR1's dispatch
     # is not counted as failed, and the remaining PR2 still dispatches and emits.
     assert failed == []
+    assert dispatched_count == 2
     assert dispatched == [1, 2]
     assert emitted == [2]
     # PR1 wrote no marker, so poking it would rebuild the comment from the state the marker was
@@ -177,6 +184,7 @@ def test_dispatch_pending_emit_iteration_timeout_propagates():
             emit_dispatched=timeout_emit,
             poke=_boom_poke,
             shadow_for_pr=_never_shadow,
+            cancel_event=threading.Event(),
         )
 
     assert dispatched == [1]
@@ -194,7 +202,7 @@ def test_dispatch_pending_pokes_drci_after_each_successful_emit():
     def poke(pr_number):
         events.append(f"poke:{pr_number}")
 
-    failed = scan_dispatch._dispatch_pending(
+    failed, dispatched_count = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=None), _candidate(2, run_id=4)],
         repo=TARGET_REPO,
@@ -204,11 +212,13 @@ def test_dispatch_pending_pokes_drci_after_each_successful_emit():
         emit_dispatched=emit,
         poke=poke,
         shadow_for_pr=_never_shadow,
+        cancel_event=threading.Event(),
     )
 
     # Ordering is the contract: Dr. CI re-reads the row on poke, so each PR's poke must follow its
     # own emit, and one candidate must be fully handled before the next is dispatched.
     assert failed == []
+    assert dispatched_count == 2
     assert events == ["dispatch:1", "emit:1", "poke:1", "dispatch:2", "emit:2", "poke:2"]
 
 
@@ -221,7 +231,7 @@ def test_dispatch_pending_does_not_poke_deferred_candidates():
     def emit(**_kwargs):
         return None
 
-    failed = scan_dispatch._dispatch_pending(
+    failed, dispatched_count = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=None), _candidate(2, run_id=None)],
         repo=TARGET_REPO,
@@ -231,10 +241,12 @@ def test_dispatch_pending_does_not_poke_deferred_candidates():
         emit_dispatched=emit,
         poke=poked.append,
         shadow_for_pr=_never_shadow,
+        cancel_event=threading.Event(),
     )
 
     # A candidate deferred by the --max cap was never dispatched or marked, so it must not be poked.
     assert failed == []
+    assert dispatched_count == 1
     assert poked == [1]
 
 
@@ -256,7 +268,7 @@ def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow, expe
     def emit(**kwargs):
         emitted.append(kwargs)
 
-    failed = scan_dispatch._dispatch_pending(
+    failed, dispatched_count = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=None)],
         repo=TARGET_REPO,
@@ -266,11 +278,13 @@ def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow, expe
         emit_dispatched=emit,
         poke=poked.append,
         shadow_for_pr=lambda _number: shadow,
+        cancel_event=threading.Event(),
     )
 
     # One lookup drives all three: the reviewer workflow input that withholds the approval, the row
     # the merge gate and Dr. CI read, and whether a rebuild is worth requesting at all.
     assert failed == []
+    assert dispatched_count == 1
     assert dispatch_kwargs == [{"shadow": shadow, "repo": TARGET_REPO}]
     assert [call["shadow"] for call in emitted] == [shadow]
     assert poked == expected_pokes
@@ -296,6 +310,7 @@ def test_dispatch_pending_resolves_shadow_per_candidate():
         emit_dispatched=emit,
         poke=poked.append,
         shadow_for_pr=lambda number: number == 2,
+        cancel_event=threading.Event(),
     )
 
     # A mixed batch must not collapse to one answer -- the cohort is per author, and a single scan
@@ -312,7 +327,7 @@ def test_dispatch_pending_does_not_poke_a_shadow_pr_whose_emit_failed(caplog):
         raise RuntimeError("emit boom")
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
-        failed = scan_dispatch._dispatch_pending(
+        failed, dispatched_count = scan_dispatch._dispatch_pending(
             _CLIENT,
             [_candidate(1, run_id=None)],
             repo=TARGET_REPO,
@@ -322,11 +337,13 @@ def test_dispatch_pending_does_not_poke_a_shadow_pr_whose_emit_failed(caplog):
             emit_dispatched=boom_emit,
             poke=_boom_poke,
             shadow_for_pr=lambda _number: True,
+            cancel_event=threading.Event(),
         )
 
     # Both suppressions apply at once, and the shadow one must not resurrect the failed-emit one:
     # _boom_poke asserts if either is dropped.
     assert failed == []
+    assert dispatched_count == 1
     assert "failed to emit AI_REVIEW_DISPATCHED marker for PR #1" in caplog.text
 
 
@@ -350,6 +367,100 @@ def test_dispatch_pending_dispatches_and_records_on_the_scanned_repo():
         emit_dispatched=emit,
         poke=_noop_poke,
         shadow_for_pr=_never_shadow,
+        cancel_event=threading.Event(),
     )
 
     assert dispatched == emitted == ["pytorch/vision"]
+
+
+def _recording_dispatch(
+    dispatched: list[int], *, rate_limited: frozenset[int] = frozenset()
+) -> scan_dispatch.DispatchFn:
+    from github import GithubException
+
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
+        if number in rate_limited:
+            raise GithubException(403, {"message": "secondary rate limit"}, headers={"retry-after": "60"})
+        dispatched.append(number)
+
+    return dispatch
+
+
+def test_a_rate_limit_on_a_dispatch_sets_the_event_and_defers_the_rest(caplog):
+    dispatched: list[int] = []
+    cancel_event = threading.Event()
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        failed, count = scan_dispatch._dispatch_pending(
+            _CLIENT,
+            [_candidate(number, run_id=None) for number in (1, 2, 3, 4)],
+            repo=TARGET_REPO,
+            ref="main",
+            max_dispatches=3,
+            dispatch=_recording_dispatch(dispatched, rate_limited=frozenset({2})),
+            emit_dispatched=lambda **_kwargs: None,
+            poke=_noop_poke,
+            shadow_for_pr=_never_shadow,
+            cancel_event=cancel_event,
+        )
+
+    assert cancel_event.is_set()
+    assert (failed, count, dispatched) == ([2], 1, [1])
+    messages = [record.getMessage() for record in caplog.records]
+    assert "deferred PR #3 dispatch: a rate limit stopped this tick's GitHub work" in messages
+    assert "deferred PR #4 dispatch: --max cap reached" in messages
+    [error] = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert "failed to dispatch review for PR #2" in error.getMessage()
+    assert error.exc_info is not None
+
+
+def test_a_failure_other_than_a_rate_limit_leaves_the_event_alone_and_dispatches_the_rest():
+    dispatched: list[int] = []
+    cancel_event = threading.Event()
+
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
+        if number == 1:
+            raise RuntimeError("dispatch boom")
+        dispatched.append(number)
+
+    failed, count = scan_dispatch._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+        repo=TARGET_REPO,
+        ref="main",
+        max_dispatches=None,
+        dispatch=dispatch,
+        emit_dispatched=lambda **_kwargs: None,
+        poke=_noop_poke,
+        shadow_for_pr=_never_shadow,
+        cancel_event=cancel_event,
+    )
+
+    assert not cancel_event.is_set()
+    assert (failed, count, dispatched) == ([1], 1, [2])
+
+
+def test_an_event_already_set_defers_every_candidate(caplog):
+    dispatched: list[int] = []
+    cancel_event = threading.Event()
+    cancel_event.set()
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        failed, count = scan_dispatch._dispatch_pending(
+            _CLIENT,
+            [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+            repo=TARGET_REPO,
+            ref="main",
+            max_dispatches=None,
+            dispatch=_recording_dispatch(dispatched),
+            emit_dispatched=lambda **_kwargs: None,
+            poke=_boom_poke,
+            shadow_for_pr=_never_shadow,
+            cancel_event=cancel_event,
+        )
+
+    assert (failed, count, dispatched) == ([], 0, [])
+    assert [record.getMessage() for record in caplog.records] == [
+        "deferred PR #1 dispatch: a rate limit stopped this tick's GitHub work",
+        "deferred PR #2 dispatch: a rate limit stopped this tick's GitHub work",
+    ]

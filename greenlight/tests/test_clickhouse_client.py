@@ -53,6 +53,8 @@ def test_connect_passes_expected_client_kwargs(fake_clickhouse, monkeypatch):
             "port": 8443,
             "secure": True,
             "interface": "https",
+            "connect_timeout": 10,
+            "send_receive_timeout": 60,
         }
     ]
 

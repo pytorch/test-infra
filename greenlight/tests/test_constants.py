@@ -218,3 +218,17 @@ def test_drci_status_comment_repos_exclude_other_repos(repo):
 
 def test_pytorchbot_guarded_repos_is_only_the_target_repo():
     assert frozenset({constants.TARGET_REPO}) == constants.PYTORCHBOT_GUARDED_REPOS
+
+
+def test_the_tick_budgets_and_floors():
+    assert timedelta(seconds=110) == constants.TICK_DEADLINE
+    assert timedelta(seconds=20) == constants.OTHER_REPO_TIME_BUDGET
+    assert constants.OTHER_REPO_REQUEST_BUDGET == 400
+    assert constants.QUOTA_FLOOR_OTHERS == 3000
+    assert constants.QUOTA_FLOOR_PRIMARY == 1000
+    assert constants.DISPATCH_RESERVE == 5
+
+
+def test_the_tick_ends_inside_its_schedule_and_sheds_the_other_repos_first():
+    assert constants.OTHER_REPO_TIME_BUDGET < constants.TICK_DEADLINE < timedelta(minutes=2)
+    assert constants.QUOTA_FLOOR_PRIMARY < constants.QUOTA_FLOOR_OTHERS

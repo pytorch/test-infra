@@ -15,7 +15,7 @@ from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bo
 from greenlight.review_gate import ReviewSkip, human_review_skip_reason
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Iterable, Iterator, Mapping
 
     from github import Github
     from urllib3.util.retry import Retry
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         _PRReview,
         _VerdictReview,
     )
+    from greenlight.quota import RequestMeter
 
 logger = logging.getLogger(__name__)
 
@@ -90,27 +91,35 @@ def _build_authz_retry() -> Retry:
     )
 
 
-def build_client(token: str, *, seconds_between_requests: float = 0.25, retry: Retry | None = None) -> Github:
+def build_client(
+    token: str,
+    *,
+    seconds_between_requests: float = 0.25,
+    retry: Retry | None = None,
+    meter: RequestMeter | None = None,
+) -> Github:
     from github import Auth, Github  # lazy: keeps this module importable without the dep
 
     # Pin PyGithub's 0.25s default pacing explicitly (cf. _GITHUB_TIMEOUT_SECONDS) so a library
     # default change can't silently alter our request rate; the fingerprint fan-out passes a
     # slower value to bound its aggregate rate. retry defaults to the fail-fast scan policy; the
-    # authz client passes the patient policy via build_authz_client.
+    # authz client passes the patient policy via build_authz_client. A meter counts and stops the
+    # client's requests and retries (``quota``).
+    base_retry = _build_retry() if retry is None else retry
     return Github(
-        auth=Auth.Token(token),
+        auth=Auth.Token(token) if meter is None else meter.auth(token),
         per_page=100,
         timeout=_GITHUB_TIMEOUT_SECONDS,
-        retry=_build_retry() if retry is None else retry,
+        retry=base_retry if meter is None else meter.retry(base_retry),
         lazy=True,
         seconds_between_requests=seconds_between_requests,
     )
 
 
-def build_authz_client(token: str) -> Github:
+def build_authz_client(token: str, *, meter: RequestMeter | None = None) -> Github:
     # Rides out a short secondary rate limit for the scan's merge-rules refresh and the verdict's
     # eligibility check; every other client keeps build_client's fail-fast retry. See _build_authz_retry.
-    return build_client(token, retry=_build_authz_retry())
+    return build_client(token, retry=_build_authz_retry(), meter=meter)
 
 
 def close_client(client: object) -> None:
@@ -136,6 +145,20 @@ def _is_exhausted_429_retry(exc: BaseException) -> bool:
     return isinstance(reason, ResponseError) and str(reason) == ResponseError.SPECIFIC_ERROR.format(status_code=429)
 
 
+def is_rate_limit_status(status: int | None, headers: Mapping[str, str] | None) -> bool:
+    """True when a response's status and headers are GitHub's rate limit: a 429, or a 403 carrying
+    ``Retry-After`` or ``x-ratelimit-remaining: 0`` (header names matched in lower case)."""
+    if status == 429:
+        return True
+    # PyGithub only maps a 403 to RateLimitExceededException when the body matches one of a few
+    # literal message strings, so a rate-limit 403 whose wording drifts arrives as a bare
+    # GithubException; key off the rate-limit headers GitHub sends with it instead of the message.
+    if status == 403:
+        found = headers or {}
+        return "retry-after" in found or found.get("x-ratelimit-remaining") == "0"
+    return False
+
+
 def is_rate_limit_error(exc: BaseException) -> bool:
     # GitHub delivers a rate limit as 403 (usually -> RateLimitExceededException) or 429 (-> base
     # GithubException); 429 must stay off _build_retry's forcelist or it surfaces as a RetryError.
@@ -145,16 +168,7 @@ def is_rate_limit_error(exc: BaseException) -> bool:
         return True
     if not isinstance(exc, GithubException):
         return False
-    status = getattr(exc, "status", None)
-    if status == 429:
-        return True
-    # PyGithub only maps a 403 to RateLimitExceededException when the body matches one of a few
-    # literal message strings, so a rate-limit 403 whose wording drifts arrives as a bare
-    # GithubException; key off the rate-limit headers GitHub sends with it instead of the message.
-    if status == 403:
-        headers = getattr(exc, "headers", None) or {}
-        return "retry-after" in headers or headers.get("x-ratelimit-remaining") == "0"
-    return False
+    return is_rate_limit_status(getattr(exc, "status", None), getattr(exc, "headers", None))
 
 
 def _actor_login(

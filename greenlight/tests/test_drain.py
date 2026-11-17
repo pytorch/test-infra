@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -79,7 +80,14 @@ class _Drain:
         self.runs_before.append(before)
         return self.unfinished
 
-    def tick(self, make_config: Any, *, bot_login: str = _BOT, token: str | None = _TOKEN) -> drain.DrainReport:
+    def tick(
+        self,
+        make_config: Any,
+        *,
+        bot_login: str = _BOT,
+        token: str | None = _TOKEN,
+        cancel_event: threading.Event | None = None,
+    ) -> drain.DrainReport:
         return drain.drain(
             make_config(github_token=token),
             repo=_REPO,
@@ -91,6 +99,7 @@ class _Drain:
             unfinished_runs=self._runs,
             dismiss=self._dismiss,
             now=lambda: self.clock,
+            cancel_event=cancel_event,
         )
 
 
@@ -181,6 +190,28 @@ def test_a_rate_limit_stops_the_slice(make_config):
     assert run.read == [1]
     assert report.failed == (1,)
     assert report.reason == "the pass continues next tick"
+
+
+def test_a_rate_limit_sets_the_runs_cancel_event(make_config):
+    cancel_event = threading.Event()
+    run = _Drain([_Pull(1), _Pull(2)], errors={1: RateLimitExceededException(403)})
+
+    run.tick(make_config, cancel_event=cancel_event)
+
+    assert cancel_event.is_set()
+    assert run.read == [1]
+
+
+def test_a_cancel_event_already_set_reads_no_pr_and_the_pass_continues_next_tick(make_config):
+    cancel_event = threading.Event()
+    cancel_event.set()
+    run = _Drain([_Pull(1), _Pull(2)])
+
+    report = run.tick(make_config, cancel_event=cancel_event)
+
+    assert run.read == []
+    assert (report.complete, report.reason) == (False, "the pass continues next tick")
+    assert run.memory.drain_pass() is not None
 
 
 def test_an_iteration_timeout_propagates(make_config):

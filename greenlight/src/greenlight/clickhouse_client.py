@@ -17,6 +17,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _DEFAULT_PORT = 8443
+# clickhouse_connect waits 300 s for a response by default, the scan Lambda's whole function timeout.
+_CONNECT_TIMEOUT_SECONDS = 10
+_SEND_RECEIVE_TIMEOUT_SECONDS = 60
 _CLICKHOUSE_CLOUD_DOMAIN = ".clickhouse.cloud"
 _ENV_HELP = (
     "Set CLICKHOUSE_HOST (or its alias CLICKHOUSE_ENDPOINT), CLICKHOUSE_USERNAME, "
@@ -72,5 +75,7 @@ def connect() -> Client:
         port=port,
         secure=True,
         interface="https",
+        connect_timeout=_CONNECT_TIMEOUT_SECONDS,
+        send_receive_timeout=_SEND_RECEIVE_TIMEOUT_SECONDS,
     )
     return client
