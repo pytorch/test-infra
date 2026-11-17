@@ -1,6 +1,7 @@
 import logging
 import textwrap
 from collections.abc import Iterable
+from typing import Any
 
 import pytest
 
@@ -286,16 +287,29 @@ class _FakePRFile:
         self.filename = filename
 
 
+class _FakeBaseRepo:
+    def __init__(self, default_branch: str | None) -> None:
+        self.default_branch: Any = default_branch
+
+
 class _FakePRPart:
-    def __init__(self, ref: str, sha: str = "0" * 40) -> None:
+    def __init__(self, ref: str, sha: str = "0" * 40, default_branch: str | None = "main") -> None:
         self.ref = ref
         self.sha = sha
+        self.repo = _FakeBaseRepo(default_branch)
 
 
 class _FakeFilesPR:
-    def __init__(self, files: Iterable[_FakePRFile], *, head_ref: str = "feature", base_ref: str = "main") -> None:
+    def __init__(
+        self,
+        files: Iterable[_FakePRFile],
+        *,
+        head_ref: str = "feature",
+        base_ref: str = "main",
+        default_branch: str | None = "main",
+    ) -> None:
         self.head = _FakePRPart(head_ref)
-        self.base = _FakePRPart(base_ref)
+        self.base = _FakePRPart(base_ref, default_branch=default_branch)
         self.raw_data: dict[str, object] = {}
         self._files = files
         self.get_files_calls = 0
@@ -305,7 +319,7 @@ class _FakeFilesPR:
         return self._files
 
 
-def _files_pr(*filenames: str, **refs: str) -> _FakeFilesPR:
+def _files_pr(*filenames: str, **refs: Any) -> _FakeFilesPR:
     return _FakeFilesPR([_FakePRFile(name) for name in filenames], **refs)
 
 
@@ -367,8 +381,8 @@ def test_accepts_base_is_main_a_ghstack_pr_or_a_native_stack_on_main(pr: _FakeFi
     ("ref", "default"),
     [("main", True), ("Main", False), ("main ", False), ("trunk", False), ("", False), (None, False)],
 )
-def test_is_default_base_is_exactly_main(ref: str | None, default: bool) -> None:
-    assert merge_authz.is_default_base(ref) is default
+def test_is_target_branch_is_exactly_main(ref: str | None, default: bool) -> None:
+    assert merge_authz.is_target_branch(ref) is default
 
 
 @pytest.mark.parametrize(
@@ -384,9 +398,13 @@ def test_is_default_base_is_exactly_main(ref: str | None, default: bool) -> None
         pytest.param(_stacked_pr(_stack(constants.TARGET_BRANCH)), True, False, id="native-stack-on-main"),
         pytest.param(_stacked_pr(_stack(constants.TARGET_BRANCH), base_ref="main"), True, True, id="stack-bottom"),
         pytest.param(_files_pr(base_ref="release/2.9"), False, False, id="in-no-stack-on-another-base"),
+        pytest.param(_files_pr(default_branch="trunk"), True, False, id="main-is-not-the-default-branch"),
+        pytest.param(_files_pr(default_branch=None), True, False, id="no-default-branch"),
     ],
 )
-def test_accepts_base_for_a_gate_repo_takes_only_main(pr: _FakeFilesPR, lenient: bool, strict: bool) -> None:
+def test_accepts_base_for_a_gate_repo_takes_only_main_as_the_default_branch(
+    pr: _FakeFilesPR, lenient: bool, strict: bool
+) -> None:
     assert merge_authz.accepts_base_for(pr, strict=False) is lenient
     assert merge_authz.accepts_base_for(pr, strict=True) is strict
 

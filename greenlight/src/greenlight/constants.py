@@ -111,8 +111,11 @@ GATE_TIMEOUT_MINUTES_DEFAULT = 300
 GATE_TIMEOUT_MINUTES_MAX = 340
 # Seconds between the gate's checks; the last delay repeats.
 GATE_POLL_DELAYS: tuple[int, ...] = (60, 120, 240, 300)
-# Seconds before the gate re-reads a PR that looked closed or moved off its head.
+# Seconds before the gate re-reads a PR that looked closed.
 GATE_SUPERSEDED_RECHECK = 60
+# Seconds a PR must read open on another head before the gate's run is superseded: a read can lag the push
+# that started the run, and a superseded run fails that head's required check.
+GATE_SUPERSEDED_AFTER = 300
 LEDGER_MARGIN = timedelta(minutes=2)
 BACKING_WAIT_MAX = timedelta(minutes=30)
 SCAN_TICK_INTERVAL = timedelta(minutes=2)

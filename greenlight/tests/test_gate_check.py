@@ -11,7 +11,12 @@ from github import GithubException
 
 from greenlight import cli, gate_check
 from greenlight.approvals import GREENLIGHT_LOGIN, ReviewReader
-from greenlight.constants import GATE_POLL_DELAYS, GATE_SUPERSEDED_RECHECK, GATE_TIMEOUT_MINUTES_DEFAULT
+from greenlight.constants import (
+    GATE_POLL_DELAYS,
+    GATE_SUPERSEDED_AFTER,
+    GATE_SUPERSEDED_RECHECK,
+    GATE_TIMEOUT_MINUTES_DEFAULT,
+)
 from greenlight.exit_codes import EXIT_FAILURE, EXIT_OK
 
 if TYPE_CHECKING:
@@ -169,30 +174,92 @@ def test_times_out_after_a_failed_last_check(caplog):
     assert "the last check failed" in caplog.text
 
 
-@pytest.mark.parametrize(
-    "moved",
-    [pytest.param(_pull(state="closed"), id="closed"), pytest.param(_pull(head=NEW), id="new-head")],
-)
-def test_superseded_after_two_reads(moved: dict[str, Any], caplog: pytest.LogCaptureFixture) -> None:
+def test_a_closed_pr_is_superseded_once_its_recheck_still_reads_it_closed(caplog: pytest.LogCaptureFixture) -> None:
     clock = _Clock()
-    requester = _ScriptedRequester([moved], [[_approval(OLD)]])
+    requester = _ScriptedRequester([_pull(state="closed")], [[_approval(OLD)]])
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
         assert _wait(requester, clock) == EXIT_FAILURE
 
     assert clock.sleeps == [GATE_SUPERSEDED_RECHECK]
     assert requester.urls == [_PULL, _PULL]
-    assert "superseded" in caplog.text
-    assert moved["head"]["sha"] in caplog.text
+    assert f"superseded: {REPO}#{PR} is closed at head {HEAD}" in caplog.text
 
 
-def test_a_single_lagging_read_keeps_checking():
+def test_a_closed_read_that_rechecks_open_on_the_head_goes_on_to_the_reviews():
     clock = _Clock()
-    requester = _ScriptedRequester([_pull(head=OLD), _pull()], [[]])
+    requester = _ScriptedRequester([_pull(state="closed"), _pull()], [[]])
 
     assert _wait(requester, clock) == EXIT_OK
     assert clock.sleeps == [GATE_SUPERSEDED_RECHECK]
     assert requester.urls == [_PULL, _PULL, _REVIEWS]
+
+
+def test_the_closed_recheck_never_waits_past_the_deadline():
+    clock = _Clock()
+    requester = _ScriptedRequester([_pull(), _pull(state="closed")], [[_approval(OLD)]])
+
+    assert _wait(requester, clock, timeout_minutes=1) == EXIT_FAILURE
+    assert clock.sleeps == [60, 0]
+    assert clock.now == 1000.0 + 60
+
+
+def test_reads_that_lag_the_push_hold_until_the_head_appears(caplog: pytest.LogCaptureFixture) -> None:
+    clock = _Clock()
+    requester = _ScriptedRequester([_pull(head=OLD), _pull(head=OLD), _pull()], [[]])
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        assert _wait(requester, clock) == EXIT_OK
+
+    assert clock.sleeps == list(GATE_POLL_DELAYS[:2])
+    assert requester.urls == [_PULL, _PULL, _PULL, _REVIEWS]
+    assert f"gate holds for {REPO}#{PR}: it reads at head {OLD}, not {HEAD}" in caplog.text
+    assert "superseded" not in caplog.text
+
+
+def test_a_pr_that_stays_on_another_head_is_superseded_once_every_read_found_it_there(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    clock = _Clock()
+    requester = _ScriptedRequester([_pull(head=NEW)], [[_approval(OLD)]])
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        assert _wait(requester, clock) == EXIT_FAILURE
+
+    # Reads at 0, 60, 180 and 420 s: the last is the first at least GATE_SUPERSEDED_AFTER after the first.
+    assert clock.sleeps == [60, 120, 240]
+    assert sum(clock.sleeps[:-1]) < GATE_SUPERSEDED_AFTER <= sum(clock.sleeps)
+    assert requester.urls == [_PULL] * 4
+    assert f"superseded: {REPO}#{PR} is open at head {NEW}, not open at {HEAD}" in caplog.text
+
+
+def test_a_read_on_the_head_starts_the_wait_for_a_moved_head_over():
+    clock = _Clock()
+    requester = _ScriptedRequester([_pull(head=NEW), _pull(head=NEW), _pull(), _pull(head=NEW)], [[_approval(OLD)]])
+
+    assert _wait(requester, clock) == EXIT_FAILURE
+
+    # Moved at 0 and 60 s, on the head at 180 s, then moved from 420 s: superseded at 720 s, not at 420 s.
+    assert clock.sleeps == [60, 120, 240, 300]
+    assert requester.urls.count(_REVIEWS) == 1
+
+
+def test_a_failed_read_neither_ends_nor_restarts_the_wait_for_a_moved_head():
+    clock = _Clock()
+    requester = _ScriptedRequester([_pull(head=NEW), RuntimeError("502"), _pull(head=NEW)], [[]])
+
+    assert _wait(requester, clock) == EXIT_FAILURE
+    assert clock.sleeps == [60, 120, 240]
+
+
+def test_a_moved_head_at_the_deadline_times_out_naming_it(caplog: pytest.LogCaptureFixture) -> None:
+    clock = _Clock()
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        assert _wait(_ScriptedRequester([_pull(head=NEW)], [[]]), clock, timeout_minutes=2) == EXIT_FAILURE
+
+    assert clock.sleeps == [60, 60]
+    assert f"after 2 minutes: it reads at head {NEW}, not {HEAD}" in caplog.text
 
 
 def test_head_comparison_ignores_case():

@@ -13,10 +13,12 @@ uploads it to ``s3://gha-artifacts/``, where the clickhouse-replicator-s3 path i
 and NO_LAND upsert one canonical verdict comment -- edited in place across runs, found by a hidden
 marker and restricted to greenlight's own account (``bot_login``); a LAND that is not shadow
 additionally approves the PR through ``land_approval`` (pinned to the reviewed head, left as it is when
-every live greenlight approval already stands there, withdrawn when a re-read finds the PR moved), and
+greenlight's counted review and every live approval already stand there, withdrawn when a re-read finds the
+PR moved), and
 NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
 A LAND or NO_LAND is shadow when ``--shadow`` is passed, the repo's entry in the job's own
 ``repos.yaml`` (``repo_config.load_local``) is safety-only or not ``active``, on a ``gate`` repo a LAND
+whose ``bot_login`` is not ``approvals.GREENLIGHT_LOGIN``, the account the merge gate and the scan judge, or
 whose branch rules do not enforce the gate (``gate_rules``), or when
 ``author_eligibility.has_eligible_author`` finds that the entry's eligibility source (a valid merge
 rule, or write permission) does not qualify its author, or finds the PR off the reviewed head or on a
@@ -65,6 +67,7 @@ from greenlight import (
     verdict_input,
     verdict_labels,
 )
+from greenlight.approvals import GREENLIGHT_LOGIN
 from greenlight.author_eligibility import has_eligible_author
 from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, STATUS_NO_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
 from greenlight.gate_rules import read_gate_rules
@@ -237,8 +240,13 @@ def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
     land_approval.dismiss_prior(pr, repo=request.repo, number=request.pr_number, bot_login=request.bot_login)
 
 
-def _gate_enforced(token: str, repo: str) -> bool:
-    """Whether ``repo``'s rules enforce the gate (``gate_rules``); a failed read raises."""
+def _gate_backs(token: str, request: VerdictRequest) -> bool:
+    """Whether a ``gate`` repo can take the LAND's approval: given as ``GREENLIGHT_LOGIN``, on a repo whose rules
+    enforce the gate (``gate_rules``). A failed read raises."""
+    repo = request.repo
+    if request.bot_login != GREENLIGHT_LOGIN:
+        logger.warning("%s: --bot-login %r is not %s, whom the gate judges", repo, request.bot_login, GREENLIGHT_LOGIN)
+        return False
     client = github_client.build_authz_client(token)
     try:
         rules = read_gate_rules(client, repo)
@@ -291,11 +299,11 @@ def _run_full(
     # means the approval was withheld. Stamping the row non-shadow anyway would render a LAND in
     # Dr. CI and offer the merge gate an authorization that no review backs. The short circuit also
     # keeps a shadow request, or a repo not served and active, from resolving eligibility at all. The
-    # lookup is handed the reviewed head, not the live one. A gate repo's rules are read before it, so
-    # nothing slow sits between the lookup's PR read and the approval.
+    # lookup is handed the reviewed head, not the live one. A gate repo's login and rules are checked before
+    # it, so nothing slow sits between the lookup's PR read and the approval.
     shadow = (
         not _authoritative(request, entry, served)
-        or (status == STATUS_LAND and entry.safety == "gate" and not _gate_enforced(token, request.repo))
+        or (status == STATUS_LAND and entry.strict_base and not _gate_backs(token, request))
         or not has_eligible_author(
             token,
             request.repo,
@@ -304,7 +312,7 @@ def _run_full(
             author,
             eligibility=entry.eligibility,
             author_type=author_type,
-            safety=entry.safety,
+            strict_base=entry.strict_base,
         )
     )
     if status == STATUS_LAND and shadow and not dismiss_first:
@@ -342,7 +350,7 @@ def _run_full(
                 number=request.pr_number,
                 head_sha=request.head_sha,
                 bot_login=request.bot_login,
-                strict_base=entry.safety == "gate",
+                strict_base=entry.strict_base,
             )
     if not shadow:
         verdict_labels.label_verdict(pr, status, reviewed_head=request.head_sha, number=request.pr_number)

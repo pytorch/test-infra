@@ -37,7 +37,7 @@ class _FakeEligibility:
         self.calls: list[tuple[str, str, int, str, str | None]] = []
         self.eligibilities: list[str] = []
         self.author_types: list[str | None] = []
-        self.safeties: list[str] = []
+        self.strict_bases: list[bool] = []
 
     def __call__(
         self,
@@ -49,12 +49,12 @@ class _FakeEligibility:
         *,
         eligibility: str,
         author_type: str | None,
-        safety: str,
+        strict_base: bool,
     ) -> bool:
         self.calls.append((token, repo, pr_number, head_sha, author))
         self.eligibilities.append(eligibility)
         self.author_types.append(author_type)
-        self.safeties.append(safety)
+        self.strict_bases.append(strict_base)
         return author in self.authors
 
 

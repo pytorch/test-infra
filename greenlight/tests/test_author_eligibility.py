@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import textwrap
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, NoReturn
+from typing import NoReturn
 
 import pytest
 from github import GithubException, UnknownObjectException
@@ -13,9 +13,6 @@ from greenlight import constants, github_client
 # Imported rather than read off ``verdict``: conftest swaps ``verdict.has_eligible_author`` for a refusing
 # guard in every test, while this name keeps the real function for the fake clients.
 from greenlight.author_eligibility import has_eligible_author
-
-if TYPE_CHECKING:
-    from greenlight.repo_config import Safety
 
 _REVIEWED = "b" * 40
 _MERGE_RULES = textwrap.dedent(
@@ -119,7 +116,7 @@ class _FakeRulesClient:
 
 @pytest.fixture
 def eligible(monkeypatch):
-    def check(client: _FakeRulesClient, author: str | None, safety: Safety = "pytorchbot") -> bool:
+    def check(client: _FakeRulesClient, author: str | None, *, strict_base: bool = False) -> bool:
         monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
         return has_eligible_author(
             "tok",
@@ -129,7 +126,7 @@ def eligible(monkeypatch):
             author,
             eligibility="merge_rules",
             author_type="User",
-            safety=safety,
+            strict_base=strict_base,
         )
 
     return check
@@ -210,7 +207,7 @@ def test_has_eligible_author_logs_its_decision_without_naming_a_rule_or_a_team_m
 def test_a_gate_repo_passes_a_pr_on_main_when_main_is_the_default_branch_with_one_pr_read(eligible, author):
     client = _FakeRulesClient()
 
-    assert eligible(client, author, "gate") is True
+    assert eligible(client, author, strict_base=True) is True
     assert client.pull_reads == 1
 
 
@@ -226,7 +223,7 @@ def test_a_gate_repo_passes_a_pr_on_main_when_main_is_the_default_branch_with_on
 )
 def test_a_gate_repo_refuses_any_base_but_main_as_the_default_branch(eligible, caplog, live):
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        assert eligible(_FakeRulesClient(**live), "CatchAll", "gate") is False
+        assert eligible(_FakeRulesClient(**live), "CatchAll", strict_base=True) is False
 
     # A gate repo has no trymerge to land a stack, so the base must be main and main the default branch.
     assert "author 'CatchAll' is not eligible: base not accepted" in caplog.text
@@ -249,7 +246,7 @@ def writer_eligible(monkeypatch):
             author,
             eligibility="write_permission",
             author_type=author_type,
-            safety="pytorchbot",
+            strict_base=False,
         )
 
     return check

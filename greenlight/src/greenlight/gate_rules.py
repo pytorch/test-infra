@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
 from greenlight import constants
+from greenlight.approvals import payload_is, payload_mapping, payload_required
 
 if TYPE_CHECKING:
     from greenlight.github_types import JsonRequester
@@ -53,23 +54,16 @@ class GateRules:
     problems: tuple[str, ...] = ()
 
 
-def _mapping(value: object, what: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise ValueError(f"{what} is not an object: {type(value).__name__}")
-    return value
-
-
 def _parameters(rule: dict[str, Any]) -> dict[str, Any]:
-    return _mapping(rule.get("parameters"), f"{rule['type']} rule parameters")
+    return payload_mapping(rule.get("parameters"), f"{rule['type']} rule parameters")
 
 
 def _pins_gate(workflow: object) -> bool:
-    entry = _mapping(workflow, "workflows rule entry")
+    entry = payload_mapping(workflow, "workflows rule entry")
     sha = entry.get("sha")
     repository_id = entry.get("repository_id")
     return (
-        isinstance(repository_id, int)
-        and not isinstance(repository_id, bool)
+        payload_is(repository_id, int)
         and repository_id == constants.GATE_SOURCE_REPO_ID
         and entry.get("path") == constants.GATE_WORKFLOW_PATH
         and isinstance(sha, str)
@@ -87,24 +81,23 @@ def _requires_gate(rule: dict[str, Any]) -> bool:
 
 
 def _requires_approval(rule: dict[str, Any]) -> bool:
-    count = _parameters(rule).get("required_approving_review_count")
-    if not isinstance(count, int) or isinstance(count, bool):
-        raise ValueError(f"pull_request rule required_approving_review_count is not an integer: {count!r}")
-    return count >= 1
+    return (
+        payload_required(_parameters(rule), "required_approving_review_count", int, "pull_request rule parameters") >= 1
+    )
 
 
 def _restricts_dismissal(rule: dict[str, Any]) -> bool:
     restriction = _parameters(rule).get("dismissal_restriction")
     if restriction is None:
         return False
-    enabled = _mapping(restriction, "pull_request rule dismissal_restriction").get("enabled", False)
+    enabled = payload_mapping(restriction, "pull_request rule dismissal_restriction").get("enabled", False)
     if not isinstance(enabled, bool):
         raise ValueError(f"pull_request rule dismissal_restriction.enabled is not a boolean: {enabled!r}")
     return enabled
 
 
 def _protection_enabled(branch: dict[str, Any]) -> bool:
-    enabled = _mapping(branch.get("protection"), "branch protection").get("enabled")
+    enabled = payload_mapping(branch.get("protection"), "branch protection").get("enabled")
     if not isinstance(enabled, bool):
         raise ValueError(f"branch protection.enabled is not a boolean: {enabled!r}")
     return enabled
@@ -114,7 +107,7 @@ def assess(rules: list[Any], branch: dict[str, Any]) -> GateRules:
     """Judge the branch's active ``rules`` and its ``branch`` payload; raises ``ValueError`` on an unexpected shape."""
     by_type: dict[str, list[dict[str, Any]]] = {}
     for item in rules:
-        rule = _mapping(item, "rule")
+        rule = payload_mapping(item, "rule")
         kind = rule.get("type")
         if not isinstance(kind, str):
             raise ValueError(f"rule type is not a string: {kind!r}")
@@ -152,4 +145,4 @@ def read_gate_rules(client: _RequesterClient, repo: str) -> GateRules:
             break
         page += 1
     _headers, branch = requester.requestJsonAndCheck("GET", f"/repos/{repo}/branches/{constants.TARGET_BRANCH}")
-    return assess(rules, _mapping(branch, f"branch {constants.TARGET_BRANCH} of {repo}"))
+    return assess(rules, payload_mapping(branch, f"branch {constants.TARGET_BRANCH} of {repo}"))

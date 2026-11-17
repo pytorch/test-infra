@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from greenlight.constants import REVERTED_LABELS
-from greenlight.merge_authz import accepts_base, is_default_base
+from greenlight.merge_authz import accepts_base, is_target_branch
 from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
@@ -234,7 +234,7 @@ def default_fetch_updated(client: Github, repo: str, authors: frozenset[str], cu
 
 def _base_refused(open_pr: OpenPR, *, strict_base: bool) -> bool:
     if strict_base:
-        return not is_default_base(open_pr.base_ref)
+        return not is_target_branch(open_pr.base_ref)
     return open_pr.base_accepted is False
 
 
@@ -242,7 +242,7 @@ def candidate_fields(open_prs: Sequence[OpenPR], *, strict_base: bool = False) -
     """``open_prs`` as the scan's candidates; a PR on a base the repo's rule refuses gets no author.
 
     The rule is ``merge_authz.accepts_base``, or under ``strict_base`` (a ``gate`` repo)
-    ``merge_authz.is_default_base``, which also refuses a PR listed with no base.
+    ``merge_authz.is_target_branch``, which also refuses a PR listed with no base.
     """
     refused = {open_pr.number for open_pr in open_prs if _base_refused(open_pr, strict_base=strict_base)}
     for open_pr in open_prs:

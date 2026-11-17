@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING
 from greenlight import cohort, github_client, merge_authz, writers
 
 if TYPE_CHECKING:
-    from greenlight.github_types import RepoBasedPR
-    from greenlight.repo_config import Eligibility, Safety
+    from greenlight.repo_config import Eligibility
 
 __all__ = ["has_eligible_author"]
 
@@ -27,7 +26,7 @@ def has_eligible_author(
     *,
     eligibility: Eligibility,
     author_type: str | None,
-    safety: Safety,
+    strict_base: bool,
 ) -> bool:
     """True when ``repo``'s eligibility source qualifies ``author`` and the PR is still as reviewed.
 
@@ -36,10 +35,11 @@ def has_eligible_author(
     ``merge_rules``: ``cohort.assess_rules`` decides on the author against ``repo``'s merge rules.
     ``write_permission``: ``writers.author_has_write`` decides on the author's live permission and
     ``author_type``, the account type on the PR the caller read. One fresh read of the PR must then find
-    its head still at ``head_sha``, the reviewed commit, on a base the repo's safety accepts: on a
-    ``pytorchbot`` repo one ``merge_authz.accepts_base`` accepts, so a PR reviewed for its native stack on
-    main must still be in one; on a ``gate`` repo exactly ``main``, which must also be the repo's default
-    branch as that same read reports it. A push to the base branch is not caught.
+    its head still at ``head_sha``, the reviewed commit, on a base the repo's rule accepts
+    (``merge_authz.accepts_base_for``, ``strict_base`` on a ``gate`` repo): on a ``pytorchbot`` repo a PR
+    reviewed for its native stack on main must still be in one; on a ``gate`` repo the base is exactly
+    ``main``, which that same read must report as the repo's default branch. A push to the base branch is
+    not caught.
     """
     client = github_client.build_authz_client(token)
     try:
@@ -51,7 +51,7 @@ def has_eligible_author(
             pull = client.get_repo(repo).get_pull(pr_number)
             if pull.head.sha != head_sha:
                 rule, reason = None, "head moved"
-            elif not _base_accepted(pull, safety):
+            elif not merge_authz.accepts_base_for(pull, strict=strict_base):
                 rule, reason = None, "base not accepted"
     finally:
         github_client.close_client(client)
@@ -65,9 +65,3 @@ def has_eligible_author(
         "eligible" if rule is not None else f"not eligible: {reason}",
     )
     return rule is not None
-
-
-def _base_accepted(pull: RepoBasedPR, safety: Safety) -> bool:
-    if safety == "gate":
-        return merge_authz.is_default_base(pull.base.ref) and merge_authz.is_default_base(pull.base.repo.default_branch)
-    return merge_authz.accepts_base(pull)

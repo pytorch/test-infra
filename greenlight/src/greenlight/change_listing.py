@@ -100,7 +100,7 @@ def list_candidates(
 
     A ``gate`` repo's candidates take the strict base rule (``pr_listing.candidate_fields``).
     """
-    strict_base = entry.safety == "gate"
+    strict_base = entry.strict_base
     if entry.change_source == "github" or memory is None or pr is not None:
         if memory is not None and entry.change_source == "github":
             memory.full_tick_interval = FULL_TICK_INTERVAL

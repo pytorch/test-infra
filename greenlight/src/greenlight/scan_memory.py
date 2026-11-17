@@ -100,6 +100,19 @@ class DrainPass:
         self.attempted[number] = self.attempts
 
 
+@dataclass(frozen=True, slots=True)
+class BackingKey:
+    """What an approval-backing read of a PR judged: its listed ``updated_at`` (naive UTC) and head and base, its
+    latest non-shadow row's ``(status, run_id, version)`` (None: no row), and the gate rules' ``enforced`` (None:
+    unknown)."""
+
+    updated_at: datetime | None
+    head_sha: str
+    base_ref: str
+    gate_row: tuple[str, int, datetime] | None
+    rules_state: bool | None
+
+
 @dataclass(slots=True)
 class BackingMemory:
     """A ``gate`` repo's approval-backing check from one tick to the next (``approval_backing``).
@@ -107,7 +120,8 @@ class BackingMemory:
     ``reader`` keeps each PR's and each review page's ETag and parsed result, so an unchanged PR costs a
     304; it is None until the first check. ``sweep`` is the sweep of every open PR under way (its
     ``started_at`` opens its window), or None; ``sweeps`` is the last sweep number given. ``waiting``
-    holds the PRs whose approval may yet be backed by a LAND row not ingested, read again next tick.
+    holds the PRs read again next tick: their approval may yet be backed by a LAND row not ingested, or
+    the ledger could not be read to judge it. ``keys`` holds each open PR's key as of its last settled read.
     ``checked_at`` is when the check last ran, or None.
     """
 
@@ -115,6 +129,7 @@ class BackingMemory:
     sweep: DrainPass | None = None
     sweeps: int = 0
     waiting: frozenset[int] = frozenset()
+    keys: dict[int, BackingKey] = field(default_factory=dict)
     checked_at: datetime | None = None
 
     def start_sweep(self, started_at: datetime, *, recorded: frozenset[int]) -> DrainPass:

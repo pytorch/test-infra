@@ -23,6 +23,7 @@ from greenlight import (
 
 # has_eligible_author is imported rather than read off verdict: conftest swaps verdict's attribute for
 # a refusing guard in every test, while this name keeps the real function for the fake clients.
+from greenlight.approvals import GREENLIGHT_LOGIN
 from greenlight.author_eligibility import has_eligible_author
 from greenlight.verdict import VerdictRequest
 from greenlight.verdict import _repo_entry as _REAL_REPO_ENTRY
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 
 _FIXED = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
 _HASH = "a" * 64
-_BOT = "greenlight-app[bot]"
+_BOT = GREENLIGHT_LOGIN
 _VERSION = "2026-07-30 12:00:00.000"
 _VERSION_COMPACT = "20260730T120000_000"
 _EMIT_ID = "e" * 32
@@ -102,9 +103,15 @@ class _FakeHead:
         self.ref = ref
 
 
+class _FakeBaseRepo:
+    def __init__(self, default_branch: str) -> None:
+        self.default_branch = default_branch
+
+
 class _FakeRef:
-    def __init__(self, ref: str) -> None:
+    def __init__(self, ref: str, default_branch: str = constants.TARGET_BRANCH) -> None:
         self.ref = ref
+        self.repo = _FakeBaseRepo(default_branch)
 
 
 class _FakeComment:
@@ -668,7 +675,7 @@ def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing
         *,
         eligibility: str,
         author_type: str | None,
-        safety: str,
+        strict_base: bool,
     ) -> bool:
         return head_sha == pr.head.sha
 
@@ -1231,7 +1238,7 @@ def test_no_land_dismisses_before_a_failing_eligibility_lookup_and_records_nothi
         *,
         eligibility: str,
         author_type: str | None,
-        safety: str,
+        strict_base: bool,
     ) -> NoReturn:
         rec.events.append("lookup")
         raise RuntimeError("merge rules unreadable")
@@ -2409,8 +2416,8 @@ def test_a_gate_repo_reads_its_rules_on_a_closed_client_before_the_eligibility_l
         rec.events.append(f"rules:{repo}")
         return gate_rules.GateRules(enforced=True)
 
-    def lookup(*_args: object, safety: str, **_kwargs: object) -> bool:
-        rec.events.append(f"lookup:{safety}")
+    def lookup(*_args: object, strict_base: bool, **_kwargs: object) -> bool:
+        rec.events.append(f"lookup:strict={strict_base}")
         return True
 
     monkeypatch.setattr(verdict, "read_gate_rules", read_rules)
@@ -2426,7 +2433,7 @@ def test_a_gate_repo_reads_its_rules_on_a_closed_client_before_the_eligibility_l
     )
 
     # Nothing slow sits between the lookup's PR read and the approval.
-    assert rec.events == ["rules:pytorch/vision", "close", "lookup:gate", "emit", "review:APPROVE", "comment"]
+    assert rec.events == ["rules:pytorch/vision", "close", "lookup:strict=True", "emit", "review:APPROVE", "comment"]
 
 
 def test_a_gate_repo_whose_rules_do_not_enforce_the_gate_is_shadow_with_no_lookup(
@@ -2454,6 +2461,50 @@ def test_a_gate_repo_whose_rules_do_not_enforce_the_gate_is_shadow_with_no_looku
     assert rec.events == ["dismiss:1", "emit"]
     assert _decode(emit.row_gzip)["shadow"] is True
     assert "pytorch/vision does not enforce the gate: p1; p2" in caplog.text
+
+
+@pytest.mark.parametrize("bot_login", ["greenlight-app[bot]", "pytorchgreenlight-staging[bot]"])
+def test_a_gate_repo_land_by_another_account_is_shadow_with_no_rules_read_or_lookup(
+    make_config, tmp_path, eligibility, gate_rules_reader, caplog, bot_login
+):
+    rec = _Recorder()
+    standing = _FakeReview(1, bot_login, "APPROVED", rec, "h")
+    pr = _FakePR("h", rec, reviews=[standing], author=_TRUSTED_AUTHOR)
+    emit = _FakeEmit(rec)
+
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        verdict.run(
+            dataclasses.replace(_land(tmp_path), bot_login=bot_login),
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    # The merge gate and the scan judge GreenLight's own account alone, so another one's approval carries nothing.
+    assert (gate_rules_reader.repos, eligibility.calls, pr.created_reviews) == ([], [], [])
+    assert rec.events == ["dismiss:1", "emit"]
+    assert _decode(emit.row_gzip)["shadow"] is True
+    assert f"pytorch/vision: --bot-login {bot_login!r} is not {GREENLIGHT_LOGIN}, whom the gate judges" in caplog.text
+
+
+def test_a_pytorchbot_repo_land_takes_any_app_login(make_config, tmp_path, eligibility, gate_rules_reader):
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+    emit = _FakeEmit(rec)
+
+    verdict.run(
+        dataclasses.replace(_land(tmp_path, repo=constants.TARGET_REPO), bot_login="greenlight-app[bot]"),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+
+    assert gate_rules_reader.repos == []
+    assert len(eligibility.calls) == 1
+    assert _decode(emit.row_gzip)["shadow"] is False
+    assert rec.events == ["emit", "review:APPROVE"]
 
 
 def test_a_gate_repo_whose_rules_cannot_be_read_fails_the_command_with_no_row(
@@ -2504,8 +2555,8 @@ def test_the_rules_are_read_only_for_an_authoritative_land_on_a_gate_repo(
     assert gate_rules_reader.repos == []
 
 
-@pytest.mark.parametrize(("repo", "safety"), [(constants.TARGET_REPO, "pytorchbot"), ("pytorch/vision", "gate")])
-def test_the_lookup_is_handed_the_entrys_safety(make_config, tmp_path, eligibility, repo, safety):
+@pytest.mark.parametrize(("repo", "strict_base"), [(constants.TARGET_REPO, False), ("pytorch/vision", True)])
+def test_the_lookup_is_handed_the_entrys_base_rule(make_config, tmp_path, eligibility, repo, strict_base):
     rec = _Recorder()
     pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
 
@@ -2517,7 +2568,7 @@ def test_the_lookup_is_handed_the_entrys_safety(make_config, tmp_path, eligibili
         now=lambda: _FIXED,
     )
 
-    assert eligibility.safeties == [safety]
+    assert eligibility.strict_bases == [strict_base]
 
 
 def test_a_re_land_after_a_push_on_pytorch_dismisses_the_old_approval_and_posts_a_pinned_one(make_config, tmp_path):
