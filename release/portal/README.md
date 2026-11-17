@@ -74,6 +74,7 @@ release, the portal sees the tag), and a step the portal cannot observe uses
 | `github_issue_state` | `repo`, `issue`, `expect` (`open` or `closed`) | the issue is in that state |
 | `milestone_outstanding_items` | `repo`, `milestone`, `max_outstanding` | the milestone has at most `max_outstanding` outstanding items (below) |
 | `reverts_missing_from_branch` | `repo`, `branch` | no revert on main is missing from the release branch (below) |
+| `release_only_changes` | `repo`, `title_regex` | a pull request into the release branch whose title matches `title_regex` is merged (below) |
 | `github_ref_exists` | `repos`, `ref`, `kind` (`branch` or `tag`) | the ref exists in every repo |
 | `github_workflow_run` | `repo`, `workflow`, `ref` | the latest run on the ref succeeded |
 | `index_listing` | `index` (`download.pytorch.org`, `pypi`, `dockerhub`), `channel` (`test`, `release`), `package_types` | every expected artifact is present; the detail is in the artifact matrix |
@@ -108,6 +109,15 @@ dates post (`carries_dates: true`) also holds the planned dates, read from its m
 `dates` in the release file are the post's; otherwise it is in progress and the job fails,
 printing the `dates` block to put in the file. A release in flight without a release file
 fails the job too.
+
+`release_only_changes` is checked by `tools/analytics/github_analyze.py --in-flight`, the `github-analyze` job
+of GitHub Analytics Daily, once the release branch is cut (a release that has shipped is scanned
+too, until its milestone is closed). The release-only changes PR is the one that changes the
+workflows from `main` to the release branch, like pytorch/pytorch#199819 for 2.15; it is found by
+its base (the release's branch) and its title (`title_regex`), and the step is done once it is
+merged, and in progress until then (the evidence says whether the PR is open, closed unmerged, or
+not there yet). `--release X.Y.Z --release-only-changes` runs the scan for one release, with
+`--write-to-clickhouse` to record it.
 
 `reverts_missing_from_branch` is only meaningful between the branch cut and the release, so
 its step has a `window` (below). It finds the reverts on main that are not on the release

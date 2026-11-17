@@ -831,6 +831,13 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
             # has the same window (opens: branch_cut, closes: ga).
             if repo.ref_exists(config["branch"]) and not repo.tag_exists(f"v{release}"):
                 scans.append(lambda: record_revert_steps(repo, release, config, write))
+            # The release-only changes PR is opened right after the cut. A release that has
+            # shipped is scanned too (its milestone is open): the step is done once the PR
+            # is merged, and a release that skipped the scans before is filled in.
+            if repo.ref_exists(config["branch"]):
+                scans.append(
+                    lambda: record_release_only_changes_steps(release, config, write)
+                )
             scans.append(
                 lambda: record_milestone_steps(
                     repo, release, config, milestone_idx, write
@@ -1176,6 +1183,157 @@ def record_revert_steps(
         print(f"Inserted {len(rows)} rows into misc.release_event")
 
 
+def find_release_only_changes_prs(
+    repo_name: str, branch: str, title_regex: str
+) -> List[Dict[str, Any]]:
+    """
+    The pull requests whose base is the release branch and whose title matches title_regex
+    (the release-only changes PR: it changes the workflows from main to the release branch),
+    oldest first. It is opened right after the branch cut, so it is at the start of the list.
+    """
+    pattern = re.compile(title_regex)
+    pulls = fetch_multipage_json(
+        f"https://api.github.com/repos/{repo_name}/pulls",
+        {
+            "base": branch,
+            "state": "all",
+            "sort": "created",
+            "direction": "asc",
+            "per_page": 100,
+        },
+    )
+    return [pull for pull in pulls if pattern.search(pull["title"])]
+
+
+def release_only_changes_step_rows(
+    release: str,
+    branch: str,
+    repo_name: str,
+    steps: List[Dict[str, Any]],
+    prs: List[Dict[str, Any]],
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+) -> List[Dict[str, Any]]:
+    """
+    The misc.release_event rows for one scan of the release-only changes PR of a release
+    branch: one per release portal step that checks release_only_changes, done when such a
+    PR is merged into the branch (the newest one, if there are several), and in progress
+    until then (its evidence says whether the PR is open, closed unmerged or not there yet).
+    """
+    merged = sorted(
+        (pr for pr in prs if pr.get("merged_at")), key=lambda pr: pr["merged_at"]
+    )
+    open_prs = [pr for pr in prs if pr["state"] == "open"]
+    if merged:
+        pr = merged[-1]
+        status = "done"
+        evidence = f"#{pr['number']} {pr['title']} merged into {branch} on {pr['merged_at'][:10]}"
+    elif open_prs:
+        pr = open_prs[-1]
+        status = "in_progress"
+        evidence = (
+            f"#{pr['number']} {pr['title']} is open, not merged into {branch} yet"
+        )
+    elif prs:
+        pr = prs[-1]
+        status = "in_progress"
+        evidence = (
+            f"#{pr['number']} {pr['title']} was closed without merging into {branch}"
+        )
+    else:
+        pr = None
+        status = "in_progress"
+        evidence = f"no release-only changes PR into {branch} yet"
+    details = json.dumps(
+        {
+            "branch": branch,
+            "pull_requests": [
+                {
+                    "number": candidate["number"],
+                    "title": candidate["title"],
+                    "url": candidate["html_url"],
+                    "state": candidate["state"],
+                    "merged_at": candidate.get("merged_at"),
+                }
+                for candidate in prs
+            ],
+        }
+    )
+    return [
+        {
+            "release": release,
+            "step_id": step["id"],
+            "rc": "",
+            "status": status,
+            "blocking": 0,
+            "evidence_text": evidence,
+            "evidence_url": (
+                pr["html_url"]
+                if pr
+                else f"https://github.com/{repo_name}/pulls?q=is%3Apr+base%3A{branch}"
+            ),
+            "check_type": "release_only_changes",
+            "source": "collector",
+            "run_id": run_id,
+            "run_url": run_url,
+            "config_sha": config_sha,
+            "details": details,
+            "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+        }
+        for step in steps
+    ]
+
+
+def record_release_only_changes_steps(
+    release: str, config: Dict[str, Any], write: bool
+) -> None:
+    """
+    Look for the release-only changes PR of the release's branch (config["branch"]) and
+    print the state of each release portal step that checks it. With write, record those
+    rows in misc.release_event.
+    """
+    branch = config["branch"]
+    steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "release_only_changes"
+    ]
+    if not steps:
+        print(f"{release} has no release_only_changes step")
+        return
+    run_id, run_url = workflow_run_info()
+    # one search per distinct check; the steps that share it share its result
+    by_check: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    for step in steps:
+        check = step["check"]
+        by_check.setdefault((check["repo"], check["title_regex"]), []).append(step)
+    rows: List[Dict[str, Any]] = []
+    for (repo_name, title_regex), check_steps in by_check.items():
+        prs = find_release_only_changes_prs(repo_name, branch, title_regex)
+        for pr in prs:
+            print(
+                f"{pr['html_url']} ;{pr['title']};{pr['state']};merged_at={pr.get('merged_at')}"
+            )
+        rows += release_only_changes_step_rows(
+            release,
+            branch,
+            repo_name,
+            check_steps,
+            prs,
+            os.environ.get("GITHUB_SHA", "0" * 40),
+            run_id,
+            run_url,
+            datetime.now(timezone.utc),
+        )
+    for row in rows:
+        print(f"step {row['step_id']}: {row['status']}: {row['evidence_text']}")
+    if write and rows:
+        insert_clickhouse_rows("misc.release_event", rows)
+        print(f"Inserted {len(rows)} rows into misc.release_event")
+
+
 def parse_arguments():
     from argparse import ArgumentParser
 
@@ -1221,6 +1379,13 @@ def parse_arguments():
         "portal steps that check the milestone in misc.release_event (CLICKHOUSE_ENDPOINT, "
         "CLICKHOUSE_USERNAME and CLICKHOUSE_PASSWORD)",
     )
+    parser.add_argument(
+        "--release-only-changes",
+        action="store_true",
+        help="With --release, look for the release-only changes PR of its release branch "
+        "and print the state of the portal steps that check it. --write-to-clickhouse "
+        "records them in misc.release_event",
+    )
     parser.add_argument("--date", type=lambda d: datetime.strptime(d, "%Y-%m-%d"))
     parser.add_argument("--issue-num", type=int)
     return parser.parse_args()
@@ -1260,6 +1425,9 @@ def main():
     if args.write_to_clickhouse and not args.release:
         print("Error: --release is required with --write-to-clickhouse")
         sys.exit(1)
+    if args.release_only_changes and not args.release:
+        print("Error: --release is required with --release-only-changes")
+        sys.exit(1)
     if args.release:
         # The release portal config says which steps check the milestone, the release
         # branch to check it against and, by default, the milestone's title.
@@ -1267,6 +1435,11 @@ def main():
         from torchci.release_portal_config import load_resolved
 
         config = load_resolved(args.release)
+        if args.release_only_changes:
+            record_release_only_changes_steps(
+                args.release, config, args.write_to_clickhouse
+            )
+            return
         args.branch = args.branch or config["branch"]
         args.milestone_id = args.milestone_id or args.release
 
