@@ -38,6 +38,12 @@ const index: ReleaseIndex = {
       blocking: 1,
       next_milestone: { name: "Final RC", date: "2026-12-07" },
     },
+    {
+      version: "2.15.1",
+      phase: "Release day",
+      blocking: 0,
+      next_milestone: null,
+    },
   ],
   releases: [
     {
@@ -49,6 +55,16 @@ const index: ReleaseIndex = {
       progress: { done: 3, total: 5 },
       phase: "RC build",
       status: "in_progress",
+    },
+    {
+      version: "2.15.1",
+      type: "patch",
+      branch: "release/2.15",
+      ga_date: null,
+      ga_planned: true,
+      progress: { done: 4, total: 5 },
+      phase: "Release day",
+      status: "blocked",
     },
   ],
   pagination: { next: null, previous: null },
@@ -194,7 +210,7 @@ const artifacts: ArtifactPage = {
 };
 
 describe("release routes", () => {
-  test("renders the release index and its loading state", () => {
+  test("renders the release index, active summaries, and its loading state", () => {
     expect(
       renderToStaticMarkup(
         <ReleaseIndexPageContent resource={resource<ReleaseIndex>(undefined)} />
@@ -205,8 +221,42 @@ describe("release routes", () => {
       <ReleaseIndexPageContent resource={resource(index)} />
     );
     expect(html).toContain("PyTorch releases");
+    expect(html).toContain("Active releases");
+    expect(html).toContain("Blocking");
+    expect(html).toContain("Steps complete");
+    expect(html).toContain("Not scheduled");
+    expect(html).toContain("Release");
+    expect(html).toContain("Branch");
+    expect(html).toContain("To be confirmed");
     expect(html).toContain("2.16.0");
-    expect(html).toContain("Open release board");
+    expect(html).toContain("2.15.1");
+    expect(html).toContain('href="/release/2.16.0"');
+    expect(html).toContain('href="/release/2.15.1"');
+  });
+
+  test("renders empty and failed release indexes", () => {
+    const empty = renderToStaticMarkup(
+      <ReleaseIndexPageContent
+        resource={
+          resource({
+            active: [],
+            releases: [],
+            pagination: { next: null, previous: null },
+          })
+        }
+      />
+    );
+    expect(empty).toContain("No release data has been recorded yet.");
+
+    const failed = renderToStaticMarkup(
+      <ReleaseIndexPageContent
+        resource={resource<ReleaseIndex>(undefined, {
+          info: "The database is busy",
+        })}
+      />
+    );
+    expect(failed).toContain("Could not load releases");
+    expect(failed).toContain("Retry");
   });
 
   test("says a release whose tag exists is completed", () => {
