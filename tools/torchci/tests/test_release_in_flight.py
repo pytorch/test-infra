@@ -12,8 +12,10 @@ from datetime import datetime, timezone
 
 from analytics.github_analyze import (  # noqa: E402
     GitRepo,
+    milestone_step_rows,
     release_in_preparation,
     releases_in_flight,
+    releases_just_shipped,
     revert_step_rows,
 )
 
@@ -119,6 +121,40 @@ class ReleasesInFlight(TestCase):
     def test_nothing_is_in_flight_without_a_main_version(self):
         self.assertEqual(releases_in_flight(GitRepo(self.tmp.name, "origin"), []), [])
 
+    def test_a_shipped_release_with_an_open_milestone_is_just_shipped(self):
+        self.branch("release/2.15", "main", "2.15.0a0")
+        self.tag("v2.15.0")
+        self.assertEqual(
+            releases_just_shipped(self.repo(), ["2.16.0", "2.15.0", "2.15.1"]),
+            ["2.15.0"],
+        )
+
+    def test_every_shipped_patch_of_a_line_with_an_open_milestone_is_listed(self):
+        self.branch("release/2.15", "main", "2.15.0a0")
+        self.tag("v2.15.0")
+        self.tag("v2.15.1")
+        self.assertEqual(
+            releases_just_shipped(self.repo(), ["2.15.0", "2.15.1", "2.15.2"]),
+            ["2.15.1", "2.15.0"],
+        )
+
+    def test_a_closed_milestone_or_an_old_line_is_not_just_shipped(self):
+        self.branch("release/2.15", "main", "2.15.0a0")
+        self.tag("v2.15.0")
+        self.branch("release/2.12", "main", "2.12.0a0")
+        self.tag("v2.12.0")
+        # 2.15.0's milestone is closed; 2.12 is more than three lines back
+        self.assertEqual(
+            releases_just_shipped(self.repo(), ["2.16.0", "2.12.0"]),
+            [],
+        )
+
+    def test_nothing_is_just_shipped_without_a_main_version(self):
+        self.assertEqual(
+            releases_just_shipped(GitRepo(self.tmp.name, "origin"), ["2.15.0"]),
+            [],
+        )
+
 
 class _Commit:
     def __init__(self, commit_hash, title, pr_url=""):
@@ -221,6 +257,63 @@ class RevertStepRows(TestCase):
         self.assertEqual(
             row["evidence_url"],
             "https://github.com/pytorch/pytorch/compare/release/2.15...main",
+        )
+
+
+def _issue(number, outstanding):
+    return {
+        "issue": {
+            "number": number,
+            "title": "An RFC",
+            "html_url": f"https://github.com/pytorch/pytorch/issues/{number}",
+            "state": "open",
+        },
+        "outstanding": outstanding,
+        "reason": "open_issue" if outstanding else "closed_in_branch",
+    }
+
+
+class MilestoneStepRows(TestCase):
+    def rows(self, statuses, released):
+        return milestone_step_rows(
+            "2.15.0",
+            "release/2.15",
+            7,
+            [{"id": "1.2", "check": {"max_outstanding": 0}}],
+            statuses,
+            True,
+            "0" * 40,
+            "1-1",
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+            datetime(2026, 11, 17, tzinfo=timezone.utc),
+            released,
+        )
+
+    def test_an_outstanding_item_keeps_the_step_open_before_the_release(self):
+        (row,) = self.rows([_issue(190875, True)], False)
+        self.assertEqual(row["status"], "in_progress")
+        self.assertEqual(
+            row["evidence_text"], "1 outstanding in milestone 2.15.0: #190875"
+        )
+        self.assertFalse(json.loads(row["details"])["released"])
+
+    def test_the_step_is_done_once_the_release_tag_exists(self):
+        (row,) = self.rows([_issue(190875, True)], True)
+        self.assertEqual(row["status"], "done")
+        self.assertEqual(
+            row["evidence_text"],
+            "Release tag v2.15.0 exists, so the step is done; "
+            "1 outstanding in milestone 2.15.0: #190875",
+        )
+        details = json.loads(row["details"])
+        self.assertTrue(details["released"])
+        self.assertEqual([i["number"] for i in details["outstanding"]], [190875])
+
+    def test_a_clean_milestone_reads_the_same_after_the_release(self):
+        (row,) = self.rows([_issue(1, False)], True)
+        self.assertEqual(row["status"], "done")
+        self.assertEqual(
+            row["evidence_text"], "No outstanding items in milestone 2.15.0"
         )
 
 

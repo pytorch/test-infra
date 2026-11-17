@@ -93,6 +93,12 @@ computes it. Issues labelled `release-feature-request` and the release's own tra
 validation issues are not counted. It works for a patch release too: 2.15.1 and 2.16.0 each
 have their own milestone, so both are checked at the same time.
 
+Once the release is out (its `v<version>` tag exists) these steps are done whatever is left in
+the milestone, and the evidence still lists the leftover items. The milestone of a shipped
+release is often left open, so the daily job scans a shipped release of the latest release
+lines until its milestone is closed, and the step does not stay at what the last scan before
+the release found.
+
 `dev_discuss_post` is checked by `tools/analytics/dev_discuss_scan.py`, the `dev-discuss-scan`
 job of GitHub Analytics Daily, for every release in flight (an open milestone of the latest
 release lines with no `v<version>` tag yet). The announcement steps are 1.13 key dates, 1.14

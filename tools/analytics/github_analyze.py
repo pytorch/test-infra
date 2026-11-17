@@ -562,12 +562,17 @@ def milestone_step_rows(
     run_id: str,
     run_url: str,
     observed_at: datetime,
+    released: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     The misc.release_event rows for one scan of a release's milestone: one per release
     portal step that checks milestone_outstanding_items, done when the milestone has at
     most the step's max_outstanding outstanding items. The outstanding items, and the
     count of every issue by reason, are in `details`.
+
+    Once the release is out (its v<version> tag exists) the steps are done whatever is left
+    in the milestone: nothing outstanding can block a release that has shipped, and the
+    milestone of a shipped release is often left open. The evidence still lists the items.
     """
     outstanding = [status for status in statuses if status["outstanding"]]
     by_reason: Dict[str, int] = {}
@@ -577,6 +582,8 @@ def milestone_step_rows(
     if outstanding:
         numbers = ", ".join(f"#{status['issue']['number']}" for status in outstanding)
         evidence = f"{len(outstanding)} outstanding in milestone {release}: {numbers}"
+        if released:
+            evidence = f"Release tag v{release} exists, so the step is done; {evidence}"
     else:
         evidence = f"No outstanding items in milestone {release}"
     details = json.dumps(
@@ -584,6 +591,7 @@ def milestone_step_rows(
             "milestone": milestone_idx,
             "branch": branch,
             "branch_cut": branch_cut,
+            "released": released,
             "issues": len(statuses),
             "by_reason": by_reason,
             "outstanding": [
@@ -608,7 +616,7 @@ def milestone_step_rows(
             "rc": "",
             "status": (
                 "done"
-                if len(outstanding) <= step["check"]["max_outstanding"]
+                if released or len(outstanding) <= step["check"]["max_outstanding"]
                 else "in_progress"
             ),
             "blocking": 0,
@@ -694,6 +702,7 @@ def record_milestone_steps(
         run_id,
         run_url,
         datetime.now(timezone.utc),
+        repo.tag_exists(f"v{release}"),
     )
     outstanding = [status for status in statuses if status["outstanding"]]
     print(
@@ -755,6 +764,37 @@ def releases_in_flight(
     return releases
 
 
+def releases_just_shipped(
+    repo: GitRepo, open_milestones: Iterable[str], release_lines: int = 3
+) -> List[str]:
+    """
+    The releases of the latest release lines that have shipped (their v<version> tag
+    exists) but whose milestone is still open, newest first. They are scanned once more so
+    that their milestone steps are recorded as done (milestone_step_rows, released) instead
+    of staying at what the last scan before the release found; closing the milestone ends it.
+    """
+    text = repo.show_file("main", "version.txt")
+    match = re.match(r"(\d+)\.(\d+)\.", text.strip()) if text else None
+    if not match:
+        return []
+    major, minor = int(match.group(1)), int(match.group(2))
+    open_titles = set(open_milestones)
+    releases: List[str] = []
+    for back in range(release_lines):
+        if minor - back < 0:
+            break
+        ref = "main" if back == 0 else f"release/{major}.{minor - back}"
+        prepared = release_in_preparation(repo, ref)
+        if not prepared:
+            continue
+        line, next_patch = prepared.rsplit(".", 1)
+        for patch in range(int(next_patch) - 1, -1, -1):
+            release = f"{line}.{patch}"
+            if release in open_titles and release not in releases:
+                releases.append(release)
+    return releases
+
+
 def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
     """
     For each release in flight that has a release portal config file: list the reverts
@@ -766,8 +806,12 @@ def analyze_releases_in_flight(repo: GitRepo, write: bool) -> bool:
     from torchci.release_portal_config import load_resolved, RELEASES_DIR
 
     milestones = gh_get_milestones()
-    releases = releases_in_flight(repo, [m.get("title", "") for m in milestones])
+    open_milestones = [m.get("title", "") for m in milestones]
+    releases = releases_in_flight(repo, open_milestones)
     print(f"Releases in flight: {', '.join(releases) if releases else 'none'}")
+    shipped = releases_just_shipped(repo, open_milestones)
+    print(f"Shipped, milestone still open: {', '.join(shipped) if shipped else 'none'}")
+    releases += [release for release in shipped if release not in releases]
     ok = True
     for release in releases:
         print(f"::group::{release}")
