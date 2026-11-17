@@ -9,10 +9,11 @@ greenlight will not review it again; from then on it carries ``GL/superseded`` a
 also keeps the label of a verdict recorded on the PR's head when the scan recorded the ``REVERTED``
 row.
 
-The verdict labels its own PR, on the verdict's repo, as it records (``label_verdict``). Only ``TARGET_REPO``
-PRs get the scan's supersede and restore: every listing tick that reaches its dispatch phase without a
-rate limit relabels the PRs it listed that are reverted, kept by the recency filter or Stale-skipped
-(``label_listed_prs``), restoring a removed label on any whose rows imply labels.
+The verdict labels its own PR, on the verdict's repo, as it records (``label_verdict``). The scan
+supersedes and restores labels on the PRs of the repo it scans (``LabelPass.repo``): every listing
+tick that reaches its dispatch phase without a rate limit relabels the PRs it listed that are
+reverted, kept by the recency filter or Stale-skipped (``label_listed_prs``), restoring a removed
+label on any whose rows imply labels.
 """
 
 from __future__ import annotations
@@ -36,7 +37,6 @@ from greenlight.constants import (
     STATUS_LAND,
     STATUS_NO_LAND,
     STATUS_REVERTED,
-    TARGET_REPO,
     carries_any_label,
 )
 from greenlight.github_client import is_rate_limit_error
@@ -80,7 +80,7 @@ def _same_commit(left: str, right: str) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class LabelPass:
-    """What the label pass reads from one listing tick.
+    """What the label pass reads from one listing tick of ``repo``.
 
     ``reverted`` holds the PRs the revert guard excluded, ``recent`` those the recency filter kept,
     and ``eligible`` and ``ineligible`` split the ``recent`` PRs by whether they are eligible.
@@ -89,6 +89,7 @@ class LabelPass:
     only while ``clock()`` reads less than ``LABEL_PASS_DEADLINE`` after ``listed_at``.
     """
 
+    repo: str
     fetch_pr: Callable[[int], _RelabelPR]
     reverted: Collection[int]
     recent: Collection[int]
@@ -223,7 +224,7 @@ def label_listed_prs(
     if now - scan.listed_at >= LABEL_PASS_DEADLINE:
         logger.info("label pass skipped: the tick is past its %s deadline", LABEL_PASS_DEADLINE)
         return
-    gates, verdicts = read_gate_rows(TARGET_REPO, candidates)
+    gates, verdicts = read_gate_rows(scan.repo, candidates)
     failures = 0
     for number in candidates:
         try:

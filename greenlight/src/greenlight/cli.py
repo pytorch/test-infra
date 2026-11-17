@@ -8,14 +8,16 @@ import functools
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from greenlight import drci_poke, github_client, merge_authz, review, verdict
+from greenlight import drci_poke, repo_config, repo_scan, verdict
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
     DEFAULT_DISPATCH_REF,
     DEFAULT_TIMEOUT_MINUTES,
+    REPO_CONFIG_PATH,
     TARGET_REPO,
     is_app_login,
 )
@@ -23,16 +25,19 @@ from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import LockError, SingleInstanceError, single_instance_lock
 from greenlight.log import configure_logging
 from greenlight.runner import execute_once, run_forever
-from greenlight.scan_memory import ScanMemory
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
+    from greenlight.scan_memory import ScanMemory
+
 logger = logging.getLogger(__name__)
 
-# Held at module level so it outlives main(): the Lambda handler calls main() once per tick, and a
-# warm execution environment keeps this module loaded between ticks.
-_SCAN_MEMORY = ScanMemory()
+# Held at module level so they outlive main(): the Lambda handler calls main() once per tick, and a
+# warm execution environment keeps this module loaded between ticks. Each eligibility source is kept
+# for merge_rules_ttl_seconds (repo_scan.eligibility_cache).
+_SCAN_MEMORY: dict[str, ScanMemory] = {}
+_ELIGIBILITY_CACHES: repo_scan.EligibilityCaches = {}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -50,16 +55,19 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser = subparsers.add_parser(
         "review",
         parents=[common],
-        help="scan open PRs from the evaluation cohort in pytorch/pytorch and dispatch the AI review workflow",
+        help="scan one configured repo's open PRs from the evaluation cohort and dispatch the AI review workflow",
         description=(
-            "Scan the open PRs from the evaluation cohort in pytorch/pytorch (every merge_rules.yaml "
+            "Scan the open PRs from the evaluation cohort in --repo (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
             "dispatch the review workflow for new or changed PRs whose author is eligible under the "
             "merge rules: named by a valid rule, whatever files the PR changes, on a base trymerge "
             "accepts. Requires "
-            "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials."
+            "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have a "
+            f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), read from its "
+            "default branch every scan; its mode decides what the scan does (REPOS.md)."
         ),
     )
+    review_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the configured repo to scan")
     review_parser.add_argument(
         "--pr",
         type=int,
@@ -169,6 +177,18 @@ def build_parser() -> argparse.ArgumentParser:
     drci_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the repository")
     drci_parser.add_argument("--pr", type=int, required=True, help="pull-request number")
     drci_parser.add_argument("--log-level", default=None, help="logging level name")
+
+    check_parser = subparsers.add_parser(
+        "check-config",
+        help=f"validate a repo's {REPO_CONFIG_PATH} as the scan would",
+        description=(
+            f"Validate a repo's {REPO_CONFIG_PATH} offline as the scan would read it, printing every "
+            "problem; for pytorch/pytorch every value its built-in entry pins or ignores is a problem too. "
+            "Exits non-zero on any problem."
+        ),
+    )
+    check_parser.add_argument("path", type=Path, help="path to the config file")
+    check_parser.add_argument("--repo", required=True, help="owner/name of the repository the file belongs to")
     return parser
 
 
@@ -181,13 +201,6 @@ def _config_from_args(args: argparse.Namespace) -> Config:
     if args.lock_path is not None:
         config = dataclasses.replace(config, lock_path=args.lock_path)
     return config
-
-
-def _build_authz_client(config: Config) -> merge_authz.AuthzClient:
-    token = config.github_token
-    if token is None:
-        raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to resolve merge authorization")
-    return github_client.build_authz_client(token)
 
 
 def _dispatch(config: Config, run: Callable[[Config], None], *, loop: bool, lock_path: str | None) -> int:
@@ -227,6 +240,16 @@ def _run_drci_poke(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
     return EXIT_OK
 
 
+def _run_check_config(args: argparse.Namespace) -> int:
+    configure_logging("INFO")
+    problems = repo_config.check_file(args.path, args.repo)
+    for problem in problems:
+        logger.error("%s: %s", args.path, problem)
+    if not problems:
+        logger.info("%s: no problem for %s", args.path, args.repo)
+    return EXIT_FAILURE if problems else EXIT_OK
+
+
 def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     config = _one_shot_config(args, parser)
     request = verdict.VerdictRequest(
@@ -258,6 +281,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_verdict(args, parser)
     if args.command == "drci-poke":
         return _run_drci_poke(args, parser)
+    if args.command == "check-config":
+        return _run_check_config(args)
     try:
         config = _config_from_args(args)
         configure_logging(config.log_level)
@@ -280,14 +305,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(
             f"BOT_LOGIN must be a GitHub App login of the form <app-slug>{BOT_LOGIN_SUFFIX}, got {bot_login!r}"
         )
-    # One cache for the whole process: bound into the partial here (not per iteration), so a
-    # --loop daemon refetches merge_rules at most once per TTL across all its scans.
-    authorized_cache = merge_authz.AuthorizedLoginsCache(
-        build_client=lambda: _build_authz_client(config),
-        ttl_seconds=config.merge_rules_ttl_seconds,
-    )
     run = functools.partial(
-        review.run,
+        repo_scan.scan_repo,
+        repo=args.repo,
+        eligibility_caches=_ELIGIBILITY_CACHES,
+        memories=None if args.pr is not None else _SCAN_MEMORY,
         pr=args.pr,
         max_dispatches=args.max,
         ref=args.ref,
@@ -296,7 +318,5 @@ def main(argv: Sequence[str] | None = None) -> int:
         requester=args.requester,
         allow_untrusted_author=args.allow_untrusted_author,
         bot_login=bot_login,
-        resolve_merge_rules=authorized_cache.snapshot,
-        memory=None if args.pr is not None else _SCAN_MEMORY,
     )
     return _dispatch(config, run, loop=args.loop, lock_path=lock_path)

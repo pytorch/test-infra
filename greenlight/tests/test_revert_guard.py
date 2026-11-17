@@ -53,6 +53,7 @@ class _Guard:
     poked: list[int] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
     cancelled: bool = False
+    repos_read: list[str] = field(default_factory=list)
 
 
 def _exclude(
@@ -68,6 +69,7 @@ def _exclude(
     emit_errors: Mapping[int, Exception] | None = None,
     get_pr_errors: Mapping[int, Exception] | None = None,
     shadow: Mapping[int, bool] | None = None,
+    repo: str = TARGET_REPO,
 ) -> _Guard:
     known_labels = {} if known_labels is None else known_labels
     fetched_labels = {} if fetched_labels is None else fetched_labels
@@ -80,14 +82,17 @@ def _exclude(
     result = _Guard(frozenset())
     cancel_event = threading.Event()
 
-    def fake_read_reverted(_repo, numbers):
+    def fake_read_reverted(read_repo, numbers):
+        result.repos_read.append(read_repo)
         return {n for n in numbers if n in recorded}
 
-    def fake_fetch_labels(_client, _repo, number):
+    def fake_fetch_labels(_client, label_repo, number):
+        result.repos_read.append(label_repo)
         result.label_fetches.append(number)
         return tuple(fetched_labels.get(number, ()))
 
-    def fake_get_pr(_client, _repo, number):
+    def fake_get_pr(_client, pr_repo, number):
+        result.repos_read.append(pr_repo)
         result.got_pr.append(number)
         error = get_pr_errors.get(number)
         if error is not None:
@@ -120,6 +125,7 @@ def _exclude(
     result.excluded = revert_guard.exclude_reverted(
         _CLIENT,
         pr_numbers,
+        repo=repo,
         known_labels=known_labels,
         states=states,
         bot_login=bot_login,
@@ -362,6 +368,7 @@ def test_non_app_bot_login_refuses_before_any_write():
         revert_guard.exclude_reverted(
             _CLIENT,
             [1],
+            repo=TARGET_REPO,
             known_labels={1: ("Reverted",)},
             states={},
             bot_login="",
@@ -459,3 +466,11 @@ def test_shadow_is_resolved_per_pr_not_once_for_the_batch():
     assert guard.shadow_stamped == [(1, False), (2, True)]
     assert guard.poked == [1]
     assert guard.excluded == frozenset({1, 2})
+
+
+def test_every_read_and_the_row_use_the_scanned_repo():
+    guard = _exclude([1, 2], recorded=frozenset({1}), fetched_labels={2: ("Reverted",)}, repo="pytorch/vision")
+
+    assert guard.excluded == frozenset({1, 2})
+    assert set(guard.repos_read) == {"pytorch/vision"}
+    assert [row[0] for row in guard.emitted] == ["pytorch/vision", "pytorch/vision"]

@@ -1,4 +1,4 @@
-"""Resolve pytorch/pytorch's merge rules: the merge-authorized login set and the rules themselves.
+"""Resolve a repo's merge rules: the merge-authorized login set and the rules themselves.
 
 The scan filters fingerprint comments down to authors who can authorize a merge, drawn
 from ``.github/merge_rules.yaml``: every rule's ``approved_by`` entry, with team refs
@@ -10,10 +10,7 @@ The same fetch keeps every rule as a ``MergeRule``: its approvers in exact case 
 patterns compiled with trymerge's own semantics, so a rule can be asked whether it covers all of
 a PR's files (``changed_files``) the way trymerge asks at land time.
 
-``AuthorizedLoginsCache`` caches the resolved approver set and rules: it fetches lazily, serves a
-cached snapshot for ``ttl_seconds``, and on a refresh failure serves the last good snapshot
-rather than failing a scan over a transient merge_rules/GitHub hiccup. A cold failure (never
-fetched successfully) has no snapshot to fall back to and propagates.
+The scan reads them through a ``snapshot_cache.SnapshotCache`` (``repo_scan``).
 """
 
 from __future__ import annotations
@@ -21,18 +18,16 @@ from __future__ import annotations
 import itertools
 import logging
 import re
-import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
 import yaml
 
-from greenlight import constants, github_client
-from greenlight.guards import IterationTimeout
+from greenlight import constants
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
+    from collections.abc import Iterable, Mapping
 
     from greenlight.github_types import _BasedPR, _FilesPR
 
@@ -174,36 +169,37 @@ def _expand_team(client: AuthzClient, team_ref: str) -> set[str]:
     return members
 
 
-def resolve_merge_rules(client: AuthzClient) -> MergeRulesSnapshot:
-    """Resolve every merge rule in pytorch/pytorch and the lowercased union of their approvers.
+def resolve_merge_rules(client: AuthzClient, repo: str) -> MergeRulesSnapshot:
+    """Resolve every merge rule in ``repo`` and the lowercased union of their approvers.
 
     Raises ``ValueError`` on malformed YAML, an unexpected rule/entry shape, or an empty
     union -- an empty allowlist would silently blank every comment from the fingerprint. Unusable
     patterns are not fatal: that rule is logged and qualifies nobody, and its approvers still join
     the union.
     """
-    contents = client.get_repo(constants.TARGET_REPO).get_contents(constants.MERGE_RULES_PATH)
+    source = f"{repo}/{constants.MERGE_RULES_PATH}"
+    contents = client.get_repo(repo).get_contents(constants.MERGE_RULES_PATH)
     if isinstance(contents, Sequence):
-        raise ValueError(f"{constants.MERGE_RULES_PATH} resolved to a directory, not a single file")
+        raise ValueError(f"{source} resolved to a directory, not a single file")
     try:
         rules = yaml.safe_load(contents.decoded_content)
     except yaml.YAMLError as exc:
-        raise ValueError(f"failed to parse {constants.MERGE_RULES_PATH}: {exc}") from exc
+        raise ValueError(f"failed to parse {source}: {exc}") from exc
     if not isinstance(rules, list):
-        raise ValueError(f"{constants.MERGE_RULES_PATH} must be a list of rules, got {type(rules).__name__}")
+        raise ValueError(f"{source} must be a list of rules, got {type(rules).__name__}")
 
     logins: set[str] = set()
     merge_rules: list[MergeRule] = []
     for rule in rules:
         if not isinstance(rule, dict):
-            raise ValueError(f"merge rule must be a mapping, got {type(rule).__name__}")
+            raise ValueError(f"{source}: merge rule must be a mapping, got {type(rule).__name__}")
         approved_by = rule.get("approved_by", [])
         if not isinstance(approved_by, list):
-            raise ValueError(f"approved_by must be a list, got {type(approved_by).__name__}")
+            raise ValueError(f"{source}: approved_by must be a list, got {type(approved_by).__name__}")
         approvers: set[str] = set()
         for entry in approved_by:
             if not isinstance(entry, str) or not entry.strip():
-                raise ValueError(f"approved_by entry must be a non-empty string, got {entry!r}")
+                raise ValueError(f"{source}: approved_by entry must be a non-empty string, got {entry!r}")
             if "/" in entry:
                 members = _expand_team(client, entry)
                 approvers.update(members)
@@ -214,13 +210,13 @@ def resolve_merge_rules(client: AuthzClient) -> MergeRulesSnapshot:
         merge_rules.append(_rule_from_yaml(rule, frozenset(approvers)))
 
     if not logins:
-        raise ValueError(f"resolved an empty merge-authorized set from {constants.MERGE_RULES_PATH}")
+        raise ValueError(f"resolved an empty merge-authorized set from {source}")
     return MergeRulesSnapshot(authorized=frozenset(logins), rules=tuple(merge_rules))
 
 
-def resolve_authorized_logins(client: AuthzClient) -> frozenset[str]:
-    """Return the lowercased set of logins authorized to approve a merge in pytorch/pytorch."""
-    return resolve_merge_rules(client).authorized
+def resolve_authorized_logins(client: AuthzClient, repo: str = constants.TARGET_REPO) -> frozenset[str]:
+    """Return the lowercased set of logins authorized to approve a merge in ``repo``."""
+    return resolve_merge_rules(client, repo).authorized
 
 
 def native_stack_trunk(pr: _BasedPR) -> str | None:
@@ -272,62 +268,3 @@ def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
         logger.warning("PR changes more than %d files; its file listing is not checked", constants.MAX_DIFF_FILES)
         return None
     return files
-
-
-class AuthorizedLoginsCache:
-    """Lazy, TTL-bounded, stale-on-error cache of the merge-rules snapshot.
-
-    ``monotonic`` is the injected float clock (defaults to ``time.monotonic``);
-    ``build_client`` is a thunk so each refresh builds its own client, closed as soon as
-    the fetch returns. Not thread-safe by design: it is read once per scan from the main
-    thread, and the immutable result is what fans out to the fingerprint workers.
-    """
-
-    def __init__(
-        self,
-        build_client: Callable[[], AuthzClient],
-        *,
-        ttl_seconds: float,
-        monotonic: Callable[[], float] = time.monotonic,
-        fetch: Callable[[AuthzClient], MergeRulesSnapshot] = resolve_merge_rules,
-    ) -> None:
-        self._build_client = build_client
-        self._ttl_seconds = ttl_seconds
-        self._monotonic = monotonic
-        self._fetch = fetch
-        self._cached: MergeRulesSnapshot | None = None
-        # Only ever read once _cached is set (the two are written together on a successful fetch),
-        # so the initial value is never used for a freshness decision.
-        self._fetched_at: float = 0.0
-
-    def _is_fresh(self) -> bool:
-        return self._monotonic() - self._fetched_at < self._ttl_seconds
-
-    def snapshot(self) -> MergeRulesSnapshot:
-        if self._cached is not None and self._is_fresh():
-            return self._cached
-        return self._refresh()
-
-    def _refresh(self) -> MergeRulesSnapshot:
-        client = self._build_client()
-        try:
-            result = self._fetch(client)
-        except IterationTimeout:
-            # greenlight's soft per-iteration timeout is a control signal, not a refresh
-            # failure: it must abort the scan, never be masked and served stale.
-            raise
-        except Exception:
-            if self._cached is not None:
-                logger.warning(
-                    "failed to refresh merge rules; serving stale snapshot of %d login(s) and %d rule(s)",
-                    len(self._cached.authorized),
-                    len(self._cached.rules),
-                    exc_info=True,
-                )
-                return self._cached
-            raise
-        finally:
-            github_client.close_client(client)
-        self._cached = result
-        self._fetched_at = self._monotonic()
-        return result

@@ -207,7 +207,7 @@ got.
   recorded row instead — behind the same `shadow = false`. Nothing on the pull
   request shows a shadow evaluation happened; it exists only in the ledger this
   export and the HUD quality dashboard read. On a repo Dr. CI does not render,
-  greenlight does post the comment, and it is identical to an enforcing one.
+  greenlight posts no comment for a shadow row either.
 
   Authority is decided per row, and the author and the PR's base are what
   normally decide it: the scan decides it before dispatch, a terminal verdict

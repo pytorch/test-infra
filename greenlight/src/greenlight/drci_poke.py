@@ -1,8 +1,8 @@
 """Ask Dr. CI to rebuild one pull request's comment so a fresh greenlight state shows up promptly.
 
-On the repositories that delegate their status comment to Dr. CI
-(``constants.delegates_status_comment_to_drci``) greenlight posts no status comment of its own;
-Dr. CI renders the recorded state inside its comment instead. That comment is otherwise only
+On the repositories whose GreenLight config sets ``status_comment`` to ``drci`` (``repo_config``)
+greenlight posts no status comment of its own; Dr. CI renders the recorded state inside its comment
+instead. That comment is otherwise only
 rebuilt by a scheduled 15-minute sweep, and the probot handler blanks its results section on every
 push, so without this poke a just-pushed or just-reviewed PR shows nothing for up to a quarter of
 an hour.

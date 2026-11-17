@@ -58,7 +58,7 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
     dispatched: list[int] = []
     emitted: list[dict[str, object]] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     def emit(**kwargs):
@@ -68,6 +68,7 @@ def test_dispatch_pending_emits_marker_with_next_run_id():
     failed = scan_dispatch._dispatch_pending(
         _CLIENT,
         pending,
+        repo=TARGET_REPO,
         ref="main",
         max_dispatches=None,
         dispatch=dispatch,
@@ -91,7 +92,7 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
     emitted: list[dict[str, object]] = []
     poked: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         raise RuntimeError(f"dispatch boom {number}")
 
     def emit(**kwargs):
@@ -100,6 +101,7 @@ def test_dispatch_pending_does_not_emit_when_dispatch_fails():
     failed = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=2)],
+        repo=TARGET_REPO,
         ref="main",
         max_dispatches=None,
         dispatch=boom_dispatch,
@@ -120,7 +122,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
     emitted: list[int] = []
     poked: list[int] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     def boom_emit(*, pr_number, **_kwargs):
@@ -132,6 +134,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
         failed = scan_dispatch._dispatch_pending(
             _CLIENT,
             [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+            repo=TARGET_REPO,
             ref="main",
             max_dispatches=None,
             dispatch=dispatch,
@@ -155,7 +158,7 @@ def test_dispatch_pending_swallows_emit_failure_and_continues(caplog):
 def test_dispatch_pending_emit_iteration_timeout_propagates():
     dispatched: list[int] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     def timeout_emit(**_kwargs):
@@ -167,6 +170,7 @@ def test_dispatch_pending_emit_iteration_timeout_propagates():
         scan_dispatch._dispatch_pending(
             _CLIENT,
             [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+            repo=TARGET_REPO,
             ref="main",
             max_dispatches=None,
             dispatch=dispatch,
@@ -181,7 +185,7 @@ def test_dispatch_pending_emit_iteration_timeout_propagates():
 def test_dispatch_pending_pokes_drci_after_each_successful_emit():
     events: list[str] = []
 
-    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         events.append(f"dispatch:{number}")
 
     def emit(*, pr_number, **_kwargs):
@@ -193,6 +197,7 @@ def test_dispatch_pending_pokes_drci_after_each_successful_emit():
     failed = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=None), _candidate(2, run_id=4)],
+        repo=TARGET_REPO,
         ref="main",
         max_dispatches=None,
         dispatch=dispatch,
@@ -210,7 +215,7 @@ def test_dispatch_pending_pokes_drci_after_each_successful_emit():
 def test_dispatch_pending_does_not_poke_deferred_candidates():
     poked: list[int] = []
 
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         return None
 
     def emit(**_kwargs):
@@ -219,6 +224,7 @@ def test_dispatch_pending_does_not_poke_deferred_candidates():
     failed = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+        repo=TARGET_REPO,
         ref="main",
         max_dispatches=1,
         dispatch=dispatch,
@@ -253,6 +259,7 @@ def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow, expe
     failed = scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=None)],
+        repo=TARGET_REPO,
         ref="main",
         max_dispatches=None,
         dispatch=dispatch,
@@ -264,7 +271,7 @@ def test_dispatch_pending_stamps_shadow_on_the_input_and_the_marker(shadow, expe
     # One lookup drives all three: the reviewer workflow input that withholds the approval, the row
     # the merge gate and Dr. CI read, and whether a rebuild is worth requesting at all.
     assert failed == []
-    assert dispatch_kwargs == [{"shadow": shadow}]
+    assert dispatch_kwargs == [{"shadow": shadow, "repo": TARGET_REPO}]
     assert [call["shadow"] for call in emitted] == [shadow]
     assert poked == expected_pokes
 
@@ -273,7 +280,7 @@ def test_dispatch_pending_resolves_shadow_per_candidate():
     seen: list[tuple[int, object]] = []
     poked: list[int] = []
 
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         return None
 
     def emit(*, pr_number, shadow, **_kwargs):
@@ -282,6 +289,7 @@ def test_dispatch_pending_resolves_shadow_per_candidate():
     scan_dispatch._dispatch_pending(
         _CLIENT,
         [_candidate(1, run_id=None), _candidate(2, run_id=None)],
+        repo=TARGET_REPO,
         ref="main",
         max_dispatches=None,
         dispatch=dispatch,
@@ -297,7 +305,7 @@ def test_dispatch_pending_resolves_shadow_per_candidate():
 
 
 def test_dispatch_pending_does_not_poke_a_shadow_pr_whose_emit_failed(caplog):
-    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow):
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         return None
 
     def boom_emit(**_kwargs):
@@ -307,6 +315,7 @@ def test_dispatch_pending_does_not_poke_a_shadow_pr_whose_emit_failed(caplog):
         failed = scan_dispatch._dispatch_pending(
             _CLIENT,
             [_candidate(1, run_id=None)],
+            repo=TARGET_REPO,
             ref="main",
             max_dispatches=None,
             dispatch=dispatch,
@@ -319,3 +328,28 @@ def test_dispatch_pending_does_not_poke_a_shadow_pr_whose_emit_failed(caplog):
     # _boom_poke asserts if either is dropped.
     assert failed == []
     assert "failed to emit AI_REVIEW_DISPATCHED marker for PR #1" in caplog.text
+
+
+def test_dispatch_pending_dispatches_and_records_on_the_scanned_repo():
+    dispatched: list[str] = []
+    emitted: list[str] = []
+
+    def dispatch(_client, _number, _head_sha, _eval_hash, _ref, *, shadow, repo):
+        dispatched.append(repo)
+
+    def emit(*, repo, **_kwargs):
+        emitted.append(repo)
+
+    scan_dispatch._dispatch_pending(
+        _CLIENT,
+        [_candidate(1, run_id=None)],
+        repo="pytorch/vision",
+        ref="main",
+        max_dispatches=None,
+        dispatch=dispatch,
+        emit_dispatched=emit,
+        poke=_noop_poke,
+        shadow_for_pr=_never_shadow,
+    )
+
+    assert dispatched == emitted == ["pytorch/vision"]

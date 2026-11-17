@@ -122,12 +122,26 @@ def close_client(client: object) -> None:
             logger.warning("failed to close GitHub client", exc_info=True)
 
 
+def _is_exhausted_429_retry(exc: BaseException) -> bool:
+    # The patient authz client force-lists 429: once its retries run out urllib3 raises MaxRetryError
+    # whose reason is a ResponseError naming the status, and requests wraps that in a RetryError.
+    from requests.exceptions import RetryError
+    from urllib3.exceptions import MaxRetryError, ResponseError
+
+    if isinstance(exc, RetryError) and exc.args:
+        exc = exc.args[0]
+    if not isinstance(exc, MaxRetryError):
+        return False
+    reason = exc.reason
+    return isinstance(reason, ResponseError) and str(reason) == ResponseError.SPECIFIC_ERROR.format(status_code=429)
+
+
 def is_rate_limit_error(exc: BaseException) -> bool:
     # GitHub delivers a rate limit as 403 (usually -> RateLimitExceededException) or 429 (-> base
     # GithubException); 429 must stay off _build_retry's forcelist or it surfaces as a RetryError.
     from github import GithubException, RateLimitExceededException
 
-    if isinstance(exc, RateLimitExceededException):
+    if isinstance(exc, RateLimitExceededException) or _is_exhausted_429_retry(exc):
         return True
     if not isinstance(exc, GithubException):
         return False

@@ -204,3 +204,53 @@ def test_a_commit_logs_how_many_results_were_reused_and_fetched_fresh(caplog):
         tick.commit()
 
     assert "fingerprints: 1 reused from the cache, 1 fetched fresh" in caplog.text
+
+
+def test_off_since_is_the_first_time_the_repo_was_seen_off_until_the_drain_is_cleared():
+    memory = ScanMemory()
+
+    assert memory.off_since(_STARTED) == _STARTED
+    assert memory.off_since(_STARTED + timedelta(hours=1)) == _STARTED
+    memory.clear_drain()
+    assert memory.off_since(_STARTED + timedelta(hours=2)) == _STARTED + timedelta(hours=2)
+
+
+def test_drain_passes_are_numbered_and_end_or_clear_forgets_the_current_one():
+    memory = ScanMemory()
+    assert memory.drain_pass() is None
+
+    first = memory.start_drain_pass(None)
+    assert memory.drain_pass() is first
+    assert (first.number, first.blocker, first.cursor) == (1, None, None)
+    memory.end_drain_pass()
+    assert memory.drain_pass() is None
+
+    second = memory.start_drain_pass("runs unfinished")
+    assert (second.number, second.blocker) == (2, "runs unfinished")
+    memory.clear_drain()
+    assert memory.drain_pass() is None
+
+
+def test_a_completed_drain_is_remembered_until_clear_drain():
+    memory = ScanMemory()
+    assert memory.drain_completed_by() is None
+
+    memory.complete_drain(3)
+    assert memory.drain_completed_by() == 3
+    memory.clear_drain()
+    assert memory.drain_completed_by() is None
+
+
+def test_a_drain_pass_remembers_a_clean_pr_only_once_its_updated_at_is_quiet():
+    current = ScanMemory().start_drain_pass(None)
+    quiet = _STARTED - FINGERPRINT_QUIET
+    young = _STARTED - FINGERPRINT_QUIET + timedelta(seconds=1)
+
+    current.remember_clean(1, quiet, _STARTED)
+    current.remember_clean(2, young, _STARTED)
+    current.remember_clean(3, None, _STARTED)
+
+    assert current.is_clean(1, quiet)
+    assert not current.is_clean(1, quiet + timedelta(seconds=1))
+    assert not current.is_clean(2, young)
+    assert not current.is_clean(3, None)

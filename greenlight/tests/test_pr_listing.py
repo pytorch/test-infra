@@ -472,7 +472,7 @@ def test_default_fetch_lists_the_target_repo_for_the_cohort(monkeypatch):
     monkeypatch.setattr(pr_listing, "list_open_prs_by_authors", fake_list)
     client = cast("Github", object())
 
-    result = pr_listing.default_fetch(client, frozenset({"alice", "bob"}))
+    result = pr_listing.default_fetch(client, TARGET_REPO, frozenset({"alice", "bob"}))
 
     assert result is expected
     assert captured["client"] is client
@@ -500,7 +500,9 @@ def test_default_fetch_updated_adds_the_open_reverted_prs_the_walk_missed(caplog
     repo = _fast_repo()
 
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        prs = pr_listing.default_fetch_updated(cast("Github", _FakeClient(repo)), frozenset({"alice"}), _CUTOFF)
+        prs = pr_listing.default_fetch_updated(
+            cast("Github", _FakeClient(repo)), TARGET_REPO, frozenset({"alice"}), _CUTOFF
+        )
 
     # 5 and 6 come from the walk and 2 from the Reverted supplement; 1, past the cutoff and
     # unlabelled, is not listed. 6 was labelled after the walk read it: the supplement's later copy
@@ -517,7 +519,9 @@ def test_default_fetch_updated_with_nothing_to_add_reports_zero_supplements(capl
     repo = _FakeRepo([[_FakePull(5, "alice", updated_at=_NOW - timedelta(hours=1))]])
 
     with caplog.at_level(logging.INFO, logger="greenlight"):
-        prs = pr_listing.default_fetch_updated(cast("Github", _FakeClient(repo)), frozenset({"alice"}), _CUTOFF)
+        prs = pr_listing.default_fetch_updated(
+            cast("Github", _FakeClient(repo)), TARGET_REPO, frozenset({"alice"}), _CUTOFF
+        )
 
     assert _numbers(prs) == [5]
     assert "fast tick: 1 PR(s) updated since the cutoff, plus 0 labelled Reverted" in caplog.text
@@ -535,19 +539,21 @@ def _candidates(
     cutoff: datetime | None = None,
     full: list[OpenPR] | None = None,
     fast: list[OpenPR] | None = None,
+    repo: str = TARGET_REPO,
 ) -> tuple[tuple[object, ...], list[str]]:
     calls: list[str] = []
 
-    def fetch(_client, _authors):
-        calls.append("fetch")
+    def fetch(_client, listed_repo, _authors):
+        calls.append(f"fetch:{listed_repo}")
         return list(full or [])
 
-    def fetch_updated(_client, _authors, cutoff_seen):
-        calls.append(f"fetch_updated:{cutoff_seen.isoformat()}")
+    def fetch_updated(_client, listed_repo, _authors, cutoff_seen):
+        calls.append(f"fetch_updated:{listed_repo}:{cutoff_seen.isoformat()}")
         return list(fast or [])
 
     result = pr_listing.candidate_numbers(
         cast("Github", object()),
+        repo=repo,
         pr=pr,
         authors=frozenset({"alice"}),
         fetch=fetch,
@@ -561,7 +567,7 @@ def test_candidate_numbers_without_a_cutoff_runs_the_full_listing(caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
         (numbers, updated, labels, authors, heads), calls = _candidates(full=[_open_pr(2, "sha2"), _open_pr(1)])
 
-    assert calls == ["fetch"]
+    assert calls == [f"fetch:{TARGET_REPO}"]
     assert numbers == [2, 1]
     assert updated == {1: None, 2: None}
     assert labels == {1: (), 2: ()}
@@ -602,7 +608,7 @@ def test_candidate_numbers_with_a_cutoff_runs_the_fast_listing(caplog):
     with caplog.at_level(logging.INFO, logger="greenlight"):
         (numbers, *_), calls = _candidates(cutoff=_CUTOFF, fast=[_open_pr(4), _open_pr(8)])
 
-    assert calls == [f"fetch_updated:{_CUTOFF.isoformat()}"]
+    assert calls == [f"fetch_updated:{TARGET_REPO}:{_CUTOFF.isoformat()}"]
     assert numbers == [4, 8]
     assert (
         "found 2 open PR(s) from 1 author(s) in pytorch/pytorch (fast tick, updated since 2026-10-12 12:00:00 UTC)"
@@ -615,3 +621,13 @@ def test_candidate_numbers_for_a_single_pr_lists_nothing():
 
     assert result == ([7], {}, {}, {}, {})
     assert calls == []
+
+
+def test_candidate_numbers_lists_and_logs_the_scanned_repo(caplog):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        _result, calls = _candidates(full=[_open_pr(1)], repo="pytorch/vision")
+        _candidates(pr=3, repo="pytorch/vision")
+
+    assert calls == ["fetch:pytorch/vision"]
+    assert "in pytorch/vision (full tick)" in caplog.text
+    assert "targeting single PR #3 in pytorch/vision" in caplog.text
