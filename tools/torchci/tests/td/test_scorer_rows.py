@@ -4,7 +4,7 @@ import os
 import re
 import sys
 import tempfile
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest import main, mock, skipUnless, TestCase
 
@@ -200,6 +200,9 @@ def run(**kw):
     return shards.Run(**base)
 
 
+LEGACY_TODAY = date(2026, 11, 30)
+
+
 class TestShards(TestCase):
     def test_fetch_exclusions(self) -> None:
         bodies = {
@@ -281,7 +284,7 @@ class TestShards(TestCase):
         ), mock.patch.object(
             shards, "fetch_td_log_found", return_value=(logs.parse_td_log(LOG), True)
         ) as fetch:
-            shard = shards.build_day_shard(date(2026, 11, 5))
+            shard = shards.build_day_shard(date(2026, 11, 5), LEGACY_TODAY)
             self.assertEqual([r.run_id for r in shard.runs], [1])
             self.assertEqual(
                 shard.runs[0].changed_files, ["torch/nn/a.py", "test/test_nn.py"]
@@ -294,26 +297,120 @@ class TestShards(TestCase):
                 (["a", "b"], ["d"], ["a"], ["a"]),
             )
             self.assertEqual(shard.meta["td_on_runs"], 1)
+            self.assertEqual(shard.meta["outcomes"], "tests.all_test_runs")
             self.assertEqual((shard.meta["errors"], shard.meta["logs_missing"]), (0, 0))
             self.assertTrue(shard.healthy)
 
             fetch.side_effect = logs.requests.HTTPError("403")
-            failed = shards.build_day_shard(date(2026, 11, 5))
+            failed = shards.build_day_shard(date(2026, 11, 5), LEGACY_TODAY)
             self.assertEqual(failed.meta["errors"], 1)
             self.assertFalse(failed.healthy)
             fetch.side_effect = None
             fetch.return_value = (None, False)
-            missing = shards.build_day_shard(date(2026, 11, 5))
+            missing = shards.build_day_shard(date(2026, 11, 5), LEGACY_TODAY)
             self.assertEqual(
                 (missing.meta["errors"], missing.meta["logs_missing"]), (0, 1)
             )
             self.assertEqual(missing.meta["logs_404"], 1)
             self.assertFalse(missing.healthy)
             fetch.return_value = (None, True)
-            unparsable = shards.build_day_shard(date(2026, 11, 5))
+            unparsable = shards.build_day_shard(date(2026, 11, 5), LEGACY_TODAY)
             self.assertEqual(
                 (unparsable.meta["logs_missing"], unparsable.meta["logs_404"]), (1, 0)
             )
+
+    def test_outcome_queries_by_age(self) -> None:
+        today = date(2026, 11, 13)
+        self.assertEqual(shards.CI_RUNS_MAX_AGE_DAYS, 12)
+        for day in (date(2026, 11, 13), date(2026, 11, 10), date(2026, 11, 1)):
+            self.assertEqual(
+                shards.outcome_queries(day, today),
+                ("ci.runs", rows_sql.CI_UNITS_SQL, rows_sql.CI_MAIN_FAILURES_SQL),
+            )
+        self.assertEqual(
+            shards.outcome_queries(date(2026, 10, 31), today),
+            ("tests.all_test_runs", rows_sql.UNITS_SQL, rows_sql.MAIN_FAILURES_SQL),
+        )
+
+    def build_one(self, day: date, today=None):
+        """build_day_shard on one TD-on run; the queries it ran by name."""
+        runs_rows = [
+            {
+                "run_id": "1",
+                "td_job_id": "11",
+                "pr": "100",
+                "head_sha": "h" * 40,
+                "created_at": "2026-11-05 10:00:00.000",
+                "attempts": "1",
+            }
+        ]
+        unit = {
+            "run_id": "1",
+            "build_env": "linux-a",
+            "test_config": "default",
+            "ran": ["a"],
+            "failed": ["a"],
+            "neither": [],
+        }
+        main = {"build_env": "linux-a", "test_config": "default", "test_file": "a"}
+        ran = {}
+
+        def query(name, sql, params):
+            ran[name] = (sql, params)
+            if name == "td_scorer_runs":
+                return runs_rows
+            return [main] if "main_failures" in name else [unit]
+
+        with mock.patch.object(shards, "_query", side_effect=query), mock.patch.object(
+            shards,
+            "fetch_exclusions",
+            return_value={("linux-a", "default"): {"d"}},
+        ), mock.patch.object(
+            shards, "fetch_td_log_found", return_value=(logs.parse_td_log(LOG), True)
+        ):
+            shard = shards.build_day_shard(day, today)
+        return shard, ran
+
+    def test_build_day_shard_ci(self) -> None:
+        shard, ran = self.build_one(date(2026, 11, 5), date(2026, 11, 7))
+        self.assertEqual(
+            sorted(ran),
+            ["td_scorer_main_failures_ci", "td_scorer_runs", "td_scorer_units_ci"],
+        )
+        units_sql, params = ran["td_scorer_units_ci"]
+        self.assertEqual(units_sql, rows_sql.CI_UNITS_SQL)
+        self.assertEqual(params["start"], "2026-11-05 00:00:00.000")
+        self.assertEqual(params["runs"], [1])
+        main_sql, main_params = ran["td_scorer_main_failures_ci"]
+        self.assertEqual(main_sql, rows_sql.CI_MAIN_FAILURES_SQL)
+        self.assertEqual(main_params, shards.ch_day(date(2026, 11, 5)))
+        self.assertEqual(shard.meta["outcomes"], "ci.runs")
+        self.assertEqual(shard.units[0].main_broken, ["a"])
+        self.assertTrue(shard.healthy)
+
+        legacy, ran = self.build_one(date(2026, 11, 5), LEGACY_TODAY)
+        self.assertEqual(
+            sorted(ran),
+            ["td_scorer_main_failures", "td_scorer_runs", "td_scorer_units"],
+        )
+        self.assertEqual(ran["td_scorer_units"][0], rows_sql.UNITS_SQL)
+        self.assertEqual(ran["td_scorer_main_failures"][0], rows_sql.MAIN_FAILURES_SQL)
+        self.assertEqual(legacy.meta["outcomes"], "tests.all_test_runs")
+
+    def test_build_day_shard_default_today_is_utc(self) -> None:
+        class Clock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                if tz is None:
+                    return datetime(2026, 11, 17, 17, 0)
+                assert tz is timezone.utc, tz
+                return datetime(2026, 11, 18, 1, 0, tzinfo=tz)
+
+        with mock.patch.object(shards, "datetime", Clock):
+            old, _ = self.build_one(date(2026, 11, 5))
+            recent, _ = self.build_one(date(2026, 11, 6))
+        self.assertEqual(old.meta["outcomes"], "tests.all_test_runs")
+        self.assertEqual(recent.meta["outcomes"], "ci.runs")
 
     def test_healthy(self) -> None:
         meta = {"td_on_runs": 100, "logs_missing": 15, "errors": 0}
@@ -631,6 +728,62 @@ ATR_SCHEMA = (
     "job_id Int64, workflow_id Int64, invoking_file String, failure_count UInt32,"
     " error_count UInt32, rerun_count UInt32"
 )
+CI_RUNS_SCHEMA = (
+    "github_workflow_job_id Int64, tests_id UInt64, report_uuid UUID,"
+    " rerun_number UInt16, outcome String, started_at DateTime64(3)"
+)
+CI_TESTS_SCHEMA = "id UInt64, repo String, file String"
+PR_JOB_SCHEMA = (
+    "id Int64, run_id Int64, run_attempt Int64, conclusion String, name String,"
+    " _inserted_at DateTime"
+)
+MAIN_JOB_SCHEMA = (
+    "id Int64, run_id Int64, workflow_name String, name String, head_branch String,"
+    " dynamoKey String, _inserted_at DateTime"
+)
+RUN_SCHEMA = "id Int64, head_branch String, event String, `repository.full_name` String"
+DAY = {"start": "2026-11-01 00:00:00.000", "stop": "2026-11-02 00:00:00.000"}
+
+
+def without_prewhere(test: TestCase, sql: str) -> str:
+    """sql with its workflow_job PREWHERE on a materialized view dropped, so literal
+    tables can stand in for default.workflow_job."""
+    out = re.sub(
+        r"PREWHERE id IN \(\s*SELECT id FROM materialized_views\.workflow_job_by_\w+"
+        r"\s*WHERE .*?\n\s*\)\s*WHERE",
+        "WHERE",
+        sql,
+        flags=re.S,
+    )
+    test.assertNotIn("PREWHERE", out)
+    return out
+
+
+def main_job_rows():
+    """Main jobs and runs: only 21 (push) and 22 (schedule) are main TD-scope jobs."""
+    name = "{} / test (default, 1, 2, x)"
+    jobs = [
+        (21, 2, "trunk", "linux-a", "main"),
+        (22, 3, "pull", "linux-b", "main"),
+        (23, 4, "inductor", "linux-a", "main"),
+        (24, 5, "trunk", "linux-a", "feature"),
+        (25, 6, "pull", "linux-c", "main"),
+    ]
+    runs = [
+        (2, "main", "push", "pytorch/pytorch"),
+        (3, "main", "schedule", "pytorch/pytorch"),
+        (4, "main", "push", "pytorch/pytorch"),
+        (5, "feature", "push", "pytorch/pytorch"),
+        (6, "main", "pull_request", "pytorch/pytorch"),
+    ]
+    job_rows = [
+        (i, r, w, name.format(e), b, "pytorch/pytorch/x", "2026-11-01 00:00:00")
+        for i, r, w, e, b in jobs
+    ]
+    return (
+        ("default.workflow_job", MAIN_JOB_SCHEMA, job_rows),
+        ("default.workflow_run", RUN_SCHEMA, runs),
+    )
 
 
 def assert_units_sql_shape(test: TestCase, sql: str) -> None:
@@ -668,6 +821,43 @@ class TestOutcomeSqlShape(TestCase):
         self.assertIn("FROM default.workflow_run", main_sql)
         self.assertNotIn("failed_test_runs", main_sql)
         self.assertIn("invoking_file NOT IN ('', 'expected')", main_sql)
+
+    def test_ci_queries(self) -> None:
+        mapping = (
+            "replaceRegexpOne(replaceRegexpOne(file, '^test/', ''), '\\\\.py$', '')"
+        )
+        bound = "started_at >= {start: DateTime64(3)}"
+        units, main_sql = rows_sql.CI_UNITS_SQL, rows_sql.CI_MAIN_FAILURES_SQL
+        self.assertEqual(units, rows_sql.units_sql(outcomes=rows_sql.CI_OUTCOMES))
+        self.assertIn(rows_sql.CI_CASES, units)
+        self.assertIn(rows_sql.CI_CASES, main_sql)
+        self.assertIn(rows_sql.MAIN_JOBS, main_sql)
+        self.assertIn(rows_sql.MAIN_JOBS, rows_sql.MAIN_FAILURES_SQL)
+        for sql, bounds in ((units, 2), (main_sql, 1)):
+            self.assertEqual(
+                re.findall(r"\{[^}]*\}", sql),
+                re.findall(r"\{\w+: \w+(?:\(\w+\))?\}", sql),
+            )
+            self.assertIn("WHERE repo = 'pytorch/pytorch'", sql)
+            self.assertIn(mapping, sql)
+            self.assertIn("AND test_file NOT IN ('', 'expected')\n", sql)
+            self.assertNotIn(" file NOT IN", sql)
+            self.assertEqual(sql.count(bound), bounds)
+            self.assertEqual(
+                sql.count("github_workflow_job_id IN (SELECT id FROM jobs)"), bounds
+            )
+            self.assertIn("GROUP BY job_id, tests_id, report_uuid", sql)
+            self.assertIn("countIf(process_crashed) > 2 AS consistent", sql)
+            self.assertIn(
+                "AND (outcome IN ('failed', 'error') OR outcome IN ('crashed',"
+                " 'timed_out') OR rerun_number > 0)",
+                sql,
+            )
+            self.assertNotIn("all_test_runs", sql)
+            self.assertNotIn("FINAL", sql)
+        self.assertIn("event IN ('push', 'schedule')", main_sql)
+        self.assertIn("WHERE c.last_failed", main_sql)
+        self.assertIn("INNER JOIN jobs AS j2 ON j2.id = a.job_id", units)
 
 
 @skipUnless(os.environ.get("CLICKHOUSE_ENDPOINT"), "needs ClickHouse (read-only)")
@@ -710,25 +900,13 @@ class TestUnitsSql(TestCase):
             (16, 1, "test_e", 0, 0, 2),
             (16, 1, "test_f", 1, 0, 0),
         ]
-        sql = re.sub(
-            r"PREWHERE id IN \(\s*SELECT id FROM materialized_views\."
-            r"workflow_job_by_head_sha\s*WHERE head_sha IN \{shas: Array\(String\)\}"
-            r"\s*\)\s*WHERE",
-            "WHERE",
-            rows_sql.UNITS_SQL,
-        )
-        self.assertNotIn("PREWHERE", sql)
+        sql = without_prewhere(self, rows_sql.UNITS_SQL)
         self.assertNotIn("test_run_summary", sql)
         self.assertNotIn("failed_test_runs", sql)
         out = self.run_sql(
             sql,
             (
-                (
-                    "default.workflow_job",
-                    "id Int64, run_id Int64, run_attempt Int64, conclusion String,"
-                    " name String, _inserted_at DateTime",
-                    jobs,
-                ),
+                ("default.workflow_job", PR_JOB_SCHEMA, jobs),
                 ("tests.all_test_runs", ATR_SCHEMA, cases),
             ),
             {"runs": [1], "shas": ["h"], "max_failing": 2},
@@ -749,25 +927,6 @@ class TestUnitsSql(TestCase):
         )
 
     def test_main_failures(self) -> None:
-        name = "{} / test (default, 1, 2, x)"
-        jobs = [
-            (21, 2, "trunk", "linux-a", "main"),
-            (22, 3, "pull", "linux-b", "main"),
-            (23, 4, "inductor", "linux-a", "main"),
-            (24, 5, "trunk", "linux-a", "feature"),
-            (25, 6, "pull", "linux-c", "main"),
-        ]
-        runs = [
-            (2, "main", "push", "pytorch/pytorch"),
-            (3, "main", "schedule", "pytorch/pytorch"),
-            (4, "main", "push", "pytorch/pytorch"),
-            (5, "feature", "push", "pytorch/pytorch"),
-            (6, "main", "pull_request", "pytorch/pytorch"),
-        ]
-        job_rows = [
-            (i, r, w, name.format(e), b, "pytorch/pytorch/x", "2026-11-01 00:00:00")
-            for i, r, w, e, b in jobs
-        ]
         cases = [
             (21, 2, "test_a", 1, 0, 1),
             (21, 2, "test_rerun", 0, 0, 2),
@@ -778,36 +937,203 @@ class TestUnitsSql(TestCase):
             (24, 5, "test_d", 1, 0, 0),
             (25, 6, "test_fork", 1, 0, 0),
         ]
-        sql = re.sub(
-            r"PREWHERE id IN \(\s*SELECT id FROM materialized_views\."
-            r"workflow_job_by_created_at\s*WHERE created_at >= \{start: DateTime64\(3\)\}"
-            r"\s+AND created_at < \{stop: DateTime64\(3\)\}\s*\)\s*WHERE",
-            "WHERE",
-            rows_sql.MAIN_FAILURES_SQL,
-        )
-        self.assertNotIn("PREWHERE", sql)
+        sql = without_prewhere(self, rows_sql.MAIN_FAILURES_SQL)
         out = self.run_sql(
-            sql,
-            (
-                (
-                    "default.workflow_job",
-                    "id Int64, run_id Int64, workflow_name String, name String,"
-                    " head_branch String, dynamoKey String, _inserted_at DateTime",
-                    job_rows,
-                ),
-                (
-                    "default.workflow_run",
-                    "id Int64, head_branch String, event String,"
-                    " `repository.full_name` String",
-                    runs,
-                ),
-                ("tests.all_test_runs", ATR_SCHEMA, cases),
-            ),
-            {},
+            sql, (*main_job_rows(), ("tests.all_test_runs", ATR_SCHEMA, cases)), {}
         )
         got = sorted((r["build_env"], r["test_config"], r["test_file"]) for r in out)
         self.assertEqual(
             got, [("linux-a", "default", "test_a"), ("linux-b", "default", "test_b")]
+        )
+
+    def test_ci_units(self) -> None:
+        name = "linux-a / test ({}, 1, 2, x)"
+        jobs = [
+            (11, 1, 1, "failure", name.format("default"), "2026-11-01 00:00:00"),
+            (12, 1, 1, "success", name.format("other"), "2026-11-01 00:00:00"),
+        ]
+        files = {
+            1: "test/test_a.py",
+            2: "test/test_b.py",
+            3: "test/test_old.py",
+            4: "",
+            5: "expected",
+            6: "cpp/basic",
+            7: "tools/test/test_y.py",
+            9: "test/test_fp.py",
+            10: "test/test_two.py",
+            11: "test/test_ff.py",
+            12: "test/test_crash.py",
+            13: "test/test_to.py",
+            14: "test/test_dup.py",
+            15: "test/test_a.py",
+            16: "test/test_rr.py",
+            17: "test/test_d.py",
+            18: "test/test_split.py",
+            19: "test/test_mixed.py",
+            20: "test/expected.py",
+            21: "test/test_late.py",
+            22: "test/test_crashlast.py",
+            23: "test/test_skipmid.py",
+            24: "test/test_c3.py",
+            25: "test/test_t3.py",
+            26: "test/test_c1.py",
+            27: "test/test_t1.py",
+            28: "test/test_c2.py",
+            29: "test/test_cdup.py",
+        }
+        tests = [(i, "pytorch/pytorch", f) for i, f in files.items()]
+        tests.append((8, "pytorch/vision", "test/test_v.py"))
+        u1 = "00000000-0000-0000-0000-000000000001"
+        u2 = "00000000-0000-0000-0000-000000000002"
+        u3 = "00000000-0000-0000-0000-000000000003"
+        at = "2026-11-01 01:00:00"
+        runs = [
+            (11, 1, u1, 0, "failed", at),
+            (11, 15, u1, 0, "passed", at),
+            (11, 2, u1, 0, "passed", at),
+            (11, 3, u1, 0, "failed", "2026-10-31 23:00:00"),
+            (11, 4, u1, 0, "failed", at),
+            (11, 5, u1, 0, "failed", at),
+            (11, 6, u1, 0, "failed", at),
+            (11, 7, u1, 0, "passed", at),
+            (11, 8, u1, 0, "failed", at),
+            (11, 9, u1, 0, "failed", at),
+            (11, 9, u1, 1, "passed", at),
+            (11, 9, u1, 1, "passed", at),
+            (11, 10, u1, 0, "failed", at),
+            (11, 10, u2, 0, "passed", at),
+            (11, 11, u1, 0, "passed", at),
+            (11, 11, u1, 1, "passed", at),
+            (11, 11, u1, 2, "failed", at),
+            (11, 11, u1, 3, "passed", at),
+            (11, 12, u1, 0, "crashed", at),
+            (11, 13, u1, 0, "timed_out", at),
+            (11, 14, u1, 0, "failed", at),
+            (11, 14, u1, 0, "failed", at),
+            (11, 16, u1, 0, "failed", at),
+            (11, 16, u1, 1, "error", at),
+            (11, 16, u1, 2, "passed", at),
+            (11, 18, u1, 0, "failed", at),
+            (11, 18, u2, 0, "failed", at),
+            (11, 18, u2, 1, "passed", at),
+            (11, 19, u1, 0, "failed", at),
+            (11, 19, u1, 1, "failed", at),
+            (11, 19, u1, 1, "passed", at),
+            (11, 19, u1, 2, "passed", at),
+            (11, 20, u1, 0, "failed", at),
+            (11, 21, u1, 0, "passed", at),
+            (11, 21, u1, 1, "failed", at),
+            (11, 21, u1, 1, "passed", at),
+            (11, 22, u1, 0, "failed", at),
+            (11, 22, u1, 1, "failed", at),
+            (11, 22, u1, 1, "passed", at),
+            (11, 22, u1, 2, "crashed", at),
+            (11, 23, u1, 0, "failed", at),
+            (11, 23, u1, 1, "skipped", at),
+            (11, 23, u1, 2, "passed", at),
+            (11, 24, u1, 0, "crashed", at),
+            (11, 24, u2, 0, "crashed", at),
+            (11, 24, u3, 0, "crashed", at),
+            (11, 25, u1, 3, "timed_out", at),
+            (11, 25, u2, 0, "timed_out", at),
+            (11, 25, u3, 0, "crashed", at),
+            (11, 26, u1, 0, "crashed", at),
+            (11, 26, u2, 0, "passed", at),
+            (11, 27, u1, 0, "timed_out", at),
+            (11, 27, u2, 0, "passed", at),
+            (11, 28, u1, 0, "crashed", at),
+            (11, 28, u2, 0, "timed_out", at),
+            (11, 28, u3, 0, "passed", at),
+            (11, 29, u1, 0, "crashed", at),
+            (11, 29, u1, 0, "crashed", at),
+            (11, 29, u1, 0, "crashed", at),
+            (11, 29, u2, 0, "passed", at),
+            (999, 2, u1, 0, "failed", at),
+            (12, 17, u1, 0, "failed", at),
+        ]
+        sql = without_prewhere(self, rows_sql.CI_UNITS_SQL)
+        out = self.run_sql(
+            sql,
+            (
+                ("default.workflow_job", PR_JOB_SCHEMA, jobs),
+                ("ci.runs", CI_RUNS_SCHEMA, runs),
+                ("ci.tests", CI_TESTS_SCHEMA, tests),
+            ),
+            {"runs": [1], "shas": ["h"], "max_failing": 20, "start": DAY["start"]},
+        )
+        got = {r["test_config"]: (r["ran"], r["failed"], r["neither"]) for r in out}
+        failed = ["cpp/basic", "test_a", "test_c3", "test_crashlast", "test_dup"]
+        failed += ["test_ff", "test_late", "test_mixed", "test_skipmid", "test_split"]
+        failed += ["test_t3", "test_two"]
+        ran = failed + ["test_b", "test_c1", "test_c2", "test_cdup", "test_crash"]
+        ran += ["test_fp", "test_rr", "test_t1", "test_to"]
+        self.assertEqual(
+            got,
+            {
+                "default": (
+                    sorted(ran + ["tools/test/test_y"]),
+                    failed,
+                    ["test_fp", "test_rr"],
+                ),
+                "other": (["test_d"], [], ["test_d"]),
+            },
+        )
+
+    def test_ci_main_failures(self) -> None:
+        tests = [
+            (1, "pytorch/pytorch", "test/test_a.py"),
+            (2, "pytorch/pytorch", "test/test_b.py"),
+            (3, "pytorch/pytorch", "test/test_c.py"),
+            (5, "pytorch/pytorch", "expected"),
+            (8, "pytorch/vision", "test/test_v.py"),
+            (9, "pytorch/pytorch", "test/test_rerun.py"),
+            (12, "pytorch/pytorch", "test/test_crash.py"),
+            (13, "pytorch/pytorch", "test/test_c3.py"),
+        ]
+        u1 = "00000000-0000-0000-0000-000000000001"
+        u2 = "00000000-0000-0000-0000-000000000002"
+        u3 = "00000000-0000-0000-0000-000000000003"
+        at = "2026-11-01 01:00:00"
+        runs = [
+            (21, 1, u1, 0, "failed", at),
+            (21, 2, u1, 0, "failed", "2026-10-31 23:00:00"),
+            (21, 5, u1, 0, "failed", at),
+            (21, 8, u1, 0, "failed", at),
+            (21, 9, u1, 0, "failed", at),
+            (21, 9, u1, 1, "passed", at),
+            (22, 2, u1, 0, "error", at),
+            (22, 12, u1, 0, "crashed", at),
+            (22, 12, u2, 0, "timed_out", at),
+            (21, 13, u1, 0, "crashed", at),
+            (21, 13, u2, 0, "timed_out", at),
+            (21, 13, u3, 0, "crashed", at),
+            (25, 13, u1, 0, "crashed", at),
+            (25, 13, u2, 0, "crashed", at),
+            (25, 13, u3, 0, "crashed", at),
+            (23, 3, u1, 0, "failed", at),
+            (24, 3, u1, 0, "failed", at),
+            (25, 3, u1, 0, "failed", at),
+            (999, 3, u1, 0, "failed", at),
+        ]
+        sql = without_prewhere(self, rows_sql.CI_MAIN_FAILURES_SQL)
+        out = self.run_sql(
+            sql,
+            (
+                *main_job_rows(),
+                ("ci.runs", CI_RUNS_SCHEMA, runs),
+                ("ci.tests", CI_TESTS_SCHEMA, tests),
+            ),
+            DAY,
+        )
+        got = sorted((r["build_env"], r["test_config"], r["test_file"]) for r in out)
+        self.assertEqual(
+            got,
+            [
+                ("linux-a", "default", "test_a"),
+                ("linux-a", "default", "test_c3"),
+                ("linux-b", "default", "test_b"),
+            ],
         )
 
 
