@@ -142,9 +142,21 @@ export function ReleaseEvidenceCell({ evidence }: { evidence: Evidence }) {
 }
 
 export function ReleaseLinksRow({ links }: { links: ReleaseLinks }) {
+  const linkKeys = [
+    ...RELEASE_LINK_ORDER,
+    ...Object.keys(links)
+      .filter(
+        (key) =>
+          !RELEASE_LINK_ORDER.includes(
+            key as (typeof RELEASE_LINK_ORDER)[number]
+          )
+      )
+      .sort(),
+  ];
+
   return (
     <Stack aria-label="Release links" direction="row" flexWrap="wrap" gap={1}>
-      {RELEASE_LINK_ORDER.map((key) => {
+      {linkKeys.map((key) => {
         const url = links[key];
         const label = humanizeLinkLabel(key);
         return isSafeReleaseUrl(url) ? (
@@ -154,7 +166,7 @@ export function ReleaseLinksRow({ links }: { links: ReleaseLinks }) {
         ) : (
           <Typography
             aria-label={`${label} unavailable`}
-            color="text.disabled"
+            color="text.secondary"
             key={key}
             variant="body2"
           >
