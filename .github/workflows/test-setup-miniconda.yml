@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         runner-type:
-          - macos-12
+          - macos-latest
           - macos-m1-stable
           - linux.2xlarge
         # Only testing minimum and maximum versions here
