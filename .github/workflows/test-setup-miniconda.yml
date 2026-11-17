@@ -15,7 +15,6 @@ jobs:
         runner-type:
           - macos-latest
           - macos-m1-stable
-          - linux.2xlarge
         # Only testing minimum and maximum versions here
         python-version:
           - "3.8"
