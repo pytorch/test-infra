@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock
 
 import pytest
@@ -56,6 +57,7 @@ class _FakePull:
         base_ref: str = "main",
         head_ref: str = "feature",
         stack_trunk: str | None = None,
+        state: str = "open",
     ) -> None:
         self.number = number
         self.user = _FakeUser(login) if login is not None else None
@@ -67,6 +69,7 @@ class _FakePull:
         self.updated_at = updated_at
         self.labels = [_FakeLabel(name) for name in (labels or [])]
         self.draft = draft
+        self.state = state
 
     @property
     def raw_data(self) -> dict[str, object]:
@@ -631,3 +634,91 @@ def test_candidate_numbers_lists_and_logs_the_scanned_repo(caplog):
     assert calls == ["fetch:pytorch/vision"]
     assert "in pytorch/vision (full tick)" in caplog.text
     assert "targeting single PR #3 in pytorch/vision" in caplog.text
+
+
+def test_the_open_records_keep_every_author_and_draft_in_one_default_traversal():
+    client = _client(
+        _FakePull(3, "carol", draft=True, labels=["Stale"]),
+        _FakePull(1, "alice"),
+        _FakePull(2, None),
+        _FakePull(4, ""),
+    )
+
+    records = pr_listing.list_open_records(client, TARGET_REPO)
+
+    # Only a PR that names no author is left out: the view holds every open PR, whoever wrote it.
+    assert _numbers(records) == [1, 3]
+    assert records[1] == OpenPR(
+        repo=TARGET_REPO,
+        number=3,
+        author="carol",
+        title="fix",
+        url="https://example.test/3",
+        head_sha="head-sha",
+        updated_at=None,
+        base_accepted=True,
+        labels=("Stale",),
+        draft=True,
+        state="open",
+    )
+    assert client.repo.get_pulls_calls == [{"state": "open", "sort": None, "direction": None}]
+
+
+def test_the_recent_records_walk_the_asked_state_most_recently_updated_first_and_stop_at_the_cutoff():
+    repo = _FakeRepo(
+        [
+            [
+                _FakePull(1, "carol", updated_at=_NOW - timedelta(hours=1), state="closed"),
+                _FakePull(2, "alice", updated_at=_NOW - timedelta(hours=2), draft=True),
+                _FakePull(3, "alice", updated_at=None),
+            ],
+            [_FakePull(4, "alice", updated_at=_CUTOFF), _FakePull(5, "alice", updated_at=_NOW)],
+            [_FakePull(6, "alice", updated_at=_NOW)],
+        ]
+    )
+
+    records = pr_listing.list_recent_records(_FakeClient(repo), TARGET_REPO, cutoff=_CUTOFF, state="all")
+
+    assert [(record.number, record.state, record.draft) for record in records] == [
+        (1, "closed", False),
+        (2, "open", True),
+        (3, "open", False),
+    ]
+    assert repo.get_pulls_calls == [{"state": "all", "sort": "updated", "direction": "desc"}]
+    assert repo.pages.fetched == [0, 1]
+
+
+@pytest.mark.parametrize(
+    ("record", "expected"),
+    [
+        pytest.param({}, True, id="open-cohort-ready"),
+        pytest.param({"author": "ALICE"}, True, id="author-case"),
+        pytest.param({"author": "carol"}, False, id="outside-the-cohort"),
+        pytest.param({"draft": True}, False, id="draft"),
+        pytest.param({"state": "closed"}, False, id="closed"),
+    ],
+)
+def test_a_record_is_a_candidate_only_open_by_a_cohort_author_and_not_a_draft(record, expected):
+    fields: dict[str, Any] = {"author": "alice", **record}
+    base = OpenPR(TARGET_REPO, 1, fields.pop("author"), "fix", "url", "sha", None, True)
+
+    assert pr_listing.is_candidate(replace(base, **fields), frozenset({"alice", "bob"})) is expected
+
+
+def test_an_issues_endpoint_record_is_open_and_carries_its_draft_flag(monkeypatch):
+    monkeypatch.setattr(pr_listing, "is_candidate", lambda _record, _cohort: True)
+    repo = _FakeRepo(issues=[_FakeIssue(7, "carol", draft=True)])
+
+    [record] = pr_listing.list_reverted_prs(_FakeClient(repo), TARGET_REPO, ["alice"])
+
+    assert (record.state, record.draft, record.head_sha, record.base_accepted) == ("open", True, None, None)
+
+
+def test_candidate_fields_name_each_map_and_leave_out_the_author_of_a_refused_base():
+    candidates = pr_listing.candidate_fields([_open_pr(2, "sha2", base_accepted=False), _open_pr(1)])
+
+    assert candidates.numbers == [2, 1]
+    assert candidates.updated_at == {1: None, 2: None}
+    assert candidates.labels == {1: (), 2: ()}
+    assert candidates.authors == {1: "alice"}
+    assert candidates.heads == {1: None, 2: "sha2"}

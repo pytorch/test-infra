@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import pytest
@@ -29,6 +29,9 @@ _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", 
 _AUDIO = RepoEntry("pytorch/audio", "greenlight", "gate", "merge_rules", "shadow")
 _DATA = RepoEntry("pytorch/data", "greenlight", "gate", "merge_rules", "off")
 _SNAPSHOT = merge_authz.MergeRulesSnapshot(authorized=frozenset({"alice"}), rules=())
+_SNAPSHOT_ALL = merge_authz.MergeRulesSnapshot(
+    authorized=frozenset({"alice"}), rules=(merge_authz.compile_rule("all", ["*"], frozenset({"alice"})),)
+)
 
 
 def _config(
@@ -886,3 +889,142 @@ def test_a_cut_while_another_repo_prepares_reports_the_cut_alone(make_config):
         "pytorch/vision: Phase B cut short: pytorch/vision: past its deadline; its full tick did not fit"
     )
     assert "pytorch/vision" not in {repo for repo, _optional, _cap in run.finishes}
+
+
+class _Pull:
+    """A pulls-endpoint item as the listings read it."""
+
+    def __init__(self, number: int, updated_at: datetime) -> None:
+        self.number = number
+        self.updated_at = updated_at
+        self.state = "open"
+        self.user = _Login("alice")
+        self.title = f"fix {number}"
+        self.html_url = f"https://example.test/{number}"
+        self.labels: list[object] = []
+        self.draft = False
+        self.head = _Ref(f"sha{number}")
+        self.base = _Ref("main")
+        self._rawData: dict[str, object] = {}
+
+
+@dataclass(frozen=True)
+class _Login:
+    login: str
+
+
+@dataclass(frozen=True)
+class _Ref:
+    sha: str
+    ref: str = "main"
+
+
+class _GitHub:
+    """Every client of the tick: its repo lists ``pulls``, sorted as the pulls endpoint sorts them."""
+
+    def __init__(self, pulls: list[_Pull]) -> None:
+        self.pulls = pulls
+        self.listed: list[str] = []
+
+    def get_repo(self, _name: str) -> _GitHub:
+        return self
+
+    def get_pulls(self, state: str = "", sort: str = "", direction: str = "") -> list[_Pull]:
+        self.listed.append(f"pulls {state}")
+        return sorted(self.pulls, key=lambda pull: pull.updated_at, reverse=True) if sort == "updated" else self.pulls
+
+    def get_issues(self, *, state: str, labels: list[str]) -> list[object]:
+        self.listed.append(f"issues {state}")
+        return []
+
+    def close(self) -> None:
+        pass
+
+
+class _Fresh:
+    def problem(self) -> str | None:
+        return None
+
+
+def _fresh():
+    return _Fresh()
+
+
+def test_a_clickhouse_primary_refetches_only_the_pr_whose_marker_changed_without_an_update(make_config):
+    from greenlight import review, review_finish
+    from greenlight.change_feed import Marker
+    from greenlight.state import PRState
+
+    entry = dataclasses.replace(BUILTIN_PYTORCH, change_source="clickhouse")
+    updated = _NOW - timedelta(hours=1)
+    github = _GitHub([_Pull(number, updated) for number in (1, 2, 3)])
+    markers = dict.fromkeys((1, 2, 3), Marker(reviews=1))
+    hashed = "a" * 64
+    states = {
+        number: PRState(
+            pr_number=number, status="NO_LAND", eval_hash=hashed, head_sha=f"sha{number}", version=updated, run_id=1
+        )
+        for number in (1, 2, 3)
+    }
+    clock = [_NOW]
+    fingerprinted: list[list[int]] = []
+    memories: dict[str, ScanMemory] = {}
+    config_cache: SnapshotCache[Any, RepoConfig] = SnapshotCache(
+        lambda _client: _config(entry),
+        label="repos config",
+        ttl_seconds=0,
+        max_stale_seconds=None,
+        stale_on_broken=True,
+    )
+
+    def fingerprint(_client, _repo, number, _authorized, _skip):
+        fingerprinted[-1].append(number)
+        return (f"sha{number}", hashed)
+
+    def run_prepare(config, **kwargs):
+        kwargs.update(
+            resolve_merge_rules=lambda: _SNAPSHOT_ALL,
+            read_markers=lambda _repo, numbers: {number: markers[number] for number in numbers},
+            read_freshness=_fresh,
+            fingerprint=fingerprint,
+            read_state=lambda _repo, numbers: {number: states[number] for number in numbers},
+            read_reverted=lambda _repo, _numbers: set(),
+            poke_drci=lambda *_args: None,
+            label_prs=lambda _label_pass: None,
+            now=lambda: clock[0],
+        )
+        return review.prepare(config, **kwargs)
+
+    def build_github(*_args, **_kwargs):
+        return github
+
+    def run(at: datetime) -> list[int]:
+        clock[0] = at
+        fingerprinted.append([])
+        tick.run_tick(
+            make_config(),
+            tokens=_Tokens({}),
+            config_cache=config_cache,
+            eligibility_caches={},
+            memories=memories,
+            bot_login="bot[bot]",
+            max_dispatches=30,
+            ref="main",
+            timeout_minutes=45,
+            build_github=build_github,
+            run_prepare=run_prepare,
+            run_finish=review_finish.finish,
+            read_quota=lambda _client: (5000, 5000),
+            now=lambda: at,
+        )
+        return sorted(fingerprinted[-1])
+
+    full = run(_NOW)
+    event = run(_NOW + timedelta(minutes=2))
+    markers[2] = Marker(reviews=2)
+    dismissed = run(_NOW + timedelta(minutes=4))
+
+    # The first tick lists in full and keeps nothing, its markers first seen then; the second keeps
+    # every fetch. The third sees a dismissal on PR2 that moved no updated_at: only PR2 is refetched.
+    assert (full, event, dismissed) == ([1, 2, 3], [1, 2, 3], [2])
+    assert github.listed == ["pulls open", "pulls all", "issues open", "pulls all", "issues open"]

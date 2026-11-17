@@ -6,14 +6,16 @@ raises one error naming every PR that failed, failed to dispatch or was abandone
 the safety work's failures (``PreparedScan.failed``) included, and otherwise returns how many reviews
 it dispatched. The optional work's own failures are kept apart (``PreparedScan.optional_failed``), so
 a caller whose optional work was cut short reports them with the cut. The dispatch goes through a
-client on the scan's dispatch token when that differs from its repo token. A
-fast tick reuses a PR's cached fingerprint result while its listed ``updated_at`` and head and the
-approver set are unchanged, but fingerprints afresh any PR it would dispatch (``scan_memory``);
-``--pr`` and ``--force`` never touch the cache. Every listing tick that reaches its dispatch phase
-without a rate limit, and whose dispatch hits none, relabels the PRs it listed that are reverted, kept
-by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo) skips all of the
-optional work and raises only the safety work's errors. ``PreparedScan.dispatched`` counts each review
-as it goes out, so a caller still reads it when ``finish`` raises.
+client on the scan's dispatch token when that differs from its repo token. A fast tick reuses a PR's
+cached fingerprint result while its listed ``updated_at`` and head, the approver set and, on a
+``clickhouse`` repo, its HUD marker are unchanged, but fingerprints afresh any PR it would dispatch
+(``scan_memory``); there a PR whose latest recorded row is a LAND reuses no result stored
+``FULL_TICK_INTERVAL`` ago. ``--pr`` and ``--force`` never touch the cache. A full or wide listing
+tick whose fan-out hits no rate limit is marked done in its memory. Every listing tick that reaches
+its dispatch phase without a rate limit, and whose dispatch hits none, relabels the PRs it listed that
+are reverted, kept by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo)
+skips all of the optional work and raises only the safety work's errors. ``PreparedScan.dispatched``
+counts each review as it goes out, so a caller still reads it when ``finish`` raises.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from greenlight import github_client, scan_dispatch, scan_runner, verdict_labels
+from greenlight.constants import STATUS_LAND
 from greenlight.scan_memory import FingerprintCache
 
 if TYPE_CHECKING:
@@ -36,6 +39,7 @@ if TYPE_CHECKING:
     from github import Github
 
     from greenlight.authority import Authority
+    from greenlight.change_feed import Marker
     from greenlight.github_types import VerdictPR
     from greenlight.repo_config import RepoEntry
     from greenlight.review_gate import ReviewSkip
@@ -102,6 +106,8 @@ class PreparedScan:
     get_pr: Callable[[Github, str, int], VerdictPR]
     upsert_comment: Callable[..., None]
     now: Callable[[], datetime]
+    wide_tick: bool = False
+    markers: Mapping[int, tuple[Marker, datetime] | None] = field(default_factory=dict)
     failed: list[int] = field(default_factory=list)
     optional_failed: list[int] = field(default_factory=list)
     dispatched: int = 0
@@ -150,6 +156,10 @@ def _counted(scan: PreparedScan) -> DispatchFn:
     return dispatch
 
 
+def _landed(scan: PreparedScan) -> frozenset[int]:
+    return frozenset(number for number, recorded in scan.states.items() if recorded.status == STATUS_LAND)
+
+
 def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
     """Fan out, dispatch, label and post refusals; return the PRs whose dispatch failed."""
     repo = scan.entry.repo
@@ -173,6 +183,8 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
             updated_at=scan.updated_at_by_number,
             head_sha=scan.head_sha_by_number,
             now=scan.evaluated_at,
+            markers=scan.markers,
+            revalidate=_landed(scan) if scan.markers else frozenset(),
         )
     )
     if scan.max_dispatches is None:
@@ -232,8 +244,11 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
     else:
         # Marked before the per-PR failures below can raise: one failing PR must not hold every
         # later tick to a full listing.
-        if scan.full_tick and scan.memory is not None and scan.pr is None:
-            scan.memory.mark_full_tick(scan.listed_at)
+        if scan.memory is not None and scan.pr is None:
+            if scan.full_tick:
+                scan.memory.mark_full_tick(scan.listed_at)
+            elif scan.wide_tick:
+                scan.memory.mark_wide_tick(scan.listed_at)
         dispatch_failed = scan_dispatch._dispatch_pending(
             _dispatch_client(scan) if pending else scan.client,
             pending,

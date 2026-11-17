@@ -2274,7 +2274,16 @@ def test_a_drci_entry_never_gets_greenlights_own_comment(make_config, tmp_path, 
 
 
 def test_the_default_entry_lookup_reads_the_local_repos_yaml():
-    assert _REAL_REPO_ENTRY(constants.TARGET_REPO) == (repo_config.BUILTIN_PYTORCH, True)
+    builtin = repo_config.BUILTIN_PYTORCH
+    found = _REAL_REPO_ENTRY(constants.TARGET_REPO)
+    assert found is not None
+    entry, served = found
+    assert served
+    assert entry.change_source in repo_config.CHANGE_SOURCES
+    assert (
+        dataclasses.replace(entry, change_source=builtin.change_source, full_tick_minutes=builtin.full_tick_minutes)
+        == builtin
+    )
     assert _REAL_REPO_ENTRY("pytorch/no-such-repo") is None
 
 

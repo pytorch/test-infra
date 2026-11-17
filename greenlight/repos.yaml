@@ -5,3 +5,4 @@ repos:
     safety: pytorchbot  # pytorchbot | gate
     eligibility: merge_rules  # merge_rules | write_permission
     mode: active  # shadow | active | off
+    change_source: clickhouse  # github | clickhouse

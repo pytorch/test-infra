@@ -11,6 +11,14 @@ The primary entry (``TARGET_REPO``) is never refused: its ``status_comment``, ``
 one-line config edit cannot widen whom GreenLight approves there), unknown keys on it are logged and
 ignored, and its ``mode`` comes from the file. When its entry is missing or duplicated, or its
 ``mode`` is missing or invalid, the primary is safety-only under ``BUILTIN_PYTORCH``. See REPOS.md.
+
+Two keys are optional on every entry. ``change_source`` (``github``, the default, or ``clickhouse``)
+says where the scan learns which PRs changed. ``full_tick_minutes`` is a ``clickhouse`` entry's full
+tick interval, an integer from ``FULL_TICK_MINUTES_MIN`` to ``FULL_TICK_MINUTES_MAX``, default
+``FULL_TICK_MINUTES_DEFAULT``; a ``github`` entry keeps the fixed ``FULL_TICK_INTERVAL``, so the key
+on one is a problem. On a non-primary entry a bad value refuses it like any other field problem; on
+the primary both keys come from the file, and a missing one, or a bad one (logged), is
+``BUILTIN_PYTORCH``'s.
 """
 
 from __future__ import annotations
@@ -27,6 +35,9 @@ import yaml
 
 from greenlight.constants import (
     DISPATCH_REPO,
+    FULL_TICK_MINUTES_DEFAULT,
+    FULL_TICK_MINUTES_MAX,
+    FULL_TICK_MINUTES_MIN,
     PYTORCHBOT_GUARDED_REPOS,
     REPOS_CONFIG_PATH,
     TARGET_REPO,
@@ -48,11 +59,13 @@ StatusComment = Literal["drci", "greenlight"]
 Safety = Literal["pytorchbot", "gate"]
 Eligibility = Literal["merge_rules", "write_permission"]
 Mode = Literal["shadow", "active", "off"]
+ChangeSource = Literal["github", "clickhouse"]
 
 STATUS_COMMENTS: tuple[StatusComment, ...] = get_args(StatusComment)
 SAFETIES: tuple[Safety, ...] = get_args(Safety)
 ELIGIBILITIES: tuple[Eligibility, ...] = get_args(Eligibility)
 MODES: tuple[Mode, ...] = get_args(Mode)
+CHANGE_SOURCES: tuple[ChangeSource, ...] = get_args(ChangeSource)
 
 _ENUMS: dict[str, tuple[str, ...]] = {
     "status_comment": STATUS_COMMENTS,
@@ -61,7 +74,8 @@ _ENUMS: dict[str, tuple[str, ...]] = {
     "mode": MODES,
 }
 _PINNED_FIELDS = ("status_comment", "safety", "eligibility")
-_KNOWN_KEYS = frozenset({"repo", *_ENUMS})
+_KNOWN_KEYS = frozenset({"repo", *_ENUMS, "change_source", "full_tick_minutes"})
+_CLICKHOUSE_ONLY = "full_tick_minutes is only for change_source: clickhouse"
 _REPO_NAME = re.compile(r"pytorch/[A-Za-z0-9._-]+")
 
 
@@ -94,6 +108,8 @@ class RepoEntry:
     safety: Safety
     eligibility: Eligibility
     mode: Mode
+    change_source: ChangeSource = "github"
+    full_tick_minutes: int = FULL_TICK_MINUTES_DEFAULT
 
 
 BUILTIN_PYTORCH = RepoEntry(TARGET_REPO, "drci", "pytorchbot", "merge_rules", "active")
@@ -145,7 +161,27 @@ def _entry_problems(raw: Mapping[object, object]) -> list[str]:
             problems.append(f"{field} is missing")
         elif raw[field] not in allowed:
             problems.append(f"{field} {raw[field]!r} is not one of {list(allowed)}")
+    problems.extend(problem for problem in (_change_source_problem(raw), _full_tick_minutes_problem(raw)) if problem)
     return problems
+
+
+def _change_source_problem(raw: Mapping[object, object]) -> str | None:
+    if "change_source" in raw and raw["change_source"] not in CHANGE_SOURCES:
+        return f"change_source {raw['change_source']!r} is not one of {list(CHANGE_SOURCES)}"
+    return None
+
+
+def _full_tick_minutes_problem(raw: Mapping[object, object]) -> str | None:
+    if "full_tick_minutes" not in raw:
+        return None
+    value = raw["full_tick_minutes"]
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not FULL_TICK_MINUTES_MIN <= value <= FULL_TICK_MINUTES_MAX
+    ):
+        return f"full_tick_minutes {value!r} is not an integer from {FULL_TICK_MINUTES_MIN} to {FULL_TICK_MINUTES_MAX}"
+    return None
 
 
 def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
@@ -154,17 +190,21 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
         problems.append(f"safety: pytorchbot is only for {sorted(PYTORCHBOT_GUARDED_REPOS)}")
     if raw["safety"] == "gate" and raw["mode"] == "active":
         problems.append("safety: gate cannot be active in this release")
+    if "full_tick_minutes" in raw and raw.get("change_source", RepoEntry.change_source) != "clickhouse":
+        problems.append(_CLICKHOUSE_ONLY)
     return problems
 
 
 def _entry(repo: str, raw: Mapping[object, object]) -> RepoEntry:
-    """``raw`` as an entry; its four fields were already checked against their enums."""
+    """``raw`` as an entry; its fields were already checked, and a missing optional one takes its default."""
     return RepoEntry(
         repo,
         status_comment=cast("StatusComment", raw["status_comment"]),
         safety=cast("Safety", raw["safety"]),
         eligibility=cast("Eligibility", raw["eligibility"]),
         mode=cast("Mode", raw["mode"]),
+        change_source=cast("ChangeSource", raw.get("change_source", RepoEntry.change_source)),
+        full_tick_minutes=cast("int", raw.get("full_tick_minutes", RepoEntry.full_tick_minutes)),
     )
 
 
@@ -194,7 +234,27 @@ def _primary(copies: Sequence[Mapping[object, object]], *, duplicated: bool) -> 
     mode = raw.get("mode")
     if mode not in MODES:
         return f"its mode {mode!r} is not one of {list(MODES)}"
-    return dataclasses.replace(BUILTIN_PYTORCH, mode=mode)
+    change_source, full_tick_minutes = _primary_change_fields(raw)
+    return dataclasses.replace(
+        BUILTIN_PYTORCH, mode=mode, change_source=change_source, full_tick_minutes=full_tick_minutes
+    )
+
+
+def _primary_change_fields(raw: Mapping[object, object]) -> tuple[ChangeSource, int]:
+    """The primary's ``change_source`` and ``full_tick_minutes``: the file's, else ``BUILTIN_PYTORCH``'s."""
+    change_source = BUILTIN_PYTORCH.change_source
+    if problem := _change_source_problem(raw):
+        logger.error("repos config: %s %s; ignored, it stays %r", TARGET_REPO, problem, change_source)
+    elif "change_source" in raw:
+        change_source = cast("ChangeSource", raw["change_source"])
+    full_tick_minutes = BUILTIN_PYTORCH.full_tick_minutes
+    if "full_tick_minutes" not in raw:
+        return change_source, full_tick_minutes
+    problem = _CLICKHOUSE_ONLY if change_source != "clickhouse" else _full_tick_minutes_problem(raw)
+    if problem:
+        logger.error("repos config: %s %s; ignored, it stays %r", TARGET_REPO, problem, full_tick_minutes)
+        return change_source, full_tick_minutes
+    return change_source, cast("int", raw["full_tick_minutes"])
 
 
 def _load_document(text: str | bytes) -> list[object]:

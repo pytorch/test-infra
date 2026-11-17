@@ -9,32 +9,43 @@ import hashlib
 import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
+from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
+from greenlight.pr_view import PRView
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
     from datetime import datetime
 
+    from greenlight.change_feed import Marker
     from greenlight.scan_runner import FingerprintResult
+
+    Markers = Mapping[int, tuple[Marker, datetime] | None]
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
 class _Key:
-    """What a fingerprint result was computed under: the PR as listed before its fetch, and the approvers."""
+    """What a fingerprint result was computed under: the PR as listed before its fetch, the approvers, and
+    the PR's HUD ClickHouse marker as last read (None on a ``github`` repo)."""
 
     updated_at: datetime
     head_sha: str
     approvers_digest: str
+    marker: Marker | None
 
 
 @dataclass(frozen=True, slots=True)
 class _Entry:
     key: _Key
     result: FingerprintResult
+    stored_at: datetime
+
+
+_NO_MARKERS: Markers = MappingProxyType({})
 
 
 @dataclass(slots=True)
@@ -85,31 +96,49 @@ class DrainPass:
 
 
 class ScanMemory:
-    """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain:
-    when the process first saw the repo off, and the pass under way (``DrainPass``: the PRs it checked
-    and its read attempts), which ends when no open PR is pending.
+    """When the last full and wide listing ticks that completed started, the fingerprint results to reuse,
+    a ``clickhouse`` repo's view of its open PRs (``view``), and the drain: when the process first saw
+    the repo off, and the pass under way (``DrainPass``: the PRs it checked and its read attempts), which
+    ends when no open PR is pending.
 
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
-    the execution environment between invocations. A full tick is due when none has completed, or once
-    ``FULL_TICK_INTERVAL`` less ``FULL_TICK_TOLERANCE`` has passed since the last one started; a clock
-    that steps back past the start of the last full tick counts as due.
+    the execution environment between invocations. A full tick (the sweep) is due when none has
+    completed, or once ``full_tick_interval`` less ``FULL_TICK_TOLERANCE`` has passed since the last one
+    started; ``change_listing`` sets that interval every tick, ``FULL_TICK_INTERVAL`` but on a
+    ``clickhouse`` repo whose HUD reading is fresh. A wide tick is due only once the view is built, when
+    no full or wide tick has completed or once ``FULL_TICK_INTERVAL`` less the tolerance has passed since
+    the later of the last two to start, a full tick counting as a wide one. A clock that steps back past
+    the start it counts from makes either due.
     """
 
     def __init__(self) -> None:
         self._last_full_tick_started: datetime | None = None
+        self._last_wide_tick_started: datetime | None = None
+        self.full_tick_interval = FULL_TICK_INTERVAL
+        self.view = PRView()
         self._fingerprints: dict[int, _Entry] = {}
         self._off_since: datetime | None = None
         self._drain_passes = 0
         self._drain_pass: DrainPass | None = None
 
+    def sweep_due(self, now: datetime) -> bool:
+        return _due(now, self._last_full_tick_started, self.full_tick_interval)
+
+    def wide_due(self, now: datetime) -> bool:
+        if not self.view.built:
+            return False
+        marks = [mark for mark in (self._last_full_tick_started, self._last_wide_tick_started) if mark is not None]
+        return _due(now, max(marks, default=None), FULL_TICK_INTERVAL)
+
     def full_tick_due(self, now: datetime) -> bool:
-        if self._last_full_tick_started is None:
-            return True
-        elapsed = now - self._last_full_tick_started
-        return elapsed < timedelta(0) or elapsed >= FULL_TICK_INTERVAL - FULL_TICK_TOLERANCE
+        """Whether this tick is a full or a wide one: either must complete."""
+        return self.sweep_due(now) or self.wide_due(now)
 
     def mark_full_tick(self, started_at: datetime) -> None:
         self._last_full_tick_started = started_at
+
+    def mark_wide_tick(self, started_at: datetime) -> None:
+        self._last_wide_tick_started = started_at
 
     def off_since(self, now: datetime) -> datetime:
         """When this process first saw the repo off, recording ``now`` the first time."""
@@ -136,14 +165,24 @@ class ScanMemory:
         self._drain_pass = None
 
 
+def _due(now: datetime, since: datetime | None, interval: timedelta) -> bool:
+    if since is None:
+        return True
+    elapsed = now - since
+    return elapsed < timedelta(0) or elapsed >= interval - FULL_TICK_TOLERANCE
+
+
 class FingerprintCache:
     """One listing tick's view of the fingerprint results its ``ScanMemory`` keeps.
 
     A full tick passes ``reuse=False`` and reads no kept result. ``authorized_logins`` is the set the
     tick's fingerprints filter comments by; ``updated_at`` and ``head_sha`` are the listing's, and
     ``now`` is the clock read after the listing. A result is reused only while the PR's listed
-    ``updated_at`` and head and the approver set are those it was stored under. ``commit`` leaves the
-    memory holding only the results this tick reused or ``store`` kept.
+    ``updated_at`` and head, the approver set and its marker are those it was stored under.
+    ``markers`` holds each PR's last marker read and since when the process has seen it
+    (``pr_view.PRView.seen``), and is empty on a ``github`` repo. A PR in ``revalidate`` reuses no result
+    stored ``FULL_TICK_INTERVAL`` or more before ``now``, however often ``keep`` carried it forward.
+    ``commit`` leaves the memory holding only the results this tick reused or ``store`` kept.
     """
 
     def __init__(
@@ -155,6 +194,8 @@ class FingerprintCache:
         updated_at: Mapping[int, datetime | None],
         head_sha: Mapping[int, str | None],
         now: datetime,
+        markers: Markers = _NO_MARKERS,
+        revalidate: frozenset[int] = frozenset(),
     ) -> None:
         self._memory = memory
         self._previous = memory._fingerprints if reuse else {}
@@ -162,6 +203,8 @@ class FingerprintCache:
         self._updated_at = updated_at
         self._head_sha = head_sha
         self._now = now
+        self._markers = markers
+        self._revalidate = revalidate
         self._kept: dict[int, _Entry] = {}
         self._reused = 0
         self._fetched = 0
@@ -169,6 +212,8 @@ class FingerprintCache:
     def lookup(self, number: int) -> FingerprintResult | None:
         entry = self._previous.get(number)
         if entry is None or entry.key != self._key(number):
+            return None
+        if number in self._revalidate and self._now - entry.stored_at >= FULL_TICK_INTERVAL:
             return None
         return entry.result
 
@@ -180,17 +225,23 @@ class FingerprintCache:
     def store(self, number: int, result: FingerprintResult) -> None:
         """Count a fresh result, and keep it once the PR's listed ``updated_at`` is ``FINGERPRINT_QUIET`` old.
 
-        A fingerprint read at a head other than the listed one is never kept: after a push the next
-        listing misses it anyway, and after a read that lagged the listing it would settle the listed
-        head on an older head's hash.
+        With ``markers``, also only once the process has seen the PR's marker for ``FINGERPRINT_QUIET``,
+        so a fetch that lagged an event HUD already shows is never kept; a PR with no marker read is not
+        kept at all. A fingerprint read at a head other than the listed one is never kept: after a push
+        the next listing misses it anyway, and after a read that lagged the listing it would settle the
+        listed head on an older head's hash.
         """
         self._fetched += 1
         key = self._key(number)
         if key is None or self._now - key.updated_at < FINGERPRINT_QUIET:
             return
+        if self._markers:
+            seen = self._markers.get(number)
+            if seen is None or self._now - seen[1] < FINGERPRINT_QUIET:
+                return
         if isinstance(result, tuple) and result[0] != key.head_sha:
             return
-        self._kept[number] = _Entry(key, result)
+        self._kept[number] = _Entry(key, result, self._now)
 
     def commit(self) -> None:
         self._memory._fingerprints = self._kept
@@ -201,4 +252,5 @@ class FingerprintCache:
         head_sha = self._head_sha.get(number)
         if updated_at is None or head_sha is None:
             return None
-        return _Key(updated_at, head_sha, self._digest)
+        seen = self._markers.get(number)
+        return _Key(updated_at, head_sha, self._digest, None if seen is None else seen[0])
