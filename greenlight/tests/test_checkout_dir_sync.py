@@ -67,7 +67,7 @@ def test_the_hook_accepts_exactly_the_two_checkout_directories_and_defaults_to_t
 
 def test_the_harness_accepts_the_repo_name_shape_repos_yaml_accepts():
     pattern = _constant_call_argument(_module(_HARNESS), "_REVIEWED_REPO")
-    assert pattern == repo_config._REPO_NAME.pattern
+    assert pattern == repo_config.REPO_NAME.pattern
 
 
 def _constant_call_argument(module: ast.Module, name: str) -> object:

@@ -75,7 +75,7 @@ _ENUMS: dict[str, tuple[str, ...]] = {
 }
 _PINNED_FIELDS = ("status_comment", "safety", "eligibility")
 _KNOWN_KEYS = frozenset({"repo", *_ENUMS, "change_source", "full_tick_minutes"})
-_REPO_NAME = re.compile(r"pytorch/[A-Za-z0-9._-]+")
+REPO_NAME = re.compile(r"pytorch/[A-Za-z0-9._-]+")
 
 
 class _Loader(yaml.SafeLoader):
@@ -278,7 +278,7 @@ def _load_document(text: str | bytes) -> list[object]:
 
 def _repo_name(item: object) -> str | None:
     repo = item.get("repo") if isinstance(item, dict) else None
-    return repo if isinstance(repo, str) and _REPO_NAME.fullmatch(repo) else None
+    return repo if isinstance(repo, str) and REPO_NAME.fullmatch(repo) else None
 
 
 def parse(text: str | bytes) -> RepoConfig:

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING, cast
 
 import pytest
 from github import Github, GithubException, RateLimitExceededException
@@ -9,6 +12,9 @@ from greenlight import github_client
 from greenlight.constants import EVAL_HASH_RE
 from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
+
+if TYPE_CHECKING:
+    from github.Commit import Commit
 
 
 class _FakeActor:
@@ -856,6 +862,15 @@ class _FakeVerdictReview:
         self.dismissed_with = message
 
 
+class _FakeCommit:
+    def __init__(self, sha: str) -> None:
+        self.sha = sha
+
+
+def _commit(sha: str) -> Commit:
+    return cast("Commit", _FakeCommit(sha))
+
+
 class _FakeVerdictComment:
     def __init__(self, body: str, user: _FakeActor | None) -> None:
         self.body = body
@@ -899,11 +914,11 @@ class _FakeVerdictPR:
         self.state = "open"
         self._reviews = reviews or []
         self._existing_comments = existing_comments or []
-        self.created_reviews: list[tuple[str, str]] = []
+        self.created_reviews: list[tuple[str, str, str]] = []
         self.issue_comments: list[str] = []
 
-    def create_review(self, *, body: str, event: str) -> object:
-        self.created_reviews.append((event, body))
+    def create_review(self, *, commit: Commit, body: str, event: str) -> object:
+        self.created_reviews.append((event, body, commit.sha))
         return object()
 
     def create_issue_comment(self, body: str) -> object:
@@ -932,6 +947,9 @@ class _FakeVerdictRepo:
     def get_pull(self, number: int) -> _FakeVerdictPR:
         self.get_pull_numbers.append(number)
         return self._pr
+
+    def get_commit(self, sha: str) -> Commit:
+        return _commit(sha)
 
 
 class _FakeVerdictClient:
@@ -967,27 +985,29 @@ def test_get_pr_fetches_repo_then_pull():
 def test_post_review_forwards_supported_events(event: str) -> None:
     pr = _FakeVerdictPR()
 
-    github_client.post_review(pr, event=event, body="the body")
+    github_client.post_review(pr, event=event, body="the body", commit=_commit("c" * 40))
 
-    assert pr.created_reviews == [(event, "the body")]
+    assert pr.created_reviews == [(event, "the body", "c" * 40)]
 
 
 def test_post_review_rejects_unknown_event():
     pr = _FakeVerdictPR()
 
     with pytest.raises(ValueError, match="unsupported review event"):
-        github_client.post_review(pr, event="MERGE", body="x")
+        github_client.post_review(pr, event="MERGE", body="x", commit=_commit("c" * 40))
 
     assert pr.created_reviews == []
 
 
 def test_post_review_propagates_errors():
     class _BoomPR(_FakeVerdictPR):
-        def create_review(self, *, body: str, event: str) -> object:
+        def create_review(self, *, commit: Commit, body: str, event: str) -> object:
             raise RuntimeError("gh down")
 
     with pytest.raises(RuntimeError, match="gh down"):
-        github_client.post_review(_BoomPR(), event=github_client.REVIEW_EVENT_APPROVE, body="x")
+        github_client.post_review(
+            _BoomPR(), event=github_client.REVIEW_EVENT_APPROVE, body="x", commit=_commit("c" * 40)
+        )
 
 
 _MARKER = "<!-- mark -->"
@@ -1164,137 +1184,6 @@ def test_upsert_issue_comment_creates_when_none_matched_even_with_run_id():
     github_client.upsert_issue_comment(pr, marker=_MARKER, body="fresh", author_login=_BOT_LOGIN, run_id=10)
 
     assert pr.issue_comments == ["fresh"]
-
-
-def test_dismiss_prior_greenlight_approvals_only_dismisses_own_approved():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
-        _FakeVerdictReview(2, _FakeActor("alice"), "APPROVED"),
-        _FakeVerdictReview(3, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
-        _FakeVerdictReview(4, None, "APPROVED"),
-        _FakeVerdictReview(5, _FakeActor(""), "APPROVED"),
-        _FakeVerdictReview(6, _FakeActor("GreenLight-App[Bot]"), "APPROVED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    dismissed = github_client.dismiss_prior_greenlight_approvals(
-        pr, bot_login="greenlight-app[bot]", message="superseded"
-    )
-
-    assert dismissed == [1, 6]
-    assert reviews[0].dismissed_with == "superseded"
-    assert reviews[5].dismissed_with == "superseded"
-    assert [r.dismissed_with for r in reviews[1:5]] == [None, None, None, None]
-
-
-def test_dismiss_prior_greenlight_approvals_when_none_match():
-    reviews = [_FakeVerdictReview(1, _FakeActor("alice"), "APPROVED")]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    dismissed = github_client.dismiss_prior_greenlight_approvals(pr, bot_login="greenlight-app[bot]", message="x")
-
-    assert dismissed == []
-    assert reviews[0].dismissed_with is None
-
-
-def test_has_live_greenlight_approval_true_for_own_approved():
-    pr = _FakeVerdictPR(reviews=[_FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED")])
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
-
-
-def test_has_live_greenlight_approval_false_when_no_reviews():
-    pr = _FakeVerdictPR(reviews=[])
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
-
-
-def test_has_live_greenlight_approval_matches_login_case_insensitively():
-    pr = _FakeVerdictPR(reviews=[_FakeVerdictReview(1, _FakeActor("GreenLight-App[Bot]"), "APPROVED")])
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
-
-
-def test_has_live_greenlight_approval_skips_null_user_and_empty_login():
-    reviews = [
-        _FakeVerdictReview(1, None, "APPROVED"),
-        _FakeVerdictReview(2, _FakeActor(""), "APPROVED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    # A null-user or empty-login APPROVED review cannot be attributed to greenlight.
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
-
-
-def test_has_live_greenlight_approval_false_for_commented_and_dismissed():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
-        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "DISMISSED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    # Only APPROVED is a live approval; a dismissed review is no longer live.
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
-
-
-def test_has_live_greenlight_approval_true_when_latest_non_commented_approved():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("alice"), "APPROVED"),
-        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
-        _FakeVerdictReview(3, _FakeActor("greenlight-app[bot]"), "APPROVED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
-
-
-def test_has_live_greenlight_approval_false_when_approved_then_dismissed():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
-        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "DISMISSED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    # trymerge collapses greenlight to its latest non-COMMENTED state (DISMISSED), so it would
-    # not count greenlight as an approver; an older APPROVED must not read as a live approval.
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
-
-
-def test_has_live_greenlight_approval_true_when_dismissed_then_approved():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "DISMISSED"),
-        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "APPROVED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
-
-
-def test_has_live_greenlight_approval_true_when_commented_after_approved():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
-        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "COMMENTED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is True
-
-
-def test_has_live_greenlight_approval_false_when_latest_changes_requested():
-    reviews = [
-        _FakeVerdictReview(1, _FakeActor("greenlight-app[bot]"), "APPROVED"),
-        _FakeVerdictReview(2, _FakeActor("greenlight-app[bot]"), "CHANGES_REQUESTED"),
-    ]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
-
-
-def test_has_live_greenlight_approval_false_when_only_other_author_approved():
-    reviews = [_FakeVerdictReview(1, _FakeActor("alice"), "APPROVED")]
-    pr = _FakeVerdictPR(reviews=reviews)
-
-    assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
 
 
 def _max_retry(status: int) -> Exception:

@@ -102,6 +102,20 @@ WORKFLOW_FILE = "greenlight-pr-review.yml"
 DEFAULT_DISPATCH_REF = "main"
 DEFAULT_TIMEOUT_MINUTES = 45
 REPOS_CONFIG_PATH = "greenlight/repos.yaml"
+
+GATE_WORKFLOW_PATH = ".github/workflows/greenlight-gate.yml"
+# GitHub's id of DISPATCH_REPO, as a ruleset's workflows rule names its source repository.
+GATE_SOURCE_REPO_ID = 353143803
+GATE_TIMEOUT_MINUTES_DEFAULT = 300
+# Below the gate job's timeout-minutes (350), so the gate fails with its own message rather than being killed.
+GATE_TIMEOUT_MINUTES_MAX = 340
+# Seconds between the gate's checks; the last delay repeats.
+GATE_POLL_DELAYS: tuple[int, ...] = (60, 120, 240, 300)
+# Seconds before the gate re-reads a PR that looked closed or moved off its head.
+GATE_SUPERSEDED_RECHECK = 60
+LEDGER_MARGIN = timedelta(minutes=2)
+BACKING_WAIT_MAX = timedelta(minutes=30)
+SCAN_TICK_INTERVAL = timedelta(minutes=2)
 DRAIN_PRS_PER_TICK = 100
 
 # The Phase B of a repo other than the primary starts no GitHub request this long after the tick started,
