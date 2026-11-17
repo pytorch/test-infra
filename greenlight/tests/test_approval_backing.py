@@ -234,8 +234,8 @@ def test_a_land_row_on_the_head_backs_the_approval(make_config):
     assert run.github.closed == 1
 
 
-def test_unenforced_rules_dismiss_every_live_approval(make_config):
-    rules = GateRules(enforced=False, problems=("a merge_queue rule applies",))
+def test_unenforced_rules_dismiss_every_live_approval_and_are_logged(make_config, caplog):
+    rules = GateRules(enforced=False, problems=("a merge_queue rule applies", "no pull_request rule requires one"))
     run = _Run(
         [_pull(7)],
         reviews={7: [_review(1), _review(2), _review(3, login="someone")]},
@@ -243,11 +243,21 @@ def test_unenforced_rules_dismiss_every_live_approval(make_config):
         rules=rules,
     )
 
-    report = run.tick(make_config)
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        report = run.tick(make_config)
 
-    reason = "GreenLight's gate is not enforced on pytorch/vision: a merge_queue rule applies."
+    reason = (
+        "GreenLight's gate is not enforced on pytorch/vision: a merge_queue rule applies; "
+        "no pull_request rule requires one."
+    )
     assert _dismissed(run) == [(7, 1, _PREFIX + reason), (7, 2, _PREFIX + reason)]
     assert (report.dismissed, report.rules, report.errors) == (2, rules, ())
+    assert re.search(
+        r"pytorch/vision: approval backing: .*, gate rules not enforced: a merge_queue rule applies; "
+        r"no pull_request rule requires one$",
+        caplog.text,
+        re.MULTILINE,
+    )
 
 
 @pytest.mark.parametrize(
@@ -353,13 +363,14 @@ def test_unknown_rules_are_an_error_and_the_approvals_are_judged_on_the_rest(mak
         rules=ValueError("rules page 1 is not a list"),
     )
 
-    with caplog.at_level(logging.ERROR, logger="greenlight"):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
         report = run.tick(make_config)
 
     assert report.rules is None
     assert report.errors == ("GreenLight's gate rules on pytorch/vision could not be read: rules page 1 is not a list",)
     assert [(number, review) for number, review, _message in _dismissed(run)] == [(8, 2)]
     assert any(record.exc_info for record in caplog.records if "cannot read GreenLight's gate rules" in record.message)
+    assert re.search(r"pytorch/vision: approval backing: .*, gate rules unread$", caplog.text, re.MULTILINE)
 
 
 def test_a_fresh_read_on_the_approvals_commit_keeps_it(make_config):
@@ -721,8 +732,9 @@ def test_an_empty_repo_reads_its_rules_and_starts_a_new_sweep_each_tick(make_con
     assert run.memory.backing.sweep is None
     assert re.search(
         r"pytorch/vision: approval backing: 0 open PR\(s\), 0 changed, sweep 1 \(0 checked, 0 pending, 0 read\), "
-        r"0 waiting, 0 dismissed, 0 failed, in \d+\.\d s",
+        r"0 waiting, 0 dismissed, 0 failed, in \d+\.\d s, gate rules enforced$",
         caplog.text,
+        re.MULTILINE,
     )
 
 

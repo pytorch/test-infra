@@ -270,7 +270,7 @@ def _report(
     )
     logger.info(
         "%s: approval backing: %d open PR(s), %d changed, sweep %d (%d checked, %d pending, %d read), %d waiting, "
-        "%d dismissed, %d failed, in %.1f s",
+        "%d dismissed, %d failed, in %.1f s, gate rules %s",
         repo,
         report.open_prs,
         report.changed_reads,
@@ -282,5 +282,14 @@ def _report(
         report.dismissed,
         len(report.failed),
         time.monotonic() - started,
+        _rules_answer(rules),
     )
     return report
+
+
+def _rules_answer(rules: GateRules | None) -> str:
+    if rules is None:
+        return "unread"
+    if rules.enforced:
+        return "enforced"
+    return "not enforced: " + "; ".join(rules.problems)
