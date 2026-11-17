@@ -160,43 +160,29 @@ export function greenlightSignal(
 }
 
 // The reasons for no verdict that get a pill: the commit is one GreenLight
-// could have a verdict on, a commit HUD knows in a repository GreenLight
-// reviews. The other two have no pill: the page has no header for a commit
-// HUD does not know, and GreenLight is nothing to a repository it does not
-// review.
+// could have a verdict on, a pull request's head that HUD knows, in a
+// repository GreenLight reviews. The other three have no pill: the page has
+// no header for a commit HUD does not know, GreenLight is nothing to a
+// repository it does not review, and it reviews pull requests alone, so a
+// commit of none has no verdict to wait for.
 export type ShownNoVerdictReason = Exclude<
   NoVerdictReason,
-  "unknown_commit" | "repository_not_reviewed"
+  "unknown_commit" | "repository_not_reviewed" | "no_pull_request"
 >;
 
-const NO_VERDICT: Record<
-  ShownNoVerdictReason,
-  { headline: string; body: string }
-> = {
-  not_reviewed: {
-    headline: "Green Light has no review of this commit",
-    body: "",
-  },
-  no_pull_request: {
-    headline: "This commit is not part of a pull request",
-    body: "Green Light reviews pull requests.",
-  },
-  unrecognized_status: {
-    headline: "Green Light recorded a status HUD does not recognize",
-    body: "",
-  },
+const NO_VERDICT: Record<ShownNoVerdictReason, string> = {
+  not_reviewed: "Green Light has no review of this commit",
+  unrecognized_status: "Green Light recorded a status HUD does not recognize",
 };
 
 // What the pill and its tray say for a commit with no verdict: that it has
 // none, and what is known of why.
-export function noVerdictSignal(
-  reason: ShownNoVerdictReason
-): GreenlightWords & { body: string } {
+export function noVerdictSignal(reason: ShownNoVerdictReason): GreenlightWords {
   return {
     tone: "neutral",
     lamp: "unlit",
     word: "No verdict",
-    ...NO_VERDICT[reason],
+    headline: NO_VERDICT[reason],
   };
 }
 
@@ -237,7 +223,6 @@ export function commitGreenlightState(
   }
   switch (answer.no_verdict_reason) {
     case "not_reviewed":
-    case "no_pull_request":
     case "unrecognized_status":
       return { kind: "no_verdict", reason: answer.no_verdict_reason };
     default:

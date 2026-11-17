@@ -6,9 +6,11 @@ import {
   SchemaRef,
 } from "lib/api/schema";
 import { commitGreenlightApiOpenApi } from "lib/api/tests/commit/greenlight/openapi";
+import { commitJobsApiOpenApi } from "lib/api/tests/commit/jobs/openapi";
 import { commitRunsApiOpenApi } from "lib/api/tests/commit/openapi";
 import { commitSummaryApiOpenApi } from "lib/api/tests/commit/summary/openapi";
 import { costApiOpenApi } from "lib/api/tests/cost/openapi";
+import { jobDetailApiOpenApi } from "lib/api/tests/job/openapi";
 import { testsApiOpenApi } from "lib/api/tests/openapi";
 import { testOptionsApiOpenApi } from "lib/api/tests/options/openapi";
 import { PAGES_TAG, testsPagesOpenApi } from "lib/api/tests/pages/openapi";
@@ -35,6 +37,8 @@ const RESOURCES: ApiResource[] = [
   commitRunsApiOpenApi,
   commitSummaryApiOpenApi,
   commitGreenlightApiOpenApi,
+  commitJobsApiOpenApi,
+  jobDetailApiOpenApi,
   pullRequestApiOpenApi,
   runDetailApiOpenApi,
   costApiOpenApi,

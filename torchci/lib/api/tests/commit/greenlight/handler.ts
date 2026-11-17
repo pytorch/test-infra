@@ -1,9 +1,8 @@
 import { handleDetail, requestQuery } from "lib/api/handler";
 import { getCommitGreenlight } from "lib/api/tests/commit/greenlight/greenlight";
-import { parseCommitSummaryParams } from "lib/api/tests/commit/summary/parameters";
+import { parseCommitParams } from "lib/api/tests/commit/parameters";
 
-// The verdict takes the commit as the summary does, the repository and the
-// full SHA, so it is read with the summary's parameters.
+// The verdict takes the commit alone, the repository and the full SHA.
 export async function commitGreenlightHandler(
   request: Request,
   { params }: { params: Promise<{ sha: string }> }
@@ -13,7 +12,7 @@ export async function commitGreenlightHandler(
     failure: "Failed to read the commit's GreenLight verdict",
     // Never answered: a commit without a verdict has a null one.
     notFound: "Commit not found",
-    parse: parseCommitSummaryParams,
+    parse: parseCommitParams,
     get: getCommitGreenlight,
   });
 }

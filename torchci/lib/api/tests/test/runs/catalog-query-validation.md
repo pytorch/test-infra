@@ -74,6 +74,13 @@ timings in both execution orders:
 The `WHERE` variant is retained; no additional latency improvement is claimed
 for `PREWHERE`, and optimization stopped at that result. The generated SQL and parameters matched the retained variant at that stage.
 
+Measured again on 2026-11-16 with the hundred tests of a commit's page, whose
+IDs lie in 84 of the catalog's 113 granules: the same 100 rows in three
+alternating rounds of two, 0.105 to 0.170 s with `WHERE` and 0.074 to 0.112 s
+with `PREWHERE`, 127 MB read against 81 MB. The ID is the table's key, so
+`FINAL` keeps the same rows after the filter, and the test catalog's read now
+uses `PREWHERE`.
+
 ## HTTP verification
 
 The live endpoint returned 25 expanded runs by default, with expanded object

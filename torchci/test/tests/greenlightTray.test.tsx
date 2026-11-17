@@ -703,15 +703,6 @@ describe("the tray", () => {
       expect(trayIsOn()).toBe(false);
     });
 
-    test("that the commit is of no pull request, and what GreenLight reviews", async () => {
-      await mount({ kind: "no_verdict", reason: "no_pull_request" });
-      press();
-      expect(trayText()).toBe(
-        "This commit is not part of a pull request" +
-          "Green Light reviews pull requests."
-      );
-    });
-
     test("that the status recorded is one HUD does not recognize", async () => {
       await mount({ kind: "no_verdict", reason: "unrecognized_status" });
       press();

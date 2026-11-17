@@ -1,10 +1,10 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import {
   GithubWorkflowSchema,
   RunFields,
   RunWorkflowFields,
 } from "lib/api/tests/test/runs/types";
 import { buildRunWorkflowQuery } from "lib/api/tests/test/runs/workflow-query";
-import { queryClickhouse } from "lib/clickhouse";
 
 interface RunWorkflowRow
   extends Omit<RunWorkflowFields, "workflow_pull_request"> {

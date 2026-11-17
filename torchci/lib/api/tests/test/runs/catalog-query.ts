@@ -49,7 +49,10 @@ ${TEST_CATALOG_COLUMNS_SQL},
     LEFT JOIN (
         SELECT repo, file, owners FROM ${CI_DATABASE}.owners FINAL
     ) AS owner ON owner.repo = test.repo AND owner.file = test.file
-    WHERE test.id IN CAST({tests_ids: Array(String)}, 'Array(UInt64)')
+    -- The ID is the table's key, so FINAL keeps the same rows after it. In
+    -- PREWHERE the other columns are read for these tests alone: a hundred
+    -- IDs lie in most of the table's granules.
+    PREWHERE test.id IN CAST({tests_ids: Array(String)}, 'Array(UInt64)')
 )
 SELECT
 ${TEST_RESULT_COLUMNS_SQL}

@@ -6,6 +6,7 @@ import {
   sortSchema,
 } from "lib/api/parameters";
 import { CommitShaSchema } from "lib/api/tests/commit/sha";
+import { JobIdSchema } from "lib/api/tests/job/parameters";
 import {
   HealthWindow,
   PARAMETER_DEFINITIONS,
@@ -330,6 +331,81 @@ export const COMMIT_PAGE_PARAMETER_DEFINITIONS = {
       RUN_LIST_PARAMETER_DEFINITIONS[name],
     ])
   ) as Pick<typeof RUN_LIST_PARAMETER_DEFINITIONS, CommitPageFilterName>),
+  // The timeline's pick, which the table lists the tests of: a workflow,
+  // one run and attempt of it where it has several, a build in it, a job, a
+  // test file of the job, or one test of that file.
+  workflow: {
+    encoding: "single",
+    schema: z
+      .string()
+      .optional()
+      .describe(
+        "The workflow picked in the timeline, by its path, .github/workflows/pull.yml: the timeline opens on it and the table lists the tests of its jobs."
+      ),
+  },
+  run_id: {
+    encoding: "single",
+    schema: z
+      .string()
+      .regex(/^[1-9]\d{0,18}$/, "must be a GitHub run ID")
+      .optional()
+      .describe(
+        "With workflow, the run picked of it, by GitHub's run ID, where the workflow ran more than once for the commit. Its first run when absent."
+      ),
+  },
+  run_attempt: {
+    encoding: "single",
+    schema: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe(
+        "With workflow, the attempt picked of the run, where the run has jobs of more than one. The first of them when absent."
+      ),
+  },
+  build: {
+    encoding: "single",
+    schema: z
+      .string()
+      .optional()
+      .describe(
+        "With workflow, the build picked in it: what its jobs' names share before their last ' / ', linux-jammy-py3.10-gcc11."
+      ),
+  },
+  job_id: {
+    encoding: "single",
+    schema: JobIdSchema.optional().describe(
+      `The job picked in the timeline, by GitHub's job ID, as ${COMMIT_ENDPOINT}'s job_id filter takes it: the timeline opens on its steps and test files and the table lists its tests.`
+    ),
+  },
+  file: {
+    encoding: "single",
+    schema: z
+      .string()
+      .optional()
+      .describe(
+        `With job_id, the test file picked in that job, test/test_nn.py, as ${COMMIT_ENDPOINT}'s file filter takes it.`
+      ),
+  },
+  suite: {
+    encoding: "single",
+    schema: z
+      .string()
+      .optional()
+      .describe(
+        "With case_name, the suite of the test picked in the file; absent for a test without one."
+      ),
+  },
+  case_name: {
+    encoding: "single",
+    schema: z
+      .string()
+      .optional()
+      .describe(
+        "With job_id and file, the test picked in that file, by its name."
+      ),
+  },
   status: {
     encoding: "repeat",
     schema: z
@@ -337,7 +413,7 @@ export const COMMIT_PAGE_PARAMETER_DEFINITIONS = {
       .min(1)
       .default([...COMMIT_PAGE_DEFAULT_STATUSES])
       .describe(
-        `The outcomes listed, repeated once per outcome as ${COMMIT_ENDPOINT}'s status filter is, each a bundle status as that filter defines it: failed, timed_out, flaky, passed, other, xfailed, skipped. The Outcome header's filter chooses them. failed, timed_out, flaky and other when absent.`
+        `The outcomes listed, repeated once per outcome as ${COMMIT_ENDPOINT}'s status filter is, each a bundle status as that filter defines it: failed, timed_out, flaky, passed, other, xfailed, skipped. The Outcome header's filter chooses them. When absent: failed, timed_out, flaky and other, or every outcome while the timeline has a pick.`
       ),
   },
   sort: {

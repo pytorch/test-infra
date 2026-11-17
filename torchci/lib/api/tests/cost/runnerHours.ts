@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import {
   type CostParams,
   SIGNALS,
@@ -17,7 +18,6 @@ import type {
   RunnerHours,
 } from "lib/api/tests/cost/types";
 import { COST_WINDOW_DAYS } from "lib/api/tests/cost/windows";
-import { queryClickhouse } from "lib/clickhouse";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

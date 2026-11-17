@@ -1,10 +1,17 @@
-import type { CommitSummaryQuery } from "lib/api/tests/commit/summary/parameters";
+import { queryClickhouse } from "lib/api/tests/clickhouse";
+import type {
+  CommitSummaryField,
+  CommitSummaryQuery,
+} from "lib/api/tests/commit/summary/parameters";
 import {
   buildCommitInfoQuery,
   buildCommitNeighboursQuery,
   buildCommitPullRequestByHeadQuery,
   buildCommitPullRequestQuery,
   buildCommitTestCountsQuery,
+  NEAR_NEIGHBOUR_CANDIDATES,
+  NEIGHBOUR_DIRECTIONS,
+  NeighbourDirection,
 } from "lib/api/tests/commit/summary/query";
 import {
   CommitRecord,
@@ -14,7 +21,6 @@ import {
 import { RUNS_RETENTION_DAYS } from "lib/api/tests/database";
 import { commitPageUrl } from "lib/api/tests/pages/links";
 import { timed } from "lib/api/tests/timed";
-import { queryClickhouse } from "lib/clickhouse";
 import { titleFirstLine, titleSuffix } from "lib/commitTitle";
 import { BUNDLE_STATUSES, BundleStatus } from "lib/runOutcomes";
 
@@ -49,8 +55,11 @@ interface PullRequestByHeadRow extends PullRequestRow {
   head_branch: string;
 }
 
+// A side of buildCommitNeighboursQuery: its candidates, and the nearest of
+// them with a test job, empty for none.
 interface NeighbourRow {
-  direction: "newer" | "older";
+  direction: NeighbourDirection;
+  pushes: number;
   neighbour: string;
 }
 
@@ -244,33 +253,89 @@ export async function lookUpCommit(
   };
 }
 
+// A branch commit's neighbours, each null for none. The nearest pushes are
+// asked first; a side they leave open is then searched in full: one where
+// none of them has a test job and there may be pushes past them, which on
+// the older side, whose nearest stop a week back, there always may.
+async function findNeighbours(commit: {
+  repo: string;
+  branch: string;
+  committedAtMs: number;
+}): Promise<
+  Record<NeighbourDirection, string | null> & { duration_ms: number }
+> {
+  const search = (directions: readonly NeighbourDirection[], near: boolean) => {
+    const query = buildCommitNeighboursQuery({ ...commit, directions, near });
+    return timed(
+      queryClickhouse(
+        query.sql,
+        query.params,
+        near
+          ? "api_commit_summary_neighbours"
+          : "api_commit_summary_neighbours_far"
+      ) as Promise<NeighbourRow[]>
+    );
+  };
+  const near = await search(NEIGHBOUR_DIRECTIONS, true);
+  const open = NEIGHBOUR_DIRECTIONS.filter((direction) => {
+    const side = near.result.find((row) => row.direction === direction);
+    return (
+      !side?.neighbour &&
+      (direction === "older" ||
+        Number(side?.pushes ?? 0) >= NEAR_NEIGHBOUR_CANDIDATES)
+    );
+  });
+  const far = open.length === 0 ? null : await search(open, false);
+  const neighbour = (direction: NeighbourDirection) =>
+    [...near.result, ...(far?.result ?? [])].find(
+      (row) => row.direction === direction && row.neighbour !== ""
+    )?.neighbour ?? null;
+  return {
+    newer: neighbour("newer"),
+    older: neighbour("older"),
+    duration_ms: near.duration_ms + (far?.duration_ms ?? 0),
+  };
+}
+
 // The summary of a commit's tests: null for a commit GitHub never told HUD
-// about, with no workflow run and no push. The counts read the runs table
-// while the commit's own lookup runs (lookUpCommit); the pull request's
-// record and a branch commit's neighbours follow the lookup, since they
-// depend on it. The counts query reads every run of the commit, about 5
-// seconds on one thread for a main commit's 9 million runs since 2026-11-05
-// (22 before; commit/query-validation.md), so it stays out of the heavy
-// workload, whose bar is about ten CPU-seconds (the API README's "Heavy
-// queries"): queued there, the page's header waited behind tests pages.
+// about, with no workflow run and no push. It answers the fields the request
+// names, every one when it names none, and reads only what they need: the
+// commit's own lookup always, which says whether HUD knows the commit; the
+// pull request's record and a branch commit's neighbours for `commit`,
+// after the lookup, since they depend on it; and the counts for `counts`
+// and the span of the runs, while the lookup runs. The counts query reads
+// every run of the commit, about 5 seconds on one thread for a main
+// commit's 9 million runs since 2026-11-05 (22 before;
+// commit/query-validation.md), so it stays out of the heavy workload, whose
+// bar is about ten CPU-seconds (the API README's "Heavy queries"): queued
+// there, the page's header waited behind tests pages. The commit page's
+// header asks for the commit without them.
 export async function getCommitSummary(
   query: CommitSummaryQuery
 ): Promise<CommitSummary | null> {
-  const countsQuery = buildCommitTestCountsQuery(query);
-  const counts = timed(
-    queryClickhouse(
-      countsQuery.sql,
-      countsQuery.params,
-      "api_commit_summary_counts"
-    ) as Promise<CountsRow[]>
-  );
+  const asked = (field: CommitSummaryField) =>
+    query.fields === undefined || query.fields.includes(field);
+  const countsQuery =
+    asked("counts") || asked("first_started_at") || asked("last_ended_at")
+      ? buildCommitTestCountsQuery(query)
+      : null;
+  const counts =
+    countsQuery === null
+      ? null
+      : timed(
+          queryClickhouse(
+            countsQuery.sql,
+            countsQuery.params,
+            "api_commit_summary_counts"
+          ) as Promise<CountsRow[]>
+        );
   // Observed from the start, so a failure of the lookup below does not leave
   // the counts' failure unhandled; awaiting counts still throws it.
-  counts.catch(() => undefined);
+  counts?.catch(() => undefined);
   const found = await lookUpCommit(query, "api_commit_summary");
   if (found === null) {
     // Let the counts finish rather than leave the query running unobserved.
-    await counts.catch(() => undefined);
+    await counts?.catch(() => undefined);
     return null;
   }
   const {
@@ -287,13 +352,9 @@ export async function getCommitSummary(
 
   // The record by number, unless the lookup by SHA read it already.
   const pullRequestQuery =
-    pullRequestNumber === null || byHeadRow !== undefined
+    !asked("commit") || pullRequestNumber === null || byHeadRow !== undefined
       ? null
       : buildCommitPullRequestQuery(pullRequestNumber, query.repo);
-  const neighboursQuery =
-    pullRequestHead || branch === null
-      ? null
-      : buildCommitNeighboursQuery({ repo: query.repo, branch, committedAtMs });
   const [pullRequest, neighbours] = await Promise.all([
     pullRequestQuery === null
       ? null
@@ -304,15 +365,9 @@ export async function getCommitSummary(
             "api_commit_summary_pull_request"
           ) as Promise<PullRequestRow[]>
         ),
-    neighboursQuery === null
+    !asked("commit") || pullRequestHead || branch === null
       ? null
-      : timed(
-          queryClickhouse(
-            neighboursQuery.sql,
-            neighboursQuery.params,
-            "api_commit_summary_neighbours"
-          ) as Promise<NeighbourRow[]>
-        ),
+      : findNeighbours({ repo: query.repo, branch, committedAtMs }),
   ]);
   const pullRequestRow: PullRequestRow | undefined =
     byHeadRow ?? pullRequest?.result[0];
@@ -347,26 +402,29 @@ export async function getCommitSummary(
               ),
             title: pullRequestTitle,
           },
-    newer_sha:
-      neighbours?.result.find((candidate) => candidate.direction === "newer")
-        ?.neighbour ?? null,
-    older_sha:
-      neighbours?.result.find((candidate) => candidate.direction === "older")
-        ?.neighbour ?? null,
+    newer_sha: neighbours?.newer ?? null,
+    older_sha: neighbours?.older ?? null,
   };
-  const total = counted.result.find((candidate) => candidate.category === "");
-  return {
+  const total = counted?.result.find((candidate) => candidate.category === "");
+  const fields: Record<CommitSummaryField, unknown> = {
     commit,
-    counts: toCounts(counted.result),
+    counts: toCounts(counted?.result ?? []),
     first_started_at: total === undefined ? null : total.first_started_at,
     last_ended_at: total === undefined ? null : total.last_ended_at,
     retention_starts_at: new Date(
       Date.now() - RUNS_RETENTION_DAYS * 24 * 60 * 60 * 1000
     ).toISOString(),
+  };
+  return {
+    ...Object.fromEntries(
+      Object.entries(fields).filter(([field]) =>
+        asked(field as CommitSummaryField)
+      )
+    ),
     hud_url: commitPageUrl(query.repo, query.sha),
     query_duration_ms:
       found.duration_ms +
-      counted.duration_ms +
+      (counted?.duration_ms ?? 0) +
       (pullRequest?.duration_ms ?? 0) +
       (neighbours?.duration_ms ?? 0),
   };

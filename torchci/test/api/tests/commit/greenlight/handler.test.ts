@@ -59,6 +59,8 @@ describe("app/api/tests/commit/[sha]/greenlight", () => {
     { sha: SHA, repo: [REPO, "pytorch/vision"] },
     { sha: SHA, repo: REPO, pull_request_number: "204150" },
     { sha: SHA, repo: REPO, limit: "1" },
+    // The summary's parameter, not the verdict's.
+    { sha: SHA, repo: REPO, fields: "commit" },
   ])(
     "rejects invalid or unsupported parameters before querying %j",
     async (query) => {

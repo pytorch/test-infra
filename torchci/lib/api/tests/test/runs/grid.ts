@@ -1,3 +1,4 @@
+import { queryClickhouse } from "lib/api/tests/clickhouse";
 import { testPageLinkForGrid } from "lib/api/tests/pages/links";
 import {
   catalogRecords,
@@ -15,7 +16,6 @@ import type {
   RunGridLane,
   RunOutcome,
 } from "lib/api/tests/test/runs/types";
-import { queryClickhouse } from "lib/clickhouse";
 import { FAILING_OUTCOMES } from "lib/runOutcomes";
 
 // One row of the grouped read (grid-query.ts): one job's chain of attempts

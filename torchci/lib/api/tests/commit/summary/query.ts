@@ -137,27 +137,50 @@ LIMIT 1
 // again at every reference. Each side reads the push table in its key
 // order, the commit timestamp spelled as the key is,
 // tupleElement(head_commit, 'timestamp'), which the dotted form neither
-// prunes nor orders by, and stops at its twentieth push: the older side,
-// which read the timestamp of every push, 2.6 million rows, until
-// 2026-11-03, reads some 140 thousand on main, and every push only on a
-// branch with fewer than twenty older ones (commit/query-validation.md,
-// 2026-11-03). The candidates' jobs come
-// through the head_sha view of the job table and are read by id, the jobs
-// with a test name give their workflow runs, and the runs are read by id
-// and matched to the candidates by head_sha; a scan of the job table for
-// test jobs read 139 million rows. On a push run a job's head_sha is its
-// run's (111,248 of 111,248 test jobs of the week before 2026-11-01), so
-// the candidates with a test job are the ones the runs name.
+// prunes nor orders by, and stops at its twentieth push. The candidates'
+// jobs come through the head_sha view of the job table and are read by id,
+// the jobs with a test name give their workflow runs, and the runs are read
+// by id and matched to the candidates by head_sha; a scan of the job table
+// for test jobs read 139 million rows. On a push run a job's head_sha is
+// its run's (111,248 of 111,248 test jobs of the week before 2026-11-01),
+// so the candidates with a test job are the ones the runs name.
+//
+// The nearest pushes are asked first (`near`): two a side, the older ones
+// among the pushes of the week before the commit. They are the first of the
+// twenty, so a side they name a neighbour on has its answer, and the summary
+// searches in full only a side they leave open (findNeighbours). Of main's
+// 341 pushes in the week to 2026-11-14, 339 have a test job. The twenty a
+// side have some 129 thousand jobs to look through, and the older side's
+// read without a lower bound goes through 0.88 million pushes for its
+// twenty: 4.4 million rows in all on a commit of main, where the nearest
+// read 0.2 million (commit/query-validation.md, 2026-11-17).
+//
+// A row per side that has a candidate: how many it has, and the nearest of
+// them with a test job, empty when none has one.
 export const NEIGHBOUR_CANDIDATES = 20;
+export const NEAR_NEIGHBOUR_CANDIDATES = 2;
+const NEAR_NEIGHBOUR_DAYS = 7;
+
+export type NeighbourDirection = "newer" | "older";
+export const NEIGHBOUR_DIRECTIONS: readonly NeighbourDirection[] = [
+  "newer",
+  "older",
+];
 
 export function buildCommitNeighboursQuery({
   repo,
   branch,
   committedAtMs,
+  directions,
+  near,
 }: {
   repo: string;
   branch: string;
   committedAtMs: number;
+  // The sides to search.
+  directions: readonly NeighbourDirection[];
+  // The nearest pushes alone.
+  near: boolean;
 }) {
   // Tuple positions of a candidate: its direction, SHA and commit time.
   const CANDIDATE_DIRECTION = "tupleElement(candidate, 1)";
@@ -166,16 +189,21 @@ export function buildCommitNeighboursQuery({
   // The push table's sort key leads with the commit timestamp, spelled here
   // as the key spells it.
   const timestamp = "tupleElement(head_commit, 'timestamp')";
-  const candidates = (direction: "newer" | "older") => `
+  const committedAt = "fromUnixTimestamp64Milli({committed_at_ms: Int64})";
+  const candidates = (direction: NeighbourDirection) => `
         SELECT '${direction}' AS direction, head_commit.id AS sha, head_commit.timestamp AS committed_at
         FROM default.push
         WHERE ref = {ref: String}
             AND repository.full_name = {repo: String}
             AND ${timestamp} ${
     direction === "newer" ? ">" : "<"
-  } fromUnixTimestamp64Milli({committed_at_ms: Int64})
+  } ${committedAt}${
+    near && direction === "older"
+      ? `\n            AND ${timestamp} >= ${committedAt} - INTERVAL ${NEAR_NEIGHBOUR_DAYS} DAY`
+      : ""
+  }
         ORDER BY ${timestamp} ${direction === "newer" ? "ASC" : "DESC"}
-        LIMIT ${NEIGHBOUR_CANDIDATES}`;
+        LIMIT ${near ? NEAR_NEIGHBOUR_CANDIDATES : NEIGHBOUR_CANDIDATES}`;
   return {
     params: {
       repo,
@@ -185,31 +213,37 @@ export function buildCommitNeighboursQuery({
     sql: `
 WITH (
     SELECT groupArray((direction, sha, committed_at))
-    FROM (${candidates("newer")}
-        UNION ALL${candidates("older")}
+    FROM (${directions.map(candidates).join("\n        UNION ALL")}
     )
 ) AS candidates
 SELECT
-    ${CANDIDATE_DIRECTION} AS direction,
+    direction,
+    count() AS pushes,
     ${
       // The oldest newer commit and the newest older one.
       ""
-    }if(direction = 'newer', argMin(${CANDIDATE_SHA}, ${CANDIDATE_COMMITTED_AT}), argMax(${CANDIDATE_SHA}, ${CANDIDATE_COMMITTED_AT})) AS neighbour
-FROM (SELECT arrayJoin(candidates) AS candidate)
-WHERE ${CANDIDATE_SHA} IN (
-    SELECT head_sha
-    FROM default.workflow_run
-    WHERE id IN (
-        SELECT run_id
-        FROM default.workflow_job
-        WHERE id IN (
-            SELECT id
-            FROM materialized_views.workflow_job_by_head_sha
-            WHERE head_sha IN (SELECT ${CANDIDATE_SHA} FROM (SELECT arrayJoin(candidates) AS candidate))
-        )
-            AND name LIKE '% / test (%'
-    )
-        AND repository.full_name = {repo: String}
+    }if(direction = 'newer', argMinIf(sha, committed_at, tested), argMaxIf(sha, committed_at, tested)) AS neighbour
+FROM (
+    SELECT
+        ${CANDIDATE_DIRECTION} AS direction,
+        ${CANDIDATE_SHA} AS sha,
+        ${CANDIDATE_COMMITTED_AT} AS committed_at,
+        sha IN (
+            SELECT head_sha
+            FROM default.workflow_run
+            WHERE id IN (
+                SELECT run_id
+                FROM default.workflow_job
+                WHERE id IN (
+                    SELECT id
+                    FROM materialized_views.workflow_job_by_head_sha
+                    WHERE head_sha IN (SELECT ${CANDIDATE_SHA} FROM (SELECT arrayJoin(candidates) AS candidate))
+                )
+                    AND name LIKE '% / test (%'
+            )
+                AND repository.full_name = {repo: String}
+        ) AS tested
+    FROM (SELECT arrayJoin(candidates) AS candidate)
 )
 GROUP BY direction
 ORDER BY direction
@@ -221,7 +255,7 @@ ORDER BY direction
 // and skipped 7, so a test's worst status is its bundles' least rank. The
 // counts carry ranks rather than status words, a UInt8 a bundle instead of a
 // string to compare at every step.
-function statusRank(status: BundleStatus) {
+export function statusRank(status: BundleStatus) {
   return BUNDLE_STATUSES.indexOf(status) + 1;
 }
 
@@ -231,7 +265,7 @@ const BUNDLE_STATUSES_SQL = `[${BUNDLE_STATUSES.map(
 
 // The rank of a bundle holding one attempt, from that attempt's outcome:
 // BUNDLE_STATUS_SQL on one row, ranked.
-function singleAttemptRankSql(outcome: string) {
+export function singleAttemptRankSql(outcome: string) {
   return `toUInt8(multiIf(${outcome} = 'skipped', ${statusRank(
     "skipped"
   )}, ${outcome} IN ('failed', 'error', 'crashed'), ${statusRank(
@@ -246,7 +280,7 @@ function singleAttemptRankSql(outcome: string) {
 }
 
 // The rank of a bundle of grouped attempts: BUNDLE_STATUS_SQL, ranked.
-const BUNDLE_RANK_SQL = `toUInt8(indexOf(${BUNDLE_STATUSES_SQL}, ${BUNDLE_STATUS_SQL}))`;
+export const BUNDLE_RANK_SQL = `toUInt8(indexOf(${BUNDLE_STATUSES_SQL}, ${BUNDLE_STATUS_SQL}))`;
 
 // The counts over a source of bundles, each row one bundle's test, job,
 // rank, start and end. Each test's bundles are gathered into two parallel

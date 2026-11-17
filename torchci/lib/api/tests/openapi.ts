@@ -32,7 +32,7 @@ export const testsApiOpenApi: ApiResource = {
         parameters: testListQueryParameters(),
         responses: {
           "200": jsonResponse("A page of entries.", ref(TestListPageSchema)),
-          ...listErrorResponses(ref),
+          ...listErrorResponses(ref, { heavy: true }),
         },
       },
     },

@@ -160,6 +160,45 @@ page as recorded until then, the working query as of 16fdbd5de, not its
 returned the same rows: 0.11 to 0.13 s and 1.6 million rows read against 0.29
 to 6.9 s and 9.3 to 9.8 million.
 
+On 2026-11-16 the read came to depend on the page's shape, and the bundles to
+travel as four arrays instead of a parameter for each ID, which made 29 KB of
+SQL of a hundred bundles in every membership test. A commit's page holds many
+tests of few jobs, and its rows lie together in `by_job`: it is read as the
+pages read a scope's runs (`classifiedRunsSource`), `by_job` directly and
+`FINAL` only at the starts holding more than one stored row, the test,
+environment and env var set held through `identity()`, which keeps the main
+table's primary index out of the read while `by_job`'s still prunes by them.
+A test's page holds one test in many jobs, its rows lie together in the
+primary key, and it keeps the read above. The builder takes the first when
+the bundles name more tests than jobs. The fixtures were replaced, the earlier
+ones' runs being past the retention, with pytorch/pytorch `242a9cf`; each
+case's before is the read as the builder wrote it until this change. Three
+alternating pairs each returned identical complete rows:
+
+| Case                   | Bundles (tests, jobs) | Attempts | Before, server seconds |       After | Rows read, before → after |
+| ---------------------- | --------------------: | -------: | ---------------------: | ----------: | ------------------------: |
+| `attempts_commit_page` |           87 (67, 50) |      330 |            0.206–0.320 | 0.121–0.200 |           2.07 M → 1.79 M |
+| `attempts_page`        |            26 (26, 1) |       35 |            0.111–0.142 | 0.069–0.073 |           0.69 M → 0.12 M |
+| `attempts_test_page`   |          100 (1, 100) |      100 |            0.104–0.228 | 0.041–0.065 |           0.18 M → 0.18 M |
+| `attempts_group`       |              1 (1, 1) |        9 |            0.018–0.024 | 0.022–0.036 |           0.04 M → 0.04 M |
+
+At the heavy workload's four threads a job's hundred bundles took 0.39 to
+0.44 s before and 0.09 to 0.10 s after (1.78 million rows read against 0.12
+million), and the default page's 0.30 to 0.38 s against 0.13 to 0.19 s. Each
+read is the slower one on the other page: through `by_job` a test's hundred
+bundles took 0.32 to 3.2 s (4.2 million rows) against 0.05 to 0.10 s, and one
+test's ten bundles on a commit 0.09 s against 0.04 s. Measured and not kept:
+the `by_job` read with a parameter for each ID (0.32 to 0.35 s for the job's
+hundred bundles, 0.08 to 0.10 s with the arrays) and without `identity()`
+(0.68 to 0.86 s, the main table's index searched in every part).
+
+The read left the heavy workload the same day (`app/api/README.md`, Heavy
+queries). With and without the profile the lists answered with the same
+bytes, and the read took the same time as its caller sees it, medians of nine
+warm runs a side in alternation: 0.26 s tagged against 0.28 s untagged for the
+default page's 87 bundles, 0.18 against 0.17 s for a job's page, 0.20 against
+0.14 s for a test's.
+
 ## Real attempts across reports
 
 The fixed test fixture contains a failed execution followed by a passed execution

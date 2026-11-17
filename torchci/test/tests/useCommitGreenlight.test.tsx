@@ -171,22 +171,24 @@ describe("useCommitGreenlight", () => {
     expect(requests).toHaveLength(1);
   });
 
-  test.each([["not_reviewed"], ["no_pull_request"]] as const)(
-    "a commit with no verdict (%s) is asked about once, and says why it has none",
+  test("a commit with no verdict is asked about once, and says why it has none", async () => {
+    const hook = mount(REPO, SHA);
+    await requests[0].answer("not_reviewed");
+    expect(hook.state).toEqual({ kind: "no_verdict", reason: "not_reviewed" });
+    await pass(HOUR_MS);
+    expect(requests).toHaveLength(1);
+  });
+
+  test.each([["no_pull_request"], ["unknown_commit"]] as const)(
+    "a commit GreenLight has nothing to say of (%s) gets no pill, and is asked about once",
     async (reason) => {
       const hook = mount(REPO, SHA);
       await requests[0].answer(reason);
-      expect(hook.state).toEqual({ kind: "no_verdict", reason });
+      expect(hook.state).toBeNull();
       await pass(HOUR_MS);
       expect(requests).toHaveLength(1);
     }
   );
-
-  test("a commit HUD does not know gets no pill", async () => {
-    const hook = mount(REPO, SHA);
-    await requests[0].answer("unknown_commit");
-    expect(hook.state).toBeNull();
-  });
 
   test("a review in flight is asked about each minute, until its verdict lands", async () => {
     const hook = mount(REPO, SHA);

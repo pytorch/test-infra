@@ -149,10 +149,18 @@ describe.each(
       if (sort.includes("file")) {
         expect(sql).toContain("run_test.has_catalog = 1");
         expect(sql).toContain("run_environment.has_catalog = 1");
-      } else {
-        expect(sql).toMatch(/run\.tests_id IN \(\s*SELECT test\.id/);
+      } else if (result === forCommit) {
+        // A commit's filters hold the run's ID through identity().
         expect(sql).toMatch(
-          /run\.environments_id IN \(\s*SELECT environment\.id/
+          /identity\(run\.tests_id\) IN \(\s*SELECT test\.id/
+        );
+        expect(sql).toMatch(
+          /identity\(run\.environments_id\) IN \(\s*SELECT environment\.id/
+        );
+      } else {
+        expect(sql).toMatch(/[^(]run\.tests_id IN \(\s*SELECT test\.id/);
+        expect(sql).toMatch(
+          /[^(]run\.environments_id IN \(\s*SELECT environment\.id/
         );
       }
       expect(sql).toContain(`FROM ${CI_DATABASE}.runs AS run FINAL`);
@@ -164,8 +172,14 @@ describe.each(
 
     expect(forTest.sql).toContain("WHERE test.id = {test_id: UInt64}");
     expect(forTest.sql).not.toContain("SELECT DISTINCT run.tests_id");
-    // DISTINCT would read tests_id in sorting-key order instead of by_job.
-    expect(forCommit.sql).toContain("SELECT run.tests_id\n");
+    // A sort joins the catalog bounded by the commit's tests, found without
+    // DISTINCT, which would read tests_id in sorting-key order instead of
+    // by_job; a filter alone reads the catalog whole.
+    if (sort.includes("file")) {
+      expect(forCommit.sql).toContain("SELECT run.tests_id\n");
+    } else {
+      expect(forCommit.sql).not.toContain("test.id IN (");
+    }
     expect(forCommit.sql).not.toContain("DISTINCT");
   });
 });

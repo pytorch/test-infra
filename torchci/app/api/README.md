@@ -112,14 +112,13 @@ returns one row but reads and sorts as many health rows as the page. Since
 one thread, the default page fell from 36 to 4.3 CPU-seconds and a page of
 both code sources from 38 to 18 (`lib/api/tests/query-validation.md`), so
 measure production again before deciding whether a one-source page still
-needs the tag. The attempts read is
-tagged for its worst case: it returns every retained attempt of the selected
-bundles through `FINAL`, under a second for a test's page but up to 34
-CPU-seconds on a big commit, and it is the one read both run lists make.
-Since 2026-11-03 it reads `FINAL` only at the bundles' own starts, 2.2
-million rows instead of 61 million for a commit page of 100 bundles
-(`lib/api/tests/test/runs/attempts-query-validation.md`), so measure it again
-before deciding whether it still needs the tag. Leave a query off when it is
+needs the tag. The attempts read, the one read both run lists make, left the
+workload on 2026-11-16. It was tagged for its worst case, up to 34
+CPU-seconds on a big commit when it read every retained attempt of the
+selected bundles through `FINAL`; it now reads a commit's bundles through
+`by_job` and a test's at their own starts, 0.04 to 0.20 server seconds for a
+page of bundles (`lib/api/tests/test/runs/attempts-query-validation.md`), and
+queued, both run lists waited behind tests pages. Leave a query off when it is
 fast: the cost runner-hours read about 0.3 CPU-seconds
 (`lib/api/tests/cost/query-validation.md`), and the catalog, options and test
 detail reads answer in milliseconds. The
@@ -154,14 +153,13 @@ a retention change.
 In code the profile is the constant `CI_WORKLOAD_HEAVY` beside `CI_DATABASE`
 in `lib/api/tests/database.ts`, passed as the settings argument of
 `queryClickhouse` at the heavy call sites and nowhere else: `queryPage`
-forwards it to both the page query and its probe, and the attempts read takes
-it from its caller, since the runs and commit lists tag that read and the run
-detail does not. Never set it on the shared client or in a named query, and
+forwards it to both the page query and its probe. Never set it on the shared
+client or in a named query, and
 have the tests assert that each heavy call carries it, so an untagged heavy
 query fails CI.
 
-A refusal answers 429 `overloaded` with `Retry-After`, documented on the lists
-by `listErrorResponses()`, so that a client backs off instead of retrying into
+A refusal answers 429 `overloaded` with `Retry-After`, documented on the tests
+list by `listErrorResponses()`, so that a client backs off instead of retrying into
 a full queue; the tests page shows it as a failure with its Retry button
 rather than retrying by itself. A tagged query that outruns the 60 second cap
 fails like any other query, with 500. A waiter whose client has given up keeps
@@ -267,6 +265,11 @@ old route in the same change.
   which also drives exact SQL predicates and cursor query identity. Add or
   rename a filter there; do not copy parameter lists into handlers or docs.
   Response schemas live in `types.ts`, with a `describe()` on every field.
+  A detail whose fields cost different reads takes a repeated `fields`
+  parameter, as the commit summary and the commit's jobs do: the fields to
+  answer, every one when absent, so a caller never waits for a read it has no
+  use for. An endpoint keeps a parameter list of its own: one that borrows
+  another's takes on every parameter added to it.
   TypeScript types are inferred from the schemas, and
   `lib/api/<resource>/openapi.ts` contributes paths and schemas to
   `/api/openapi.json` through `lib/api/openapi.ts`. Component names are unique
@@ -334,8 +337,10 @@ old route in the same change.
 | `GET /api/tests/test/{test_id}/runs`                     | Retained runs of one test, bundled with their attempts; with `group_by=commit`, as a grid by commit and configuration                                                 | `lib/api/tests/test/runs/`         |
 | `GET /api/tests/run/{run_id}`                            | One full run bundle, selected by any retained execution UUID; provisional                                                                                             | `lib/api/tests/run/`               |
 | `GET /api/tests/commit/{sha}?repo=owner/name`            | Retained run bundles across all tests on a repository commit                                                                                                          | `lib/api/tests/commit/`            |
-| `GET /api/tests/commit/{sha}/summary?repo=owner/name`    | The commit as GitHub described it, its test counts by status, and the span of its runs                                                                                | `lib/api/tests/commit/summary/`    |
+| `GET /api/tests/commit/{sha}/summary?repo=owner/name`    | The commit as GitHub described it, its test counts by status, and the span of its runs; `fields` names the fields to answer                                           | `lib/api/tests/commit/summary/`    |
 | `GET /api/tests/commit/{sha}/greenlight?repo=owner/name` | GreenLight's verdict on a repository commit: the status of that reviewed pull request head, or of the head that landed as it; or why it has none                      | `lib/api/tests/commit/greenlight/` |
+| `GET /api/tests/commit/{sha}/jobs?repo=owner/name`       | Every GitHub job of a repository commit with its times and, beside them, what the recorded tests of each did, for a timeline of the commit; `fields` names which      | `lib/api/tests/commit/jobs/`       |
+| `GET /api/tests/job/{job_id}`                            | One GitHub job, what its recorded tests did, its steps, and its test files with their runs and their tests by status                                                  | `lib/api/tests/job/`               |
 | `GET /api/tests/pull/{number}?repo=owner/name`           | A pull request's newest head commit as HUD knows it, and the pull request's page                                                                                      | `lib/api/tests/pull/`              |
 | `GET /api/tests/cost`                                    | Test-job runner-hours of the last 1, 3 or 7 whole UTC days by owner, workflow and machine, from the test_cost rollup, with the PR update and merge signals; prototype | `lib/api/tests/cost/`              |
 | `GET /api/tests/cost/trend`                              | Test-job runner-hours by day, week or month, owner and runner label, all and of pushes to main, with daily totals and pushes to main; prototype                       | `lib/api/tests/cost/trend.ts`      |
@@ -351,7 +356,7 @@ The HUD pages in the document, tagged `pages` (see [HUD pages](#hud-pages)):
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | `GET /tests/{organization}/{repo}`                | The tests table: `GET /api/tests`, with the list's parameters                                                                                                                        | `pages/tests/[organization]/[repo].tsx`, parameters in `lib/api/tests/pages/`            |
 | `GET /tests/{organization}/{repo}/test/{test_id}` | One test and its runs by commit: `GET /api/tests/test/{test_id}` and `/runs?group_by=commit`                                                                                         | `pages/tests/[organization]/[repo]/test/[test_id].tsx`                                   |
-| `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's runs in outcome order: `GET /api/tests/commit/{sha}/summary` and `GET /api/tests/commit/{sha}`, with GreenLight's verdict from `GET /api/tests/commit/{sha}/greenlight` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
+| `GET /tests/{organization}/{repo}/commit/{sha}`   | One commit's jobs on a timeline and its runs in outcome order: `GET /api/tests/commit/{sha}`, its `/summary`, `/jobs` and `/greenlight`, and for a job `GET /api/tests/job/{job_id}` | `pages/tests/[organization]/[repo]/commit/[sha].tsx`                                     |
 | `GET /tests/{organization}/{repo}/pull/{number}`  | The commit page of a pull request's newest head, found by `GET /api/tests/pull/{number}`                                                                                             | `pages/tests/[organization]/[repo]/pull/[number].tsx`                                    |
 | `GET /tests/{organization}/{repo}/cost`           | Runner-hours by owner, machine and workflow: `GET /api/tests/cost`                                                                                                                   | `pages/tests/[organization]/[repo]/cost.tsx`, parameters in `lib/api/tests/cost/page.ts` |
 
@@ -378,7 +383,9 @@ The artifact list is cursor paginated as the others are, problems first.
 
 The tests endpoints read the test hub tables from the database named by
 `CI_DATABASE` in `lib/api/tests/database.ts`; never hardcode a database name
-in a query.
+in a query. Their queries go through `queryClickhouse` of
+`lib/api/tests/clickhouse.ts`, which keeps one client so that they reuse its
+connections; the rest of HUD opens a connection for each query.
 
 Use `env_vars: { id, values, first_seen_at }` for the shared env-var catalog
 record across health and run responses. Keep variable names and their string
@@ -402,7 +409,10 @@ per catalog (`groupUniqArray` per column, no `FINAL`: rows sharing an id are
 identical in these columns) and put in natural order, versions by number;
 `workflow_path` is every calling workflow path the `health` table has seen in
 its longest window on either code source (`groupUniqArrayArray` over the two
-`14d` partitions, about 0.2 s), and `owner` every label of the `owners`
+`14d` partitions, 29 million rows: about 0.2 s alone and up to 2 s beside a
+page's other queries, so the server's query cache keeps the answer for the
+five minutes a browser keeps the options, `WORKFLOW_PATHS_KEPT_SECONDS`), and
+`owner` every label of the `owners`
 catalog (read with `FINAL`, since a file's row is replaced whole when its
 owners change), both read concurrently with them. A value is its
 own label except the proper names the catalogs spell in lowercase (`cuda` is
@@ -510,9 +520,9 @@ predicates must apply after replacement deduplication so an older version cannot
 reappear. Missing catalog or workflow metadata must not remove a bundle unless
 a requested filter excludes it.
 
-After selecting a page, a batched request loads all attempts for only the returned
-bundles, excluding the pagination lookahead. Catalog and workflow details are
-loaded in two concurrent batched requests. An empty page skips all three requests.
+After selecting a page, three concurrent batched requests load all attempts for
+only the returned bundles, excluding the pagination lookahead, and their catalog
+and workflow details. An empty page skips all three requests.
 The detail endpoint first resolves an execution UUID, then loads its bundle's
 attempts and shared metadata. The commit endpoint's `status` filter and sort
 read a bundle's final outcome: the outcome of its last executed attempt in
@@ -523,6 +533,7 @@ its `timed_out` or `failed` status, as the health view's retry chains count it.
 This is the one way the final outcome differs from the `last_attempt_outcome`
 filter, which reads the last attempt as recorded. The commit's counts by status
 are the summary endpoint's; the commit list carries none.
+The summary's `fields` parameter names the fields to answer, and the summary reads only what they need: the commit page asks for `commit` and `retention_starts_at`, which read no run, and takes its counts from the jobs endpoint.
 Both endpoints measure `query_duration_ms` as the sum of their individually
 rounded request durations, including client, network and decoding overhead. Overlapping requests mean this sum can exceed wall-clock time.
 SQL construction, mapping, cursor encoding and API transport are outside that
@@ -608,7 +619,8 @@ key holding one stored row is a one-attempt bundle in its only version and is
 counted there, and only the other keys' rows, pruned by key on `by_job`, go
 through the same start-based resolution before they are grouped into bundles. A job filter alone prunes nothing under `FINAL`, so a plain `FINAL`
 read would scan the whole table. A test page reads `FINAL` by its primary key.
-Attempt expansion always uses `FINAL`. Grouping by configuration and job must not
+Attempt expansion reads a commit page's bundles the same way and a test page's
+through `FINAL` by primary key. Grouping by configuration and job must not
 merge different test IDs or silently drop attempts from separate reports.
 Page selection and attempt expansion are separate reads of current data, so newly
 ingested attempts or replacements may change a bundle between those reads.
@@ -628,6 +640,39 @@ command. The [commit notes](../../lib/api/tests/commit/query-validation.md)
 and other notes beside the queries record earlier design experiments; their
 measurements are historical. Preserve the correctness guarantees and measure
 working-tree SQL with fixed, nonempty inputs when evaluating a rewrite.
+
+### Commit jobs
+
+`GET /api/tests/commit/{sha}/jobs` answers every job of a commit, for the
+commit page's timeline, in two fields. `jobs` holds each job's times and its
+Test and container steps from `workflow_job`. `tests` holds, for each job
+with retained runs, its bundles by status, the stretches in which a recorded
+attempt was running, in steps of 5 seconds, and how many attempts failed, under
+the job's ID (`job_id`); a job without retained runs has no entry. Each field
+is one read, made only when the field is asked for (`fields`), and both at
+once when both are: the jobs' read takes a tenth of a second or less, and
+the runs' read covers every retained run of the commit once, as the
+summary's counts do. The commit page asks for the two apart, at once, and
+draws the jobs while their tests are read. `GET /api/tests/job/{job_id}`
+answers one job with what its tests did beside it (`tests`, null without
+retained runs), its steps and its test files, and the `job_id` filter narrows
+`GET /api/tests/commit/{sha}` to jobs. A job's `workflow.run_attempt` is the
+attempt of its run that it
+ran in, which with `workflow.run_id` gives the page a row for each run and
+attempt of a workflow. The
+[commit notes](../../lib/api/tests/commit/query-validation.md) hold the
+measurements.
+
+A job's `started_at` is null when no runner took it. GitHub sets a job's
+start to its creation, at times a second before it, until a runner takes the
+job, and a job that ends first keeps that start, so a completed job with
+that start and no steps waited until it ended (`startedAt`). Of the
+2,172,530 pytorch/pytorch jobs created in the two weeks to 2026-11-17 that
+completed and were not skipped, 34,721 were such, 6,896 hours from creation
+to end and 1,367 of them an hour or more: all cancelled but 9. They are
+every job GitHub names no runner for, and 36 it names one for, each
+cancelled within seven minutes. A job that a rerun carries over has no
+steps either, and a start minutes or hours before its creation.
 
 ### Pull requests
 
