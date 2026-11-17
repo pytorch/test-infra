@@ -175,15 +175,25 @@ class _Scan:
         self.drain = Mock(return_value=drain.DrainReport(1, 0, 0, False, "x", failed))
         self.identity = identity
         self.clients: list[_Client] = []
+        self.tokens: list[str] = []
 
-    def _build(self, _token: str, **_kwargs: object) -> Any:
+    def _build(self, token: str, **_kwargs: object) -> Any:
         client = _Client()
         self.clients.append(client)
+        self.tokens.append(token)
         return client
 
-    def run(self, make_config: Any, repo: str, *, pr: int | None = None, token: str | None = _TOKEN) -> None:
+    def run(
+        self,
+        make_config: Any,
+        repo: str,
+        *,
+        pr: int | None = None,
+        token: str | None = _TOKEN,
+        dispatch_token: str | None = None,
+    ) -> None:
         repo_scan.scan_repo(
-            make_config(github_token=token),
+            make_config(github_token=token, dispatch_token=dispatch_token),
             repo=repo,
             config_cache=self.config_cache,
             eligibility_caches=self.caches,
@@ -369,3 +379,46 @@ def test_a_rate_limit_or_timeout_reading_the_config_stops_the_scan(make_config, 
 def test_a_scan_needs_a_token(make_config):
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
         _Scan(lambda _client: BUILTIN_CONFIG).run(make_config, TARGET_REPO, token=None)
+
+
+@pytest.mark.parametrize(("dispatch_token", "expected"), [(None, _TOKEN), ("dispatch", "dispatch")])
+def test_the_config_and_the_dispatch_use_the_dispatch_token(make_config, dispatch_token, expected):
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH))
+
+    scan.run(make_config, TARGET_REPO, dispatch_token=dispatch_token)
+
+    assert scan.tokens == [expected, _TOKEN]
+    assert scan.review.call_args.kwargs["dispatch_token"] == expected
+
+
+def test_an_off_repos_drain_reads_the_review_runs_with_the_dispatch_token(make_config):
+    off = dataclasses.replace(_VISION, mode="off")
+    scan = _Scan(lambda _client: _config(BUILTIN_PYTORCH, off))
+
+    scan.run(make_config, "pytorch/vision", dispatch_token="dispatch")
+
+    assert scan.drain.call_args.kwargs["dispatch_token"] == "dispatch"
+    assert scan.drain.call_args.args[0].github_token == _TOKEN
+
+
+def test_scanned_entries_put_the_primary_first_then_served_then_safety_only_in_file_order():
+    audio = dataclasses.replace(_VISION, repo="pytorch/audio")
+    data = dataclasses.replace(_VISION, repo="pytorch/data")
+    config = _config(_VISION, BUILTIN_PYTORCH, audio, safety_only=((data, "unknown key(s) ['x']"),))
+
+    assert repo_scan.scanned_entries(config) == (
+        (BUILTIN_PYTORCH, True),
+        (_VISION, True),
+        (audio, True),
+        (data, False),
+    )
+    assert repo_scan.scanned_entries(_config(safety_only=((BUILTIN_PYTORCH, "missing"),), refused=(("x", "y"),))) == (
+        (BUILTIN_PYTORCH, False),
+    )
+
+
+def test_drain_error_names_the_failed_prs_only_when_there_are_some():
+    assert repo_scan.drain_error(drain.DrainReport(1, 2, 0, False, "x", ())) is None
+    assert repo_scan.drain_error(drain.DrainReport(1, 2, 0, False, "x", (3, 5))) == (
+        "the drain failed on 2 PR(s): [3, 5]"
+    )

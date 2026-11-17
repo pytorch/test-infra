@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, drci_poke, repo_scan, verdict
+from greenlight import cli, drci_poke, repo_scan, tick, verdict
 from greenlight.config import Config
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
@@ -851,3 +851,93 @@ def test_the_process_wide_config_cache_is_read_every_scan_and_serves_stale_on_an
     assert cache._ttl_seconds == 0
     assert cache._max_stale_seconds is None
     assert cache._stale_on_broken is True
+
+
+def test_main_all_repos_runs_one_tick_with_the_environments_tokens_and_the_process_caches(monkeypatch):
+    run_tick = Mock()
+    monkeypatch.setattr(tick, "run_tick", run_tick)
+    monkeypatch.setattr(repo_scan, "scan_repo", Mock(side_effect=AssertionError("single-repo scan")))
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    monkeypatch.setenv("BOT_LOGIN", "greenlight-app[bot]")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_GITHUB_TOKEN", "scan")
+    monkeypatch.setenv("PYTORCH_GREENLIGHT_DISPATCH_TOKEN", "dispatch")
+
+    rc = cli.main(["review", "--all-repos", "--max", "30", "--ref", "main", "--timeout-minutes", "60"])
+
+    assert rc == EXIT_OK
+    assert isinstance(run_tick.call_args.args[0], Config)
+    kwargs = _pop_caches(run_tick.call_args.kwargs)
+    tokens = kwargs.pop("tokens")
+    assert isinstance(tokens, tick.EnvTokens)
+    assert tokens.dispatch_token() == "dispatch"
+    assert kwargs == {
+        "memories": cli._SCAN_MEMORY,
+        "bot_login": "greenlight-app[bot]",
+        "max_dispatches": 30,
+        "ref": "main",
+        "timeout_minutes": 60,
+    }
+
+
+def test_main_all_repos_runs_with_the_token_source_it_is_given(monkeypatch):
+    run_tick = Mock()
+    monkeypatch.setattr(tick, "run_tick", run_tick)
+    monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    tokens = Mock()
+
+    assert cli.main(["review", "--all-repos"], tokens=tokens) == EXIT_OK
+
+    assert run_tick.call_args.kwargs["tokens"] is tokens
+    assert run_tick.call_args.kwargs["max_dispatches"] is None
+
+
+def test_main_all_repos_loops_the_tick(monkeypatch):
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(cli, "run_forever", lambda _config, *, run: captured.update(run=run))
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    assert cli.main(["review", "--all-repos", "--loop"]) == EXIT_OK
+
+    bound = captured["run"]
+    assert isinstance(bound, functools.partial)
+    assert bound.func is tick.run_tick
+
+
+def test_main_all_repos_failure_returns_exit_failure(monkeypatch):
+    monkeypatch.setattr(tick, "run_tick", Mock(side_effect=RuntimeError("pytorch/vision: Phase B failed: boom")))
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    assert cli.main(["review", "--all-repos"]) == EXIT_FAILURE
+
+
+@pytest.mark.parametrize(
+    ("flags", "named"),
+    [
+        (["--repo", TARGET_REPO], "--repo"),
+        (["--pr", "5"], "--pr"),
+        (["--pr", "0"], "--pr"),
+        (["--force"], "--force"),
+        (["--requester", "alice"], "--requester"),
+        (["--allow-untrusted-author"], "--allow-untrusted-author"),
+        (["--repo", "pytorch/vision", "--requester", "alice"], "--repo, --requester"),
+    ],
+)
+def test_main_all_repos_refuses_single_repo_flags(monkeypatch, capsys, flags, named):
+    run_tick = Mock()
+    monkeypatch.setattr(tick, "run_tick", run_tick)
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["review", "--all-repos", *flags])
+
+    assert excinfo.value.code == 2
+    assert f"--all-repos cannot be combined with {named}" in capsys.readouterr().err
+    run_tick.assert_not_called()
+
+
+def test_review_parser_all_repos_defaults_off_and_repo_to_none():
+    args = cli.build_parser().parse_args(["review"])
+    assert args.all_repos is False
+    assert args.repo is None

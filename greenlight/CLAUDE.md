@@ -119,7 +119,7 @@ not in the `review` scan itself.
 The `GL/*` labels only display the ledger: never read one to decide anything. `verdict` sets
 `GL/approved` / `GL/human` for a non-shadow verdict; the scan's label pass (`verdict_labels`, on
 listing ticks that reach their dispatch phase without a rate limit, after `_dispatch_pending`, before the error
-aggregation) supersedes and restores them, mirroring pytorch's land-time gate (`STATUS_LABELS.md`).
+aggregation, and skipped once a dispatch hits a rate limit) supersedes and restores them, mirroring pytorch's land-time gate (`STATUS_LABELS.md`).
 Label writes are best-effort and must never fail the scan or lose the verdict row; the label pass's
 ClickHouse read fails the scan like the scan's other reads.
 
@@ -130,9 +130,9 @@ The `eval_hash` land-guard (`pr_hash.compute_pr_hash` /
 back over HTTP through `https://hud.pytorch.org/api/greenlight/pr_state` and gates on the stored
 `head_sha`, not on `eval_hash`.
 
-Add new logic inside `review.run()`, which **must keep raising on
-failure** (it does not catch). The CLI runs the `review` phase
-through one of two execution paths, so the phase can move between
+Add a repo's scan logic to `review.prepare()` (safety work) or `review_finish.finish()` (optional work), and work across repos to
+`tick.py`; `review.run()` and `tick.run_tick()` **must keep raising on failure** (`run_tick` raises one error for every repo's).
+The CLI runs the `review` phase through one of two execution paths, so the phase can move between
 cron-driven and daemon deployment with no change to its logic:
 
 - One-shot / cron mode (`execute_once`) lets the exception propagate to a non-zero
@@ -151,8 +151,8 @@ interrupt blocking C calls (e.g. DNS) or off-main-thread work; and a hard watchd
 force-exits the process a grace period later, the real backstop for hangs the soft timeout
 cannot reach.
 
-In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda: it runs
-the one-shot path with no single-instance lock and both hang-guard layers off
+In production the scheduled scan instead deploys as the `greenlight-scan` AWS Lambda, one `review --all-repos` tick over every configured
+repo (REPOS.md) with App tokens per job and repo: it runs the one-shot path with no single-instance lock and both hang-guard layers off
 (`PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`; the watchdog's `os._exit` is wrong under Lambda),
 relying on `reserved_concurrent_executions=1` and the Lambda function timeout instead. A warm Lambda
 keeps the scan's tick memory (kept fingerprints, a drain's progress) and its config and merge-rules

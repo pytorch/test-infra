@@ -7,6 +7,9 @@ repo on another default branch would get no reviews), and then drains it when it
 or runs ``review.run`` on it otherwise: whole when served, only its safety work when safety-only.
 A refused or absent repo, or one that fails a live check, gets no work at all. Every such problem,
 an unreadable config and a safety-only entry fail the scan, the last two after the safety work ran.
+The config read, the dispatch and the drain's read of the review runs use the dispatch token
+(``PYTORCH_GREENLIGHT_DISPATCH_TOKEN``, falling back to the scan token): all three are on
+``DISPATCH_REPO``. ``tick`` makes the same per-entry decisions for every configured repo at once.
 """
 
 from __future__ import annotations
@@ -111,9 +114,37 @@ def eligibility_cache(
     return cache
 
 
-def _read_config(
+def eligibility_thunk(
+    config: Config, entry: RepoEntry, caches: EligibilityCaches, token: str, *, meter: RequestMeter | None = None
+) -> Callable[[], MergeRulesSnapshot]:
+    """``entry``'s eligibility snapshot through its cache in ``caches``, read with ``token`` when due."""
+    cache = eligibility_cache(caches, entry, config.merge_rules_ttl_seconds)
+    build_client = eligibility_client(entry, token, meter=meter)
+    return lambda: cache.snapshot(build_client)
+
+
+def scanned_entries(repo_config: RepoConfig) -> tuple[tuple[RepoEntry, bool], ...]:
+    """Every served ``(entry, True)`` and safety-only ``(entry, False)`` entry.
+
+    The primary comes first, then the other served entries, then the other safety-only ones, each in
+    file order.
+    """
+    found = [(entry, True) for entry in repo_config.served]
+    found.extend((entry, False) for entry, _reason in repo_config.safety_only)
+    return tuple(sorted(found, key=lambda item: not is_primary(item[0].repo)))
+
+
+def drain_error(report: drain.DrainReport) -> str | None:
+    """The scan error a drain slice reports, or None when it failed on no PR."""
+    if not report.failed:
+        return None
+    return f"the drain failed on {len(report.failed)} PR(s): {list(report.failed)}"
+
+
+def read_config(
     cache: SnapshotCache[Github, RepoConfig], build_client: Callable[[], Github], errors: list[str]
 ) -> RepoConfig:
+    """The repos config through ``cache``, its problems added to ``errors``; a rate limit raises."""
     try:
         repo_config = cache.snapshot(build_client)
     except IterationTimeout:
@@ -162,8 +193,9 @@ def scan_repo(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
+    dispatch_token = config.dispatch_token or token
     errors: list[str] = []
-    repo_config = _read_config(config_cache, lambda: build_github(token), errors)
+    repo_config = read_config(config_cache, lambda: build_github(dispatch_token), errors)
     found = repo_config.lookup(repo)
     if found is None:
         reasons = [reason for name, reason in repo_config.refused if name == repo]
@@ -185,15 +217,20 @@ def scan_repo(
         if memory is None:
             logger.warning("%s is off: --pr reviews nothing", repo)
         else:
-            report = run_drain(config, repo=repo, memory=memory, bot_login=bot_login, build_github=build_github)
-            if report.failed:
-                errors.append(f"the drain failed on {len(report.failed)} PR(s): {list(report.failed)}")
+            report = run_drain(
+                config,
+                repo=repo,
+                memory=memory,
+                bot_login=bot_login,
+                build_github=build_github,
+                dispatch_token=dispatch_token,
+            )
+            if (problem := drain_error(report)) is not None:
+                errors.append(problem)
         _raise_any(repo, errors)
         return
     if memory is not None:
         memory.clear_drain()
-    cache = eligibility_cache(eligibility_caches, entry, config.merge_rules_ttl_seconds)
-    build_eligibility_client = eligibility_client(entry, token)
     run_review(
         config,
         entry=entry,
@@ -201,8 +238,9 @@ def scan_repo(
         pr=pr,
         bot_login=bot_login,
         build_github=build_github,
-        resolve_merge_rules=lambda: cache.snapshot(build_eligibility_client),
+        resolve_merge_rules=eligibility_thunk(config, entry, eligibility_caches, token),
         memory=memory,
+        dispatch_token=dispatch_token,
         **review_kwargs,
     )
     _raise_any(repo, errors)

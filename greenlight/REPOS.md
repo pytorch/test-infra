@@ -1,7 +1,8 @@
 # Repos GreenLight serves (`repos.yaml`)
 
 `greenlight/repos.yaml` lists every repo GreenLight serves and how. The loader is
-`repo_config.py`; the per-repo decisions of a scan are in `repo_scan.py`.
+`repo_config.py`; the per-repo decisions of a scan are in `repo_scan.py`, and the tick that scans
+every repo at once is in `tick.py` (below).
 
 ```yaml
 repos:
@@ -58,7 +59,8 @@ the built-in, from merging.
 
 ## Live checks
 
-Before any work, the scan checks what GitHub reports for the repo (`GET /repos/{repo}`): the
+Before any work, the scan checks what GitHub reports for the repo (`GET /repos/{repo}`; in the
+Lambda, the App installation's repository listing): the
 entry's name must be the canonical `full_name` exactly, the repo must be public, and its default
 branch must be `main`, the base `merge_authz.accepts_base` judges PRs against. A repo failing one
 gets no work on that scan and the scan fails. The same checks run in CI, in the `Test` step of
@@ -67,8 +69,8 @@ a mis-cased, private or non-`main` entry cannot merge. Everywhere else the tests
 
 ## Where the config is read
 
-- **Scan**: from `pytorch/test-infra`'s default branch through the contents API, on every scan, so
-  a mode change acts on the next tick. A failed read or a broken file serves the last good
+- **Scan**: from `pytorch/test-infra`'s default branch through the contents API, with the dispatch
+  token (below), on every scan, so a mode change acts on the next tick. A failed read or a broken file serves the last good
   snapshot and fails the scan after its work; with no snapshot yet, the scan serves the built-in
   `pytorch/pytorch` entry alone and fails after its work. A rate limit stops the scan.
 - **Verdict** (the record job): from its own checkout of `greenlight/repos.yaml`, which is the
@@ -112,6 +114,71 @@ moves the off time later, which only delays completion.
 
 To stop serving a repo: set its `mode` to `off`, wait for `drain complete` in the scan's log, then
 remove its entry. Removing the entry first leaves any approval it already holds in place.
+
+## The tick (`review --all-repos`)
+
+The `greenlight-scan` Lambda runs `review --all-repos --ref main --max 30` every two minutes: one
+tick over every served and safety-only entry, `pytorch/pytorch` first, then the other served
+entries, then the other safety-only ones, each in file order (`tick.py`).
+
+- **Phase A, safety work**, never stopped by a budget or a floor: a `pytorchbot` repo lists its
+  PRs and runs the revert guard and the ineligible revoke (`review.prepare`); an `off` repo runs
+  its drain slice; a `gate` repo has no Phase A work yet. A safety-only entry stops here.
+- **Phase B, optional work**: `pytorch/pytorch` finishes its scan (fan-out, dispatch, label pass),
+  stopped only once fewer than `QUOTA_FLOOR_PRIMARY` (1000) requests are left on the installation.
+  Then each other served `active` or `shadow` repo, in order, runs its whole scan within
+  `OTHER_REPO_TIME_BUDGET` (20 s) and `OTHER_REPO_REQUEST_BUDGET` (400 requests), stopped below
+  `QUOTA_FLOOR_OTHERS` (3000) and never past `TICK_DEADLINE`, 110 s after the tick started. A
+  repo whose turn starts past that deadline gets no turn.
+- A repo whose Phase B is cut short, or that gets no turn, fails the tick when its full tick was
+  due: its full tick is not marked done, so it shows every tick until its budget is sized. On a
+  fast tick it is a warning, and its PRs wait for the next tick.
+
+**Dispatch cap.** `--max` is shared. While another repo is in Phase B, `min(DISPATCH_RESERVE, max)`
+(5) is held back from `pytorch/pytorch`, and the other repos share it plus whatever
+`pytorch/pytorch` left, in order, each capped by what is left. `--max 0` pauses every repo; no
+`--max` leaves every repo uncapped.
+
+**Requests and the quota.** Every GitHub client of a repo, its dispatch client included, shares one
+request meter (`quota.py`) that counts each request PyGithub sends and each retry urllib3 makes. The
+tick reads the installation's quota (`GET /rate_limit`, which costs nothing) at its start, before
+each repo's phase that has work and at its end, subtracting what it counted between reads, and logs
+each repo's Phase A and Phase B requests with the quota at the start and the end. Not counted: the
+config read, the quota reads, the token mints, the installation listing, the live checks on the
+environment path, and PyGithub's rare 301, 302 and 202 follow-ups.
+
+**Isolation is cooperative.** Every repo runs in one process. A repo's stop is checked before each
+request and each retry and ends its optional work cleanly, but it cannot interrupt a request already
+sent or work that makes no GitHub request, such as a ClickHouse read (bounded by its own timeouts:
+connect 10 s, read 60 s). Repos other than `pytorch/pytorch` read their eligibility with the
+fail-fast client, never the one that waits out a rate limit. Any other failure in a repo is logged
+with its traceback and the tick goes on; at the end the tick raises one error naming every repo's
+error and every config problem, refused and safety-only entries included. The CLI's soft timeout
+(off in the Lambda) aborts the whole tick.
+
+**A rate limit ends the tick's GitHub work.** The quota belongs to the App installation, shared by
+every repo and by the review workflows. Every place that catches a rate limit sets one tick-wide
+latch, and the meter sets it on a rate-limit response before any retry or `Retry-After` wait. Once
+it is set, every meter refuses further requests, and the tick skips every repo and phase left,
+naming each in its error. A dispatch that hits a rate limit stops the dispatches and the label pass.
+
+**Tokens.** In the Lambda (`app_tokens.py`): a `pytorch/test-infra` token (`actions: write`,
+`contents: read`) for the config read, the dispatch and the drain's read of the review runs; a
+metadata-only token for `GET /installation/repositories`, which supplies the live checks; and one
+token per repo the listing shows and the live checks pass (`pull_requests: write`,
+`contents: read`, `members: read`, that repo alone, no `actions`). A repo the installation lacks,
+or whose mint fails, gets no work and fails the tick; when the listing itself fails,
+`pytorch/pytorch` still gets its token and the others wait for the next tick. From the environment
+(the CLI and `greenlight-review.yml`): `PYTORCH_GREENLIGHT_GITHUB_TOKEN` for every repo, its live
+checks through `GET /repos/{repo}`, and `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` (falling back to the
+first) for the config, the dispatch and the review runs. Adding a repo needs its entry and the App
+installed on it, and no Terraform change.
+
+`greenlight-review.yml` mints the same two permission sets (`tests/test_review_workflow_tokens.py`
+pins them). With `pr`, its repo token covers `pytorch/pytorch` alone and the run rechecks that PR;
+without it, the repo token covers every served and safety-only entry of its checkout's
+`repos.yaml` and the run is one `--all-repos` tick, so a repo the installation lacks fails that
+mint, and that manual scan, loudly.
 
 ## Caches and the TTL trade-off
 
