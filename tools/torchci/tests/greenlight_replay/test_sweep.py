@@ -428,13 +428,16 @@ class TestCircuitBreaker(unittest.TestCase):
                     sorted(fakes.reviewed), [194000, 194001, 194002, 194003]
                 )
 
-    def test_hooks_that_never_loaded_stop_the_sweep_after_one_run(self):
-        # No pull request makes the hooks fail to load, so every run would repeat it.
-        self.assertIn(Outcome.HOOKS_NOT_LOADED, sweep_module.FATAL_OUTCOMES)
-        code, fakes, lines = self._sweep(Outcome.HOOKS_NOT_LOADED)
-        self.assertEqual(fakes.reviewed, [194000])
-        self.assertEqual(code, cli.EXIT_FAILED)
-        self.assertEqual(len(lines), 2)
+    def test_hooks_or_arm_checks_that_fail_stop_the_sweep_after_one_run(self):
+        # No pull request makes the hooks fail to load or the policy's own checks
+        # fail to run, so every run would repeat it.
+        for outcome in (Outcome.HOOKS_NOT_LOADED, Outcome.ARM_CHECK_FAILED):
+            with self.subTest(outcome=outcome.value):
+                self.assertIn(outcome, sweep_module.FATAL_OUTCOMES)
+                code, fakes, lines = self._sweep(outcome)
+                self.assertEqual(fakes.reviewed, [194000])
+                self.assertEqual(code, cli.EXIT_FAILED)
+                self.assertEqual(len(lines), 2)
 
     def test_the_warm_up_row_still_reaches_the_file(self):
         # The run was paid for; its diagnostic row is what names the fault.

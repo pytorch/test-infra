@@ -5,10 +5,11 @@ file is what registers the reviewer's sandboxes. The replay reads the same hered
 the arm's workflow (:mod:`.workflow_steps`), substitutes the checkout ``greenlight target``
 named for ``__GREENLIGHT_CHECKOUT__`` as the job's ``sed`` does, and refuses what it
 cannot reproduce: keys other than ``hooks`` and ``claudeMdExcludes``, an event outside the
-five it knows, a hook that is not a command, a ``.claude/hooks`` script that is missing or
-cannot run, a PreToolUse or PostToolUse command that runs no such script, sandboxes not
-registered on the tools they confine, and SessionStart or InstructionsLoaded commands
-other than the two that leave the detector its sentinel and manifest.
+five it knows, a hook that is not a command, a PreToolUse or PostToolUse command that runs
+no ``.claude/hooks`` script, sandboxes not registered on the tools they confine, and
+SessionStart or InstructionsLoaded commands other than the two that leave the detector its
+sentinel and manifest. Whether each registered script is there to run is
+:func:`missing_hooks`' question, asked once before a sweep spends anything.
 
 What the reviewer runs under is that layer with three changes:
 
@@ -60,7 +61,7 @@ __all__ = [
 
 
 class MissingHookError(RuntimeError):
-    """A hook script the settings layer registers is not there to run."""
+    """A hook script the settings layer registers is missing or cannot be executed."""
 
 
 SETTINGS_FILENAME = "settings.json"
@@ -97,9 +98,7 @@ REQUIRED_SANDBOXES = (
 REMAP_MATCHER = "Read|Write|Glob|Grep"
 
 
-def derive_hook_settings(
-    text: str, root: Path, checkout: str, source: Path
-) -> dict[str, Any]:
+def derive_hook_settings(text: str, checkout: str, source: Path) -> dict[str, Any]:
     """The workflow's hook settings for ``checkout``, refused unless reproducible."""
     try:
         settings = json.loads(text.replace(CHECKOUT_PLACEHOLDER, checkout))
@@ -123,7 +122,7 @@ def derive_hook_settings(
                 f"{source}: the replay does not reproduce hook event {event}"
             )
         for hook in _hooks_of(entries, event, source):
-            _check_command(event, hook["command"], Path(root), source)
+            _check_command(event, hook["command"], source)
     for script, tools in REQUIRED_SANDBOXES:
         if not _registered(settings["hooks"].get("PreToolUse", []), script, tools):
             raise ValueError(
@@ -153,7 +152,7 @@ def _hooks_of(entries: Any, event: str, source: Path) -> list[Mapping[str, Any]]
     return hooks
 
 
-def _check_command(event: str, command: str, root: Path, source: Path) -> None:
+def _check_command(event: str, command: str, source: Path) -> None:
     expected = EVENT_COMMANDS.get(event)
     if expected is not None:
         if command != expected:
@@ -162,18 +161,11 @@ def _check_command(event: str, command: str, root: Path, source: Path) -> None:
                 f"only {expected!r}"
             )
         return
-    parsed = _hook_script(command)
-    if parsed is None:
+    if _hook_script(command) is None:
         raise ValueError(
             f"{source}: the {event} hook {command!r} runs no {HOOKS_PREFIX} script as a "
             "plain command line the replay can relocate"
         )
-    interpreter, script, _ = parsed
-    path = root / script
-    if not path.is_file():
-        raise ValueError(f"{source}: the {event} hook runs {script}, which is missing")
-    if interpreter is None and not os.access(path, os.X_OK):
-        raise ValueError(f"{source}: the {event} hook runs {script}, not executable")
 
 
 def _hook_script(command: str) -> tuple[str | None, str, list[str]] | None:
@@ -221,26 +213,33 @@ def _script_path(policy: Policy, script: str) -> Path:
     return Path(os.path.abspath(Path(policy.root) / script))
 
 
-def _hook_scripts(policy: Policy) -> list[Path]:
+def _hook_scripts(policy: Policy) -> list[tuple[Path, bool]]:
+    """Each script the settings layer registers, and whether it is run directly."""
     scripts = [
-        _script_path(policy, parsed[1])
+        (_script_path(policy, parsed[1]), parsed[0] is None)
         for entries in _registered_events(policy).values()
         for entry in entries
         for hook in entry["hooks"]
         if (parsed := _hook_script(hook["command"])) is not None
     ]
-    return [*scripts, Path(remap.__file__).resolve()]
+    return [*scripts, (Path(remap.__file__).resolve(), False)]
 
 
 def missing_hooks(policy: Policy) -> list[Path]:
-    """Hook scripts the settings layer would register that are not on disk.
+    """Hook scripts the settings layer would register that could not run.
 
-    Checked once at sweep startup rather than per run, because the failure it guards is a
-    property of the policy tree and identical for every pull request. It has to be checked
-    somewhere: a hook that cannot exec does not deny, so a missing script silently removes
-    a sandbox rather than failing, and the quoting is only half the defence.
+    Missing, or run directly and not executable; through ``python3`` a script only has
+    to exist. Checked once at sweep startup rather than per run, because the failure it
+    guards is a property of the policy tree and identical for every pull request. It
+    has to be checked somewhere: a hook that cannot exec does not deny, so such a script
+    silently removes a sandbox rather than failing, and the quoting is only half the
+    defence.
     """
-    return [script for script in _hook_scripts(policy) if not script.is_file()]
+    return [
+        script
+        for script, direct in _hook_scripts(policy)
+        if not script.is_file() or (direct and not os.access(script, os.X_OK))
+    ]
 
 
 def assert_hooks_present(policy: Policy) -> None:
@@ -248,8 +247,8 @@ def assert_hooks_present(policy: Policy) -> None:
     missing = missing_hooks(policy)
     if missing:
         raise MissingHookError(
-            "hook scripts are missing, so the sandbox they provide would silently not "
-            f"load: {', '.join(str(path) for path in missing)}"
+            "hook scripts are missing or not executable, so the sandbox they provide "
+            f"would silently not load: {', '.join(str(path) for path in missing)}"
         )
 
 

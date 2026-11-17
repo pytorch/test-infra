@@ -10,9 +10,10 @@ remaining steps the replay derives or runs are in :mod:`.workflow_steps`.
 Five properties of that reading are load-bearing.
 
 **Steps are located by shape, never by index or by ``name``.** The action step is found
-by its ``uses`` prefix and the size gate by its ``id``. A policy pull request is free to
-reorder the review job's steps or retitle them, and either would otherwise select some
-other step's ``with:`` block and run the reviewer on a prompt nobody wrote.
+by its ``uses`` prefix and the size gate by its ``id``, so a reader finds each step
+wherever it sits and whatever it is titled, rather than another step's ``with:`` block.
+Order still matters to the replay as a whole: a change of order changes the registered
+shape (:mod:`.ledger_shape`), which a retitle does not.
 
 **``--allowedTools`` is translated to ``tools``.** Under
 ``anthropics/claude-code-action`` it is the allowlist, but the replay harness invokes
@@ -31,8 +32,9 @@ gate and feed the model a diff it cannot read in full. The file cap is the excep
 size-gate step without ``MAX_DIFF_FILES`` is one CI ran with no file cap, so its replay
 has none.
 
-**A missing review budget is equally fatal, and the budgets live on the job's ``env``
-rather than on a step.** ``budget-reminder.sh`` reads absolute epochs
+**A missing review budget is equally fatal, the budgets live on the job's ``env``
+rather than on a step, and they are held to the checks the workflow's "Compute review
+budget deadlines" step makes before it derives any deadline.** ``budget-reminder.sh`` reads absolute epochs
 (``GREENLIGHT_REVIEW_START_EPOCH`` and the three ``*_DEADLINE`` values), which the
 workflow derives from these minutes in a step of its own; given a value that is unset or
 non-numeric the hook exits 0 without emitting anything. A silent hook is not merely
@@ -68,6 +70,8 @@ __all__ = [
     "ACTION_USES_PREFIX",
     "ALLOWED_TOOLS_FLAG",
     "EFFORT_FLAG",
+    "MAX_BUDGET_DIGITS",
+    "MAX_BUDGET_MINUTES",
     "MAX_DIFF_BYTES_KEY",
     "MAX_DIFF_FILES_KEY",
     "MAX_DIFF_LINES_KEY",
@@ -104,6 +108,10 @@ REVIEW_BUDGET_KEYS = (
     "GREENLIGHT_REVIEW_SOFT_BUDGET_MIN",
     "GREENLIGHT_REVIEW_HARD_BUDGET_MIN",
 )
+# The workflow's deadline step bounds each budget so its shell arithmetic stays sound:
+# `[` fails on digits past int64 and $(( )) silently wraps them.
+MAX_BUDGET_DIGITS = 9
+MAX_BUDGET_MINUTES = 1440
 
 MODEL_FLAG = "--model"
 EFFORT_FLAG = "--effort"
@@ -188,6 +196,10 @@ def review_budgets(document: dict[str, Any], path: Path) -> tuple[int, int, int]
     same reason the action step is found by its ``uses``. A job carrying only some of
     the three still resolves here, so the error names the key that is missing instead
     of reporting the whole job as absent.
+
+    Each is refused as the workflow's deadline step refuses it: more than
+    :data:`MAX_BUDGET_DIGITS` digits or more than :data:`MAX_BUDGET_MINUTES`, a zero
+    target, or a soft budget below the target or a hard one below the soft.
     """
     job = _only(
         [
@@ -199,11 +211,26 @@ def review_budgets(document: dict[str, Any], path: Path) -> tuple[int, int, int]
         path,
     )
     env = job.get("env") or {}
-    target, soft, hard = (
-        _uint_env(env, key, path, "the review job", _BUDGET_CONSEQUENCE)
-        for key in REVIEW_BUDGET_KEYS
-    )
+    target, soft, hard = (_budget(env, key, path) for key in REVIEW_BUDGET_KEYS)
+    if target <= 0:
+        raise ValueError(f"{path}: {REVIEW_BUDGET_KEYS[0]} must be positive")
+    if not target <= soft <= hard:
+        raise ValueError(
+            f"{path}: the review budgets must not decrease from target to soft to "
+            f"hard, got {target}, {soft}, {hard}"
+        )
     return target, soft, hard
+
+
+def _budget(env: dict[str, Any], key: str, path: Path) -> int:
+    """One budget, its length checked before its value, as the deadline step does."""
+    minutes = _uint_env(env, key, path, "the review job", _BUDGET_CONSEQUENCE)
+    if len(str(env[key])) > MAX_BUDGET_DIGITS or minutes > MAX_BUDGET_MINUTES:
+        raise ValueError(
+            f"{path}: {key} is {env[key]!r}, expected at most {MAX_BUDGET_MINUTES} "
+            f"minutes in at most {MAX_BUDGET_DIGITS} digits"
+        )
+    return minutes
 
 
 def stack_context(document: dict[str, Any], path: Path) -> StackContext:
@@ -238,14 +265,13 @@ def _jobs(document: dict[str, Any]) -> list[dict[str, Any]]:
     return [job for job in jobs.values() if isinstance(job, dict)]
 
 
+def _job_steps(job: dict[str, Any]) -> list[dict[str, Any]]:
+    return [step for step in job.get("steps") or [] if isinstance(step, dict)]
+
+
 def _steps(document: dict[str, Any]) -> list[dict[str, Any]]:
     """Every step of every job, so a renamed or split job cannot hide one."""
-    return [
-        step
-        for job in _jobs(document)
-        for step in (job.get("steps") or [])
-        if isinstance(step, dict)
-    ]
+    return [step for job in _jobs(document) for step in _job_steps(job)]
 
 
 def _only(

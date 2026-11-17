@@ -67,6 +67,13 @@ under `--workdir`, to `--output` and, run as `collect.py`, to `--answers`. In CI
 make; replay jobs run `--presampled` with `GREENLIGHT_REPLAY_GITHUB_ANSWERS`
 naming that record, so they need neither ClickHouse nor an authenticated `gh`.
 
+**Every run executes the policy ref's own code with your privileges**: a dry run
+and `collect.py` too. Materializing the policy runs its `greenlight target` and
+holds its canned verdicts to its record step and `greenlight verdict` checks, and
+a sweep also runs its sanitize script on every checkout and its hooks and detector
+in every review. They run as you, with your files and network, so replay only a
+policy ref you trust. [PARITY.md](PARITY.md) lists the environment each one gets.
+
 | flag | default | effect |
 | --- | --- | --- |
 | `--input` | required | the CSV from `python3 -m torchci.greenlight_decisions` |
@@ -268,9 +275,10 @@ the reviewer runs out of budget before it runs out of process.
 
 The first pull request of a sweep runs alone before the rest fan out. That warms
 the prompt cache — concurrent cold starts each pay the whole prompt in — and it
-is also the circuit breaker. Three outcomes cannot vary by pull request: the
-model the gateway resolved, the prompt the CLI parsed, and the hooks the session
-loaded. If the warm-up hits one, every remaining run would hit it too, so the
+is also the circuit breaker. Four outcomes cannot vary by pull request: the
+model the gateway resolved, the prompt the CLI parsed, the hooks the session
+loaded, and the policy's own record checks or detector failing to run. If the
+warm-up hits one, every remaining run would hit it too, so the
 sweep stops there rather than billing them. Its one diagnostic row is still
 written, and the exit status is `1`.
 

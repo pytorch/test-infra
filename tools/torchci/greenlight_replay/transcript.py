@@ -97,6 +97,7 @@ class Outcome(enum.Enum):
     BUDGET_TRIP = "budget_trip"
     API_ERROR = "api_error"
     EMPTY_RUN = "empty_run"
+    ARM_CHECK_FAILED = "arm_check_failed"
     HOOKS_NOT_LOADED = "hooks_not_loaded"
     UNTRUSTED_INSTRUCTIONS = "untrusted_instructions"
     TOO_LARGE = "too_large"
@@ -167,12 +168,16 @@ def classify(
 ) -> RunResult:
     """Turn one invocation's exit code and output into an outcome the caller can act on.
 
-    ``detect`` runs once the session is known to have started, and a failure there is
-    the outcome whatever else the session did, as the live job fails on it:
-    ``HOOKS_NOT_LOADED`` when the hooks left no sentinel, ``UNTRUSTED_INSTRUCTIONS``
-    when they ran and an instruction file loaded from the checkout. A session that
-    never started is not handed to the detector and keeps its own outcome. ``accept``
-    runs only on a verdict file a successful session left.
+    ``detect`` runs once the session is known to have started, or would otherwise be
+    accepted, as the live job runs its detector whenever the model ran; a failure there
+    is the outcome whatever else the session did: ``HOOKS_NOT_LOADED`` when the hooks
+    left no sentinel, ``UNTRUSTED_INSTRUCTIONS`` when they ran and an instruction file
+    loaded from the checkout. Any other session with no sign of having started keeps
+    its own outcome. ``accept`` runs only on a verdict file a successful session left.
+
+    Either call raising -- the policy's code past its timeout, an interpreter missing,
+    output that is not what it should be -- is ``ARM_CHECK_FAILED``, carrying what the
+    session cost, so a paid run is still recorded rather than lost with the exception.
     """
     if exit_code in _TIMEOUT_EXIT_CODES:
         return RunResult(
@@ -184,8 +189,11 @@ def classify(
     session = _session_outcome(
         envelope, exit_code, stdout, stderr, run_dir, model, context_window, duration_s
     )
-    if session_started(envelope):
-        failure = detect()
+    if session_started(envelope) or session.outcome is Outcome.SUCCESS:
+        try:
+            failure = detect()
+        except Exception as exc:
+            return _arm_check_failed(session, "the detector", exc)
         if failure is not None:
             return dataclasses.replace(
                 session,
@@ -196,10 +204,22 @@ def classify(
             )
     if session.outcome is not Outcome.SUCCESS:
         return session
-    verdict, rejection = accept(verdict_path(run_dir))
+    try:
+        verdict, rejection = accept(verdict_path(run_dir))
+    except Exception as exc:
+        return _arm_check_failed(session, "the record checks", exc)
     if verdict is None:
         return dataclasses.replace(session, outcome=Outcome.REJECTED, error=rejection)
     return dataclasses.replace(session, **verdict_fields(verdict))
+
+
+def _arm_check_failed(session: RunResult, check: str, exc: Exception) -> RunResult:
+    logger.error("%s could not run: %s", check, exc, exc_info=True)
+    return dataclasses.replace(
+        session,
+        outcome=Outcome.ARM_CHECK_FAILED,
+        error=f"{check} could not run: {type(exc).__name__}: {exc}"[:400],
+    )
 
 
 def session_started(envelope: Sequence[Mapping[str, Any]]) -> bool:

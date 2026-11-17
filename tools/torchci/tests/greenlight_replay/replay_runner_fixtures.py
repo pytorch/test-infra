@@ -184,7 +184,6 @@ def head_hook_settings(checkout="pytorch"):
     """This repository's workflow's hook settings, derived as materialize derives them."""
     return settings.derive_hook_settings(
         workflow_steps.hook_settings_text(HEAD_WORKFLOW, WORKFLOW_PATH),
-        REPO_ROOT,
         checkout,
         WORKFLOW_PATH,
     )
@@ -215,7 +214,6 @@ def replay_policy(root=REPO_ROOT, **overrides):
         },
         "no_policy_verdict": None,
         "sanitize_script": HOOKS_DIR / "sanitize-untrusted-checkout.sh",
-        "hooks_dir": HOOKS_DIR,
         "hook_settings": head_hook_settings(),
         "output_style": "Concise",
         "model": "global.anthropic.claude-opus-5",

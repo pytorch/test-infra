@@ -7,52 +7,61 @@ workflow changes. Usage is in the [README](README.md).
 
 ## Inventory
 
+Each input of a live review, and how the replay gets it. The class of each step of
+a registered review workflow, with the harness module that derives, runs or
+reproduces it, is written once, in `ledger_parts.py`.
+
 ### Derived from the arm's tree
 
 Read out of the policy under test, never defaulted by the harness:
 
-- the prompt (`workflow.prompt`, rendered by `prompt.py`);
-- the model, effort and tool allowlist (`workflow.claude_args`). `--allowedTools`
-  becomes the hard `--tools` allowlist, and any other flag, or a tool beyond Read,
-  Glob, Grep and Write, is refused;
-- the line, byte and file caps (`workflow.diff_caps`);
-- the three review budgets (`workflow.review_budgets`);
+- the prompt;
+- the model, effort and tool allowlist. `--allowedTools` becomes the hard `--tools`
+  allowlist, and any other flag, or a tool beyond Read, Glob, Grep and Write, is
+  refused;
+- the line, byte and file caps;
+- the three review budgets;
 - the per-run timeout: the action step's `timeout-minutes`, which
   `--timeout-minutes` overrides. One above 40 minutes is refused, since a longer
   review could outlive the credentials the CI replay started it with;
 - the canned verdicts: `too-large-verdict.json` from the policy's hooks, and the
   no-policy `NO_LAND` the keep-policy step writes with its own `jq -n` program;
-- the hook settings (`settings.derive_hook_settings`): the matchers, commands,
-  `claudeMdExcludes`, SessionStart and InstructionsLoaded hooks of the heredoc
-  writing `.claude/settings.local.json`, with the checkout substituted as the
-  step's `sed` does;
+- the hook settings: the matchers, commands, `claudeMdExcludes`, SessionStart and
+  InstructionsLoaded hooks of the heredoc writing `.claude/settings.local.json`,
+  with the checkout substituted as the step's `sed` does;
 - `outputStyle`, from the action step's `with.settings`.
 
 ### Run as the arm's own code
 
-`arm_code.py` runs each in a subprocess whose environment is built from nothing:
+**Every run executes this code from the policy ref, with the operator's
+privileges**: a sweep, a dry run and `collect.py` alike. Each runs as the operator,
+with the operator's files and network, so a policy ref should be one the operator
+trusts. What differs is the environment:
 
-- target resolution and admission: the arm's `greenlight target` names the repo,
-  its checkout directory, its policy file and whether that file exists, once per
-  sweep;
-- the sanitize script, on every checkout;
-- the hooks, from the materialized tree by absolute path;
-- the instruction-loading detector, after every session that started;
-- record-side acceptance. A verdict counts only when the record job's own
+- target resolution and admission, once per materialize: the arm's `greenlight
+  target` names the repo, its checkout directory, its policy file and whether that
+  file exists. Its environment is built from nothing: a fixed `PATH`, an empty
+  `HOME` and a UTF-8 locale;
+- record-side acceptance, in that same environment, on every verdict and on the
+  canned ones at materialize. A verdict counts only when the record job's own
   validation step and the arm's `greenlight verdict --dry-run` both accept it; the
   second carries the full validation sequence, the secret scrub included, and its
-  scrubbed message is what the replay records. The canned verdicts pass the same
-  two checks.
+  scrubbed message is what the replay records;
+- the instruction-loading detector, in that same environment, after every session
+  that started;
+- the sanitize script, on every checkout, in the harness's own environment;
+- the hooks, from the materialized tree by absolute path, in the reviewer's
+  environment: a fixed `PATH`, the operator's `HOME`, the workspace, run directory
+  and budget variables, the proxy variables, and on Bedrock its switch and region.
 
 ### Reproduced in harness code and registered
 
-- the policy checkout (`policy.py`), the reviewed checkout (`checkout.py`) and the
-  trusted-skills checkout (`trusted_skills.py`);
-- the diff, metadata and stack fetches (`inputs.py`, `stack.py`,
-  `stack_native.py`), cut off at the replayed verdict;
-- the size gate's counting (`size_gate.py`);
-- the budget epochs (`reviewer_env.py`);
-- whether the model runs (`sweep.py`, `runner.py`);
+- the policy checkout, the reviewed checkout and the trusted-skills checkout;
+- the diff, metadata and stack fetches. Comments, a ghstack pull request's body
+  and the stack context are cut off at the replayed verdict;
+- the size gate's counting;
+- the budget epochs;
+- whether the model runs;
 - the remaining shape of the review and record jobs, registered by digest in
   `ledger.py`.
 
@@ -72,8 +81,11 @@ Read out of the policy under test, never defaulted by the harness:
   window; a local replay runs it through a local gateway at 1M. Same model,
   different serving path and window; a Bedrock run on CI's CLI removes both. The
   job's runner, environment and credentials are not reproduced either.
-- **The CLI build.** A local `claude` is whatever is installed, not the build
-  `anthropics/claude-code-action` pins, which the CI replay installs.
+- **The CLI build.** A local `claude` is whatever is installed. The CI replay
+  installs `CLAUDE_CODE_VERSION`, the build the head's action pin runs
+  (`ledger.CLAUDE_CODE_BY_ACTION_PIN`, which `test_ledger.py` checks), for both
+  arms: a base arm whose pin runs another build replays on the head's. Running
+  each arm's own build belongs to the follow-up change on the session.
 - **The hook interpreter.** A review job setting up Python 3.13 runs its hooks
   under it; one setting up none, and the replay, run them under the system
   `python3`.
@@ -85,8 +97,15 @@ Read out of the policy under test, never defaulted by the harness:
 - **The git credentials** the action writes into the checkout.
 - **The comment set.** The reviewer sees only comments created strictly before the
   replayed verdict, which is the point: it must not read what was written in
-  response to the verdict it is reproducing. A comment whose `createdAt` cannot be
-  parsed is dropped, where CI would have shown it.
+  response to the verdict it is reproducing. A comment edited in place since
+  carries today's body. A comment whose `createdAt` cannot be parsed is dropped,
+  where CI would have shown it.
+- **The pull request's title and body.** Its title is read as it is today, and so
+  is its body unless it is a ghstack pull request, whose body is read back as of
+  the replayed verdict.
+- **A repo without its policy file.** A configured repo with no policy file gets
+  the canned `NO_LAND` with no checkout, sanitize step or diff fetch. The live job
+  runs those first, and can fail there instead. No configured repo lacks its file.
 - **Stack context is read back, not captured.** Everything the stack step read is
   read again as of `decision_version`, with these gaps:
   - `decision_version` lands a median of about 8 minutes after the step ran, and
@@ -129,16 +148,23 @@ the review budgets; the action step's `prompt`, `settings` and `timeout-minutes`
 and the values of its `claude_args` flags; the size gate's caps; the hook settings
 heredoc's body; and the record job's validation `run:`. The stack step is masked
 out whole, its position kept: `stack_step.STACK_CONTEXT_BY_PIN` is its one check.
-A step's `name` is never digested.
+The `name` of the review or record job, or of one of their steps, is never
+digested.
 
-`ledger.py` maps each registered shape's digest to a `Variant`, and `CLASSES`
-gives every entry's class: derived, run as the arm's own code, reproduced by a
-named module, or not reproduced, with the reason. `policy.materialize` refuses an
-arm whose shape is not registered before it runs any of the arm's code, naming
-each entry whose digest no registered shape has. `test_ledger.py` fails the
-torchci workflow when this tree's shape is not registered, and checks that the
-replay and the tests start whenever anything the shape reads or the arm's code
-runs changes.
+`ledger_parts.py` names every part of a registered shape, pairing its digest with
+its class: derived, run as the arm's own code, reproduced by a named module, or not
+reproduced, with the reason. `ledger.py` builds each registered `Variant` from
+those parts and maps its shape's digest to it. `policy.materialize` refuses an arm
+whose shape is not registered before it runs any of the arm's code, naming each
+entry whose digest no registered shape has. `test_ledger.py` fails the torchci
+workflow when this tree's shape is not registered, and checks that the tests start
+whenever anything the shape reads or the arm's code runs changes, and the replay
+whenever what it reads or runs does.
+
+Two shapes are registered: main's from 6f7274a0e and the repo-aware one. An arm of
+any other shape is refused, a base arm included: a pull request whose merge base
+predates 6f7274a0e is compared only once its branch is rebased onto a main that
+carries a registered shape.
 
 ### Registering a shape
 
@@ -149,25 +175,30 @@ Register a shape only after confirming that the harness reproduces it.
 2. Confirm it: the derivation test in `test_ledger.py` materializes the tree for
    every configured repo and policy file, and a replay run shows the change
    reproduced.
-3. Add a `Variant` to `ledger.VARIANTS` with the shape's digests in order, and give
-   each new digest its class in `ledger.CLASSES`. Its notes say why the harness
-   reproduces each part that differs from a registered variant. To list every
-   entry of the tree's shape:
+3. Name each new digest as a `Part` in `ledger_parts.py`, with its class, and add
+   a `Variant` of the shape's parts in order to `ledger.VARIANTS`. Its notes say why
+   the harness reproduces each part that differs from a registered variant.
+4. When the action step's pin changes, add the Claude Code build it runs to
+   `ledger.CLAUDE_CODE_BY_ACTION_PIN`, and set `CLAUDE_CODE_VERSION` in
+   `greenlight-policy-replay.yml` to it with `GREENLIGHT_REPLAY_CONTEXT_WINDOW`
+   beside it.
 
-   ```bash
-   cd tools/torchci
-   python3 -c 'from pathlib import Path
-   from torchci.greenlight_replay import ledger_shape, workflow
-   root = Path("../..").resolve()
-   path = root / workflow.WORKFLOW_RELPATH
-   for entry in ledger_shape.shape(workflow.load(path), root, path):
-       print(entry.digest, entry.label)'
-   ```
+To list every entry of the tree's shape:
+
+```bash
+cd tools/torchci
+python3 -c 'from pathlib import Path
+from torchci.greenlight_replay import ledger_shape, workflow
+root = Path("../..").resolve()
+path = root / workflow.WORKFLOW_RELPATH
+for entry in ledger_shape.shape(workflow.load(path), root, path):
+    print(entry.digest, entry.label)'
+```
 
 ### Retiring a variant
 
 The base arm of a replay is the merge base of the pull request under test, so a
 variant is added, never edited or replaced, while an open pull request's merge
-base can carry its shape. A variant is retired, with the classes only it uses,
+base can carry its shape. A variant is retired, with the parts only it uses,
 once no open pull request's merge base does; an arm of that shape is then refused,
 and its pull request needs rebasing onto main to be compared.

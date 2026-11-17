@@ -100,17 +100,59 @@ class TestRecordStep(StepsTestCase):
         (step,) = steps_where(self.document, workflow_steps.RECORD_VERDICT_ASSIGNMENT)
         return step
 
+    def record_job(self):
+        (job,) = [
+            job
+            for job in self.document["jobs"].values()
+            if any(step is self.record() for step in job.get("steps") or [])
+        ]
+        return job
+
     def test_the_head_record_step_reads_only_eval_hash_and_its_own_variables(self):
-        run = workflow_steps.record_step(self.document, WORKFLOW_PATH)
-        self.assertIn("EVAL_HASH", run)
-        index = workflow_steps.record_verdict_line(run)
+        record = workflow_steps.record_step(self.document, WORKFLOW_PATH)
+        self.assertIn("EVAL_HASH", record.run)
+        index = workflow_steps.record_verdict_line(record.run)
         self.assertEqual(
-            run.split("\n")[index].strip(), workflow_steps.RECORD_VERDICT_ASSIGNMENT
+            record.run.split("\n")[index].strip(),
+            workflow_steps.RECORD_VERDICT_ASSIGNMENT,
         )
 
-    def test_a_shell_other_than_bash_is_refused(self):
-        self.record()["shell"] = "sh -e {0}"
-        self.refused(workflow_steps.record_step, needle="shell")
+    def test_the_head_record_step_sets_no_shell(self):
+        self.assertIsNone(
+            workflow_steps.record_step(self.document, WORKFLOW_PATH).shell
+        )
+
+    def test_the_shell_is_the_steps_else_its_jobs_else_the_workflows(self):
+        self.document["defaults"] = {"run": {"shell": "bash"}}
+        record = workflow_steps.record_step(self.document, WORKFLOW_PATH)
+        self.assertEqual(record.shell, "bash")
+        self.document["defaults"] = {"run": {"shell": "sh"}}
+        self.record_job()["defaults"] = {"run": {"shell": "bash"}}
+        record = workflow_steps.record_step(self.document, WORKFLOW_PATH)
+        self.assertEqual(record.shell, "bash")
+        self.record_job()["defaults"] = {"run": {"shell": "sh"}}
+        self.record()["shell"] = "bash"
+        record = workflow_steps.record_step(self.document, WORKFLOW_PATH)
+        self.assertEqual(record.shell, "bash")
+
+    def test_a_shell_other_than_bash_is_refused_wherever_it_is_set(self):
+        for place in ("step", "job", "workflow"):
+            with self.subTest(place=place):
+                self.document = copy.deepcopy(HEAD_WORKFLOW)
+                holder = {
+                    "step": self.record(),
+                    "job": self.record_job(),
+                    "workflow": self.document,
+                }[place]
+                if place == "step":
+                    holder["shell"] = "sh -e {0}"
+                else:
+                    holder["defaults"] = {"run": {"shell": "sh"}}
+                self.refused(workflow_steps.record_step, needle="shell")
+
+    def test_a_second_record_step_is_refused(self):
+        self.document["jobs"]["review"]["steps"].append(copy.deepcopy(self.record()))
+        self.refused(workflow_steps.record_step, needle="found 2")
 
     def test_a_step_env_is_refused(self):
         self.record()["env"] = {"EXTRA": "1"}

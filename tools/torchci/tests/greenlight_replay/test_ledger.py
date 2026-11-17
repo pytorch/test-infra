@@ -29,8 +29,10 @@ from replay_runner_fixtures import (
 from torchci.greenlight_replay import (
     arm_code,
     ledger,
+    ledger_parts,
     ledger_shape,
     policy as policy_mod,
+    workflow,
 )
 from torchci.greenlight_replay.workflow import ACTION_USES_PREFIX, SIZECHECK_STEP_ID
 from torchci.greenlight_replay.workflow_steps import (
@@ -43,7 +45,13 @@ REPLAY_WORKFLOW = REPO_ROOT / ".github/workflows/greenlight-policy-replay.yml"
 TORCHCI_WORKFLOW = REPO_ROOT / ".github/workflows/torchci.yml"
 GREENLIGHT_WORKFLOW = REPO_ROOT / ".github/workflows/greenlight-tests.yml"
 GREENLIGHT_ROOT = REPO_ROOT / "greenlight"
-REPLAY_JOBS = ("collect", "replay")
+# The jobs that run greenlight's code, by workflow: arm_code runs it under the job's
+# interpreter.
+GREENLIGHT_PYTHON_JOBS = (
+    (REPLAY_WORKFLOW, "collect"),
+    (REPLAY_WORKFLOW, "replay"),
+    (TORCHCI_WORKFLOW, "python-tests"),
+)
 DIFF_STEP_NEEDLE = "Diff bytes:"
 
 # Imported as arm_code's drivers import greenlight: cli for the target, redact beside it
@@ -191,18 +199,39 @@ class TestRegistry(unittest.TestCase):
         except ledger.UnregisteredShapeError as exc:
             self.fail(str(exc))
 
-    def test_every_registered_digest_has_a_class_and_every_class_a_digest(self):
-        used = {digest for variant in ledger.VARIANTS for digest in variant.digests}
-        self.assertEqual(used, set(ledger.CLASSES))
-        for variant in ledger.VARIANTS:
-            self.assertEqual(len(variant.classes()), len(variant.digests))
+    def test_no_digest_is_two_parts(self):
+        named = [
+            value
+            for value in vars(ledger_parts).values()
+            if isinstance(value, ledger_parts.Part)
+        ]
+        self.assertEqual(len({part.digest for part in named}), len(named))
+
+    def test_every_part_belongs_to_a_variant(self):
+        used = {part for variant in ledger.VARIANTS for part in variant.parts}
+        for name, value in vars(ledger_parts).items():
+            if isinstance(value, ledger_parts.Part):
+                with self.subTest(part=name):
+                    self.assertIn(value, used)
 
     def test_no_two_variants_share_a_shape(self):
         self.assertEqual(len(ledger.REGISTRY), len(ledger.VARIANTS))
 
-    def test_mains_variant_is_registered_with_its_review(self):
-        (main,) = [v for v in ledger.VARIANTS if "e4933b776" in v.name]
-        self.assertTrue(main.notes)
+    def test_every_variant_but_the_heads_says_why_it_is_reproduced(self):
+        head = ledger.require_registered(HEAD_WORKFLOW, REPO_ROOT, WORKFLOW_PATH)
+        for variant in ledger.VARIANTS:
+            if variant is not head:
+                with self.subTest(variant=variant.name):
+                    self.assertTrue(variant.notes)
+
+    def test_the_replay_installs_the_cli_the_heads_action_pin_runs(self):
+        pin = workflow._action_step(HEAD_WORKFLOW, WORKFLOW_PATH)["uses"]
+        sha = pin.partition("@")[2]
+        self.assertIn(sha, ledger.CLAUDE_CODE_BY_ACTION_PIN)
+        env = yaml.safe_load(REPLAY_WORKFLOW.read_text())["env"]
+        self.assertEqual(
+            env["CLAUDE_CODE_VERSION"], ledger.CLAUDE_CODE_BY_ACTION_PIN[sha]
+        )
 
 
 class TestMasks(unittest.TestCase):
@@ -262,6 +291,7 @@ class TestMasks(unittest.TestCase):
             "a step's name": set_in(
                 lambda d: run_holding(d, DIFF_STEP_NEEDLE), "name", "Diff it"
             ),
+            "a record step's name": set_in(record_step, "name", "Check it"),
         }
         for name, mutate in cases.items():
             with self.subTest(name):
@@ -358,6 +388,7 @@ class TestMaterializeRefuses(unittest.TestCase):
         resolve.assert_not_called()
         message = str(caught.exception)
         self.assertIn(f"{new.label}: {new.digest}", message)
+        self.assertIn("base arm", message)
         self.assertIn("PARITY.md", message)
 
 
@@ -475,10 +506,7 @@ class TestTriggers(unittest.TestCase):
 
 
 class TestReplayEnvironment(unittest.TestCase):
-    """The replay jobs run each arm's greenlight as greenlight's own lockfile has it."""
-
-    def jobs(self):
-        return yaml.safe_load(REPLAY_WORKFLOW.read_text())["jobs"]
+    """The jobs running greenlight's code run it as greenlight's own project has it."""
 
     def test_the_pinned_pyyaml_is_greenlights(self):
         lock = tomllib.loads((GREENLIGHT_ROOT / "uv.lock").read_text())
@@ -487,14 +515,15 @@ class TestReplayEnvironment(unittest.TestCase):
         self.assertTrue(pins)
         self.assertEqual(set(pins), {locked})
 
-    def test_the_replay_jobs_python_satisfies_greenlights_requires_python(self):
+    def test_each_jobs_python_satisfies_greenlights_requires_python(self):
         project = tomllib.loads((GREENLIGHT_ROOT / "pyproject.toml").read_text())
         required = SpecifierSet(project["project"]["requires-python"])
-        for name in REPLAY_JOBS:
-            with self.subTest(job=name):
+        for path, name in GREENLIGHT_PYTHON_JOBS:
+            with self.subTest(workflow=path.name, job=name):
+                job = yaml.safe_load(path.read_text())["jobs"][name]
                 (version,) = [
                     str(step["with"]["python-version"])
-                    for step in self.jobs()[name]["steps"]
+                    for step in job["steps"]
                     if str(step.get("uses") or "").startswith("actions/setup-python@")
                 ]
                 self.assertIn(version, required)

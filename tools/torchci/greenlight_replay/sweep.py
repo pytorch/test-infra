@@ -63,14 +63,20 @@ LOCAL_MODELS = {"global.anthropic.claude-opus-5": DEFAULT_MODEL}
 
 # Outcomes the warm-up cannot recover from, because none of them depends on
 # which pull request was reviewed: the model the gateway resolved, the prompt the
-# CLI parsed, the hooks the session loaded. Seeing one on the first run means
-# seeing it on every run, so the sweep stops rather than paying for the rest.
+# CLI parsed, the hooks the session loaded, the policy's own checks that could not
+# run. Seeing one on the first run means seeing it on every run, so the sweep stops
+# rather than paying for the rest.
 # Deliberately wider than the runner's own RETRYABLE, which asks whether one more
 # attempt on THIS pull request could help; this asks whether the next thirty
 # could. A verdict the record path rejects, and an instruction file a pull request
 # smuggled past the sanitize step, are not here: each is that pull request's.
 FATAL_OUTCOMES = frozenset(
-    {Outcome.API_ERROR, Outcome.EMPTY_RUN, Outcome.HOOKS_NOT_LOADED}
+    {
+        Outcome.API_ERROR,
+        Outcome.EMPTY_RUN,
+        Outcome.HOOKS_NOT_LOADED,
+        Outcome.ARM_CHECK_FAILED,
+    }
 )
 
 # Measured over 872 real CI reviewer runs: 9-11 minutes and $1.33 apiece.
@@ -262,7 +268,9 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
         head_sha = row["decision_head_sha"]
         if not sweep.policy.target.policy_present:
             # The workflow declines every pull request of a repo without a review
-            # policy before fetching anything: no diff, no checkout, no model.
+            # policy with its canned verdict and runs no model. It checks out,
+            # sanitizes and fetches the diff first, which the replay skips; that it
+            # could fail there is a declared deviation (PARITY.md).
             result = canned_result(sweep.policy, Outcome.NO_POLICY)
             with sweep.checkpoint_lock:
                 append_checkpoint(sweep.checkpoint_path, row, result)

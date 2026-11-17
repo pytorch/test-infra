@@ -68,6 +68,7 @@ from torchci.greenlight_replay.workflow_steps import (
     hook_settings_text,
     no_policy_program,
     record_step,
+    RecordStep,
 )
 
 
@@ -122,9 +123,9 @@ class Policy:
     action step's, None without one.
 
     ``target`` is what the tree's ``greenlight target`` names for the reviewed repo.
-    ``record_step`` is the record job's verdict validation, ``detector_script`` and
-    ``detector_dirname`` the detector and the workspace directory it holds no
-    instruction file may load from.
+    ``record_step`` is the record job's verdict validation and its shell,
+    ``detector_script`` and ``detector_dirname`` the detector and the workspace
+    directory it holds no instruction file may load from.
 
     ``too_large_verdict`` and ``no_policy_verdict`` are the canned verdicts as the record
     path processes them; ``no_policy_verdict`` is None unless ``target`` has no policy.
@@ -144,14 +145,13 @@ class Policy:
     too_large_verdict: dict[str, str]
     no_policy_verdict: dict[str, str] | None
     sanitize_script: Path
-    hooks_dir: Path
     hook_settings: dict[str, Any]
     output_style: str | None
     model: str
     effort: str
     tools: str
     target: Target
-    record_step: str
+    record_step: RecordStep
     detector_script: Path
     detector_dirname: str
     stack_context: StackContext = StackContext.NONE
@@ -190,10 +190,7 @@ def materialize(
     # the policy, identical for every pull request in the corpus.
     target = resolve_target(root, reviewed_repo)
     hook_settings = derive_hook_settings(
-        hook_settings_text(document, workflow_path),
-        root,
-        target.checkout,
-        workflow_path,
+        hook_settings_text(document, workflow_path), target.checkout, workflow_path
     )
     recorded = record_step(document, workflow_path)
     context = stack_context(document, workflow_path)
@@ -216,7 +213,6 @@ def materialize(
             root, recorded, no_policy_program(document, workflow_path), target
         ),
         sanitize_script=_require_file(hooks_dir / SANITIZE_FILENAME),
-        hooks_dir=hooks_dir,
         hook_settings=hook_settings,
         output_style=action_output_style(document, workflow_path),
         model=model,
