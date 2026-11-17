@@ -24,8 +24,9 @@ Every tick but a full one first walks every PR, open or closed, updated since th
 start less ``LISTING_OVERLAP`` into the view (a failing walk raises and leaves that start as it was).
 While the reading is fresh, it then reads alone, lowest number first and at most
 ``_STALE_RECORD_READS``, each cohort PR whose marker shows a ``pull_request`` event newer than its
-record (a close, a label, a draft marked ready, a base change the walk missed); a failed read is
-logged and skipped, a rate limit ends the reads, and the PRs left wait for the next tick. Last it adds
+record (a close, a label, a draft marked ready, a base change the walk missed) and that it has not
+read alone at that event already; a failed read is logged and retried next tick, a rate limit raises
+as a listing's does, and the PRs left wait for the next tick. Last it adds
 the open ``Reverted`` PRs to its candidates without writing them into the view; a PR in both keeps the
 ``Reverted`` copy. The tick hands the scan each candidate's marker as the view last read it, None for
 a PR it never read, and logs one line naming its kind, its source and its counts.
@@ -169,12 +170,13 @@ def _refresh_stale_records(
     """Read alone the cohort PRs whose marker shows a ``pull_request`` event their record lacks; how many reads."""
     cohort = lowered(authors)
     stale = [
-        number
+        (number, missed)
         for number, record in sorted(view.records.items())
-        if record.author.lower() in cohort and _missed_event(record, markers.get(number))
+        if record.author.lower() in cohort
+        and (missed := _missed_event(record, markers.get(number), view.read_alone_at(number))) is not None
     ]
     reads = 0
-    for number in stale[:_STALE_RECORD_READS]:
+    for number, missed in stale[:_STALE_RECORD_READS]:
         reads += 1
         try:
             record = read_record(client, repo, number)
@@ -182,20 +184,21 @@ def _refresh_stale_records(
             raise
         except Exception as exc:
             if github_client.is_rate_limit_error(exc):
-                logger.warning(
-                    "%s: a rate limit stopped reading PR #%d and the rest alone", repo, number, exc_info=True
-                )
-                break
+                raise
             logger.error("%s: cannot read PR #%d, whose marker is newer than its record", repo, number, exc_info=True)
             continue
+        view.read_alone(number, missed)
         if record is not None:
             view.apply([record], now)
     return reads
 
 
-def _missed_event(record: OpenPR, marker: Marker | None) -> bool:
+def _missed_event(record: OpenPR, marker: Marker | None, read_alone_at: datetime | None) -> datetime | None:
+    """The marker's ``pull_request`` event when the record lacks it and the PR was not read alone at it, else None."""
     newest = None if marker is None else marker.pr_updated_at
-    return newest is not None and record.updated_at is not None and newest > record.updated_at
+    if newest is None or record.updated_at is None or newest <= record.updated_at or newest == read_alone_at:
+        return None
+    return newest
 
 
 def _reading(
