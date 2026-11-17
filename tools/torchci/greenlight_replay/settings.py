@@ -27,6 +27,7 @@ import shlex
 from pathlib import Path
 from typing import Any
 
+from torchci.greenlight_replay.checkout import checkout_dirname, DEFAULT_REPO
 from torchci.greenlight_replay.hooks import remap
 from torchci.greenlight_replay.policy import Policy
 
@@ -63,8 +64,8 @@ OUTPUT_STYLE = "Concise"
 REMAP_MATCHER = "Read|Write|Glob|Grep"
 
 
-def _script(path: Path, *, interpreter: str = "") -> str:
-    """A hook command line, shell-quoted.
+def _script(path: Path, *args: str, interpreter: str = "") -> str:
+    """A hook command line, shell-quoted, its arguments too.
 
     The CLI runs these through a shell, so a workdir containing a space would otherwise
     split one path into two words. Nothing rejects the resulting command: a hook that
@@ -73,7 +74,7 @@ def _script(path: Path, *, interpreter: str = "") -> str:
     remap alone turns a parallel sweep into every reviewer sharing one diff and one
     verdict file.
     """
-    quoted = shlex.quote(str(path))
+    quoted = shlex.join([str(path), *args])
     return f"{interpreter} {quoted}" if interpreter else quoted
 
 
@@ -117,13 +118,17 @@ def _matcher(
     return {"matcher": matcher, "hooks": [hook]}
 
 
-def write_settings(policy: Policy, run_dir: Path) -> Path:
+def write_settings(policy: Policy, run_dir: Path, repo: str = DEFAULT_REPO) -> Path:
     """Write the settings file for one run and return its path.
 
     The remap is registered alongside the production sandboxes rather than replacing them:
     every PreToolUse hook is handed the ORIGINAL tool input, so ``restrict-read.py`` and
     ``restrict-write.sh`` go on judging the un-remapped ``/tmp/greenlight-*`` paths they
     already permit, and the rewrite is applied afterwards.
+
+    ``restrict-read.py`` is handed ``repo``'s checkout directory as its one argument, as
+    the workflow hands it. A policy whose script predates the argument ignores it and
+    serves ``pytorch``, which is that policy's only checkout.
     """
     hooks = policy.hooks_dir
     settings = {
@@ -132,7 +137,11 @@ def write_settings(policy: Policy, run_dir: Path) -> Path:
                 _matcher("Write|Edit", _script(hooks / "restrict-write.sh")),
                 _matcher(
                     "Read|Glob|Grep",
-                    _script(hooks / "restrict-read.py", interpreter="python3"),
+                    _script(
+                        hooks / "restrict-read.py",
+                        checkout_dirname(repo),
+                        interpreter="python3",
+                    ),
                 ),
                 _matcher(
                     REMAP_MATCHER,

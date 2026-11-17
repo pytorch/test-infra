@@ -64,7 +64,7 @@ of `no author`, `excluded (bot or greenlight)` and `no merge rule names '<login>
 `head moved` and `base not accepted`, and on a write_permission repo
 `account type '<type>' is not 'User'` and `no write permission`, which never names the level. The scan's lines are in the `greenlight-scan` Lambda's CloudWatch logs;
 for one PR, a `pytorch/test-infra` writer can dispatch `greenlight-review.yml` with its `pr` input
-and read the run's log.
+(and `repo` for a repo other than `pytorch/pytorch`) and read the run's log.
 
 A `REVERTED` row can only deny, so on a PR with a recorded row it is stamped non-shadow whatever its
 author or base show; on a PR with none it follows the PR's authority. A PR whose recorded rows are

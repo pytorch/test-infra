@@ -35,7 +35,7 @@ hook script resolves, and the inference profile maps to a model. That costs a fe
 seconds and about 34 MB. Fetching twice is safe: materializing clears its
 destination and re-extracts, so a dry run does not spoil the real run after it.
 
-What it does not do is the per-run work: the blobless pytorch clone, the worktree
+What it does not do is the per-run work: the blobless clone of the repo, the worktree
 slots, and each pull request's diff, metadata and stack context. Those are
 gigabytes and a few GitHub round trips per pull request, and nothing they could
 tell you is a property of the policy. Everything that fails identically for every
@@ -54,8 +54,8 @@ Runtime requirements:
   reviewer, whose `PATH` is pinned rather than inherited, so both must be
   reachable from `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`; the sweep checks
   this before it starts. On Bedrock, `AWS_REGION` and credentials in `~/.aws`.
-- Disk: one blobless pytorch clone plus a worktree per `--parallelism`, a second
-  sparse clone of pytorch main for the sanitize step, and the policy tree.
+- Disk: one blobless clone of the repo plus a worktree per `--parallelism`, a second
+  sparse clone of the repo's main for the sanitize step, and the policy tree.
   Roughly 1.2-1.8 GB per policy pull request at the default parallelism, kept
   under `--workdir` and never cleaned up automatically.
 
@@ -79,7 +79,7 @@ naming that record, so they need neither ClickHouse nor an authenticated `gh`.
 | `--workdir` | `/tmp/greenlight-replay` | scratch root; keep it under `/tmp/greenlight-*` |
 | `--resume` | off | re-run only what has no verdict yet |
 | `--timeout-minutes` | `37` | wall clock allowed per reviewer run |
-| `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to |
+| `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to, `pytorch/<name>` only: it picks the clone, the slot's checkout directory (`pytorch` for pytorch/pytorch, `target` otherwise, as in CI), the trusted skills, the prompt's repo, `restrict-read.py`'s argument and the one repo policy file each slot keeps. A policy with a `repos/` directory but no file for the repo is refused, since CI would decline every review with a canned verdict |
 | `--model` | the policy's profile, mapped unless on Bedrock | model id for the local CLI |
 | `--context-window` | `1000000` | window that model must report; pair it with `--model` or Bedrock |
 | `--dry-run` | off | resolve the frame and sample, check the invocation, print the bill |
@@ -192,8 +192,9 @@ stack's is rebuilt best effort, from its membership today, by `stack_native.py`.
 **The step is pinned.** `stack_step.py` and `stack.py` reproduce its ghstack
 branch line by line, bar its check of a sibling's base name, which the rebuild,
 diffing from the base's SHA, never reads. Loading a policy refuses a step
-digesting to neither `stack_step.STEP_SHA256` nor `GHSTACK_ONLY_STEP_SHA256`,
-the ghstack-only version, which replays as CI ran it. Every key but `name`
+digesting to none of `stack_step.STEP_SHA256`, `PYTORCH_ONLY_STEP_SHA256` (the
+version that named pytorch/pytorch rather than the reviewed repo) and
+`GHSTACK_ONLY_STEP_SHA256`, the ghstack-only version, which replays as CI ran it. Every key but `name`
 counts: an edited `run:`, `env` or `shell`, or an added `if:`, is refused. The
 gate finds it by a `run:` naming `/tmp/greenlight-stack` and refuses a second
 one; neither its order nor its job is checked. A policy without the step replays
@@ -291,8 +292,8 @@ consequences:
 <workdir>/pr-8830/policy/          the materialized policy tree
 <workdir>/pr-8830/runs/<pr>/       diff, metadata, stack JSON and directory, settings, verdict
 <workdir>/pr-8830/checkpoint.jsonl
-<workdir>/pr-8830/pytorch.git      bare clone, with the reviewer slots beside it
-<workdir>/pr-8830/pytorch-main-skills/   sparse checkout for the sanitize step
+<workdir>/pr-8830/<name>.git       bare clone of --repo, with the reviewer slots beside it
+<workdir>/pr-8830/<name>-main-skills/    sparse checkout of its main for the sanitize step
 ```
 
 Stack context lands in the run directory as `greenlight-stack.json`, with each

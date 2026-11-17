@@ -11,9 +11,11 @@ which reads GitHub back to the replayed verdict's cutoff.
 
 **A pin covers the whole step but its ``name``.** :data:`STEP_SHA256` is the digest of
 every other key as canonical JSON, so an edited ``run:``, ``env`` or ``shell``, or an
-added ``if:``, is refused, while a retitled step is not. The step's version collecting
-a ghstack's context alone is pinned too, by :data:`GHSTACK_ONLY_STEP_SHA256`, so a
-policy ref carrying it replays with ghstack context, as CI ran it. Where the step sits
+added ``if:``, is refused, while a retitled step is not. Two earlier versions stay
+pinned, so a policy ref carrying one replays as CI ran it: the one reading
+pytorch/pytorch's stacks alone, :data:`PYTORCH_ONLY_STEP_SHA256`, collects the same
+context for pytorch/pytorch as the current step, and the one collecting a ghstack's
+context alone, :data:`GHSTACK_ONLY_STEP_SHA256`, only that. Where the step sits
 -- its order among the job's steps, and which job holds it -- is not checked. The step
 is found by a ``run:`` naming the stack path inline; moved into a script, its policy
 would read as one without the step and replay with no stack, a known limit.
@@ -34,6 +36,7 @@ __all__ = [
     "CI_STACK_JSON",
     "GHSTACK_HEAD",
     "GHSTACK_ONLY_STEP_SHA256",
+    "PYTORCH_ONLY_STEP_SHA256",
     "STACK_CONTEXT_BY_PIN",
     "STACK_DIRNAME",
     "STACK_FILENAME",
@@ -67,7 +70,12 @@ class StackContext(enum.Enum):
 
 
 # step_digest() of the step as PyYAML loads it.
-STEP_SHA256 = "5fa7c0723e0ddabae1f5c0295ebbb60bf4260e89806a42d46a917f361b8f3b67"
+STEP_SHA256 = "4aa99af017ce9ef7fcf64e66d3e074f9af3ebe74f7e1cf999918723622e075f2"
+# step_digest() of its version reading pytorch/pytorch's stacks alone, the step at
+# https://github.com/pytorch/test-infra/blob/6f7274a0eff04dd4f8ada574e4e144610cece2c8/.github/workflows/greenlight-pr-review.yml#L324
+PYTORCH_ONLY_STEP_SHA256 = (
+    "5fa7c0723e0ddabae1f5c0295ebbb60bf4260e89806a42d46a917f361b8f3b67"
+)
 # step_digest() of its ghstack-only version, the "Collect ghstack stack context" step at
 # https://github.com/pytorch/test-infra/blob/9206d491d3a5507163cb9d5b77040d4c3ef5e038/.github/workflows/greenlight-pr-review.yml#L315
 GHSTACK_ONLY_STEP_SHA256 = (
@@ -75,6 +83,7 @@ GHSTACK_ONLY_STEP_SHA256 = (
 )
 STACK_CONTEXT_BY_PIN = {
     STEP_SHA256: StackContext.BOTH,
+    PYTORCH_ONLY_STEP_SHA256: StackContext.BOTH,
     GHSTACK_ONLY_STEP_SHA256: StackContext.GHSTACK,
 }
 

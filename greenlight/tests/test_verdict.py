@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import gzip
 import json
 import logging
@@ -650,7 +651,7 @@ def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert pr.created_reviews == []
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert _decode(emit.row_gzip)["shadow"] is True
 
 
@@ -1116,7 +1117,7 @@ def test_shadow_land_dismisses_the_prior_approval_a_demoted_author_still_holds(m
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
     assert pr.created_reviews == []
     assert _decode(emit.row_gzip)["shadow"] is True
@@ -2275,3 +2276,80 @@ def test_a_drci_entry_never_gets_greenlights_own_comment(make_config, tmp_path, 
 def test_the_default_entry_lookup_reads_the_local_repos_yaml():
     assert _REAL_REPO_ENTRY(constants.TARGET_REPO) == (repo_config.BUILTIN_PYTORCH, True)
     assert _REAL_REPO_ENTRY("pytorch/no-such-repo") is None
+
+
+def test_a_requested_shadow_land_with_no_valid_entry_dismisses_first_then_fails(make_config, tmp_path, set_repo_entry):
+    set_repo_entry("pytorch/vision", None)
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)])
+    req = dataclasses.replace(_land(tmp_path), shadow=True)
+
+    with pytest.raises(ValueError, match="pytorch/vision has no valid entry"):
+        verdict.run(
+            req,
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    assert rec.events == ["dismiss:1"]
+    assert emit.row_gzip is None
+
+
+class _FailingEmit:
+    def __init__(self, rec: _Recorder) -> None:
+        self._rec = rec
+
+    def __call__(self, row_gzip: bytes, key: str) -> None:
+        self._rec.events.append("emit")
+        raise OSError("disk full")
+
+
+@pytest.mark.parametrize(
+    ("entry", "requested", "author"),
+    [
+        pytest.param(_vision_entry(mode="shadow"), False, _TRUSTED_AUTHOR, id="config-shadow"),
+        pytest.param(_vision_entry(), True, _TRUSTED_AUTHOR, id="requested-shadow"),
+        pytest.param(_vision_entry(), False, _SHADOW_AUTHOR, id="eligibility-shadow"),
+    ],
+)
+def test_a_shadow_land_dismisses_once_before_an_emit_that_fails(
+    make_config, tmp_path, set_repo_entry, eligibility, entry, requested, author
+):
+    set_repo_entry("pytorch/vision", entry)
+    rec = _Recorder()
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _FakePR("h", rec, reviews=reviews, author=author)
+    req = dataclasses.replace(_land(tmp_path), shadow=requested)
+
+    with pytest.raises(OSError, match="disk full"):
+        verdict.run(
+            req,
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=_FailingEmit(rec),
+            now=lambda: _FIXED,
+        )
+
+    assert rec.events == ["dismiss:1", "emit"]
+    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert pr.created_reviews == []
+
+
+def test_a_no_land_still_dismisses_once_before_its_emit(make_config, tmp_path, set_repo_entry):
+    set_repo_entry("pytorch/vision", _vision_entry(mode="shadow"))
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)])
+
+    verdict.run(
+        _land(tmp_path, status="NO_LAND", reason="unclear_intent"),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+
+    assert rec.events == ["dismiss:1", "emit"]

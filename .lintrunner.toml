@@ -289,6 +289,7 @@ include_patterns = [
     # '.github/actions/**/*.yaml',
 ]
 exclude_patterns = [
+    '.github/workflows/greenlight-pr-review.yml',
     '.github/workflows/linux_job_v3.yml',
     '.github/workflows/td-scorer.yml',
 ]
@@ -310,10 +311,12 @@ init_command = [
 ]
 
 # job.check_run_id (linux_job_v3.yml) and the vars context (td-scorer.yml) need
-# actionlint >= 1.7.8; retain legacy checks elsewhere.
+# actionlint >= 1.7.8, and number-typed workflow_dispatch inputs (greenlight-pr-review.yml)
+# need >= 1.6.26; retain legacy checks elsewhere.
 [[linter]]
 code = 'ACTIONLINT_REPORTS'
 include_patterns = [
+    '.github/workflows/greenlight-pr-review.yml',
     '.github/workflows/linux_job_v3.yml',
     '.github/workflows/td-scorer.yml',
 ]

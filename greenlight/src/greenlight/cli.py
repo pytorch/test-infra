@@ -10,7 +10,7 @@ import os
 import sys
 from typing import TYPE_CHECKING
 
-from greenlight import drci_poke, repo_config, repo_scan, verdict
+from greenlight import drci_poke, repo_config, repo_scan, verdict, workflow_target
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
@@ -196,6 +196,7 @@ def build_parser() -> argparse.ArgumentParser:
     drci_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the repository")
     drci_parser.add_argument("--pr", type=int, required=True, help="pull-request number")
     drci_parser.add_argument("--log-level", default=None, help="logging level name")
+    workflow_target.add_parser(subparsers)
     return parser
 
 
@@ -297,6 +298,8 @@ def main(argv: Sequence[str] | None = None, *, tokens: TokenSource | None = None
         return _run_verdict(args, parser)
     if args.command == "drci-poke":
         return _run_drci_poke(args, parser)
+    if args.command == "target":
+        return workflow_target.run(args)
     try:
         config = _config_from_args(args)
         configure_logging(config.log_level)

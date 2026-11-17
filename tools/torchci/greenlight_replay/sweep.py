@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from torchci.greenlight_decisions.__main__ import parse_as_of
-from torchci.greenlight_replay.checkout import WorktreePool
+from torchci.greenlight_replay.checkout import checkout_dirname, clone_url, WorktreePool
 from torchci.greenlight_replay.emit import append_checkpoint
 from torchci.greenlight_replay.inputs import build_inputs, ReplayInputs
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
@@ -41,7 +41,11 @@ from torchci.greenlight_replay.runner import (
 )
 from torchci.greenlight_replay.settings import assert_hooks_present
 from torchci.greenlight_replay.trusted_skills import materialize_trusted_skills
-from torchci.greenlight_replay.workspace import install_policy_half, sanitize_checkout
+from torchci.greenlight_replay.workspace import (
+    install_policy_half,
+    require_repo_policy,
+    sanitize_checkout,
+)
 
 
 # A run directory is passed to the reviewer as its own ``--add-dir``, and
@@ -51,8 +55,9 @@ from torchci.greenlight_replay.workspace import install_policy_half, sanitize_ch
 # beneath it at once. restrict-read.py does not help: it allows anything under
 # the /tmp/greenlight- prefix, other pull requests' run directories included.
 POLICY_DIRNAME = "policy"
-BARE_CLONE_DIRNAME = "pytorch.git"
-TRUSTED_SKILLS_DIRNAME = "pytorch-main-skills"
+# Per repo, so a shared workdir never restores one repo's skills into another's.
+BARE_CLONE_DIRNAME = "{}.git"
+TRUSTED_SKILLS_DIRNAME = "{}-main-skills"
 RUNS_DIRNAME = "runs"
 
 # The workflow names a Bedrock inference profile and a CLI off Bedrock names a
@@ -128,18 +133,23 @@ def open_sweep(
     one an unrecognised profile stops a sweep off Bedrock here, before the clone
     and before anything is spent.
     """
+    dirname, name = checkout_dirname(repo), repo.partition("/")[2]
     preflight(workdir, policy_ref)
     policy, model = prepare_policy(policy_ref, workdir, model)
+    require_repo_policy(policy.root, repo)
     pool = WorktreePool(
-        workdir / BARE_CLONE_DIRNAME,
+        workdir / BARE_CLONE_DIRNAME.format(name),
         parallelism,
-        repo_url=f"https://github.com/{repo}.git",
+        repo_url=clone_url(repo),
+        dirname=dirname,
     )
     pool.ensure_clone()
     return Sweep(
         policy=policy,
         pool=pool,
-        trusted_skills=materialize_trusted_skills(workdir / TRUSTED_SKILLS_DIRNAME),
+        trusted_skills=materialize_trusted_skills(
+            workdir / TRUSTED_SKILLS_DIRNAME.format(name), repo_url=clone_url(repo)
+        ),
         model=model,
         context_window=context_window,
         workdir=workdir,
@@ -283,6 +293,7 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
                 timeout_s=sweep.timeout_s,
                 model=sweep.model,
                 context_window=sweep.context_window,
+                repo=sweep.repo,
             )
 
         if replay_inputs.too_large:
@@ -337,7 +348,7 @@ def prepare_workspace(sweep: Sweep, worktree: Path) -> Path:
     workspace = WorktreePool.workspace_of(worktree)
     with sweep.workspace_lock:
         if workspace not in sweep.prepared:
-            install_policy_half(sweep.policy.root, worktree)
+            install_policy_half(sweep.policy.root, worktree, sweep.repo)
             sweep.prepared.add(workspace)
     return workspace
 

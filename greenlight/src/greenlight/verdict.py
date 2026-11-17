@@ -19,10 +19,12 @@ A LAND or NO_LAND is shadow when ``--shadow`` is passed, the repo's entry in the
 ``author_eligibility.has_eligible_author`` finds that the entry's eligibility source (a valid merge
 rule, or write permission) does not qualify its author, or finds the PR off the reviewed head or on a
 base trymerge refuses;
-a failed check fails the command before the row is written, after a NO_LAND has already dismissed. A
+a failed check fails the command before the row is written, after a NO_LAND, or a LAND passed
+``--shadow``, has already dismissed. A
 shadow verdict carries no authority, and that is absolute rather than forward-looking: no approving
 review is ever posted for one, any prior greenlight approval is dismissed on the LAND path as well
-as the NO_LAND one, and the row is stamped ``shadow`` so neither Dr. CI nor the merge gate reads it.
+as the NO_LAND one, before the row is emitted, so a failed emit never leaves that approval standing,
+and the row is stamped ``shadow`` so neither Dr. CI nor the merge gate reads it.
 Withholding a new approval would not take back one collected while the PR was eligible, and a live
 approval is authority whatever the row says. The row is authoritative, so the comment upsert is
 best-effort on every path (a failed write is logged and swallowed); the LAND approving review and
@@ -34,7 +36,8 @@ and, when a ``bot_login`` and token are both present, best-effort upsert that sa
 to show the run as in-progress (AI_REVIEW_STARTED) or not-completed (CANCELLED / FAILED). The
 command never writes to ClickHouse directly.
 
-A repo with no valid entry there fails the command with no row (a NO_LAND still dismisses first).
+A repo with no valid entry there fails the command with no row (a NO_LAND, or a LAND passed
+``--shadow``, still dismisses first).
 Every comment upsert above is skipped for a shadow row or marker, and on the repos whose entry's
 ``status_comment`` is ``drci``, where Dr. CI renders the same state from the emitted row and the
 ``drci-poke`` command refreshes that render instead. Everywhere else greenlight posts the comment
@@ -270,14 +273,16 @@ def _run_full(
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to post a verdict")
     found = _repo_entry(request.repo)
-    if status != STATUS_NO_LAND:
+    # A NO_LAND, and a LAND the request already marks shadow, dismiss whatever the lookups below
+    # answer, so they go first: a lookup that fails must not leave greenlight's approval standing on a
+    # PR the review just rejected or that carries no authority.
+    dismiss_first = status == STATUS_NO_LAND or request.shadow
+    if not dismiss_first:
         _require_entry(request.repo, found)
     client = build_github(token)
     pr = github_client.get_pr(client, request.repo, request.pr_number)
     author, author_type = (pr.user.login, pr.user.type) if pr.user is not None else (None, None)
-    if status == STATUS_NO_LAND:
-        # A NO_LAND dismisses whatever the lookups below answer, so it goes first: a lookup that fails
-        # must not leave greenlight's approval standing on a PR the review just rejected.
+    if dismiss_first:
         _dismiss_prior_approvals(request, pr)
     entry, served = _require_entry(request.repo, found)
     # OR, never AND: the caller's value and this one are derived independently, so a disagreement
@@ -294,6 +299,13 @@ def _run_full(
         eligibility=entry.eligibility,
         author_type=author_type,
     )
+    if status == STATUS_LAND and shadow and not dismiss_first:
+        # A shadow PR must never carry a live greenlight approval. Under merge_rules.yaml's
+        # wildcard Greenlight Review Bot rule one approval authorizes a merge of any path in
+        # the repo, so an approval collected while the PR was eligible is still authority --
+        # withholding a new one does not take the old one back. Before the emit, so a failed
+        # emit cannot leave it standing.
+        _dismiss_prior_approvals(request, pr)
     key = _emit_payload(request, status, reason, message, shadow=shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
     job_url = request.agent_job_url or request.eval_job_url
@@ -314,11 +326,6 @@ def _run_full(
                 author,
                 request.shadow,
             )
-            # A shadow PR must never carry a live greenlight approval. Under merge_rules.yaml's
-            # wildcard Greenlight Review Bot rule one approval authorizes a merge of any path in
-            # the repo, so an approval collected while the PR was eligible is still authority --
-            # withholding a new one does not take the old one back.
-            _dismiss_prior_approvals(request, pr)
         elif github_client.has_live_greenlight_approval(pr, bot_login=request.bot_login):
             logger.info("already approved %s#%d; skipping re-approval", request.repo, request.pr_number)
         else:
