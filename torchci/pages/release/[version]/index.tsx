@@ -13,15 +13,15 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  ReleaseLinksRow,
+  ReleaseStatCard,
+} from "components/release/ReleaseComponents";
+import {
   ReleaseLoadError,
   ReleaseLoading,
   ReleaseNotFound,
   ReleasePage,
 } from "components/release/ReleasePage";
-import {
-  ReleaseLinksRow,
-  ReleaseStatCard,
-} from "components/release/ReleaseComponents";
 import type { ReleaseBoard, ReleaseIndex } from "lib/api/releases/types";
 import {
   isReleaseNotFound,
