@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, cast
 
@@ -88,11 +89,6 @@ def _read_markers_query(numbers: list[int]) -> tuple[str, dict[str, object], dic
     connect, _ = _connect_seam(client)
     change_feed.read_markers(_REPO, numbers, connect=connect)
     return client.calls[0]
-
-
-@pytest.fixture(autouse=True)
-def _no_cached_freshness(monkeypatch):
-    monkeypatch.setattr(change_feed, "_cached", None)
 
 
 def test_markers_bind_the_numbers_once_and_reach_every_table_through_the_alias():
@@ -263,6 +259,13 @@ def test_marker_newest_is_its_latest_pull_request_event_or_comment(pr_updated_at
     assert marker.newest == newest
 
 
+def test_the_tables_read_are_the_ones_table_stale_after_names():
+    assert tuple(constants.TABLE_STALE_AFTER) == TABLES
+    assert tuple(change_feed._EVENT_TIMES) == TABLES
+    assert sorted(re.findall(r"FROM default\.(\w+) WHERE", change_feed._MARKERS_SQL)) == sorted(TABLES)
+    assert re.findall(r"FROM default\.(\w+)\) AS", change_feed._FRESHNESS_SQL) == list(TABLES)
+
+
 def test_freshness_reads_each_tables_newest_event_dropping_future_rows():
     client = _FakeClient([_freshness_row()])
     connect, _ = _connect_seam(client)
@@ -360,63 +363,3 @@ def test_a_table_past_its_own_limit_is_stale_while_another_is_recent(table):
     assert problem == (
         f"{table}'s newest event is {int(limit.total_seconds()) + 1} s old, over {int(limit.total_seconds())} s"
     )
-
-
-class _Reads:
-    def __init__(self, *outcomes: Freshness | Exception) -> None:
-        self._outcomes = list(outcomes)
-        self.count = 0
-
-    def __call__(self) -> Freshness:
-        self.count += 1
-        outcome = self._outcomes.pop(0)
-        if isinstance(outcome, Exception):
-            raise outcome
-        return outcome
-
-
-class _Clock:
-    def __init__(self, *times: float) -> None:
-        self._times = list(times)
-
-    def __call__(self) -> float:
-        return self._times.pop(0)
-
-
-def test_current_freshness_reuses_a_reading_within_freshness_reuse_and_refreshes_after():
-    first, second = _freshness(), _freshness(pull_request=None)
-    reads = _Reads(first, second)
-    reuse = constants.FRESHNESS_REUSE.total_seconds()
-    clock = _Clock(100.0, 100.0 + reuse - 0.1, 100.0 + reuse, 100.0 + reuse + 1)
-
-    assert change_feed.current_freshness(read=reads, clock=clock) is first
-    assert change_feed.current_freshness(read=reads, clock=clock) is first
-    assert change_feed.current_freshness(read=reads, clock=clock) is second
-    assert change_feed.current_freshness(read=reads, clock=clock) is second
-    assert reads.count == 2
-
-
-def test_current_freshness_propagates_errors_without_caching_them():
-    reading = _freshness()
-    reads = _Reads(reading, RuntimeError("read boom"), reading)
-    reuse = constants.FRESHNESS_REUSE.total_seconds()
-    clock = _Clock(0.0, reuse, reuse + 1, reuse + 2)
-
-    assert change_feed.current_freshness(read=reads, clock=clock) is reading
-    with pytest.raises(RuntimeError, match="read boom"):
-        change_feed.current_freshness(read=reads, clock=clock)
-    assert change_feed.current_freshness(read=reads, clock=clock) is reading
-    assert change_feed.current_freshness(read=reads, clock=clock) is reading
-    assert reads.count == 3
-
-
-def test_current_freshness_defaults_to_reading_clickhouse_on_the_monotonic_clock(monkeypatch):
-    client = _FakeClient([_freshness_row()])
-    monkeypatch.setattr(clickhouse_client, "connect", lambda **_: cast("Client", client))
-
-    first = change_feed.current_freshness()
-    again = change_feed.current_freshness()
-
-    assert first == Freshness(server_now=_SERVER_NOW, newest=dict.fromkeys(TABLES, _SERVER_NOW))
-    assert again is first
-    assert len(client.calls) == 1

@@ -36,11 +36,13 @@ class _FakeCHClient:
     def __init__(self, rows: list[dict[str, object]] | None = None, error: Exception | None = None) -> None:
         self.rows = rows or []
         self.error = error
-        self.queries: list[tuple[str, dict[str, object]]] = []
+        self.queries: list[tuple[str, dict[str, object] | None, dict[str, object] | None]] = []
         self.closed = 0
 
-    def query(self, sql: str, **kwargs: object) -> _FakeResult:
-        self.queries.append((sql, kwargs))
+    def query(
+        self, sql: str, parameters: dict[str, object] | None = None, settings: dict[str, object] | None = None
+    ) -> _FakeResult:
+        self.queries.append((sql, parameters, settings))
         if self.error is not None:
             raise self.error
         return _FakeResult(self.rows)
@@ -201,16 +203,16 @@ def test_query_returns_the_rows_by_column_name_and_closes_the_connection():
     rows = clickhouse_client.query("SELECT a FROM t WHERE b = %(b)s", {"b": 3}, connect=_connect_to(client))
 
     assert rows == [{"a": 1}, {"a": 2}]
-    assert client.queries == [("SELECT a FROM t WHERE b = %(b)s", {"parameters": {"b": 3}})]
+    assert client.queries == [("SELECT a FROM t WHERE b = %(b)s", {"b": 3}, None)]
     assert client.closed == 1
 
 
-def test_query_passes_settings_only_when_given():
+def test_query_forwards_its_settings():
     client = _FakeCHClient()
 
     clickhouse_client.query("SELECT 1", {}, connect=_connect_to(client), settings={"max_execution_time": 10})
 
-    assert client.queries == [("SELECT 1", {"parameters": {}, "settings": {"max_execution_time": 10}})]
+    assert client.queries == [("SELECT 1", {}, {"max_execution_time": 10})]
 
 
 def test_query_error_propagates_and_closes_the_connection():

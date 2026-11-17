@@ -154,6 +154,7 @@ FULL_TICK_MINUTES_MAX = 1440
 # HUD's webhook tables count as stale once the newest event over all four is older than STALE_AFTER, or one table's
 # newest is older than its own threshold, each set above that table's longest gap measured over a week.
 STALE_AFTER = timedelta(minutes=10)
+# Its keys, in this order, are the tables change_feed reads.
 TABLE_STALE_AFTER: dict[str, timedelta] = {
     "pull_request": timedelta(minutes=45),
     "issue_comment": timedelta(minutes=30),
@@ -162,8 +163,6 @@ TABLE_STALE_AFTER: dict[str, timedelta] = {
 }
 # A webhook row dated further ahead than this is ignored when taking a table's newest event.
 FUTURE_EVENT_TOLERANCE = timedelta(minutes=5)
-# One freshness reading serves every repo of the process for this long.
-FRESHNESS_REUSE = timedelta(seconds=60)
 CHANGE_FEED_MAX_EXECUTION_SECONDS = 10
 CHANGE_FEED_TIMEOUT_SECONDS = 15
 # The recent listing walks back to the previous listing's start less this much, so an updated_at that GitHub shows
