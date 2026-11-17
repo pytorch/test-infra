@@ -68,8 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Scan the open PRs from the evaluation cohort in --repo (every merge_rules.yaml "
             "approver, minus bots and greenlight itself), read each PR's latest recorded state, and "
             "dispatch the review workflow for new or changed PRs whose author is eligible under the "
-            "merge rules: named by a valid rule, whatever files the PR changes, on a base trymerge "
-            "accepts. Requires "
+            "merge rules: named by a valid rule, whatever files the PR changes, on a base the repo's "
+            "rule accepts (on a safety: gate repo, main alone). Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have an "
             "entry in greenlight/repos.yaml, read from pytorch/test-infra's default branch; its mode "
             "decides what the scan does (REPOS.md). PYTORCH_GREENLIGHT_DISPATCH_TOKEN, when set, reads "
@@ -127,7 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "LOCAL USE ONLY: waive the eligibility requirement on the --pr target, reviewing it even "
-            "when no valid merge rule names its author or trymerge refuses its base. Eligibility is still "
+            "when no valid merge rule names its author or its base is not accepted. Eligibility is still "
             "resolved and still decides shadow, so such a PR is reviewed in shadow and never approved "
             "(never exposed as a workflow input)"
         ),
