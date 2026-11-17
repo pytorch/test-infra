@@ -11,14 +11,16 @@ command emits a gzipped single-line JSONEachRow row to a fixed local path (the r
 uploads it to ``s3://gha-artifacts/``, where the clickhouse-replicator-s3 path ingests it into
 ``misc.greenlight_pr_state``) and then updates GitHub with a defanged copy of the message. Both LAND
 and NO_LAND upsert one canonical verdict comment -- edited in place across runs, found by a hidden
-marker and restricted to greenlight's own account (``bot_login``); LAND additionally posts an
-approving review unless the verdict is shadow or greenlight already holds a live approval on the PR,
-and NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
+marker and restricted to greenlight's own account (``bot_login``); a LAND that is not shadow
+additionally approves the PR through ``land_approval`` (pinned to the reviewed head, left as it is when
+every live greenlight approval already stands there, withdrawn when a re-read finds the PR moved), and
+NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
 A LAND or NO_LAND is shadow when ``--shadow`` is passed, the repo's entry in the job's own
-``repos.yaml`` (``repo_config.load_local``) is safety-only or not ``active``, or
+``repos.yaml`` (``repo_config.load_local``) is safety-only or not ``active``, on a ``gate`` repo a LAND
+whose branch rules do not enforce the gate (``gate_rules``), or when
 ``author_eligibility.has_eligible_author`` finds that the entry's eligibility source (a valid merge
 rule, or write permission) does not qualify its author, or finds the PR off the reviewed head or on a
-base trymerge refuses;
+base the entry's safety refuses;
 a failed check fails the command before the row is written, after a NO_LAND, or a LAND passed
 ``--shadow``, has already dismissed. A
 shadow verdict carries no authority, and that is absolute rather than forward-looking: no approving
@@ -53,10 +55,10 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from greenlight import (
-    approvals,
     comment_format,
     constants,
     github_client,
+    land_approval,
     redact,
     repo_config,
     state_emit,
@@ -65,6 +67,7 @@ from greenlight import (
 )
 from greenlight.author_eligibility import has_eligible_author
 from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, STATUS_NO_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
+from greenlight.gate_rules import read_gate_rules
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -77,12 +80,6 @@ if TYPE_CHECKING:
 __all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
 
 logger = logging.getLogger(__name__)
-
-_SUPERSEDED_MESSAGE = "Superseded by a newer greenlight verdict."
-
-# The APPROVE review is the merge gate; its body is intentionally empty so it adds no text on
-# top of the canonical verdict comment, which already states the outcome.
-_LAND_REVIEW_BODY = ""
 
 # Fixed paths are the contract with the record workflow, which `aws s3 cp`s the row file
 # to the bucket-relative key. Constant on purpose; tests inject a fake emit instead.
@@ -237,15 +234,19 @@ def _run_marker(
 
 
 def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
-    dismissed = approvals.dismiss_prior_greenlight_approvals(
-        pr, bot_login=request.bot_login, message=_SUPERSEDED_MESSAGE
-    )
-    if dismissed:
-        logger.info(
-            "dismissed %d prior greenlight approval(s) on %s#%d", len(dismissed), request.repo, request.pr_number
-        )
-    else:
-        logger.info("no prior greenlight approval to dismiss on %s#%d", request.repo, request.pr_number)
+    land_approval.dismiss_prior(pr, repo=request.repo, number=request.pr_number, bot_login=request.bot_login)
+
+
+def _gate_enforced(token: str, repo: str) -> bool:
+    """Whether ``repo``'s rules enforce the gate (``gate_rules``); a failed read raises."""
+    client = github_client.build_authz_client(token)
+    try:
+        rules = read_gate_rules(client, repo)
+    finally:
+        github_client.close_client(client)
+    if not rules.enforced:
+        logger.warning("%s does not enforce the gate: %s", repo, "; ".join(rules.problems))
+    return rules.enforced
 
 
 def _run_full(
@@ -290,15 +291,21 @@ def _run_full(
     # means the approval was withheld. Stamping the row non-shadow anyway would render a LAND in
     # Dr. CI and offer the merge gate an authorization that no review backs. The short circuit also
     # keeps a shadow request, or a repo not served and active, from resolving eligibility at all. The
-    # lookup is handed the reviewed head, not the live one.
-    shadow = not _authoritative(request, entry, served) or not has_eligible_author(
-        token,
-        request.repo,
-        request.pr_number,
-        request.head_sha,
-        author,
-        eligibility=entry.eligibility,
-        author_type=author_type,
+    # lookup is handed the reviewed head, not the live one. A gate repo's rules are read before it, so
+    # nothing slow sits between the lookup's PR read and the approval.
+    shadow = (
+        not _authoritative(request, entry, served)
+        or (status == STATUS_LAND and entry.safety == "gate" and not _gate_enforced(token, request.repo))
+        or not has_eligible_author(
+            token,
+            request.repo,
+            request.pr_number,
+            request.head_sha,
+            author,
+            eligibility=entry.eligibility,
+            author_type=author_type,
+            safety=entry.safety,
+        )
     )
     if status == STATUS_LAND and shadow and not dismiss_first:
         # A shadow PR must never carry a live greenlight approval. Under merge_rules.yaml's
@@ -327,16 +334,16 @@ def _run_full(
                 author,
                 request.shadow,
             )
-        elif approvals.has_live_greenlight_approval(pr, bot_login=request.bot_login):
-            logger.info("already approved %s#%d; skipping re-approval", request.repo, request.pr_number)
         else:
-            github_client.post_review(
+            land_approval.approve(
+                client,
                 pr,
-                event=github_client.REVIEW_EVENT_APPROVE,
-                body=_LAND_REVIEW_BODY,
-                commit=client.get_repo(request.repo).get_commit(request.head_sha),
+                repo=request.repo,
+                number=request.pr_number,
+                head_sha=request.head_sha,
+                bot_login=request.bot_login,
+                strict_base=entry.safety == "gate",
             )
-            logger.info("approved %s#%d", request.repo, request.pr_number)
     if not shadow:
         verdict_labels.label_verdict(pr, status, reviewed_head=request.head_sha, number=request.pr_number)
     _best_effort_upsert(request, config, body, entry=entry, shadow=shadow, build_github=build_github, pr=pr)

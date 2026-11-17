@@ -363,6 +363,34 @@ def test_accepts_base_is_main_a_ghstack_pr_or_a_native_stack_on_main(pr: _FakeFi
     assert merge_authz.accepts_base(pr) is accepted
 
 
+@pytest.mark.parametrize(
+    ("ref", "default"),
+    [("main", True), ("Main", False), ("main ", False), ("trunk", False), ("", False), (None, False)],
+)
+def test_is_default_base_is_exactly_main(ref: str | None, default: bool) -> None:
+    assert merge_authz.is_default_base(ref) is default
+
+
+@pytest.mark.parametrize(
+    ("pr", "lenient", "strict"),
+    [
+        pytest.param(_files_pr(), True, True, id="based-on-main"),
+        pytest.param(
+            _files_pr(head_ref="gh/jeanschmidt/12/head", base_ref="gh/jeanschmidt/12/base"),
+            True,
+            False,
+            id="ghstack",
+        ),
+        pytest.param(_stacked_pr(_stack(constants.TARGET_BRANCH)), True, False, id="native-stack-on-main"),
+        pytest.param(_stacked_pr(_stack(constants.TARGET_BRANCH), base_ref="main"), True, True, id="stack-bottom"),
+        pytest.param(_files_pr(base_ref="release/2.9"), False, False, id="in-no-stack-on-another-base"),
+    ],
+)
+def test_accepts_base_for_a_gate_repo_takes_only_main(pr: _FakeFilesPR, lenient: bool, strict: bool) -> None:
+    assert merge_authz.accepts_base_for(pr, strict=False) is lenient
+    assert merge_authz.accepts_base_for(pr, strict=True) is strict
+
+
 @pytest.mark.parametrize("base_ref", ["gh/jeanschmidt/12/base", constants.TARGET_BRANCH])
 def test_changed_files_lists_the_filenames_of_a_ghstack_head_on_any_base(base_ref: str) -> None:
     pr = _files_pr("a.py", "b.py", head_ref="gh/jeanschmidt/12/head", base_ref=base_ref)

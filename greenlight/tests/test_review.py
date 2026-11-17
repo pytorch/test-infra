@@ -105,6 +105,7 @@ def _open_pr(
     labels: tuple[str, ...] = (),
     author: str = "albanD",
     base_accepted: bool | None = True,
+    base_ref: str | None = "main",
 ) -> OpenPR:
     return OpenPR(
         repo=TARGET_REPO,
@@ -116,6 +117,7 @@ def _open_pr(
         updated_at=updated_at,
         base_accepted=base_accepted,
         labels=labels,
+        base_ref=base_ref,
     )
 
 
@@ -2375,7 +2377,7 @@ def test_pr_target_gate_refuses_any_author_on_a_base_trymerge_refuses(make_confi
     # not be pointed at it either.
     assert scan.fingerprinted == []
     assert scan.dispatched == []
-    assert f"--pr 5 by {author}: trymerge refuses its base" in caplog.text
+    assert f"--pr 5 by {author}: its base {pr_refs['base_refs'][5]!r} is not accepted" in caplog.text
 
 
 @pytest.mark.parametrize(("author", "base", "shadow"), _AUTHORITATIVE_VS_SHADOW)
@@ -3775,3 +3777,33 @@ def test_prepare_of_a_clickhouse_repo_hands_its_listing_kind_and_markers_to_the_
     assert event.head_sha_by_number == {1: "sha1"}
     assert reads == [[1, 2], [1, 2]]
     assert client.listed == ["pulls open", "pulls all", "issues open ['Reverted']"]
+
+
+@pytest.mark.parametrize(
+    ("pr_refs", "admitted"),
+    [
+        pytest.param({}, True, id="main"),
+        pytest.param({"head_refs": {5: "gh/carol/7/head"}, "base_refs": {5: "gh/carol/7/base"}}, False, id="ghstack"),
+        pytest.param({"base_refs": {5: "carol/part-1"}, "stack_trunks": {5: "main"}}, False, id="native-stack-on-main"),
+    ],
+)
+def test_pr_target_gate_on_a_gate_repo_admits_only_a_pr_on_main(make_config, caplog, pr_refs, admitted):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        scan = _run_scan(
+            make_config, entry=_VISION, pr=5, fingerprints={5: ("headsha5", _HASH_A)}, author="albanD", **pr_refs
+        )
+
+    # A gate repo has no trymerge to land a stack, so --pr takes the listing's strict base rule.
+    assert scan.dispatch_shadow == ([(5, False)] if admitted else [])
+    assert ("--pr 5 by albanD: its base" in caplog.text) is not admitted
+
+
+def test_the_listing_of_a_gate_repo_dispatches_only_its_prs_on_main(make_config):
+    scan = _run_scan(
+        make_config,
+        entry=_VISION,
+        listed=[_open_pr(1), _open_pr(2, base_ref="gh/albanD/1/base"), _open_pr(3, base_ref=None)],
+        fingerprints={1: ("headsha1", _HASH_A), 2: ("headsha2", _HASH_A), 3: ("headsha3", _HASH_A)},
+    )
+
+    assert scan.dispatch_shadow == [(1, False)]

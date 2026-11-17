@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from urllib3.util.retry import Retry
 
     from greenlight.github_types import (
+        DismissibleReview,
         ScanClient,
         VerdictClient,
         VerdictPR,
@@ -310,11 +311,11 @@ def get_pr(client: VerdictClient, repo: str, number: int) -> VerdictPR:
     return client.get_repo(repo).get_pull(number)
 
 
-def post_review(pr: VerdictPR, *, event: str, body: str, commit: Commit) -> None:
+def post_review(pr: VerdictPR, *, event: str, body: str, commit: Commit) -> DismissibleReview:
     """Post a review pinned to ``commit``, so it stands on that commit whatever the PR's head is by then."""
     if event not in _REVIEW_EVENTS:
         raise ValueError(f"unsupported review event {event!r}; expected one of {sorted(_REVIEW_EVENTS)}")
-    pr.create_review(commit=commit, body=body, event=event)
+    return pr.create_review(commit=commit, body=body, event=event)
 
 
 _RUN_MARKER_RE = re.compile(r"<!-- greenlight-run: (\d+) -->")

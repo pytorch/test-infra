@@ -244,7 +244,7 @@ def prepare(
         target = admit_target(
             client,
             pr,
-            repo=repo,
+            entry=entry,
             rules=snapshot.rules,
             get_pr=get_pr,
             allow_untrusted_author=allow_untrusted_author,

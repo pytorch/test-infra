@@ -852,10 +852,11 @@ def test_fingerprint_pr_golden_hash_scheme_v6():
 
 
 class _FakeVerdictReview:
-    def __init__(self, id: int, user: _FakeActor | None, state: str) -> None:
+    def __init__(self, id: int, user: _FakeActor | None, state: str, commit_id: str | None = None) -> None:
         self.id = id
         self.user = user
         self.state = state
+        self.commit_id = commit_id
         self.dismissed_with: str | None = None
 
     def dismiss(self, message: str) -> None:
@@ -917,9 +918,9 @@ class _FakeVerdictPR:
         self.created_reviews: list[tuple[str, str, str]] = []
         self.issue_comments: list[str] = []
 
-    def create_review(self, *, commit: Commit, body: str, event: str) -> object:
+    def create_review(self, *, commit: Commit, body: str, event: str) -> _FakeVerdictReview:
         self.created_reviews.append((event, body, commit.sha))
-        return object()
+        return _FakeVerdictReview(len(self.created_reviews), _FakeActor("greenlight-app[bot]", "Bot"), "APPROVED")
 
     def create_issue_comment(self, body: str) -> object:
         self.issue_comments.append(body)
@@ -985,9 +986,10 @@ def test_get_pr_fetches_repo_then_pull():
 def test_post_review_forwards_supported_events(event: str) -> None:
     pr = _FakeVerdictPR()
 
-    github_client.post_review(pr, event=event, body="the body", commit=_commit("c" * 40))
+    review = github_client.post_review(pr, event=event, body="the body", commit=_commit("c" * 40))
 
     assert pr.created_reviews == [(event, "the body", "c" * 40)]
+    assert isinstance(review, _FakeVerdictReview)
 
 
 def test_post_review_rejects_unknown_event():
@@ -1001,7 +1003,7 @@ def test_post_review_rejects_unknown_event():
 
 def test_post_review_propagates_errors():
     class _BoomPR(_FakeVerdictPR):
-        def create_review(self, *, commit: Commit, body: str, event: str) -> object:
+        def create_review(self, *, commit: Commit, body: str, event: str) -> _FakeVerdictReview:
             raise RuntimeError("gh down")
 
     with pytest.raises(RuntimeError, match="gh down"):

@@ -2,9 +2,9 @@
 
 Both run once the merge rules are resolved. The ``@greenlight recheck`` requester must be in the
 evaluation cohort; the ``--pr`` target's author must be eligible for that PR, so a request carries
-authority only for a PR whose author a valid merge rule names, on a base trymerge accepts. A refusal
-is logged and dispatches nothing, but a refused PR whose author GitHub can name still goes through
-the revert guard, and a failure there fails the pass.
+authority only for a PR whose author a valid merge rule names, on a base the repo's rule accepts. A
+refusal is logged and dispatches nothing, but a refused PR whose author GitHub can name still goes
+through the revert guard, and a failure there fails the pass.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from greenlight.authority import Target, eligible_rule
-from greenlight.merge_authz import accepts_base
+from greenlight.merge_authz import accepts_base_for
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
     from greenlight.cohort import EligibilityRule
     from greenlight.github_types import VerdictPR
+    from greenlight.repo_config import RepoEntry
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def admit_target(
     client: Github,
     pr: int,
     *,
-    repo: str,
+    entry: RepoEntry,
     rules: Sequence[EligibilityRule],
     get_pr: Callable[[Github, str, int], VerdictPR],
     allow_untrusted_author: bool,
@@ -46,8 +47,9 @@ def admit_target(
     """Judge the ``--pr`` target, or return None when the run must refuse it outright.
 
     ``--pr`` names an arbitrary PR, so it is refused unless a valid merge rule names its author and
-    trymerge accepts its base, or greenlight would review/approve any PR on request. A refused PR whose
-    author GitHub can name comes back as a ``refused`` target instead, for the revert guard alone: an
+    its base passes the repo's base rule (``merge_authz.accepts_base_for``, strict on a ``gate`` repo),
+    or greenlight would review/approve any PR on request. A refused PR whose author GitHub can name
+    comes back as a ``refused`` target instead, for the revert guard alone: an
     author outside every merge rule is outside the cohort the scheduled scan lists, so nothing else
     would revoke it.
     ``allow_untrusted_author`` (local iteration; never a workflow input) waives ONLY the refusal, never
@@ -55,11 +57,11 @@ def admit_target(
     local flag revoke a real one. A failed read propagates, failing the pass before the revert guard
     runs for the target.
     """
-    target = get_pr(client, repo, pr)
+    target = get_pr(client, entry.repo, pr)
     user = target.user
     author = user.login if user is not None else None
-    if not accepts_base(target):
-        logger.info("--pr %d by %s: trymerge refuses its base", pr, author)
+    if not accepts_base_for(target, strict=entry.safety == "gate"):
+        logger.info("--pr %d by %s: its base %r is not accepted", pr, author, target.base.ref)
     elif eligible_rule(pr, author, rules) is not None:
         return Target(pr, author, False)
     if allow_untrusted_author:

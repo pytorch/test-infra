@@ -185,6 +185,7 @@ def test_full_listing_maps_pull_fields():
             updated_at=datetime(2026, 7, 30, 9, 0, 0),
             base_accepted=True,
             labels=(),
+            base_ref="main",
         )
     ]
 
@@ -543,6 +544,7 @@ def _candidates(
     full: list[OpenPR] | None = None,
     fast: list[OpenPR] | None = None,
     repo: str = TARGET_REPO,
+    strict_base: bool = False,
 ) -> tuple[tuple[object, ...], list[str]]:
     calls: list[str] = []
 
@@ -562,6 +564,7 @@ def _candidates(
         fetch=fetch,
         cutoff=cutoff,
         fetch_updated=fetch_updated,
+        strict_base=strict_base,
     )
     return result, calls
 
@@ -660,6 +663,7 @@ def test_the_open_records_keep_every_author_and_draft_in_one_default_traversal()
         labels=("Stale",),
         draft=True,
         state="open",
+        base_ref="main",
     )
     assert client.repo.get_pulls_calls == [{"state": "open", "sort": None, "direction": None}]
 
@@ -711,7 +715,13 @@ def test_an_issues_endpoint_record_is_open_and_carries_its_draft_flag(monkeypatc
 
     [record] = pr_listing.list_reverted_prs(_FakeClient(repo), TARGET_REPO, ["alice"])
 
-    assert (record.state, record.draft, record.head_sha, record.base_accepted) == ("open", True, None, None)
+    assert (record.state, record.draft, record.head_sha, record.base_accepted, record.base_ref) == (
+        "open",
+        True,
+        None,
+        None,
+        None,
+    )
 
 
 def test_candidate_fields_name_each_map_and_leave_out_the_author_of_a_refused_base():
@@ -745,9 +755,55 @@ def test_read_record_builds_one_pr_as_the_listings_build_each_record():
 
     assert client.asked == [7]
     assert record == OpenPR(
-        TARGET_REPO, 7, "carol", "fix", "https://example.test/7", "head-sha", _NOW, False, ("x",), True, "closed"
+        TARGET_REPO,
+        7,
+        "carol",
+        "fix",
+        "https://example.test/7",
+        "head-sha",
+        _NOW,
+        False,
+        ("x",),
+        True,
+        "closed",
+        "release/2.9",
     )
 
 
 def test_read_record_of_a_pr_that_names_no_author_is_none():
     assert pr_listing.read_record(cast("Github", _SinglePullRepo(_FakePull(7, None))), TARGET_REPO, 7) is None
+
+
+def test_strict_base_candidate_fields_hand_an_author_only_to_a_pr_listed_on_main(caplog):
+    prs = [
+        replace(_open_pr(1), base_ref="main"),
+        replace(_open_pr(2), base_ref="gh/alice/1/base"),
+        replace(_open_pr(3), base_ref="alice/part-1"),
+        replace(_open_pr(4, base_accepted=None), base_ref=None),
+        replace(_open_pr(5, base_accepted=False), base_ref="main"),
+    ]
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        candidates = pr_listing.candidate_fields(prs, strict_base=True)
+
+    # A gate repo has no trymerge to land a ghstack or native stack, and an issues-endpoint PR's base is
+    # unknown: each stays a candidate (revert guard, revoke) but gets no author, so it is never dispatched.
+    assert candidates.numbers == [1, 2, 3, 4, 5]
+    assert candidates.authors == {1: "alice", 5: "alice"}
+    assert [f"PR #{number} by alice: base not accepted" in caplog.text for number in range(1, 6)] == [
+        False,
+        True,
+        True,
+        True,
+        False,
+    ]
+
+
+def test_candidate_numbers_threads_strict_base_to_the_candidates():
+    listed = [replace(_open_pr(1), base_ref="main"), replace(_open_pr(2), base_ref="gh/alice/1/base")]
+
+    (_numbers, _updated, _labels, lenient, _heads), _calls = _candidates(full=listed)
+    (_numbers, _updated, _labels, strict, _heads), _calls = _candidates(full=listed, strict_base=True)
+
+    assert lenient == {1: "alice", 2: "alice"}
+    assert strict == {1: "alice"}

@@ -96,7 +96,11 @@ def list_candidates(
     list_reverted: ListRevertedFn = pr_listing.list_reverted_prs,
     read_record: ReadRecordFn = pr_listing.read_record,
 ) -> Listing:
-    """List the tick's candidates; ``now`` is the clock read before any of the tick's listings."""
+    """List the tick's candidates; ``now`` is the clock read before any of the tick's listings.
+
+    A ``gate`` repo's candidates take the strict base rule (``pr_listing.candidate_fields``).
+    """
+    strict_base = entry.safety == "gate"
     if entry.change_source == "github" or memory is None or pr is not None:
         if memory is not None and entry.change_source == "github":
             memory.full_tick_interval = FULL_TICK_INTERVAL
@@ -110,6 +114,7 @@ def list_candidates(
             fetch=fetch,
             cutoff=None if full_tick else now - window,
             fetch_updated=fetch_updated,
+            strict_base=strict_base,
         )
         return Listing(candidates, "full" if full_tick else "fast", {})
     repo = entry.repo
@@ -155,7 +160,8 @@ def list_candidates(
         len(picked),
         len(changed),
     )
-    return Listing(candidate_fields(picked), kind, {record.number: view.seen(record.number) for record in picked})
+    markers_seen = {record.number: view.seen(record.number) for record in picked}
+    return Listing(candidate_fields(picked, strict_base=strict_base), kind, markers_seen)
 
 
 def _refresh_stale_records(

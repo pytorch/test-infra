@@ -625,3 +625,44 @@ def test_nothing_is_read_alone_while_the_reading_is_stale(stale):
     _list(memory, sources)
 
     assert not [event for event in sources.events if event.startswith("read")]
+
+
+_GATE_CLICKHOUSE = replace(_CLICKHOUSE, safety="gate")
+
+
+def _based(number: int, base_ref: str | None) -> OpenPR:
+    return replace(record(number), base_ref=base_ref)
+
+
+def test_a_gate_repos_full_tick_hands_an_author_only_to_its_prs_on_main():
+    sources = _Sources()
+    sources.open = [_based(1, "main"), _based(2, "gh/alice/1/base"), _based(3, None)]
+
+    listing = _list(ScanMemory(), sources, entry=_GATE_CLICKHOUSE)
+
+    assert listing.kind == "full"
+    assert listing.candidates.numbers == [1, 2, 3]
+    assert listing.candidates.authors == {1: "alice"}
+
+
+def test_a_gate_repos_view_keeps_each_records_base_for_the_next_event_tick():
+    sources = _Sources()
+    sources.recent = [_based(4, "alice/part-1")]
+    memory = _warm(_based(1, "main"), _based(2, "release/2.9"))
+
+    listing = _list(memory, sources, entry=_GATE_CLICKHOUSE)
+
+    assert listing.kind == "fast"
+    assert memory.view.records[2].base_ref == "release/2.9"
+    assert listing.candidates.numbers == [1, 2, 4]
+    assert listing.candidates.authors == {1: "alice"}
+
+
+@pytest.mark.parametrize(("safety", "authors"), [("pytorchbot", {1: "alice", 2: "alice"}), ("gate", {1: "alice"})])
+def test_a_github_repo_takes_the_strict_base_only_when_its_safety_is_gate(safety, authors):
+    sources = _Sources()
+    sources.open = [_based(1, "main"), _based(2, "gh/alice/1/base")]
+
+    listing = _list(None, sources, entry=replace(BUILTIN_PYTORCH, safety=safety))
+
+    assert listing.candidates.authors == authors

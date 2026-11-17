@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import textwrap
 from types import SimpleNamespace
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 from github import GithubException, UnknownObjectException
@@ -13,6 +13,9 @@ from greenlight import constants, github_client
 # Imported rather than read off ``verdict``: conftest swaps ``verdict.has_eligible_author`` for a refusing
 # guard in every test, while this name keeps the real function for the fake clients.
 from greenlight.author_eligibility import has_eligible_author
+
+if TYPE_CHECKING:
+    from greenlight.repo_config import Safety
 
 _REVIEWED = "b" * 40
 _MERGE_RULES = textwrap.dedent(
@@ -52,9 +55,11 @@ class _FakeOrg:
 
 
 class _FakeLivePR:
-    def __init__(self, head_sha: str, head_ref: str, base_ref: str, trunk: str | None) -> None:
+    def __init__(
+        self, head_sha: str, head_ref: str, base_ref: str, trunk: str | None, default_branch: str | None
+    ) -> None:
         self.head = SimpleNamespace(sha=head_sha, ref=head_ref)
-        self.base = SimpleNamespace(ref=base_ref)
+        self.base = SimpleNamespace(ref=base_ref, repo=SimpleNamespace(default_branch=default_branch))
         self.raw_data: dict[str, object] = {} if trunk is None else {"stack": {"base": {"ref": trunk}}}
 
     def get_files(self) -> NoReturn:
@@ -64,8 +69,9 @@ class _FakeLivePR:
 class _FakeRulesClient:
     """Serves merge_rules.yaml, one team, every author's ``permission`` and PR #7 as it reads live.
 
-    PR #7 reads at ``live_head`` with its refs and stack trunk; a ``None`` trunk is a PR in no native
-    stack. ``pull_error`` replaces the PR read with that failure.
+    PR #7 reads at ``live_head`` with its refs, stack trunk and the repo's default branch as that read
+    reports it; a ``None`` trunk is a PR in no native stack. ``pull_error`` replaces the PR read with that
+    failure.
     """
 
     def __init__(
@@ -77,11 +83,12 @@ class _FakeRulesClient:
         head_ref: str = "feature",
         base_ref: str = constants.TARGET_BRANCH,
         trunk: str | None = None,
+        default_branch: str | None = constants.TARGET_BRANCH,
         permission: str = "write",
     ) -> None:
         self.merge_rules = merge_rules
         self.pull_error = pull_error
-        self.live = _FakeLivePR(live_head, head_ref, base_ref, trunk)
+        self.live = _FakeLivePR(live_head, head_ref, base_ref, trunk, default_branch)
         self.permission = permission
         self.pull_reads = 0
         self.permission_reads: list[str] = []
@@ -112,10 +119,17 @@ class _FakeRulesClient:
 
 @pytest.fixture
 def eligible(monkeypatch):
-    def check(client: _FakeRulesClient, author: str | None) -> bool:
+    def check(client: _FakeRulesClient, author: str | None, safety: Safety = "pytorchbot") -> bool:
         monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
         return has_eligible_author(
-            "tok", constants.TARGET_REPO, 7, _REVIEWED, author, eligibility="merge_rules", author_type="User"
+            "tok",
+            constants.TARGET_REPO,
+            7,
+            _REVIEWED,
+            author,
+            eligibility="merge_rules",
+            author_type="User",
+            safety=safety,
         )
 
     return check
@@ -192,12 +206,50 @@ def test_has_eligible_author_logs_its_decision_without_naming_a_rule_or_a_team_m
     assert not [word for word in ("Superusers", "Docs Maintainers", "doc-writers") if word in caplog.text]
 
 
+@pytest.mark.parametrize("author", ["CatchAll", "Scoped"])
+def test_a_gate_repo_passes_a_pr_on_main_when_main_is_the_default_branch_with_one_pr_read(eligible, author):
+    client = _FakeRulesClient()
+
+    assert eligible(client, author, "gate") is True
+    assert client.pull_reads == 1
+
+
+@pytest.mark.parametrize(
+    "live",
+    [
+        pytest.param({"head_ref": "gh/scoped/1/head", "base_ref": "gh/scoped/1/base"}, id="ghstack"),
+        pytest.param({"base_ref": "scoped/part-1", "trunk": constants.TARGET_BRANCH}, id="native-stack-on-main"),
+        pytest.param({"base_ref": "release/2.9"}, id="release-base"),
+        pytest.param({"default_branch": "trunk"}, id="main-is-not-the-default-branch"),
+        pytest.param({"default_branch": None}, id="no-default-branch"),
+    ],
+)
+def test_a_gate_repo_refuses_any_base_but_main_as_the_default_branch(eligible, caplog, live):
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        assert eligible(_FakeRulesClient(**live), "CatchAll", "gate") is False
+
+    # A gate repo has no trymerge to land a stack, so the base must be main and main the default branch.
+    assert "author 'CatchAll' is not eligible: base not accepted" in caplog.text
+
+
+def test_a_pytorchbot_repo_ignores_the_default_branch(eligible):
+    # The default branch is read only for a gate repo; pytorchbot keeps trymerge's base rule.
+    assert eligible(_FakeRulesClient(default_branch="trunk"), "CatchAll") is True
+
+
 @pytest.fixture
 def writer_eligible(monkeypatch):
     def check(client: _FakeRulesClient, author: str | None, author_type: str | None = "User") -> bool:
         monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
         return has_eligible_author(
-            "tok", "pytorch/vision", 7, _REVIEWED, author, eligibility="write_permission", author_type=author_type
+            "tok",
+            "pytorch/vision",
+            7,
+            _REVIEWED,
+            author,
+            eligibility="write_permission",
+            author_type=author_type,
+            safety="pytorchbot",
         )
 
     return check

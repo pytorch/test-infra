@@ -257,6 +257,19 @@ def accepts_base(pr: _BasedPR) -> bool:
     )
 
 
+def is_default_base(ref: str | None) -> bool:
+    """Whether ``ref`` is exactly ``TARGET_BRANCH``: the only base a ``gate`` repo accepts."""
+    return ref == constants.TARGET_BRANCH
+
+
+def accepts_base_for(pr: _BasedPR, *, strict: bool) -> bool:
+    """The base rule of the repo's safety: ``is_default_base`` when ``strict`` (a ``gate`` repo), else ``accepts_base``.
+
+    A ``gate`` repo has no trymerge to land a ghstack or GitHub-native stack, so only a PR on ``main`` qualifies.
+    """
+    return is_default_base(pr.base.ref) if strict else accepts_base(pr)
+
+
 def changed_files(pr: _FilesPR) -> tuple[str, ...] | None:
     """Return the PR's changed paths, or None for a PR trymerge refuses on its base or too many files.
 
