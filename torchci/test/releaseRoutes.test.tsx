@@ -55,7 +55,13 @@ const board: ReleaseBoard = {
   type: "minor",
   branch: "release/2.16",
   current_rc: "rc3",
-  links: {},
+  links: {
+    artifacts: "https://hud.pytorch.org/release/2.16.0/artifacts",
+    docs: null,
+    milestone: "https://github.com/pytorch/pytorch/milestone/1",
+    tracker_issue: "https://github.com/pytorch/pytorch/issues/1",
+    validation_issue: null,
+  },
   stats: {
     done: 3,
     total: 5,
@@ -218,7 +224,14 @@ describe("release routes", () => {
         index={resource(index)}
       />
     );
-    expect(html).toContain("Release 2.16.0");
+    expect(html).toContain("PyTorch 2.16.0 : RC build");
+    expect(html).toContain("Tracker");
+    expect(html).toContain("Validation unavailable");
+    expect(html).toContain("1");
+    expect(html).toContain("3 / 5");
+    expect(html).toContain("Final RC · 2026-12-07");
+    expect(html).toContain("RC3");
+    expect(html).toContain("release-stat-blocked");
     expect(html).toContain("Build RC binaries");
     expect(html).toContain("View release artifacts");
     // a step for information says "info", not a state, and what to look at
@@ -316,6 +329,10 @@ describe("release routes", () => {
   test("renders unsafe evidence as text instead of a link", () => {
     const unsafeBoard = {
       ...board,
+      links: {
+        ...board.links,
+        tracker_issue: "javascript:alert(1)",
+      },
       phases: [
         {
           ...board.phases[0],
@@ -349,6 +366,7 @@ describe("release routes", () => {
       />
     );
     expect(boardHtml).toContain("Unsafe evidence");
+    expect(boardHtml).toContain("Tracker unavailable");
     expect(boardHtml).not.toContain("javascript:");
 
     const artifactsHtml = renderToStaticMarkup(
