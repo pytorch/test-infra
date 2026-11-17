@@ -11,6 +11,7 @@ repos:
     safety: pytorchbot          # pytorchbot | gate
     eligibility: merge_rules    # merge_rules | write_permission
     mode: active                # shadow | active | off
+    change_source: clickhouse   # github | clickhouse (optional, default github)
 ```
 
 - `status_comment`: `drci` leaves the status to Dr. CI's comment (and pokes Dr. CI after each
@@ -24,9 +25,14 @@ repos:
   (`writers.py`); a listing with none fails that repo's scan. Both are described in
   [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md).
 - `mode`: see "Modes" below.
+- `change_source` (optional, default `github`): how the scan finds the PRs that changed. `github`
+  polls GitHub's listings; `clickhouse` reads HUD ClickHouse's webhook tables and GitHub's recently
+  updated PRs, for a repo HUD covers ([CHANGE_DETECTION.md](CHANGE_DETECTION.md)).
+- `full_tick_minutes` (optional, only with `change_source: clickhouse`, 60 to 1440, default 240): the
+  repo's full tick, its reconciliation sweep. A `github` repo keeps a full tick every 15 minutes.
 
-`repos` is a list so the loader sees duplicates. Every value is read as a string: a bare `off` is
-the mode `off`, not a YAML boolean.
+`repos` is a list so the loader sees duplicates. Every value but `full_tick_minutes`, an integer, is
+read as a string: a bare `off` is the mode `off`, not a YAML boolean.
 
 ## Validation
 
@@ -42,7 +48,9 @@ ends one of three ways, and every problem is logged and reported by the scan:
 - **refused**: no work at all. `repo` missing or not `pytorch/<name>`; a field missing or outside
   its values; the repo listed twice, compared case-insensitively (every copy is refused);
   `pytorchbot` outside `constants.PYTORCHBOT_GUARDED_REPOS`; `safety: gate` with `mode: active`,
-  which this release cannot serve safely.
+  which this release cannot serve safely; a `change_source` outside its values; a
+  `full_tick_minutes` that is not an integer from 60 to 1440, or on an entry whose `change_source`
+  is not `clickhouse`.
 
 `status_comment: drci` is accepted for any entry: the HUD renders exactly the `drci` entries, through
 `GREENLIGHT_REPOS` in `torchci/lib/greenlight/greenlightConfig.ts`, which must equal them
@@ -56,10 +64,16 @@ ignored, and its `mode` comes from the file. When its entry is missing or duplic
 `mode` is missing or invalid, `pytorch/pytorch` is safety-only: the revert guard and the
 ineligible revoke run under the built-in entry, nothing is dispatched, and the scan fails every
 tick until the file is fixed. A broken attempt to turn it off therefore stops its dispatches
-rather than keeping them going.
+rather than keeping them going. Its `change_source` and `full_tick_minutes` also come from the
+file; a missing one, or a bad one (logged), is the built-in's: `github` and 240, so an unreadable
+or broken entry polls GitHub, the source that is always correct.
 
 `tests/test_repo_config.py` keeps a file with any problem, or a primary entry that differs from
-the built-in, from merging.
+the built-in on anything but `change_source` and `full_tick_minutes`, from merging.
+
+A release older than the one that added `change_source` and `full_tick_minutes` logs and ignores
+them on the primary, but makes a non-primary entry carrying either one safety-only: add them to a
+non-primary entry only once the pinned scan release knows them.
 
 ## Dr. CI as the status surface (`status_comment: drci`)
 
@@ -175,8 +189,9 @@ entries, then the other safety-only ones, each in file order (`tick.py`).
   `OTHER_REPO_TIME_BUDGET` (20 s) and `OTHER_REPO_REQUEST_BUDGET` (400 requests), stopped below
   `QUOTA_FLOOR_OTHERS` (3000) and never past `TICK_DEADLINE`, 110 s after the tick started. A
   repo whose turn starts past that deadline gets no turn.
-- A repo whose Phase B is cut short, or that gets no turn, fails the tick when its full tick was
-  due: its full tick is not marked done, so it shows every tick until its budget is sized. On a
+- A repo whose Phase B is cut short, or that gets no turn, fails the tick when its full tick (or a
+  `clickhouse` repo's wide tick) was due: it is not marked done, so it shows every tick until its
+  budget is sized. On a
   fast tick it is a warning, and its PRs wait for the next tick. The PRs its Phase B had failed on
   before a cut or a rate limit stopped it always fail the tick, on a fast tick too, and never as a
   failure of the safety work.
@@ -290,8 +305,8 @@ who leaves the cohort keeps an approval already given until it is dismissed by h
 
 ## Modules
 
-The modules the per-repo config, the drain and the tick added to `src/greenlight/` (the rest are in
-README.md's "Layout"):
+The modules the per-repo config, the drain, the tick and change detection added to `src/greenlight/`
+(the rest are in README.md's "Layout"):
 
 ```text
 repo_config.py        # load and validate repos.yaml: served, safety-only and refused entries, the built-in primary entry
@@ -306,4 +321,7 @@ tick.py               # one tick over every configured repo: Phase A safety work
 tick_outcomes.py      # how a tick's steps ended (cut, rate limit, failure) and the shared dispatch cap
 quota.py              # per-tick request metering at PyGithub's and urllib3's seams, the rate-limit latch and the quota gauge
 app_tokens.py         # the Lambda's App tokens: the dispatch token, the installation listing and one token per repo
+change_feed.py        # HUD ClickHouse's webhook tables: each PR's marker and the tables' freshness (CHANGE_DETECTION.md)
+pr_view.py            # a clickhouse repo's view of its open PRs and their last markers, kept between ticks
+change_listing.py     # a listing tick's kind (full, wide, event, or a github repo's full or fast) and its candidates
 ```
