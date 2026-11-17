@@ -195,6 +195,8 @@ before it goes `active`. None of them blocks the shadow phase from starting:
 
 ## Onboarding a gate repo
 
+These are the gate's steps of the whole onboarding flow in [ONBOARDING.md](ONBOARDING.md).
+
 1. The `greenlight-scan` Lambda's pinned release accepts `safety: gate` with `mode: active` (for the repos
    in `GATE_ACTIVE_REPOS`) before any gate repo is `active`; an older release refuses it and has no backing
    check.

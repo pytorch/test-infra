@@ -477,7 +477,7 @@ In production the scheduled scan runs as an AWS Lambda, `greenlight-scan`, in th
 schedule. The function runs `python3.13` with handler `greenlight.lambda_handler.handler`, a
 300 s timeout, and `reserved_concurrent_executions` of `PYTORCH_GREENLIGHT_MAX_WORKERS` plus 2. Each scheduled event
 runs the planner, which scans `pytorch/pytorch` and invokes one worker of the same function per other repo with work
-([SCAN.md](SCAN.md)). Each invocation mints least-privilege GitHub App installation tokens per job and repo (`app_tokens.py`),
+([SCAN.md](SCAN.md); onboarding a repo: [ONBOARDING.md](ONBOARDING.md)). Each invocation mints least-privilege GitHub App installation tokens per job and repo (`app_tokens.py`),
 resolves `BOT_LOGIN` from the App's own `GET /app` slug, and reads the App PEM and ClickHouse password from AWS Secrets
 Manager (`pytorch-greenlight-secrets`). It takes no single-instance lock and arms neither hang-guard layer (the `os._exit`
 watchdog is wrong under the Lambda runtime): each repo's lease in the DynamoDB state store (`PYTORCH_GREENLIGHT_STATE_TABLE`)
