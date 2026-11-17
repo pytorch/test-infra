@@ -3,18 +3,19 @@ from __future__ import annotations
 import gzip
 import json
 import logging
-import textwrap
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, NoReturn
 
 import pytest
-from github import GithubException, RateLimitExceededException, UnknownObjectException
+from github import GithubException, RateLimitExceededException
 
 from greenlight import comment_format, constants, github_client, repo_config, verdict, verdict_input
 
-# has_eligible_author is imported rather than read off the module: conftest swaps the module attribute
-# for a refusing guard in every test, while this name keeps the real function for the fake clients.
-from greenlight.verdict import VerdictRequest, has_eligible_author
+# has_eligible_author is imported rather than read off verdict: conftest swaps verdict's attribute for
+# a refusing guard in every test, while this name keeps the real function for the fake clients.
+from greenlight.author_eligibility import has_eligible_author
+from greenlight.verdict import VerdictRequest
+from tests.eligibility_fakes import REVIEWED, FakeRulesClient
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -58,8 +59,9 @@ class _FakeEmit:
 
 
 class _FakeUser:
-    def __init__(self, login: str | None) -> None:
+    def __init__(self, login: str | None, type: str = "User") -> None:
         self.login = login
+        self.type = type
 
 
 class _FakeReview:
@@ -115,11 +117,12 @@ class _FakePR:
         reviews: list[_FakeReview] | None = None,
         issue_comments: list[_FakeComment] | None = None,
         author: str | None = _TRUSTED_AUTHOR,
+        author_type: str = "User",
     ) -> None:
         self.head = _FakeHead(head_sha)
         self.base = _FakeRef(constants.TARGET_BRANCH)
         self.raw_data: dict[str, object] = {}
-        self.user = _FakeUser(author) if author is not None else None
+        self.user = _FakeUser(author, author_type) if author is not None else None
         self.labels: list[_FakeLabel] = []
         self.state = "open"
         self._rec = rec
@@ -630,7 +633,15 @@ def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing
 
     # Stands in for the lookup, which answers only while the live head is the one it was handed.
     def eligible_on_the_live_head_only(
-        token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: str
+        token: str,
+        repo: str,
+        pr_number: int,
+        head_sha: str,
+        author: str | None,
+        *,
+        eligibility: str,
+        minimum_role: str,
+        author_type: str | None,
     ) -> bool:
         return head_sha == pr.head.sha
 
@@ -1185,7 +1196,15 @@ def test_no_land_dismisses_before_a_failing_eligibility_lookup_and_records_nothi
     )
 
     def failing_lookup(
-        token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: str
+        token: str,
+        repo: str,
+        pr_number: int,
+        head_sha: str,
+        author: str | None,
+        *,
+        eligibility: str,
+        minimum_role: str,
+        author_type: str | None,
     ) -> NoReturn:
         rec.events.append("lookup")
         raise RuntimeError("merge rules unreadable")
@@ -1958,186 +1977,20 @@ def test_a_marker_leaves_the_labels_alone(make_config, status):
     assert pr.label_names() == ["GL/approved"]
 
 
-_REVIEWED = "b" * 40
-_MERGE_RULES = textwrap.dedent(
-    """
-    - name: Superusers
-      patterns: ["*"]
-      approved_by: [CatchAll]
-    - name: Docs Maintainers
-      patterns: ["docs/**"]
-      approved_by: [Scoped, pytorch/doc-writers]
-    - name: Broken
-      patterns: ["docs/{a,b}/**"]
-      approved_by: [OnlyBroken]
-    """
-)
-_UNEXPECTED_PR_READ = AssertionError("the PR was read")
-
-
-class _FakeContent:
-    def __init__(self, text: str) -> None:
-        self.decoded_content = text.encode("utf-8")
-
-
-class _FakeMember:
-    def __init__(self, login: str) -> None:
-        self.login = login
-
-
-class _FakeTeam:
-    def get_members(self) -> list[_FakeMember]:
-        return [_FakeMember("TeamMember"), _FakeMember("Concealed")]
-
-
-class _FakeOrg:
-    def get_team_by_slug(self, slug: str) -> _FakeTeam:
-        return _FakeTeam()
-
-
-class _FakeLivePR:
-    def __init__(self, head_sha: str, head_ref: str, base_ref: str, trunk: str | None) -> None:
-        self.head = _FakeHead(head_sha, head_ref)
-        self.base = _FakeRef(base_ref)
-        self.raw_data: dict[str, object] = {} if trunk is None else {"stack": {"base": {"ref": trunk}}}
-
-    def get_files(self) -> list[_FakeFile]:
-        raise AssertionError("eligibility never lists the PR's files")
-
-
-class _FakeRulesClient:
-    """Serves merge_rules.yaml, one team and PR #7 as it reads live: ``live_head``, its refs and stack trunk.
-
-    A ``None`` trunk is a PR in no native stack. ``pull_error`` replaces the PR read with that failure.
-    """
-
-    def __init__(
-        self,
-        *,
-        merge_rules: str | Exception = _MERGE_RULES,
-        pull_error: Exception | None = None,
-        live_head: str = _REVIEWED,
-        head_ref: str = "feature",
-        base_ref: str = constants.TARGET_BRANCH,
-        trunk: str | None = None,
-    ) -> None:
-        self.merge_rules = merge_rules
-        self.pull_error = pull_error
-        self.live = _FakeLivePR(live_head, head_ref, base_ref, trunk)
-        self.pull_reads = 0
-
-    def get_repo(self, full_name_or_id: str) -> _FakeRulesClient:
-        return self
-
-    def get_contents(self, path: str) -> _FakeContent:
-        if isinstance(self.merge_rules, Exception):
-            raise self.merge_rules
-        return _FakeContent(self.merge_rules)
-
-    def get_pull(self, number: int) -> _FakeLivePR:
-        self.pull_reads += 1
-        if self.pull_error is not None:
-            raise self.pull_error
-        return self.live
-
-    def get_organization(self, login: str) -> _FakeOrg:
-        return _FakeOrg()
-
-
-@pytest.fixture
-def eligible(monkeypatch):
-    def check(client: _FakeRulesClient, author: str | None) -> bool:
-        monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
-        return has_eligible_author("tok", constants.TARGET_REPO, 7, _REVIEWED, author, eligibility="merge_rules")
-
-    return check
-
-
-@pytest.mark.parametrize("author", ["CatchAll", "Scoped", "TeamMember"])
-def test_has_eligible_author_passes_any_author_a_valid_rule_names_with_one_pr_read(eligible, author):
-    client = _FakeRulesClient()
-
-    assert eligible(client, author) is True
-    assert client.pull_reads == 1
-
-
-@pytest.mark.parametrize("author", ["mallory", "catchall", "OnlyBroken", None])
-def test_has_eligible_author_refuses_an_author_no_valid_rule_names_without_reading_the_pr(eligible, author):
-    client = _FakeRulesClient(pull_error=_UNEXPECTED_PR_READ)
-
-    assert eligible(client, author) is False
-    assert client.pull_reads == 0
-
-
-@pytest.mark.parametrize(
-    "live",
-    [
-        pytest.param({"head_ref": "gh/scoped/1/head", "base_ref": "gh/scoped/1/base"}, id="ghstack-off-main"),
-        pytest.param({"base_ref": "scoped/part-1", "trunk": constants.TARGET_BRANCH}, id="native-stack-on-main"),
-        pytest.param({"trunk": "release/2.9"}, id="main-based-in-a-stack-off-main"),
-    ],
-)
-@pytest.mark.parametrize("author", ["CatchAll", "Scoped"])
-def test_has_eligible_author_passes_a_pr_on_any_base_trymerge_accepts(eligible, live, author):
-    assert eligible(_FakeRulesClient(**live), author) is True
-
-
-@pytest.mark.parametrize(
-    ("live", "reason"),
-    [
-        pytest.param({"live_head": "c" * 40}, "head moved", id="head-moved"),
-        pytest.param({"base_ref": "release/2.9"}, "base not accepted", id="release-base"),
-        pytest.param({"base_ref": "scoped/part-1", "trunk": "release/2.9"}, "base not accepted", id="stack-off-main"),
-        pytest.param({"base_ref": "scoped/part-1"}, "base not accepted", id="stack-left"),
-    ],
-)
-@pytest.mark.parametrize("author", ["CatchAll", "Scoped"])
-def test_has_eligible_author_refuses_any_author_off_the_reviewed_head_or_on_a_refused_base(
-    eligible, caplog, live, reason, author
-):
-    with caplog.at_level(logging.INFO, logger="greenlight"):
-        assert eligible(_FakeRulesClient(**live), author) is False
-
-    assert f"author {author!r} is not eligible: {reason}" in caplog.text
-
-
-@pytest.mark.parametrize(
-    "client",
-    [
-        pytest.param(_FakeRulesClient(merge_rules=UnknownObjectException(404)), id="merge-rules"),
-        pytest.param(_FakeRulesClient(pull_error=GithubException(502)), id="pull"),
-    ],
-)
-def test_has_eligible_author_raises_a_read_failure(eligible, client):
-    with pytest.raises(GithubException):
-        eligible(client, "CatchAll")
-
-
-def test_has_eligible_author_logs_its_decision_without_naming_a_rule_or_a_team_member(eligible, caplog):
-    with caplog.at_level(logging.DEBUG, logger="greenlight"):
-        assert eligible(_FakeRulesClient(), "TeamMember") is True
-        assert eligible(_FakeRulesClient(base_ref="release/2.9"), "Concealed") is False
-
-    # The record job's log is public: a rule name can imply a team membership, and Concealed reaches
-    # greenlight through the team alone, so only its login, never the team or rule, may appear.
-    assert "merge-rule eligibility" in caplog.text
-    assert not [word for word in ("Superusers", "Docs Maintainers", "doc-writers") if word in caplog.text]
-
-
 def _record_land(
     make_config: Callable[..., Config],
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    client: _FakeRulesClient,
+    client: FakeRulesClient,
     rec: _Recorder,
     emit: _FakeEmit,
 ) -> _FakePR:
     monkeypatch.setattr(verdict, "has_eligible_author", has_eligible_author)
     monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
-    pr = _FakePR(_REVIEWED, rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)], author="CatchAll")
+    pr = _FakePR(REVIEWED, rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)], author="CatchAll")
     vf = _write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM")
     req = VerdictRequest(
-        repo=constants.TARGET_REPO, pr_number=7, head_sha=_REVIEWED, eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
+        repo=constants.TARGET_REPO, pr_number=7, head_sha=REVIEWED, eval_hash=_HASH, verdict_file=vf, bot_login=_BOT
     )
     verdict.run(
         req,
@@ -2162,7 +2015,7 @@ def test_a_catch_all_authors_land_off_the_reviewed_head_or_on_a_refused_base_is_
     rec = _Recorder()
     emit = _FakeEmit(rec)
 
-    pr = _record_land(make_config, tmp_path, monkeypatch, _FakeRulesClient(**live), rec, emit)
+    pr = _record_land(make_config, tmp_path, monkeypatch, FakeRulesClient(**live), rec, emit)
 
     assert _decode(emit.row_gzip)["shadow"] is True
     assert pr.created_reviews == []
@@ -2172,7 +2025,7 @@ def test_a_catch_all_authors_land_off_the_reviewed_head_or_on_a_refused_base_is_
 def test_a_record_time_pr_read_failure_fails_the_verdict_and_writes_no_row(make_config, tmp_path, monkeypatch):
     rec = _Recorder()
     emit = _FakeEmit(rec)
-    client = _FakeRulesClient(pull_error=GithubException(502))
+    client = FakeRulesClient(pull_error=GithubException(502))
 
     with pytest.raises(GithubException):
         _record_land(make_config, tmp_path, monkeypatch, client, rec, emit)
@@ -2255,8 +2108,141 @@ def test_land_on_an_active_repo_resolves_its_configured_eligibility(
 
     assert eligibility.calls == [("tok", "pytorch/vision", 70, "h", _TRUSTED_AUTHOR)]
     assert eligibility.eligibilities == ["merge_rules"]
+    assert eligibility.minimum_roles == ["write"]
     assert rec.events == ["emit", "review:APPROVE", "comment"]
     assert set_repo_settings.calls == [("tok", "pytorch/vision")]
+
+
+@pytest.mark.parametrize(
+    ("author", "author_type", "expected_type"),
+    [
+        pytest.param(_TRUSTED_AUTHOR, "User", "User", id="user"),
+        pytest.param(_TRUSTED_AUTHOR, "Bot", "Bot", id="bot"),
+        pytest.param(None, "User", None, id="no-author"),
+    ],
+)
+def test_land_on_a_write_permission_repo_hands_the_lookup_the_authors_account_type(
+    make_config, tmp_path, set_repo_settings, eligibility, author, author_type, expected_type
+):
+    set_repo_settings("pytorch/vision", _valid(_vision_entry(eligibility="write_permission")))
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=author, author_type=author_type)
+
+    verdict.run(
+        _land(tmp_path),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    assert eligibility.eligibilities == ["write_permission"]
+    assert eligibility.author_types == [expected_type]
+
+
+def test_land_on_a_maintain_role_repo_hands_the_lookup_its_minimum_role(
+    make_config, tmp_path, set_repo_settings, eligibility
+):
+    set_repo_settings("pytorch/vision", _valid(_vision_entry(eligibility="write_permission", minimum_role="maintain")))
+    rec = _Recorder()
+    pr = _FakePR("h", rec, author=_TRUSTED_AUTHOR)
+
+    verdict.run(
+        _land(tmp_path),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=_FakeEmit(rec),
+        now=lambda: _FIXED,
+    )
+
+    assert eligibility.eligibilities == ["write_permission"]
+    assert eligibility.minimum_roles == ["maintain"]
+
+
+def _record_writer_land(
+    make_config: Callable[..., Config],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    set_repo_settings: Callable[..., None],
+    client: FakeRulesClient,
+    pr: _FakePR,
+    emit: _FakeEmit,
+    minimum_role: str = "write",
+) -> None:
+    entry = _vision_entry(eligibility="write_permission", minimum_role=minimum_role)
+    set_repo_settings("pytorch/vision", _valid(entry))
+    monkeypatch.setattr(verdict, "has_eligible_author", has_eligible_author)
+    monkeypatch.setattr(github_client, "build_authz_client", lambda token: client)
+    verdict.run(
+        VerdictRequest(
+            repo="pytorch/vision",
+            pr_number=7,
+            head_sha=REVIEWED,
+            eval_hash=_HASH,
+            verdict_file=_write_verdict(tmp_path, status="LAND", reason="clean", message="LGTM"),
+            bot_login=_BOT,
+        ),
+        make_config(github_token="tok"),
+        build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+        emit=emit,
+        now=lambda: _FIXED,
+    )
+
+
+def test_a_writers_land_is_approved_through_the_live_permission_check(
+    make_config, tmp_path, monkeypatch, set_repo_settings
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    client = FakeRulesClient()
+    pr = _FakePR(REVIEWED, rec, author="Writer")
+
+    _record_writer_land(make_config, tmp_path, monkeypatch, set_repo_settings, client, pr, emit)
+
+    assert client.permission_reads == ["Writer"]
+    assert client.contents_reads == 0
+    assert _decode(emit.row_gzip)["shadow"] is False
+    assert pr.created_reviews == [("APPROVE", "")]
+
+
+@pytest.mark.parametrize(
+    ("author_type", "permission", "reads"),
+    [
+        pytest.param("Bot", "write", [], id="bot-typed-author"),
+        pytest.param("User", "read", ["Writer"], id="read-only-author"),
+    ],
+)
+def test_a_land_by_a_bot_or_a_reader_on_a_write_permission_repo_is_shadow(
+    make_config, tmp_path, monkeypatch, set_repo_settings, author_type, permission, reads
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    client = FakeRulesClient(permission=permission)
+    pr = _FakePR(REVIEWED, rec, author="Writer", author_type=author_type)
+
+    _record_writer_land(make_config, tmp_path, monkeypatch, set_repo_settings, client, pr, emit)
+
+    assert client.permission_reads == reads
+    assert client.pull_reads == 0
+    assert _decode(emit.row_gzip)["shadow"] is True
+    assert pr.created_reviews == []
+
+
+@pytest.mark.parametrize(("maintain", "shadow"), [(True, False), (False, True)])
+def test_a_land_on_a_maintain_role_repo_carries_authority_only_for_a_maintainer(
+    make_config, tmp_path, monkeypatch, set_repo_settings, maintain, shadow
+):
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    client = FakeRulesClient(permission="write", maintain=maintain)
+    pr = _FakePR(REVIEWED, rec, author="Writer")
+
+    _record_writer_land(make_config, tmp_path, monkeypatch, set_repo_settings, client, pr, emit, "maintain")
+
+    assert client.requester.urls == ["/repos/pytorch/vision/collaborators/Writer/permission"]
+    assert client.permission_reads == []
+    assert _decode(emit.row_gzip)["shadow"] is shadow
+    assert pr.created_reviews == ([] if shadow else [("APPROVE", "")])
 
 
 def test_land_on_the_primary_with_an_invalid_file_is_shadow(make_config, tmp_path, set_repo_settings, eligibility):
@@ -2446,10 +2432,3 @@ def test_a_drci_entry_never_gets_greenlights_own_comment(make_config, tmp_path, 
     )
 
     assert rec.events == ["emit", "review:APPROVE"]
-
-
-def test_has_eligible_author_refuses_write_permission_eligibility(monkeypatch):
-    monkeypatch.setattr(github_client, "build_authz_client", _boom_build_github)
-
-    with pytest.raises(ValueError, match="write_permission eligibility is not supported by this release"):
-        has_eligible_author("tok", "pytorch/vision", 7, _REVIEWED, "alice", eligibility="write_permission")

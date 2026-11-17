@@ -40,6 +40,22 @@ def test_a_valid_file_serves_its_repo():
     )
 
 
+@pytest.mark.parametrize("minimum_role", ["write", "maintain"])
+def test_a_write_permission_file_with_a_minimum_role_serves_its_repo_at_that_role(minimum_role):
+    settings = repo_config.parse_settings(_VISION, _file(eligibility="write_permission", minimum_role=minimum_role))
+
+    entry = RepoEntry(_VISION, "greenlight", "gate", "write_permission", "shadow", minimum_role)
+    assert settings == Settings(_VISION, "valid", entry, served=True)
+
+
+def test_the_minimum_role_defaults_to_write():
+    settings = repo_config.parse_settings(_VISION, _file(eligibility="write_permission"))
+
+    assert settings.entry is not None
+    assert settings.entry.minimum_role == "write"
+    assert BUILTIN_PYTORCH.minimum_role == "write"
+
+
 def test_bare_off_is_the_mode_off_not_a_boolean():
     settings = repo_config.parse_settings(_VISION, _file(mode="off"))
 
@@ -62,6 +78,26 @@ def test_bare_off_is_the_mode_off_not_a_boolean():
         pytest.param(_file(status_comment="drci"), "status_comment: drci is only for", id="drci"),
         pytest.param(_file(mode="active"), "safety: gate cannot be active", id="active-gate"),
         pytest.param(_file(mode="active", extra="1"), "safety: gate cannot be active", id="unknown-key-no-rescue"),
+        pytest.param(
+            _file(minimum_role="maintain"),
+            "minimum_role is only for eligibility: write_permission",
+            id="maintain-with-merge-rules",
+        ),
+        pytest.param(
+            _file(minimum_role="write"),
+            "minimum_role is only for eligibility: write_permission",
+            id="write-with-merge-rules",
+        ),
+        pytest.param(
+            _file(eligibility="write_permission", minimum_role="admin"),
+            "minimum_role 'admin' is not one of ['write', 'maintain']",
+            id="bad-minimum-role",
+        ),
+        pytest.param(
+            _file(eligibility="write_permission", minimum_role="5"),
+            "minimum_role must be a string, got int",
+            id="minimum-role-not-a-string",
+        ),
     ],
 )
 def test_an_invalid_file_refuses_a_non_primary_repo(text, reason, caplog):
@@ -112,6 +148,17 @@ def test_the_primarys_mode_comes_from_the_file_and_its_other_fields_are_pinned(c
     assert "safety 'gate' ignored" in caplog.text
     assert "eligibility 'write_permission' ignored" in caplog.text
     assert "unknown key(s) ['extra'] ignored" in caplog.text
+
+
+@pytest.mark.parametrize("minimum_role", ["maintain", "admin"])
+def test_the_primary_ignores_a_minimum_role(caplog, minimum_role):
+    text = _PYTORCH_FILE.format(mode="active") + f"minimum_role: {minimum_role}\n"
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        settings = repo_config.parse_settings(TARGET_REPO, text)
+
+    assert settings == Settings(TARGET_REPO, "valid", BUILTIN_PYTORCH, served=True)
+    assert f"minimum_role {minimum_role!r} ignored; it is pinned to 'write'" in caplog.text
+    assert "unknown key" not in caplog.text
 
 
 def test_the_primary_stays_served_with_only_mode_set(caplog):
@@ -437,6 +484,16 @@ def test_check_file_lists_the_cross_field_problems(tmp_path: Path) -> None:
     assert problems[1].startswith("status_comment: drci is only for")
 
 
+def test_check_file_reports_a_minimum_role_off_write_permission_or_out_of_its_values(tmp_path: Path) -> None:
+    path = tmp_path / "config.yml"
+    path.write_text(_file(minimum_role="maintain"))
+    assert repo_config.check_file(path, _VISION) == ["minimum_role is only for eligibility: write_permission"]
+    path.write_text(_file(eligibility="write_permission", minimum_role="triage"))
+    assert repo_config.check_file(path, _VISION) == ["minimum_role 'triage' is not one of ['write', 'maintain']"]
+    path.write_text(_file(eligibility="write_permission", minimum_role="maintain"))
+    assert repo_config.check_file(path, _VISION) == []
+
+
 def test_check_file_reports_what_the_primary_ignores(tmp_path: Path) -> None:
     path = tmp_path / "config.yml"
     path.write_text("status_comment: greenlight\nmode: active\nextra: 1\n")
@@ -449,6 +506,8 @@ def test_check_file_reports_what_the_primary_ignores(tmp_path: Path) -> None:
     ]
     path.write_text(_PYTORCH_FILE.format(mode="active"))
     assert repo_config.check_file(path, TARGET_REPO) == []
+    path.write_text(_PYTORCH_FILE.format(mode="active") + "minimum_role: maintain\n")
+    assert repo_config.check_file(path, TARGET_REPO) == ["minimum_role 'maintain' ignored; it is pinned to 'write'"]
     path.write_text(_PYTORCH_FILE.format(mode="paused"))
     assert repo_config.check_file(path, TARGET_REPO) == ["mode 'paused' is not one of ['shadow', 'active', 'off']"]
 
@@ -572,6 +631,7 @@ def test_the_value_tuples_are_the_literals():
     assert repo_config.SAFETIES == ("pytorchbot", "gate")
     assert repo_config.ELIGIBILITIES == ("merge_rules", "write_permission")
     assert repo_config.MODES == ("shadow", "active", "off")
+    assert repo_config.MINIMUM_ROLES == ("write", "maintain")
 
 
 def test_is_primary_is_an_exact_match():

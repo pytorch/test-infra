@@ -16,9 +16,9 @@ from a PR head); both end in a ``Settings``, the one place the outcome of every 
   a repo nor turns an ``off`` or ``shadow`` one ``active``; with none, the primary is served under
   ``BUILTIN_PYTORCH`` and any other repo gets no work.
 
-The primary reads only ``mode`` from its file: its ``status_comment``, ``safety`` and ``eligibility``
-are pinned to ``BUILTIN_PYTORCH``'s (a different value or an unknown key is logged and ignored, so a
-one-line config edit cannot widen whom GreenLight approves there). Every problem is logged with its
+The primary reads only ``mode`` from its file: its ``status_comment``, ``safety``, ``eligibility`` and
+``minimum_role`` are pinned to ``BUILTIN_PYTORCH``'s (a different value or an unknown key is logged and
+ignored, so a one-line config edit cannot widen whom GreenLight approves there). Every problem is logged with its
 reason and carried in ``Settings.problem``. See REPOS.md.
 """
 
@@ -64,21 +64,25 @@ StatusComment = Literal["drci", "greenlight"]
 Safety = Literal["pytorchbot", "gate"]
 Eligibility = Literal["merge_rules", "write_permission"]
 Mode = Literal["shadow", "active", "off"]
+MinimumRole = Literal["write", "maintain"]
 SettingsKind = Literal["absent", "valid", "invalid", "unreadable"]
 
 STATUS_COMMENTS: tuple[StatusComment, ...] = get_args(StatusComment)
 SAFETIES: tuple[Safety, ...] = get_args(Safety)
 ELIGIBILITIES: tuple[Eligibility, ...] = get_args(Eligibility)
 MODES: tuple[Mode, ...] = get_args(Mode)
+MINIMUM_ROLES: tuple[MinimumRole, ...] = get_args(MinimumRole)
+_DEFAULT_MINIMUM_ROLE: MinimumRole = "write"
 
 _ENUMS: dict[str, tuple[str, ...]] = {
     "status_comment": STATUS_COMMENTS,
     "safety": SAFETIES,
     "eligibility": ELIGIBILITIES,
     "mode": MODES,
+    "minimum_role": MINIMUM_ROLES,
 }
-_PINNED_FIELDS = ("status_comment", "safety", "eligibility")
-WRITE_PERMISSION_UNSUPPORTED = "write_permission eligibility is not supported by this release"
+_OPTIONAL_FIELDS = frozenset({"minimum_role"})
+_PINNED_FIELDS = ("status_comment", "safety", "eligibility", "minimum_role")
 
 
 class _Invalid(ValueError):
@@ -144,6 +148,7 @@ class RepoEntry:
     safety: Safety
     eligibility: Eligibility
     mode: Mode
+    minimum_role: MinimumRole = _DEFAULT_MINIMUM_ROLE
 
 
 BUILTIN_PYTORCH = RepoEntry(TARGET_REPO, "drci", "pytorchbot", "merge_rules", "active")
@@ -190,9 +195,9 @@ def _outcome(repo: str, kind: SettingsKind, reason: str = "", *, last: Settings 
 
 
 def _field_problem(field: str, raw: Mapping[object, object]) -> str | None:
-    """Why ``raw``'s ``field`` is not one of its values, or None."""
+    """Why ``raw``'s ``field`` is not one of its values, or None; an optional field may be absent."""
     if field not in raw:
-        return f"{field} is missing"
+        return None if field in _OPTIONAL_FIELDS else f"{field} is missing"
     value, allowed = raw[field], _ENUMS[field]
     if not isinstance(value, str):
         return f"{field} must be a string, got {type(value).__name__}"
@@ -213,17 +218,20 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
         problems.append(f"status_comment: drci is only for {sorted(DRCI_STATUS_COMMENT_REPOS)}")
     if raw["safety"] == "gate" and raw["mode"] == "active":
         problems.append("safety: gate cannot be active in this release")
+    if "minimum_role" in raw and raw["eligibility"] != "write_permission":
+        problems.append("minimum_role is only for eligibility: write_permission")
     return problems
 
 
 def _entry(repo: str, raw: Mapping[object, object]) -> RepoEntry:
-    """``raw`` as an entry; its four fields were already checked against their values."""
+    """``raw`` as an entry; its fields were already checked against their values."""
     return RepoEntry(
         repo,
         status_comment=cast("StatusComment", raw["status_comment"]),
         safety=cast("Safety", raw["safety"]),
         eligibility=cast("Eligibility", raw["eligibility"]),
         mode=cast("Mode", raw["mode"]),
+        minimum_role=cast("MinimumRole", raw.get("minimum_role", _DEFAULT_MINIMUM_ROLE)),
     )
 
 
@@ -258,7 +266,8 @@ def _primary_findings(raw: Mapping[object, object]) -> tuple[list[str], list[str
     for field in _PINNED_FIELDS:
         pinned = getattr(BUILTIN_PYTORCH, field)
         if field not in raw:
-            ignored.append(f"{field} is missing; it is pinned to {pinned!r}")
+            if field not in _OPTIONAL_FIELDS:
+                ignored.append(f"{field} is missing; it is pinned to {pinned!r}")
         elif raw[field] != pinned:
             ignored.append(f"{field} {_shown(raw[field])} ignored; it is pinned to {pinned!r}")
     if unknown := _unknown_keys(raw):

@@ -16,8 +16,9 @@ approving review unless the verdict is shadow or greenlight already holds a live
 and NO_LAND additionally dismisses greenlight's own prior approval (both matched by ``bot_login``).
 A LAND or NO_LAND is shadow when ``--shadow`` is passed, the repo's settings read from its own
 ``.github/greenlight/config.yml`` on its default branch (``repo_config``) are safety-only or not
-``active``, or ``has_eligible_author`` finds no valid
-merge rule naming its author, or finds the PR off the reviewed head or on a base trymerge refuses;
+``active``, or ``author_eligibility.has_eligible_author`` finds that the entry's eligibility source (a
+valid merge rule, or write permission) does not qualify its author, or finds the PR off the reviewed
+head or on a base trymerge refuses;
 a failed check fails the command before the row is written, after a NO_LAND has already dismissed. A
 shadow verdict carries no authority, and that is absolute rather than forward-looking: no approving
 review is ever posted for one, any prior greenlight approval is dismissed on the LAND path as well
@@ -50,17 +51,16 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from greenlight import (
-    cohort,
     comment_format,
     constants,
     github_client,
-    merge_authz,
     redact,
     repo_config,
     state_emit,
     verdict_input,
     verdict_labels,
 )
+from greenlight.author_eligibility import has_eligible_author
 from greenlight.constants import ALLOWED_REASONS, STATUS_LAND, STATUS_NO_LAND, TERMINAL_STATUSES, VERDICT_STATUSES
 
 if TYPE_CHECKING:
@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 
     from greenlight.config import Config
     from greenlight.github_types import VerdictClient, VerdictPR
-    from greenlight.repo_config import Eligibility, RepoEntry
+    from greenlight.repo_config import RepoEntry
 
 
 __all__ = ["ALLOWED_REASONS", "VERDICT_STATUSES", "VerdictRequest", "run"]
@@ -235,40 +235,6 @@ def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
         logger.info("no prior greenlight approval to dismiss on %s#%d", request.repo, request.pr_number)
 
 
-def has_eligible_author(
-    token: str, repo: str, pr_number: int, head_sha: str, author: str | None, *, eligibility: Eligibility
-) -> bool:
-    """True when ``repo``'s merge rules name ``author`` and the PR is still as reviewed. Every failure raises.
-
-    Any ``eligibility`` but ``merge_rules`` raises: this release supports no other. ``cohort.assess_rules``
-    decides on the author. One fresh read of the PR must then find its head still at ``head_sha``, the
-    reviewed commit, on a base ``merge_authz.accepts_base`` accepts, so a PR reviewed for its native stack
-    on main must still be in one. A push to the base branch is not caught.
-    """
-    if eligibility != "merge_rules":
-        raise ValueError(repo_config.WRITE_PERMISSION_UNSUPPORTED)
-    client = github_client.build_authz_client(token)
-    try:
-        rule, reason = cohort.assess_rules(author, merge_authz.resolve_merge_rules(client, repo).rules)
-        if rule is not None:
-            pull = client.get_repo(repo).get_pull(pr_number)
-            if pull.head.sha != head_sha:
-                rule, reason = None, "head moved"
-            elif not merge_authz.accepts_base(pull):
-                rule, reason = None, "base not accepted"
-    finally:
-        github_client.close_client(client)
-    # The record job's log is public: the reason names no rule, team or file, and none may be added.
-    logger.info(
-        "merge-rule eligibility on %s#%d: author %r is %s",
-        repo,
-        pr_number,
-        author,
-        "eligible" if rule is not None else f"not eligible: {reason}",
-    )
-    return rule is not None
-
-
 def _run_full(
     request: VerdictRequest,
     config: Config,
@@ -296,7 +262,7 @@ def _run_full(
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to post a verdict")
     client = build_github(token)
     pr = github_client.get_pr(client, request.repo, request.pr_number)
-    author = pr.user.login if pr.user is not None else None
+    author, author_type = (pr.user.login, pr.user.type) if pr.user is not None else (None, None)
     if status == STATUS_NO_LAND:
         # A NO_LAND dismisses whatever the lookups below answer, so it goes first: a lookup that fails
         # must not leave greenlight's approval standing on a PR the review just rejected.
@@ -308,7 +274,14 @@ def _run_full(
     # keeps a shadow request, or a repo not served and active, from resolving eligibility at all. The
     # lookup is handed the reviewed head, not the live one.
     shadow = not _authoritative(request, entry, served) or not has_eligible_author(
-        token, request.repo, request.pr_number, request.head_sha, author, eligibility=entry.eligibility
+        token,
+        request.repo,
+        request.pr_number,
+        request.head_sha,
+        author,
+        eligibility=entry.eligibility,
+        minimum_role=entry.minimum_role,
+        author_type=author_type,
     )
     key = _emit_payload(request, status, reason, message, shadow=shadow, now=now, emit=emit, new_emit_id=new_emit_id)
     logger.info("emitted %s verdict payload for %s#%d -> %s", status, request.repo, request.pr_number, key)
