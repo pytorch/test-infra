@@ -1,9 +1,10 @@
 """What one reviewer slot has to look like, and how it gets that way.
 
 A pool slot is the reviewer's ``GITHUB_WORKSPACE``. ``WorktreePool`` lays out the
-checkout half of it, at ``checkout.checkout_dirname(repo)``; the policy half has
-to be copied in beside that, and the checkout has to be stripped of its own agent
-instructions before the reviewer is pointed at it. Both are done here, per slot.
+checkout half of it, in the directory the policy's ``greenlight target`` named; the
+policy half has to be copied in beside that, and the checkout has to be stripped of
+its own agent instructions before the reviewer is pointed at it. Both are done here,
+per slot.
 
 Getting either wrong is quiet rather than loud: the reviewer's reads are denied
 one at a time and it answers anyway, from less than the pull request, or -- if
@@ -19,21 +20,22 @@ import shutil
 import subprocess
 from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from torchci.greenlight_replay.checkout import (
-    checkout_dirname,
-    DEFAULT_REPO,
-    require_repo,
-    WorktreePool,
-)
+from torchci.greenlight_replay.checkout import PRIMARY_CHECKOUT, WorktreePool
+
+
+if TYPE_CHECKING:
+    from torchci.greenlight_replay.arm_code import Target
 
 
 POLICY_SUBDIR = ".claude"
 # restrict-read.py's allowlist beside the checkout, relative to the workspace root;
 # both come from the policy tree.
 POLICY_ROOTS = (".claude/skills", ".claude/hooks")
-# Relative to POLICY_SUBDIR. The workflow deletes every repo's file here but the
-# reviewed repo's before the model runs, so the reviewer reads no other repo's policy.
+# Relative to POLICY_SUBDIR. The workflow deletes every file under it but the one
+# ``greenlight target`` named before the model runs, so the reviewer reads no other
+# repo's policy; directories stay.
 REPO_POLICIES_SUBPATH = "skills/greenlight-review/repos"
 
 SANITIZE_TIMEOUT_S = 600
@@ -45,62 +47,59 @@ class WorkspaceLayoutError(RuntimeError):
     """A reviewer workspace is missing one of restrict-read.py's allowed roots."""
 
 
-def workspace_roots(repo: str = DEFAULT_REPO) -> tuple[str, ...]:
-    """restrict-read.py's entire allowlist for ``repo``, relative to the workspace root.
+def workspace_roots(checkout: str = PRIMARY_CHECKOUT) -> tuple[str, ...]:
+    """restrict-read.py's entire allowlist, relative to the workspace root.
 
     The pool supplies the checkout; the policy tree supplies the rest.
     """
-    return (checkout_dirname(repo), *POLICY_ROOTS)
+    return (checkout, *POLICY_ROOTS)
 
 
-def repo_policy_filename(repo: str) -> str:
-    """The file under :data:`REPO_POLICIES_SUBPATH` holding ``pytorch/<name>``'s policy."""
-    return f"{require_repo(repo).partition('/')[2]}.md"
-
-
-def require_repo_policy(policy_root: Path, repo: str) -> None:
-    """Refuse a policy that holds per-repo policy files but none for ``repo``.
-
-    Its workflow declines every pull request of ``repo`` with a canned verdict and
-    runs no model, which this harness does not reproduce: replaying the model would
-    report reviews CI never makes. A policy with no per-repo directory has no such
-    gate and is replayed as it is.
-    """
-    directory = Path(policy_root) / POLICY_SUBDIR / REPO_POLICIES_SUBPATH
-    filename = repo_policy_filename(repo)
-    if directory.is_dir() and not (directory / filename).is_file():
-        raise ValueError(
-            f"the policy has no {filename} under {directory} for {repo}, so CI "
-            "declines its every pull request without a review"
-        )
-
-
-def install_policy_half(
-    policy_root: Path, worktree: Path, repo: str = DEFAULT_REPO
-) -> Path:
+def install_policy_half(policy_root: Path, worktree: Path, target: Target) -> Path:
     """Copy the policy tree's ``.claude`` in beside the checkout, and check the result.
 
     Copied from the materialized tree rather than re-materialized, so every slot
     reviews under byte-identical policy, and copied per slot rather than shared
-    because concurrent reviewers write into the workspace they are given. Of the
-    per-repo policy files only ``repo``'s is copied, as the workflow leaves only it; a
-    policy with no such directory, or no file for ``repo``, is copied as it is.
+    because concurrent reviewers write into the workspace they are given. Under the
+    per-repo policy directory only the file ``target`` names is kept, as the
+    workflow's ``find -mindepth 1 ! -type d ! -path "$POLICY" -delete`` keeps it: every
+    other non-directory entry at any depth goes, every directory stays. A target with
+    no policy file comes from a workflow with no such step, so all of it is copied.
     """
     workspace = WorktreePool.workspace_of(worktree)
     destination = workspace / POLICY_SUBDIR
     _clear_policy_half(destination)
     source = Path(policy_root) / POLICY_SUBDIR
     repo_policies = os.path.normpath(source / REPO_POLICIES_SUBPATH)
-    keep = repo_policy_filename(repo)
+    keep = (
+        None
+        if target.policy is None
+        else os.path.normpath(Path(policy_root) / target.policy)
+    )
 
     def other_repos(directory: str, names: Iterable[str]) -> set[str]:
-        if os.path.normpath(directory) != repo_policies:
+        if keep is None or not _within(directory, repo_policies):
             return set()
-        return {name for name in names if name != keep}
+        return {
+            name
+            for name in names
+            if _is_file_like(os.path.join(directory, name))
+            and os.path.normpath(os.path.join(directory, name)) != keep
+        }
 
     shutil.copytree(source, destination, ignore=other_repos)
-    check_workspace(workspace, repo)
+    check_workspace(workspace, target.checkout)
     return workspace
+
+
+def _within(directory: str, root: str) -> bool:
+    directory = os.path.normpath(directory)
+    return directory == root or directory.startswith(root + os.sep)
+
+
+def _is_file_like(path: str) -> bool:
+    """What ``find ! -type d`` selects: anything but a real directory, links included."""
+    return os.path.islink(path) or not os.path.isdir(path)
 
 
 def _clear_policy_half(destination: Path) -> None:
@@ -126,14 +125,14 @@ def _clear_policy_half(destination: Path) -> None:
     shutil.rmtree(destination)
 
 
-def check_workspace(workspace: Path, repo: str = DEFAULT_REPO) -> None:
+def check_workspace(workspace: Path, checkout: str = PRIMARY_CHECKOUT) -> None:
     """Refuse a workspace whose layout would silently starve the reviewer.
 
     Handed the checkout the other way round -- the reviewed tree at the root, or
     the policy half missing -- the reads the prompt depends on are denied one by
     one, and the run still exits clean with a verdict formed from no code.
     """
-    roots = workspace_roots(repo)
+    roots = workspace_roots(checkout)
     missing = [root for root in roots if not (workspace / root).is_dir()]
     if missing:
         raise WorkspaceLayoutError(

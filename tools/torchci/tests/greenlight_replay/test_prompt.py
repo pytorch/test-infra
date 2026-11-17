@@ -8,18 +8,12 @@ to the same bytes for pytorch/pytorch.
 """
 
 import unittest
-from pathlib import Path
 
+from replay_runner_fixtures import replay_policy
 from torchci.greenlight_replay import prompt as prompt_mod
-from torchci.greenlight_replay.policy import Policy
+from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.prompt import render_prompt
 
-
-TOO_LARGE_VERDICT = {
-    "status": "NO_LAND",
-    "reason": "scope_too_large",
-    "message": "- Scope\n  - too big",
-}
 
 PROMPT = (
     "You are reviewing pytorch/pytorch PR #${{ github.event.inputs.pr_number }}\n"
@@ -64,21 +58,16 @@ TARGET_PROMPT = (
 SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
-def make_policy(prompt_template: str) -> Policy:
-    return Policy(
-        root=Path("/nonexistent"),
-        prompt_template=prompt_template,
-        max_diff_lines=2000,
-        max_diff_bytes=500000,
-        review_budget_minutes=(20, 25, 33),
-        too_large_verdict=dict(TOO_LARGE_VERDICT),
-        schema_path=Path("/nonexistent/schema.json"),
-        sanitize_script=Path("/nonexistent/sanitize.sh"),
-        hooks_dir=Path("/nonexistent/hooks"),
-        model="global.anthropic.claude-opus-5",
-        effort="high",
-        tools="Read,Glob,Grep,Write",
-    )
+VISION = Target(
+    "pytorch/vision", "target", ".claude/skills/greenlight-review/repos/vision.md", True
+)
+
+
+def make_policy(prompt_template, target=None):
+    """A policy carrying ``prompt_template``, its target pytorch/pytorch unless given."""
+    if target is None:
+        return replay_policy(prompt_template=prompt_template)
+    return replay_policy(prompt_template=prompt_template, target=target)
 
 
 class UnclosedInterpolationTest(unittest.TestCase):
@@ -164,10 +153,6 @@ class RepoAwarePromptTest(unittest.TestCase):
         today = render_prompt(make_policy(TODAY_PROMPT), 193118, SHA)
         target = render_prompt(make_policy(TARGET_PROMPT), 193118, SHA)
         self.assertEqual(target, today)
-        self.assertEqual(
-            render_prompt(make_policy(TARGET_PROMPT), 193118, SHA, "pytorch/pytorch"),
-            today,
-        )
 
     def test_todays_spelling_renders_as_it_always_has(self):
         rendered = render_prompt(make_policy(TODAY_PROMPT), 193118, SHA)
@@ -176,10 +161,8 @@ class RepoAwarePromptTest(unittest.TestCase):
         ).replace("${{ github.event.inputs.head_sha }}", SHA)
         self.assertEqual(rendered, expected)
 
-    def test_another_repo_is_named_and_reviewed_at_target(self):
-        rendered = render_prompt(
-            make_policy(TARGET_PROMPT), 4321, SHA, "pytorch/vision"
-        )
+    def test_another_repo_is_named_and_reviewed_at_its_targets_checkout(self):
+        rendered = render_prompt(make_policy(TARGET_PROMPT, VISION), 4321, SHA)
         self.assertNotIn("${{", rendered)
         self.assertNotIn("pytorch/pytorch", rendered)
         self.assertNotIn("./pytorch", rendered)
@@ -188,17 +171,12 @@ class RepoAwarePromptTest(unittest.TestCase):
         self.assertIn("checked out\nunder ./target for you", rendered)
         self.assertIn("/tmp/greenlight-stack/ and\n./target, and the PR", rendered)
 
-    def test_a_repo_the_harness_cannot_replay_aborts(self):
-        for repo in ("facebook/vision", "pytorch/..", "PyTorch/PyTorch", "vision"):
-            with self.subTest(repo=repo):
-                with self.assertRaises(ValueError):
-                    render_prompt(make_policy(TARGET_PROMPT), 1, SHA, repo)
-
-    def test_a_repo_is_validated_even_when_the_template_does_not_name_it(self):
-        # One shape check for every policy: a base arm on today's spelling must not
-        # accept a repo the change arm refuses.
-        with self.assertRaises(ValueError):
-            render_prompt(make_policy(TODAY_PROMPT), 1, SHA, "facebook/vision")
+    def test_todays_spelling_ignores_the_target(self):
+        # A policy from before the target step names pytorch/pytorch in its own text.
+        self.assertEqual(
+            render_prompt(make_policy(TODAY_PROMPT, VISION), 193118, SHA),
+            render_prompt(make_policy(TODAY_PROMPT), 193118, SHA),
+        )
 
 
 if __name__ == "__main__":

@@ -36,6 +36,7 @@ from torchci.greenlight_replay import (
     sweep as sweep_module,
     workspace as workspace_module,
 )
+from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.runner import DEFAULT_MODEL, Outcome
 
 
@@ -124,44 +125,49 @@ class TestWorkspaceLayout(unittest.TestCase):
 
     def test_a_policy_without_its_skills_never_reaches_the_model(self):
         fakes = Fakes(
-            [replay_row(n) for n in (194379, 194772)], policy_claude=("hooks",)
+            [replay_row(n) for n in (194379, 194772)],
+            policy_claude=("hooks",),
+            repo_policies=(),
+            target_step=False,
         )
         with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
             self.assertEqual(code, cli.EXIT_FAILED)
         self.assertEqual(fakes.reviewed, [])
 
     def test_check_workspace_names_every_missing_root(self):
-        for repo, checkout in (
-            ("pytorch/pytorch", "pytorch"),
-            ("pytorch/vision", "target"),
-        ):
-            with self.subTest(repo=repo), tempfile.TemporaryDirectory() as directory:
-                workspace = Path(directory)
-                roots = workspace_module.workspace_roots(repo)
-                self.assertEqual(roots, (checkout, ".claude/skills", ".claude/hooks"))
-                with self.assertRaises(workspace_module.WorkspaceLayoutError) as caught:
-                    workspace_module.check_workspace(workspace, repo)
-                for root in roots:
-                    self.assertIn(root, str(caught.exception))
-                for root in roots:
-                    (workspace / root).mkdir(parents=True)
-                workspace_module.check_workspace(workspace, repo)
+        for checkout in ("pytorch", "target"):
+            with self.subTest(checkout=checkout):
+                with tempfile.TemporaryDirectory() as directory:
+                    workspace = Path(directory)
+                    roots = workspace_module.workspace_roots(checkout)
+                    self.assertEqual(
+                        roots, (checkout, ".claude/skills", ".claude/hooks")
+                    )
+                    with self.assertRaises(
+                        workspace_module.WorkspaceLayoutError
+                    ) as caught:
+                        workspace_module.check_workspace(workspace, checkout)
+                    for root in roots:
+                        self.assertIn(root, str(caught.exception))
+                    for root in roots:
+                        (workspace / root).mkdir(parents=True)
+                    workspace_module.check_workspace(workspace, checkout)
 
-    def test_another_repos_checkout_does_not_satisfy_this_repos_layout(self):
+    def test_another_checkout_does_not_satisfy_this_layout(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
-            for root in workspace_module.workspace_roots("pytorch/pytorch"):
+            for root in workspace_module.workspace_roots("pytorch"):
                 (workspace / root).mkdir(parents=True)
             with self.assertRaises(workspace_module.WorkspaceLayoutError) as caught:
-                workspace_module.check_workspace(workspace, "pytorch/vision")
+                workspace_module.check_workspace(workspace, "target")
             self.assertIn("target", str(caught.exception))
 
 
 class TestReviewedRepo(unittest.TestCase):
-    """``--repo`` decides what is cloned, where the checkout sits, which trusted
-    skills the sanitize step restores and which repo policy file the reviewer
-    gets -- each as the workflow derives it for that repo. Get one wrong and the
-    reviewer reads the wrong tree, or the wrong repo's rules, and still answers."""
+    """``--repo`` decides what is cloned and which trusted skills the sanitize step
+    restores; the policy's own target names where the checkout sits and which repo
+    policy file the reviewer gets. Get one wrong and the reviewer reads the wrong
+    tree, or the wrong repo's rules, and still answers."""
 
     POLICIES = ("pytorch.md", "vision.md", "audio.md")
 
@@ -217,17 +223,33 @@ class TestReviewedRepo(unittest.TestCase):
                 sorted(path.name for path in source.iterdir()), sorted(self.POLICIES)
             )
 
-    def test_a_repo_with_no_policy_file_stops_before_anything_is_cloned(self):
-        # CI declines its every pull request with a canned verdict and no model.
+    def test_a_repo_with_no_policy_file_gets_the_canned_decline_unfetched(self):
+        # CI declines its every pull request with a canned verdict and no model, so
+        # no clone, no checkout and no review is spent reaching it.
         fakes = Fakes(
-            [replay_row(194379, repo="pytorch/text")], repo_policies=self.POLICIES
+            [replay_row(n, repo="pytorch/text") for n in (194379, 194380)],
+            repo_policies=self.POLICIES,
         )
         with run_replay(fakes, ["--repo", "pytorch/text"]) as (code, _):
-            self.assertEqual(code, cli.EXIT_FAILED)
-        self.assertEqual(fakes.pools, [])
+            self.assertEqual(code, cli.EXIT_OK)
         self.assertEqual(fakes.reviewed, [])
+        self.assertEqual(fakes.comment_cutoffs, [])
+        self.assertEqual(fakes.trusted_skills, [])
+        self.assertFalse(fakes.pools[0].cloned)
+        self.assertEqual(fakes.pools[0].acquired, [])
+        for number in (194379, 194380):
+            entry = fakes.checkpoint[number]
+            self.assertEqual(entry["new_decision"], "NO_LAND")
+            self.assertEqual(entry["new_decision_reason"], "review_error")
 
-    def test_the_slot_copy_of_a_policy_with_no_file_for_the_repo_has_no_other(self):
+    def install(self, root, policy, checkout="target"):
+        worktree = root / "slot" / checkout
+        worktree.mkdir(parents=True, exist_ok=True)
+        target = Target(f"pytorch/{checkout}", checkout, policy, True)
+        return workspace_module.install_policy_half(root / "policy", worktree, target)
+
+    def test_the_slot_copy_keeps_only_the_targets_file_and_every_directory(self):
+        # As the workflow's find -mindepth 1 ! -type d ! -path "$POLICY" -delete.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             policies = root / "policy" / REPO_POLICIES
@@ -235,46 +257,35 @@ class TestReviewedRepo(unittest.TestCase):
             for name in (*self.POLICIES, "README.md"):
                 (policies / name).write_text(name)
             (policies / "nested").mkdir()
+            (policies / "nested" / "deep.md").write_text("deep")
+            (policies / "linked.md").symlink_to(policies / "README.md")
             (root / "policy/.claude/hooks").mkdir()
-            worktree = root / "slot" / "target"
-            worktree.mkdir(parents=True)
-            workspace = workspace_module.install_policy_half(
-                root / "policy", worktree, "pytorch/text"
-            )
-            self.assertEqual(self.kept(workspace), [])
-            workspace = workspace_module.install_policy_half(
-                root / "policy", worktree, "pytorch/vision"
-            )
-            self.assertEqual(self.kept(workspace), ["vision.md"])
-            self.assertEqual(len(list(policies.iterdir())), len(self.POLICIES) + 2)
+            text = f".claude/{REPO_POLICIES_RELPATH}/text.md"
+            workspace = self.install(root, text)
+            self.assertEqual(self.kept(workspace), ["nested"])
+            self.assertEqual(list((workspace / REPO_POLICIES / "nested").iterdir()), [])
+            vision = f".claude/{REPO_POLICIES_RELPATH}/vision.md"
+            workspace = self.install(root, vision)
+            self.assertEqual(self.kept(workspace), ["nested", "vision.md"])
+            self.assertEqual(len(list(policies.iterdir())), len(self.POLICIES) + 3)
 
-    def test_require_repo_policy_refuses_only_a_policy_with_files_but_not_this_one(
-        self,
-    ):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            workspace_module.require_repo_policy(root, "pytorch/vision")
-            policies = root / REPO_POLICIES
-            policies.mkdir(parents=True)
-            (policies / "pytorch.md").write_text("")
-            workspace_module.require_repo_policy(root, "pytorch/pytorch")
-            with self.assertRaises(ValueError) as caught:
-                workspace_module.require_repo_policy(root, "pytorch/vision")
-            self.assertIn("vision.md", str(caught.exception))
-            (policies / "vision.md").mkdir()
-            with self.assertRaises(ValueError):
-                workspace_module.require_repo_policy(root, "pytorch/vision")
-
-    def test_a_policy_without_repo_files_is_copied_as_it_is(self):
-        fakes = Fakes([replay_row(194379, repo="pytorch/vision")])
-        with run_replay(fakes, ["--parallelism", "1", "--repo", "pytorch/vision"]) as (
-            code,
-            _,
-        ):
+    def test_a_target_with_no_policy_file_copies_every_repo_file(self):
+        # A workflow without a target step has no keep-policy step.
+        fakes = Fakes(
+            [replay_row(194379)],
+            repo_policies=("vision.md", "audio.md"),
+            target_step=False,
+        )
+        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
             self.assertEqual(code, cli.EXIT_OK)
-            workspace = fakes.workspaces[0]
-            self.assertFalse((workspace / ".claude" / REPO_POLICIES).exists())
-            self.assertTrue((workspace / ".claude/skills").is_dir())
+            self.assertEqual(self.kept(fakes.workspaces[0]), ["audio.md", "vision.md"])
+
+    def test_a_policy_without_a_target_step_refuses_another_repo(self):
+        fakes = Fakes([replay_row(194379, repo="pytorch/vision")], target_step=False)
+        with run_replay(fakes, ["--repo", "pytorch/vision"]) as (code, _):
+            self.assertEqual(code, cli.EXIT_FAILED)
+        self.assertEqual(fakes.pools, [])
+        self.assertEqual(fakes.reviewed, [])
 
     def test_a_repo_the_harness_cannot_replay_stops_before_anything_is_fetched(self):
         for repo in ("facebook/vision", "PyTorch/PyTorch", "pytorch/.."):
@@ -375,9 +386,9 @@ class TestBedrockModel(unittest.TestCase):
 
 class TestCircuitBreaker(unittest.TestCase):
     """A fault the warm-up hits is a fault every run hits: the model the gateway
-    resolved, the schema the policy ships, the prompt the CLI parsed. None varies
-    by pull request, so the sweep must stop on the first rather than bill the
-    rest -- reporting it in the exit status after the fact is thirty runs late."""
+    resolved, the prompt the CLI parsed, the hooks the session loaded. None varies by
+    pull request, so the sweep must stop on the first rather than bill the rest --
+    reporting it in the exit status after the fact is thirty runs late."""
 
     def _sweep(self, outcome, total=4):
         numbers = [194000 + n for n in range(total)]
@@ -404,9 +415,26 @@ class TestCircuitBreaker(unittest.TestCase):
 
     def test_a_per_pull_request_fault_does_not_stop_the_sweep(self):
         # A timeout is the one pull request being slow, not the harness being
-        # broken; stopping on it would throw away a usable sweep.
-        _, fakes, _ = self._sweep(Outcome.TIMEOUT)
-        self.assertEqual(sorted(fakes.reviewed), [194000, 194001, 194002, 194003])
+        # broken; stopping on it would throw away a usable sweep. So is a verdict
+        # the record path refused, or an instruction file the pull request carried.
+        for outcome in (
+            Outcome.TIMEOUT,
+            Outcome.REJECTED,
+            Outcome.UNTRUSTED_INSTRUCTIONS,
+        ):
+            with self.subTest(outcome=outcome.value):
+                _, fakes, _ = self._sweep(outcome)
+                self.assertEqual(
+                    sorted(fakes.reviewed), [194000, 194001, 194002, 194003]
+                )
+
+    def test_hooks_that_never_loaded_stop_the_sweep_after_one_run(self):
+        # No pull request makes the hooks fail to load, so every run would repeat it.
+        self.assertIn(Outcome.HOOKS_NOT_LOADED, sweep_module.FATAL_OUTCOMES)
+        code, fakes, lines = self._sweep(Outcome.HOOKS_NOT_LOADED)
+        self.assertEqual(fakes.reviewed, [194000])
+        self.assertEqual(code, cli.EXIT_FAILED)
+        self.assertEqual(len(lines), 2)
 
     def test_the_warm_up_row_still_reaches_the_file(self):
         # The run was paid for; its diagnostic row is what names the fault.
@@ -563,17 +591,6 @@ class TestStartupChecks(unittest.TestCase):
                 preflight_module.check_binaries(path=empty)
             self.assertIn("claude", str(caught.exception))
 
-    def test_a_schema_keyword_the_validator_cannot_read_is_refused(self):
-        # A property of the policy, identical for every pull request, and retried
-        # once apiece -- so it bills the whole corpus twice for nothing.
-        fakes = Fakes(
-            [replay_row(n) for n in (194379, 194772)],
-            policy_schema='{"type": "object", "maxLength": 3}',
-        )
-        with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
-            self.assertEqual(code, cli.EXIT_FAILED)
-        self.assertEqual(fakes.reviewed, [])
-
     def test_an_unrunnable_hook_stops_the_sweep(self):
         # A hook that cannot exec does not deny; it silently does not run, so the
         # sandbox is off and every review still returns a verdict.
@@ -581,14 +598,6 @@ class TestStartupChecks(unittest.TestCase):
         with run_replay(fakes, ["--parallelism", "1"]) as (code, _):
             self.assertEqual(code, cli.EXIT_FAILED)
         self.assertEqual(fakes.reviewed, [])
-
-    def test_an_unparseable_verdict_schema_is_refused(self):
-        with tempfile.TemporaryDirectory() as directory:
-            schema = Path(directory) / "verdict-schema.json"
-            schema.write_text("{not json", encoding="utf-8")
-            with self.assertRaises(ValueError) as caught:
-                sweep_module.check_schema(SimpleNamespace(schema_path=schema))
-            self.assertIn("not readable JSON", str(caught.exception))
 
     def test_a_dry_run_refuses_a_scratch_root_it_could_not_use(self):
         fakes = Fakes([replay_row(194379)])

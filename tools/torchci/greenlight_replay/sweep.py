@@ -15,7 +15,6 @@ remaining ones are not worth paying for.
 from __future__ import annotations
 
 import contextlib
-import json
 import logging
 import signal
 import threading
@@ -26,26 +25,22 @@ from pathlib import Path
 from typing import Any
 
 from torchci.greenlight_decisions.__main__ import parse_as_of
-from torchci.greenlight_replay.checkout import checkout_dirname, clone_url, WorktreePool
+from torchci.greenlight_replay.checkout import clone_url, require_repo, WorktreePool
 from torchci.greenlight_replay.emit import append_checkpoint
 from torchci.greenlight_replay.inputs import build_inputs, ReplayInputs
 from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
 from torchci.greenlight_replay.preflight import preflight
 from torchci.greenlight_replay.runner import (
     bedrock_enabled,
+    canned_result,
     DEFAULT_MODEL,
     Outcome,
     run_review,
     RunResult,
-    schema_support_violation,
 )
 from torchci.greenlight_replay.settings import assert_hooks_present
 from torchci.greenlight_replay.trusted_skills import materialize_trusted_skills
-from torchci.greenlight_replay.workspace import (
-    install_policy_half,
-    require_repo_policy,
-    sanitize_checkout,
-)
+from torchci.greenlight_replay.workspace import install_policy_half, sanitize_checkout
 
 
 # A run directory is passed to the reviewer as its own ``--add-dir``, and
@@ -67,14 +62,15 @@ RUNS_DIRNAME = "runs"
 LOCAL_MODELS = {"global.anthropic.claude-opus-5": DEFAULT_MODEL}
 
 # Outcomes the warm-up cannot recover from, because none of them depends on
-# which pull request was reviewed: the model the gateway resolved, the schema the
-# policy ships, the prompt the CLI parsed. Seeing one on the first run means
+# which pull request was reviewed: the model the gateway resolved, the prompt the
+# CLI parsed, the hooks the session loaded. Seeing one on the first run means
 # seeing it on every run, so the sweep stops rather than paying for the rest.
 # Deliberately wider than the runner's own RETRYABLE, which asks whether one more
 # attempt on THIS pull request could help; this asks whether the next thirty
-# could.
+# could. A verdict the record path rejects, and an instruction file a pull request
+# smuggled past the sanitize step, are not here: each is that pull request's.
 FATAL_OUTCOMES = frozenset(
-    {Outcome.API_ERROR, Outcome.SCHEMA_INVALID, Outcome.EMPTY_RUN}
+    {Outcome.API_ERROR, Outcome.EMPTY_RUN, Outcome.HOOKS_NOT_LOADED}
 )
 
 # Measured over 872 real CI reviewer runs: 9-11 minutes and $1.33 apiece.
@@ -122,7 +118,7 @@ def open_sweep(
     checkpoint_path: Path,
     repo: str,
     parallelism: int,
-    timeout_s: int,
+    timeout_s: int | None,
     model: str | None,
     context_window: int,
     interrupted: threading.Event,
@@ -131,47 +127,50 @@ def open_sweep(
 
     ``model`` overrides what the policy's own inference profile maps to; without
     one an unrecognised profile stops a sweep off Bedrock here, before the clone
-    and before anything is spent.
+    and before anything is spent. ``timeout_s`` None is the policy's own. A policy
+    with no review policy file for ``repo`` declines every pull request unread, so
+    neither the clone nor the skills tree is fetched for it.
     """
-    dirname, name = checkout_dirname(repo), repo.partition("/")[2]
+    name = require_repo(repo).partition("/")[2]
     preflight(workdir, policy_ref)
-    policy, model = prepare_policy(policy_ref, workdir, model)
-    require_repo_policy(policy.root, repo)
+    policy, model = prepare_policy(policy_ref, workdir, model, repo)
     pool = WorktreePool(
         workdir / BARE_CLONE_DIRNAME.format(name),
         parallelism,
         repo_url=clone_url(repo),
-        dirname=dirname,
+        dirname=policy.target.checkout,
     )
-    pool.ensure_clone()
+    skills = workdir / TRUSTED_SKILLS_DIRNAME.format(name)
+    if policy.target.policy_present:
+        pool.ensure_clone()
+        skills = materialize_trusted_skills(skills, repo_url=clone_url(repo))
     return Sweep(
         policy=policy,
         pool=pool,
-        trusted_skills=materialize_trusted_skills(
-            workdir / TRUSTED_SKILLS_DIRNAME.format(name), repo_url=clone_url(repo)
-        ),
+        trusted_skills=skills,
         model=model,
         context_window=context_window,
         workdir=workdir,
         checkpoint_path=checkpoint_path,
         repo=repo,
-        timeout_s=timeout_s,
+        timeout_s=policy.timeout_s if timeout_s is None else timeout_s,
         interrupted=interrupted,
     )
 
 
 def prepare_policy(
-    policy_ref: str, workdir: Path, model: str | None
+    policy_ref: str, workdir: Path, model: str | None, repo: str
 ) -> tuple[Policy, str]:
-    """Materialize the policy and refuse anything about it a sweep cannot survive.
+    """Materialize the policy for ``repo`` and refuse anything a sweep cannot survive.
 
     Every fault found here is a property of the policy rather than of any pull
     request, so each would otherwise fail every review in the sweep identically.
     Safe to run twice: ``materialize`` clears its destination and re-extracts, so
     a dry run doing this does not spoil the real run that follows it.
     """
-    policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
-    check_schema(policy)
+    policy = materialize_policy(
+        policy_ref, workdir / POLICY_DIRNAME, reviewed_repo=repo
+    )
     # A hook that cannot exec does not deny, it silently does not run.
     assert_hooks_present(policy)
     model = model or local_model(policy.model)
@@ -201,23 +200,6 @@ def local_model(profile: str) -> str:
             f"the policy asks for {profile!r}; this harness maps only "
             f"{', '.join(sorted(LOCAL_MODELS))}. Pass --model to name one"
         ) from None
-
-
-def check_schema(policy: Policy) -> None:
-    """Refuse a verdict schema the runner could not read or could not interpret.
-
-    Both are properties of the policy rather than of any pull request, so either
-    fails every review in the sweep identically -- and a keyword the validator
-    does not implement fails them twice, since each gets retried first. Checked
-    once here instead, before anything is spent.
-    """
-    try:
-        schema = json.loads(Path(policy.schema_path).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        raise ValueError(f"{policy.schema_path} is not readable JSON: {exc}") from exc
-    unsupported = schema_support_violation(schema)
-    if unsupported is not None:
-        raise ValueError(f"{policy.schema_path} cannot be interpreted: {unsupported}")
 
 
 def run_sweep(
@@ -278,6 +260,13 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
     try:
         number = pr_number(row)
         head_sha = row["decision_head_sha"]
+        if not sweep.policy.target.policy_present:
+            # The workflow declines every pull request of a repo without a review
+            # policy before fetching anything: no diff, no checkout, no model.
+            result = canned_result(sweep.policy, Outcome.NO_POLICY)
+            with sweep.checkpoint_lock:
+                append_checkpoint(sweep.checkpoint_path, row, result)
+            return result.outcome
         run_dir = sweep.workdir / RUNS_DIRNAME / str(number)
         run_dir.mkdir(parents=True, exist_ok=True)
         replay_inputs = row_inputs(sweep.repo, row, run_dir, sweep.policy)
@@ -293,7 +282,6 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
                 timeout_s=sweep.timeout_s,
                 model=sweep.model,
                 context_window=sweep.context_window,
-                repo=sweep.repo,
             )
 
         if replay_inputs.too_large:
@@ -348,7 +336,7 @@ def prepare_workspace(sweep: Sweep, worktree: Path) -> Path:
     workspace = WorktreePool.workspace_of(worktree)
     with sweep.workspace_lock:
         if workspace not in sweep.prepared:
-            install_policy_half(sweep.policy.root, worktree, sweep.repo)
+            install_policy_half(sweep.policy.root, worktree, sweep.policy.target)
             sweep.prepared.add(workspace)
     return workspace
 

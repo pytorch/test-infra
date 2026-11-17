@@ -20,9 +20,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+from replay_runner_fixtures import replay_policy
 from torchci.greenlight_replay import inputs as inputs_mod, workflow as workflow_mod
 from torchci.greenlight_replay.inputs import build_inputs
-from torchci.greenlight_replay.policy import GIT_REF_PATTERN, Policy
+from torchci.greenlight_replay.policy import GIT_REF_PATTERN
 
 
 RUN_SEAM = "_run"
@@ -59,24 +60,11 @@ def pr_payload(comments=()):
     }
 
 
-def make_policy(max_diff_lines=2000, max_diff_bytes=500000) -> Policy:
-    return Policy(
-        root=Path("/nonexistent"),
-        prompt_template="",
+def make_policy(max_diff_lines=2000, max_diff_bytes=500000, max_diff_files=None):
+    return replay_policy(
         max_diff_lines=max_diff_lines,
         max_diff_bytes=max_diff_bytes,
-        review_budget_minutes=(20, 25, 33),
-        too_large_verdict={
-            "status": "NO_LAND",
-            "reason": "scope_too_large",
-            "message": "-",
-        },
-        schema_path=Path("/nonexistent/schema.json"),
-        sanitize_script=Path("/nonexistent/sanitize.sh"),
-        hooks_dir=Path("/nonexistent/hooks"),
-        model="global.anthropic.claude-opus-5",
-        effort="high",
-        tools="Read,Glob,Grep,Write",
+        max_diff_files=max_diff_files,
     )
 
 
@@ -263,6 +251,19 @@ class SizeGateTest(InputsTestCase):
         result = self.build(gh)
         self.assertEqual(result.diff_lines, 2)
         self.assertEqual(result.diff_bytes, 13)
+
+    def test_the_file_count_is_reported_and_its_cap_applied(self):
+        result = self.build(FakeGh(), policy=make_policy(max_diff_files=1))
+        self.assertEqual(result.diff_files, 1)
+        self.assertFalse(result.too_large)
+        result = self.build(FakeGh(), policy=make_policy(max_diff_files=0))
+        self.assertTrue(result.too_large)
+
+    def test_without_a_file_cap_no_file_count_declines(self):
+        many = b"".join(b"diff --git a/%d b/%d\n" % (n, n) for n in range(300))
+        result = self.build(FakeGh(diff=many), policy=make_policy(max_diff_files=None))
+        self.assertEqual(result.diff_files, 300)
+        self.assertFalse(result.too_large)
 
 
 class CommentFilterTest(InputsTestCase):

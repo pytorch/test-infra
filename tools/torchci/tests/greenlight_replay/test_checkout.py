@@ -14,10 +14,10 @@ from pathlib import Path
 
 from replay_runner_fixtures import ScratchTestCase
 from torchci.greenlight_replay.checkout import (
-    checkout_dirname,
     CHECKOUT_DIRNAMES,
     clone_url,
     GitError,
+    PRIMARY_CHECKOUT,
     require_repo,
     WorktreePool,
 )
@@ -183,7 +183,7 @@ class TestSlotLayout(PoolTestCase):
             self.root / "bare-vision",
             slots=1,
             repo_url=f"file://{self.origin}",
-            dirname=checkout_dirname("pytorch/vision"),
+            dirname="target",
         )
         pool.ensure_clone()
         worktree = pool.acquire(self.second)
@@ -458,18 +458,12 @@ if __name__ == "__main__":
 
 
 class TestReviewedRepo(unittest.TestCase):
-    """The repo names a clone URL, a checkout directory and a policy file, as the
-    workflow's target step derives them, and nothing else gets that far."""
+    """The repo names a clone URL and a sweep's scratch directories, and nothing badly
+    shaped gets that far. Its checkout directory is the policy's target step's."""
 
-    def test_pytorch_is_checked_out_at_pytorch_and_any_other_repo_at_target(self):
-        self.assertEqual(checkout_dirname("pytorch/pytorch"), "pytorch")
-        self.assertEqual(checkout_dirname("pytorch/vision"), "target")
-        self.assertEqual(checkout_dirname("pytorch/test-infra"), "target")
-
-    def test_every_directory_it_names_is_one_restrict_read_accepts(self):
-        for repo in ("pytorch/pytorch", "pytorch/vision"):
-            with self.subTest(repo=repo):
-                self.assertIn(checkout_dirname(repo), CHECKOUT_DIRNAMES)
+    def test_the_primary_checkout_is_pytorchs_and_one_restrict_read_accepts(self):
+        self.assertEqual(PRIMARY_CHECKOUT, "pytorch")
+        self.assertIn(PRIMARY_CHECKOUT, CHECKOUT_DIRNAMES)
 
     def test_the_clone_url_is_the_repos_own(self):
         self.assertEqual(
@@ -494,7 +488,7 @@ class TestReviewedRepo(unittest.TestCase):
             "pytorch/vision\n",
         ):
             with self.subTest(repo=repo):
-                for derive in (require_repo, checkout_dirname, clone_url):
+                for derive in (require_repo, clone_url):
                     with self.assertRaises(ValueError):
                         derive(repo)
 
@@ -506,4 +500,4 @@ class TestReviewedRepo(unittest.TestCase):
         for repo in ("PyTorch/PyTorch", "pytorch/PyTorch", "Pytorch/pytorch"):
             with self.subTest(repo=repo):
                 with self.assertRaises(ValueError):
-                    checkout_dirname(repo)
+                    require_repo(repo)

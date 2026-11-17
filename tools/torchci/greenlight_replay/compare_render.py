@@ -100,7 +100,7 @@ to it otherwise. Overlapping intervals do not show that the arms are the same: b
 arms reviewed the same PRs, and the flips compare them PR by PR.
 - **Reason codes** count the reason of every verdict; `{INVALID_REASON}` marks a \
 reason that is not a well-formed reason code.
-- **Attribution.** Each arm uses its policy commit's skill, verdict schema, hooks and \
+- **Attribution.** Each arm uses its policy commit's skill, hooks, record checks and \
 `greenlight-pr-review.yml` prompt and settings; the CLI version and context window are \
 the replay workflow's. Both arms ran the same harness and backend at the same time on \
 the same PRs, so a difference between them is this PR's change plus run-to-run noise. \

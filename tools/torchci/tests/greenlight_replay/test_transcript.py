@@ -4,34 +4,53 @@
 checks that stand between a failed run and a verdict row that looks real, and each is
 exercised against the envelope shape that actually produces it. The reviewer is never
 launched -- one real run costs roughly $1.33 and ten minutes.
+
+The detector and the record path's checks are handed in by the caller; here they are
+stand-ins that record whether they were asked, since which outcome consults them is the
+subject. Both run as the policy's real code in ``test_runner`` and ``test_arm_code``.
 """
 
 import json
-import tempfile
 import unittest
-from pathlib import Path
 
 from replay_runner_fixtures import (
     ABSENT,
-    conditional_schema,
     DEFAULT_CONTEXT_WINDOW,
     DEFAULT_MODEL,
     envelope,
     GOOD_VERDICT,
     model_usage,
-    REAL_SCHEMA,
     result_element,
     ScratchTestCase,
 )
 from torchci.greenlight_replay import runner, transcript, verdict
+from torchci.greenlight_replay.detector import DetectorFailure
+
+
+SCRUBBED = {**GOOD_VERDICT, "message": "- Change\n  - [REDACTED]"}
+LOADED = DetectorFailure("loaded pytorch/CLAUDE.md", hooks_ran=True)
+NO_SENTINEL = DetectorFailure("sentinel missing; the hooks did not run", False)
 
 
 class ClassifyTestCase(ScratchTestCase):
     def setUp(self):
         self.run_dir = self.scratch("greenlight-transcript-")
-        self.schema = json.loads(REAL_SCHEMA.read_text())
+        self.detected = 0
+        self.accepted = []
+        self.violation = None
+        self.rejection = None
 
-    def classify(self, exit_code, stdout, verdict=None, *, schema=None, model=None):
+    def detect(self):
+        self.detected += 1
+        return self.violation
+
+    def accept(self, verdict_file):
+        self.accepted.append(verdict_file)
+        if self.rejection is not None:
+            return None, self.rejection
+        return dict(SCRUBBED), None
+
+    def classify(self, exit_code, stdout, verdict=None, *, model=None):
         if verdict is not None:
             transcript.verdict_path(self.run_dir).write_text(json.dumps(verdict))
         return transcript.classify(
@@ -39,10 +58,11 @@ class ClassifyTestCase(ScratchTestCase):
             stdout,
             "",
             run_dir=self.run_dir,
-            schema=schema if schema is not None else self.schema,
             model=model or DEFAULT_MODEL,
             context_window=DEFAULT_CONTEXT_WINDOW,
             duration_s=612.0,
+            detect=self.detect,
+            accept=self.accept,
         )
 
 
@@ -55,28 +75,58 @@ class TestOutcomes(ClassifyTestCase):
     covered in ``test_runner``.)
     """
 
-    def test_a_written_valid_verdict_is_a_success(self):
+    def test_an_accepted_verdict_is_a_success_carrying_what_the_record_path_keeps(self):
         result = self.classify(0, envelope(result_element()), GOOD_VERDICT)
         self.assertEqual(result.outcome, transcript.Outcome.SUCCESS)
         self.assertEqual(result.status, "NO_LAND")
         self.assertEqual(result.reason, "insufficient_tests")
+        # The scrubbed message, not the file's: it is what the record path writes.
+        self.assertEqual(result.message, SCRUBBED["message"])
+        self.assertEqual(self.accepted, [transcript.verdict_path(self.run_dir)])
         self.assertAlmostEqual(result.cost_usd, 1.3312)
         self.assertEqual(result.model, DEFAULT_MODEL)
         self.assertEqual(result.context_window, DEFAULT_CONTEXT_WINDOW)
 
-    def test_a_verdict_the_policys_schema_rejects_is_schema_invalid(self):
+    def test_a_verdict_the_record_path_refuses_is_rejected(self):
+        self.rejection = "reason 'vibes' is not an allowed verdict reason"
         result = self.classify(
             0, envelope(result_element()), {**GOOD_VERDICT, "reason": "vibes"}
         )
-        self.assertEqual(result.outcome, transcript.Outcome.SCHEMA_INVALID)
+        self.assertEqual(result.outcome, transcript.Outcome.REJECTED)
         self.assertIn("vibes", result.error)
-        # The verdict is still reported, so the failure can be read rather than guessed at.
-        self.assertEqual(result.status, "NO_LAND")
+        # The file's fields stay as diagnostics, so the failure can be read.
+        self.assertEqual(result.reason, "vibes")
+        self.assertEqual(result.message, GOOD_VERDICT["message"])
 
     def test_a_finished_run_that_wrote_nothing_is_no_verdict(self):
         result = self.classify(0, envelope(result_element()))
         self.assertEqual(result.outcome, transcript.Outcome.NO_VERDICT)
         self.assertIsNone(result.status)
+        self.assertEqual(self.accepted, [])
+
+    def test_a_verdict_only_in_the_turn_record_is_no_verdict(self):
+        # The live job uploads the file; a Write the record names is not one.
+        write = (
+            "Write",
+            {
+                "file_path": "/tmp/greenlight-verdict.json",
+                "content": json.dumps(GOOD_VERDICT),
+            },
+        )
+        result = self.classify(0, envelope(result_element(), tool_uses=[write]))
+        self.assertEqual(result.outcome, transcript.Outcome.NO_VERDICT)
+        self.assertEqual(result.status, "NO_LAND")
+        self.assertEqual(self.accepted, [])
+
+    def test_a_session_ending_in_anything_but_success_is_an_api_error(self):
+        # claude-code-action fails the step unless the subtype is "success".
+        ended = result_element(subtype="error_max_turns")
+        result = self.classify(1, envelope(ended), GOOD_VERDICT)
+        self.assertEqual(result.outcome, transcript.Outcome.API_ERROR)
+        self.assertIn("error_max_turns", result.error)
+        self.assertEqual(self.accepted, [])
+        # What the failed session left is kept to read, not recorded.
+        self.assertEqual(result.status, "NO_LAND")
 
     def test_a_killed_run_is_a_timeout(self):
         for exit_code in (124, 137):
@@ -99,6 +149,14 @@ class TestOutcomes(ClassifyTestCase):
         self.assertEqual(
             self.classify(1, envelope(errored)).outcome, transcript.Outcome.API_ERROR
         )
+
+    def test_a_success_subtype_flagged_is_error_is_an_api_error_even_with_a_verdict(
+        self,
+    ):
+        flagged = result_element(is_error=True)
+        result = self.classify(0, envelope(flagged), GOOD_VERDICT)
+        self.assertEqual(result.outcome, transcript.Outcome.API_ERROR)
+        self.assertEqual(self.accepted, [])
 
     def test_an_api_error_status_is_an_api_error_even_when_is_error_is_false(self):
         flagged = result_element(api_error_status=529)
@@ -177,7 +235,10 @@ class TestEmptyRunDiscriminator(ClassifyTestCase):
 
 
 class TestBudgetTripRecovery(ClassifyTestCase):
-    """A trip bills in full, so the verdict is dug out of the turn record before giving up."""
+    """A trip bills in full, and its verdict is dug out of the turn record to be read.
+
+    It stays a diagnostic: CI fails a tripped session, so what it said is never recorded.
+    """
 
     def test_a_verdict_written_in_the_turn_record_is_recovered(self):
         write = (
@@ -192,6 +253,13 @@ class TestBudgetTripRecovery(ClassifyTestCase):
         self.assertEqual(result.outcome, transcript.Outcome.BUDGET_TRIP)
         self.assertEqual(result.status, "NO_LAND")
         self.assertEqual(result.message, GOOD_VERDICT["message"])
+        self.assertEqual(self.accepted, [])
+
+    def test_a_verdict_file_a_tripped_session_left_is_never_accepted(self):
+        tripped = result_element(result=ABSENT)
+        result = self.classify(1, envelope(tripped), GOOD_VERDICT)
+        self.assertEqual(result.outcome, transcript.Outcome.BUDGET_TRIP)
+        self.assertEqual(self.accepted, [])
 
     def test_a_verdict_written_to_the_remapped_path_is_recovered(self):
         remapped = str(transcript.verdict_path(self.run_dir))
@@ -227,8 +295,9 @@ class TestBudgetTripRecovery(ClassifyTestCase):
     def test_only_a_run_with_no_answer_at_all_is_retried(self):
         # Retrying is an estimator decision, not error handling: CI draws one verdict per
         # pull request, so a second draw is taken only where there is nothing to keep. A
-        # trip, a timeout and a rejected verdict all produced an answer of some kind, and
-        # re-rolling any of them is a biased draw against 18.3% self-disagreement.
+        # trip, a timeout, a detector failure and a rejected verdict all produced an
+        # answer of some kind, and re-rolling any of them is a biased draw against 18.3%
+        # self-disagreement.
         self.assertEqual(
             transcript.RETRYABLE, frozenset({transcript.Outcome.NO_VERDICT})
         )
@@ -271,226 +340,110 @@ class TestModelAssertion(ClassifyTestCase):
         )
 
 
-class TestSchemaValidation(ClassifyTestCase):
-    """The verdict is judged by the policy tree's schema, not by a copy kept here."""
+class TestDetector(ClassifyTestCase):
+    """After a session that started, the policy's detector decides before anything else.
 
-    def test_a_reason_the_policys_schema_adds_is_accepted(self):
-        schema = json.loads(REAL_SCHEMA.read_text())
-        schema["properties"]["reason"]["enum"].append("policy_specific_new_reason")
-        result = self.classify(
-            0,
-            envelope(result_element()),
-            {**GOOD_VERDICT, "reason": "policy_specific_new_reason"},
-            schema=schema,
-        )
+    The live job fails the review on an instruction file loaded from the checkout, or on
+    a missing sentinel, whatever the model wrote; the two are told apart because a
+    missing sentinel means the hooks never loaded, which no pull request causes. A
+    session that never started runs no hooks, so the detector is not consulted and the
+    session's own outcome stands.
+    """
+
+    def test_a_violation_overrides_a_verdict_and_is_never_accepted(self):
+        self.violation = LOADED
+        result = self.classify(0, envelope(result_element()), GOOD_VERDICT)
+        self.assertEqual(result.outcome, transcript.Outcome.UNTRUSTED_INSTRUCTIONS)
+        self.assertIn("CLAUDE.md", result.error)
+        self.assertEqual(self.accepted, [])
+        self.assertAlmostEqual(result.cost_usd, 1.3312)
+
+    def test_a_missing_sentinel_is_hooks_not_loaded(self):
+        self.violation = NO_SENTINEL
+        result = self.classify(0, envelope(result_element()), GOOD_VERDICT)
+        self.assertEqual(result.outcome, transcript.Outcome.HOOKS_NOT_LOADED)
+        self.assertIn("sentinel", result.error)
+        self.assertEqual(self.accepted, [])
+
+    def test_either_failure_overrides_a_failed_or_empty_session(self):
+        eaten = result_element(num_turns=0, total_cost_usd=0, modelUsage={})
+        errored = result_element(is_error=True)
+        for failure, expected in (
+            (LOADED, transcript.Outcome.UNTRUSTED_INSTRUCTIONS),
+            (NO_SENTINEL, transcript.Outcome.HOOKS_NOT_LOADED),
+        ):
+            for element in (eaten, errored, result_element()):
+                with self.subTest(failure=failure, element=element.get("is_error")):
+                    self.violation = failure
+                    result = self.classify(0, envelope(element))
+                    self.assertEqual(result.outcome, expected)
+
+    def test_a_passing_detector_leaves_the_verdict_to_the_record_path(self):
+        result = self.classify(0, envelope(result_element()), GOOD_VERDICT)
+        self.assertEqual(self.detected, 1)
         self.assertEqual(result.outcome, transcript.Outcome.SUCCESS)
+
+    def test_output_with_no_init_element_never_consults_the_detector(self):
+        self.violation = NO_SENTINEL
+        result = self.classify(0, json.dumps(result_element()), GOOD_VERDICT)
+        self.assertEqual(self.detected, 0)
+        self.assertEqual(result.outcome, transcript.Outcome.SUCCESS)
+
+    def test_a_session_that_never_started_keeps_its_own_outcome(self):
+        self.violation = NO_SENTINEL
+        for stdout, exit_code, expected in (
+            ("", 124, transcript.Outcome.TIMEOUT),
+            ("Killed: 9\n", 1, transcript.Outcome.API_ERROR),
+            (
+                json.dumps(result_element(result=ABSENT)),
+                1,
+                transcript.Outcome.BUDGET_TRIP,
+            ),
+        ):
+            with self.subTest(expected=expected):
+                result = self.classify(exit_code, stdout)
+                self.assertEqual(result.outcome, expected)
+        self.assertEqual(self.detected, 0)
+
+    def test_a_detector_failure_is_not_retried(self):
+        self.assertNotIn(
+            transcript.Outcome.UNTRUSTED_INSTRUCTIONS, transcript.RETRYABLE
+        )
 
     def test_a_rejected_verdict_is_reported_rather_than_re_rolled(self):
-        # The model answered; the harness merely would not accept it. Drawing again is a
-        # second sample, not error handling, so the row is recorded as it stands.
-        self.assertNotIn(transcript.Outcome.SCHEMA_INVALID, transcript.RETRYABLE)
+        # The model answered; the record path merely would not accept it. Drawing again
+        # is a second sample, not error handling, so the row is recorded as it stands.
+        self.assertNotIn(transcript.Outcome.REJECTED, transcript.RETRYABLE)
 
-    def test_an_extra_top_level_key_is_rejected(self):
-        result = self.classify(
-            0, envelope(result_element()), {**GOOD_VERDICT, "confidence": "high"}
+    def test_session_started_reads_the_init_element(self):
+        self.assertTrue(
+            transcript.session_started([{"type": "system", "subtype": "init"}])
         )
-        self.assertEqual(result.outcome, transcript.Outcome.SCHEMA_INVALID)
-        self.assertIn("confidence", result.error)
-
-    def test_an_empty_message_is_rejected(self):
-        result = self.classify(
-            0, envelope(result_element()), {**GOOD_VERDICT, "message": ""}
+        self.assertFalse(
+            transcript.session_started([{"type": "system", "subtype": "other"}])
         )
-        self.assertEqual(result.outcome, transcript.Outcome.SCHEMA_INVALID)
-
-    def test_a_missing_required_field_is_rejected(self):
-        result = self.classify(0, envelope(result_element()), {"status": "LAND"})
-        self.assertEqual(result.outcome, transcript.Outcome.SCHEMA_INVALID)
-
-    def test_a_status_outside_the_enum_is_rejected(self):
-        result = self.classify(
-            0, envelope(result_element()), {**GOOD_VERDICT, "status": "MAYBE"}
-        )
-        self.assertEqual(result.outcome, transcript.Outcome.SCHEMA_INVALID)
-
-
-class TestSchemaSupport(ClassifyTestCase):
-    """A schema the harness cannot interpret is a fault in the POLICY, not in an answer.
-
-    It fails every pull request identically, so returning it as a retryable outcome would
-    re-run and re-bill an entire sweep to reach the same refusal twice -- against a 30-PR
-    corpus roughly $77 and 2.7 hours for zero usable rows. It raises instead, and callers
-    check it once before spending anything.
-    """
-
-    def test_the_repositorys_real_schema_is_supported(self):
-        self.assertIsNone(transcript.schema_support_violation(self.schema))
-
-    def test_an_unreadable_top_level_keyword_is_named(self):
-        violation = transcript.schema_support_violation(
-            {**self.schema, "oneOf": [{"required": ["status"]}]}
-        )
-        self.assertIn("oneOf", violation)
-
-    def test_an_unreadable_property_keyword_is_named(self):
-        schema = json.loads(REAL_SCHEMA.read_text())
-        schema["properties"]["message"]["pattern"] = "^-"
-        violation = transcript.schema_support_violation(schema)
-        self.assertIn("pattern", violation)
-        self.assertIn("message", violation)
-
-    def test_classify_raises_rather_than_returning_a_retryable_outcome(self):
-        with self.assertRaises(ValueError) as caught:
-            self.classify(
-                0,
-                envelope(result_element()),
-                GOOD_VERDICT,
-                schema={**self.schema, "oneOf": []},
-            )
-        self.assertIn("oneOf", str(caught.exception))
-
-    def test_a_widened_enum_stays_supported_because_only_keywords_are_checked(self):
-        # Widening a value the harness already reads must stay a policy change, not a fault.
-        schema = json.loads(REAL_SCHEMA.read_text())
-        schema["properties"]["reason"]["enum"].append("policy_specific_new_reason")
-        self.assertIsNone(transcript.schema_support_violation(schema))
-
-
-class TestConditionalSchema(ClassifyTestCase):
-    """The constraint pytorch/test-infra#8814 adds has to be ENFORCED, not merely parsed.
-
-    A LAND may carry only ``clean``. The land-time guard on pytorch/pytorch reads the
-    recorded status alone, so a LAND stamped with a reason that objects to landing would
-    authorise exactly the merge its reason objects to. A validator that accepted the
-    keyword and skipped the check would be worse than one that refused the schema, because
-    the sweep would run and the rows would look fine.
-    """
-
-    def setUp(self):
-        super().setUp()
-        self.schema = conditional_schema()
-
-    def verdict(self, status, reason):
-        return {"status": status, "reason": reason, "message": "- Change\n  - detail"}
-
-    def test_the_schema_is_now_interpretable(self):
-        self.assertIsNone(transcript.schema_support_violation(self.schema))
-
-    def test_a_land_carrying_a_reason_that_objects_to_landing_is_rejected(self):
-        result = self.classify(
-            0,
-            envelope(result_element()),
-            self.verdict("LAND", "not_trivial"),
-            schema=self.schema,
-        )
-        self.assertEqual(result.outcome, transcript.Outcome.SCHEMA_INVALID)
-        self.assertIn("not_trivial", result.error)
-        self.assertIn("clean", result.error)
-
-    def test_every_non_clean_reason_is_rejected_on_a_land(self):
-        for reason in self.schema["properties"]["reason"]["enum"]:
-            if reason == "clean":
-                continue
-            self.assertIsNotNone(
-                transcript.verdict_violation(self.schema, self.verdict("LAND", reason)),
-                f"LAND/{reason} was accepted",
-            )
-
-    def test_a_clean_land_still_passes(self):
-        result = self.classify(
-            0,
-            envelope(result_element()),
-            self.verdict("LAND", "clean"),
-            schema=self.schema,
-        )
-        self.assertEqual(result.outcome, transcript.Outcome.SUCCESS)
-
-    def test_the_rule_does_not_fire_on_a_no_land(self):
-        # The `if` is a condition, not an assertion: failing it selects the other branch.
-        for reason in ("not_trivial", "needs_socialization", "clean", "security_risk"):
-            self.assertIsNone(
-                transcript.verdict_violation(
-                    self.schema, self.verdict("NO_LAND", reason)
-                ),
-                f"NO_LAND/{reason} was rejected",
-            )
-
-    def test_the_two_new_reasons_need_no_code_change(self):
-        # The enum comes from the policy tree, so widening it must stay a policy change.
-        for reason in ("not_trivial", "needs_socialization"):
-            self.assertIsNone(
-                transcript.verdict_violation(
-                    self.schema, self.verdict("NO_LAND", reason)
-                )
-            )
-
-    def test_a_missing_status_is_still_caught_before_the_conditional(self):
-        violation = transcript.verdict_violation(
-            self.schema, {"reason": "clean", "message": "- x"}
-        )
-        self.assertIn("status", violation)
-
-
-class TestSchemaSupportRecursion(ClassifyTestCase):
-    """Widening the subset must not become "ignore what we do not recognise".
-
-    The support check recurses, so a keyword hidden inside a subschema aborts the sweep just
-    as a top-level one does. Without that, ``allOf`` would become a place to smuggle
-    unenforced constraints past the harness.
-    """
-
-    def test_an_unknown_keyword_inside_all_of_is_refused(self):
-        schema = conditional_schema()
-        schema["allOf"].append({"oneOf": []})
-        self.assertIn("oneOf", transcript.schema_support_violation(schema))
-
-    def test_an_unknown_keyword_inside_a_then_branch_is_refused(self):
-        schema = conditional_schema()
-        schema["allOf"][0]["then"]["patternProperties"] = {}
-        self.assertIn("patternProperties", transcript.schema_support_violation(schema))
-
-    def test_an_unknown_property_keyword_inside_an_if_branch_is_refused(self):
-        schema = conditional_schema()
-        schema["allOf"][0]["if"]["properties"]["status"]["pattern"] = "^L"
-        self.assertIn("pattern", transcript.schema_support_violation(schema))
-
-    def test_an_unknown_top_level_keyword_is_still_refused(self):
-        schema = conditional_schema()
-        schema["dependentRequired"] = {}
-        self.assertIn("dependentRequired", transcript.schema_support_violation(schema))
-
-    def test_a_subschema_that_is_not_an_object_is_refused(self):
-        schema = conditional_schema()
-        schema["allOf"].append(True)
-        self.assertIsNotNone(transcript.schema_support_violation(schema))
+        self.assertFalse(transcript.session_started([result_element()]))
 
 
 class TestReExports(unittest.TestCase):
     """The verdict names stay reachable where callers already meet them.
 
-    ``runner`` imports them from ``transcript`` and ``policy`` imports the pre-split private
-    name, so a re-export that silently becomes a copy would leave two implementations of the
-    same validation drifting apart. Identity, not equality: this assertion has caught real
-    drift twice across the earlier splits.
+    ``runner`` imports them from ``transcript``, so a re-export that silently becomes a
+    copy would leave two implementations drifting apart. Identity, not equality: this
+    assertion has caught real drift twice across the earlier splits.
     """
 
     def test_transcript_re_exports_the_verdict_module_itself(self):
         for name in (
             "verdict_path",
             "verdict_fields",
-            "verdict_violation",
-            "schema_support_violation",
             "read_verdict",
             "recover_verdict",
         ):
             self.assertIs(getattr(transcript, name), getattr(verdict, name), name)
 
-    def test_the_pre_split_private_name_still_resolves_for_policy(self):
-        self.assertIs(transcript._schema_violation, verdict.verdict_violation)
-
     def test_runner_sees_the_same_objects(self):
         self.assertIs(runner.verdict_path, verdict.verdict_path)
-        self.assertIs(runner.schema_support_violation, verdict.schema_support_violation)
 
 
 class TestMergeAttempts(ScratchTestCase):

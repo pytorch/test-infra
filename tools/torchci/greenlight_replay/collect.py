@@ -16,8 +16,10 @@ with ``--input sample.csv --presampled``, so a call both policies make reaches G
 once. Each replay job then runs the harness with ``--input sample.csv --presampled``
 and ``GREENLIGHT_REPLAY_GITHUB_ANSWERS`` naming that directory.
 
-A pull request whose inputs cannot be built is logged and counted: what was not
-recorded fails again in each replay job, as a live fetch would have. When more than
+A policy with no review policy file for the repo declines every pull request without
+fetching anything, so nothing is collected under it. A pull request whose inputs
+cannot be built is logged and counted: what was not recorded fails again in each
+replay job, as a live fetch would have. When more than
 half of the sample fails, a rate limit or an outage rather than a few awkward pull
 requests, the exit status is 3, so CI stops before any replay job runs on that record.
 """
@@ -108,12 +110,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     policy_ref = args.policy_ref or str(args.policy_pr)
     workdir = Path(args.workdir).expanduser() / COLLECT_DIRNAME
     try:
-        policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
+        policy = materialize_policy(
+            policy_ref, workdir / POLICY_DIRNAME, reviewed_repo=args.repo
+        )
     except Exception as exc:
         logger.error(
             "could not materialize the policy %s: %s", policy_ref, exc, exc_info=True
         )
         return EXIT_FAILED
+    if not policy.target.policy_present:
+        logger.info(
+            "%s has no review policy for %s, so its replay fetches nothing",
+            policy_ref,
+            args.repo,
+        )
+        return EXIT_OK
 
     runs = workdir / RUNS_DIRNAME
     with ThreadPoolExecutor(max_workers=args.parallelism) as executor:

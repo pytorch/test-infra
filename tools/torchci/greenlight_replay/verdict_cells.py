@@ -14,9 +14,10 @@ manufactured by the harness rather than observed. So a run that reached no
 verdict puts ``harness:<outcome>`` in ``new_decision_reason``, a prefix no
 greenlight reason code carries, and spends ``new_decision_message`` on the
 outcome, the error, and the run's cost, duration and turn count. Selecting the
-failures is then a prefix match on one column, while ``new_decision`` itself
-stays inside ``LAND``/``NO_LAND``/blank, so a comparison against ``decision`` is
-never widened by a harness code.
+failures is then a prefix match on one column. ``new_decision`` stays blank on
+such a row, whatever status the failed session left behind, so it holds only
+``LAND``/``NO_LAND`` the policy produced and a comparison against ``decision``
+is never widened by a harness code.
 
 A result claiming success while carrying no readable verdict is reported the
 same way, as ``harness:unreadable``. It is a harness fault too, and the only
@@ -24,13 +25,13 @@ other option is the blank this module exists to avoid.
 
 **The prefix means the harness, never the policy.** The test is whether the row
 carries a verdict the policy produced, not whether the run ended tidily: the
-policy's size gate firing is a decision, and so is a verdict recovered from a
-budget-tripped run, so both keep their own reason code unprefixed and their own
-prose in the summary. Getting this backwards is not cosmetic -- readers are told
-to drop ``harness:`` rows before counting, and a size-gate decline is precisely
-what a policy PR retuning the diff cap is meant to produce, so mislabelling it
-deletes the finding. ``POLICY_VERDICT_OUTCOMES`` names the outcomes this covers
-and says why ``SCHEMA_INVALID`` is not among them.
+policy's size gate firing is a decision, and so is its decline of a repo it has
+no review policy for, so both keep their own reason code unprefixed and their
+own prose in the summary. Getting this backwards is not cosmetic -- readers are
+told to drop ``harness:`` rows before counting, and a size-gate decline is
+precisely what a policy PR retuning the diff cap is meant to produce, so
+mislabelling it deletes the finding. ``POLICY_VERDICT_OUTCOMES`` names the
+outcomes this covers and says why ``REJECTED`` is not among them.
 
 ``RunResult`` is read by attribute rather than imported. Nothing here needs the
 concrete type -- only the names it carries -- and staying off it is what lets the
@@ -57,6 +58,7 @@ DECISION_VALUES = frozenset({"LAND", "NO_LAND"})
 
 OUTCOME_SUCCESS = "success"
 OUTCOME_TOO_LARGE = "too_large"
+OUTCOME_NO_POLICY = "no_policy"
 OUTCOME_BUDGET_TRIP = "budget_trip"
 
 # Covers both a result whose outcome cannot be read and one that claims success
@@ -65,18 +67,19 @@ OUTCOME_BUDGET_TRIP = "budget_trip"
 OUTCOME_UNREADABLE = "unreadable"
 
 # The outcomes whose verdict is the policy's own answer rather than a payload
-# nothing stood behind. TOO_LARGE is the canned size-gate decline, read out of
-# the policy tree rather than off the model, and a BUDGET_TRIP carrying a status
-# is a verdict recovered from the turn record: paid for and kept.
+# nothing stood behind. TOO_LARGE is the canned size-gate decline and NO_POLICY
+# the canned decline of a repo without a review policy, both taken from the
+# policy tree rather than off the model. A BUDGET_TRIP is absent: CI fails such a
+# session, so whatever verdict it left is never recorded.
 #
-# SCHEMA_INVALID is absent deliberately. The policy's own schema rejected that
-# payload, and the field it rejects is often ``reason``, against an enum the
+# REJECTED is absent deliberately. The record path's own checks refused that
+# payload, and the field they refuse is often ``reason``, against a list the
 # policy PR owns -- so publishing that code unprefixed would put a value that
 # failed validation into the column readers aggregate. An outcome added later
 # lands outside this set and reads as a harness fault until someone decides
 # otherwise, which is the safe direction to be wrong in.
 POLICY_VERDICT_OUTCOMES = frozenset(
-    {OUTCOME_SUCCESS, OUTCOME_TOO_LARGE, OUTCOME_BUDGET_TRIP}
+    {OUTCOME_SUCCESS, OUTCOME_TOO_LARGE, OUTCOME_NO_POLICY}
 )
 
 # No greenlight reason code contains a colon -- they are bare snake_case
@@ -121,7 +124,7 @@ def replay_cells(result: Any) -> dict[str, str]:
         reason = as_text(getattr(result, "reason", "")).strip()
         message = _verdict_message(result)
     return {
-        "new_decision": _verdict_status(result),
+        "new_decision": "" if failure else _verdict_status(result),
         "new_decision_reason": reason,
         "new_decision_summary": first_sentence(message),
         "new_decision_message": message,
@@ -132,11 +135,10 @@ def _failure_outcome(result: Any) -> str:
     """The harness outcome to surface, or ``""`` when the policy itself answered.
 
     The question is whether this row carries a verdict the policy produced, not
-    whether the run ended tidily. A size-gate decline and a recovered budget trip
-    are both the policy speaking, and calling either a harness fault would throw
-    away its reason code and hide the row from anyone following the documented
-    advice to filter the prefix out -- which is exactly the row a policy PR
-    retuning the diff cap exists to produce.
+    whether the run ended tidily. A size-gate decline is the policy speaking, and
+    calling it a harness fault would throw away its reason code and hide the row
+    from anyone following the documented advice to filter the prefix out -- which
+    is exactly the row a policy PR retuning the diff cap exists to produce.
     """
     name = _outcome_name(result)
     if name in POLICY_VERDICT_OUTCOMES and _verdict_status(result):
@@ -163,11 +165,10 @@ def _verdict_message(result: Any) -> str:
     """The policy's prose, with the run's diagnostics when it did not end tidily.
 
     A clean run's cell is the prose and nothing else, so what the policy wrote
-    survives the file byte for byte. A size-gate decline or a recovered budget
-    trip is equally the policy's answer, but the route it arrived by is part of
-    the record, so the diagnostics follow the prose rather than displacing it --
-    which also leaves the summary column reading as prose on every row that
-    carries a verdict, however its run ended.
+    survives the file byte for byte. A canned decline is equally the policy's
+    answer, but the route it arrived by is part of the record, so the diagnostics
+    follow the prose rather than displacing it -- which also leaves the summary
+    column reading as prose on every row that carries a verdict.
     """
     message = as_text(getattr(result, "message", ""))
     if _outcome_name(result) == OUTCOME_SUCCESS:
@@ -189,9 +190,9 @@ def _failure_message(failure: str, result: Any) -> str:
     if fields:
         lines.append(fields)
 
-    # A payload the schema rejected can still carry prose. It is not the policy's
-    # answer -- nothing validated it -- but it is the only copy anyone will see,
-    # and it costs a line to keep under the diagnostics that disown it.
+    # A payload the record path refused, or one a failed session left, can still
+    # carry prose. It is not the policy's answer, but it is the only copy anyone
+    # will see, and it costs a line to keep under the diagnostics that disown it.
     verdict = as_text(getattr(result, "message", "")).strip()
     if verdict:
         lines.append(verdict)

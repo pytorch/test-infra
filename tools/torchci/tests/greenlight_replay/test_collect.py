@@ -19,9 +19,11 @@ from unittest import mock
 
 import torchci.greenlight_replay.__main__ as cli
 from replay_fixtures import Fakes, read_csv, replay_row, run_replay
+from replay_runner_fixtures import PYTORCH_TARGET
 from torchci.greenlight_decisions.__main__ import parse_as_of
 from torchci.greenlight_decisions.rows import COLUMNS
 from torchci.greenlight_replay import collect, gh_answers, sweep as sweep_module
+from torchci.greenlight_replay.arm_code import Target
 from torchci.greenlight_replay.cells import load_rows
 
 
@@ -54,14 +56,20 @@ def full_row(pr_number, **extra):
 class FakeInputs:
     """Collect's policy and inputs seams, recording what each call was handed."""
 
-    def __init__(self, failing=()):
+    def __init__(self, failing=(), target=PYTORCH_TARGET):
         self.failing = set(failing)
+        self.target = target
         self.policies = []
         self.calls = []
         self.lock = threading.Lock()
 
-    def materialize_policy(self, ref, workdir):
-        policy = SimpleNamespace(ref=ref, root=Path(workdir))
+    def materialize_policy(self, ref, workdir, *, reviewed_repo):
+        policy = SimpleNamespace(
+            ref=ref,
+            root=Path(workdir),
+            reviewed_repo=reviewed_repo,
+            target=self.target,
+        )
         self.policies.append(policy)
         return policy
 
@@ -168,6 +176,34 @@ class TestCollect(CollectTestCase):
                 )
                 self.assertEqual(call.run_dir, runs / str(call.pr))
                 self.assertEqual(call.recording, self.answers)
+
+    def test_the_policy_is_materialized_for_the_repo_being_sampled(self):
+        inputs = FakeInputs()
+        self.collect(
+            Fakes([replay_row(194379, repo="pytorch/vision")]),
+            inputs,
+            "--sample-n",
+            "5",
+            "--repo",
+            "pytorch/vision",
+        )
+        [policy] = inputs.policies
+        self.assertEqual(policy.reviewed_repo, "pytorch/vision")
+
+    def test_nothing_is_collected_under_a_policy_with_no_file_for_the_repo(self):
+        # Its replay declines every pull request unread, so it asks GitHub nothing.
+        absent = Target("pytorch/vision", "target", ".claude/skills/x/vision.md", False)
+        inputs = FakeInputs(target=absent)
+        code = self.collect(
+            Fakes([replay_row(194379, repo="pytorch/vision")]),
+            inputs,
+            "--sample-n",
+            "5",
+            "--repo",
+            "pytorch/vision",
+        )
+        self.assertEqual(code, collect.EXIT_OK)
+        self.assertEqual(inputs.calls, [])
 
     def test_a_framing_failure_fails_the_run_before_anything_is_written(self):
         fakes = Fakes([replay_row(194379)])

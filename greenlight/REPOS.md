@@ -269,8 +269,12 @@ general hard stop; on any conflict the general file wins. Decision step 3, the o
 before the hard stops, is pytorch/pytorch's `### Meta-internal only` alone.
 `tests/test_repo_policy_files.py` keeps a configured repo without its file, a file without one of
 those headings, that heading in another repo's file, or a symlinked policy file from merging. The
-policy replay CI (`greenlight-policy-replay.yml`) runs for every policy change but one limited to
-other repos' files, since it replays `pytorch/pytorch` decisions.
+policy replay CI (`greenlight-policy-replay.yml`) runs for every change to what a review reads or
+runs: anything under `.claude` but other repos' policy files, since it replays `pytorch/pytorch`
+decisions; the root `CLAUDE.md`, `CLAUDE.local.md` and `.mcp.json`; the review workflow; and
+greenlight's `src`, `pyproject.toml`, `uv.lock` and `repos.yaml`. The torchci workflow's replay
+tests fail when the review workflow's shape, the local action it uses included, is not one the
+replay registers (`tools/torchci/greenlight_replay/PARITY.md`).
 
 **The reviewer workflow.** `greenlight-pr-review.yml` takes an optional `repo` input: empty for
 `pytorch/pytorch` (the scan sends none for it, `dispatch.py`), else a configured repo's canonical

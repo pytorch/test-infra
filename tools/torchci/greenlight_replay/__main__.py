@@ -114,7 +114,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         workdir.mkdir(parents=True, exist_ok=True)
         try:
             preflight(workdir, policy_ref)
-            prepare_policy(policy_ref, workdir, args.model)
+            prepare_policy(policy_ref, workdir, args.model, args.repo)
         except Exception as exc:
             logger.error(
                 "a real sweep would not start: %s",
@@ -139,7 +139,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 checkpoint_path=checkpoint_path,
                 repo=args.repo,
                 parallelism=args.parallelism,
-                timeout_s=args.timeout_minutes * 60,
+                timeout_s=None
+                if args.timeout_minutes is None
+                else args.timeout_minutes * 60,
                 model=args.model,
                 context_window=args.context_window,
                 interrupted=interrupted,
@@ -194,7 +196,7 @@ def log_plan(
     logger.info("dry run: no model is invoked and no output is written")
     logger.info(
         "  checked: scratch root, reviewer binaries, policy ref, workflow, diff "
-        "caps, verdict schema, hook scripts, model mapping"
+        "caps, review target, hook settings, canned verdicts, model mapping"
     )
     logger.info(
         "  not checked: the pytorch clone and each pull request's diff and "

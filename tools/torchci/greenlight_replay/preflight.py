@@ -6,8 +6,9 @@ under a second. That is what lets ``--dry-run`` make them too: a dry run is the
 one chance to catch a mistyped pull request number before a real run has already
 built a scratch tree and a bare clone to discover it.
 
-The checks that need the materialized policy -- its verdict schema, its hook
-scripts -- necessarily come later, and live with the sweep.
+The checks that need the materialized policy -- its review target, its hook
+settings and scripts, its canned verdicts -- necessarily come later, and live with
+the sweep.
 """
 
 from __future__ import annotations

@@ -222,6 +222,14 @@ class TestThePrefixMeansTheHarnessNeverThePolicy(unittest.TestCase):
             message=CANNED_TOO_LARGE_MESSAGE,
         )
 
+    def no_policy_decline(self):
+        return result(
+            outcome=Outcome.NO_POLICY,
+            status="NO_LAND",
+            reason="review_error",
+            message="- Review policy\n  - No policy file for pytorch/vision",
+        )
+
     def recovered_trip(self):
         return result(
             outcome=Outcome.BUDGET_TRIP,
@@ -233,7 +241,7 @@ class TestThePrefixMeansTheHarnessNeverThePolicy(unittest.TestCase):
     def test_a_policy_verdict_keeps_its_own_reason_code_unprefixed(self):
         for label, run, expected in (
             ("size gate", self.gate_decline(), "scope_too_large"),
-            ("recovered trip", self.recovered_trip(), "clean"),
+            ("no policy", self.no_policy_decline(), "review_error"),
             ("clean run", result(reason="build_or_ci_risk"), "build_or_ci_risk"),
         ):
             with self.subTest(label):
@@ -244,7 +252,8 @@ class TestThePrefixMeansTheHarnessNeverThePolicy(unittest.TestCase):
     def test_a_run_that_reached_no_verdict_keeps_the_prefix(self):
         for label, run in (
             ("timeout", failed(Outcome.TIMEOUT)),
-            ("schema failure", failed(Outcome.SCHEMA_INVALID)),
+            ("rejected verdict", failed(Outcome.REJECTED)),
+            ("detector failure", failed(Outcome.UNTRUSTED_INSTRUCTIONS)),
             ("api error", failed(Outcome.API_ERROR)),
             ("empty run", failed(Outcome.EMPTY_RUN)),
             ("gate with no canned verdict", failed(Outcome.TOO_LARGE)),
@@ -255,24 +264,32 @@ class TestThePrefixMeansTheHarnessNeverThePolicy(unittest.TestCase):
                 self.assertTrue(reason.startswith(HARNESS_REASON_PREFIX))
 
     def test_a_rejected_payload_keeps_the_prefix_even_carrying_a_status(self):
-        # SCHEMA_INVALID carries the verdict fields, and the field the schema
-        # usually rejects is the reason, against an enum the policy PR owns.
+        # REJECTED carries the verdict fields, and the field the record path
+        # usually refuses is the reason, against a list the policy PR owns.
         # Publishing that code unprefixed would put a value that failed
         # validation into the column readers aggregate.
         row = replayed(
             exported_row(),
             result(
-                outcome=Outcome.SCHEMA_INVALID,
+                outcome=Outcome.REJECTED,
                 status="NO_LAND",
                 reason="not_in_the_enum",
                 message="Looks risky.",
             ),
         )
-        self.assertEqual(
-            row["new_decision_reason"], HARNESS_REASON_PREFIX + "schema_invalid"
-        )
+        self.assertEqual(row["new_decision_reason"], HARNESS_REASON_PREFIX + "rejected")
+        self.assertEqual(row["new_decision"], "")
         self.assertNotIn("not_in_the_enum", row["new_decision_reason"])
         self.assertIn("not_in_the_enum", row["new_decision_message"])
+
+    def test_a_verdict_a_failed_session_left_never_reaches_the_decision_column(self):
+        # A recovered budget trip is CI's FAILED: what it said is kept to read.
+        row = replayed(exported_row(), self.recovered_trip())
+        self.assertEqual(row["new_decision"], "")
+        self.assertEqual(
+            row["new_decision_reason"], HARNESS_REASON_PREFIX + "budget_trip"
+        )
+        self.assertIn("Only the pin moved.", row["new_decision_message"])
 
     def test_the_summary_of_a_policy_verdict_is_prose_not_an_outcome(self):
         row = replayed(exported_row(), self.gate_decline())
@@ -296,7 +313,7 @@ class TestThePrefixMeansTheHarnessNeverThePolicy(unittest.TestCase):
     def test_the_verdict_survives_either_way(self):
         for label, run in (
             ("size gate", self.gate_decline()),
-            ("recovered trip", self.recovered_trip()),
+            ("no policy", self.no_policy_decline()),
         ):
             with self.subTest(label):
                 row = replayed(exported_row(), run)
