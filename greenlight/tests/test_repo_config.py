@@ -7,12 +7,12 @@ import os
 import textwrap
 import urllib.error
 import urllib.request
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 import yaml
 
-from greenlight import repo_config
+from greenlight import merge_authz, repo_config
 from greenlight.constants import DISPATCH_REPO, MERGE_RULES_PATH, REPOS_CONFIG_PATH, TARGET_REPO
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, ConfigUnreadable, RepoConfig, RepoEntry
 from greenlight.repo_scan import RepoIdentity, identity_problem
@@ -308,11 +308,58 @@ def _merge_rules_problem(repo: str) -> str | None:
         if exc.code == 404:
             return f"it has no {MERGE_RULES_PATH}"
         raise
+    return _merge_rules_text_problem(raw, f"{repo}/{MERGE_RULES_PATH}")
+
+
+def _merge_rules_text_problem(raw: bytes, source: str) -> str | None:
+    """Why the merge_rules.yaml ``raw`` cannot serve eligibility: the scan's own rejection, or no approver."""
     try:
-        rules = yaml.safe_load(raw)
-    except yaml.YAMLError as exc:
-        return f"its {MERGE_RULES_PATH} is not valid YAML: {exc}"
-    return None if isinstance(rules, list) else f"its {MERGE_RULES_PATH} is not a YAML list"
+        entries = list(merge_authz.merge_rule_entries(raw, source))
+    except ValueError as exc:
+        return str(exc)
+    if not any(approved_by for _rule, approved_by in entries):
+        return f"{source} names no approved_by entry"
+    return None
+
+
+@pytest.mark.parametrize(
+    ("text", "problem"),
+    [
+        ("- 1\n", "merge rule must be a mapping, got int"),
+        ("[]\n", "names no approved_by entry"),
+        ("- approved_by: alice\n", "approved_by must be a list, got str"),
+        ("- name: CI\n  approved_by: []\n", "names no approved_by entry"),
+        ("- name: CI\n  approved_by: [alice]\n", None),
+    ],
+)
+def test_the_live_merge_rules_check_rejects_what_the_scan_rejects(text: str, problem: str | None) -> None:
+    found = _merge_rules_text_problem(text.encode(), "pytorch/vision/.github/merge_rules.yaml")
+
+    if problem is None:
+        assert found is None
+        assert merge_authz.resolve_merge_rules(_MergeRulesClient(text), "pytorch/vision").authorized == {"alice"}
+    else:
+        assert found is not None
+        assert found.startswith("pytorch/vision/.github/merge_rules.yaml")
+        assert problem in found
+        with pytest.raises(ValueError, match=r"pytorch/vision/\.github/merge_rules\.yaml"):
+            merge_authz.resolve_merge_rules(_MergeRulesClient(text), "pytorch/vision")
+
+
+class _MergeRulesClient:
+    """A client whose every repo holds the merge_rules.yaml ``text`` and which has no org."""
+
+    def __init__(self, text: str) -> None:
+        self.decoded_content = text.encode()
+
+    def get_repo(self, _name: str) -> _MergeRulesClient:
+        return self
+
+    def get_contents(self, _path: str) -> _MergeRulesClient:
+        return self
+
+    def get_organization(self, login: str) -> NoReturn:
+        raise AssertionError(f"no org is read: {login}")
 
 
 def test_the_live_check_is_documented_in_the_workflow():

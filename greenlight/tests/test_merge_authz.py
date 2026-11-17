@@ -181,6 +181,14 @@ def test_resolve_raises_on_empty_result(yaml_text: str) -> None:
         merge_authz.resolve_authorized_logins(client)
 
 
+def test_resolve_expands_an_earlier_rules_team_before_a_later_rule_fails():
+    client = _client("- name: A\n  approved_by: [org/team]\n- 1\n", teams={"org/team": ["alice"]})
+
+    with pytest.raises(ValueError, match="merge rule must be a mapping"):
+        merge_authz.resolve_merge_rules(client, "pytorch/vision")
+    assert client._orgs["org"].requested_slugs == ["team"]
+
+
 def test_resolve_raises_when_contents_is_a_directory():
     client = _FakeAuthzClient(contents=[_FakeContent("- x")])
 

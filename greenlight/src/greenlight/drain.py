@@ -4,13 +4,20 @@ The scan dispatches nothing for an off repo and runs this instead, as its safety
 trust the ledger, since an approval can exist with no row (a lost upload, a cancelled record job).
 Each tick lists every open PR, drafts and every author included, and reads greenlight's reviews,
 from the listed PR objects (one request each), on at most ``DRAIN_PRS_PER_TICK`` of the pass's
-pending PRs: first those that had a ledger row when the pass started, where nearly every real
-approval is, then the rest, each by number. It dismisses every live approval through the loop the
-ineligible revoke uses. A PR is pending until the pass has checked it at its listed ``updated_at``,
-which is kept only when it was at least ``FINGERPRINT_QUIET`` old at the clock read after the
-listing (else the PR is read again); a PR whose read failed stays pending. So a PR opened, reopened
-or updated anywhere in the order is checked again before the pass ends, once no open PR is pending;
-the next pass starts over.
+pending PRs, dismissing every live approval through the loop the ineligible revoke uses. A PR is
+pending while it is open and the pass has not read it successfully (``DrainPass``). Each slice takes
+first the PRs the pass has not tried yet, those that had a ledger row when the pass started (where
+nearly every real approval is) before the rest, each by number; then those whose read failed, the
+oldest attempt first, so failing PRs never starve the others. A failed read stays pending; the pass
+ends once no open PR is pending, and the next pass starts over.
+
+A PR read once is not read again in its pass, however often it is updated. That is safe: a pass
+completes the drain only with no blocker, that is, it started once no review run older than the off
+switch was unfinished, and an off repo is never dispatched and its record jobs read ``off``
+(shadow), so no greenlight approval can appear on a PR after that pass read it. A PR opened or
+reopened during the pass has not been read and is read before the pass ends. In a blocked pass, an
+approval an older run posts after its PR was read is dismissed by the next pass, which reads every
+PR again.
 
 "drain complete" is logged only after a pass that found no live approval and failed on no PR, and
 that started once no ``WORKFLOW_FILE`` run on ``DISPATCH_REPO`` created before the scan first saw the
@@ -32,7 +39,6 @@ from typing import TYPE_CHECKING
 from greenlight import github_client, state
 from greenlight.constants import DISPATCH_REPO, DRAIN_PRS_PER_TICK, WORKFLOW_FILE
 from greenlight.ineligible_approvals import dismiss_each
-from greenlight.state import naive_utc
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -152,7 +158,7 @@ def drain(
             )
             current = memory.start_drain_pass(listed_at, blocker, recorded=recorded)
         failed: list[int] = []
-        reached_end = _work(client, repo, current, pulls, listed_at, bot_login, dismiss, failed, cancel_event)
+        reached_end = _work(client, repo, current, pulls, bot_login, dismiss, failed, cancel_event)
     finally:
         github_client.close_client(client)
     return _report(memory, repo, current, reached_end=reached_end, failed=failed)
@@ -163,20 +169,16 @@ def _work(
     repo: str,
     current: DrainPass,
     pulls: dict[int, PullRequest],
-    listed_at: datetime,
     bot_login: str,
     dismiss: Callable[..., list[int]],
     failed: list[int],
     cancel_event: threading.Event,
 ) -> bool:
-    """Read the pass's pending PRs, the recorded ones first, each by number; True once none is pending."""
-    updated = {
-        number: None if pull.updated_at is None else naive_utc(pull.updated_at) for number, pull in pulls.items()
-    }
-    pending = [number for number in sorted(pulls) if current.pending(number, updated[number])]
-    for number in sorted(pending, key=lambda number: number not in current.recorded)[:DRAIN_PRS_PER_TICK]:
+    """Read at most ``DRAIN_PRS_PER_TICK`` of the pass's pending PRs, in its order; True once none is pending."""
+    for number in current.pending(pulls)[:DRAIN_PRS_PER_TICK]:
         if cancel_event.is_set():
             break
+        current.attempt(number)
         outcome = dismiss_each(
             client,
             [number],
@@ -192,10 +194,9 @@ def _work(
         if number not in outcome:
             current.failures += 1
             continue
-        current.reads += 1
         current.dismissed += outcome[number]
-        current.check(number, updated[number], listed_at)
-    return not cancel_event.is_set() and not any(current.pending(number, updated[number]) for number in pulls)
+        current.checked.add(number)
+    return not cancel_event.is_set() and not current.pending(pulls)
 
 
 def _report(memory: ScanMemory, repo: str, current: DrainPass, *, reached_end: bool, failed: list[int]) -> DrainReport:
@@ -213,14 +214,14 @@ def _report(memory: ScanMemory, repo: str, current: DrainPass, *, reached_end: b
     if reached_end:
         memory.end_drain_pass()
     if complete:
-        logger.info("%s: drain complete (pass %d, checked %d)", repo, current.number, current.reads)
+        logger.info("%s: drain complete (pass %d, checked %d)", repo, current.number, len(current.checked))
     else:
         logger.info(
             "%s: pass %d, checked %d, dismissed %d, not complete: %s",
             repo,
             current.number,
-            current.reads,
+            len(current.checked),
             current.dismissed,
             reason,
         )
-    return DrainReport(current.number, current.reads, current.dismissed, complete, reason, tuple(failed))
+    return DrainReport(current.number, len(current.checked), current.dismissed, complete, reason, tuple(failed))

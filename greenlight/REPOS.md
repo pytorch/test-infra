@@ -65,9 +65,11 @@ entry's name must be the canonical `full_name` exactly, the repo must be public,
 branch must be `main`, the base `merge_authz.accepts_base` judges PRs against. A repo failing one
 gets no work on that scan and the scan fails. The same checks run in CI, in the `Test` step of
 `greenlight-tests.yml` (`GREENLIGHT_LIVE_CONFIG_CHECK=1` with the workflow's read-only token), with
-one more for an `eligibility: merge_rules` entry: its `.github/merge_rules.yaml` must exist and parse
-as a YAML list. So a mis-cased, private or non-`main` entry, or a `merge_rules` one with no usable
-file, cannot merge. Everywhere else the tests stay offline.
+one more for an `eligibility: merge_rules` entry: its `.github/merge_rules.yaml` must exist, pass the
+scan's own checks of the file (`merge_authz.merge_rule_entries`: valid YAML, a list of mappings, each
+`approved_by` a list of non-empty strings) and name at least one `approved_by` entry. So a
+mis-cased, private or non-`main` entry, or a `merge_rules` one with no usable file, cannot merge.
+Everywhere else the tests stay offline.
 
 ## Where the config is read
 
@@ -100,19 +102,25 @@ comment), as any PR does.
 
 The drain does not trust the ledger, since an approval can exist with no row. Each tick it lists
 every open PR (drafts and every author included), reads GreenLight's reviews on at most
-`DRAIN_PRS_PER_TICK` (100) of the pass's pending PRs, those that had a ledger row when the pass
-started first, then the rest, each by number, and dismisses every live approval. A PR stays pending
-until the pass has read it at its listed `updated_at`, which counts only once it is two minutes old
-(`FINGERPRINT_QUIET`); a PR whose read failed stays pending too. So a PR opened, reopened or updated
-anywhere in the order is read again before the pass ends, once no open PR is pending.
+`DRAIN_PRS_PER_TICK` (100) of the pass's pending PRs and dismisses every live approval. A PR is
+pending while it is open and the pass has not read it successfully, so a PR whose read failed stays
+pending and the pass ends only once no open PR is pending. Each tick takes first the PRs the pass has
+not tried yet, those that had a ledger row when the pass started before the rest, each by number,
+then the PRs whose read failed, the oldest attempt first, so failing PRs never starve the others.
+
+A PR read once is not read again in its pass, however often it is updated. A pass that can complete
+the drain (below) started once no older review run was unfinished, and an off repo is never
+dispatched and its record jobs read `off`, so no GreenLight approval can appear on a PR after that
+pass read it; a PR opened or reopened during the pass is read before the pass ends. In a pass that
+cannot complete, an approval an older run posts after its PR was read is dismissed by the next pass,
+which reads every PR again.
 
 The drain logs `drain complete` only after a whole pass that found no live approval, failed on no
 PR, and started once no `greenlight-pr-review.yml` run created before the scan first saw the repo
 off was still queued, waiting, pending, requested or in progress. Runs do not say which repo they
-review, so every older unfinished run counts; without the dispatch token they cannot be read, and
-the pass cannot complete. Until then each tick logs `pass N, checked K, dismissed M, not complete:
-<why>`. A cold start (a new Lambda environment) moves the off time later, which only delays
-completion.
+review, so every older unfinished run counts; they are read with the dispatch token. Until then each
+tick logs `pass N, checked K, dismissed M, not complete: <why>`. A cold start (a new Lambda
+environment) moves the off time later, which only delays completion.
 
 To stop serving a repo: set its `mode` to `off`, wait for `drain complete` in the scan's log, then
 remove its entry. Removing the entry first leaves any approval it already holds in place.
@@ -134,11 +142,13 @@ entries, then the other safety-only ones, each in file order (`tick.py`).
   repo whose turn starts past that deadline gets no turn.
 - A repo whose Phase B is cut short, or that gets no turn, fails the tick when its full tick was
   due: its full tick is not marked done, so it shows every tick until its budget is sized. On a
-  fast tick it is a warning, and its PRs wait for the next tick. The PRs a cut Phase B had failed
-  on are reported with the cut, never as a failure of the safety work.
-- Without the dispatch token (its mint failed) the tick fails, serves the built-in
-  `pytorch/pytorch` entry without reading the config, runs Phase A on the repo tokens, and skips
-  Phase B, since nothing can be dispatched.
+  fast tick it is a warning, and its PRs wait for the next tick. The PRs its Phase B had failed on
+  before a cut or a rate limit stopped it always fail the tick, on a fast tick too, and never as a
+  failure of the safety work.
+- Without the dispatch token (its mint failed) the tick fails and does not read the config: it
+  serves only the built-in `pytorch/pytorch` entry and runs only its safety work (the revert guard
+  and the ineligible revoke) on its repo token. No other repo gets any work, so no drain runs, and
+  Phase B is skipped, since nothing can be dispatched.
 
 **Dispatch cap.** `--max` is shared. While another repo is in Phase B, `min(DISPATCH_RESERVE, max)`
 (5) is held back from `pytorch/pytorch`, and the other repos share it plus whatever

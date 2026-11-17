@@ -13,13 +13,14 @@ first), each entry's work given by ``repo_scan.repo_work``:
   never past ``TICK_DEADLINE`` from the tick's start. A repo whose turn starts past that, or once a
   positive ``--max`` is used up, gets none.
 
-A dispatch token that cannot be had is the tick's error: the built-in entry is served without reading
-the config, Phase A runs on the repo tokens, and Phase B is skipped, since nothing can be dispatched.
+A dispatch token that cannot be had is the tick's error: the config is not read, so the tick serves
+only the built-in ``pytorch/pytorch`` entry and runs only its safety work, on its repo token; no other
+repo gets any work, so no drain runs, and Phase B is skipped, since nothing can be dispatched.
 
 Every GitHub client of a repo shares its ``quota.RequestMeter``; its Phase B ``stop`` raises
-``RepoBudgetExceeded`` before the next request, which ends that repo's optional work: a cut, reported
-with the PRs that work failed on. The dispatch cap (``--max``) is shared
-(``tick_outcomes.DispatchShare``). A rate limit sets the tick's latch, which every meter then
+``RepoBudgetExceeded`` before the next request, which ends that repo's optional work: a cut. The PRs
+that work failed on before a cut or a rate limit are the repo's error. The dispatch cap (``--max``)
+is shared (``tick_outcomes.DispatchShare``). A rate limit sets the tick's latch, which every meter then
 refuses, and the tick skips every repo and phase left; any other failure is that repo's error and
 the tick goes on (``tick_outcomes.Outcomes``). A repo whose token or live checks fail
 (``RepoUnavailable``) gets no work. The tick logs each repo's request counts and the installation's
@@ -246,7 +247,7 @@ class _Tick:
         if outcome in ("done", "failed"):
             self.finished.add(repo)
         elif prepared is not None:
-            self.outcomes.failed_before(repo, outcome, prepared.optional_failed, full_tick_due=full_tick_due)
+            self.outcomes.failed_before(repo, outcome, prepared.optional_failed)
         return 0 if prepared is None else prepared.dispatched
 
     def report_safety_failures(self) -> None:
