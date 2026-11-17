@@ -9,6 +9,9 @@ is ``off`` or runs ``review.run`` on it otherwise: whole when served, only its s
 safety-only. A repo whose settings give no entry (no file, a refused file, an unreadable one), or one
 that fails a live check, gets no work at all. Every problem the settings carry fails the scan, after
 the work they still allow ran.
+The dispatch and the drain's read of the review runs use the dispatch token
+(``PYTORCH_GREENLIGHT_DISPATCH_TOKEN``, falling back to the scan token): both are on
+``DISPATCH_REPO``.
 """
 
 from __future__ import annotations
@@ -111,6 +114,22 @@ def eligibility_cache(
     return cache
 
 
+def eligibility_thunk(
+    config: Config, entry: RepoEntry, caches: EligibilityCaches, token: str, *, meter: RequestMeter | None = None
+) -> Callable[[], MergeRulesSnapshot]:
+    """``entry``'s eligibility snapshot through its cache in ``caches``, read with ``token`` when due."""
+    cache = eligibility_cache(caches, entry, config.merge_rules_ttl_seconds)
+    build_client = eligibility_client(entry, token, meter=meter)
+    return lambda: cache.snapshot(build_client)
+
+
+def drain_error(report: drain.DrainReport) -> str | None:
+    """The scan error a drain slice reports, or None when it failed on no PR."""
+    if not report.failed:
+        return None
+    return f"the drain failed on {len(report.failed)} PR(s): {list(report.failed)}"
+
+
 def _raise(repo: str, errors: list[str]) -> NoReturn:
     raise RuntimeError(f"{repo}: " + "; ".join(errors))
 
@@ -141,6 +160,7 @@ def scan_repo(
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
+    dispatch_token = config.dispatch_token or token
     memory = None if memories is None else memories.setdefault(repo, ScanMemory())
     client = build_github(token)
     try:
@@ -163,15 +183,20 @@ def scan_repo(
         if memory is None:
             logger.warning("%s is off: --pr reviews nothing", repo)
         else:
-            report = run_drain(config, repo=repo, memory=memory, bot_login=bot_login, build_github=build_github)
-            if report.failed:
-                errors.append(f"the drain failed on {len(report.failed)} PR(s): {list(report.failed)}")
+            report = run_drain(
+                config,
+                repo=repo,
+                memory=memory,
+                bot_login=bot_login,
+                build_github=build_github,
+                dispatch_token=dispatch_token,
+            )
+            if (problem := drain_error(report)) is not None:
+                errors.append(problem)
         _raise_any(repo, errors)
         return
     if memory is not None:
         memory.clear_drain()
-    cache = eligibility_cache(eligibility_caches, entry, config.merge_rules_ttl_seconds)
-    build_eligibility_client = eligibility_client(entry, token)
     run_review(
         config,
         entry=entry,
@@ -179,8 +204,9 @@ def scan_repo(
         pr=pr,
         bot_login=bot_login,
         build_github=build_github,
-        resolve_merge_rules=lambda: cache.snapshot(build_eligibility_client),
+        resolve_merge_rules=eligibility_thunk(config, entry, eligibility_caches, token),
         memory=memory,
+        dispatch_token=dispatch_token,
         **review_kwargs,
     )
     _raise_any(repo, errors)

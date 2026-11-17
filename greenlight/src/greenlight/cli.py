@@ -30,8 +30,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from greenlight.scan_memory import ScanMemory
+    from greenlight.tick import TokenSource
 
 logger = logging.getLogger(__name__)
+
+_ALL_REPOS_EXCLUDES = ("repo", "pr", "force", "requester", "allow_untrusted_author")
 
 # Held at module level so they outlive main(): the Lambda handler calls main() once per tick, and a
 # warm execution environment keeps this module loaded between ticks. Each eligibility source is kept
@@ -64,10 +67,21 @@ def build_parser() -> argparse.ArgumentParser:
             "accepts. Requires "
             "PYTORCH_GREENLIGHT_GITHUB_TOKEN and CLICKHOUSE_* read credentials. The repo must have a "
             f"GreenLight config at {REPO_CONFIG_PATH} (pytorch/pytorch has a built-in one), read from its "
-            "default branch every scan; its mode decides what the scan does (REPOS.md)."
+            "default branch every scan; its mode decides what the scan does (REPOS.md). PYTORCH_GREENLIGHT_DISPATCH_TOKEN, when set, "
+            "dispatches the review workflow and reads its runs instead."
         ),
     )
-    review_parser.add_argument("--repo", default=TARGET_REPO, help="owner/name of the configured repo to scan")
+    review_parser.add_argument(
+        "--repo", default=None, help=f"owner/name of the configured repo to scan (default {TARGET_REPO})"
+    )
+    review_parser.add_argument(
+        "--all-repos",
+        action="store_true",
+        help=(
+            "run one tick over every configured repo: each repo's safety work, then its "
+            "optional work under the tick's budgets, with --max shared between them (REPOS.md)"
+        ),
+    )
     review_parser.add_argument(
         "--pr",
         type=int,
@@ -274,7 +288,26 @@ def _run_verdict(args: argparse.Namespace, parser: argparse.ArgumentParser) -> i
     return EXIT_OK
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def _all_repos_run(
+    args: argparse.Namespace, config: Config, bot_login: str, tokens: TokenSource | None
+) -> Callable[[Config], None]:
+    from greenlight import tick  # lazy: keeps this module importable without PyGithub
+
+    return functools.partial(
+        tick.run_tick,
+        tokens=tick.EnvTokens(config) if tokens is None else tokens,
+        config_cache=_CONFIG_CACHE,
+        eligibility_caches=_ELIGIBILITY_CACHES,
+        memories=_SCAN_MEMORY,
+        bot_login=bot_login,
+        max_dispatches=args.max,
+        ref=args.ref,
+        timeout_minutes=args.timeout_minutes,
+    )
+
+
+def main(argv: Sequence[str] | None = None, *, tokens: TokenSource | None = None) -> int:
+    """Run the CLI; ``tokens`` is the token source of ``review --all-repos`` (default: the environment's)."""
     parser = build_parser()
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     if args.command == "verdict":
@@ -291,6 +324,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     lock_path = config.lock_path
     if lock_path is not None:
         logger.info("using single-instance lock path %s", lock_path)
+    conflicts = [
+        f"--{name.replace('_', '-')}"
+        for name in _ALL_REPOS_EXCLUDES
+        if (value := getattr(args, name)) is not None and value is not False
+    ]
+    if args.all_repos and conflicts:
+        parser.error(f"--all-repos cannot be combined with {', '.join(conflicts)}")
     if args.force and args.pr is None:
         parser.error("--force requires --pr")
     if args.force and args.loop:
@@ -305,9 +345,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(
             f"BOT_LOGIN must be a GitHub App login of the form <app-slug>{BOT_LOGIN_SUFFIX}, got {bot_login!r}"
         )
+    if args.all_repos:
+        return _dispatch(config, _all_repos_run(args, config, bot_login, tokens), loop=args.loop, lock_path=lock_path)
     run = functools.partial(
         repo_scan.scan_repo,
-        repo=args.repo,
+        repo=TARGET_REPO if args.repo is None else args.repo,
         eligibility_caches=_ELIGIBILITY_CACHES,
         memories=None if args.pr is not None else _SCAN_MEMORY,
         pr=args.pr,

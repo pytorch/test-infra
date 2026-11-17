@@ -12,6 +12,8 @@ without a rate limit, and whose dispatch hits none, relabels the PRs it listed t
 by the recency filter or Stale-skipped. ``optional=False`` (a safety-only repo) skips all of the
 optional work and only raises the safety work's errors; a full tick whose safety work met no rate limit
 still counts as the last full tick, so a safety-only repo is not listed in full on every tick.
+``PreparedScan.dispatched`` counts each review as it goes out, so a caller still reads it when
+``finish`` raises.
 """
 
 from __future__ import annotations
@@ -98,14 +100,14 @@ class PreparedScan:
     upsert_comment: Callable[..., None]
     now: Callable[[], datetime]
     failed: list[int] = field(default_factory=list)
+    dispatched: int = 0
 
 
 def finish(prepared: PreparedScan, *, optional: bool = True) -> int:
     abandoned: list[int] = []
     dispatch_failed: list[int] = []
-    dispatched = 0
     if optional:
-        dispatch_failed, dispatched = _optional_work(prepared, abandoned)
+        dispatch_failed = _optional_work(prepared, abandoned)
     elif not prepared.cancel_event.is_set():
         _mark_full_tick(prepared)
     # A PR can land in failed twice (the revert guard's revoke and record) and in failed and abandoned both.
@@ -120,7 +122,7 @@ def finish(prepared: PreparedScan, *, optional: bool = True) -> int:
         if abandoned_prs:
             errors.append(f"{len(abandoned_prs)} PR(s) abandoned due to rate limit: {abandoned_prs}")
         raise RuntimeError("; ".join(errors))
-    return dispatched
+    return prepared.dispatched
 
 
 def _mark_full_tick(scan: PreparedScan) -> None:
@@ -137,8 +139,20 @@ def _dispatch_client(scan: PreparedScan) -> Github:
     return client
 
 
-def _optional_work(scan: PreparedScan, abandoned: list[int]) -> tuple[list[int], int]:
-    """Fan out, dispatch, label and post refusals; return the PRs whose dispatch failed and the count dispatched."""
+def _counted(scan: PreparedScan) -> DispatchFn:
+    """``scan``'s dispatch, adding each review that went out to ``scan.dispatched``."""
+
+    def dispatch(
+        client: Github, pr_number: int, head_sha: str, eval_hash: str, ref: str, /, *, shadow: bool, repo: str
+    ) -> None:
+        scan.dispatch(client, pr_number, head_sha, eval_hash, ref, shadow=shadow, repo=repo)
+        scan.dispatched += 1
+
+    return dispatch
+
+
+def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
+    """Fan out, dispatch, label and post refusals; return the PRs whose dispatch failed."""
     repo = scan.entry.repo
     skips: list[tuple[int, ReviewSkip]] = []
     worker_count = min(_FINGERPRINT_WORKERS, len(scan.fingerprint_numbers))
@@ -204,7 +218,6 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> tuple[list[int],
     if cache is not None:
         cache.commit()
     dispatch_failed: list[int] = []
-    dispatched = 0
     if scan.cancel_event.is_set():
         # A rate limit tripped the fan-out. The completed candidates are deferred, not lost: no
         # state row is written for them, so the next scan re-fingerprints and dispatches them once
@@ -221,13 +234,13 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> tuple[list[int],
         # Marked before the per-PR failures below can raise: one failing PR must not hold every
         # later tick to a full listing.
         _mark_full_tick(scan)
-        dispatch_failed, dispatched = scan_dispatch._dispatch_pending(
+        dispatch_failed, _dispatched = scan_dispatch._dispatch_pending(
             _dispatch_client(scan) if pending else scan.client,
             pending,
             repo=repo,
             ref=scan.ref,
             max_dispatches=scan.max_dispatches,
-            dispatch=scan.dispatch,
+            dispatch=_counted(scan),
             emit_dispatched=scan.emit_dispatched,
             poke=scan.poke,
             shadow_for_pr=scan.authority.shadow,
@@ -258,4 +271,4 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> tuple[list[int],
         scan_runner.post_refusals(
             scan.client, repo, skips, bot_login=scan.bot_login, get_pr=scan.get_pr, upsert_comment=scan.upsert_comment
         )
-    return dispatch_failed, dispatched
+    return dispatch_failed

@@ -9,7 +9,7 @@ from typing import Any, NoReturn
 import pytest
 from github import GithubException
 
-from greenlight import merge_authz, review_finish, verdict_labels
+from greenlight import merge_authz, quota, review_finish, verdict_labels
 from greenlight.authority import Authority
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_finish import PreparedScan
@@ -272,3 +272,36 @@ def test_a_rate_limit_on_a_dispatch_sets_the_event_defers_the_rest_and_skips_the
     assert "deferred PR #2 dispatch: a rate limit stopped this tick's GitHub work" in messages
     assert "deferred PR #3 dispatch: a rate limit stopped this tick's GitHub work" in messages
     assert "label pass skipped: a rate limit stopped this tick's GitHub work" in messages
+
+
+def test_the_dispatch_count_holds_when_finish_raises_for_a_failed_dispatch():
+    def dispatch(_client, number, _head, _hash, _ref, *, shadow, repo):
+        if number == 2:
+            raise RuntimeError("dispatch down")
+
+    prepared, _dispatched = _dispatching(dispatch=dispatch)
+
+    with pytest.raises(RuntimeError, match=r"failed to dispatch 1 PR\(s\): \[2\]"), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert prepared.dispatched == 2
+
+
+def test_the_dispatch_count_holds_when_a_budget_stop_ends_the_dispatches():
+    def dispatch(_client, number, _head, _hash, _ref, *, shadow, repo):
+        if number == 2:
+            raise quota.RepoBudgetExceeded("pytorch/pytorch: past its deadline")
+
+    prepared, _dispatched = _dispatching(dispatch=dispatch)
+
+    with pytest.raises(quota.RepoBudgetExceeded), prepared.stack:
+        review_finish.finish(prepared)
+
+    assert prepared.dispatched == 1
+
+
+def test_a_safety_only_finish_counts_nothing():
+    prepared = _prepared()
+
+    assert review_finish.finish(prepared, optional=False) == 0
+    assert prepared.dispatched == 0

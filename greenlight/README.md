@@ -2,8 +2,8 @@
 
 A Python service that runs a periodic iteration from the CLI — a one-shot
 (cron-like) run by default, or a long-lived daemon with `--loop`. In production the
-scheduled scan runs as an AWS Lambda (`greenlight-scan`) on a 5-minute EventBridge
-schedule; the CLI one-shot and `--loop` daemon modes remain for local and other use.
+scheduled scan runs as an AWS Lambda (`greenlight-scan`) on a 2-minute EventBridge schedule, one
+tick over every repo `repos.yaml` serves; the CLI one-shot and `--loop` modes remain for other use.
 
 ## Requirements
 
@@ -435,7 +435,7 @@ unprefixed `BOT_LOGIN`:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login. Author-scopes the `--pr` recheck-refusal comment, and picks out greenlight's own approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the whole scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, Contents: read on the scanned repo (its `.github/greenlight/config.yml`), PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs; `verdict` needs PR write (its approval, dismissal and `GL/*` label), plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org for its merge-rule check |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token used by `review` and `verdict`; `review` needs PR write on each scanned repo (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels), and org Members: read (`read:org`) to expand `merge_rules.yaml` team refs, Contents: read on each scanned repo (its `.github/greenlight/config.yml`), plus, unless `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` carries it, Actions: write (`workflow_dispatch`) on `pytorch/test-infra`, the only use of the optional dispatch token; `verdict` needs PR write (its approval, dismissal and `GL/*` label), plus, for its eligibility check, Contents: read on the repo and Members: read on the `pytorch` org for a `merge_rules` repo, and only Metadata: read (GitHub's collaborator endpoints) for a `write_permission` repo |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (e.g. `INFO`, `DEBUG`) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Lock file path guarding against concurrent runs (unset = no lock) |
@@ -471,11 +471,11 @@ so the per-iteration timeout is what interrupts a hung run.
 ## Deployment
 
 In production the scheduled scan runs as an AWS Lambda, `greenlight-scan`, in the
-`pytorch-gha-infra-2` account (`us-east-1`), triggered by an EventBridge `rate(5 minutes)`
+`pytorch-gha-infra-2` account (`us-east-1`), triggered by an EventBridge `rate(2 minutes)`
 schedule. The function runs `python3.13` with handler `greenlight.lambda_handler.handler`, a
-300 s timeout, and `reserved_concurrent_executions = 1`. It runs the same one-shot
-`execute_once` / `review.run` path as `greenlight review` — no scan-logic change — after minting a
-least-privilege GitHub App installation token in-process, resolving `BOT_LOGIN` from the App's own
+300 s timeout, and `reserved_concurrent_executions = 1`. It runs `greenlight review --all-repos`,
+one tick over every configured repo ([REPOS.md](REPOS.md)), on the CLI's one-shot `execute_once` path,
+minting least-privilege GitHub App installation tokens per job and repo in-process (`app_tokens.py`), resolving `BOT_LOGIN` from the App's own
 `GET /app` slug, and reading the App PEM and ClickHouse
 password from AWS Secrets Manager (`pytorch-greenlight-secrets`) at runtime. The handler sets
 `PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS=0`, so it runs with no single-instance lock and both

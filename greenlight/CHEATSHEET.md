@@ -6,8 +6,8 @@ directory. `just` is the front-end for every workflow — run `just` or
 
 PyTorch Green Light runs one iteration of its `review` phase and exits (cron-like), or
 loops as a daemon with `--loop`; in production the scheduled scan runs as the `greenlight-scan`
-AWS Lambda (EventBridge `rate(5 minutes)`), with the CLI modes kept for local use. It also has the
-one-shot `verdict` and `drci-poke` subcommands:
+AWS Lambda (EventBridge `rate(2 minutes)`, one `review --all-repos` tick over every configured repo),
+with the CLI modes kept for local use. It also has the one-shot `verdict` and `drci-poke` subcommands:
 
 - `review` — scan the open PRs from the evaluation cohort in `--repo` (default `pytorch/pytorch`;
   its `.github/greenlight/config.yml` decides the mode, `check-config PATH --repo R` validates one, [REPOS.md](REPOS.md)) (every
@@ -119,7 +119,10 @@ just review --max 5                  # cap this iteration at 5 dispatches
 just review --ref my-branch          # dispatch the reviewer workflow at this test-infra ref (default main)
 just review --timeout-minutes 60     # re-dispatch an in-flight review after 60 min (default 45)
 just review --pr 123 --allow-untrusted-author  # LOCAL ONLY: review an ineligible author's PR, in shadow
+just review --all-repos --max 30     # one tick over every configured repo, as the Lambda runs it
 ```
+
+`--all-repos` refuses `--repo`, `--pr`, `--force`, `--requester` and `--allow-untrusted-author`.
 
 `just review` scans the evaluation cohort's open PRs and, for each eligible PR that is new or changed
 since its last recorded state, dispatches the reviewer workflow
@@ -178,7 +181,8 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login; author-scopes the recheck-refusal comment and picks out greenlight's approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus Contents: read (its `.github/greenlight/config.yml`) and PR write on the scanned repo (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels); `verdict` needs PR write (approval, dismissal, `GL/*` label) plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org (for its merge-rule check) |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs PR write on each scanned repo (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels), and Contents: read on it (its `.github/greenlight/config.yml`), plus Actions: write (`workflow_dispatch`) on `pytorch/test-infra` unless `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` is set; `verdict` needs PR write (approval, dismissal, `GL/*` label) plus, for its eligibility check, Contents: read on the repo and Members: read on the `pytorch` org for a `merge_rules` repo, or only Metadata: read (GitHub's collaborator endpoints) for a `write_permission` repo |
+| `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` | unset | Optional `review` token for `pytorch/test-infra` alone (Actions: write): dispatches the reviewer workflow and lets an `off` repo's drain read the review runs; unset, `PYTORCH_GREENLIGHT_GITHUB_TOKEN` does both. `greenlight-review.yml` mints one, as the Lambda does |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
@@ -201,7 +205,7 @@ just package   # build dist/greenlight-scan.zip (linux x86_64 / cp313 wheels) fo
 ```
 
 In production the scheduled scan runs as the `greenlight-scan` AWS Lambda
-(`pytorch-gha-infra-2`, `us-east-1`, EventBridge `rate(5 minutes)`), not via the CLI or a GHA
+(`pytorch-gha-infra-2`, `us-east-1`, EventBridge `rate(2 minutes)`), not via the CLI or a GHA
 workflow. The zip ships in test-infra's shared lambda release: a push to `main` touching
 `greenlight/**` cuts a `v<timestamp>` tag whose Release carries `greenlight-scan.zip` alongside
 the other lambda zips -> pin that tag in the `pytorch-gha-infra-2` `runners/common/Terrafile`

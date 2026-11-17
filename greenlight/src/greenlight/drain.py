@@ -17,6 +17,7 @@ and that started once no ``WORKFLOW_FILE`` run on ``DISPATCH_REPO`` created befo
 saw the repo off was still unfinished. The runs do not say which repo they review, so every older
 unfinished run counts, whatever its repo: no review dispatched while the repo was on can still
 approve from its older checkout once the line is logged. Remove a repo's config file only after it.
+Those runs are read with the dispatch token, since a token scoped to the drained repo cannot read them.
 Once the drain is complete no new pass starts while the repo stays off: each later tick logs that
 and reads nothing, until the repo leaves ``off`` (``ScanMemory.clear_drain``).
 """
@@ -90,14 +91,26 @@ def _listed(pull: PullRequest) -> Callable[[Github, str, int], VerdictPR]:
     return get_pr
 
 
-def _start_pass(
-    memory: ScanMemory,
+def _older_unfinished_runs(
     client: Github,
-    off_since: datetime,
+    *,
+    token: str,
+    runs_token: str,
+    build_github: Callable[[str], Github],
     unfinished_runs: _RunsFn,
-    recorded: frozenset[int],
-) -> DrainPass:
-    older = unfinished_runs(client, off_since)
+    off_since: datetime,
+) -> int:
+    """``unfinished_runs`` through ``client``, or through a client on ``runs_token`` when that is another token."""
+    if runs_token == token:
+        return unfinished_runs(client, off_since)
+    runs_client = build_github(runs_token)
+    try:
+        return unfinished_runs(runs_client, off_since)
+    finally:
+        github_client.close_client(runs_client)
+
+
+def _start_pass(memory: ScanMemory, older: int, recorded: frozenset[int]) -> DrainPass:
     blocker = (
         f"{older} {WORKFLOW_FILE} run(s) created before the repo went off were unfinished when the pass started"
         if older
@@ -119,17 +132,19 @@ def drain(
     dismiss: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
     now: Callable[[], datetime] = _utcnow,
     cancel_event: threading.Event | None = None,
+    dispatch_token: str | None = None,
 ) -> DrainReport:
     """Run one tick's slice of ``repo``'s drain. Listing and state-read failures raise; a PR's failure is reported.
 
     A rate limit on a PR sets ``cancel_event`` (a fresh event by default) and ends the slice, as does an
-    event already set.
+    event already set. The older review runs are read with ``dispatch_token`` (default the scan token).
     """
     if cancel_event is None:
         cancel_event = threading.Event()
     token = config.github_token
     if not token:
         raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to drain a repo")
+    runs_token = token if dispatch_token is None else dispatch_token
     off_since = memory.off_since(now())
     completed_by = memory.drain_completed_by()
     if completed_by is not None:
@@ -142,7 +157,15 @@ def drain(
         current = memory.drain_pass()
         if current is None:
             recorded = frozenset(read_states(repo, sorted(pulls)).keys())
-            current = _start_pass(memory, client, off_since, unfinished_runs, recorded)
+            older = _older_unfinished_runs(
+                client,
+                token=token,
+                runs_token=runs_token,
+                build_github=build_github,
+                unfinished_runs=unfinished_runs,
+                off_since=off_since,
+            )
+            current = _start_pass(memory, older, recorded)
         queue = [(0, number) for number in sorted(current.recorded) if number in pulls]
         queue.extend((1, number) for number in sorted(pulls))
         failed: list[int] = []

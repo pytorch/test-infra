@@ -213,9 +213,17 @@ class _Scan:
         self.tokens.append(token)
         return client
 
-    def run(self, make_config: Any, repo: str, *, pr: int | None = None, token: str | None = _TOKEN) -> None:
+    def run(
+        self,
+        make_config: Any,
+        repo: str,
+        *,
+        pr: int | None = None,
+        token: str | None = _TOKEN,
+        dispatch_token: str | None = None,
+    ) -> None:
         repo_scan.scan_repo(
-            make_config(github_token=token),
+            make_config(github_token=token, dispatch_token=dispatch_token),
             repo=repo,
             eligibility_caches=self.caches,
             memories=None if pr is not None else self.memories,
@@ -494,3 +502,29 @@ def test_a_rate_limit_or_timeout_reading_the_config_stops_the_scan(make_config, 
 def test_a_scan_needs_a_token(make_config):
     with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
         _Scan(_MISSING).run(make_config, TARGET_REPO, token=None)
+
+
+@pytest.mark.parametrize(("dispatch_token", "expected"), [(None, _TOKEN), ("dispatch", "dispatch")])
+def test_the_config_and_the_dispatch_use_the_dispatch_token(make_config, dispatch_token, expected):
+    scan = _Scan(_MISSING)
+
+    scan.run(make_config, TARGET_REPO, dispatch_token=dispatch_token)
+
+    assert scan.tokens == [expected, _TOKEN]
+    assert scan.review.call_args.kwargs["dispatch_token"] == expected
+
+
+def test_an_off_repos_drain_reads_the_review_runs_with_the_dispatch_token(make_config):
+    scan = _Scan(_file(mode="off"))
+
+    scan.run(make_config, "pytorch/vision", dispatch_token="dispatch")
+
+    assert scan.drain.call_args.kwargs["dispatch_token"] == "dispatch"
+    assert scan.drain.call_args.args[0].github_token == _TOKEN
+
+
+def test_drain_error_names_the_failed_prs_only_when_there_are_some():
+    assert repo_scan.drain_error(drain.DrainReport(1, 2, 0, False, "x", ())) is None
+    assert repo_scan.drain_error(drain.DrainReport(1, 2, 0, False, "x", (3, 5))) == (
+        "the drain failed on 2 PR(s): [3, 5]"
+    )

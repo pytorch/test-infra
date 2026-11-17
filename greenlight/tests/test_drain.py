@@ -29,7 +29,8 @@ class _Pull:
 
 
 class _Client:
-    def __init__(self) -> None:
+    def __init__(self, token: str = _TOKEN) -> None:
+        self.token = token
         self.closed = 0
 
     def close(self) -> None:
@@ -59,11 +60,12 @@ class _Drain:
         self.memory = memory or ScanMemory()
         self.read: list[int] = []
         self.runs_before: list[datetime] = []
+        self.runs_clients: list[_Client] = []
         self.clients: list[_Client] = []
         self.clock = _NOW
 
-    def _build(self, _token: str) -> Any:
-        client = _Client()
+    def _build(self, token: str) -> Any:
+        client = _Client(token)
         self.clients.append(client)
         return client
 
@@ -76,8 +78,9 @@ class _Drain:
             raise error
         return list(range(self.approvals.get(pr.number, 0)))
 
-    def _runs(self, _client: Any, before: datetime) -> int:
+    def _runs(self, client: Any, before: datetime) -> int:
         self.runs_before.append(before)
+        self.runs_clients.append(client)
         return self.unfinished
 
     def tick(
@@ -87,6 +90,7 @@ class _Drain:
         bot_login: str = _BOT,
         token: str | None = _TOKEN,
         cancel_event: threading.Event | None = None,
+        dispatch_token: str | None = None,
     ) -> drain.DrainReport:
         return drain.drain(
             make_config(github_token=token),
@@ -100,6 +104,7 @@ class _Drain:
             dismiss=self._dismiss,
             now=lambda: self.clock,
             cancel_event=cancel_event,
+            dispatch_token=dispatch_token,
         )
 
 
@@ -384,3 +389,39 @@ def test_the_ledger_is_read_once_per_pass(make_config, monkeypatch):
 
     assert reads == [[1, 2]]
     assert run.read == [2, 1]
+
+
+def test_the_older_runs_are_read_through_a_client_on_the_dispatch_token(make_config):
+    run = _Drain([_Pull(1)])
+
+    run.tick(make_config, dispatch_token="dispatch")
+
+    [runs_client] = run.runs_clients
+    assert runs_client.token == "dispatch"
+    assert runs_client.closed == 1
+    assert [client.token for client in run.clients] == [_TOKEN, "dispatch"]
+    assert all(client.closed == 1 for client in run.clients)
+
+
+@pytest.mark.parametrize("dispatch_token", [None, _TOKEN])
+def test_the_older_runs_reuse_the_scan_client_when_there_is_no_other_dispatch_token(make_config, dispatch_token):
+    run = _Drain([_Pull(1)])
+
+    run.tick(make_config, dispatch_token=dispatch_token)
+
+    assert run.runs_clients == run.clients
+    assert len(run.clients) == 1
+
+
+def test_the_dispatch_client_is_closed_when_the_runs_read_fails(make_config):
+    run = _Drain([_Pull(1)])
+
+    def broken(_client: Any, _before: datetime) -> int:
+        raise RuntimeError("runs down")
+
+    run._runs = broken  # type: ignore[method-assign,assignment]
+
+    with pytest.raises(RuntimeError, match="runs down"):
+        run.tick(make_config, dispatch_token="dispatch")
+
+    assert [client.closed for client in run.clients] == [1, 1]

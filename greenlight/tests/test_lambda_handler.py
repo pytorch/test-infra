@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from greenlight import cli, lambda_handler
+from greenlight import app_tokens, cli, lambda_handler
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 
 _PEM = "-----BEGIN RSA PRIVATE KEY-----\nline-one\nline-two\n-----END RSA PRIVATE KEY-----\n"
@@ -16,7 +16,6 @@ _PEM_B64 = base64.b64encode(_PEM.encode("utf-8")).decode("ascii")
 _CH_PASSWORD = "clickhouse-secret-pw"
 _CH_USERNAME = "greenlight-ro"
 _CH_HOST = "greenlight.clickhouse.cloud"
-_TOKEN = "ghs_minted_installation_token"
 _SECRET_STORE = "greenlight/prod"
 _APP_ID = "123456"
 _INSTALLATION_ID = 42
@@ -26,14 +25,7 @@ _MAX_ENV = lambda_handler._MAX_DISPATCHES_ENV
 # inside the 300s Lambda timeout, so raising it must be a deliberate two-place edit. The env var's
 # name is not pinned the same way -- renaming it is already a deployment-visible break that no
 # assertion here can catch, and a second literal would only drift.
-_EXPECTED_ARGV = ["review", "--ref", "main", "--max", "30"]
-_EXPECTED_PERMISSIONS = {
-    "actions": "write",
-    "pull_requests": "write",
-    "contents": "read",
-    "members": "read",
-}
-_EXPECTED_REPOSITORIES = ["pytorch", "test-infra"]
+_EXPECTED_ARGV = ["review", "--all-repos", "--ref", "main", "--max", "30"]
 
 
 @pytest.fixture(autouse=True)
@@ -60,10 +52,6 @@ def fakes(monkeypatch):
     fake_boto3.client.return_value.get_secret_value.return_value = {"SecretString": secret_json}
 
     fake_github = MagicMock()
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.return_value = (
-        {},
-        {"token": _TOKEN},
-    )
     fake_github.GithubIntegration.return_value.get_app.return_value.slug = _APP_SLUG
 
     monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
@@ -97,20 +85,22 @@ def test_handler_happy_path(monkeypatch, fakes):
 
     fake_github.Auth.AppAuth.assert_called_once_with(_APP_ID, _PEM)
     fake_github.GithubIntegration.assert_called_once_with(auth=fake_github.Auth.AppAuth.return_value)
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.assert_called_once_with(
-        "POST",
-        f"/app/installations/{_INSTALLATION_ID}/access_tokens",
-        input={"permissions": _EXPECTED_PERMISSIONS, "repositories": _EXPECTED_REPOSITORIES},
-    )
-    assert os.environ["PYTORCH_GREENLIGHT_GITHUB_TOKEN"] == _TOKEN
     assert os.environ["PYTORCH_GREENLIGHT_MAX_RUNTIME_SECONDS"] == "0"
-    # pull_requests is write, not read: the scan revokes greenlight's own approval on a reverted or
-    # ineligible PR, identified by the <slug>[bot] login resolved from GET /app on the same
-    # integration, and writes greenlight's GL/* labels.
+    # The scan revokes greenlight's own approval on a reverted or ineligible PR, identified by the
+    # <slug>[bot] login resolved from GET /app on the same integration.
     assert os.environ["BOT_LOGIN"] == f"{_APP_SLUG}[bot]"
     fake_github.GithubIntegration.return_value.get_app.assert_called_once_with()
 
-    main_mock.assert_called_once_with(_EXPECTED_ARGV)
+    # No single scan token any more: every token is minted per job and repo inside the tick.
+    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.assert_not_called()
+    assert "PYTORCH_GREENLIGHT_GITHUB_TOKEN" not in os.environ
+    main_mock.assert_called_once()
+    assert main_mock.call_args.args == (_EXPECTED_ARGV,)
+    tokens = main_mock.call_args.kwargs["tokens"]
+    assert isinstance(tokens, app_tokens.AppTokens)
+    assert tokens._integration is fake_github.GithubIntegration.return_value
+    assert tokens._installation_id == _INSTALLATION_ID
+    assert tokens._owner == "pytorch"
 
 
 def test_handler_caps_dispatches_per_scan(monkeypatch, fakes):
@@ -314,37 +304,6 @@ def test_handler_secret_missing_clickhouse_password_raises(monkeypatch, fakes):
         lambda_handler.handler({}, object())
 
     assert _SECRET_STORE in str(exc_info.value)
-    main_mock.assert_not_called()
-
-
-def test_handler_token_mint_error_propagates(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-
-    class _GithubError(Exception):
-        pass
-
-    fake_github.GithubException = _GithubError
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.side_effect = _GithubError(
-        "installation token mint failed"
-    )
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    with pytest.raises(_GithubError, match="installation token mint failed"):
-        lambda_handler.handler({}, object())
-
-    main_mock.assert_not_called()
-
-
-def test_handler_token_response_missing_token_raises(monkeypatch, fakes):
-    _fake_boto3, fake_github = fakes
-    fake_github.GithubIntegration.return_value.requester.requestJsonAndCheck.return_value = ({}, {})
-    main_mock = Mock()
-    monkeypatch.setattr(cli, "main", main_mock)
-
-    with pytest.raises(ValueError, match="installation token response"):
-        lambda_handler.handler({}, object())
-
     main_mock.assert_not_called()
 
 
