@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from analytics.github_analyze import (  # noqa: E402
     find_release_only_changes_prs,
     GitRepo,
+    milestone_pr_step_rows,
     milestone_step_rows,
     release_in_preparation,
     release_only_changes_step_rows,
@@ -317,6 +318,113 @@ class MilestoneStepRows(TestCase):
         self.assertEqual(row["status"], "done")
         self.assertEqual(
             row["evidence_text"], "No outstanding items in milestone 2.15.0"
+        )
+
+
+def _milestone_item(number, state, reason, pull_request=True):
+    item = {
+        "number": number,
+        "title": f"item {number}",
+        "html_url": f"https://github.com/pytorch/pytorch/"
+        f"{'pull' if pull_request else 'issues'}/{number}",
+        "state": state,
+    }
+    if pull_request:
+        item["pull_request"] = {}
+    return {"issue": item, "outstanding": False, "reason": reason}
+
+
+class MilestonePrStepRows(TestCase):
+    def rows(self, statuses, branch_cut=True, released=False):
+        return milestone_pr_step_rows(
+            "2.15.0",
+            "release/2.15",
+            69,
+            [{"id": "3.2"}],
+            statuses,
+            branch_cut,
+            "0" * 40,
+            "1-1",
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+            datetime(2026, 10, 20, tzinfo=timezone.utc),
+            released,
+        )
+
+    def test_every_closed_pr_on_the_branch_makes_the_step_done(self):
+        (row,) = self.rows(
+            [
+                _milestone_item(1, "closed", "on_release_branch"),
+                _milestone_item(2, "closed", "landed_before_cut"),
+            ]
+        )
+        self.assertEqual((row["step_id"], row["status"]), ("3.2", "done"))
+        self.assertEqual(row["check_type"], "milestone_prs_on_branch")
+        self.assertEqual(row["blocking"], 0)
+        self.assertEqual(
+            row["evidence_text"],
+            "All 2 closed PR(s) of milestone 2.15.0 are on release/2.15",
+        )
+        self.assertEqual(
+            row["evidence_url"],
+            "https://github.com/pytorch/pytorch/milestone/69?closed=1",
+        )
+
+    def test_a_closed_pr_that_is_not_on_the_branch_keeps_the_step_open(self):
+        (row,) = self.rows(
+            [
+                _milestone_item(1, "closed", "on_release_branch"),
+                _milestone_item(2, "closed", "not_on_release_branch"),
+            ]
+        )
+        self.assertEqual(row["status"], "in_progress")
+        self.assertEqual(
+            row["evidence_text"],
+            "1 closed PR(s) of milestone 2.15.0 not on release/2.15: #2",
+        )
+        details = json.loads(row["details"])
+        self.assertEqual([m["number"] for m in details["missing"]], [2])
+        self.assertEqual(
+            details["by_reason"], {"on_release_branch": 1, "not_on_release_branch": 1}
+        )
+
+    def test_open_issues_are_not_looked_at_but_are_listed(self):
+        # an [RFC], the release tracker and the validation issue stay open until the end
+        (row,) = self.rows(
+            [
+                _milestone_item(1, "closed", "on_release_branch"),
+                _milestone_item(190875, "open", "open", pull_request=False),
+                _milestone_item(199813, "open", "open", pull_request=False),
+            ]
+        )
+        self.assertEqual(row["status"], "done")
+        details = json.loads(row["details"])
+        self.assertEqual(
+            [i["number"] for i in details["open_issues_not_checked"]], [190875, 199813]
+        )
+        self.assertEqual(details["pull_requests"], 1)
+
+    def test_an_open_pr_is_not_a_closed_one(self):
+        # open PRs are what the milestone check (3.1) holds the release for
+        (row,) = self.rows([_milestone_item(5, "open", "open")])
+        self.assertEqual(row["status"], "done")
+        self.assertEqual(json.loads(row["details"])["closed_pull_requests"], 0)
+
+    def test_before_the_branch_cut_there_is_nothing_to_check(self):
+        (row,) = self.rows(
+            [_milestone_item(1, "closed", "closed_before_cut")], branch_cut=False
+        )
+        self.assertEqual(row["status"], "todo")
+        self.assertIn("is not cut yet", row["evidence_text"])
+
+    def test_the_step_is_done_once_the_release_tag_exists(self):
+        (row,) = self.rows(
+            [_milestone_item(2, "closed", "not_on_release_branch")], released=True
+        )
+        self.assertEqual(row["status"], "done")
+        self.assertEqual(
+            row["evidence_text"],
+            "Release tag v2.15.0 exists, so the step is done; "
+            "1 closed PR(s) of milestone 2.15.0 not on release/2.15: #2",
         )
 
 

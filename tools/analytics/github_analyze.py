@@ -634,6 +634,105 @@ def milestone_step_rows(
     ]
 
 
+def milestone_pr_step_rows(
+    release: str,
+    branch: str,
+    milestone_idx: int,
+    steps: List[Dict[str, Any]],
+    statuses: List[Dict[str, Any]],
+    branch_cut: bool,
+    config_sha: str,
+    run_id: str,
+    run_url: str,
+    observed_at: datetime,
+    released: bool = False,
+) -> List[Dict[str, Any]]:
+    """
+    The misc.release_event rows for one scan of the pull requests of a release's milestone:
+    one per release portal step that checks milestone_prs_on_branch, done when every closed
+    PR of the milestone that landed on main after the branch cut is on the release branch
+    (milestone_issue_statuses: not_on_release_branch is the one that is missing).
+
+    Only the PRs count. The open issues of the milestone (an [RFC], the release tracker, the
+    validation issue) are not looked at: they are what milestone_outstanding_items is for, and
+    they are listed in `details`. Before the cut there is nothing to pick, so the step is todo.
+    Once the release is out (its v<version> tag exists) the step is done whatever is missing,
+    and the evidence still lists the PRs.
+    """
+    prs = [status for status in statuses if "pull_request" in status["issue"]]
+    missing = [status for status in prs if status["reason"] == "not_on_release_branch"]
+    by_reason: Dict[str, int] = {}
+    for status in prs:
+        by_reason[status["reason"]] = by_reason.get(status["reason"], 0) + 1
+    closed = sum(1 for status in prs if status["issue"]["state"] == "closed")
+    if missing:
+        numbers = ", ".join(f"#{status['issue']['number']}" for status in missing)
+        evidence = f"{len(missing)} closed PR(s) of milestone {release} not on {branch}: {numbers}"
+        if released:
+            evidence = f"Release tag v{release} exists, so the step is done; {evidence}"
+    elif not branch_cut and not released:
+        evidence = (
+            f"{branch} is not cut yet: no closed PR of milestone {release} to check"
+        )
+    else:
+        evidence = f"All {closed} closed PR(s) of milestone {release} are on {branch}"
+    if released or (branch_cut and not missing):
+        status_value = "done"
+    elif branch_cut:
+        status_value = "in_progress"
+    else:
+        status_value = "todo"
+    details = json.dumps(
+        {
+            "milestone": milestone_idx,
+            "branch": branch,
+            "branch_cut": branch_cut,
+            "released": released,
+            "pull_requests": len(prs),
+            "closed_pull_requests": closed,
+            "by_reason": by_reason,
+            "missing": [
+                {
+                    "number": status["issue"]["number"],
+                    "title": status["issue"]["title"],
+                    "url": status["issue"]["html_url"],
+                }
+                for status in missing
+            ],
+            # not looked at: the open issues (an [RFC], the tracker, the validation issue)
+            "open_issues_not_checked": [
+                {
+                    "number": status["issue"]["number"],
+                    "title": status["issue"]["title"],
+                    "url": status["issue"]["html_url"],
+                }
+                for status in statuses
+                if "pull_request" not in status["issue"]
+                and status["issue"]["state"] == "open"
+            ],
+        }
+    )
+    return [
+        {
+            "release": release,
+            "step_id": step["id"],
+            "rc": "",
+            "status": status_value,
+            "blocking": 0,
+            "evidence_text": evidence,
+            "evidence_url": f"https://github.com/pytorch/pytorch/milestone/{milestone_idx}?closed=1",
+            "check_type": "milestone_prs_on_branch",
+            "source": "collector",
+            "run_id": run_id,
+            "run_url": run_url,
+            "config_sha": config_sha,
+            "details": details,
+            "observed_at": observed_at.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+        }
+        for step in steps
+    ]
+
+
 def insert_clickhouse_rows(table: str, rows: List[Dict[str, Any]]) -> None:
     """Append rows to a ClickHouse table over its HTTP interface (JSONEachRow)."""
     from urllib.parse import quote
@@ -689,21 +788,35 @@ def record_milestone_steps(
         for step in config["steps"]
         if step["check"]["type"] == "milestone_outstanding_items"
     ]
+    pr_steps = [
+        step
+        for step in config["steps"]
+        if step["check"]["type"] == "milestone_prs_on_branch"
+    ]
     statuses = milestone_issue_statuses(repo, branch, f"orig/{branch}", milestone_idx)
     run_id, run_url = workflow_run_info()
-    rows = milestone_step_rows(
-        release,
-        branch,
-        milestone_idx,
-        milestone_steps,
-        statuses,
-        repo.ref_exists(branch),
-        os.environ.get("GITHUB_SHA", "0" * 40),
-        run_id,
-        run_url,
-        datetime.now(timezone.utc),
-        repo.tag_exists(f"v{release}"),
-    )
+    branch_cut, released = repo.ref_exists(branch), repo.tag_exists(f"v{release}")
+    # both kinds of step read the same scan of the milestone
+    rows = [
+        row
+        for make_rows, kind_steps in (
+            (milestone_step_rows, milestone_steps),
+            (milestone_pr_step_rows, pr_steps),
+        )
+        for row in make_rows(
+            release,
+            branch,
+            milestone_idx,
+            kind_steps,
+            statuses,
+            branch_cut,
+            os.environ.get("GITHUB_SHA", "0" * 40),
+            run_id,
+            run_url,
+            datetime.now(timezone.utc),
+            released,
+        )
+    ]
     outstanding = [status for status in statuses if status["outstanding"]]
     print(
         f"{release}: milestone {milestone_idx}, {len(statuses)} issues, "

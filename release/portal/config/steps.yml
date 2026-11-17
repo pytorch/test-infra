@@ -344,7 +344,7 @@ steps:
     tier: S
     owner: release-manager
     due: {anchor: final_rc, offset_days: -2}
-    check: {type: manual_link, what_to_check: "The milestone verification script shows no PR missing from the release branch", link: "https://github.com/pytorch/pytorch/blob/main/RELEASE.md#preparing-and-creating-final-release-candidate"}
+    check: {type: milestone_prs_on_branch, repo: pytorch/pytorch, milestone: "{milestone}"}
   - id: "3.3"
     phase: 3
     name: No outstanding cherry-picks in the tracker

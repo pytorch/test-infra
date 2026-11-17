@@ -79,6 +79,7 @@ engineering validates by itself, outside the portal.
 | `url_exists` | `url` | the URL answers 200 |
 | `github_issue_state` | `repo`, `issue`, `expect` (`open` or `closed`) | the issue is in that state |
 | `milestone_outstanding_items` | `repo`, `milestone`, `max_outstanding` | the milestone has at most `max_outstanding` outstanding items (below) |
+| `milestone_prs_on_branch` | `repo`, `milestone` | every closed PR of the milestone that landed on main after the branch cut is on the release branch (below) |
 | `reverts_missing_from_branch` | `repo`, `branch` | no revert on main is missing from the release branch (below) |
 | `release_only_changes` | `repo`, `title_regex` | a pull request into the release branch whose title matches `title_regex` is merged (below) |
 | `github_ref_exists` | `repos`, `ref`, `kind` (`branch` or `tag`) | the ref exists in every repo |
@@ -106,6 +107,14 @@ the milestone, and the evidence still lists the leftover items. The milestone of
 release is often left open, so the daily job scans a shipped release of the latest release
 lines until its milestone is closed, and the step does not stay at what the last scan before
 the release found.
+
+`milestone_prs_on_branch` reads the same scan of the milestone as `milestone_outstanding_items`,
+and only looks at its pull requests: the step is done when none of the closed PRs landed on
+main after the branch cut without being on the release branch (`not_on_release_branch`, which
+lists them). The open issues of the milestone, such as an `[RFC]`, the release tracker and the
+validation issue, are not looked at (they are listed in `details`); open PRs are left to
+`milestone_outstanding_items`. Before the cut there is nothing to pick, so the step is to do,
+and once the release is out it is done whatever is left, like the milestone step.
 
 `dev_discuss_post` is checked by `tools/analytics/dev_discuss_scan.py`, the `dev-discuss-scan`
 job of GitHub Analytics Daily, for every release in flight (an open milestone of the latest

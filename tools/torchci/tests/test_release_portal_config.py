@@ -341,6 +341,20 @@ class TestChecks(TestCase):
             with self.subTest(check=bad):
                 self.assertNotEqual(self.errors(bad), [])
 
+    def test_the_milestone_prs_on_branch_check(self):
+        good = {
+            "type": "milestone_prs_on_branch",
+            "repo": "pytorch/pytorch",
+            "milestone": "{milestone}",
+        }
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {"type": "milestone_prs_on_branch", "repo": "a/b"},
+            {**good, "x": 1},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
     def test_the_milestone_and_revert_checks(self):
         self.assertEqual(
             self.errors(

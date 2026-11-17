@@ -70,6 +70,10 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "required": {"repo", "milestone", "max_outstanding"},
         "optional": set(),
     },
+    "milestone_prs_on_branch": {
+        "required": {"repo", "milestone"},
+        "optional": set(),
+    },
     "reverts_missing_from_branch": {
         "required": {"repo", "branch"},
         "optional": set(),
