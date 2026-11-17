@@ -4,7 +4,8 @@ A ``gate`` repo has no pytorchbot reading the ledger at land time. This check is
 every ``gate`` repo whose mode is not ``off``: it dismisses each live GreenLight approval the ledger does not
 back on the PR's current head and on ``TARGET_BRANCH``. It does not trust the ledger to find approvals, since
 one can exist with no row: it reads GreenLight's reviews through the ``approvals.ReviewReader`` the repo's
-memory keeps between ticks (``scan_memory.BackingMemory``), so an unchanged PR costs a 304.
+memory keeps between ticks (``scan_memory.BackingMemory``); what each PR was last read at keeps an unchanged PR
+from being read again, since the Lambda's new token each tick gets no 304 for an earlier token's ETag.
 
 Each tick (``check``) lists every open PR, drafts and every author included, reads their latest non-shadow
 rows and verdicts in one ClickHouse query and the ledger's newest row version in another, and judges the

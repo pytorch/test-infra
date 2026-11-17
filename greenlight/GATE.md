@@ -124,8 +124,11 @@ with conditional requests, on every PR with a non-shadow verdict or a review in 
 (updated time, head, base, latest row, the rules' answer) changed since it last read it, on every other
 PR it read before whose state changed (a push, a retarget, a new review), on the PRs left waiting, and
 on a slice of a sweep that reads every open PR within each 15-minute window (an incomplete sweep is the
-repo's error). When ClickHouse cannot be read, it still withdraws approvals on another commit or base,
-leaves the rest for the next tick, and reports the error. It logs, each tick, how many PRs it read and
+repo's error). The Lambda mints new tokens every tick and GitHub ties an ETag to its token, so across ticks
+these reads get no 304: the sweep costs one reviews read per open PR per window (about 1,500 requests an
+hour for 380 open PRs), and a PR's unchanged state is what keeps it from being read in between. When
+ClickHouse cannot be read, it still withdraws approvals on another commit or base, leaves the rest for the
+next tick, and reports the error. It logs, each tick, how many PRs it read and
 how long it took.
 
 **Base rule**: in a gate repo the base must be `main` and the repo's default branch must be `main`,
