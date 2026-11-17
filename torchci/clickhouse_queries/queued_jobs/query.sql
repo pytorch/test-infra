@@ -30,11 +30,14 @@ WITH possible_queued_jobs AS (
             status = 'queued'
             OR
             --- ARC: jobs in_progress but possibly still initializing containers
-            (status = 'in_progress'
-             AND conclusion = ''
-             AND arrayExists(x -> x LIKE '%l-%', labels))
+            (
+                status = 'in_progress'
+                AND conclusion = ''
+                AND arrayExists(x -> x LIKE '%l-%', labels)
+            )
         )
 ),
+
 --- Runner pools demonstrably serving work — see queued_jobs_by_label/query.sql
 --- for why the abandoned label is withheld from a pool that is not, and why the
 --- key is the whole label array. Keep this CTE identical to the one there;
@@ -46,6 +49,7 @@ live_runner_pools AS (
         created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 HOUR)
         AND runner_name != ''
 ),
+
 --- EC2/LF runners: existing logic, only jobs in queued status
 ec2_queued_jobs AS (
     SELECT
@@ -103,13 +107,17 @@ ec2_queued_jobs AS (
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
         AND workflow.repository.'owner'.'login' = {org: String}
-        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
+        AND (
+            {repo: String} = ''
+            OR workflow.repository.'name' = {repo: String}
+        )
         AND job.status = 'queued'
         AND LENGTH(job.steps) = 0
         AND workflow.status != 'completed'
         --- Exclude ARC runners from this path
         AND NOT arrayExists(x -> x LIKE '%l-%', job.labels)
 ),
+
 --- ARC runners: queued OR in_progress but still initializing containers
 arc_queued_jobs AS (
     SELECT
@@ -160,10 +168,13 @@ arc_queued_jobs AS (
         default.workflow_job job FINAL
     JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
     WHERE
-        job.id in (select id from possible_queued_jobs)
-        and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository.'owner'.'login' = {org: String}
-        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
+        job.id IN (SELECT id FROM possible_queued_jobs)
+        AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
+        AND workflow.repository.'owner'.'login' = {org: String}
+        AND (
+            {repo: String} = ''
+            OR workflow.repository.'name' = {repo: String}
+        )
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
         AND workflow.status != 'completed'
@@ -178,12 +189,15 @@ arc_queued_jobs AS (
             --- work hasn't started yet. The 10 min cap guards against stale
             --- step data in ClickHouse — the job is either running ok or fails
             --- already if it has less than 2 steps after 10 minutes
-            (job.status = 'in_progress'
-             AND LENGTH(job.steps) > 0
-             AND LENGTH(job.steps) <= 2
-             AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE))
+            (
+                job.status = 'in_progress'
+                AND LENGTH(job.steps) > 0
+                AND LENGTH(job.steps) <= 2
+                AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE)
+            )
         )
 )
+
 SELECT * FROM (
     SELECT * FROM ec2_queued_jobs
     UNION ALL

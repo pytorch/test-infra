@@ -143,8 +143,10 @@ describe("the summary query only adds columns", () => {
       "MAXIf(queue_s, NOT is_stale) AS live_max_queue_s,",
       "COUNTIf(is_stale) AS stale_count,",
       "MAXIf(queue_s, is_stale) AS oldest_stale_s,",
-      "SELECT queue_s, is_stale, machine_type FROM ec2_queued_jobs",
-      "SELECT queue_s, is_stale, machine_type FROM arc_queued_jobs",
+      // The two UNION ALL branches feeding the aggregate, one column per line
+      // as SQLFluff lays them out.
+      "is_stale,",
+      "is_stale,",
     ]);
   });
 });

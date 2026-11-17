@@ -17,20 +17,27 @@
 --- The defaults (pytorch / pytorch) keep the original pytorch/pytorch-only
 --- behaviour for callers that pass no parameters, e.g. tools/torchci/queue_alert.py; the
 --- metrics page passes repo = '' to cover the whole pytorch org.
-WITH possible_queued_jobs as (
-    select id, run_id from default.workflow_job where
-    created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
-    AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
-    AND (
+WITH possible_queued_jobs AS (
+    SELECT
+        id,
+        run_id
+    FROM default.workflow_job
+    WHERE
+        created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
+        AND created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 WEEK)
+        AND (
         --- EC2/LF: jobs still in queued status
-        status = 'queued'
-        OR
-        --- ARC: jobs in_progress but possibly still initializing containers
-        (status = 'in_progress'
-         AND conclusion = ''
-         AND arrayExists(x -> x LIKE '%l-%', labels))
-    )
+            status = 'queued'
+            OR
+            --- ARC: jobs in_progress but possibly still initializing containers
+            (
+                status = 'in_progress'
+                AND conclusion = ''
+                AND arrayExists(x -> x LIKE '%l-%', labels)
+            )
+        )
 ),
+
 --- Runner pools that are demonstrably serving work: a job created in the last
 --- hour asking for this exact label set has since been picked up by a runner.
 --- runner_name is the reliable "did this actually start" test — status and
@@ -63,6 +70,7 @@ live_runner_pools AS (
         created_at > (CURRENT_TIMESTAMP() - INTERVAL 1 HOUR)
         AND runner_name != ''
 ),
+
 --- EC2/LF runners: existing logic, only jobs in queued status
 ec2_queued_jobs AS (
     SELECT
@@ -71,7 +79,7 @@ ec2_queued_jobs AS (
         job.html_url,
         IF(
             LENGTH(job.labels) = 0,
-            IF (
+            IF(
                 job.runner_group_name IS NOT null
                 AND job.runner_group_name != 'Default'
                 AND job.runner_group_name != 'GitHub Actions'
@@ -80,7 +88,7 @@ ec2_queued_jobs AS (
                 job.runner_group_name,
                 'N/A'
             ),
-            IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ])
+            IF(LENGTH(job.labels) > 1, job.labels[2], job.labels[1])
         ) AS machine_type,
         --- Abandoned run: pytorch/pytorch creates each workflow twice per
         --- ghstack push and the concurrency group cancels the loser seconds
@@ -140,13 +148,16 @@ ec2_queued_jobs AS (
             AND job.labels IN (SELECT labels FROM live_runner_pools)
         ) AS is_stale
     FROM
-        default.workflow_job job final
-        JOIN default.workflow_run workflow final ON workflow.id = job.run_id
+        default.workflow_job job FINAL
+    JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
     WHERE
-        job.id in (select id from possible_queued_jobs)
-        and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository.'owner'.'login' = {org: String}
-        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
+        job.id IN (SELECT id FROM possible_queued_jobs)
+        AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
+        AND workflow.repository.'owner'.'login' = {org: String}
+        AND (
+            {repo: String} = ''
+            OR workflow.repository.'name' = {repo: String}
+        )
         AND job.status = 'queued'
         AND job.created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
         AND LENGTH(job.steps) = 0
@@ -154,13 +165,15 @@ ec2_queued_jobs AS (
         --- Exclude ARC runners from this path
         AND NOT arrayExists(x -> x LIKE '%l-%', job.labels)
 ),
+
 --- ARC runners: queued OR in_progress but still initializing containers
 arc_queued_jobs AS (
     SELECT
         DATE_DIFF('second', job.created_at, CURRENT_TIMESTAMP()) AS queue_s,
         CONCAT(workflow.name, ' / ', job.name) AS name,
         job.html_url,
-        IF(LENGTH(job.labels) > 1, job.labels [ 2 ], job.labels [ 1 ]) AS machine_type,
+        IF(LENGTH(job.labels) > 1, job.labels[2], job.labels[1])
+            AS machine_type,
         --- Same abandoned-run discriminator as ec2_queued_jobs above. Keep the
         --- two textually identical; test/queuedJobsStale.test.ts enforces it.
         (
@@ -173,13 +186,16 @@ arc_queued_jobs AS (
             AND job.labels IN (SELECT labels FROM live_runner_pools)
         ) AS is_stale
     FROM
-        default.workflow_job job final
-        JOIN default.workflow_run workflow final ON workflow.id = job.run_id
+        default.workflow_job job FINAL
+    JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id
     WHERE
-        job.id in (select id from possible_queued_jobs)
-        and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository.'owner'.'login' = {org: String}
-        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
+        job.id IN (SELECT id FROM possible_queued_jobs)
+        AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
+        AND workflow.repository.'owner'.'login' = {org: String}
+        AND (
+            {repo: String} = ''
+            OR workflow.repository.'name' = {repo: String}
+        )
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
         AND workflow.status != 'completed'
@@ -194,12 +210,15 @@ arc_queued_jobs AS (
             --- work hasn't started yet. The 10 min cap guards against stale
             --- step data in ClickHouse — the job is either running ok or fails
             --- already if it has less than 2 steps after 10 minutes
-            (job.status = 'in_progress'
-             AND LENGTH(job.steps) > 0
-             AND LENGTH(job.steps) <= 2
-             AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE))
+            (
+                job.status = 'in_progress'
+                AND LENGTH(job.steps) > 0
+                AND LENGTH(job.steps) <= 2
+                AND job.created_at > (CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE)
+            )
         )
 )
+
 --- Classify per JOB and then aggregate. Judging a whole machine_type at once
 --- would let one suspect job speak for a healthy live queue sharing its name.
 ---
@@ -225,9 +244,17 @@ SELECT
     machine_type,
     CURRENT_TIMESTAMP() AS time
 FROM (
-    SELECT queue_s, is_stale, machine_type FROM ec2_queued_jobs
+    SELECT
+        queue_s,
+        is_stale,
+        machine_type
+    FROM ec2_queued_jobs
     UNION ALL
-    SELECT queue_s, is_stale, machine_type FROM arc_queued_jobs
+    SELECT
+        queue_s,
+        is_stale,
+        machine_type
+    FROM arc_queued_jobs
 )
 GROUP BY
     machine_type
