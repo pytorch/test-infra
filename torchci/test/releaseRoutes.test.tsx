@@ -239,13 +239,11 @@ describe("release routes", () => {
   test("renders empty and failed release indexes", () => {
     const empty = renderToStaticMarkup(
       <ReleaseIndexPageContent
-        resource={
-          resource({
-            active: [],
-            releases: [],
-            pagination: { next: null, previous: null },
-          })
-        }
+        resource={resource({
+          active: [],
+          releases: [],
+          pagination: { next: null, previous: null },
+        })}
       />
     );
     expect(empty).toContain("No release data has been recorded yet.");

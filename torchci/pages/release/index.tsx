@@ -110,7 +110,9 @@ export function ReleaseIndexPageContent({
                   </Stack>
                   <Stack direction="row" flexWrap="wrap" gap={1.5}>
                     <ReleaseStatCard
-                      accent={activeRelease.blocking > 0 ? "blocked" : "default"}
+                      accent={
+                        activeRelease.blocking > 0 ? "blocked" : "default"
+                      }
                       label="Blocking"
                       value={activeRelease.blocking}
                     />
@@ -185,9 +187,7 @@ export function ReleaseIndexPageContent({
                   </TableCell>
                   <TableCell>{release.type}</TableCell>
                   <TableCell>{release.branch}</TableCell>
-                  <TableCell>
-                    {release.ga_date ?? "To be confirmed"}
-                  </TableCell>
+                  <TableCell>{release.ga_date ?? "To be confirmed"}</TableCell>
                   <TableCell>
                     {release.progress.done}/{release.progress.total}
                   </TableCell>
