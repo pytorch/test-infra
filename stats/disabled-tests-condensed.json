@@ -1018,13 +1018,6 @@
       "xpu"
     ]
   ],
-  "test_mem_get_info_with_pyzes (__main__.TestXpu)": [
-    "205024",
-    "https://github.com/pytorch/pytorch/issues/205024",
-    [
-      "xpu"
-    ]
-  ],
   "test_mkldnn_rnn_backward_gru_bias_shape (__main__.TestMetaKernelRegistrations)": [
     "188692",
     "https://github.com/pytorch/pytorch/issues/188692",
