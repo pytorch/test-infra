@@ -3,7 +3,7 @@
 1. Per heuristic, weighted pool-adjacent-violators maps its score to the chance the file
    fails, fitted on the rows where it ran and did not raise; the table starts at 0.0 and
    is clipped to [Y_MIN, Y_MAX]. The exported table is that chance centered at score 0:
-   shifted in log-odds so that score 0 maps to 0.5 (centered_table).
+   its points shifted in log-odds so that score 0 maps to 0.5 (centered_table).
 2. A weighted logistic regression over each heuristic's centered log-odds (0 where it
    did not run, the same as scoring 0), one-hots of the build env and test config
    (L2-penalised) and ln(cost), with the heuristic weights held >= 0 by projected Newton
@@ -123,10 +123,12 @@ def isotonic_table(
 
 
 def centered_table(x: list[float], y: list[float]) -> tuple[list[float], list[float]]:
-    """The table shifted in log-odds so that score 0 maps to 0.5, log-odds 0: y' =
-    sigmoid(logit(y) - logit(y[0])). A heuristic that did not run adds log-odds 0, in
-    training and when served, so it counts as having scored 0; the intercept takes the
-    shift. The top clips at Y_MAX once logit(y) - logit(y[0]) passes logit(Y_MAX)."""
+    """The table's points shifted in log-odds so that score 0 maps to 0.5, log-odds 0:
+    y' = sigmoid(logit(y) - logit(y[0])). A heuristic that did not run adds log-odds 0,
+    in training and when served, so it counts as having scored 0; the intercept takes
+    the shift. The shift is exact at the points only: training and serving interpolate
+    linearly in y' between them. The top clips at Y_MAX once logit(y) - logit(y[0])
+    passes logit(Y_MAX)."""
     logit = np.log(np.divide(y, np.subtract(1.0, y)))
     return round_table(x, (1.0 / (1.0 + np.exp(logit[0] - logit))).tolist())
 
@@ -251,7 +253,8 @@ def fit_scorer(rows: Rows) -> dict[str, Any]:
         j = rows.heuristics.index(h)
         act = rows.active[:, j]
         x, yy = isotonic_table(rows.scores[act, j], rows.label[act], w[act])
-        tables[h] = dict(zip(("x", "y"), centered_table(x, yy)))
+        x, yy = centered_table(x, yy)
+        tables[h] = {"x": x, "y": yy}
         col = np.zeros(len(rows))
         col[act] = calibrated_log_odds(tables[h], np.maximum(rows.scores[act, j], 0.0))
         columns.append(col)

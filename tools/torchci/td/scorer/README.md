@@ -5,8 +5,9 @@ A learned layer over pytorch's target determination (TD) heuristics, retrained d
 - **Scorer**: each heuristic's score is calibrated into the chance a test file fails
   (isotonic fit), and the calibrated log-odds are combined with non-negative weights plus
   build-env and test-config terms and ln(cost) into p. Each heuristic's table is centered
-  at score 0: its log-odds are shifted so that score 0 maps to 0.5 (log-odds 0), and the
-  intercept takes the shift. So a table's y is no longer the chance a file fails, and a
+  at score 0: its points are shifted in log-odds so that score 0 maps to 0.5 (log-odds 0),
+  values between points are interpolated linearly in the shifted y, and the intercept
+  takes the shift. So a table's y is no longer the chance a file fails, and a
   heuristic that raised or did not run counts as having scored 0, in training and in
   pytorch's TD job alike; otherwise it would weigh more than any pick it makes, and its
   weight would shrink toward 0 with every run it misses. pytorch's `run_test.py` keeps the
