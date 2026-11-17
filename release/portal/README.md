@@ -84,6 +84,7 @@ engineering validates by itself, outside the portal.
 | `github_workflow_run` | `repo`, `workflow`, `ref` | the latest run on the ref succeeded |
 | `index_listing` | `index` (`download.pytorch.org`, `pypi`, `dockerhub`), `channel` (`test`, `release`), `package_types` | every expected artifact is present; the detail is in the artifact matrix |
 | `crcr_summary` | none | downstream CI results for the RC (phase 2 of the portal) |
+| `nightly_binaries` | `repo`, `branch` | the wheel, libtorch and docker builds of the latest finished nightly of `repo` are green (below) |
 | `triton_release_branch` | none | `triton-lang/triton` has the release branch `release/X.Y.x` of `versions.triton`, and the triton pin of pytorch is on it (below) |
 | `pypi_release` | `package`, `version` | `version` of the package is on PyPI |
 | `dev_discuss_post` | `title_regex` (one pattern, or one per release type), `carries_dates` (optional) | a post whose title matches exists in the Release Announcements category of dev-discuss (below) |
@@ -121,6 +122,18 @@ branch, as `--analyze-missing-reverts-from-branch` does, and the step is done un
 them is of a commit that was in a release candidate. Only those reverts, the ones to
 cherry-pick, are listed in the recorded `details`; the others (already cherry-picked, or of a
 commit the branch never had) are only counted by status.
+
+`nightly_binaries` is checked by `tools/analytics/nightly_scan.py`, the `nightly-scan` job of GitHub
+Analytics Daily, for every release in flight that is before its branch cut (`release/X.Y` does not
+exist yet; after it the step is not written any more and its last result stands). It reads the
+newest commit of the `nightly` branch whose workflow runs have all finished, like the
+[nightly HUD page](https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1?per_page=50) shows it. A job
+counts for its category: the jobs of the Build Official Docker Images workflow are docker, the jobs
+named `libtorch-*` are libtorch, and the other jobs are wheel builds. The step is done when every
+category has jobs and none of them failed, and in progress otherwise (the evidence says which
+category failed, and `details` lists the failed jobs). The newest row of the step is what the board
+shows, so each day's result replaces the earlier ones. Only pytorch is read, not the domain
+libraries.
 
 `triton_release_branch` and `pypi_release` are checked by `tools/analytics/triton_scan.py`, the
 `triton-scan` job of GitHub Analytics Daily, for every release in flight, from `versions.triton`

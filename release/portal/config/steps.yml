@@ -127,7 +127,7 @@ steps:
     tier: M
     owner: release-manager
     due: {anchor: branch_cut, offset_days: -1}
-    check: {type: manual_link, what_to_check: "The nightly HUD pages for pytorch and each domain library are green", link: "https://hud.pytorch.org/hud/pytorch/pytorch/nightly/1"}
+    check: {type: nightly_binaries, repo: pytorch/pytorch, branch: nightly}
   - id: "1.6"
     phase: 1
     name: Release tracker issue created

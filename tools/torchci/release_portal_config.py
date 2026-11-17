@@ -87,6 +87,7 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "optional": set(),
     },
     "crcr_summary": {"required": set(), "optional": set()},
+    "nightly_binaries": {"required": {"repo", "branch"}, "optional": set()},
     "triton_release_branch": {"required": set(), "optional": set()},
     "pypi_release": {"required": {"package", "version"}, "optional": set()},
     "dev_discuss_post": {
@@ -245,6 +246,15 @@ def _check_errors(where: str, check: Any) -> List[str]:
             )
     elif ctype == "dev_discuss_post":
         errors.extend(_dev_discuss_post_errors(where, check))
+    elif ctype == "nightly_binaries":
+        for key in ("repo", "branch"):
+            if key in check and not (isinstance(check[key], str) and check[key]):
+                errors.append(
+                    f"{where}: check nightly_binaries `{key}` must be a non-empty string"
+                )
+        repo = check.get("repo")
+        if isinstance(repo, str) and repo and "/" not in repo:
+            errors.append(f"{where}: check nightly_binaries `repo` must be owner/name")
     elif ctype == "pypi_release":
         for key in ("package", "version"):
             if key in check and not (isinstance(check[key], str) and check[key]):

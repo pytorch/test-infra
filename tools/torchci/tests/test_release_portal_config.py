@@ -307,6 +307,22 @@ class TestChecks(TestCase):
     def test_check_types_without_parameters(self):
         self.assertEqual(self.errors({"type": "crcr_summary"}), [])
 
+    def test_the_nightly_binaries_check(self):
+        good = {
+            "type": "nightly_binaries",
+            "repo": "pytorch/pytorch",
+            "branch": "nightly",
+        }
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {"type": "nightly_binaries", "repo": "pytorch/pytorch"},
+            {"type": "nightly_binaries", "repo": "pytorch", "branch": "nightly"},
+            {"type": "nightly_binaries", "repo": "pytorch/pytorch", "branch": ""},
+            {**good, "workflow": "x"},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
     def test_the_milestone_and_revert_checks(self):
         self.assertEqual(
             self.errors(
