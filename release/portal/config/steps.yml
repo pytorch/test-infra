@@ -180,7 +180,7 @@ steps:
     due: {anchor: branch_cut, offset_days: 2}
     depends_on: ["1.8"]
     runbook: {script: scripts/release/apply-release-changes.sh}
-    check: {type: manual_link, what_to_check: "The release-only changes PR (workflow refs, triton, version files, bc tests on RC binaries) is merged", link: "https://github.com/pytorch/pytorch/tree/{branch}"}
+    check: {type: release_only_changes, repo: pytorch/pytorch, title_regex: '(?i)release[- ]only changes'}
   - id: "1.12"
     phase: 1
     name: Nightly versions bumped to the next minor on main

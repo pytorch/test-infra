@@ -4,6 +4,7 @@ import sys
 import tempfile
 from pathlib import Path
 from unittest import main, TestCase
+from unittest.mock import patch
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -11,9 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from datetime import datetime, timezone
 
 from analytics.github_analyze import (  # noqa: E402
+    find_release_only_changes_prs,
     GitRepo,
     milestone_step_rows,
     release_in_preparation,
+    release_only_changes_step_rows,
     releases_in_flight,
     releases_just_shipped,
     revert_step_rows,
@@ -315,6 +318,101 @@ class MilestoneStepRows(TestCase):
         self.assertEqual(
             row["evidence_text"], "No outstanding items in milestone 2.15.0"
         )
+
+
+def _pr(number, title, state="closed", merged_at=None):
+    return {
+        "number": number,
+        "title": title,
+        "state": state,
+        "merged_at": merged_at,
+        "html_url": f"https://github.com/pytorch/pytorch/pull/{number}",
+    }
+
+
+class ReleaseOnlyChanges(TestCase):
+    TITLE = "[release 2.15] Apply Release only changes to 2.15 branch"
+
+    def rows(self, prs):
+        return release_only_changes_step_rows(
+            "2.15.0",
+            "release/2.15",
+            "pytorch/pytorch",
+            [{"id": "1.11"}],
+            prs,
+            "0" * 40,
+            "1-1",
+            "https://github.com/pytorch/test-infra/actions/runs/1",
+            datetime(2026, 10, 6, tzinfo=timezone.utc),
+        )
+
+    def test_a_merged_pr_makes_the_step_done(self):
+        (row,) = self.rows([_pr(199819, self.TITLE, "closed", "2026-10-05T21:55:46Z")])
+        self.assertEqual((row["step_id"], row["status"]), ("1.11", "done"))
+        self.assertEqual(row["check_type"], "release_only_changes")
+        self.assertEqual(row["blocking"], 0)
+        self.assertEqual(row["rc"], "")
+        self.assertEqual(
+            row["evidence_url"], "https://github.com/pytorch/pytorch/pull/199819"
+        )
+        self.assertIn("#199819", row["evidence_text"])
+        self.assertIn("2026-10-05", row["evidence_text"])
+        details = json.loads(row["details"])
+        self.assertEqual(details["branch"], "release/2.15")
+        self.assertEqual(details["pull_requests"][0]["number"], 199819)
+
+    def test_an_open_pr_keeps_the_step_in_progress(self):
+        (row,) = self.rows([_pr(5, self.TITLE, "open")])
+        self.assertEqual(row["status"], "in_progress")
+        self.assertIn("is open", row["evidence_text"])
+        self.assertEqual(
+            row["evidence_url"], "https://github.com/pytorch/pytorch/pull/5"
+        )
+
+    def test_a_pr_closed_without_merging_keeps_the_step_in_progress(self):
+        (row,) = self.rows([_pr(5, self.TITLE, "closed", None)])
+        self.assertEqual(row["status"], "in_progress")
+        self.assertIn("closed without merging", row["evidence_text"])
+
+    def test_a_merged_pr_wins_over_an_earlier_closed_one(self):
+        (row,) = self.rows(
+            [
+                _pr(5, self.TITLE, "closed", None),
+                _pr(6, self.TITLE, "closed", "2026-10-05T21:55:46Z"),
+            ]
+        )
+        self.assertEqual(row["status"], "done")
+        self.assertIn("#6", row["evidence_text"])
+        self.assertEqual(len(json.loads(row["details"])["pull_requests"]), 2)
+
+    def test_no_pr_yet_links_to_the_pulls_of_the_branch(self):
+        (row,) = self.rows([])
+        self.assertEqual(row["status"], "in_progress")
+        self.assertEqual(
+            row["evidence_text"], "no release-only changes PR into release/2.15 yet"
+        )
+        self.assertEqual(
+            row["evidence_url"],
+            "https://github.com/pytorch/pytorch/pulls?q=is%3Apr+base%3Arelease/2.15",
+        )
+
+    def test_the_pulls_of_the_branch_are_filtered_by_title(self):
+        pulls = [
+            _pr(1, "[release 2.15] Cherry pick something"),
+            _pr(2, "[RELEASE 2.10] Release only changes"),
+            _pr(3, self.TITLE),
+        ]
+        with patch(
+            "analytics.github_analyze.fetch_multipage_json", return_value=pulls
+        ) as fetch:
+            found = find_release_only_changes_prs(
+                "pytorch/pytorch", "release/2.15", "(?i)release[- ]only changes"
+            )
+        self.assertEqual([pr["number"] for pr in found], [2, 3])
+        url, params = fetch.call_args.args
+        self.assertEqual(url, "https://api.github.com/repos/pytorch/pytorch/pulls")
+        self.assertEqual(params["base"], "release/2.15")
+        self.assertEqual(params["state"], "all")
 
 
 if __name__ == "__main__":

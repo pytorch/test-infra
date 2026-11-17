@@ -323,6 +323,24 @@ class TestChecks(TestCase):
             with self.subTest(check=bad):
                 self.assertNotEqual(self.errors(bad), [])
 
+    def test_the_release_only_changes_check(self):
+        good = {
+            "type": "release_only_changes",
+            "repo": "pytorch/pytorch",
+            "title_regex": "(?i)release[- ]only changes",
+        }
+        self.assertEqual(self.errors(good), [])
+        for bad in (
+            {k: v for k, v in good.items() if k != "title_regex"},
+            {**good, "repo": "pytorch"},
+            {**good, "title_regex": ""},
+            {**good, "title_regex": "("},
+            {**good, "branch": "release/2.15"},
+            {**good, "workflow": "x"},
+        ):
+            with self.subTest(check=bad):
+                self.assertNotEqual(self.errors(bad), [])
+
     def test_the_milestone_and_revert_checks(self):
         self.assertEqual(
             self.errors(

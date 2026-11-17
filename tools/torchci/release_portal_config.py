@@ -74,6 +74,10 @@ CHECK_TYPES: Dict[str, Dict[str, Set[str]]] = {
         "required": {"repo", "branch"},
         "optional": set(),
     },
+    "release_only_changes": {
+        "required": {"repo", "title_regex"},
+        "optional": set(),
+    },
     "github_ref_exists": {
         "required": {"repos", "ref", "kind"},
         "optional": set(),
@@ -255,6 +259,25 @@ def _check_errors(where: str, check: Any) -> List[str]:
         repo = check.get("repo")
         if isinstance(repo, str) and repo and "/" not in repo:
             errors.append(f"{where}: check nightly_binaries `repo` must be owner/name")
+    elif ctype == "release_only_changes":
+        for key in ("repo", "title_regex"):
+            if key in check and not (isinstance(check[key], str) and check[key]):
+                errors.append(
+                    f"{where}: check release_only_changes `{key}` must be a non-empty string"
+                )
+        repo = check.get("repo")
+        if isinstance(repo, str) and repo and "/" not in repo:
+            errors.append(
+                f"{where}: check release_only_changes `repo` must be owner/name"
+            )
+        pattern = check.get("title_regex")
+        if isinstance(pattern, str) and pattern:
+            try:
+                re.compile(pattern)
+            except re.error as err:
+                errors.append(
+                    f"{where}: check release_only_changes `title_regex` is not a valid pattern: {err}"
+                )
     elif ctype == "pypi_release":
         for key in ("package", "version"):
             if key in check and not (isinstance(check[key], str) and check[key]):
