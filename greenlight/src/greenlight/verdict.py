@@ -54,6 +54,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from greenlight import (
+    approvals,
     comment_format,
     constants,
     github_client,
@@ -227,7 +228,7 @@ def _run_marker(
 
 
 def _dismiss_prior_approvals(request: VerdictRequest, pr: VerdictPR) -> None:
-    dismissed = github_client.dismiss_prior_greenlight_approvals(
+    dismissed = approvals.dismiss_prior_greenlight_approvals(
         pr, bot_login=request.bot_login, message=_SUPERSEDED_MESSAGE
     )
     if dismissed:
@@ -315,10 +316,15 @@ def _run_full(
                 author,
                 request.shadow,
             )
-        elif github_client.has_live_greenlight_approval(pr, bot_login=request.bot_login):
+        elif approvals.has_live_greenlight_approval(pr, bot_login=request.bot_login):
             logger.info("already approved %s#%d; skipping re-approval", request.repo, request.pr_number)
         else:
-            github_client.post_review(pr, event=github_client.REVIEW_EVENT_APPROVE, body=_LAND_REVIEW_BODY)
+            github_client.post_review(
+                pr,
+                event=github_client.REVIEW_EVENT_APPROVE,
+                body=_LAND_REVIEW_BODY,
+                commit=client.get_repo(request.repo).get_commit(request.head_sha),
+            )
             logger.info("approved %s#%d", request.repo, request.pr_number)
     if not shadow:
         verdict_labels.label_verdict(pr, status, reviewed_head=request.head_sha, number=request.pr_number)

@@ -5,7 +5,7 @@ import gzip
 import json
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, NoReturn, cast
 
 import pytest
 from github import GithubException, RateLimitExceededException
@@ -21,6 +21,8 @@ from tests.eligibility_fakes import REVIEWED, FakeRulesClient
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
+
+    from github.Commit import Commit
 
     from greenlight.config import Config
 
@@ -78,6 +80,11 @@ class _FakeReview:
         self._rec.events.append(f"dismiss:{self.id}")
 
 
+class _FakeCommit:
+    def __init__(self, sha: str) -> None:
+        self.sha = sha
+
+
 class _FakeHead:
     def __init__(self, sha: str, ref: str = "feature") -> None:
         self.sha = sha
@@ -130,10 +137,12 @@ class _FakePR:
         self._reviews = reviews or []
         self._issue_comments = issue_comments or []
         self.created_reviews: list[tuple[str, str]] = []
+        self.review_commits: list[str] = []
         self.comments: list[str] = []
 
-    def create_review(self, *, body: str, event: str) -> object:
+    def create_review(self, *, commit: Commit, body: str, event: str) -> object:
         self.created_reviews.append((event, body))
+        self.review_commits.append(commit.sha)
         self._rec.events.append(f"review:{event}")
         return object()
 
@@ -164,6 +173,9 @@ class _FakeRepo:
     def get_pull(self, number: int) -> _FakePR:
         self.get_pull_numbers.append(number)
         return self._pr
+
+    def get_commit(self, sha: str) -> Commit:
+        return cast("Commit", _FakeCommit(sha))
 
 
 class _FakeGithub:
@@ -222,8 +234,9 @@ def test_full_land_emits_payload_then_approves(make_config, tmp_path):
     )
 
     assert captured["token"] == "tok"
-    assert gh.get_repo_names == ["pytorch/pytorch"]
+    assert gh.get_repo_names == ["pytorch/pytorch", "pytorch/pytorch"]
     assert repo.get_pull_numbers == [7]
+    assert pr.review_commits == ["headsha"]
     # pytorch/pytorch delegates its status comment to Dr. CI, so only the merge gate acts.
     assert rec.events == ["emit", "review:APPROVE"]
     assert pr.comments == []
@@ -578,6 +591,7 @@ def test_full_land_upserts_existing_marked_comment(make_config, tmp_path):
     # LAND approves with the one-liner, then edits its own comment in place (no new create).
     assert rec.events == ["emit", "review:APPROVE", "edit"]
     assert pr.created_reviews[0] == ("APPROVE", verdict._LAND_REVIEW_BODY)
+    assert pr.review_commits == [req.head_sha]
     assert pr.comments == []
     assert comment_format.COMMENT_MARKER in existing.body
     assert f"**{comment_format.LAND_HEADLINE}**" in existing.body
@@ -982,7 +996,7 @@ class _CommentBoomPR(_FakePR):
 class _ReviewBoomPR(_FakePR):
     """A PR whose approving review always fails, to prove the merge-gate write stays fatal."""
 
-    def create_review(self, *, body: str, event: str) -> object:
+    def create_review(self, *, commit: Commit, body: str, event: str) -> object:
         raise RuntimeError("review 5xx")
 
 

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from greenlight import drci_poke, repo_config, repo_scan, verdict, workflow_target
+from greenlight import drci_poke, gate_check, repo_config, repo_scan, verdict, workflow_target
 from greenlight.config import Config
 from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
@@ -189,6 +189,7 @@ def build_parser() -> argparse.ArgumentParser:
     check_parser.add_argument("path", type=Path, help="path to the config file")
     check_parser.add_argument("--repo", required=True, help="owner/name of the repository the file belongs to")
     workflow_target.add_parser(subparsers)
+    gate_check.add_parser(subparsers)
     return parser
 
 
@@ -285,6 +286,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_check_config(args)
     if args.command == "target":
         return workflow_target.run(args)
+    if args.command == "gate-check":
+        return gate_check.run(args)
     try:
         config = _config_from_args(args)
         configure_logging(config.log_level)

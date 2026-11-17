@@ -52,6 +52,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from greenlight import (
+    approvals,
     candidate_filter,
     change_feed,
     change_listing,
@@ -205,7 +206,7 @@ def prepare(
     emit_reverted: Callable[..., None] = state_emit.emit_reverted,
     poke_drci: Callable[[str, int, Config], None] = drci_poke.poke,
     get_pr: Callable[[Github, str, int], VerdictPR] = github_client.get_pr,
-    dismiss_approvals: Callable[..., list[int]] = github_client.dismiss_prior_greenlight_approvals,
+    dismiss_approvals: Callable[..., list[int]] = approvals.dismiss_prior_greenlight_approvals,
     upsert_comment: Callable[..., None] = github_client.upsert_issue_comment,
     label_prs: Callable[[verdict_labels.LabelPass], None] = verdict_labels.label_listed_prs,
     resolve_merge_rules: Callable[[], MergeRulesSnapshot],
