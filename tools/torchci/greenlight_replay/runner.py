@@ -38,8 +38,8 @@ What the flags buy, and what each costs if dropped:
   run the reviewer at the CLI default while the policy says otherwise, and nothing in the
   result would show it, so what was passed is logged at launch instead.
 * ``timeout`` is the GNU binary, invoked WITHOUT ``--foreground`` so it signals the whole
-  process group; the CLI has no timeout flag of its own. The bound is the policy's action
-  step ``timeout-minutes`` unless the operator passes one.
+  process group; the CLI has no timeout flag of its own. The bound is the one the sweep
+  resolves: the policy's action step ``timeout-minutes`` unless the operator passes one.
 * The environment is replaced wholesale rather than inherited, so ``GITHUB_WORKSPACE`` must
   be set explicitly: ``restrict-read.py`` fails closed without it and denies every read.
 
@@ -170,7 +170,7 @@ def run_review(
     *,
     pr_number: int,
     head_sha: str,
-    timeout_s: int | None = None,
+    timeout_s: int,
     model: str = DEFAULT_MODEL,
     context_window: int = DEFAULT_CONTEXT_WINDOW,
 ) -> RunResult:
@@ -186,7 +186,7 @@ def run_review(
     share one checkout.
 
     ``run_dir`` holds the reviewer's scratch files and must already contain the diff and
-    metadata that ``inputs`` wrote there. ``timeout_s`` defaults to the policy's.
+    metadata that ``inputs`` wrote there. ``timeout_s`` is each attempt's wall clock.
     """
     if inputs.too_large:
         return canned_result(policy.too_large_verdict)
@@ -201,7 +201,7 @@ def run_review(
                 run_dir,
                 pr_number,
                 head_sha,
-                policy.timeout_s if timeout_s is None else timeout_s,
+                timeout_s,
                 model,
                 context_window,
             )

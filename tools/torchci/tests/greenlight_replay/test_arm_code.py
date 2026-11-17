@@ -244,7 +244,12 @@ CORPUS = (
         True,
         True,
     ),
-    ("a marker status", {"status": "FAILED", "reason": "", "message": ""}, False, True),
+    (
+        "a marker status",
+        {"status": "FAILED", "reason": "", "message": ""},
+        False,
+        False,
+    ),
     (
         "two JSON values",
         b'{"status": "LAND", "reason": "clean", "message": "- ok"}\n'
@@ -284,7 +289,7 @@ class TestRecordChecks(TreeTestCase):
         for name, content, record_ok, _ in CORPUS:
             with self.subTest(name):
                 rejection = arm_code._record_step_rejection(
-                    HEAD_RECORD_STEP, self.write(content)
+                    REPO_ROOT, HEAD_RECORD_STEP, self.write(content)
                 )
                 self.assertEqual(rejection is None, record_ok, rejection)
 
@@ -354,6 +359,41 @@ class TestRecordChecks(TreeTestCase):
         refused, _ = self.accept(path)
         self.assertIsNone(refused)
 
+    def test_the_verdict_is_what_the_arms_own_resolution_hands_on(self):
+        # A synthetic arm whose resolution appends a bullet: the replay records the
+        # message its _run_full received, not one the harness re-derives.
+        root = self.tree()
+        resolution = root / "greenlight/src/greenlight/verdict_input.py"
+        text = resolution.read_text()
+        old = "        return status, doc.reason, doc.message\n"
+        self.assertIn(old, text)
+        resolution.write_text(
+            text.replace(
+                old,
+                '        return status, doc.reason, doc.message + "\\n- appended"\n',
+            )
+        )
+        path = self.write({"status": "LAND", "reason": "clean", "message": "- ok"})
+        verdict, rejection = arm_code.accept_verdict(
+            root,
+            HEAD_RECORD_STEP,
+            path,
+            repo="pytorch/pytorch",
+            pr_number=1,
+            head_sha=HEAD_SHA,
+        )
+        self.assertIsNotNone(verdict, rejection)
+        self.assertEqual(verdict["message"], "- ok\n- appended")
+
+    def test_a_verdict_the_command_never_records_is_refused(self):
+        # A marker status passes the dry run without reaching _run_full.
+        path = self.write({"status": "CANCELLED"})
+        verdict, rejection = arm_code._dry_run(
+            REPO_ROOT, path, "pytorch/pytorch", 1, HEAD_SHA
+        )
+        self.assertIsNone(verdict)
+        self.assertIn("did not record it", rejection)
+
     def test_a_relative_verdict_path_is_resolved_before_the_checks(self):
         path = self.write({"status": "LAND", "reason": "clean", "message": "- ok"})
         cwd = os.getcwd()
@@ -363,6 +403,42 @@ class TestRecordChecks(TreeTestCase):
         finally:
             os.chdir(cwd)
         self.assertIsNotNone(verdict, rejection)
+
+
+class TestRecordStepRun(TreeTestCase):
+    """The record step runs as GitHub runs it: its shell, in the job's checkout."""
+
+    def run_step(self, run, shell=None, root=REPO_ROOT):
+        verdict = self.scratch() / "greenlight-verdict.json"
+        verdict.write_text("{}")
+        record = workflow_steps.RecordStep(
+            run=f"{workflow_steps.RECORD_VERDICT_ASSIGNMENT}\n{run}\n", shell=shell
+        )
+        return arm_code._record_step_rejection(root, record, verdict)
+
+    def test_no_shell_is_bash_e_without_pipefail(self):
+        # GitHub runs an unset shell as `bash -e {0}`: a failing pipe head is ignored.
+        self.assertIsNone(self.run_step('false | true\ntest -f "$verdict"'))
+
+    def test_shell_bash_is_bash_with_pipefail(self):
+        rejection = self.run_step('false | true\ntest -f "$verdict"', shell="bash")
+        self.assertIsNotNone(rejection)
+
+    def test_both_shells_stop_at_a_failing_command(self):
+        for shell in (None, "bash"):
+            with self.subTest(shell=shell):
+                self.assertIsNotNone(self.run_step("false\ntrue", shell=shell))
+
+    def test_the_step_runs_in_the_arms_tree(self):
+        root = self.tree()
+        (root / "marker-for-the-record-step").write_text("here\n")
+        step = "test -f marker-for-the-record-step\ntest -f greenlight/repos.yaml"
+        self.assertIsNone(self.run_step(step, root=root))
+        self.assertIsNotNone(self.run_step(step, root=REPO_ROOT))
+
+    def test_the_trace_names_the_check_that_failed_silently(self):
+        rejection = self.run_step("jq -e '.absent' \"$verdict\" >/dev/null")
+        self.assertIn("jq -e .absent", rejection)
 
 
 class TestCannedVerdicts(TreeTestCase):

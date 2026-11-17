@@ -143,7 +143,7 @@ class RunnerTestCase(ScratchTestCase):
                 self.run_dir,
                 pr_number=167890,
                 head_sha="a" * 40,
-                **options,
+                **{"timeout_s": self.policy.timeout_s, **options},
             )
         self.last_cli = fake
         return result
@@ -363,6 +363,7 @@ class TestDetector(RunnerTestCase):
                     self.run_dir,
                     pr_number=1,
                     head_sha="a" * 40,
+                    timeout_s=self.policy.timeout_s,
                 )
         self.assertEqual(fake.calls, [])
 
@@ -419,10 +420,7 @@ class TestInvocation(RunnerTestCase):
         self.assertEqual(argv[:4], ["timeout", "-k", "10", str(self.policy.timeout_s)])
         self.assertNotIn("--foreground", argv)
 
-    def test_the_policys_timeout_is_the_default_and_the_operators_overrides_it(self):
-        self.policy = dataclasses.replace(self.policy, timeout_s=1500)
-        self.review((0, envelope(result_element()), GOOD_VERDICT))
-        self.assertEqual(self.last_cli.calls[0]["command"][3], "1500")
+    def test_the_timeout_launched_is_the_one_the_sweep_resolved(self):
         self.review((0, envelope(result_element()), GOOD_VERDICT), timeout_s=60)
         self.assertEqual(self.last_cli.calls[0]["command"][3], "60")
 
@@ -623,6 +621,7 @@ class TestReviewBudget(RunnerTestCase):
                 self.run_dir,
                 pr_number=1,
                 head_sha="a" * 40,
+                timeout_s=self.policy.timeout_s,
             )
         self.assertNotIn("GREENLIGHT_REVIEW_HARD_DEADLINE", fake.calls[0]["env"])
 
@@ -639,6 +638,7 @@ class TestInputPlacement(RunnerTestCase):
                 run_dir,
                 pr_number=1,
                 head_sha="a" * 40,
+                timeout_s=self.policy.timeout_s,
             )
         return str(caught.exception)
 

@@ -8,12 +8,15 @@ The instruction-loading detector is run the same way, by :mod:`.detector`. A cop
 the harness would replay the harness's idea of the policy rather than the policy.
 
 Every call runs in a subprocess whose environment is built from nothing -- the reviewer's
-pinned ``PATH``, an empty ``HOME``, a UTF-8 locale -- so no token, proxy or credential of
-the operator's reaches code a policy pull request wrote. greenlight's code runs under the
-interpreter running the harness with ``-I``, so neither the environment nor the working
-directory adds to its import path, and ``-B``, so nothing is written into the tree; the
-arm's ``greenlight/src`` is the first entry on that path. The CLI subcommands used here
-import only the standard library and PyYAML, the heavy dependencies being imported lazily.
+pinned ``PATH``, an empty ``HOME``, a UTF-8 locale -- so none of the harness's environment
+variables reach it. That is all it confines: the child runs as the operator, with the
+operator's files and network, and every materialize -- a sweep, a dry run and
+``collect`` alike -- executes the greenlight code of the policy ref it was given.
+greenlight's code runs under the interpreter running the harness with ``-I``, so neither
+the environment nor the working directory adds to its import path, and ``-B``, so nothing
+is written into the tree; the arm's ``greenlight/src`` is the first entry on that path.
+The CLI subcommands used here import only the standard library and PyYAML, the heavy
+dependencies being imported lazily.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ from torchci.greenlight_replay.reviewer_env import SUBPROCESS_PATH
 from torchci.greenlight_replay.workflow_steps import (
     NoPolicyProgram,
     record_verdict_line,
+    RecordStep,
 )
 
 
@@ -79,26 +83,38 @@ _CLI_DRIVER = (
     "sys.exit(cli.main(sys.argv[2:]))\n"
 )
 
-# The verdict command logs to stdout, so stdout is handed to stderr for the call and the
-# processed verdict alone is printed: the status as the command normalizes it, the reason
-# it validated, and the message after the scrub every sink of the record path receives.
+# The verdict command logs to stdout, so stdout is handed to stderr for the call. Its
+# ``_run_full`` receives a LAND or NO_LAND's status, reason and message once the command
+# has resolved, scrubbed and validated them, and acts on them -- in a dry run, by logging
+# alone; those three are what is printed. A verdict that never reaches it, such as a
+# marker status, is refused.
 _VERDICT_DRIVER = (
     "import json, sys\n"
     "sys.path.insert(0, sys.argv[1])\n"
     "verdict_file = sys.argv[2]\n"
     "stdout, sys.stdout = sys.stdout, sys.stderr\n"
-    "from greenlight import cli, redact\n"
+    "from greenlight import cli, verdict\n"
+    "captured = []\n"
+    "run_full = verdict._run_full\n"
+    "def capture(request, config, status, reason, message, *args, **kwargs):\n"
+    "    captured.append({'status': status, 'reason': reason, 'message': message})\n"
+    "    return run_full(request, config, status, reason, message, *args, **kwargs)\n"
+    "verdict._run_full = capture\n"
     "code = cli.main([*sys.argv[3:], '--verdict-file', verdict_file, '--dry-run'])\n"
     "if code:\n"
     "    sys.exit(code)\n"
-    "with open(verdict_file, encoding='utf-8') as handle:\n"
-    "    document = json.load(handle)\n"
-    "stdout.write(json.dumps({\n"
-    "    'status': str(document.get('status') or '').strip().upper(),\n"
-    "    'reason': document.get('reason', ''),\n"
-    "    'message': redact.scrub_secrets(document.get('message', '')),\n"
-    "}))\n"
+    "if len(captured) != 1:\n"
+    "    sys.exit('greenlight verdict did not record it as a LAND or NO_LAND verdict')\n"
+    "stdout.write(json.dumps(captured[0]))\n"
 )
+
+# The command GitHub runs a ``run:`` step with, by the step's shell; ``-x`` is the
+# replay's, a trace on stderr that changes nothing else: a check such as
+# `jq -e ... >/dev/null` fails without a word, and the trace names it.
+_RECORD_SHELLS = {
+    None: ("bash", "-e", "-x"),
+    "bash": ("bash", "--noprofile", "--norc", "-eo", "pipefail", "-x"),
+}
 
 
 @dataclass(frozen=True)
@@ -184,7 +200,7 @@ def _target(stdout: str, repo: str) -> Target:
 
 def accept_verdict(
     root: Path,
-    record_run: str,
+    record: RecordStep,
     verdict_file: Path,
     *,
     repo: str,
@@ -194,23 +210,23 @@ def accept_verdict(
     """The processed verdict the record path would record, or why it would not.
 
     Both of the record path's checks must pass: the record job's own validation step,
-    then the arm's ``greenlight verdict --dry-run``. The returned message is the
-    scrubbed one, which is what the record path writes to every sink.
+    then the arm's ``greenlight verdict --dry-run``. The returned verdict is what that
+    command acts on, its message scrubbed as every sink of the record path receives it.
     """
     verdict_file = Path(os.path.abspath(verdict_file))
-    rejection = _record_step_rejection(record_run, verdict_file)
+    rejection = _record_step_rejection(root, record, verdict_file)
     if rejection is not None:
         return None, f"the record job's validation step rejects it: {rejection}"
     return _dry_run(root, verdict_file, repo, pr_number, head_sha)
 
 
 def canned_verdict(
-    root: Path, record_run: str, verdict_file: Path, target: Target
+    root: Path, record: RecordStep, verdict_file: Path, target: Target
 ) -> dict[str, str]:
     """A verdict the workflow emits with no model, held to the record path's checks."""
     verdict, rejection = accept_verdict(
         root,
-        record_run,
+        record,
         verdict_file,
         repo=target.repo,
         pr_number=PROBE_PR,
@@ -222,7 +238,7 @@ def canned_verdict(
 
 
 def no_policy_verdict(
-    root: Path, record_run: str, program: NoPolicyProgram, target: Target
+    root: Path, record: RecordStep, program: NoPolicyProgram, target: Target
 ) -> dict[str, str]:
     """The canned NO_LAND the keep-policy step writes, from its own ``jq -n`` program."""
     outputs = {"repo": target.repo, "policy": target.policy}
@@ -241,23 +257,25 @@ def no_policy_verdict(
             )
         verdict_file = scratch / remap.VERDICT_BASENAME
         verdict_file.write_text(completed.stdout, encoding="utf-8")
-        return canned_verdict(root, record_run, verdict_file, target)
+        return canned_verdict(root, record, verdict_file, target)
 
 
-def _record_step_rejection(record_run: str, verdict_file: Path) -> str | None:
-    lines = record_run.split("\n")
-    index = record_verdict_line(record_run)
+def _record_step_rejection(
+    root: Path, record: RecordStep, verdict_file: Path
+) -> str | None:
+    """Run the record step as the record job does, in its checkout of the tree."""
+    lines = record.run.split("\n")
+    index = record_verdict_line(record.run)
     indent = lines[index][: len(lines[index]) - len(lines[index].lstrip())]
     lines[index] = f"{indent}verdict={shlex.quote(str(verdict_file))}"
     with tempfile.TemporaryDirectory(prefix="greenlight-record-") as name:
         scratch = Path(name)
         script = scratch / "record-step.sh"
         script.write_text("\n".join(lines), encoding="utf-8")
-        # -x adds a trace to stderr and changes nothing else: a check such as
-        # `jq -e ... >/dev/null` fails without a word, and the trace names it.
         completed = _run(
-            ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-x", str(script)],
+            [*_RECORD_SHELLS[record.shell], str(script)],
             scratch,
+            cwd=Path(os.path.abspath(root)),
             EVAL_HASH=PROBE_EVAL_HASH,
         )
     if completed.returncode == 0:
@@ -314,9 +332,12 @@ def _python(root: Path, driver: str, *args: str) -> subprocess.CompletedProcess[
 
 
 def _run(
-    argv: Sequence[str], scratch: Path, **env: str
+    argv: Sequence[str], scratch: Path, cwd: Path | None = None, **env: str
 ) -> subprocess.CompletedProcess[str]:
-    """One call with nothing inherited: no token, proxy or credential reaches it."""
+    """One call whose environment holds nothing of the harness's but ``env``.
+
+    It runs in ``cwd``, by default the scratch ``HOME`` it is given, as the operator.
+    """
     home = scratch / "home"
     home.mkdir(exist_ok=True)
     base: Mapping[str, str] = {
@@ -327,7 +348,7 @@ def _run(
     try:
         return subprocess.run(
             list(argv),
-            cwd=str(home),
+            cwd=str(home if cwd is None else cwd),
             env={**base, **env},
             capture_output=True,
             text=True,

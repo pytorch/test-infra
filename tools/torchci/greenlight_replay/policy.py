@@ -62,6 +62,7 @@ from torchci.greenlight_replay.workflow_steps import (
     detector_untrusted_dirname,
     hook_settings_text,
     record_step,
+    RecordStep,
 )
 
 
@@ -121,9 +122,9 @@ class Policy:
     action step's, None without one.
 
     ``target`` is what the tree's ``greenlight target`` names for the reviewed repo.
-    ``record_step`` is the record job's verdict validation, ``detector_script`` and
-    ``detector_dirname`` the detector and the workspace directory it holds no
-    instruction file may load from.
+    ``record_step`` is the record job's verdict validation and its shell,
+    ``detector_script`` and ``detector_dirname`` the detector and the workspace
+    directory it holds no instruction file may load from.
 
     ``stack_context`` says which stack context each replay gets: the one the workflow's
     stack step collects, by the :mod:`.stack_step` pin it digests to, and none without
@@ -146,14 +147,13 @@ class Policy:
     timeout_s: int
     too_large_verdict: dict[str, str]
     sanitize_script: Path
-    hooks_dir: Path
     hook_settings: dict[str, Any]
     output_style: str | None
     model: str
     effort: str
     tools: str
     target: Target
-    record_step: str
+    record_step: RecordStep
     detector_script: Path
     detector_dirname: str
     stack_context: StackContext = StackContext.NONE
@@ -195,10 +195,7 @@ def materialize(
     # the policy, identical for every pull request in the corpus.
     target = resolve_target(root, reviewed_repo)
     hook_settings = derive_hook_settings(
-        hook_settings_text(document, workflow_path),
-        root,
-        target.checkout,
-        workflow_path,
+        hook_settings_text(document, workflow_path), target.checkout, workflow_path
     )
     recorded = record_step(document, workflow_path)
     context = stack_context(document, workflow_path)
@@ -224,7 +221,6 @@ def materialize(
             root, recorded, _require_file(hooks_dir / TOO_LARGE_FILENAME), target
         ),
         sanitize_script=_require_file(hooks_dir / SANITIZE_FILENAME),
-        hooks_dir=hooks_dir,
         hook_settings=hook_settings,
         output_style=action_output_style(document, workflow_path),
         model=model,

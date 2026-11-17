@@ -392,7 +392,8 @@ class DerivedStepsTest(PolicyTreeTestCase):
         self.assertEqual(
             result.detector_script, self.root / workflow_steps.DETECTOR_RELPATH
         )
-        self.assertIn(workflow_steps.RECORD_VERDICT_ASSIGNMENT, result.record_step)
+        self.assertIn(workflow_steps.RECORD_VERDICT_ASSIGNMENT, result.record_step.run)
+        self.assertIsNone(result.record_step.shell)
         self.assertIsNone(result.no_policy_verdict)
 
     def setup_with(self, index, step):
@@ -553,6 +554,37 @@ class TargetTest(PolicyTreeTestCase):
         self.assertIsNone(result.no_policy_verdict)
         with self.assertRaises(ValueError):
             self.materialize_written(repo="pytorch/test-infra")
+
+
+class BudgetBoundsTest(unittest.TestCase):
+    """The budgets are held to the checks the deadline step makes before using them."""
+
+    def budgets(self, target, soft, hard):
+        env = dict(
+            zip(workflow_mod.REVIEW_BUDGET_KEYS, (str(target), str(soft), str(hard)))
+        )
+        document = {"jobs": {"review": {"env": env, "steps": []}}}
+        return workflow_mod.review_budgets(document, Path("review.yml"))
+
+    def test_budgets_within_the_bounds_are_read(self):
+        self.assertEqual(self.budgets(20, 25, 33), (20, 25, 33))
+        self.assertEqual(self.budgets(20, 20, 20), (20, 20, 20))
+        self.assertEqual(self.budgets(1, 1440, 1440), (1, 1440, 1440))
+        self.assertEqual(self.budgets("000000020", 25, 33), (20, 25, 33))
+
+    def test_each_bound_the_deadline_step_checks_is_refused(self):
+        for budgets, needle in (
+            (("0000000020", 25, 33), "TARGET"),
+            ((20, 25, 1441), "HARD"),
+            ((20, 1441, 1441), "SOFT"),
+            ((0, 25, 33), "positive"),
+            ((20, 19, 33), "decrease"),
+            ((20, 25, 24), "decrease"),
+        ):
+            with self.subTest(budgets=budgets):
+                with self.assertRaises(ValueError) as caught:
+                    self.budgets(*budgets)
+                self.assertIn(needle, str(caught.exception))
 
 
 class ReviewBudgetTest(PolicyTreeTestCase):

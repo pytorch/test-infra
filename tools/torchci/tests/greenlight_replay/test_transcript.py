@@ -42,10 +42,14 @@ class ClassifyTestCase(ScratchTestCase):
 
     def detect(self):
         self.detected += 1
+        if isinstance(self.violation, Exception):
+            raise self.violation
         return self.violation
 
     def accept(self, verdict_file):
         self.accepted.append(verdict_file)
+        if isinstance(self.rejection, Exception):
+            raise self.rejection
         if self.rejection is not None:
             return None, self.rejection
         return dict(SCRUBBED), None
@@ -383,11 +387,25 @@ class TestDetector(ClassifyTestCase):
         self.assertEqual(self.detected, 1)
         self.assertEqual(result.outcome, transcript.Outcome.SUCCESS)
 
-    def test_output_with_no_init_element_never_consults_the_detector(self):
+    def test_a_would_be_success_with_no_init_element_still_runs_the_detector(self):
+        # The live job runs the detector whenever the model ran, not only when the
+        # output proves a session started.
+        for failure, expected in (
+            (None, transcript.Outcome.SUCCESS),
+            (NO_SENTINEL, transcript.Outcome.HOOKS_NOT_LOADED),
+            (LOADED, transcript.Outcome.UNTRUSTED_INSTRUCTIONS),
+        ):
+            with self.subTest(failure=failure):
+                self.violation = failure
+                result = self.classify(0, json.dumps(result_element()), GOOD_VERDICT)
+                self.assertEqual(result.outcome, expected)
+        self.assertEqual(self.detected, 3)
+
+    def test_a_non_success_with_no_init_element_keeps_its_outcome_unasked(self):
         self.violation = NO_SENTINEL
-        result = self.classify(0, json.dumps(result_element()), GOOD_VERDICT)
+        result = self.classify(0, json.dumps(result_element()))
+        self.assertEqual(result.outcome, transcript.Outcome.NO_VERDICT)
         self.assertEqual(self.detected, 0)
-        self.assertEqual(result.outcome, transcript.Outcome.SUCCESS)
 
     def test_a_session_that_never_started_keeps_its_own_outcome(self):
         self.violation = NO_SENTINEL
@@ -423,6 +441,39 @@ class TestDetector(ClassifyTestCase):
             transcript.session_started([{"type": "system", "subtype": "other"}])
         )
         self.assertFalse(transcript.session_started([result_element()]))
+
+
+class TestArmChecksThatCannotRun(ClassifyTestCase):
+    """A paid run is recorded even when the policy's own checks cannot run on it."""
+
+    def test_a_detector_that_raises_is_an_arm_check_failure_keeping_the_cost(self):
+        self.violation = RuntimeError("python3 ran past 120 s")
+        with self.assertLogs(transcript.logger, "ERROR") as logs:
+            result = self.classify(0, envelope(result_element()), GOOD_VERDICT)
+        self.assertEqual(result.outcome, transcript.Outcome.ARM_CHECK_FAILED)
+        self.assertIn("the detector", result.error)
+        self.assertIn("ran past 120 s", result.error)
+        self.assertAlmostEqual(result.cost_usd, 1.3312)
+        self.assertEqual(result.num_turns, 27)
+        self.assertEqual(result.duration_s, 612.0)
+        self.assertEqual(self.accepted, [])
+        self.assertIn("Traceback", "\n".join(logs.output))
+
+    def test_record_checks_that_raise_are_an_arm_check_failure(self):
+        for exc in (
+            FileNotFoundError("bash"),
+            ValueError("Expecting value: line 1 column 1"),
+        ):
+            with self.subTest(exc=exc):
+                self.rejection = exc
+                with self.assertLogs(transcript.logger, "ERROR"):
+                    result = self.classify(0, envelope(result_element()), GOOD_VERDICT)
+                self.assertEqual(result.outcome, transcript.Outcome.ARM_CHECK_FAILED)
+                self.assertIn("the record checks", result.error)
+                self.assertAlmostEqual(result.cost_usd, 1.3312)
+
+    def test_an_arm_check_failure_is_not_retried(self):
+        self.assertNotIn(transcript.Outcome.ARM_CHECK_FAILED, transcript.RETRYABLE)
 
 
 class TestReExports(unittest.TestCase):

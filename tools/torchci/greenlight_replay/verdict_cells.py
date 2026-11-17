@@ -59,7 +59,6 @@ DECISION_VALUES = frozenset({"LAND", "NO_LAND"})
 OUTCOME_SUCCESS = "success"
 OUTCOME_TOO_LARGE = "too_large"
 OUTCOME_NO_POLICY = "no_policy"
-OUTCOME_BUDGET_TRIP = "budget_trip"
 
 # Covers both a result whose outcome cannot be read and one that claims success
 # without a usable verdict: from here they are the same statement, that the

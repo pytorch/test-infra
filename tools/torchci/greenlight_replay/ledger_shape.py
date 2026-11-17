@@ -5,8 +5,9 @@ workflow's ``env``, ``defaults``, ``permissions`` and ``concurrency``; the revie
 keys other than ``steps``; each of its steps, and after a step whose ``uses:`` is
 ``./<path>`` that local action's ``action.yml``; then the whole record job. The review job
 is the one holding the action step and the record job the one holding the verdict
-validation, each found as :mod:`.workflow` and :mod:`.workflow_steps` find them. A step's
-``name`` is not digested, so retitling one leaves the shape as it was.
+validation, each found as :mod:`.workflow` and :mod:`.workflow_steps` find them. The
+``name`` of these jobs and of their steps is not digested, so retitling one leaves the
+shape as it was.
 
 **What the harness derives or runs is masked**: the value becomes :data:`MASK` and the key
 stays, so retuning a value is a policy change the replay honours, while adding or removing
@@ -30,6 +31,7 @@ from torchci.greenlight_replay.stack_step import stack_steps, step_digest
 from torchci.greenlight_replay.workflow import (
     _action_step,
     _flag_values,
+    _job_steps,
     _jobs,
     _only,
     CLAUDE_ARGS_KEY,
@@ -42,8 +44,7 @@ from torchci.greenlight_replay.workflow import (
 )
 from torchci.greenlight_replay.workflow_steps import (
     _heredoc_bodies,
-    _stripped_lines,
-    RECORD_VERDICT_ASSIGNMENT,
+    _record_job_and_step,
     SETTINGS_KEY,
     TIMEOUT_KEY,
 )
@@ -100,32 +101,22 @@ def shape(document: dict[str, Any], root: Path, path: Path) -> tuple[Entry, ...]
             entries.append(Entry(label, step_digest(_STACK_MASK)))
             continue
         entries.append(Entry(label, step_digest(_masked_step(step, step is action))))
-        local = _local_action(step, path)
-        if local is not None:
-            manifest = _manifest(root, local, path)
+        manifest = _local_manifest(step, root, path)
+        if manifest is not None:
             entries.append(
                 Entry(f"{label}, local action {manifest}", _digest(root / manifest))
             )
-    record = copy.deepcopy(_record_job(document, path))
-    for step in _job_steps(record):
-        if _is_record_step(step):
-            step["run"] = MASK
-    entries.append(Entry("record job", step_digest(record)))
+    entries.append(Entry("record job", step_digest(_masked_record_job(document, path))))
     return tuple(entries)
 
 
 def local_actions(document: dict[str, Any], root: Path, path: Path) -> list[str]:
     """The manifest of each local action the review job's steps use, relative to ``root``."""
-    found = []
-    for step in _job_steps(_review_job(document, path)):
-        local = _local_action(step, path)
-        if local is not None:
-            found.append(_manifest(root, local, path))
-    return found
-
-
-def _job_steps(job: dict[str, Any]) -> list[dict[str, Any]]:
-    return [step for step in job.get("steps") or [] if isinstance(step, dict)]
+    manifests = (
+        _local_manifest(step, root, path)
+        for step in _job_steps(_review_job(document, path))
+    )
+    return [manifest for manifest in manifests if manifest is not None]
 
 
 def _review_job(document: dict[str, Any], path: Path) -> dict[str, Any]:
@@ -141,20 +132,15 @@ def _review_job(document: dict[str, Any], path: Path) -> dict[str, Any]:
     )
 
 
-def _record_job(document: dict[str, Any], path: Path) -> dict[str, Any]:
-    return _only(
-        [
-            job
-            for job in _jobs(document)
-            if any(_is_record_step(step) for step in _job_steps(job))
-        ],
-        f"job with a step assigning {RECORD_VERDICT_ASSIGNMENT}",
-        path,
-    )
-
-
-def _is_record_step(step: dict[str, Any]) -> bool:
-    return RECORD_VERDICT_ASSIGNMENT in _stripped_lines(step.get("run"))
+def _masked_record_job(document: dict[str, Any], path: Path) -> dict[str, Any]:
+    """The record job with its validation ``run:`` masked and no step's ``name``."""
+    job, validation = _record_job_and_step(document, path)
+    masked = copy.deepcopy(job)
+    for original, step in zip(_job_steps(job), _job_steps(masked)):
+        step.pop("name", None)
+        if original is validation:
+            step["run"] = MASK
+    return masked
 
 
 def _masked_step(step: dict[str, Any], is_action: bool) -> dict[str, Any]:
@@ -205,17 +191,14 @@ def _mask_keys(mapping: Any, keys: tuple[str, ...]) -> None:
                 mapping[key] = MASK
 
 
-def _local_action(step: dict[str, Any], path: Path) -> PurePosixPath | None:
+def _local_manifest(step: dict[str, Any], root: Path, path: Path) -> str | None:
+    """The manifest of the local action ``step`` uses, relative to ``root``; None without."""
     uses = str(step.get("uses") or "")
     if not uses.startswith("./"):
         return None
     local = PurePosixPath(uses[2:])
     if local.is_absolute() or ".." in local.parts:
         raise ValueError(f"{path}: refusing the local action {uses!r}")
-    return local
-
-
-def _manifest(root: Path, local: PurePosixPath, path: Path) -> str:
     for name in ACTION_MANIFESTS:
         candidate = local / name
         resolved = (root / candidate).resolve()

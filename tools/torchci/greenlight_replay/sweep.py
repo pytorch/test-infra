@@ -60,14 +60,20 @@ RUNS_DIRNAME = "runs"
 
 # Outcomes the warm-up cannot recover from, because none of them depends on
 # which pull request was reviewed: the model the gateway resolved, the prompt the
-# CLI parsed, the hooks the session loaded. Seeing one on the first run means
-# seeing it on every run, so the sweep stops rather than paying for the rest.
+# CLI parsed, the hooks the session loaded, the policy's own checks that could not
+# run. Seeing one on the first run means seeing it on every run, so the sweep stops
+# rather than paying for the rest.
 # Deliberately wider than the runner's own RETRYABLE, which asks whether one more
 # attempt on THIS pull request could help; this asks whether the next thirty
 # could. A verdict the record path rejects, and an instruction file a pull request
 # smuggled past the sanitize step, are not here: each is that pull request's.
 FATAL_OUTCOMES = frozenset(
-    {Outcome.API_ERROR, Outcome.EMPTY_RUN, Outcome.HOOKS_NOT_LOADED}
+    {
+        Outcome.API_ERROR,
+        Outcome.EMPTY_RUN,
+        Outcome.HOOKS_NOT_LOADED,
+        Outcome.ARM_CHECK_FAILED,
+    }
 )
 
 # Measured over 872 real CI reviewer runs: 9-11 minutes and $1.33 apiece.

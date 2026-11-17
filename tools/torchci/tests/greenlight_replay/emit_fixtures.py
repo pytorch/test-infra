@@ -59,6 +59,7 @@ class Outcome(Enum):
     BUDGET_TRIP = "budget_trip"
     API_ERROR = "api_error"
     EMPTY_RUN = "empty_run"
+    ARM_CHECK_FAILED = "arm_check_failed"
     HOOKS_NOT_LOADED = "hooks_not_loaded"
     UNTRUSTED_INSTRUCTIONS = "untrusted_instructions"
     TOO_LARGE = "too_large"

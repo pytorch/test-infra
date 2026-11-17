@@ -218,7 +218,33 @@ class TestHookCommandQuoting(SettingsTestCase):
 
 
 class TestMissingHook(SettingsTestCase):
-    """A hook script that is not there fails loudly instead of registering a no-op."""
+    """A hook script that cannot run fails loudly instead of registering a no-op.
+
+    This is the one gate on the scripts: derivation only parses the commands.
+    """
+
+    def tree_with(self, mode, script="budget-reminder.sh"):
+        root = self.scratch("greenlight-settings-tree-")
+        shutil.copytree(REPO_ROOT / HOOKS_RELPATH, root / HOOKS_RELPATH)
+        os.chmod(root / HOOKS_RELPATH / script, mode)
+        return dataclasses.replace(self.policy, root=root)
+
+    def test_a_script_run_directly_that_cannot_execute_is_named(self):
+        policy = self.tree_with(0o644)
+        missing = settings.missing_hooks(policy)
+        self.assertEqual([path.name for path in missing], ["budget-reminder.sh"])
+        with self.assertRaises(settings.MissingHookError) as caught:
+            settings.assert_hooks_present(policy)
+        self.assertIn("not executable", str(caught.exception))
+
+    def test_a_script_run_through_python3_only_has_to_exist(self):
+        policy = self.tree_with(0o644, script="restrict-read.py")
+        self.assertEqual(settings.missing_hooks(policy), [])
+
+    def test_a_stop_hook_script_is_not_checked_because_it_is_not_registered(self):
+        policy = self.tree_with(0o755)
+        (policy.root / HOOKS_RELPATH / "validate-on-stop.sh").unlink()
+        self.assertEqual(settings.missing_hooks(policy), [])
 
     def test_a_policy_tree_missing_its_hooks_is_named_not_silently_accepted(self):
         empty = self.scratch("greenlight-settings-empty-")
@@ -234,14 +260,16 @@ class TestMissingHook(SettingsTestCase):
         settings.assert_hooks_present(self.policy)
 
     def test_the_scripts_checked_are_the_derived_ones_plus_the_remap(self):
-        names = {p.name for p in settings._hook_scripts(self.policy)}
+        scripts = {
+            path.name: direct for path, direct in settings._hook_scripts(self.policy)
+        }
         self.assertEqual(
-            names,
+            scripts,
             {
-                "restrict-write.sh",
-                "restrict-read.py",
-                "budget-reminder.sh",
-                Path(remap.__file__).name,
+                "restrict-write.sh": True,
+                "restrict-read.py": False,
+                "budget-reminder.sh": True,
+                Path(remap.__file__).name: False,
             },
         )
 
@@ -315,16 +343,16 @@ class TestReadSandboxCheckout(SettingsTestCase):
 class TestDerivation(ScratchTestCase):
     """The heredoc is reproduced only where the replay can reproduce it exactly."""
 
-    def derive(self, document, root=REPO_ROOT, checkout="pytorch"):
+    def derive(self, document, checkout="pytorch"):
         text = document if isinstance(document, str) else json.dumps(document)
-        return settings.derive_hook_settings(text, root, checkout, WORKFLOW_PATH)
+        return settings.derive_hook_settings(text, checkout, WORKFLOW_PATH)
 
     def mutated(self):
         return json.loads(HEAD_TEXT)
 
-    def assert_refused(self, document, needle, root=REPO_ROOT):
+    def assert_refused(self, document, needle):
         with self.assertRaises(ValueError) as caught:
-            self.derive(document, root)
+            self.derive(document)
         self.assertIn(needle, str(caught.exception))
 
     def test_the_head_heredoc_derives_with_the_checkout_substituted(self):
@@ -366,28 +394,17 @@ class TestDerivation(ScratchTestCase):
         document["hooks"]["PreToolUse"][0]["hooks"][0]["type"] = "prompt"
         self.assert_refused(document, "not a command")
 
-    def test_a_missing_script_is_refused(self):
+    def test_a_missing_script_is_left_to_the_one_gate_that_checks_scripts(self):
         document = self.mutated()
         document["hooks"]["PostToolUse"][0]["hooks"][0]["command"] = (
             f"{HOOKS_RELPATH}/no-such-hook.sh"
         )
-        self.assert_refused(document, "missing")
-
-    def tree_with(self, mode):
-        root = self.scratch("greenlight-settings-tree-")
-        shutil.copytree(REPO_ROOT / HOOKS_RELPATH, root / HOOKS_RELPATH)
-        os.chmod(root / HOOKS_RELPATH / "budget-reminder.sh", mode)
-        return root
-
-    def test_a_script_run_directly_that_cannot_execute_is_refused(self):
-        self.assert_refused(
-            self.mutated(), "not executable", root=self.tree_with(0o644)
+        policy = dataclasses.replace(
+            replay_policy(), hook_settings=self.derive(document)
         )
-
-    def test_a_script_run_through_python3_only_has_to_exist(self):
-        root = self.tree_with(0o755)
-        os.chmod(root / HOOKS_RELPATH / "restrict-read.py", 0o644)
-        self.assertIn("hooks", self.derive(HEAD_TEXT, root))
+        self.assertEqual(
+            [path.name for path in settings.missing_hooks(policy)], ["no-such-hook.sh"]
+        )
 
     def test_a_write_sandbox_on_a_matcher_missing_edit_is_refused(self):
         document = self.mutated()

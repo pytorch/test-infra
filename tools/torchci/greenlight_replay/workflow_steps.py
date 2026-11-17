@@ -18,6 +18,7 @@ from typing import Any
 
 from torchci.greenlight_replay.workflow import (
     _action_step,
+    _job_steps,
     _jobs,
     _only,
     _steps,
@@ -32,6 +33,7 @@ __all__ = [
     "MAX_RUN_TIMEOUT_MINUTES",
     "NoPolicyProgram",
     "RECORD_VERDICT_ASSIGNMENT",
+    "RecordStep",
     "SENTINEL_BASENAME",
     "SENTINEL_COMMAND",
     "SETTINGS_LOCAL_RELPATH",
@@ -93,6 +95,19 @@ _NO_POLICY_JQ = re.compile(
     r"'([^']*)'\s*>\s*/tmp/greenlight-verdict\.json"
 )
 _JQ_ARG = re.compile(r"--arg\s+([A-Za-z_]\w*)\s+\"\$([A-Za-z_]\w*)\"")
+
+
+@dataclass(frozen=True)
+class RecordStep:
+    """The record job's verdict validation: its ``run:`` and the shell it runs under.
+
+    ``shell`` is the step's, else its job's ``defaults.run.shell``, else the
+    workflow's. None is no shell set, which GitHub runs as ``bash -e {0}``; ``"bash"``
+    it runs as ``bash --noprofile --norc -eo pipefail {0}``.
+    """
+
+    run: str
+    shell: str | None
 
 
 @dataclass(frozen=True)
@@ -219,31 +234,20 @@ def detector_untrusted_dirname(
     )
 
 
-def record_step(document: dict[str, Any], path: Path) -> str:
-    """The ``run:`` of the record job's step that validates the verdict file.
+def record_step(document: dict[str, Any], path: Path) -> RecordStep:
+    """The record job's step that validates the verdict file, and its shell.
 
     It is the one step assigning ``verdict=/tmp/greenlight-verdict.json``. The replay
     runs it with that assignment pointed at the run's verdict and ``EVAL_HASH`` set,
     so the step may read no other variable it does not assign itself, and no
     expression; its job must take ``EVAL_HASH`` from the dispatch input.
     """
-    found = [
-        (job, step)
-        for job in _jobs(document)
-        for step in (job.get("steps") or [])
-        if isinstance(step, dict)
-        and RECORD_VERDICT_ASSIGNMENT in _stripped_lines(step.get("run"))
-    ]
-    if len(found) != 1:
-        raise ValueError(
-            f"{path}: expected exactly one step assigning {RECORD_VERDICT_ASSIGNMENT}, "
-            f"found {len(found)}"
-        )
-    job, step = found[0]
+    job, step = _record_job_and_step(document, path)
     run = str(step["run"])
     if _stripped_lines(run).count(RECORD_VERDICT_ASSIGNMENT) != 1:
         raise ValueError(f"{path}: the record step assigns its verdict more than once")
-    if "${{" in run or step.get("env") or step.get("shell") not in (None, "bash"):
+    shell = _shell(document, job, step)
+    if "${{" in run or step.get("env") or shell not in (None, "bash"):
         raise ValueError(
             f"{path}: the record step uses an expression, an env block or a shell "
             "the replay does not reproduce"
@@ -261,15 +265,46 @@ def record_step(document: dict[str, Any], path: Path) -> str:
         raise ValueError(
             f"{path}: the record job does not take EVAL_HASH from {EVAL_HASH_EXPR}"
         )
-    return run
+    return RecordStep(run=run, shell=shell)
+
+
+def _record_job_and_step(
+    document: dict[str, Any], path: Path
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The record job and its step assigning the verdict; exactly one, or refused."""
+    found = [
+        (job, step)
+        for job in _jobs(document)
+        for step in _job_steps(job)
+        if RECORD_VERDICT_ASSIGNMENT in _stripped_lines(step.get("run"))
+    ]
+    if len(found) != 1:
+        raise ValueError(
+            f"{path}: expected exactly one step assigning {RECORD_VERDICT_ASSIGNMENT}, "
+            f"found {len(found)}"
+        )
+    return found[0]
+
+
+def _shell(
+    document: dict[str, Any], job: dict[str, Any], step: dict[str, Any]
+) -> str | None:
+    """The shell GitHub runs ``step`` under: its own, else the nearest default."""
+    for holder in (step, _run_defaults(job), _run_defaults(document)):
+        if holder.get("shell") is not None:
+            return str(holder["shell"])
+    return None
+
+
+def _run_defaults(holder: dict[str, Any]) -> dict[str, Any]:
+    defaults = holder.get("defaults") or {}
+    run = defaults.get("run") if isinstance(defaults, dict) else None
+    return run if isinstance(run, dict) else {}
 
 
 def record_verdict_line(run: str) -> int:
-    """The index of the record step's one verdict assignment among its lines."""
-    lines = _stripped_lines(run)
-    if lines.count(RECORD_VERDICT_ASSIGNMENT) != 1:
-        raise ValueError("the record step does not assign its verdict exactly once")
-    return lines.index(RECORD_VERDICT_ASSIGNMENT)
+    """The index of the verdict assignment among the lines of a validated record run."""
+    return _stripped_lines(run).index(RECORD_VERDICT_ASSIGNMENT)
 
 
 def no_policy_program(document: dict[str, Any], path: Path) -> NoPolicyProgram:
