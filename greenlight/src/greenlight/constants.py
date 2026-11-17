@@ -92,12 +92,17 @@ EVAL_HASH_RE = re.compile(r"[0-9a-f]{64}")
 HEAD_SHA_RE = re.compile(r"[0-9a-fA-F]{40}")
 
 TARGET_REPO = "pytorch/pytorch"
+# The repos whose landing pytorchbot's trymerge guards with greenlight_guard.py; repos.yaml may name
+# safety: pytorchbot only for these.
+PYTORCHBOT_GUARDED_REPOS: frozenset[str] = frozenset({TARGET_REPO})
 TARGET_BRANCH = "main"
 MAX_DIFF_FILES = 200
 DISPATCH_REPO = "pytorch/test-infra"
 WORKFLOW_FILE = "greenlight-pr-review.yml"
 DEFAULT_DISPATCH_REF = "main"
 DEFAULT_TIMEOUT_MINUTES = 45
+REPOS_CONFIG_PATH = "greenlight/repos.yaml"
+DRAIN_PRS_PER_TICK = 100
 
 FULL_TICK_INTERVAL = timedelta(minutes=15)
 # A tick scheduled one interval after a full tick can start slightly early; the tolerance keeps it a
@@ -131,11 +136,11 @@ def normalize_repo(repo: str) -> str:
     return repo.strip().lower()
 
 
-# Repos where Dr. CI renders greenlight's recorded state inside its own comment. Membership is the
-# whole suppression gate: greenlight drops its own status comment (and pokes DRCI_ENDPOINT instead)
-# exactly for the repos listed here. Adding a repo whose HUD side does not render it leaves its PRs
-# with no status anywhere, so this set must stay in step with GREENLIGHT_REPOS in
-# torchci/lib/greenlight/greenlightConfig.ts; greenlight/tests/test_render_sync.py enforces that.
+# Repos where Dr. CI renders greenlight's recorded state inside its own comment: the HUD's render list.
+# The repos.yaml loader (repo_config) accepts status_comment: drci only for these, since a drci entry
+# posts no status comment of its own and pokes DRCI_ENDPOINT instead, and a repo whose HUD side does
+# not render it would leave its PRs with no status anywhere. It must stay in step with GREENLIGHT_REPOS
+# in torchci/lib/greenlight/greenlightConfig.ts; greenlight/tests/test_render_sync.py enforces that.
 # Entries are folded at construction, so a mixed-case addition cannot silently never match.
 DRCI_STATUS_COMMENT_REPOS: frozenset[str] = frozenset(normalize_repo(repo) for repo in (TARGET_REPO,))
 
@@ -150,14 +155,6 @@ BOT_LOGIN_SUFFIX = "[bot]"
 def is_app_login(value: str) -> bool:
     """True when ``value`` is a GitHub App login of the form ``<slug>[bot]`` with a non-empty slug."""
     return value.endswith(BOT_LOGIN_SUFFIX) and len(value) > len(BOT_LOGIN_SUFFIX)
-
-
-def delegates_status_comment_to_drci(repo: str) -> bool:
-    """True when Dr. CI renders ``repo``'s greenlight status in its own comment.
-
-    The whole suppression gate: greenlight posts no status comment of its own on these repos.
-    """
-    return normalize_repo(repo) in DRCI_STATUS_COMMENT_REPOS
 
 
 def validate_reason(status: str, reason: str) -> None:

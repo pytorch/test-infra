@@ -34,11 +34,12 @@ if TYPE_CHECKING:
     from greenlight.scan_memory import FingerprintCache
     from greenlight.state import PRState
 
-    # The fingerprint seam returns the PR's (head_sha, eval_hash) or, when a human has already
-    # decided it, a ReviewSkip. skip_on_approval (True on the listing scan, False on --pr) is
-    # threaded per call so an approval skips the listing but never the manual recheck.
+    # The fingerprint seam takes (client, repo, number, authorized_logins, skip_on_approval) and returns
+    # the PR's (head_sha, eval_hash) or, when a human has already decided it, a ReviewSkip.
+    # skip_on_approval (True on the listing scan, False on --pr) is threaded per call so an approval
+    # skips the listing but never the manual recheck.
     FingerprintResult = tuple[str, str] | ReviewSkip
-    FingerprintFn = Callable[[Github, int, frozenset[str], bool], FingerprintResult]
+    FingerprintFn = Callable[[Github, str, int, frozenset[str], bool], FingerprintResult]
 
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ def _staleness_key_for_state(recorded: PRState | None) -> tuple[bool, datetime]:
 def _fingerprint_task(
     fingerprint: FingerprintFn,
     client_pool: queue.Queue[Github],
+    repo: str,
     number: int,
     authorized_logins: frozenset[str],
     skip_on_approval: bool,
@@ -84,7 +86,7 @@ def _fingerprint_task(
         return _CANCELLED
     client = client_pool.get()
     try:
-        return fingerprint(client, number, authorized_logins, skip_on_approval)
+        return fingerprint(client, repo, number, authorized_logins, skip_on_approval)
     except Exception as exc:
         if is_rate_limit_error(exc):
             cancel_event.set()
@@ -212,6 +214,7 @@ def _fingerprint_all(
     pr_numbers: Sequence[int],
     states: dict[int, PRState],
     *,
+    repo: str,
     fingerprint: FingerprintFn,
     client_pool: queue.Queue[Github],
     worker_count: int,
@@ -235,6 +238,7 @@ def _fingerprint_all(
                     _fingerprint_task,
                     fingerprint,
                     client_pool,
+                    repo,
                     number,
                     authorized_logins,
                     skip_on_approval,
@@ -265,6 +269,7 @@ def _fingerprint_until_dispatchable(
     pr_numbers: Sequence[int],
     states: dict[int, PRState],
     *,
+    repo: str,
     fingerprint: FingerprintFn,
     client_pool: queue.Queue[Github],
     worker_count: int,
@@ -304,6 +309,7 @@ def _fingerprint_until_dispatchable(
                         _fingerprint_task,
                         fingerprint,
                         client_pool,
+                        repo,
                         queued_number,
                         authorized_logins,
                         skip_on_approval,

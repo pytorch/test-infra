@@ -1,4 +1,4 @@
-"""Permanently exclude reverted pytorch/pytorch PRs from review.
+"""Permanently exclude a repo's reverted PRs from review.
 
 A PR is excluded when it carries the ``Reverted`` label OR has ever recorded a ``REVERTED`` row.
 The label can be taken off again, the row cannot, so the row is what makes the exclusion
@@ -31,7 +31,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from greenlight import constants
-from greenlight.constants import REVERTED_LABELS, STATUS_REVERTED, TARGET_REPO
+from greenlight.constants import REVERTED_LABELS, STATUS_REVERTED
 from greenlight.github_client import is_rate_limit_error
 from greenlight.guards import IterationTimeout
 from greenlight.state import next_run_id
@@ -61,13 +61,14 @@ def fetch_pr_labels(client: LabelClient, repo: str, pr_number: int) -> tuple[str
 
 def _carries_reverted_label(
     client: Github,
+    repo: str,
     number: int,
     known_labels: Mapping[int, Sequence[str]],
     fetch_labels: Callable[[Github, str, int], tuple[str, ...]],
 ) -> bool:
     labels = known_labels.get(number)
     if labels is None:
-        labels = fetch_labels(client, TARGET_REPO, number)
+        labels = fetch_labels(client, repo, number)
     return constants.carries_any_label(labels, REVERTED_LABELS)
 
 
@@ -82,6 +83,7 @@ def _revoke_and_record(
     client: Github,
     number: int,
     *,
+    repo: str,
     recorded_state: PRState | None,
     shadow: bool,
     bot_login: str,
@@ -104,7 +106,7 @@ def _revoke_and_record(
     shadow row is filtered out of the query the rebuild would run, so it would rebuild nothing.
     """
     try:
-        pr = get_pr(client, TARGET_REPO, number)
+        pr = get_pr(client, repo, number)
     except IterationTimeout:
         raise
     except Exception as exc:
@@ -128,7 +130,7 @@ def _revoke_and_record(
         return
     try:
         emit(
-            repo=TARGET_REPO,
+            repo=repo,
             pr_number=number,
             head_sha=pr.head.sha,
             run_id=next_run_id(recorded_state),
@@ -149,6 +151,7 @@ def exclude_reverted(
     client: Github,
     pr_numbers: Sequence[int],
     *,
+    repo: str,
     known_labels: Mapping[int, Sequence[str]],
     states: Mapping[int, PRState],
     bot_login: str,
@@ -173,11 +176,11 @@ def exclude_reverted(
     run on a throttled token. Either way the PR is still dropped -- an exclusion never lapses because
     a step failed.
     """
-    recorded = read_reverted(TARGET_REPO, pr_numbers)
+    recorded = read_reverted(repo, pr_numbers)
     excluded = [
         number
         for number in pr_numbers
-        if number in recorded or _carries_reverted_label(client, number, known_labels, fetch_labels)
+        if number in recorded or _carries_reverted_label(client, repo, number, known_labels, fetch_labels)
     ]
     if not excluded:
         return frozenset()
@@ -195,6 +198,7 @@ def exclude_reverted(
         _revoke_and_record(
             client,
             number,
+            repo=repo,
             recorded_state=states.get(number),
             shadow=shadow_for_pr(number),
             bot_login=bot_login,

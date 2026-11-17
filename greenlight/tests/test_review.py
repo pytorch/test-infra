@@ -20,6 +20,7 @@ from greenlight import (
     merge_authz,
     revert_guard,
     review,
+    review_finish,
     scan_runner,
     state_emit,
     verdict_labels,
@@ -41,6 +42,7 @@ from greenlight.constants import (
 )
 from greenlight.guards import IterationTimeout
 from greenlight.pr_listing import OpenPR
+from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
@@ -233,6 +235,7 @@ class _Scan:
     reverted_shadow: list[tuple[int, bool]]
     updated_calls: list[datetime]
     error: Exception | None
+    repos_seen: set[str] = field(default_factory=set)
 
 
 def _run_scan(
@@ -268,8 +271,11 @@ def _run_scan(
     clock: Callable[[], datetime] | None = None,
     fingerprint_errors: dict[int, BaseException] | None = None,
     label_prs: Callable[[verdict_labels.LabelPass], None] | None = None,
+    entry: RepoEntry = BUILTIN_PYTORCH,
+    optional: bool = True,
 ) -> _Scan:
     states = states or {}
+    repos_seen: set[str] = set()
     files = files or {}
     head_refs = head_refs or {}
     base_refs = base_refs or {}
@@ -300,21 +306,23 @@ def _run_scan(
     reverted_shadow: list[tuple[int, bool]] = []
     updated_calls: list[datetime] = []
 
-    def fake_fetch(_client, authors):
+    def fake_fetch(_client, listed_repo, authors):
+        repos_seen.add(listed_repo)
         listed_calls.append(1)
         listed_authors.append(authors)
         if listing_error is not None:
             raise listing_error
         return list(listed)
 
-    def fake_fetch_updated(_client, authors, cutoff):
+    def fake_fetch_updated(_client, _repo, authors, cutoff):
         updated_calls.append(cutoff)
         listed_authors.append(authors)
         if listing_error is not None:
             raise listing_error
         return list(updated)
 
-    def fake_fingerprint(_client, number, authorized_logins, skip_on_approval):
+    def fake_fingerprint(_client, fingerprinted_repo, number, authorized_logins, skip_on_approval):
+        repos_seen.add(fingerprinted_repo)
         fingerprinted.append(number)
         authorized_seen.append(authorized_logins)
         skip_on_approval_seen.append(skip_on_approval)
@@ -324,11 +332,13 @@ def _run_scan(
         return fingerprints[number]
 
     def fake_read_state(repo, numbers):
+        repos_seen.add(repo)
         nums = list(numbers)
         read_calls.append((repo, nums))
         return {n: states[n] for n in nums if n in states}
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow, repo):
+        repos_seen.add(repo)
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
         dispatch_shadow.append((number, shadow))
         events.append(f"dispatch:{number}")
@@ -395,6 +405,8 @@ def _run_scan(
     def scan() -> None:
         review.run(
             make_config(github_token="t", **(config_kwargs or {})),
+            entry=entry,
+            optional=optional,
             pr=pr,
             max_dispatches=max_dispatches,
             ref=ref,
@@ -456,6 +468,7 @@ def _run_scan(
         reverted_shadow=reverted_shadow,
         updated_calls=updated_calls,
         error=error,
+        repos_seen=repos_seen,
     )
 
 
@@ -570,7 +583,7 @@ def test_run_default_poke_seam_is_drci_poke():
 
     # The injected fakes above cannot see the production wiring; pin it here so the seam cannot be
     # left pointing at a stub.
-    assert inspect.signature(review.run).parameters["poke_drci"].default is drci_poke.poke
+    assert inspect.signature(review.prepare).parameters["poke_drci"].default is drci_poke.poke
 
 
 def test_decided_same_hash_skips(make_config):
@@ -1010,7 +1023,7 @@ def test_max_early_stop_limits_fingerprints(make_config):
     # 29 equally stale never-reviewed PRs: staleness ties break on listing order, so PR1 takes the
     # single slot. Early-stop fingerprints only the first worker-sized batch, never all 29.
     assert scan.dispatched == [(1, "headsha1", _HASH_A, DEFAULT_DISPATCH_REF)]
-    assert sorted(scan.fingerprinted) == list(range(1, review._FINGERPRINT_WORKERS + 1))
+    assert sorted(scan.fingerprinted) == list(range(1, review_finish._FINGERPRINT_WORKERS + 1))
 
 
 def test_max_dispatches_most_stale_first(make_config):
@@ -1028,8 +1041,8 @@ def test_max_dispatches_most_stale_first(make_config):
 
 
 def test_max_continues_past_non_dispatch_batches(make_config):
-    stale_decided = list(range(1, review._FINGERPRINT_WORKERS + 1))
-    target = review._FINGERPRINT_WORKERS + 1
+    stale_decided = list(range(1, review_finish._FINGERPRINT_WORKERS + 1))
+    target = review_finish._FINGERPRINT_WORKERS + 1
     numbers = [*stale_decided, target]
     scan = _run_scan(
         make_config,
@@ -1056,12 +1069,12 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
     numbers = list(range(1, 30))
     dispatched: list[int] = []
 
-    def boom_fingerprint(_client, number, _authorized, _skip):
+    def boom_fingerprint(_client, _repo, number, _authorized, _skip):
         if number == 3:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow, repo):
         dispatched.append(number)
 
     with (
@@ -1072,7 +1085,7 @@ def test_max_fingerprint_failure_still_raises(make_config, caplog):
             make_config(github_token="t"),
             max_dispatches=1,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
+            fetch=lambda _client, _repo, _authors: [_open_pr(n) for n in numbers],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1291,10 +1304,10 @@ def test_force_dispatches_decided_pr_via_until_dispatchable(make_config, caplog)
 def test_force_fingerprint_failure_still_raises(make_config, caplog):
     dispatched: list[int] = []
 
-    def boom_fingerprint(_client, _number, _authorized, _skip):
+    def boom_fingerprint(_client, _repo, _number, _authorized, _skip):
         raise RuntimeError("fingerprint boom")
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow, repo):
         dispatched.append(number)
 
     with (
@@ -1306,7 +1319,7 @@ def test_force_fingerprint_failure_still_raises(make_config, caplog):
             pr=7,
             force=True,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [],
+            fetch=lambda _client, _repo, _authors: [],
             get_pr=_target_pr("albanD"),
             fetch_labels=lambda _client, _repo, _number: (),
             fingerprint=boom_fingerprint,
@@ -1392,12 +1405,12 @@ def test_no_candidates_dispatches_nothing(make_config):
 def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
     dispatched: list[tuple[int, str, str, str]] = []
 
-    def boom_fingerprint(_client, number, _authorized, _skip):
+    def boom_fingerprint(_client, _repo, number, _authorized, _skip):
         if number == 1:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow, repo):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
 
     with (
@@ -1407,7 +1420,7 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
             read_reverted=_no_reverted,
@@ -1428,12 +1441,12 @@ def test_poison_pill_isolates_pr_but_scan_still_raises(make_config, caplog):
 def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
     dispatched: list[tuple[int, str, str, str]] = []
 
-    def boom_fingerprint(_client, number, _authorized, _skip):
+    def boom_fingerprint(_client, _repo, number, _authorized, _skip):
         if number in (1, 3):
             raise RuntimeError(f"fingerprint boom {number}")
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow, repo):
         dispatched.append((number, head_sha, eval_hash, dispatch_ref))
 
     with (
@@ -1443,7 +1456,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(3), _open_pr(1), _open_pr(2)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(3), _open_pr(1), _open_pr(2)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1464,7 +1477,7 @@ def test_concurrent_fingerprint_failures_aggregate_sorted(make_config, caplog):
 def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         attempted.append(number)
         if number == 2:
             raise RuntimeError("dispatch boom")
@@ -1476,8 +1489,8 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
-            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=lambda _client, _repo, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
@@ -1496,7 +1509,7 @@ def test_dispatch_failure_isolated_others_still_dispatched(make_config, caplog):
 def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         attempted.append(number)
         raise RuntimeError(f"dispatch boom {number}")
 
@@ -1507,8 +1520,8 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
-            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=lambda _client, _repo, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=boom_dispatch,
@@ -1525,7 +1538,7 @@ def test_all_dispatch_failures_all_attempted_then_raise(make_config, caplog):
 def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
     attempted: list[int] = []
 
-    def timeout_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def timeout_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         attempted.append(number)
         if number == 1:
             raise IterationTimeout("iteration exceeded")
@@ -1534,8 +1547,8 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
-            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fingerprint=lambda _client, _repo, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=timeout_dispatch,
@@ -1552,12 +1565,12 @@ def test_dispatch_iteration_timeout_propagates_and_halts(make_config):
 def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog):
     attempted: list[int] = []
 
-    def boom_fingerprint(_client, number, _authorized, _skip):
+    def boom_fingerprint(_client, _repo, number, _authorized, _skip):
         if number == 1:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         attempted.append(number)
         if number == 2:
             raise RuntimeError("dispatch boom")
@@ -1566,7 +1579,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1585,7 +1598,7 @@ def test_fingerprint_and_dispatch_failures_surface_together(make_config, caplog)
 
 
 def test_scan_larger_than_worker_pool_fingerprints_every_pr(make_config):
-    numbers = list(range(1, review._FINGERPRINT_WORKERS + 5))
+    numbers = list(range(1, review_finish._FINGERPRINT_WORKERS + 5))
     scan = _run_scan(
         make_config,
         listed=[_open_pr(n) for n in numbers],
@@ -1601,22 +1614,22 @@ def test_scan_larger_than_worker_pool_fingerprints_every_pr(make_config):
 def test_fingerprints_run_concurrently_across_workers(make_config):
     # Fill the pool to prove full concurrency, but demand >=2 parties even if the pool is
     # shrunk to 1: a 1-party barrier is satisfied by a single serial task and proves nothing.
-    k = max(2, review._FINGERPRINT_WORKERS)
+    k = max(2, review_finish._FINGERPRINT_WORKERS)
     numbers = list(range(1, k + 1))
     barrier = threading.Barrier(k, timeout=5)
     dispatched: list[int] = []
 
-    def barrier_fingerprint(_client, number, _authorized, _skip):
+    def barrier_fingerprint(_client, _repo, number, _authorized, _skip):
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow, repo):
         dispatched.append(number)
 
     review.run(
         make_config(github_token="t"),
         build_github=lambda _token, **_kwargs: _CLIENT,
-        fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
+        fetch=lambda _client, _repo, _authors: [_open_pr(n) for n in numbers],
         fingerprint=barrier_fingerprint,
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
@@ -1635,7 +1648,7 @@ def test_fingerprints_run_concurrently_across_workers(make_config):
 def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
     # Force >=2 tasks in flight at once (see the concurrency test): isolation is only
     # meaningful when multiple borrowed clients are held simultaneously.
-    k = max(2, review._FINGERPRINT_WORKERS)
+    k = max(2, review_finish._FINGERPRINT_WORKERS)
     numbers = list(range(1, k + 1))
     barrier = threading.Barrier(k, timeout=5)
     built: list[object] = []
@@ -1647,20 +1660,20 @@ def test_worker_clients_are_isolated_and_exclude_main_client(make_config):
 
     seen: dict[int, object] = {}
 
-    def recording_fingerprint(client, number, _authorized, _skip):
+    def recording_fingerprint(client, _repo, number, _authorized, _skip):
         seen[number] = client
         barrier.wait()
         return (f"headsha{number}", _HASH_A)
 
     dispatched: list[int] = []
 
-    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow):
+    def fake_dispatch(_client, number, head_sha, eval_hash, dispatch_ref, *, shadow, repo):
         dispatched.append(number)
 
     review.run(
         make_config(github_token="t"),
         build_github=factory,
-        fetch=lambda _client, _authors: [_open_pr(n) for n in numbers],
+        fetch=lambda _client, _repo, _authors: [_open_pr(n) for n in numbers],
         fingerprint=recording_fingerprint,
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
@@ -1701,8 +1714,8 @@ def test_run_closes_main_and_worker_clients(make_config):
     review.run(
         make_config(github_token="t"),
         build_github=factory,
-        fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2)],
-        fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+        fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2)],
+        fingerprint=lambda _client, _repo, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=lambda *_args, **_kwargs: None,
@@ -1718,7 +1731,7 @@ def test_run_closes_main_and_worker_clients(make_config):
     # The main client (built first) keeps PyGithub's default pacing -- no kwarg passed -- while the
     # two fingerprint worker clients are throttled to bound the fan-out's aggregate request rate.
     assert built[0].seconds_between_requests is None
-    assert [c.seconds_between_requests for c in built[1:]] == [review._FINGERPRINT_SECONDS_BETWEEN_REQUESTS] * 2
+    assert [c.seconds_between_requests for c in built[1:]] == [review_finish._FINGERPRINT_SECONDS_BETWEEN_REQUESTS] * 2
 
 
 def test_fingerprint_throttle_stays_under_burst_limit():
@@ -1727,7 +1740,7 @@ def test_fingerprint_throttle_stays_under_burst_limit():
     # to stay comfortably under GitHub's (undocumented, variable) secondary/burst rate limit. It bounds
     # only this fingerprint fan-out; the listing, dispatch, verdict, and authz clients each pace
     # themselves independently and sit outside this budget.
-    assert review._FINGERPRINT_WORKERS / review._FINGERPRINT_SECONDS_BETWEEN_REQUESTS <= 8
+    assert review_finish._FINGERPRINT_WORKERS / review_finish._FINGERPRINT_SECONDS_BETWEEN_REQUESTS <= 8
 
 
 def test_fingerprint_task_returns_client_on_exception():
@@ -1736,11 +1749,11 @@ def test_fingerprint_task_returns_client_on_exception():
     pool.put(client)
     cancel_event = threading.Event()
 
-    def boom(_client, _number, _authorized, _skip):
+    def boom(_client, _repo, _number, _authorized, _skip):
         raise RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
-        scan_runner._fingerprint_task(boom, pool, 1, _AUTHORIZED, True, cancel_event)
+        scan_runner._fingerprint_task(boom, pool, TARGET_REPO, 1, _AUTHORIZED, True, cancel_event)
 
     # The borrowed client must return to the pool even when fingerprint raises; otherwise a scan
     # with more PRs than workers drains the pool and queue.get blocks the scan forever.
@@ -1754,24 +1767,24 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
 
     # Pin one worker for a deterministic FIFO order: PR1 runs first and trips the cancel event before
     # PR2/PR3 start, so the "stop starting new tasks" behaviour is observable without racing workers.
-    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    monkeypatch.setattr(review_finish, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         fingerprinted.append(number)
         if number == 1:
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1797,18 +1810,18 @@ def test_rate_limit_abandons_remaining_fingerprints(make_config, monkeypatch, ca
 def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, monkeypatch, caplog):
     from github import RateLimitExceededException
 
-    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    monkeypatch.setattr(review_finish, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
     poked: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         fingerprinted.append(number)
         if number == 2:
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     def record_poke(_repo, pr_number, _config):
@@ -1818,7 +1831,7 @@ def test_rate_limit_defers_completed_candidate_without_dispatching(make_config, 
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1854,24 +1867,24 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
     # hits the LAST task to run, so no queued task is left to short-circuit to _CANCELLED and `abandoned`
     # stays empty -- yet the event IS set, so dispatch must still be skipped. A regression to `if abandoned:`
     # would pass every other test but wrongly dispatch the completed candidates onto the throttled token here.
-    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    monkeypatch.setattr(review_finish, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         fingerprinted.append(number)
         if number == 3:
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"), pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1895,17 +1908,17 @@ def test_rate_limit_on_last_task_skips_dispatch_with_no_abandoned(make_config, m
 def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeypatch):
     from github import RateLimitExceededException
 
-    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    monkeypatch.setattr(review_finish, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         fingerprinted.append(number)
         if number == 2:
             raise RateLimitExceededException(403)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     with pytest.raises(RuntimeError, match=r"1 PR\(s\) failed during scan: \[2\]"):
@@ -1913,7 +1926,7 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
             make_config(github_token="t"),
             max_dispatches=5,
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1933,22 +1946,22 @@ def test_rate_limit_abandonment_breaks_max_dispatch_batches(make_config, monkeyp
 def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, caplog):
     # Guard against over-gating: with no rate limit the cancel event never trips, so the dispatch phase
     # must run exactly as before -- every completed candidate is dispatched and no deferral warning fires.
-    monkeypatch.setattr(review, "_FINGERPRINT_WORKERS", 1)
+    monkeypatch.setattr(review_finish, "_FINGERPRINT_WORKERS", 1)
     fingerprinted: list[int] = []
     dispatched: list[int] = []
 
-    def fingerprint(_client, number, _authorized, _skip):
+    def fingerprint(_client, _repo, number, _authorized, _skip):
         fingerprinted.append(number)
         return (f"headsha{number}", _HASH_A)
 
-    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def fake_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         dispatched.append(number)
 
     with caplog.at_level(logging.WARNING, logger="greenlight"):
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2), _open_pr(3)],
             fingerprint=fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -1967,7 +1980,7 @@ def test_normal_scan_dispatches_when_not_rate_limited(make_config, monkeypatch, 
 def test_fetch_failure_still_closes_main_client(make_config):
     client = Mock()
 
-    def boom_fetch(_client, _authors):
+    def boom_fetch(_client, _repo, _authors):
         raise RuntimeError("fetch boom")
 
     with pytest.raises(RuntimeError, match="fetch boom"):
@@ -1975,7 +1988,7 @@ def test_fetch_failure_still_closes_main_client(make_config):
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: cast("Github", client),
             fetch=boom_fetch,
-            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, _repo, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=lambda *_args, **_kwargs: None,
@@ -2057,7 +2070,7 @@ def test_run_cold_merge_rules_failure_propagates(make_config):
 
     fetched: list[int] = []
 
-    def fetch(_client, _authors):
+    def fetch(_client, _repo, _authors):
         fetched.append(1)
         return [_open_pr(1)]
 
@@ -2068,7 +2081,7 @@ def test_run_cold_merge_rules_failure_propagates(make_config):
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
             fetch=fetch,
-            fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+            fingerprint=lambda _client, _repo, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
             dispatch=lambda *_args, **_kwargs: None,
@@ -2103,11 +2116,11 @@ def test_default_fingerprint_forwards_to_fingerprint_pr(monkeypatch):
 
     monkeypatch.setattr(github_client, "fingerprint_pr", fake_fingerprint_pr)
 
-    result = review._default_fingerprint(_CLIENT, 7, _AUTHORIZED, True)
+    result = review._default_fingerprint(_CLIENT, "pytorch/vision", 7, _AUTHORIZED, True)
 
     assert result == ("headsha", _HASH_A)
     assert captured["client"] is _CLIENT
-    assert captured["repo"] == TARGET_REPO
+    assert captured["repo"] == "pytorch/vision"
     assert captured["pr_number"] == 7
     assert captured["authorized_logins"] is _AUTHORIZED
     # allow_skip is always True; skip_on_approval is forwarded verbatim from the caller.
@@ -3186,7 +3199,7 @@ def test_a_scan_without_a_memory_logs_no_fingerprint_cache_counts(make_config, c
 
 def test_a_capped_fast_tick_spends_its_dispatch_cap_on_fingerprinted_prs_not_on_cache_hits(make_config):
     cached = [_open_pr(1, updated_at=_FRESH), _open_pr(2, updated_at=_FRESH)]
-    uncached = [_open_pr(n, updated_at=_FRESH) for n in range(3, 3 + 2 * review._FINGERPRINT_WORKERS)]
+    uncached = [_open_pr(n, updated_at=_FRESH) for n in range(3, 3 + 2 * review_finish._FINGERPRINT_WORKERS)]
     states = {
         **{pr.number: _state(pr.number, STATUS_LAND, _HASH_A, _OLD) for pr in cached},
         **{pr.number: _state(pr.number, STATUS_LAND, _HASH_A, _NEW) for pr in uncached},
@@ -3209,7 +3222,7 @@ def test_a_capped_fast_tick_spends_its_dispatch_cap_on_fingerprinted_prs_not_on_
     # first worker-sized batch goes to the changed uncached PRs and the cap of one stops submission there.
     # Submitted with the rest, PRs 1 and 2 would take two of that batch's slots.
     assert scan.dispatched == [(3, "headsha3", _HASH_B, DEFAULT_DISPATCH_REF)]
-    assert sorted(scan.fingerprinted) == list(range(3, 3 + review._FINGERPRINT_WORKERS))
+    assert sorted(scan.fingerprinted) == list(range(3, 3 + review_finish._FINGERPRINT_WORKERS))
 
 
 def test_after_a_rate_limit_a_fast_tick_still_settles_its_cache_hits_and_abandons_the_rest(make_config, caplog):
@@ -3275,7 +3288,7 @@ def test_a_cached_pr_whose_judgment_raises_is_fingerprinted_afresh_and_the_tick_
 def test_run_default_label_seam_is_the_label_pass():
     import inspect
 
-    assert inspect.signature(review.run).parameters["label_prs"].default is verdict_labels.label_listed_prs
+    assert inspect.signature(review.prepare).parameters["label_prs"].default is verdict_labels.label_listed_prs
 
 
 @pytest.mark.parametrize("max_dispatches", [pytest.param(None, id="uncapped"), pytest.param(1, id="capped")])
@@ -3356,8 +3369,8 @@ def test_the_label_pass_reads_a_pr_through_the_get_pr_seam_on_the_scans_main_cli
     review.run(
         make_config(github_token="t"),
         build_github=factory,
-        fetch=lambda _client, _authors: [_open_pr(1)],
-        fingerprint=lambda _client, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
+        fetch=lambda _client, _repo, _authors: [_open_pr(1)],
+        fingerprint=lambda _client, _repo, number, _authorized, _skip: (f"headsha{number}", _HASH_A),
         read_state=lambda _repo, _numbers: {},
         read_reverted=_no_reverted,
         dispatch=lambda *_args, **_kwargs: None,
@@ -3402,19 +3415,19 @@ def test_the_label_pass_runs_once_the_revocations_and_the_dispatch_phase_are_don
 def test_prs_that_failed_still_get_the_label_pass_and_the_scan_raises_after_it(make_config):
     passes: list[verdict_labels.LabelPass] = []
 
-    def boom_fingerprint(_client, number, _authorized, _skip):
+    def boom_fingerprint(_client, _repo, number, _authorized, _skip):
         if number == 1:
             raise RuntimeError("fingerprint boom")
         return (f"headsha{number}", _HASH_A)
 
-    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow):
+    def boom_dispatch(_client, number, _head_sha, _eval_hash, _ref, *, shadow, repo):
         raise RuntimeError("dispatch boom")
 
     with pytest.raises(RuntimeError) as excinfo:
         review.run(
             make_config(github_token="t"),
             build_github=lambda _token, **_kwargs: _CLIENT,
-            fetch=lambda _client, _authors: [_open_pr(1), _open_pr(2)],
+            fetch=lambda _client, _repo, _authors: [_open_pr(1), _open_pr(2)],
             fingerprint=boom_fingerprint,
             read_state=lambda _repo, _numbers: {},
             read_reverted=_no_reverted,
@@ -3484,3 +3497,101 @@ def test_the_label_pass_lets_its_ledger_read_failure_fail_the_scan(make_config):
     )
 
     assert str(scan.error) == "clickhouse down"
+
+
+_APP_BOT = "greenlight-app[bot]"
+_SHADOW_PYTORCH = replace(BUILTIN_PYTORCH, mode="shadow")
+_VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "merge_rules", "active")
+
+
+def test_a_shadow_repo_still_fingerprints_its_eligible_prs_but_stamps_every_dispatch_shadow(make_config):
+    scan = _run_scan(
+        make_config,
+        entry=_SHADOW_PYTORCH,
+        listed=[_open_pr(1), _open_pr(2, author="stranger")],
+        fingerprints={1: ("headsha1", _HASH_A)},
+    )
+
+    assert scan.fingerprinted == [1]
+    assert scan.dispatch_shadow == [(1, True)]
+    assert scan.emit_shadow == [(1, True)]
+    assert scan.poked == []
+
+
+def test_a_shadow_repo_revokes_only_ineligible_approvals(make_config):
+    scan = _run_scan(
+        make_config,
+        entry=_SHADOW_PYTORCH,
+        listed=[_open_pr(1, updated_at=_FRESH), _open_pr(2, author="stranger", updated_at=_FRESH)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW), 2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
+        bot_login=_APP_BOT,
+    )
+
+    assert [number for number, _bot, _message in scan.dismissals] == [2]
+
+
+def test_a_shadow_repo_keeps_the_reverted_row_visible_on_a_recorded_pr(make_config):
+    scan = _run_scan(
+        make_config,
+        entry=_SHADOW_PYTORCH,
+        listed=[_open_pr(1), _open_pr(2)],
+        fingerprints={},
+        states={1: _state(1, STATUS_LAND, _HASH_A, _NEW)},
+        reverted=frozenset({1, 2}),
+        bot_login=_APP_BOT,
+    )
+
+    assert sorted(scan.reverted_shadow) == [(1, False), (2, True)]
+
+
+def test_a_repo_whose_status_comment_is_greenlights_is_never_poked(make_config):
+    scan = _run_scan(make_config, entry=_VISION, listed=[_open_pr(1)], fingerprints={1: ("headsha1", _HASH_A)})
+
+    assert scan.dispatch_shadow == [(1, False)]
+    assert scan.poked == []
+    assert scan.repos_seen == {"pytorch/vision"}
+    assert [row[0] for row in scan.emitted] == ["pytorch/vision"]
+
+
+def test_safety_only_runs_the_revert_guard_and_the_revoke_and_nothing_optional(make_config):
+    scan = _run_scan(
+        make_config,
+        optional=False,
+        listed=[_open_pr(1, updated_at=_FRESH), _open_pr(2, author="stranger", updated_at=_FRESH), _open_pr(3)],
+        fingerprints={1: ("headsha1", _HASH_A)},
+        states={2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
+        reverted=frozenset({3}),
+        bot_login=_APP_BOT,
+        label_prs=lambda _scan: None,
+    )
+
+    assert sorted(number for number, _bot, _message in scan.dismissals) == [2, 3]
+    assert [row[1] for row in scan.reverted_emitted] == [3]
+    assert scan.fingerprinted == []
+    assert scan.dispatched == []
+    assert "label_pass" not in scan.events
+
+
+def test_safety_only_still_raises_the_safety_works_failures(make_config):
+    scan = _run_scan(
+        make_config,
+        optional=False,
+        listed=[_open_pr(2, author="stranger", updated_at=_FRESH)],
+        fingerprints={},
+        states={2: _state(2, STATUS_LAND, _HASH_A, _NEW)},
+        bot_login=_APP_BOT,
+        dismiss_errors={2: RuntimeError("boom")},
+        raises=RuntimeError,
+    )
+
+    assert "1 PR(s) failed during scan: [2]" in str(scan.error)
+
+
+def test_the_review_refuses_a_repo_that_is_off(make_config):
+    with pytest.raises(ValueError, match="pytorch/vision is off"):
+        review.run(
+            make_config(github_token="t"),
+            entry=replace(_VISION, mode="off"),
+            resolve_merge_rules=lambda: _SNAPSHOT,
+        )

@@ -1,6 +1,6 @@
 # Status labels (`GL/*`)
 
-greenlight shows where a `pytorch/pytorch` PR stands in its ledger (`misc.greenlight_pr_state`)
+greenlight shows where a PR of a repo it serves stands in its ledger (`misc.greenlight_pr_state`)
 with three labels: `GL/approved` shows a non-shadow `LAND`, `GL/human` a non-shadow `NO_LAND`, which
 leaves the PR to a human reviewer, and `GL/superseded` that the verdict, read as an approval, could
 no longer land the PR on its own and greenlight will not review the PR again. The labels are display
@@ -98,7 +98,7 @@ A label write is a PR update, with effects outside greenlight:
 
 ## Deployment
 
-The three labels must exist in `pytorch/pytorch`, named exactly `GL/approved`, `GL/human` and
+The three labels must exist in every repo greenlight serves, named exactly `GL/approved`, `GL/human` and
 `GL/superseded`, before code that writes them reaches test-infra `main`, since two paths run
 greenlight from `main` without waiting for a Lambda release: the reviewer workflow's `record` job,
 at the ref the scan dispatches it at (`main` by default), so verdict-time labels start at merge; and

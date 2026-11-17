@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 
 import pytest
 
-from greenlight import cohort, comment_format, constants, pr_hash, verdict_outline
+from greenlight import cohort, comment_format, constants, pr_hash, repo_config, verdict_outline
 from tests import ts_source
 
 _TS_RENDER = "torchci/lib/greenlight/greenlightRender.ts"
@@ -282,6 +282,17 @@ def test_repo_allowlist_matches_python() -> None:
         _PY_CONSTANTS,
         f"symmetric difference: {sorted(extracted ^ constants.DRCI_STATUS_COMMENT_REPOS)}",
     )
+
+
+def test_repos_yaml_drci_entries_match_the_render_allowlist() -> None:
+    # A drci entry posts no status comment of its own, so the HUD must render every one of them, and
+    # a repo the HUD renders without a drci entry would show greenlight's state twice.
+    config = repo_config.load_local()
+    assert config.error is None
+    entries = [entry for entry in config.served if entry.status_comment == "drci"]
+    entries += [entry for entry, _reason in config.safety_only if entry.status_comment == "drci"]
+    drci = frozenset(constants.normalize_repo(entry.repo) for entry in entries)
+    assert drci == constants.DRCI_STATUS_COMMENT_REPOS == _ts_repos()
 
 
 def test_greenlight_login_matches_python() -> None:

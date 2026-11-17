@@ -4,18 +4,16 @@ import functools
 import logging
 import sys
 from contextlib import contextmanager
-from types import MethodType
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
 
-from greenlight import cli, drci_poke, github_client, merge_authz, review, verdict
+from greenlight import cli, drci_poke, repo_scan, verdict
 from greenlight.config import Config
 from greenlight.constants import DEFAULT_DISPATCH_REF, DEFAULT_TIMEOUT_MINUTES, TARGET_REPO
 from greenlight.exit_codes import EXIT_ALREADY_RUNNING, EXIT_FAILURE, EXIT_OK
 from greenlight.guards import SingleInstanceError
-from greenlight.scan_memory import ScanMemory
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -26,18 +24,15 @@ def _noop_lock(path):
     yield
 
 
-def _pop_resolver(kwargs: Mapping[str, object]) -> dict[str, object]:
-    """Assert the merge rules resolver is bound and return the remaining kwargs.
+def _pop_caches(kwargs: Mapping[str, object]) -> dict[str, object]:
+    """Assert the process-wide caches are bound and return the remaining kwargs.
 
-    Every review path must bind the process-wide ``AuthorizedLoginsCache.snapshot`` as the merge
-    rules resolver; stripping it here lets the caller compare the rest of the bound scan flags by
-    value.
+    Every review path must bind the module-level repos-config and eligibility caches, which outlive
+    ``main()``; stripping them here lets the caller compare the rest of the bound scan flags by value.
     """
     remaining = dict(kwargs)
-    resolve = remaining.pop("resolve_merge_rules")
-    assert isinstance(resolve, MethodType)
-    assert isinstance(resolve.__self__, merge_authz.AuthorizedLoginsCache)
-    assert resolve.__func__ is merge_authz.AuthorizedLoginsCache.snapshot
+    assert remaining.pop("config_cache") is cli._CONFIG_CACHE
+    assert remaining.pop("eligibility_caches") is cli._ELIGIBILITY_CACHES
     return remaining
 
 
@@ -78,7 +73,7 @@ def test_main_no_subcommand_is_usage_error(monkeypatch):
 
 def test_main_review_dispatches_to_review_phase(monkeypatch):
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main(["review"])
@@ -104,8 +99,8 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
     assert isinstance(captured["config"], Config)
     bound = captured["run"]
     assert isinstance(bound, functools.partial)
-    assert bound.func is review.run
-    assert _pop_resolver(bound.keywords) == {
+    assert bound.func is repo_scan.scan_repo
+    assert _pop_caches(bound.keywords) == {
         "pr": None,
         "max_dispatches": None,
         "ref": "main",
@@ -114,12 +109,13 @@ def test_main_loop_calls_run_forever_with_phase(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
-        "memory": cli._SCAN_MEMORY,
+        "repo": TARGET_REPO,
+        "memories": cli._SCAN_MEMORY,
     }
 
 
 def test_main_oneshot_failure_returns_exit_failure(monkeypatch):
-    monkeypatch.setattr(review, "run", Mock(side_effect=ValueError("boom")))
+    monkeypatch.setattr(repo_scan, "scan_repo", Mock(side_effect=ValueError("boom")))
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main(["review"])
@@ -135,7 +131,7 @@ def test_main_already_running_returns_exit_already_running(monkeypatch):
 
     monkeypatch.setattr(cli, "single_instance_lock", raising_lock)
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main(["review"])
@@ -193,7 +189,7 @@ def test_cli_log_level_override(monkeypatch):
     def phase(config, **_kwargs):
         captured["config"] = config
 
-    monkeypatch.setattr(review, "run", phase)
+    monkeypatch.setattr(repo_scan, "scan_repo", phase)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main(["review", "--log-level", "debug"])
@@ -207,7 +203,7 @@ def test_cli_log_level_override(monkeypatch):
 def test_main_argv_none_uses_sys_argv(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["greenlight", "review"])
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main()
@@ -264,7 +260,7 @@ def test_main_passes_configured_lock_path(monkeypatch):
         yield
 
     monkeypatch.setattr(cli, "single_instance_lock", capturing_lock)
-    monkeypatch.setattr(review, "run", Mock())
+    monkeypatch.setattr(repo_scan, "scan_repo", Mock())
     monkeypatch.setattr(cli, "configure_logging", Mock())
     monkeypatch.setenv("PYTORCH_GREENLIGHT_LOCK_PATH", "/run/gl.lock")
 
@@ -276,7 +272,7 @@ def test_main_passes_configured_lock_path(monkeypatch):
 
 def test_main_logs_effective_lock_path(monkeypatch, caplog):
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
-    monkeypatch.setattr(review, "run", Mock())
+    monkeypatch.setattr(repo_scan, "scan_repo", Mock())
     monkeypatch.setattr(cli, "configure_logging", Mock())
     monkeypatch.setenv("PYTORCH_GREENLIGHT_LOCK_PATH", "/run/gl.lock")
 
@@ -296,7 +292,7 @@ def test_cli_log_level_normalized_and_accepted(raw, expected, monkeypatch):
     def phase(config, **_kwargs):
         captured["config"] = config
 
-    monkeypatch.setattr(review, "run", phase)
+    monkeypatch.setattr(repo_scan, "scan_repo", phase)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
 
     rc = cli.main(["review", "--log-level", raw])
@@ -309,7 +305,7 @@ def test_cli_log_level_normalized_and_accepted(raw, expected, monkeypatch):
 
 @pytest.mark.parametrize("blank", ["", "   "])
 def test_cli_blank_lock_path_runs_without_lock(blank, monkeypatch, caplog):
-    monkeypatch.setattr(review, "run", Mock())
+    monkeypatch.setattr(repo_scan, "scan_repo", Mock())
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     with caplog.at_level(logging.WARNING, logger="greenlight"):
@@ -323,7 +319,7 @@ def test_cli_blank_lock_path_runs_without_lock(blank, monkeypatch, caplog):
 def test_main_lock_open_failure_is_clear_not_phase_failure(tmp_path, monkeypatch, caplog):
     bad = str(tmp_path / "missing-dir" / "greenlight.lock")
     monkeypatch.setenv("PYTORCH_GREENLIGHT_LOCK_PATH", bad)
-    monkeypatch.setattr(review, "run", Mock())
+    monkeypatch.setattr(repo_scan, "scan_repo", Mock())
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
@@ -650,7 +646,7 @@ def test_review_parser_parses_requester_and_allow_untrusted_author():
 
 def test_main_review_binds_scan_flags_into_run(monkeypatch):
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
@@ -659,7 +655,7 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
     assert rc == EXIT_OK
     review_mock.assert_called_once()
     assert isinstance(review_mock.call_args.args[0], Config)
-    assert _pop_resolver(review_mock.call_args.kwargs) == {
+    assert _pop_caches(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": 2,
         "ref": "release/2.9",
@@ -668,20 +664,21 @@ def test_main_review_binds_scan_flags_into_run(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
-        "memory": None,
+        "repo": TARGET_REPO,
+        "memories": None,
     }
 
 
 def test_main_review_defaults_bind_into_run(monkeypatch):
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main(["review"])
 
     assert rc == EXIT_OK
-    assert _pop_resolver(review_mock.call_args.kwargs) == {
+    assert _pop_caches(review_mock.call_args.kwargs) == {
         "pr": None,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
@@ -690,13 +687,14 @@ def test_main_review_defaults_bind_into_run(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
-        "memory": cli._SCAN_MEMORY,
+        "repo": TARGET_REPO,
+        "memories": cli._SCAN_MEMORY,
     }
 
 
 def test_main_hands_every_listing_scan_one_process_wide_memory_and_a_pr_recheck_none(monkeypatch):
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
@@ -706,8 +704,8 @@ def test_main_hands_every_listing_scan_one_process_wide_memory_and_a_pr_recheck_
 
     # Two main() calls in one process, as the Lambda handler makes on warm invocations, share the
     # module-level memory; a --pr recheck lists nothing and gets none.
-    first, second, recheck = (call.kwargs["memory"] for call in review_mock.call_args_list)
-    assert isinstance(first, ScanMemory)
+    first, second, recheck = (call.kwargs["memories"] for call in review_mock.call_args_list)
+    assert isinstance(first, dict)
     assert first is second is cli._SCAN_MEMORY
     assert recheck is None
 
@@ -715,7 +713,7 @@ def test_main_hands_every_listing_scan_one_process_wide_memory_and_a_pr_recheck_
 def test_main_force_without_pr_is_usage_error(monkeypatch):
     monkeypatch.setattr(cli, "configure_logging", Mock())
     run_mock = Mock()
-    monkeypatch.setattr(review, "run", run_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", run_mock)
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["review", "--force"])
     assert excinfo.value.code == 2
@@ -734,14 +732,14 @@ def test_main_force_with_loop_is_usage_error(monkeypatch):
 
 def test_main_review_force_binds_into_run(monkeypatch):
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main(["review", "--pr", "5", "--force"])
 
     assert rc == EXIT_OK
-    assert _pop_resolver(review_mock.call_args.kwargs) == {
+    assert _pop_caches(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
@@ -750,20 +748,21 @@ def test_main_review_force_binds_into_run(monkeypatch):
         "requester": None,
         "allow_untrusted_author": False,
         "bot_login": "",
-        "memory": None,
+        "repo": TARGET_REPO,
+        "memories": None,
     }
 
 
 def test_main_review_binds_requester_and_override_into_run(monkeypatch):
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     rc = cli.main(["review", "--pr", "5", "--requester", "albanD", "--allow-untrusted-author"])
 
     assert rc == EXIT_OK
-    assert _pop_resolver(review_mock.call_args.kwargs) == {
+    assert _pop_caches(review_mock.call_args.kwargs) == {
         "pr": 5,
         "max_dispatches": None,
         "ref": DEFAULT_DISPATCH_REF,
@@ -772,14 +771,15 @@ def test_main_review_binds_requester_and_override_into_run(monkeypatch):
         "requester": "albanD",
         "allow_untrusted_author": True,
         "bot_login": "",
-        "memory": None,
+        "repo": TARGET_REPO,
+        "memories": None,
     }
 
 
 def test_main_review_binds_bot_login_from_env(monkeypatch):
     monkeypatch.setenv("BOT_LOGIN", "greenlight-app[bot]")
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
@@ -794,7 +794,7 @@ def test_main_review_binds_bot_login_from_env(monkeypatch):
 def test_main_review_bot_login_is_stripped(raw, monkeypatch):
     monkeypatch.setenv("BOT_LOGIN", raw)
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
@@ -808,7 +808,7 @@ def test_main_review_bot_login_is_stripped(raw, monkeypatch):
 def test_main_review_blank_bot_login_binds_empty(blank, monkeypatch):
     monkeypatch.setenv("BOT_LOGIN", blank)
     review_mock = Mock()
-    monkeypatch.setattr(review, "run", review_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
@@ -823,7 +823,7 @@ def test_main_review_blank_bot_login_binds_empty(blank, monkeypatch):
 def test_main_review_malformed_bot_login_is_usage_error(bad, monkeypatch):
     monkeypatch.setenv("BOT_LOGIN", bad)
     run_mock = Mock()
-    monkeypatch.setattr(review, "run", run_mock)
+    monkeypatch.setattr(repo_scan, "scan_repo", run_mock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
     with pytest.raises(SystemExit) as excinfo:
@@ -834,55 +834,20 @@ def test_main_review_malformed_bot_login_is_usage_error(bad, monkeypatch):
     run_mock.assert_not_called()
 
 
-def test_build_authz_client_requires_token():
-    with pytest.raises(ValueError, match="PYTORCH_GREENLIGHT_GITHUB_TOKEN"):
-        cli._build_authz_client(Config(github_token=None))
-
-
-def test_build_authz_client_builds_github_client():
-    from github import Github
-
-    client = cli._build_authz_client(Config(github_token="tok"))
-
-    assert isinstance(client, Github)
-
-
-def test_build_authz_client_uses_patient_authz_builder(monkeypatch):
-    calls: list[str] = []
-
-    def _fake_build_authz_client(token: str) -> object:
-        calls.append(token)
-        return object()
-
-    # The authz path must build via build_authz_client (patient retry that waits out a 429), never
-    # the fail-fast build_client the scan/verdict clients use.
-    monkeypatch.setattr(github_client, "build_authz_client", _fake_build_authz_client)
-    monkeypatch.setattr(
-        github_client, "build_client", Mock(side_effect=AssertionError("authz must not use build_client"))
-    )
-
-    cli._build_authz_client(Config(github_token="tok"))
-
-    assert calls == ["tok"]
-
-
-def test_main_review_cache_uses_configured_ttl(monkeypatch):
-    monkeypatch.setenv("PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS", "123")
-    captured: dict[str, object] = {}
-
-    def fake_run(config, **kwargs):
-        captured["resolve"] = kwargs["resolve_merge_rules"]
-
-    monkeypatch.setattr(review, "run", fake_run)
+def test_main_review_binds_the_repo_flag(monkeypatch):
+    review_mock = Mock()
+    monkeypatch.setattr(repo_scan, "scan_repo", review_mock)
     monkeypatch.setattr(cli, "single_instance_lock", _noop_lock)
     monkeypatch.setattr(cli, "configure_logging", Mock())
 
-    rc = cli.main(["review", "--pr", "5"])
+    rc = cli.main(["review", "--repo", "pytorch/vision"])
 
     assert rc == EXIT_OK
-    resolve = captured["resolve"]
-    assert isinstance(resolve, MethodType)
-    cache = resolve.__self__
-    # One process-wide cache, built from config: the configured TTL flows into it.
-    assert isinstance(cache, merge_authz.AuthorizedLoginsCache)
-    assert cache._ttl_seconds == 123.0
+    assert review_mock.call_args.kwargs["repo"] == "pytorch/vision"
+
+
+def test_the_process_wide_config_cache_is_read_every_scan_and_serves_stale_on_any_failure():
+    cache = cli._CONFIG_CACHE
+    assert cache._ttl_seconds == 0
+    assert cache._max_stale_seconds is None
+    assert cache._stale_on_broken is True

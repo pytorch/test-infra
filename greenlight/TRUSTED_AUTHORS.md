@@ -16,7 +16,7 @@ eligible, onboarding and offboarding, and the risks this design accepts.
 
 ## The rule
 
-A PR is authoritative only when a rule in `pytorch/pytorch`'s `merge_rules.yaml` names its author
+A PR is authoritative only when a rule in its repo's `merge_rules.yaml` names its author
 (`cohort.assess_rules`), whatever files the PR changes, and trymerge accepts its base
 (`merge_authz.accepts_base`): a PR based on `main`, a ghstack PR, one whose head branch is named
 `gh/<user>/<N>/head`, or a PR in a GitHub-native stack whose trunk is `main`. Team refs are expanded
@@ -62,9 +62,9 @@ all shadow therefore also gets a non-shadow `REVERTED` row and a Dr. CI poke.
 
 ## Onboarding and offboarding
 
-Both are a `merge_rules.yaml` change in `pytorch/pytorch`, with no greenlight deploy. The scheduled
-scan resolves the rules afresh on every pass (about every 5 minutes), a `--loop` daemon once its
-cached copy is older than `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`, and the verdict on every run.
+Both are a `merge_rules.yaml` change in the repo, with no greenlight deploy. The scan resolves the
+rules afresh once its cached copy, kept between scans in one process (the Lambda's and a `--loop`
+daemon's), is older than `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`, and the verdict on every run.
 A login gains authority only where a rule names it in its exact GitHub casing, and the per-PR reason
 catches a miscased entry.
 

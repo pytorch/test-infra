@@ -1,0 +1,304 @@
+from __future__ import annotations
+
+import dataclasses
+import json
+import logging
+import os
+import textwrap
+import urllib.request
+from typing import TYPE_CHECKING
+
+import pytest
+import yaml
+
+from greenlight import repo_config
+from greenlight.constants import DISPATCH_REPO, REPOS_CONFIG_PATH, TARGET_REPO
+from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, ConfigUnreadable, RepoConfig, RepoEntry
+from greenlight.repo_scan import RepoIdentity, identity_problem
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+_PYTORCH = """\
+  - repo: pytorch/pytorch
+    status_comment: drci
+    safety: pytorchbot
+    eligibility: merge_rules
+    mode: {mode}
+"""
+
+
+def _entry(repo: str, **fields: str) -> str:
+    values = {"status_comment": "greenlight", "safety": "gate", "eligibility": "merge_rules", "mode": "shadow"}
+    values.update(fields)
+    lines = [f"  - repo: {repo}"] + [f"    {key}: {value}" for key, value in values.items() if value != "<absent>"]
+    return "\n".join(lines) + "\n"
+
+
+def _parse(*entries: str, pytorch_mode: str | None = "active") -> RepoConfig:
+    body = (_PYTORCH.format(mode=pytorch_mode) if pytorch_mode is not None else "") + "".join(entries)
+    return repo_config.parse("repos:\n" + body)
+
+
+def test_the_real_repos_yaml_parses_with_no_problem_and_its_primary_is_the_builtin():
+    config = repo_config.load_local()
+    written = yaml.safe_load(repo_config._default_path().read_text())["repos"]
+
+    assert config.problems == ()
+    assert config.served[0] == BUILTIN_PYTORCH
+    assert [entry for entry in written if entry["repo"] == TARGET_REPO] == [dataclasses.asdict(BUILTIN_PYTORCH)]
+
+
+def test_a_valid_config_serves_every_entry_in_file_order_with_the_primary_first():
+    config = repo_config.parse(
+        "repos:\n" + _entry("pytorch/vision") + _PYTORCH.format(mode="active") + _entry("pytorch/audio", mode="off")
+    )
+
+    assert [entry.repo for entry in config.served] == [TARGET_REPO, "pytorch/vision", "pytorch/audio"]
+    assert config.served[1] == RepoEntry("pytorch/vision", "greenlight", "gate", "merge_rules", "shadow")
+    assert config.safety_only == ()
+    assert config.refused == ()
+    assert config.problems == ()
+
+
+@pytest.mark.parametrize(
+    ("text", "match"),
+    [
+        pytest.param("repos: [", "not valid YAML", id="bad-yaml"),
+        pytest.param("- a\n", "top level must be a mapping", id="top-level-list"),
+        pytest.param("", "top level must be a mapping", id="empty"),
+        pytest.param("other: 1\n", "repos must be a list", id="no-repos"),
+        pytest.param("repos: {a: 1}\n", "repos must be a list", id="repos-not-a-list"),
+        pytest.param(b"\xff\xfe\x00", "not valid YAML", id="not-text"),
+    ],
+)
+def test_a_file_that_cannot_be_used_as_a_whole_is_unreadable(text, match):
+    with pytest.raises(ConfigUnreadable, match=match):
+        repo_config.parse(text)
+
+
+def test_unknown_top_level_keys_are_ignored_with_a_warning(caplog):
+    with caplog.at_level(logging.WARNING, logger="greenlight"):
+        config = repo_config.parse("version: 2\nrepos:\n" + _PYTORCH.format(mode="active"))
+
+    assert config.served == (BUILTIN_PYTORCH,)
+    assert "unknown top-level key(s) ['version'] ignored" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("entry", "reason"),
+    [
+        pytest.param("  - 5\n", "the entry is not a mapping", id="not-a-mapping"),
+        pytest.param("  - mode: shadow\n", "repo must be pytorch/<name>", id="no-repo"),
+        pytest.param(_entry("meta/vision"), "repo must be pytorch/<name>", id="other-org"),
+        pytest.param(_entry("pytorch/vi sion"), "repo must be pytorch/<name>", id="bad-name"),
+        pytest.param(_entry("pytorch/vision", mode="<absent>"), "mode is missing", id="missing-field"),
+        pytest.param(_entry("pytorch/vision", safety="none"), "safety 'none' is not one of", id="bad-enum"),
+        pytest.param(_entry("pytorch/vision", safety="pytorchbot"), "safety: pytorchbot is only for", id="pytorchbot"),
+        pytest.param(_entry("pytorch/vision", status_comment="drci"), "status_comment: drci is only for", id="drci"),
+        pytest.param(_entry("pytorch/vision", mode="active"), "safety: gate cannot be active", id="active-gate"),
+    ],
+)
+def test_a_bad_non_primary_entry_is_refused_and_the_rest_still_served(entry, reason):
+    config = _parse(entry, _entry("pytorch/audio"))
+
+    assert [served.repo for served in config.served] == [TARGET_REPO, "pytorch/audio"]
+    [(repo, why)] = config.refused
+    assert reason in why
+    assert f"{repo} is refused: {why}" in config.problems
+
+
+def test_every_copy_of_a_duplicated_repo_is_refused_case_insensitively():
+    config = _parse(_entry("pytorch/vision"), _entry("pytorch/Vision"))
+
+    assert config.served == (BUILTIN_PYTORCH,)
+    assert [repo for repo, _ in config.refused] == ["pytorch/vision", "pytorch/Vision"]
+    assert all("listed more than once" in reason for _, reason in config.refused)
+
+
+def test_a_non_primary_entry_with_an_unknown_key_is_safety_only():
+    config = _parse(_entry("pytorch/vision", gate_workflow="x"))
+
+    [(entry, reason)] = config.safety_only
+    assert entry == RepoEntry("pytorch/vision", "greenlight", "gate", "merge_rules", "shadow")
+    assert reason == "unknown key(s) ['gate_workflow']"
+    assert config.lookup("pytorch/vision") == (entry, False)
+
+
+def test_an_unknown_key_never_saves_an_otherwise_refused_entry():
+    config = _parse(_entry("pytorch/vision", mode="active", gate_workflow="x"))
+
+    assert config.safety_only == ()
+    assert [repo for repo, _ in config.refused] == ["pytorch/vision"]
+
+
+def test_the_primarys_mode_comes_from_the_file_and_its_other_fields_are_pinned(caplog):
+    text = "repos:\n" + _entry(TARGET_REPO, status_comment="greenlight", eligibility="write_permission", extra="1")
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        config = repo_config.parse(text)
+
+    assert config.served == (dataclasses.replace(BUILTIN_PYTORCH, mode="shadow"),)
+    assert config.problems == ()
+    assert "status_comment 'greenlight' ignored; it is pinned to 'drci'" in caplog.text
+    assert "safety 'gate' ignored" in caplog.text
+    assert "eligibility 'write_permission' ignored" in caplog.text
+    assert "unknown key(s) ['extra'] ignored" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("text", "reason"),
+    [
+        pytest.param("repos: []\n", "is missing", id="missing"),
+        pytest.param("repos:\n" + _PYTORCH.format(mode="active") * 2, "is duplicated", id="duplicated"),
+        pytest.param(
+            "repos:\n" + _PYTORCH.format(mode="active") + _entry("pytorch/PyTorch"), "is duplicated", id="case-dup"
+        ),
+        pytest.param("repos:\n" + _PYTORCH.format(mode="paused"), "mode 'paused' is not one of", id="bad-mode"),
+        pytest.param("repos:\n" + _entry(TARGET_REPO, mode="<absent>"), "mode None is not one of", id="no-mode"),
+    ],
+)
+def test_a_broken_primary_is_never_refused_but_safety_only_under_the_builtin(text, reason):
+    config = repo_config.parse(text)
+
+    assert config.served == ()
+    [(entry, why)] = config.safety_only
+    assert entry == BUILTIN_PYTORCH
+    assert reason in why
+    assert all(repo != TARGET_REPO for repo, _ in config.refused)
+    assert config.lookup(TARGET_REPO) == (BUILTIN_PYTORCH, False)
+
+
+def test_lookup_is_by_exact_name_and_misses_refused_and_absent_repos():
+    config = _parse(_entry("pytorch/vision"), _entry("pytorch/audio", mode="bogus"))
+
+    assert config.lookup("pytorch/vision") is not None
+    assert config.lookup("pytorch/Vision") is None
+    assert config.lookup("pytorch/audio") is None
+    assert config.lookup("pytorch/text") is None
+
+
+def test_problems_lists_the_file_error_the_safety_only_reasons_and_the_refusals():
+    config = RepoConfig(
+        served=(),
+        safety_only=((BUILTIN_PYTORCH, "its entry is missing"),),
+        refused=(("pytorch/x", "bad"),),
+        error="gone",
+    )
+
+    assert config.problems == (
+        "repos config unreadable: gone",
+        f"{TARGET_REPO} is safety-only: its entry is missing",
+        "pytorch/x is refused: bad",
+    )
+
+
+def test_load_local_reads_the_given_path(tmp_path: Path) -> None:
+    path = tmp_path / "repos.yaml"
+    path.write_text("repos:\n" + _PYTORCH.format(mode="off"))
+
+    assert repo_config.load_local(path).served == (dataclasses.replace(BUILTIN_PYTORCH, mode="off"),)
+
+
+@pytest.mark.parametrize("content", [None, "repos: 5\n"], ids=["missing", "unreadable"])
+def test_load_local_falls_back_to_the_builtin_with_the_error_set(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, content: str | None
+) -> None:
+    path = tmp_path / "repos.yaml"
+    if content is not None:
+        path.write_text(content)
+
+    with caplog.at_level(logging.ERROR, logger="greenlight"):
+        config = repo_config.load_local(path)
+
+    assert config.served == BUILTIN_CONFIG.served
+    assert config.error is not None
+    assert str(path) in config.error
+    assert "serving only the built-in" in caplog.text
+
+
+class _Content:
+    def __init__(self, text: str) -> None:
+        self.decoded_content = text.encode()
+
+
+class _ContentsRepo:
+    def __init__(self, contents: object) -> None:
+        self.contents = contents
+        self.paths: list[str] = []
+
+    def get_contents(self, path: str) -> object:
+        self.paths.append(path)
+        return self.contents
+
+
+class _ContentsClient:
+    def __init__(self, contents: object) -> None:
+        self.repo = _ContentsRepo(contents)
+        self.names: list[str] = []
+
+    def get_repo(self, full_name_or_id: str) -> _ContentsRepo:
+        self.names.append(full_name_or_id)
+        return self.repo
+
+
+def test_fetch_config_reads_the_file_from_the_dispatch_repo():
+    client = _ContentsClient(_Content("repos:\n" + _PYTORCH.format(mode="shadow")))
+
+    config = repo_config.fetch_config(client)  # type: ignore[arg-type]
+
+    assert config.served == (dataclasses.replace(BUILTIN_PYTORCH, mode="shadow"),)
+    assert client.names == [DISPATCH_REPO]
+    assert client.repo.paths == [REPOS_CONFIG_PATH]
+
+
+def test_fetch_config_refuses_a_directory_and_an_unreadable_file():
+    with pytest.raises(ConfigUnreadable, match="resolved to a directory"):
+        repo_config.fetch_config(_ContentsClient([_Content("x")]))  # type: ignore[arg-type]
+    with pytest.raises(ConfigUnreadable):
+        repo_config.fetch_config(_ContentsClient(_Content("repos: 1\n")))  # type: ignore[arg-type]
+
+
+def test_the_value_tuples_are_the_literals():
+    assert repo_config.STATUS_COMMENTS == ("drci", "greenlight")
+    assert repo_config.SAFETIES == ("pytorchbot", "gate")
+    assert repo_config.ELIGIBILITIES == ("merge_rules", "write_permission")
+    assert repo_config.MODES == ("shadow", "active", "off")
+
+
+def test_is_primary_is_an_exact_match():
+    assert repo_config.is_primary(TARGET_REPO)
+    assert not repo_config.is_primary("PyTorch/PyTorch")
+
+
+@pytest.mark.skipif(
+    os.environ.get("GREENLIGHT_LIVE_CONFIG_CHECK") != "1",
+    reason="live GitHub check; runs only with GREENLIGHT_LIVE_CONFIG_CHECK=1 (the greenlight-tests workflow)",
+)
+def test_every_real_entry_passes_the_live_checks():
+    config = repo_config.load_local()
+    entries = [*config.served, *(entry for entry, _ in config.safety_only)]
+    token = os.environ.get("GITHUB_TOKEN")
+    problems: dict[str, str] = {}
+    for entry in entries:
+        request = urllib.request.Request(
+            f"https://api.github.com/repos/{entry.repo}", headers={"Accept": "application/vnd.github+json"}
+        )
+        if token:
+            request.add_header("Authorization", f"Bearer {token}")
+        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+            data = json.load(response)
+        identity = RepoIdentity(data["full_name"], data["private"], data["default_branch"])
+        if (problem := identity_problem(entry, identity)) is not None:
+            problems[entry.repo] = problem
+
+    assert entries
+    assert problems == {}
+
+
+def test_the_live_check_is_documented_in_the_workflow():
+    from pathlib import Path
+
+    workflow = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "greenlight-tests.yml"
+    text = textwrap.dedent(workflow.read_text())
+    assert 'GREENLIGHT_LIVE_CONFIG_CHECK: "1"' in text
+    assert "GITHUB_TOKEN: ${{ github.token }}" in text

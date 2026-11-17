@@ -1209,3 +1209,66 @@ def test_has_live_greenlight_approval_false_when_only_other_author_approved():
     pr = _FakeVerdictPR(reviews=reviews)
 
     assert github_client.has_live_greenlight_approval(pr, bot_login="greenlight-app[bot]") is False
+
+
+def _max_retry(status: int) -> Exception:
+    from urllib3.exceptions import MaxRetryError, ResponseError
+
+    return MaxRetryError(
+        None,  # type: ignore[arg-type]
+        "/repos/x",
+        reason=ResponseError(ResponseError.SPECIFIC_ERROR.format(status_code=status)),
+    )
+
+
+def test_is_rate_limit_error_true_for_an_exhausted_429_retry():
+    from requests.exceptions import RetryError
+
+    assert github_client.is_rate_limit_error(RetryError(_max_retry(429))) is True
+    assert github_client.is_rate_limit_error(_max_retry(429)) is True
+
+
+def test_is_rate_limit_error_false_for_an_exhausted_retry_of_another_status():
+    from requests.exceptions import RetryError
+    from urllib3.exceptions import MaxRetryError
+
+    assert github_client.is_rate_limit_error(RetryError(_max_retry(503))) is False
+    unrelated = MaxRetryError(None, "/x", reason=OSError("refused"))  # type: ignore[arg-type]
+    assert github_client.is_rate_limit_error(unrelated) is False
+    assert github_client.is_rate_limit_error(RetryError()) is False
+
+
+def test_is_rate_limit_error_classifies_a_real_exhausted_429_from_a_requests_stack():
+    import http.server
+    import threading
+
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    statuses = iter([429, 429, 503, 503])
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(next(statuses))
+            self.end_headers()
+
+        def log_message(self, *_args: object) -> None:
+            return None
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), _Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    session = requests.Session()
+    session.trust_env = False
+    retry = Retry(total=1, backoff_factor=0, status_forcelist={429, 503}, raise_on_status=True)
+    session.mount("http://", HTTPAdapter(max_retries=retry))
+    try:
+        outcomes = []
+        for _ in range(2):
+            with pytest.raises(requests.exceptions.RetryError) as excinfo:
+                session.get(f"http://127.0.0.1:{server.server_port}/")
+            outcomes.append(github_client.is_rate_limit_error(excinfo.value))
+    finally:
+        server.shutdown()
+        session.close()
+    assert outcomes == [True, False]

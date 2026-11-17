@@ -9,7 +9,8 @@ loops as a daemon with `--loop`; in production the scheduled scan runs as the `g
 AWS Lambda (EventBridge `rate(5 minutes)`), with the CLI modes kept for local use. It also has the
 one-shot `verdict` and `drci-poke` subcommands:
 
-- `review` — scan the open PRs from the evaluation cohort in `pytorch/pytorch` (every
+- `review` — scan the open PRs from the evaluation cohort in `--repo` (default `pytorch/pytorch`;
+  its `repos.yaml` entry decides the mode, [REPOS.md](REPOS.md)) (every
   `approved_by` login in `merge_rules.yaml`, team refs expanded, minus bots and minus greenlight
   itself); for each, compute its fingerprint (`eval_hash`), read its latest state from
   `misc.greenlight_pr_state`, and dispatch the reviewer workflow
@@ -62,8 +63,8 @@ one-shot `verdict` and `drci-poke` subcommands:
   Dr. CI's render and the land-time merge gate, and is not poked to Dr. CI; a `REVERTED` row on a
   PR with a recorded row is never shadow. `--requester` needs a login in the evaluation cohort, and
   `--pr` needs an eligible target (see below). Onboarding or offboarding
-  an author is a `merge_rules.yaml` change in `pytorch/pytorch`, live on the scheduled scan's next
-  pass (a `--loop` daemon caches the rules for `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS`); an
+  an author is a `merge_rules.yaml` change in the repo, live on the scan once its cached rules are
+  `PYTORCH_GREENLIGHT_MERGE_RULES_TTL_SECONDS` old (kept between scans in one process); an
   author no rule names drops out of the listing and keeps any approval until it is dismissed by
   hand. [TRUSTED_AUTHORS.md](TRUSTED_AUTHORS.md) has the details. Every listing tick that reaches its
   dispatch phase without a rate limit also supersedes, restores or re-applies the `GL/*` labels of its
@@ -73,9 +74,10 @@ one-shot `verdict` and `drci-poke` subcommands:
 - `verdict` — record a PR-review verdict to `misc.greenlight_pr_state` (storing the
   passed-in `eval_hash` verbatim) and, for `LAND`/`NO_LAND`, act on the PR (approve, or
   dismiss greenlight's prior approval, then set the `GL/approved` or `GL/human` label unless
-  shadow). It also upserts the status comment, except on
-  `pytorch/pytorch`, where Dr. CI renders that state in its own comment instead. `--shadow`
-  records the verdict with no authority; for `LAND`/`NO_LAND` the flag is OR-ed with an eligibility
+  shadow). It also upserts the status comment, except for a shadow row and on a `status_comment: drci`
+  repo (`pytorch/pytorch`), where Dr. CI renders that state in its own comment instead. `--shadow`
+  records the verdict with no authority, as does a repo not served and `active` in the job's
+  `repos.yaml`; for `LAND`/`NO_LAND` the flag is OR-ed with an eligibility
   check at record time (a valid rule naming the author, and the PR still at the reviewed head on a
   base trymerge accepts), so a disagreement withholds the approval, and a check that cannot complete fails the
   command with no row emitted. Runs once, never as a daemon.
@@ -86,7 +88,7 @@ one-shot `verdict` and `drci-poke` subcommands:
 
 The delegation has a side the greenlight repo does not control: the HUD renders the Green Light
 section for the repos in `GREENLIGHT_REPOS` (`torchci/lib/greenlight/greenlightConfig.ts`), and
-greenlight suppresses its own comment for the repos in `constants.DRCI_STATUS_COMMENT_REPOS`. A
+greenlight suppresses its own comment for its `drci` entries, held to `constants.DRCI_STATUS_COMMENT_REPOS`. A
 repo in the second list but not the first is auto-approved with no status anywhere, so change
 both together; `greenlight/tests/test_render_sync.py` fails when they drift apart.
 
@@ -175,7 +177,7 @@ the scan flags `--pr`, `--max`, `--ref`, and `--timeout-minutes`.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BOT_LOGIN` | unset | The App's own `<slug>[bot]` login; author-scopes the recheck-refusal comment and picks out greenlight's approvals to revoke on a reverted or ineligible PR. Must be App-shaped when set; either revocation refuses the scan without it |
-| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus PR write on `pytorch/pytorch` (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels); `verdict` needs PR write (approval, dismissal, `GL/*` label) plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org (for its merge-rule check) |
+| `PYTORCH_GREENLIGHT_GITHUB_TOKEN` | unset | GitHub token; `review` needs Actions: write (`workflow_dispatch`) on `pytorch/test-infra` plus Contents: read there (`repos.yaml`) and PR write on the scanned repo (to revoke its approval on a reverted or ineligible PR and to set the `GL/*` labels); `verdict` needs PR write (approval, dismissal, `GL/*` label) plus Contents: read on `pytorch/pytorch` and Members: read on the `pytorch` org (for its merge-rule check) |
 | `PYTORCH_GREENLIGHT_INTERVAL_SECONDS` | `60` | Seconds between iterations in `--loop` mode |
 | `PYTORCH_GREENLIGHT_LOG_LEVEL` | `INFO` | Logging level (`INFO`, `DEBUG`, ...) |
 | `PYTORCH_GREENLIGHT_LOCK_PATH` | unset | Single-instance lock file (unset = no lock) |
