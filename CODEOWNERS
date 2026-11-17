@@ -1,12 +1,58 @@
 # GitHub uses the LAST matching pattern for a path, and an unanchored pattern matches at
 # any depth. Several unrelated directories in this repo are also named `greenlight` (under
 # `.claude/hooks/` and under `torchci/`), so every pattern here is root-anchored to keep
-# one area's owners off the others.
+# one area's owners off the others; greenlight/tests/test_codeowners.py fails on one that
+# is not.
+#
+# GitHub reads the first CODEOWNERS file it finds in `.github/`, the root and `docs/`, so
+# all three locations are owned here and only the root one exists.
 
-/.claude/hooks/greenlight/              @jeanschmidt @ezyang @drisspg @albanD
-/.claude/skills/greenlight-review/      @jeanschmidt @ezyang @drisspg @albanD
+/.claude/                                       @jeanschmidt @ezyang @drisspg @albanD
+/.claude/hooks/greenlight/                      @jeanschmidt @ezyang @drisspg @albanD
+/.claude/skills/greenlight-review/              @jeanschmidt @ezyang @drisspg @albanD
+/CLAUDE.md                                      @jeanschmidt @ezyang @drisspg @albanD
+/CLAUDE.local.md                                @jeanschmidt @ezyang @drisspg @albanD
+/AGENTS.md                                      @jeanschmidt @ezyang @drisspg @albanD
+/.mcp.json                                      @jeanschmidt @ezyang @drisspg @albanD
 
-/.github/workflows/greenlight-gate.yml  @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
-/greenlight/                            @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/workflows/                             @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/actions/                               @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/workflows/greenlight-*.yml             @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/workflows/greenlight-gate.yml          @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/workflows/_lambda-do-release-runners.yml @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/workflows/lambda-release-tag-runners.yml @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/scripts/greenlight_*                   @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/actions/setup-uv/                      @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/actions/upload-claude-usage/           @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/pages/api/greenlight/                  @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/lib/greenlight/                        @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/lib/clickhouse.ts                      @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/next.config.js                         @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/tsconfig.json                          @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/package.json                           @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/yarn.lock                              @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/lib/auth/                              @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/lib/api/auth.ts                        @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/torchci/pages/api/auth/                        @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/aws/lambda/clickhouse-replicator-s3/           @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/tools/torchci/greenlight_replay/               @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/tools/torchci/greenlight_decisions/            @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/greenlight/                                    @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/pyproject.toml                                 @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/uv.toml                                        @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/uv.lock                                        @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/mise.toml                                      @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.mise.toml                                     @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/mise.local.toml                                @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.mise.local.toml                               @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.tool-versions                                 @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.config/                                       @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.mise/                                         @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/mise/                                          @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.rtx.toml                                      @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.rtx.local.toml                                @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/CODEOWNERS                                     @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/.github/CODEOWNERS                             @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
+/docs/CODEOWNERS                                @jeanschmidt @drisspg @albanD @huydhn @izaitsevfb @jathu
 
 /tools/quick_start/                     @albanD @atalman @zxiiro @NicolasHug @georgehong @jeanschmidt @huydhn @izaitsevfb @jathu @scotts

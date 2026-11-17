@@ -24,6 +24,10 @@ on:
       # Holds the route DRCI_ENDPOINT points at; test_render_sync.py asserts it still exists,
       # because drci_poke.poke swallows the 404 a moved route would start returning.
       - torchci/pages/api/drci/drci.ts
+      # test_codeowners.py pins who owns GreenLight's control plane; GitHub reads any of these.
+      - CODEOWNERS
+      - .github/CODEOWNERS
+      - docs/CODEOWNERS
   push:
     branches:
       - main
@@ -39,6 +43,9 @@ on:
       - torchci/lib/advisor/advisorBadge.ts
       - torchci/test/greenlightOutline.test.ts
       - torchci/pages/api/drci/drci.ts
+      - CODEOWNERS
+      - .github/CODEOWNERS
+      - docs/CODEOWNERS
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
