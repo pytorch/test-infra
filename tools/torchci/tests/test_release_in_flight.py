@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from analytics.github_analyze import (  # noqa: E402
     find_release_only_changes_prs,
     GitRepo,
+    milestone_issue_statuses,
     milestone_pr_step_rows,
     milestone_step_rows,
     release_in_preparation,
@@ -332,6 +333,65 @@ def _milestone_item(number, state, reason, pull_request=True):
     if pull_request:
         item["pull_request"] = {}
     return {"issue": item, "outstanding": False, "reason": reason}
+
+
+class MilestoneIgnoredIssues(TestCase):
+    def reasons(self, items):
+        class _Repo:
+            def ref_exists(self, ref):
+                return False  # before the cut: only open items are outstanding
+
+        issues = [
+            {
+                "number": number,
+                "title": title,
+                "html_url": f"https://github.com/pytorch/pytorch/issues/{number}",
+                "state": state,
+                "labels": [],
+                **({"pull_request": {}} if is_pr else {}),
+            }
+            for number, title, state, is_pr in items
+        ]
+        with patch(
+            "analytics.github_analyze.gh_get_milestone_issues", return_value=issues
+        ):
+            statuses = milestone_issue_statuses(
+                _Repo(), "release/2.15", "orig/release/2.15", 69
+            )
+        return {s["issue"]["number"]: (s["reason"], s["outstanding"]) for s in statuses}
+
+    def test_the_rfc_the_tracker_and_the_validation_issue_are_not_counted(self):
+        reasons = self.reasons(
+            [
+                (190875, "[RFC] Integrating FlyDSL with PyTorch DSL", "open", False),
+                (
+                    204614,
+                    "[RFC][ONNX] Own native ONNX operator translations",
+                    "open",
+                    False,
+                ),
+                (199813, "[v.2.15.0] Release Tracker", "open", False),
+                (
+                    201644,
+                    "Release 2.15 validations checklist and cherry-picks",
+                    "open",
+                    False,
+                ),
+            ]
+        )
+        self.assertEqual(set(reasons.values()), {("ignored_issue", False)}, reasons)
+
+    def test_other_open_items_and_every_pr_are_still_counted(self):
+        reasons = self.reasons(
+            [
+                (1, "Python 3.15 support for PyTorch", "open", False),
+                (2, "[RFC] looks like an RFC but is a PR", "open", True),
+                (3, "Release tracker fix", "open", True),
+            ]
+        )
+        self.assertEqual(reasons[1], ("open", True))
+        self.assertEqual(reasons[2], ("open", True))
+        self.assertEqual(reasons[3], ("open", True))
 
 
 class MilestonePrStepRows(TestCase):

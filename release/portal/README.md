@@ -98,8 +98,9 @@ validator, and a row here.
 outstanding item is an open issue or PR in the milestone. After the cut, it is also a closed
 issue whose fix landed on main after the cut but is not on the release branch (an
 unpicked cherry-pick), as `--missing-in-branch` in `tools/analytics/github_analyze.py`
-computes it. Issues labelled `release-feature-request` and the release's own tracker and
-validation issues are not counted. It works for a patch release too: 2.15.1 and 2.16.0 each
+computes it. Issues labelled `release-feature-request`, and the issues that stay open until the release
+is out (an `[RFC]`, the release tracker and the validation issue, found by their titles), are
+not counted. It works for a patch release too: 2.15.1 and 2.16.0 each
 have their own milestone, so both are checked at the same time.
 
 Once the release is out (its `v<version>` tag exists) these steps are done whatever is left in

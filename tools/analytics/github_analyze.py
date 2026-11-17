@@ -485,6 +485,14 @@ def print_contributor_stats(commits, delta: Optional[timedelta] = None) -> None:
         print(f"{author}: {count}")
 
 
+# Issues of a milestone that are not work to land and are left open until the release is out:
+# an [RFC], the release tracker ("[v.2.15.0] Release Tracker") and the validation issue
+# ("Release 2.15 validations checklist and cherry-picks"). The milestone checks ignore them.
+IGNORED_MILESTONE_ISSUE = re.compile(
+    r"^\s*\[RFC\]|release tracker|^release \S+ validations", re.IGNORECASE
+)
+
+
 def milestone_issue_statuses(
     repo: GitRepo, branch: str, orig_branch: str, milestone_idx: int
 ) -> List[Dict[str, Any]]:
@@ -493,6 +501,8 @@ def milestone_issue_statuses(
     "outstanding": bool, "reason": str}. The reasons:
 
     - feature_request: labelled release-feature-request, not counted
+    - ignored_issue: an issue (not a PR) that is an [RFC], the release tracker or the
+      validation issue (IGNORED_MILESTONE_ISSUE), open or not, not counted
     - open: still open
     - closed_before_cut: closed, and the release branch is not cut yet (so there is
       nothing to pick)
@@ -520,6 +530,10 @@ def milestone_issue_statuses(
         issue_url, state = issue["html_url"], issue["state"]
         if "release-feature-request" in labels:
             outstanding, reason = False, "feature_request"
+        elif "pull_request" not in issue and IGNORED_MILESTONE_ISSUE.search(
+            issue["title"]
+        ):
+            outstanding, reason = False, "ignored_issue"
         elif state != "closed":
             outstanding, reason = True, "open"
         elif not branch_cut:
