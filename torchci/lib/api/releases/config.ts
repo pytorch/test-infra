@@ -54,6 +54,7 @@ const StepSchema = z.object({
   tier: z.enum(TIERS),
   owner: z.string(),
   rc_scoped: z.boolean().optional(),
+  informational: z.boolean().optional(),
   depends_on: z.array(z.string()).optional(),
   due: z
     .object({ anchor: z.string(), offset_days: z.number().int() })

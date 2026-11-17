@@ -79,7 +79,8 @@ describe("GET /api/releases", () => {
       ga_date: null,
       status: "in_progress",
     });
-    expect(body.releases[1].progress.total).toBe(35);
+    // 35 steps, of which 2.10 and 2.11 are for information only
+    expect(body.releases[1].progress.total).toBe(33);
     expect(headers.get("Cache-Control")).toMatch(/^public, /);
   });
 

@@ -82,6 +82,11 @@ const NO_LINKS: DiscoveredLinks = {
   validation_issue: null,
 };
 
+// The steps that count: the ones for information only are on the board but are not work.
+function counted(views: StepView[]): StepView[] {
+  return views.filter((v) => !v.informational);
+}
+
 function rowsByKey(rows: StepStateRow[]): Map<string, StepStateRow> {
   return new Map(rows.map((row) => [`${row.step_id}\u0000${row.rc}`, row]));
 }
@@ -178,8 +183,13 @@ function stepViews(
       owner: step.owner,
       rc: scopedRc,
       status,
-      // a step that is done blocks nothing, whatever an old row said
-      blocking: status !== "done" && Number(row?.blocking ?? 0) === 1,
+      informational: step.informational === true,
+      // a step that is done blocks nothing, whatever an old row said; nor does one that
+      // is only for information
+      blocking:
+        status !== "done" &&
+        step.informational !== true &&
+        Number(row?.blocking ?? 0) === 1,
       depends_on: step.depends_on ?? [],
       due: dueDate(config, step),
       runbook: step.runbook ?? null,
@@ -217,7 +227,8 @@ export function isReleased(config: ReleaseConfig, views: StepView[]): boolean {
   });
 }
 
-function releaseStatus(config: ReleaseConfig, views: StepView[]): Status {
+function releaseStatus(config: ReleaseConfig, all: StepView[]): Status {
+  const views = counted(all);
   if (isReleased(config, views)) return "done";
   if (views.length > 0 && views.every((v) => v.status === "done"))
     return "done";
@@ -228,7 +239,8 @@ function releaseStatus(config: ReleaseConfig, views: StepView[]): Status {
   return "todo";
 }
 
-function currentPhase(config: ReleaseConfig, views: StepView[]): string {
+function currentPhase(config: ReleaseConfig, all: StepView[]): string {
+  const views = counted(all);
   if (isReleased(config, views)) return "Released";
   const open = config.phases.find((phase) =>
     views.some((v) => v.phase === phase.id && v.status !== "done")
@@ -310,7 +322,7 @@ export function buildBoard(
   const checked = views.flatMap((v) =>
     v.last_checked ? [v.last_checked] : []
   );
-  const done = views.filter((v) => v.status === "done").length;
+  const done = counted(views).filter((v) => v.status === "done").length;
   const out = releaseStatus(config, views) === "done";
   return {
     version: config.release,
@@ -327,7 +339,7 @@ export function buildBoard(
     },
     stats: {
       done,
-      total: views.length,
+      total: counted(views).length,
       blocking: views.filter((v) => v.blocking).length,
       next_milestone: nextMilestone(config, now),
       last_checked: checked.length
@@ -341,7 +353,9 @@ export function buildBoard(
       return {
         id: phase.id,
         name: phase.name,
-        collapsed: steps.length > 0 && steps.every((s) => s.status === "done"),
+        collapsed:
+          steps.some((s) => !s.informational) &&
+          steps.every((s) => s.informational || s.status === "done"),
         steps,
       };
     }),
@@ -388,8 +402,8 @@ export function buildIndex(
       ga_date: e.config.dates.ga ?? null,
       ga_planned: e.status !== "done",
       progress: {
-        done: e.views.filter((v) => v.status === "done").length,
-        total: e.views.length,
+        done: counted(e.views).filter((v) => v.status === "done").length,
+        total: counted(e.views).length,
       },
       phase: e.phase,
       status: e.status,

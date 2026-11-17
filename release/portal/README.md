@@ -47,6 +47,7 @@ steps:
     tier: A                      # how the work is done today: A, S, K or M (below)
     owner: release-manager       # a role
     rc_scoped: true              # optional. A separate state for each RC. Default false
+    informational: true          # optional. Shown as information, not as work to do. Default false
     depends_on: ["2.1"]          # optional. Step ids
     due: {anchor: ga, offset_days: -3}   # optional. branch_cut, final_rc or ga
     runbook: {script: release/promote.sh}   # optional. One of script, skill, url
@@ -64,6 +65,11 @@ release, the portal sees the tag), and a step the portal cannot observe uses
 | S | scripted: a person runs a script |
 | K | skill-assisted: an agent skill does most of it |
 | M | manual |
+
+An **informational** step is on the board for the reader, not for the portal's counts: it is
+shown as "info" instead of a state, it is not counted in the steps done or the total, it never
+blocks, and it does not keep a phase or the release in progress. Use it for what release
+engineering validates by itself, outside the portal.
 
 ### Check types
 
