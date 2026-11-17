@@ -18,6 +18,29 @@ We actively welcome your pull requests.
 5. Make sure your code lints.
 6. If you haven't already, complete the Contributor License Agreement ("CLA").
 
+## GreenLight
+
+[GreenLight](greenlight/README.md) reviews non-draft pull requests into `main`
+whose author has push access to this repository. What it does depends on this
+repository's `mode` in [`greenlight/repos.yaml`](greenlight/repos.yaml):
+
+- `shadow`: it records a verdict and shows nothing on the pull request.
+- `active`: on a LAND it approves the pull request on the commit it reviewed,
+  which satisfies the one required approval (files listed in `CODEOWNERS` still
+  need a code owner's approval); otherwise it leaves the pull request to a
+  human. It posts its own status comment and sets a `GL/*` label
+  ([STATUS_LABELS.md](greenlight/STATUS_LABELS.md)).
+
+A human approval satisfies the review requirement as well. The GreenLight gate
+check applies to every pull request: it holds while a GreenLight approval sits
+on an older commit than the pull request's head, until GreenLight withdraws or
+renews it (a push makes GreenLight review again). Re-run a gate run that timed
+out from the Checks tab.
+
+If a verdict is wrong, open an issue in this repository that names the pull
+request and the verdict
+([greenlight/ONBOARDING.md](greenlight/ONBOARDING.md#reporting-a-wrong-verdict)).
+
 ## Contributor License Agreement ("CLA")
 
 In order to accept your pull request, we need you to submit a CLA. You only

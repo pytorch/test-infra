@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from greenlight import constants
+from greenlight import constants, repo_config
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -132,3 +132,12 @@ def test_the_test_infra_policy_names_every_control_plane_path() -> None:
         if owners == CONTROL and p not in named and not any(_matches(n, p.removeprefix("/")) for n in named if "*" in n)
     ]
     assert not missing, f"repos/test-infra.md's merge authorization and code ownership stops do not name {missing}"
+
+
+def test_test_infra_goes_active_only_once_every_path_has_code_owners() -> None:
+    """GreenLight's approval satisfies test-infra's one required approval, so an active entry needs the default
+    ``*`` line: without it, GreenLight's approval alone merges any path no other line owns."""
+    entry = next((e for e in repo_config.load_local().served if e.repo == "pytorch/test-infra"), None)
+    if entry is not None and entry.mode == "active":
+        assert _RULES[0][0] == "*", "CODEOWNERS must start with a `*` line"
+        assert _RULES[0][1], "the `*` line must name owners"

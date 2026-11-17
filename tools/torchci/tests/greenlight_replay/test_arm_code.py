@@ -55,29 +55,31 @@ class TestTarget(TreeTestCase):
 
     def test_another_configured_repo_gets_its_own_checkout_and_policy(self):
         root = self.tree(
-            extra_repos=["pytorch/test-infra"],
-            policies=["pytorch.md", "test-infra.md"],
+            extra_repos=["pytorch/greenlight-fixture"],
+            policies=["pytorch.md", "greenlight-fixture.md"],
         )
         self.assertEqual(
-            arm_code.resolve_target(root, "pytorch/test-infra"),
+            arm_code.resolve_target(root, "pytorch/greenlight-fixture"),
             Target(
-                "pytorch/test-infra",
+                "pytorch/greenlight-fixture",
                 "target",
-                f"{REPO_POLICIES_RELPATH}/test-infra.md",
+                f"{REPO_POLICIES_RELPATH}/greenlight-fixture.md",
                 True,
             ),
         )
 
     def test_a_configured_repo_without_its_policy_file_is_not_present(self):
-        root = self.tree(extra_repos=["pytorch/test-infra"])
-        target = arm_code.resolve_target(root, "pytorch/test-infra")
+        root = self.tree(extra_repos=["pytorch/greenlight-fixture"])
+        target = arm_code.resolve_target(root, "pytorch/greenlight-fixture")
         self.assertFalse(target.policy_present)
-        self.assertEqual(target.policy, f"{REPO_POLICIES_RELPATH}/test-infra.md")
+        self.assertEqual(
+            target.policy, f"{REPO_POLICIES_RELPATH}/greenlight-fixture.md"
+        )
 
     def test_an_unconfigured_repo_is_refused_by_the_resolver(self):
         with self.assertRaises(ValueError) as caught:
-            arm_code.resolve_target(REPO_ROOT, "pytorch/test-infra")
-        self.assertIn("pytorch/test-infra", str(caught.exception))
+            arm_code.resolve_target(REPO_ROOT, "pytorch/greenlight-fixture")
+        self.assertIn("pytorch/greenlight-fixture", str(caught.exception))
         self.assertIn("repos.yaml", str(caught.exception))
 
     def test_another_spelling_of_pytorch_is_refused_before_the_resolver_runs(self):
@@ -470,15 +472,15 @@ class TestCannedVerdicts(TreeTestCase):
         self.assertIn("too_chunky", str(caught.exception))
 
     def test_the_no_policy_verdict_comes_from_the_workflows_own_jq_program(self):
-        root = self.tree(extra_repos=["pytorch/test-infra"])
-        target = arm_code.resolve_target(root, "pytorch/test-infra")
+        root = self.tree(extra_repos=["pytorch/greenlight-fixture"])
+        target = arm_code.resolve_target(root, "pytorch/greenlight-fixture")
         program = workflow_steps.no_policy_program(HEAD_WORKFLOW, WORKFLOW_PATH)
         verdict = arm_code.no_policy_verdict(root, HEAD_RECORD_STEP, program, target)
         self.assertEqual(
             (verdict["status"], verdict["reason"]), ("NO_LAND", "review_error")
         )
         self.assertIn(
-            f"No policy file for pytorch/test-infra at {target.policy}",
+            f"No policy file for pytorch/greenlight-fixture at {target.policy}",
             verdict["message"],
         )
 
