@@ -35,6 +35,13 @@
       "inductor"
     ]
   ],
+  "test_autocast_torch_bf16 (__main__.TestXpuAutocast)": [
+    "205204",
+    "https://github.com/pytorch/pytorch/issues/205204",
+    [
+      "xpu"
+    ]
+  ],
   "test_backend_simple (__main__.PrivateUse1BackendTest)": [
     "188688",
     "https://github.com/pytorch/pytorch/issues/188688",
@@ -183,6 +190,13 @@
     [
       "linux",
       "slow"
+    ]
+  ],
+  "test_comprehensive_nn_functional_bilinear_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "205206",
+    "https://github.com/pytorch/pytorch/issues/205206",
+    [
+      "xpu"
     ]
   ],
   "test_comprehensive_nn_functional_conv3d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -340,6 +354,27 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_correctness_Adam_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202394",
+    "https://github.com/pytorch/pytorch/issues/202394",
+    [
+      "xpu"
+    ]
+  ],
+  "test_correctness_NAdam_use_closure_False_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "202260",
+    "https://github.com/pytorch/pytorch/issues/202260",
+    [
+      "xpu"
+    ]
+  ],
+  "test_correctness_NAdam_use_closure_True_xpu_float32 (__main__.CompiledOptimizerParityTestsXPU)": [
+    "203788",
+    "https://github.com/pytorch/pytorch/issues/203788",
+    [
+      "xpu"
     ]
   ],
   "test_cuda_memory_leak_detection (__main__.TestMultiGPUCudaOnly)": [
@@ -1214,6 +1249,20 @@
       "xpu"
     ]
   ],
+  "test_pointwise_query_producer_head_dims0_xpu (__main__.TestFlexDecodingXPU)": [
+    "198712",
+    "https://github.com/pytorch/pytorch/issues/198712",
+    [
+      "xpu"
+    ]
+  ],
+  "test_pointwise_query_producer_head_dims1_xpu (__main__.TestFlexDecodingXPU)": [
+    "199703",
+    "https://github.com/pytorch/pytorch/issues/199703",
+    [
+      "xpu"
+    ]
+  ],
   "test_pointwise_query_producer_head_dims2_xpu (__main__.TestFlexDecodingXPU)": [
     "198714",
     "https://github.com/pytorch/pytorch/issues/198714",
@@ -1253,6 +1302,13 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
+    ]
+  ],
+  "test_remove_inductor_deps_templates (__main__.TestKernelBenchmark)": [
+    "205205",
+    "https://github.com/pytorch/pytorch/issues/205205",
+    [
+      "xpu"
     ]
   ],
   "test_remove_noop_slice_negative_start_cpu (__main__.CpuTests)": [
@@ -1338,6 +1394,13 @@
     "https://github.com/pytorch/pytorch/issues/190088",
     [
       "linux"
+    ]
+  ],
+  "test_sdpa_dynamic_shapes_xpu (__main__.ReproTestsDeviceXPU)": [
+    "203902",
+    "https://github.com/pytorch/pytorch/issues/203902",
+    [
+      "xpu"
     ]
   ],
   "test_sdpa_rewriter_stacked_layers_with_mask_gpu (__main__.SDPAPatternRewriterGpuDynamicTests)": [
@@ -1455,6 +1518,13 @@
   "test_sparse_sparse_mul_xpu_complex64 (__main__.TestSparseXPU)": [
     "205023",
     "https://github.com/pytorch/pytorch/issues/205023",
+    [
+      "xpu"
+    ]
+  ],
+  "test_sparse_sparse_mul_xpu_float16 (__main__.TestSparseXPU)": [
+    "205207",
+    "https://github.com/pytorch/pytorch/issues/205207",
     [
       "xpu"
     ]
