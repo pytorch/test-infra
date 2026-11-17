@@ -389,6 +389,15 @@ floating one.
    before moving its jobs. If they don't, ask an org owner to add the repository to the app
    (Configure → select the repository). A non-owner's request waits for an owner, and GitHub shows
    the requester nothing after it is sent, so follow up with an owner directly.
+17. **`runner.arch` and `RUNNER_ARCH` are always `ARM64`.** They describe the machine running the runner
+   agent, not your job. On OSDC the agent runs in its own pod on the Graviton runner pool, and only
+   your job container lands on the node the label picked. An x86 job therefore reports `ARM64`, and
+   anything keyed on it breaks or misbehaves: an installer chosen from `RUNNER_ARCH` fetches the wrong
+   binary or rejects the platform (`Platform Linux-ARM64 currently unsupported`), and an
+   `actions/cache` key built from `runner.arch` lets x86 and arm64 jobs restore each other's caches.
+   Neither value can be overridden: GitHub does not let a workflow overwrite `RUNNER_*` variables. Run
+   `uname -m` in a step to get the job's real architecture.
+   [`setup-miniconda`](../.github/actions/setup-miniconda/action.yml) does this already.
 
 ---
 
