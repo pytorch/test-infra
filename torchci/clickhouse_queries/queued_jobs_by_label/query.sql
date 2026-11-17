@@ -12,6 +12,11 @@
 --- every queued job exactly as they always have, so no consumer and no reader
 --- loses an alarm because the heuristic guessed wrong. See the is_stale
 --- definition below for what it can and cannot establish.
+---
+--- Scope: the org param plus an optional repo param (repository name, '' = every repo in org).
+--- The defaults (pytorch / pytorch) keep the original pytorch/pytorch-only
+--- behaviour for callers that pass no parameters, e.g. tools/torchci/queue_alert.py; the
+--- metrics page passes repo = '' to cover the whole pytorch org.
 WITH possible_queued_jobs as (
     select id, run_id from default.workflow_job where
     created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
@@ -140,7 +145,8 @@ ec2_queued_jobs AS (
     WHERE
         job.id in (select id from possible_queued_jobs)
         and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
+        and workflow.repository.'owner'.'login' = {org: String}
+        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
         AND job.status = 'queued'
         AND job.created_at < (CURRENT_TIMESTAMP() - INTERVAL 5 MINUTE)
         AND LENGTH(job.steps) = 0
@@ -172,7 +178,8 @@ arc_queued_jobs AS (
     WHERE
         job.id in (select id from possible_queued_jobs)
         and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
+        and workflow.repository.'owner'.'login' = {org: String}
+        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
         AND workflow.status != 'completed'

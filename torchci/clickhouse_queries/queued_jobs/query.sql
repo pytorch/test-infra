@@ -12,6 +12,11 @@
 --- that query, since the metrics page uses one to summarise the other. This
 --- query neither filters nor reorders on it, and the metrics page does not
 --- either by default; it only annotates the row.
+---
+--- Scope: the org param plus an optional repo param (repository name, '' = every repo in org).
+--- The defaults (pytorch / pytorch) keep the original pytorch/pytorch-only
+--- behaviour for callers that pass no parameters, e.g. tools/torchci/queue_alert.py; the
+--- metrics page passes repo = '' to cover the whole pytorch org.
 WITH possible_queued_jobs AS (
     SELECT
         id,
@@ -69,6 +74,7 @@ ec2_queued_jobs AS (
             AND LENGTH(job.labels) > 0
             AND job.labels IN (SELECT labels FROM live_runner_pools)
         ) AS is_stale,
+        workflow.repository.'full_name' AS repo,
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,
@@ -96,7 +102,8 @@ ec2_queued_jobs AS (
     WHERE
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
-        AND workflow.repository.'full_name' = 'pytorch/pytorch'
+        AND workflow.repository.'owner'.'login' = {org: String}
+        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
         AND job.status = 'queued'
         AND LENGTH(job.steps) = 0
         AND workflow.status != 'completed'
@@ -127,6 +134,7 @@ arc_queued_jobs AS (
             AND LENGTH(job.labels) > 0
             AND job.labels IN (SELECT labels FROM live_runner_pools)
         ) AS is_stale,
+        workflow.repository.'full_name' AS repo,
         workflow.head_sha AS head_sha,
         workflow.head_branch AS head_branch,
         workflow.event AS event,
@@ -154,7 +162,8 @@ arc_queued_jobs AS (
     WHERE
         job.id in (select id from possible_queued_jobs)
         and workflow.id in (select run_id from possible_queued_jobs)
-        and workflow.repository. 'full_name' = 'pytorch/pytorch'
+        and workflow.repository.'owner'.'login' = {org: String}
+        AND ({repo: String} = '' OR workflow.repository.'name' = {repo: String})
         --- ARC runner detection: labels contain l- pattern
         AND arrayExists(x -> x LIKE '%l-%', job.labels)
         AND workflow.status != 'completed'
