@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from greenlight import guards, repo_config, verdict
+from greenlight import gate_rules, guards, repo_config, verdict
 from greenlight.config import Config
 from greenlight.constants import DRCI_STATUS_COMMENT_REPOS, normalize_repo
 
@@ -39,6 +39,7 @@ class _FakeEligibility:
         self.eligibilities: list[str] = []
         self.minimum_roles: list[str] = []
         self.author_types: list[str | None] = []
+        self.safeties: list[str] = []
 
     def __call__(
         self,
@@ -51,11 +52,13 @@ class _FakeEligibility:
         eligibility: str,
         minimum_role: str,
         author_type: str | None,
+        safety: str,
     ) -> bool:
         self.calls.append((token, repo, pr_number, head_sha, author))
         self.eligibilities.append(eligibility)
         self.minimum_roles.append(minimum_role)
         self.author_types.append(author_type)
+        self.safeties.append(safety)
         return author in self.authors
 
 
@@ -72,6 +75,28 @@ def set_eligible(monkeypatch):
         return fake
 
     return _install
+
+
+class _FakeGateRules:
+    """Stand-in for ``verdict.read_gate_rules``: answers ``result`` (or raises it) and records each repo read."""
+
+    def __init__(self) -> None:
+        self.result: gate_rules.GateRules | Exception = gate_rules.GateRules(enforced=True)
+        self.repos: list[str] = []
+
+    def __call__(self, client: object, repo: str) -> gate_rules.GateRules:
+        self.repos.append(repo)
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+@pytest.fixture(autouse=True)
+def gate_rules_reader(monkeypatch):
+    """Answer ``verdict``'s gate-rules read without live GitHub: enforced unless a test sets ``result``."""
+    fake = _FakeGateRules()
+    monkeypatch.setattr(verdict, "read_gate_rules", fake)
+    return fake
 
 
 def _served_active_entry(repo: str) -> repo_config.RepoEntry:

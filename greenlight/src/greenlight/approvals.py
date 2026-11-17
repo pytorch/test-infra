@@ -24,7 +24,6 @@ GREENLIGHT_LOGIN = f"{GREENLIGHT_APP_SLUG}{constants.BOT_LOGIN_SUFFIX}"
 REVIEWS_PER_PAGE = 100
 
 _REVIEW_STATE_APPROVED = "APPROVED"
-_REVIEW_STATE_COMMENTED = "COMMENTED"
 _BOT_USER_TYPE = "Bot"
 _PR_STATE_OPEN = "open"
 
@@ -40,16 +39,6 @@ def greenlight_reviews(pr: VerdictPR, bot_login: str) -> Iterator[_VerdictReview
         user = review.user
         if user is not None and user.login and user.login.lower() == target:
             yield review
-
-
-def has_live_greenlight_approval(pr: VerdictPR, *, bot_login: str) -> bool:
-    """Return True iff greenlight's latest non-COMMENTED review on ``pr`` is APPROVED.
-
-    Mirrors trymerge's approver rule (latest non-COMMENTED state per login wins), so a stale
-    APPROVED behind a newer DISMISSED never reads as approved. Assumes ``get_reviews()`` is oldest-first.
-    """
-    states = [r.state for r in greenlight_reviews(pr, bot_login) if r.state != _REVIEW_STATE_COMMENTED]
-    return bool(states) and states[-1] == _REVIEW_STATE_APPROVED
 
 
 def dismiss_prior_greenlight_approvals(pr: VerdictPR, *, bot_login: str, message: str) -> list[int]:
