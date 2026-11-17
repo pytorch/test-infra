@@ -51,7 +51,13 @@ const LINK_LABELS: Record<string, string> = {
 };
 
 function humanizeLinkLabel(key: string): string {
-  return LINK_LABELS[key] ?? key.replace(/_/g, " ");
+  return (
+    LINK_LABELS[key] ??
+    key
+      .split("_")
+      .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+      .join(" ")
+  );
 }
 
 export function ReleaseStatCard({
