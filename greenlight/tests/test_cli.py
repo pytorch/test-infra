@@ -4,6 +4,7 @@ import functools
 import logging
 import sys
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -854,6 +855,17 @@ def test_check_config_exits_ok_on_a_clean_file(tmp_path, caplog, monkeypatch):
 
     assert rc == EXIT_OK
     assert "no problem for pytorch/vision" in caplog.text
+
+
+def test_test_infra_config_file_has_no_problem(caplog, monkeypatch):
+    monkeypatch.setattr(cli, "configure_logging", Mock())
+    path = Path(__file__).resolve().parents[2] / ".github/greenlight/config.yml"
+
+    with caplog.at_level(logging.INFO, logger="greenlight"):
+        rc = cli.main(["check-config", str(path), "--repo", "pytorch/test-infra"])
+
+    assert rc == EXIT_OK
+    assert "no problem for pytorch/test-infra" in caplog.text
 
 
 def test_check_config_logs_every_problem_and_fails(tmp_path, caplog, monkeypatch):

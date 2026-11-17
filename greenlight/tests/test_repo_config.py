@@ -85,7 +85,9 @@ def test_bare_off_is_the_mode_off_not_a_boolean():
         pytest.param(_file(safety="none"), "safety 'none' is not one of", id="bad-value"),
         pytest.param(_file(safety="pytorchbot"), "safety: pytorchbot is only for", id="pytorchbot"),
         pytest.param(_file(status_comment="drci"), "status_comment: drci is only for", id="drci"),
-        pytest.param(_file(mode="active"), "safety: gate with mode: active is only for []", id="active-gate"),
+        pytest.param(
+            _file(mode="active"), "safety: gate with mode: active is only for ['pytorch/test-infra']", id="active-gate"
+        ),
         pytest.param(
             _file(mode="active", extra="1"), "safety: gate with mode: active is only for", id="unknown-key-no-rescue"
         ),
@@ -309,8 +311,8 @@ def _gate_active_allowed(monkeypatch: pytest.MonkeyPatch, *repos: str) -> None:
     monkeypatch.setattr(repo_config, "GATE_ACTIVE_REPOS", frozenset(repos))
 
 
-def test_no_repo_may_be_an_active_gate_repo_out_of_the_box():
-    assert not GATE_ACTIVE_REPOS
+def test_only_test_infra_may_be_an_active_gate_repo():
+    assert frozenset({"pytorch/test-infra"}) == GATE_ACTIVE_REPOS
 
 
 def test_an_active_gate_repo_in_the_allowlist_is_served(monkeypatch):

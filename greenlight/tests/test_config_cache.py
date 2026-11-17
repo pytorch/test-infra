@@ -379,7 +379,7 @@ def test_an_active_gate_file_outside_the_allowlist_is_safety_only_under_the_last
 
     assert (decision.settings.entry, decision.settings.served) == (_ENTRY, False)
     assert decision.settings.problem is not None
-    assert "safety: gate with mode: active is only for []" in decision.settings.problem
+    assert "safety: gate with mode: active is only for ['pytorch/test-infra']" in decision.settings.problem
     assert decision.settings.problem.endswith("safety-only under its last valid settings instead")
     assert decision.record.valid_text == _SHADOW
 
