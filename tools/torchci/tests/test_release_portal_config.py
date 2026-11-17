@@ -75,7 +75,7 @@ class TestCommittedConfig(TestCase):
     def test_the_shared_steps_cover_five_phases_and_resolve(self):
         resolved = cfg.load_resolved("2.16.0")
         self.assertEqual([p["id"] for p in resolved["phases"]], [1, 2, 3, 4, 5])
-        self.assertEqual(len(resolved["steps"]), 50)
+        self.assertEqual(len(resolved["steps"]), 49)
         self.assertEqual(resolved["branch"], "release/2.16")
 
     def test_every_step_id_is_unique_and_in_its_phase(self):
@@ -105,11 +105,12 @@ class TestValidateShared(TestCase):
             any("informational must be true or false" in e for e in errors), errors
         )
 
-    def test_the_steps_for_information_are_flagged_and_the_go_no_go_step_is_gone(self):
+    def test_the_steps_for_information_are_flagged_and_the_removed_steps_are_gone(self):
         steps = {s["id"]: s for s in cfg.load_resolved("2.16.0")["steps"]}
-        for step_id in ("1.3", "1.7", "2.10", "2.11"):
+        for step_id in ("1.3", "1.7", "2.10", "2.11", "4.8", "5.3"):
             self.assertIs(steps[step_id]["informational"], True, step_id)
         self.assertNotIn("3.9", steps)
+        self.assertNotIn("5.2", steps)
         self.assertEqual(steps["4.1"]["depends_on"], ["3.4", "3.5", "3.7"])
 
     def test_duplicate_id(self):
