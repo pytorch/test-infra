@@ -399,13 +399,6 @@
       "slow"
     ]
   ],
-  "test_cuda_use_mem_pool_stream_order_inductor (__main__.CUDACtxManagerTests)": [
-    "191702",
-    "https://github.com/pytorch/pytorch/issues/191702",
-    [
-      "linux"
-    ]
-  ],
   "test_cudagraphs_under_coor_runs_on_nonzero_device (__main__.TestCompileOnOneRankDeviceAsParameter)": [
     "202684",
     "https://github.com/pytorch/pytorch/issues/202684",
