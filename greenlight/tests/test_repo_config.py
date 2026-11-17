@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import textwrap
+import urllib.error
 import urllib.request
 from typing import TYPE_CHECKING
 
@@ -12,7 +13,7 @@ import pytest
 import yaml
 
 from greenlight import repo_config
-from greenlight.constants import DISPATCH_REPO, REPOS_CONFIG_PATH, TARGET_REPO
+from greenlight.constants import DISPATCH_REPO, MERGE_RULES_PATH, REPOS_CONFIG_PATH, TARGET_REPO
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, ConfigUnreadable, RepoConfig, RepoEntry
 from greenlight.repo_scan import RepoIdentity, identity_problem
 
@@ -277,22 +278,41 @@ def test_is_primary_is_an_exact_match():
 def test_every_real_entry_passes_the_live_checks():
     config = repo_config.load_local()
     entries = [*config.served, *(entry for entry, _ in config.safety_only)]
-    token = os.environ.get("GITHUB_TOKEN")
     problems: dict[str, str] = {}
     for entry in entries:
-        request = urllib.request.Request(
-            f"https://api.github.com/repos/{entry.repo}", headers={"Accept": "application/vnd.github+json"}
-        )
-        if token:
-            request.add_header("Authorization", f"Bearer {token}")
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
-            data = json.load(response)
-        identity = RepoIdentity(data["full_name"], data["private"], data["default_branch"])
-        if (problem := identity_problem(entry, identity)) is not None:
+        data = json.loads(_live_get(f"/repos/{entry.repo}", "application/vnd.github+json"))
+        problem = identity_problem(entry, RepoIdentity(data["full_name"], data["private"], data["default_branch"]))
+        if problem is None and entry.eligibility == "merge_rules":
+            problem = _merge_rules_problem(entry.repo)
+        if problem is not None:
             problems[entry.repo] = problem
 
     assert entries
     assert problems == {}
+
+
+def _live_get(path: str, accept: str) -> bytes:
+    request = urllib.request.Request(f"https://api.github.com{path}", headers={"Accept": accept})
+    if token := os.environ.get("GITHUB_TOKEN"):
+        request.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+        body: bytes = response.read()
+    return body
+
+
+def _merge_rules_problem(repo: str) -> str | None:
+    """Why ``repo``'s ``MERGE_RULES_PATH`` cannot serve its ``merge_rules`` eligibility, or None."""
+    try:
+        raw = _live_get(f"/repos/{repo}/contents/{MERGE_RULES_PATH}", "application/vnd.github.raw+json")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return f"it has no {MERGE_RULES_PATH}"
+        raise
+    try:
+        rules = yaml.safe_load(raw)
+    except yaml.YAMLError as exc:
+        return f"its {MERGE_RULES_PATH} is not valid YAML: {exc}"
+    return None if isinstance(rules, list) else f"its {MERGE_RULES_PATH} is not a YAML list"
 
 
 def test_the_live_check_is_documented_in_the_workflow():

@@ -64,8 +64,10 @@ Lambda, the App installation's repository listing): the
 entry's name must be the canonical `full_name` exactly, the repo must be public, and its default
 branch must be `main`, the base `merge_authz.accepts_base` judges PRs against. A repo failing one
 gets no work on that scan and the scan fails. The same checks run in CI, in the `Test` step of
-`greenlight-tests.yml` (`GREENLIGHT_LIVE_CONFIG_CHECK=1` with the workflow's read-only token), so
-a mis-cased, private or non-`main` entry cannot merge. Everywhere else the tests stay offline.
+`greenlight-tests.yml` (`GREENLIGHT_LIVE_CONFIG_CHECK=1` with the workflow's read-only token), with
+one more for an `eligibility: merge_rules` entry: its `.github/merge_rules.yaml` must exist and parse
+as a YAML list. So a mis-cased, private or non-`main` entry, or a `merge_rules` one with no usable
+file, cannot merge. Everywhere else the tests stay offline.
 
 ## Where the config is read
 
@@ -97,20 +99,20 @@ comment), as any PR does.
 ### Draining a repo (`off`)
 
 The drain does not trust the ledger, since an approval can exist with no row. Each tick it lists
-every open PR (drafts and every author included) and works through a queue: the PRs that had a
-ledger row when the pass started, then every open PR by number, so a PR opened or recorded during
-the pass is still reached. It reads GreenLight's reviews on at most
-`DRAIN_PRS_PER_TICK` (100) of them and dismisses every live approval, keeping a cursor so the next
-tick resumes there; a pass ends when the queue has been covered once. A PR found clean is skipped
-for the rest of the pass while its `updated_at` is unchanged, and is remembered as clean only once
-that `updated_at` is two minutes old (`FINGERPRINT_QUIET`).
+every open PR (drafts and every author included), reads GreenLight's reviews on at most
+`DRAIN_PRS_PER_TICK` (100) of the pass's pending PRs, those that had a ledger row when the pass
+started first, then the rest, each by number, and dismisses every live approval. A PR stays pending
+until the pass has read it at its listed `updated_at`, which counts only once it is two minutes old
+(`FINGERPRINT_QUIET`); a PR whose read failed stays pending too. So a PR opened, reopened or updated
+anywhere in the order is read again before the pass ends, once no open PR is pending.
 
 The drain logs `drain complete` only after a whole pass that found no live approval, failed on no
 PR, and started once no `greenlight-pr-review.yml` run created before the scan first saw the repo
 off was still queued, waiting, pending, requested or in progress. Runs do not say which repo they
-review, so every older unfinished run counts. Until then each tick logs
-`pass N, checked K, dismissed M, not complete: <why>`. A cold start (a new Lambda environment)
-moves the off time later, which only delays completion.
+review, so every older unfinished run counts; without the dispatch token they cannot be read, and
+the pass cannot complete. Until then each tick logs `pass N, checked K, dismissed M, not complete:
+<why>`. A cold start (a new Lambda environment) moves the off time later, which only delays
+completion.
 
 To stop serving a repo: set its `mode` to `off`, wait for `drain complete` in the scan's log, then
 remove its entry. Removing the entry first leaves any approval it already holds in place.
@@ -132,17 +134,23 @@ entries, then the other safety-only ones, each in file order (`tick.py`).
   repo whose turn starts past that deadline gets no turn.
 - A repo whose Phase B is cut short, or that gets no turn, fails the tick when its full tick was
   due: its full tick is not marked done, so it shows every tick until its budget is sized. On a
-  fast tick it is a warning, and its PRs wait for the next tick.
+  fast tick it is a warning, and its PRs wait for the next tick. The PRs a cut Phase B had failed
+  on are reported with the cut, never as a failure of the safety work.
+- Without the dispatch token (its mint failed) the tick fails, serves the built-in
+  `pytorch/pytorch` entry without reading the config, runs Phase A on the repo tokens, and skips
+  Phase B, since nothing can be dispatched.
 
 **Dispatch cap.** `--max` is shared. While another repo is in Phase B, `min(DISPATCH_RESERVE, max)`
 (5) is held back from `pytorch/pytorch`, and the other repos share it plus whatever
-`pytorch/pytorch` left, in order, each capped by what is left. `--max 0` pauses every repo; no
-`--max` leaves every repo uncapped.
+`pytorch/pytorch` left, in order, each capped by what is left; once a positive `--max` is used up, the repos left get
+no Phase B turn. `--max 0` pauses every repo, each still running with a limit of 0; no `--max`
+leaves every repo uncapped.
 
 **Requests and the quota.** Every GitHub client of a repo, its dispatch client included, shares one
 request meter (`quota.py`) that counts each request PyGithub sends and each retry urllib3 makes. The
 tick reads the installation's quota (`GET /rate_limit`, which costs nothing) at its start, before
-each repo's phase that has work and at its end, subtracting what it counted between reads, and logs
+each repo's phase that has work and at its end, never once the rate-limit latch below is set,
+subtracting what it counted between reads, and logs
 each repo's Phase A and Phase B requests with the quota at the start and the end. Not counted: the
 config read, the quota reads, the token mints, the installation listing, the live checks on the
 environment path, and PyGithub's rare 301, 302 and 202 follow-ups.
@@ -158,9 +166,11 @@ error and every config problem, refused and safety-only entries included. The CL
 
 **A rate limit ends the tick's GitHub work.** The quota belongs to the App installation, shared by
 every repo and by the review workflows. Every place that catches a rate limit sets one tick-wide
-latch, and the meter sets it on a rate-limit response before any retry or `Retry-After` wait. Once
-it is set, every meter refuses further requests, and the tick skips every repo and phase left,
-naming each in its error. A dispatch that hits a rate limit stops the dispatches and the label pass.
+latch, the token mints, the installation listing and the quota read included, and the meter sets it
+on a rate-limit response before any retry or `Retry-After` wait. Once it is set, every meter refuses
+further requests, and the tick skips every repo and phase left, naming each in its error; a latch
+set with nothing left to skip still fails the tick. A dispatch that hits a rate limit stops the
+dispatches and the label pass.
 
 **Tokens.** In the Lambda (`app_tokens.py`): a `pytorch/test-infra` token (`actions: write`,
 `contents: read`) for the config read, the dispatch and the drain's read of the review runs; a
@@ -168,7 +178,8 @@ metadata-only token for `GET /installation/repositories`, which supplies the liv
 token per repo the listing shows and the live checks pass (`pull_requests: write`,
 `contents: read`, `members: read`, that repo alone, no `actions`). A repo the installation lacks,
 or whose mint fails, gets no work and fails the tick; when the listing itself fails,
-`pytorch/pytorch` still gets its token and the others wait for the next tick. From the environment
+`pytorch/pytorch` still gets its token and the others wait for the next tick. A rate limit on the
+listing or a mint is no repo's failure: it stops the tick's GitHub work. From the environment
 (the CLI and `greenlight-review.yml`): `PYTORCH_GREENLIGHT_GITHUB_TOKEN` for every repo, its live
 checks through `GET /repos/{repo}`, and `PYTORCH_GREENLIGHT_DISPATCH_TOKEN` (falling back to the
 first) for the config, the dispatch and the review runs. Adding a repo needs its entry and the App
@@ -194,3 +205,22 @@ within the TTL rather than on the next tick. The record job's eligibility check 
 the author's permission, live, so no new approval follows a removal. The
 ineligible revoke reaches only listed PRs, and the listing keeps cohort authors only, so an author
 who leaves the cohort keeps an approval already given until it is dismissed by hand.
+
+## Modules
+
+The modules the per-repo config, the drain and the tick added to `src/greenlight/` (the rest are in
+README.md's "Layout"):
+
+```text
+repo_config.py        # load and validate repos.yaml: served, safety-only and refused entries, the built-in primary entry
+repo_scan.py          # one entry's decisions on both entry points: live checks, eligibility source and cache, its work (drain, review or none)
+snapshot_cache.py     # the TTL-bounded snapshot of the repos config and each eligibility source, with a per-failure stale policy
+drain.py              # an off repo's drain: dismiss every live greenlight approval, a bounded slice per tick
+review_finish.py      # a review scan's optional work (fan-out, dispatch, label pass, refusals) and its error aggregation
+writers.py            # write_permission eligibility: the repo's push-access Users as one synthetic merge rule, and the record-time check
+author_eligibility.py # the record job's live eligibility check for one PR, by the repo's eligibility source
+tick.py               # one tick over every configured repo: Phase A safety work, then Phase B optional work
+tick_outcomes.py      # how a tick's steps ended (cut, rate limit, failure) and the shared dispatch cap
+quota.py              # per-tick request metering at PyGithub's and urllib3's seams, the rate-limit latch and the quota gauge
+app_tokens.py         # the Lambda's App tokens: the dispatch token, the installation listing and one token per repo
+```

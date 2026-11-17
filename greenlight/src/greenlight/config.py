@@ -99,6 +99,15 @@ class Config:
             "review_window_hours", self.review_window_hours, allow_zero=False, max_value=_MAX_REVIEW_WINDOW_HOURS
         )
 
+    @property
+    def dispatch_or_scan_token(self) -> str:
+        """The token for ``DISPATCH_REPO`` (the repos config, the dispatch, the review runs): ``dispatch_token``,
+        else ``github_token``. Raises ``ValueError`` when neither is set."""
+        token = self.dispatch_token or self.github_token
+        if token is None:
+            raise ValueError("PYTORCH_GREENLIGHT_GITHUB_TOKEN is required to query GitHub")
+        return token
+
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Config:
         source = os.environ if env is None else env

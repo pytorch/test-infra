@@ -43,7 +43,7 @@ _ALL_REPOS_EXCLUDES = ("repo", "pr", "force", "requester", "allow_untrusted_auth
 # is kept for merge_rules_ttl_seconds (repo_scan.eligibility_cache).
 _SCAN_MEMORY: dict[str, ScanMemory] = {}
 _CONFIG_CACHE: SnapshotCache[Github, repo_config.RepoConfig] = SnapshotCache(
-    repo_config.fetch_config, ttl_seconds=0, max_stale_seconds=None, stale_on_broken=True
+    repo_config.fetch_config, label="repos config", ttl_seconds=0, max_stale_seconds=None, stale_on_broken=True
 )
 _ELIGIBILITY_CACHES: repo_scan.EligibilityCaches = {}
 

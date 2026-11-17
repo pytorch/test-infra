@@ -41,33 +41,36 @@ class _Entry:
 class DrainPass:
     """One pass of the ``off`` drain over a repo's open PRs (``drain``).
 
-    ``recorded`` holds the PRs that had a ledger row when the pass started (the queue's first part);
-    ``cursor`` is the queue key of the last PR the pass reached; ``clean`` maps each PR found with no
-    live approval to the listed ``updated_at`` it was found at, kept only once that ``updated_at``
-    was ``FINGERPRINT_QUIET`` old. ``blocker`` says why the pass cannot complete the drain even if it
-    finds nothing (review runs older than the off switch were unfinished when it started), or is None.
+    ``recorded`` holds the PRs that had a ledger row when the pass started (read before the others).
+    ``checked`` maps each PR the pass read to the listed ``updated_at`` it read it at, kept only once
+    that ``updated_at`` was ``FINGERPRINT_QUIET`` old (or the listing gave none); a PR is pending while
+    it is not there at its listed ``updated_at``, so one opened, reopened or updated is read again.
+    ``blocker`` says why the pass cannot complete the drain even if it finds nothing (review runs older
+    than the off switch were unfinished, or could not be read, when it started), or is None. ``reads``,
+    ``dismissed`` and ``failures`` are the pass's totals so far.
     """
 
     number: int
     started_at: datetime
     blocker: str | None
     recorded: frozenset[int] = frozenset()
-    cursor: tuple[int, int] | None = None
-    clean: dict[int, datetime] = field(default_factory=dict)
-    checked: int = 0
+    checked: dict[int, datetime | None] = field(default_factory=dict)
+    reads: int = 0
     dismissed: int = 0
     failures: int = 0
 
-    def is_clean(self, number: int, updated_at: datetime | None) -> bool:
-        return updated_at is not None and self.clean.get(number) == updated_at
+    def pending(self, number: int, updated_at: datetime | None) -> bool:
+        return number not in self.checked or self.checked[number] != updated_at
 
-    def remember_clean(self, number: int, updated_at: datetime | None, now: datetime) -> None:
-        if updated_at is not None and now - updated_at >= FINGERPRINT_QUIET:
-            self.clean[number] = updated_at
+    def check(self, number: int, updated_at: datetime | None, listed_at: datetime) -> None:
+        """Keep the PR as checked at ``updated_at`` once that is ``FINGERPRINT_QUIET`` old at ``listed_at``."""
+        if updated_at is None or listed_at - updated_at >= FINGERPRINT_QUIET:
+            self.checked[number] = updated_at
 
 
 class ScanMemory:
-    """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain.
+    """When the last full listing tick that completed started, the fingerprint results to reuse, and the drain:
+    when the process first saw the repo off, and the pass under way (``DrainPass``).
 
     Times are the scan's naive-UTC wall clock: a monotonic clock may not advance while Lambda freezes
     the execution environment between invocations. A full tick is due when none has completed, or once

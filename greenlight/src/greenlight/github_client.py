@@ -6,6 +6,7 @@ actions: post an approving review, comment, and dismiss greenlight's own prior a
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 from typing import TYPE_CHECKING
@@ -15,7 +16,7 @@ from greenlight.pr_hash import HumanEvent, PRFingerprint, compute_pr_hash, is_bo
 from greenlight.review_gate import ReviewSkip, human_review_skip_reason
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Mapping
+    from collections.abc import Callable, Iterable, Iterator, Mapping
 
     from github import Github
     from urllib3.util.retry import Retry
@@ -129,6 +130,19 @@ def close_client(client: object) -> None:
             close()
         except Exception:
             logger.warning("failed to close GitHub client", exc_info=True)
+
+
+@contextlib.contextmanager
+def dispatch_client(
+    client: Github, token: str, dispatch_token: str, build: Callable[[str], Github]
+) -> Iterator[Github]:
+    """``client`` (on ``token``) when ``dispatch_token`` is that token, else one ``build`` makes, closed on exit."""
+    other = None if dispatch_token == token else build(dispatch_token)
+    try:
+        yield client if other is None else other
+    finally:
+        if other is not None:
+            close_client(other)
 
 
 def _is_exhausted_429_retry(exc: BaseException) -> bool:

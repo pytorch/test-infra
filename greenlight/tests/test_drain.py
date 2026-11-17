@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -90,7 +90,7 @@ class _Drain:
         bot_login: str = _BOT,
         token: str | None = _TOKEN,
         cancel_event: threading.Event | None = None,
-        dispatch_token: str | None = None,
+        dispatch_token: str | None = _TOKEN,
     ) -> drain.DrainReport:
         return drain.drain(
             make_config(github_token=token),
@@ -122,7 +122,7 @@ def test_a_clean_whole_pass_with_no_older_runs_completes_the_drain(make_config, 
     assert [client.closed for client in run.clients] == [1]
 
 
-def test_the_slice_is_bounded_and_the_next_tick_resumes_at_the_cursor(make_config, monkeypatch, caplog):
+def test_the_slice_is_bounded_and_the_next_tick_reads_the_prs_still_pending(make_config, monkeypatch, caplog):
     monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 2)
     run = _Drain([_Pull(n) for n in (5, 4, 3, 2, 1)], recorded=frozenset({4, 2}))
 
@@ -175,16 +175,24 @@ def test_off_since_is_kept_across_ticks_and_bounds_the_run_check(make_config):
     assert report.complete
 
 
-def test_a_failed_pr_is_reported_and_the_pass_cannot_complete(make_config, caplog):
+def test_a_failed_pr_is_reported_stays_pending_and_the_pass_cannot_complete(make_config, caplog):
     run = _Drain([_Pull(1), _Pull(2)], errors={1: RuntimeError("boom")})
 
     with caplog.at_level(logging.ERROR, logger="greenlight"):
-        report = run.tick(make_config)
+        first = run.tick(make_config)
 
-    assert report.failed == (1,)
-    assert (report.complete, report.reason) == (False, "the pass failed on 1 PR(s)")
+    assert first.failed == (1,)
+    assert (first.complete, first.reason) == (False, "the pass continues next tick")
     assert run.read == [1, 2]
     assert f"failed to revoke greenlight approval on PR #1, in {_REPO}, which is off" in caplog.text
+
+    run.errors = {}
+    second = run.tick(make_config)
+    assert run.read == [1, 2, 1]
+    assert (second.failed, second.complete, second.reason) == ((), False, "the pass failed on 1 PR(s)")
+
+    third = run.tick(make_config)
+    assert (third.pass_number, third.complete) == (2, True)
 
 
 def test_a_rate_limit_stops_the_slice(make_config):
@@ -227,11 +235,11 @@ def test_an_iteration_timeout_propagates(make_config):
     assert [client.closed for client in run.clients] == [1]
 
 
-def test_a_clean_pr_is_skipped_while_its_updated_at_is_unchanged(make_config):
+def test_a_checked_pr_is_skipped_while_its_updated_at_is_unchanged(make_config):
     run = _Drain([_Pull(1), _Pull(2), _Pull(3)])
     current = run.memory.start_drain_pass(_NOW, None)
-    current.clean[2] = _OLD
-    current.clean[3] = _OLD - timedelta(seconds=1)
+    current.checked[2] = _OLD
+    current.checked[3] = _OLD - timedelta(seconds=1)
 
     report = run.tick(make_config)
 
@@ -239,16 +247,24 @@ def test_a_clean_pr_is_skipped_while_its_updated_at_is_unchanged(make_config):
     assert report.complete
 
 
-def test_only_a_quiet_clean_pr_is_remembered(make_config, monkeypatch):
+def test_only_a_quiet_pr_is_kept_as_checked_and_a_young_one_is_read_again(make_config, monkeypatch):
     monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 2)
     young = _NOW - FINGERPRINT_QUIET + timedelta(seconds=1)
     run = _Drain([_Pull(1), _Pull(2, young), _Pull(3, None)])
 
     run.tick(make_config)
-
     current = run.memory.drain_pass()
     assert current is not None
-    assert current.clean == {1: _OLD}
+    assert current.checked == {1: _OLD}
+
+    assert not run.tick(make_config).complete
+    assert run.read == [1, 2, 2, 3]
+    assert current.checked == {1: _OLD, 3: None}
+
+    run.clock = _NOW + timedelta(seconds=1)
+    report = run.tick(make_config)
+    assert run.read == [1, 2, 2, 3, 2]
+    assert (report.complete, report.checked) == (True, 5)
 
 
 def test_an_empty_repo_completes_without_a_bot_login(make_config):
@@ -362,6 +378,7 @@ def test_the_ledger_is_read_once_per_pass(make_config, monkeypatch):
             unfinished_runs=run._runs,
             dismiss=run._dismiss,
             now=lambda: run.clock,
+            dispatch_token=_TOKEN,
         )
 
     counting_tick(make_config)
@@ -383,14 +400,24 @@ def test_the_older_runs_are_read_through_a_client_on_the_dispatch_token(make_con
     assert all(client.closed == 1 for client in run.clients)
 
 
-@pytest.mark.parametrize("dispatch_token", [None, _TOKEN])
-def test_the_older_runs_reuse_the_scan_client_when_there_is_no_other_dispatch_token(make_config, dispatch_token):
+def test_the_older_runs_reuse_the_scan_client_when_the_dispatch_token_is_the_scan_token(make_config):
     run = _Drain([_Pull(1)])
 
-    run.tick(make_config, dispatch_token=dispatch_token)
+    run.tick(make_config, dispatch_token=_TOKEN)
 
     assert run.runs_clients == run.clients
     assert len(run.clients) == 1
+
+
+def test_without_a_dispatch_token_the_runs_are_not_read_and_the_pass_cannot_complete(make_config):
+    run = _Drain([_Pull(1)])
+
+    report = run.tick(make_config, dispatch_token=None)
+
+    assert run.runs_before == []
+    assert run.read == [1]
+    assert (report.complete, report.reason) == (False, "the review runs could not be read: there is no dispatch token")
+    assert run.memory.drain_pass() is None
 
 
 def test_the_dispatch_client_is_closed_when_the_runs_read_fails(make_config):
@@ -405,3 +432,42 @@ def test_the_dispatch_client_is_closed_when_the_runs_read_fails(make_config):
         run.tick(make_config, dispatch_token="dispatch")
 
     assert [client.closed for client in run.clients] == [1, 1]
+
+
+def test_a_pr_reopened_before_the_prs_already_checked_is_checked_before_the_pass_ends(make_config, monkeypatch):
+    monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 2)
+    run = _Drain([_Pull(2), _Pull(3), _Pull(4)])
+
+    run.tick(make_config)
+    assert run.read == [2, 3]
+
+    run.pulls.append(_Pull(1))
+    run.approvals = {1: 1}
+    second = run.tick(make_config)
+
+    assert run.read == [2, 3, 1, 4]
+    assert (second.pass_number, second.dismissed, second.complete) == (1, 1, False)
+    assert second.reason == "the pass dismissed 1 approval(s)"
+
+
+def test_a_pr_updated_after_its_check_is_checked_again_before_the_pass_ends(make_config, monkeypatch):
+    monkeypatch.setattr(drain, "DRAIN_PRS_PER_TICK", 1)
+    run = _Drain([_Pull(1), _Pull(2)])
+
+    run.tick(make_config)
+    run.pulls[0] = _Pull(1, _OLD + timedelta(minutes=10))
+    second = run.tick(make_config)
+    third = run.tick(make_config)
+
+    assert run.read == [1, 1, 2]
+    assert not second.complete
+    assert (third.pass_number, third.complete, third.checked) == (1, True, 3)
+
+
+def test_the_default_clock_is_naive_utc():
+    before = datetime.now(UTC).replace(tzinfo=None)
+
+    now = drain._utcnow()
+
+    assert now.tzinfo is None
+    assert before <= now <= datetime.now(UTC).replace(tzinfo=None)

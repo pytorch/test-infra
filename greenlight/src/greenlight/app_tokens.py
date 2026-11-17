@@ -8,7 +8,8 @@ branch. Each configured repo the listing shows and the live checks pass gets its
 ``REPO_TOKEN_PERMISSIONS`` and no ``actions``. A repo the installation lacks, or whose mint fails, is
 that repo's ``RepoUnavailable``: GitHub refuses a whole token request that names one repo the
 installation cannot reach. When the listing itself fails, the primary is still minted and the others
-wait for the next tick. ``greenlight-review.yml`` mints the same two permission sets.
+wait for the next tick. A rate limit, on the listing or on any mint, is raised as it is, so the tick
+latches on it and stops its GitHub work. ``greenlight-review.yml`` mints the same two permission sets.
 """
 
 from __future__ import annotations
@@ -20,8 +21,7 @@ from greenlight import github_client, repo_scan
 from greenlight.constants import DISPATCH_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import is_primary
-from greenlight.repo_scan import RepoIdentity
-from greenlight.tick import RepoUnavailable
+from greenlight.repo_scan import RepoIdentity, RepoUnavailable
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -112,16 +112,19 @@ class AppTokens:
             github_client.close_client(client)
 
     def _installation(self) -> dict[str, RepoIdentity] | None:
-        """What the installation reaches, keyed by lowercased full name; None when the listing failed."""
+        """What the installation reaches, keyed by lowercased full name; None when the listing failed but
+        for a rate limit, which raises."""
         if not self._listed:
-            self._listed = True
             try:
                 self._listing = self._list()
             except IterationTimeout:
                 raise
             except Exception as exc:
+                if github_client.is_rate_limit_error(exc):
+                    raise
                 logger.exception("cannot list the repos the GitHub App installation reaches")
                 self._listing_error = exc
+            self._listed = True
         return self._listing
 
     def repo_token(self, entry: RepoEntry) -> str:
@@ -143,5 +146,7 @@ class AppTokens:
         except IterationTimeout:
             raise
         except Exception as exc:
+            if github_client.is_rate_limit_error(exc):
+                raise
             logger.exception("%s: cannot mint its installation token", entry.repo)
             raise RepoUnavailable(f"cannot mint its installation token: {exc}") from exc

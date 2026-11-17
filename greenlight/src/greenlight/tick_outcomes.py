@@ -4,7 +4,9 @@
 cut; ``RateLimitStop``, or any failure ``github_client.is_rate_limit_error`` recognises, sets the
 tick's latch; any other ``IterationTimeout`` propagates and aborts the tick; anything else is logged
 with its traceback and becomes the repo's error. A cut or a missed turn is the repo's error when its
-full tick was due, and a warning otherwise.
+full tick was due, and a warning otherwise; the PRs a repo's Phase B failed on before a cut or a rate
+limit stopped it are reported with that stop (``failed_before``). A latch set by work that absorbed the rate limit, with
+nothing after it to skip, is still named in the errors (``name_the_rate_limit``).
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from greenlight.guards import IterationTimeout
 from greenlight.quota import RateLimitStop, RepoBudgetExceeded
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterable
 
     from greenlight.quota import TickMeter
 
@@ -58,6 +60,23 @@ class Outcomes:
         self.tick.latch.set()
         self.error(repo, f"{step} stopped: {RATE_LIMITED}")
 
+    def failed_before(self, repo: str, outcome: Outcome, failed: Iterable[int], *, full_tick_due: bool) -> None:
+        """Report the PRs a repo's Phase B failed on before a cut or a rate limit stopped it, with that stop."""
+        found = sorted(set(failed))
+        if not found or outcome not in ("cut", "rate limit"):
+            return
+        message = f"Phase B failed on {len(found)} PR(s) before it stopped: {found}"
+        if outcome == "cut":
+            self.shortfall(repo, message, full_tick_due=full_tick_due)
+        else:
+            self.error(repo, message)
+
+    def name_the_rate_limit(self) -> None:
+        """Record the rate limit as an error when the latch is set and no error names it yet."""
+        if self.tick.latch.is_set() and not any(RATE_LIMITED in error for error in self.errors):
+            logger.error("%s", RATE_LIMITED)
+            self.errors.append(RATE_LIMITED)
+
     def attempt(self, repo: str, step: str, work: Callable[[], object], *, full_tick_due: bool = True) -> Outcome:
         """Run one step of ``repo``'s work and record how it ended."""
         try:
@@ -86,12 +105,18 @@ class DispatchShare:
 
     With no cap every repo is uncapped. Otherwise ``min(DISPATCH_RESERVE, max)`` is held back from the
     primary while another repo is in Phase B, and the other repos share it plus whatever the primary
-    left, in order, each capped by what is left. A negative cap counts as zero.
+    left, in order, each capped by what is left. A cap of zero (negative counts as zero) pauses every
+    repo, each still running with a limit of zero; a positive cap once ``used_up`` gives the repos left
+    no turn.
     """
 
     def __init__(self, max_dispatches: int | None, *, others: bool) -> None:
         self._left = None if max_dispatches is None else max(0, max_dispatches)
+        self._paused = self._left == 0
         self._reserve = 0 if self._left is None or not others else min(DISPATCH_RESERVE, self._left)
+
+    def used_up(self) -> bool:
+        return self._left == 0 and not self._paused
 
     def primary(self) -> int | None:
         return None if self._left is None else self._left - self._reserve

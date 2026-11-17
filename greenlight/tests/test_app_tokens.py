@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from github import Auth, Github, GithubException
 
-from greenlight import app_tokens
+from greenlight import app_tokens, github_client
 from greenlight.app_tokens import (
     DISPATCH_TOKEN_PERMISSIONS,
     LISTING_TOKEN_PERMISSIONS,
@@ -19,7 +19,7 @@ from greenlight.app_tokens import (
 from greenlight.constants import TARGET_REPO
 from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_PYTORCH, RepoConfig, RepoEntry
-from greenlight.tick import RepoUnavailable
+from greenlight.repo_scan import RepoUnavailable
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -196,6 +196,29 @@ def test_a_422_mint_failure_refuses_that_repo_only(installation):
     with pytest.raises(RepoUnavailable, match="cannot mint its installation token: 422"):
         tokens.repo_token(_VISION)
     assert tokens.repo_token(_AUDIO) == "token-audio"
+
+
+def test_a_rate_limit_on_the_listing_is_raised_as_it_is_for_every_repo(installation):
+    integration = _Integration()
+    tokens = _tokens(integration, installation([], status=429))
+
+    for entry in (_VISION, BUILTIN_PYTORCH):
+        with pytest.raises(GithubException) as excinfo:
+            tokens.repo_token(entry)
+        assert github_client.is_rate_limit_error(excinfo.value)
+
+    assert [mint.get("repositories") for mint in integration.mints] == [None, None]
+
+
+def test_a_rate_limit_minting_a_repo_token_is_raised_as_it_is(installation):
+    integration = _Integration({("vision",): GithubException(429, {"message": "secondary rate limit"})})
+    tokens = _tokens(integration, installation([_listed("pytorch/vision")]))
+
+    with pytest.raises(GithubException) as excinfo:
+        tokens.repo_token(_VISION)
+
+    assert not isinstance(excinfo.value, RepoUnavailable)
+    assert github_client.is_rate_limit_error(excinfo.value)
 
 
 def test_an_iteration_timeout_listing_the_installation_is_never_swallowed():

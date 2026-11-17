@@ -49,8 +49,8 @@ defer; they block CI.
 PyTorch Green Light has one unit of work — the `review` phase:
 
 - `review.run()` — scans the open PRs from the evaluation cohort in the repo whose `repos.yaml` entry
-  `repo_scan.scan_repo` resolved ([REPOS.md](REPOS.md); its mode picks review or drain) (`cohort.evaluation_cohort`: every `approved_by` login in `merge_rules.yaml`, team refs
-  expanded, minus bots and minus greenlight itself — that cohort is the match rule); for each PR
+  `repo_scan.scan_repo` resolved ([REPOS.md](REPOS.md); its mode picks review or drain) (`cohort.evaluation_cohort`: every `approved_by` login in the repo's `merge_rules.yaml`, team refs
+  expanded, or on a `write_permission` repo every User with push access, minus bots and minus greenlight itself — that cohort is the match rule); for each PR
   it computes the fingerprint (`eval_hash`), reads the PR's latest state from
   `misc.greenlight_pr_state`,
   and dispatches the reviewer workflow (`greenlight-pr-review.yml` on `pytorch/test-infra`)
@@ -61,7 +61,7 @@ PyTorch Green Light has one unit of work — the `review` phase:
   listing scan), and skipping any PR untouched beyond `PYTORCH_GREENLIGHT_REVIEW_WINDOW_HOURS`
   (default 24) or carrying the `Stale` label that has no in-flight or retry-eligible
   (cancelled/failed) review, and skipping — without fingerprinting or dispatching — any PR a human
-  has already decided (approved by a `merge_rules.yaml` approver, bots excluded, or changes
+  has already decided (approved by a `merge_rules.yaml` approver or, on a `write_permission` repo, a writer, bots excluded, or changes
   requested by any non-bot reviewer).
   The listing alternates per process (`pr_listing`, `scan_memory`): a full tick lists every open
   PR, on every tick until one completes, and again 15 minutes (less 30 s of tolerance;
@@ -100,7 +100,7 @@ is `main`, matched by branch names. The scan judges the base from the listing (`
 `--pr` gate and the verdict (`author_eligibility.has_eligible_author`, which also requires the reviewed head)
 from a PR read. Any other non-draft PR the scan lists is state-read and revert-guarded but not dispatched;
 when it is inside the review window and not labelled `Stale`, and its latest recorded row is a
-`LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the verdict's
+`LAND`, the scan dismisses greenlight's approval. A row is stamped **shadow** only by the repo's mode (REPOS.md), the verdict's
 record-time downgrade, `verdict --shadow`, a local `--allow-untrusted-author` run, or the revert
 guard: a `REVERTED` row, which can only deny, is non-shadow on a PR that already has a recorded row
 and follows the PR's eligibility otherwise. A shadow verdict is never approved and always dismisses
