@@ -136,6 +136,18 @@ describe("release routes", () => {
     expect(html).toContain("Open release board");
   });
 
+  test("says a release whose tag exists is completed", () => {
+    const done: ReleaseIndex = {
+      ...index,
+      releases: [{ ...index.releases[0], status: "done", ga_planned: false }],
+    };
+    const html = renderToStaticMarkup(
+      <ReleaseIndexPageContent resource={resource(done)} />
+    );
+    expect(html).toContain("release completed");
+    expect(html).not.toContain("in progress");
+  });
+
   test("renders the release board and an unknown-release state", () => {
     const html = renderToStaticMarkup(
       <ReleaseBoardPageContent

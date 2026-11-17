@@ -39,7 +39,7 @@ const NextMilestoneSchema = z
 const ReleaseStatusSchema = z
   .enum(STEP_STATUSES)
   .describe(
-    "done when every step is done; blocked when a step is blocking; in_progress when some step has started; otherwise todo."
+    "done when every step is done or the release tag v<version> exists (the release is completed); blocked when a step is blocking; in_progress when some step has started; otherwise todo."
   );
 
 const ReleaseIndexEntrySchema = z
@@ -56,7 +56,7 @@ const ReleaseIndexEntrySchema = z
     ga_planned: z
       .boolean()
       .describe(
-        "True while the release is not out; false once every step is done."
+        "True while the release is not out; false once it is completed (every step is done or the release tag exists)."
       ),
     progress: z
       .object({
@@ -70,7 +70,7 @@ const ReleaseIndexEntrySchema = z
     phase: z
       .string()
       .describe(
-        "The phase of the first step that is not done, or Released when every step is done."
+        "The phase of the first step that is not done, or Released when every step is done or the release tag exists."
       ),
     status: ReleaseStatusSchema,
   })
