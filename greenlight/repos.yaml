@@ -6,3 +6,8 @@ repos:
     eligibility: merge_rules  # merge_rules | write_permission
     mode: active  # shadow | active | off
     change_source: clickhouse  # github | clickhouse
+  - repo: pytorch/test-infra
+    status_comment: greenlight  # drci | greenlight
+    safety: gate  # pytorchbot | gate
+    eligibility: write_permission  # merge_rules | write_permission
+    mode: active  # shadow | active | off

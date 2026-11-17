@@ -498,16 +498,16 @@ class TargetTest(PolicyTreeTestCase):
     def test_another_configured_repo_is_reviewed_in_target(self):
         result = self.materialize(
             [action_step(), sizecheck_step()],
-            repo="pytorch/test-infra",
-            extra_repos=["pytorch/test-infra"],
-            policies=["pytorch.md", "test-infra.md"],
+            repo="pytorch/greenlight-fixture",
+            extra_repos=["pytorch/greenlight-fixture"],
+            policies=["pytorch.md", "greenlight-fixture.md"],
         )
         self.assertEqual(
             result.target,
             Target(
-                "pytorch/test-infra",
+                "pytorch/greenlight-fixture",
                 "target",
-                f"{REPO_POLICIES_RELPATH}/test-infra.md",
+                f"{REPO_POLICIES_RELPATH}/greenlight-fixture.md",
                 True,
             ),
         )
@@ -522,13 +522,13 @@ class TargetTest(PolicyTreeTestCase):
     def test_a_repo_without_its_policy_file_gets_the_canned_no_policy_verdict(self):
         result = self.materialize(
             [action_step(), sizecheck_step()],
-            repo="pytorch/test-infra",
-            extra_repos=["pytorch/test-infra"],
+            repo="pytorch/greenlight-fixture",
+            extra_repos=["pytorch/greenlight-fixture"],
         )
         self.assertFalse(result.target.policy_present)
         self.assertEqual(result.no_policy_verdict["status"], "NO_LAND")
         self.assertEqual(result.no_policy_verdict["reason"], "review_error")
-        self.assertIn("pytorch/test-infra", result.no_policy_verdict["message"])
+        self.assertIn("pytorch/greenlight-fixture", result.no_policy_verdict["message"])
 
     def test_a_tree_without_the_target_step_materializes_for_pytorch_alone(self):
         # Its detector names pytorch literally, and its hooks carry no placeholder.
@@ -553,7 +553,7 @@ class TargetTest(PolicyTreeTestCase):
         )
         self.assertIsNone(result.no_policy_verdict)
         with self.assertRaises(ValueError):
-            self.materialize_written(repo="pytorch/test-infra")
+            self.materialize_written(repo="pytorch/greenlight-fixture")
 
 
 class BudgetBoundsTest(unittest.TestCase):
