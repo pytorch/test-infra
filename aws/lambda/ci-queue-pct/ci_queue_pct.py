@@ -335,8 +335,30 @@ def get_jobs_interval(
             default.workflow_job AS job
             INNER JOIN default.workflow_run AS workflow ON workflow.id = job.run_id
         WHERE
-            -- Use trailing slash to avoid matching pytorch/pytorch-integration-testing
-            job.dynamoKey LIKE 'pytorch/pytorch/%'
+            -- Every repo in the pytorch org except pytorch-canary, which is for
+            -- testing. This is the same scope as the queue_times_historical
+            -- snapshots (torchci/scripts/updateQueueTimes.mjs); keep them in sync.
+            -- The trailing slashes keep 'pytorch/' from matching other orgs like
+            -- pytorch-labs.
+            job.dynamoKey LIKE 'pytorch/%'
+            AND job.dynamoKey NOT LIKE 'pytorch/pytorch-canary/%'
+            -- Outside pytorch/pytorch, the snapshots leave out GitHub-hosted
+            -- runners, so leave out jobs that ran on one: the 'GitHub Actions'
+            -- runner group, or a larger runner named <label>-<runner id>.
+            AND NOT (
+                job.dynamoKey NOT LIKE 'pytorch/pytorch/%'
+                AND length(job.labels) = 1
+                AND (
+                    job.runner_group_name = 'GitHub Actions'
+                    OR (
+                        startsWith(job.runner_name, concat(job.labels[1], '-'))
+                        AND match(
+                            substring(job.runner_name, length(job.labels[1]) + 2),
+                            '^[0-9]+$'
+                        )
+                    )
+                )
+            )
             AND job.created_at >= {start_time:DateTime}
             AND job.created_at < {end_time:DateTime}
             AND length(job.labels) > 0

@@ -12,9 +12,13 @@ export function getS3Client() {
 
 const s3client = getS3Client();
 
-// %7B%7D = encoded {}
+// Every repo in the pytorch org, matching the metrics page. The query leaves
+// out pytorch-canary and, outside pytorch/pytorch, GitHub-hosted runners. Keep
+// this scope in sync with get_jobs_interval in aws/lambda/ci-queue-pct, which
+// divides by the number of jobs in the same scope.
+const params = encodeURIComponent(JSON.stringify({ org: "pytorch", repo: "" }));
 const response = await fetch(
-  "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D",
+  `https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=${params}`,
   {
     headers: {
       "x-hud-internal-bot": process.env.HUD_API_TOKEN,
