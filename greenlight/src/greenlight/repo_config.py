@@ -75,7 +75,6 @@ _ENUMS: dict[str, tuple[str, ...]] = {
 }
 _PINNED_FIELDS = ("status_comment", "safety", "eligibility")
 _KNOWN_KEYS = frozenset({"repo", *_ENUMS, "change_source", "full_tick_minutes"})
-_CLICKHOUSE_ONLY = "full_tick_minutes is only for change_source: clickhouse"
 _REPO_NAME = re.compile(r"pytorch/[A-Za-z0-9._-]+")
 
 
@@ -154,34 +153,18 @@ class RepoConfig:
 BUILTIN_CONFIG = RepoConfig(served=(BUILTIN_PYTORCH,), safety_only=(), refused=())
 
 
+def _not_one_of(field: str, value: object, allowed: Sequence[str]) -> str:
+    return f"{field} {value!r} is not one of {list(allowed)}"
+
+
 def _entry_problems(raw: Mapping[object, object]) -> list[str]:
     problems: list[str] = []
     for field, allowed in _ENUMS.items():
         if field not in raw:
             problems.append(f"{field} is missing")
         elif raw[field] not in allowed:
-            problems.append(f"{field} {raw[field]!r} is not one of {list(allowed)}")
-    problems.extend(problem for problem in (_change_source_problem(raw), _full_tick_minutes_problem(raw)) if problem)
+            problems.append(_not_one_of(field, raw[field], allowed))
     return problems
-
-
-def _change_source_problem(raw: Mapping[object, object]) -> str | None:
-    if "change_source" in raw and raw["change_source"] not in CHANGE_SOURCES:
-        return f"change_source {raw['change_source']!r} is not one of {list(CHANGE_SOURCES)}"
-    return None
-
-
-def _full_tick_minutes_problem(raw: Mapping[object, object]) -> str | None:
-    if "full_tick_minutes" not in raw:
-        return None
-    value = raw["full_tick_minutes"]
-    if (
-        isinstance(value, bool)
-        or not isinstance(value, int)
-        or not FULL_TICK_MINUTES_MIN <= value <= FULL_TICK_MINUTES_MAX
-    ):
-        return f"full_tick_minutes {value!r} is not an integer from {FULL_TICK_MINUTES_MIN} to {FULL_TICK_MINUTES_MAX}"
-    return None
 
 
 def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
@@ -190,22 +173,58 @@ def _cross_field_problems(repo: str, raw: Mapping[object, object]) -> list[str]:
         problems.append(f"safety: pytorchbot is only for {sorted(PYTORCHBOT_GUARDED_REPOS)}")
     if raw["safety"] == "gate" and raw["mode"] == "active":
         problems.append("safety: gate cannot be active in this release")
-    if "full_tick_minutes" in raw and raw.get("change_source", RepoEntry.change_source) != "clickhouse":
-        problems.append(_CLICKHOUSE_ONLY)
     return problems
 
 
-def _entry(repo: str, raw: Mapping[object, object]) -> RepoEntry:
-    """``raw`` as an entry; its fields were already checked, and a missing optional one takes its default."""
-    return RepoEntry(
+def _change_fields(raw: Mapping[object, object], default: RepoEntry) -> tuple[ChangeSource, int, dict[str, str]]:
+    """``raw``'s ``change_source`` and ``full_tick_minutes``, and the problem of each key that has one.
+
+    A missing, bad or disallowed value resolves to ``default``'s.
+    """
+    problems: dict[str, str] = {}
+    change_source = default.change_source
+    if "change_source" in raw:
+        written = raw["change_source"]
+        if written in CHANGE_SOURCES:
+            change_source = written
+        else:
+            problems["change_source"] = _not_one_of("change_source", written, CHANGE_SOURCES)
+    full_tick_minutes = default.full_tick_minutes
+    if "full_tick_minutes" in raw:
+        value = raw["full_tick_minutes"]
+        if change_source != "clickhouse":
+            problems["full_tick_minutes"] = "full_tick_minutes is only for change_source: clickhouse"
+        elif (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or not FULL_TICK_MINUTES_MIN <= value <= FULL_TICK_MINUTES_MAX
+        ):
+            problems["full_tick_minutes"] = (
+                f"full_tick_minutes {value!r} is not an integer from {FULL_TICK_MINUTES_MIN} to {FULL_TICK_MINUTES_MAX}"
+            )
+        else:
+            full_tick_minutes = value
+    return change_source, full_tick_minutes, problems
+
+
+def _checked_entry(repo: str, raw: Mapping[object, object], *, duplicated: bool) -> RepoEntry | str:
+    """A non-primary ``raw`` as an entry, or the reason it is refused."""
+    problems = _entry_problems(raw)
+    if duplicated:
+        problems.append("the repo is listed more than once")
+    if problems:
+        return "; ".join(problems)
+    entry = RepoEntry(
         repo,
         status_comment=cast("StatusComment", raw["status_comment"]),
         safety=cast("Safety", raw["safety"]),
         eligibility=cast("Eligibility", raw["eligibility"]),
         mode=cast("Mode", raw["mode"]),
-        change_source=cast("ChangeSource", raw.get("change_source", RepoEntry.change_source)),
-        full_tick_minutes=cast("int", raw.get("full_tick_minutes", RepoEntry.full_tick_minutes)),
     )
+    change_source, full_tick_minutes, change_problems = _change_fields(raw, entry)
+    if problems := [*_cross_field_problems(repo, raw), *change_problems.values()]:
+        return "; ".join(problems)
+    return dataclasses.replace(entry, change_source=change_source, full_tick_minutes=full_tick_minutes)
 
 
 def _unknown_keys(raw: Mapping[object, object]) -> list[str]:
@@ -233,28 +252,13 @@ def _primary(copies: Sequence[Mapping[object, object]], *, duplicated: bool) -> 
         logger.error("repos config: %s unknown key(s) %s ignored", TARGET_REPO, unknown)
     mode = raw.get("mode")
     if mode not in MODES:
-        return f"its mode {mode!r} is not one of {list(MODES)}"
-    change_source, full_tick_minutes = _primary_change_fields(raw)
+        return f"its {_not_one_of('mode', mode, MODES)}"
+    change_source, full_tick_minutes, problems = _change_fields(raw, BUILTIN_PYTORCH)
+    for field, problem in problems.items():
+        logger.error("repos config: %s %s; ignored, it stays %r", TARGET_REPO, problem, getattr(BUILTIN_PYTORCH, field))
     return dataclasses.replace(
         BUILTIN_PYTORCH, mode=mode, change_source=change_source, full_tick_minutes=full_tick_minutes
     )
-
-
-def _primary_change_fields(raw: Mapping[object, object]) -> tuple[ChangeSource, int]:
-    """The primary's ``change_source`` and ``full_tick_minutes``: the file's, else ``BUILTIN_PYTORCH``'s."""
-    change_source = BUILTIN_PYTORCH.change_source
-    if problem := _change_source_problem(raw):
-        logger.error("repos config: %s %s; ignored, it stays %r", TARGET_REPO, problem, change_source)
-    elif "change_source" in raw:
-        change_source = cast("ChangeSource", raw["change_source"])
-    full_tick_minutes = BUILTIN_PYTORCH.full_tick_minutes
-    if "full_tick_minutes" not in raw:
-        return change_source, full_tick_minutes
-    problem = _CLICKHOUSE_ONLY if change_source != "clickhouse" else _full_tick_minutes_problem(raw)
-    if problem:
-        logger.error("repos config: %s %s; ignored, it stays %r", TARGET_REPO, problem, full_tick_minutes)
-        return change_source, full_tick_minutes
-    return change_source, cast("int", raw["full_tick_minutes"])
 
 
 def _load_document(text: str | bytes) -> list[object]:
@@ -301,17 +305,13 @@ def parse(text: str | bytes) -> RepoConfig:
             continue
         if is_primary(repo):
             continue
-        problems = _entry_problems(item)
-        if counts[repo.lower()] > 1:
-            problems.append("the repo is listed more than once")
-        if not problems:
-            problems = _cross_field_problems(repo, item)
-        if problems:
-            refused.append((repo, "; ".join(problems)))
+        entry = _checked_entry(repo, item, duplicated=counts[repo.lower()] > 1)
+        if isinstance(entry, str):
+            refused.append((repo, entry))
         elif unknown := _unknown_keys(item):
-            safety_only.append((_entry(repo, item), f"unknown key(s) {unknown}"))
+            safety_only.append((entry, f"unknown key(s) {unknown}"))
         else:
-            served.append(_entry(repo, item))
+            served.append(entry)
     config = RepoConfig(served=tuple(served), safety_only=tuple(safety_only), refused=tuple(refused))
     for problem in config.problems:
         logger.error("repos config: %s", problem)

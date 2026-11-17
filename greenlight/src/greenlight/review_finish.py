@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from greenlight.repo_config import RepoEntry
     from greenlight.review_gate import ReviewSkip
     from greenlight.scan_dispatch import DispatchFn
-    from greenlight.scan_memory import ScanMemory
+    from greenlight.scan_memory import ScanMemory, TickKind
     from greenlight.scan_runner import FingerprintFn
     from greenlight.state import PRState
 
@@ -83,7 +83,7 @@ class PreparedScan:
     bot_login: str
     timeout: timedelta
     memory: ScanMemory | None
-    full_tick: bool
+    kind: TickKind
     listed_at: datetime
     evaluated_at: datetime
     states: dict[int, PRState]
@@ -106,7 +106,6 @@ class PreparedScan:
     get_pr: Callable[[Github, str, int], VerdictPR]
     upsert_comment: Callable[..., None]
     now: Callable[[], datetime]
-    wide_tick: bool = False
     markers: Mapping[int, tuple[Marker, datetime] | None] = field(default_factory=dict)
     failed: list[int] = field(default_factory=list)
     optional_failed: list[int] = field(default_factory=list)
@@ -178,7 +177,7 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
         if scan.memory is None or scan.pr is not None or scan.force
         else FingerprintCache(
             scan.memory,
-            reuse=not scan.full_tick,
+            reuse=scan.kind != "full",
             authorized_logins=scan.authorized_logins,
             updated_at=scan.updated_at_by_number,
             head_sha=scan.head_sha_by_number,
@@ -245,9 +244,9 @@ def _optional_work(scan: PreparedScan, abandoned: list[int]) -> list[int]:
         # Marked before the per-PR failures below can raise: one failing PR must not hold every
         # later tick to a full listing.
         if scan.memory is not None and scan.pr is None:
-            if scan.full_tick:
+            if scan.kind == "full":
                 scan.memory.mark_full_tick(scan.listed_at)
-            elif scan.wide_tick:
+            elif scan.kind == "wide":
                 scan.memory.mark_wide_tick(scan.listed_at)
         dispatch_failed = scan_dispatch._dispatch_pending(
             _dispatch_client(scan) if pending else scan.client,

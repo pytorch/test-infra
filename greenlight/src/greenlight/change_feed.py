@@ -3,7 +3,7 @@
 pytorchbot's webhooks reach four tables (``TABLES``) through DynamoDB. ``read_markers`` reads, in one query, a
 ``Marker`` per PR: what changes whenever a non-bot event lands on the PR. ``read_freshness`` reads each table's newest
 event org-wide and ClickHouse's own clock, so ``Freshness.problem`` judges staleness on the server's clock, not the
-host's. ``current_freshness`` shares one reading between every repo of the process for ``FRESHNESS_REUSE``.
+host's.
 
 Both reads run under ``CHANGE_FEED_MAX_EXECUTION_SECONDS`` on a client that gives up after
 ``CHANGE_FEED_TIMEOUT_SECONDS``; every error propagates. The review tables are sorted by ``tupleElement(pull_request,
@@ -16,7 +16,6 @@ numbers are bound once, as ``known``.
 from __future__ import annotations
 
 import functools
-import time
 from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING, Any
 
@@ -25,7 +24,6 @@ from greenlight.constants import (
     BOT_LOGIN_SUFFIX,
     CHANGE_FEED_MAX_EXECUTION_SECONDS,
     CHANGE_FEED_TIMEOUT_SECONDS,
-    FRESHNESS_REUSE,
     FUTURE_EVENT_TOLERANCE,
     STALE_AFTER,
     TABLE_STALE_AFTER,
@@ -39,7 +37,7 @@ if TYPE_CHECKING:
 
     from clickhouse_connect.driver.client import Client
 
-TABLES: tuple[str, ...] = ("pull_request", "issue_comment", "pull_request_review", "pull_request_review_comment")
+TABLES: tuple[str, ...] = tuple(TABLE_STALE_AFTER)
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,19 +202,3 @@ def read_freshness(*, connect: Callable[[], Client] | None = None) -> Freshness:
     params: dict[str, object] = {"future_tolerance": int(FUTURE_EVENT_TOLERANCE.total_seconds())}
     (row,) = _query(_FRESHNESS_SQL, params, connect)
     return Freshness(server_now=naive_utc(row["server_now"]), newest={table: _time(row[table]) for table in TABLES})
-
-
-_cached: tuple[float, Freshness] | None = None
-
-
-def current_freshness(
-    *, read: Callable[[], Freshness] = read_freshness, clock: Callable[[], float] | None = None
-) -> Freshness:
-    """``read()``'s result, reused within ``FRESHNESS_REUSE`` by every repo of the process; errors propagate."""
-    global _cached
-    now = (clock or time.monotonic)()
-    if _cached is not None and now - _cached[0] < FRESHNESS_REUSE.total_seconds():
-        return _cached[1]
-    reading = read()
-    _cached = (now, reading)
-    return reading

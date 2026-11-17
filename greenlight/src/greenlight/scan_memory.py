@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
 from types import MappingProxyType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from greenlight.constants import FINGERPRINT_QUIET, FULL_TICK_INTERVAL, FULL_TICK_TOLERANCE
 from greenlight.pr_view import PRView
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     Markers = Mapping[int, tuple[Marker, datetime] | None]
 
 logger = logging.getLogger(__name__)
+
+# A clickhouse repo's event tick is a fast one.
+TickKind = Literal["full", "wide", "fast"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,20 +228,20 @@ class FingerprintCache:
     def store(self, number: int, result: FingerprintResult) -> None:
         """Count a fresh result, and keep it once the PR's listed ``updated_at`` is ``FINGERPRINT_QUIET`` old.
 
-        With ``markers``, also only once the process has seen the PR's marker for ``FINGERPRINT_QUIET``,
-        so a fetch that lagged an event HUD already shows is never kept; a PR with no marker read is not
-        kept at all. A fingerprint read at a head other than the listed one is never kept: after a push
-        the next listing misses it anyway, and after a read that lagged the listing it would settle the
-        listed head on an older head's hash.
+        A PR with a marker read is also kept only once the process has seen that marker for
+        ``FINGERPRINT_QUIET``, so a fetch that lagged an event HUD already shows is never kept; one with
+        none is kept under the marker None, and the first tick that reads one misses it. A fingerprint
+        read at a head other than the listed one is never kept: after a push the next listing misses it
+        anyway, and after a read that lagged the listing it would settle the listed head on an older
+        head's hash.
         """
         self._fetched += 1
         key = self._key(number)
         if key is None or self._now - key.updated_at < FINGERPRINT_QUIET:
             return
-        if self._markers:
-            seen = self._markers.get(number)
-            if seen is None or self._now - seen[1] < FINGERPRINT_QUIET:
-                return
+        seen = self._markers.get(number)
+        if seen is not None and self._now - seen[1] < FINGERPRINT_QUIET:
+            return
         if isinstance(result, tuple) and result[0] != key.head_sha:
             return
         self._kept[number] = _Entry(key, result, self._now)

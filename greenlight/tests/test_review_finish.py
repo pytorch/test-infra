@@ -43,7 +43,7 @@ def _prepared(**overrides: Any) -> PreparedScan:
         "bot_login": "",
         "timeout": timedelta(minutes=45),
         "memory": None,
-        "full_tick": True,
+        "kind": "full",
         "listed_at": _NOW,
         "evaluated_at": _NOW,
         "states": {},
@@ -321,7 +321,7 @@ def _built_memory() -> ScanMemory:
 
 def test_a_wide_tick_whose_fan_out_hit_no_rate_limit_is_marked_at_its_listing_time():
     memory = _built_memory()
-    prepared, _dispatched = _dispatching(memory=memory, full_tick=False, wide_tick=True)
+    prepared, _dispatched = _dispatching(memory=memory, kind="wide")
 
     with prepared.stack:
         review_finish.finish(prepared)
@@ -334,11 +334,11 @@ def test_a_wide_tick_whose_fan_out_hit_no_rate_limit_is_marked_at_its_listing_ti
 @pytest.mark.parametrize(
     "overrides",
     [
-        pytest.param({"full_tick": False, "wide_tick": False}, id="event-tick"),
-        pytest.param({"full_tick": False, "wide_tick": True, "pr": 1}, id="single-pr"),
+        pytest.param({"kind": "fast"}, id="fast-tick"),
+        pytest.param({"kind": "wide", "pr": 1}, id="single-pr"),
     ],
 )
-def test_neither_an_event_tick_nor_a_single_pr_scan_marks_a_wide_tick(overrides):
+def test_neither_a_fast_tick_nor_a_single_pr_scan_marks_a_wide_tick(overrides):
     memory = _built_memory()
     prepared, _dispatched = _dispatching(memory=memory, **overrides)
 
@@ -351,7 +351,7 @@ def test_neither_an_event_tick_nor_a_single_pr_scan_marks_a_wide_tick(overrides)
 def test_a_wide_tick_cut_by_a_rate_limit_is_not_marked():
     memory = _built_memory()
     prepared, _dispatched = _dispatching(
-        memory=memory, full_tick=False, wide_tick=True, fingerprint=_rate_limited, recent=[1], fingerprint_numbers=[1]
+        memory=memory, kind="wide", fingerprint=_rate_limited, recent=[1], fingerprint_numbers=[1]
     )
 
     with pytest.raises(RuntimeError, match=r"failed during scan: \[1\]"), prepared.stack:
@@ -380,20 +380,21 @@ def _cache_inputs(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 def test_the_cache_gets_the_scans_markers_and_revalidates_its_landed_prs(monkeypatch):
     seen = _cache_inputs(monkeypatch)
     markers = {1: (Marker(reviews=1), _NOW), 2: None}
-    prepared, _dispatched = _dispatching(memory=_built_memory(), full_tick=False, markers=markers)
+    prepared, _dispatched = _dispatching(memory=_built_memory(), kind="fast", markers=markers)
     prepared.states.update({1: _landed(1), 3: _landed(3)})
     prepared.states[2] = replace(_landed(2), status="NO_LAND")
 
     with prepared.stack:
         review_finish.finish(prepared)
 
+    assert seen["reuse"] is True
     assert seen["markers"] is markers
     assert seen["revalidate"] == frozenset({1, 3})
 
 
 def test_a_scan_without_markers_revalidates_nothing(monkeypatch):
     seen = _cache_inputs(monkeypatch)
-    prepared, _dispatched = _dispatching(memory=ScanMemory(), full_tick=False)
+    prepared, _dispatched = _dispatching(memory=ScanMemory(), kind="fast")
     prepared.states.update({1: _landed(1)})
 
     with prepared.stack:

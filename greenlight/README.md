@@ -484,7 +484,7 @@ hang-guard layers off (the SIGALRM soft timeout and the `os._exit` hard watchdog
 under the Lambda runtime); single-instance and hang-bounding come from
 `reserved_concurrent_executions = 1` and the Lambda function timeout instead. A warm execution
 environment keeps the scan's tick memory (kept fingerprints, a `clickhouse` repo's view, an `off` repo's drain) and caches between invocations, so the
-Lambda alternates full and fast ticks; a CLI one-shot always lists in full (see Usage). The scan's
+Lambda alternates a `github` repo's full and fast ticks, or a `clickhouse` repo's full, wide and event ticks (CHANGE_DETECTION.md); a CLI one-shot always lists in full (see Usage). The scan's
 GitHub token must be able to list the repository's issues (`GET /repos/{owner}/{repo}/issues`,
 through public read access or the Issues: read permission); if it cannot, every fast tick fails
 loudly while full ticks still run.
@@ -633,7 +633,7 @@ in a configured repo, computes each PR's fingerprint (`eval_hash`), reads the PR
 state from `misc.greenlight_pr_state`, and dispatches the reviewer workflow
 (`greenlight-pr-review.yml` on `pytorch/test-infra`) for eligible PRs that are new or changed. It
 lists every open PR on a full tick, and on the fast ticks in between only the recently updated ones
-plus the open `Reverted`-labelled ones, reusing the fingerprint of a PR unchanged since an earlier
+plus the open `Reverted`-labelled ones (a `clickhouse` repo: full, wide and event ticks, CHANGE_DETECTION.md), reusing the fingerprint of a PR unchanged since an earlier
 tick (see Usage). Reverted PRs — those carrying the `Reverted` label or with a `REVERTED` row
 already recorded — are excluded permanently on every path: greenlight revokes its own approving
 review, records the `REVERTED` row unless it is already the PR's latest row, and pokes Dr. CI when

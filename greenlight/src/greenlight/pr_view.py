@@ -88,12 +88,6 @@ class PRView:
             picked.append(record)
         return picked
 
-    def clear(self) -> None:
-        """Forget everything, so the next tick of a ``clickhouse`` source starts with a full listing."""
-        self.records = {}
-        self.listed_at = None
-        self._markers = {}
-
     def _effective(self, record: OpenPR) -> OpenPR:
         seen = self._markers.get(record.number)
         newest = None if seen is None else seen[0].newest

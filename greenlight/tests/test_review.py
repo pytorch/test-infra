@@ -48,6 +48,7 @@ from greenlight.repo_config import BUILTIN_PYTORCH, RepoEntry
 from greenlight.review_gate import CHANGES_REQUESTED, HUMAN_APPROVED, ReviewSkip
 from greenlight.scan_memory import ScanMemory
 from greenlight.state import PRState
+from tests.change_helpers import ListingClient, Pull, fresh
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
@@ -3723,59 +3724,13 @@ def test_prepare_keeps_no_dispatch_token_when_it_has_none(make_config):
     assert _prepared_scan(make_config, dispatch_token=None).dispatch_token is None
 
 
-class _ListedPull:
-    """A pulls-endpoint item as the listings read it."""
-
-    def __init__(self, number: int, updated_at: datetime, *, state: str = "open") -> None:
-        self.number = number
-        self.updated_at = updated_at
-        self.state = state
-        self.user = _FakeUser("albanD")
-        self.title = f"fix {number}"
-        self.html_url = f"https://example.test/{number}"
-        self.labels: list[object] = []
-        self.draft = False
-        self.head = _FakeHead(f"headsha{number}")
-        self.base = _FakeRef("main")
-        self._rawData: dict[str, object] = {}
-
-
-class _ListingClient:
-    """A client whose repo lists ``pulls`` as the pulls endpoint would, and no ``Reverted`` PR."""
-
-    def __init__(self, pulls: list[_ListedPull]) -> None:
-        self.pulls = pulls
-        self.listed: list[str] = []
-
-    def get_repo(self, _name: str) -> _ListingClient:
-        return self
-
-    def get_pulls(self, state: str = "", sort: str = "", direction: str = "") -> list[_ListedPull]:
-        self.listed.append(state)
-        pulls = [pull for pull in self.pulls if state == "all" or pull.state == state]
-        return sorted(pulls, key=lambda pull: pull.updated_at, reverse=True) if sort == "updated" else pulls
-
-    def get_issues(self, *, state: str, labels: list[str]) -> list[object]:
-        self.listed.append(f"issues {state} {labels}")
-        return []
-
-
-class _Fresh:
-    def problem(self) -> str | None:
-        return None
-
-
-def _fresh():
-    return _Fresh()
-
-
 def _unreachable_listing(*_args: object) -> list[OpenPR]:
     raise AssertionError("a clickhouse repo with a memory listed through the github seams")
 
 
 def test_prepare_of_a_clickhouse_repo_hands_its_listing_kind_and_markers_to_the_scan(make_config):
     entry = replace(BUILTIN_PYTORCH, change_source="clickhouse")
-    client = _ListingClient([_ListedPull(1, _NEW), _ListedPull(2, _OLD)])
+    client = ListingClient([Pull(1, _NEW, author="albanD"), Pull(2, _OLD, author="albanD")])
     marker = Marker(reviews=1)
     memory = ScanMemory()
     reads: list[list[int]] = []
@@ -3794,7 +3749,7 @@ def test_prepare_of_a_clickhouse_repo_hands_its_listing_kind_and_markers_to_the_
                 fetch=_unreachable_listing,
                 fetch_updated=_unreachable_listing,
                 read_markers=read_markers,
-                read_freshness=_fresh,
+                read_freshness=fresh,
                 read_state=lambda _repo, _numbers: {},
                 read_reverted=_no_reverted,
                 resolve_merge_rules=_merge_rules,
@@ -3807,16 +3762,16 @@ def test_prepare_of_a_clickhouse_repo_hands_its_listing_kind_and_markers_to_the_
 
     full = prepare(_NOW)
     memory.mark_full_tick(_NOW)
-    client.pulls[1] = _ListedPull(2, _NOW + timedelta(minutes=1), state="closed")
+    client.pulls[1] = Pull(2, _NOW + timedelta(minutes=1), author="albanD", state="closed")
     event = prepare(_NOW + timedelta(minutes=2))
 
-    assert (full.full_tick, full.wide_tick) == (True, False)
+    assert full.kind == "full"
     assert full.markers == {1: (marker, _NOW), 2: (marker, _NOW)}
     assert full.recent == [1]
-    assert (event.full_tick, event.wide_tick) == (False, False)
+    assert event.kind == "fast"
     assert event.markers == {1: (marker, _NOW)}
     assert event.fingerprint_numbers == [1]
     assert event.updated_at_by_number == {1: _NEW}
-    assert event.head_sha_by_number == {1: "headsha1"}
+    assert event.head_sha_by_number == {1: "sha1"}
     assert reads == [[1, 2], [1, 2]]
-    assert client.listed == ["open", "all", "issues open ['Reverted']"]
+    assert client.listed == ["pulls open", "pulls all", "issues open ['Reverted']"]

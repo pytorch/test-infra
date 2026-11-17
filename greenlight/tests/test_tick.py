@@ -9,7 +9,8 @@ from typing import Any
 import pytest
 from github import RateLimitExceededException
 
-from greenlight import drain, merge_authz, quota, repo_scan, tick
+from greenlight import drain, merge_authz, quota, repo_scan, review, review_finish, tick
+from greenlight.change_feed import Marker
 from greenlight.constants import (
     DISPATCH_REPO,
     OTHER_REPO_REQUEST_BUDGET,
@@ -23,6 +24,8 @@ from greenlight.guards import IterationTimeout
 from greenlight.repo_config import BUILTIN_CONFIG, BUILTIN_PYTORCH, RepoConfig, RepoEntry
 from greenlight.scan_memory import ScanMemory
 from greenlight.snapshot_cache import SnapshotCache
+from greenlight.state import PRState
+from tests.change_helpers import ListingClient, Pull, fresh
 
 _NOW = datetime(2026, 11, 16, 12, 0, 0)
 _VISION = RepoEntry("pytorch/vision", "greenlight", "gate", "write_permission", "shadow")
@@ -891,73 +894,10 @@ def test_a_cut_while_another_repo_prepares_reports_the_cut_alone(make_config):
     assert "pytorch/vision" not in {repo for repo, _optional, _cap in run.finishes}
 
 
-class _Pull:
-    """A pulls-endpoint item as the listings read it."""
-
-    def __init__(self, number: int, updated_at: datetime) -> None:
-        self.number = number
-        self.updated_at = updated_at
-        self.state = "open"
-        self.user = _Login("alice")
-        self.title = f"fix {number}"
-        self.html_url = f"https://example.test/{number}"
-        self.labels: list[object] = []
-        self.draft = False
-        self.head = _Ref(f"sha{number}")
-        self.base = _Ref("main")
-        self._rawData: dict[str, object] = {}
-
-
-@dataclass(frozen=True)
-class _Login:
-    login: str
-
-
-@dataclass(frozen=True)
-class _Ref:
-    sha: str
-    ref: str = "main"
-
-
-class _GitHub:
-    """Every client of the tick: its repo lists ``pulls``, sorted as the pulls endpoint sorts them."""
-
-    def __init__(self, pulls: list[_Pull]) -> None:
-        self.pulls = pulls
-        self.listed: list[str] = []
-
-    def get_repo(self, _name: str) -> _GitHub:
-        return self
-
-    def get_pulls(self, state: str = "", sort: str = "", direction: str = "") -> list[_Pull]:
-        self.listed.append(f"pulls {state}")
-        return sorted(self.pulls, key=lambda pull: pull.updated_at, reverse=True) if sort == "updated" else self.pulls
-
-    def get_issues(self, *, state: str, labels: list[str]) -> list[object]:
-        self.listed.append(f"issues {state}")
-        return []
-
-    def close(self) -> None:
-        pass
-
-
-class _Fresh:
-    def problem(self) -> str | None:
-        return None
-
-
-def _fresh():
-    return _Fresh()
-
-
 def test_a_clickhouse_primary_refetches_only_the_pr_whose_marker_changed_without_an_update(make_config):
-    from greenlight import review, review_finish
-    from greenlight.change_feed import Marker
-    from greenlight.state import PRState
-
     entry = dataclasses.replace(BUILTIN_PYTORCH, change_source="clickhouse")
     updated = _NOW - timedelta(hours=1)
-    github = _GitHub([_Pull(number, updated) for number in (1, 2, 3)])
+    github = ListingClient([Pull(number, updated) for number in (1, 2, 3)])
     markers = dict.fromkeys((1, 2, 3), Marker(reviews=1))
     hashed = "a" * 64
     states = {
@@ -985,7 +925,7 @@ def test_a_clickhouse_primary_refetches_only_the_pr_whose_marker_changed_without
         kwargs.update(
             resolve_merge_rules=lambda: _SNAPSHOT_ALL,
             read_markers=lambda _repo, numbers: {number: markers[number] for number in numbers},
-            read_freshness=_fresh,
+            read_freshness=fresh,
             fingerprint=fingerprint,
             read_state=lambda _repo, numbers: {number: states[number] for number in numbers},
             read_reverted=lambda _repo, _numbers: set(),
@@ -1027,4 +967,5 @@ def test_a_clickhouse_primary_refetches_only_the_pr_whose_marker_changed_without
     # The first tick lists in full and keeps nothing, its markers first seen then; the second keeps
     # every fetch. The third sees a dismissal on PR2 that moved no updated_at: only PR2 is refetched.
     assert (full, event, dismissed) == ([1, 2, 3], [1, 2, 3], [2])
-    assert github.listed == ["pulls open", "pulls all", "issues open", "pulls all", "issues open"]
+    reverted = "issues open ['Reverted']"
+    assert github.listed == ["pulls open", "pulls all", reverted, "pulls all", reverted]

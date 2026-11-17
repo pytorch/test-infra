@@ -31,14 +31,17 @@ page, and updates the view from them: pushes, comments, base edits, labels, draf
 merges, reopens and new PRs all come from GitHub, never from HUD. The open `Reverted` PRs are listed
 from GitHub every tick. A PR whose marker shows a non-bot comment or a `pull_request` event newer
 than the view's `updated_at` counts as updated then when the review window is applied, so a PR whose
-place in GitHub's updated order lags still enters it.
+place in GitHub's updated order lags still enters it. When the marker's `pull_request` event is newer
+than the view's record, the view missed that event (a draft marked ready, a label, a base change, a
+close): the tick reads that PR from GitHub on its own, up to 20 a tick, while the reading is fresh.
 
 The marker is part of the fingerprint cache key, so what `updated_at` cannot show (a review
 dismissal, a review edit, an inline comment edit or delete, a quick second review) invalidates the
 kept result at once, not at the next full tick. A result is kept only once this process first saw its
 marker at least two minutes earlier (`FINGERPRINT_QUIET`), so a GitHub read lagging an event
 ClickHouse already has is never kept; a cold start therefore fetches the window's eligible PRs once
-more on its second tick. A kept result of a PR whose latest recorded row is `LAND` is not reused once
+more on its second tick. A PR with no marker reading (the reads fail, or the walk just added it) is
+kept on the `updated_at` rule alone, as on a `github` repo. A kept result of a PR whose latest recorded row is `LAND` is not reused once
 it is 15 minutes old, whatever ClickHouse says: pytorch's land gate checks only the head SHA, so an
 approval keeps the bound a `github` repo's full tick gives it.
 
@@ -48,17 +51,20 @@ old (`STALE_AFTER`), one table's newest is older than that table's own threshold
 (`TABLE_STALE_AFTER`, each above its longest gap measured over a week: `pull_request` 45 minutes,
 `issue_comment` 30, reviews 75, review comments 120), the read fails or passes 10 s, or ClickHouse has
 no row for any of the repo's open PRs (a repo HUD does not cover). Rows dated more than 5 minutes
-ahead are ignored, and one freshness reading serves every repo for a minute.
+ahead are ignored.
 
-**What waits for the sweep**, at most `full_tick_minutes`, and never an approval (the LAND bound
-above): an issue comment deletion that does not bump `updated_at`; an approver's login rename; a
-non-bumping event whose webhook HUD lost, or that one stalled stream holds below its table's
-threshold; a review, push or label change on a PR whose place in GitHub's updated order lags more
-than `LISTING_OVERLAP`, which the recent listing therefore misses (a non-bot comment or a
-`pull_request` event on it still reaches the window through its marker).
+**What waits for the sweep**, at most `full_tick_minutes`: an issue comment deletion that does not
+bump `updated_at`; an approver's login rename; a non-bumping event whose webhook HUD lost, or that
+one stalled stream holds below its table's threshold; a review or push on a PR whose place in
+GitHub's updated order lags more than `LISTING_OVERLAP`, which the recent listing therefore misses.
+None of these keeps an earlier LAND usable for longer than 15 minutes once its PR is a candidate (the
+LAND bound above), but a base change or a draft flag the walk misses while the marker reading is
+stale or its `pull_request` webhook was lost reaches the ineligible revoke only at the sweep, or at
+the 15-minute full tick while stale.
 
 Each tick logs one line per `clickhouse` repo: its kind, its source (`ClickHouse`, or `GitHub, stale:`
-and why), the PRs it listed, its candidates, and the PRs whose marker changed.
+and why), the PRs it listed, the PRs it read on their own, its candidates, and the PRs whose marker
+changed.
 
 **Cost.** Per tick: the recent listing (usually 1 request), the `Reverted` listing (1) and the
 fingerprints of changed PRs; every 15 minutes, the revert guard over the PRs with a recorded
@@ -69,8 +75,9 @@ HUD cluster would bound every read. Each `clickhouse` repo adds a marker query o
 combined query is due before several repos use `clickhouse`.
 
 **Access.** The scan's ClickHouse user must read the four webhook tables (only the columns
-`change_feed.py` names); without that every reading fails, logged as an error, and the repo behaves as
-stale.
+`change_feed.py` names) and be allowed to set `max_execution_time` (a `readonly=1` profile refuses
+it; `readonly=2` allows it). Without that every reading fails, logged as an error, and the repo
+behaves as stale: today's 15-minute full ticks, with kept results reused as on a `github` repo.
 
 **Before and after.** The scan reads `repos.yaml` from main, so a config PR setting a repo's
 `change_source` to `github` for a measured window, then back to `clickhouse`, compares the two on one

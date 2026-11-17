@@ -22,7 +22,8 @@ view, while the open ``Reverted`` PRs join each tick's candidates without enteri
 ``FULL_TICK_INTERVAL`` a wide tick hands the scan every candidate in the view, so the revert guard and
 the retry of unfinished reviews reach as far as a ``github`` repo's full listing. A PR whose place in
 the updated order lags enters the review window through its marker's newest non-bot comment or
-``pull_request`` event. What waits for the sweep, and only on a PR whose latest recorded row is not a
+``pull_request`` event, and a cohort PR whose marker shows a ``pull_request`` event its record lacks is
+read alone (``read_record``). What waits for the sweep, and only on a PR whose latest recorded row is not a
 ``LAND`` (``scan_memory`` revalidates those every ``FULL_TICK_INTERVAL``): an issue comment deletion
 that does not bump ``updated_at``; an approver's login rename; and a non-bumping event (a review
 dismissal, an inline comment edit) whose webhook HUD lost, or that a stalled stream holds below its
@@ -164,6 +165,16 @@ def _walk_updated(client: _RepoClient, repo: str, *, cutoff: datetime, state: st
             break
         listed.append(_record(pr, repo, pr))
     return listed
+
+
+def read_record(client: Github, repo: str, number: int) -> OpenPR | None:
+    """PR ``number`` as ``list_open_records`` builds each record, read with one GET; None when it names no author.
+
+    The scan's client builds lazy objects: the GET happens at the record builder's first attribute read,
+    before it reads the payload the base is judged from.
+    """
+    pull = client.get_repo(repo).get_pull(number)
+    return _record(pull, repo, pull)
 
 
 def list_recent_records(client: _RepoClient, repo: str, *, cutoff: datetime, state: str) -> list[OpenPR]:

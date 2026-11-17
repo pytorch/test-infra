@@ -327,11 +327,12 @@ def test_a_result_is_kept_only_once_the_process_has_seen_its_marker_for_the_quie
 @pytest.mark.parametrize(
     "markers", [pytest.param({1: None}, id="none"), pytest.param({2: (_MARKER, _STARTED)}, id="absent")]
 )
-def test_a_pr_with_no_marker_read_is_never_kept_while_the_tick_reads_markers(markers):
+def test_a_pr_with_no_marker_read_is_kept_under_none_on_its_updated_at_alone(markers):
     memory = _marker_cached(markers=markers)
 
-    assert _marker_tick(memory, markers=markers).lookup(1) is None
-    assert _tick(memory).lookup(1) is None
+    assert _marker_tick(memory, markers=markers).lookup(1) == _RESULT
+    assert _tick(memory).lookup(1) == _RESULT
+    assert _marker_tick(memory).lookup(1) is None
 
 
 def test_a_landed_prs_result_is_reused_until_it_is_a_full_tick_interval_old():

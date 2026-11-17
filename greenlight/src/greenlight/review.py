@@ -196,7 +196,7 @@ def prepare(
     fetch: FetchFn = default_fetch,
     fetch_updated: FetchUpdatedFn = default_fetch_updated,
     read_markers: ReadMarkersFn = change_feed.read_markers,
-    read_freshness: Callable[[], Freshness] = change_feed.current_freshness,
+    read_freshness: Callable[[], Freshness] = change_feed.read_freshness,
     fetch_labels: Callable[[Github, str, int], tuple[str, ...]] = revert_guard.fetch_pr_labels,
     fingerprint: FingerprintFn = _default_fingerprint,
     read_state: Callable[[str, Sequence[int]], dict[int, PRState]] = state.read_latest_states,
@@ -266,7 +266,8 @@ def prepare(
         read_markers=read_markers,
         read_freshness=read_freshness,
     )
-    pr_numbers, updated_at_by_number, labels_by_number = listing.numbers, listing.updated_at, listing.labels
+    candidates = listing.candidates
+    pr_numbers, updated_at_by_number, labels_by_number = candidates.numbers, candidates.updated_at, candidates.labels
     states = read_state(repo, pr_numbers)
     evaluated_at = now()
     failed: list[int] = []
@@ -278,7 +279,7 @@ def prepare(
         cancel_event = threading.Event()
     authority = Authority(
         rules=snapshot.rules,
-        authors=listing.authors,
+        authors=candidates.authors,
         recorded=states.keys(),
         target=target,
         forced_shadow=entry.mode == "shadow",
@@ -346,8 +347,7 @@ def prepare(
         bot_login=bot_login,
         timeout=timedelta(minutes=timeout_minutes),
         memory=memory,
-        full_tick=listing.full_tick,
-        wide_tick=listing.wide_tick,
+        kind=listing.kind,
         markers=listing.markers,
         listed_at=listed_at,
         evaluated_at=evaluated_at,
@@ -360,7 +360,7 @@ def prepare(
         excluded=excluded,
         skip_on_approval=skip_on_approval,
         labels_by_number=labels_by_number,
-        head_sha_by_number=listing.heads,
+        head_sha_by_number=candidates.heads,
         updated_at_by_number=updated_at_by_number,
         cancel_event=cancel_event,
         poke=poke,

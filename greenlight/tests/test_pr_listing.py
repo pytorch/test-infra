@@ -722,3 +722,32 @@ def test_candidate_fields_name_each_map_and_leave_out_the_author_of_a_refused_ba
     assert candidates.labels == {1: (), 2: ()}
     assert candidates.authors == {1: "alice"}
     assert candidates.heads == {1: None, 2: "sha2"}
+
+
+class _SinglePullRepo:
+    def __init__(self, pull: _FakePull) -> None:
+        self.pull = pull
+        self.asked: list[int] = []
+
+    def get_repo(self, _name: str) -> _SinglePullRepo:
+        return self
+
+    def get_pull(self, number: int) -> _FakePull:
+        self.asked.append(number)
+        return self.pull
+
+
+def test_read_record_builds_one_pr_as_the_listings_build_each_record():
+    pull = _FakePull(7, "carol", updated_at=_NOW, draft=True, state="closed", base_ref="release/2.9", labels=["x"])
+    client = _SinglePullRepo(pull)
+
+    record = pr_listing.read_record(cast("Github", client), TARGET_REPO, 7)
+
+    assert client.asked == [7]
+    assert record == OpenPR(
+        TARGET_REPO, 7, "carol", "fix", "https://example.test/7", "head-sha", _NOW, False, ("x",), True, "closed"
+    )
+
+
+def test_read_record_of_a_pr_that_names_no_author_is_none():
+    assert pr_listing.read_record(cast("Github", _SinglePullRepo(_FakePull(7, None))), TARGET_REPO, 7) is None

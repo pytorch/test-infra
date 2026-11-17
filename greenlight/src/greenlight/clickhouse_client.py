@@ -97,10 +97,6 @@ def query(
     """
     client = connect()
     try:
-        if settings is None:
-            result = client.query(sql, parameters=params)
-        else:
-            result = client.query(sql, parameters=params, settings=settings)
-        return list(result.named_results())
+        return list(client.query(sql, parameters=params, settings=settings).named_results())
     finally:
         client.close()
