@@ -18,7 +18,10 @@ size gate declines an oversized PR by copying a canned verdict in, with no model
 invocation at all, and replaying one measures nothing: the new policy's gate declines it
 again for the same arithmetic reason. The reason code does not separate the two --
 measured 2026-09-18 over the full export, 18 rows carry ``scope_too_large`` and only 12
-are canned -- so the test is the message text, which the gate copies verbatim.
+are canned -- so the test is the message text, which the gate copies verbatim. The
+workflow's staging gates decline the same way, without a model, when no repository policy
+was staged and when the diff touches the repository's ``.github/greenlight``; their rows
+are dropped by message too.
 
 **The landed commit is a rebase, so the first landing cannot be found by SHA.** mergebot
 rewrites the commit onto current ``main`` before pushing, and the resulting SHA appears
@@ -48,6 +51,12 @@ from torchci.greenlight_decisions.rows import (
     to_utc_naive,
 )
 from torchci.greenlight_decisions.sample import lowest_ranked, sample_key, sample_size
+from torchci.greenlight_replay.canned import (
+    CANNED_DECLINE_MESSAGES,
+    CANNED_STAGING_MESSAGES,
+    CANNED_TOO_LARGE_MESSAGES,
+    is_canned_decline,
+)
 from torchci.greenlight_replay.cells import load_rows, to_cell
 from torchci.greenlight_replay.timeline import (
     fetch_first_verdicts,
@@ -69,12 +78,14 @@ if TYPE_CHECKING:
 # from under them; test_frame asserts each is the same object as its source.
 __all__ = [
     "apply_frame",
-    "CANNED_TOO_LARGE_MESSAGES",
+    "CANNED_DECLINE_MESSAGES",  # .canned
+    "CANNED_STAGING_MESSAGES",  # .canned
+    "CANNED_TOO_LARGE_MESSAGES",  # .canned
     "FUNNEL_STAGES",
     "fetch_first_verdicts",  # .timeline
     "fetch_landings",  # .timeline
     "LAND",  # .timeline
-    "is_size_gate_decline",
+    "is_canned_decline",  # .canned
     "Landing",  # .timeline
     "load_rows",  # .cells
     "MAIN_REF",  # .timeline
@@ -99,20 +110,6 @@ _CELL_UTC_OFFSET = "+00:00"
 # head whose content is byte-identical.
 ADMITTED_STALENESS = frozenset({STALENESS_EXACT, STALENESS_REBASE_ONLY})
 
-# Both canned declines the diff-size gate has emitted, from
-# .claude/hooks/greenlight/too-large-verdict.json, whose wording 51c10bcf0 rewrote. Drop
-# either and half the gate's output stays in the frame as though a model had judged it.
-CANNED_TOO_LARGE_MESSAGES = frozenset(
-    {
-        "This change is too large for the automated reviewer to read in full, so it "
-        "is being declined automatically; a human reviewer should assess it.",
-        "- Scope\n"
-        "  - The diff exceeds the size cap the automated reviewer can read in full\n"
-        "  - The size gate declined it before any review ran, so nothing in it was "
-        "examined\n"
-        "  - A human reviewer should assess this change",
-    }
-)
 
 # Everything --as-of moves. PR metadata, human reviews and the size counters read at their
 # latest mirrored value whatever the cutoff, so re-deriving those would not recover the past
@@ -132,30 +129,18 @@ REDERIVED_DECISION_COLUMNS = (
 
 # Every counter apply_frame reports, in the order they read as a funnel. "multi_landing"
 # is not a drop: it counts kept rows whose decision columns still need re-deriving, and
-# whose size-gate test therefore cannot be settled here -- see is_size_gate_decline.
+# whose canned-decline test therefore cannot be settled here -- see is_canned_decline.
 FUNNEL_STAGES = (
     "input",
     "unreadable_pr_number",
     "not_landed",
     "not_decided",
-    "size_gate",
+    "canned",
     "stale",
     "no_verdict_at_first_landing",
     "kept",
     "multi_landing",
 )
-
-
-def is_size_gate_decline(row: Mapping[str, str]) -> bool:
-    """Whether this row's verdict was copied in by the diff-size gate, not written by a model.
-
-    Applied to whichever verdict will actually be replayed: ``apply_frame`` settles it for a
-    row whose verdict is final, and the caller settles it for a re-derived one. The test is
-    the message text rather than ``decision_reason``, because the reviewer writes its own
-    prose under the same reason code -- measured 2026-09-18 over the full export, 18 rows
-    carry ``scope_too_large`` and only 12 are canned.
-    """
-    return row.get("decision_message", "").strip() in CANNED_TOO_LARGE_MESSAGES
 
 
 def apply_frame(
@@ -167,22 +152,22 @@ def apply_frame(
 
     Returns the surviving rows in input order and a funnel counter keyed by
     ``FUNNEL_STAGES``. Each row is charged to the first stage that rejects it, so the
-    counts partition the input and the order of the tests is what they mean: a size-gate
-    decline that is also stale reads as ``size_gate``, the more fundamental of the two.
+    counts partition the input and the order of the tests is what they mean: a canned
+    decline that is also stale reads as ``canned``, the more fundamental of the two.
 
     A row survives when the code landed, greenlight reached a verdict, that verdict was the
-    model's own rather than the size gate's, and the diff it judged is recoverable. That last
+    model's own rather than a gate's, and the diff it judged is recoverable. That last
     test differs by how often the PR landed: with one landing ``verdict_staleness`` compares
     the judged head against the right head; with more it names the wrong landing, so the row
     is instead required to have a verdict at or before the first landing -- the thing
     ``rederive_first_landing`` will go looking for.
 
-    **The size-gate test is only settled here for a row whose verdict is final.** A
+    **The canned-decline test is only settled here for a row whose verdict is final.** A
     multi-landing row's verdict is replaced by ``rederive_first_landing``, and the two can
-    disagree about whether a model ran at all: a PR can be declined by the size gate at its
+    disagree about whether a model ran at all: a PR can be declined by a gate at its
     first landing and genuinely reviewed by its last, or the reverse. Testing the stored
     verdict would then either admit a canned decline for replay or charge a real verdict to
-    ``size_gate``. The caller applies :func:`is_size_gate_decline` to the re-derived row and
+    ``canned``. The caller applies :func:`is_canned_decline` to the re-derived row and
     adds it to the same counter.
 
     ``first_verdicts``, from :func:`fetch_first_verdicts`, is what makes that last test
@@ -215,8 +200,8 @@ def apply_frame(
                 stats["no_verdict_at_first_landing"] += 1
                 continue
             stats["multi_landing"] += 1
-        elif is_size_gate_decline(row):
-            stats["size_gate"] += 1
+        elif is_canned_decline(row):
+            stats["canned"] += 1
             continue
         elif row.get("verdict_staleness") not in ADMITTED_STALENESS:
             stats["stale"] += 1

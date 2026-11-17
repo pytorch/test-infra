@@ -1,0 +1,5 @@
+{
+  "status": "NO_LAND",
+  "reason": "review_error",
+  "message": "- Review policy\n  - No valid repository review policy (`.github/greenlight/review.md` on the default branch); GreenLight cannot review this repository"
+}

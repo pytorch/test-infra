@@ -35,7 +35,7 @@ hook script resolves, and the inference profile maps to a model. That costs a fe
 seconds and about 34 MB. Fetching twice is safe: materializing clears its
 destination and re-extracts, so a dry run does not spoil the real run after it.
 
-What it does not do is the per-run work: the blobless pytorch clone, the worktree
+What it does not do is the per-run work: the blobless clone of the repo, the worktree
 slots, and each pull request's diff, metadata and stack context. Those are
 gigabytes and a few GitHub round trips per pull request, and nothing they could
 tell you is a property of the policy. Everything that fails identically for every
@@ -54,8 +54,9 @@ Runtime requirements:
   reviewer, whose `PATH` is pinned rather than inherited, so both must be
   reachable from `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`; the sweep checks
   this before it starts. On Bedrock, `AWS_REGION` and credentials in `~/.aws`.
-- Disk: one blobless pytorch clone plus a worktree per `--parallelism`, a second
-  sparse clone of pytorch main for the sanitize step, and the policy tree.
+- Disk: one blobless clone of the repo plus a worktree per `--parallelism`, a second
+  sparse clone of the repo (its `.claude/skills` and `.github/greenlight`, at
+  `--trusted-ref` or main) for the sanitize and staging steps, and the policy tree.
   Roughly 1.2-1.8 GB per policy pull request at the default parallelism, kept
   under `--workdir` and never cleaned up automatically.
 
@@ -79,13 +80,14 @@ naming that record, so they need neither ClickHouse nor an authenticated `gh`.
 | `--workdir` | `/tmp/greenlight-replay` | scratch root; keep it under `/tmp/greenlight-*` |
 | `--resume` | off | re-run only what has no verdict yet |
 | `--timeout-minutes` | `37` | wall clock allowed per reviewer run |
-| `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to |
+| `--repo` | `pytorch/pytorch` | which repo the sampled pull requests belong to, `pytorch/<name>` only: it picks the clone, the slot's checkout directory (`pytorch` for pytorch/pytorch, `target` otherwise, as in CI), the trusted tree, the prompt's repo, `restrict-read.py`'s argument and the repo policy staged into the slots (see [WORKSPACE.md](WORKSPACE.md)) |
+| `--trusted-ref` | its main as fetched | full 40-hex commit of `--repo` the trusted tree is checked out at: the skills the sanitize step restores and the repo's own `.github/greenlight/review.md`. CI passes one commit to every arm, so both stage from the same policy |
 | `--model` | the policy's profile, mapped unless on Bedrock | model id for the local CLI |
 | `--context-window` | `1000000` | window that model must report; pair it with `--model` or Bedrock |
 | `--dry-run` | off | resolve the frame and sample, check the invocation, print the bill |
 
 `--sample-n` is an upper bound rather than a promise. A sampled row can still be
-dropped when its first-landing verdict turns out to be a size-gate decline, which
+dropped when its first-landing verdict turns out to be a canned decline, which
 is only known after re-derivation, so the realised sample can come in a row or
 two short. The run logs both numbers; everything downstream — the cost estimate,
 the summary, the degraded ratio — counts what was actually attempted.
@@ -133,7 +135,7 @@ what the column says. Single-landing rows are admitted only at `exact` or
 
 **3. A rate computed over this file is a rate over the frame, not over
 greenlight.** The frame drops pull requests that never landed, ones with no
-verdict, size-gate declines, and stale single-landing verdicts. That is a large
+verdict, canned declines, and stale single-landing verdicts. That is a large
 share of the export and it is not a fixed one — it moves with the corpus.
 Whatever you compute, say which population it is over, and put the run's own
 funnel line beside it; in CI, that line is in the collect job's log.
@@ -166,7 +168,8 @@ list in prose here, which goes stale. Three of those deserve saying out loud:
 **Size-gate declines are excluded.** When the diff was over the workflow's line or
 byte cap, CI dropped a canned `NO_LAND` in place and never started a model.
 Re-running one of those measures the cap, not the policy, so they are dropped
-from the frame by matching the canned message. A *new* cap can still decline a
+from the frame by matching the canned message, as are the staging gates' canned
+declines ([WORKSPACE.md](WORKSPACE.md)). A *new* cap can still decline a
 pull request that was reviewed before; that row keeps the canned verdict, is
 counted as a verdict, and costs nothing — no checkout is taken for it.
 
@@ -192,8 +195,9 @@ stack's is rebuilt best effort, from its membership today, by `stack_native.py`.
 **The step is pinned.** `stack_step.py` and `stack.py` reproduce its ghstack
 branch line by line, bar its check of a sibling's base name, which the rebuild,
 diffing from the base's SHA, never reads. Loading a policy refuses a step
-digesting to neither `stack_step.STEP_SHA256` nor `GHSTACK_ONLY_STEP_SHA256`,
-the ghstack-only version, which replays as CI ran it. Every key but `name`
+digesting to none of `stack_step.STEP_SHA256`, `PYTORCH_ONLY_STEP_SHA256` (the
+version that named pytorch/pytorch rather than the reviewed repo) and
+`GHSTACK_ONLY_STEP_SHA256`, the ghstack-only version, which replays as CI ran it. Every key but `name`
 counts: an edited `run:`, `env` or `shell`, or an added `if:`, is refused. The
 gate finds it by a `run:` naming `/tmp/greenlight-stack` and refuses a second
 one; neither its order nor its job is checked. A policy without the step replays
@@ -285,60 +289,20 @@ consequences:
   rather than reused or deleted. Its verdicts stay on disk beside the new ones,
   under a timestamped name.
 
-## Scratch layout
+## Workspaces, scratch layout and staging
 
-```
-<workdir>/pr-8830/policy/          the materialized policy tree
-<workdir>/pr-8830/runs/<pr>/       diff, metadata, stack JSON and directory, settings, verdict
-<workdir>/pr-8830/checkpoint.jsonl
-<workdir>/pr-8830/pytorch.git      bare clone, with the reviewer slots beside it
-<workdir>/pr-8830/pytorch-main-skills/   sparse checkout for the sanitize step
-```
+What lands under `--workdir`, what each reviewer slot holds and why, and how a
+policy tree with `repo-policy.py` stages the reviewed repo's policy and gates
+before the model are in [WORKSPACE.md](WORKSPACE.md).
 
-Stack context lands in the run directory as `greenlight-stack.json`, with each
-sibling's diff at `greenlight-stack/<n>.diff`. The JSON's `diff` fields keep CI's
-`/tmp/greenlight-stack/<n>.diff` spelling, and the remap hook points the reviewer
-at the run's copies: `/tmp/greenlight-stack.json` as it does the diff and the
-metadata, and the `/tmp/greenlight-stack` directory matched on a path boundary, so
-`/tmp/greenlight-stackX` is left alone. A path under the directory maps to the
-same relative path under `<run_dir>/greenlight-stack`, and one whose `..` would
-climb out of it is not rewritten at all; the read sandbox denies any `..`
-regardless. Both are removed from a reused run directory before a pull request's
-inputs are fetched, so an earlier sweep's stack never reaches a later review.
-
-`run_review` holds the files to the remap before the model is invoked, so a
-mismatch costs nothing. Besides the diff and the metadata sitting where the remap
-points, it refuses a stack JSON anywhere but `<run_dir>/greenlight-stack.json`, a
-`diff` entry the remap does not rewrite or that does not exist where it points,
-and stack files left on disk when no stack was built. Each would otherwise be
-silent: the reviewer would read a missing file, or an earlier sweep's stack, and
-return a verdict that looks real.
-
-The reviewer's workspace root is **a pool slot**, not the policy tree: a slot
-holds the checkout at `pytorch` and a per-slot *copy* of the policy's `.claude`
-beside it, which is the whole of what `restrict-read.py` will let it read.
-
-`runs/` is a sibling of the slots rather than a child, and that is load-bearing.
-Each run directory is passed to the reviewer as its own `--add-dir`, and
-`--restricted` confines the file tools to those roots — which is what isolates
-one concurrent run from another. Nest the run directories under a slot and adding
-that slot would cover all of them at once. `restrict-read.py` is no help here: it
-allows anything under the `/tmp/greenlight-` prefix, other pull requests' run
-directories included.
-
-That prefix is also why `--workdir` should stay under `/tmp/greenlight-*`, and the
-sweep refuses a root that is not. Today this is defence in depth rather than
-load-bearing: the PreToolUse hooks judge the *un-remapped* path, which is always
-allowed, so reads succeed wherever the run directory lives. It keeps the design
-correct against a CLI that chains `updatedInput` between hooks, where a run
-directory outside the prefix would instead deny every read.
+## The model
 
 **The model is mapped, not defaulted.** The policy names a Bedrock inference
 profile, which the local gateway does not resolve, and the runner asserts that the
 model which answered is the one it asked for, so passing it through fails every
 run. Quietly substituting a default is worse: a policy pull request that switches
 models would replay on the model it replaced and read as a clean sweep of the new
-policy. So `sweep.LOCAL_MODELS` translates the profile, an unrecognised one, such
+policy. So `sweep_setup.LOCAL_MODELS` translates the profile, an unrecognised one, such
 as today's, stops the sweep before the clone, and `--model` overrides it. With
 `CLAUDE_CODE_USE_BEDROCK=1` the profile passes through as the CLI's model id.
 **Pair `--model`, or Bedrock, with `--context-window`**: a run reporting any other
@@ -390,9 +354,9 @@ Six deviations, taken deliberately:
   exist to leave a manifest for a later CI step that does not run here.
 
 Everything else comes from the policy tree at the ref under test: the prompt, the
-diff caps, the canned too-large verdict, the schema, the remaining hooks, and the
-sanitize step that strips the reviewed checkout's own agent instructions before
-the model sees it.
+diff caps, the canned too-large verdict, the schema, the remaining hooks, the
+staging script and its canned verdicts, and the sanitize step that strips the
+reviewed checkout's own agent instructions before the model sees it.
 
 **It invokes `claude` directly rather than through any local wrapper**, because a
 wrapper that forces its own flags makes `--restricted` unusable and loads MCP

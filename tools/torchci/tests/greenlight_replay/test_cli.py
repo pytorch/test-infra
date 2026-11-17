@@ -67,6 +67,7 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertEqual(args.workdir, options.DEFAULT_WORKDIR)
         self.assertEqual(args.repo, "pytorch/pytorch")
         self.assertIsNone(args.model)
+        self.assertIsNone(args.trusted_ref)
         self.assertIsNone(args.output)
         self.assertFalse(args.resume)
         self.assertFalse(args.dry_run)
@@ -136,6 +137,25 @@ class TestArgumentParsing(unittest.TestCase):
                 (argparse.ArgumentTypeError, ValueError)
             ):
                 options.fraction(bad)
+
+    def test_the_trusted_ref_is_a_full_lowercase_commit_sha(self):
+        base = ["--input", "c.csv", "--policy-pr", "8830", "--sample-n", "5"]
+        sha = "0123456789abcdef0123456789abcdef01234567"
+        self.assertEqual(self.parse([*base, "--trusted-ref", sha]).trusted_ref, sha)
+        for bad in (
+            sha.upper(),
+            sha[:39],
+            sha + "0",
+            "main",
+            f"-{sha[1:]}",
+            f"{sha}\n",
+            f" {sha}",
+            "",
+        ):
+            with self.subTest(bad=bad):
+                self.assertIn(
+                    "--trusted-ref", self.rejected([*base, "--trusted-ref", bad])
+                )
 
     def test_parallelism_must_be_at_least_one(self):
         self.assertEqual(options.positive_int("1"), 1)

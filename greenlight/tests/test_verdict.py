@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import gzip
 import json
 import logging
@@ -650,7 +651,7 @@ def test_land_whose_lookup_refuses_the_moved_head_is_shadow_and_approves_nothing
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
     assert pr.created_reviews == []
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert _decode(emit.row_gzip)["shadow"] is True
 
 
@@ -1116,7 +1117,7 @@ def test_shadow_land_dismisses_the_prior_approval_a_demoted_author_still_holds(m
 
     verdict.run(req, make_config(github_token="tok"), build_github=lambda t: gh, emit=emit, now=lambda: _FIXED)
 
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
     assert pr.created_reviews == []
     assert _decode(emit.row_gzip)["shadow"] is True
@@ -2260,7 +2261,7 @@ def test_land_on_the_primary_with_an_invalid_file_is_shadow(make_config, tmp_pat
     )
 
     assert pr.created_reviews == []
-    assert rec.events == ["emit", "dismiss:1"]
+    assert rec.events == ["dismiss:1", "emit"]
     assert _decode(emit.row_gzip)["shadow"] is True
     assert eligibility.calls == []
 
@@ -2432,3 +2433,64 @@ def test_a_drci_entry_never_gets_greenlights_own_comment(make_config, tmp_path, 
     )
 
     assert rec.events == ["emit", "review:APPROVE"]
+
+
+@pytest.mark.parametrize("settings", [pytest.param(_NO_FILE, id="absent"), pytest.param(_UNREADABLE, id="unreadable")])
+def test_a_requested_shadow_land_with_no_usable_settings_dismisses_first_then_fails(
+    make_config, tmp_path, set_repo_settings, settings
+):
+    set_repo_settings("pytorch/vision", settings)
+    rec = _Recorder()
+    emit = _FakeEmit(rec)
+    pr = _FakePR("h", rec, reviews=[_FakeReview(1, _BOT, "APPROVED", rec)])
+
+    with pytest.raises(ValueError, match="no valid GreenLight settings"):
+        verdict.run(
+            dataclasses.replace(_land(tmp_path), shadow=True),
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=emit,
+            now=lambda: _FIXED,
+        )
+
+    assert rec.events == ["dismiss:1"]
+    assert emit.row_gzip is None
+
+
+class _FailingEmit:
+    def __init__(self, rec: _Recorder) -> None:
+        self._rec = rec
+
+    def __call__(self, row_gzip: bytes, key: str) -> None:
+        self._rec.events.append("emit")
+        raise OSError("disk full")
+
+
+@pytest.mark.parametrize(
+    ("entry", "requested", "author"),
+    [
+        pytest.param(_vision_entry(mode="shadow"), False, _TRUSTED_AUTHOR, id="config-shadow"),
+        pytest.param(_vision_entry(), True, _TRUSTED_AUTHOR, id="requested-shadow"),
+        pytest.param(_vision_entry(), False, _SHADOW_AUTHOR, id="eligibility-shadow"),
+    ],
+)
+def test_a_shadow_land_dismisses_once_before_an_emit_that_fails(
+    make_config, tmp_path, set_repo_settings, eligibility, entry, requested, author
+):
+    set_repo_settings("pytorch/vision", _valid(entry))
+    rec = _Recorder()
+    reviews = [_FakeReview(1, _BOT, "APPROVED", rec)]
+    pr = _FakePR("h", rec, reviews=reviews, author=author)
+
+    with pytest.raises(OSError, match="disk full"):
+        verdict.run(
+            dataclasses.replace(_land(tmp_path), shadow=requested),
+            make_config(github_token="tok"),
+            build_github=lambda t: _FakeGithub(_FakeRepo(pr)),
+            emit=_FailingEmit(rec),
+            now=lambda: _FIXED,
+        )
+
+    assert rec.events == ["dismiss:1", "emit"]
+    assert reviews[0].dismissed_with == verdict._SUPERSEDED_MESSAGE
+    assert pr.created_reviews == []

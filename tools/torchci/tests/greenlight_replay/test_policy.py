@@ -27,7 +27,8 @@ from torchci.greenlight_replay import (
     workflow as workflow_mod,
 )
 from torchci.greenlight_replay.checkout import SCRUBBED_GIT_VARS
-from torchci.greenlight_replay.policy import materialize, Policy, render_prompt
+from torchci.greenlight_replay.policy import materialize
+from torchci.greenlight_replay.prompt import render_prompt
 
 
 CHECKOUT_SEAM = "_checkout"
@@ -359,28 +360,90 @@ class CannedVerdictTest(PolicyTreeTestCase):
         self.assertIn("uses allOf", str(caught.exception))
 
 
-class UnclosedInterpolationTest(unittest.TestCase):
-    """A ``${{`` that never closes must not render verbatim into the prompt."""
+NO_POLICY_VERDICT = {
+    "status": "NO_LAND",
+    "reason": "review_error",
+    "message": "- Review policy\n  - none staged",
+}
+GREENLIGHT_FILES_VERDICT = {
+    "status": "NO_LAND",
+    "reason": "not_trivial",
+    "message": "- Merge authorization\n  - touched",
+}
 
-    def test_a_single_closing_brace_aborts(self):
-        template = "review PR #${{ github.event.inputs.pr_number }"
+
+class RepoPolicyScriptTest(PolicyTreeTestCase):
+    """A tree with repo-policy.py stages and gates with its own canned verdicts; one
+    without does neither and needs none of them."""
+
+    def write_script(self, no_policy=NO_POLICY_VERDICT, files=GREENLIGHT_FILES_VERDICT):
+        hooks = self.root / policy_mod.HOOKS_RELPATH
+        hooks.mkdir(parents=True, exist_ok=True)
+        script = hooks / policy_mod.REPO_POLICY_FILENAME
+        script.write_text("print('staged=true')\n")
+        for name, verdict in (
+            (policy_mod.NO_POLICY_FILENAME, no_policy),
+            (policy_mod.GREENLIGHT_FILES_FILENAME, files),
+        ):
+            if verdict is None:
+                (hooks / name).unlink(missing_ok=True)
+            else:
+                (hooks / name).write_text(json.dumps(verdict))
+        return script
+
+    def load(self):
+        with mock.patch.object(policy_mod, CHECKOUT_SEAM):
+            return materialize("8829", self.root)
+
+    def test_a_tree_without_the_script_has_no_staging(self):
+        result = self.materialize([action_step(), sizecheck_step()])
+        self.assertIsNone(result.repo_policy_script)
+        self.assertIsNone(result.no_policy_verdict)
+        self.assertIsNone(result.greenlight_files_verdict)
+
+    def test_a_tree_with_the_script_reads_its_own_canned_verdicts(self):
+        write_tree(self.root, [action_step(), sizecheck_step()])
+        script = self.write_script()
+        result = self.load()
+        self.assertEqual(result.repo_policy_script, script)
+        self.assertEqual(result.no_policy_verdict, NO_POLICY_VERDICT)
+        self.assertEqual(result.greenlight_files_verdict, GREENLIGHT_FILES_VERDICT)
+
+    def test_two_trees_with_different_canned_files_keep_their_own(self):
+        reworded = dict(
+            GREENLIGHT_FILES_VERDICT, message="- Merge authorization\n  - b"
+        )
+        write_tree(self.root, [action_step(), sizecheck_step()])
+        self.write_script()
+        first = self.load()
+        self.write_script(files=reworded)
+        second = self.load()
+        self.assertEqual(first.greenlight_files_verdict, GREENLIGHT_FILES_VERDICT)
+        self.assertEqual(second.greenlight_files_verdict, reworded)
+
+    def test_a_missing_canned_file_aborts_only_with_the_script(self):
+        for missing in ("no_policy", "files"):
+            with self.subTest(missing=missing):
+                write_tree(self.root, [action_step(), sizecheck_step()])
+                self.write_script(**{missing: None})
+                with self.assertRaises(FileNotFoundError):
+                    self.load()
+
+    def test_a_canned_file_the_schema_rejects_aborts(self):
+        write_tree(self.root, [action_step(), sizecheck_step()])
+        self.write_script(files=dict(GREENLIGHT_FILES_VERDICT, reason="too_chunky"))
         with self.assertRaises(ValueError) as caught:
-            render_prompt(make_policy(template), 1, "a" * 40)
-        self.assertIn("never closes", str(caught.exception))
+            self.load()
+        self.assertIn("too_chunky", str(caught.exception))
 
-    def test_an_opener_at_the_very_end_aborts(self):
-        with self.assertRaises(ValueError):
-            render_prompt(make_policy("review PR ${{"), 1, "a" * 40)
-
-    def test_a_well_formed_template_is_unaffected(self):
-        rendered = render_prompt(make_policy(PROMPT), 7, "e" * 40)
-        self.assertNotIn("${{", rendered)
-
-    def test_a_substituted_value_carrying_an_opener_is_still_allowed(self):
-        # The guard reads the template, not the output: an odd head_sha is not the
-        # policy author's malformed markup.
-        rendered = render_prompt(make_policy(PROMPT), 1, "${{ unclosed")
-        self.assertIn("${{ unclosed", rendered)
+    def test_the_shipped_canned_files_pass_the_shipped_schema(self):
+        hooks = REPO_ROOT / policy_mod.HOOKS_RELPATH
+        if not (hooks / policy_mod.REPO_POLICY_FILENAME).is_file():
+            self.skipTest("this checkout has no repo-policy.py")
+        with mock.patch.object(policy_mod, CHECKOUT_SEAM):
+            result = materialize("main", REPO_ROOT)
+        self.assertEqual(result.no_policy_verdict["reason"], "review_error")
+        self.assertEqual(result.greenlight_files_verdict["reason"], "not_trivial")
 
 
 class ShippedWorkflowTest(unittest.TestCase):
@@ -400,60 +463,21 @@ class ShippedWorkflowTest(unittest.TestCase):
         self.assertEqual(len(result.review_budget_minutes), 3)
         for minutes in result.review_budget_minutes:
             self.assertGreater(minutes, 0)
-        self.assertIn(policy_mod.PR_NUMBER_EXPR, result.prompt_template)
-        self.assertIn(policy_mod.HEAD_SHA_EXPR, result.prompt_template)
 
     def test_the_shipped_prompt_renders_with_no_interpolation_left(self):
         with mock.patch.object(policy_mod, CHECKOUT_SEAM):
             result = materialize("main", REPO_ROOT)
-        rendered = render_prompt(result, 193118, "a" * 40)
-        self.assertNotIn("${{", rendered)
-        self.assertIn("193118", rendered)
-        self.assertIn("a" * 40, rendered)
-
-
-def make_policy(prompt_template: str) -> Policy:
-    return Policy(
-        root=Path("/nonexistent"),
-        prompt_template=prompt_template,
-        max_diff_lines=2000,
-        max_diff_bytes=500000,
-        review_budget_minutes=(20, 25, 33),
-        too_large_verdict=dict(TOO_LARGE_VERDICT),
-        schema_path=Path("/nonexistent/schema.json"),
-        sanitize_script=Path("/nonexistent/sanitize.sh"),
-        hooks_dir=Path("/nonexistent/hooks"),
-        model="global.anthropic.claude-opus-5",
-        effort="high",
-        tools="Read,Glob,Grep,Write",
-    )
-
-
-class RenderPromptTest(unittest.TestCase):
-    """An interpolation the harness cannot resolve never reaches the model."""
-
-    def test_both_dispatch_inputs_are_substituted(self):
-        rendered = render_prompt(make_policy(PROMPT), 193118, "b" * 40)
-        self.assertEqual(
-            rendered,
-            f"You are reviewing pytorch/pytorch PR #193118\nat commit {'b' * 40}.\n",
-        )
-
-    def test_whitespace_inside_the_braces_does_not_defeat_substitution(self):
-        template = "PR ${{github.event.inputs.pr_number}} at ${{  \n"
-        template += "  github.event.inputs.head_sha  }}"
-        rendered = render_prompt(make_policy(template), 7, "c" * 40)
-        self.assertEqual(rendered, f"PR 7 at {'c' * 40}")
-
-    def test_an_unknown_interpolation_aborts_naming_the_expression(self):
-        template = PROMPT + "run ${{ github.run_id }}"
-        with self.assertRaises(ValueError) as caught:
-            render_prompt(make_policy(template), 1, "d" * 40)
-        self.assertIn("github.run_id", str(caught.exception))
-
-    def test_a_substituted_value_carrying_braces_is_not_rescanned(self):
-        rendered = render_prompt(make_policy(PROMPT), 1, "${{ secrets.GITHUB_TOKEN }}")
-        self.assertIn("${{ secrets.GITHUB_TOKEN }}", rendered)
+        for repo, checkout in (
+            ("pytorch/pytorch", "./pytorch"),
+            ("pytorch/vision", "./target"),
+        ):
+            with self.subTest(repo=repo):
+                rendered = render_prompt(result, 193118, "a" * 40, repo)
+                self.assertNotIn("${{", rendered)
+                self.assertIn("193118", rendered)
+                self.assertIn("a" * 40, rendered)
+                self.assertIn(f"{repo} PR #193118", rendered)
+                self.assertIn(checkout, rendered)
 
 
 class RefspecTest(unittest.TestCase):

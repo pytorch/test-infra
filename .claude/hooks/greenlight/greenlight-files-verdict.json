@@ -1,0 +1,5 @@
+{
+  "status": "NO_LAND",
+  "reason": "not_trivial",
+  "message": "- Merge authorization\n  - The change touches .github/greenlight/, where the repository keeps its GreenLight config and review policy\n  - GreenLight never approves a change there; a human reviewer must assess it"
+}

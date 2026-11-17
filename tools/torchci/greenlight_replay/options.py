@@ -9,6 +9,7 @@ accepts; nothing else parses argv.
 from __future__ import annotations
 
 import argparse
+import re
 
 from torchci.greenlight_decisions.__main__ import fraction, positive_int
 from torchci.greenlight_decisions.query import DEFAULT_REPO
@@ -25,6 +26,17 @@ DEFAULT_TIMEOUT_MINUTES = 37
 # -- so a run directory anywhere else has every read of the diff and the metadata
 # denied, and the reviewer returns a verdict about a pull request it never saw.
 DEFAULT_WORKDIR = "/tmp/greenlight-replay"
+
+# A trusted ref is passed to git as a fetched object name, so only a full commit SHA.
+_TRUSTED_REF = re.compile(r"[0-9a-f]{40}")
+
+
+def trusted_ref(text: str) -> str:
+    if not _TRUSTED_REF.fullmatch(text):
+        raise argparse.ArgumentTypeError(
+            f"not a full 40-character lowercase hex commit SHA: {text!r}"
+        )
+    return text
 
 
 class _Parser(argparse.ArgumentParser):
@@ -114,6 +126,13 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
         "--repo",
         default=DEFAULT_REPO,
         help="owner/name the sampled pull requests belong to (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--trusted-ref",
+        type=trusted_ref,
+        default=None,
+        help="commit of --repo to take the trusted skills and the repo's own review "
+        "policy from, the same for every arm (default: its main as fetched)",
     )
     parser.add_argument(
         "--model",

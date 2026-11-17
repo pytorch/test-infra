@@ -1,4 +1,4 @@
-"""Worktree pool that materializes reviewed pytorch/pytorch commits for replay.
+"""Worktree pool that materializes the reviewed repo's commits for replay.
 
 A replay evaluates hundreds of historical PRs, each pinned to a different head SHA, and
 runs several reviewers at once. The naive shape -- one shallow clone per PR -- pays the
@@ -30,12 +30,13 @@ previous PR's deletions forward -- the next PR then gets reviewed against a tree
 never have produced. Every acquisition therefore resets the slot before use.
 
 Each slot is laid out as a reviewer workspace rather than as a bare checkout: the worktree
-is ``<slot>/pytorch`` and ``<slot>`` is what the reviewer is given as ``GITHUB_WORKSPACE``.
+is ``<slot>/<checkout_dirname(repo)>`` -- ``pytorch`` for pytorch/pytorch, ``target`` for
+any other repo -- and ``<slot>`` is what the reviewer is given as ``GITHUB_WORKSPACE``.
 That is not cosmetic. ``restrict-read.py`` computes its allowed roots as
-``<workspace>/pytorch`` and ``<workspace>/.claude/{skills,hooks}``, and ``--restricted``
+``<workspace>/<checkout>`` and ``<workspace>/.claude/{skills,hooks}``, and ``--restricted``
 confines the file tools to the ``--add-dir`` roots after resolving symlinks -- so a shared
 workspace pointing at a per-run checkout through a symlink would be denied, and a single
-shared ``pytorch`` directory cannot serve concurrent reviews at all. Giving every slot its
+shared checkout directory cannot serve concurrent reviews at all. Giving every slot its
 own workspace parent satisfies both with no indirection. The caller populates
 ``<slot>/.claude`` from the policy tree.
 
@@ -57,19 +58,27 @@ import threading
 from collections.abc import Iterator, Sequence
 from pathlib import Path
 
+from torchci.greenlight_decisions.query import DEFAULT_REPO
+
 
 __all__ = [
+    "CHECKOUT_DIRNAMES",
+    "DEFAULT_REPO",
     "GitError",
-    "PYTORCH_REPO_URL",
     "SCRUBBED_GIT_VARS",
     "WorktreePool",
+    "checkout_dirname",
+    "clone_url",
     "git_env",
+    "require_repo",
 ]
 
-PYTORCH_REPO_URL = "https://github.com/pytorch/pytorch.git"
+# The only checkout directories restrict-read.py accepts as its argument.
+CHECKOUT_DIRNAMES = ("pytorch", "target")
 
-# restrict-read.py hardcodes <workspace>/pytorch as the checkout it will serve reads from.
-PYTORCH_CHECKOUT_DIRNAME = "pytorch"
+# GreenLight serves repos of the pytorch org alone, and a repo's policy file is named
+# after the part past the slash, so nothing else is a repo this harness can replay.
+_REVIEWED_REPO = re.compile(r"pytorch/[A-Za-z0-9._-]+")
 
 _SHA_RE = re.compile(r"\A[0-9a-f]{40}\Z")
 
@@ -103,6 +112,33 @@ def _require_sha(head_sha: str) -> str:
     if not _SHA_RE.match(head_sha or ""):
         raise GitError(f"not a full 40-character lowercase hex SHA: {head_sha!r}")
     return head_sha
+
+
+def require_repo(repo: str) -> str:
+    """Return ``repo`` when it is ``pytorch/<name>``, the shape the workflow accepts.
+
+    It becomes a clone URL, a directory name and a policy file name, so ``.`` and ``..``
+    are refused as names. Another spelling of pytorch/pytorch is refused too: the
+    workflow reaches pytorch/pytorch only by that exact name, and this one would be
+    reviewed under the wrong checkout directory and policy file.
+    """
+    name = repo.partition("/")[2]
+    if (
+        not _REVIEWED_REPO.fullmatch(repo)
+        or name in (".", "..")
+        or (repo != DEFAULT_REPO and repo.lower() == DEFAULT_REPO.lower())
+    ):
+        raise ValueError(f"not a pytorch/<name> repo this harness can replay: {repo!r}")
+    return repo
+
+
+def checkout_dirname(repo: str) -> str:
+    """The workspace directory the workflow checks ``repo`` out into."""
+    return "pytorch" if require_repo(repo) == "pytorch/pytorch" else "target"
+
+
+def clone_url(repo: str) -> str:
+    return f"https://github.com/{require_repo(repo)}.git"
 
 
 def _require_url(repo_url: str) -> str:
@@ -167,17 +203,21 @@ class WorktreePool:
         self,
         bare_clone: Path,
         slots: int,
-        repo_url: str = PYTORCH_REPO_URL,
+        repo_url: str = clone_url(DEFAULT_REPO),
+        dirname: str = checkout_dirname(DEFAULT_REPO),
     ) -> None:
         if slots < 1:
             raise ValueError(f"slots must be at least 1, got {slots}")
+        if dirname not in CHECKOUT_DIRNAMES:
+            raise ValueError(
+                f"checkout directory {dirname!r} is not one of {CHECKOUT_DIRNAMES}"
+            )
         self.bare_clone = Path(bare_clone).resolve()
         self.repo_url = _require_url(repo_url)
         self.slots = slots
         self.slot_root = self.bare_clone.parent / f"{self.bare_clone.name}-slots"
         self._free = [
-            self.slot_root / f"slot-{index}" / PYTORCH_CHECKOUT_DIRNAME
-            for index in range(slots)
+            self.slot_root / f"slot-{index}" / dirname for index in range(slots)
         ]
         self._in_use: set[Path] = set()
         self._pool_lock = threading.Lock()
@@ -186,7 +226,7 @@ class WorktreePool:
 
     @staticmethod
     def workspace_of(worktree: Path) -> Path:
-        """The ``GITHUB_WORKSPACE`` root that holds ``worktree`` as its ``pytorch`` dir."""
+        """The ``GITHUB_WORKSPACE`` root that holds ``worktree`` as its checkout dir."""
         return Path(worktree).parent
 
     def ensure_clone(self) -> None:

@@ -4,6 +4,10 @@ The manual scan mints two tokens, as ``app_tokens.AppTokens`` does: a ``pytorch/
 the dispatch, the only one with ``actions``, and a repo token for the one repo it scans, with no
 ``actions``. Nothing at run time ties the workflow's ``permission-*`` inputs to the Python permission
 sets, so these tests do.
+
+The reviewer workflow (``greenlight-pr-review.yml``) scopes each of its mints to the repo its job's
+``greenlight target`` step validated: an empty ``repositories`` with ``owner`` set would mint for every
+repo of the installation.
 """
 
 from __future__ import annotations
@@ -119,3 +123,44 @@ def test_the_scan_step_reads_both_tokens_and_scans_the_one_repo():
 
 def test_no_step_runs_every_repo():
     assert "--all-repos" not in (ROOT / _WORKFLOW).read_text()
+
+
+_REVIEWER = ".github/workflows/greenlight-pr-review.yml"
+_REVIEWER_JOBS: dict[str, Any] = yaml.safe_load((ROOT / _REVIEWER).read_text())["jobs"]
+_TARGET_NAME = "${{ steps.target.outputs.name }}"
+
+
+def _reviewer_mints() -> dict[str, tuple[int, dict[str, Any]]]:
+    found: dict[str, tuple[int, dict[str, Any]]] = {}
+    for job, spec in _REVIEWER_JOBS.items():
+        for index, step in enumerate(spec["steps"]):
+            if str(step.get("uses", "")).startswith(_TOKEN_ACTION):
+                assert job not in found, f"{_REVIEWER}: job {job} mints more than one App token"
+                found[job] = (index, step)
+    return found
+
+
+def test_the_reviewer_mints_only_in_the_two_row_writing_jobs():
+    assert sorted(_reviewer_mints()) == ["announce_start", "record"]
+
+
+def test_every_reviewer_mint_is_scoped_to_its_jobs_validated_target():
+    for job, (index, step) in _reviewer_mints().items():
+        assert (step["with"]["owner"], step["with"]["repositories"]) == (_OWNER, _TARGET_NAME), job
+        target = [i for i, s in enumerate(_REVIEWER_JOBS[job]["steps"]) if s.get("id") == "target"]
+        assert target, f"{_REVIEWER}: job {job} has no target step"
+        assert target[0] < index, f"{_REVIEWER}: job {job} mints before validating its target"
+        assert "permission-actions" not in step["with"]
+
+
+def test_the_record_mint_never_runs_without_a_validated_target():
+    _index, step = _reviewer_mints()["record"]
+    assert step["if"] == "always() && steps.target.outcome == 'success'"
+    assert step["continue-on-error"] is True
+
+
+def test_the_announce_mint_reads_the_config_and_keeps_the_implicit_success():
+    _index, step = _reviewer_mints()["announce_start"]
+    assert "if" not in step
+    assert step["continue-on-error"] is True
+    assert step["with"]["permission-contents"] == "read"

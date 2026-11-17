@@ -10,8 +10,9 @@ name: GreenLight policy replay
 # which code runs with the Bedrock role; gate names it first, so a PR from another branch fails there.
 #
 # Both arms are pinned by SHA, the base arm to the merge base so later policy on main is not credited to
-# the PR. collect draws the sample and records both arms' GitHub reads once, and each replay job reads
-# only that, so all judge the same inputs. Credentials last an hour and are rewritten every 15 minutes, so
+# the PR, and both take the reviewed repo's trusted tree (its skills and its own review policy) from the
+# one main commit plan resolves. collect draws the sample and records both arms' GitHub reads once, and
+# each replay job reads only that, so all judge the same inputs. Credentials last an hour and are rewritten every 15 minutes, so
 # while that works a reviewer (at most 37 minutes) never outlives them. Cost: replicates x 2 arms x the
 # sample reviewer runs, each at the harness's estimate; the sample is GREENLIGHT_REPLAY_SAMPLE_FRACTION of
 # the decisions the frame keeps, at most GREENLIGHT_REPLAY_SAMPLE_CAP.
@@ -63,6 +64,7 @@ jobs:
       base_sha: ${{ steps.resolve.outputs.base_sha }}
       head_sha: ${{ steps.resolve.outputs.head_sha }}
       replicates: ${{ steps.resolve.outputs.replicates }}
+      trusted_sha: ${{ steps.resolve.outputs.trusted_sha }}
     steps:
       - name: Resolve the pull request and its merge base
         id: resolve
@@ -106,6 +108,10 @@ jobs:
           [[ "$merge_base" =~ ^[0-9a-f]{40}$ ]] || { echo "unexpected merge base for #$pr_number: '$merge_base'" >&2; exit 1; }
           echo "Comparing #$pr_number: base policy at $merge_base, change at $HEAD_SHA"
           echo "base_sha=$merge_base" >>"$GITHUB_OUTPUT"
+          trusted_sha=$(gh api repos/pytorch/pytorch/commits/main --jq .sha)
+          [[ "$trusted_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "unexpected pytorch/pytorch main commit: '$trusted_sha'" >&2; exit 1; }
+          echo "Trusted tree of pytorch/pytorch at $trusted_sha"
+          echo "trusted_sha=$trusted_sha" >>"$GITHUB_OUTPUT"
 
   gate:
     needs: plan
@@ -178,6 +184,7 @@ jobs:
       REPLICATE: ${{ matrix.replicate }}
       BASE_SHA: ${{ needs.plan.outputs.base_sha }}
       HEAD_SHA: ${{ needs.plan.outputs.head_sha }}
+      TRUSTED_SHA: ${{ needs.plan.outputs.trusted_sha }}
     steps:
       - name: Checkout test-infra
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -231,6 +238,7 @@ jobs:
             *) policy_sha= ;;
           esac
           [[ "$policy_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid policy commit for arm '$ARM': '$policy_sha'" >&2; exit 1; }
+          [[ "$TRUSTED_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "invalid trusted commit: '$TRUSTED_SHA'" >&2; exit 1; }
           session="greenlight-policy-replay-$GITHUB_RUN_ID-$ARM-$REPLICATE"
           [[ "$session" =~ ^[A-Za-z0-9_+=,.@-]{2,64}$ ]] || { echo "invalid role session name: '$session'" >&2; exit 1; }
           out="$RUNNER_TEMP/greenlight-replay-out"
@@ -302,6 +310,7 @@ jobs:
           PYTHONPATH=. python3 -m torchci.greenlight_replay \
             --input "$RUNNER_TEMP/greenlight-collected/sample.csv" --presampled \
             --policy-ref "$policy_sha" \
+            --trusted-ref "$TRUSTED_SHA" \
             --parallelism "$GREENLIGHT_REPLAY_PARALLELISM" \
             --context-window "$GREENLIGHT_REPLAY_CONTEXT_WINDOW" \
             --output "$out/replay.csv" >"$out/harness.log" 2>&1 || rc=$?

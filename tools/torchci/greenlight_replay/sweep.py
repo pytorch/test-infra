@@ -1,9 +1,9 @@
 """Running the sampled pull requests: the slot pool, the workspaces, the fan-out.
 
-Everything one sweep needs that does not depend on argv. ``open_sweep`` builds
-the state a run draws on -- the policy tree, the shared clone, the trusted
-skills -- and ``run_sweep`` drives the sampled rows through it, recording each
-finished pull request in the checkpoint as it goes.
+Everything one sweep needs that does not depend on argv. ``sweep_setup.open_sweep``
+builds the state a run draws on -- the policy tree, the shared clone, the trusted
+tree, the staged policy -- and ``run_sweep`` drives the sampled rows through it,
+recording each finished pull request in the checkpoint as it goes.
 
 A pool slot is the reviewer's ``GITHUB_WORKSPACE``, and what one has to hold for
 the reviewer to read anything is ``workspace``'s subject rather than this
@@ -15,33 +15,39 @@ remaining ones are not worth paying for.
 from __future__ import annotations
 
 import contextlib
-import json
 import logging
 import signal
 import threading
 from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from torchci.greenlight_decisions.__main__ import parse_as_of
 from torchci.greenlight_replay.checkout import WorktreePool
 from torchci.greenlight_replay.emit import append_checkpoint
-from torchci.greenlight_replay.inputs import build_inputs, ReplayInputs
-from torchci.greenlight_replay.policy import materialize as materialize_policy, Policy
-from torchci.greenlight_replay.preflight import preflight
+from torchci.greenlight_replay.inputs import (
+    _fetch_diff as fetch_diff,
+    build_inputs,
+    DIFF_FILENAME,
+    ReplayInputs,
+)
+from torchci.greenlight_replay.policy import Policy
 from torchci.greenlight_replay.runner import (
-    bedrock_enabled,
-    DEFAULT_MODEL,
+    canned_result,
     Outcome,
     run_review,
     RunResult,
-    schema_support_violation,
 )
-from torchci.greenlight_replay.settings import assert_hooks_present
-from torchci.greenlight_replay.trusted_skills import materialize_trusted_skills
-from torchci.greenlight_replay.workspace import install_policy_half, sanitize_checkout
+from torchci.greenlight_replay.sweep_setup import (  # collect.py's import
+    POLICY_DIRNAME as POLICY_DIRNAME,
+    Sweep,
+)
+from torchci.greenlight_replay.workspace import (
+    install_policy_half,
+    sanitize_checkout,
+    touches_verdict,
+)
 
 
 # A run directory is passed to the reviewer as its own ``--add-dir``, and
@@ -50,16 +56,7 @@ from torchci.greenlight_replay.workspace import install_policy_half, sanitize_ch
 # than a child -- adding the workspace would otherwise cover every run directory
 # beneath it at once. restrict-read.py does not help: it allows anything under
 # the /tmp/greenlight- prefix, other pull requests' run directories included.
-POLICY_DIRNAME = "policy"
-BARE_CLONE_DIRNAME = "pytorch.git"
-TRUSTED_SKILLS_DIRNAME = "pytorch-main-skills"
 RUNS_DIRNAME = "runs"
-
-# The workflow names a Bedrock inference profile and a CLI off Bedrock names a
-# model, so off Bedrock the profile is translated into a model. Mapped rather than
-# defaulted: a policy pull request that switches models would otherwise replay
-# silently on the model it replaced and read as a clean sweep of the new policy.
-LOCAL_MODELS = {"global.anthropic.claude-opus-5": DEFAULT_MODEL}
 
 # Outcomes the warm-up cannot recover from, because none of them depends on
 # which pull request was reviewed: the model the gateway resolved, the schema the
@@ -86,128 +83,6 @@ logger = logging.getLogger(__name__)
 
 class SweepAborted(RuntimeError):
     """The warm-up run failed in a way every remaining run would repeat."""
-
-
-@dataclass(frozen=True)
-class Sweep:
-    """Everything one re-review needs that does not vary between pull requests."""
-
-    policy: Policy
-    pool: WorktreePool
-    trusted_skills: Path
-    model: str
-    context_window: int
-    workdir: Path
-    checkpoint_path: Path
-    repo: str
-    timeout_s: int
-    interrupted: threading.Event
-    checkpoint_lock: threading.Lock = field(default_factory=threading.Lock)
-    workspace_lock: threading.Lock = field(default_factory=threading.Lock)
-    prepared: set[Path] = field(default_factory=set)
-    # A list, not a mapping by number: a row whose number cell will not parse is
-    # itself one of the failures here, so there is no key and two must not merge.
-    errors: list[tuple[str, str]] = field(default_factory=list)
-
-
-def open_sweep(
-    *,
-    policy_ref: str,
-    workdir: Path,
-    checkpoint_path: Path,
-    repo: str,
-    parallelism: int,
-    timeout_s: int,
-    model: str | None,
-    context_window: int,
-    interrupted: threading.Event,
-) -> Sweep:
-    """Materialize the policy, the shared clone and the trusted skills tree.
-
-    ``model`` overrides what the policy's own inference profile maps to; without
-    one an unrecognised profile stops a sweep off Bedrock here, before the clone
-    and before anything is spent.
-    """
-    preflight(workdir, policy_ref)
-    policy, model = prepare_policy(policy_ref, workdir, model)
-    pool = WorktreePool(
-        workdir / BARE_CLONE_DIRNAME,
-        parallelism,
-        repo_url=f"https://github.com/{repo}.git",
-    )
-    pool.ensure_clone()
-    return Sweep(
-        policy=policy,
-        pool=pool,
-        trusted_skills=materialize_trusted_skills(workdir / TRUSTED_SKILLS_DIRNAME),
-        model=model,
-        context_window=context_window,
-        workdir=workdir,
-        checkpoint_path=checkpoint_path,
-        repo=repo,
-        timeout_s=timeout_s,
-        interrupted=interrupted,
-    )
-
-
-def prepare_policy(
-    policy_ref: str, workdir: Path, model: str | None
-) -> tuple[Policy, str]:
-    """Materialize the policy and refuse anything about it a sweep cannot survive.
-
-    Every fault found here is a property of the policy rather than of any pull
-    request, so each would otherwise fail every review in the sweep identically.
-    Safe to run twice: ``materialize`` clears its destination and re-extracts, so
-    a dry run doing this does not spoil the real run that follows it.
-    """
-    policy = materialize_policy(policy_ref, workdir / POLICY_DIRNAME)
-    check_schema(policy)
-    # A hook that cannot exec does not deny, it silently does not run.
-    assert_hooks_present(policy)
-    model = model or local_model(policy.model)
-    logger.info(
-        "policy %s asks for %s; running %s locally", policy_ref, policy.model, model
-    )
-    return policy, model
-
-
-def local_model(profile: str) -> str:
-    """The local CLI's name for the Bedrock inference profile the policy asks for.
-
-    On Claude Code's Bedrock provider (``runner.bedrock_enabled``) the profile is
-    itself the model id the CLI takes, so it passes through unchanged. Anywhere
-    else it is mapped, and raises rather than falling back. The runner asserts
-    that the model which answered is the one it asked for, so a profile passed
-    through to another backend fails every run; a profile quietly replaced by
-    the default reviews the new policy on the old policy's model and reads as a
-    clean sweep, which is worse.
-    """
-    if bedrock_enabled():
-        return profile
-    try:
-        return LOCAL_MODELS[profile]
-    except KeyError:
-        raise ValueError(
-            f"the policy asks for {profile!r}; this harness maps only "
-            f"{', '.join(sorted(LOCAL_MODELS))}. Pass --model to name one"
-        ) from None
-
-
-def check_schema(policy: Policy) -> None:
-    """Refuse a verdict schema the runner could not read or could not interpret.
-
-    Both are properties of the policy rather than of any pull request, so either
-    fails every review in the sweep identically -- and a keyword the validator
-    does not implement fails them twice, since each gets retried first. Checked
-    once here instead, before anything is spent.
-    """
-    try:
-        schema = json.loads(Path(policy.schema_path).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as exc:
-        raise ValueError(f"{policy.schema_path} is not readable JSON: {exc}") from exc
-    unsupported = schema_support_violation(schema)
-    if unsupported is not None:
-        raise ValueError(f"{policy.schema_path} cannot be interpreted: {unsupported}")
 
 
 def run_sweep(
@@ -270,7 +145,20 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
         head_sha = row["decision_head_sha"]
         run_dir = sweep.workdir / RUNS_DIRNAME / str(number)
         run_dir.mkdir(parents=True, exist_ok=True)
-        replay_inputs = row_inputs(sweep.repo, row, run_dir, sweep.policy)
+        canned, diff = (
+            (sweep.policy.no_policy_verdict, None)
+            if not sweep.staged
+            else diff_gate(sweep.repo, row, run_dir, sweep.policy)
+        )
+        if canned is not None:
+            # The staging gates decline ahead of the size gate, as in the workflow,
+            # and before any metadata or stack context is read, so a fault there
+            # never costs a verdict that needs none of it.
+            result = canned_result(canned)
+            with sweep.checkpoint_lock:
+                append_checkpoint(sweep.checkpoint_path, row, result)
+            return result.outcome
+        replay_inputs = row_inputs(sweep.repo, row, run_dir, sweep.policy, diff)
 
         def review(workspace: Path) -> RunResult:
             return run_review(
@@ -283,6 +171,7 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
                 timeout_s=sweep.timeout_s,
                 model=sweep.model,
                 context_window=sweep.context_window,
+                repo=sweep.repo,
             )
 
         if replay_inputs.too_large:
@@ -308,13 +197,18 @@ def run_one(sweep: Sweep, row: Mapping[str, str]) -> Outcome | None:
 
 
 def row_inputs(
-    repo: str, row: Mapping[str, str], run_dir: Path, policy: Policy
+    repo: str,
+    row: Mapping[str, str],
+    run_dir: Path,
+    policy: Policy,
+    diff: bytes | None = None,
 ) -> ReplayInputs:
     """Build one sampled row's reviewer inputs into ``run_dir``.
 
-    The collect job records the GitHub calls this makes and every replay job is
-    answered from that record, so both ask through here: a call made any other way
-    is one the record does not hold.
+    ``diff`` is the compare diff ``diff_gate`` already fetched, so the gate and the
+    reviewer judge one snapshot. The collect job records the GitHub calls this and
+    ``diff_gate`` make and every replay job is answered from that record, so both ask
+    through these two: a call made any other way is one the record does not hold.
     """
     return build_inputs(
         repo,
@@ -324,7 +218,25 @@ def row_inputs(
         parse_as_of(row["decision_version"]),
         run_dir,
         policy,
+        diff=diff,
     )
+
+
+def diff_gate(
+    repo: str, row: Mapping[str, str], run_dir: Path, policy: Policy
+) -> tuple[dict[str, str] | None, bytes | None]:
+    """The policy's canned verdict for the row's diff, and the diff it judged.
+
+    The diff is fetched alone, before any other input, and handed on to ``row_inputs``
+    so it is never fetched twice. A tree without ``repo-policy.py`` has no diff gate and
+    fetches nothing here: ``(None, None)``.
+    """
+    if policy.repo_policy_script is None:
+        return None, None
+    diff = fetch_diff(repo, row["base_ref"], row["decision_head_sha"])
+    diff_path = run_dir / DIFF_FILENAME
+    diff_path.write_bytes(diff)
+    return touches_verdict(policy, diff_path), diff
 
 
 def prepare_workspace(sweep: Sweep, worktree: Path) -> Path:
@@ -337,7 +249,7 @@ def prepare_workspace(sweep: Sweep, worktree: Path) -> Path:
     workspace = WorktreePool.workspace_of(worktree)
     with sweep.workspace_lock:
         if workspace not in sweep.prepared:
-            install_policy_half(sweep.policy.root, worktree)
+            install_policy_half(sweep.policy_source, worktree, sweep.repo)
             sweep.prepared.add(workspace)
     return workspace
 

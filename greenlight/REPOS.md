@@ -43,6 +43,9 @@ repo opts in by itself, with no change to GreenLight:
    `pytorch` installation. A repo owner without that permission asks any `pytorch` org admin to add
    it.
 2. They commit `.github/greenlight/config.yml`, `mode: shadow` first, and protect it as above.
+3. They commit the repo's review policy, `.github/greenlight/review.md`, in the same directory (see
+   "Reviewing a repo's PRs"). Without a valid one every review of the repo declines with a
+   `review_error` `NO_LAND`.
 
 The file names no repo: it belongs to the repo it sits in. Every value is read as a string: a bare
 `off` is the mode `off`, not a YAML boolean. `greenlight check-config PATH --repo OWNER/NAME`
@@ -125,7 +128,8 @@ Always from the repo's default branch through the contents API, never from a PR 
 - **Verdict** (the record job): at record time, with the job's token, through the patient client the
   eligibility check uses (it rides out a short rate limit). A `LAND` or `NO_LAND` on a
   repo with no usable settings (no file outside `pytorch/pytorch`, an invalid file, any read
-  failure but a 404) fails with no row; a `NO_LAND` still dismisses GreenLight's approval first.
+  failure but a 404) fails with no row; a `NO_LAND`, or a `LAND` the dispatch marks shadow, still
+  dismisses GreenLight's approval first.
   An invalid `pytorch/pytorch` file makes the verdict shadow, as safety-only repos do.
 - **Markers** (`CANCELLED`, `FAILED`, `AI_REVIEW_STARTED`) never fail closed on the read: on any
   failure, a missing token included, `pytorch/pytorch` falls back to its built-in entry, served,
@@ -205,6 +209,52 @@ rechecks that PR, without it it scans the repo once, with no lease and no stored
 same two permission sets as the Lambda (`tests/test_review_workflow_tokens.py` pins them), its repo
 token covering that repo alone.
 
+## Reviewing a repo's PRs
+
+The scan dispatches `greenlight-pr-review.yml` with the PR's repo as its `repo` input, empty for
+`pytorch/pytorch` (so its concurrency group, `greenlight-pr-review-<pr>`, is unchanged; any other repo's
+is `greenlight-pr-review-<repo>:<pr>`). Every job first runs `greenlight target` (`workflow_target.py`)
+and uses only its outputs (`repo`, `name`, `pr`, `head_sha`, `checkout`, `drci_poke`):
+
+- `--strict` (`announce_start`, the review job, and the record job when the review exported nothing):
+  the inputs' shapes (an empty repo is `pytorch/pytorch`, which no other spelling names; `pytorch/<name>`;
+  the PR number; the head SHA), then, for any repo but `pytorch/pytorch`, the live checks above and a
+  served or safety-only config, read with the job's read-only token. `pytorch/pytorch` makes no read.
+- `--from-review` (the record job when the review succeeded): the `repo` and `drci_poke` the review job
+  exported, checked again with no read, the repo against what the dispatch's own `repo` input names;
+  `name` and `checkout` are derived from the repo. So no read stands before the App-token mint on the one
+  path that can dismiss an approval.
+
+Both modes require the head SHA.
+
+Each App token is minted for the validated repo alone. The reviewed repo is checked out under
+`./pytorch` for `pytorch/pytorch` and `./target` for any other repo, and a sparse checkout of its
+`main` takes `.claude/skills` and `.github/greenlight`.
+
+**The review policy.** The general policy (`.claude/skills/greenlight-review/SKILL.md` in
+`pytorch/test-infra`) reads one repository policy at `.claude/skills/greenlight-review/repo-policy.md`.
+`.claude/hooks/greenlight/repo-policy.py stage` fills that slot from the repo's
+`.github/greenlight/review.md` on `main`, read from git objects, never through the filesystem (the
+directories must be trees and the file a regular blob, so no symlink is followed). The file must be
+UTF-8, at most 64 KiB, and have the sections `## User-facing surface`, `## Merge-gating workflows`,
+`## Lint gate` and `## Test layout`; `### Meta-internal only` is required for `pytorch/pytorch` and refused
+elsewhere. `repo-policy.py check FILE --repo OWNER/NAME` runs those checks offline, for a repo's own CI.
+`pytorch/pytorch` keeps the built-in policy in that slot until its own file exists; any other repo
+without a valid file has no slot. Only `main` counts: a PR's own `review.md` is reviewed as data.
+
+**Canned verdicts.** Before the model, in this order, the review job copies a canned `NO_LAND` from
+`.claude/hooks/greenlight/` and skips the model: `review_error` (`no-policy-verdict.json`) when no valid
+policy was staged; `not_trivial` (`greenlight-files-verdict.json`) when the diff touches
+`.github/greenlight/` (the path itself, anything under it, either side of a rename or copy) or
+`.github/` itself, or a header `repo-policy.py touches` cannot parse, so GreenLight never approves a
+change to a repo's own config or policy; `scope_too_large` (`too-large-verdict.json`) from the size gate. The record job records
+and dismisses on them as on any `NO_LAND`.
+
+**Residual.** GitHub compares concurrency group names case-insensitively and evaluates them from the
+raw input, so a case variant of another repo's name joins that repo's group and can cancel its run;
+its own run then fails `greenlight target`. Dispatching needs `actions: write`, which can cancel runs
+anyway.
+
 ## Caches and the TTL trade-off
 
 The scan keeps each repo's eligibility source, one cache per repo, `eligibility` and
@@ -236,6 +286,7 @@ are in README.md's "Layout"):
 - `drain.py`: the `off` drain; `scan_memory.py` keeps its progress between ticks, with the
   stored form the state store keeps.
 - `snapshot_cache.py`: the TTL cache each repo's eligibility source is read through.
+- `workflow_target.py`: `greenlight target`, the reviewer workflow's input gate ("Reviewing a repo's PRs").
 - `writers.py`: `write_permission` eligibility: the holders of the repo's minimum role as one rule
   for the scan, and one author's role for the verdict.
 - `author_eligibility.py`: the verdict's live eligibility check (`has_eligible_author`), from either

@@ -50,13 +50,11 @@ from torchci.greenlight_replay.sweep import (
     ESTIMATED_COST_USD,
     ESTIMATED_MINUTES,
     interrupt_guard,
-    open_sweep,
     pr_number,
-    prepare_policy,
     run_sweep,
     runs_are_trustworthy,
-    Sweep,
 )
+from torchci.greenlight_replay.sweep_setup import open_sweep, prepare_policy, Sweep
 
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -143,6 +141,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 model=args.model,
                 context_window=args.context_window,
                 interrupted=interrupted,
+                trusted_ref=args.trusted_ref,
             )
         except Exception as exc:
             logger.error(
@@ -197,8 +196,9 @@ def log_plan(
         "caps, verdict schema, hook scripts, model mapping"
     )
     logger.info(
-        "  not checked: the pytorch clone and each pull request's diff and "
-        "metadata, which are per-run work this deliberately does not do"
+        "  not checked: the repo's clone, its trusted tree and the policy staged "
+        "from it, and each pull request's diff and metadata, which are per-run "
+        "work this deliberately does not do"
     )
     logger.info(
         "policy %s, model %s",

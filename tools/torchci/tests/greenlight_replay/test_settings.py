@@ -7,7 +7,9 @@ to confirm the reason the harness treats them the way it does still holds.
 
 import dataclasses
 import json
+import os
 import shlex
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -16,14 +18,20 @@ from torchci.greenlight_replay import runner, settings
 from torchci.greenlight_replay.hooks import remap
 
 
+def script_of(command: str) -> str:
+    """The script a hook command line runs, past its interpreter and before its args."""
+    words = shlex.split(command)
+    return words[1] if words[0] == "python3" else words[0]
+
+
 class SettingsTestCase(ScratchTestCase):
     def setUp(self):
         self.run_dir = self.scratch("greenlight-settings-")
         self.policy = replay_policy(self.run_dir)
 
-    def settings(self):
+    def settings(self, *repo):
         return json.loads(
-            settings.write_settings(self.policy, self.run_dir).read_text()
+            settings.write_settings(self.policy, self.run_dir, *repo).read_text()
         )
 
     def commands(self, event):
@@ -136,9 +144,9 @@ class TestHookCommandQuoting(SettingsTestCase):
     def test_a_space_in_the_hooks_path_is_quoted_not_split(self):
         self.policy = dataclasses.replace(self.policy, hooks_dir=self.spaced_hooks())
         for command in self.commands("PreToolUse") + self.commands("PostToolUse"):
-            words = shlex.split(command)
             self.assertTrue(
-                Path(words[-1]).is_file(), f"{command!r} does not resolve to a script"
+                Path(script_of(command)).is_file(),
+                f"{command!r} does not resolve to a script",
             )
 
     def test_a_workdir_with_a_space_still_passes_the_run_dir_guard(self):
@@ -176,7 +184,80 @@ class TestMissingHook(SettingsTestCase):
 
     def test_every_registered_hook_resolves_to_a_real_script(self):
         for command in self.commands("PreToolUse") + self.commands("PostToolUse"):
-            self.assertTrue(Path(shlex.split(command)[-1]).is_file(), command)
+            self.assertTrue(Path(script_of(command)).is_file(), command)
+
+
+class TestReadSandboxCheckout(SettingsTestCase):
+    """``restrict-read.py`` serves the checkout the reviewed repo's workflow lays out.
+
+    The workflow hands it the checkout directory as its one argument. Handed the wrong
+    one, every read of the code under review is denied and the reviewer answers anyway,
+    so the command line is checked, and then run, against the policy tree's real script.
+    """
+
+    def read_sandbox(self, *repo):
+        entries = self.settings(*repo)["hooks"]["PreToolUse"]
+        (command,) = [
+            entry["hooks"][0]["command"]
+            for entry in entries
+            if "restrict-read.py" in entry["hooks"][0]["command"]
+        ]
+        return command
+
+    def test_the_checkout_directory_is_the_scripts_one_argument(self):
+        for repo, checkout in (
+            ((), "pytorch"),
+            (("pytorch/pytorch",), "pytorch"),
+            (("pytorch/vision",), "target"),
+        ):
+            with self.subTest(repo=repo):
+                words = shlex.split(self.read_sandbox(*repo))
+                self.assertEqual(
+                    words,
+                    [
+                        "python3",
+                        str(self.policy.hooks_dir / "restrict-read.py"),
+                        checkout,
+                    ],
+                )
+
+    def test_a_repo_the_harness_cannot_replay_writes_no_settings(self):
+        with self.assertRaises(ValueError):
+            settings.write_settings(self.policy, self.run_dir, "facebook/vision")
+        self.assertFalse((self.run_dir / settings.SETTINGS_FILENAME).exists())
+
+    def run_read_sandbox(self, command, workspace, target):
+        event = {"tool_name": "Read", "tool_input": {"file_path": str(target)}}
+        return subprocess.run(
+            command,
+            shell=True,
+            input=json.dumps(event),
+            capture_output=True,
+            text=True,
+            check=False,
+            env={"PATH": os.environ["PATH"], "GITHUB_WORKSPACE": str(workspace)},
+        )
+
+    def test_the_policy_trees_script_serves_that_checkout_and_no_other(self):
+        # Outside /tmp/greenlight-*, which the script admits wholesale as scratch.
+        workspace = self.scratch("replay-settings-workspace-")
+        for checkout in ("pytorch", "target"):
+            (workspace / checkout).mkdir()
+            (workspace / checkout / "setup.py").write_text("")
+        for repo, served, other in (
+            ("pytorch/pytorch", "pytorch", "target"),
+            ("pytorch/vision", "target", "pytorch"),
+        ):
+            with self.subTest(repo=repo):
+                command = self.read_sandbox(repo)
+                allowed = self.run_read_sandbox(
+                    command, workspace, workspace / served / "setup.py"
+                )
+                self.assertEqual(allowed.returncode, 0, allowed.stderr)
+                denied = self.run_read_sandbox(
+                    command, workspace, workspace / other / "setup.py"
+                )
+                self.assertEqual(denied.returncode, 2, denied.stderr)
 
 
 class TestReExport(SettingsTestCase):

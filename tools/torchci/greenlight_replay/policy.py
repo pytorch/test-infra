@@ -67,7 +67,6 @@ __all__ = [
     "WORKFLOW_RELPATH",
     "materialize",
     "refspec",
-    "render_prompt",
 ]
 
 logger = logging.getLogger(__name__)
@@ -78,18 +77,17 @@ HOOKS_RELPATH = ".claude/hooks/greenlight"
 SCHEMA_FILENAME = "verdict-schema.json"
 SANITIZE_FILENAME = "sanitize-untrusted-checkout.sh"
 TOO_LARGE_FILENAME = "too-large-verdict.json"
-
-PR_NUMBER_EXPR = "github.event.inputs.pr_number"
-HEAD_SHA_EXPR = "github.event.inputs.head_sha"
+REPO_POLICY_FILENAME = "repo-policy.py"
+# The canned verdicts the workflow copies, beside repo-policy.py, when it stages no
+# policy for the repo and when the diff touches the repo's .github/greenlight.
+NO_POLICY_FILENAME = "no-policy-verdict.json"
+GREENLIGHT_FILES_FILENAME = "greenlight-files-verdict.json"
 
 # A git ref name, safe to pass as an argv element and to splice into a REST path.
 # The leading class rejects a value starting with "-", which git would read as an
 # option, and the lookahead rejects "..", which git forbids in a ref name anyway and
 # which would otherwise let a base ref forge a second "..." inside a compare path.
 GIT_REF_PATTERN = re.compile(r"(?!.*\.\.)[A-Za-z0-9_][A-Za-z0-9_./-]*")
-
-_INTERPOLATION = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
-_INTERPOLATION_OPEN = re.compile(r"\$\{\{")
 
 _GIT_TIMEOUT_SECONDS = 600
 
@@ -112,6 +110,12 @@ class Policy:
     ``stack_context`` says which stack context each replay gets: the one the workflow's
     stack step collects, by the :mod:`.stack_step` pin it digests to, and none without
     the step.
+
+    ``repo_policy_script`` is the tree's ``repo-policy.py``, which stages the reviewed
+    repo's policy into each workspace and gates on the diff, or ``None`` for a tree
+    from before it, whose workspaces are copied and gated as they are. With it come
+    the tree's canned verdicts for those gates, ``no_policy_verdict`` and
+    ``greenlight_files_verdict``, read and checked as ``too_large_verdict`` is.
     """
 
     root: Path
@@ -127,6 +131,9 @@ class Policy:
     effort: str
     tools: str
     stack_context: StackContext = StackContext.NONE
+    repo_policy_script: Path | None = None
+    no_policy_verdict: dict[str, str] | None = None
+    greenlight_files_verdict: dict[str, str] | None = None
 
 
 def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> Policy:
@@ -161,6 +168,14 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
         raise ValueError(f"{schema_path}: {unsupported}")
     context = stack_context(document, workflow_path)
     logger.info("stack context is %s for %s", context.value, ref)
+    repo_policy_script: Path | None = None
+    no_policy, greenlight_files = None, None
+    if (hooks_dir / REPO_POLICY_FILENAME).is_file():
+        repo_policy_script = hooks_dir / REPO_POLICY_FILENAME
+        no_policy = _canned_verdict(hooks_dir / NO_POLICY_FILENAME, schema)
+        greenlight_files = _canned_verdict(
+            hooks_dir / GREENLIGHT_FILES_FILENAME, schema
+        )
 
     return Policy(
         root=root,
@@ -168,7 +183,7 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
         max_diff_lines=max_lines,
         max_diff_bytes=max_bytes,
         review_budget_minutes=review_budgets(document, workflow_path),
-        too_large_verdict=_too_large_verdict(hooks_dir / TOO_LARGE_FILENAME, schema),
+        too_large_verdict=_canned_verdict(hooks_dir / TOO_LARGE_FILENAME, schema),
         schema_path=schema_path,
         sanitize_script=_require_file(hooks_dir / SANITIZE_FILENAME),
         hooks_dir=hooks_dir,
@@ -176,56 +191,10 @@ def materialize(ref: str, workdir: Path, *, repo: str = DEFAULT_POLICY_REPO) -> 
         effort=effort,
         tools=tools,
         stack_context=context,
+        repo_policy_script=repo_policy_script,
+        no_policy_verdict=no_policy,
+        greenlight_files_verdict=greenlight_files,
     )
-
-
-def render_prompt(policy: Policy, pr_number: int, head_sha: str) -> str:
-    """Resolve the two dispatch-input interpolations the prompt template carries.
-
-    Any other ``${{ ... }}`` aborts. An unresolved interpolation is not a crash, it is
-    a successful-looking run: the reviewer is told it is reviewing PR
-    ``${{ github.event.inputs.pr_number }}`` and returns a verdict about nothing.
-    """
-    _reject_unclosed(policy.prompt_template)
-    substitutions = {
-        PR_NUMBER_EXPR: str(pr_number),
-        HEAD_SHA_EXPR: head_sha,
-    }
-    unresolved: list[str] = []
-
-    def replace(match: re.Match[str]) -> str:
-        expression = match.group(1).strip()
-        if expression in substitutions:
-            return substitutions[expression]
-        unresolved.append(expression)
-        return match.group(0)
-
-    # One pass: a substituted value that itself contains "${{" is never rescanned.
-    rendered = _INTERPOLATION.sub(replace, policy.prompt_template)
-    if unresolved:
-        raise ValueError(
-            "prompt template carries interpolations this harness cannot resolve: "
-            + ", ".join(sorted(set(unresolved)))
-        )
-    return rendered
-
-
-def _reject_unclosed(template: str) -> None:
-    """Every ``${{`` in the template must open a well-formed interpolation.
-
-    The substitution pattern only sees balanced ``${{ ... }}``, so a template carrying
-    ``${{ github.event.inputs.pr_number }`` -- one closing brace -- renders verbatim and
-    trips nothing, which defeats the whole guard. Checked against the template rather
-    than the rendered text so that a substituted value which happens to contain ``${{``
-    is not mistaken for the policy's own malformed markup.
-    """
-    for match in _INTERPOLATION_OPEN.finditer(template):
-        if _INTERPOLATION.match(template, match.start()) is None:
-            excerpt = template[match.start() : match.start() + 60]
-            raise ValueError(
-                "prompt template carries an interpolation that never closes: "
-                f"{excerpt!r}"
-            )
 
 
 def refspec(ref: str) -> str:
@@ -369,12 +338,12 @@ def _git(argv: list[str], *, cwd: Path, ceiling: Path) -> None:
         )
 
 
-def _too_large_verdict(path: Path, schema: Mapping[str, Any]) -> dict[str, str]:
-    """The canned decline, read from the tree and held to the tree's own schema.
+def _canned_verdict(path: Path, schema: Mapping[str, Any]) -> dict[str, str]:
+    """A canned decline, read from the tree and held to the tree's own schema.
 
-    Validated rather than merely shape-checked because this verdict is emitted with no
+    Validated rather than merely shape-checked because such a verdict is emitted with no
     model ever running, so nothing downstream re-checks it. A policy PR that mistyped
-    ``status`` would have every oversized pull request land a blank ``new_decision`` --
+    ``status`` would have every pull request it declines land a blank ``new_decision`` --
     the emit layer drops a status outside LAND/NO_LAND -- and nothing would say why.
 
     The schema comes from the materialized tree, so a policy PR that widens the reason
