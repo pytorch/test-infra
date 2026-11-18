@@ -256,6 +256,9 @@ describe("release routes", () => {
       />
     );
     expect(html).toContain("Release 2.16.0 artifacts");
+    expect(html).toContain(
+      "Showing final-release artifacts and test-channel observations for rc3."
+    );
     expect(html).toContain("Expected");
     expect(html).toContain("Size-anomalous");
     expect(html).toContain("1 unexpected artifact in this selection.");
@@ -361,6 +364,30 @@ describe("release routes", () => {
       />
     );
     expect(html).toContain("Showing 1 of 1 matching artifacts");
+  });
+
+  test("artifact caption reflects the selected channel, not only the API RC", () => {
+    const render = (channel: string, page: ArtifactPage = artifacts) =>
+      renderToStaticMarkup(
+        <ReleaseArtifactsPageContent
+          version="2.16.0"
+          artifacts={resource(page)}
+          index={resource(index)}
+          query={{ channel }}
+          onPrevious={undefined}
+          onNext={undefined}
+        />
+      );
+
+    const release = render("release");
+    expect(release).toContain("Showing final-release artifacts.");
+    expect(release).not.toContain("observations for rc3");
+    expect(render("test")).toContain(
+      "Showing test-channel observations for rc3."
+    );
+    expect(render("test", { ...artifacts, rc: null })).toContain(
+      "No test-channel RC observations yet."
+    );
   });
 
   test("fetches the release index only for an unknown release", () => {

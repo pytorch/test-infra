@@ -140,6 +140,21 @@ function matchingArtifactCount(page: ArtifactPage, verdict?: string): number {
   }
 }
 
+function artifactScopeCaption(
+  channel: string | undefined,
+  rc: string | null
+): string {
+  if (channel === "release") return "Showing final-release artifacts.";
+  if (channel === "test") {
+    return rc === null
+      ? "No test-channel RC observations yet."
+      : `Showing test-channel observations for ${rc}.`;
+  }
+  return rc === null
+    ? "Showing final-release artifacts; no test-channel RC observations yet."
+    : `Showing final-release artifacts and test-channel observations for ${rc}.`;
+}
+
 export function ReleaseArtifactsPageContent({
   version,
   artifacts,
@@ -208,9 +223,7 @@ export function ReleaseArtifactsPageContent({
           Release {version} artifacts
         </Typography>
         <Typography color="text.secondary">
-          {page.rc === null
-            ? "No release candidate is selected."
-            : `Showing observations for ${page.rc}.`}
+          {artifactScopeCaption(selected.channel, page.rc)}
         </Typography>
       </Stack>
 
